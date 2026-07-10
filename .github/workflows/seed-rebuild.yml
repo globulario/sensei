@@ -31,7 +31,7 @@ name: Seed rebuild (auto-commit)
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 permissions:
   contents: write
@@ -52,26 +52,16 @@ jobs:
           # the push fast-forward-safe.
           fetch-depth: 0
 
-      - name: Checkout services (awareness YAML + intent sources)
-        uses: actions/checkout@v4
-        with:
-          repository: globulario/services
-          path: services
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
           cache-dependency-path: go.sum
 
-      - name: Rebuild seed + generated YAML (deterministic, in place)
-        env:
-          SERVICES_REPO: ${{ github.workspace }}/services
-        run: scripts/build-awareness-graph.sh
+      - name: Rebuild seed + generated YAML (deterministic, in place, self-only)
+        run: scripts/build-awareness-graph-self.sh
 
       - name: Commit refreshed seed + stamp if the seed changed, gated on integrity
-        env:
-          SERVICES_REPO: ${{ github.workspace }}/services
         run: |
           set -euo pipefail
 
@@ -108,4 +98,4 @@ jobs:
           git commit \
             -m "chore(awareness): auto-rebuild seed + stamp from authored corpus" \
             -m "Regenerated golang/server/embeddata/{awareness.nt,awareness.transaction.tsv} and the awareness-graph-owned docs/awareness/generated/ YAML from the authored corpus after a merge to master (GC-2). The stamp is committed WITH the seed (it certifies the digest); the commit is gated on build + embedded-seed integrity tests. No [skip ci] — the change is integrity-checked in-workflow before it lands."
-          git push origin HEAD:master
+          git push origin HEAD:main
