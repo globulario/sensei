@@ -22,6 +22,7 @@
 ## Main operational docs
 
 - [Repository README](../README.md)
+- [Onboard an existing repo](./onboard-existing-repo.md) — repeatable recipe (+ `scripts/awg-init-repo.sh`) to stand up an awareness graph on a repo you didn't author it for: structural bootstrap, history mining, and the judgment passes
 - [Initialize](./initialize.md) — local bootstrap, load, reload, and troubleshooting
 - [Skill Ingestion](./skill-ingestion.md) — generate review-only AWG candidates from external `SKILL.md` agent skill packs
 - [Local User Services](./initialize-user-services.md) — supervised local `systemd --user` runtime for AWG and Oxigraph
