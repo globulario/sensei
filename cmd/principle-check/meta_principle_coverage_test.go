@@ -188,6 +188,17 @@ func gatedInstancesFromMakefile(t *testing.T) []string {
 }
 
 func TestMetaPrincipleCoverage(t *testing.T) {
+	// Combined-build governance ratchet. The code_scanner enforcement tier is
+	// auto-derived from ruleguard rules scanned across the awareness-graph +
+	// services build; without the services checkout that coverage is absent
+	// (code_scanner collapses ~25→1) and services-owned meta.* principles have no
+	// classification, so the completeness gate cannot be satisfied. This ratchet
+	// therefore runs in the combined build; the standalone (open-source) build
+	// skips it. Set SERVICES_REPO or place a services checkout as a sibling to run it.
+	if svc := servicesRepoRoot(); func() bool { fi, err := os.Stat(svc); return err != nil || !fi.IsDir() }() {
+		t.Skip("meta-principle coverage ratchet requires the services checkout (combined-build governance)")
+	}
+
 	// The generic meta.* corpus lives in awareness-graph. The coverage registry is
 	// AWG-owned too. If a services checkout is available, merge its instance →
 	// parent links so local ruleguard instances can still inherit richer
