@@ -1,0 +1,30 @@
+invariants:
+    - domain: repo
+      detect:
+        applies_to_paths:
+            - modules/caddyhttp/**/caddyfile.go
+        forbidden_pattern: \bfmt\.Errorf\(
+        required_pattern: \bdispenser\.Errf\(
+        message: Use dispenser.Errf(...) in a Caddyfile unmarshaler so the error keeps its source location; fmt.Errorf strips it.
+        enforcement: block
+      id: caddy.reverseproxy.forwardauth_errf_preserves_location
+      origin: coldsource
+      protects:
+        files:
+            - modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go
+      provenance:
+        bundle_id: caddy-reverseproxy-forwardauth-2026-06
+        citations:
+            - github.com/caddyserver/caddy#7814 review comment 3390101816 (modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go:135)
+            - github.com/caddyserver/caddy#7814 review comment 3390255669 (modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go:134)
+        commit_range: HEAD~500..HEAD
+        confidence_at_promotion: high
+        discovered_from: 'coldsource: caddy_pr_comments.json — PR #7814 review thread on modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go'
+        promoted_from: candidate
+        review_label: load-bearing
+      repo: github.com/caddyserver/caddy
+      severity: medium
+      source_set: pilot/caddy
+      status: active
+      summary: Errors raised while parsing Caddyfile directives must be created with dispenser.Errf(...) (the Caddyfile dispenser's error constructor), never with fmt.Errorf(...). dispenser.Errf attaches the source file and line of the offending directive; fmt.Errorf strips that context, so the operator gets an error with no location in their Caddyfile. This is a load-bearing convention across every Caddyfile unmarshaler in the codebase, not a style preference — it is what makes config errors actionable.
+      title: Caddyfile directive errors must use dispenser.Errf, not fmt.Errorf

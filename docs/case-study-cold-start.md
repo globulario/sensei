@@ -86,5 +86,5 @@ high volume of AI-assisted change without losing the design that makes it work.
 ---
 
 *Status: early. The cold-start path is validated on Linux and macOS with Go
-installed. See [first-tester-checklist.md](first-tester-checklist.md) if you'd
-like to try it and tell us where it breaks.*
+installed. Try it and [open an issue](https://github.com/globulario/awareness-graph/issues)
+where it breaks.*

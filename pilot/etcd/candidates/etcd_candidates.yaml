@@ -1,0 +1,168 @@
+# Reviewed cold-source candidates for github.com/etcd-io/etcd.
+#
+# PROVENANCE / HONESTY: these are persisted from the prior etcd cold-source
+# dry-run (live LLM drafter) and its scoring transcript — NOT a fresh,
+# cage-verified mining pass. Unlike pilot/caddy (whose citations are real PR
+# comment ids from a committed fixture), the etcd evidence below is DESCRIPTIVE:
+# it names the file/symbol/bug as analysed, but the specific commit SHAs / PR
+# comment ids were not independently re-verified in this pass. Treat these as
+# reviewed candidate MATERIAL, not promotable-as-is. Any promotion MUST first
+# re-verify the citations against the etcd repo (the cage rejects uncited drafts).
+#
+# The importer skips any directory named "candidates", so nothing here ever
+# reaches a graph until explicitly promoted. Status is candidate; none are
+# promoted (Phase E persists, it does not promote).
+#
+# Cross-language note: #1 and #2 are the two etcd findings that, together with
+# the vite findings, corroborated the now-committed meta-principle
+# meta.code.identity_bound_state_must_not_be_copied (identity/aliasing).
+candidates:
+  - id: etcd.server.etcdserver.proto_struct_with_mutex_must_not_be_copied
+    class: forbidden_fix
+    status: candidate
+    confidence: high
+    label: "Do not copy a proto struct that embeds a mutex — pass a pointer (copylock)"
+    risk: high
+    summary: >-
+      Assigning `*confState = *newConfState` copies a generated proto struct by
+      value; that struct embeds a sync primitive (state/mutex), so the copy
+      duplicates lock state and `go vet`'s copylock check forbids it. Mutate
+      through a pointer instead. The meaning of a lock is bound to its identity;
+      copying it forks the lock and silently breaks mutual exclusion.
+    protects:
+      files:
+        - server/etcdserver/server.go
+    related_invariants:
+      - meta.code.identity_bound_state_must_not_be_copied
+    evidence: >-
+      etcd cold-source (transcript): a `*confState = *newConfState` value-copy of
+      a proto struct with an embedded mutex, flagged by go vet copylock. Maps to
+      the identity/aliasing meta-principle. Citation is descriptive (transcript-
+      derived); re-verify the exact commit before promotion.
+    discovered_from: >-
+      prior etcd cold-source dry-run (live LLM drafter); Phase-D transcript
+      analysis — not independently re-verified in this pass.
+    repo: github.com/etcd-io/etcd
+    domain: repo
+    source_set: pilot/etcd
+    origin: coldsource
+    provenance:
+      bundle_id: etcd-server-etcdserver-2026-06
+      commit_range: "unknown (transcript-derived; re-derive on promotion)"
+      citations:
+        - "etcd cold-source transcript: confState proto-struct copylock finding (descriptive, unverified)"
+      review_label: load-bearing
+      note: "transcript-derived; citations are descriptive, not re-verified commit/PR ids"
+
+  - id: etcd.server.etcdserver.raft_message_must_be_copied_before_shared_mutation
+    class: failure_mode
+    status: candidate
+    confidence: medium
+    label: "A raft message shared across consumers must be copied before mutation"
+    risk: high
+    summary: >-
+      In processMessages, mutating `m.To` on a message that is ALSO handed to
+      another consumer (msgSnapC) races: one path mutates the shared object while
+      the other reads it. Observed to cause a data race and data loss on a
+      single-node cluster. Defensively copy the message before the divergent
+      consumers, or fence ownership.
+    protects:
+      files:
+        - server/etcdserver/raft.go
+    related_invariants:
+      - meta.code.identity_bound_state_must_not_be_copied
+    evidence: >-
+      etcd cold-source (transcript): processMessages mutated m.To on a message
+      shared with msgSnapC → race + data loss on a 1-node cluster. Aliased
+      shared-mutable state. Citation descriptive (transcript-derived); re-verify
+      before promotion.
+    discovered_from: >-
+      prior etcd cold-source dry-run (live LLM drafter); Phase-D transcript
+      analysis — not independently re-verified.
+    repo: github.com/etcd-io/etcd
+    domain: repo
+    source_set: pilot/etcd
+    origin: coldsource
+    provenance:
+      bundle_id: etcd-server-etcdserver-2026-06
+      commit_range: "unknown (transcript-derived; re-derive on promotion)"
+      citations:
+        - "etcd cold-source transcript: raft m.To shared-mutation race (descriptive, unverified)"
+      review_label: load-bearing
+      note: "transcript-derived; citations are descriptive, not re-verified commit/PR ids"
+
+  - id: etcd.client.v3.dial_auth_timeout_contract_is_fragile
+    class: failure_mode
+    status: candidate
+    confidence: medium
+    label: "clientv3 dial / auth-token / timeout contract must be handled explicitly"
+    risk: medium
+    summary: >-
+      The clientv3 connection contract has several fragile edges that recur as
+      bugs: an authTokenBundle overwrite that had to be reverted; clientv3.New
+      failing if ANY member is down (rather than degrading); a lost token-refresh
+      path; and the WithBlock + DialTimeout guarantee. This is a COMPOUND
+      candidate — it should be split into sub-rules on promotion, each mapping to
+      a connection/auth/timeout meta-principle.
+    protects:
+      files:
+        - client/v3/client.go
+    related_invariants:
+      - meta.connection_errors_must_not_be_absorbed
+      - meta.authorization_check_is_a_snapshot_not_a_promise
+      - meta.timeout_is_a_decision_not_a_truth
+    evidence: >-
+      etcd cold-source (transcript): authTokenBundle overwrite revert, New
+      failing on any member down, lost token-refresh, WithBlock+DialTimeout.
+      Maps to existing signal/lifecycle meta-principles. Citations descriptive
+      (transcript-derived).
+    discovered_from: >-
+      prior etcd cold-source dry-run (live LLM drafter); Phase-D transcript
+      analysis — not independently re-verified.
+    repo: github.com/etcd-io/etcd
+    domain: repo
+    source_set: pilot/etcd
+    origin: coldsource
+    provenance:
+      bundle_id: etcd-client-v3-2026-06
+      commit_range: "unknown (transcript-derived; re-derive on promotion)"
+      citations:
+        - "etcd cold-source transcript: clientv3 dial/auth/timeout cluster (descriptive, unverified)"
+      review_label: borderline
+      note: "compound; split into sub-rules on promotion. transcript-derived, unverified citations"
+
+  - id: etcd.tests.integration.v3_grpc.tests_must_assert_real_request_path
+    class: invariant
+    status: candidate
+    confidence: medium
+    label: "gRPC integration tests must assert the real request-path outcome and force preconditions"
+    risk: medium
+    summary: >-
+      A gRPC integration test that asserts a proxy (status only) instead of the
+      real request-path effect, or that does not force the precondition it claims
+      to exercise, is verification that looks done but isn't. Tests must assert
+      the actual end-to-end outcome and explicitly force their preconditions.
+    protects:
+      files:
+        - tests/integration/clientv3/
+    related_invariants:
+      - meta.end_to_end_check_is_the_only_truth
+      - meta.half_done_must_not_look_done
+    evidence: >-
+      etcd cold-source (transcript): integration tests asserting proxies / not
+      forcing preconditions. Maps to existing authority/lifecycle meta-principles.
+      Citations descriptive (transcript-derived).
+    discovered_from: >-
+      prior etcd cold-source dry-run (live LLM drafter); Phase-D transcript
+      analysis — not independently re-verified.
+    repo: github.com/etcd-io/etcd
+    domain: repo
+    source_set: pilot/etcd
+    origin: coldsource
+    provenance:
+      bundle_id: etcd-tests-integration-2026-06
+      commit_range: "unknown (transcript-derived; re-derive on promotion)"
+      citations:
+        - "etcd cold-source transcript: integration-test discipline finding (descriptive, unverified)"
+      review_label: borderline
+      note: "transcript-derived; citations are descriptive, not re-verified commit/PR ids"

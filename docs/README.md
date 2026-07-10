@@ -14,6 +14,9 @@
 
 ## Design & rationale
 
+- [Memory scope: the three bands](./design/memory-scope-bands.md) — what AWG covers (durable, system-specific judgment) and why **agent + AWG** covers the surface by construction
+- [Memory correctness trade-off](./design/memory-correctness-tradeoff.md) — write-time vs read-time correctness, and why behavioral memory is forced to the write-time pole
+- [Contract-first resolution](./design/contract-first-resolution.md) — why a contract must be explicit before a repair is judged legitimate
 - [Contract Spine v1](./contract-spine-v1.md) — the band-2 model (Contracts, Invariants, Evidence) + the "Evidence is overloaded" modeling note
 
 ## Main operational docs
