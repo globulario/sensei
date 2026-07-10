@@ -1,0 +1,28 @@
+{
+  "instance_id": "example-query-001",
+  "issue": "Query must not expose raw sparql passthrough",
+  "f2p_tests": [
+    "TestQuery_BackendErrorReturnsUnavailable"
+  ],
+  "files": [
+    "golang/server/query.go"
+  ],
+  "tests_run": [
+    "golang/server/main_test.go:TestQuery_BackendErrorReturnsUnavailable",
+    "golang/server/main_test.go:TestQuery_RawSPARQLLikeInputRejected"
+  ],
+  "repair_success": false,
+  "contract_clean": false,
+  "contract_confidence": "low",
+  "contract_clean_reasons": [
+    "test_proof_incomplete",
+    "scope_underconstrained"
+  ],
+  "contract_clean_warnings": [
+    "verification_missing_review_path"
+  ],
+  "contract_failure_reason": "test_proof_incomplete",
+  "contract_scope_status": "underconstrained",
+  "proof_required": true,
+  "proof_status": "incomplete"
+}

@@ -1,0 +1,378 @@
+:root {
+  --crit: #f14c4c;
+  --high: #e0a000;
+  --warn: #cca700;
+  --info: #3794ff;
+  --ok: #2ea043;
+  --intent: #b180d7;
+  --invariant: #3794ff;
+  --failure_mode: #f14c4c;
+  --incident_pattern: #e0a000;
+  --forbidden_fix: #d16969;
+  --test: #2ea043;
+  --source_file: #888;
+  --symbol: #4ec9b0;
+  --code_symbol: #4ec9b0;
+  --related: #888;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size, 13px);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.muted { color: var(--vscode-descriptionForeground); }
+
+/* ---- Banner ---- */
+.banner {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-areas: "title state actions" "stats stats stats" "meta meta meta";
+  gap: 4px 12px;
+  align-items: center;
+}
+.banner__actions { grid-area: actions; justify-self: end; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rfr {
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+  border: none; border-radius: 4px; padding: 3px 10px; cursor: pointer; font-size: 0.85em;
+}
+.rfr:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground)); }
+.rfr:disabled { opacity: 0.5; cursor: not-allowed; }
+.rfr--rebuild { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.rfr--rebuild:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+.rfr__status { font-size: 0.82em; color: var(--vscode-descriptionForeground); }
+.rfr__status.rfr__ok { color: var(--ok); }
+.rfr__status.rfr__bad { color: var(--crit); }
+.banner__title { grid-area: title; font-size: 1.1em; font-weight: 600; }
+.banner__state {
+  grid-area: state;
+  justify-self: start;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85em;
+  border: 1px solid transparent;
+}
+.banner__state--ok { background: rgba(46,160,67,0.15); color: var(--ok); border-color: var(--ok); }
+.banner__state--warn { background: rgba(224,160,0,0.15); color: var(--high); border-color: var(--high); }
+.banner__state--bad { background: rgba(241,76,76,0.15); color: var(--crit); border-color: var(--crit); }
+.banner__state--unknown { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+
+.banner__stats { grid-area: stats; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.stat {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 78px; padding: 6px 10px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+.stat__num { font-size: 1.25em; font-weight: 700; line-height: 1.1; }
+.stat__lbl { font-size: 0.78em; color: var(--vscode-descriptionForeground); margin-top: 2px; }
+
+.banner__meta { grid-area: meta; margin-top: 6px; font-size: 0.82em; color: var(--vscode-descriptionForeground); display: flex; flex-wrap: wrap; gap: 14px; }
+.banner__meta-warn { color: var(--high); font-weight: 600; }
+
+/* ---- Nav ---- */
+.nav { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 12px; border-bottom: 1px solid var(--vscode-panel-border); }
+.tab {
+  background: none; border: none; color: var(--vscode-foreground);
+  padding: 5px 12px; border-radius: 5px 5px 0 0; cursor: pointer; font-size: 0.92em;
+  border-bottom: 2px solid transparent;
+}
+.tab:hover { background: var(--vscode-toolbar-hoverBackground); }
+.tab--active { border-bottom-color: var(--vscode-focusBorder); font-weight: 600; }
+.tab .count { color: var(--vscode-descriptionForeground); font-size: 0.85em; margin-left: 4px; }
+.nav__group {
+  align-self: center; padding: 0 6px 0 10px; margin-left: 4px;
+  color: var(--vscode-descriptionForeground); font-size: 0.7em; letter-spacing: 0.06em;
+  text-transform: uppercase; border-left: 1px solid var(--vscode-panel-border); white-space: nowrap;
+}
+
+/* ---- UML view filter ---- */
+.viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 12px; border-bottom: 1px solid var(--vscode-panel-border); }
+.viewbar__label { color: var(--vscode-descriptionForeground); font-size: 0.78em; margin-right: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.chip-view {
+  background: none; border: 1px solid var(--vscode-panel-border); color: var(--vscode-foreground);
+  padding: 1px 9px; border-radius: 10px; cursor: pointer; font-size: 0.82em;
+}
+.chip-view:hover { background: var(--vscode-toolbar-hoverBackground); }
+.chip-view--on { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: var(--vscode-button-background); }
+
+/* ---- Main split ---- */
+.main { flex: 1; display: grid; grid-template-columns: minmax(280px, 34%) 1fr; min-height: 0; }
+.pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.pane--list { border-right: 1px solid var(--vscode-panel-border); }
+.pane__head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--vscode-panel-border); }
+.search {
+  flex: 1; background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent); border-radius: 4px; padding: 4px 8px;
+}
+
+/* ---- List ---- */
+.list { overflow: auto; flex: 1; }
+.row { padding: 7px 12px; border-bottom: 1px solid var(--vscode-panel-border); cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+.row:hover { background: var(--vscode-list-hoverBackground); }
+.row--active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+.row__dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; margin-top: 5px; }
+.row__body { min-width: 0; flex: 1; }
+.row__label { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row__id { display: block; font-size: 0.8em; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row__sev { font-size: 0.75em; padding: 0 6px; border-radius: 8px; align-self: center; }
+
+/* ---- Detail ---- */
+.pane--detail { display: grid; grid-template-rows: minmax(0, 40%) 1fr; }
+.detail { overflow: auto; padding: 12px 16px; border-bottom: 1px solid var(--vscode-panel-border); }
+.detail h2 { margin: 0 0 4px; font-size: 1.05em; }
+.detail .sub { font-size: 0.82em; color: var(--vscode-descriptionForeground); margin-bottom: 8px; }
+.detail .desc { margin: 8px 0; line-height: 1.5; }
+.detail .section { margin-top: 10px; }
+.detail .section h4 { margin: 0 0 4px; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--vscode-descriptionForeground); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; margin: 2px 4px 2px 0;
+  padding: 2px 8px; border-radius: 10px; cursor: pointer; font-size: 0.85em;
+  background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-panel-border);
+}
+.chip:hover { border-color: var(--vscode-focusBorder); }
+.chip__dot { width: 7px; height: 7px; border-radius: 50%; }
+.anchor-link { color: var(--vscode-textLink-foreground); cursor: pointer; }
+.anchor-link:hover { text-decoration: underline; }
+/* Literal rule facts (pattern requiresCall / mustFollow / …) */
+.fact {
+  display: inline-flex; align-items: baseline; gap: 6px; margin: 2px 4px 2px 0;
+  padding: 2px 8px; border-radius: 6px; font-size: 0.84em;
+  background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-panel-border);
+}
+.fact__pred { color: var(--vscode-descriptionForeground); font-size: 0.92em; text-transform: lowercase; }
+.fact__val { font-family: var(--vscode-editor-font-family, monospace); }
+.badge { padding: 1px 7px; border-radius: 8px; font-size: 0.8em; border: 1px solid var(--vscode-panel-border); }
+.detail .uml { font-size: 0.82em; color: var(--vscode-descriptionForeground); margin: -2px 0 8px; }
+.detail .uml .uml__stereo { font-style: italic; }
+.detail .uml .uml__view { color: var(--vscode-foreground); opacity: 0.9; }
+
+/* ---- Focus graph ---- */
+.graph-wrap { position: relative; min-height: 0; display: flex; flex-direction: column; }
+.graph-toolbar { display: flex; align-items: center; gap: 12px; padding: 4px 12px; border-bottom: 1px solid var(--vscode-panel-border); font-size: 0.85em; }
+.graph-title { font-weight: 600; }
+.depth-toggle { color: var(--vscode-descriptionForeground); }
+.depth, .btn-mini {
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+  border: none; border-radius: 3px; cursor: pointer; padding: 1px 7px; margin-left: 2px;
+}
+.depth--on { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.graph { flex: 1; width: 100%; background: var(--vscode-editor-background); cursor: grab; }
+.graph:active { cursor: grabbing; }
+.gnode { cursor: pointer; }
+.gnode--dim { opacity: 0.18; }
+.gedge--dim { opacity: 0.12; }
+.gnode circle { stroke: var(--vscode-editor-background); stroke-width: 1.5; }
+.gnode--center circle { stroke: var(--vscode-focusBorder); stroke-width: 3; }
+.gnode text { fill: var(--vscode-foreground); font-size: 11px; pointer-events: none; }
+.gedge { stroke: var(--vscode-panel-border); stroke-width: 1.2; }
+.gedge-label { fill: var(--vscode-descriptionForeground); font-size: 9px; opacity: 0.75; pointer-events: none; }
+
+.tooltip {
+  position: absolute; pointer-events: none; max-width: 280px; z-index: 5;
+  background: var(--vscode-editorHoverWidget-background); color: var(--vscode-editorHoverWidget-foreground);
+  border: 1px solid var(--vscode-editorHoverWidget-border); border-radius: 4px; padding: 6px 8px; font-size: 0.85em;
+}
+.tooltip .t-class { color: var(--vscode-descriptionForeground); font-size: 0.85em; }
+
+/* ---- States ---- */
+.notice { padding: 16px; color: var(--vscode-descriptionForeground); line-height: 1.5; }
+.notice--bad { color: var(--crit); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 12px; font-size: 0.8em; color: var(--vscode-descriptionForeground); border-top: 1px solid var(--vscode-panel-border); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+/* ---- Candidates ---- */
+.cand { padding: 12px 16px; overflow: auto; }
+.cand__warn { border: 1px solid var(--high); background: rgba(224,160,0,0.1); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
+.cand__file { margin-bottom: 14px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; overflow: hidden; }
+.cand__file > summary { cursor: pointer; padding: 6px 10px; background: var(--vscode-editorWidget-background); font-family: var(--vscode-editor-font-family, monospace); }
+.cand__file pre { margin: 0; padding: 10px; overflow: auto; max-height: 320px; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.85em; }
+.cmd { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.cmd code { flex: 1; background: var(--vscode-textCodeBlock-background); padding: 4px 8px; border-radius: 4px; font-family: var(--vscode-editor-font-family, monospace); }
+.cmd button { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; border-radius: 3px; padding: 3px 9px; cursor: pointer; }
+.cand__warn--ok { border-color: var(--ok); background: rgba(46,160,67,0.1); }
+
+/* Trust banner + batch bar + operation summary */
+.cand__trust {
+  border: 1px solid var(--info); background: rgba(55,148,255,0.08);
+  border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; line-height: 1.5;
+}
+.batchbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; margin-bottom: 12px; border-radius: 6px;
+  background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-panel-border);
+}
+.batchbar__count { color: var(--vscode-descriptionForeground); font-size: 0.86em; }
+.batchbar__btn {
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+  border: none; border-radius: 4px; padding: 5px 14px; cursor: pointer; font-weight: 600; font-size: 0.9em;
+}
+.batchbar__btn:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+.batchbar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.opsum { border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.9em; line-height: 1.5; }
+.opsum--ok { border-color: var(--ok); background: rgba(46,160,67,0.08); }
+.opsum--bad { border-color: var(--crit); background: rgba(241,76,76,0.08); }
+.opsum pre { margin: 6px 0 0; padding: 8px; overflow: auto; max-height: 220px; background: var(--vscode-textCodeBlock-background); border-radius: 4px; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.92em; white-space: pre-wrap; }
+.opsum details summary { cursor: pointer; margin-top: 4px; color: var(--vscode-descriptionForeground); }
+
+/* Review-decision states on the left list */
+.row--rejected .row__label { text-decoration: line-through; opacity: 0.65; }
+.row--approved .row__label { color: var(--ok); }
+
+/* Interactive candidate review cards */
+.candx {
+  border: 1px solid var(--vscode-panel-border); border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 12px; background: var(--vscode-editorWidget-background);
+}
+.candx--approved { border-left: 3px solid var(--ok); }
+.candx--rejected { border-left: 3px solid var(--crit); opacity: 0.72; }
+.candx__status { font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 7px; border-radius: 8px; border: 1px solid var(--vscode-panel-border); }
+.candx__status--candidate { color: var(--high); border-color: var(--high); }
+.candx__status--approved { color: var(--ok); border-color: var(--ok); }
+.candx__status--rejected { color: var(--crit); border-color: var(--crit); }
+.candx__act--approve { background: rgba(46,160,67,0.18); color: var(--ok); }
+.candx__act--approve:hover:not(:disabled) { background: rgba(46,160,67,0.3); }
+.candx__act--approved { background: var(--ok); color: #fff; }
+.candx__act--rejected { background: rgba(241,76,76,0.18); color: var(--crit); }
+.candx--flash { border-color: var(--vscode-focusBorder); box-shadow: 0 0 0 1px var(--vscode-focusBorder); }
+.candx__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.candx__title { font-weight: 700; }
+.candx__badge { font-size: 0.74em; padding: 1px 7px; border-radius: 8px; border: 1px solid var(--vscode-panel-border); white-space: nowrap; }
+.candx__id { display: block; font-size: 0.8em; color: var(--vscode-descriptionForeground); margin-bottom: 6px; word-break: break-all; }
+.candx__row { font-size: 0.88em; line-height: 1.5; margin: 4px 0; }
+.candx__row b { color: var(--vscode-foreground); }
+.candx__actions { display: flex; gap: 8px; margin-top: 10px; }
+.candx__act {
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+  border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 0.88em;
+}
+.candx__act:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground)); }
+.candx__act:disabled { opacity: 0.5; cursor: not-allowed; }
+.candx__act--promote { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.candx__act--promote:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+.candx__result { margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-size: 0.86em; border: 1px solid var(--vscode-panel-border); }
+.candx__result--ok { border-color: var(--ok); background: rgba(46,160,67,0.08); }
+.candx__result--bad { border-color: var(--crit); background: rgba(241,76,76,0.08); }
+.candx__result pre { margin: 6px 0 0; padding: 8px; overflow: auto; max-height: 260px; background: var(--vscode-textCodeBlock-background); border-radius: 4px; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.92em; white-space: pre-wrap; }
+.candx__result details summary { cursor: pointer; margin-top: 6px; color: var(--vscode-descriptionForeground); }
+.cand__cli { margin-top: 14px; border-top: 1px solid var(--vscode-panel-border); padding-top: 10px; }
+.cand__cli > summary { cursor: pointer; font-weight: 600; color: var(--vscode-descriptionForeground); }
+.cand__cli-body { margin-top: 10px; }
+
+/* Candidates mode: the focus graph is irrelevant here, so give the review
+   queue the full height of the detail pane. */
+body.candidates-mode .pane--detail { grid-template-rows: 1fr; }
+body.candidates-mode .graph-wrap { display: none; }
+body.candidates-mode .detail { border-bottom: none; }
+
+/* ---- Review (project score + architecture proposals) ---- */
+/* Review mode is a single full-width reading surface — no list, no graph,
+   no UML filter. The whole report lives in the detail pane. */
+body.review-mode .main { grid-template-columns: 1fr; }
+body.review-mode .pane--list { display: none; }
+body.review-mode .pane--detail { grid-template-rows: 1fr; }
+body.review-mode .graph-wrap { display: none; }
+body.review-mode .detail { border-bottom: none; }
+body.review-mode .viewbar { display: none; }
+
+.review { max-width: 980px; }
+.review h3 { margin: 0 0 8px; font-size: 0.86em; text-transform: uppercase; letter-spacing: 0.05em; color: var(--vscode-descriptionForeground); }
+
+.rev-summary {
+  display: flex; align-items: center; gap: 18px; padding: 16px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-panel-border); border-radius: 8px; margin-bottom: 14px;
+}
+.rev-score { display: flex; align-items: baseline; min-width: 110px; }
+.rev-score__num { font-size: 3em; font-weight: 800; line-height: 1; }
+.rev-score__den { font-size: 1.1em; color: var(--vscode-descriptionForeground); margin-left: 2px; }
+.rev-summary__body { flex: 1; min-width: 0; }
+.rev-score__cap { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.06em; color: var(--vscode-descriptionForeground); margin-bottom: 2px; }
+.rev-grade { font-size: 1.15em; font-weight: 700; }
+.rev-conf {
+  display: inline-block; margin: 4px 0 6px; padding: 1px 9px; border-radius: 10px;
+  font-size: 0.8em; font-weight: 600; border: 1px solid transparent;
+}
+.rev-conf--high { background: rgba(46,160,67,0.15); color: var(--ok); border-color: var(--ok); }
+.rev-conf--medium { background: rgba(224,160,0,0.15); color: var(--high); border-color: var(--high); }
+.rev-conf--low { background: rgba(241,76,76,0.12); color: var(--crit); border-color: var(--crit); }
+.rev-summary__text { font-size: 0.9em; line-height: 1.5; color: var(--vscode-descriptionForeground); }
+
+.rev-card {
+  padding: 14px 16px; margin-bottom: 14px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-panel-border); border-radius: 8px;
+}
+.rev-card__sub { font-size: 0.85em; color: var(--vscode-descriptionForeground); margin: -4px 0 12px; line-height: 1.4; }
+
+.rev-dims { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.rev-dim__head { display: flex; justify-content: space-between; align-items: baseline; }
+.rev-dim__label { font-weight: 600; font-size: 0.92em; }
+.rev-dim__score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.rev-bar { height: 6px; border-radius: 3px; background: var(--vscode-panel-border); overflow: hidden; margin: 5px 0 6px; }
+.rev-bar__fill { height: 100%; border-radius: 3px; }
+.rev-dim__note { font-size: 0.82em; line-height: 1.45; color: var(--vscode-descriptionForeground); }
+
+.rev-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rev-cols .rev-card { margin-bottom: 0; }
+@media (max-width: 760px) { .rev-cols { grid-template-columns: 1fr; } }
+.rev-list { margin: 0; padding-left: 18px; }
+.rev-list li { margin: 4px 0; line-height: 1.45; }
+.rev-empty { font-size: 0.88em; }
+.rev-cols + .rev-card { margin-top: 14px; }
+
+.rev-prop {
+  border: 1px solid var(--vscode-panel-border); border-left-width: 4px;
+  border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;
+  background: var(--vscode-editor-background);
+}
+.rev-prop:last-child { margin-bottom: 0; }
+.rev-prop__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.rev-prop__title { font-weight: 700; }
+.rev-prop__sev {
+  font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 1px 8px; border-radius: 8px; border: 1px solid transparent; white-space: nowrap;
+}
+.rev-prop__row { font-size: 0.88em; line-height: 1.5; margin: 2px 0; }
+.rev-prop__row b { color: var(--vscode-foreground); }
+.rev-prop__meta {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px;
+  font-size: 0.78em; color: var(--vscode-descriptionForeground);
+}
+
+/* Scan panel — fill the queue from a codebase audit */
+.scan {
+  border: 1px solid var(--vscode-panel-border); border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 14px; background: var(--vscode-editorWidget-background);
+}
+.scan__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.scan__sub { font-size: 0.78em; color: var(--vscode-descriptionForeground); }
+.scan__desc { font-size: 0.86em; line-height: 1.5; color: var(--vscode-descriptionForeground); margin: 6px 0 0; }
+.scan__actions { display: flex; gap: 8px; margin-top: 10px; }
+.scan__act {
+  background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+  border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 0.88em;
+}
+.scan__act:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground)); }
+.scan__act:disabled { opacity: 0.5; cursor: not-allowed; }
+.scan__act--apply { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.scan__act--apply:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+.scan__cli { font-size: 0.82em; margin-top: 8px; line-height: 1.5; }
+.scan__result { margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-size: 0.86em; border: 1px solid var(--vscode-panel-border); }
+.scan__result--ok { border-color: var(--ok); background: rgba(46,160,67,0.08); }
+.scan__result--bad { border-color: var(--crit); background: rgba(241,76,76,0.08); }
+.scan__result pre { margin: 6px 0 0; padding: 8px; overflow: auto; max-height: 320px; background: var(--vscode-textCodeBlock-background); border-radius: 4px; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.92em; white-space: pre-wrap; }
+.scan__result details summary { cursor: pointer; margin-top: 6px; color: var(--vscode-descriptionForeground); }

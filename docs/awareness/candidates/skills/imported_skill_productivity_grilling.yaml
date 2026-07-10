@@ -1,0 +1,22 @@
+id: imported.skill.productivity.grilling
+class: ImplementationPattern
+label: 'Skill: grilling'
+status: candidate
+confidence: medium
+when_to_use:
+  - Grill the user relentlessly about a plan or design. Use when the user wants to stress-test a plan before building, or uses any 'grill' trigger phrases.
+reference_files:
+  - path: skills/productivity/grilling/SKILL.md
+    role: source_skill
+must_follow:
+  - Ask the questions one at a time, waiting for feedback on each question before continuing. Asking multiple questions at once is bewildering.
+forbidden_shortcuts:
+  - Do not enact the plan until I confirm we have reached a shared understanding.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: grilling
+  Source path: skills/productivity/grilling/SKILL.md
+source_files:
+  - skills/productivity/grilling/SKILL.md

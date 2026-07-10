@@ -1,0 +1,26 @@
+# Example per-repo enforcement policy for `awg gate`.
+#
+# Copy to <repo-root>/.awg/gate-policy.yaml (the gate reads that path
+# automatically) or point at it with `awg gate --policy <file>`.
+#
+# A rule's DECLARED level (warn|block) lives in the awareness graph. This file
+# lets THIS repo re-level or silence rules with no change to the rule or the
+# code — the same rule can be advisory in one repo and blocking in another.
+#
+# Resolution order for each finding: an explicit `rules:` entry wins, then a
+# non-inherit `default`, else the rule's own declared level.
+
+# Level applied to any rule without an explicit entry below.
+#   inherit — use each rule's declared level (this is the default; a no-op)
+#   warn    — everything advisory (never blocks) — good for onboarding a repo
+#   block   — everything blocking — strictest posture
+#   off     — silence everything (rarely what you want)
+default: inherit
+
+# Per-rule overrides. Level is one of: inherit | warn | block | off.
+rules:
+  # Promote an advisory rule to blocking for this repo:
+  # caddy.reverseproxy.forwardauth_errf_preserves_location: block
+
+  # Silence a rule that is noise in this repo:
+  # some.rule_that_does_not_apply_here: off

@@ -1,0 +1,38 @@
+# Invariants — architectural rules that must always hold.
+#
+# Each invariant encodes a rule your codebase depends on. When someone
+# (human or AI) edits a file protected by an invariant, the awareness
+# briefing surfaces it before the edit is made.
+#
+# Start with your most painful past bugs. If it broke once and the fix
+# was non-obvious, it belongs here.
+#
+# Schema:
+#   id:                  unique.dotted.identifier (snake_case)
+#   title:               short human description
+#   severity:            critical | high | medium | low
+#   status:              active | deprecated | review_only
+#   protects.files:      list of file paths this invariant applies to
+#   protects.symbols:    list of function/type names (optional)
+#   forbidden_fixes:     patterns that look correct but are known-broken
+#   required_tests:      tests that must pass when touching protected files
+#   related_failure_modes: links to failure_modes.yaml entries
+
+invariants:
+
+# Example — copy and adapt when you add your first real rule:
+#  - id: example.config_must_not_use_env_vars
+#    title: Service configuration must come from the config store, not environment variables
+#    severity: high
+#    status: active
+#    protects:
+#      files:
+#        - path/to/real/config_loader.go
+#      symbols:
+#        - LoadConfig
+#    forbidden_fixes:
+#      - add_env_var_fallback_for_convenience
+#    required_tests:
+#      - path/to/config_test.go:TestConfigLoaderRejectsEnvVars
+#    related_failure_modes:
+#      - config.env_var_overrides_production_setting

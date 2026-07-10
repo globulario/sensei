@@ -1,0 +1,41 @@
+id: imported.skill.engineering.wayfinder
+class: ImplementationPattern
+label: 'Skill: wayfinder'
+status: active
+confidence: reviewed
+when_to_use:
+    - Plan a huge chunk of work — more than one agent session can hold — as a shared map of investigation tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - 'Wayfinder is planning by default: each ticket resolves a decision, and the map is done when the way is clear — nothing left to decide before someone goes and does the thing. The pull to just do the work is usually the signal you''ve reached the edge of the map'
+    - The destination varies per effort, and naming it is the first act of charting — it shapes every ticket. It might be a spec to hand off and iterate on, a decision to lock before planning starts, or a change made in place like a data-structure migration. The map
+    - Where the map, its child tickets, blocking, and frontier queries physically live is tracker-specific. The issue tracker should have been provided to you — run /setup-matt-pocock-skills if not. Consult the tracker doc's "Wayfinding operations" section for how t
+    - <what reaching the end of this map looks like — the spec, decision, or change this effort is finding its way to. One or two lines; every session orients to it before choosing a ticket.>
+    - <domain; skills every session should consult; standing preferences for this effort>
+    - <closed ticket title> — <one-line gist of the answer>
+    - 'A session claims a ticket by assigning it to the dev driving the map, first, before any work, so concurrent sessions skip it. That assignee is the claim: an open, unassigned ticket is unclaimed.'
+    - 'Research (AFK): Reading documentation, third-party APIs, or local resources like knowledge bases. Creates a markdown summary as a linked asset. Use when knowledge outside the current working directory is required.'
+    - 'Prototype (HITL): Raise the fidelity of the discussion by making a cheap, rough, concrete artifact to react to — an outline, a rough take, a stub, or UI/logic code via the /prototype skill. Links the prototype as an asset. Use when "how should it look" or "how'
+    - 'Grilling (HITL): Conversation via the /grilling and /domain-modeling skills, one question at a time. The default case.'
+    - 'Task (HITL or AFK): Manual work that must happen before a *decision* can be made — nothing to decide, prototype, or research, but the discussion is blocked until it''s done. Signing up for a service so its API can be judged, provisioning access, moving data so'
+    - Ticket when the question is already sharp — even if it's blocked and you can't act on it yet.
+forbidden_shortcuts:
+    - 'Every map and ticket is an issue, so it has a name — its title. In everything the human reads — narration, the map''s Decisions-so-far — refer to it by that name, never by a bare id, number, or slug. A wall of #42, #43, #44 is illegible; names read at a glance.'
+    - The map is an index, not a store. It lists the decisions made and points at the tickets that hold their detail; a decision lives in exactly one place — its ticket — so the map never restates it, only gists it and links.
+    - '<!-- see "Out of scope": work ruled beyond the destination; closed, never graduates -->'
+    - Every ticket is either HITL — human in the loop, worked *with* a human who speaks for themselves — or AFK, driven by the agent alone. A HITL ticket only resolves through that live exchange; the agent never stands in for the human's side of it (a grilling agent
+    - 'The map is deliberately incomplete: don''t chart what you can''t yet see. Beyond the live tickets lies the fog of war — the dim view of decisions and investigations you can tell are coming but can''t yet pin down, because they hang on questions still open. Resolv'
+    - 'Not yet specified when you can''t yet phrase it that sharply. Don''t pre-slice the fog into ticket-sized pieces: it''s coarser than a ticket, and one patch may graduate into several tickets, or none, once the frontier reaches it.'
+    - Out-of-scope work never graduates — the frontier stops at the destination — so it returns only if the destination is redrawn, and then as a fresh effort, not a resumption.
+    - Two modes. Either way, never resolve more than one ticket per session.
+    - Stop — charting the map is one session's work; do not also resolve tickets.
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: wayfinder
+    Source path: skills/engineering/wayfinder/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

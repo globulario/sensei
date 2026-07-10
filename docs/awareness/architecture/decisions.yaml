@@ -1,0 +1,117 @@
+# Architecture decisions — what design choice was made, and why not another
+# shape (Stage A). Decision nodes stop agents reintroducing rejected designs.
+decisions:
+  - id: decision.dashboard_v1_read_only_over_grpc
+    title: Dashboard v1 is read-only over gRPC
+    status: accepted
+    rationale: >-
+      The dashboard reads Metadata / Query / Resolve over gRPC. It does not
+      mutate the graph; candidate promotion stays CLI/file guarded until a safe
+      mutation API exists.
+    context: >-
+      Agents and humans want to act on what the dashboard shows, but there is no
+      guarded backend mutation API yet, so any UI write path would bypass review.
+    consequences: >-
+      Promotion remains a CLI step; the dashboard stays a pure read surface.
+    related_invariants:
+      - awareness.graph.compiled_context_not_authority
+    defines_boundaries:
+      - boundary.dashboard_read_only_grpc
+    defines_contracts:
+      - contract.awareness_graph.query
+    affects_components:
+      - component.dashboard_architecture_view
+    mitigates:
+      - awareness.graph_used_as_authority
+    rejects:
+      - ui_direct_candidate_promotion_without_guarded_backend_api
+    supported_by_evidence:
+      - evidence.ci_green
+    source_files:
+      - editor/vscode/src/dashboardPanel.ts
+    uml:
+      kind: Constraint
+      stereotype: architecture_decision
+      view: awareness
+
+  - id: decision.candidate_promotion_remains_cli_guarded
+    title: Candidate promotion remains CLI guarded
+    status: accepted
+    rationale: >-
+      Promotion into the active corpus is an awg CLI step with human review,
+      until a safe backend mutation API exists.
+    alternatives_rejected:
+      - Auto-promote high-confidence candidates from the dashboard.
+      - Expose a write RPC the UI can call directly.
+    related_invariants:
+      - awareness.seed_is_generated_author_in_yaml
+    defines_boundaries:
+      - boundary.candidate_promotion
+      - boundary.corpus_cli_mutation
+    affects_components:
+      - component.corpus_loader
+    mitigates:
+      - awareness.graph_used_as_authority
+    rejects:
+      - ui_direct_candidate_promotion_without_guarded_backend_api
+    source_files:
+      - cmd/awg/cmd_promote.go
+
+  - id: decision.focus_graph_local_neighborhood_only
+    title: Focus graph is local-neighborhood only
+    status: accepted
+    rationale: >-
+      The dashboard renders a local neighborhood around the selected node
+      (depth 1–2, capped), not the whole graph, to avoid a hairball and context
+      bloat.
+    affects_components:
+      - component.dashboard_architecture_view
+    mitigates:
+      - awareness.briefing_context_bloat
+    source_files:
+      - editor/vscode/media/dashboard.js
+
+  - id: decision.untagged_domain_defaults_home
+    title: Untagged domain nodes default to the home domain
+    status: accepted
+    rationale: >-
+      A node with no explicit domain belongs to the home domain; shared
+      meta-principles surface in every scope. Foreign repo nodes carry their own
+      repo domain and never leak across scopes.
+    related_invariants:
+      - awareness.briefing.sections_honor_domain_scope
+    defines_boundaries:
+      - boundary.domain_scope
+    affects_components:
+      - component.awareness_graph_service
+    source_files:
+      - golang/server/scope.go
+
+  - id: decision.meta_principle_dual_typed
+    title: Meta-principles are dual-typed, not duplicated
+    status: accepted
+    rationale: >-
+      Existing meta.* invariants are additionally typed aw:MetaPrinciple on the
+      same node so they are queryable as first-class architecture drivers
+      without a competing corpus. The definitions stay in the invariant corpus.
+    context: >-
+      The architecture spine needs MetaPrinciple as a first-class node, but the
+      83 meta-principles already exist as invariants.
+    consequences: >-
+      meta_principle_count counts the dual-typed nodes; existing invariant
+      queries are unaffected; the seed must be regenerated.
+    related_invariants:
+      - awareness.ontology_vocab_importer_drift_forbidden
+    defines_contracts:
+      - contract.awareness_graph.query
+    affects_components:
+      - component.corpus_loader
+      - component.awareness_graph_service
+    supported_by_evidence:
+      - evidence.awg_rebuild_check_pass
+    source_files:
+      - golang/extractor/yaml_import.go
+    uml:
+      kind: Constraint
+      stereotype: architecture_decision
+      view: awareness

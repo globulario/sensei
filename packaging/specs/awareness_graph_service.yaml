@@ -1,0 +1,127 @@
+version: 1
+
+metadata:
+  name: awareness-graph
+  service_id: globular.awareness_graph.AwarenessGraph
+  version: "0.0.20"
+  kind: service
+  description: "Awareness graph service for Resolve, Impact, Briefing, and constrained Query over compiled RDF awareness context."
+  keywords: [awareness, rdf, graph, briefing, impact, intent, agent]
+  license: Apache-2.0
+  entrypoint: awareness-graph
+
+service:
+  name: awareness-graph
+  exec: awareness-graph
+
+steps:
+  - id: ensure-user-group
+    type: ensure_user_group
+    user: globular
+    group: globular
+    home: "{{.StateDir}}"
+    shell: /usr/sbin/nologin
+    system: true
+
+  - id: ensure-dirs
+    type: ensure_dirs
+    dirs:
+      - path: "{{.Prefix}}"
+        owner: root
+        group: root
+        mode: 0755
+      - path: "{{.Prefix}}/bin"
+        owner: root
+        group: root
+        mode: 0755
+
+      - path: "{{.StateDir}}"
+        owner: globular
+        group: globular
+        mode: 0750
+      - path: "{{.StateDir}}/services"
+        owner: globular
+        group: globular
+        mode: 0750
+      - path: "{{.StateDir}}/services/awareness-graph"
+        owner: globular
+        group: globular
+        mode: 0750
+      - path: "{{.StateDir}}/awareness-graph"
+        owner: globular
+        group: globular
+        mode: 0750
+      - path: "{{.StateDir}}/awareness-graph/seed"
+        owner: globular
+        group: globular
+        mode: 0750
+
+  - id: install-awareness-graph-payload
+    type: install_package_payload
+    install_bins: true
+    install_config: false
+    install_spec: false
+    install_systemd: false
+
+  - id: install-awareness-graph-seed
+    type: install_files
+    files:
+      - src: seed/awareness.nt
+        dst: "{{.StateDir}}/awareness-graph/seed/awareness.nt"
+        owner: globular
+        group: globular
+        mode: 0640
+
+  - id: ensure-awareness-graph-config
+    type: ensure_service_config
+    service_name: awareness-graph
+    exec: awareness-graph
+    address_host: auto
+    rewrite_if_out_of_range: true
+
+  - id: install-awareness-graph-service
+    type: install_services
+    units:
+      - name: globular-awareness-graph.service
+        owner: root
+        group: root
+        mode: 0644
+        atomic: true
+        content: |
+          [Unit]
+          Description=Globular awareness-graph
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User=globular
+          Group=globular
+          Environment=GLOBULAR_SERVICES_DIR={{.StateDir}}/services
+          Environment=AW_OXIGRAPH_QUERY_URL=http://localhost:7878/query
+          Environment=AW_REQUIRE_STORE=false
+
+          ExecStart={{.Prefix}}/bin/awareness-graph -oxigraph-url ${AW_OXIGRAPH_QUERY_URL} -require-store=${AW_REQUIRE_STORE}
+          Restart=on-failure
+          RestartSec=2
+          LimitNOFILE=524288
+
+          [Install]
+          WantedBy=multi-user.target
+
+  - id: enable-awareness-graph
+    type: enable_services
+    services:
+      - globular-awareness-graph.service
+
+  - id: start-awareness-graph
+    type: start_services
+    services:
+      - globular-awareness-graph.service
+    binaries:
+      globular-awareness-graph.service: awareness-graph
+
+  - id: health-awareness-graph
+    type: health_checks
+    services:
+      - globular-awareness-graph.service

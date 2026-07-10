@@ -1,0 +1,39 @@
+id: imported.skill.engineering.ask_matt
+class: ImplementationPattern
+label: 'Skill: ask-matt'
+status: candidate
+confidence: medium
+when_to_use:
+  - Ask which skill or flow fits your situation. A router over the skills in this repo.
+reference_files:
+  - path: skills/engineering/ask-matt/SKILL.md
+    role: source_skill
+must_follow:
+  - A flow is a path through the skills. Most paths run along one main flow, and two on-ramps merge onto it. Everything else is standalone, or a vocabulary layer that runs underneath.
+  - '/grill-with-docs — sharpen the idea by interview. Start here when you have a codebase: it''s stateful, retaining what it learns in CONTEXT.md and ADRs. (No codebase? Use /grill-me — see Standalone. Both run the same /grilling primitive; grill-with-docs is the o'
+  - 'Branch — can you settle every question in conversation? If a question needs a runnable answer (state, business logic, a UI you have to see), detour through a prototype, bridged by /handoff in both directions (see Crossing sessions):'
+  - /handoff out, then open a fresh session against that file,
+  - /prototype to answer the question with throwaway code,
+  - /handoff back what you learned, and reference it from the original idea thread.
+  - Branch — is this a multi-session build?
+  - Yes → /to-spec (turn the thread into a spec), then /to-tickets to split it into tracer-bullet tickets, each declaring its blocking edges. On a local tracker that's an ordered tickets.md you work by hand; on a real tracker the edges become native blocking links
+  - No → /implement right here, in the same context window.
+  - Either way, /implement builds each issue by driving /tdd internally — one red-green slice at a time — then closes out by running /code-review, a two-axis review (Standards + Spec) of the diff, before committing. Reach for /tdd on its own when you just want to
+  - Bugs and requests piling up → /triage. It moves issues through triage roles and produces agent-ready issues, which /implement later picks up.
+  - 'Something''s broken → /diagnosing-bugs. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression that crept in between two known-good states. It refuses to theorise until it has a tight feedback loop — one command that alre'
+forbidden_shortcuts:
+  - You don't remember every skill, so ask.
+  - Keep steps 1–3 in one unbroken context window — don't compact or clear until after /to-tickets — so the grilling, spec, and tickets all build on the same thinking. Each /implement then starts fresh, working from the ticket.
+  - 'The limit on this is the smart zone: the window (~120k tokens on state-of-the-art models) within which the model still reasons sharply. If a session approaches it before /to-tickets, don''t push on degraded — /handoff and continue in a fresh thread.'
+  - Triage is only for issues you didn't create — bug reports, incoming feature requests, anything that arrives raw. Tickets that /to-tickets produced are already agent-ready, so don't triage them.
+  - /improve-codebase-architecture — run whenever you have a spare moment to keep the codebase good for agents to operate in. It surfaces deepening opportunities; picking one generates an idea you can take into the main flow at /grill-with-docs. It's the survey th
+  - /handoff — when a thread is full or you need to branch off (e.g. into a /prototype session), this compacts the conversation into a markdown file. You don't continue in place — you open a new session and reference that file to carry the context across. It's the
+  - /compact (built-in) — stay in the same conversation, letting the earlier turns be summarized. Use it at intentional breaks between phases, when you don't mind losing the verbatim history. Don't compact mid-phase — the agent can lose its way. /handoff forks; /c
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: ask-matt
+  Source path: skills/engineering/ask-matt/SKILL.md
+source_files:
+  - skills/engineering/ask-matt/SKILL.md

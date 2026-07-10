@@ -1,0 +1,48 @@
+name: VS Code Extension
+
+# Independent of the Go CI: TypeScript build/typecheck for the editor
+# integration. Only runs when the extension or the proto contract it vendors
+# changes, so Go-only PRs don't pay for a Node toolchain.
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'editor/vscode/**'
+      - 'proto/awareness_graph.proto'
+      - '.github/workflows/vscode-extension.yml'
+  pull_request:
+    branches: ['**']
+    paths:
+      - 'editor/vscode/**'
+      - 'proto/awareness_graph.proto'
+      - '.github/workflows/vscode-extension.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editor/vscode
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: editor/vscode/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Vendored proto matches the canonical contract
+        # Same "generated artifacts must be fresh" gate as the Go CI: a proto
+        # change that wasn't re-vendored fails here instead of shipping a
+        # .vsix that speaks an outdated contract.
+        run: npm run check-proto
+
+      - name: Typecheck
+        run: npm run typecheck

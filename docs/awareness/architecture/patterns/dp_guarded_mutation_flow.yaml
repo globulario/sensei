@@ -1,0 +1,34 @@
+id: pattern.guarded_mutation_flow
+class: DesignPattern
+name: GuardedMutationFlow
+category: reliability
+description: >-
+  A state-changing operation flows through a validated, auditable, owner-legal
+  path (review + guarded CLI/RPC), never as a one-click side effect.
+applies_when: >-
+  An operation mutates owned state and must be validated, auditable, and safe
+  (e.g. promoting a candidate into the active corpus).
+does_not_apply_when: >-
+  The operation is read-only — guarding a read only adds friction.
+forces_or_tradeoffs: >-
+  Mutations take an explicit, reviewable step instead of being instantaneous.
+confidence: declared
+failure_modes_prevented:
+  - awareness.graph_used_as_authority
+forbidden_misuses:
+  - pattern_misuse.ui_direct_promotion
+related_meta_principles:
+  - meta.storage_is_not_semantic_authority
+related_invariants:
+  - awareness.seed_is_generated_author_in_yaml
+related_boundaries:
+  - boundary.candidate_promotion
+  - boundary.corpus_cli_mutation
+related_decisions:
+  - decision.candidate_promotion_remains_cli_guarded
+example_files:
+  - cmd/awg/cmd_promote.go
+uml:
+  kind: Constraint
+  stereotype: design_pattern
+  view: awareness

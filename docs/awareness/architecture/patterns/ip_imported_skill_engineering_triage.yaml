@@ -1,0 +1,36 @@
+id: imported.skill.engineering.triage
+class: ImplementationPattern
+label: 'Skill: triage'
+status: active
+confidence: reviewed
+when_to_use:
+    - Move issues and external PRs through a state machine of triage roles — categorise, verify, grill if needed, and write agent-ready briefs.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - 'Every comment or issue posted to the issue tracker during triage must start with this disclaimer:'
+    - AGENT-BRIEF.md — how to write durable agent briefs
+    - OUT-OF-SCOPE.md — how the .out-of-scope/ knowledge base works
+    - bug — something is broken
+    - enhancement — new feature or improvement
+    - needs-triage — maintainer needs to evaluate
+    - needs-info — waiting on reporter for more information
+    - ready-for-agent — fully specified, ready for an AFK agent
+    - ready-for-human — needs human implementation
+    - wontfix — will not be actioned
+    - 'For a PR, the same states read against the attached code: ready-for-agent means a brief is attached and an agent should take the next step on the diff; ready-for-human means it''s ready for a human to merge.'
+    - Every triaged issue should carry exactly one category role and one state role. If state roles conflict, flag it and ask the maintainer before doing anything else.
+forbidden_shortcuts:
+    - Unlabeled — never triaged.
+    - Gather context. Read the full issue or PR (body, comments, labels, author, dates; for a PR, the diff too). Parse any prior triage notes so you don't re-ask resolved questions. Explore the codebase using the project's domain glossary, respecting ADRs in the are
+    - Already implemented — the change already exists in the codebase. Point to where it lives; do not write to .out-of-scope/ (that KB is for *rejected* requests, not built ones).
+    - If prior triage notes exist on the issue or PR, read them, check whether the reporter has answered any outstanding questions, and present an updated picture before continuing. Don't re-ask resolved questions.
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: triage
+    Source path: skills/engineering/triage/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

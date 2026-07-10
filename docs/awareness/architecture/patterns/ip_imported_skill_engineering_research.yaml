@@ -1,0 +1,24 @@
+id: imported.skill.engineering.research
+class: ImplementationPattern
+label: 'Skill: research'
+status: active
+confidence: reviewed
+when_to_use:
+    - Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent.
+    - Use when researching repository behavior, importer rules, candidate directory skip behavior, or implementation facts from primary sources.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - Spin up a background agent to do the research, so you keep working while it reads.
+    - Investigate the question against primary sources — official docs, source code, specs, first-party APIs — not a secondary write-up of them. Follow every claim back to the source that owns it.
+    - Write the findings to a single Markdown file, citing each claim's source.
+    - Save it where the repo already keeps such notes; match the existing convention, and if there is none, put it somewhere sensible and say where.
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: research
+    Source path: skills/engineering/research/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

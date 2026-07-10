@@ -1,0 +1,251 @@
+failure_modes:
+  - id: governance.self_coherence_findings_require_source_of_truth_diagnosis
+    title: A self-coherence/lifecycle/audit finding was "fixed" by mutating the governed corpus before diagnosing where the defect actually lived
+    severity: high
+    root_cause: |
+      A governance detector (awg lifecycle, awg audit, a self-coherence/principle
+      check) reports a defect — e.g. "7 UNCLASSIFIED principles" or "N conflicts".
+      The trap is to treat the truth source (corpus YAML / seed) as the thing to
+      edit so the detector goes green. But the defect may live in the READER, not
+      the corpus: the 12-conflict lane found "7 UNCLASSIFIED" was a STALE LIFECYCLE
+      READER (awg lifecycle lacked a `declaration` tier case) while the corpus AND
+      the coverage test were correct. Editing the corpus to satisfy the buggy
+      reader would have been relabelling the thermometer to cure the fever —
+      corrupting the truth source to silence a tool bug.
+    symptoms:
+      - a corpus or seed edit whose only justification is "make awg lifecycle/audit go green"
+      - a principle's tier changed to match a detector instead of the detector being checked
+      - a self-coherence conflict/UNCLASSIFIED count taken at face value without re-running the machine
+    forbidden_fixes:
+      - mutate_the_corpus_or_seed_to_make_a_detector_green_before_diagnosing_the_findings_source
+      - treat_a_self_coherence_count_as_corpus_rot_without_ruling_out_the_reader
+      - relabel_the_thermometer_edit_the_truth_source_to_silence_a_buggy_detector
+    architecture_fix: |
+      A lifecycle/audit/self-coherence finding MUST be classified into exactly one
+      of {corpus defect | reader/tool defect | shared-vocabulary drift | stale
+      evidence plane | external cross-repo lag} BEFORE any governed data (corpus
+      YAML / seed) is mutated to resolve it. The truth source is not edited to
+      satisfy a detector until the detector itself is ruled out — re-run the
+      machine, check the reader, check the shared tier/term vocabulary.
+      First mechanism (process, NOT a hard gate — the core action is judgment): a
+      PR that mutates governance corpus (docs/awareness/**) in response to a
+      detector finding states the diagnosis class in its body
+      (.github/PULL_REQUEST_TEMPLATE.md). A future tighter mechanism could be an
+      `awg diagnose-finding` helper or a merge-check that requires the diagnosis
+      class when governance corpus changed; hard enforcement is bounded by the
+      judgment core, so this stays review-discipline / planned, not behavioral.
+    related_invariants:
+      - meta.no_resolution_without_a_respected_contract
+      - meta.negative_result_requires_coverage_attestation
+    no_test_yet_reason: |
+      The core obligation is a JUDGMENT — which of the five defect classes a
+      finding belongs to — that no static artifact can prove in general
+      (review_only by nature). The first mechanism is a PR diagnosis-class
+      convention (advisory process metadata in the PR template), not a Go test.
+      Promote toward planned/behavioral only when a concrete check is built
+      (awg diagnose-finding, or a merge-check that requires the diagnosis class
+      for governance-corpus changes); until then it is enforced by review plus the
+      PR template — honestly an advisory governance rule, not a hard gate.
+  - id: ci.destructive_test_must_be_double_gated
+    title: A destructive test (mutates/replaces/deletes live external state) was guarded only by a build tag plus a comment, and clobbered a live store
+    severity: high
+    root_cause: |
+      The Oxigraph reload idempotence integration test PUT /store?default = REPLACE
+      the default graph; its only protection was the `integration` build tag plus a
+      comment warning "run only against a throwaway store". Run against the default
+      endpoint it clobbered a LIVE dev store (96376 triples -> 2). A comment is not a
+      gate, and a build tag alone still lets `go test -tags=integration` run the
+      destructive path against whatever Oxigraph is reachable at localhost:7878.
+    symptoms:
+      - a live Oxigraph default graph dropped to a handful of triples after a test run
+      - an integration/e2e test mutates a real endpoint reachable at a default address
+      - the only protection is a code comment, a filename, a naming convention, or a README note
+    forbidden_fixes:
+      - treat_a_comment_or_readme_or_filename_or_naming_convention_as_a_safety_gate
+      - rely_on_the_build_tag_alone_for_a_test_that_mutates_live_external_state
+      - point_a_destructive_test_at_a_default_localhost_endpoint_with_no_explicit_opt_in
+    architecture_fix: |
+      A test that can mutate, replace, delete, truncate, or otherwise damage live
+      external state MUST require BOTH (1) a build tag that excludes it from the
+      default `go test ./...` (//go:build integration or destructive) AND (2) an
+      explicit destructive opt-in environment variable (e.g.
+      AWARENESS_OXIGRAPH_DESTRUCTIVE=1) checked at the top of the destructive path,
+      skipping otherwise. Enforcement: the contract is hard-gated by
+      TestDestructiveTestGate_Fixtures (cmd/principle-check), with an ADVISORY repo
+      scan (TestDestructiveTestGate_RepoScanAdvisory) surfacing candidates — advisory
+      because the regex heuristic matches URL string-literals / mock methods, so it
+      is not yet precise enough for a hard repo gate (harden once clean). Remediated
+      cases: oxigraph_reload_integration_test.go and integration_e2e_test.go's
+      uploadTriples now skip unless AWARENESS_OXIGRAPH_DESTRUCTIVE=1.
+    required_tests:
+      - TestDestructiveTestGate_Fixtures
+  - id: awareness.graph_used_as_authority
+    title: Graph results treated as operational authority
+    severity: critical
+    related_invariants:
+      - awareness.graph.compiled_context_not_authority
+      - awareness.rdf.yaml_is_source_of_truth
+
+  - id: awareness.raw_sparql_exposed_to_agent
+    title: Query surface accepts or forwards raw SPARQL
+    severity: critical
+    related_invariants:
+      - awareness.query.no_arbitrary_sparql
+
+  - id: awareness.empty_graph_silently_treated_as_no_awareness
+    title: Empty graph or store outage silently treated as no-awareness
+    severity: critical
+    related_invariants:
+      - awareness.store_unavailable_explicit
+      - awareness.rdf.yaml_is_source_of_truth
+
+  - id: awareness.ontology_vocab_drift
+    title: Ontology vocab importer and proto drift out of alignment
+    severity: high
+    related_invariants:
+      - awareness.ontology_vocab_importer_drift_forbidden
+
+  - id: awareness.briefing_context_bloat
+    title: Briefing emits oversized context and long text bodies
+    severity: warning
+    related_invariants:
+      - awareness.briefing.deterministic_compact_context
+      - awareness.no_long_bodies_in_rdf
+
+  - id: awareness.legacy_mechanism_reintroduced
+    title: Legacy SQLite session or preflight machinery is reintroduced
+    severity: critical
+    related_invariants:
+      - awareness.no_legacy_sqlite_graph
+      - awareness.graph.compiled_context_not_authority
+
+  - id: awareness.rdf.unvalidated_ntriples_corrupt_store
+    title: Unvalidated N-Triples written to Oxigraph silently corrupt the awareness graph
+    severity: high
+    violates_contracts:
+      - contract.yaml2nt_ntriples_output
+    related_invariants:
+      - awareness.rdf.ntriples_validated_before_write
+      - awareness.rdf.yaml_is_source_of_truth
+
+  # ── Dogfooding pass (2026-06-11): bugs found by running the graph on itself ──
+
+  - id: awareness.weak_pattern_match_pollutes_actions
+    title: A medium/narrow keyword-overlap pattern match injects its required/forbidden calls into Preflight actions, burying the real repair guidance
+    severity: high
+    related_invariants:
+      - awareness.preflight_node_context_must_not_flood
+      - awareness.briefing.deterministic_compact_context
+    required_tests:
+      - golang/server/preflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions
+
+  - id: awareness.greedy_importer_claims_foreign_files
+    title: A new file-extension importer without a directory scope claims unrelated files (audit_history.jsonl imported as agent runs)
+    severity: high
+    related_invariants:
+      - awareness.rdf.strict_import_must_surface_all_skips
+      - awareness.rdf.yaml_is_source_of_truth
+    required_tests:
+      - golang/extractor/intent_yaml_import_test.go:TestPhaseC_Intent_IntegrationSelfAwareness
+
+  - id: failure.contract_scope_underconstrained_allows_repair_drift
+    title: Contract scope underconstrained allows repair drift
+    category: repair
+    severity: warning
+    summary: >
+      A contract-first repair can still drift when the contract is broad enough
+      to justify edits outside the issue's required behavior path.
+    description: >
+      Finding a contract is not sufficient. The contract must identify the required
+      scope, allowed related scope, out-of-scope areas, required behavior paths, and
+      forbidden broadening. Otherwise an agent may satisfy the contract in a way that
+      touches neighboring behavior and reduces minimality or architecture safety.
+    evidence:
+      - task: cli__cli-1337
+      - mode: D
+      - model: claude-opus-4-8
+      - result: 14/16 fail-to-pass tests passed
+      - judge_score: 38
+      - observed_behavior: issue fix broadened into PR status-message behavior
+      - missed_behavior: merged/conflicting error-path messages
+    impact:
+      - reduces patch minimality
+      - may alter unrelated behavior
+      - may pass contract gate while still failing expected tests
+      - weakens architecture safety score
+    forbidden_fix:
+      - Do not mark contract_found as sufficient when contract scope is broad.
+      - Do not allow related commands/files unless the contract explicitly allows them.
+      - Do not treat same semantic family as permission to edit neighboring behavior.
+    required_response:
+      - Mark contract confidence as partial or scoped_warning when scope rails are missing.
+      - Ask for or propose required_scope, allowed_related_scope, out_of_scope, and required_paths.
+      - Prefer revision_request.md if the contract cannot constrain the repair safely.
+  - id: failure.importgraph.go_no_edges_when_gomod_in_subdir
+    title: Go import-graph extractor emits 0 dependency edges when go.mod is not at repo root
+    severity: high
+    description: importgraph/golang.go resolves internal-vs-external imports against readGoModule(root), which opens only <root>/go.mod. When a repo has no root go.mod and the module lives in a subdir, readGoModule returns ""; goFact then never matches (imp==module || HasPrefix(imp, module+"/")) so EVERY import is classified external/stdlib and zero cross-component dependsOn edges are emitted.
+    protects:
+      files:
+        - golang/extractor/importgraph/golang.go
+    required_tests:
+      - golang/extractor/importgraph/golang_test.go:TestGoImportGraph_ModuleInSubdirEmitsEdges
+    evidence:
+      - awg bootstrap --repo ../services (HEAD 0015c406) produced go_import_graph.yaml with 75 components and 0 depends_on edges; services has no root go.mod (module is golang/go.mod = github.com/globulario/services/golang)
+      - 'root cause: golang.go:24 readGoModule(root) reads only root/go.mod; golang.go:79 requires module!='''' to mark an import internal'
+    contract: import-graph extraction must infer inter-component dependsOn edges from internal imports; the module path must be resolved even when go.mod lives in a subdirectory (e.g. golang/go.mod), not only at the repo root
+  - id: failure.importgraph.go_dangling_dependson_edge_to_unscanned_package
+    title: import-graph emits a dangling depends_on edge to a generated-only (unscanned) package
+    severity: warning
+    description: 'classify() added an inferred internal dependsOn for any import resolving to a component dir, even when that dir had no scanned source files (all .pb.go/_generated.go, excluded). The target component node is never emitted, leaving a dangling edge (observed: component.golang.cluster_controller -> component.golang.authpb). Fix: pass the set of components that actually have scanned files into classify and add the inferred edge only when the target is one of them; classifier-rule edges are left untouched.'
+    protects:
+      files:
+        - golang/extractor/importgraph/importgraph.go
+    required_tests:
+      - golang/extractor/importgraph/golang_test.go:TestGoImportGraph_DropsDanglingEdgeToGeneratedOnlyPackage
+    evidence:
+      - 'awg bootstrap --repo ../services: 1 dangling target component.golang.authpb among 387 edges; golang/authpb contains only globular_auth.pb.go'
+    contract: an inferred component depends_on edge must target a component that exists in the emitted graph; a package whose only files are generated/excluded (e.g. .pb.go-only proto) rolls up to no component and must not be an edge target
+  - id: failure.rebuild.authoredin_records_per_run_temp_path
+    title: rebuild bakes a per-run temp path into authoredIn, so embeddata-freshness can never pass
+    severity: high
+    description: 'filteredServicesGeneratedDir staged services-generated YAML into os.MkdirTemp("awg-services-generated-*") and imported from there. NormPath only strips agRepo/svcRepo prefixes, so the /tmp/awg-services-generated-<rand>/ path was written verbatim into authoredIn. The random temp suffix differs every run, so the freshness check (rebuild and audit each regenerate) always diffed. Fix: mirror the repo-relative subpath (docs/awareness/generated) under the temp root and register the temp root as a strip prefix, yielding stable docs/awareness/generated/<f> authoredIn.'
+    protects:
+      files:
+        - cmd/awg/cmd_rebuild.go
+    required_tests:
+      - cmd/awg/helpers_test.go:TestFilteredServicesGeneratedDir_ExcludesAwarenessGraphArtifacts
+    evidence:
+      - 'awg audit embeddata-freshness FAIL: component.scripts authoredIn /tmp/awg-services-generated-2297933849/components.yaml then .../492872674/... on the next run'
+    contract: provenance (authoredIn) for staged/filtered generated inputs must be a stable repo-relative path; a per-run absolute temp path makes embeddata-freshness / 'awg rebuild --check' non-deterministic and permanently red
+  - id: backup_manager.scylla_registration_skipped_on_synthetic_marker
+    title: scylla cluster never registered because reachable-but-unregistered ScyllaDB is mistaken for registered
+    description: 'On day-0/day-1, backup_manager.ensureScyllaRegistered checks whether a scylla-manager cluster is registered. detectScyllaClusters returns synthetic ''native:<name>'' + ''scylla_host:<ip>'' markers when ScyllaDB is reachable but unregistered. The managed-count loop only excluded ''native:'', so ''scylla_host:'' was counted as a registered cluster: the path concluded registration was done, skipped ''sctool cluster add'', and returned. Result: cluster stays unregistered (cluster_count=0), backup/repair/restore unavailable, doctor raises scylla_manager.cluster_registered. Compounded by the registration being a one-shot at startup with no retry across the node-agent agent-token/port reconcile window.'
+    protects:
+      files:
+        - golang/backup_manager/backup_manager_server/preflight.go
+    related_invariants:
+      - backup_manager.scylla_registration_excludes_synthetic_markers
+    forbidden_fix:
+      - count detectScyllaClusters synthetic markers (native:/scylla_host:) as a registered cluster, or add the required profile / mark registered without running 'sctool cluster add'
+    evidence:
+      - 'live day-0 install 2026-07-02: ensureScyllaRegistered logged only auto-detect then went silent; sctool cluster list empty; doctor cluster_count=0'
+    contract: backup_manager must register an unregistered-but-reachable ScyllaDB via 'sctool cluster add'; synthetic detection markers are not a registration
+  - id: build.dual_systemd_unit_templates_drift
+    title: Two systemd-unit template generators drift; a fix lands in one and still ships broken via the other
+    severity: high
+    description: 'Scar 2026-07-08: the needs_scylla local-:9042 ExecStartPre deadlock (dns/rbac/workflow/ai_memory failing forever on core-only nodes) was fixed in specgen.go but the release bundle kept shipping the old gate from specgen.sh until both were aligned. needs_scylla membership also diverges (specgen.sh includes resource; service_catalog.yaml does not).'
+    protects:
+      files:
+        - golang/globularcli/tools/specgen/specgen.sh
+        - golang/deploy/specgen.go
+    required_tests:
+      - golang/deploy/deploy_test.go:TestGenerateSpec_MatchesExisting
+    forbidden_fix:
+      - fixing unit content in only one of the two template sources
+      - deleting TestGenerateSpec_MatchesExisting to silence the drift detector
+    evidence:
+      - golang/globularcli/tools/specgen/specgen.sh (scylla gate + Restart block aligned)
+      - golang/deploy/deploy_test.go TestGenerateSpec_MatchesExisting compares the two outputs
+      - 'regression (pending services-master): golang/deploy/specgen_unit_validator_test.go:TestGenerateSpec_ScyllaGateIsTopologyAware'
+    contract: There must be a single source of systemd unit content, or every unit-content change must be applied to BOTH generators and pinned by TestGenerateSpec_MatchesExisting. golang/deploy/specgen.go (deploy pipeline) and golang/globularcli/tools/specgen/specgen.sh (release-input regeneration, feeds shipped bundles) independently define the same unit content.

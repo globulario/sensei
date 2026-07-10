@@ -1,0 +1,48 @@
+# Failure Modes — incidents that happened or could happen.
+#
+# Each entry documents a known failure: what triggers it, what it looks
+# like, and how to fix it properly (not just the obvious-but-wrong way).
+#
+# The most valuable entries come from real incidents. After debugging a
+# production issue, encode it here so the same class of bug is caught
+# before it ships again.
+#
+# Schema:
+#   id:                  unique.dotted.identifier
+#   title:               short description
+#   severity:            critical | high | degraded
+#   status:              active | fixed | review_only
+#   symptoms:            observable signs of the failure
+#   root_cause:          technical explanation
+#   trigger:             what event or condition causes this
+#   architecture_fix:    the correct fix
+#   forbidden_fixes:     anti-patterns that make it worse
+#   related_invariants:  links to invariants.yaml entries
+
+failure_modes:
+
+# Example — copy and adapt when you record a real failure class:
+#  - id: config.env_var_overrides_production_setting
+#    title: Environment variable silently overrides production config
+#    severity: high
+#    status: active
+#    symptoms:
+#      - "Service uses wrong database in production"
+#      - "Config store shows correct value but service ignores it"
+#    root_cause: |
+#      A developer added os.Getenv("DB_HOST") as a "convenient fallback"
+#      during local development. In production, a stale env var from a
+#      previous deployment overrode the config store value.
+#    trigger: |
+#      Any environment where DB_HOST is set (CI, containers with leftover
+#      env, systemd units with Environment= from an old config).
+#    architecture_fix: |
+#      Remove all os.Getenv calls for service config. Config store is the
+#      sole source of truth. If the config store is unavailable, the service
+#      must fail — not silently use a stale env var.
+#    forbidden_fixes:
+#      - add_precedence_logic_env_over_config
+#      - add_env_var_for_just_this_one_setting
+#    related_invariants:
+#      - your.real.invariant_id
+#      - meta.fallback_must_degrade_semantics

@@ -1,0 +1,55 @@
+id: implementation_pattern.awg_dashboard_read_only
+class: ImplementationPattern
+label: AWG dashboard read-only gRPC flow
+description: >-
+  The VS Code dashboard reads the graph exclusively through Metadata / Query /
+  Resolve / related gRPC calls and renders; it never mutates corpus or promotes
+  candidates.
+status: active
+confidence: declared
+when_to_use:
+  - editing the VS Code awareness dashboard or webview
+  - displaying graph-derived state in a UI over gRPC
+  - adding a read surface for awareness metadata/query/resolve
+must_follow:
+  - All graph access goes through the gRPC client (grpcClient.ts), never direct file/store reads.
+  - The webview receives data via postMessage; it never writes corpus or invokes mutation.
+reference_files:
+  - path: editor/vscode/src/dashboardPanel.ts
+    role: canonical
+  - path: golang/server/resolve.go
+    role: backend_read_surface
+rationale: >-
+  A UI that reads backend authority over a narrow read-only contract cannot
+  become a hidden writer; mutation stays on the guarded CLI/backend path.
+implements_pattern: pattern.read_only_projection
+project_scope: editor/vscode
+forbidden_shortcuts:
+  - Reading candidate YAML files directly from the browser/webview.
+  - Adding a write RPC the dashboard calls to promote candidates.
+used_by_components:
+  - component.dashboard_architecture_view
+implements_decisions:
+  - decision.dashboard_v1_read_only_over_grpc
+enforces_contracts:
+  - contract.awareness_graph.query
+  - contract.awareness_graph.resolve
+  - contract.awareness_graph.metadata
+protects_boundaries:
+  - boundary.dashboard_read_only_grpc
+satisfies_invariants:
+  - awareness.graph.compiled_context_not_authority
+prevents_failure_modes:
+  - awareness.graph_used_as_authority
+blocks:
+  - forbidden_fix:ui_direct_candidate_promotion_without_guarded_backend_api
+  - pattern_misuse:pattern_misuse.ui_direct_promotion
+evidence:
+  - evidence.ci_green
+source_files:
+  - editor/vscode/src/dashboardPanel.ts
+  - golang/server/resolve.go
+uml:
+  kind: Activity
+  stereotype: implementation_pattern
+  view: behavioral

@@ -1,0 +1,28 @@
+# Fixture invariant — kept deliberately small so the test can assert on
+# exact triple counts. Exercises:
+#   - protects.files       → SourceFile node + protects edge + reverse implements
+#   - protects.symbols     → Symbol node + protects edge
+#   - protects.state       → EtcdKey node WITH a {template} placeholder
+#                            (regression guard for the percent-encoding bug)
+#   - forbidden_fixes      → ForbiddenFix node + forbids edge
+#   - required_tests       → Test node + requiresTest edge
+#   - related_failure_modes → aw:affects edge (object class is FailureMode)
+
+invariants:
+  - id: test.example.invariant
+    title: Test fixture invariant — do not edit
+    severity: high
+    status: active
+    protects:
+      files:
+        - test/example.go
+      symbols:
+        - TestExampleFunc
+      state:
+        - /test/example/{id}/config
+    forbidden_fixes:
+      - test_example_forbidden_fix
+    required_tests:
+      - TestExampleFunc
+    related_failure_modes:
+      - test.example.failure_mode

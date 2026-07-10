@@ -1,0 +1,24 @@
+id: awareness.loadnt_validates_before_loading
+level: contract
+title: loadnt validates N-Triples before it writes anything to the store
+intent: |
+  The loadnt CLI is a write path into the awareness store. It must reject
+  malformed N-Triples locally before making any HTTP request so store state is
+  never mutated by invalid graph data.
+agent_guidance: |
+  Validation is not optional on a write path. If you change input handling,
+  keep syntax validation ahead of transport.
+bad_smells:
+  - invalid triples sent to the store
+  - HTTP POST attempted before local validation
+activation_triggers:
+  - loadnt
+  - N-Triples upload
+expressed_by:
+  - cmd/loadnt/main.go
+related_invariants:
+  - awareness.rdf.ntriples_validated_before_write
+status: active
+required_tests:
+  - cmd/loadnt/main_test.go:TestRun_InvalidNTriples
+  - cmd/loadnt/main_test.go:TestRun_ValidTriples_SendsExpectedRequest

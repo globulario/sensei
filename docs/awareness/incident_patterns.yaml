@@ -1,0 +1,73 @@
+incident_patterns:
+  - id: pat.raw_sparql_query_passthrough
+    title: Raw SPARQL passthrough added back into Query
+    severity: critical
+    failure_mode: awareness.raw_sparql_exposed_to_agent
+    files:
+      - proto/awareness_graph.proto
+      - golang/server/query.go
+      - golang/store/oxigraph/oxigraph.go
+    related_invariants:
+      - awareness.query.no_arbitrary_sparql
+      - awareness.graph.compiled_context_not_authority
+    wrong_fixes:
+      - Re-enable QueryRequest.sparql and forward request body
+      - Allow caller provided predicates or raw triple patterns
+
+  - id: pat.graph_authority_confusion
+    title: Graph data used as desired runtime or install authority
+    severity: critical
+    failure_mode: awareness.graph_used_as_authority
+    files:
+      - golang/server/
+      - golang/store/
+      - README.md
+    related_invariants:
+      - awareness.graph.compiled_context_not_authority
+      - awareness.rdf.yaml_is_source_of_truth
+    wrong_fixes:
+      - Use graph edges as proof of runtime health
+      - Treat graph presence as desired state source
+
+  - id: pat.importer_ontology_drift
+    title: Importer ontology and proto expectations drift
+    severity: high
+    failure_mode: awareness.ontology_vocab_drift
+    files:
+      - ontology/awareness.ttl
+      - golang/rdf/vocab.go
+      - golang/extractor/yaml_import.go
+      - proto/awareness_graph.proto
+    related_invariants:
+      - awareness.ontology_vocab_importer_drift_forbidden
+    wrong_fixes:
+      - Add importer predicates without ontology and vocab updates
+      - Add proto fields with no importer emitted facts
+
+  - id: pat.briefing_token_bloat
+    title: Briefing output grows into long unstable text dumps
+    severity: warning
+    failure_mode: awareness.briefing_context_bloat
+    files:
+      - golang/server/briefing.go
+      - README.md
+    related_invariants:
+      - awareness.briefing.deterministic_compact_context
+      - awareness.no_long_bodies_in_rdf
+    wrong_fixes:
+      - Embed full YAML records in briefing prose
+      - Add non-deterministic text generation to briefing
+
+  - id: pat.legacy_sqlite_graph_reintroduced
+    title: Legacy SQLite graph or session machinery reintroduced
+    severity: critical
+    failure_mode: awareness.legacy_mechanism_reintroduced
+    files:
+      - go.mod
+      - golang/store/
+      - golang/server/
+    related_invariants:
+      - awareness.no_legacy_sqlite_graph
+    wrong_fixes:
+      - Reintroduce database/sql sqlite cache to power awareness RPCs
+      - Port old session or proposal history into runtime server path

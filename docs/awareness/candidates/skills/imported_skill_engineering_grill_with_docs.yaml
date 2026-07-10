@@ -1,0 +1,20 @@
+id: imported.skill.engineering.grill_with_docs
+class: ImplementationPattern
+label: 'Skill: grill-with-docs'
+status: candidate
+confidence: medium
+when_to_use:
+  - A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.
+reference_files:
+  - path: skills/engineering/grill-with-docs/SKILL.md
+    role: source_skill
+must_follow:
+  - Run a /grilling session, using the /domain-modeling skill.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: grill-with-docs
+  Source path: skills/engineering/grill-with-docs/SKILL.md
+source_files:
+  - skills/engineering/grill-with-docs/SKILL.md

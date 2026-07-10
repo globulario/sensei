@@ -1,0 +1,31 @@
+id: imported.skill.misc.git_guardrails_claude_code
+class: ImplementationPattern
+label: 'Skill: git-guardrails-claude-code'
+status: candidate
+confidence: medium
+when_to_use:
+  - Set up Claude Code hooks to block dangerous git commands (push, reset --hard, clean, branch -D, etc.) before they execute. Use when user wants to prevent destructive git operations, add git safety hooks, or block git push/reset in Claude Code.
+reference_files:
+  - path: skills/misc/git-guardrails-claude-code/SKILL.md
+    role: source_skill
+must_follow:
+  - Sets up a PreToolUse hook that intercepts and blocks dangerous git commands before Claude executes them.
+  - git push (all variants including --force)
+  - git reset --hard
+  - git clean -f / git clean -fd
+  - git branch -D
+  - git checkout . / git restore .
+  - 'Project: .claude/hooks/block-dangerous-git.sh'
+  - 'Global: ~/.claude/hooks/block-dangerous-git.sh'
+  - 'Run a quick test:'
+  - Should exit with code 2 and print a BLOCKED message to stderr.
+forbidden_shortcuts:
+  - If the settings file already exists, merge the hook into existing hooks.PreToolUse array — don't overwrite other settings.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: git-guardrails-claude-code
+  Source path: skills/misc/git-guardrails-claude-code/SKILL.md
+source_files:
+  - skills/misc/git-guardrails-claude-code/SKILL.md

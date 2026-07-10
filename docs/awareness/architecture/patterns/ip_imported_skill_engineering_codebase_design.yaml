@@ -1,0 +1,38 @@
+id: imported.skill.engineering.codebase_design
+class: ImplementationPattern
+label: 'Skill: codebase-design'
+status: active
+confidence: reviewed
+when_to_use:
+    - Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabu
+    - Use when designing a workflow, interface, or promotion path for implementation pattern candidates and governance rules.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - 'Interface — everything a caller must know to use the module correctly: the type signature, but also invariants, ordering constraints, error modes, required configuration, and performance characteristics. Avoid: API, signature (too narrow — they refer only to t'
+    - 'Locality — what maintainers get from depth: change, bugs, knowledge, and verification concentrate in one place rather than spreading across callers. Fix once, fixed everywhere.'
+    - Can I reduce the number of methods?
+    - Can I simplify the parameters?
+    - Can I hide more complexity inside?
+    - Depth is a property of the interface, not the implementation. A deep module can be internally composed of small, mockable, swappable parts — they just aren't part of the interface. A module can have internal seams (private to its implementation, used by its ow
+    - The deletion test. Imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.
+    - The interface is the test surface. Callers and tests cross the same seam. If you want to test *past* the interface, the module is probably the wrong shape.
+    - Small surface area. Fewer methods = fewer tests needed. Fewer params = simpler test setup.
+    - A Module has exactly one Interface (the surface it presents to callers and tests).
+    - Depth is a property of a Module, measured against its Interface.
+    - A Seam is where a Module's Interface lives.
+forbidden_shortcuts:
+    - Use these terms exactly — don't substitute "component," "service," "API," or "boundary." Consistent language is the whole point.
+    - One adapter means a hypothetical seam. Two adapters means a real one. Don't introduce a seam unless something actually varies across it.
+    - Accept dependencies, don't create them.
+    - Return results, don't produce side effects.
+    - 'Deepening a cluster given its dependencies — see DEEPENING.md: dependency categories, seam discipline, and replace-don''t-layer testing.'
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: codebase-design
+    Source path: skills/engineering/codebase-design/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

@@ -1,0 +1,35 @@
+id: pattern.scope_resolver
+class: DesignPattern
+name: ScopeResolver
+category: integration
+description: >-
+  A query, briefing, intent, or rule is constrained by a resolved repo/domain
+  scope; downstream loaders filter by that resolved scope and default untagged
+  nodes to the home domain.
+applies_when: >-
+  Knowledge spans multiple repos/domains and a result must not leak foreign
+  rules into the wrong scope.
+does_not_apply_when: >-
+  The graph is genuinely single-domain — scope resolution adds no safety.
+forces_or_tradeoffs: >-
+  Every query path must thread and honour the resolved scope.
+confidence: declared
+failure_modes_prevented:
+  - awareness.greedy_importer_claims_foreign_files
+forbidden_misuses:
+  - pattern_misuse.cross_domain_leak
+related_invariants:
+  - awareness.briefing.sections_honor_domain_scope
+related_components:
+  - component.awareness_graph_service
+related_boundaries:
+  - boundary.domain_scope
+related_decisions:
+  - decision.untagged_domain_defaults_home
+example_files:
+  - golang/server/scope.go
+  - golang/server/impact.go
+uml:
+  kind: Constraint
+  stereotype: design_pattern
+  view: awareness

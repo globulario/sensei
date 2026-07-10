@@ -1,0 +1,22 @@
+id: awareness.impact_distinguishes_direct_and_inferred
+level: contract
+title: Impact keeps direct anchors distinct from inferred context
+intent: |
+  The Impact RPC is the structured anchor surface for a file. It must report
+  direct invariants, failure modes, incident patterns, and intents separately
+  from any inferred context so callers can reason about confidence and scope.
+agent_guidance: |
+  When adding a new impact partition, preserve the direct-vs-inferred split and
+  do not collapse the categories into one undifferentiated list.
+bad_smells:
+  - inferred nodes returned as direct anchors
+  - all node classes merged into one bucket
+activation_triggers:
+  - impact
+  - anchor partition
+expressed_by:
+  - golang/server/impact.go
+status: active
+required_tests:
+  - golang/server/main_test.go:TestImpact_FakeInvariant_GoesToDirectInvariants
+  - golang/server/main_test.go:TestImpact_InferredFieldsEmptyInV0

@@ -1,0 +1,33 @@
+id: imported.skill.misc.migrate_to_shoehorn
+class: ImplementationPattern
+label: 'Skill: migrate-to-shoehorn'
+status: candidate
+confidence: medium
+when_to_use:
+  - Migrate test files from as type assertions to @total-typescript/shoehorn. Use when user mentions shoehorn, wants to replace as in tests, or needs partial test data.
+reference_files:
+  - path: skills/misc/migrate-to-shoehorn/SKILL.md
+    role: source_skill
+must_follow:
+  - Trained not to use it
+  - Must manually specify target type
+  - Double-as (as unknown as Type) for intentionally wrong data
+  - 'Before:'
+  - // Only care about body.id but must fake entire Request
+  - 'Gather requirements - ask user:'
+  - What test files have as assertions causing problems?
+  - Are they dealing with large objects where only some properties matter?
+  - Do they need to pass intentionally wrong data for error testing?
+  - 'Install and migrate:'
+  - 'Install: npm i @total-typescript/shoehorn'
+  - 'Find test files with as assertions: grep -r " as [A-Z]" --include="*.test.ts" --include="*.spec.ts"'
+forbidden_shortcuts:
+  - Test code only. Never use shoehorn in production code.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: migrate-to-shoehorn
+  Source path: skills/misc/migrate-to-shoehorn/SKILL.md
+source_files:
+  - skills/misc/migrate-to-shoehorn/SKILL.md

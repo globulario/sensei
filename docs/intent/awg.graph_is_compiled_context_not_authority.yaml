@@ -1,0 +1,43 @@
+id: awg.graph_is_compiled_context_not_authority
+level: principle
+title: The graph is compiled context, not runtime authority
+intent: |
+  AWG compiles knowledge from YAML sources, source annotations, and scanner output
+  into an RDF graph. This graph is a snapshot of what the codebase knows about itself
+  at build time. It is NOT a runtime authority.
+
+  The graph cannot prove current etcd state, cluster membership, service health, or
+  installed package versions. It can explain WHY code exists, WHAT it protects, and
+  WHICH fixes are forbidden — but it cannot assert what IS true right now.
+
+  An agent that treats a briefing result as ground truth for cluster state has confused
+  compiled context with live authority. AWG tells you the rules; live tools (gRPC probes,
+  etcd queries, Prometheus metrics) tell you the current state.
+agent_guidance: |
+  Use AWG briefings to understand constraints before editing code. Use live tools
+  (cluster health, workflow status, node inventory) to understand current state.
+  Never cite a briefing result as evidence of runtime health or operational status.
+bad_smells:
+  - agent says "AWG reports the service is healthy" (AWG doesn't know runtime state)
+  - briefing result used to skip a health check
+  - invariant treated as guarantee rather than constraint
+  - graph triple used as deployment evidence
+activation_triggers:
+  - briefing
+  - awareness
+  - graph query
+  - compiled knowledge
+expressed_by:
+  - golang/server/briefing.go
+  - golang/server/impact.go
+related_invariants:
+  - awareness.store_unavailable_explicit
+zooms_out_to:
+  - awg.mission
+zooms_in_to: []
+related_to:
+  - awg.briefing_is_the_primary_interface
+status: active
+required_tests:
+  - golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil
+  - golang/server/main_test.go:TestValidateBackend_UnhealthyStore_RequireFalse_LogsWarning

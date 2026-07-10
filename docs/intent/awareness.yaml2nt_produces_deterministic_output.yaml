@@ -1,0 +1,25 @@
+id: awareness.yaml2nt_produces_deterministic_output
+level: contract
+title: yaml2nt produces validated deterministic N-Triples output
+intent: |
+  yaml2nt is the compiler from authored YAML to RDF. Given the same input
+  corpus, it must emit validated N-Triples deterministically so review diffs and
+  seed freshness checks remain meaningful.
+agent_guidance: |
+  When you change yaml2nt output, preserve determinism and validation-before-
+  write. Avoid hidden dependence on filesystem order.
+bad_smells:
+  - repeated runs produce different triple ordering
+  - strict mode silently hides skipped files
+activation_triggers:
+  - yaml2nt
+  - N-Triples generation
+expressed_by:
+  - cmd/yaml2nt/main.go
+related_invariants:
+  - awareness.rdf.ntriples_validated_before_write
+  - awareness.rdf.strict_import_must_surface_all_skips
+status: active
+required_tests:
+  - cmd/yaml2nt/main_test.go:TestRun_StdoutMode_ProducesValidNTriples
+  - cmd/yaml2nt/main_test.go:TestDedupNTriples

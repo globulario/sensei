@@ -1,0 +1,46 @@
+id: implementation_pattern.guarded_cli_candidate_promotion
+class: ImplementationPattern
+label: Candidate review + guarded CLI promotion
+description: >-
+  Candidates are authored as YAML, reviewed, and promoted into the active corpus
+  by an explicit guarded awg CLI command — never by a one-click UI action.
+status: active
+confidence: declared
+when_to_use:
+  - promoting a reviewed candidate into the active awareness corpus
+  - adding any state-changing operation to the corpus/seed
+  - exposing a mutation path that must stay auditable and reviewed
+must_follow:
+  - Promotion is an explicit `awg promote` CLI invocation with human review.
+  - The seed is regenerated and validated (awg rebuild) after promotion, never hand-edited.
+reference_files:
+  - path: cmd/awg/cmd_promote.go
+    role: canonical
+rationale: >-
+  Routing every mutation through a guarded CLI step keeps it validated and
+  auditable, and prevents a UI from becoming a second uncontrolled writer.
+implements_pattern: pattern.guarded_mutation_flow
+project_scope: cmd/awg
+forbidden_shortcuts:
+  - Promoting from the dashboard or any UI without a guarded backend API.
+  - Writing the active corpus or store directly to "promote" a candidate.
+used_by_components:
+  - component.corpus_loader
+implements_decisions:
+  - decision.candidate_promotion_remains_cli_guarded
+protects_boundaries:
+  - boundary.candidate_promotion
+  - boundary.corpus_cli_mutation
+satisfies_invariants:
+  - awareness.seed_is_generated_author_in_yaml
+prevents_failure_modes:
+  - awareness.graph_used_as_authority
+blocks:
+  - forbidden_fix:ui_direct_candidate_promotion_without_guarded_backend_api
+  - pattern_misuse:pattern_misuse.ui_direct_promotion
+source_files:
+  - cmd/awg/cmd_promote.go
+uml:
+  kind: Activity
+  stereotype: implementation_pattern
+  view: behavioral

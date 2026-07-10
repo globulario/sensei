@@ -1,0 +1,30 @@
+id: pattern_misuse.ui_direct_promotion
+class: PatternMisuse
+name: UI executes corpus mutation without a guarded backend API
+status: guardrail
+description: >-
+  Making the dashboard/UI promote a candidate by writing the corpus or store
+  directly, instead of routing through the guarded CLI / a reviewed backend API.
+why_dangerous: >-
+  It turns a read-only projection into a hidden writer, bypasses review and
+  validation, and treats the compiled graph as mutable authority.
+confidence: declared
+misused_patterns:
+  - pattern.read_only_projection
+  - pattern.guarded_mutation_flow
+safer_pattern: pattern.guarded_mutation_flow
+forbidden_by:
+  - forbidden_fix:ui_direct_candidate_promotion_without_guarded_backend_api
+  - meta_principle:meta.storage_is_not_semantic_authority
+violates_invariants:
+  - awareness.graph.compiled_context_not_authority
+causes_failure_modes:
+  - awareness.graph_used_as_authority
+avoided_by:
+  - implementation_pattern.guarded_cli_candidate_promotion
+detected_in:
+  - editor/vscode/src/dashboardPanel.ts
+uml:
+  kind: Constraint
+  stereotype: pattern_misuse
+  view: awareness

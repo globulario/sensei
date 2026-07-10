@@ -1,0 +1,32 @@
+id: awareness.briefing_returns_explicit_status
+level: contract
+title: Briefing always returns an explicit status instead of implying meaning from silence
+intent: |
+  The Briefing RPC must always classify its result explicitly: OK when anchors
+  exist, EMPTY when no anchors exist, and UNAVAILABLE when the backing store
+  cannot answer. Callers must never infer "empty" from a transport success with
+  missing context, and they must never mistake backend failure for a legitimate
+  zero-knowledge answer.
+agent_guidance: |
+  When you touch the briefing path, preserve the distinction between no
+  knowledge and unavailable backend state. Empty is a semantic result; failure
+  is an operational error.
+bad_smells:
+  - store failure converted into an EMPTY briefing
+  - client infers status from prose text instead of the enum
+activation_triggers:
+  - briefing
+  - empty result
+  - unavailable store
+expressed_by:
+  - golang/server/briefing.go
+  - golang/server/preflight.go
+related_invariants:
+  - awareness.store_unavailable_explicit
+  - awareness.briefing.deterministic_compact_context
+related_to:
+  - awg.briefing_is_the_primary_interface
+status: active
+required_tests:
+  - golang/server/main_test.go:TestBriefing_EmptyStatusWhenNoNodes
+  - golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil

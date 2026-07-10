@@ -1,0 +1,951 @@
+# Awareness ontology — canonical Turtle vocabulary.
+#
+# This file is the single source of truth for the awareness namespace.
+# golang/rdf/vocab.go MUST mirror these IRIs exactly; a CI check (planned)
+# will diff the two and fail the build on drift.
+#
+# Design rules:
+#   - Keep classes and properties minimal. Add a term only when a real
+#     query needs it. The graph is an index over what's authored elsewhere
+#     (YAMLs + code annotations); the ontology must not become a parallel
+#     authoring substrate.
+#   - Use rdfs:label for the short human-readable title. Long-form text
+#     (root_cause, lesson, enforcement, summary) stays in the YAML source
+#     and is fetched by ID. The spike proved bodies in the graph bloat
+#     fast for no agent-side benefit.
+#   - Reuse W3C-standard predicates where they fit (rdf:type, rdfs:label,
+#     rdfs:comment). Reach for new aw: terms only for domain semantics.
+
+@prefix aw:    <https://globular.io/awareness#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+# ── Ontology metadata ─────────────────────────────────────────────────────
+
+<https://globular.io/awareness>  a  owl:Ontology ;
+    rdfs:label   "Globular Awareness Ontology" ;
+    rdfs:comment "Vocabulary for invariants, failure modes, incident patterns, and the source-code anchors they govern." ;
+    owl:versionInfo "0.1.0" .
+
+# ── Classes ───────────────────────────────────────────────────────────────
+
+aw:Invariant       a owl:Class ; rdfs:label "Invariant" ;
+    rdfs:comment   "An architectural rule the code must continue to satisfy. Authored in YAML; cited by code via @invariant: annotations." .
+
+aw:FailureMode     a owl:Class ; rdfs:label "Failure Mode" ;
+    rdfs:comment   "A characterised way the system breaks when an invariant is violated. Names a class of incident, not a specific occurrence." .
+
+aw:IncidentPattern a owl:Class ; rdfs:label "Incident Pattern" ;
+    rdfs:comment   "A reusable signature extracted from a real incident — the shape of the dangerous edit that produced it. Distinct from aw:Incident (a specific runtime occurrence) which lives in a separate store." .
+
+aw:Intent          a owl:Class ; rdfs:label "Architectural Intent" ;
+    rdfs:comment   "Directional architectural pressure — the 'why' that any change must align with. Parent → child intents form a hierarchy via aw:zoomsInto / aw:zoomsOutTo." .
+
+# Phase C intent subclasses — rdfs:subClassOf aw:Intent.
+aw:DesignIntent      a owl:Class ; rdfs:subClassOf aw:Intent ; rdfs:label "Design Intent" ;
+    rdfs:comment "Intent at level principle or pattern — captures structural and architectural choices." .
+
+aw:OperationalIntent a owl:Class ; rdfs:subClassOf aw:Intent ; rdfs:label "Operational Intent" ;
+    rdfs:comment "Intent at level mechanism, operator_model, or implementation — captures how things work at runtime." .
+
+aw:ProductIntent     a owl:Class ; rdfs:subClassOf aw:Intent ; rdfs:label "Product Intent" ;
+    rdfs:comment "Intent at level vision — captures product direction and goals." .
+
+aw:ConstraintIntent  a owl:Class ; rdfs:subClassOf aw:Intent ; rdfs:label "Constraint Intent" ;
+    rdfs:comment "Intent at level invariant, contract, safety_rule, or constraint — captures non-negotiable boundaries." .
+
+aw:ForbiddenFix    a owl:Class ; rdfs:label "Forbidden Fix" ;
+    rdfs:comment   "A named anti-pattern: a fix shape that looks tempting but reintroduces or hides the failure_mode it claims to solve." .
+
+aw:Test            a owl:Class ; rdfs:label "Regression Test" ;
+    rdfs:comment   "A test function whose existence keeps a specific invariant or failure_mode pinned." .
+
+aw:SourceFile      a owl:Class ; rdfs:label "Source File" ;
+    rdfs:comment   "A code file (path relative to repo root) referenced as the anchor of an invariant, pattern, or annotation." .
+
+aw:Symbol          a owl:Class ; rdfs:label "Code Symbol" ;
+    rdfs:comment   "A Go identifier (function, type, method) named as part of an invariant's surface. Format: 'package.Name' or 'package.Type.Method'." .
+
+aw:EtcdKey         a owl:Class ; rdfs:label "Etcd Key" ;
+    rdfs:comment   "A key (or key template, e.g. /globular/services/{id}/config) in the cluster state store, named as state protected by an invariant." .
+
+aw:SystemdUnit     a owl:Class ; rdfs:label "Systemd Unit" ;
+    rdfs:comment   "A systemd unit name (e.g. globular-mcp.service) named as runtime state protected by an invariant." .
+
+# Phase B classes — added when importers were implemented.
+aw:Contract   a owl:Class ; rdfs:label "Contract" ;
+    rdfs:comment "A versioned authority or service contract — who owns a data domain and what it guarantees." .
+
+aw:Decision   a owl:Class ; rdfs:label "Architecture Decision" ;
+    rdfs:comment "An accepted architectural decision record. Captures rationale and links to invariants it protects." .
+
+aw:Guardrail  a owl:Class ; rdfs:label "Operational Guardrail" ;
+    rdfs:comment "A named operational boundary with priority and status; guards specific invariants." .
+
+aw:Pattern    a owl:Class ; rdfs:label "Design Pattern" ;
+    rdfs:comment "A named recurring design pattern with a definition and optional examples." .
+
+aw:ImplementationPattern a owl:Class ; rdfs:label "Implementation Pattern" ;
+    rdfs:comment "Project-specific code recipe — the established shape Globular wants for a recurring code structure (e.g. how a gRPC service client is laid out). Distinct from aw:Pattern (architectural design pattern); kept as a separate top-level class in v1 to avoid affecting existing Pattern queries." .
+
+aw:Service    a owl:Class ; rdfs:label "Service" ;
+    rdfs:comment "An entry in the service catalogue — a named component of the platform." .
+
+aw:Incident   a owl:Class ; rdfs:label "Incident" ;
+    rdfs:comment "An individual incident record with status, severity, and related source files." .
+
+# ── Architectural spine (Stage A) ─────────────────────────────────────────
+# A minimal "architectural nervous system" layered over the existing safety
+# nodes so agents reason about ownership, boundaries, contracts, decisions, and
+# proof — not just rules and bugs. MetaPrinciple is NOT a new corpus: it is the
+# existing meta.* invariants, additionally typed aw:MetaPrinciple by the
+# invariants importer so they are queryable as first-class architecture drivers
+# without duplicating their definitions (the dual-typed node keeps its invariant
+# IRI). Component / Boundary / Evidence are new authorable classes; Contract and
+# Decision reuse the Phase-B classes declared above.
+aw:MetaPrinciple a owl:Class ; rdfs:label "Meta-Principle" ;
+    rdfs:comment "A reusable architectural law that generates or constrains many lower-level rules (e.g. truth_read_via_owner_rpc_not_direct_storage). Realised as the existing meta.* invariants, dual-typed so they are queryable by class and connected as architectural drivers. Definitions stay in the invariant corpus — never duplicated." .
+
+aw:Component a owl:Class ; rdfs:label "Component" ;
+    rdfs:comment "An architectural unit of ownership and responsibility — a semantic unit that owns behaviour, contracts, rules, or state, not merely a file. kind: service | module | package | UI | CLI | storage | adapter | tool. Carries the four-layer authority model's 'who owns this truth'." .
+
+aw:Boundary a owl:Class ; rdfs:label "Boundary" ;
+    rdfs:comment "A place where architecture can be violated — where agents make dangerous mistakes (bypassing APIs, mutating files directly, crossing repo/domain scope, confusing read-only and write paths). kind: api | storage | repo | domain | mutation | read_only | generated_artifact | ownership | UI. Distinct from aw:Guardrail (operational priority) and aw:TrustBoundary (evidence-trust degradation)." .
+
+aw:Evidence a owl:Class ; rdfs:label "Evidence" ;
+    rdfs:comment "Proof that an invariant, contract, decision, or component state is true — and whether it is still alive. kind: test_result | ci | audit | validation | incident | benchmark | review | metric | log | generated_report; status: pass | fail | warning | stale | unknown. Distinct from aw:RuntimeEvidence (the freshness CONTRACT for proof) — Evidence is a proof INSTANCE the dashboard uses to tell 'rule exists' from 'rule is proven alive'." .
+
+# ── Design-pattern awareness (the "how" layer) ─────────────────────────────
+# Helps agents recognise the correct architectural SHAPE and avoid misusing it.
+# Grounded only: a pattern earns its place by protecting a boundary, satisfying
+# an invariant, implementing a decision, preventing a failure mode, or improving
+# a contract/component — never as decoration. DesignPattern is the general shape;
+# aw:ImplementationPattern (declared above) is the project-specific realisation;
+# PatternMisuse makes dangerous over/mis-application visible. Distinct from the
+# legacy generic aw:Pattern catalogue.
+aw:DesignPattern a owl:Class ; rdfs:label "Design Pattern" ;
+    rdfs:comment "A reusable architectural/structural solution grounded in this project: what shape to use, when it applies, when it does NOT apply, which failure modes it prevents, which principles/invariants it satisfies, and what misuse is forbidden. category: structural | behavioral | reliability | integration | data | concurrency | UI | testing | project_specific. Every DesignPattern must carry applies_when, does_not_apply_when, a prevented failure mode, and a forbidden misuse — no pattern worship." .
+
+aw:PatternMisuse a owl:Class ; rdfs:label "Pattern Misuse" ;
+    rdfs:comment "A common, dangerous misuse of a design pattern — especially where an agent might over-apply or misapply it. Makes misuse visible in the architecture view; links to a ForbiddenFix where one already exists rather than duplicating it." .
+
+# Phase C — code annotation classes.
+aw:CodeSymbol a owl:Class ; rdfs:label "Code Symbol" ;
+    rdfs:comment "An annotated code symbol (function, method, type, or file) extracted by the annotation scanner." .
+
+aw:TestSymbol a owl:Class ; rdfs:label "Test Symbol" ;
+    rdfs:comment "A test reference in file:TestName format, used as a tested_by target from CodeSymbol nodes." .
+
+# Phase 2 — outcome feedback classes.
+# These are compiled/indexed knowledge: they record what an agent or operator
+# DID and what HAPPENED, and point at the authority nodes (invariants, failure
+# modes, implementation patterns, tests) that were involved. They never assert
+# authority themselves — an OutcomeFeedback that names invariant:foo does not
+# make foo an active invariant; it only links to foo's node if that node exists.
+aw:OutcomeFeedback a owl:Class ; rdfs:label "Outcome Feedback" ;
+    rdfs:comment "A record of how a decision/change/remediation turned out — success, failure, blocked, or reverted — linked to the knowledge nodes that informed it. Offline-authored (or projected from workflow/doctor) and imported as indexed knowledge, never as cluster truth." .
+
+aw:AgentDecision a owl:Class ; rdfs:label "Agent Decision" ;
+    rdfs:comment "A decision an agent took (applied | rejected | deferred | reverted) for a task, optionally referenced by an OutcomeFeedback node." .
+
+aw:ChangeSet a owl:Class ; rdfs:label "Change Set" ;
+    rdfs:comment "A set of changes attributed to a decision/outcome (e.g. a commit or PR). v1 reserves the class; OutcomeFeedback may reference it." .
+
+aw:TestOutcome a owl:Class ; rdfs:label "Test Outcome" ;
+    rdfs:comment "The result of running the required tests for a change. v1 reserves the class; OutcomeFeedback carries outcome status directly." .
+
+aw:RuntimeOutcome a owl:Class ; rdfs:label "Runtime Outcome" ;
+    rdfs:comment "The runtime result observed after a change/remediation (converged, regressed, blocked). v1 reserves the class; OutcomeFeedback carries outcome status directly." .
+
+aw:GraphUpdateProposal a owl:Class ; rdfs:label "Graph Update Proposal" ;
+    rdfs:comment "A proposed addition to the awareness graph suggested by an outcome (e.g. a candidate failure mode or required test). Proposals are inert until reviewed and promoted by a human." .
+
+# Phase 3 — authority ownership classes.
+# AuthorityDomain makes the four-layer ownership principle queryable: who owns
+# this state, who may write it, which path mutations must flow through, and
+# which shortcuts are forbidden. v1 models each domain as one AuthorityDomain
+# node carrying flat literals (same flattening as ImplementationPattern) — the
+# satellite classes below are declared for the v2 reified model and reserved.
+aw:AuthorityDomain a owl:Class ; rdfs:label "Authority Domain" ;
+    rdfs:comment "A named state-ownership domain: the state objects it owns, the owning service, legal mutation/read paths, forbidden bypasses, and evidence freshness requirements. Compiled context — never a substitute for the owner's runtime checks." .
+
+aw:StateObject a owl:Class ; rdfs:label "State Object" ;
+    rdfs:comment "A piece of owned state inside an authority domain (e.g. artifact manifest, publish state). v1 reserves the class; AuthorityDomain carries owned state as aw:ownsState literals." .
+
+aw:OwnerService a owl:Class ; rdfs:label "Owner Service" ;
+    rdfs:comment "The service that owns an authority domain's state. v1 reserves the class; AuthorityDomain carries the owner as an aw:ownerService literal." .
+
+aw:AllowedWriter a owl:Class ; rdfs:label "Allowed Writer" ;
+    rdfs:comment "A service allowed to write a domain's state. v1 reserves the class; AuthorityDomain carries writers as aw:mayWrite literals." .
+
+aw:AllowedReader a owl:Class ; rdfs:label "Allowed Reader" ;
+    rdfs:comment "A service allowed to read a domain's state. v1 reserves the class; AuthorityDomain carries readers as aw:mayRead literals." .
+
+aw:MutationPath a owl:Class ; rdfs:label "Mutation Path" ;
+    rdfs:comment "A legal route for mutating a domain's state (RPC, workflow). v1 reserves the class; AuthorityDomain carries paths as aw:mustMutateVia literals." .
+
+aw:ObservationPath a owl:Class ; rdfs:label "Observation Path" ;
+    rdfs:comment "A legal route for observing a domain's state. v1 reserves the class; AuthorityDomain carries paths as aw:mustReadVia / aw:observesVia literals." .
+
+aw:TrustBoundary a owl:Class ; rdfs:label "Trust Boundary" ;
+    rdfs:comment "A boundary across which evidence trust degrades and must be re-established. v1 reserves the class." .
+
+aw:EvidenceSource a owl:Class ; rdfs:label "Evidence Source" ;
+    rdfs:comment "A source of runtime evidence with a freshness/trust contract. v1 reserves the class; AuthorityDomain carries the requirement as an aw:hasEvidenceFreshnessWindow literal." .
+
+# Phase 2A — repair-plan classes.
+# A RepairPlan is the safe, legal route back toward convergence for a class of
+# failure: which failure modes / finding classes it addresses, the preconditions
+# and verification it requires, its rollback, its blast radius, its approval
+# gate, and the patterns/invariants/tests it is bound to. Compiled advisory
+# context — execution still flows through the owner service / workflow gate.
+# v1 flattens steps to ordered literals; the satellite classes are reserved.
+aw:RepairPlan a owl:Class ; rdfs:label "Repair Plan" ;
+    rdfs:comment "The safe, legal repair route for a class of failure — preconditions, ordered repair steps, verification, rollback, blast radius, approval gate, and bindings to patterns/invariants/tests. Advisory: awareness plans, the owner service and workflow gate execute." .
+
+aw:RepairStep a owl:Class ; rdfs:label "Repair Step" ;
+    rdfs:comment "One ordered step of a RepairPlan. v1 reserves the class; RepairPlan carries steps as aw:hasRepairStep literals." .
+
+aw:Precondition a owl:Class ; rdfs:label "Precondition" ;
+    rdfs:comment "A condition that must hold before a RepairPlan may run. v1 reserves the class; RepairPlan carries them as aw:requiresPrecondition literals." .
+
+aw:Postcondition a owl:Class ; rdfs:label "Postcondition" ;
+    rdfs:comment "A condition expected to hold after a RepairPlan completes. v1 reserves the class." .
+
+aw:VerificationStep a owl:Class ; rdfs:label "Verification Step" ;
+    rdfs:comment "A check that confirms a RepairPlan converged. v1 reserves the class; RepairPlan carries them as aw:requiresVerification literals." .
+
+aw:RollbackStep a owl:Class ; rdfs:label "Rollback Step" ;
+    rdfs:comment "A step that safely reverses a RepairPlan via the owner-legal path. v1 reserves the class; RepairPlan carries them as aw:hasRollbackStep literals." .
+
+aw:ApprovalGate a owl:Class ; rdfs:label "Approval Gate" ;
+    rdfs:comment "The approval required before a repair executes (none | review_required | human_approval_required | multi_step_approval_required | manual_only). v1 reserves the class; carried as aw:requiresApprovalGate literal." .
+
+aw:BlastRadius a owl:Class ; rdfs:label "Blast Radius" ;
+    rdfs:comment "The scope of impact a repair carries (local | service | node | cluster | security | data_loss | external). v1 reserves the class; carried as aw:hasBlastRadius literal." .
+
+aw:RepairConfidence a owl:Class ; rdfs:label "Repair Confidence" ;
+    rdfs:comment "Confidence in a RepairPlan (high | medium | low | unknown). v1 reserves the class; carried as aw:hasConfidence literal." .
+
+aw:RepairApplicability a owl:Class ; rdfs:label "Repair Applicability" ;
+    rdfs:comment "The conditions under which a RepairPlan applies. v1 reserves the class; expressed via aw:repairsFailureMode / aw:repairsFindingClass / aw:appliesToAuthorityDomain." .
+
+# Phase 2C — runtime-evidence classes.
+# RuntimeEvidence describes the LIVE proof required to verify an invariant /
+# repair plan / authority claim — where it must come from, how fresh it must
+# be, and that stale or non-owner-path evidence must not be promoted to PASS.
+# It describes the evidence contract; it is not itself the authority.
+aw:RuntimeEvidence a owl:Class ; rdfs:label "Runtime Evidence" ;
+    rdfs:comment "A profile of the live proof required to verify a rule: owner service, observation path, freshness window, trust level, and the rule that stale/non-owner evidence must not become PASS. Describes the contract; never the authority." .
+
+aw:EvidenceProbe a owl:Class ; rdfs:label "Evidence Probe" ;
+    rdfs:comment "A concrete probe that gathers a piece of runtime evidence. v1 reserves the class; RuntimeEvidence carries probe paths as aw:observedViaPath literals." .
+
+aw:EvidenceFreshnessWindow a owl:Class ; rdfs:label "Evidence Freshness Window" ;
+    rdfs:comment "How fresh evidence must be to be trusted. v1 reserves the class; carried as aw:hasFreshnessWindow / aw:expiresAfter literals." .
+
+aw:EvidenceTrustLevel a owl:Class ; rdfs:label "Evidence Trust Level" ;
+    rdfs:comment "The trust assigned to an evidence source (high|medium|low). v1 reserves the class; carried as aw:hasTrustLevel literal." .
+
+aw:EvidenceConflict a owl:Class ; rdfs:label "Evidence Conflict" ;
+    rdfs:comment "A known conflict between two evidence sources. v1 reserves the class; carried as aw:conflictsWithEvidence literals." .
+
+aw:EvidenceOwnerPath a owl:Class ; rdfs:label "Evidence Owner Path" ;
+    rdfs:comment "The owner-legal path evidence must come from. v1 reserves the class; carried as aw:observedFromService / aw:mustComeFromOwnerPath." .
+
+# Phase 2G — agent-accountability classes.
+# AgentRun records what an agent did on a task: whether it used preflight,
+# ignored warnings, ran/skipped required tests, and whether the patch helped or
+# caused an incident. The graph can then answer which agent repairs succeeded,
+# failed, ignored warnings, or created new knowledge.
+aw:AgentRun a owl:Class ; rdfs:label "Agent Run" ;
+    rdfs:comment "A record of one agent task: agent/model, whether preflight was used and its status, warnings ignored, required/run/skipped tests, patch outcome, incidents caused/resolved, and knowledge created. Imported offline from JSONL." .
+
+aw:AgentScorecard a owl:Class ; rdfs:label "Agent Scorecard" ;
+    rdfs:comment "A roll-up of an agent's runs (success rate, warnings ignored, tests skipped). v1 reserves the class; derived from AgentRun nodes." .
+
+aw:PreflightUse a owl:Class ; rdfs:label "Preflight Use" ;
+    rdfs:comment "Whether and how preflight was consulted on a run. v1 reserves the class; carried as aw:usedPreflight / aw:preflightStatus." .
+
+aw:WarningIgnored a owl:Class ; rdfs:label "Warning Ignored" ;
+    rdfs:comment "A preflight/awareness warning an agent ignored. v1 reserves the class; carried as aw:warningsIgnored literals." .
+
+aw:TestRunEvidence a owl:Class ; rdfs:label "Test Run Evidence" ;
+    rdfs:comment "Evidence of which required tests an agent ran or skipped. v1 reserves the class; carried as aw:testsRun / aw:testsSkipped." .
+
+aw:PatchOutcome a owl:Class ; rdfs:label "Patch Outcome" ;
+    rdfs:comment "The outcome of an agent's patch (merged | reverted | caused_incident | resolved_incident). v1 reserves the class; carried as aw:patchStatus." .
+
+aw:LearningEvent a owl:Class ; rdfs:label "Learning Event" ;
+    rdfs:comment "A Mode D learning/certification event imported from offline evaluation records. Dual-typed as OutcomeFeedback when imported so audit/build can query both the outcome and its certification metadata." .
+
+# ── Datatype properties ───────────────────────────────────────────────────
+# Short literals only. Long-form text stays in YAML; the graph is an index.
+
+aw:severity  a owl:DatatypeProperty ; rdfs:label "severity" ;
+    rdfs:comment "One of: critical | high | warning | info | degraded." ;
+    rdfs:range xsd:string .
+
+aw:status    a owl:DatatypeProperty ; rdfs:label "status" ;
+    rdfs:comment "One of: active | planned | deprecated | superseded." ;
+    rdfs:range xsd:string .
+
+# Domain-scope properties. A knowledge node belongs to exactly one domain so
+# truth never crosses repos accidentally; a query scoped to one domain returns
+# only that domain's nodes plus shared meta-principles. See golang/server/scope.go.
+aw:domain    a owl:DatatypeProperty ; rdfs:label "domain" ;
+    rdfs:comment "Domain class of this node: \"repo\" | \"shared\". Shared nodes surface in any repo's briefing; repo nodes only in their own." ;
+    rdfs:range xsd:string .
+
+aw:repo      a owl:DatatypeProperty ; rdfs:label "repo" ;
+    rdfs:comment "Repository identity for a repo-domain node, e.g. \"github.com/caddyserver/caddy\". Empty for shared nodes." ;
+    rdfs:range xsd:string .
+
+aw:sourceSet a owl:DatatypeProperty ; rdfs:label "source set" ;
+    rdfs:comment "Namespace within a domain, e.g. \"pilot/caddy\". Identifies the source set a node was compiled from." ;
+    rdfs:range xsd:string .
+
+aw:origin    a owl:DatatypeProperty ; rdfs:label "origin" ;
+    rdfs:comment "How the node entered the graph: \"coldsource\" | \"authored\" | ..." ;
+    rdfs:range xsd:string .
+
+# Promotion provenance. The receipt of how a repo-scoped rule was earned, so any
+# foreign rule is traceable to its evidence. Read by no filter — they preserve
+# the chain of custody, they do not grant authority.
+aw:provenanceBundleId a owl:DatatypeProperty ; rdfs:label "provenance bundle id" ;
+    rdfs:comment "Cold-source bundle the candidate came from, e.g. \"caddy-reverseproxy-2026-06\"." ;
+    rdfs:range xsd:string .
+
+aw:provenanceCommitRange a owl:DatatypeProperty ; rdfs:label "provenance commit range" ;
+    rdfs:comment "Git range the cold-source bundle scanned, e.g. \"HEAD~500..HEAD\"." ;
+    rdfs:range xsd:string .
+
+aw:provenanceCitation a owl:DatatypeProperty ; rdfs:label "provenance citation" ;
+    rdfs:comment "A PR review comment / commit reference supporting the rule. Repeatable." ;
+    rdfs:range xsd:string .
+
+aw:reviewLabel a owl:DatatypeProperty ; rdfs:label "review label" ;
+    rdfs:comment "Human label assigned at promotion: \"load-bearing\" | \"shallow\" | ..." ;
+    rdfs:range xsd:string .
+
+# Detect block — advisory rule metadata for warning-level enforcement.
+# Deterministic, warning-only: matched by EditCheck against proposed edit
+# content. No blocking, no CI gate, no automatic edits.
+aw:detectForbiddenPattern a owl:DatatypeProperty ; rdfs:label "detect forbidden pattern" ;
+    rdfs:comment "Go regexp whose presence in a proposed edit warns (e.g. \"\\\\bfmt\\\\.Errorf\\\\(\")." ;
+    rdfs:range xsd:string .
+
+aw:detectRequiredPattern a owl:DatatypeProperty ; rdfs:label "detect required pattern" ;
+    rdfs:comment "Go regexp whose ABSENCE from a proposed edit warns (e.g. \"\\\\bdispenser\\\\.Errf\\\\(\")." ;
+    rdfs:range xsd:string .
+
+aw:detectAppliesToPath a owl:DatatypeProperty ; rdfs:label "detect applies-to path" ;
+    rdfs:comment "Glob restricting which files the detect rule evaluates. Repeatable." ;
+    rdfs:range xsd:string .
+
+aw:detectMessage a owl:DatatypeProperty ; rdfs:label "detect message" ;
+    rdfs:comment "Operator-facing advice shown with the warning." ;
+    rdfs:range xsd:string .
+
+aw:detectEnforcement a owl:DatatypeProperty ; rdfs:label "detect enforcement" ;
+    rdfs:comment "Enforcement level: \"warn\" (default, advisory) | \"block\" (would-block under a hard gate). EditCheck stays advisory regardless." ;
+    rdfs:range xsd:string .
+
+# aw:authoredIn and aw:atFile are ORTHOGONAL, not aliases.
+#
+#   aw:authoredIn  = YAML/document origin where the knowledge node was
+#                    authored. Required on every authored node so drift
+#                    queries can scope by source-of-truth file.
+#                    Example: "docs/awareness/invariants.yaml"
+#
+#   aw:atFile      = source-code location where an @-annotation was
+#                    extracted. Populated by the code-annotation extractor,
+#                    not the YAML importer.
+#                    Example: "golang/cluster_controller/.../reconcile.go"
+#
+# A single knowledge node MAY carry both — an invariant authored in
+# invariants.yaml AND cited via // @invariant: ... in a Go file will have
+# aw:authoredIn pointing at the YAML and aw:atFile pointing at the Go file
+# (and aw:atSymbol / aw:atLine for the precise anchor).
+
+aw:authoredIn a owl:DatatypeProperty ; rdfs:label "authored in" ;
+    rdfs:comment "YAML or document path where this knowledge node was authored. Distinct from aw:atFile (code-annotation site)." ;
+    rdfs:range xsd:string .
+
+# Code-annotation provenance — used when a triple comes from @-annotations in source code,
+# not from a YAML file. Records the file, the symbol (if function-scoped), and the line.
+aw:atFile    a owl:DatatypeProperty ; rdfs:label "annotated in file" ; rdfs:range xsd:string .
+aw:atSymbol  a owl:DatatypeProperty ; rdfs:label "annotated on symbol" ; rdfs:range xsd:string .
+aw:atLine    a owl:DatatypeProperty ; rdfs:label "annotated at line" ; rdfs:range xsd:integer .
+
+# ── Object properties — invariant / pattern anchoring ─────────────────────
+#
+# Anchoring is bidirectional. The forward edges (aw:protects / aw:enforces /
+# aw:configures / aw:observes / aw:mayAffect) are emitted from the knowledge
+# node (Invariant or IncidentPattern) to its source-file/symbol/etcd-key
+# anchors and carry the role distinction. The reverse edge (aw:implements)
+# is emitted from the SourceFile back to the knowledge node and is uniform
+# regardless of the role — what an agent's impact partition cares about is
+# "for this file, which nodes have it in their anchor list?" and the
+# canonical answer is "every node reached via aw:implements." The forward
+# predicate variant remains queryable when a SPARQL query needs to
+# distinguish "enforces" from "configures".
+
+aw:protects    a owl:ObjectProperty ; rdfs:label "protects" ;
+    rdfs:comment "Generic anchor: the invariant or incident_pattern names this file/symbol/etcd_key/systemd_unit as the subject it guards. The most common direct-file edge." .
+
+aw:implements  a owl:ObjectProperty ; rdfs:label "implements" ;
+    rdfs:comment """Reverse anchor: this source file is part of the implementation of the named knowledge node (Invariant or IncidentPattern). Emitted by the importer whenever a knowledge node lists the file in its anchor block (protects.files / protects.enforces_files / protects.configures_files / protects.observes_files for invariants; files: for incident_patterns). The impact partition uses this edge to find Direct anchors when starting from a file:
+
+      SELECT ?node WHERE { <source_file:...> aw:implements ?node }
+
+    Forward role information (enforces vs. configures vs. observes) remains
+    available on the originating Invariant/Pattern; a query that needs the
+    role joins forward and reverse.""" .
+
+aw:enforces    a owl:ObjectProperty ; rdfs:label "enforces (file)" ;
+    rdfs:comment "Stronger than aw:protects: the file actively enforces the invariant (validation, refusal, gating). Used for protects.enforces_files in invariants.yaml." .
+
+aw:configures  a owl:ObjectProperty ; rdfs:label "configures (file)" ;
+    rdfs:comment "The file configures the invariant's parameters but does not implement it. Used for protects.configures_files." .
+
+aw:observes    a owl:ObjectProperty ; rdfs:label "observes (file)" ;
+    rdfs:comment "The file detects or reports on the invariant's state without enforcing it (collectors, dashboards). protects.observes_files." .
+
+aw:mayAffect   a owl:ObjectProperty ; rdfs:label "may affect (file)" ;
+    rdfs:comment "Weak indirect link: edits to this file may affect the invariant but the connection is not enforced. protects.may_affect_files." .
+
+# ── Object properties — relationships between knowledge nodes ─────────────
+
+aw:forbids        a owl:ObjectProperty ; rdfs:label "forbids" ;
+    rdfs:comment "An invariant or incident_pattern forbids a specific ForbiddenFix shape." .
+
+aw:requiresTest   a owl:ObjectProperty ; rdfs:label "requires test" ;
+    rdfs:comment "An invariant or failure_mode requires a named regression test. The test's existence pins the rule." .
+
+aw:affects        a owl:ObjectProperty ; rdfs:label "affects" ;
+    rdfs:comment """Generic directed relationship between awareness knowledge nodes. Used uniformly for:
+
+      Invariant       → FailureMode      (from invariants.yaml:related_failure_modes)
+      FailureMode     → Invariant        (from failure_modes.yaml:related_invariants)
+      IncidentPattern → Invariant        (from incident_patterns.yaml:related_invariants)
+
+    Queries that need a specific direction or class should type-filter the
+    object, e.g.:
+
+      SELECT ?fm WHERE { <inv-iri> aw:affects ?fm . ?fm a aw:FailureMode }
+
+    No separate aw:relatedInvariant predicate exists — the same conceptual
+    edge under two names was a v0.0 mistake the v0.1 ontology eliminates.""" .
+
+aw:exemplifies    a owl:ObjectProperty ; rdfs:label "exemplifies" ;
+    rdfs:comment "An incident_pattern exemplifies exactly one failure_mode — the specific class of break it was extracted from. Distinct from aw:affects which is many-to-many." .
+
+# ── Object properties — intent hierarchy (planned for v0.2) ───────────────
+# These are reserved here so the converter can emit them once intent YAMLs
+# are ingested. Not currently populated by the v0.1 importer.
+
+aw:zoomsInto       a owl:ObjectProperty ; rdfs:label "zooms into" ;
+    rdfs:comment "Parent intent → child intent. The child specializes the parent's direction without broadening, inverting, or replacing it." .
+
+aw:zoomsOutTo      a owl:ObjectProperty ; rdfs:label "zooms out to" ;
+    rdfs:comment "Child intent → parent intent. Inverse of aw:zoomsInto." .
+
+aw:expressedBy     a owl:ObjectProperty ; rdfs:label "expressed by" ;
+    rdfs:comment "Intent points at the design document or code file that articulates it." .
+
+aw:relatedTo       a owl:ObjectProperty ; rdfs:label "related to" ;
+    rdfs:comment "Lateral relationship between intent nodes at the same or adjacent level — neither parent nor child." .
+
+# ── Datatype properties — intent hierarchy ─────────────────────────────────
+
+aw:level           a owl:DatatypeProperty ; rdfs:label "level" ;
+    rdfs:comment   "The hierarchical level of an intent node: principle | pattern | mechanism | operator_model | implementation | vision | invariant | contract | safety_rule | constraint." ;
+    rdfs:range xsd:string .
+
+aw:activationTrigger a owl:DatatypeProperty ; rdfs:label "activation trigger" ;
+    rdfs:comment   "A keyword or phrase that signals this intent is relevant to a task or file. Used for intent retrieval during impact analysis." ;
+    rdfs:range xsd:string .
+
+aw:badSmell        a owl:DatatypeProperty ; rdfs:label "bad smell" ;
+    rdfs:comment   "A symptom indicating this intent is being violated. Listed per intent so an agent can detect drift." ;
+    rdfs:range xsd:string .
+
+# ── Code-annotation properties ─────────────────────────────────────────────
+
+aw:risk a owl:DatatypeProperty ; rdfs:label "risk" ;
+    rdfs:comment "Risk level of a CodeSymbol: low | medium | high." ;
+    rdfs:range xsd:string .
+
+aw:testedBy a owl:ObjectProperty ; rdfs:label "tested by" ;
+    rdfs:comment "CodeSymbol → TestSymbol. Records which test cases cover a specific code symbol." .
+
+aw:definedInFile a owl:ObjectProperty ; rdfs:label "defined in file" ;
+    rdfs:comment "CodeSymbol → SourceFile. Points at the source file where the symbol is defined." .
+
+aw:references a owl:ObjectProperty ; rdfs:label "references" ;
+    rdfs:comment "CodeSymbol → CodeSymbol. The source symbol references (calls or uses) the target symbol, recovered from SCIP occurrences by range-attributing each reference to its enclosing definition. External targets are minted as CodeSymbol nodes with id external:<name>. Enables sibling-site / convention-completeness queries: which symbols reference X, and did a change miss any of them." .
+
+aw:language a owl:DatatypeProperty ; rdfs:label "language" ;
+    rdfs:comment "SourceFile or CodeSymbol implementation language: go | typescript | ... Added with Tier-1 multi-language extraction." ;
+    rdfs:range xsd:string .
+
+aw:memberOfGroup a owl:ObjectProperty ; rdfs:label "member of group" ;
+    rdfs:comment "SourceFile → RenderingGroup. The file belongs to a rendering group — a set of files that must render the same concept consistently (a cross-file visual-consistency contract). Added with the rendering-groups feature." .
+
+aw:protectsAgainst a owl:ObjectProperty ; rdfs:label "protects against" ;
+    rdfs:comment "CodeSymbol → FailureMode or Invariant. Records that a code symbol actively guards against a specific failure mode. Distinct from aw:protects (Invariant → SourceFile anchor)." .
+
+aw:partiallyViolates a owl:ObjectProperty ; rdfs:label "partially violates" ;
+    rdfs:comment "CodeSymbol or SourceFile → Invariant. Records that the annotated code knowingly violates part of the named invariant, documented as a known gap. Distinct from aw:relatedTo (neutral) and aw:forbids (the symbol must not exist): partiallyViolates says the code exists, the author has weighed the trade-off, and a future reader can locate the gap to lift or extend it." .
+
+# Implementation-pattern properties — added alongside aw:ImplementationPattern.
+# All four are datatype properties (string literals) because patterns describe
+# a recipe in human-readable form plus a flat set of required/forbidden call
+# names. No new object relations are introduced in v1.
+aw:mustFollow a owl:DatatypeProperty ; rdfs:label "must follow" ;
+    rdfs:comment "ImplementationPattern → string. A human-readable required step a pattern enforces (e.g. 'Constructor calls globular.InitClient'). Multiple values per pattern; one literal per step." ;
+    rdfs:range xsd:string .
+
+aw:requiresCall a owl:DatatypeProperty ; rdfs:label "requires call" ;
+    rdfs:comment "ImplementationPattern → string. A symbol/function name that MUST appear in matching code (e.g. 'globular.InitClient'). Consumed by the lightweight text validator that flags missing required calls." ;
+    rdfs:range xsd:string .
+
+aw:forbidsCall a owl:DatatypeProperty ; rdfs:label "forbids call" ;
+    rdfs:comment "ImplementationPattern → string. A symbol/function name that MUST NOT appear in matching code (e.g. 'grpc.Dial'). Consumed by the lightweight text validator that flags forbidden calls." ;
+    rdfs:range xsd:string .
+
+# ── Authority-domain properties (Phase 3) ──────────────────────────────────
+# v1 flattening: all carried as literals on the AuthorityDomain node so
+# Preflight can surface them without graph traversal. The acceptance query
+# "who owns the state this code reads or writes" is answered by matching the
+# touched file against aw:coversPath prefixes and reading the domain's fields.
+
+aw:coversPath a owl:DatatypeProperty ; rdfs:label "covers path" ;
+    rdfs:comment "AuthorityDomain → string. Repo-relative path prefix whose files fall inside this domain. Used by Preflight to match touched files to domains." ; rdfs:range xsd:string .
+aw:ownerService a owl:DatatypeProperty ; rdfs:label "owner service" ;
+    rdfs:comment "AuthorityDomain → string. The service that owns this domain's state." ; rdfs:range xsd:string .
+aw:ownsState a owl:DatatypeProperty ; rdfs:label "owns state" ;
+    rdfs:comment "AuthorityDomain → string. A state object this domain owns (e.g. 'artifact manifest')." ; rdfs:range xsd:string .
+aw:mayWrite a owl:DatatypeProperty ; rdfs:label "may write" ;
+    rdfs:comment "AuthorityDomain → string. A writer allowed to mutate this domain's state." ; rdfs:range xsd:string .
+aw:mayRead a owl:DatatypeProperty ; rdfs:label "may read" ;
+    rdfs:comment "AuthorityDomain → string. A reader allowed to read this domain's state." ; rdfs:range xsd:string .
+aw:mustMutateVia a owl:DatatypeProperty ; rdfs:label "must mutate via" ;
+    rdfs:comment "AuthorityDomain → string. The legal mutation path for this domain's state (typed RPC, workflow)." ; rdfs:range xsd:string .
+aw:mustReadVia a owl:DatatypeProperty ; rdfs:label "must read via" ;
+    rdfs:comment "AuthorityDomain → string. The legal read path for this domain's state." ; rdfs:range xsd:string .
+aw:observesVia a owl:DatatypeProperty ; rdfs:label "observes via" ;
+    rdfs:comment "AuthorityDomain → string. The legal observation path for runtime evidence about this domain." ; rdfs:range xsd:string .
+aw:hasTruthLayer a owl:DatatypeProperty ; rdfs:label "has truth layer" ;
+    rdfs:comment "AuthorityDomain → string. Which of the four truth layers this domain belongs to: repository | desired | installed | runtime." ; rdfs:range xsd:string .
+aw:hasEvidenceFreshnessWindow a owl:DatatypeProperty ; rdfs:label "has evidence freshness window" ;
+    rdfs:comment "AuthorityDomain → string. How fresh evidence about this domain must be before decisions may rely on it." ; rdfs:range xsd:string .
+aw:forbidsBypass a owl:DatatypeProperty ; rdfs:label "forbids bypass" ;
+    rdfs:comment "AuthorityDomain → string. A named illegal shortcut around this domain's authority (e.g. 'object presence as installability authority')." ; rdfs:range xsd:string .
+
+# ── Repair-plan properties (Phase 2A) ──────────────────────────────────────
+# Object properties bind a RepairPlan to the failure modes it repairs, the
+# authority domain it operates in, the patterns/invariants/tests it must
+# respect, and the outcome it should produce. Datatype properties carry the
+# ordered steps and the risk/approval labels.
+
+aw:repairsFailureMode a owl:ObjectProperty ; rdfs:label "repairs failure mode" ;
+    rdfs:comment "RepairPlan → FailureMode. A failure this plan is the repair route for." .
+aw:repairsFindingClass a owl:DatatypeProperty ; rdfs:label "repairs finding class" ;
+    rdfs:comment "RepairPlan → string. A cluster-doctor finding class this plan addresses." ; rdfs:range xsd:string .
+aw:appliesToAuthorityDomain a owl:ObjectProperty ; rdfs:label "applies to authority domain" ;
+    rdfs:comment "RepairPlan → AuthorityDomain. The ownership domain this plan operates within." .
+aw:requiresPrecondition a owl:DatatypeProperty ; rdfs:label "requires precondition" ;
+    rdfs:comment "RepairPlan → string. A condition that must hold before the plan runs." ; rdfs:range xsd:string .
+aw:hasRepairStep a owl:DatatypeProperty ; rdfs:label "has repair step" ;
+    rdfs:comment "RepairPlan → string. One ordered repair step (authored order is preserved)." ; rdfs:range xsd:string .
+aw:requiresVerification a owl:DatatypeProperty ; rdfs:label "requires verification" ;
+    rdfs:comment "RepairPlan → string. A check that confirms convergence after the repair." ; rdfs:range xsd:string .
+aw:hasRollbackStep a owl:DatatypeProperty ; rdfs:label "has rollback step" ;
+    rdfs:comment "RepairPlan → string. A safe reversal step via the owner-legal path." ; rdfs:range xsd:string .
+aw:requiresApprovalGate a owl:DatatypeProperty ; rdfs:label "requires approval gate" ;
+    rdfs:comment "RepairPlan → string. none | review_required | human_approval_required | multi_step_approval_required | manual_only." ; rdfs:range xsd:string .
+aw:hasBlastRadius a owl:DatatypeProperty ; rdfs:label "has blast radius" ;
+    rdfs:comment "RepairPlan → string. local | service | node | cluster | security | data_loss | external." ; rdfs:range xsd:string .
+aw:hasConfidence a owl:DatatypeProperty ; rdfs:label "has confidence" ;
+    rdfs:comment "RepairPlan → string. high | medium | low | unknown." ; rdfs:range xsd:string .
+aw:usesImplementationPattern a owl:ObjectProperty ; rdfs:label "uses implementation pattern" ;
+    rdfs:comment "RepairPlan → ImplementationPattern. A recipe the plan's steps follow." .
+aw:mustNotViolateInvariant a owl:ObjectProperty ; rdfs:label "must not violate invariant" ;
+    rdfs:comment "RepairPlan → Invariant. An invariant the plan must preserve while executing." .
+aw:governedByContract a owl:ObjectProperty ; rdfs:label "governed by contract" ;
+    rdfs:comment "RepairPlan → Contract. The governing contract this repair plan must satisfy while restoring convergence." .
+aw:producesOutcomeFeedback a owl:DatatypeProperty ; rdfs:label "produces outcome feedback" ;
+    rdfs:comment "RepairPlan → string. A note on the OutcomeFeedback this plan's execution should record." ; rdfs:range xsd:string .
+aw:requiresRuntimeEvidence a owl:DatatypeProperty ; rdfs:label "requires runtime evidence" ;
+    rdfs:comment "RepairPlan → string. Live proof the plan requires before claiming convergence (modelled fully by RuntimeEvidence in Phase 2C)." ; rdfs:range xsd:string .
+
+# ── Runtime-evidence properties (Phase 2C) ─────────────────────────────────
+# Object props bind an evidence profile to the invariant/repair-plan/authority
+# domain it verifies; datatype props carry the owner path, freshness, trust,
+# and the stale-must-not-PASS rule.
+aw:evidenceForInvariant a owl:ObjectProperty ; rdfs:label "evidence for invariant" ;
+    rdfs:comment "RuntimeEvidence → Invariant. The invariant this evidence verifies." .
+aw:evidenceForRepairPlan a owl:ObjectProperty ; rdfs:label "evidence for repair plan" ;
+    rdfs:comment "RuntimeEvidence → RepairPlan. The repair plan this evidence gates." .
+aw:evidenceForAuthorityDomain a owl:ObjectProperty ; rdfs:label "evidence for authority domain" ;
+    rdfs:comment "RuntimeEvidence → AuthorityDomain. The domain this evidence is about." .
+aw:observedFromService a owl:DatatypeProperty ; rdfs:label "observed from service" ;
+    rdfs:comment "RuntimeEvidence → string. The owner service the evidence must be observed from." ; rdfs:range xsd:string .
+aw:observedViaPath a owl:DatatypeProperty ; rdfs:label "observed via path" ;
+    rdfs:comment "RuntimeEvidence → string. The legal observation path (RPC/probe) for this evidence." ; rdfs:range xsd:string .
+aw:hasFreshnessWindow a owl:DatatypeProperty ; rdfs:label "has freshness window" ;
+    rdfs:comment "RuntimeEvidence → string. How fresh the evidence must be to be trusted." ; rdfs:range xsd:string .
+aw:hasTrustLevel a owl:DatatypeProperty ; rdfs:label "has trust level" ;
+    rdfs:comment "RuntimeEvidence → string. high | medium | low." ; rdfs:range xsd:string .
+aw:expiresAfter a owl:DatatypeProperty ; rdfs:label "expires after" ;
+    rdfs:comment "RuntimeEvidence → string. After this window the evidence is stale." ; rdfs:range xsd:string .
+aw:conflictsWithEvidence a owl:DatatypeProperty ; rdfs:label "conflicts with evidence" ;
+    rdfs:comment "RuntimeEvidence → string. A named conflicting evidence source to reconcile before trusting." ; rdfs:range xsd:string .
+aw:mustComeFromOwnerPath a owl:DatatypeProperty ; rdfs:label "must come from owner path" ;
+    rdfs:comment "RuntimeEvidence → boolean string. When true, only owner-path evidence is authoritative; other paths are supporting only." ; rdfs:range xsd:string .
+aw:cannotPromoteToPassWhenStale a owl:DatatypeProperty ; rdfs:label "cannot promote to pass when stale" ;
+    rdfs:comment "RuntimeEvidence → boolean string. When true, stale/missing evidence must yield UNKNOWN/CHECK_ERROR/DEGRADED, never PASS." ; rdfs:range xsd:string .
+
+# ── Knowledge confidence / freshness / source scoring (Phase 2D) ───────────
+# Generic node-scoring properties: how trusted, how fresh, where from, who
+# accepted it, and what supersedes/conflicts. Preflight prefers higher-trust
+# knowledge and never presents deprecated/superseded knowledge as primary.
+aw:confidence a owl:DatatypeProperty ; rdfs:label "confidence" ;
+    rdfs:comment "Any node → string. high | medium | low | unknown." ; rdfs:range xsd:string .
+aw:freshness a owl:DatatypeProperty ; rdfs:label "freshness" ;
+    rdfs:comment "Any node → string. current | stale | unknown | historical." ; rdfs:range xsd:string .
+aw:sourceKind a owl:DatatypeProperty ; rdfs:label "source kind" ;
+    rdfs:comment "Any node → string. manual | incident | outcome | scanner | test | runtime | generated_candidate." ; rdfs:range xsd:string .
+aw:sourcePath a owl:DatatypeProperty ; rdfs:label "source path" ;
+    rdfs:comment "Any node → string. The path/source this knowledge was derived from." ; rdfs:range xsd:string .
+aw:acceptedBy a owl:DatatypeProperty ; rdfs:label "accepted by" ;
+    rdfs:comment "Any node → string. Who accepted/promoted this knowledge (operator, review)." ; rdfs:range xsd:string .
+aw:lastValidatedAt a owl:DatatypeProperty ; rdfs:label "last validated at" ;
+    rdfs:comment "Any node → string. When this knowledge was last validated (ISO literal)." ; rdfs:range xsd:string .
+aw:staleAfter a owl:DatatypeProperty ; rdfs:label "stale after" ;
+    rdfs:comment "Any node → string. After this window the knowledge should be re-validated." ; rdfs:range xsd:string .
+aw:promotionStatus a owl:DatatypeProperty ; rdfs:label "promotion status" ;
+    rdfs:comment "Any node → string. candidate | proposed | accepted | active | deprecated | superseded." ; rdfs:range xsd:string .
+aw:supersededBy a owl:ObjectProperty ; rdfs:label "superseded by" ;
+    rdfs:comment "Any node → node. The replacement that supersedes this node." .
+aw:conflictsWith a owl:ObjectProperty ; rdfs:label "conflicts with" ;
+    rdfs:comment "Any node → node. A node this one conflicts with and must be reconciled against." .
+
+# ── Agent-accountability properties (Phase 2G) ─────────────────────────────
+aw:agentName a owl:DatatypeProperty ; rdfs:label "agent name" ;
+    rdfs:comment "AgentRun → string. The agent harness (e.g. claude, codex)." ; rdfs:range xsd:string .
+aw:modelName a owl:DatatypeProperty ; rdfs:label "model name" ;
+    rdfs:comment "AgentRun → string. The model id used for the run." ; rdfs:range xsd:string .
+aw:taskSummary a owl:DatatypeProperty ; rdfs:label "task summary" ;
+    rdfs:comment "AgentRun → string. One-line summary of the task." ; rdfs:range xsd:string .
+aw:usedPreflight a owl:DatatypeProperty ; rdfs:label "used preflight" ;
+    rdfs:comment "AgentRun → boolean string. Whether the agent consulted preflight." ; rdfs:range xsd:string .
+aw:preflightStatus a owl:DatatypeProperty ; rdfs:label "preflight status" ;
+    rdfs:comment "AgentRun → string. The preflight status the agent saw (OK|EMPTY|DEGRADED)." ; rdfs:range xsd:string .
+aw:warningsIgnored a owl:DatatypeProperty ; rdfs:label "warnings ignored" ;
+    rdfs:comment "AgentRun → string. A warning the agent ignored." ; rdfs:range xsd:string .
+aw:testsRequired a owl:DatatypeProperty ; rdfs:label "tests required" ;
+    rdfs:comment "AgentRun → string. A required test id for the change." ; rdfs:range xsd:string .
+aw:testsRun a owl:DatatypeProperty ; rdfs:label "tests run" ;
+    rdfs:comment "AgentRun → string. A required test the agent actually ran." ; rdfs:range xsd:string .
+aw:testsSkipped a owl:DatatypeProperty ; rdfs:label "tests skipped" ;
+    rdfs:comment "AgentRun → string. A required test the agent skipped." ; rdfs:range xsd:string .
+aw:patchStatus a owl:DatatypeProperty ; rdfs:label "patch status" ;
+    rdfs:comment "AgentRun → string. merged | reverted | caused_incident | resolved_incident | abandoned." ; rdfs:range xsd:string .
+aw:causedIncident a owl:DatatypeProperty ; rdfs:label "caused incident" ;
+    rdfs:comment "AgentRun → string. An incident id this run caused." ; rdfs:range xsd:string .
+aw:resolvedIncident a owl:DatatypeProperty ; rdfs:label "resolved incident" ;
+    rdfs:comment "AgentRun → string. An incident id this run resolved." ; rdfs:range xsd:string .
+aw:createdOutcomeFeedback a owl:ObjectProperty ; rdfs:label "created outcome feedback" ;
+    rdfs:comment "AgentRun → OutcomeFeedback. An outcome record this run produced." .
+aw:createdCandidateKnowledge a owl:DatatypeProperty ; rdfs:label "created candidate knowledge" ;
+    rdfs:comment "AgentRun → string. A candidate knowledge id this run proposed." ; rdfs:range xsd:string .
+aw:mode a owl:DatatypeProperty ; rdfs:label "mode" ;
+    rdfs:comment "LearningEvent → string. The evaluation mode that produced this event (for example, D)." ; rdfs:range xsd:string .
+aw:runSignature a owl:DatatypeProperty ; rdfs:label "run signature" ;
+    rdfs:comment "LearningEvent → string. Stable signature for the evaluated run." ; rdfs:range xsd:string .
+aw:learningEvidence a owl:DatatypeProperty ; rdfs:label "learning evidence" ;
+    rdfs:comment "LearningEvent → string. Whether the event carried usable, partial, or contaminated learning evidence." ; rdfs:range xsd:string .
+aw:learningAllowed a owl:DatatypeProperty ; rdfs:label "learning allowed" ;
+    rdfs:comment "LearningEvent → boolean string. Whether the event is allowed to feed learning." ; rdfs:range xsd:string .
+aw:promotionAllowed a owl:DatatypeProperty ; rdfs:label "promotion allowed" ;
+    rdfs:comment "LearningEvent → boolean string. Whether the event is allowed to feed promotion review." ; rdfs:range xsd:string .
+aw:certificationStatus a owl:DatatypeProperty ; rdfs:label "certification status" ;
+    rdfs:comment "LearningEvent → string. Certification result such as certified_clean_repair or scope_certification_gap." ; rdfs:range xsd:string .
+aw:certifiable a owl:DatatypeProperty ; rdfs:label "certifiable" ;
+    rdfs:comment "LearningEvent → boolean string. Whether the event is certifiable." ; rdfs:range xsd:string .
+aw:humanReviewRequired a owl:DatatypeProperty ; rdfs:label "human review required" ;
+    rdfs:comment "LearningEvent → boolean string. Whether certification still requires human review." ; rdfs:range xsd:string .
+aw:primaryFailureMode a owl:DatatypeProperty ; rdfs:label "primary failure mode" ;
+    rdfs:comment "LearningEvent → string. The primary failure-mode classification used by the evaluator." ; rdfs:range xsd:string .
+aw:currentScore a owl:DatatypeProperty ; rdfs:label "current score" ;
+    rdfs:comment "LearningEvent → string. The current score recorded for the run." ; rdfs:range xsd:string .
+aw:previousScore a owl:DatatypeProperty ; rdfs:label "previous score" ;
+    rdfs:comment "LearningEvent → string. The previous score recorded for comparison." ; rdfs:range xsd:string .
+aw:missingEvidence a owl:DatatypeProperty ; rdfs:label "missing evidence" ;
+    rdfs:comment "LearningEvent → string. A missing evidence reason recorded by certification." ; rdfs:range xsd:string .
+aw:proofRequired a owl:DatatypeProperty ; rdfs:label "proof required" ;
+    rdfs:comment "Contract or learning-related node → boolean string. Whether the contract requires explicit proof through tests or verification artifacts." ; rdfs:range xsd:string .
+aw:requiredTestPath a owl:DatatypeProperty ; rdfs:label "required test path" ;
+    rdfs:comment "Contract → string. A repo-relative test file path required as proof for the contract." ; rdfs:range xsd:string .
+aw:requiredTestSymbol a owl:DatatypeProperty ; rdfs:label "required test symbol" ;
+    rdfs:comment "Contract → string. A test symbol required as proof for the contract." ; rdfs:range xsd:string .
+aw:noNewTestsMeans a owl:DatatypeProperty ; rdfs:label "no new tests means" ;
+    rdfs:comment "Contract → string. Interpretation of a repair that changes source without adding the required proof tests." ; rdfs:range xsd:string .
+
+# ── Outcome-feedback properties (Phase 2) ──────────────────────────────────
+# Scalar context about an outcome plus one object property (aw:usedKnowledgeNode)
+# that links the outcome to the authority nodes it involved. The acceptance
+# query "which invariants/patterns were involved in failed or blocked runs" is
+# answered by: OutcomeFeedback aw:outcomeStatus "blocked" ; aw:usedKnowledgeNode ?n .
+
+aw:usedKnowledgeNode a owl:ObjectProperty ; rdfs:label "used knowledge node" ;
+    rdfs:comment "OutcomeFeedback → Invariant | FailureMode | ImplementationPattern | Test | IncidentPattern | Intent | ForbiddenFix. The knowledge node that informed or was involved in this outcome. Links only; never types the target." .
+
+aw:forTask a owl:DatatypeProperty ; rdfs:label "for task" ;
+    rdfs:comment "OutcomeFeedback → string. The task text the outcome pertains to." ; rdfs:range xsd:string .
+aw:forFinding a owl:DatatypeProperty ; rdfs:label "for finding" ;
+    rdfs:comment "OutcomeFeedback → string. The cluster-doctor FindingID the outcome pertains to." ; rdfs:range xsd:string .
+aw:forWorkflowRun a owl:DatatypeProperty ; rdfs:label "for workflow run" ;
+    rdfs:comment "OutcomeFeedback → string. The workflow run id the outcome pertains to." ; rdfs:range xsd:string .
+aw:forStep a owl:DatatypeProperty ; rdfs:label "for step" ;
+    rdfs:comment "OutcomeFeedback → string. The workflow step id the outcome pertains to." ; rdfs:range xsd:string .
+aw:usedPreflightStatus a owl:DatatypeProperty ; rdfs:label "used preflight status" ;
+    rdfs:comment "OutcomeFeedback → string. The preflight status (OK | DEGRADED | EMPTY) that was in effect when the decision was made." ; rdfs:range xsd:string .
+aw:usedRiskClass a owl:DatatypeProperty ; rdfs:label "used risk class" ;
+    rdfs:comment "OutcomeFeedback → string. The preflight risk class that was in effect when the decision was made." ; rdfs:range xsd:string .
+aw:decision a owl:DatatypeProperty ; rdfs:label "decision" ;
+    rdfs:comment "OutcomeFeedback → string. What the agent/operator decided: applied | rejected | deferred | reverted." ; rdfs:range xsd:string .
+aw:outcomeStatus a owl:DatatypeProperty ; rdfs:label "outcome status" ;
+    rdfs:comment "OutcomeFeedback → string. How it turned out: success | failure | blocked | reverted." ; rdfs:range xsd:string .
+aw:failureClass a owl:DatatypeProperty ; rdfs:label "failure class" ;
+    rdfs:comment "OutcomeFeedback → string. Classified failure category when outcomeStatus is failure/blocked." ; rdfs:range xsd:string .
+aw:reasonCode a owl:DatatypeProperty ; rdfs:label "reason code" ;
+    rdfs:comment "OutcomeFeedback → string. Machine-readable reason code for the outcome." ; rdfs:range xsd:string .
+aw:observedAt a owl:DatatypeProperty ; rdfs:label "observed at" ;
+    rdfs:comment "OutcomeFeedback → string. When the outcome was observed (ISO date/time literal)." ; rdfs:range xsd:string .
+aw:suggestsCandidate a owl:DatatypeProperty ; rdfs:label "suggests candidate" ;
+    rdfs:comment "OutcomeFeedback → string. A candidate knowledge node this outcome suggests for human review. Inert until promoted." ; rdfs:range xsd:string .
+aw:promotedFromIncident a owl:DatatypeProperty ; rdfs:label "promoted from incident" ;
+    rdfs:comment "OutcomeFeedback → string. The incident id this outcome was derived from, if any." ; rdfs:range xsd:string .
+
+aw:referenceFile a owl:DatatypeProperty ; rdfs:label "reference file" ;
+    rdfs:comment "ImplementationPattern → string. A canonical example file as 'role:repo-relative-path' (e.g. 'canonical_minimal:golang/echo/echo_client/echo_client.go'). Encoded as a literal rather than a SourceFile IRI so the role label is carried alongside the path without nested structured data." ;
+    rdfs:range xsd:string .
+
+# ── Architectural-spine properties (Stage A) ───────────────────────────────
+# Datatype facets carried by the spine nodes (Component/Boundary/Contract/
+# Evidence). Object properties wire the spine together and to the existing
+# safety nodes. Edges reuse existing predicates where one already fits:
+# aw:protects (Boundary→Invariant, as Guardrail already does), aw:forbids
+# (→ForbiddenFix), aw:requiresTest (→Test), aw:affects (Decision→Invariant),
+# aw:supersededBy (Decision→Decision). Linking never types the target — the
+# defining file owns the node.
+
+aw:kind a owl:DatatypeProperty ; rdfs:label "kind" ;
+    rdfs:comment "Spine node → string. The kind facet of a Component (service|module|package|UI|CLI|storage|adapter|tool), Boundary (api|storage|repo|domain|mutation|read_only|generated_artifact|ownership|UI), Contract (grpc|proto|http|cli|yaml_schema|rdf_schema|file_format|event|config), or Evidence (test_result|ci|audit|validation|incident|benchmark|review|metric|log|generated_report)." ;
+    rdfs:range xsd:string .
+aw:assertionMethod a owl:DatatypeProperty ; rdfs:label "assertion method" ;
+    rdfs:comment "Spine node → string. How the node and its declared relations were established: \"declared\" (hand-authored in corpus) | \"inferred\" (derived by a scanner/extractor, e.g. future proto extraction). Lets the dashboard distinguish asserted truth from inferred truth. Defaults to declared." ;
+    rdfs:range xsd:string .
+aw:readOrWrite a owl:DatatypeProperty ; rdfs:label "read or write" ;
+    rdfs:comment "Contract → string. Whether the contract is consumed read-only, for writes, or both: read | write | read_write | unknown. Marks the read/mutation semantics agents must respect." ;
+    rdfs:range xsd:string .
+aw:stability a owl:DatatypeProperty ; rdfs:label "stability" ;
+    rdfs:comment "Contract → string. stable | experimental | internal | deprecated. A contract not grounded in proto/code/docs should be marked candidate/experimental, never presented as implemented." ;
+    rdfs:range xsd:string .
+aw:command a owl:DatatypeProperty ; rdfs:label "command" ;
+    rdfs:comment "Evidence → string. The CLI command or probe that produced this evidence (e.g. \"awg rebuild --check\")." ;
+    rdfs:range xsd:string .
+
+# Source anchoring shared by all spine nodes.
+aw:anchoredIn a owl:ObjectProperty ; rdfs:label "anchored in" ;
+    rdfs:comment "Spine node → SourceFile | CodeSymbol. The code location that grounds this architectural node. The reverse aw:implements edge is also emitted so briefing-by-file surfaces the spine node as a Direct anchor." .
+
+# MetaPrinciple → lower-level nodes. The meta.* node keeps its invariant IRI;
+# these edges are authored in a meta_principle_links file and attached to that
+# IRI so an agent resolving a principle sees the rules/decisions/components it
+# drives.
+aw:generates a owl:ObjectProperty ; rdfs:label "generates" ;
+    rdfs:comment "MetaPrinciple → Invariant. The principle generates this lower-level invariant." .
+aw:constrains a owl:ObjectProperty ; rdfs:label "constrains" ;
+    rdfs:comment "MetaPrinciple → Decision. The principle constrains this architectural decision." .
+aw:appliesTo a owl:ObjectProperty ; rdfs:label "applies to" ;
+    rdfs:comment "MetaPrinciple → Component | Boundary | Contract. The principle governs this architectural unit, boundary, or contract." .
+aw:explains a owl:ObjectProperty ; rdfs:label "explains" ;
+    rdfs:comment "MetaPrinciple → Intent. The principle explains the why behind this intent." .
+
+# Component edges.
+aw:ownsInvariant a owl:ObjectProperty ; rdfs:label "owns invariant" ;
+    rdfs:comment "Component → Invariant. The component is the owner/authority for this invariant's truth." .
+aw:implementsIntent a owl:ObjectProperty ; rdfs:label "implements intent" ;
+    rdfs:comment "Component → Intent. The component realises this architectural intent. Distinct from aw:implements (SourceFile → knowledge node)." .
+aw:exposesContract a owl:ObjectProperty ; rdfs:label "exposes contract" ;
+    rdfs:comment "Component | Boundary → Contract. The component (or boundary) exposes this API/proto/schema/CLI contract." .
+aw:dependsOn a owl:ObjectProperty ; rdfs:label "depends on" ;
+    rdfs:comment "Component → Component. A dependency on another component." .
+aw:readsFrom a owl:ObjectProperty ; rdfs:label "reads from" ;
+    rdfs:comment "Component → Component. The component reads state/data from another component (read path)." .
+aw:writesTo a owl:ObjectProperty ; rdfs:label "writes to" ;
+    rdfs:comment "Component → Component. The component writes state/data to another component (write/mutation path)." .
+aw:protectedByBoundary a owl:ObjectProperty ; rdfs:label "protected by boundary" ;
+    rdfs:comment "Component → Boundary. The component sits behind this architectural boundary." .
+aw:satisfiesMetaPrinciple a owl:ObjectProperty ; rdfs:label "satisfies meta-principle" ;
+    rdfs:comment "Component | Contract → MetaPrinciple. The node upholds this architectural law. The target is the meta.* invariant IRI." .
+aw:violatesMetaPrinciple a owl:ObjectProperty ; rdfs:label "violates meta-principle" ;
+    rdfs:comment "Component → MetaPrinciple. The node knowingly violates this architectural law (documented gap). The target is the meta.* invariant IRI." .
+
+# Boundary edges.
+aw:separates a owl:ObjectProperty ; rdfs:label "separates" ;
+    rdfs:comment "Boundary → Component. A component this boundary sits between/separates. Repeatable for both sides." .
+aw:vulnerableTo a owl:ObjectProperty ; rdfs:label "vulnerable to" ;
+    rdfs:comment "Boundary → FailureMode. The failure mode that arises when this boundary is crossed illegally." .
+
+# Contract edges.
+aw:exposedBy a owl:ObjectProperty ; rdfs:label "exposed by" ;
+    rdfs:comment "Contract → Component. The component that exposes/serves this contract." .
+aw:consumedBy a owl:ObjectProperty ; rdfs:label "consumed by" ;
+    rdfs:comment "Contract → Component. A component that consumes this contract." .
+aw:constrainedByInvariant a owl:ObjectProperty ; rdfs:label "constrained by invariant" ;
+    rdfs:comment "Contract → Invariant. An invariant the contract's behaviour must satisfy." .
+
+# Spine ligament — the contract layering between layers.
+aw:violatesContract a owl:ObjectProperty ; rdfs:label "violates contract" ;
+    rdfs:comment "FailureMode → Contract. A known failure mode is the violation of an architectural contract; lets a resolved failure point up to the contract it breaks (and thence its invariant and required evidence)." .
+aw:violatedBy a owl:ObjectProperty ; rdfs:label "violated by" ;
+    rdfs:comment "Contract → FailureMode. Inverse of aw:violatesContract, emitted so a contract surfaces its known violations (and the verification gate can find them)." .
+aw:realizesContract a owl:ObjectProperty ; rdfs:label "realizes contract" ;
+    rdfs:comment "ImplementationContract → ArchitecturalContract. The gRPC/REST surface is the executable exposure of a semantic promise. Authoritative; not auto-created from path overlap." .
+aw:realizedByContract a owl:ObjectProperty ; rdfs:label "realized by contract" ;
+    rdfs:comment "ArchitecturalContract → ImplementationContract. Inverse of aw:realizesContract, emitted so an architectural contract surfaces the surfaces that realize it (arch→impl traversal)." .
+aw:candidateRealizesContract a owl:ObjectProperty ; rdfs:label "candidate realizes contract" ;
+    rdfs:comment "Candidate ImplementationContract → ArchitecturalContract link produced by path/name overlap. Promote-only — never auto-trusted, so the graph does not hallucinate architecture." .
+
+# Decision edges (extend the existing aw:Decision; aw:affects→Invariant stays).
+aw:definesBoundary a owl:ObjectProperty ; rdfs:label "defines boundary" ;
+    rdfs:comment "Decision → Boundary. The decision establishes this architectural boundary." .
+aw:definesContract a owl:ObjectProperty ; rdfs:label "defines contract" ;
+    rdfs:comment "Decision → Contract. The decision establishes this contract." .
+aw:affectsComponent a owl:ObjectProperty ; rdfs:label "affects component" ;
+    rdfs:comment "Decision → Component. The decision shapes or constrains this component." .
+aw:mitigates a owl:ObjectProperty ; rdfs:label "mitigates" ;
+    rdfs:comment "Decision → FailureMode. The decision mitigates this failure mode." .
+aw:rejects a owl:ObjectProperty ; rdfs:label "rejects" ;
+    rdfs:comment "Decision → ForbiddenFix. The decision rejects this tempting-but-wrong fix shape. Distinct from aw:forbids: a Decision records the rejected alternative, not an active rule." .
+aw:supportedByEvidence a owl:ObjectProperty ; rdfs:label "supported by evidence" ;
+    rdfs:comment "Invariant | Decision | Contract | Component → Evidence. Proof that the node's claim holds. Inverse of aw:supports." .
+
+# Evidence edges.
+aw:supports a owl:ObjectProperty ; rdfs:label "supports" ;
+    rdfs:comment "Evidence → Invariant | Decision | Contract. The node whose truth this evidence proves." .
+aw:validatesComponent a owl:ObjectProperty ; rdfs:label "validates component" ;
+    rdfs:comment "Evidence → Component. The component state this evidence validates." .
+aw:confirms a owl:ObjectProperty ; rdfs:label "confirms" ;
+    rdfs:comment "Evidence → FailureMode. The failure mode this evidence (e.g. an incident report) confirms occurred." .
+aw:producedByTest a owl:ObjectProperty ; rdfs:label "produced by test" ;
+    rdfs:comment "Evidence → Test. The regression test that produced this evidence." .
+aw:staleFor a owl:ObjectProperty ; rdfs:label "stale for" ;
+    rdfs:comment "Evidence → Invariant | Contract | Component. The node this evidence pertains to but for which it is now stale — shown as stale rather than current." .
+
+# ── UML profile (optional classification metadata) ─────────────────────────
+# A lightweight, OPTIONAL UML vocabulary layer. UML is metadata, NOT authority:
+# the AWG class (aw:Component, aw:Invariant, …) and AWG relations stay canonical.
+# These literals let architects and agents share a standard architectural
+# language and let dashboards group/filter a focus graph by UML view/kind. Not
+# required on any node; absent on existing corpus. See docs/uml-profile.md.
+aw:umlKind a owl:DatatypeProperty ; rdfs:label "UML kind" ;
+    rdfs:comment "Any node → string. Optional UML metaclass classification: Component | Package | Interface | Operation | Class | DataType | Artifact | Node | Deployment | Dependency | Realization | Usage | Association | Signal | Event | StateMachine | State | Activity | Constraint | UseCase | Actor. Descriptive only — never replaces the AWG class." ;
+    rdfs:range xsd:string .
+aw:umlStereotype a owl:DatatypeProperty ; rdfs:label "UML stereotype" ;
+    rdfs:comment "Any node → string. Free-form UML/project stereotype, lowercase snake_case when generated (e.g. service | grpc_service | rpc | proto_message | invariant | meta_principle | forbidden_fix | design_pattern)." ;
+    rdfs:range xsd:string .
+aw:umlView a owl:DatatypeProperty ; rdfs:label "UML view" ;
+    rdfs:comment "Any node → string. Which architectural view the node belongs to: structural | behavioral | interaction | deployment | awareness. 'awareness' is the AWG-specific view for the principle/invariant/failure/decision/evidence layer UML does not cover." ;
+    rdfs:range xsd:string .
+aw:umlNotes a owl:DatatypeProperty ; rdfs:label "UML notes" ;
+    rdfs:comment "Any node → string. Optional short note about the UML classification." ;
+    rdfs:range xsd:string .
+aw:umlConfidence a owl:DatatypeProperty ; rdfs:label "UML confidence" ;
+    rdfs:comment "Any node → string. Provenance of the UML mapping: \"declared\" (hand-authored) | \"inferred\" (derived by an extractor, e.g. proto-scan). Inferred UML metadata is marked, never presented as asserted truth." ;
+    rdfs:range xsd:string .
+
+# ── Design-pattern relations ───────────────────────────────────────────────
+# Reuse where one already fits: aw:appliesTo (DesignPattern→Component), aw:protects
+# (→Boundary), aw:mitigates (DesignPattern→FailureMode), aw:forbids (→PatternMisuse/
+# ForbiddenFix), aw:requiresTest (→Test), aw:supportedByEvidence (→Evidence),
+# aw:anchoredIn (→SourceFile/CodeSymbol), aw:satisfiesMetaPrinciple (→MetaPrinciple).
+# Datatype facets: aw:kind = category, aw:assertionMethod = confidence
+# (declared|inferred|candidate), aw:mustFollow = required steps.
+aw:appliesWhen a owl:DatatypeProperty ; rdfs:label "applies when" ;
+    rdfs:comment "DesignPattern → string. The condition/smell under which this pattern is the right shape." ; rdfs:range xsd:string .
+aw:doesNotApplyWhen a owl:DatatypeProperty ; rdfs:label "does not apply when" ;
+    rdfs:comment "DesignPattern → string. The condition under which this pattern must NOT be used (the mandatory negative rule — prevents pattern worship)." ; rdfs:range xsd:string .
+aw:tradeoffs a owl:DatatypeProperty ; rdfs:label "tradeoffs" ;
+    rdfs:comment "DesignPattern → string. Forces/tradeoffs the pattern imposes." ; rdfs:range xsd:string .
+aw:forbiddenShortcut a owl:DatatypeProperty ; rdfs:label "forbidden shortcut" ;
+    rdfs:comment "ImplementationPattern → string. A shortcut that breaks the pattern's guarantee and must not be taken." ; rdfs:range xsd:string .
+
+aw:recommends a owl:ObjectProperty ; rdfs:label "recommends" ;
+    rdfs:comment "MetaPrinciple → DesignPattern. The principle recommends this structural shape." .
+aw:realizes a owl:ObjectProperty ; rdfs:label "realizes" ;
+    rdfs:comment "ImplementationPattern → DesignPattern. The project-specific realisation of a general pattern." .
+aw:realizedBy a owl:ObjectProperty ; rdfs:label "realized by" ;
+    rdfs:comment "DesignPattern → ImplementationPattern. Inverse of aw:realizes, emitted so a pattern surfaces its concrete realisations." .
+aw:shapes a owl:ObjectProperty ; rdfs:label "shapes" ;
+    rdfs:comment "DesignPattern → Contract. The pattern shapes this API/proto/schema contract." .
+aw:satisfiesInvariant a owl:ObjectProperty ; rdfs:label "satisfies invariant" ;
+    rdfs:comment "DesignPattern | ImplementationPattern → Invariant. Applying the pattern keeps this invariant true." .
+aw:chosenBy a owl:ObjectProperty ; rdfs:label "chosen by" ;
+    rdfs:comment "DesignPattern → Decision. The decision that chose this pattern." .
+aw:usedByComponent a owl:ObjectProperty ; rdfs:label "used by component" ;
+    rdfs:comment "ImplementationPattern → Component. The component that uses this implementation pattern." .
+aw:implementsDecision a owl:ObjectProperty ; rdfs:label "implements decision" ;
+    rdfs:comment "ImplementationPattern → Decision. The decision this pattern implements." .
+aw:enforcesContract a owl:ObjectProperty ; rdfs:label "enforces contract" ;
+    rdfs:comment "ImplementationPattern → Contract. The contract this pattern enforces." .
+aw:prevents a owl:ObjectProperty ; rdfs:label "prevents" ;
+    rdfs:comment "ImplementationPattern → FailureMode. The failure mode this pattern's discipline prevents." .
+aw:blocks a owl:ObjectProperty ; rdfs:label "blocks" ;
+    rdfs:comment "ImplementationPattern → ForbiddenFix | PatternMisuse. The bad shape this pattern blocks." .
+aw:misuses a owl:ObjectProperty ; rdfs:label "misuses" ;
+    rdfs:comment "PatternMisuse → DesignPattern. The pattern being misused." .
+aw:saferPattern a owl:ObjectProperty ; rdfs:label "safer pattern" ;
+    rdfs:comment "PatternMisuse → DesignPattern. The correct pattern to use instead." .
+aw:forbiddenBy a owl:ObjectProperty ; rdfs:label "forbidden by" ;
+    rdfs:comment "PatternMisuse → MetaPrinciple | ForbiddenFix. What forbids this misuse." .
+aw:violatesInvariant a owl:ObjectProperty ; rdfs:label "violates invariant" ;
+    rdfs:comment "PatternMisuse → Invariant. The invariant this misuse violates." .
+aw:causes a owl:ObjectProperty ; rdfs:label "causes" ;
+    rdfs:comment "PatternMisuse → FailureMode. The failure mode this misuse causes." .
+aw:avoidedBy a owl:ObjectProperty ; rdfs:label "avoided by" ;
+    rdfs:comment "PatternMisuse → ImplementationPattern. The implementation pattern that avoids this misuse." .
+aw:relatedPattern a owl:ObjectProperty ; rdfs:label "related pattern" ;
+    rdfs:comment "Any node → DesignPattern | ImplementationPattern | PatternMisuse. Reverse-visibility edge emitted from a node a pattern references (invariant/component/boundary/contract), so resolving that node surfaces the patterns connected to it." .
+
+# Proof-obligation / authority-surface classes + properties (certify / proof
+# obligations). Declared to match golang/rdf/vocab.go; emitted by
+# golang/extractor/proof_obligations_yaml_import.go.
+aw:AuthoritySurface a owl:Class ; rdfs:label "Authority Surface" ;
+    rdfs:comment "A surface of an authority domain (read/write/mutation path) that a proof obligation can be derived from or apply to." .
+aw:ProofObligation a owl:Class ; rdfs:label "Proof Obligation" ;
+    rdfs:comment "An obligation, derived from an authority surface, that a repair/change must discharge with evidence before it counts as resolved." .
+aw:ProofSlot a owl:Class ; rdfs:label "Proof Slot" ;
+    rdfs:comment "One required evidence slot of a proof obligation (e.g. a test, an authority check), with a kind and a required flag." .
+aw:appliesToAuthoritySurface a owl:ObjectProperty ; rdfs:label "applies to authority surface" ;
+    rdfs:comment "ProofObligation → AuthoritySurface. The surface this obligation governs." .
+aw:derivedFromAuthoritySurface a owl:ObjectProperty ; rdfs:label "derived from authority surface" ;
+    rdfs:comment "ProofObligation → AuthoritySurface. The surface this obligation was derived from." .
+aw:requiresProofSlot a owl:ObjectProperty ; rdfs:label "requires proof slot" ;
+    rdfs:comment "ProofObligation → ProofSlot. An evidence slot this obligation requires." .
+aw:derivedFromStatus a owl:DatatypeProperty ; rdfs:label "derived from status" ;
+    rdfs:comment "ProofObligation literal: the derivation status of the obligation." .
+aw:hasEvidenceLane a owl:DatatypeProperty ; rdfs:label "has evidence lane" ;
+    rdfs:comment "ProofObligation literal: the evidence lane (scope/proof/authority/evidence) the obligation belongs to." .
+aw:slotKind a owl:DatatypeProperty ; rdfs:label "slot kind" ;
+    rdfs:comment "ProofSlot literal: the kind of evidence the slot expects (e.g. test, authority_check)." .
+aw:required a owl:DatatypeProperty ; rdfs:label "required" ;
+    rdfs:comment "ProofSlot literal: whether the slot is required (\"true\") for the obligation to be discharged." .

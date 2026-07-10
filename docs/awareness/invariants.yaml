@@ -1,0 +1,588 @@
+invariants:
+  - id: awareness.graph.compiled_context_not_authority
+    title: Awareness graph is compiled context, not authority
+    severity: critical
+    status: active
+    protects:
+      files:
+        - README.md
+        - golang/server/
+        - golang/store/
+    required_tests:
+      - golang/server/main_test.go:TestBriefing_FailsClosedWhenGraphFreshnessStale
+      - golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil
+
+  - id: awareness.query.no_arbitrary_sparql
+    title: Agent-facing Query must remain constrained typed API
+    severity: critical
+    status: active
+    protects:
+      files:
+        - proto/awareness_graph.proto
+        - golang/server/query.go
+        - golang/store/oxigraph/oxigraph.go
+    required_tests:
+      - golang/server/main_test.go:TestQuery_RawSPARQLLikeInputRejected
+      - golang/server/main_test.go:TestQuery_RejectsUnsupportedMode
+    uml:
+      kind: Constraint
+      stereotype: invariant
+      view: awareness
+
+  - id: awareness.standalone_must_not_require_globular
+    title: AWG must start, serve, and stay fully functional with zero Globular presence — etcd registration is best-effort, never required
+    severity: critical
+    status: active
+    protects:
+      files:
+        - golang/server/main.go
+        - golang/server/etcd_register.go
+        - cmd/awareness-mcp/main.go
+        - scripts/install.sh
+        - Makefile
+    required_tests:
+      - golang/server/main_test.go:TestValidateBackend_UnhealthyStore_RequireFalse_LogsWarning
+      - golang/server/main_test.go:TestValidateBackend_UnhealthyStore_RequireTrue_ReturnsError
+    # Bad-shape guard for the standalone surfaces: importing a Globular *platform*
+    # module (github.com/globulario/Globular or .../services) makes the binary
+    # require Globular, violating this invariant. The awareness-graph module
+    # itself (…/awareness-graph/…) is fine and does not match. enforcement:block
+    # so the edit-check-guard PreToolUse hook stops the edit rather than only
+    # warning. Scoped to the standalone bridge + server entrypoint.
+    detect:
+      applies_to_paths:
+        - cmd/awareness-mcp/**
+        - golang/server/main.go
+      forbidden_pattern: 'github\.com/globulario/(Globular|services)\b'
+      message: "Standalone build must not import a Globular platform package (github.com/globulario/Globular or …/services). AWG must run with zero Globular presence — use direct gRPC or the standalone golang/client. See invariant awareness.standalone_must_not_require_globular."
+      enforcement: block
+
+  # ── Multi-language extraction (intent.awareness.multi_language_extraction) ──
+  # Architecture capture 2026-06-12. Implementation gate (v1.2.211 reinstall
+  # validation) PASSED on 2026-06-12 — Tier 1/2a work is unblocked.
+
+  - id: awareness.graph_core_is_language_neutral
+    title: Graph core (ontology, store, server, yaml2nt, bridge) must stay language-neutral
+    severity: critical
+    status: active
+    protects:
+      files:
+        - ontology/awareness.ttl
+        - golang/rdf/
+        - golang/store/
+        - golang/server/
+        - cmd/yaml2nt/main.go
+        - cmd/awareness-mcp/main.go
+    required_tests:
+      - golang/extractor/yaml_import_test.go:TestImportFixture_ProducesValidNTriples
+      - cmd/yaml2nt/main_test.go:TestRun_StdoutMode_ProducesValidNTriples
+
+  - id: awareness.annotation_grammar_is_language_neutral
+    title: The @awareness key=value comment grammar is one grammar for all languages
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/scanner/scanner.go
+    required_tests:
+      - golang/scanner/rust_test.go:TestRustScanner_SharedGrammarValidation
+      - golang/scanner/python_test.go:TestPYScanner_SharedGrammarValidation
+      - golang/scanner/typescript_test.go:TestTSScanner_SharedGrammarValidation
+
+  - id: awareness.symbol_extraction_may_be_language_specific
+    title: Symbol attachment is the only language-specific layer — tree-sitter for non-Go, go/ast stays for Go
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/scanner/scanner.go
+        - cmd/annotation-scanner/
+    required_tests:
+      - golang/scanner/rust_test.go:TestRustScanner_SymbolAttachmentAndKinds
+      - golang/scanner/python_test.go:TestPYScanner_SymbolAttachmentAndKinds
+      - golang/scanner/typescript_test.go:TestTSScanner_SymbolAttachmentAndKinds
+
+  - id: awareness.reference_ids_are_global_across_languages
+    title: Invariant/intent IDs are global — a Rust, TypeScript, and Go file cite the same ID; reference validator is the cross-language authority
+    severity: critical
+    status: active
+    protects:
+      files:
+        - golang/extractor/reference_validator.go
+        - golang/extractor/code_symbols_import.go
+    required_tests:
+      - golang/extractor/reference_validator_test.go:TestValidateReferences_DefinedAndReferenced
+      - golang/extractor/reference_validator_test.go:TestValidateReferences_DanglingForbiddenFix
+
+  - id: awareness.file_role_vocabulary_is_shared
+    title: file_role taxonomy is one shared vocabulary — no per-language values
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/scanner/scanner.go
+    required_tests:
+      - golang/scanner/typescript_test.go:TestSymbolID_LanguageSegment
+      - golang/scanner/rust_test.go:TestRustScanner_SharedGrammarValidation
+      - golang/scanner/python_test.go:TestPYScanner_SharedGrammarValidation
+
+  - id: awareness.enforcement_depth_is_tiered_by_language
+    title: Enforcement is tiered — portable tree-sitter structural checks first; language-native analyzers only for high-risk known bug shapes
+    severity: high
+    status: active
+    protects:
+      files:
+        - cmd/principle-check/
+    required_tests:
+      - cmd/principle-check/meta_principle_coverage_test.go:TestMetaPrincipleCoverage
+      - cmd/principle-check/positive_control_test.go:TestRuleguardRulesHavePositiveControl
+
+  - id: awareness.rdf.yaml_is_source_of_truth
+    title: Authored YAML remains canonical awareness source
+    severity: high
+    status: active
+    protects:
+      files:
+        - docs/awareness/invariants.yaml
+        - docs/awareness/failure_modes.yaml
+        - docs/awareness/incident_patterns.yaml
+        - cmd/yaml2nt/main.go
+    required_tests:
+      - golang/extractor/yaml_import_test.go:TestImportFixture_ProducesValidNTriples
+      - cmd/yaml2nt/main_test.go:TestRun_StrictMode_PassesWhenAllImported
+      - cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped
+
+  - id: awareness.ontology_vocab_importer_drift_forbidden
+    title: Ontology vocabulary importer and proto expectations must stay aligned
+    severity: critical
+    status: active
+    protects:
+      files:
+        - ontology/awareness.ttl
+        - golang/rdf/vocab.go
+        - golang/extractor/yaml_import.go
+        - proto/awareness_graph.proto
+    required_tests:
+      - golang/extractor/yaml_import_test.go:TestImportFixture_VocabularyV01Migration
+
+  - id: awareness.briefing.deterministic_compact_context
+    title: Briefing is deterministic compact context from graph facts
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/server/briefing.go
+        - golang/server/impact.go
+        - README.md
+    required_tests:
+      - golang/server/preflight_signal_quality_test.go:TestPreflightCriticalSignalsLeadTheActionList
+
+  - id: awareness.briefing.file_task_includes_task_patterns_when_file_unanchored
+    title: File+task briefing must include task-matched implementation patterns even when the file has no direct graph anchor
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/server/briefing.go
+        - golang/server/implementation_patterns.go
+    required_tests:
+      - golang/server/implementation_patterns_test.go:TestBriefing_ImplementationPattern_TaskOnlyStillMatches
+      - golang/server/implementation_patterns_test.go:TestBriefing_ImplementationPattern_FileTaskUnanchoredStillMatchesTaskPattern
+      - golang/server/implementation_patterns_test.go:TestBriefing_ImplementationPattern_FileOnlyUnanchoredMayRemainEmpty
+      - golang/server/implementation_patterns_test.go:TestBriefing_ImplementationPattern_FileFactsAndTaskPatternsUnion
+
+  - id: awareness.briefing.imported_skill_patterns_must_be_task_relevant_and_bounded
+    title: Imported skill patterns must stay task-relevant and bounded
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/server/implementation_patterns.go
+        - golang/server/briefing.go
+        - docs/awareness/architecture/patterns/
+    required_tests:
+      - golang/server/skill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality
+
+  - id: awareness.preflight_node_context_must_not_flood
+    title: Medium-confidence pattern matches must not flood node context or bury higher-signal repair guidance
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/server/preflight.go
+        - golang/server/implementation_patterns.go
+        - golang/server/briefing.go
+    required_tests:
+      - golang/server/preflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions
+      - golang/server/preflight_signal_quality_test.go:TestPreflightCriticalSignalsLeadTheActionList
+
+  - id: awareness.store_unavailable_explicit
+    title: Store failures must be explicit never silent empties
+    severity: critical
+    status: active
+    protects:
+      files:
+        - golang/server/main.go
+        - golang/server/resolve.go
+        - golang/server/impact.go
+        - golang/server/briefing.go
+        - golang/server/query.go
+    required_tests:
+      - golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil
+      - golang/server/main_test.go:TestBriefing_UnavailableWhenStoreErrors
+      - golang/server/main_test.go:TestResolve_UnavailableWhenStoreNil
+      - golang/server/main_test.go:TestImpact_UnavailableWhenStoreNil
+
+  - id: awareness.no_long_bodies_in_rdf
+    title: RDF carries compact metadata and relationships not long prose bodies
+    severity: warning
+    status: active
+    protects:
+      files:
+        - golang/extractor/yaml_import.go
+        - golang/server/briefing.go
+        - docs/awareness/
+
+  - id: awareness.no_legacy_sqlite_graph
+    title: Legacy SQLite graph and session machinery must not return
+    severity: critical
+    status: active
+    protects:
+      files:
+        - go.mod
+        - golang/store/
+        - golang/server/
+    required_tests:
+      - golang/server/packaging_test.go:TestNoSQLiteDependency
+
+  - id: awareness.rdf.ntriples_validated_before_write
+    title: N-Triples data must be validated before any write to the awareness store
+    severity: high
+    status: active
+    protects:
+      files:
+        - cmd/loadnt/main.go
+        - cmd/yaml2nt/main.go
+        - golang/extractor/yaml_import.go
+    required_tests:
+      - cmd/yaml2nt/main_test.go:TestRun_StdoutMode_ProducesValidNTriples
+      - golang/extractor/yaml_import_test.go:TestImportFixture_ProducesValidNTriples
+
+  - id: awareness.rdf.strict_import_must_surface_all_skips
+    title: YAML importer strict mode must surface all skipped files, never silently drop them
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/extractor/yaml_import_dir.go
+        - cmd/yaml2nt/main.go
+    required_tests:
+      - golang/extractor/yaml_import_dir_test.go:TestImportDir_NoSilentSkip
+
+  # Promoted from a cold-source audit of AWG itself (2026-06-15): coldsource mined
+  # this from the repo's own history (a PR review on awareness.nt + the regen
+  # commits). Sibling of awareness.rdf.yaml_is_source_of_truth, made operational on
+  # the seed file. The wording was corrected DURING promotion: a full regenerate
+  # reorders the whole seed into a 29k-line unreviewable diff, so the canonical
+  # practice (and why the freshness check is ownership-aware) is a minimal
+  # owned-triple append, validated by --check — not a full regenerate.
+  - id: awareness.seed_is_generated_author_in_yaml
+    title: The embedded seed (golang/server/embeddata/awareness.nt) is GENERATED — author rule content only in the source YAML, never by hand-editing the seed. Bring the seed current by appending the new entry's OWNED triples and validating with scripts/build-awareness-graph.sh --check (ownership-aware); do NOT commit a full regenerate, which reorders the whole file into an unreviewable diff
+    severity: critical
+    status: active
+    protects:
+      files:
+        - golang/server/embeddata/awareness.nt
+        - scripts/build-awareness-graph.sh
+        - cmd/yaml2nt/main.go
+        - docs/awareness/invariants.yaml
+    required_tests:
+      - golang/server/packaging_test.go:TestEnforceCurrentSeed_FailsClosedWhenMarkerMissing
+      - golang/server/packaging_test.go:TestEnforceCurrentSeed_PassesWhenMarkerPresent
+      - golang/server/packaging_test.go:TestPackaging_SeedIsNTripleFormat
+
+  # Promoted from an intent-mine + briefing audit of AWG itself (2026-06-15);
+  # implemented in PR #50. A domain-scoped briefing previously filtered only the
+  # direct impact anchors, letting implementation patterns / intent triggers leak
+  # across repos. Concrete instance of the domain-isolation contract in scope.go.
+  - id: awareness.briefing.sections_honor_domain_scope
+    title: Every briefing section (impact anchors, implementation patterns, intent triggers) must apply the same resolved domain scope — shared nodes always pass, but another repo's patterns/intents must never leak into a domain-scoped briefing
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/server/briefing.go
+        - golang/server/scope.go
+        - golang/server/impact.go
+        - golang/server/implementation_patterns.go
+        - golang/server/intent_triggers.go
+    required_tests:
+      - golang/server/briefing_scope_test.go:TestInScopePatterns_NoForeignLeak
+      - golang/server/briefing_scope_test.go:TestInScopeIntents_NoForeignLeak
+      - golang/server/briefing_scope_test.go:TestBriefingScope_Precedence
+  - id: backup_manager.scylla_registration_excludes_synthetic_markers
+    title: backup_manager scylla auto-registration counts only prefix-free clusters as registered
+    status: active
+    description: detectScyllaClusters emits synthetic 'native:<name>' and 'scylla_host:<ip>' markers for a ScyllaDB that is REACHABLE but NOT registered in scylla-manager. The auto-registration path (ensureScyllaRegistered/attemptScyllaRegister) must count ONLY entries with no synthetic prefix as managed/registered — via isRegisteredScyllaCluster(). Counting a synthetic marker as registered makes the path skip 'sctool cluster add' and leave the cluster permanently unregistered (doctor scylla_manager.cluster_registered, cluster_count=0).
+    protects:
+      files:
+        - golang/backup_manager/backup_manager_server/preflight.go
+    evidence:
+      - 'preflight.go: isRegisteredScyllaCluster() excludes native:/scylla_host:; PreflightCheck already did, ensureScyllaRegistered did not'
+      - 'live day-0 install 2026-07-02: sctool cluster list empty, doctor cluster_count=0 while ScyllaDB REST reachable'
+    contract: backup_manager must register an unregistered-but-reachable ScyllaDB via 'sctool cluster add'; synthetic detection markers are not a registration
+  - id: invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana
+    title: Control plane must not depend on the data-plane mesh it manages
+    status: active
+    description: >-
+      The control plane must not route its own authority traffic through the
+      data-plane mesh, public HTTPS gateway, service proxy, Envoy route, or
+      load-balanced endpoint that it manages. Control-plane RPCs — including
+      bootstrap, join, admission, convergence events, heartbeats, leader
+      election, controller handoff, actor callbacks, doctor probes, and
+      node-agent coordination — must use direct admitted node addressing over
+      the dedicated control endpoint (direct node IP + control RPC port +
+      cluster-CA mTLS). The data-plane mesh is a managed resource and may be
+      absent, stale, degraded, partitioned, or intentionally restarted during
+      the exact operations the control plane performs; routing control traffic
+      through it creates a manager-to-managed dependency cycle and can hide the
+      real failure behind routing, DNS, proxy, TLS, or load-balancer state.
+      Allowed control transports - direct node IP plus control RPC port; a
+      controller-known admitted endpoint; a signed join-plan endpoint; a
+      node-agent/control service address from admitted state; an explicit
+      bootstrap seed address before the mesh exists. A control operation is
+      valid only when its transport path is independent of the data-plane
+      resource being created, repaired, validated, or converged.
+    protects:
+      files:
+        - golang/cluster_controller/cluster_controller_server/server.go
+        - golang/config/service_discovery.go
+        - golang/globular_client/clients.go
+        - golang/event/event_client/event_client.go
+    forbidden_fixes:
+      - use the public :443 gateway for control-plane mutation
+      - use an Envoy/service-mesh route for a controller or node-agent authority RPC
+      - use a DNS name whose resolution depends on the managed mesh being healthy
+      - use a load-balanced endpoint when the operation targets one known controller or one known node
+      - fall back from a direct control address to a mesh route without explicit degraded-mode evidence
+    evidence:
+      - '2026-07-03: controller event publishing via shared mesh-routed event client flapped the event circuit breaker (CLUSTER_CRITICAL) after envoy bounced during day-0 convergence; connection never cleanly recovered'
+      - 'Precedent: config.ResolveControllerDirectAddr bypasses mesh for actor callbacks (Envoy :443 does not serve WorkflowActorService)'
+      - 'Fix: config.ResolveServiceDirectAddr + event_client.NewEventService_Client_Direct + globular.GetClientConnectionDirect wire controller event publishing direct-to-node'
+    contract: meta.control_plane_must_not_depend_on_managed_data_plane_mesh
+
+  - id: invariant.control_plane_truth_from_owner_not_projection
+    title: Control-plane truth must be read from the owner RPC, not projected service state
+    status: active
+    description: >-
+      Control-plane decisions (admission, convergence, placement, repair) must
+      read desired/admitted/runtime truth from the owning controller or
+      node-agent RPC — not from cached service config, generated files, Envoy
+      snapshots, DNS records, /etc/hosts entries, or process state. A projection
+      can be stale while the owner is correct; projections are useful artifacts
+      but must never become authority. Globular instance of
+      meta.storage_is_not_semantic_authority.
+    protects:
+      files:
+        - golang/config/service_discovery.go
+        - golang/cluster_controller/cluster_controller_server/reconciler.go
+        - golang/node_agent/node_agent_server/heartbeat.go
+    forbidden_fixes:
+      - 'infer admission from service config ("config says running, therefore node is admitted")'
+      - 'infer topology validity from DNS ("DNS resolves, therefore cluster topology is valid")'
+      - 'infer desired state from Envoy ("Envoy has the endpoint, therefore service desired state is correct")'
+    evidence:
+      - 'Domain instance of meta.storage_is_not_semantic_authority + meta.code.local_state_must_not_become_hidden_authority applied to control-plane reads'
+    contract: meta.storage_is_not_semantic_authority
+
+  - id: invariant.absence_of_desired_state_is_not_permission_to_destroy
+    title: Absence of desired state is not permission to destroy
+    status: active
+    description: >-
+      Unknown, empty, stale, or generation-zero desired state must NOT trigger
+      destructive cleanup (stop service, uninstall package, wipe data, remove
+      peer, delete DNS, kill process) unless the owner explicitly marks the
+      resource as removed. "I do not see you in desired state" is not "you are
+      forbidden" — during day-0, controller restart, etcd recovery, cache
+      rebuild, or partition, desired state can be temporarily absent. Allowed
+      responses: block new writes, enter pending/unknown, request fresh owner
+      state, mark degraded. Globular instance of
+      meta.fail_safe_defaults_when_authority_is_uncertain.
+    protects:
+      files:
+        - golang/cluster_controller/cluster_controller_server/reconciler.go
+        - golang/node_agent/node_agent_server/apply_package_release.go
+    forbidden_fixes:
+      - 'stop/uninstall/wipe/remove-peer/delete-DNS/kill because desired state is empty or unavailable'
+      - 'treat generation-zero or missing desired state as an explicit removal signal'
+    evidence:
+      - 'Domain instance of meta.fail_safe_defaults_when_authority_is_uncertain + meta.absence_scope_must_be_explicit'
+    contract: meta.fail_safe_defaults_when_authority_is_uncertain
+
+  - id: invariant.dns_and_hosts_are_reachability_not_identity
+    title: DNS and hosts files are reachability hints, not identity authority
+    status: active
+    description: >-
+      DNS, /etc/hosts, and public domain names must not define node identity or
+      cluster membership. Name resolution is mutable, cached, delayed, and
+      sometimes wrong; it may help reachability but identity must bind to node
+      ID / MAC / cert / key / admission record, not to a resolvable name.
+      Globular instance of meta.storage_is_not_semantic_authority and
+      meta.identity_computation_must_be_invariant.
+    protects:
+      files:
+        - golang/config/service_discovery.go
+        - golang/node_agent/node_agent_server/heartbeat.go
+    forbidden_fixes:
+      - 'treat name resolution as admission ("hostname resolves, therefore this is the admitted node")'
+      - 'treat domain suffix as cluster membership ("same domain suffix, therefore same cluster")'
+      - 'treat DNS challenge success as controller identity ("DNS challenge passed, therefore controller identity is valid")'
+    evidence:
+      - 'Domain instance of meta.storage_is_not_semantic_authority + meta.identity_computation_must_be_invariant'
+    contract: meta.identity_computation_must_be_invariant
+
+  - id: invariant.health_probe_must_classify_not_collapse_to_boolean
+    title: Health checks must distinguish unavailable, unhealthy, unauthorized, and unknown
+    status: active
+    description: >-
+      A failed probe must not collapse into one boolean. "Not reachable" can mean
+      DNS failure, TLS mismatch, service down, node rejected, partition, wrong
+      address, proxy down, controller down, or expected day-0 absence — each
+      implies a different action. Probes must classify into named states
+      (UNKNOWN, UNREACHABLE, UNAUTHORIZED, NOT_ADMITTED, DEGRADED,
+      STOPPED_BY_OWNER, FAILED), not a single pass/fail. Globular instance of
+      meta.authority_must_express_uncertainty and meta.timeout_is_a_decision_not_a_truth.
+    protects:
+      files:
+        - golang/cluster_doctor/cluster_doctor_server/rules/certificate_health.go
+        - golang/node_agent/node_agent_server/heartbeat.go
+    forbidden_fixes:
+      - 'collapse a probe error to a destructive action (if err != nil { remove peer }) without classification'
+      - 'treat context-deadline-exceeded as membership deletion'
+      - 'treat a failed probe as uninstall/stop'
+    evidence:
+      - 'Domain instance of meta.authority_must_express_uncertainty + meta.timeout_is_a_decision_not_a_truth + meta.connection_errors_must_not_be_absorbed'
+    contract: meta.authority_must_express_uncertainty
+
+  - id: invariant.process_state_is_observation_not_desired_truth
+    title: Process state is observation, not desired truth
+    status: active
+    description: >-
+      A PID, systemd active-state, or local service-config state cannot prove
+      desired state. Local supervision reads process state to act on it, but
+      process state stays strictly below desired/admitted authority. Globular
+      instance of meta.code.local_state_must_not_become_hidden_authority.
+    protects:
+      files:
+        - golang/node_agent/node_agent_server/apply_package_release.go
+        - golang/node_agent/node_agent_server/heartbeat.go
+    forbidden_fixes:
+      - 'treat a running process as install correctness ("process exists, so service is installed correctly")'
+      - 'treat an absent process as a removal decision ("process absent, so desired says removed")'
+      - 'treat systemd active as topology health ("systemd active, so topology is healthy")'
+    evidence:
+      - 'Domain instance of meta.code.local_state_must_not_become_hidden_authority'
+    contract: meta.code.local_state_must_not_become_hidden_authority
+
+  - id: invariant.join_must_be_a_transaction_not_side_effects
+    title: Join must be a transaction, not a collection of side effects
+    status: active
+    description: >-
+      Node join/admission must have one durable transaction identity spanning
+      certificate/key exchange, desired-state mutation, package install, peer
+      record, topology-generation bump, and agent confirmation — so a partial
+      join never leaves half-committed state that looks complete. Globular
+      instance of meta.state_mutations_must_be_durably_committed_before_side_effects
+      and meta.half_done_must_not_look_done.
+    protects:
+      files:
+        - golang/cluster_controller/cluster_controller_server/reconciler.go
+        - golang/node_agent/node_agent_server/apply_package_release.go
+    forbidden_fixes:
+      - 'leave a peer key saved but the node not admitted'
+      - 'admit a peer without bumping topology generation'
+      - 'report a service installed while the join transaction failed'
+      - 'update DNS for a node that was rejected'
+    evidence:
+      - 'Domain instance of meta.state_mutations_must_be_durably_committed_before_side_effects + meta.half_done_must_not_look_done'
+    contract: meta.state_mutations_must_be_durably_committed_before_side_effects
+  - id: package.identity_has_single_repository_authority
+    title: Package identity fields have exactly one authority each; no parallel mints
+    severity: critical
+    status: active
+    description: 'Scar 2026-07-08: version had three writers (committed zz, platform ldflags, package.json rewrite), build_number two (date +%s vs allocator), build_id two (uuid4 vs repository). Fixed by the one-way flow in docs/design/package-identity-single-authority.md.'
+    protects:
+      files:
+        - scripts/build-release.sh
+        - golang/build/gen-version.sh
+        - scripts/gen-package-versions-from-source.sh
+    evidence:
+      - 'scripts/build-release.sh identity gate: 56 packages clean'
+      - scripts/check-identity-authority.sh
+      - 'regression (pending services-master): golang/repository/repository_server/release_index_test.go:TestReleaseIndexV2InstallDerivesMissingBuildID'
+    contract: 'Each package identity field has a single authority: version = committed zz_version_generated.go (materialized by gen-version.sh, the only writer) for service packages / packages repo for external packages; build_id and build_number = repository admission; content = artifact_sha256 at packaging. No build/release/CI step may write a field owned by another authority; restamping identity after packaging is forbidden.'
+  - id: package.build_id_allocated_only_by_repository_admission
+    title: build_id is allocated only by repository admission; empty before admission
+    severity: critical
+    status: active
+    description: 'Scar 2026-07-08: build-release.sh minted build_id via uuid.uuid4() locally, colliding with the repository UUIDv7 allocator. Fixed: bundle ships empty build_id; ValidateReleaseIndexForInstall derives deterministic upstream:xxxx pins from artifact_sha256 at admission.'
+    protects:
+      files:
+        - golang/repository/repository_server/release_index.go
+        - scripts/build-release.sh
+    forbidden_fixes:
+      - minting build_id with uuid or any local generator in a build/release script
+      - pre-filling build_id in release-index.json or package.json before admission
+    evidence:
+      - golang/repository/repository_server/release_index.go deriveInstallIdentityPins
+      - scripts/build-release.sh assert_no_local_identity
+      - 'regression (pending services-master): golang/repository/repository_server/release_index_test.go:TestReleaseIndexV2InstallDerivesMissingBuildID'
+      - 'regression (pending services-master): golang/repository/repository_server/release_index_test.go:TestReleaseIndexV2InstallCanonicalizesNumericBuildID'
+    contract: build_id is repository-owned identity assigned at admission (upload allocator, or deterministic digest-derivation for bundle artifacts via deriveInstallIdentityPins). Committed/generated package metadata and release bundles MUST carry empty build_id before admission. No local UUID minting anywhere in the build/release path.
+  - id: package.build_number_is_display_only_not_convergence_identity
+    title: build_number is display-only; never a convergence or drift dimension
+    severity: high
+    status: active
+    description: 'Scar 2026-07-08: node_agent verify_integrity emitted artifact.desired_build_mismatch comparing installed vs desired build_number, which under dual-mint (bundle date+%s vs repository counter) was structurally false-positive (installed 1783560972 vs desired 1). Finding deleted.'
+    protects:
+      files:
+        - golang/node_agent/node_agent_server/internal/actions/verify_integrity.go
+    forbidden_fixes:
+      - re-adding a doctor/convergence check that compares build_number as drift
+      - using build_number as a tiebreaker in artifact resolution
+    evidence:
+      - golang/node_agent/node_agent_server/internal/actions/verify_integrity.go (build_number comparison removed)
+      - golang/cluster_controller/cluster_controller_server/release_runtime_convergence.go (build_id is the convergence dimension)
+    contract: build_number is a display/debug integer allocated at repository admission. Convergence identity is build_id (release_runtime_convergence.go) and content identity is sha256. No doctor rule, reconciler, or convergence path may treat a build_number difference as drift or a convergence failure.
+  - id: release.bundle_serving_preserves_artifact_provenance
+    title: Join bundles are served from a stored release artifact, not reassembled per request
+    severity: high
+    status: active
+    description: 'Scar 2026-07-08: join_bundle.go reassembled the bundle in memory from live controller disk on every request and computed the sha256 from those same freshly-assembled bytes, so the checksum proved transport, not provenance. Fixed with store-once semantics.'
+    protects:
+      files:
+        - internal/gateway/handlers/cluster/join_bundle.go
+    forbidden_fixes:
+      - reassembling the join bundle from live disk on each request
+      - computing the served checksum from just-assembled bytes rather than the stored artifact
+    evidence:
+      - Globular internal/gateway/handlers/cluster/join_bundle.go ensureStoredReleaseBundle
+      - 'regression (pending services-master): internal/gateway/handlers/cluster/join_bundle_test.go:TestJoinBundleHandler_ServedBytesMatchStoredArtifact'
+      - 'regression (pending services-master): internal/gateway/handlers/cluster/join_bundle_test.go:TestJoinBundleHandler_NoPerRequestReassembly'
+    contract: The gateway join bundle is materialized once per platform version into a release-addressed store (/var/lib/globular/releases/<version>/) and served byte-identical thereafter; its .sha256 is computed from the stored bytes so the checksum proves release-artifact provenance. Dynamic assembly is permitted only as the one-time materialization, never as per-request behavior.
+  - id: doctor.expected_services_follow_profile_not_local_assumption
+    title: Expected service/unit state follows assigned profile, not a hardcoded every-node assumption
+    severity: high
+    status: active
+    description: 'Scar 2026-07-08: node_units_running reported scylla-server ''inactive (expected active)'' on a core-only node with no storage profile - the same local-scylla assumption that deadlocked needs_scylla services via their systemd ExecStartPre gate. Made profile-aware.'
+    protects:
+      files:
+        - golang/cluster_doctor/cluster_doctor_server/rules/node_units_running.go
+    forbidden_fixes:
+      - expecting a unit active on every node regardless of assigned profile
+      - gating dns/needs_scylla services on a LOCAL scylla listener on non-storage nodes
+    evidence:
+      - golang/cluster_doctor/cluster_doctor_server/rules/node_units_running.go isStoragePlaneUnit + nodeHasProfile
+      - 'regression (pending services-master): golang/cluster_doctor/cluster_doctor_server/rules/node_units_running_profile_test.go:TestNodeUnitsRunning_ScyllaSilentOnNonStorageNode'
+      - 'regression (pending services-master): golang/cluster_doctor/cluster_doctor_server/rules/node_units_running_profile_test.go:TestNodeUnitsRunning_ScyllaFiresOnStorageNode'
+    contract: Cluster-doctor and node-agent expected-unit evaluation must derive what SHOULD run from the node's controller-assigned profiles (placement intent), never from a hardcoded local assumption. Storage-plane units (scylla-server, scylla-manager, scylla-manager-agent) are expected active only on nodes with the storage profile; a non-storage node reporting them inactive is by-design, not a finding.

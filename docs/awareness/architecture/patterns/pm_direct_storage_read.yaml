@@ -1,0 +1,27 @@
+id: pattern_misuse.direct_storage_read_as_truth
+class: PatternMisuse
+name: Direct storage read instead of owner RPC
+status: guardrail
+description: >-
+  Reading another service's storage (DB/file/triple store) directly and
+  interpreting the bytes, instead of calling the owning service over its port.
+why_dangerous: >-
+  The reader steals authority: the owner can change format/semantics without
+  knowing it has a second consumer, so the read silently goes wrong later.
+confidence: declared
+misused_pattern: pattern.port_boundary_adapter
+safer_pattern: pattern.port_boundary_adapter
+forbidden_by:
+  - meta_principle:meta.storage_is_not_semantic_authority
+violates_invariants:
+  - awareness.graph.compiled_context_not_authority
+causes_failure_modes:
+  - awareness.graph_used_as_authority
+avoided_by:
+  - implementation_pattern.awg_dashboard_read_only
+detected_in:
+  - golang/store/oxigraph/oxigraph.go
+uml:
+  kind: Constraint
+  stereotype: pattern_misuse
+  view: awareness

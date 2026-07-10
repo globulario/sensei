@@ -1,0 +1,14 @@
+# Sources and build config — the published .vsix ships only ./out + ./proto + media.
+.vscode/**
+src/**
+scripts/**
+tsconfig.json
+**/*.map
+**/*.ts
+.gitignore
+.eslintrc*
+
+# Keep node_modules (runtime deps @grpc/* are required at run time) and:
+#   out/**                  compiled JS
+#   proto/awareness_graph.proto   loaded at runtime by @grpc/proto-loader
+#   media/**                view-container icon

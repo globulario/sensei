@@ -1,0 +1,42 @@
+id: pattern.read_only_projection
+class: DesignPattern
+name: ReadOnlyProjection
+category: UI
+description: >-
+  A UI/dashboard displays state derived from backend authority over a read-only
+  interface and never mutates it. Mutation flows through a separate guarded path.
+applies_when: >-
+  A surface needs to display state owned by a backend authority without changing
+  it (e.g. the AWG dashboard reading Metadata/Query/Resolve over gRPC).
+does_not_apply_when: >-
+  The surface legitimately must perform writes AND a guarded backend mutation
+  API already exists for them.
+forces_or_tradeoffs: >-
+  Actions that would mutate must be routed elsewhere; the UI cannot "just write".
+confidence: declared
+failure_modes_prevented:
+  - awareness.graph_used_as_authority
+forbidden_misuses:
+  - pattern_misuse.ui_direct_promotion
+related_meta_principles:
+  - meta.ui.screen_claim_must_bind_to_authority
+related_invariants:
+  - awareness.graph.compiled_context_not_authority
+related_components:
+  - component.dashboard_architecture_view
+related_boundaries:
+  - boundary.dashboard_read_only_grpc
+related_contracts:
+  - contract.awareness_graph.query
+  - contract.awareness_graph.resolve
+  - contract.awareness_graph.metadata
+related_decisions:
+  - decision.dashboard_v1_read_only_over_grpc
+evidence:
+  - evidence.ci_green
+example_files:
+  - editor/vscode/src/dashboardPanel.ts
+uml:
+  kind: Constraint
+  stereotype: design_pattern
+  view: awareness

@@ -1,0 +1,26 @@
+id: awareness.yaml_importer_does_not_silently_skip_in_strict_mode
+level: contract
+title: The YAML importer reports every skipped file and fails strict mode on unknown schema
+intent: |
+  Corpus import must be observable. Every discovered YAML file must appear in
+  the import report, and strict mode must fail on unknown schemas instead of
+  silently dropping data.
+agent_guidance: |
+  If you add a new schema, either implement its importer or ensure the skipped
+  file is explicitly classified as known unsupported.
+bad_smells:
+  - a YAML file disappears from the import report
+  - strict mode passes while an unknown schema was skipped
+activation_triggers:
+  - import report
+  - strict mode
+  - skipped file
+expressed_by:
+  - golang/extractor/yaml_import.go
+  - golang/extractor/yaml_import_dir.go
+related_invariants:
+  - awareness.rdf.strict_import_must_surface_all_skips
+status: active
+required_tests:
+  - golang/extractor/yaml_import_dir_test.go:TestImportDir_NoSilentSkip
+  - cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped

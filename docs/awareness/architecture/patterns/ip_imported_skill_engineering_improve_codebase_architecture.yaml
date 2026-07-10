@@ -1,0 +1,36 @@
+id: imported.skill.engineering.improve_codebase_architecture
+class: ImplementationPattern
+label: 'Skill: improve-codebase-architecture'
+status: active
+confidence: reviewed
+when_to_use:
+    - Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - Run the /codebase-design skill for the architecture vocabulary (module, interface, depth, seam, adapter, leverage, locality) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these t
+    - The domain language in CONTEXT.md gives names to good seams; ADRs in docs/adr/ record decisions this command should not re-litigate.
+    - Read the project's domain glossary (CONTEXT.md) and any ADRs in the area you're touching first.
+    - Where does understanding one concept require bouncing between many small modules?
+    - Where are modules shallow — interface nearly as complex as the implementation?
+    - Where have pure functions been extracted just for testability, but the real bugs hide in how they're called (no locality)?
+    - Where do tightly-coupled modules leak across their seams?
+    - Which parts of the codebase are untested, or hard to test through their current interface?
+    - Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the temp dir from $TMPDIR, falling back to /tmp (or %TEMP% on Windows), and write to <tmpdir>/architecture-review-<timestamp>.html so each run gets a fresh file. Op
+    - Files — which files/modules are involved
+    - Problem — why the current architecture is causing friction
+    - Solution — plain English description of what would change
+forbidden_shortcuts:
+    - 'Then use the Agent tool with subagent_type=Explore to walk the codebase. Don''t follow rigid heuristics — explore organically and note where you experience friction:'
+    - 'ADR conflicts: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly in the card (e.g. a warning callout: "contradicts ADR-0007 — but worth reopening because…"). Don''t list e'
+    - 'Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"'
+    - 'User rejects the candidate with a load-bearing reason? Offer an ADR, framed as: "Want me to record this as an ADR so future architecture reviews don''t re-suggest it?" Only offer when the reason would actually be needed by a future explorer to avoid re-suggesti'
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: improve-codebase-architecture
+    Source path: skills/engineering/improve-codebase-architecture/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

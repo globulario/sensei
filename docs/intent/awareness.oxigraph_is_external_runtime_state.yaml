@@ -1,0 +1,24 @@
+id: awareness.oxigraph_is_external_runtime_state
+level: operator_model
+title: Oxigraph is external runtime state, not bundled application truth
+intent: |
+  The CLI and server treat Oxigraph as a runtime dependency addressed over HTTP.
+  Its presence, reachability, and current contents are operational state, not
+  something proven by the compiled graph itself.
+agent_guidance: |
+  Keep Oxigraph endpoint handling explicit and observable. Do not hardcode
+  assumptions that the store is always local, always healthy, or always seeded.
+bad_smells:
+  - local graph file treated as proof that the running store is current
+  - CLI silently assumes a default store state without surfacing the endpoint
+activation_triggers:
+  - oxigraph
+  - store url
+  - runtime state
+expressed_by:
+  - cmd/loadnt/main.go
+related_to:
+  - awg.graph_is_compiled_context_not_authority
+status: active
+required_tests:
+  - cmd/loadnt/main_test.go:TestNormalizeStoreURL_QueryEndpointGetsStorePath

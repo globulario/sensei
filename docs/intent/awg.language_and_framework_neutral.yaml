@@ -1,0 +1,57 @@
+id: awg.language_and_framework_neutral
+level: principle
+title: AWG is language-neutral and framework-neutral
+intent: |
+  AWG must work for any codebase in any language. The annotation grammar
+  (`@awareness key=value`) is the same in Go, TypeScript, Python, Rust, or Java.
+  The YAML schemas (invariants, failure_modes, source_patterns, rendering_groups)
+  are language-agnostic. The RDF graph has no concept of "this is a Go project."
+
+  Language-specific intelligence (tree-sitter parsing, AST-based symbol extraction)
+  lives in the scanner, not in the graph or the briefing. The scanner produces
+  language-neutral output (code_symbols.yaml, code_edges.yaml) that the graph
+  consumes without knowing the source language.
+
+  This means AWG can be adopted by any project — not just Globular. A Rails app,
+  a React frontend, a Rust CLI, or a mixed-language monorepo can all use the same
+  AWG server, schemas, and CLI tools. The only language-specific piece is the
+  scanner, which has pluggable parsers per language.
+
+  Framework neutrality is equally important. AWG has no opinion about whether you
+  use React, Vue, Web Components, or vanilla JS. The invariants describe
+  architectural intent, not implementation technology. "Build the shell once" is
+  a Web Component pattern, but the underlying principle — "don't destroy operator
+  context on refresh" — applies to any UI framework.
+agent_guidance: |
+  Never add AWG features that assume Go, TypeScript, or any specific language.
+  If a feature requires language knowledge, it belongs in the scanner (per-language
+  plugin), not in the graph, briefing, or CLI.
+
+  When writing YAML schemas, use language-neutral vocabulary. "function" not "func",
+  "class" not "struct", "module" not "package".
+bad_smells:
+  - graph triple references a Go-specific concept (goroutine, channel)
+  - invariant written in terms of a specific framework (React hook, Angular directive)
+  - briefing prose assumes the file is Go
+  - source_pattern regex uses language-specific syntax that fails on other languages
+  - CLI command hardcodes .go extension
+activation_triggers:
+  - language support
+  - new language
+  - framework
+  - scanner plugin
+  - annotation
+expressed_by:
+  - golang/scanner/scanner.go
+  - golang/scanner/typescript.go
+related_invariants:
+  - awareness.annotation_grammar_is_language_neutral
+zooms_out_to:
+  - awg.mission
+zooms_in_to: []
+related_to:
+  - awg.knowledge_earned_not_invented
+status: active
+required_tests:
+  - golang/scanner/typescript_test.go:TestTSScanner_SharedGrammarValidation
+  - golang/scanner/typescript_test.go:TestSymbolID_LanguageSegment

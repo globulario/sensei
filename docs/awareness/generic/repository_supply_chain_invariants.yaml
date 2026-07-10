@@ -1,0 +1,534 @@
+# Repository / package-management / supply-chain meta-principles (meta.repository.*)
+#
+# A generative rule base for artifact identity, release provenance, install
+# lifecycle, dependency ownership, and trust. Grounded in the authority /
+# lifecycle / workflow metas in state_authority_invariants.yaml; each rule is
+# checkable in isolation. Authored 2026-07-03 from operator principle set.
+invariants:
+
+  - id: meta.repository.package_existence_is_not_install_intent
+    title: "Package existence is not install intent — availability is capability, desired state is intent"
+    category: authority
+    antipattern: "package is in the repo/cache/packages-dist/usr-local-bin, therefore install and keep it"
+    wrong_instinct: A present artifact feels like a decision — but presence is capacity, and only desired state is a work order
+    severity: high
+    status: active
+    summary: |
+      A package present in the repository, cache, packages/dist, /usr/local/bin, or
+      local disk must never mean install this or keep this installed. Repository
+      availability answers can this run; desired state answers should this run.
+      This is the repository face of meta.capability_is_not_intent and the direct
+      antidote to the sticky ffmpeg / yt-dlp / media-service class.
+    enforcement: |
+      No install/start/carry-forward is triggered by mere package presence. Every
+      install traces to a controller-owned desired-state record. A cached or old
+      package is never treated as desired.
+    related_invariants:
+      - meta.capability_is_not_intent
+      - meta.repository.dependency_is_not_workload_membership
+
+  - id: meta.repository.is_artifact_authority_not_deployment_authority
+    title: "The repository is artifact authority, not deployment authority"
+    category: authority
+    antipattern: "repository says latest exists, therefore the node installs it"
+    wrong_instinct: Owning the bytes feels like owning the rollout — but knowing what an artifact is says nothing about whether a node should run it
+    severity: high
+    status: active
+    summary: |
+      The repository owns artifact identity, availability, checksum, provenance,
+      metadata, and bytes. It may answer what is this artifact and is it valid. It
+      must not answer should this node install it. Authority split: repository owns
+      artifact truth; controller owns desired-install truth; node-agent owns local
+      apply truth; service-manager owns process supervision.
+    enforcement: |
+      Repository availability, metadata, or upload must not trigger runtime
+      placement. Deployment decisions originate only from the controller's desired
+      state. Repository package metadata (e.g. a profile field) is descriptive,
+      never an admission signal.
+    related_invariants:
+      - meta.reconciler_repairs_only_within_its_authority_lane
+      - meta.storage_is_not_semantic_authority
+
+  - id: meta.repository.artifact_identity_is_digest_bound
+    title: "Artifact identity is digest-bound — name and version alone are not an identity"
+    category: structure
+    antipattern: "install media-service:1.2.3 without an expected sha256"
+    wrong_instinct: A name and version feel unique — but the same version can carry different bytes across rebuilds and carry-forwards
+    severity: critical
+    status: active
+    summary: |
+      A package identity is incomplete without its content digest. The system binds
+      package_id, version, build_id, platform, digest, manifest digest, publisher,
+      and source/provenance. This protects against same-version-different-tarball
+      and release carry-forward bugs.
+    enforcement: |
+      Resolve-at-install without a lock is forbidden; same version with different
+      bytes must be rejected, not silently accepted. Install verifies the exact
+      expected digest before applying.
+    related_invariants:
+      - meta.identity_computation_must_be_invariant
+      - meta.repository.version_resolution_precedes_apply
+
+  - id: meta.repository.release_manifest_is_install_contract
+    title: "The release manifest is the install contract — filesystem discovery is observation only"
+    category: authority
+    antipattern: "scan packages/dist and include everything found nearby"
+    wrong_instinct: Files sitting in the build dir feel like the release — but a directory scan admits stale carry-forward artifacts as real content
+    severity: critical
+    status: active
+    summary: |
+      A release installs from a manifest/BOM (e.g. release-index.json naming package
+      X, digest Y, platform Z), not from directory scans. The manifest defines the
+      allowed package set; file-system discovery is observation only. Stale
+      carry-forward artifacts must not masquerade as release content.
+    enforcement: |
+      Installers resolve the exact artifact from the manifest and verify it before
+      install. Scanning packages/dist or an extracted bundle and including whatever
+      exists is a violation.
+    related_invariants:
+      - meta.storage_is_not_semantic_authority
+      - meta.contract_must_be_explicit_before_resolution
+
+  - id: meta.repository.artifact_requires_provenance_continuity
+    title: "Every artifact in a release must trace to a current staged input or an explicitly accepted source"
+    category: structure
+    antipattern: "reuse a package from an old extracted bundle because it happens to exist"
+    wrong_instinct: A tarball that is simply there feels usable — but an artifact with no provenance path is an unverified graft
+    severity: high
+    status: active
+    summary: |
+      No artifact enters a release without an explicit provenance path: source path,
+      build transaction id, digest, build time, publisher, platform, profile, and a
+      release-manifest reference. Reusing an old bundle's package, or falling back to
+      packages/dist because a current build failed, breaks provenance continuity.
+    enforcement: |
+      Release assembly rejects any artifact lacking a provenance record tying it to a
+      current staged input or an explicitly accepted external source.
+    related_invariants:
+      - meta.graph_truth_must_come_from_approved_corpus
+      - meta.repository.build_output_is_not_source_input
+
+  - id: meta.repository.build_output_is_not_source_input
+    title: "Build output is not source input — generated artifacts are disposable unless promoted through provenance"
+    category: structure
+    antipattern: "copy a previous package spec into a new release without rebuild proof"
+    wrong_instinct: A rendered unit or generated spec that already exists feels authoritative — but an output that becomes an input is a leak
+    severity: high
+    status: active
+    summary: |
+      Generated packages, rendered units, generated specs, tarballs, and copied
+      binaries are outputs, not source authority. They are disposable projections
+      unless explicitly promoted through provenance. Reading an old rendered unit or
+      generated config as canonical desired state is authority leakage.
+    enforcement: |
+      Outputs are regenerated from source; they are never read back as the source of
+      truth without an explicit promotion record. Repository face of
+      meta.projection_must_be_rebuildable_from_owner.
+    related_invariants:
+      - meta.projection_must_be_rebuildable_from_owner
+      - meta.storage_is_not_semantic_authority
+
+  - id: meta.repository.package_profile_gate_is_explicit
+    title: "Package install is gated by explicit profile admission, not by proximity or filename"
+    category: authority
+    antipattern: "optional package installed by default on every node"
+    wrong_instinct: An available optional package feels harmless to install everywhere — until it cannot be removed and defines workload it should not
+    severity: high
+    status: active
+    summary: |
+      A package may belong to a capability/profile, but it is installed only when the
+      active node profile requires it. media-server may install ffmpeg/yt-dlp/media
+      services; a base node must not. Profile membership is explicit and install must
+      prove profile admission.
+    enforcement: |
+      No optional/media/database package is installed by default or inferred from a
+      filename; install proves the node's profile admits the package.
+    related_invariants:
+      - meta.capability_is_not_intent
+      - meta.membership_is_admitted_not_self_declared
+
+  - id: meta.repository.dependency_is_not_workload_membership
+    title: "A dependency is not a workload — installing a dependency never implies the workload should exist"
+    category: authority
+    antipattern: "ffmpeg installed, therefore this is a media node"
+    wrong_instinct: A supporting binary feels like the workload it supports — but a dependency present is not a service desired
+    severity: high
+    status: active
+    summary: |
+      Dependencies support workloads; they are not services. Installing ffmpeg does
+      not make the node a media node; installing Scylla binaries does not make the
+      node a member of the Scylla ring. Dependency present must not imply workload
+      started or topology membership.
+    enforcement: |
+      No service start or topology membership is derived from a dependency or binary
+      being present. Membership and workload come from controller desired state.
+    related_invariants:
+      - meta.capability_is_not_intent
+      - meta.membership_is_admitted_not_self_declared
+
+  - id: meta.repository.package_apply_is_transaction_owned
+    title: "Every package mutation is owned by one durable install transaction"
+    category: lifecycle
+    antipattern: "retry an install with no transaction identity, then clean up unknown files by guessing"
+    wrong_instinct: A quick install feels atomic enough — but without a transaction owner, partials and duplicates have nobody to reconcile them
+    severity: high
+    status: active
+    summary: |
+      Every install, uninstall, upgrade, and rollback attaches to one durable
+      transaction owner recording transaction_id, package_id, target_build_id,
+      expected_digest, node_id, profile, operation type, owner, generation, and a
+      rollback plan. No package mutation without a transaction id.
+    enforcement: |
+      Applies are single-flight by (node, package, target build) with duplicate
+      suppression. A partial install with no owner, or cleanup by guessing, is a
+      violation.
+    related_invariants:
+      - meta.workflow.side_effects_cross_outbox_boundary
+      - meta.state_mutations_must_be_durably_committed_before_side_effects
+
+  - id: meta.repository.partial_install_requires_recovery_mode
+    title: "Partial install state is not installable state — it must enter explicit recovery"
+    category: lifecycle
+    antipattern: "install over a half-installed package and assume everything is fine"
+    wrong_instinct: Re-running install on a half-state feels like it will heal it — it can layer corruption or start a service from a partial apply
+    severity: high
+    status: active
+    summary: |
+      If a package is half-installed, normal install must not proceed as if healthy;
+      it enters explicit recovery: PARTIAL_INSTALL_DETECTED, RECOVERY_REQUIRED,
+      ROLLBACK_REQUIRED, REACQUIRE_RECOVERY_TRANSACTION. Partial state is not
+      installable state.
+    enforcement: |
+      Installing over a partial package, destructively uninstalling an unknown
+      half-state, or starting a service from a partial install are forbidden;
+      recovery is a declared, evidence-gated path.
+    related_invariants:
+      - meta.workflow.unknown_must_not_be_invented
+      - meta.half_done_must_not_look_done
+
+  - id: meta.repository.uninstall_uses_artifact_ownership_ledger
+    title: "Uninstall removes only owned artifacts, from the install ledger — never by guessing"
+    category: lifecycle
+    antipattern: "rm /usr/local/bin/yt-dlp because the package name says media"
+    wrong_instinct: Removing anything that looks related feels like thorough cleanup — it deletes shared or unowned artifacts and orphans others
+    severity: critical
+    status: active
+    summary: |
+      Uninstall consults the package's install ledger (artifact path, owner package,
+      shared/dependency classification, created_by transaction, remove policy) and
+      removes only what that package owns. Cleanup authority comes from ownership
+      records, not filename inference. Repository face of
+      meta.cleanup_must_be_owned_and_reversible.
+    enforcement: |
+      Removing a systemd unit, symlink, binary, or shared dependency not owned by the
+      package — or deleting user data during uninstall — is a violation.
+    related_invariants:
+      - meta.cleanup_must_be_owned_and_reversible
+      - meta.repository.uninstall_is_not_data_purge
+
+  - id: meta.repository.shared_dependency_requires_ref_ownership
+    title: "Shared dependencies are reference-owned — removed only when no admitted owner remains"
+    category: lifecycle
+    antipattern: "uninstall a media service and remove ffmpeg while another service still needs it"
+    wrong_instinct: A dependency pulled in by one service feels owned by it alone — but shared deps have many owners and refcounts, not one
+    severity: high
+    status: active
+    summary: |
+      Shared dependencies (ffmpeg, yt-dlp, Envoy, Prometheus, libraries, system
+      binaries) carry reference ownership. A shared dependency may be removed only
+      when no admitted package or profile still owns it. Installing one globally with
+      no owner, or keeping one forever because ownership is unknown, are both wrong.
+    enforcement: |
+      Dependency removal checks the owner set/refcount; removal proceeds only at zero
+      admitted owners. Ownerless global installs are a violation.
+    related_invariants:
+      - meta.cleanup_must_be_owned_and_reversible
+      - meta.repository.uninstall_uses_artifact_ownership_ledger
+
+  - id: meta.repository.installed_state_is_observation_not_desired
+    title: "Installed package state is observation — the node reconciles it against desired, never invents desired from disk"
+    category: authority
+    antipattern: "a local package/unit/config exists, therefore it is desired"
+    wrong_instinct: What is on disk feels like what should be there — but installed state is evidence, and desired comes from the controller
+    severity: high
+    status: active
+    summary: |
+      Local installed packages are observed state; desired packages come from the
+      controller/profile/release plan. The node-agent reconciles installed against
+      desired and must not invent desired from local disk, a leftover service config,
+      or a present systemd unit.
+    enforcement: |
+      No desired-package record is derived from a local package, config, or unit
+      being present. Repository face of meta.membership_is_admitted_not_self_declared.
+    related_invariants:
+      - meta.membership_is_admitted_not_self_declared
+      - meta.workflow.observation_is_not_transition_authority
+
+  - id: meta.repository.version_resolution_precedes_apply
+    title: "Version resolution precedes apply — never resolve latest during the mutation step"
+    category: lifecycle
+    antipattern: "install latest — resolving the version mid-apply"
+    wrong_instinct: Resolving latest at install time feels convenient — but the mutation then targets a moving, unlocked identity
+    severity: high
+    status: active
+    summary: |
+      The resolver may choose a version, but install applies a locked
+      version/build/digest. Plan resolves package_id, version, build_id, digest;
+      then apply targets that exact identity. Never resolve latest or stable, or pick
+      a rollback by directory sort, during the mutation.
+    enforcement: |
+      The apply step receives a fully-locked target; any resolution inside apply is a
+      violation.
+    related_invariants:
+      - meta.repository.artifact_identity_is_digest_bound
+      - meta.workflow.commands_are_generation_guarded
+
+  - id: meta.repository.rollback_target_is_precomputed
+    title: "The rollback target is precomputed before any risky apply mutates local state"
+    category: lifecycle
+    antipattern: "upgrade first, then search for the old version if it fails"
+    wrong_instinct: Rollback feels like something you can figure out after a failure — but after failure the old artifact may already be gone
+    severity: high
+    status: active
+    summary: |
+      A risky apply knows its rollback target before it mutates: previous build id,
+      digest, manifest, service unit, config snapshot, and a rollback action list.
+      Rollback cannot depend on whatever happens to remain after the failure.
+    enforcement: |
+      Deleting the old package before the new one verifies, or rolling back to a
+      guessed previous-matching-name, are forbidden. The rollback plan is captured
+      pre-mutation.
+    related_invariants:
+      - meta.partition_response_must_be_predeclared
+      - meta.workflow.compensation_is_forward_recovery
+
+  - id: meta.repository.package_scripts_are_bounded_mutators
+    title: "Package pre/post scripts are bounded, declared mutators — never unlogged system surgery"
+    category: structure
+    antipattern: "postinst edits systemd, PATH, resolv.conf, firewall, and symlinks with no ledger"
+    wrong_instinct: A postinst script feels like a convenient place to wire things up — but unbounded scripts mutate the world outside the ownership ledger
+    severity: high
+    status: active
+    summary: |
+      Pre/post install scripts must declare their mutations, or their effects must be
+      captured and bounded in the install ledger. A postinst that silently edits
+      systemd/PATH/resolv.conf/firewall/symlinks, a preinst that downloads tools
+      without a digest, or a script that installs optional workload dependencies, all
+      escape ownership and are forbidden.
+    enforcement: |
+      Script-created artifacts are recorded in the install ledger with owner and
+      remove policy; undeclared system mutation by a package script is a violation.
+    related_invariants:
+      - meta.cleanup_must_be_owned_and_reversible
+      - meta.repository.network_dependency_is_declared
+
+  - id: meta.repository.network_dependency_is_declared
+    title: "Network dependency is part of the package contract — no silent downloads during install"
+    category: dependency
+    antipattern: "preinst wget latest yt-dlp during install"
+    wrong_instinct: Pulling a tool from the internet at install time feels harmless — it makes install non-reproducible, non-offline, and unverifiable
+    severity: high
+    status: active
+    summary: |
+      A release/package must not silently download dependencies (GitHub/curl/wget)
+      during install unless the install contract declares it: network_required,
+      pinned URL, pinned digest, fallback behavior, and offline availability. Network
+      dependency is declared, pinned, and digest-verified — or absent.
+    enforcement: |
+      An undeclared network fetch, or a download without a pinned digest, during
+      install is a violation. Offline installs must succeed for packages not
+      declaring a network dependency.
+    related_invariants:
+      - meta.critical_path_no_non_critical_dependency
+      - meta.repository.artifact_identity_is_digest_bound
+
+  - id: meta.repository.package_manager_does_not_write_control_truth
+    title: "The package manager installs capability — it never writes control-plane authority"
+    category: authority
+    antipattern: "package postinst admits the local node to a service cluster"
+    wrong_instinct: A package that can lay down a service feels entitled to enroll it — but installing capability is not assigning intent
+    severity: critical
+    status: active
+    summary: |
+      Package install may lay down binaries and configs. It must not admit nodes,
+      mutate cluster desired state, decide topology, or assign workloads. Package
+      manager installs capability; the controller assigns intent.
+    enforcement: |
+      A package install/postinst that writes desired topology, admits the node to a
+      service cluster, or starts a managed service before controller admission is a
+      violation.
+    related_invariants:
+      - meta.reconciler_repairs_only_within_its_authority_lane
+      - meta.repository.service_start_requires_verified_apply
+
+  - id: meta.repository.publish_is_not_promotion
+    title: "Publish is not promotion — uploading bytes does not make an artifact stable, trusted, or installable"
+    category: lifecycle
+    antipattern: "upload replaces stable silently, and latest upload is installable everywhere"
+    wrong_instinct: An uploaded artifact feels ready to run — but publish, verify, promote, and release are distinct states
+    severity: high
+    status: active
+    summary: |
+      Uploading a package does not make it stable, selected, trusted, or installable
+      by default. Artifacts move through declared states: UPLOADED, SCANNED,
+      VERIFIED, SIGNED, CANDIDATE, PROMOTED_STABLE, DEPRECATED, REVOKED. Publish,
+      verify, promote, and release are separate.
+    enforcement: |
+      upload -> stable or upload -> installable-everywhere are forbidden; a new upload
+      must not silently replace the promoted-stable selection.
+    related_invariants:
+      - meta.workflow.state_is_declared_machine_state
+      - meta.repository.revocation_overrides_availability
+
+  - id: meta.repository.revocation_overrides_availability
+    title: "Revocation overrides availability — bytes existing does not make a revoked package installable"
+    category: authority
+    antipattern: "artifact exists in object store, therefore install is allowed"
+    wrong_instinct: If the bytes are still there it feels installable — but trust metadata, not byte presence, decides installability
+    severity: critical
+    status: active
+    summary: |
+      If a package is revoked, the fact that its bytes still exist (object store,
+      cache, offline) must not make it installable. Trust metadata overrides artifact
+      availability. A revoked package must not remain selectable by the version
+      resolver.
+    enforcement: |
+      The resolver and installer consult trust/revocation state before availability;
+      a revoked artifact is never selected or installed, even offline.
+    related_invariants:
+      - meta.fail_safe_defaults_when_authority_is_uncertain
+      - meta.repository.publish_is_not_promotion
+
+  - id: meta.repository.signed_metadata_is_immutable
+    title: "Signed/promoted package metadata is immutable — corrections require a new build or superseding record"
+    category: structure
+    antipattern: "edit the dependencies or install script of an already-signed package in place"
+    wrong_instinct: A small metadata fix feels safe to edit in place — but in-place edits break the signature/digest binding that trust relies on
+    severity: high
+    status: active
+    summary: |
+      Once signed or promoted, package metadata must not be edited in place.
+      Corrections require a new build or an explicit superseding metadata record.
+      Editing dependencies, profile, or install script after the digest/signature is
+      set breaks the trust binding.
+    enforcement: |
+      In-place mutation of signed metadata is a violation; changes are new,
+      separately-signed records that supersede the prior one.
+    related_invariants:
+      - meta.binding_outlives_evidence_until_invalidated
+      - meta.repository.artifact_identity_is_digest_bound
+
+  - id: meta.repository.config_migration_is_separate_from_install
+    title: "Config/data migration is separate from package install — distinct, ordered, reversible verbs"
+    category: lifecycle
+    antipattern: "the new package overwrites config.json directly during install"
+    wrong_instinct: Bundling a config rewrite into install feels efficient — but silent config mutation loses the migration/rollback boundary
+    severity: high
+    status: active
+    summary: |
+      Installing new bytes is separate from migrating persistent config/data. Package
+      apply and state migration are distinct, ordered, and reversible where possible,
+      with a config version, migration plan, backup snapshot, migration event, and
+      rollback policy.
+    enforcement: |
+      A package apply that silently rewrites service config, or a rollback that
+      ignores migrated config, is a violation. Migration is its own recorded step.
+    related_invariants:
+      - meta.state_mutations_must_be_durably_committed_before_side_effects
+      - meta.repository.uninstall_is_not_data_purge
+
+  - id: meta.repository.uninstall_is_not_data_purge
+    title: "Uninstall removes capability; purge removes data — they are different verbs"
+    category: lifecycle
+    antipattern: "uninstall a service and delete its database"
+    wrong_instinct: Removing a service feels like it should clean up everything — but deleting persistent data on uninstall is unrecoverable and unrequested
+    severity: critical
+    status: active
+    summary: |
+      Package uninstall must not delete user/application/service data unless an
+      explicit purge is requested. Uninstall removes executable capability; purge
+      removes persistent data. Removing a package must not remove object data, a
+      database, or user files, and a rollback must not delete them either.
+    enforcement: |
+      Data deletion is never a side effect of uninstall or rollback; it requires an
+      explicit, separate purge operation.
+    related_invariants:
+      - meta.fail_safe_defaults_when_authority_is_uncertain
+      - meta.repository.uninstall_uses_artifact_ownership_ledger
+
+  - id: meta.repository.platform_compatibility_is_preflighted
+    title: "Platform compatibility is proven in preflight, not assumed"
+    category: structure
+    antipattern: "a linux_amd64 package installed on arm64"
+    wrong_instinct: A package that installed somewhere feels portable — but OS/arch/ABI/dependency mismatches fail at runtime, not at copy time
+    severity: high
+    status: active
+    summary: |
+      A package target must match OS, architecture, runtime ABI, and dependency
+      constraints. Platform is part of artifact identity and of install preflight —
+      it is proven, not assumed.
+    enforcement: |
+      Installing across platforms, copying a host-built binary without platform
+      proof, or assuming a dependency library is present, are violations; preflight
+      verifies platform compatibility before apply.
+    related_invariants:
+      - meta.end_to_end_check_is_the_only_truth
+      - meta.repository.service_start_requires_verified_apply
+
+  - id: meta.repository.service_start_requires_verified_apply
+    title: "Service start is gated by a verified apply — copying files is not readiness to run"
+    category: lifecycle
+    antipattern: "copy binary, then start the service"
+    wrong_instinct: Files on disk feel like a running service one step away — but start before verification runs unchecked, unadmitted workload
+    severity: critical
+    status: active
+    summary: |
+      Install has stages: fetch, verify, unpack, render, register, preflight, then
+      start if desired. A service must not start just because files were copied, nor
+      because a postinst wanted to, before checksum/unit/config verification and
+      before the controller's desired state admits it.
+    enforcement: |
+      Starting a service from an unverified apply, or from a package script ahead of
+      controller desired state, is a violation. Start is a distinct, gated stage.
+    related_invariants:
+      - meta.half_done_must_not_look_done
+      - meta.workflow.transitions_are_explicit
+
+  - id: meta.repository.adopt_correct_runtime_before_disrupting_it
+    title: "Adopt an already-correct running service before restarting, reinstalling, or disrupting it"
+    category: lifecycle
+    antipattern: "restart a running service just because installed-state has no record of it"
+    wrong_instinct: A service missing from installed-state feels wrong and in need of (re)install — but activity plus a matching live binary is proof it is already correct
+    severity: high
+    status: active
+    summary: |
+      Package convergence must adopt an already-correct running service before
+      restarting, reinstalling, or disrupting it. If a service is active but
+      missing from installed-state, the reconciler must not assume it is wrong; it
+      must verify the LIVE process identity against the expected artifact identity.
+      Only when the running process binary, expected digest, package identity,
+      service identity, and target build all match may convergence adopt the
+      service — by writing installed-state and stamping convergence metadata
+      WITHOUT a restart. The check is against the running process
+      (/proc/<pid>/exe), never the on-disk binary, because an apply may have just
+      overwritten the file while the old executable is still live
+      (service.running_binary_hash_mismatch). The visible symptom this prevents is
+      the day-0 bootstrap-to-convergence handoff needlessly restarting a
+      bootstrap-started envoy and blacking out the mesh while it re-fetches xDS.
+    enforcement: |
+      Required evidence to adopt-without-restart: service is active; live process
+      PID is known; /proc/<pid>/exe (or platform equivalent) hashes to
+      expected_sha256; package id, service id, build id, and desired generation
+      match; installed-state is written as adoption of PROVEN runtime, never as
+      inferred intent. Forbidden: restart a running service only because
+      installed-state is missing; trust the on-disk hash when a live process may
+      run an older executable; skip restart during a real upgrade without proving
+      the live process binary matches expected; treat package presence or service
+      activity as install intent absent controller desired state. A stale running
+      binary (live hash != expected) MUST still force a restart, and a regression
+      test must prove it.
+    related_invariants:
+      - meta.repository.package_existence_is_not_install_intent
+      - meta.repository.installed_state_is_observation_not_desired
+      - meta.workflow.observation_is_not_transition_authority
+      - meta.reconciler_repairs_only_within_its_authority_lane

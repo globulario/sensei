@@ -1,0 +1,25 @@
+id: imported.skill.engineering.resolving_merge_conflicts
+class: ImplementationPattern
+label: 'Skill: resolving-merge-conflicts'
+status: active
+confidence: reviewed
+when_to_use:
+    - Use when you need to resolve an in-progress git merge/rebase conflict.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - See the current state of the merge/rebase. Check git history, and the conflicting files.
+    - Find the primary sources for each conflict. Understand deeply why each change was made, and what the original intent was. Read the commit messages, check the PRs, check original issues/tickets.
+    - Discover the project's automated checks and run them — typically typecheck, then tests, then format. Fix anything the merge broke.
+    - Finish the merge/rebase. Stage everything and commit. If rebasing, continue the rebase process until all commits are rebased.
+forbidden_shortcuts:
+    - Resolve each hunk. Preserve both intents where possible. Where incompatible, pick the one matching the merge's stated goal and note the trade-off. Do not invent new behaviour. Always resolve; never --abort.
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: resolving-merge-conflicts
+    Source path: skills/engineering/resolving-merge-conflicts/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

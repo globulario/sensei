@@ -1,0 +1,26 @@
+id: awareness.cited_anchors_must_be_defined
+level: contract
+title: Every cited awareness anchor must resolve to an authored node
+intent: |
+  Awareness references are only useful when they resolve. Any invariant,
+  failure mode, forbidden fix, required test, or intent cited from another node
+  must be defined somewhere in the authored corpus or explicitly baselined as
+  an allowed dangling reference.
+agent_guidance: |
+  Prefer fixing a dangling reference by authoring the missing node or updating
+  the stale ID. Do not silently mint placeholder nodes just to make validation
+  pass.
+bad_smells:
+  - related_invariants points to an ID with no definition
+  - required_tests cites a test contract that does not exist
+activation_triggers:
+  - reference validation
+  - dangling reference
+expressed_by:
+  - golang/extractor/reference_validator.go
+related_invariants:
+  - awareness.reference_ids_are_global_across_languages
+status: active
+required_tests:
+  - golang/extractor/reference_validator_test.go:TestValidateReferences_DanglingForbiddenFix
+  - golang/extractor/reference_validator_test.go:TestValidateReferences_DanglingRequiredTest

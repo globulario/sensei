@@ -1,0 +1,22 @@
+id: awareness.resolve_returns_precise_node_by_class_and_id
+level: contract
+title: Resolve returns one precise node by declared class and ID
+intent: |
+  Resolve is the surgical lookup path into the graph. Callers must provide the
+  expected class and bare ID, and the server must either return the matching
+  node or a precise not-found outcome without fuzzy fallback.
+agent_guidance: |
+  Preserve explicit class validation and fail clearly on empty or unsupported
+  classes.
+bad_smells:
+  - resolve guesses the class from the ID prefix
+  - unsupported classes fall through to another resolver path
+activation_triggers:
+  - resolve
+  - node lookup
+expressed_by:
+  - golang/server/resolve.go
+status: active
+required_tests:
+  - golang/server/main_test.go:TestResolve_FoundMapsCoreFields
+  - golang/server/main_test.go:TestResolve_RejectsUnsupportedClass

@@ -1,0 +1,16 @@
+[
+  {
+    "PRID": "16",
+    "CommentID": "exp-ag-1",
+    "Path": "golang/extractor/coldsource/triangulate.go",
+    "Line": 30,
+    "Body": "A theme must require at least two distinct source types to be drafted — one signal is a guess, not evidence. Never lower this to a raw signal count."
+  },
+  {
+    "PRID": "17",
+    "CommentID": "exp-ag-2",
+    "Path": "cmd/awg/cmd_cold_bootstrap.go",
+    "Line": 20,
+    "Body": "The LLM drafter must stay opt-in and fail clearly when no key is present — do not silently fall back to the echo drafter."
+  }
+]

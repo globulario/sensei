@@ -1,0 +1,166 @@
+code_edges:
+  - from: globular.awareness_graph:code.go.build.loadnt.run
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.rdf.ntriples_validated_before_write
+  - from: globular.awareness_graph:code.go.build.loadnt.run
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.loadnt_validates_before_loading
+  - from: globular.awareness_graph:code.go.build.loadnt.run
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
+  - from: globular.awareness_graph:code.go.build.loadnt.run
+    relation: tested_by
+    to: cmd/loadnt/main_test.go:TestRunValidatesBeforeUpload
+  - from: globular.awareness_graph:code.go.build.loadnt.uploadNTriples
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.oxigraph_is_external_runtime_state
+  - from: globular.awareness_graph:code.go.build.loadnt.uploadNTriples
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
+  - from: globular.awareness_graph:code.go.build.yaml2nt.run
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.rdf.ntriples_validated_before_write
+  - from: globular.awareness_graph:code.go.build.yaml2nt.run
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.rdf.strict_import_must_surface_all_skips
+  - from: globular.awareness_graph:code.go.build.yaml2nt.run
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.yaml2nt_produces_deterministic_output
+  - from: globular.awareness_graph:code.go.build.yaml2nt.run
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
+  - from: globular.awareness_graph:code.go.build.yaml2nt.run
+    relation: tested_by
+    to: cmd/yaml2nt/main_test.go:TestRunDeterministic
+  - from: globular.awareness_graph:code.go.extractor
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.rdf.yaml_is_source_of_truth
+  - from: globular.awareness_graph:code.go.extractor.ImportAwarenessYAMLs
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.yaml_importer_does_not_silently_skip_in_strict_mode
+  - from: globular.awareness_graph:code.go.extractor.ImportAwarenessYAMLs
+    relation: tested_by
+    to: golang/extractor/yaml_import_dir_test.go:TestImportDir_NoSilentSkip
+  - from: globular.awareness_graph:code.go.mcp.bridge.bridge_callTool
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.query.no_arbitrary_sparql
+  - from: globular.awareness_graph:code.go.mcp.bridge.bridge_callTool
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.mcp_bridge_exposes_safe_tools_only
+  - from: globular.awareness_graph:code.go.mcp.bridge.bridge_callTool
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
+  - from: globular.awareness_graph:code.go.mcp.bridge.main
+    relation: relates_to
+    to: globular.awareness_graph:intent.awareness.mcp_tools_use_gateway_client_pool
+  - from: globular.awareness_graph:code.go.server.authority_domains
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.briefing
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.briefing_returns_explicit_status
+  - from: globular.awareness_graph:code.go.server.briefing
+    relation: implements
+    to: globular.platform:intent.awareness.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.briefing.server_Briefing
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
+  - from: globular.awareness_graph:code.go.server.briefing.server_Briefing
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.briefing_returns_explicit_status
+  - from: globular.awareness_graph:code.go.server.briefing.server_Briefing
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
+  - from: globular.awareness_graph:code.go.server.briefing.server_Briefing
+    relation: tested_by
+    to: golang/server/main_test.go:TestBriefingStoreNil
+  - from: globular.awareness_graph:code.go.server.change_impact
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.impact
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
+  - from: globular.awareness_graph:code.go.server.impact.server_Impact
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
+  - from: globular.awareness_graph:code.go.server.impact.server_Impact
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
+  - from: globular.awareness_graph:code.go.server.impact.server_Impact
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
+  - from: globular.awareness_graph:code.go.server.impact.server_Impact
+    relation: tested_by
+    to: golang/server/impact_test.go:TestImpactStoreNil
+  - from: globular.awareness_graph:code.go.server.implementation_patterns
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.intent_triggers
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.metadata
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.preflight
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.briefing_returns_explicit_status
+  - from: globular.awareness_graph:code.go.server.preflight
+    relation: implements
+    to: globular.platform:intent.awareness.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.preflight.server_Preflight
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.briefing_returns_explicit_status
+  - from: globular.awareness_graph:code.go.server.preflight_cli
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.query
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.query_does_not_expose_arbitrary_sparql
+  - from: globular.awareness_graph:code.go.server.query
+    relation: implements
+    to: globular.platform:intent.awareness.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.query.server_Query
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.query.no_arbitrary_sparql
+  - from: globular.awareness_graph:code.go.server.query.server_Query
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
+  - from: globular.awareness_graph:code.go.server.query.server_Query
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.query_does_not_expose_arbitrary_sparql
+  - from: globular.awareness_graph:code.go.server.query.server_Query
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
+  - from: globular.awareness_graph:code.go.server.query.server_Query
+    relation: tested_by
+    to: golang/server/query_test.go:TestQueryUnknownMode
+  - from: globular.awareness_graph:code.go.server.reference_sites.server_ReferenceSites
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
+  - from: globular.awareness_graph:code.go.server.reference_sites.server_ReferenceSites
+    relation: tested_by
+    to: golang/server/reference_sites_test.go:TestReferenceSites
+  - from: globular.awareness_graph:code.go.server.repair_plans
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.resolve
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.resolve_returns_precise_node_by_class_and_id
+  - from: globular.awareness_graph:code.go.server.resolve.resolveIRIForClassAndID
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.query.no_arbitrary_sparql
+  - from: globular.awareness_graph:code.go.server.resolve.resolveIRIForClassAndID
+    relation: protects
+    to: globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
+  - from: globular.awareness_graph:code.go.server.resolve.server_Resolve
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
+  - from: globular.awareness_graph:code.go.server.resolve.server_Resolve
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.resolve_returns_precise_node_by_class_and_id
+  - from: globular.awareness_graph:code.go.server.resolve.server_Resolve
+    relation: tested_by
+    to: golang/server/resolve_test.go:TestResolveNotFound
+  - from: globular.awareness_graph:code.go.server.runtime_evidence
+    relation: implements
+    to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority

@@ -1,0 +1,6 @@
+candidate_id,candidate_class,theme,evidence_count,source_types,label,reviewer_note,keep_or_reject
+# Fill one row per accepted candidate from the report's scoring sheet.
+# label ∈ load-bearing | shallow | wrong | duplicate
+# keep_or_reject ∈ keep | reject
+# Go/no-go: continue to productize only if >= ~30% are 'load-bearing' AND the 'wrong' rate is low.
+candidate.golang.node_agent.node_agent_server,,,,,,,

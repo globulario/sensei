@@ -1,0 +1,15 @@
+# Fixture failure_mode. Exercises:
+#   - related_invariants  → aw:affects edge (FM → Invariant) — proves the
+#                           v0.1 unification of related_invariants under
+#                           aw:affects (was aw:relatedInvariant in v0.0).
+#   - required_tests      → reuses the same Test node the invariant points
+#                           at (test dedupe at the RDF layer).
+
+failure_modes:
+  - id: test.example.failure_mode
+    title: Test fixture failure mode — do not edit
+    severity: high
+    related_invariants:
+      - test.example.invariant
+    required_tests:
+      - TestExampleFunc

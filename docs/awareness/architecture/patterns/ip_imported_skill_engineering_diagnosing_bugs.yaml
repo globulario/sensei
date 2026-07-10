@@ -1,0 +1,39 @@
+id: imported.skill.engineering.diagnosing_bugs
+class: ImplementationPattern
+label: 'Skill: diagnosing-bugs'
+status: active
+confidence: reviewed
+when_to_use:
+    - Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
+    - A discipline for hard bugs. Skip phases only when explicitly justified.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - If you catch yourself reading code to build a theory before this command exists, stop — jumping straight to a hypothesis is the exact failure this skill prevents. No red-capable command, no Phase 2.
+    - Red-capable — it drives the actual bug code path and asserts the user's exact symptom, so it can go red on this bug and green once fixed. Not "runs without erroring" — it must be able to catch this specific bug.
+    - 'Phase 1 is done when the loop is tight and red-capable: you can name one command — a script path, a test invocation, a curl — that you have already run at least once (paste the invocation and its output), and that is:'
+    - Done when every remaining element is load-bearing — removing any one of them makes the loop go green.
+    - When exploring the codebase, read CONTEXT.md (if it exists) to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
+    - Failing test at whatever seam reaches the bug — unit, integration, e2e.
+    - Curl / HTTP script against a running dev server.
+    - CLI invocation with a fixture input, diffing stdout against a known-good snapshot.
+    - Headless browser script (Playwright / Puppeteer) — drives the UI, asserts on DOM/console/network.
+    - Replay a captured trace. Save a real network request / payload / event log to disk; replay it through the code path in isolation.
+    - Throwaway harness. Spin up a minimal subset of the system (one service, mocked deps) that exercises the bug code path with a single function call.
+    - Property / fuzz loop. If the bug is "sometimes wrong output", run 1000 random inputs and look for the failure mode.
+forbidden_shortcuts:
+    - This is the skill. Everything else is mechanical. If you have a tight pass/fail signal for the bug — one that goes red on this bug — you will find the cause; bisection, hypothesis-testing, and instrumentation all just consume it. If you don't have one, no amou
+    - 'Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instru'
+    - The loop produces the failure mode the user described — not a different failure that happens to be nearby. Wrong bug = wrong fix.
+    - Do not proceed until you have reproduced and minimised.
+    - 'Show the ranked list to the user before testing. They often have domain knowledge that re-ranks instantly ("we just deployed a change to #3"), or know hypotheses they''ve already ruled out. Cheap checkpoint, big time saver. Don''t block on it — proceed with your'
+    - Never "log everything and grep".
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: diagnosing-bugs
+    Source path: skills/engineering/diagnosing-bugs/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

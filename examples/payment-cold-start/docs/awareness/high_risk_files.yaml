@@ -1,0 +1,4 @@
+# Files that require an awareness briefing before edits. The Claude Code
+# hook (added by `awg init`) blocks edits to these until a briefing is run.
+files:
+  - src/payment_processor.py

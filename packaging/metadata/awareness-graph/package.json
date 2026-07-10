@@ -1,0 +1,43 @@
+{
+  "type": "service",
+  "name": "awareness-graph",
+  "service_id": "globular.awareness_graph.AwarenessGraph",
+  "version": "0.0.6",
+  "platform": "linux_amd64",
+  "publisher": "core@globular.io",
+  "entrypoint": "bin/awareness-graph",
+  "defaults": {
+    "configDir": "",
+    "spec": "specs/awareness_graph_service.yaml",
+    "proto": "proto/awareness_graph.proto"
+  },
+  "runtime_defaults": {
+    "protocol": "grpc",
+    "port": 10120,
+    "proxy": 10121,
+    "publisher_id": "localhost",
+    "keep_alive": true,
+    "keep_up_to_date": true,
+    "oxigraph_query_url": "http://localhost:7878/query",
+    "require_store": false,
+    "startup_health_timeout": "5s",
+    "query_exposed_as_sparql": false,
+    "mcp_query_exposed_by_default": false,
+    "proxy_behavior": "reserved_metadata_only",
+    "proxy_note": "Proxy port 10121 is reserved in metadata; this package path runs direct gRPC only."
+  },
+  "description": "Awareness graph service for Resolve, Impact, Briefing, and constrained Query over compiled RDF awareness context.",
+  "keywords": [
+    "awareness",
+    "rdf",
+    "graph",
+    "briefing",
+    "impact",
+    "intent",
+    "agent"
+  ],
+  "license": "Apache-2.0",
+  "systemd_unit": "globular-awareness-graph.service",
+  "health_check_unit": "globular-awareness-graph.service",
+  "entrypoint_checksum": "sha256:generated-by-service-dist"
+}

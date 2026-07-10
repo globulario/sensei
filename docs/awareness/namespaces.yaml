@@ -1,0 +1,15 @@
+# Namespace registry for the standalone awareness-graph repo.
+#
+# The annotation scanner validates `@awareness namespace=…` references against
+# this table and assigns an owning namespace to each scanned path via `owns`.
+# In the combined Globular build the registry lives in the services repo and
+# also lists the platform services; standalone, awareness-graph owns itself.
+namespaces:
+  - id: globular.awareness_graph
+    label: Awareness Graph
+    owns:
+      - golang
+      - cmd
+      - proto
+      - ontology
+    description: RDF-backed awareness service exposing briefing, impact, resolve, and query.

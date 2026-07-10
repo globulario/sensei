@@ -1,0 +1,26 @@
+id: awareness.query_does_not_expose_arbitrary_sparql
+level: contract
+title: Query remains a constrained typed API, not arbitrary SPARQL
+intent: |
+  The agent-facing Query RPC may expose approved typed modes such as by-file,
+  by-id, by-class, and related. It must not become a pass-through for arbitrary
+  SPARQL or raw store syntax.
+agent_guidance: |
+  Add new query capability by extending the typed API, not by reopening raw
+  query text.
+bad_smells:
+  - SPARQL-like input accepted by Query
+  - class or mode inferred from free-form text
+activation_triggers:
+  - query
+  - sparql
+  - typed api
+expressed_by:
+  - golang/server/query.go
+  - cmd/awareness-mcp/main.go
+related_invariants:
+  - awareness.query.no_arbitrary_sparql
+status: active
+required_tests:
+  - golang/server/main_test.go:TestQuery_RawSPARQLLikeInputRejected
+  - cmd/awareness-mcp/main_test.go:TestQueryTool_TypedModesOnly

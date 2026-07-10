@@ -1,0 +1,12 @@
+# Contract-spine Phase 2 — authoritative impl→architectural realizations.
+#
+#   realizations: authoritative (hand-authored or promoted via
+#                 `awg promote-realization`). Emit realizesContract + realizedByContract.
+#   candidates:   NON-authoritative, awaiting promotion. Emit candidateRealizesContract ONLY.
+#
+# Generator-discovered candidates live in contract_realization_candidates.yaml.
+# This file keeps promoted realizations plus any hand-authored links the
+# generator cannot infer.
+contract_realizations:
+  realizations: []
+  candidates: []

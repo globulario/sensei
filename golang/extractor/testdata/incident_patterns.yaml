@@ -1,0 +1,23 @@
+# Fixture incident_pattern. Exercises:
+#   - failure_mode (singular)   → aw:exemplifies edge to the FM
+#   - files                     → SourceFile node + protects edge + reverse
+#                                 implements (same shape as invariants)
+#   - related_invariants        → aw:affects edge (pattern → invariant)
+#   - wrong_fixes — TWO entries to exercise the prose/ID routing:
+#       1. A snake_case ID that matches the invariant's forbidden_fix:
+#          becomes an aw:forbids edge to that ForbiddenFix node.
+#       2. A prose entry with an em-dash and inline backticks: must NOT
+#          become an IRI; lands as a rdfs:comment literal on the pattern.
+
+incident_patterns:
+  - id: pat.test.example
+    title: Test fixture incident pattern — do not edit
+    severity: critical
+    failure_mode: test.example.failure_mode
+    files:
+      - test/example.go
+    related_invariants:
+      - test.example.invariant
+    wrong_fixes:
+      - test_example_forbidden_fix
+      - "Don't `pkill -f` the binary — it self-SIGKILLs via the parent shell"
