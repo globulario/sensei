@@ -1,5 +1,9 @@
 # AWG — Awareness Graph
 
+[![CI](https://github.com/globulario/awareness-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/globulario/awareness-graph/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white)](go.mod)
+
 **Give your AI coding agent the project knowledge that currently lives only in your head.**
 
 AI agents write code well but lose the architecture. The rules that actually
