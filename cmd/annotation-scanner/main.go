@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/scanner"
+	"github.com/globulario/sensei/golang/scanner"
 )
 
 func main() {

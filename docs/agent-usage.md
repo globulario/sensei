@@ -1,6 +1,6 @@
-# Agent Usage — how an AI agent should use AWG
+# Agent Usage — how an AI agent should use Sensei
 
-AWG gives you the project knowledge that isn't in the code: the invariants a
+Sensei gives you the project knowledge that isn't in the code: the invariants a
 file must uphold, the failure modes it's involved in, the fixes that look right
 but are known-broken, and the tests that pin the behavior. Consult it **before**
 you edit, and record what you learn **after** you fix.
@@ -9,7 +9,7 @@ This page is the operational contract. For the wire surface see
 [api-reference.md](./api-reference.md); for every CLI flag see
 [cli-reference.md](./cli-reference.md).
 
-## What AWG is / is not
+## What Sensei is / is not
 
 - It **is** compiled, reloadable awareness context: authored YAML
   (`docs/awareness/*.yaml`) + `@awareness` annotations, compiled into RDF and

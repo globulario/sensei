@@ -1,6 +1,6 @@
-# AWG project configuration.
+# Sensei project configuration.
 #
-# This file configures the Awareness Graph for your project.
+# This file configures Sensei for your project.
 # Edit the values below, then:
 #   awg serve -no-seed &   (start the local store + server)
 #   awg build              (compile docs/awareness into the store)

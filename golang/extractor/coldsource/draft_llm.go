@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // LLMDrafter is the real (opt-in) Drafter. It asks an LLMClient to turn a

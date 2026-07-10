@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // ReviewComment is one PR review comment, decoupled from the GitHub API so the

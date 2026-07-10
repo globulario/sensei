@@ -1,6 +1,6 @@
 # Cold-start demo: payment "paid" state
 
-The smallest possible AWG project. One source file, one rule. It shows the
+The smallest possible Sensei project. One source file, one rule. It shows the
 whole loop: a rule you write becomes a briefing an AI agent (or you) gets
 **before** editing the risky file.
 

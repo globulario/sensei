@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // An implementation pattern governs by literal rules (requiresCall, mustFollow,

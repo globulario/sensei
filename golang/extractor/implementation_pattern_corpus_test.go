@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/extractor"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // expectedImplPatterns are the pattern ids Phase 1 authored. grpc_client_standard

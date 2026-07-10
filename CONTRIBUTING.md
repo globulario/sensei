@@ -1,6 +1,6 @@
-# Contributing to Awareness Graph
+# Contributing to Sensei
 
-Thanks for your interest in AWG. This project turns a codebase's architectural
+Thanks for your interest in Sensei. This project turns a codebase's architectural
 knowledge — invariants, failure modes, forbidden fixes, intent — into a graph an
 AI agent consults before it edits and a CI gate enforces. Contributions that make
 that loop more trustworthy are very welcome.
@@ -32,7 +32,7 @@ whose commits are not signed off cannot be merged.
 Requires **Go 1.23+** (Linux or macOS; Windows is not yet a validated path).
 
 ```bash
-git clone https://github.com/globulario/awareness-graph.git
+git clone https://github.com/globulario/sensei.git
 cd awareness-graph
 ./scripts/install.sh          # builds awg + server, fetches the oxigraph binary
 export PATH="$PWD/bin:$PATH"

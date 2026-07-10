@@ -1,6 +1,6 @@
-# AWG Quickstart — awareness for any project in 15 minutes
+# Sensei Quickstart — awareness for any project in 15 minutes
 
-AWG gives AI agents (and humans) institutional memory with teeth: the
+Sensei gives AI agents (and humans) institutional memory with teeth: the
 architectural rules, known failure modes, and forbidden fixes of YOUR
 project, surfaced automatically before code gets edited — and a portable
 pack of 133 battle-validated meta-principles to start from on day one.
@@ -10,7 +10,7 @@ pack of 133 battle-validated meta-principles to start from on day one.
 Source build:
 
 ```bash
-git clone https://github.com/globulario/awareness-graph
+git clone https://github.com/globulario/sensei
 cd awareness-graph && ./scripts/install.sh      # builds awg + server, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
 ```
@@ -34,7 +34,7 @@ Recommended local runtime:
 bash ./scripts/install-awg-user-services.sh --skip-build
 ```
 
-That gives you a supervised local AWG stack and is the preferred path for real
+That gives you a supervised local Sensei stack and is the preferred path for real
 day-to-day use. The ad hoc `awg serve -no-seed` path below remains fine for a
 quick demo.
 
@@ -179,11 +179,11 @@ This gives a plain-language posture report for the repository, including:
 - overall architecture posture
 - `agent_readiness` verdict
 - integrity findings that would make governed edits unsafe
-- an `upgrade_path` showing the next invariant and contract anchors AWG would
+- an `upgrade_path` showing the next invariant and contract anchors Sensei would
   want before trusting broader agent work
 
 If the repo comes back as `guarded_repair_only`, that is not a failure. It
-means AWG sees enough structure to support governed repairs, but not enough
+means Sensei sees enough structure to support governed repairs, but not enough
 stable authority yet for broader autonomous change.
 
 ## 9. Draft the next governance layer without promoting it

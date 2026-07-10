@@ -181,12 +181,12 @@ func scaffoldHooks(root string) ([]string, error) {
 }
 
 func appendClaudeMD(path string) (string, error) {
-	marker := "## Awareness Graph (AWG)"
+	marker := "## Sensei"
 
 	// Check if already present.
 	if data, err := os.ReadFile(path); err == nil {
 		if strings.Contains(string(data), marker) {
-			return "", nil // already has AWG section
+			return "", nil // already has Sensei section
 		}
 	}
 

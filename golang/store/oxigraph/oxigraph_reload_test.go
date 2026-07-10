@@ -25,7 +25,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 func ntLines(s string) []string {

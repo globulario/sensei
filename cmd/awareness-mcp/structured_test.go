@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // asMap unwraps a tool's Structured payload as a JSON-like object.

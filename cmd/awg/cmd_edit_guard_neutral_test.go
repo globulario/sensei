@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // The neutral input seam: any agent/CI drives the guard with --file, not the

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Command awg is the standalone Awareness Graph CLI.
+// Command awg is the standalone Sensei CLI.
 //
-// AWG makes architectural intent queryable at the point of edit,
+// Sensei makes architectural intent queryable at the point of edit,
 // preventing the slow drift that kills codebases.
 //
 // Usage:
@@ -47,7 +47,7 @@
 //	awg pattern-check <file>...          Check files against pattern recipes
 //	awg version                          Print version and exit
 //
-// See https://github.com/globulario/awareness-graph for documentation.
+// See https://github.com/globulario/sensei for documentation.
 package main
 
 import (
@@ -209,16 +209,16 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprint(os.Stderr, `AWG — Awareness Graph for any codebase
+	fmt.Fprint(os.Stderr, `Sensei — architectural awareness for any codebase
 
 Usage: awg <command> [flags]
 
-Query commands (require a running AWG server):
+Query commands (require a running Sensei server):
   briefing       Query the graph for a file or task
   impact         Get structured knowledge nodes for a file
   preflight      Risk classification before editing a file
   contract-assess Report-only contract synthesis assessment from explicit evidence
-  contract-bootstrap Build a proposed repair-contract bootstrap from issue/tests/AWG
+  contract-bootstrap Build a proposed repair-contract bootstrap from issue/tests/Sensei
   edit-check     Warn (advisory) if a proposed edit violates repo-scoped rules
   gate           Hard gate over a git diff (--enforce to block; --event-log to record outcomes)
   evidence       Aggregate the gate/guard outcome ledger ("caught N incidents across M repos")
@@ -232,7 +232,7 @@ Query commands (require a running AWG server):
 
 Local commands (no server required):
   init           Scaffold awareness for a new project
-  bootstrap      Initialize AWG for an existing repo (deterministic extraction + optional history)
+  bootstrap      Initialize Sensei for an existing repo (deterministic extraction + optional history)
   build          Compile YAML sources and load into the store
   serve          Start the gRPC awareness server
   check          Validate YAML sources without building

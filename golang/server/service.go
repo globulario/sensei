@@ -16,9 +16,9 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/store"
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/store"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 const backendHealthPollInterval = 2 * time.Second

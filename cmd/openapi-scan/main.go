@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor/openapiscan"
+	"github.com/globulario/sensei/golang/extractor/openapiscan"
 )
 
 type stringList []string

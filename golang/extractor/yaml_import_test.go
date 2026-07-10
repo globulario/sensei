@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // TestImportFixture_ProducesValidNTriples is the broad smoke test: feed

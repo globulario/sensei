@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/seedmeta"
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 func TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples(t *testing.T) {

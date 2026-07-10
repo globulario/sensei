@@ -9,7 +9,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/globulario/awareness-graph/golang/evidence"
+	"github.com/globulario/sensei/golang/evidence"
 )
 
 // runEvidence aggregates the outcome ledger that `awg gate`/`awg edit-guard`

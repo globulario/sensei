@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor/importgraph"
+	"github.com/globulario/sensei/golang/extractor/importgraph"
 )
 
 func writeFile(t *testing.T, path, content string) {

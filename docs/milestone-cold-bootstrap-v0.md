@@ -1,4 +1,4 @@
-# AWG cold-bootstrap v0: learn → validate → promote → serve → warn
+# Sensei cold-bootstrap v0: learn → validate → promote → serve → warn
 
 *A milestone note: what the cold-bootstrap sequence proved, what it does not yet
 claim, and where it could go next. Captured for the record — not a launch.*
@@ -11,7 +11,7 @@ paid for. It is a v0 proof, deliberately scoped.
 
 ## 1. What was proven
 
-- **AWG cold-source can mine real repo history** from mature external projects
+- **Sensei cold-source can mine real repo history** from mature external projects
   (PR review comments + revert/regression commits), not just hand-authored input.
 - **Caddy and etcd both cleared the live LLM drafter quality bar.**
 - **The validation cage held** on both scored runs:
@@ -88,7 +88,7 @@ existing repo scars (bugs / reverts / review comments)
   → gap discovery (where no law yet exists)
 ```
 
-**The central insight:** *AWG can extract the laws a project already paid for in
+**The central insight:** *Sensei can extract the laws a project already paid for in
 bugs, reverts, and reviews — then make future agents aware of them before they
 repeat the same class of mistake.* The Caddy `dispenser.Errf` rule and the etcd
 aliasing findings are not invented; they are scar tissue, re-served as foresight.
@@ -129,7 +129,7 @@ from a repo's stated charter (docs, ADRs, comments, tests, commits, schemas), an
 fabricated source citation, and `GroundIntent` grounds them against what the code
 encodes — surfacing the **divergences** (stale / hidden / missing / ambiguous).
 It reuses the grounding spine, keeps the trust model — **the LLM proposes intent,
-AWG grounds it, humans approve meaning** — and applies the same `>80%` router:
+Sensei grounds it, humans approve meaning** — and applies the same `>80%` router:
 auto-map to an *existing* invariant/meta-principle only; **creating new intent
 stays human even at high certainty.** The LLM proposer is opt-in (key from the
 environment only); the echo proposer runs the loop with no key. Demonstrated on

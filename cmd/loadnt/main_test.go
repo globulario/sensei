@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/seedmeta"
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 func writeTempFile(t *testing.T, content string) string {

@@ -28,7 +28,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/coverage"
+	"github.com/globulario/sensei/golang/coverage"
 )
 
 func main() {

@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/globulario/awareness-graph/golang/coverage"
-	"github.com/globulario/awareness-graph/golang/repoeval"
+	"github.com/globulario/sensei/golang/coverage"
+	"github.com/globulario/sensei/golang/repoeval"
 	"gopkg.in/yaml.v3"
 )
 

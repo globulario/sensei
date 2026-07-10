@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/scanner"
+	"github.com/globulario/sensei/golang/scanner"
 )
 
 // TestAnnotationScanner_Deterministic verifies that scanning the same source

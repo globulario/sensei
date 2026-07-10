@@ -21,10 +21,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/extractor"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 )
 
 var goldenAuthorityCases = []struct {

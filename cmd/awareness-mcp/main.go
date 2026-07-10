@@ -41,8 +41,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	awarenessclient "github.com/globulario/awareness-graph/golang/client"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenessclient "github.com/globulario/sensei/golang/client"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 type awarenessClient interface {

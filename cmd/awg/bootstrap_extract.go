@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor/importgraph"
+	"github.com/globulario/sensei/golang/extractor/importgraph"
 	yaml "gopkg.in/yaml.v3"
 )
 

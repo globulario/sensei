@@ -5,8 +5,8 @@ package main
 import (
 	"context"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/seedmeta"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 func (s *server) graphAuthority(ctx context.Context) *awarenesspb.GraphAuthority {

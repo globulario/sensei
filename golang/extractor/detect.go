@@ -13,7 +13,7 @@ package extractor
 import (
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // detectRule is the YAML shape of a rule's `detect:` block. Embedded (named

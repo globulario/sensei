@@ -2,7 +2,7 @@
 
 ### *133 maxims for building systems that refuse to lie*
 
-*Compiled from the meta-principles of the Awareness Graph — a field book for architects, operators, and the brave soul who inherited the service nobody admits to owning.*
+*Compiled from the meta-principles of Sensei — a field book for architects, operators, and the brave soul who inherited the service nobody admits to owning.*
 
 > *The victorious architect does not begin with code. The victorious architect begins by deciding what may be called true.*
 
@@ -1249,7 +1249,7 @@ Each maxim is given in three parts: **the law** itself; **the trap**, which is t
 
 *Critical severity.*
 
-**The trap.** A green test feels like proof of resolution — but it only proves the change matched a hidden oracle, not that the change respects the contract the code is actually bound by. Its familiar disguise: *“The tests pass, so it's fixed.”*. Before repairing anything, AWG's first duty is to identify, infer, or propose the governing contract/invariant for the code under change. You cannot ask "was this respected?" until a contract exists to be respected.
+**The trap.** A green test feels like proof of resolution — but it only proves the change matched a hidden oracle, not that the change respects the contract the code is actually bound by. Its familiar disguise: *“The tests pass, so it's fixed.”*. Before repairing anything, Sensei's first duty is to identify, infer, or propose the governing contract/invariant for the code under change. You cannot ask "was this respected?" until a contract exists to be respected.
 
 **See also:** [6](#m6), [35](#m35), [103](#m103)
 
@@ -1267,7 +1267,7 @@ Each maxim is given in three parts: **the law** itself; **the trap**, which is t
 
 *Critical severity.*
 
-**The trap.** Treating hidden-test pass as the definition of success rewards guessing the oracle and hides the dangerous case: a patch that passes the covered tests while violating an uncovered contract. Its familiar disguise: *“It passes the benchmark, ship it.”*. The operational form of meta.contract_must_be_explicit_before_resolution. A change may be labelled "resolved" only when ALL hold: 1. a contract is explicit (identified or made explicit), and 2. the patch respects that contract (gated, not assumed), and 3. the respect is supported by evidence (the contract's detect rule, a red->green test, or a cited grounding). A patch that passes tests but has no identified contract is an oracle match, not an AWG-valid resolution. A patch that respects the contract but fails the hidden tests may still be architecturally honest. These are distinct outcomes and must be reported separately, never averaged.
+**The trap.** Treating hidden-test pass as the definition of success rewards guessing the oracle and hides the dangerous case: a patch that passes the covered tests while violating an uncovered contract. Its familiar disguise: *“It passes the benchmark, ship it.”*. The operational form of meta.contract_must_be_explicit_before_resolution. A change may be labelled "resolved" only when ALL hold: 1. a contract is explicit (identified or made explicit), and 2. the patch respects that contract (gated, not assumed), and 3. the respect is supported by evidence (the contract's detect rule, a red->green test, or a cited grounding). A patch that passes tests but has no identified contract is an oracle match, not a Sensei-valid resolution. A patch that respects the contract but fails the hidden tests may still be architecturally honest. These are distinct outcomes and must be reported separately, never averaged.
 
 **See also:** [6](#m6), [101](#m101)
 
@@ -1522,7 +1522,7 @@ Each maxim is given in three parts: **the law** itself; **the trap**, which is t
 
 **The trap.** Splitting a finished change feels like make-work — the code already exists, why carve it up? But review quality collapses non-linearly with diff size — past a few hundred lines reviewers skim, and "is this change reviewable?" silently becomes "no." Small slices are not bureaucracy; they are how a human can actually certify that a change is safe. Its familiar disguise: *“One giant PR that touches twelve subsystems because the feature 'is all one thing'”*. Trunk-based development's working assumption: changes arrive in small, independently reviewable, behavior-preserving increments. The point is not smallness for its own sake — it is that each slice can be understood, reviewed, tested, and reverted on its own, keeping the trunk releasable between slices (see main_branch_must_remain_releasable).
 
-**The discipline.** Decomposition is a proposal, not a hard gate: AWG may surface "this change is large and crosses N boundaries / M critical invariants — consider slicing" as a reviewable candidate. It must not silently block or auto-split. Some changes are irreducibly atomic (a single rename across all call sites); when a large diff is genuinely indivisible, that is the declared reason, owned and bounded (exception_must_have_reason_owner_and_expiry).
+**The discipline.** Decomposition is a proposal, not a hard gate: Sensei may surface "this change is large and crosses N boundaries / M critical invariants — consider slicing" as a reviewable candidate. It must not silently block or auto-split. Some changes are irreducibly atomic (a single rename across all call sites); when a large diff is genuinely indivisible, that is the declared reason, owned and bounded (exception_must_have_reason_owner_and_expiry).
 
 **See also:** [52](#m52), [123](#m123)
 
@@ -1542,7 +1542,7 @@ Each maxim is given in three parts: **the law** itself; **the trap**, which is t
 
 *High severity.*
 
-**The trap.** A regenerated artifact feels like a derived afterthought you can refresh whenever — but a stale generated file is a lie about its source — the graph, the stubs, or the docs now disagree with the code they claim to describe. Anyone (human or agent) who reads the artifact instead of re-deriving it gets a false picture, and the divergence compounds silently until a rebuild surprises everyone. Its familiar disguise: *“The .nt seed / proto stubs / generated YAML are a bit stale, but the source change is what matters”*. Deterministic, reproducible builds require that every artifact derived from source matches that source at merge time. For an AWG project the derived artifacts include the graph seed (awareness.nt), proto outputs, inferred contract/import YAML, and generated docs — each produced from a source by a deterministic generator.
+**The trap.** A regenerated artifact feels like a derived afterthought you can refresh whenever — but a stale generated file is a lie about its source — the graph, the stubs, or the docs now disagree with the code they claim to describe. Anyone (human or agent) who reads the artifact instead of re-deriving it gets a false picture, and the divergence compounds silently until a rebuild surprises everyone. Its familiar disguise: *“The .nt seed / proto stubs / generated YAML are a bit stale, but the source change is what matters”*. Deterministic, reproducible builds require that every artifact derived from source matches that source at merge time. For a Sensei project the derived artifacts include the graph seed (awareness.nt), proto outputs, inferred contract/import YAML, and generated docs — each produced from a source by a deterministic generator.
 
 **The discipline.** Every generated artifact ships with a deterministic regenerator and a --check (or freshness-gate) mode wired into CI; the merge gate fails on owned staleness. Generated files are produced ONLY by their generator and committed from it — never hand-edited (the file headers say so for a reason).
 
@@ -1637,7 +1637,7 @@ But here is the harder truth the old strategists knew and we keep forgetting: kn
 
 That is no longer only a human problem. An AI agent arrives at your repository every session with a flawless reading of the syntax and no memory of the architecture. It will write a patch that compiles, passes the tests it can see, reads beautifully — and violates a law that was in none of the files it opened. A stronger model reads the code better; it still cannot read what the code does not contain.
 
-So the final maxim is not in the list, because it is about the list itself: **write the memory down where the work happens, and make it answer at the moment of the edit.** That is what the Awareness Graph does with these principles — it compiles them into a graph the repository carries, and serves the ones that apply to the file you are about to change, before you change it, to human and agent alike. The counsel arrives before the mistake, not after.
+So the final maxim is not in the list, because it is about the list itself: **write the memory down where the work happens, and make it answer at the moment of the edit.** That is what Sensei does with these principles — it compiles them into a graph the repository carries, and serves the ones that apply to the file you are about to change, before you change it, to human and agent alike. The counsel arrives before the mistake, not after.
 
 The highest skill was never to write the most code the fastest. It is to keep the system knowing what it is — while everyone who once knew is asleep.
 
@@ -1806,4 +1806,4 @@ The highest skill was never to write the most code the fastest. It is to keep th
 
 ---
 
-*The Art of Software Architecture is drawn from the Awareness Graph (AWG), open source at [github.com/globulario/awareness-graph](https://github.com/globulario/awareness-graph). The 133 meta-principles were distilled from real production incidents on the [Globular](https://github.com/globulario) platform and are shipped as portable, domain-independent seed knowledge with every `awg init`. What bit us is provenance; what we learned belongs to everyone.*
+*The Art of Software Architecture is drawn from Sensei, open source at [github.com/globulario/sensei](https://github.com/globulario/sensei). The 133 meta-principles were distilled from real production incidents on the [Globular](https://github.com/globulario) platform and are shipped as portable, domain-independent seed knowledge with every `awg init`. What bit us is provenance; what we learned belongs to everyone.*

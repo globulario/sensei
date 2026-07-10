@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func taskOnlyPreflight(t *testing.T, task string) *awarenesspb.PreflightResponse {

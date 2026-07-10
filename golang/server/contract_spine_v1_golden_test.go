@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // TestContractSpineV1_GoldenBriefing is the certification of Contract Spine v1:

@@ -1,10 +1,10 @@
-# AWG cold-bootstrap — teach your agent another repo's hard-won laws
+# Sensei cold-bootstrap — teach your agent another repo's hard-won laws
 
-*Hands-on walkthrough. Point AWG at a mature repo's history, promote one
+*Hands-on walkthrough. Point Sensei at a mature repo's history, promote one
 reviewed rule, and watch it warn a future bad edit — all without polluting your
 own graph. ~5 minutes.*
 
-Most of AWG is about making **your** codebase's rules queryable. Cold-bootstrap
+Most of Sensei is about making **your** codebase's rules queryable. Cold-bootstrap
 is the other direction: a repo you depend on (Caddy, etcd, …) already paid for
 its rules in bugs, reverts, and review comments. Cold-bootstrap mines those
 scars, lets you promote the load-bearing ones, and serves them **scoped to that
@@ -37,7 +37,7 @@ comments) — gets:
 ## Prerequisites
 
 ```bash
-git clone https://github.com/globulario/awareness-graph && cd awareness-graph
+git clone https://github.com/globulario/sensei && cd awareness-graph
 
 # Build the CLI and the server binary (awg serve execs ./bin/awareness-graph),
 go build -o /tmp/awg ./cmd/awg
@@ -51,7 +51,7 @@ go build -o bin/awareness-graph ./golang/server
 AWG_BIN=/tmp/awg bash pilot/caddy/demo.sh
 ```
 
-It starts an **isolated** AWG (gRPC `:10121`, a throwaway Oxigraph on `:7901`
+It starts an **isolated** Sensei (gRPC `:10121`, a throwaway Oxigraph on `:7901`
 under `/tmp/awg-pilot-demo`), promotes the rule, runs every step below, prints a
 pass/fail line for each isolation property, and tears the store down. To see the
 moving parts, run the steps yourself.
@@ -60,7 +60,7 @@ moving parts, run the steps yourself.
 
 ## Step by step
 
-### 0. Start an isolated AWG (separate ports + throwaway data dir)
+### 0. Start an isolated Sensei (separate ports + throwaway data dir)
 
 ```bash
 /tmp/awg serve --addr :10121 --oxigraph-bind 127.0.0.1:7901 --data /tmp/awg-pilot-demo &
@@ -160,7 +160,7 @@ mixing rules across repos.
 
 You just taught an agent a rule that the Caddy maintainers learned the hard way —
 and the agent will now be reminded of it the moment it's about to reintroduce the
-bug, *in Caddy's code only*. That is the whole point: **AWG extracts the laws a
+bug, *in Caddy's code only*. That is the whole point: **Sensei extracts the laws a
 project already paid for, and makes future agents aware of them before they
 repeat the same class of mistake.**
 

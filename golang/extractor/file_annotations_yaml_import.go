@@ -24,7 +24,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 	"gopkg.in/yaml.v3"
 )
 

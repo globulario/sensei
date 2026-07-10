@@ -19,7 +19,7 @@ package extractor
 import (
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // provenance is the receipt of how a promoted rule was earned. All fields are

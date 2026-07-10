@@ -176,7 +176,7 @@ w("# The Art of Software Architecture")
 w("")
 w("### *133 maxims for building systems that refuse to lie*")
 w("")
-w("*Compiled from the meta-principles of the Awareness Graph — a field book for "
+w("*Compiled from the meta-principles of Sensei — a field book for "
   "architects, operators, and the brave soul who inherited the service nobody "
   "admits to owning.*")
 w("")
@@ -344,7 +344,7 @@ w("That is no longer only a human problem. An AI agent arrives at your repositor
 w("")
 w("So the final maxim is not in the list, because it is about the list itself: "
   "**write the memory down where the work happens, and make it answer at the moment "
-  "of the edit.** That is what the Awareness Graph does with these principles — it "
+  "of the edit.** That is what Sensei does with these principles — it "
   "compiles them into a graph the repository carries, and serves the ones that apply "
   "to the file you are about to change, before you change it, to human and agent "
   "alike. The counsel arrives before the mistake, not after.")
@@ -374,8 +374,8 @@ for i, (cat, title, _intro) in enumerate(CHAPTERS):
 
 w("---")
 w("")
-w("*The Art of Software Architecture is drawn from the Awareness Graph (AWG), open "
-  "source at [github.com/globulario/awareness-graph](https://github.com/globulario/awareness-graph). "
+w("*The Art of Software Architecture is drawn from Sensei, open "
+  "source at [github.com/globulario/sensei](https://github.com/globulario/sensei). "
   "The 133 meta-principles were distilled from real production incidents on the "
   "[Globular](https://github.com/globulario) platform and are shipped as portable, "
   "domain-independent seed knowledge with every `awg init`. What bit us is provenance; "

@@ -18,9 +18,9 @@ violation, without becoming the thing teams rip out the first week.
    the editing tool calling EditCheck before it writes, like the
    awareness-briefing `PreToolUse` hooks — is a fine *earlier* nudge but is not
    the gate; humans editing directly would bypass it.)
-2. **Availability policy:** **fail open**. If AWG or its store is unreachable,
+2. **Availability policy:** **fail open**. If Sensei or its store is unreachable,
    the gate passes with a "gate degraded" annotation. This honors the platform
-   rule that *AI is supplementary, never required* and *fail safe* — an AWG
+   rule that *AI is supplementary, never required* and *fail safe* — a Sensei
    outage must never halt every merge.
 3. **Graduation + override:** a rule earns blocking status by **baking as a
    warning first**, and any block is **overridable via an explicit, audited
@@ -28,7 +28,7 @@ violation, without becoming the thing teams rip out the first week.
 
 ## The gate, end to end
 
-A repo that has adopted AWG for its own domain adds one CI job on PRs:
+A repo that has adopted Sensei for its own domain adds one CI job on PRs:
 
 ```
 for each changed file F in the PR diff (within the gated domain):
@@ -41,7 +41,7 @@ fail the check iff any block-level warning remains
 
 - **Block-level violation on added/changed lines → CI fails → merge blocked.**
 - **Warn-level → annotate** (PR comment / job log), never fails.
-- **AWG unreachable → pass + "degraded" annotation** (fail open).
+- **Sensei unreachable → pass + "degraded" annotation** (fail open).
 - **Only the diff is judged** — the gate never blocks on pre-existing code the PR
   didn't touch. You can adopt a blocking rule without first fixing the whole repo.
 
@@ -109,18 +109,18 @@ disabled. Mitigations, in order:
 
 ## Scope and adoption
 
-- A hard gate only makes sense for a repo that has **adopted AWG for its own
+- A hard gate only makes sense for a repo that has **adopted Sensei for its own
   domain** — e.g. Caddy's CI gating Caddy rules, or Globular gating Globular.
   Globular gating its own domain is the natural first customer.
 - **Foreign-repo rules never gate another repo's CI.** Domain scope already
   prevents cross-domain application; the gate runs **per-domain**. A Caddy rule
-  hosted in Globular's AWG cannot block a Globular PR.
+  hosted in Globular's Sensei cannot block a Globular PR.
 - Therefore hard-gate is **opt-in per repo-owner, per-domain** — never imposed.
 
 ## Audit
 
 Every block, every override, and every degraded (fail-open) run emits a durable
-record (CI job log at minimum; optionally an AWG audit entry). A gate you can't
+record (CI job log at minimum; optionally a Sensei audit entry). A gate you can't
 review after the fact is folklore.
 
 ## Suggested rollout
@@ -146,7 +146,7 @@ review after the fact is folklore.
 - Where does warn-mode false-positive telemetry live, and what threshold
   graduates a rule? (Needed before any rule can legitimately reach `block`.)
 - Is the agent-harness soft-stop worth shipping alongside, or after, the CI gate?
-- Audit sink: CI log only, or a queryable AWG audit store?
+- Audit sink: CI log only, or a queryable Sensei audit store?
 
 ---
 

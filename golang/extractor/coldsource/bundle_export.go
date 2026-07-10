@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // Bundle export / import for the session/manual drafter path.

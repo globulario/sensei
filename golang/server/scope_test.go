@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 func TestResolveScope(t *testing.T) {

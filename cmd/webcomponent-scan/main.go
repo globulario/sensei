@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/globulario/awareness-graph/golang/extractor/webcompscan"
+	"github.com/globulario/sensei/golang/extractor/webcompscan"
 )
 
 func main() { os.Exit(run(os.Args[1:])) }

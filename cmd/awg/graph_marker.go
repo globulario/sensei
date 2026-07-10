@@ -2,7 +2,7 @@
 
 package main
 
-import "github.com/globulario/awareness-graph/golang/seedmeta"
+import "github.com/globulario/sensei/golang/seedmeta"
 
 func defaultRuntimeMarkerFile() (string, error) {
 	root, err := resolveProjectRoot("")

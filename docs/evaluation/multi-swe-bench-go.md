@@ -1,10 +1,10 @@
-# AWG Evaluation: Multi-SWE-bench Go Challenge
+# Sensei Evaluation: Multi-SWE-bench Go Challenge
 
 ## Purpose
 
-This evaluation tests whether Awareness Graph (AWG) improves an AI coding agent's ability to resolve real repository-level software issues.
+This evaluation tests whether Sensei improves an AI coding agent's ability to resolve real repository-level software issues.
 
-The goal is not only to measure whether a patch passes tests. The goal is to measure whether AWG helps the agent produce fixes that are:
+The goal is not only to measure whether a patch passes tests. The goal is to measure whether Sensei helps the agent produce fixes that are:
 
 - correctly localized
 - smaller and safer
@@ -15,19 +15,19 @@ The goal is not only to measure whether a patch passes tests. The goal is to mea
 
 Classic SWE-bench evaluates whether a model can generate a patch for a real GitHub issue. Multi-SWE-bench extends this kind of benchmark across multiple programming languages, including Go, TypeScript, JavaScript, Rust, C, C++, and Java.
 
-For AWG, the first evaluation target is the Go subset.
+For Sensei, the first evaluation target is the Go subset.
 
 ## Evaluation Name
 
-**AWG vs Baseline on Multi-SWE-bench Go**
+**Sensei vs Baseline on Multi-SWE-bench Go**
 
 ## Main Question
 
-Does AWG make the same AI coding agent solve real Go repository issues more safely and more architecturally correctly than the same agent without AWG?
+Does Sensei make the same AI coding agent solve real Go repository issues more safely and more architecturally correctly than the same agent without Sensei?
 
 ## Hypothesis
 
-AWG should improve performance by giving the agent project-level awareness:
+Sensei should improve performance by giving the agent project-level awareness:
 
 - relevant files and symbols
 - known invariants
@@ -41,7 +41,7 @@ AWG should improve performance by giving the agent project-level awareness:
 
 Expected result:
 
-AWG mode should produce equal or better test-pass results while reducing wrong-file edits, architecture violations, oversized patches, and untested fixes.
+Sensei mode should produce equal or better test-pass results while reducing wrong-file edits, architecture violations, oversized patches, and untested fixes.
 
 ## Benchmark Source
 
@@ -81,7 +81,7 @@ The agent receives only:
 - benchmark instructions
 - test command if provided
 
-No AWG.
+No Sensei.
 No special project briefing.
 No custom invariant/rule context.
 
@@ -96,13 +96,13 @@ The agent may use ordinary developer tools:
 - compiler errors
 - existing repo documentation
 
-No AWG.
+No Sensei.
 
 This mode represents normal Cursor/Codex/Claude-style repository work.
 
-### Mode C: Agent + AWG
+### Mode C: Agent + Sensei
 
-The agent receives the same access as Mode B, plus AWG context.
+The agent receives the same access as Mode B, plus Sensei context.
 
 Before editing, the agent must run or consume:
 
@@ -113,7 +113,7 @@ Before editing, the agent must run or consume:
 
 The agent must explicitly state:
 
-- what AWG facts influenced the patch
+- what Sensei facts influenced the patch
 - which invariants or rules are relevant
 - which files are safe to edit
 - which files are risky to edit
@@ -131,13 +131,13 @@ All modes must use:
 - the same final test command
 - the same scoring rubric
 
-The only difference between modes must be the availability of AWG context.
+The only difference between modes must be the availability of Sensei context.
 
-Do not compare Claude+AWG against a weaker model without AWG. That would prove nothing.
+Do not compare Claude+Sensei against a weaker model without Sensei. That would prove nothing.
 
 ## Task Selection Rules
 
-Choose tasks that are likely to reveal AWG value.
+Choose tasks that are likely to reveal Sensei value.
 
 Prefer tasks involving:
 
@@ -160,7 +160,7 @@ Avoid tasks that are too small:
 - simple missing imports
 - trivial test snapshots
 
-AWG is not being tested as a spelling corrector. AWG is being tested as a project-awareness layer.
+Sensei is not being tested as a spelling corrector. Sensei is being tested as a project-awareness layer.
 
 ## Required Output Per Run
 
@@ -245,9 +245,9 @@ Each run receives a score out of 100.
 - 1: vague explanation
 - 0: misleading or unsupported explanation
 
-## AWG Win Conditions
+## Sensei Win Conditions
 
-AWG is considered useful if Mode C shows:
+Sensei is considered useful if Mode C shows:
 
 - equal or better test-pass rate than Mode B
 - fewer wrong-file edits than Mode B
@@ -255,33 +255,33 @@ AWG is considered useful if Mode C shows:
 - better localization than Mode B
 - better reviewer confidence than Mode B
 
-AWG does not need to win every task.
+Sensei does not need to win every task.
 
-AWG wins the pilot if, across 10 tasks:
+Sensei wins the pilot if, across 10 tasks:
 
 - Mode C has the best average score, and
 - Mode C introduces fewer architecture violations, and
 - Mode C does not reduce test-pass rate compared to Mode B
 
-## Strong AWG Win
+## Strong Sensei Win
 
-AWG has a strong win if:
+Sensei has a strong win if:
 
 - Mode C solves at least 2 more tasks than Mode B, or
 - Mode C has similar solved-task count but clearly safer patches, or
 - Mode C catches a risky baseline fix that passes tests but violates project architecture
 
-The third case is especially important. A patch that passes tests but damages architecture is exactly the class of failure AWG is designed to detect.
+The third case is especially important. A patch that passes tests but damages architecture is exactly the class of failure Sensei is designed to detect.
 
 ## Failure Conditions
 
-AWG fails the pilot if:
+Sensei fails the pilot if:
 
 - Mode C performs worse than Mode B on test pass rate
 - Mode C causes the agent to overthink and edit more unrelated files
-- AWG context is stale, noisy, or misleading
-- AWG cannot produce useful context for most selected tasks
-- AWG adds process cost without improving patch quality
+- Sensei context is stale, noisy, or misleading
+- Sensei cannot produce useful context for most selected tasks
+- Sensei adds process cost without improving patch quality
 
 A failed pilot is still useful. It identifies which extractors, rules, or briefings are missing.
 
@@ -296,7 +296,7 @@ For each final patch, the reviewer should answer:
 5. Did it respect known invariants?
 6. Did it add or run appropriate tests?
 7. Would I merge this patch?
-8. Did AWG provide useful context that changed the agent's decision?
+8. Did Sensei provide useful context that changed the agent's decision?
 
 ## Recommended Pilot Size
 
@@ -317,7 +317,7 @@ Do not start with 50 tasks. The first 10 tasks are to debug the evaluation proto
 At the end of the pilot, produce this summary:
 
 ```md
-# AWG Multi-SWE-bench Go Pilot Report
+# Sensei Multi-SWE-bench Go Pilot Report
 
 ## Summary
 
@@ -325,7 +325,7 @@ Tasks evaluated:
 Model used:
 Date:
 Benchmark subset:
-AWG version:
+Sensei version:
 Agent environment:
 
 ## Results
@@ -334,21 +334,21 @@ Agent environment:
 |---|---:|---:|---:|---:|---:|
 | A Agent alone | | | | | |
 | B Agent + normal tools | | | | | |
-| C Agent + AWG | | | | | |
+| C Agent + Sensei | | | | | |
 
 ## Main Findings
 
-## Where AWG Helped
+## Where Sensei Helped
 
-## Where AWG Hurt or Added Noise
+## Where Sensei Hurt or Added Noise
 
-## Missing AWG Capabilities
+## Missing Sensei Capabilities
 
 ## Recommended Changes Before 50-task Run
 
 ## Conclusion
 
-AWG pilot result:
+Sensei pilot result:
 
 - PASS
 - PARTIAL PASS
@@ -363,7 +363,7 @@ This evaluation should not be treated as a leaderboard stunt.
 
 The real question is:
 
-> Does AWG make AI agents safer and more effective inside large codebases?
+> Does Sensei make AI agents safer and more effective inside large codebases?
 
 A raw benchmark pass is good.
 

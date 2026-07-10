@@ -11,7 +11,7 @@ import (
 	"context"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func TestPreflightSurfacesEvidenceRequirements(t *testing.T) {

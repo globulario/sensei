@@ -4,7 +4,7 @@ A running log of commits whose contents did not match their stated scope, and
 how the record was corrected. The point is honesty over tidiness: we correct
 the record forward rather than rewrite pushed history.
 
-This file exists because AWG's whole premise is that a system should be honest
+This file exists because Sensei's whole premise is that a system should be honest
 about what it contains. A commit message that claims one thing while the diff
 does another is exactly the drift the tool is built to catch — so when it
 happens to us, we name it.

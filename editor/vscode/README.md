@@ -1,8 +1,8 @@
-# Awareness Graph — VS Code extension
+# Sensei — VS Code extension
 
 See the **invariants, failure modes, and intent that govern the file you are
 editing** — read straight from your project's [awareness
-graph](https://github.com/globulario/awareness-graph).
+graph](https://github.com/globulario/sensei).
 
 Git shows you what *changed*. This shows you what is *true and must stay true*:
 the architectural constraints that live in no diff. Open any file and the
@@ -171,7 +171,7 @@ single-repo rebuild.
 Promotion needs: a workspace open, `awarenessGraph.enableLocalOperations: true`,
 and the `awg` CLI on `PATH` (or `awarenessGraph.awgPath`). The tab detects each
 and **degrades gracefully** — if local ops are off, `awg` is missing, or the
-folder isn't an AWG project, it says exactly what's missing and shows the guarded
+folder isn't an Sensei project, it says exactly what's missing and shows the guarded
 CLI to run by hand. It never fails silently.
 
 ### Safety model
@@ -190,12 +190,12 @@ CLI to run by hand. It never fails silently.
 ## Project review and architecture proposals
 
 The **Review** tab answers two questions: *how healthy is this project's
-architecture evidence?* and *what improvements does AWG suggest, and why?*
+architecture evidence?* and *what improvements does Sensei suggest, and why?*
 
 - **Evidence-based, not a vanity score.** The 0–100 **Architecture Evidence
   Score** is computed in the extension from `Metadata` counts, graph provenance,
   and the candidate files — never from guesswork or an LLM. It measures how much
-  architecture evidence AWG can currently see and how useful that evidence is for
+  architecture evidence Sensei can currently see and how useful that evidence is for
   project control; it is *not* a code-quality verdict. Every dimension, strength,
   risk, and proposal traces back to a fact the dashboard already holds, and the
   scoring is deterministic: the same metadata always yields the same score.
@@ -205,7 +205,7 @@ architecture evidence?* and *what improvements does AWG suggest, and why?*
   drift/freshness, architecture-spine completeness, pattern risk, and agent
   readiness. A **confidence** label (High/Medium/Low) tracks graph freshness and
   evidence volume, so a stale or dev-unstamped build never reads as high-trust.
-- **Evidence language only.** The review reports what AWG can *see* ("AWG sees
+- **Evidence language only.** The review reports what Sensei can *see* ("Sensei sees
   83 invariants and 12 required tests; per-invariant coverage is not asserted
   here") rather than absolute verdicts. It does not claim exact test coverage
   from aggregate counts, and it does not fabricate file-specific findings.
@@ -216,7 +216,7 @@ architecture evidence?* and *what improvements does AWG suggest, and why?*
 - **Read-only.** The Review tab adds no mutation, no candidate promotion, no new
   RPC, and no network calls beyond the existing gRPC client. A **low score can
   mean "not enough graph evidence," not necessarily weak architecture** — it is a
-  measure of how much AWG can see, not a final judgement of the codebase.
+  measure of how much Sensei can see, not a final judgement of the codebase.
 
 ## Status
 

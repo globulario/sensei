@@ -31,7 +31,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/globulario/awareness-graph/golang/propose"
+	"github.com/globulario/sensei/golang/propose"
 )
 
 // ProposeRequest is the shared feedback-entry type. It aliases propose.Request
@@ -94,7 +94,7 @@ func runPropose(args []string) int {
 	description := fs.String("description", "", "what happened / what the entry documents")
 	severity := fs.String("severity", "", "critical | high | warning (where applicable)")
 	repo := fs.String("repo", "", "repo the feedback belongs to")
-	domain := fs.String("domain", "", "domain scope, e.g. github.com/globulario/awareness-graph")
+	domain := fs.String("domain", "", "domain scope, e.g. github.com/globulario/sensei")
 	contract := fs.String("contract", "", "the contract that was violated or clarified")
 	proposedContract := fs.String("proposed-contract", "", "contract_unknown: the contract you propose")
 	revisionRequest := fs.String("revision-request", "", "contract_unknown: a request to revise an existing contract")
@@ -611,7 +611,7 @@ func deriveProposalID(req *ProposeRequest) string {
 }
 
 // domainHint extracts a short, stable token from the domain/repo (e.g.
-// "github.com/globulario/awareness-graph" -> "awareness_graph") to namespace
+// "github.com/globulario/sensei" -> "awareness_graph") to namespace
 // derived ids. Returns "" when nothing usable is present.
 func domainHint(req *ProposeRequest) string {
 	src := firstNonEmpty(req.Domain, req.Repo)

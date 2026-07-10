@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 func TestIntegration_Load_ReplaceSemantics_Idempotent(t *testing.T) {

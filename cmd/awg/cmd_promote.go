@@ -14,7 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 var canonicalIDPattern = regexp.MustCompile(`^[a-z0-9_]+(\.[a-z0-9_]+)+$`)

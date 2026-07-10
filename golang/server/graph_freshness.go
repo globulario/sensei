@@ -11,9 +11,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/seedmeta"
-	"github.com/globulario/awareness-graph/golang/store"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/store"
 )
 
 type graphFreshnessSnapshot struct {

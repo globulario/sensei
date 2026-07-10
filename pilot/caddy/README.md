@@ -1,14 +1,14 @@
 # Pilot: repo-scoped graph for `github.com/caddyserver/caddy`
 
-This directory is the **first repo-scoped/domain-scoped pilot** for AWG. It
+This directory is the **first repo-scoped/domain-scoped pilot** for Sensei. It
 proves the end-to-end path for hosting a *foreign* repo's awareness in the same
-AWG instance as Globular's own, without cross-domain leakage:
+Sensei instance as Globular's own, without cross-domain leakage:
 
 ```
 cold-source candidate
   → human-reviewed / promoted rule (preserving provenance)
   → repo-scoped graph  (domain = github.com/caddyserver/caddy)
-  → served by AWG
+  → served by Sensei
   → briefing for a real Caddy file surfaces the rule
   → briefing for a Globular file NEVER surfaces it
 ```
@@ -21,7 +21,7 @@ inside Globular. The embedded seed (`awg rebuild`) only scans
 lives outside those paths on purpose, so foreign-repo rules never ride inside
 Globular's binary. The pilot demo builds a **separate authoritative artifact**
 that combines the home graph with `pilot/caddy`, loads that artifact into an
-isolated Oxigraph, and points AWG at the matching runtime graph marker and
+isolated Oxigraph, and points Sensei at the matching runtime graph marker and
 runtime transaction certification.
 
 Isolation is enforced regardless, by `golang/server/scope.go`: a briefing scoped

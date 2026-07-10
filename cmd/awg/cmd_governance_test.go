@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/governancepack"
-	"github.com/globulario/awareness-graph/golang/seedmeta"
+	"github.com/globulario/sensei/golang/governancepack"
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 func TestGovernanceVerifyPack_DoesNotMutateLocalState(t *testing.T) {

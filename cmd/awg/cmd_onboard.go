@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor/coldsource"
-	"github.com/globulario/awareness-graph/golang/extractor/protoscan"
-	"github.com/globulario/awareness-graph/golang/propose"
+	"github.com/globulario/sensei/golang/extractor/coldsource"
+	"github.com/globulario/sensei/golang/extractor/protoscan"
+	"github.com/globulario/sensei/golang/propose"
 )
 
 // runOnboard is the zero-hand-authoring onboarding entry point (Pillar 1.3). It

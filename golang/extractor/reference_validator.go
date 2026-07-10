@@ -48,7 +48,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // ReferenceError describes one dangling-reference finding.

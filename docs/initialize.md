@@ -1,4 +1,4 @@
-# Initializing and Populating the Awareness Graph
+# Initializing and Populating Sensei
 
 This document covers how to build, load, and refresh the awareness graph under
 three scenarios: local development, full cluster refresh, and Day-0 first

@@ -1,4 +1,4 @@
-# AWG extraction layer v1: structure from code, intent from humans
+# Sensei extraction layer v1: structure from code, intent from humans
 
 *A milestone note: what the multi-language extraction layer now ships, what it
 deliberately does not claim, and where it could go next. Captured for the
@@ -6,7 +6,7 @@ record — not a launch. The canonical design reference is
 [extraction-architecture.md](extraction-architecture.md); this is the status
 snapshot and the prioritization.*
 
-This milestone closes the first arc of mechanical architecture extraction: AWG
+This milestone closes the first arc of mechanical architecture extraction: Sensei
 now derives **observable architectural structure** from a polyglot codebase and
 joins it with the human-authored intent layer in one graph — without ever
 pretending one is the other.
@@ -28,7 +28,7 @@ Landed across PRs **#65–#69**; the test-infra cleanup that makes a bare
 YAML*. Resolution is **language-aware at the edge**, **language-neutral in the
 graph model**. Each new language/source was **one registered file** over an
 unchanged shared core, reusing the existing `components:`/`contracts:` schemas
-(no importer/vocab/ontology changes), and self-dogfooded into AWG's own graph.
+(no importer/vocab/ontology changes), and self-dogfooded into Sensei's own graph.
 
 ## 2. What it does NOT claim (the boundary)
 
@@ -37,7 +37,7 @@ unchanged shared core, reusing the existing `components:`/`contracts:` schemas
 - **No inferred intent.** Decisions, Boundaries, Meta-principles, Design patterns
   stay human-authored; everything emitted is `assertion: inferred`.
 - **No project meaning in core.** Project conventions live only in the optional,
-  language-neutral `classifiers:` config; AWG core ships none.
+  language-neutral `classifiers:` config; Sensei core ships none.
 
 ## 3. Where it could go next (deliberately paused)
 

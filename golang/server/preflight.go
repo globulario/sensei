@@ -32,8 +32,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/globulario/awareness-graph/golang/coverage"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/coverage"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // preflightCaps controls how many entries each list carries per mode.

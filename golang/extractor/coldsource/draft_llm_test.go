@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // fakeLLM is a deterministic LLMClient stand-in for golden tests — no network.

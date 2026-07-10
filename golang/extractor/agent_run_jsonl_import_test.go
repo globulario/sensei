@@ -6,8 +6,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/extractor"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 const sampleAgentRunJSONL = `{"id":"run.example","agent_name":"claude","model_name":"claude-opus-4-8","task_summary":"did a thing","used_preflight":true,"preflight_status":"OK","tests_required":["test:TestFoo"],"tests_run":["test:TestFoo"],"tests_skipped":[],"patch_status":"merged","created_outcome_feedback":["outcome.example"]}

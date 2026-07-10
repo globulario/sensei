@@ -165,7 +165,7 @@ build` (see existing feedback note `ci_release_tgz_not_publish_format`):
 
 ```bash
 mkdir -p /tmp/aw-pkg<XYZ> && cd /tmp/aw-pkg<XYZ>
-gh release download v<X.Y.Z> --repo globulario/awareness-graph \
+gh release download v<X.Y.Z> --repo globulario/sensei \
   --pattern 'awareness-graph_<X.Y.Z>_linux_amd64.tgz' \
   -O awareness-graph_<X.Y.Z>_linux_amd64.tgz
 mkdir -p extracted

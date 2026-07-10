@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/scanner"
+	"github.com/globulario/sensei/golang/scanner"
 )
 
 // makeRegistry builds an in-memory namespace registry from a YAML string.

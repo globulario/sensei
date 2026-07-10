@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/seedmeta"
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 func TestCollectLocalMetadataFromRoot_CandidatesAndBenchmarkSummary(t *testing.T) {

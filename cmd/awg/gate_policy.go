@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // Per-repo enforcement policy (Pillar 2.3). A rule's declared enforcement lives

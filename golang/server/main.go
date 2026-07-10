@@ -47,10 +47,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/seedmeta"
-	"github.com/globulario/awareness-graph/golang/store"
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/store"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 // seedNT is the compiled awareness knowledge graph embedded at build time.

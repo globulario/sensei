@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/client"
+	"github.com/globulario/sensei/golang/client"
 )
 
 // connectAWG dials the awareness-graph server at the given address.

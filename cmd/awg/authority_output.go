@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	awarenessclient "github.com/globulario/awareness-graph/golang/client"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenessclient "github.com/globulario/sensei/golang/client"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func printGraphAuthority(authority *awarenesspb.GraphAuthority) {

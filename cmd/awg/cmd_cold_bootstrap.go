@@ -13,8 +13,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
-	"github.com/globulario/awareness-graph/golang/extractor/coldsource"
+	"github.com/globulario/sensei/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor/coldsource"
 )
 
 // shallowHistoryNote returns a clear, one-line explanation when the repo is a

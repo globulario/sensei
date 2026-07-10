@@ -29,10 +29,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // maxIntentsPerTaskMatch caps how many trigger-matched intents surface in

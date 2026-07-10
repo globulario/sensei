@@ -1,6 +1,6 @@
-# Installing AWG
+# Installing Sensei
 
-AWG has three pieces:
+Sensei has three pieces:
 
 | Piece | What it is | How you get it |
 |---|---|---|
@@ -8,7 +8,7 @@ AWG has three pieces:
 | `awareness-graph` | the gRPC server `awg serve` launches | source build or Linux `amd64` prebuilt bundle |
 | `oxigraph` | the RDF store (one static binary, from the upstream project) | fetched by the installer |
 
-> **Honest dependency note:** AWG is not a single zero-dependency binary.
+> **Honest dependency note:** Sensei is not a single zero-dependency binary.
 > It needs the Oxigraph store binary. The installer fetches it for you, so
 > in practice the cost is one extra download — no Docker, no services, no
 > database to administer.
@@ -20,7 +20,7 @@ AWG has three pieces:
 Requires **Go 1.23+**, `git`, `curl`, `python3`.
 
 ```bash
-git clone https://github.com/globulario/awareness-graph
+git clone https://github.com/globulario/sensei
 cd awareness-graph
 ./scripts/install.sh            # builds awg + awareness-graph, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
@@ -35,7 +35,7 @@ bash ./scripts/install-awg-user-services.sh
 ```
 
 This installs supervised `systemd --user` services, reuses an already-healthy
-Oxigraph if one exists, and otherwise starts a local AWG-owned Oxigraph.
+Oxigraph if one exists, and otherwise starts a local Sensei-owned Oxigraph.
 
 Ad hoc runtime remains available:
 

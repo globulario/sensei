@@ -35,7 +35,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // ── YAML shape ────────────────────────────────────────────────────────────────

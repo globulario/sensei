@@ -6,8 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 )
 
 // codeSymbolFacts builds the CodeSymbolFacts rows for one symbol defined in a

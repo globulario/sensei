@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/governancepack"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/governancepack"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"gopkg.in/yaml.v3"
 )
 

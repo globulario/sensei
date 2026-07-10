@@ -29,8 +29,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 )
 
 // loadedAuthorityDomain is the unpacked form of an AuthorityDomain node.

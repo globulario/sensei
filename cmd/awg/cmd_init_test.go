@@ -47,7 +47,7 @@ func TestScaffoldProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read CLAUDE.md: %v", err)
 	}
-	if !strings.Contains(string(claudeData), "## Awareness Graph (AWG)") {
+	if !strings.Contains(string(claudeData), "## Sensei") {
 		t.Error("CLAUDE.md missing AWG section")
 	}
 

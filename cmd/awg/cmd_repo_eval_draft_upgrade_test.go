@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/repoeval"
+	"github.com/globulario/sensei/golang/repoeval"
 )
 
 func TestRenderRepoEvalUpgradeDraft_StaysInCandidatesAndCarriesTodo(t *testing.T) {

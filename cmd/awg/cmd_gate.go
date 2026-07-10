@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/globulario/awareness-graph/golang/client"
-	"github.com/globulario/awareness-graph/golang/evidence"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/client"
+	"github.com/globulario/sensei/golang/evidence"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // printReportHeader prints the report-only header: domain, diff range, the count

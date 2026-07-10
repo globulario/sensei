@@ -15,10 +15,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/contractassess"
-	"github.com/globulario/awareness-graph/golang/coverage"
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/repoeval"
+	"github.com/globulario/sensei/golang/contractassess"
+	"github.com/globulario/sensei/golang/coverage"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/repoeval"
 	"gopkg.in/yaml.v3"
 )
 

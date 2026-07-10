@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/globulario/awareness-graph/golang/extractor/importgraph"
+	"github.com/globulario/sensei/golang/extractor/importgraph"
 )
 
 func main() {

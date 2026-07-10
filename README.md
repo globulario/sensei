@@ -1,6 +1,6 @@
-# AWG — Awareness Graph
+# Sensei — architectural awareness for your AI coding agent
 
-[![CI](https://github.com/globulario/awareness-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/globulario/awareness-graph/actions/workflows/ci.yml)
+[![CI](https://github.com/globulario/sensei/actions/workflows/ci.yml/badge.svg)](https://github.com/globulario/sensei/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white)](go.mod)
 
@@ -14,9 +14,9 @@ in senior engineers' heads and in commit archaeology. A fresh agent (or a new
 hire) can't see them, so it makes a reasonable-looking change that quietly
 violates one, and the codebase drifts a little further from its own design.
 
-AWG makes that knowledge **explicit and queryable**. You write your project's
+Sensei makes that knowledge **explicit and queryable**. You write your project's
 intent, invariants, failure modes, forbidden fixes, and architecture rules as
-small YAML files. AWG compiles them into a graph and serves a simple question:
+small YAML files. Sensei compiles them into a graph and serves a simple question:
 
 > *"What do I need to know before editing this file?"*
 
@@ -35,14 +35,14 @@ Direct invariants:
 
 - **You own the graph.** It's YAML in your repo. Not a SaaS, not a model's
   hidden context — your knowledge, versioned with your code, yours to read and edit.
-- **It's tool-agnostic.** AWG is a CLI + a local gRPC server. Use it from
+- **It's tool-agnostic.** Sensei is a CLI + a local gRPC server. Use it from
   Claude Code, Cursor, Codex, a CI step, or a plain shell. Nothing is locked
   to one assistant.
 - **It runs standalone.** No cloud, no account, no Globular. One local store
   (Oxigraph, fetched for you) and a binary you build. `-no-seed` keeps the
   graph 100% yours.
 
-> AWG started inside [Globular](https://github.com/globulario), a distributed
+> Sensei started inside [Globular](https://github.com/globulario), a distributed
 > platform, where these principles were validated against real production
 > incidents. It now runs on its own, for any codebase.
 
@@ -55,7 +55,7 @@ Honest assumptions, Linux or macOS:
 
 ```bash
 # 1. Install — builds awg + server, fetches the oxigraph binary into bin/
-git clone https://github.com/globulario/awareness-graph.git
+git clone https://github.com/globulario/sensei.git
 cd awareness-graph && ./scripts/install.sh
 export PATH="$PWD/bin:$PATH"
 
@@ -85,13 +85,13 @@ rule in `docs/awareness/invariants.yaml`, then `awg serve -no-seed & && awg buil
 - **[QUICKSTART.md](QUICKSTART.md)** — the 15-minute guide, including the Claude Code hook wiring.
 - **[INSTALL.md](INSTALL.md)** — platforms, the Oxigraph dependency, and the supervised local runtime path.
 - **[docs/case-study-cold-start.md](docs/case-study-cold-start.md)** — the why, and the proof it runs on a clean machine.
-- **[docs/the-discipline.md](docs/the-discipline.md)** — the seven moves the tooling can't teach you. The practice, not the mechanics. Read this if you want AWG to become *how you work*, not just a tool you run.
+- **[docs/the-discipline.md](docs/the-discipline.md)** — the seven moves the tooling can't teach you. The practice, not the mechanics. Read this if you want Sensei to become *how you work*, not just a tool you run.
 
 ## The problem
 
 Every codebase accumulates invisible rules — things that broke, got fixed, and now live only in someone's head. When an AI agent or a new developer makes a "simple fix" in that area, the rule gets violated. A release ships broken. A patch release follows.
 
-AWG encodes these rules as a queryable graph and enforces consultation before edits.
+Sensei encodes these rules as a queryable graph and enforces consultation before edits.
 
 ## What you write
 
@@ -148,7 +148,7 @@ documents all ~30 with every flag.
 | Command | What it does |
 |---------|-------------|
 | `awg init` | Scaffold a new project (YAML templates, hooks, CLAUDE.md) |
-| `awg bootstrap` | Initialize AWG for an existing repo (extraction + optional history) |
+| `awg bootstrap` | Initialize Sensei for an existing repo (extraction + optional history) |
 | `awg build` | Compile YAML → N-Triples, load into Oxigraph (`--output file.nt` for no-Oxigraph) |
 | `awg serve` | Start Oxigraph + the gRPC awareness server |
 | `awg briefing --file <path>` / `--task "desc"` | Prose context for a file or task |
@@ -166,7 +166,7 @@ documents all ~30 with every flag.
 
 ## The meta-principles
 
-Every AWG project ships with **133 universal principles across 8 categories** — seven that predict where bugs hide, plus *evolution*: how a project may change safely over time. They apply to any software system.
+Every Sensei project ships with **133 universal principles across 8 categories** — seven that predict where bugs hide, plus *evolution*: how a project may change safely over time. They apply to any software system.
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -219,7 +219,7 @@ Your YAML files         awg build           Oxigraph          awg serve
                         awg preflight
 ```
 
-AWG compiles YAML into RDF triples (N-Triples format), stores them in Oxigraph (a single-binary SPARQL store backed by RocksDB), and serves them via a gRPC API. The CLI commands are thin gRPC clients.
+Sensei compiles YAML into RDF triples (N-Triples format), stores them in Oxigraph (a single-binary SPARQL store backed by RocksDB), and serves them via a gRPC API. The CLI commands are thin gRPC clients.
 
 ### gRPC RPCs
 
@@ -266,7 +266,7 @@ ontology/
 docs/
   cli-reference.md         every awg command + flag
   api-reference.md         gRPC service + MCP bridge
-  agent-usage.md           how an agent should call AWG before edits
+  agent-usage.md           how an agent should call Sensei before edits
   meta-principles.md       the meta-principle framework reference
 ```
 
@@ -292,7 +292,7 @@ go build -o bin/awareness-graph ./golang/server
 # Run tests
 go test ./...
 
-# Run AWG smoke test
+# Run Sensei smoke test
 make awg-smoke
 ```
 
@@ -332,7 +332,7 @@ Endpoints:
 
 ## Principle checking
 
-AWG includes meta-principle conformance scanners that check your code against the architectural principles:
+Sensei includes meta-principle conformance scanners that check your code against the architectural principles:
 
 ```bash
 # Run all scanners
@@ -366,7 +366,7 @@ The annotation scanner (`cmd/annotation-scanner`) walks the Go AST and emits tri
 
 ## Globular integration
 
-AWG was extracted from the [Globular](https://github.com/globulario/services) platform where it runs as a native gRPC service with etcd registration, cluster TLS, and MCP tool exposure. The Globular-specific integration includes:
+Sensei was extracted from the [Globular](https://github.com/globulario/services) platform where it runs as a native gRPC service with etcd registration, cluster TLS, and MCP tool exposure. The Globular-specific integration includes:
 
 - **etcd service registration** — automatic discovery via the Globular service mesh
 - **Cluster mTLS** — uses Globular PKI paths (`/var/lib/globular/pki/`)
@@ -399,13 +399,13 @@ Exposes seven stdio tools — `awareness_briefing`, `awareness_impact`,
 
 ## Origin
 
-AWG was born from a real problem: the [Globular](https://github.com/globulario/services) codebase (465K lines, 33 services) kept having the same class of bugs ship because architectural rules lived in people's heads, not in a queryable system. After encoding 50+ incidents as invariants and failure modes, the awareness graph prevented regressions that post-mortems alone could not.
+Sensei was born from a real problem: the [Globular](https://github.com/globulario/services) codebase (465K lines, 33 services) kept having the same class of bugs ship because architectural rules lived in people's heads, not in a queryable system. After encoding 50+ incidents as invariants and failure modes, the awareness graph prevented regressions that post-mortems alone could not.
 
 The meta-principles emerged from classifying those incidents. They turned out to be universal — they apply to any software system, not just distributed infrastructure. The set has grown to 133 across 8 categories as the GUI, code-structure, and safe-evolution categories were added.
 
 ## License
 
-AWG is licensed under the **GNU Affero General Public License, Version 3 (AGPLv3)** — see [LICENSE](LICENSE)
+Sensei is licensed under the **GNU Affero General Public License, Version 3 (AGPLv3)** — see [LICENSE](LICENSE)
 and [NOTICE](NOTICE). This covers the local runtime: the `awg` CLI, the gRPC
 server, the MCP bridge, the extraction/scanner pipeline, the gate, and the VS Code
 extension. You may use, modify, and redistribute it, including commercially, under

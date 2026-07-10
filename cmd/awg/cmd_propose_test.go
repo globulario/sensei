@@ -78,7 +78,7 @@ func TestApplyProposal_ValidFailureModeWritesYAML(t *testing.T) {
 		RelatedInvariants: []string{"awareness.some_invariant"},
 		RequiredTests:     []string{"golang/server/reload_test.go:TestReloadFresh"},
 		Evidence:          []string{"observed stale node served after rebuild"},
-		Domain:            "github.com/globulario/awareness-graph",
+		Domain:            "github.com/globulario/sensei",
 	}
 	res, code := applyProposal(req, proposeOptions{targetRepo: root, agRepo: root, oxigraphURL: "http://localhost:7878/store?default"})
 	if code != 0 {
@@ -322,9 +322,9 @@ func TestValidateProposal_ContractUnknownRequiresProposalOrRevision(t *testing.T
 }
 
 func TestDeriveProposalID_DeterministicSlug(t *testing.T) {
-	req := &ProposeRequest{Kind: "failure_mode", Title: "Reload Skips Stale Embeddata!", Domain: "github.com/globulario/awareness-graph"}
+	req := &ProposeRequest{Kind: "failure_mode", Title: "Reload Skips Stale Embeddata!", Domain: "github.com/globulario/sensei"}
 	got := deriveProposalID(req)
-	want := "failure.awareness_graph.reload_skips_stale_embeddata"
+	want := "failure.sensei.reload_skips_stale_embeddata"
 	if got != want {
 		t.Fatalf("derived id = %q, want %q", got, want)
 	}

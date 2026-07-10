@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 func runCheck(args []string) int {

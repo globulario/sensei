@@ -15,24 +15,24 @@
 contracts* changes its repair behavior versus an agent that must *infer* the
 contract — measured separately from hidden-test fix rate.
 
-- **H1 (primary):** when a frozen contract exists, AWG raises **wrong-resolution
+- **H1 (primary):** when a frozen contract exists, Sensei raises **wrong-resolution
   prevention** and **contract-respect** vs. tools-only, on tasks where the
   tempting patch passes tests but violates an uncovered contract.
-- **H0 (null):** with frozen contracts loaded, the AWG arm ≈ baseline on all five
+- **H0 (null):** with frozen contracts loaded, the Sensei arm ≈ baseline on all five
   metrics → the contract layer's value is unsupported. Report honestly; do not
   spin.
 
 **Key question, operationalized:** on tasks with *no obvious written contract*,
-does the AWG arm produce **more correct `contract-unknown`/stop or grounded
+does the Sensei arm produce **more correct `contract-unknown`/stop or grounded
 inferences and fewer confident wrong patches** than baseline?
 
 ## 1. Arms (reuse the Phase-1 harness modes)
 
 | Arm | What it gets | Purpose |
 |---|---|---|
-| **A — tools-only** | repo + shell + ripgrep; no AWG | baseline; agent infers the contract |
-| **B — structural AWG** | A + components/deps (Phase-1 Mode C) | replicate the B≈C control |
-| **D — contract AWG** | B + frozen contracts via `briefing`/`resolve` + `awg gate` self-check | the treatment |
+| **A — tools-only** | repo + shell + ripgrep; no Sensei | baseline; agent infers the contract |
+| **B — structural Sensei** | A + components/deps (Phase-1 Mode C) | replicate the B≈C control |
+| **D — contract Sensei** | B + frozen contracts via `briefing`/`resolve` + `awg gate` self-check | the treatment |
 
 Same model, temperature, seed, and token budget across arms. B is the honesty
 control: it must stay ≈ A on localizable tasks, isolating that D's lift is the
@@ -187,20 +187,20 @@ Let `N` = tasks; `Nc` = tasks with a frozen contract; `Nt` = trap+unknown subset
 - `judge_rubric` judges read `{diff, contract}` only; the gold patch is never in
   their prompt (same leak-discipline as Phase-1's LLM-judge).
 
-## 8. Task types that expose AWG's advantage
+## 8. Task types that expose Sensei's advantage
 
 1. **Uncovered-contract trap** — naive patch passes existing tests but violates an
-   invariant no test covers (built from a real `forbidden_fix`). *AWG names it;
+   invariant no test covers (built from a real `forbidden_fix`). *Sensei names it;
    baseline ships the trap.*
 2. **Owner-elsewhere contract** — the governing contract lives in a different
    component than the error site. *Structural tools localize to the symptom;
    `awg impact` points to the owner.*
 3. **Underspecified issue → contract-unknown** — ambiguous report; correct
-   behavior genuinely undecided. *AWG → stop/ask; baseline → confident guess.*
+   behavior genuinely undecided. *Sensei → stop/ask; baseline → confident guess.*
 4. **Scar / implicit-invariant regression** — fix that works locally but reopens a
-   past incident captured only in failure-modes/scars. *AWG supplies the
+   past incident captured only in failure-modes/scars. *Sensei supplies the
    failure-mode; baseline rediscovers by accident.*
-5. **Forbidden-fix temptation** — the obvious fix is a named forbidden fix. *AWG
+5. **Forbidden-fix temptation** — the obvious fix is a named forbidden fix. *Sensei
    surfaces it pre-patch.*
 
 ## 9. Minimum corpus for a first credible result
@@ -229,7 +229,7 @@ briefing/resolve/impact, with args) · `revision_request.md` (if unknown) ·
 `judge.json` (discovery/validity rubric) · `verification.md` · `meta.json`
 (model, seed, tokens, wall-time, final status label).
 
-## 11. Pass/fail — "the AWG contract layer helped"
+## 11. Pass/fail — "the Sensei contract layer helped"
 
 **PASS (H1 supported)** if all hold, on the trap+unknown subset:
 

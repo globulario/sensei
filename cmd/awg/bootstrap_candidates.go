@@ -11,7 +11,7 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/globulario/awareness-graph/golang/extractor/protoscan"
+	"github.com/globulario/sensei/golang/extractor/protoscan"
 )
 
 // Minimum, conservative candidate extractors for `awg bootstrap` — pattern and

@@ -2,7 +2,7 @@
 
 Meta-principles are universal patterns that predict where bugs hide. They are not rules about your specific codebase — they are rules about how software systems fail. Use them to classify incidents and find sibling bugs before they ship.
 
-Every AWG project ships with the full set as seed content in `docs/awareness/meta_principles.yaml` — **133 principles across 8 categories**:
+Every Sensei project ships with the full set as seed content in `docs/awareness/meta_principles.yaml` — **133 principles across 8 categories**:
 
 | Category | Question it answers | Count |
 |---|---|---|

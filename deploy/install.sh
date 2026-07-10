@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Install the AWG client tools (awg + awareness-mcp) with Go.
 #
-#   curl -fsSL https://raw.githubusercontent.com/globulario/awareness-graph/master/deploy/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/globulario/sensei/master/deploy/install.sh | sh
 #
 # or from a checkout:  ./deploy/install.sh
 #
@@ -10,7 +10,7 @@
 # deploy/docker-compose.yml and docs/deploy.md.
 set -eu
 
-MODULE="github.com/globulario/awareness-graph"
+MODULE="github.com/globulario/sensei"
 VERSION="${AWG_VERSION:-latest}"
 
 if ! command -v go >/dev/null 2>&1; then

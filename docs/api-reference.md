@@ -1,6 +1,6 @@
-# AWG API Reference — gRPC service + MCP bridge
+# Sensei API Reference — gRPC service + MCP bridge
 
-This is the authoritative reference for the **wire surface** of AWG: the
+This is the authoritative reference for the **wire surface** of Sensei: the
 `AwarenessGraph` gRPC service defined in
 [`proto/awareness_graph.proto`](../proto/awareness_graph.proto), and the
 `awareness-mcp` stdio bridge that re-exposes it as MCP tools.
@@ -413,7 +413,7 @@ path to send raw SPARQL through MCP.
 ## Generating the bindings
 
 Go bindings live under `golang/pb/` (`import awarenesspb
-"github.com/globulario/awareness-graph/golang/pb"`). Regenerate after editing
+"github.com/globulario/sensei/golang/pb"`). Regenerate after editing
 the proto:
 
 ```bash
