@@ -20,12 +20,6 @@ jobs:
       - name: Checkout awareness-graph
         uses: actions/checkout@v4
 
-      - name: Checkout services (awareness YAML + intent sources)
-        uses: actions/checkout@v4
-        with:
-          repository: globulario/services
-          path: services
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -61,11 +55,9 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VERSION}, Tag: ${TAG}"
 
-      - name: Check generated files and seed are fresh
-        env:
-          SERVICES_REPO: ${{ github.workspace }}/services
+      - name: Check generated files and seed are fresh (self-only build)
         run: |
-          scripts/build-awareness-graph.sh --check
+          scripts/build-awareness-graph-self.sh --check
 
       - name: Build binaries
         env:
@@ -203,68 +195,3 @@ jobs:
             "/tmp/${LOCAL_TARBALL_NAME}" \
             "/tmp/${LOCAL_TARBALL_NAME}.sha256"
           echo "Release ${TAG} created."
-
-      # ── Public mirror on globulario/services ─────────────────────────────
-      # awareness-graph is a private repo; the services-repo Release workflow
-      # cannot fetch its tarballs with the default GITHUB_TOKEN (no cross-repo
-      # private-read). We mirror each release to a public release on
-      # globulario/services under the `awareness-graph-v${VERSION}` tag
-      # prefix — chosen because it does NOT match the services Release
-      # workflow's `v*` trigger glob, so mirror-creation never accidentally
-      # triggers a services platform release.
-      #
-      # Requires repo secret SERVICES_MIRROR_TOKEN: a PAT with
-      # `contents: write` scope on globulario/services. If the secret is
-      # absent, the step is skipped (the release still succeeds on the
-      # private side; the mirror just needs to be done manually until the
-      # secret is configured).
-      - name: Mirror tarball to public services-repo release
-        if: ${{ env.SERVICES_MIRROR_TOKEN != '' }}
-        env:
-          SERVICES_MIRROR_TOKEN: ${{ secrets.SERVICES_MIRROR_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          MIRROR_TAG="awareness-graph-v${VERSION}"
-          MIRROR_TITLE="awareness-graph v${VERSION} (public mirror)"
-          NOTES=$(cat <<EOF
-          Public mirror of awareness-graph release tarball.
-
-          Source: github.com/globulario/awareness-graph v${VERSION} (private)
-          Built from awareness-graph commit ${GITHUB_SHA:0:8}
-
-          This release hosts the service tarball + the local runtime tarball,
-          each with sha256 checksums, and no source code.
-          The service tarball exists so the globulario/services Release workflow
-          can fetch the awareness-graph binary without needing cross-repo
-          private-read auth.
-
-          Created automatically by awareness-graph's release.yml workflow.
-          EOF
-          )
-          GH_TOKEN="${SERVICES_MIRROR_TOKEN}" gh release create "${MIRROR_TAG}" \
-            --repo globulario/services \
-            --title "${MIRROR_TITLE}" \
-            --notes "${NOTES}" \
-            "/tmp/${SERVICE_TARBALL_NAME}" \
-            "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
-            "/tmp/${LOCAL_TARBALL_NAME}" \
-            "/tmp/${LOCAL_TARBALL_NAME}.sha256"
-          echo "Mirror release ${MIRROR_TAG} created on globulario/services."
-
-      - name: Mirror skip notice
-        if: ${{ env.SERVICES_MIRROR_TOKEN == '' }}
-        env:
-          SERVICES_MIRROR_TOKEN: ${{ secrets.SERVICES_MIRROR_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          echo "::warning::SERVICES_MIRROR_TOKEN secret not set — public mirror skipped."
-          echo "::warning::To enable auto-mirroring, set the secret in this repo:"
-          echo "::warning::  gh secret set SERVICES_MIRROR_TOKEN --repo globulario/awareness-graph --body <PAT>"
-          echo "::warning::The PAT needs 'contents: write' scope on globulario/services."
-          echo "::warning::Mirror v${VERSION} manually with:"
-          echo "::warning::  gh release create awareness-graph-v${VERSION} \\"
-          echo "::warning::    /tmp/${SERVICE_TARBALL_NAME} /tmp/${SERVICE_TARBALL_NAME}.sha256 \\"
-          echo "::warning::    /tmp/${LOCAL_TARBALL_NAME} /tmp/${LOCAL_TARBALL_NAME}.sha256 \\"
-          echo "::warning::    --repo globulario/services \\"
-          echo "::warning::    --title 'awareness-graph v${VERSION} (public mirror)'"
