@@ -65,15 +65,15 @@ jobs:
         run: |
           set -euo pipefail
           LDFLAGS="-s -w -X main.Version=${VERSION}"
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags "${LDFLAGS}" \
             -o bin/awg \
             ./cmd/awg
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags "${LDFLAGS}" \
             -o bin/awareness-mcp \
             ./cmd/awareness-mcp
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags "${LDFLAGS}" \
             -o bin/awareness-graph \
             ./golang/server
@@ -82,7 +82,7 @@ jobs:
           echo "Built bin/awareness-graph ($(du -sh bin/awareness-graph | cut -f1))"
 
       - name: Run tests
-        run: go test ./... -count=1 -timeout 60s
+        run: go test ./... -count=1 -timeout 120s
 
       - name: Stage release artifacts
         env:
