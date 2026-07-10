@@ -38,10 +38,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/seedmeta"
-	"github.com/globulario/awareness-graph/golang/store"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/store"
 )
 
 // Compile-time assertion that *server satisfies the generated

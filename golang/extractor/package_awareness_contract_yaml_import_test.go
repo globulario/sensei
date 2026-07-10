@@ -5,7 +5,7 @@ package extractor_test
 import (
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 func TestPackageAwarenessContract_ImportedAsContract(t *testing.T) {

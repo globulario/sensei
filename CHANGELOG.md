@@ -1,13 +1,13 @@
 # Changelog
 
-All notable changes to AWG are documented here. This project adheres to
+All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
 ## v0.1.0 — Initial public release
 
-First public, open-source release of the Awareness Graph runtime under Apache-2.0.
+First public, open-source release of the Sensei runtime under Apache-2.0.
 
-AWG gives an AI coding agent the architectural knowledge that normally lives only
+Sensei gives an AI coding agent the architectural knowledge that normally lives only
 in senior engineers' heads — invariants, failure modes, forbidden fixes, and
 intent — as a queryable graph the agent consults **before** it edits and a CI
 gate enforces **after**.
@@ -34,7 +34,7 @@ gate enforces **after**.
 ### Install
 
 ```bash
-git clone https://github.com/globulario/awareness-graph.git
+git clone https://github.com/globulario/sensei.git
 cd awareness-graph && ./scripts/install.sh
 export PATH="$PWD/bin:$PATH"
 ```
@@ -44,6 +44,6 @@ prebuilt Linux amd64 local runtime bundle is attached to this release.
 
 ### Notes
 
-AWG was extracted from the [Globular](https://github.com/globulario) platform,
+Sensei was extracted from the [Globular](https://github.com/globulario) platform,
 where its principles were validated against real production incidents. It now
 runs standalone for any codebase.

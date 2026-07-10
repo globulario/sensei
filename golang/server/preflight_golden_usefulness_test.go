@@ -20,8 +20,8 @@ import (
 	"context"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/rdf"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 func TestPreflightGoldenUsefulness(t *testing.T) {

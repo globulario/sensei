@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // #7 — a corpus of ONLY revert signals (one source type) yields zero eligible

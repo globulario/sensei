@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/globulario/awareness-graph/golang/skillimport"
+	"github.com/globulario/sensei/golang/skillimport"
 )
 
 func runSkillIngest(args []string) int {

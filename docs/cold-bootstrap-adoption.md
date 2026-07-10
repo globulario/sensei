@@ -1,4 +1,4 @@
-# Adopting AWG for your repo with cold-bootstrap
+# Adopting Sensei for your repo with cold-bootstrap
 
 *The external-repo first-user path: mine the rules your codebase already paid for
 in bugs and reviews, keep the load-bearing ones, serve them scoped to your repo,
@@ -29,7 +29,7 @@ commands, reproducible, no key), then generalized to **your repo**.
 ## 0. Prerequisites
 
 ```bash
-git clone https://github.com/globulario/awareness-graph && cd awareness-graph
+git clone https://github.com/globulario/sensei && cd awareness-graph
 go build -o /tmp/awg ./cmd/awg
 go build -o bin/awareness-graph ./golang/server   # awg serve execs this
 # plus an `oxigraph` binary on PATH or in ./bin/
@@ -100,7 +100,7 @@ For each candidate on the scoring sheet, assign one label:
 **Go / no-go:** adopt the drafter for your repo only if **≳30%** of accepted
 candidates are *load-bearing* **and** the *wrong* rate is low. If the output is
 mostly shallow/duplicate/wrong, the knowledge genuinely lives in heads, not
-derivable signals — treat AWG as authored-rules-only for that repo.
+derivable signals — treat Sensei as authored-rules-only for that repo.
 
 (Worked numbers exist: on Caddy and etcd, load-bearing ran high with **0
 fabricated citations**; see [`milestone-cold-bootstrap-v0.md`](milestone-cold-bootstrap-v0.md).)

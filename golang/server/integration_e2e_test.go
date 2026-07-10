@@ -18,9 +18,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	"github.com/globulario/sensei/golang/extractor"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 func integrationQueryURL() string {

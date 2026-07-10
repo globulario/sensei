@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/globulario/awareness-graph/golang/extractor/coldsource"
+	"github.com/globulario/sensei/golang/extractor/coldsource"
 	"gopkg.in/yaml.v3"
 )
 

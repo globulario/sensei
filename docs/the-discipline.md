@@ -1,6 +1,6 @@
 # The discipline
 
-AWG is tooling. This is the thing the tooling can't teach you: **how to think
+Sensei is tooling. This is the thing the tooling can't teach you: **how to think
 so that the tooling has something true to enforce.**
 
 The graph holds *what* your project knows. The discipline is *how you work* so
@@ -187,7 +187,7 @@ There's an old line, the closest thing software has to a fundamental theorem:
 That is what makes this whole thing work, and it's worth saying plainly at the
 end, because it's the trick hiding under everything above.
 
-**AWG is that level of indirection.** It is a layer placed *between the agent
+**Sensei is that level of indirection.** It is a layer placed *between the agent
 and the code* — a place where the project's intent, invariants, failure modes,
 and hard-won lessons can live as something queryable, instead of dissolving into
 a model's context window or a senior engineer's memory. The agent no longer has
@@ -210,7 +210,7 @@ That caveat is not a footnote here — it's a principle the corpus enforces
 its existence only when it hides *more* complexity than it adds. A shallow layer
 — one that wraps and renames and hides nothing — is the disease, not the cure.
 
-AWG survives that caveat because it is a *deep* layer. Behind one tiny interface
+Sensei survives that caveat because it is a *deep* layer. Behind one tiny interface
 (a file path, a question) it hides an enormous amount: every incident the
 project ever metabolized, every rule someone learned the hard way, the whole
 accumulated weight of "how this system actually works." That is the deepest a

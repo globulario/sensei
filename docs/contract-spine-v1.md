@@ -1,6 +1,6 @@
 # Contract Spine v1
 
-The contract spine connects the two layers AWG used to keep separate: the
+The contract spine connects the two layers Sensei used to keep separate: the
 **implementation surface** (the gRPC/HTTP/REST contracts a service actually
 exposes) and the **architectural authority** (the semantic guarantees those
 surfaces must honor, the invariants that constrain them, and the tests that prove

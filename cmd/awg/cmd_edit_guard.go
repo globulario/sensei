@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/evidence"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/evidence"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // runEditGuard is the Claude Code PreToolUse guard for Edit/Write/MultiEdit.

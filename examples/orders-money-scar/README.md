@@ -1,14 +1,14 @@
 # Cold-start proof: the money scar
 
-The smallest **external** proof that AWG is a product, not a Globular-only tool.
+The smallest **external** proof that Sensei is a product, not a Globular-only tool.
 A fresh, non-Globular Go service + **one** human-authored rule, run through the
 whole cold-start loop, ending in the moment that matters: a briefing that
 surfaces a critical rule to an agent *before* it edits the file — and a test
 that proves the unguided change loses money.
 
-> **The product claim.** AWG does **not** make architectural decisions. It
+> **The product claim.** Sensei does **not** make architectural decisions. It
 > surfaces **human-approved project truth** to an AI agent (or to you) **before**
-> the code is edited. The human writes the rule; AWG makes sure the rule is seen
+> the code is edited. The human writes the rule; Sensei makes sure the rule is seen
 > at the moment of the edit.
 
 No Globular. No cluster. No database to stand up by hand. No network.
@@ -63,25 +63,25 @@ PASS — cold-start money-scar proof green
 | 4 | no seed leak | a Globular-only invariant resolves **not found** |
 | 5 | task briefing | "add a 10% discount" surfaces the **critical** money rule |
 | 6 | unguided fix | `Money(float64(total) * 0.9)` → **899 cents** |
-| 7 | AWG-guided fix | `total - (total*pct)/100` → **900 cents** |
+| 7 | Sensei-guided fix | `total - (total*pct)/100` → **900 cents** |
 | 8 | required test | the two diverge — a silent 1-cent loss, caught |
 
 ## The agent moment
 
 For the task *"add a 10% discount to order totals"* on `pkg/orders/total.go`:
 
-- **Without AWG context**, the obvious fix is float — and wrong:
+- **Without Sensei context**, the obvious fix is float — and wrong:
   ```go
   return Money(float64(total) * 0.9) // → 899 cents on a $9.99 order
   ```
-- **With the AWG briefing** (`[critical] money is integer cents; never float`),
+- **With the Sensei briefing** (`[critical] money is integer cents; never float`),
   the edit stays exact:
   ```go
   return total - (total*Money(percentOff))/100 // → 900 cents, integer rule
   ```
 
 `go test` (`TestOrderTotal_DiscountStaysExactInteger`) runs both and proves the
-divergence. AWG didn't choose the fix — it made the rule impossible to miss.
+divergence. Sensei didn't choose the fix — it made the rule impossible to miss.
 
 ## Files
 

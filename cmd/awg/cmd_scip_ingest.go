@@ -14,8 +14,8 @@ import (
 
 	"github.com/scip-code/scip/bindings/go/scip"
 
-	"github.com/globulario/awareness-graph/golang/scanner"
-	"github.com/globulario/awareness-graph/golang/scipingest"
+	"github.com/globulario/sensei/golang/scanner"
+	"github.com/globulario/sensei/golang/scipingest"
 )
 
 // ingestScipFile reads a SCIP index file and renders the two awareness YAML

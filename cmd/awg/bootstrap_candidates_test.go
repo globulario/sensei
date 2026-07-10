@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor/protoscan"
+	"github.com/globulario/sensei/golang/extractor/protoscan"
 )
 
 func iface(rw string) *protoscan.UML { return &protoscan.UML{Kind: "Interface"} }

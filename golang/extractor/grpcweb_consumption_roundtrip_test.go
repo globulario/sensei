@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor/grpcwebscan"
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/extractor/grpcwebscan"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // TestGrpcWebConsumption_RoundTripIngest proves the contract-consumption

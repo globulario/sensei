@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/rdf"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // realized_contracts.go gives the contract spine a voice. When a briefing touches

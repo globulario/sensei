@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 func integrationURL() string {

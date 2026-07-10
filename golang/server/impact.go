@@ -15,9 +15,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 )
 
 // Impact returns all awareness nodes whose anchor includes the given file.

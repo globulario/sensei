@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // GROUNDING — the verification phase between a cited draft and acceptance.

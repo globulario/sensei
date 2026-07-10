@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor/coldsource"
+	"github.com/globulario/sensei/golang/extractor/coldsource"
 )
 
 // fakeOnboardLLM is a deterministic coldsource.LLMClient for the drafter tests —

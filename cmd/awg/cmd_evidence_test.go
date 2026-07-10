@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/evidence"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/evidence"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func TestDecisionFromCode(t *testing.T) {

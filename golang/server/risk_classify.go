@@ -32,8 +32,8 @@ package main
 import (
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/coverage"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/coverage"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // highRiskDirPrefixes — anchors-or-pattern hitting any of these escalates risk

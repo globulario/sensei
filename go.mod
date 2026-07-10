@@ -1,4 +1,4 @@
-module github.com/globulario/awareness-graph
+module github.com/globulario/sensei
 
 go 1.25.0
 

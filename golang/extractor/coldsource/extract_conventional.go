@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // reConventional matches a conventional-commit fix/perf/refactor subject, with

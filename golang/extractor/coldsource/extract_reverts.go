@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // CommitRecord is one commit's metadata, decoupled from git so the matcher is

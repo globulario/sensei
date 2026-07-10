@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // The completeness check is the one thing a PERSISTENT graph gives that

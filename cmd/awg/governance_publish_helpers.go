@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/governancepack"
-	"github.com/globulario/awareness-graph/golang/seedmeta"
+	"github.com/globulario/sensei/golang/governancepack"
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 func generateGovernanceSigningKey(outPath, publisherID, keyID string) (governancepack.SigningKey, error) {

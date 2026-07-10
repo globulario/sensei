@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // TestValidateReferences_DefinedAndReferenced asserts the well-formed

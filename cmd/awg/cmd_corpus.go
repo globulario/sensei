@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor/coldsource"
-	"github.com/globulario/awareness-graph/golang/extractor/corpus"
+	"github.com/globulario/sensei/golang/extractor/coldsource"
+	"github.com/globulario/sensei/golang/extractor/corpus"
 )
 
 // runCorpus dispatches the human-gated corpus-integration subcommands

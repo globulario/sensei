@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // A rule with a detect block must compile to the aw:detect* triples the

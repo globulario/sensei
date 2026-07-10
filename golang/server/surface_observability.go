@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 type surfaceUsageCounters struct {

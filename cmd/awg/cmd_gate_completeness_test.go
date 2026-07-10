@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func TestSymbolFileOf(t *testing.T) {

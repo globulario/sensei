@@ -5456,7 +5456,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\tPreflight\x12*.globular.awareness_graph.PreflightRequest\x1a+.globular.awareness_graph.PreflightResponse\x12d\n" +
 	"\tEditCheck\x12*.globular.awareness_graph.EditCheckRequest\x1a+.globular.awareness_graph.EditCheckResponse\x12^\n" +
 	"\aPropose\x12(.globular.awareness_graph.ProposeRequest\x1a).globular.awareness_graph.ProposeResponse\x12s\n" +
-	"\x0eReferenceSites\x12/.globular.awareness_graph.ReferenceSitesRequest\x1a0.globular.awareness_graph.ReferenceSitesResponseB=Z;github.com/globulario/awareness-graph/golang/pb;awarenesspbb\x06proto3"
+	"\x0eReferenceSites\x12/.globular.awareness_graph.ReferenceSitesRequest\x1a0.globular.awareness_graph.ReferenceSitesResponseB4Z2github.com/globulario/sensei/golang/pb;awarenesspbb\x06proto3"
 
 var (
 	file_awareness_graph_proto_rawDescOnce sync.Once

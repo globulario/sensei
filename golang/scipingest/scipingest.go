@@ -25,7 +25,7 @@ import (
 
 	"github.com/scip-code/scip/bindings/go/scip"
 
-	"github.com/globulario/awareness-graph/golang/scanner"
+	"github.com/globulario/sensei/golang/scanner"
 )
 
 // Ref is one directed "symbol A references symbol B" fact recovered from SCIP

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func TestPropose_UnconfiguredReturnsUnavailable(t *testing.T) {

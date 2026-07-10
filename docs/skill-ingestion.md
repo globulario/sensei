@@ -1,6 +1,6 @@
 # Skill Ingestion
 
-Skill Ingestion converts external agent skill documents into reviewable AWG candidates.
+Skill Ingestion converts external agent skill documents into reviewable Sensei candidates.
 
 It does not import skills into the active awareness graph. External text is not authority; it becomes project governance only after candidate generation, validation, human review, and promotion into an active awareness corpus path.
 
@@ -37,9 +37,9 @@ The command parses the front matter, extracts conservative procedural guidance f
 docs/awareness/candidates/skills/*.yaml
 ```
 
-The generated candidate stream is named `skill_ingestion_candidate`, but the YAML itself uses the existing `ImplementationPattern` shape so normal AWG review and promotion rules apply.
+The generated candidate stream is named `skill_ingestion_candidate`, but the YAML itself uses the existing `ImplementationPattern` shape so normal Sensei review and promotion rules apply.
 
-Candidate directories are skipped by normal AWG import. Generated skill candidates are review-only until promoted.
+Candidate directories are skipped by normal Sensei import. Generated skill candidates are review-only until promoted.
 
 Example generated file name:
 
@@ -77,7 +77,7 @@ source_files:
 ```bash
 awg skill-ingest <skill-pack-root> \
   --out docs/awareness/candidates/skills \
-  --repo github.com/globulario/awareness-graph \
+  --repo github.com/globulario/sensei \
   --source-set external/skills
 ```
 
@@ -94,7 +94,7 @@ Example:
 ```bash
 awg skill-ingest ../skills-main \
   --out docs/awareness/candidates/skills \
-  --repo github.com/globulario/awareness-graph
+  --repo github.com/globulario/sensei
 ```
 
 Example output:

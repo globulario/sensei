@@ -116,7 +116,7 @@ code_references:
     file: cmd/annotation-scanner/main.go
   - from: cmd/annotation-scanner/main.go:main
     to_id: golang/scanner/emit.go:scanner
-    to_name: github.com/globulario/awareness-graph/golang/scanner
+    to_name: github.com/globulario/sensei/golang/scanner
     file: cmd/annotation-scanner/main.go
   - from: cmd/annotation-scanner/main.go:main
     to_name: log
@@ -198,7 +198,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Briefing
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Briefing
     to_name: google.golang.org/grpc
@@ -242,7 +242,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:EditCheck
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:EditCheck
     to_name: google.golang.org/grpc
@@ -286,7 +286,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Impact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Impact
     to_name: google.golang.org/grpc
@@ -330,7 +330,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Metadata
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Metadata
     to_name: google.golang.org/grpc
@@ -374,7 +374,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Preflight
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Preflight
     to_name: google.golang.org/grpc
@@ -418,7 +418,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Query
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Query
     to_name: google.golang.org/grpc
@@ -462,7 +462,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Resolve
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:Resolve
     to_name: google.golang.org/grpc
@@ -757,7 +757,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:callTool
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:callTool
     to_id: cmd/awareness-mcp/main.go:preflightModeFromString
@@ -881,7 +881,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatEditCheck
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatEditCheck
     to_name: strings
@@ -999,11 +999,11 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatGraphAuthority
     to_id: golang/client/authority.go:client
-    to_name: github.com/globulario/awareness-graph/golang/client
+    to_name: github.com/globulario/sensei/golang/client
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatGraphAuthority
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatGraphAuthority
     to_name: strings
@@ -1053,7 +1053,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatImpact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatImpact
     to_name: strings
@@ -1276,11 +1276,11 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatMetadata
     to_id: golang/client/authority.go:client
-    to_name: github.com/globulario/awareness-graph/golang/client
+    to_name: github.com/globulario/sensei/golang/client
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatMetadata
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatMetadata
     to_name: strings
@@ -1442,7 +1442,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatPreflight
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatPreflight
     to_name: strings
@@ -1512,7 +1512,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatQuery
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:formatQuery
     to_name: strings
@@ -1625,7 +1625,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:main
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:main
     to_name: google.golang.org/grpc
@@ -1704,7 +1704,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:preflightModeFromString
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:preflightModeFromString
     to_name: strings
@@ -1756,7 +1756,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:queryClassFromString
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:queryClassFromString
     to_name: strings
@@ -1796,7 +1796,7 @@ code_references:
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:queryModeFromString
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awareness-mcp/main.go
   - from: cmd/awareness-mcp/main.go:queryModeFromString
     to_name: strings
@@ -2192,11 +2192,11 @@ code_references:
     file: cmd/awg/authority_output.go
   - from: cmd/awg/authority_output.go:printGraphAuthority
     to_id: golang/client/authority.go:client
-    to_name: github.com/globulario/awareness-graph/golang/client
+    to_name: github.com/globulario/sensei/golang/client
     file: cmd/awg/authority_output.go
   - from: cmd/awg/authority_output.go:printGraphAuthority
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/authority_output.go
   - from: cmd/awg/authority_output.go:printGraphAuthority
     to_name: strings
@@ -2443,7 +2443,7 @@ code_references:
     file: cmd/awg/bootstrap_candidates.go
   - from: cmd/awg/bootstrap_candidates.go:extractPatternCandidates
     to_id: golang/extractor/protoscan/protoscan.go:protoscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/protoscan
+    to_name: github.com/globulario/sensei/golang/extractor/protoscan
     file: cmd/awg/bootstrap_candidates.go
   - from: cmd/awg/bootstrap_candidates.go:extractPatternCandidates
     to_name: strings
@@ -2904,7 +2904,7 @@ code_references:
     file: cmd/awg/bootstrap_extract.go
   - from: cmd/awg/bootstrap_extract.go:mergeImportGraphComponents
     to_id: golang/extractor/importgraph/golang.go:importgraph
-    to_name: github.com/globulario/awareness-graph/golang/extractor/importgraph
+    to_name: github.com/globulario/sensei/golang/extractor/importgraph
     file: cmd/awg/bootstrap_extract.go
   - from: cmd/awg/bootstrap_extract.go:mergeImportGraphComponents
     to_id: cmd/awg/bootstrap_extract.go:mergeSortedStrings
@@ -3231,7 +3231,7 @@ code_references:
     file: cmd/awg/build_transaction.go
   - from: cmd/awg/build_transaction.go:buildTransactionTSV
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/build_transaction.go
   - from: cmd/awg/build_transaction.go:buildTransactionTSV
     to_name: path/filepath
@@ -3447,7 +3447,7 @@ code_references:
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:assessmentInputForIntent
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:assessmentInputForIntent
     to_id: cmd/awg/cmd_audit.go:nonEmptyStrings
@@ -3593,7 +3593,7 @@ code_references:
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkContractAssessment
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkContractAssessment
     to_name: gopkg.in/yaml.v3
@@ -3715,7 +3715,7 @@ code_references:
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkContractVerificationWiring
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkContractVerificationWiring
     to_id: cmd/awg/cmd_audit.go:level
@@ -3926,7 +3926,7 @@ code_references:
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkNTValidity
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkNTValidity
     to_id: cmd/awg/cmd_audit.go:level
@@ -4008,7 +4008,7 @@ code_references:
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkSeedOrphans
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkSeedOrphans
     to_id: cmd/awg/cmd_audit.go:isSeedProvenancePath
@@ -4226,7 +4226,7 @@ code_references:
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkYAMLValidity
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_audit.go
   - from: cmd/awg/cmd_audit.go:checkYAMLValidity
     to_id: cmd/awg/cmd_audit.go:level
@@ -4845,7 +4845,7 @@ code_references:
     file: cmd/awg/cmd_benchmark_brief.go
   - from: cmd/awg/cmd_benchmark_brief.go:buildAuthoritativeRepairPlan
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_benchmark_brief.go
   - from: cmd/awg/cmd_benchmark_brief.go:buildAuthoritativeRepairPlan
     to_id: cmd/awg/cmd_extract_proof_obligations.go:loadAuthoritySurfaces
@@ -7916,7 +7916,7 @@ code_references:
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:extractCodeSymbols
     to_id: golang/scanner/emit.go:scanner
-    to_name: github.com/globulario/awareness-graph/golang/scanner
+    to_name: github.com/globulario/sensei/golang/scanner
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:extractCodeSymbols
     to_id: cmd/awg/cmd_bootstrap.go:symbols
@@ -8506,27 +8506,27 @@ code_references:
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:runBootstrap
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:runBootstrap
     to_id: golang/extractor/grpcwebscan/grpcwebscan.go:grpcwebscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/grpcwebscan
+    to_name: github.com/globulario/sensei/golang/extractor/grpcwebscan
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:runBootstrap
     to_id: golang/extractor/importgraph/golang.go:importgraph
-    to_name: github.com/globulario/awareness-graph/golang/extractor/importgraph
+    to_name: github.com/globulario/sensei/golang/extractor/importgraph
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:runBootstrap
     to_id: golang/extractor/openapiscan/openapiscan.go:openapiscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/openapiscan
+    to_name: github.com/globulario/sensei/golang/extractor/openapiscan
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:runBootstrap
     to_id: golang/extractor/protoscan/protoscan.go:protoscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/protoscan
+    to_name: github.com/globulario/sensei/golang/extractor/protoscan
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:runBootstrap
     to_id: golang/extractor/webcompscan/webcompscan.go:webcompscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/webcompscan
+    to_name: github.com/globulario/sensei/golang/extractor/webcompscan
     file: cmd/awg/cmd_bootstrap.go
   - from: cmd/awg/cmd_bootstrap.go:runBootstrap
     to_id: cmd/awg/cmd_bootstrap.go:historyCandidates
@@ -8769,7 +8769,7 @@ code_references:
     file: cmd/awg/cmd_briefing.go
   - from: cmd/awg/cmd_briefing.go:runBriefing
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_briefing.go
   - from: cmd/awg/cmd_briefing.go:runBriefing
     to_name: google.golang.org/grpc
@@ -8815,11 +8815,11 @@ code_references:
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:finalizeBuildArtifact
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:finalizeBuildArtifact
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:normalizeStoreURL
     to_name: Errorf
@@ -8990,15 +8990,15 @@ code_references:
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:runBuild
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:runBuild
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:runBuild
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:runBuild
     to_name: net/http
@@ -9172,11 +9172,11 @@ code_references:
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:verifyLoadedGraph
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:verifyLoadedGraph
     to_id: golang/store/oxigraph/oxigraph.go:oxigraph
-    to_name: github.com/globulario/awareness-graph/golang/store/oxigraph
+    to_name: github.com/globulario/sensei/golang/store/oxigraph
     file: cmd/awg/cmd_build.go
   - from: cmd/awg/cmd_build.go:verifyLoadedGraph
     to_name: net/url
@@ -10714,7 +10714,7 @@ code_references:
     file: cmd/awg/cmd_check.go
   - from: cmd/awg/cmd_check.go:runCheck
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_check.go
   - from: cmd/awg/cmd_check.go:runCheck
     to_name: os
@@ -11442,11 +11442,11 @@ code_references:
     file: cmd/awg/cmd_cold_bootstrap.go
   - from: cmd/awg/cmd_cold_bootstrap.go:runColdBootstrap
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_cold_bootstrap.go
   - from: cmd/awg/cmd_cold_bootstrap.go:runColdBootstrap
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_cold_bootstrap.go
   - from: cmd/awg/cmd_cold_bootstrap.go:runColdBootstrap
     to_name: os
@@ -11496,7 +11496,7 @@ code_references:
     file: cmd/awg/cmd_contract_assess.go
   - from: cmd/awg/cmd_contract_assess.go:parseAssessmentBlockers
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_contract_assess.go
   - from: cmd/awg/cmd_contract_assess.go:parseAssessmentBlockers
     to_name: sort
@@ -11673,7 +11673,7 @@ code_references:
     file: cmd/awg/cmd_contract_assess.go
   - from: cmd/awg/cmd_contract_assess.go:runContractAssess
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_contract_assess.go
   - from: cmd/awg/cmd_contract_assess.go:runContractAssess
     to_name: os
@@ -12217,7 +12217,7 @@ code_references:
     file: cmd/awg/cmd_contract_bootstrap.go
   - from: cmd/awg/cmd_contract_bootstrap.go:collectNodeIDs
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_contract_bootstrap.go
   - from: cmd/awg/cmd_contract_bootstrap.go:collectNodeIDs
     to_name: strings
@@ -12532,7 +12532,7 @@ code_references:
     file: cmd/awg/cmd_contract_bootstrap.go
   - from: cmd/awg/cmd_contract_bootstrap.go:enrichBootstrapWithAWG
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_contract_bootstrap.go
   - from: cmd/awg/cmd_contract_bootstrap.go:enrichBootstrapWithAWG
     to_id: cmd/awg/cmd_contract_bootstrap.go:prefixedIDs
@@ -13284,7 +13284,7 @@ code_references:
     file: cmd/awg/cmd_corpus.go
   - from: cmd/awg/cmd_corpus.go:runCorpusMaterialize
     to_id: golang/extractor/corpus/corpus.go:corpus
-    to_name: github.com/globulario/awareness-graph/golang/extractor/corpus
+    to_name: github.com/globulario/sensei/golang/extractor/corpus
     file: cmd/awg/cmd_corpus.go
   - from: cmd/awg/cmd_corpus.go:runCorpusMaterialize
     to_name: os
@@ -13375,7 +13375,7 @@ code_references:
     file: cmd/awg/cmd_corpus.go
   - from: cmd/awg/cmd_corpus.go:runCorpusPlan
     to_id: golang/extractor/corpus/corpus.go:corpus
-    to_name: github.com/globulario/awareness-graph/golang/extractor/corpus
+    to_name: github.com/globulario/sensei/golang/extractor/corpus
     file: cmd/awg/cmd_corpus.go
   - from: cmd/awg/cmd_corpus.go:runCorpusPlan
     to_name: os
@@ -13446,11 +13446,11 @@ code_references:
     file: cmd/awg/cmd_corpus.go
   - from: cmd/awg/cmd_corpus.go:runCorpusValidate
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_corpus.go
   - from: cmd/awg/cmd_corpus.go:runCorpusValidate
     to_id: golang/extractor/corpus/corpus.go:corpus
-    to_name: github.com/globulario/awareness-graph/golang/extractor/corpus
+    to_name: github.com/globulario/sensei/golang/extractor/corpus
     file: cmd/awg/cmd_corpus.go
   - from: cmd/awg/cmd_corpus.go:runCorpusValidate
     to_name: os
@@ -13964,7 +13964,7 @@ code_references:
     file: cmd/awg/cmd_edit_check.go
   - from: cmd/awg/cmd_edit_check.go:runEditCheck
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_edit_check.go
   - from: cmd/awg/cmd_edit_check.go:runEditCheck
     to_name: google.golang.org/grpc
@@ -14010,7 +14010,7 @@ code_references:
     file: cmd/awg/cmd_edit_guard.go
   - from: cmd/awg/cmd_edit_guard.go:decideGuard
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_edit_guard.go
   - from: cmd/awg/cmd_edit_guard.go:decideGuard
     to_id: cmd/awg/cmd_edit_guard.go:guardDecision
@@ -14106,7 +14106,7 @@ code_references:
     file: cmd/awg/cmd_edit_guard.go
   - from: cmd/awg/cmd_edit_guard.go:formatWarnings
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_edit_guard.go
   - from: cmd/awg/cmd_edit_guard.go:formatWarnings
     to_name: strings
@@ -14331,7 +14331,7 @@ code_references:
     file: cmd/awg/cmd_edit_guard.go
   - from: cmd/awg/cmd_edit_guard.go:warningBlocks
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_edit_guard.go
   - from: cmd/awg/cmd_edit_guard.go:warningBlocks
     to_id: cmd/awg/cmd_edit_guard.go:guardOptions
@@ -16083,7 +16083,7 @@ code_references:
     file: cmd/awg/cmd_gate.go
   - from: cmd/awg/cmd_gate.go:runGate
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_gate.go
   - from: cmd/awg/cmd_gate.go:runGate
     to_name: google.golang.org/grpc
@@ -17155,7 +17155,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:appendGovernanceFailureLog
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:appendGovernanceFailureLog
     to_id: cmd/awg/cmd_governance.go:inferGovernanceFailureState
@@ -17193,11 +17193,11 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:buildCombinedGovernedArtifact
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:buildCombinedGovernedArtifact
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:displayTrustPublisherName
     to_name: TrimSpace
@@ -17230,7 +17230,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:inferGovernanceFailureState
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:inferGovernanceFailureState
     to_name: strings
@@ -17249,7 +17249,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:readActiveGovernance
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernance
     to_name: Fprint
@@ -17546,11 +17546,11 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceActivate
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceActivate
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceActivate
     to_id: cmd/awg/governance_helpers.go:httpDefaultClient
@@ -17674,7 +17674,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceFetch
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceFetch
     to_name: os
@@ -17766,7 +17766,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceInit
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceInit
     to_name: os
@@ -18399,11 +18399,11 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceStatus
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceStatus
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceStatus
     to_name: os
@@ -18524,7 +18524,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustAdd
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustAdd
     to_name: os
@@ -18696,7 +18696,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustList
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustList
     to_name: os
@@ -18774,7 +18774,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustRotateCheck
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustRotateCheck
     to_name: os
@@ -18859,7 +18859,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustShow
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceTrustShow
     to_name: os
@@ -18979,7 +18979,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceVerifyPack
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:runGovernanceVerifyPack
     to_name: os
@@ -19055,7 +19055,7 @@ code_references:
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:stageGovernancePack
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_governance.go
   - from: cmd/awg/cmd_governance.go:stageGovernancePack
     to_name: os
@@ -19224,7 +19224,7 @@ code_references:
     file: cmd/awg/cmd_impact.go
   - from: cmd/awg/cmd_impact.go:runImpact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_impact.go
   - from: cmd/awg/cmd_impact.go:runImpact
     to_name: google.golang.org/grpc
@@ -20010,7 +20010,7 @@ code_references:
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:applyIntentGroundings
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:applyIntentGroundings
     to_name: os
@@ -20105,7 +20105,7 @@ code_references:
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:extractIntentCandidates
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:extractIntentCandidates
     to_name: os
@@ -20181,7 +20181,7 @@ code_references:
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:intentEvidenceString
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:intentEvidenceString
     to_name: strings
@@ -20232,7 +20232,7 @@ code_references:
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:loadIntentCandidatesYAML
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:loadIntentCandidatesYAML
     to_name: gopkg.in/yaml.v3
@@ -20279,7 +20279,7 @@ code_references:
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:parkedIntentCandidate
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:parkedIntentCandidate
     to_id: cmd/awg/cmd_intent_mine.go:humanizeIntentTitle
@@ -20409,7 +20409,7 @@ code_references:
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:runIntentMine
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:runIntentMine
     to_id: cmd/awg/cmd_intent_mine.go:loadIntentCandidatesYAML
@@ -20565,7 +20565,7 @@ code_references:
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:writeAppliedIntent
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_intent_mine.go
   - from: cmd/awg/cmd_intent_mine.go:writeAppliedIntent
     to_name: gopkg.in/yaml.v3
@@ -21954,7 +21954,7 @@ code_references:
     file: cmd/awg/cmd_pattern_check.go
   - from: cmd/awg/cmd_pattern_check.go:pcCheckOneFile
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_pattern_check.go
   - from: cmd/awg/cmd_pattern_check.go:pcCheckOneFile
     to_name: os
@@ -22365,7 +22365,7 @@ code_references:
     file: cmd/awg/cmd_preflight.go
   - from: cmd/awg/cmd_preflight.go:runPreflight
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_preflight.go
   - from: cmd/awg/cmd_preflight.go:runPreflight
     to_name: google.golang.org/grpc
@@ -22568,7 +22568,7 @@ code_references:
     file: cmd/awg/cmd_promote.go
   - from: cmd/awg/cmd_promote.go:loadPilotGraph
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_promote.go
   - from: cmd/awg/cmd_promote.go:loadPilotGraph
     to_id: cmd/awg/cmd_rebuild.go:reloadOxigraphStore
@@ -24893,7 +24893,7 @@ code_references:
     file: cmd/awg/cmd_query.go
   - from: cmd/awg/cmd_query.go:parseQueryClass
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_query.go
   - from: cmd/awg/cmd_query.go:parseQueryMode
     to_id: golang/pb/awareness_graph.pb.go:QueryMode
@@ -24917,7 +24917,7 @@ code_references:
     file: cmd/awg/cmd_query.go
   - from: cmd/awg/cmd_query.go:parseQueryMode
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_query.go
   - from: cmd/awg/cmd_query.go:runQuery
     to_name: Background
@@ -25061,7 +25061,7 @@ code_references:
     file: cmd/awg/cmd_query.go
   - from: cmd/awg/cmd_query.go:runQuery
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_query.go
   - from: cmd/awg/cmd_query.go:runQuery
     to_name: os
@@ -25196,11 +25196,11 @@ code_references:
     file: cmd/awg/cmd_rebuild.go
   - from: cmd/awg/cmd_rebuild.go:generateNTWithOwnership
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_rebuild.go
   - from: cmd/awg/cmd_rebuild.go:generateNTWithOwnership
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_rebuild.go
   - from: cmd/awg/cmd_rebuild.go:generateNTWithOwnership
     to_id: cmd/awg/cmd_rebuild.go:normalizeInputDirsForOwnership
@@ -25478,15 +25478,15 @@ code_references:
     file: cmd/awg/cmd_rebuild.go
   - from: cmd/awg/cmd_rebuild.go:runRebuild
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_rebuild.go
   - from: cmd/awg/cmd_rebuild.go:runRebuild
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/cmd_rebuild.go
   - from: cmd/awg/cmd_rebuild.go:runRebuild
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_rebuild.go
   - from: cmd/awg/cmd_rebuild.go:runRebuild
     to_id: cmd/awg/cmd_audit.go:level
@@ -25633,7 +25633,7 @@ code_references:
     file: cmd/awg/cmd_reconcile.go
   - from: cmd/awg/cmd_reconcile.go:awarenessSubjectSet
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: cmd/awg/cmd_reconcile.go
   - from: cmd/awg/cmd_reconcile.go:awarenessSubjectSet
     to_name: strings
@@ -25653,7 +25653,7 @@ code_references:
     file: cmd/awg/cmd_reconcile.go
   - from: cmd/awg/cmd_reconcile.go:awarenessSubjectsFromNT
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: cmd/awg/cmd_reconcile.go
   - from: cmd/awg/cmd_reconcile.go:awarenessSubjectsFromNT
     to_id: cmd/awg/seedfreshness.go:ntSubjects
@@ -25920,7 +25920,7 @@ code_references:
     file: cmd/awg/cmd_reconcile.go
   - from: cmd/awg/cmd_reconcile.go:runReconcile
     to_id: golang/store/oxigraph/oxigraph.go:oxigraph
-    to_name: github.com/globulario/awareness-graph/golang/store/oxigraph
+    to_name: github.com/globulario/sensei/golang/store/oxigraph
     file: cmd/awg/cmd_reconcile.go
   - from: cmd/awg/cmd_reconcile.go:runReconcile
     to_id: cmd/awg/cmd_seed_status.go:looksLikeStoreDown
@@ -25968,7 +25968,7 @@ code_references:
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:authorityStateName
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:authorityStateName
     to_name: strings
@@ -26150,7 +26150,7 @@ code_references:
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:buildRepairPlanResult
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:buildRepairPlanResult
     to_id: cmd/awg/cmd_proof_plan.go:proofPlanResult
@@ -26209,7 +26209,7 @@ code_references:
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:buildRepairPlanSteps
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:buildRepairPlanSteps
     to_id: cmd/awg/cmd_proof_plan.go:proofPlanResult
@@ -26253,7 +26253,7 @@ code_references:
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:fetchRepairPlanPreflight
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:forbiddenMoveIDs
     to_id: cmd/awg/cmd_proof_plan.go:ID
@@ -26421,7 +26421,7 @@ code_references:
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:requireAuthoritativeGraph
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:runRepairPlan
     to_name: Abs
@@ -26553,7 +26553,7 @@ code_references:
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:runRepairPlan
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_plan.go
   - from: cmd/awg/cmd_repair_plan.go:runRepairPlan
     to_id: cmd/awg/cmd_extract_proof_obligations.go:loadAuthoritySurfaces
@@ -26714,7 +26714,7 @@ code_references:
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:buildRepairAuthoritySummary
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:buildRepairAuthoritySummary
     to_id: cmd/awg/cmd_repair_report.go:repairAuthoritySummary
@@ -26789,7 +26789,7 @@ code_references:
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:buildRepairContractSummary
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:buildRepairContractSummary
     to_id: cmd/awg/cmd_repair_report.go:repairClassificationMissingContract
@@ -26866,7 +26866,7 @@ code_references:
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:buildRepairEvidenceSummary
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:buildRepairEvidenceSummary
     to_id: cmd/awg/cmd_repair_report.go:repairEvidenceSummary
@@ -27035,7 +27035,7 @@ code_references:
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:collectForbiddenMoveFindings
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:collectForbiddenMoveFindings
     to_id: cmd/awg/cmd_repair_report.go:readWorkingTreeContent
@@ -27430,7 +27430,7 @@ code_references:
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:generateRepairReport
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cmd_repair_report.go
   - from: cmd/awg/cmd_repair_report.go:generateRepairReport
     to_id: cmd/awg/cmd_repair_report.go:governedRepairReport
@@ -28155,7 +28155,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:buildRepoCoverageReport
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:buildRepoCoverageReport
     to_id: cmd/awg/cmd_repo_eval.go:isAwarenessOnlyRepo
@@ -28175,7 +28175,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:capUpgradePathCandidates
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectContractAssessmentStats
     to_id: golang/contractassess/contractassess.go:Assess
@@ -28259,7 +28259,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectContractAssessmentStats
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectContractAssessmentStats
     to_name: gopkg.in/yaml.v3
@@ -28360,7 +28360,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectContractUpgradeCandidates
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectContractUpgradeCandidates
     to_name: os
@@ -28428,7 +28428,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectContractUpgradeCandidatesFromInvariantSurfaces
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectContractUpgradeCandidatesFromInvariantSurfaces
     to_name: path/filepath
@@ -28504,7 +28504,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectInvariantUpgradeCandidates
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectInvariantUpgradeCandidates
     to_id: cmd/awg/cmd_repo_eval.go:repoEvalComponent
@@ -28575,7 +28575,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectInvariantUpgradeCandidatesFromInvariantSurfaces
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectInvariantUpgradeCandidatesFromInvariantSurfaces
     to_id: cmd/awg/cmd_repo_eval.go:repoEvalInvariantSurface
@@ -28650,7 +28650,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectRepoEvalUpgradePath
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectRepoEvalUpgradePath
     to_name: path/filepath
@@ -28752,7 +28752,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectSeedStats
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:collectSeedStats
     to_id: cmd/awg/cmd_repo_eval.go:isActivePatternMisuseStatus
@@ -28872,7 +28872,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:dedupeUpgradeCandidates
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:existingDir
     to_name: FileInfo.IsDir
@@ -29262,7 +29262,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:repoEvalIntegrityIssues
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:repoEvalIntegrityIssues
     to_id: cmd/awg/cmd_audit.go:level
@@ -29978,11 +29978,11 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:runRepoEval
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:runRepoEval
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:runRepoEval
     to_id: cmd/awg/cmd_repo_eval.go:intentDir
@@ -30181,7 +30181,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:surfacePercent
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:surfaceTotal
     to_id: golang/coverage/report.go:Report
@@ -30201,7 +30201,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:surfaceTotal
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: cmd/awg/cmd_repo_eval.go
   - from: cmd/awg/cmd_repo_eval.go:walkRepoGoFiles
     to_name: DirEntry
@@ -30279,7 +30279,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:buildRepoEvalUpgradeDrafts
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:buildRepoEvalUpgradeDrafts
     to_id: cmd/awg/cmd_repo_eval_draft_upgrade.go:renderRepoEvalUpgradeDraft
@@ -30490,11 +30490,11 @@ code_references:
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:evaluateRepoForDraft
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:evaluateRepoForDraft
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:evaluateRepoForDraft
     to_id: cmd/awg/cmd_repo_eval.go:intentDir
@@ -30686,7 +30686,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:renderRepoEvalUpgradeDraft
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:renderRepoEvalUpgradeDraft
     to_name: gopkg.in/yaml.v3
@@ -30740,7 +30740,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:repoEvalDraftEvidence
     to_id: golang/repoeval/repoeval.go:repoeval
-    to_name: github.com/globulario/awareness-graph/golang/repoeval
+    to_name: github.com/globulario/sensei/golang/repoeval
     file: cmd/awg/cmd_repo_eval_draft_upgrade.go
   - from: cmd/awg/cmd_repo_eval_draft_upgrade.go:runRepoEvalDraftUpgrade
     to_id: golang/repoeval/repoeval.go:AgentReadiness
@@ -31673,7 +31673,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval_fix.go
   - from: cmd/awg/cmd_repo_eval_fix.go:collectContractLane
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_repo_eval_fix.go
   - from: cmd/awg/cmd_repo_eval_fix.go:collectContractLane
     to_name: gopkg.in/yaml.v3
@@ -31800,7 +31800,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval_fix.go
   - from: cmd/awg/cmd_repo_eval_fix.go:contractProposalReason
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_repo_eval_fix.go
   - from: cmd/awg/cmd_repo_eval_fix.go:contractProposalSnippet
     to_name: Builder
@@ -32375,7 +32375,7 @@ code_references:
     file: cmd/awg/cmd_repo_eval_fix.go
   - from: cmd/awg/cmd_repo_eval_fix.go:requiredActionStrings
     to_id: golang/contractassess/contractassess.go:contractassess
-    to_name: github.com/globulario/awareness-graph/golang/contractassess
+    to_name: github.com/globulario/sensei/golang/contractassess
     file: cmd/awg/cmd_repo_eval_fix.go
   - from: cmd/awg/cmd_repo_eval_fix.go:runRepoEvalFix
     to_id: cmd/awg/cmd_repo_eval_fix.go:AppliedCount
@@ -34385,11 +34385,11 @@ code_references:
     file: cmd/awg/cmd_scip_ingest.go
   - from: cmd/awg/cmd_scip_ingest.go:ingestScipFile
     to_id: golang/scanner/emit.go:scanner
-    to_name: github.com/globulario/awareness-graph/golang/scanner
+    to_name: github.com/globulario/sensei/golang/scanner
     file: cmd/awg/cmd_scip_ingest.go
   - from: cmd/awg/cmd_scip_ingest.go:ingestScipFile
     to_id: golang/scipingest/scipingest.go:scipingest
-    to_name: github.com/globulario/awareness-graph/golang/scipingest
+    to_name: github.com/globulario/sensei/golang/scipingest
     file: cmd/awg/cmd_scip_ingest.go
   - from: cmd/awg/cmd_scip_ingest.go:ingestScipFile
     to_name: github.com/scip-code/scip/bindings/go/scip
@@ -34447,7 +34447,7 @@ code_references:
     file: cmd/awg/cmd_scip_ingest.go
   - from: cmd/awg/cmd_scip_ingest.go:renderReferencesYAML
     to_id: golang/scipingest/scipingest.go:scipingest
-    to_name: github.com/globulario/awareness-graph/golang/scipingest
+    to_name: github.com/globulario/sensei/golang/scipingest
     file: cmd/awg/cmd_scip_ingest.go
   - from: cmd/awg/cmd_scip_ingest.go:renderReferencesYAML
     to_name: sort
@@ -34673,7 +34673,7 @@ code_references:
     file: cmd/awg/cmd_seed_status.go
   - from: cmd/awg/cmd_seed_status.go:populateRepoStatus
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_seed_status.go
   - from: cmd/awg/cmd_seed_status.go:populateRepoStatus
     to_name: os
@@ -34961,11 +34961,11 @@ code_references:
     file: cmd/awg/cmd_seed_status.go
   - from: cmd/awg/cmd_seed_status.go:runSeedStatus
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_seed_status.go
   - from: cmd/awg/cmd_seed_status.go:runSeedStatus
     to_id: golang/store/oxigraph/oxigraph.go:oxigraph
-    to_name: github.com/globulario/awareness-graph/golang/store/oxigraph
+    to_name: github.com/globulario/sensei/golang/store/oxigraph
     file: cmd/awg/cmd_seed_status.go
   - from: cmd/awg/cmd_seed_status.go:runSeedStatus
     to_id: cmd/awg/cmd_seed_status.go:normalizeOxigraphQueryURL
@@ -35093,7 +35093,7 @@ code_references:
     file: cmd/awg/cmd_seed_status.go
   - from: cmd/awg/cmd_seed_status.go:seedStatusLaneFromFreshness
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/cmd_seed_status.go
   - from: cmd/awg/cmd_seed_status.go:seedStatusLaneFromFreshness
     to_id: cmd/awg/cmd_seed_status.go:looksLikeStoreDown
@@ -35864,7 +35864,7 @@ code_references:
     file: cmd/awg/cmd_suggest_realizations.go
   - from: cmd/awg/cmd_suggest_realizations.go:parseContractsFromNT
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: cmd/awg/cmd_suggest_realizations.go
   - from: cmd/awg/cmd_suggest_realizations.go:parseContractsFromNT
     to_id: cmd/awg/cmd_suggest_realizations.go:id
@@ -37162,7 +37162,7 @@ code_references:
     file: cmd/awg/cmd_validate.go
   - from: cmd/awg/cmd_validate.go:validateEntity
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/cmd_validate.go
   - from: cmd/awg/cmd_validate.go:validateEntity
     to_id: cmd/awg/cmd_validate.go:id
@@ -37358,7 +37358,7 @@ code_references:
     file: cmd/awg/cmd_validate_draft.go
   - from: cmd/awg/cmd_validate_draft.go:runValidateDraft
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: cmd/awg/cmd_validate_draft.go
   - from: cmd/awg/cmd_validate_draft.go:runValidateDraft
     to_name: gopkg.in/yaml.v3
@@ -38112,7 +38112,7 @@ code_references:
     file: cmd/awg/cross_repo_atomic.go
   - from: cmd/awg/cross_repo_atomic.go:validateLiveBenchmarkAuthority
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: cmd/awg/cross_repo_atomic.go
   - from: cmd/awg/cross_repo_atomic.go:validateLiveBenchmarkAuthority
     to_name: strings
@@ -38214,7 +38214,7 @@ code_references:
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:combineGraphArtifacts
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:combineGraphArtifacts
     to_id: cmd/awg/governance_helpers.go:stripGraphMarkerLines
@@ -38286,7 +38286,7 @@ code_references:
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:compileAwarenessInputs
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:compileAwarenessInputs
     to_name: os
@@ -38316,7 +38316,7 @@ code_references:
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:extractorValidate
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:httpDefaultClient
     to_name: Client
@@ -38355,7 +38355,7 @@ code_references:
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:stripGraphMarkerLines
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:stripGraphMarkerLines
     to_name: strings
@@ -38405,7 +38405,7 @@ code_references:
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:verifyActiveGovernancePack
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_helpers.go
   - from: cmd/awg/governance_helpers.go:verifyActiveGovernancePack
     to_name: path/filepath
@@ -38631,11 +38631,11 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:buildGovernancePackFromBytes
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:buildGovernancePackFromBytes
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:buildGovernancePackFromBytes
     to_id: cmd/awg/governance_publish_helpers.go:governancePublishBuildOptions
@@ -38761,7 +38761,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:buildGovernanceTrustRoot
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:buildGovernanceTrustRoot
     to_name: strings
@@ -38958,7 +38958,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:fetchGovernancePack
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:fetchGovernancePack
     to_name: os
@@ -39051,7 +39051,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:fetchPublicationFile
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:fetchPublicationFile
     to_id: cmd/awg/governance_helpers.go:httpDefaultClient
@@ -39214,7 +39214,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:fetchTrustStoreCandidate
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:fetchTrustStoreCandidate
     to_id: cmd/awg/governance_helpers.go:httpDefaultClient
@@ -39315,7 +39315,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:generateGovernanceSigningKey
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:generateGovernanceSigningKey
     to_name: strings
@@ -39380,7 +39380,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:mergePublicationChannels
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:mergePublicationChannels
     to_name: os
@@ -39517,7 +39517,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:readPublicationIndexFromSource
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:readPublicationIndexFromSource
     to_id: cmd/awg/governance_helpers.go:httpDefaultClient
@@ -39687,7 +39687,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:releaseGovernancePack
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:releaseGovernancePack
     to_id: cmd/awg/governance_publish_helpers.go:mergePublicationChannels
@@ -39726,7 +39726,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:resolvePublicationFetchTarget
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:resolvePublicationFetchTarget
     to_id: cmd/awg/governance_publish_helpers.go:readPublicationIndexFromSource
@@ -39820,7 +39820,7 @@ code_references:
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:signGovernancePack
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: cmd/awg/governance_publish_helpers.go
   - from: cmd/awg/governance_publish_helpers.go:signGovernancePack
     to_name: strings
@@ -39888,7 +39888,7 @@ code_references:
     file: cmd/awg/graph_marker.go
   - from: cmd/awg/graph_marker.go:defaultRuntimeMarkerFile
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/awg/graph_marker.go
   - from: cmd/awg/graph_marker.go:defaultRuntimeMarkerFile
     to_id: cmd/awg/helpers.go:resolveProjectRoot
@@ -39929,7 +39929,7 @@ code_references:
     file: cmd/awg/helpers.go
   - from: cmd/awg/helpers.go:connectAWG
     to_id: golang/client/authority.go:client
-    to_name: github.com/globulario/awareness-graph/golang/client
+    to_name: github.com/globulario/sensei/golang/client
     file: cmd/awg/helpers.go
   - from: cmd/awg/helpers.go:relTo
     to_name: Rel
@@ -40575,7 +40575,7 @@ code_references:
     file: cmd/coverage-report/main.go
   - from: cmd/coverage-report/main.go:main
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: cmd/coverage-report/main.go
   - from: cmd/coverage-report/main.go:main
     to_name: os
@@ -40687,7 +40687,7 @@ code_references:
     file: cmd/coverage-report/main.go
   - from: cmd/coverage-report/main.go:printReport
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: cmd/coverage-report/main.go
   - from: cmd/coverage-report/main.go:printReport
     to_id: cmd/coverage-report/main.go:pct
@@ -40835,7 +40835,7 @@ code_references:
     file: cmd/grpcweb-scan/main.go
   - from: cmd/grpcweb-scan/main.go:run
     to_id: golang/extractor/grpcwebscan/grpcwebscan.go:grpcwebscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/grpcwebscan
+    to_name: github.com/globulario/sensei/golang/extractor/grpcwebscan
     file: cmd/grpcweb-scan/main.go
   - from: cmd/grpcweb-scan/main.go:run
     to_name: os
@@ -41283,7 +41283,7 @@ code_references:
     file: cmd/import-scan/main.go
   - from: cmd/import-scan/main.go:run
     to_id: golang/extractor/importgraph/golang.go:importgraph
-    to_name: github.com/globulario/awareness-graph/golang/extractor/importgraph
+    to_name: github.com/globulario/sensei/golang/extractor/importgraph
     file: cmd/import-scan/main.go
   - from: cmd/import-scan/main.go:run
     to_name: os
@@ -41404,11 +41404,11 @@ code_references:
     file: cmd/loadnt/main.go
   - from: cmd/loadnt/main.go:run
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/loadnt/main.go
   - from: cmd/loadnt/main.go:run
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/loadnt/main.go
   - from: cmd/loadnt/main.go:run
     to_name: io
@@ -41566,11 +41566,11 @@ code_references:
     file: cmd/loadnt/main.go
   - from: cmd/loadnt/main.go:verifyLoadedGraph
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/loadnt/main.go
   - from: cmd/loadnt/main.go:verifyLoadedGraph
     to_id: golang/store/oxigraph/oxigraph.go:oxigraph
-    to_name: github.com/globulario/awareness-graph/golang/store/oxigraph
+    to_name: github.com/globulario/sensei/golang/store/oxigraph
     file: cmd/loadnt/main.go
   - from: cmd/loadnt/main.go:verifyLoadedGraph
     to_name: net/url
@@ -41690,7 +41690,7 @@ code_references:
     file: cmd/openapi-scan/main.go
   - from: cmd/openapi-scan/main.go:run
     to_id: golang/extractor/openapiscan/openapiscan.go:openapiscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/openapiscan
+    to_name: github.com/globulario/sensei/golang/extractor/openapiscan
     file: cmd/openapi-scan/main.go
   - from: cmd/openapi-scan/main.go:run
     to_name: os
@@ -42528,7 +42528,7 @@ code_references:
     file: cmd/proto-scan/main.go
   - from: cmd/proto-scan/main.go:run
     to_id: golang/extractor/protoscan/protoscan.go:protoscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/protoscan
+    to_name: github.com/globulario/sensei/golang/extractor/protoscan
     file: cmd/proto-scan/main.go
   - from: cmd/proto-scan/main.go:run
     to_name: os
@@ -42637,7 +42637,7 @@ code_references:
     file: cmd/webcomponent-scan/main.go
   - from: cmd/webcomponent-scan/main.go:run
     to_id: golang/extractor/webcompscan/webcompscan.go:webcompscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/webcompscan
+    to_name: github.com/globulario/sensei/golang/extractor/webcompscan
     file: cmd/webcomponent-scan/main.go
   - from: cmd/webcomponent-scan/main.go:run
     to_name: os
@@ -42728,7 +42728,7 @@ code_references:
     file: cmd/yaml2nt/main.go
   - from: cmd/yaml2nt/main.go:printReport
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/yaml2nt/main.go
   - from: cmd/yaml2nt/main.go:printReport
     to_name: io
@@ -42930,11 +42930,11 @@ code_references:
     file: cmd/yaml2nt/main.go
   - from: cmd/yaml2nt/main.go:run
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/yaml2nt/main.go
   - from: cmd/yaml2nt/main.go:run
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: cmd/yaml2nt/main.go
   - from: cmd/yaml2nt/main.go:run
     to_name: io
@@ -42971,7 +42971,7 @@ code_references:
     file: cmd/yaml2nt/main.go
   - from: cmd/yaml2nt/main.go:staleBaselineEntries
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: cmd/yaml2nt/main.go
   - from: cmd/yaml2nt/main.go:staleBaselineEntries
     to_name: sort
@@ -43046,7 +43046,7 @@ code_references:
     file: golang/client/authority.go
   - from: golang/client/authority.go:EffectiveMetadataFreshness
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/authority.go
   - from: golang/client/authority.go:FreshnessLabel
     to_id: golang/pb/awareness_graph.pb.go:GraphFreshnessState
@@ -43064,7 +43064,7 @@ code_references:
     file: golang/client/authority.go
   - from: golang/client/authority.go:FreshnessLabel
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/authority.go
   - from: golang/client/authority.go:FreshnessLabel
     to_name: strings
@@ -43124,7 +43124,7 @@ code_references:
     file: golang/client/authority.go
   - from: golang/client/authority.go:InterpretAuthority
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/authority.go
   - from: golang/client/authority.go:InterpretAuthority
     to_name: strings
@@ -43163,7 +43163,7 @@ code_references:
     file: golang/client/authority.go
   - from: golang/client/authority.go:InterpretMetadataAuthority
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/authority.go
   - from: golang/client/authority.go:InterpretMetadataAuthority
     to_id: golang/client/authority.go:isCurrentMetadataAuthority
@@ -43211,7 +43211,7 @@ code_references:
     file: golang/client/authority.go
   - from: golang/client/authority.go:isCurrentMetadataAuthority
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/authority.go
   - from: golang/client/authority.go:metadataAuthorityWarning
     to_id: golang/pb/awareness_graph.pb.go:String
@@ -43278,7 +43278,7 @@ code_references:
     file: golang/client/authority.go
   - from: golang/client/authority.go:metadataAuthorityWarning
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/authority.go
   - from: golang/client/authority.go:metadataAuthorityWarning
     to_name: strings
@@ -43323,7 +43323,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Briefing
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Briefing
     to_id: golang/client/client.go:stub
@@ -43388,7 +43388,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Dial
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Dial
     to_name: google.golang.org/grpc
@@ -43436,7 +43436,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:EditCheck
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:EditCheck
     to_id: golang/client/client.go:stub
@@ -43474,7 +43474,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Impact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Impact
     to_id: golang/client/client.go:stub
@@ -43504,7 +43504,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Metadata
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Metadata
     to_id: golang/client/client.go:stub
@@ -43534,7 +43534,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Preflight
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Preflight
     to_id: golang/client/client.go:stub
@@ -43564,7 +43564,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Query
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Query
     to_id: golang/client/client.go:stub
@@ -43606,7 +43606,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Resolve
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Resolve
     to_id: golang/client/client.go:stub
@@ -43622,7 +43622,7 @@ code_references:
     file: golang/client/client.go
   - from: golang/client/client.go:Stub
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/client/client.go
   - from: golang/client/client.go:Stub
     to_id: golang/client/client.go:stub
@@ -44453,7 +44453,7 @@ code_references:
     file: golang/extractor/agent_run_jsonl_import.go
   - from: golang/extractor/agent_run_jsonl_import.go:emitAgentRun
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/agent_run_jsonl_import.go
   - from: golang/extractor/agent_run_jsonl_import.go:emitAgentRun
     to_id: golang/extractor/agent_run_jsonl_import.go:jsonAgentRun
@@ -44548,7 +44548,7 @@ code_references:
     file: golang/extractor/agent_run_jsonl_import.go
   - from: golang/extractor/agent_run_jsonl_import.go:importAgentRunsFile
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/agent_run_jsonl_import.go
   - from: golang/extractor/agent_run_jsonl_import.go:importAgentRunsFile
     to_id: golang/extractor/agent_run_jsonl_import.go:jsonAgentRun
@@ -44591,7 +44591,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:emitBareEdges
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:emitBareEdges
     to_name: strings
@@ -44637,7 +44637,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:emitSpineAnchors
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:emitSpineAnchors
     to_name: strings
@@ -44874,7 +44874,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importArchitectureContracts
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importArchitectureContracts
     to_name: gopkg.in/yaml.v3
@@ -45114,7 +45114,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importBoundaries
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importBoundaries
     to_name: gopkg.in/yaml.v3
@@ -45386,7 +45386,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importComponents
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importComponents
     to_name: gopkg.in/yaml.v3
@@ -45630,7 +45630,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importEvidence
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importEvidence
     to_name: gopkg.in/yaml.v3
@@ -45774,7 +45774,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importMetaPrincipleLinks
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:importMetaPrincipleLinks
     to_name: gopkg.in/yaml.v3
@@ -45806,7 +45806,7 @@ code_references:
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:metaPrincipleRef
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/architecture_spine_yaml_import.go
   - from: golang/extractor/architecture_spine_yaml_import.go:metaPrincipleRef
     to_name: strings
@@ -45821,7 +45821,7 @@ code_references:
     file: golang/extractor/authority_domains_yaml_import.go
   - from: golang/extractor/authority_domains_yaml_import.go:emitOptLits
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/authority_domains_yaml_import.go
   - from: golang/extractor/authority_domains_yaml_import.go:importAuthorityDomains
     to_id: golang/extractor/authority_domains_yaml_import.go:AuthorityDomains
@@ -46008,7 +46008,7 @@ code_references:
     file: golang/extractor/authority_domains_yaml_import.go
   - from: golang/extractor/authority_domains_yaml_import.go:importAuthorityDomains
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/authority_domains_yaml_import.go
   - from: golang/extractor/authority_domains_yaml_import.go:importAuthorityDomains
     to_name: gopkg.in/yaml.v3
@@ -46053,7 +46053,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:classIRIForName
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:codeEdgeRelationIRI
     to_id: golang/rdf/vocab.go:ClassForbiddenFix
@@ -46105,7 +46105,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:codeEdgeRelationIRI
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:codeEdgeRelationIRI
     to_id: golang/extractor/code_symbols_import.go:qualifiedIDToIRI
@@ -46201,7 +46201,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:emitCodeAnnotationEdges
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:emitCodeAnnotationEdges
     to_id: golang/extractor/code_symbols_import.go:isKnowledgeClass
@@ -46276,7 +46276,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:importCodeEdges
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:importCodeEdges
     to_name: gopkg.in/yaml.v3
@@ -46360,7 +46360,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:importCodeReferences
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:importCodeReferences
     to_name: gopkg.in/yaml.v3
@@ -46527,7 +46527,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:importCodeSymbols
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:importCodeSymbols
     to_name: gopkg.in/yaml.v3
@@ -46572,7 +46572,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:isKnowledgeClass
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:qualifiedIDToIRI
     to_id: golang/rdf/vocab.go:ClassCodeSymbol
@@ -46591,7 +46591,7 @@ code_references:
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:qualifiedIDToIRI
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/code_symbols_import.go
   - from: golang/extractor/code_symbols_import.go:qualifiedIDToIRI
     to_name: strings
@@ -46811,7 +46811,7 @@ code_references:
     file: golang/extractor/coldsource/bundle_export.go
   - from: golang/extractor/coldsource/bundle_export.go:Draft
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/bundle_export.go
   - from: golang/extractor/coldsource/bundle_export.go:Draft
     to_id: golang/extractor/coldsource/draft_llm.go:normalizeCandidateClass
@@ -47492,7 +47492,7 @@ code_references:
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:Draft
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:Draft
     to_id: golang/extractor/coldsource/draft_contract.go:sortedKeys
@@ -47554,7 +47554,7 @@ code_references:
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:IsShallow
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:IsShallow
     to_id: golang/extractor/coldsource/draft_contract.go:shallowPathDenylist
@@ -47601,7 +47601,7 @@ code_references:
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:ValidateDraft
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:ValidateDraft
     to_name: strings
@@ -47624,7 +47624,7 @@ code_references:
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:dominantClass
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/draft_contract.go
   - from: golang/extractor/coldsource/draft_contract.go:sortedKeys
     to_name: Strings
@@ -47792,7 +47792,7 @@ code_references:
     file: golang/extractor/coldsource/draft_llm.go
   - from: golang/extractor/coldsource/draft_llm.go:Draft
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/draft_llm.go
   - from: golang/extractor/coldsource/draft_llm.go:Draft
     to_id: golang/extractor/coldsource/draft_llm.go:llmCandidate
@@ -47890,7 +47890,7 @@ code_references:
     file: golang/extractor/coldsource/draft_llm.go
   - from: golang/extractor/coldsource/draft_llm.go:normalizeCandidateClass
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/draft_llm.go
   - from: golang/extractor/coldsource/draft_llm.go:normalizeCandidateClass
     to_name: strings
@@ -48034,7 +48034,7 @@ code_references:
     file: golang/extractor/coldsource/emit.go
   - from: golang/extractor/coldsource/emit.go:EmitCandidate
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/emit.go
   - from: golang/extractor/coldsource/emit.go:EmitCandidate
     to_name: gopkg.in/yaml.v3
@@ -48385,7 +48385,7 @@ code_references:
     file: golang/extractor/coldsource/extract_conventional.go
   - from: golang/extractor/coldsource/extract_conventional.go:matchConventional
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/extract_conventional.go
   - from: golang/extractor/coldsource/extract_conventional.go:matchConventional
     to_id: golang/extractor/coldsource/extract_conventional.go:reConventional
@@ -48619,7 +48619,7 @@ code_references:
     file: golang/extractor/coldsource/extract_pr_reviews.go
   - from: golang/extractor/coldsource/extract_pr_reviews.go:classifyComment
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/extract_pr_reviews.go
   - from: golang/extractor/coldsource/extract_pr_reviews.go:classifyComment
     to_id: golang/extractor/coldsource/extract_pr_reviews.go:reFail
@@ -48847,7 +48847,7 @@ code_references:
     file: golang/extractor/coldsource/extract_reverts.go
   - from: golang/extractor/coldsource/extract_reverts.go:matchCommit
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/extract_reverts.go
   - from: golang/extractor/coldsource/extract_reverts.go:matchCommit
     to_id: golang/extractor/coldsource/extract_reverts.go:reRegression
@@ -48934,7 +48934,7 @@ code_references:
     file: golang/extractor/coldsource/extract_review_threads.go
   - from: golang/extractor/coldsource/extract_review_threads.go:ExtractReviewThreads
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/extract_review_threads.go
   - from: golang/extractor/coldsource/extract_review_threads.go:ExtractReviewThreads
     to_id: golang/extractor/coldsource/extract_review_threads.go:hasRuleLanguage
@@ -49063,7 +49063,7 @@ code_references:
     file: golang/extractor/coldsource/grounding.go
   - from: golang/extractor/coldsource/grounding.go:GroundCandidate
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/extractor/coldsource/grounding.go
   - from: golang/extractor/coldsource/grounding.go:GroundCandidate
     to_id: golang/extractor/coldsource/grounding.go:groundOne
@@ -51357,7 +51357,7 @@ code_references:
     file: golang/extractor/contract_realizations_yaml_import.go
   - from: golang/extractor/contract_realizations_yaml_import.go:emitContractRealizationEvidence
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/contract_realizations_yaml_import.go
   - from: golang/extractor/contract_realizations_yaml_import.go:emitContractRealizationEvidence
     to_name: strings
@@ -51439,7 +51439,7 @@ code_references:
     file: golang/extractor/contract_realizations_yaml_import.go
   - from: golang/extractor/contract_realizations_yaml_import.go:importContractRealizations
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/contract_realizations_yaml_import.go
   - from: golang/extractor/contract_realizations_yaml_import.go:importContractRealizations
     to_name: gopkg.in/yaml.v3
@@ -51555,7 +51555,7 @@ code_references:
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:emitContractDetect
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:emitContractDetect
     to_name: strings
@@ -51605,7 +51605,7 @@ code_references:
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:emitContractFileAnchors
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:emitContractFileAnchors
     to_id: golang/extractor/contract_set_yaml_import.go:looksLikeGlob
@@ -51731,7 +51731,7 @@ code_references:
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:emitContractKnowledgeAnchors
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:emitContractKnowledgeAnchors
     to_id: golang/extractor/outcome_feedback_yaml_import.go:knowledgeRefToIRI
@@ -52037,7 +52037,7 @@ code_references:
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:importFrozenContractSet
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/contract_set_yaml_import.go
   - from: golang/extractor/contract_set_yaml_import.go:importFrozenContractSet
     to_name: gopkg.in/yaml.v3
@@ -52808,7 +52808,7 @@ code_references:
     file: golang/extractor/corpus/corpus.go
   - from: golang/extractor/corpus/corpus.go:ValidateEntry
     to_id: golang/extractor/coldsource/bundle_export.go:coldsource
-    to_name: github.com/globulario/awareness-graph/golang/extractor/coldsource
+    to_name: github.com/globulario/sensei/golang/extractor/coldsource
     file: golang/extractor/corpus/corpus.go
   - from: golang/extractor/corpus/corpus.go:ValidateEntry
     to_id: golang/extractor/corpus/corpus.go:groundedTier
@@ -53009,7 +53009,7 @@ code_references:
     file: golang/extractor/design_pattern_yaml_import.go
   - from: golang/extractor/design_pattern_yaml_import.go:emitPatternEdges
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/design_pattern_yaml_import.go
   - from: golang/extractor/design_pattern_yaml_import.go:emitPatternEdges
     to_name: strings
@@ -53280,7 +53280,7 @@ code_references:
     file: golang/extractor/design_pattern_yaml_import.go
   - from: golang/extractor/design_pattern_yaml_import.go:importDesignPattern
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/design_pattern_yaml_import.go
   - from: golang/extractor/design_pattern_yaml_import.go:importDesignPattern
     to_name: gopkg.in/yaml.v3
@@ -53517,7 +53517,7 @@ code_references:
     file: golang/extractor/design_pattern_yaml_import.go
   - from: golang/extractor/design_pattern_yaml_import.go:importPatternMisuse
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/design_pattern_yaml_import.go
   - from: golang/extractor/design_pattern_yaml_import.go:importPatternMisuse
     to_name: gopkg.in/yaml.v3
@@ -53600,7 +53600,7 @@ code_references:
     file: golang/extractor/detect.go
   - from: golang/extractor/detect.go:emitDetect
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/detect.go
   - from: golang/extractor/detect.go:emitDetect
     to_name: strings
@@ -53718,7 +53718,7 @@ code_references:
     file: golang/extractor/domain_scope.go
   - from: golang/extractor/domain_scope.go:emitDomainScope
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/domain_scope.go
   - from: golang/extractor/domain_scope.go:emitDomainScope
     to_id: golang/extractor/domain_scope.go:normalizeDomainScope
@@ -53759,7 +53759,7 @@ code_references:
     file: golang/extractor/domain_scope.go
   - from: golang/extractor/domain_scope.go:normalizeDomainScope
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/domain_scope.go
   - from: golang/extractor/domain_scope.go:normalizeDomainScope
     to_name: strings
@@ -53877,7 +53877,7 @@ code_references:
     file: golang/extractor/file_annotations_yaml_import.go
   - from: golang/extractor/file_annotations_yaml_import.go:importFileAnnotations
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/file_annotations_yaml_import.go
   - from: golang/extractor/file_annotations_yaml_import.go:importFileAnnotations
     to_name: gopkg.in/yaml.v3
@@ -53985,7 +53985,7 @@ code_references:
     file: golang/extractor/file_annotations_yaml_import.go
   - from: golang/extractor/file_annotations_yaml_import.go:importRenderingGroups
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/file_annotations_yaml_import.go
   - from: golang/extractor/file_annotations_yaml_import.go:importRenderingGroups
     to_name: gopkg.in/yaml.v3
@@ -54090,7 +54090,7 @@ code_references:
     file: golang/extractor/file_annotations_yaml_import.go
   - from: golang/extractor/file_annotations_yaml_import.go:importSourcePatterns
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/file_annotations_yaml_import.go
   - from: golang/extractor/file_annotations_yaml_import.go:importSourcePatterns
     to_name: gopkg.in/yaml.v3
@@ -54147,7 +54147,7 @@ code_references:
     file: golang/extractor/grpcwebscan/grpcwebscan.go
   - from: golang/extractor/grpcwebscan/grpcwebscan.go:Aggregate
     to_id: golang/extractor/protoscan/protoscan.go:protoscan
-    to_name: github.com/globulario/awareness-graph/golang/extractor/protoscan
+    to_name: github.com/globulario/sensei/golang/extractor/protoscan
     file: golang/extractor/grpcwebscan/grpcwebscan.go
   - from: golang/extractor/grpcwebscan/grpcwebscan.go:Aggregate
     to_name: sort
@@ -54262,7 +54262,7 @@ code_references:
     file: golang/extractor/grpcwebscan/grpcwebscan.go
   - from: golang/extractor/grpcwebscan/grpcwebscan.go:ScanFile
     to_id: golang/extractor/importgraph/golang.go:importgraph
-    to_name: github.com/globulario/awareness-graph/golang/extractor/importgraph
+    to_name: github.com/globulario/sensei/golang/extractor/importgraph
     file: golang/extractor/grpcwebscan/grpcwebscan.go
   - from: golang/extractor/grpcwebscan/grpcwebscan.go:ScanFile
     to_name: os
@@ -54799,7 +54799,7 @@ code_references:
     file: golang/extractor/implementation_pattern_yaml_import.go
   - from: golang/extractor/implementation_pattern_yaml_import.go:importImplementationPattern
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/implementation_pattern_yaml_import.go
   - from: golang/extractor/implementation_pattern_yaml_import.go:importImplementationPattern
     to_name: gopkg.in/yaml.v3
@@ -57209,7 +57209,7 @@ code_references:
     file: golang/extractor/intent_yaml_import.go
   - from: golang/extractor/intent_yaml_import.go:importIntent
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/intent_yaml_import.go
   - from: golang/extractor/intent_yaml_import.go:importIntent
     to_name: gopkg.in/yaml.v3
@@ -57246,7 +57246,7 @@ code_references:
     file: golang/extractor/learning_event_yaml_import.go
   - from: golang/extractor/learning_event_yaml_import.go:emitOptBool
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/learning_event_yaml_import.go
   - from: golang/extractor/learning_event_yaml_import.go:emitOptInt
     to_id: golang/rdf/builder.go:Emitter
@@ -57272,7 +57272,7 @@ code_references:
     file: golang/extractor/learning_event_yaml_import.go
   - from: golang/extractor/learning_event_yaml_import.go:emitOptInt
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/learning_event_yaml_import.go
   - from: golang/extractor/learning_event_yaml_import.go:firstNonEmpty
     to_name: TrimSpace
@@ -57569,7 +57569,7 @@ code_references:
     file: golang/extractor/learning_event_yaml_import.go
   - from: golang/extractor/learning_event_yaml_import.go:importLearningEvent
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/learning_event_yaml_import.go
   - from: golang/extractor/learning_event_yaml_import.go:importLearningEvent
     to_name: gopkg.in/yaml.v3
@@ -58017,7 +58017,7 @@ code_references:
     file: golang/extractor/outcome_feedback_yaml_import.go
   - from: golang/extractor/outcome_feedback_yaml_import.go:emitOptLit
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/outcome_feedback_yaml_import.go
   - from: golang/extractor/outcome_feedback_yaml_import.go:emitOptLit
     to_name: strings
@@ -58223,7 +58223,7 @@ code_references:
     file: golang/extractor/outcome_feedback_yaml_import.go
   - from: golang/extractor/outcome_feedback_yaml_import.go:importOutcomeFeedback
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/outcome_feedback_yaml_import.go
   - from: golang/extractor/outcome_feedback_yaml_import.go:importOutcomeFeedback
     to_name: gopkg.in/yaml.v3
@@ -58330,7 +58330,7 @@ code_references:
     file: golang/extractor/outcome_feedback_yaml_import.go
   - from: golang/extractor/outcome_feedback_yaml_import.go:knowledgeRefToIRI
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/outcome_feedback_yaml_import.go
   - from: golang/extractor/outcome_feedback_yaml_import.go:knowledgeRefToIRI
     to_name: strings
@@ -58647,7 +58647,7 @@ code_references:
     file: golang/extractor/package_awareness_contract_yaml_import.go
   - from: golang/extractor/package_awareness_contract_yaml_import.go:importPackageAwarenessContract
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/package_awareness_contract_yaml_import.go
   - from: golang/extractor/package_awareness_contract_yaml_import.go:importPackageAwarenessContract
     to_name: gopkg.in/yaml.v3
@@ -59546,7 +59546,7 @@ code_references:
     file: golang/extractor/proof_obligations_yaml_import.go
   - from: golang/extractor/proof_obligations_yaml_import.go:importProofObligations
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/proof_obligations_yaml_import.go
   - from: golang/extractor/proof_obligations_yaml_import.go:importProofObligations
     to_name: gopkg.in/yaml.v3
@@ -60140,7 +60140,7 @@ code_references:
     file: golang/extractor/reference_validator.go
   - from: golang/extractor/reference_validator.go:defaultPolicies
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/reference_validator.go
   - from: golang/extractor/reference_validator.go:defaultPolicies
     to_id: golang/extractor/reference_validator.go:referencePolicy
@@ -60270,7 +60270,7 @@ code_references:
     file: golang/extractor/reference_validator.go
   - from: golang/extractor/reference_validator.go:validateReferencesWithPolicies
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/reference_validator.go
   - from: golang/extractor/reference_validator.go:validateReferencesWithPolicies
     to_name: io
@@ -60322,7 +60322,7 @@ code_references:
     file: golang/extractor/repair_plan_yaml_import.go
   - from: golang/extractor/repair_plan_yaml_import.go:emitRefEdges
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/repair_plan_yaml_import.go
   - from: golang/extractor/repair_plan_yaml_import.go:emitRefEdges
     to_id: golang/extractor/outcome_feedback_yaml_import.go:knowledgeRefToIRI
@@ -60352,7 +60352,7 @@ code_references:
     file: golang/extractor/repair_plan_yaml_import.go
   - from: golang/extractor/repair_plan_yaml_import.go:emitRefOrBareEdges
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/repair_plan_yaml_import.go
   - from: golang/extractor/repair_plan_yaml_import.go:emitRefOrBareEdges
     to_id: golang/extractor/outcome_feedback_yaml_import.go:knowledgeRefToIRI
@@ -60686,7 +60686,7 @@ code_references:
     file: golang/extractor/repair_plan_yaml_import.go
   - from: golang/extractor/repair_plan_yaml_import.go:importRepairPlan
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/repair_plan_yaml_import.go
   - from: golang/extractor/repair_plan_yaml_import.go:importRepairPlan
     to_name: gopkg.in/yaml.v3
@@ -60890,7 +60890,7 @@ code_references:
     file: golang/extractor/runtime_evidence_yaml_import.go
   - from: golang/extractor/runtime_evidence_yaml_import.go:importRuntimeEvidence
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/runtime_evidence_yaml_import.go
   - from: golang/extractor/runtime_evidence_yaml_import.go:importRuntimeEvidence
     to_name: gopkg.in/yaml.v3
@@ -60955,7 +60955,7 @@ code_references:
     file: golang/extractor/uml_profile.go
   - from: golang/extractor/uml_profile.go:emitUML
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/uml_profile.go
   - from: golang/extractor/uml_profile.go:emitUML
     to_id: golang/extractor/uml_profile.go:umlProfile
@@ -60994,7 +60994,7 @@ code_references:
     file: golang/extractor/uml_profile.go
   - from: golang/extractor/uml_profile.go:importUMLProfiles
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/uml_profile.go
   - from: golang/extractor/uml_profile.go:importUMLProfiles
     to_name: gopkg.in/yaml.v3
@@ -61469,7 +61469,7 @@ code_references:
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:ImportAwarenessYAMLs
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:ImportAwarenessYAMLs
     to_name: io
@@ -61492,7 +61492,7 @@ code_references:
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:ensureNode
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:importFailureModes
     to_id: golang/rdf/vocab.go:ClassContract
@@ -61650,7 +61650,7 @@ code_references:
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:importFailureModes
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:importFailureModes
     to_name: gopkg.in/yaml.v3
@@ -61805,7 +61805,7 @@ code_references:
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:importIncidentPatterns
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:importIncidentPatterns
     to_name: gopkg.in/yaml.v3
@@ -62071,7 +62071,7 @@ code_references:
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:importInvariants
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import.go
   - from: golang/extractor/yaml_import.go:importInvariants
     to_name: gopkg.in/yaml.v3
@@ -62167,7 +62167,7 @@ code_references:
     file: golang/extractor/yaml_import_dir.go
   - from: golang/extractor/yaml_import_dir.go:ImportAwarenessDir
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_dir.go
   - from: golang/extractor/yaml_import_dir.go:ImportAwarenessDir
     to_name: io
@@ -62271,7 +62271,7 @@ code_references:
     file: golang/extractor/yaml_import_dir.go
   - from: golang/extractor/yaml_import_dir.go:ImportAwarenessDirWithOpts
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_dir.go
   - from: golang/extractor/yaml_import_dir.go:ImportAwarenessDirWithOpts
     to_id: golang/extractor/agent_run_jsonl_import.go:importAgentRunsFile
@@ -62414,7 +62414,7 @@ code_references:
     file: golang/extractor/yaml_import_dir.go
   - from: golang/extractor/yaml_import_dir.go:classifyAndImport
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_dir.go
   - from: golang/extractor/yaml_import_dir.go:classifyAndImport
     to_name: gopkg.in/yaml.v3
@@ -62731,7 +62731,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importContracts
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importContracts
     to_name: gopkg.in/yaml.v3
@@ -62978,7 +62978,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importDecisions
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importDecisions
     to_name: gopkg.in/yaml.v3
@@ -63162,7 +63162,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importForbiddenFixes
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importForbiddenFixes
     to_name: gopkg.in/yaml.v3
@@ -63277,7 +63277,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importGuardrails
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importGuardrails
     to_name: gopkg.in/yaml.v3
@@ -63396,7 +63396,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importIncident
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importIncident
     to_name: gopkg.in/yaml.v3
@@ -63499,7 +63499,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importPatterns
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importPatterns
     to_name: gopkg.in/yaml.v3
@@ -63638,7 +63638,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importRequiredTests
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importRequiredTests
     to_name: gopkg.in/yaml.v3
@@ -63741,7 +63741,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importRules
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importRules
     to_name: gopkg.in/yaml.v3
@@ -63825,7 +63825,7 @@ code_references:
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importServices
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/extractor/yaml_import_phaseB.go
   - from: golang/extractor/yaml_import_phaseB.go:importServices
     to_name: gopkg.in/yaml.v3
@@ -65194,7 +65194,7 @@ code_references:
     file: golang/governancepack/status.go
   - from: golang/governancepack/status.go:AssessLocalStatus
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/governancepack/status.go
   - from: golang/governancepack/status.go:AssessLocalStatus
     to_name: os
@@ -66344,11 +66344,11 @@ code_references:
     file: golang/governancepack/verify.go
   - from: golang/governancepack/verify.go:verifyPayload
     to_id: golang/extractor/agent_run_jsonl_import.go:extractor
-    to_name: github.com/globulario/awareness-graph/golang/extractor
+    to_name: github.com/globulario/sensei/golang/extractor
     file: golang/governancepack/verify.go
   - from: golang/governancepack/verify.go:verifyPayload
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/governancepack/verify.go
   - from: golang/governancepack/verify.go:verifyPayload
     to_name: os
@@ -74372,7 +74372,7 @@ code_references:
     file: golang/scipingest/scipingest.go
   - from: golang/scipingest/scipingest.go:Ingest
     to_id: golang/scanner/emit.go:scanner
-    to_name: github.com/globulario/awareness-graph/golang/scanner
+    to_name: github.com/globulario/sensei/golang/scanner
     file: golang/scipingest/scipingest.go
   - from: golang/scipingest/scipingest.go:Ingest
     to_name: github.com/scip-code/scip/bindings/go/scip
@@ -75284,7 +75284,7 @@ code_references:
     file: golang/seedmeta/verify.go
   - from: golang/seedmeta/verify.go:markerFromTriples
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/seedmeta/verify.go
   - from: golang/seedmeta/verify.go:markerFromTriples
     to_id: golang/seedmeta/seedmeta.go:markerDigestIRI
@@ -75496,11 +75496,11 @@ code_references:
     file: golang/server/authority_domains.go
   - from: golang/server/authority_domains.go:classFactsToAuthorityDomains
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/authority_domains.go
   - from: golang/server/authority_domains.go:classFactsToAuthorityDomains
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/authority_domains.go
   - from: golang/server/authority_domains.go:classFactsToAuthorityDomains
     to_id: golang/server/authority_domains.go:loadedAuthorityDomain
@@ -75567,7 +75567,7 @@ code_references:
     file: golang/server/authority_domains.go
   - from: golang/server/authority_domains.go:loadAuthorityDomains
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/authority_domains.go
   - from: golang/server/authority_domains.go:loadAuthorityDomains
     to_id: golang/server/authority_domains.go:globalAuthorityDomainCache
@@ -75688,11 +75688,11 @@ code_references:
     file: golang/server/blast_radius.go
   - from: golang/server/blast_radius.go:assessChangeRisk
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: golang/server/blast_radius.go
   - from: golang/server/blast_radius.go:assessChangeRisk
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/blast_radius.go
   - from: golang/server/blast_radius.go:assessChangeRisk
     to_id: golang/server/blast_radius.go:inAnyPrefixServer
@@ -75974,15 +75974,15 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:Briefing
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:Briefing
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:Briefing
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:Briefing
     to_name: google.golang.org/grpc/codes
@@ -76147,7 +76147,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendArchitectureSection
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendArchitectureSection
     to_name: strings
@@ -76179,7 +76179,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendBriefingSection
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendBriefingSection
     to_name: strings
@@ -76226,7 +76226,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendDecisionFocusSection
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendDecisionFocusSection
     to_name: strings
@@ -76273,7 +76273,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendImplementationPatternsSection
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendImplementationPatternsSection
     to_name: strings
@@ -76327,7 +76327,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:appendReferencedIDs
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:briefingNodeSummary
     to_id: golang/pb/awareness_graph.pb.go:KnowledgeNode
@@ -76347,7 +76347,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:briefingNodeSummary
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:composeBriefingProse
     to_id: golang/pb/awareness_graph.pb.go:BriefingStatus
@@ -76371,7 +76371,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:composeBriefingProse
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:composeBriefingProse
     to_id: golang/server/surface_limits.go:standardBriefingProfile
@@ -76474,7 +76474,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:composeBriefingProseWithPrinciples
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:composeBriefingProseWithPrinciples
     to_id: golang/server/briefing.go:principleMatch
@@ -76508,7 +76508,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:composeTaskOnlyBriefingProse
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:composeTaskOnlyBriefingProse
     to_name: strings
@@ -76573,7 +76573,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:fetchMetaPrinciples
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:fetchMetaPrinciples
     to_id: golang/server/main.go:metaPrincipleOnce
@@ -76626,7 +76626,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:firstKnowledgeNode
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:inferPrincipleGuidance
     to_name: Contains
@@ -76731,7 +76731,7 @@ code_references:
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:renderingGroupsBriefingSection
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/briefing.go
   - from: golang/server/briefing.go:renderingGroupsBriefingSection
     to_name: strings
@@ -76895,11 +76895,11 @@ code_references:
     file: golang/server/change_impact.go
   - from: golang/server/change_impact.go:planChangeImpact
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: golang/server/change_impact.go
   - from: golang/server/change_impact.go:planChangeImpact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/change_impact.go
   - from: golang/server/change_impact.go:planChangeImpact
     to_id: golang/server/change_impact.go:items
@@ -77165,11 +77165,11 @@ code_references:
     file: golang/server/code_symbol.go
   - from: golang/server/code_symbol.go:applyCodeSymbolFact
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/code_symbol.go
   - from: golang/server/code_symbol.go:applyCodeSymbolFact
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/code_symbol.go
   - from: golang/server/code_symbol.go:applyCodeSymbolFact
     to_id: golang/server/code_symbol.go:implements
@@ -77232,7 +77232,7 @@ code_references:
     file: golang/server/code_symbol.go
   - from: golang/server/code_symbol.go:buildExistingIRISet
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/code_symbol.go
   - from: golang/server/code_symbol.go:codeRefIDsFromSymbols
     to_id: golang/server/resolve.go:awarenessRelatedID
@@ -77307,7 +77307,7 @@ code_references:
     file: golang/server/code_symbol.go
   - from: golang/server/code_symbol.go:collectCodeSymbols
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/code_symbol.go
   - from: golang/server/code_symbol.go:collectCodeSymbols
     to_id: golang/server/code_symbol.go:id
@@ -77688,7 +77688,7 @@ code_references:
     file: golang/server/edit_check.go
   - from: golang/server/edit_check.go:EditCheck
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/edit_check.go
   - from: golang/server/edit_check.go:EditCheck
     to_name: google.golang.org/grpc/codes
@@ -77902,7 +77902,7 @@ code_references:
     file: golang/server/edit_check.go
   - from: golang/server/edit_check.go:loadDetectRules
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/edit_check.go
   - from: golang/server/edit_check.go:loadDetectRules
     to_id: golang/server/edit_check.go:loadedDetectRule
@@ -77929,7 +77929,7 @@ code_references:
     file: golang/server/embedded_seed.go
   - from: golang/server/embedded_seed.go:normalizedEmbeddedSeed
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/embedded_seed.go
   - from: golang/server/embedded_seed.go:normalizedEmbeddedSeed
     to_id: golang/server/main.go:seedNT
@@ -77945,7 +77945,7 @@ code_references:
     file: golang/server/embedded_seed.go
   - from: golang/server/embedded_seed.go:normalizedEmbeddedSeedMarker
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/embedded_seed.go
   - from: golang/server/embedded_seed.go:normalizedEmbeddedSeedMarker
     to_id: golang/server/embedded_seed.go:normalizedEmbeddedSeed
@@ -78416,7 +78416,7 @@ code_references:
     file: golang/server/graph_authority.go
   - from: golang/server/graph_authority.go:graphAuthority
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/graph_authority.go
   - from: golang/server/graph_authority.go:graphAuthority
     to_id: golang/server/graph_authority.go:graphAuthorityFromSnapshot
@@ -78476,7 +78476,7 @@ code_references:
     file: golang/server/graph_authority.go
   - from: golang/server/graph_authority.go:graphAuthorityBuildProvenance
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/graph_authority.go
   - from: golang/server/graph_authority.go:graphAuthorityBuildProvenance
     to_id: golang/server/metadata.go:parseUnixStamp
@@ -78608,11 +78608,11 @@ code_references:
     file: golang/server/graph_authority.go
   - from: golang/server/graph_authority.go:graphAuthorityFromSnapshot
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/graph_authority.go
   - from: golang/server/graph_authority.go:graphAuthorityFromSnapshot
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/graph_authority.go
   - from: golang/server/graph_authority.go:graphAuthorityFromSnapshot
     to_id: golang/server/graph_authority.go:graphAuthorityBuildProvenance
@@ -78668,7 +78668,7 @@ code_references:
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:expectedGraphMarker
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:expectedGraphMarker
     to_id: golang/server/main.go:graphMarkerFile
@@ -78726,11 +78726,11 @@ code_references:
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:graphFreshnessSeedState
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:graphFreshnessSeedState
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:graphFreshnessStateProto
     to_id: golang/seedmeta/verify.go:FreshnessCheckError
@@ -78786,11 +78786,11 @@ code_references:
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:graphFreshnessStateProto
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:graphFreshnessStateProto
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:graphFreshnessSummary
     to_id: golang/seedmeta/verify.go:Detail
@@ -78844,7 +78844,7 @@ code_references:
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:graphFreshnessSummary
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:requireCurrentGraphAuthority
     to_name: Context
@@ -78891,7 +78891,7 @@ code_references:
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:requireCurrentGraphAuthority
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:requireCurrentGraphAuthority
     to_name: google.golang.org/grpc/codes
@@ -78959,11 +78959,11 @@ code_references:
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:snapshotGraphFreshness
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:snapshotGraphFreshness
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/graph_freshness.go
   - from: golang/server/graph_freshness.go:snapshotGraphFreshness
     to_id: golang/server/graph_freshness.go:graphFreshnessProvider
@@ -79037,7 +79037,7 @@ code_references:
     file: golang/server/impact.go
   - from: golang/server/impact.go:Impact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/impact.go
   - from: golang/server/impact.go:Impact
     to_name: google.golang.org/grpc/codes
@@ -79126,7 +79126,7 @@ code_references:
     file: golang/server/impact.go
   - from: golang/server/impact.go:classFromTypeIRI
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/impact.go
   - from: golang/server/impact.go:collectImpact
     to_id: golang/server/scope.go:AmbiguousScopeError
@@ -79333,15 +79333,15 @@ code_references:
     file: golang/server/impact.go
   - from: golang/server/impact.go:collectImpact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/impact.go
   - from: golang/server/impact.go:collectImpact
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/impact.go
   - from: golang/server/impact.go:collectImpact
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/impact.go
   - from: golang/server/impact.go:collectImpact
     to_name: google.golang.org/grpc/codes
@@ -79425,7 +79425,7 @@ code_references:
     file: golang/server/impact.go
   - from: golang/server/impact.go:sortKnowledgeNodes
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/impact.go
   - from: golang/server/impact.go:sortKnowledgeNodes
     to_id: golang/server/impact.go:severityRank
@@ -79556,11 +79556,11 @@ code_references:
     file: golang/server/implementation_patterns.go
   - from: golang/server/implementation_patterns.go:classFactsToPatterns
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/implementation_patterns.go
   - from: golang/server/implementation_patterns.go:classFactsToPatterns
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/implementation_patterns.go
   - from: golang/server/implementation_patterns.go:classFactsToPatterns
     to_id: golang/server/implementation_patterns.go:loadedPattern
@@ -79629,7 +79629,7 @@ code_references:
     file: golang/server/implementation_patterns.go
   - from: golang/server/implementation_patterns.go:loadImplementationPatterns
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/implementation_patterns.go
   - from: golang/server/implementation_patterns.go:loadImplementationPatterns
     to_id: golang/server/implementation_patterns.go:globalPatternCache
@@ -79737,7 +79737,7 @@ code_references:
     file: golang/server/implementation_patterns.go
   - from: golang/server/implementation_patterns.go:matchPatternsForBriefing
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/implementation_patterns.go
   - from: golang/server/implementation_patterns.go:matchPatternsForBriefing
     to_id: golang/server/implementation_patterns.go:loadedPattern
@@ -79888,7 +79888,7 @@ code_references:
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:appendMatchedIntentsSection
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:appendMatchedIntentsSection
     to_name: strings
@@ -79971,11 +79971,11 @@ code_references:
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:classFactsToIntents
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:classFactsToIntents
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:classFactsToIntents
     to_id: golang/server/intent_triggers.go:loadedIntent
@@ -80035,7 +80035,7 @@ code_references:
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:loadIntentTriggers
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:loadIntentTriggers
     to_id: golang/server/intent_triggers.go:globalIntentTriggerCache
@@ -80125,7 +80125,7 @@ code_references:
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:matchIntentsForTask
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/intent_triggers.go
   - from: golang/server/intent_triggers.go:matchIntentsForTask
     to_id: golang/server/intent_triggers.go:intentLevelRank
@@ -80208,7 +80208,7 @@ code_references:
     file: golang/server/knowledge_scoring.go
   - from: golang/server/knowledge_scoring.go:applyTrustScoring
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/knowledge_scoring.go
   - from: golang/server/knowledge_scoring.go:applyTrustScoring
     to_id: golang/server/knowledge_scoring.go:isLowConfidence
@@ -80347,7 +80347,7 @@ code_references:
     file: golang/server/knowledge_scoring.go
   - from: golang/server/knowledge_scoring.go:scoreNode
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/knowledge_scoring.go
   - from: golang/server/knowledge_scoring.go:scoreNode
     to_id: golang/server/knowledge_scoring.go:nodeScore
@@ -80519,11 +80519,11 @@ code_references:
     file: golang/server/main.go
   - from: golang/server/main.go:enforceCurrentSeed
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/main.go
   - from: golang/server/main.go:enforceCurrentSeed
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/main.go
   - from: golang/server/main.go:enforceCurrentSeed
     to_id: golang/server/graph_freshness.go:graphFreshnessSummary
@@ -80630,7 +80630,7 @@ code_references:
     file: golang/server/main.go
   - from: golang/server/main.go:main
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/main.go
   - from: golang/server/main.go:main
     to_id: golang/server/config.go:loadServiceConfig
@@ -80692,7 +80692,7 @@ code_references:
     file: golang/server/main.go
   - from: golang/server/main.go:newServer
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/main.go
   - from: golang/server/main.go:newServer
     to_id: golang/server/main.go:homeDomain
@@ -80749,7 +80749,7 @@ code_references:
     file: golang/server/main.go
   - from: golang/server/main.go:seedIfEmpty
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/main.go
   - from: golang/server/main.go:seedIfEmpty
     to_name: io
@@ -80888,7 +80888,7 @@ code_references:
     file: golang/server/main.go
   - from: golang/server/main.go:serve
     to_id: golang/store/oxigraph/oxigraph.go:oxigraph
-    to_name: github.com/globulario/awareness-graph/golang/store/oxigraph
+    to_name: github.com/globulario/sensei/golang/store/oxigraph
     file: golang/server/main.go
   - from: golang/server/main.go:serve
     to_name: google.golang.org/grpc
@@ -80986,7 +80986,7 @@ code_references:
     file: golang/server/main.go
   - from: golang/server/main.go:validateBackend
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/main.go
   - from: golang/server/main.go:validateBackend
     to_name: log
@@ -81494,15 +81494,15 @@ code_references:
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:Metadata
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:Metadata
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:Metadata
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:Metadata
     to_name: google.golang.org/grpc/codes
@@ -81634,7 +81634,7 @@ code_references:
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:classifyBuildProvenance
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:classifyBuildProvenance
     to_name: strings
@@ -81705,7 +81705,7 @@ code_references:
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:classifyCoverage
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:evaluateTransactionForGraph
     to_id: golang/seedmeta/seedmeta.go:Digest
@@ -81746,7 +81746,7 @@ code_references:
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:evaluateTransactionForGraph
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:evaluateTransactionForGraph
     to_name: os
@@ -81783,7 +81783,7 @@ code_references:
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:transactionStampForGraph
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/metadata.go
   - from: golang/server/metadata.go:transactionStampForGraph
     to_id: golang/server/main.go:graphMarkerFile
@@ -81829,7 +81829,7 @@ code_references:
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:collectLocalMetadata
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:collectLocalMetadata
     to_id: golang/server/metadata_local.go:localMetadataSummary
@@ -82016,7 +82016,7 @@ code_references:
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:detectCandidateQueueState
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:detectCandidateQueueState
     to_name: path/filepath
@@ -82099,11 +82099,11 @@ code_references:
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:governanceStateProto
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:governanceStateProto
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:isYAMLFile
     to_name: HasSuffix
@@ -82282,7 +82282,7 @@ code_references:
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:withBenchmark
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:withBenchmark
     to_id: golang/server/metadata_local.go:latestBenchmarkLearningEvent
@@ -82352,7 +82352,7 @@ code_references:
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:withGovernance
     to_id: golang/governancepack/active.go:governancepack
-    to_name: github.com/globulario/awareness-graph/golang/governancepack
+    to_name: github.com/globulario/sensei/golang/governancepack
     file: golang/server/metadata_local.go
   - from: golang/server/metadata_local.go:withGovernance
     to_id: golang/server/metadata_local.go:governancePackDigest
@@ -82682,11 +82682,11 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:Preflight
     to_id: golang/coverage/report.go:coverage
-    to_name: github.com/globulario/awareness-graph/golang/coverage
+    to_name: github.com/globulario/sensei/golang/coverage
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:Preflight
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:Preflight
     to_name: google.golang.org/grpc/codes
@@ -82822,7 +82822,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:assembleFilesToRead
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:assembleFilesToRead
     to_id: golang/server/preflight.go:stripPatternRefRole
@@ -82858,7 +82858,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:assembleForbiddenFixes
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:assembleRequiredActions
     to_id: golang/pb/awareness_graph.pb.go:GetId
@@ -82922,7 +82922,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:assembleRequiredActions
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:assembleRequiredActions
     to_id: golang/server/preflight.go:stripPatternRefRole
@@ -82942,7 +82942,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:assembleTestsToRun
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:capNodes
     to_id: golang/pb/awareness_graph.pb.go:KnowledgeNode
@@ -82950,7 +82950,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:capNodes
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:capsFor
     to_id: golang/pb/awareness_graph.pb.go:PreflightMode
@@ -82962,7 +82962,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:capsFor
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:capsFor
     to_id: golang/server/preflight.go:preflightCaps
@@ -83020,7 +83020,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:computePreflightCoverage
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:dedupNodesByID
     to_id: golang/pb/awareness_graph.pb.go:KnowledgeNode
@@ -83032,7 +83032,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:dedupNodesByID
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:degradedPreflightResponse
     to_id: golang/pb/awareness_graph.pb.go:Authority
@@ -83115,7 +83115,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:degradedPreflightResponse
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:degradedPreflightResponse
     to_id: golang/server/main.go:server
@@ -83134,7 +83134,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:mergeAnchors
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:sortBySeverityID
     to_id: golang/pb/awareness_graph.pb.go:KnowledgeNode
@@ -83156,7 +83156,7 @@ code_references:
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:sortBySeverityID
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight.go
   - from: golang/server/preflight.go:sortBySeverityID
     to_name: sort
@@ -83307,7 +83307,7 @@ code_references:
     file: golang/server/preflight_cli.go
   - from: golang/server/preflight_cli.go:runPreflightCLI
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/preflight_cli.go
   - from: golang/server/preflight_cli.go:runPreflightCLI
     to_name: io
@@ -83388,7 +83388,7 @@ code_references:
     file: golang/server/provenance.go
   - from: golang/server/provenance.go:applyProvenanceFact
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/provenance.go
   - from: golang/server/provenance.go:applyProvenanceFact
     to_id: golang/server/provenance.go:nodeProvenance
@@ -83514,7 +83514,7 @@ code_references:
     file: golang/server/provenance.go
   - from: golang/server/provenance.go:provenanceFromTriples
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/provenance.go
   - from: golang/server/provenance.go:provenanceFromTriples
     to_id: golang/server/provenance.go:nodeProvenance
@@ -83636,7 +83636,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:Query
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:Query
     to_name: google.golang.org/grpc/codes
@@ -83700,7 +83700,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:appendRowsFromNodes
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:appendRowsFromNodes
     to_id: golang/server/query.go:rowFromNode
@@ -83779,11 +83779,11 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:nodesFromFacts
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:nodesFromFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/query.go
   - from: golang/server/query.go:nodesFromFacts
     to_name: sort
@@ -83847,7 +83847,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:queryByClass
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:queryByClass
     to_name: google.golang.org/grpc/codes
@@ -83923,7 +83923,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:queryByFile
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:queryByFile
     to_name: google.golang.org/grpc/codes
@@ -83987,7 +83987,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:queryByID
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:queryByID
     to_name: google.golang.org/grpc/codes
@@ -84165,11 +84165,11 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:queryClassSpec
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:queryClassSpec
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/query.go
   - from: golang/server/query.go:queryRelated
     to_id: golang/pb/awareness_graph.pb.go:Class
@@ -84251,11 +84251,11 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:queryRelated
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:queryRelated
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/query.go
   - from: golang/server/query.go:queryRelated
     to_name: google.golang.org/grpc/codes
@@ -84307,7 +84307,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:relationShortName
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/query.go
   - from: golang/server/query.go:relationShortName
     to_name: strings
@@ -84402,7 +84402,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:rowFromNode
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:sortQueryRows
     to_id: golang/pb/awareness_graph.pb.go:QueryRow
@@ -84433,7 +84433,7 @@ code_references:
     file: golang/server/query.go
   - from: golang/server/query.go:sortQueryRows
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/query.go
   - from: golang/server/query.go:sortQueryRows
     to_id: golang/server/impact.go:severityRank
@@ -84500,7 +84500,7 @@ code_references:
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:buildSpineLink
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:buildSpineLink
     to_id: golang/server/realized_contracts.go:impl
@@ -84609,7 +84609,7 @@ code_references:
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:describeSpineEvidence
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:describeSpineEvidence
     to_id: golang/server/realized_contracts.go:promotionStatus
@@ -84696,7 +84696,7 @@ code_references:
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:labelOf
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:labelOf
     to_id: golang/server/main.go:server
@@ -84738,7 +84738,7 @@ code_references:
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:realizationProvenance
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:realizationProvenance
     to_id: golang/server/main.go:server
@@ -84796,7 +84796,7 @@ code_references:
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:realizedContractSpine
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:realizedContractSpine
     to_id: golang/server/main.go:server
@@ -84875,7 +84875,7 @@ code_references:
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:realizedContractSpineSection
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/realized_contracts.go
   - from: golang/server/realized_contracts.go:realizedContractSpineSection
     to_id: golang/server/realized_contracts.go:impl
@@ -85131,11 +85131,11 @@ code_references:
     file: golang/server/repair_plans.go
   - from: golang/server/repair_plans.go:classFactsToRepairPlans
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/repair_plans.go
   - from: golang/server/repair_plans.go:classFactsToRepairPlans
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/repair_plans.go
   - from: golang/server/repair_plans.go:classFactsToRepairPlans
     to_id: golang/server/repair_plans.go:loadedRepairPlan
@@ -85202,7 +85202,7 @@ code_references:
     file: golang/server/repair_plans.go
   - from: golang/server/repair_plans.go:loadRepairPlans
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/repair_plans.go
   - from: golang/server/repair_plans.go:loadRepairPlans
     to_id: golang/server/repair_plans.go:globalRepairPlanCache
@@ -85544,7 +85544,7 @@ code_references:
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:Resolve
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:Resolve
     to_name: google.golang.org/grpc/codes
@@ -85685,15 +85685,15 @@ code_references:
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:applyNodeFact
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:applyNodeFact
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:applyNodeFact
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:applyNodeFact
     to_id: golang/server/surface_limits.go:maxResolveFacts
@@ -85726,7 +85726,7 @@ code_references:
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:awarenessIDFromIRI
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:awarenessIDFromIRI
     to_name: strings
@@ -85746,7 +85746,7 @@ code_references:
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:awarenessRelatedID
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:awarenessRelatedID
     to_name: strings
@@ -85763,7 +85763,7 @@ code_references:
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:mintedIRI
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:mintedIRI
     to_name: strings
@@ -85794,11 +85794,11 @@ code_references:
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:nodeDomainFromTriples
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:nodeDomainFromTriples
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:resolveIRIForClassAndID
     to_id: golang/rdf/vocab.go:ClassBoundary
@@ -85894,7 +85894,7 @@ code_references:
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:resolveIRIForClassAndID
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/resolve.go
   - from: golang/server/resolve.go:resolveIRIForClassAndID
     to_id: golang/server/resolve.go:mintedIRI
@@ -85933,7 +85933,7 @@ code_references:
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:anchorHaystack
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:anchorHaystack
     to_name: strings
@@ -85951,7 +85951,7 @@ code_references:
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:anyCriticalSeverity
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:anyCriticalSeverity
     to_name: strings
@@ -85976,7 +85976,7 @@ code_references:
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:anyStrongOrMediumPattern
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:classifyRisk
     to_id: golang/server/risk_classify.go:ClassifyInputs
@@ -86063,7 +86063,7 @@ code_references:
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:classifyRisk
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:classifyRisk
     to_id: golang/server/risk_classify.go:securityKeywords
@@ -86110,7 +86110,7 @@ code_references:
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:computeConfidence
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/risk_classify.go
   - from: golang/server/risk_classify.go:containsAny
     to_name: Contains
@@ -86223,11 +86223,11 @@ code_references:
     file: golang/server/runtime_evidence.go
   - from: golang/server/runtime_evidence.go:classFactsToRuntimeEvidence
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/runtime_evidence.go
   - from: golang/server/runtime_evidence.go:classFactsToRuntimeEvidence
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/runtime_evidence.go
   - from: golang/server/runtime_evidence.go:classFactsToRuntimeEvidence
     to_id: golang/server/runtime_evidence.go:loadedRuntimeEvidence
@@ -86322,7 +86322,7 @@ code_references:
     file: golang/server/runtime_evidence.go
   - from: golang/server/runtime_evidence.go:loadRuntimeEvidence
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/runtime_evidence.go
   - from: golang/server/runtime_evidence.go:loadRuntimeEvidence
     to_id: golang/server/runtime_evidence.go:globalRuntimeEvidenceCache
@@ -86392,7 +86392,7 @@ code_references:
     file: golang/server/scope.go
   - from: golang/server/scope.go:InScope
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/scope.go
   - from: golang/server/scope.go:ResolveScope
     to_id: golang/server/scope.go:AmbiguousScopeError
@@ -86439,7 +86439,7 @@ code_references:
     file: golang/server/scope.go
   - from: golang/server/scope.go:uniqueSorted
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/scope.go
   - from: golang/server/scope.go:uniqueSorted
     to_name: sort
@@ -86472,7 +86472,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:ClassFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:Close
     to_id: golang/server/seed_store.go:embeddedSeedStore
@@ -86494,7 +86494,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:CodeSymbolFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:CountByClass
     to_name: Context
@@ -86568,7 +86568,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:Describe
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:Describe
     to_id: golang/server/seed_store.go:isIRI
@@ -86606,7 +86606,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:DescribeInbound
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:DetectFacts
     to_name: Context
@@ -86644,11 +86644,11 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:DetectFacts
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:DetectFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:DetectFacts
     to_id: golang/server/seed_store.go:pred
@@ -86713,7 +86713,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:GraphFreshness
     to_id: golang/seedmeta/markerfile.go:seedmeta
-    to_name: github.com/globulario/awareness-graph/golang/seedmeta
+    to_name: github.com/globulario/sensei/golang/seedmeta
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:GraphFreshness
     to_id: golang/server/embedded_seed.go:normalizedEmbeddedSeedMarker
@@ -86753,7 +86753,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:ImpactForFile
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:ImpactForFile
     to_id: golang/server/seed_store.go:implements
@@ -86775,7 +86775,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:RenderingGroupsForFile
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:classifiableType
     to_id: golang/server/impact.go:classFromTypeIRI
@@ -86833,11 +86833,11 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:loadSeedGraph
     to_id: golang/rdf/builder.go:rdf
-    to_name: github.com/globulario/awareness-graph/golang/rdf
+    to_name: github.com/globulario/sensei/golang/rdf
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:loadSeedGraph
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:loadSeedGraph
     to_id: golang/server/seed_store.go:implements
@@ -86940,7 +86940,7 @@ code_references:
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:nodeFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/seed_store.go
   - from: golang/server/seed_store.go:nodeFacts
     to_id: golang/server/seed_store.go:isIRI
@@ -87047,7 +87047,7 @@ code_references:
     file: golang/server/service.go
   - from: golang/server/service.go:monitorBackendHealth
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/server/service.go
   - from: golang/server/service.go:monitorBackendHealth
     to_name: google.golang.org/grpc/health/grpc_health_v1
@@ -87344,7 +87344,7 @@ code_references:
     file: golang/server/service.go
   - from: golang/server/service.go:printHealthJSON
     to_id: golang/store/oxigraph/oxigraph.go:oxigraph
-    to_name: github.com/globulario/awareness-graph/golang/store/oxigraph
+    to_name: github.com/globulario/sensei/golang/store/oxigraph
     file: golang/server/service.go
   - from: golang/server/service.go:printHealthJSON
     to_name: io
@@ -87431,7 +87431,7 @@ code_references:
     file: golang/server/service.go
   - from: golang/server/service.go:setupGrpcService
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/service.go
   - from: golang/server/service.go:setupGrpcService
     to_name: google.golang.org/grpc
@@ -87471,7 +87471,7 @@ code_references:
     file: golang/server/surface_limits.go
   - from: golang/server/surface_limits.go:appendFactCapped
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/surface_limits.go
   - from: golang/server/surface_limits.go:briefingProfileForDepth
     to_id: golang/server/surface_limits.go:agentCompactBriefingProfile
@@ -87579,7 +87579,7 @@ code_references:
     file: golang/server/surface_limits.go
   - from: golang/server/surface_limits.go:limitImpactResponseWithCaps
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/surface_limits.go
   - from: golang/server/surface_limits.go:limitImpactResponseWithProfile
     to_id: golang/pb/awareness_graph.pb.go:ImpactResponse
@@ -87595,7 +87595,7 @@ code_references:
     file: golang/server/surface_limits.go
   - from: golang/server/surface_limits.go:limitImpactResponseWithProfile
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/surface_limits.go
   - from: golang/server/surface_limits.go:limitImpactResponseWithProfile
     to_id: golang/server/surface_limits.go:impactNodes
@@ -87665,7 +87665,7 @@ code_references:
     file: golang/server/surface_observability.go
   - from: golang/server/surface_observability.go:logBriefingUsage
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/surface_observability.go
   - from: golang/server/surface_observability.go:logBriefingUsage
     to_id: golang/server/surface_limits.go:impactNodes
@@ -87746,7 +87746,7 @@ code_references:
     file: golang/server/surface_observability.go
   - from: golang/server/surface_observability.go:logResolveUsage
     to_id: golang/pb/awareness_graph.pb.go:awarenesspb
-    to_name: github.com/globulario/awareness-graph/golang/pb
+    to_name: github.com/globulario/sensei/golang/pb
     file: golang/server/surface_observability.go
   - from: golang/server/surface_observability.go:logResolveUsage
     to_id: golang/server/main.go:logger
@@ -87994,7 +87994,7 @@ code_references:
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:ClassFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:ClassFacts
     to_id: golang/store/oxigraph/oxigraph.go:http
@@ -88142,7 +88142,7 @@ code_references:
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:CodeSymbolFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:CodeSymbolFacts
     to_id: golang/store/oxigraph/oxigraph.go:http
@@ -88445,7 +88445,7 @@ code_references:
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:Describe
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:Describe
     to_id: golang/store/oxigraph/oxigraph.go:http
@@ -88573,7 +88573,7 @@ code_references:
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:DescribeInbound
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:DescribeInbound
     to_id: golang/store/oxigraph/oxigraph.go:http
@@ -88718,7 +88718,7 @@ code_references:
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:DetectFacts
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:DetectFacts
     to_id: golang/store/oxigraph/oxigraph.go:http
@@ -88938,7 +88938,7 @@ code_references:
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:ImpactForFile
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:ImpactForFile
     to_id: golang/store/oxigraph/oxigraph.go:http
@@ -89181,7 +89181,7 @@ code_references:
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:RenderingGroupsForFile
     to_id: golang/store/store.go:store
-    to_name: github.com/globulario/awareness-graph/golang/store
+    to_name: github.com/globulario/sensei/golang/store
     file: golang/store/oxigraph/oxigraph.go
   - from: golang/store/oxigraph/oxigraph.go:RenderingGroupsForFile
     to_id: golang/store/oxigraph/oxigraph.go:http

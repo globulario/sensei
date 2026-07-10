@@ -1,6 +1,6 @@
-# AWG multi-language extraction architecture
+# Sensei multi-language extraction architecture
 
-AWG derives **observable structure** from code and joins it with **human-authored intent** in one
+Sensei derives **observable structure** from code and joins it with **human-authored intent** in one
 graph. This document defines the generic extraction pattern, starting with import/dependency graphs.
 
 ## The pipeline (one shape for every language)
@@ -16,7 +16,7 @@ optional config-driven classifier, and renders deterministic YAML — identicall
 
 ## Final design law
 
-> **AWG core extracts structure. Classifier config maps project conventions. Humans author intent.
+> **Sensei core extracts structure. Classifier config maps project conventions. Humans author intent.
 > The graph joins them without pretending one is the other.**
 
 Concretely:
@@ -48,12 +48,12 @@ The shared core does the rest — the parser decides **no** components, edges, o
 
 ## Classifier configuration (language-neutral, optional)
 
-A single optional file (`docs/awareness/import_classifiers.yaml`, or `-config`). AWG core ships **no
+A single optional file (`docs/awareness/import_classifiers.yaml`, or `-config`). Sensei core ships **no
 rules**. First match wins, per language, in declaration order. Go regexp is **RE2 — no
 backreferences**; capture groups + templates only.
 
 ```yaml
-# Fictional examples only — these are NOT shipped by AWG.
+# Fictional examples only — these are NOT shipped by Sensei.
 classifiers:
   - id: acme_go_gateway
     language: go
@@ -139,4 +139,4 @@ are the first higher-level extractor.
 
 No REST/OpenAPI/web-component/framework-route extraction; no automatic boundary/principle/decision/
 intent inference; no call-graph analysis; no candidate promotion; **no project-specific rules,
-paths, or names in AWG core.**
+paths, or names in Sensei core.**

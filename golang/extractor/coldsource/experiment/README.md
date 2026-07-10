@@ -9,7 +9,7 @@ mutates the graph — candidates land as `status: candidate` files under
 
 ## Purpose
 
-Answer the single question that decides SaaS vs. services for AWG:
+Answer the single question that decides SaaS vs. services for Sensei:
 
 > Can an LLM draft awareness candidates from a repo's *existing* signals
 > (PR review comments + revert/regression commits) that a human accepts as

@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor/protoscan"
+	"github.com/globulario/sensei/golang/extractor/protoscan"
 )
 
 // stringList implements flag.Value for repeatable flags.

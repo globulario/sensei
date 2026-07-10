@@ -3,7 +3,7 @@
 // (HadError/QueryError/LoadError/ReachError/DataErrors).
 package badfix
 
-import "github.com/globulario/awareness-graph/cmd/principle-check/rules/testdata/positive/doctor_rule_must_consume_snap_errors/collector"
+import "github.com/globulario/sensei/cmd/principle-check/rules/testdata/positive/doctor_rule_must_consume_snap_errors/collector"
 
 type Finding struct{ Msg string }
 

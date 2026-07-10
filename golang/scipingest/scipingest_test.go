@@ -7,7 +7,7 @@ import (
 
 	"github.com/scip-code/scip/bindings/go/scip"
 
-	"github.com/globulario/awareness-graph/golang/scanner"
+	"github.com/globulario/sensei/golang/scanner"
 )
 
 // buildIndex constructs a minimal SCIP index modeling command/issue.go with two

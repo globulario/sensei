@@ -1,4 +1,4 @@
-# Driving the AWG pre-edit guard from any agent (no Claude Code)
+# Driving the Sensei pre-edit guard from any agent (no Claude Code)
 
 `awg edit-guard` runs a *proposed edit's content* through `edit_check` and
 blocks edits that would introduce a forbidden-fix shape or a high-severity rule

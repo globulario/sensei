@@ -22,9 +22,9 @@ syntax = "proto3";
 package globular.awareness_graph;
 
 // Generated Go bindings live under golang/pb/ as
-//   import awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+//   import awarenesspb "github.com/globulario/sensei/golang/pb"
 // Regenerate via `make proto` (see Makefile and README "Proto generation").
-option go_package = "github.com/globulario/awareness-graph/golang/pb;awarenesspb";
+option go_package = "github.com/globulario/sensei/golang/pb;awarenesspb";
 
 service AwarenessGraph {
   // Briefing composes a ~500-token prose briefing for editing a file or

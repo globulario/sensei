@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/store"
 )
 
 type FreshnessState int

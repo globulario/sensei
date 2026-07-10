@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func preflightQuality(t *testing.T, task, file string) *awarenesspb.PreflightResponse {

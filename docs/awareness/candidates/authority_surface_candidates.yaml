@@ -2,7 +2,7 @@
 # status:candidate only. Review and promote explicitly before treating
 # any of these surfaces as authoritative governance facts.
 authority_surface_candidates:
-  repo_root: /home/dave/Documents/github.com/globulario/awareness-graph
+  repo_root: /home/dave/Documents/github.com/globulario/sensei
   generated_by: awg extract-authority
   candidates:
     - id: candidate.authority.cmd.awg.cmd.serve.runserve

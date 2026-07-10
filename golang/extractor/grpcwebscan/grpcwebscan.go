@@ -36,8 +36,8 @@ import (
 	tstypescript "github.com/tree-sitter/tree-sitter-typescript/bindings/go"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/globulario/awareness-graph/golang/extractor/importgraph"
-	"github.com/globulario/awareness-graph/golang/extractor/protoscan"
+	"github.com/globulario/sensei/golang/extractor/importgraph"
+	"github.com/globulario/sensei/golang/extractor/protoscan"
 )
 
 // Contract is the subset of the contracts: YAML the spine importer reads that

@@ -1,7 +1,7 @@
 # `awg bootstrap` — production repo initialization
 
-`awg bootstrap` is the **production** path for initializing Awareness Graph on an
-existing repository. It scaffolds AWG if missing, runs deterministic architecture
+`awg bootstrap` is the **production** path for initializing Sensei on an
+existing repository. It scaffolds Sensei if missing, runs deterministic architecture
 extraction, optionally mines history candidates, then validates and builds the
 graph — and prints a report.
 

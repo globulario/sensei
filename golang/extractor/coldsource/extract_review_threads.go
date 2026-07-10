@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // minThreadComments is the density bar: a component must accumulate at least

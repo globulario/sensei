@@ -19,8 +19,8 @@ import (
 	"sort"
 	"strings"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/rdf"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // nodeScore holds the trust signals for one node, read from its own facts.

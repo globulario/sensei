@@ -5,8 +5,8 @@ package main
 import (
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 )
 
 // briefing #5 regression: implementation-pattern and intent-trigger sections must

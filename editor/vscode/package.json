@@ -1,13 +1,13 @@
 {
-  "name": "awareness-graph",
-  "displayName": "Awareness Graph",
+  "name": "sensei",
+  "displayName": "Sensei",
   "description": "See the invariants, failure modes, and intent that govern the file you are editing — straight from your project's awareness graph.",
   "version": "0.1.0",
   "publisher": "globulario",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/globulario/awareness-graph.git",
+    "url": "https://github.com/globulario/sensei.git",
     "directory": "editor/vscode"
   },
   "engines": {
@@ -43,7 +43,7 @@
           "id": "awarenessGraph.fileAwareness",
           "name": "This File",
           "icon": "media/awareness.svg",
-          "contextualTitle": "Awareness Graph"
+          "contextualTitle": "Sensei"
         }
       ]
     },
@@ -78,7 +78,7 @@
       ]
     },
     "configuration": {
-      "title": "Awareness Graph",
+      "title": "Sensei",
       "properties": {
         "awarenessGraph.serverAddr": {
           "type": "string",

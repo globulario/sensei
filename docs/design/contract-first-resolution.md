@@ -6,7 +6,7 @@
 > **`meta.contract_must_be_explicit_before_resolution`**
 > Operational rule: **`meta.no_resolution_without_a_respected_contract`**
 >
-> AWG's first duty before repair is to identify, infer, or propose the governing
+> Sensei's first duty before repair is to identify, infer, or propose the governing
 > contract/invariant. A change may only be called **resolved** when the contract
 > is explicit, respected by the patch, and supported by evidence. If no contract
 > can be identified, the result is not "resolved" — it is **"contract unknown"**
@@ -18,14 +18,14 @@ The SWE-bench oracle (hidden tests) measures *did you match the maintainer's
 interpretation*, not *did you resolve the issue in this codebase*. Those coincide
 only when the task is well-defined. When the contract is implicit, "resolving"
 collapses into *guess the oracle* — playing a game without knowing the rules.
-AWG's job is the step before repair: **make the contract explicit so the task is
+Sensei's job is the step before repair: **make the contract explicit so the task is
 well-defined**, then resolution becomes a checkable property (respect), not a
 guess.
 
 ## The contract-first repair protocol
 
 The full agent-facing operating manual — contract statuses, required output
-templates, AWG tool-usage order, the extraction duty, and forbidden behaviors —
+templates, Sensei tool-usage order, the extraction duty, and forbidden behaviors —
 lives in the **services** repo (the agent operating layer, where product repairs
 happen) at `docs/design/contract-first-resolution-protocol.md`, wired into the
 services `CLAUDE.md`. The summary below is the core loop.
@@ -87,12 +87,12 @@ different oracles:
 
 | Measurement | Question | Oracle | Leak-proof? |
 |---|---|---|---|
-| Structural awareness | did AWG surface the right component/blast-radius? | graph vs. file | n/a |
-| Contract discovery | did AWG identify/infer a contract at all, and at what confidence? | the protocol's step 1–3 | yes (no answer key) |
+| Structural awareness | did Sensei surface the right component/blast-radius? | graph vs. file | n/a |
+| Contract discovery | did Sensei identify/infer a contract at all, and at what confidence? | the protocol's step 1–3 | yes (no answer key) |
 | Contract respect | does the patch honor the stated contract? | `awg gate` on the diff | **yes** — reads the patch |
 | Hidden-test fix rate | did it match the maintainer's interpretation? | SWE-bench FAIL_TO_PASS | no (can leak) |
 
-The headline AWG claim lives in *contract discovery* + *contract respect*, not
+The headline Sensei claim lives in *contract discovery* + *contract respect*, not
 fix-rate. Fix-rate is reported, but framed as the oracle it is.
 
 ## Phasing — applied to the current pilot

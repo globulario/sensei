@@ -18,8 +18,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 )
 
 // maxCitationsShown bounds how many citations a provenance line prints; the

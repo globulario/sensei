@@ -36,7 +36,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/store"
 )
 
 // DefaultHTTPTimeout caps an individual SPARQL request at 10 s. This is

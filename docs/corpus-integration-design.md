@@ -2,7 +2,7 @@
 
 *Design only — a proposal, not implemented. No engine, corpus, graph, seed, pack,
 or principle changes are made by this document. It designs the **safe, human-gated
-path** from a reviewed, grounded dry-run finding to an official AWG corpus entry.*
+path** from a reviewed, grounded dry-run finding to an official Sensei corpus entry.*
 
 > **The trust rule this whole design protects:**
 > **Reports can be generated automatically. Corpus truth cannot.**
@@ -137,13 +137,13 @@ Integration must not let them drift.
   (a meta-principle was added/changed).
 - **N-Triples validation must pass** — the appended triples must parse.
 - **Coverage ratchets must be satisfied for any new meta-principle** — a new
-  `meta.*` needs a tier in AWG's `docs/awareness-control/meta_principle_coverage.yaml`
+  `meta.*` needs a tier in Sensei's `docs/awareness-control/meta_principle_coverage.yaml`
   (auto code_scanner, or a registry entry), respecting
   `enforcement_ratchet.max_review_only`. A `candidate_principle` that can only be
   `review_only` must bump the budget deliberately, with justification.
 - **Cross-repo checks validate integration only** — declaration and artifact
   gates may still read external project data, but ownership repairs happen in
-  awareness-graph first. A new AWG principle must not require a companion PR in
+  awareness-graph first. A new Sensei principle must not require a companion PR in
   another repo just to classify its enforcement tier.
 
 ## 7. Human review checklist

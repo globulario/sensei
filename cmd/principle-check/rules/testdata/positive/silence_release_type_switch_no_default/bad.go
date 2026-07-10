@@ -2,7 +2,7 @@
 // 3-arm type switch over release types with NO default case.
 package badfix
 
-import "github.com/globulario/awareness-graph/cmd/principle-check/rules/testdata/positive/silence_release_type_switch_no_default/cluster_controllerpb"
+import "github.com/globulario/sensei/cmd/principle-check/rules/testdata/positive/silence_release_type_switch_no_default/cluster_controllerpb"
 
 func resolve(obj any) string {
 	switch v := obj.(type) {

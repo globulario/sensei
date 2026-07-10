@@ -10,7 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 var queryRPC = func(ctx context.Context, addr string, req *awarenesspb.QueryRequest) (*awarenesspb.QueryResponse, error) {

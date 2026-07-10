@@ -24,7 +24,7 @@ package main
 
 import (
 	"bytes"
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 	"os"
 	"path/filepath"
 	"strings"

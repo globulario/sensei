@@ -1,10 +1,10 @@
-# AWG Quickstart (detailed walkthrough)
+# Sensei Quickstart (detailed walkthrough)
 
 > **Just want the fast path?** → **[../QUICKSTART.md](../QUICKSTART.md)** takes
 > you from zero to your first enforced briefing in 15 minutes. This page is the
 > longer, step-by-step version with more explanation at each stage.
 
-AWG makes architectural intent queryable at the point of edit. This guide takes you from zero to a working awareness graph that catches dangerous edits before they ship.
+Sensei makes architectural intent queryable at the point of edit. This guide takes you from zero to a working awareness graph that catches dangerous edits before they ship.
 
 ## What you'll build
 
@@ -15,16 +15,16 @@ By the end of this guide you'll have:
 
 ## Prerequisites
 
-- **Go 1.23+, git, curl, python3** (to build AWG)
+- **Go 1.23+, git, curl, python3** (to build Sensei)
 - **Claude Code** (optional — for hook enforcement)
 
 Oxigraph (the RDF store) is fetched for you by the installer — see
 **[../INSTALL.md](../INSTALL.md)** for platform notes and the Docker alternative.
 
-## Step 1: Install AWG
+## Step 1: Install Sensei
 
 ```bash
-git clone https://github.com/globulario/awareness-graph.git
+git clone https://github.com/globulario/sensei.git
 cd awareness-graph
 ./scripts/install.sh                 # builds awg + server, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
@@ -50,9 +50,9 @@ docs/awareness/
   high_risk_files.yaml      # Files requiring briefing
   activation_rules.yaml     # When briefing is required
   meta_principles.yaml      # 133 portable principles, 8 categories (seed)
-.awg/config.yaml            # AWG configuration
+.awg/config.yaml            # Sensei configuration
 .claude/hooks/              # Claude Code enforcement hooks
-CLAUDE.md                   # Updated with AWG section
+CLAUDE.md                   # Updated with Sensei section
 ```
 
 ## Step 3: Define your high-risk files
@@ -153,7 +153,7 @@ You should see:
 Build complete.
 ```
 
-That output means AWG published the local runtime authority pair for this
+That output means Sensei published the local runtime authority pair for this
 graph:
 
 - `.awg/graph-authority.json`
@@ -166,11 +166,11 @@ awg serve -no-seed
 ```
 
 The server starts on `localhost:10120` (gRPC). **`-no-seed` matters for your
-own project:** without it, an empty store is seeded with AWG's embedded
+own project:** without it, an empty store is seeded with Sensei's embedded
 *Globular reference graph* — useful as an example, but it would mix Globular's
 invariants into your briefings. With `-no-seed`, your graph contains exactly
 what `awg build` compiled from your `docs/awareness/`, and the runtime marker +
-transaction pair tell AWG that this local graph is the authoritative one to
+transaction pair tell Sensei that this local graph is the authoritative one to
 judge against.
 
 If you later reload a built `.nt` into a long-lived Oxigraph store, verify the
@@ -216,7 +216,7 @@ Required tests:
 
 ## Step 8.5: Evaluate repair-readiness before asking agents to do more
 
-Once the local graph is healthy, you can ask AWG whether the repository is in a
+Once the local graph is healthy, you can ask Sensei whether the repository is in a
 state where controlled agent work is likely to be safe:
 
 ```bash
@@ -226,13 +226,13 @@ awg repo-eval --repo .
 This report stays product-language-first. It tells you:
 
 - the repository's current posture
-- whether AWG sees it as `ready_for_controlled_agents`,
+- whether Sensei sees it as `ready_for_controlled_agents`,
   `guarded_repair_only`, or still structurally weak
 - integrity findings that would make change unsafe
-- an `upgrade_path` showing the next contract and invariant anchors AWG wants
+- an `upgrade_path` showing the next contract and invariant anchors Sensei wants
 
 If you only have enough evidence for `guarded_repair_only`, that is the correct
-answer. AWG should not imply broad agent confidence just because the bootstrap
+answer. Sensei should not imply broad agent confidence just because the bootstrap
 looks clean.
 
 If you want help preparing the next review pass, generate non-authoritative
@@ -287,7 +287,7 @@ Now Claude Code will be blocked from editing files in your high-risk directories
 
 ## The incident-to-invariant workflow
 
-AWG becomes more valuable with every bug you encode. Here's the workflow:
+Sensei becomes more valuable with every bug you encode. Here's the workflow:
 
 ### When something breaks:
 
@@ -369,7 +369,7 @@ Your YAML files          awg build           Oxigraph         awg serve
                          awg preflight
 ```
 
-AWG compiles your YAML into RDF triples, stores them in Oxigraph, and serves them via gRPC. The CLI commands are thin gRPC clients that format the responses for humans. Claude Code hooks call the same API to enforce consultation before edits.
+Sensei compiles your YAML into RDF triples, stores them in Oxigraph, and serves them via gRPC. The CLI commands are thin gRPC clients that format the responses for humans. Claude Code hooks call the same API to enforce consultation before edits.
 
 ## Next steps
 

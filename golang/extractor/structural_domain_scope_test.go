@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // importDirWithRepo imports dir with a default foreign-repo domain scope, the

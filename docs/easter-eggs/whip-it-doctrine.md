@@ -56,6 +56,6 @@ is still in stage 1. Mothersbaugh understood you don't wait on the slowest finde
 ---
 
 > **Q: Are we not devs?**
-> **A: We are AWG.** 🔺
+> **A: We are Sensei.** 🔺
 
 *detect it · whip it into shape · fail closed · don't let the cream sit out.*

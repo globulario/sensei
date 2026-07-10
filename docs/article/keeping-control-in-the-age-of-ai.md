@@ -1,6 +1,6 @@
 # Keeping Control of Your Codebase in the Age of AI
 
-*A draft on why the Awareness Graph exists, and how it changes what an AI agent does before it writes a line.*
+*A draft on why Sensei exists, and how it changes what an AI agent does before it writes a line.*
 
 ---
 
@@ -47,13 +47,13 @@ moment a change is being made** — by a human or an agent, it doesn't matter
 which. The rule reaches the edit *before* the edit happens, not in a document
 someone might read, not in a review someone might catch.
 
-That is the entire thesis of the Awareness Graph (AWG).
+That is the entire thesis of Sensei.
 
-## How AWG changes what an agent does
+## How Sensei changes what an agent does
 
 An ordinary agent's loop is: read the task, read some files, write a patch.
 
-With AWG wired in, one step gets inserted that changes everything downstream:
+With Sensei wired in, one step gets inserted that changes everything downstream:
 
 ```
 $ awg briefing -file src/payment_processor.py -task "refactor mark_paid"
@@ -95,7 +95,7 @@ Three things about that output matter more than they look:
    it on the grounds that the fix is "too simple to need checking" — which, we
    learned the hard way, are precisely the edits that violate a critical
    invariant. A one-function wrapper that looked purely mechanical once shipped
-   without a manifest check because it seemed too obvious to verify. AWG exists
+   without a manifest check because it seemed too obvious to verify. Sensei exists
    so that "too obvious" is never an exemption.
 
 The net behavioral change: the agent stops being a brilliant stranger who
@@ -104,7 +104,7 @@ has read every post-mortem you've ever written.
 
 ## The pieces you actually write
 
-AWG is not magic and it is not a model. It is a small set of YAML files in your
+Sensei is not magic and it is not a model. It is a small set of YAML files in your
 repo that you own, version, and edit — plus a compiler and a query layer.
 
 - **Invariants** — rules that must always hold. *"Session tokens must use
@@ -123,7 +123,7 @@ repo that you own, version, and edit — plus a compiler and a query layer.
   to do when the graph has nothing to say. A typo fix in a safe file proceeds
   silently; a logic change inside a high-risk directory with an empty briefing
   is treated as a degraded signal and escalated, not waved through. Empty is not
-  the same as safe, and AWG refuses to pretend it is.
+  the same as safe, and Sensei refuses to pretend it is.
 
 Every incident you encode makes the graph denser. After fifty of them you have
 a map of your codebase's danger zones that every future edit — human or agent —
@@ -137,7 +137,7 @@ fallback that hides a failure by returning the real response's shape. A write
 with no cleanup path. Two writers racing on one field. An intermediate state
 that satisfies a "done" check before it's actually done.
 
-AWG distills these into ~130 domain-independent **meta-principles** across eight
+Sensei distills these into ~130 domain-independent **meta-principles** across eight
 categories — authority, signal, lifecycle, dependency, perception, composition,
 structure, evolution — and ships them as seed content with `awg init`. They're
 queryable on day one, before you've written a single project-specific rule.
@@ -162,7 +162,7 @@ changed:
 
 - **Mode A** — agent alone (isolated model, no tools)
 - **Mode B** — agent + normal tools (the honest apples-to-apples baseline)
-- **Mode C** — agent + AWG
+- **Mode C** — agent + Sensei
 - **Mode D** — an experimental contract-first lane
 
 Scoring was 100 points: 40 from mechanical test-pass verification, 60 from
@@ -176,11 +176,11 @@ The headline numbers:
 |------|-----------|----------------------|-------------------|
 | A — agent alone     | 71.7 | 3/10 | 88/144 |
 | B — agent + tools   | 86.7 | 5/10 | 127/144 |
-| **C — agent + AWG** | **92.2** | **7/10** | **135/144** |
+| **C — agent + Sensei** | **92.2** | **7/10** | **135/144** |
 
 Read that carefully, because the interesting comparison is **C versus B**, not
 C versus A. Of course tools beat an isolated model — Mode B already jumps 15
-points over Mode A. The question AWG has to answer is whether it adds anything
+points over Mode A. The question Sensei has to answer is whether it adds anything
 *beyond* giving the agent tools.
 
 It does. Mode C improved the average judged score from 86.7 to 92.2, lifted
@@ -217,19 +217,19 @@ We are not going to oversell ten tasks.
   (briefing vs impact vs preflight) drove most of the gain. Ablations are the
   next step.
 
-Confidence, stated plainly: **medium-high** that AWG helps on this benchmark
+Confidence, stated plainly: **medium-high** that Sensei helps on this benchmark
 slice, **medium** that it generalizes across repos, **low** that the
 contract-first lane is production-ready. That's the honest shape of the evidence
 today, and we'd rather you trust the method than the marketing.
 
 ## Why this is a control tool, not just a quality tool
 
-It would be easy to file AWG under "makes agents write better patches." That's
+It would be easy to file Sensei under "makes agents write better patches." That's
 true but it undersells the point.
 
 Architecture drifts one simple fix at a time, and the damage is invisible in
 isolation. By the time drift is visible in production, reversing it means
-reconstructing intent that was never written down. AWG's real job is to **record
+reconstructing intent that was never written down. Sensei's real job is to **record
 the intent and enforce consultation against it at the point of change** — so the
 drift never accumulates in the first place.
 
@@ -247,11 +247,11 @@ review process can hold in its head:
   left now stays in the repo and reaches the next agent on its first commit.
 
 The agents aren't going away, and you don't want them to — they're the most
-productive contributors you have. AWG is how you let them run at full speed
+productive contributors you have. Sensei is how you let them run at full speed
 without letting your architecture drift out from under you. It gives the fast,
 confident, historyless contributor the one thing it's missing: your project's
 memory, delivered at the exact moment it's about to matter.
 
 ---
 
-*AWG is open source: [github.com/globulario/awareness-graph](https://github.com/globulario/awareness-graph). It began inside [Globular](https://github.com/globulario), a distributed platform where these principles were validated against real production incidents, and now runs standalone for any codebase. Benchmark figures are from the Multi-SWE-bench Go pilot (10 tasks, `cli/cli`); see the full report for per-task tables and source notes.*
+*Sensei is open source: [github.com/globulario/sensei](https://github.com/globulario/sensei). It began inside [Globular](https://github.com/globulario), a distributed platform where these principles were validated against real production incidents, and now runs standalone for any codebase. Benchmark figures are from the Multi-SWE-bench Go pilot (10 tasks, `cli/cli`); see the full report for per-task tables and source notes.*

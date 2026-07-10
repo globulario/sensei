@@ -12,13 +12,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
-	"github.com/globulario/awareness-graph/golang/extractor/grpcwebscan"
-	"github.com/globulario/awareness-graph/golang/extractor/importgraph"
-	"github.com/globulario/awareness-graph/golang/extractor/openapiscan"
-	"github.com/globulario/awareness-graph/golang/extractor/protoscan"
-	"github.com/globulario/awareness-graph/golang/extractor/webcompscan"
-	"github.com/globulario/awareness-graph/golang/scanner"
+	"github.com/globulario/sensei/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor/grpcwebscan"
+	"github.com/globulario/sensei/golang/extractor/importgraph"
+	"github.com/globulario/sensei/golang/extractor/openapiscan"
+	"github.com/globulario/sensei/golang/extractor/protoscan"
+	"github.com/globulario/sensei/golang/extractor/webcompscan"
+	"github.com/globulario/sensei/golang/scanner"
 )
 
 // runBootstrap is the PRODUCTION repo-initialization path: it scaffolds AWG if

@@ -1,4 +1,4 @@
-# Onboarding AWG to an existing repository
+# Onboarding Sensei to an existing repository
 
 A repeatable recipe for standing up an awareness graph on a repo you didn't
 author it for — the exact flow validated on a large third-party codebase

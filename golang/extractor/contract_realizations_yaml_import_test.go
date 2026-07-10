@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // TestRealizesContract_AuthoritativeEmitsForwardAndReverse: an authoritative

@@ -1,6 +1,6 @@
 # The Repository as Memory: A Knowledge Graph for AI-Assisted Engineering
 
-*A draft, from an engineering perspective, on how AWG turns invariants,
+*A draft, from an engineering perspective, on how Sensei turns invariants,
 contracts, failure modes, incidents, and meta-principles into one graph the code
 carries with it — the memory an AI agent inherits the moment it enters the repo,
 and the reason the code it writes is correct rather than merely plausible.*
@@ -32,7 +32,7 @@ and quietly violates a rule that was in none of the files it opened. This is
 *better*; it still cannot read what the code does not contain. The knowledge was
 never in the repository to be read.
 
-The Awareness Graph (AWG) is an attempt to fix that at the source: to write the
+Sensei is an attempt to fix that at the source: to write the
 missing structure down in a form a machine can traverse, and to attach it to the
 repository, so that *entering the repo is loading the memory*. Not a prompt you
 hope the agent skims. A typed, queryable graph the agent consults — and, in the
@@ -45,7 +45,7 @@ that produced it.
 
 ## 2. The unit of correctness is the contract, not the file
 
-The first thing AWG does is refuse the file as the unit of reasoning.
+The first thing Sensei does is refuse the file as the unit of reasoning.
 
 A file is an implementation detail. What actually has to stay true is a
 **contract** — a guarantee some part of the system owes to the rest of it.
@@ -260,12 +260,12 @@ releases is enough to start getting value on the very next edit.
 
 ## 5. Contracts: separating the guarantee from the surface that exposes it
 
-Here is where AWG gets genuinely more powerful than a rules file, and it is worth
+Here is where Sensei gets genuinely more powerful than a rules file, and it is worth
 slowing down for.
 
 An invariant protects files. But the same guarantee is often exposed through a
 concrete *surface* — a gRPC method, an HTTP route, a handler — and that surface is
-what an agent actually edits. So AWG splits the idea in two:
+what an agent actually edits. So Sensei splits the idea in two:
 
 - An **architectural contract** is the semantic guarantee, stated independently of
   any endpoint: `contract.config_mutation_requires_valid_token` — *"config mutation
@@ -279,7 +279,7 @@ what an agent actually edits. So AWG splits the idea in two:
 
 The link between them — *"this surface is the executable exposure of that
 guarantee"* — is the `realizesContract` edge, and it is the most dangerous edge in
-the graph, because a wrong one would make the briefing lie with authority. So AWG
+the graph, because a wrong one would make the briefing lie with authority. So Sensei
 never infers-and-trusts it in one step. It uses a **safety ladder** from guess to
 authority:
 
@@ -373,7 +373,7 @@ This is how the graph catches a bug you are *about to introduce*. It does not
 wait for you to touch a known-bad file; it recognizes the *move* — "you're adding
 an env-var fallback" — and surfaces the failure mode it triggers before you finish
 the edit. Pattern-matching on the shape of a change, not the location, is what
-lets AWG warn about danger in code that has never broken before.
+lets Sensei warn about danger in code that has never broken before.
 
 ## 7. The edges are the knowledge — one worked traversal
 
@@ -429,7 +429,7 @@ Candidate realized contracts (REVIEW-ONLY — not authority; promote with `awg p
 
 That traversal *is* the memory. It is what a senior engineer does in their head in
 the half-second before they lean over and say "wait — don't do that, here's why."
-AWG makes it explicit, deterministic, and available to a contributor who has no
+Sensei makes it explicit, deterministic, and available to a contributor who has no
 head-memory at all. And note the last line of the authority block: *"Do not claim
 resolution if this contract is bypassed, weakened, or left untested."* The graph
 does not merely inform the agent; it constrains what the agent is permitted to
@@ -438,7 +438,7 @@ does not merely inform the agent; it constrains what the agent is permitted to
 ## 8. Governance: why the graph can be trusted like a compiler
 
 A memory that can be quietly corrupted is worse than no memory, because you'll
-trust it. So AWG treats the *provenance* of every authoritative edge as part of
+trust it. So Sensei treats the *provenance* of every authoritative edge as part of
 the engineering, and it wires that into the build:
 
 1. **Candidates are never authority.** `candidateRealizesContract` renders in a
@@ -522,7 +522,7 @@ There is an old line, the closest thing software has to a fundamental theorem:
 > *"All problems in computer science can be solved by another level of
 > indirection."* — David Wheeler
 
-That is what makes this whole thing work, and it is worth saying plainly. **AWG is
+That is what makes this whole thing work, and it is worth saying plainly. **Sensei is
 that level of indirection, placed between the agent and the code.** It is a place
 where the project's intent, invariants, contracts, failure modes, and hard-won
 lessons live as something queryable — instead of dissolving into a model's context
@@ -554,10 +554,10 @@ constant. Only context changed:
 
 - **Mode A** — agent alone (no tools): avg score 71.7, 3/10 tasks fully passing
 - **Mode B** — agent + normal tools (the honest baseline): 86.7, 5/10
-- **Mode C** — agent + AWG: **92.2, 7/10**
+- **Mode C** — agent + Sensei: **92.2, 7/10**
 
 The comparison that matters is **C vs B**, not C vs A — of course tools beat an
-isolated model. The question is whether AWG adds anything *beyond* tools. It does:
+isolated model. The question is whether Sensei adds anything *beyond* tools. It does:
 Mode C beat the plain tool-assisted baseline on **7 of 10 tasks**, tied or
 near-tied on one, and lost narrowly on two, with per-task wins as large as +21,
 +14, and +10 points against losses of only −1. On the separate mechanical test
@@ -570,7 +570,7 @@ The honest limits, stated plainly: the sample is small (ten tasks, one
 repository — a strong signal, not universal proof); 60 of the 100 scoring points
 are judged by an LLM, though the mechanical test lane is separate and clean; and
 the result validates the Mode C *bundle*, not which individual feature drove the
-gain. Confidence is medium-high that AWG helps on this slice, medium that it
+gain. Confidence is medium-high that Sensei helps on this slice, medium that it
 generalizes across repos. We would rather you trust the method than the marketing.
 
 ## 12. The repository becomes the memory
@@ -584,7 +584,7 @@ the session. So the agent is fluent and wrong, and it learns nothing between
 sessions because there is nothing durable to learn from. The next agent repeats
 the last agent's mistake.
 
-With AWG, that knowledge lives *in the repository*, as one typed graph, versioned
+With Sensei, that knowledge lives *in the repository*, as one typed graph, versioned
 alongside the code it governs. Meta-principles encode the generative shapes that
 predict the next bug. Invariants ground them at real addresses. Architectural
 contracts encode the guarantees; implementation contracts bind them to the actual
@@ -607,11 +607,11 @@ line is written.
 
 ---
 
-*AWG is open source: [github.com/globulario/awareness-graph](https://github.com/globulario/awareness-graph).
+*Sensei is open source: [github.com/globulario/sensei](https://github.com/globulario/sensei).
 The node types and edges here are the Contract Spine v1 vocabulary
 (`docs/contract-spine-v1.md`); all 133 meta-principles are documented in
 `docs/meta-principles.md`; the practice is `docs/the-discipline.md`; the pilot is
-the Multi-SWE-bench Go benchmark report. AWG began inside
+the Multi-SWE-bench Go benchmark report. Sensei began inside
 [Globular](https://github.com/globulario), where the meta-principles were
 distilled from real production incidents (the INC-2026-\* references above are
 those incidents), and now runs standalone for any repository.*

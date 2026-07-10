@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/seedmeta"
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 type seedStatusLane struct {

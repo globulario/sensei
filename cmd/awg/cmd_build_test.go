@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/seedmeta"
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 func TestFinalizeBuildArtifact_DedupsBeforeMarker(t *testing.T) {

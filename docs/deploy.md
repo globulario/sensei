@@ -1,6 +1,6 @@
-# Deploying AWG (self-host)
+# Deploying Sensei (self-host)
 
-AWG is two things: a **service** (the awareness-graph gRPC server + an Oxigraph
+Sensei is two things: a **service** (the awareness-graph gRPC server + an Oxigraph
 store) and **client tools** (`awg` CLI, `awareness-mcp` bridge) that agents and
 CI point at it. This guide self-hosts both. Managed hosting comes later; the
 same client tools will point at it unchanged.
@@ -30,7 +30,7 @@ AWG_ADDR=localhost:10120 awg metadata     # coverage + freshness
 ## 2. Install the client tools
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/globulario/awareness-graph/master/deploy/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/globulario/sensei/master/deploy/install.sh | sh
 # or, from a checkout:  ./deploy/install.sh
 ```
 

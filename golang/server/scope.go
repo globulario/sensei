@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // Domain scoping keeps truth from crossing repos accidentally. One AWG instance

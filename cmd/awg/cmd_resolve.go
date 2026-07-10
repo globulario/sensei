@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 var resolveRPC = func(ctx context.Context, addr, class, id, domain string) (*awarenesspb.ResolveResponse, error) {

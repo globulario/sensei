@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
-	"github.com/globulario/awareness-graph/golang/store"
+	"github.com/globulario/sensei/golang/store"
 )
 
 const registeredGRPCServiceName = "globular.awareness_graph.AwarenessGraph"

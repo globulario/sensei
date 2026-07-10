@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor/protoscan"
+	"github.com/globulario/sensei/golang/extractor/protoscan"
 )
 
 func writeFile(t *testing.T, path, content string) {

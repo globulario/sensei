@@ -1,8 +1,8 @@
 # Where agent memory pays for correctness: the write-time / read-time trade-off
 
 *Design only — a principle, not a feature. No engine, rule, or graph changes are
-made by this document. It names the general law that AWG instantiates, states it
-as a trade-off rather than a slogan, and records when the AWG side of the trade
+made by this document. It names the general law that Sensei instantiates, states it
+as a trade-off rather than a slogan, and records when the Sensei side of the trade
 is the right bet and when it is the wrong one.*
 
 ## The principle
@@ -20,7 +20,7 @@ Every durable agent-memory system sits on a spectrum between two poles:
   free-form memory files live here.
 - **Fail-closed (write-time correctness).** Reject a write unless it names an
   explicit contract, carries provenance, and types cleanly. The store is a
-  verifiable artifact, not an accumulating pile. AWG lives here: `awg propose`
+  verifiable artifact, not an accumulating pile. Sensei lives here: `awg propose`
   routes anything that resolves to `contract_unknown` into `candidates/` instead
   of the graph.
 
@@ -36,7 +36,7 @@ The fail-closed pole has a real, structural cost that the slogan
 
 A write that must name a contract can only be made where a contract exists and
 is discoverable. Where it doesn't, the write is *refused* — correct by
-construction, but the knowledge is lost rather than captured. AWG's own
+construction, but the knowledge is lost rather than captured. Sensei's own
 cold-bootstrap finding is exactly this failure mode: solo repos don't
 triangulate (no commit + PR-review channels to ground intent against), so the
 contract-first gate has nothing to validate against and learning stalls. The
@@ -61,23 +61,23 @@ So the honest statement is not "fail-closed wins." It is:
 ## Factual vs behavioral memory: why norms force the write-time pole
 
 The trade-off above assumes both poles are *available* and you are choosing
-between them. For most of what AWG actually stores, one pole is barely
+between them. For most of what Sensei actually stores, one pole is barely
 available — and which pole depends on what *kind of claim* a memory makes.
 
 Sort memory by the kind of claim it makes:
 
 - **Factual** — truth-conditioned, checkable against the world, re-derivable.
-  In AWG this is the structural substrate: import graphs, Components,
+  In Sensei this is the structural substrate: import graphs, Components,
   Boundaries, the Evidence that records what was observed. "X imports Y" is
   true or false, and you can re-derive it.
 - **Behavioral / normative** — *no truth value*; it carries justification and
-  applicability conditions instead. In AWG this is the center of gravity:
+  applicability conditions instead. In Sensei this is the center of gravity:
   Contracts ("this boundary must be honored this way"), Decisions, the
   MetaPrinciples, and nearly everything the feedback write path captures.
   "Fail closed on ambiguity" is not *true* — it is a policy that is good or bad
   *in a context*.
 
-AWG is therefore not all behavioral, but its shape is a thin **factual scaffold**
+Sensei is therefore not all behavioral, but its shape is a thin **factual scaffold**
 (structure) carrying a thick **behavioral superstructure** (norms). The
 behavioral layer is the hard-won, distinctive part; the structural extraction is
 comparatively cheap.
@@ -103,7 +103,7 @@ So for behavioral memory the choice collapses:
 This is *why* contracts must be explicit. It is not a stylistic choice layered on
 a generic store; it is forced by the content. A factual store can get away with
 implicit grounding — re-derive truth on read. A normative store cannot, because
-its norms have nothing to re-derive against. AWG being mostly behavioral makes
+its norms have nothing to re-derive against. Sensei being mostly behavioral makes
 its fail-closed stance **more** justified, not less.
 
 Two consequences follow, and both are already visible in the design:
@@ -121,7 +121,7 @@ Two consequences follow, and both are already visible in the design:
 
 ## The decision rule
 
-Pick the fail-closed (AWG-style) pole when **all** of these hold:
+Pick the fail-closed (Sensei-style) pole when **all** of these hold:
 
 1. **Contracts genuinely exist** in the domain — there is a real, nameable thing
    each memory must bind to (an interface, an invariant, a typed boundary).
@@ -144,9 +144,9 @@ Pick the fail-open (free-form / RAG) pole when **any** of these hold:
 3. **Coverage matters more than per-item trust** — you would rather capture
    everything noisily and sort it out later than lose anything.
 
-## Where AWG sits — and where it deliberately doesn't
+## Where Sensei sits — and where it deliberately doesn't
 
-AWG bets the fail-closed pole for **structured engineering knowledge**, because
+Sensei bets the fail-closed pole for **structured engineering knowledge**, because
 that is precisely the domain where the four "pick fail-closed" conditions hold:
 contracts exist (Components, Boundaries, Contracts, Decisions), they are
 extractable, the graph is meant to compound across sessions and repos, and
@@ -155,7 +155,7 @@ deleting a wrong node is a first-class operation.
 It would be the *wrong* bet for the consumer-memory case — remembering that a
 user prefers terse answers has no contract to validate against, and a
 write-time gate there would just drop the note. That case correctly belongs to
-the fail-open pole. This is not a weakness of AWG; it is the trade-off being
+the fail-open pole. This is not a weakness of Sensei; it is the trade-off being
 honored rather than ignored.
 
 ## A hybrid is legitimate, not a cop-out
@@ -163,7 +163,7 @@ honored rather than ignored.
 Because the cost is *where* not *whether*, a system can place different memory
 classes at different poles:
 
-- **Structured engineering facts** → fail-closed graph (AWG, `awg propose`,
+- **Structured engineering facts** → fail-closed graph (Sensei, `awg propose`,
   contract-first, Evidence-backed).
 - **Episodic / preference / cold-start notes** → fail-open free-form capture,
   with a *later* promotion path: a note can graduate into the graph once a
@@ -182,14 +182,14 @@ have different constraint economics*.
 - It **does** claim the *trade-off* transfers: any agent-memory designer must
   decide where correctness is paid, and that decision should be driven by the
   domain's constraint economics, not by taste.
-- It locates AWG honestly: the right bet for a domain rich in cheap, discoverable
+- It locates Sensei honestly: the right bet for a domain rich in cheap, discoverable
   contracts, the wrong bet for a domain with none, and a hybrid wherever a single
   system spans both.
 
 ## Related
 
-- [memory-scope-bands](memory-scope-bands.md) — *what* memory AWG is responsible
-  for (the durable, system-specific band) and why **agent + AWG** covers the
+- [memory-scope-bands](memory-scope-bands.md) — *what* memory Sensei is responsible
+  for (the durable, system-specific band) and why **agent + Sensei** covers the
   surface; this doc is *where* that band pays for correctness.
 - [contract-first-resolution](contract-first-resolution.md) — the explicit-contract
   rule and the corpus→pack→seed promotion path the write-time gate depends on.

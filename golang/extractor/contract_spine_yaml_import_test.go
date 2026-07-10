@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // TestFailureMode_ViolatesContract_EmitsSpineEdges verifies the Phase-1 spine

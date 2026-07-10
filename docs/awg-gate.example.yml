@@ -32,7 +32,7 @@ jobs:
 
       - name: Install AWG
         run: |
-          go install github.com/globulario/awareness-graph/cmd/awg@latest
+          go install github.com/globulario/sensei/cmd/awg@latest
           # Or build from a vendored checkout: make awg
 
       - name: Serve the awareness graph

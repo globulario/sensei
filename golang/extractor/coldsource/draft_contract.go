@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // Drafter turns a triangulated evidence Bundle into a candidate proposal.

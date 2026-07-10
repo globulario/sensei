@@ -16,7 +16,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/contractassess"
+	"github.com/globulario/sensei/golang/contractassess"
 	"gopkg.in/yaml.v3"
 )
 

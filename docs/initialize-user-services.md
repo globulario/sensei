@@ -1,6 +1,6 @@
 # Local User Services
 
-Use `systemd --user` when you want a supervised local AWG stack instead of ad
+Use `systemd --user` when you want a supervised local Sensei stack instead of ad
 hoc background commands.
 
 If you already have a stable service-managed Oxigraph on `127.0.0.1:7878`,
@@ -9,7 +9,7 @@ reuse it and supervise only `awareness-graph`.
 ## Install
 
 ```bash
-cd /home/dave/Documents/github.com/globulario/awareness-graph
+cd /home/dave/Documents/github.com/globulario/sensei
 ./scripts/install-awg-user-services.sh
 ```
 
@@ -27,7 +27,7 @@ To force reuse of an existing service-managed Oxigraph:
 ./scripts/install-awg-user-services.sh --reuse-existing-oxigraph
 ```
 
-To force AWG to own both local user services:
+To force Sensei to own both local user services:
 
 ```bash
 ./scripts/install-awg-user-services.sh --no-reuse-existing-oxigraph
@@ -35,7 +35,7 @@ To force AWG to own both local user services:
 
 The `awareness-graph` unit starts with `-require-store=true` and performs a
 pre-start check against the configured Oxigraph endpoint, so it fails closed if
-the backend is unavailable. When AWG installs its own local Oxigraph unit, the
+the backend is unavailable. When Sensei installs its own local Oxigraph unit, the
 service also depends on `awg-oxigraph.service`.
 
 ## Verify
@@ -62,7 +62,7 @@ systemctl --user status awg-awareness-graph.service
 journalctl --user -u awg-awareness-graph.service -n 100 --no-pager
 ```
 
-If AWG installed both local user units:
+If Sensei installed both local user units:
 
 ```bash
 systemctl --user restart awg-oxigraph.service awg-awareness-graph.service

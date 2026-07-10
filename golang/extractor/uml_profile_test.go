@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/extractor"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // TestUML_InlineAndOverlay covers both authoring paths: an inline `uml:` block

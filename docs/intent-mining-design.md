@@ -1,14 +1,14 @@
 # Intent mining: extracting architectural intent, then grounding it
 
 *Design only — a proposal, not implemented. No engine, cage, corpus, graph,
-seed, or principle changes are made by this document. It designs how AWG could
+seed, or principle changes are made by this document. It designs how Sensei could
 mine **stated architectural intent** from a project's explicit human sources,
 ground that intent against what the code actually encodes, and surface where the
 two diverge — without ever letting a doc or an LLM become trusted truth on its
 own.*
 
 > **The distinction this whole design protects:**
-> **The LLM may propose intent. AWG must ground it. Humans approve meaning.**
+> **The LLM may propose intent. Sensei must ground it. Humans approve meaning.**
 > Docs can *propose* a rule; docs alone are never final truth.
 
 ---
@@ -28,7 +28,7 @@ Two failure modes follow from never mining that intent:
 1. **Silent drift.** A stated rule erodes one "simple fix" at a time. The doc
    still says X; the code now does not-X; nobody notices until it fails
    expensively. This is exactly the drift the awareness graph exists to prevent —
-   but today AWG only catches it *after* a scar.
+   but today Sensei only catches it *after* a scar.
 2. **Hidden law.** A test or a landed fix encodes a real rule that no doc
    explains. New contributors (and agents) re-derive it by breaking it.
 
@@ -93,7 +93,7 @@ Extraction is LLM-backed (proposing intent from prose is a reasoning task).
 Everything after extraction is **mechanical grounding** reusing the coldsource
 GROUND phase — git, file reads, symbol resolution — plus a divergence check
 (does the code agree with the stated intent?). The human gate is unchanged from
-every other AWG path.
+every other Sensei path.
 
 ## 4. Grounding model
 
@@ -192,7 +192,7 @@ plus owner-conflict and no-anchor. The *divergence* classes are the point.
 **findings** — drift the graph wants surfaced. `ungrounded_claim` is segregated
 exactly like a coldsource review-only lead.
 
-## 7. Examples from Globular / AWG
+## 7. Examples from Globular / Sensei
 
 | Intent (illustrative) | Stated in | Encoded in | Class |
 |---|---|---|---|
@@ -236,7 +236,7 @@ GROUND phase and the human gate, and differ only in where they start:
   grounded intent to an *existing* `meta.*` automatically (audited, reversible);
   a *new* principle is always the human zoom-out. New intent never auto-mints.
 
-AWG's job after the human accepts: store the reviewed
+Sensei's job after the human accepts: store the reviewed
 **intent → invariant → test → code → meta-principle** links so the charter and
 the reality stay tied, and the next divergence is detectable.
 

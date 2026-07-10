@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 	yaml "gopkg.in/yaml.v3"
 )
 

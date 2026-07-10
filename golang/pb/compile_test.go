@@ -33,7 +33,7 @@ package awarenesspb_test
 import (
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // TestGeneratedMessageTypesExist references every message type from

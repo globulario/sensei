@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

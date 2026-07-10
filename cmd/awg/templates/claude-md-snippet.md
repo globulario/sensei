@@ -1,6 +1,6 @@
-## Awareness Graph (AWG)
+## Sensei
 
-This project uses AWG to prevent architectural drift. Before editing files
+This project uses Sensei to prevent architectural drift. Before editing files
 in protected directories, consult the awareness graph.
 
 ### Rules

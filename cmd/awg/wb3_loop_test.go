@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // TestWriteBackLoop_EndToEnd demonstrates the full write-back loop (WB-3) on a

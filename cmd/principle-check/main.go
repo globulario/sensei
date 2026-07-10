@@ -117,7 +117,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		siteNoun = "ruleguard findings"
 		// awareness-graph repo is assumed to be a sibling of services
 		// under the same parent dir (e.g. .../globulario/services and
-		// .../globulario/awareness-graph). If the layout differs, set
+		// .../globulario/sensei). If the layout differs, set
 		// AWARENESS_GRAPH_ROOT to override.
 		awarenessGraphRoot := filepath.Join(filepath.Dir(*repo), "awareness-graph")
 		if env := os.Getenv("AWARENESS_GRAPH_ROOT"); env != "" {

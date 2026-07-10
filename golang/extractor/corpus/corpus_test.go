@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/globulario/awareness-graph/golang/extractor/coldsource"
+	"github.com/globulario/sensei/golang/extractor/coldsource"
 )
 
 func TestClassify(t *testing.T) {

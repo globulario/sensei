@@ -2,7 +2,7 @@
 
 package main
 
-import awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+import awarenesspb "github.com/globulario/sensei/golang/pb"
 
 const (
 	maxSurfaceNodesPerClass     = 12

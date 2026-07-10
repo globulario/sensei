@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
-	"github.com/globulario/awareness-graph/golang/store"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/store"
 )
 
 func changeRiskLine(resp *awarenesspb.PreflightResponse) string {

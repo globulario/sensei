@@ -1,6 +1,6 @@
 # Case study: turning a codebase into an agent-ready system
 
-*A short, honest account of why AWG exists and one piece of proof that it works.*
+*A short, honest account of why Sensei exists and one piece of proof that it works.*
 
 ## The problem: agents write code but lose the architecture
 
@@ -30,10 +30,10 @@ question at the moment it matters:
 Not documentation a human might read someday — a graph an agent queries
 automatically, before the edit, every time.
 
-## The solution: AWG
+## The solution: Sensei
 
 You write your project's intent, invariants, failure modes, forbidden fixes,
-and high-risk paths as small YAML files in your repo. AWG compiles them into a
+and high-risk paths as small YAML files in your repo. Sensei compiles them into a
 graph (RDF, stored in a local Oxigraph instance) and serves briefings over a
 small gRPC API and CLI. An editor integration or a CI step asks for a briefing
 before code changes; the agent receives the rules that apply.
@@ -80,11 +80,11 @@ are no longer trapped in people; they are explicit, versioned, and reachable
 by whatever tool touches the code. New agents and new engineers inherit the
 architecture instead of rediscovering it by breaking it.
 
-AWG turns a codebase into an **agent-ready system** — one that can absorb a
+Sensei turns a codebase into an **agent-ready system** — one that can absorb a
 high volume of AI-assisted change without losing the design that makes it work.
 
 ---
 
 *Status: early. The cold-start path is validated on Linux and macOS with Go
-installed. Try it and [open an issue](https://github.com/globulario/awareness-graph/issues)
+installed. Try it and [open an issue](https://github.com/globulario/sensei/issues)
 where it breaks.*

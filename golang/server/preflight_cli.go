@@ -23,7 +23,7 @@ import (
 	"io"
 	"strings"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // stringListFlag accumulates repeated -file flags.

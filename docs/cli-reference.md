@@ -1,4 +1,4 @@
-# AWG CLI Reference
+# Sensei CLI Reference
 
 Complete reference for the `awg` command. For the gRPC/MCP wire surface see
 [api-reference.md](./api-reference.md); for the agent workflow see
@@ -47,7 +47,7 @@ Scaffold awareness for a new project.
 |---|---|---|
 | `--dir` | `.` | project root |
 | `--hooks` | `true` | generate Claude Code hook scripts under `.claude/hooks/` |
-| `--claude-md` | `true` | append the AWG section to `CLAUDE.md` (idempotent) |
+| `--claude-md` | `true` | append the Sensei section to `CLAUDE.md` (idempotent) |
 
 Creates `docs/awareness/` with templates (`invariants.yaml`,
 `failure_modes.yaml`, `incident_patterns.yaml`, `high_risk_files.yaml`,
@@ -56,7 +56,7 @@ plus `.awg/config.yaml`. Prints created files and next steps.
 
 ### `awg bootstrap` — Local
 
-Initialize AWG for an *existing* repo: scaffold if missing, run deterministic
+Initialize Sensei for an *existing* repo: scaffold if missing, run deterministic
 architecture extraction (proto/REST contracts, web components, components,
 per-language import graph, code symbols, tests), optionally mine history
 candidates, then validate and build.
@@ -271,7 +271,7 @@ you review and commit.** This is the supported write path; it is contract-first
 | `--required-test` (rep.) | — | `file.go:TestName` |
 | `--forbidden-fix` (rep.) | — | forbidden fix id or note |
 | `--evidence` (rep.) | — | evidence line |
-| `--repo` / `--domain` | — | repo / domain scope (e.g. `github.com/globulario/awareness-graph`) |
+| `--repo` / `--domain` | — | repo / domain scope (e.g. `github.com/globulario/sensei`) |
 | `--target-repo` | awareness-graph | repo whose `docs/awareness/` receives the entry |
 | `--dry-run` | `false` | validate + render only |
 | `--no-rebuild` | `false` | append YAML but skip rebuild/reload |
@@ -426,12 +426,12 @@ AI repair work yet, and if not, what is the next upgrade step?"
 Key outputs:
 
 - `posture`: overall repository quality signal
-- `agent_readiness`: whether AWG sees the repo as ready for controlled agents,
+- `agent_readiness`: whether Sensei sees the repo as ready for controlled agents,
   limited to guarded repair, or still too weak
 - `integrity_findings`: structural reasons confidence should remain bounded
 - `upgrade_path`: top contract and invariant candidates to review next
 
-`guarded_repair_only` is a legitimate result. It means AWG sees enough
+`guarded_repair_only` is a legitimate result. It means Sensei sees enough
 structure for governed repairs under explicit constraints, but not enough
 stable authority for broader change.
 
@@ -527,7 +527,7 @@ blocks, never edits.
 | `--repo-root` | `.` | repo to diff |
 | `--domain` | — | scope; required on a multi-domain graph |
 | `--addr` | `localhost:10120` | gRPC server |
-| `--report-only` | `false` | CI fail-open: always exit 0, print a non-blocking summary even if AWG is down |
+| `--report-only` | `false` | CI fail-open: always exit 0, print a non-blocking summary even if Sensei is down |
 | `--json` | `false` | JSON output |
 
 **Frozen-contract mode (`--contracts`):** self-contained gate over a frozen
@@ -560,7 +560,7 @@ Booleans: `--explicit-contract`, `--governing-test`. `--blocker` (repeatable):
 ### `awg contract-bootstrap` — Server (optional)
 
 Build a *proposed* repair-contract bootstrap from issue text, fail-to-pass
-tests, repo surfaces, and optional AWG cross-references. Mutates nothing.
+tests, repo surfaces, and optional Sensei cross-references. Mutates nothing.
 
 | Flag | Default | Purpose |
 |---|---|---|
@@ -568,7 +568,7 @@ tests, repo surfaces, and optional AWG cross-references. Mutates nothing.
 | `--task-file` | — | task JSON (`issue`/`domain`/`f2p_tests`) — takes precedence over `--issue` |
 | `--issue` | — | issue text |
 | `--f2p-test` (rep.) | — | fail-to-pass test name |
-| `--domain` | — | scope for AWG cross-reference |
+| `--domain` | — | scope for Sensei cross-reference |
 | `--addr` | `localhost:10120` | gRPC server (used only if reachable) |
 | `--format` | `text` | `text` \| `json` \| `prompt` (LLM context) \| `scaffold` (YAML ready for `awg gate --contracts`) |
 
@@ -643,7 +643,7 @@ graph.**
 ### `awg intent-mine` — Local (+ optional LLM)
 
 Ground architectural-intent candidates against a repo tree; dry-run report
-grouped by output class. Proposer proposes, AWG grounds, human approves.
+grouped by output class. Proposer proposes, Sensei grounds, human approves.
 
 | Flag | Default | Purpose |
 |---|---|---|

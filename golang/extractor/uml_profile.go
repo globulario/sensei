@@ -21,7 +21,7 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // umlProfile is the inline `uml:` block. All fields optional; an empty profile

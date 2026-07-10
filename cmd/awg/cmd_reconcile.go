@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/rdf"
-	"github.com/globulario/awareness-graph/golang/store/oxigraph"
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 // runReconcile implements `awg reconcile` (GC-3): the live-store ↔ authored-YAML

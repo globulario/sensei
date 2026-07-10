@@ -1,12 +1,12 @@
 # UML profile — optional architectural vocabulary
 
-AWG is **not** a UML tool and does not become one. The UML profile is an
+Sensei is **not** a UML tool and does not become one. The UML profile is an
 **optional** layer of classification metadata that lets architects and AI agents
-share a standard architectural vocabulary on top of AWG's native concepts
+share a standard architectural vocabulary on top of Sensei's native concepts
 (MetaPrinciple, Invariant, FailureMode, Decision, Component, Boundary, Contract,
 Evidence, …).
 
-UML is **metadata, never authority**: a node's AWG class and AWG relations stay
+UML is **metadata, never authority**: a node's Sensei class and Sensei relations stay
 canonical. UML is used as (a) a naming vocabulary, (b) a diagram/view
 classification system, and (c) a mapping layer — not as a source of truth, an
 ontology replacement, or a requirement to model everything.
@@ -32,7 +32,7 @@ Artifact, Node, Deployment, Dependency, Realization, Usage, Association, Signal,
 Event, StateMachine, State, Activity, Constraint, UseCase, Actor.
 
 **`uml.view` (v1):** structural, behavioral, interaction, deployment,
-**awareness**. `awareness` is the AWG-specific view for the
+**awareness**. `awareness` is the Sensei-specific view for the
 principle/invariant/failure/decision/evidence layer UML does not cover — kept
 explicit so that layer is never flattened into a generic UML Constraint.
 
@@ -76,9 +76,9 @@ present.
 `awg validate` rejects an out-of-set `uml.kind` (`invalid_uml_kind`) or
 `uml.view` (`invalid_uml_view`). Stereotype is free-form.
 
-## Recommended AWG → UML mappings
+## Recommended Sensei → UML mappings
 
-| AWG class             | uml.kind (typical)        | uml.view    |
+| Sensei class          | uml.kind (typical)        | uml.view    |
 |-----------------------|---------------------------|-------------|
 | Component (service…)  | Component / Node          | structural / deployment |
 | Contract (service)    | Interface                 | interaction |
@@ -96,5 +96,5 @@ present.
 | DesignPattern         | Constraint / StateMachine | awareness / behavioral |
 | ImplementationPattern | Activity / Component      | behavioral  |
 
-AWG relation names stay canonical; the UML relation vocabulary (Realization,
+Sensei relation names stay canonical; the UML relation vocabulary (Realization,
 Usage, Dependency, …) is an optional mapping for diagram export, not a rename.

@@ -2,7 +2,7 @@
 
 // Package client provides a standalone gRPC client for the awareness-graph
 // service. No Globular-specific imports — any Go application can use this
-// by importing "github.com/globulario/awareness-graph/golang/client".
+// by importing "github.com/globulario/sensei/golang/client".
 //
 // Usage:
 //
@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

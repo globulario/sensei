@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/awareness-graph/golang/client"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/client"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 func runPreflight(args []string) int {

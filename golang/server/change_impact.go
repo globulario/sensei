@@ -19,8 +19,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/globulario/awareness-graph/golang/coverage"
-	awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+	"github.com/globulario/sensei/golang/coverage"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 // ChangeImpactPlan is the structured prediction for a proposed change.
