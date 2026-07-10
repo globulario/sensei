@@ -3,7 +3,7 @@ version: 1
 metadata:
   name: awareness-graph
   service_id: globular.awareness_graph.AwarenessGraph
-  version: "0.0.20"
+  version: "0.1.0"
   kind: service
   description: "Awareness graph service for Resolve, Impact, Briefing, and constrained Query over compiled RDF awareness context."
   keywords: [awareness, rdf, graph, briefing, impact, intent, agent]

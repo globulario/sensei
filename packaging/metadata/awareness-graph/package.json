@@ -2,7 +2,7 @@
   "type": "service",
   "name": "awareness-graph",
   "service_id": "globular.awareness_graph.AwarenessGraph",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "platform": "linux_amd64",
   "publisher": "core@globular.io",
   "entrypoint": "bin/awareness-graph",
