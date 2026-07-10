@@ -1,8 +1,16 @@
-# Sensei — architectural awareness for your AI coding agent
+<p align="center">
+  <img src="image/sensei-logo.png" alt="Sensei" width="200">
+</p>
 
-[![CI](https://github.com/globulario/sensei/actions/workflows/ci.yml/badge.svg)](https://github.com/globulario/sensei/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Go 1.23+](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white)](go.mod)
+<h1 align="center">Sensei</h1>
+
+<p align="center"><em>Architectural awareness for your AI coding agent.</em></p>
+
+<p align="center">
+  <a href="https://github.com/globulario/sensei/actions/workflows/ci.yml"><img src="https://github.com/globulario/sensei/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
+  <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.23+"></a>
+</p>
 
 **Give your AI coding agent the project knowledge that currently lives only in your head.**
 
