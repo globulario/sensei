@@ -187,9 +187,20 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
+          # Use this version's CHANGELOG.md section as the release body; fall back
+          # to a terse note if the section is absent.
+          NOTES_FILE=/tmp/release-notes.md
+          awk -v tag="## ${TAG}" '
+            $0 ~ "^"tag" " || $0 == tag {f=1; print; next}
+            f && /^## v/ {exit}
+            f {print}
+          ' CHANGELOG.md > "$NOTES_FILE"
+          if [ ! -s "$NOTES_FILE" ]; then
+            echo "Release ${TAG} — built from commit ${GITHUB_SHA:0:8}" > "$NOTES_FILE"
+          fi
           gh release create "${TAG}" \
             --title "awareness-graph ${TAG}" \
-            --notes "Release ${TAG} — built from commit ${GITHUB_SHA:0:8}" \
+            --notes-file "$NOTES_FILE" \
             "/tmp/${SERVICE_TARBALL_NAME}" \
             "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
             "/tmp/${LOCAL_TARBALL_NAME}" \
