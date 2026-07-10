@@ -1,0 +1,26 @@
+id: imported.skill.engineering.domain_modeling
+class: ImplementationPattern
+label: 'Skill: domain-modeling'
+status: active
+confidence: reviewed
+when_to_use:
+    - Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an architectural decision, or when another skill needs to maintain the domain model.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - Actively build and sharpen the project's domain model as you design. This is the *active* discipline — challenging terms, inventing edge-case scenarios, and writing the glossary and decisions down the moment they crystallise. (Merely *reading* CONTEXT.md for v
+    - Hard to reverse — the cost of changing your mind later is meaningful
+    - Surprising without context — a future reader will wonder "why did they do it this way?"
+    - The result of a real trade-off — there were genuine alternatives and you picked one for specific reasons
+forbidden_shortcuts:
+    - When a term is resolved, update CONTEXT.md right there. Don't batch these up — capture them as they happen. Use the format in CONTEXT-FORMAT.md.
+    - CONTEXT.md should be totally devoid of implementation details. Do not treat CONTEXT.md as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: domain-modeling
+    Source path: skills/engineering/domain-modeling/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

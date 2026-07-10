@@ -1,0 +1,45 @@
+# Self-host the awareness-graph service: Oxigraph (store) + awareness-graph
+# (gRPC :10120). The server seeds the store from its embedded corpus on first
+# start, so `docker compose up` is all you need.
+#
+#   cd deploy && docker compose up --build
+#   # then point a client at localhost:10120:
+#   AWG_ADDR=localhost:10120 awg metadata
+#
+# Bearer-token auth is OFF by default (trusted-network default). To require a
+# token, set AWG_TOKEN in the environment (or a .env file next to this compose)
+# and pass the SAME token from clients via $AWG_TOKEN. Put TLS in front (a
+# reverse proxy) for untrusted networks.
+services:
+  oxigraph:
+    image: ghcr.io/oxigraph/oxigraph:latest
+    command: ["serve", "--location", "/data", "--bind", "0.0.0.0:7878"]
+    volumes:
+      - awg-oxigraph:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7878/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  awareness-graph:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command:
+      - "-addr"
+      - ":10120"
+      - "-oxigraph-url"
+      - "http://oxigraph:7878/query"
+      - "-require-store"
+    environment:
+      # Opt-in bearer-token auth. Empty => open. Set to require a token.
+      AWG_TOKEN: "${AWG_TOKEN:-}"
+    ports:
+      - "10120:10120"
+    depends_on:
+      oxigraph:
+        condition: service_healthy
+
+volumes:
+  awg-oxigraph:

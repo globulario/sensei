@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globulario.github.io/awareness-graph/benchmark_task.schema.json",
+  "title": "AWG Benchmark Task",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "instance_id": {
+      "type": "string"
+    },
+    "issue": {
+      "type": "string"
+    },
+    "f2p_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tests_run": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "repair_success": {
+      "type": "boolean"
+    },
+    "contract_clean": {
+      "type": "boolean"
+    },
+    "contract_confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "contract_clean_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "contract_clean_warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "contract_failure_reason": {
+      "type": "string"
+    },
+    "contract_scope_status": {
+      "type": "string",
+      "enum": [
+        "scoped",
+        "contract_incomplete",
+        "underconstrained"
+      ]
+    },
+    "proof_required": {
+      "type": "boolean"
+    },
+    "proof_status": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "issue",
+    "files"
+  ]
+}

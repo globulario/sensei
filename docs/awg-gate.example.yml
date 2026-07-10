@@ -1,0 +1,63 @@
+# Example: enforce AWG's architectural rules on every PR.
+#
+# Copy to .github/workflows/awg-gate.yml in your repo. This is a CONTROL gate:
+# it fails the PR when a change trips an `enforcement: block` rule in your
+# awareness graph (a forbidden-fix shape, a boundary violation, …). Clean PRs
+# pass. It never edits code.
+#
+# `awg gate --enforce` exits:
+#   0 — PASS      (no blocking finding)
+#   1 — BLOCKED   (a change tripped an enforcement:block rule; see the log)
+#   2 — CANNOT VERIFY (AWG could not evaluate the diff — fails closed)
+#
+# Use `--report-only` instead of `--enforce` to start advisory (always exit 0)
+# while you tune rules, then flip to `--enforce` to make it bite.
+
+name: AWG gate
+on:
+  pull_request:
+    branches: ['**']
+
+jobs:
+  awg-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need the base branch to diff against
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install AWG
+        run: |
+          go install github.com/globulario/awareness-graph/cmd/awg@latest
+          # Or build from a vendored checkout: make awg
+
+      - name: Serve the awareness graph
+        run: |
+          awg serve -no-seed &                # local Oxigraph + gRPC server
+          awg build                           # compile docs/awareness into the store
+          for i in $(seq 1 15); do awg metadata >/dev/null 2>&1 && break; sleep 1; done
+
+      - name: Enforce architectural rules on the diff
+        env:
+          # Record every outcome (block/warn/allow + rules) to an evidence
+          # ledger. Aggregate it later with `awg evidence --log <path>` to get
+          # "caught N drift incidents across M repos". Optional; omit to disable.
+          AWG_EVENT_LOG: awg-events.jsonl
+        run: |
+          awg gate --enforce \
+            --diff "origin/${{ github.base_ref }}...HEAD" \
+            --repo-root .
+          # exit 1 (blocked) or 2 (cannot verify) fails the job; 0 passes.
+
+      # Optional: persist the ledger so evidence accrues across runs/repos.
+      - name: Upload evidence ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: awg-events
+          path: awg-events.jsonl
+          if-no-files-found: ignore

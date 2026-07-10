@@ -1,0 +1,58 @@
+# GENERATED proof obligations by `awg extract-proof-obligations`.
+# These obligations are derived from authority surfaces. They define
+# what proof slots a repair must satisfy before certification can pass.
+proof_obligations:
+  - id: proof.authority.cmd.awg.cmd.serve.runserve
+    label: Proof obligation for candidate.authority.cmd.awg.cmd.serve.runserve
+    status: candidate
+    derived_from_status: candidate
+    derived_from_authority_surface: candidate.authority.cmd.awg.cmd.serve.runserve
+    applies_to_authority_surfaces:
+      - candidate.authority.cmd.awg.cmd.serve.runserve
+    evidence_lane: runtime_required
+    template_kind: service_lifecycle
+    required_slots:
+      - id: slot.authority.cmd.awg.cmd.serve.runserve.runtime
+        kind: runtime
+        description: Runtime evidence that the lifecycle transition occurred as intended.
+        required: true
+      - id: slot.authority.cmd.awg.cmd.serve.runserve.process_artifact
+        kind: process_artifact
+        description: Process or supervisor artifact showing the controlled service state.
+        required: true
+      - id: slot.authority.cmd.awg.cmd.serve.runserve.log_artifact
+        kind: log_artifact
+        description: Log or runtime artifact confirming the lifecycle action and outcome.
+        required: true
+      - id: slot.authority.cmd.awg.cmd.serve.runserve.failure_evidence
+        kind: failure_evidence
+        description: Evidence of rollback, stop, or failure handling when the lifecycle action does not complete cleanly.
+        required: true
+    notes: 'Lifecycle authority is runtime-governed: score alone must never certify it.'
+  - id: proof.authority.golang.server.main.serve
+    label: Proof obligation for candidate.authority.golang.server.main.serve
+    status: candidate
+    derived_from_status: candidate
+    derived_from_authority_surface: candidate.authority.golang.server.main.serve
+    applies_to_authority_surfaces:
+      - candidate.authority.golang.server.main.serve
+    evidence_lane: runtime_required
+    template_kind: service_lifecycle
+    required_slots:
+      - id: slot.authority.golang.server.main.serve.runtime
+        kind: runtime
+        description: Runtime evidence that the lifecycle transition occurred as intended.
+        required: true
+      - id: slot.authority.golang.server.main.serve.process_artifact
+        kind: process_artifact
+        description: Process or supervisor artifact showing the controlled service state.
+        required: true
+      - id: slot.authority.golang.server.main.serve.log_artifact
+        kind: log_artifact
+        description: Log or runtime artifact confirming the lifecycle action and outcome.
+        required: true
+      - id: slot.authority.golang.server.main.serve.failure_evidence
+        kind: failure_evidence
+        description: Evidence of rollback, stop, or failure handling when the lifecycle action does not complete cleanly.
+        required: true
+    notes: 'Lifecycle authority is runtime-governed: score alone must never certify it.'

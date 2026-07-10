@@ -1,0 +1,148 @@
+{
+  "name": "awareness-graph",
+  "displayName": "Awareness Graph",
+  "description": "See the invariants, failure modes, and intent that govern the file you are editing — straight from your project's awareness graph.",
+  "version": "0.1.0",
+  "publisher": "globulario",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/globulario/awareness-graph.git",
+    "directory": "editor/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "awareness",
+    "architecture",
+    "invariants",
+    "ai",
+    "grpc"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "awarenessGraph",
+          "title": "Awareness",
+          "icon": "media/awareness.svg"
+        }
+      ]
+    },
+    "views": {
+      "awarenessGraph": [
+        {
+          "id": "awarenessGraph.fileAwareness",
+          "name": "This File",
+          "icon": "media/awareness.svg",
+          "contextualTitle": "Awareness Graph"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "awarenessGraph.refresh",
+        "title": "Awareness: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "awarenessGraph.revealAnchor",
+        "title": "Awareness: Open Source Anchor"
+      },
+      {
+        "command": "awarenessGraph.openDashboard",
+        "title": "Awareness: Open Project Dashboard",
+        "icon": "$(graph)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "awarenessGraph.openDashboard",
+          "when": "view == awarenessGraph.fileAwareness",
+          "group": "navigation@1"
+        },
+        {
+          "command": "awarenessGraph.refresh",
+          "when": "view == awarenessGraph.fileAwareness",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Awareness Graph",
+      "properties": {
+        "awarenessGraph.serverAddr": {
+          "type": "string",
+          "default": "localhost:10120",
+          "description": "Address of the awareness-graph gRPC server (host:port). Started with `awg serve`."
+        },
+        "awarenessGraph.domain": {
+          "type": "string",
+          "default": "",
+          "description": "Domain/repo scope (e.g. github.com/owner/repo). Required when the graph hosts more than one domain; leave empty for a single-domain graph."
+        },
+        "awarenessGraph.mode": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "standard"
+          ],
+          "default": "standard",
+          "description": "Preflight detail level. compact: top few anchors; standard: a fuller set."
+        },
+        "awarenessGraph.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Query the awareness graph as you switch files. Turn off to stop all background gRPC calls."
+        },
+        "awarenessGraph.requestTimeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "description": "Per-request gRPC deadline in milliseconds."
+        },
+        "awarenessGraph.enableLocalOperations": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow the dashboard to run the local `awg` CLI in your workspace for write operations (e.g. promoting a reviewed candidate). Off by default: the dashboard stays read-only and shows the guarded CLI to run yourself. When on, promotion runs `awg promote` in your working tree and surfaces the resulting git diff for you to review and commit — it never auto-commits."
+        },
+        "awarenessGraph.awgPath": {
+          "type": "string",
+          "default": "awg",
+          "description": "Path to the `awg` CLI used for local operations (see awarenessGraph.enableLocalOperations). Defaults to `awg` on PATH."
+        },
+        "awarenessGraph.servicesRepoPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the sibling `services` repo, for rebuilding the COMBINED awareness-graph + services seed. Required only when the workspace is the awareness-graph repo (whose committed seed is the combined graph). When set, Rebuild runs `awg rebuild --services-repo <path>`; relative paths resolve against the awareness-graph repo root. Leave empty to auto-detect `../services` — if the workspace needs a combined seed and none is found, Rebuild is disabled rather than silently producing a single-repo seed."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run sync-proto && npm run compile",
+    "compile": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "typecheck": "tsc --noEmit -p ./",
+    "test": "npm run compile && node --test out/**/*.test.js",
+    "sync-proto": "node ./scripts/sync-proto.js",
+    "check-proto": "node ./scripts/sync-proto.js --check"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.10"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

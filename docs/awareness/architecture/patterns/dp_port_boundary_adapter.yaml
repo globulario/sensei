@@ -1,0 +1,36 @@
+id: pattern.port_boundary_adapter
+class: DesignPattern
+name: PortBoundary / Adapter
+category: structural
+description: >-
+  Depend on platform services, storage, external APIs, or Globular runtime
+  through a narrow owned interface (a port) with an adapter implementation —
+  never on the concrete backend directly.
+applies_when: >-
+  A component must reach platform services, storage, an external API, or the
+  owning service's data.
+does_not_apply_when: >-
+  The logic is pure and in-process with no boundary to cross — an adapter would
+  only add indirection.
+forces_or_tradeoffs: >-
+  One more interface and indirection layer, in exchange for testability and a
+  stable semantic boundary.
+confidence: declared
+failure_modes_prevented:
+  - awareness.graph_used_as_authority
+forbidden_misuses:
+  - pattern_misuse.direct_storage_read_as_truth
+related_meta_principles:
+  - meta.storage_is_not_semantic_authority
+  - meta.code.reusable_unit_must_have_a_stable_semantic_boundary
+related_invariants:
+  - awareness.graph.compiled_context_not_authority
+related_components:
+  - component.oxigraph_store
+example_files:
+  - golang/store/store.go
+  - golang/store/oxigraph/oxigraph.go
+uml:
+  kind: Constraint
+  stereotype: design_pattern
+  view: awareness

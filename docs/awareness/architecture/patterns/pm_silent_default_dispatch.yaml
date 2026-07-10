@@ -1,0 +1,26 @@
+id: pattern_misuse.silent_default_dispatch
+class: PatternMisuse
+name: Greedy/silent default in a dispatch registry
+status: guardrail
+description: >-
+  Adding a new importer/dispatch branch (or a permissive default) that silently
+  claims inputs it should not — e.g. a file-extension importer that swallows
+  unrelated files instead of failing visibly.
+why_dangerous: >-
+  An unsafe default makes the registry quietly mis-handle inputs; skips and
+  mis-claims are hidden instead of surfaced for review.
+confidence: declared
+misused_pattern: pattern.registry_dispatch
+safer_pattern: pattern.registry_dispatch
+forbidden_by:
+  - meta_principle:meta.code.reusable_unit_must_have_a_stable_semantic_boundary
+violates_invariants:
+  - awareness.rdf.strict_import_must_surface_all_skips
+causes_failure_modes:
+  - awareness.greedy_importer_claims_foreign_files
+detected_in:
+  - golang/extractor/yaml_import_dir.go
+uml:
+  kind: Constraint
+  stereotype: pattern_misuse
+  view: awareness

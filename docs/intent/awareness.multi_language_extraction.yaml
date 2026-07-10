@@ -1,0 +1,31 @@
+id: awareness.multi_language_extraction
+level: mechanism
+title: Extraction preserves one awareness grammar across multiple languages
+intent: |
+  AWG may use language-specific parsers, but extraction must preserve one
+  shared awareness grammar and one shared identity model across Go,
+  TypeScript, and any future language frontends.
+agent_guidance: |
+  Put language knowledge in the scanner, not in the graph schema. New language
+  support should produce the same style of code-symbol and edge output.
+bad_smells:
+  - TypeScript annotations accept syntax that Go annotations reject
+  - same symbol ID collides across languages
+activation_triggers:
+  - scanner
+  - typescript
+  - go
+  - new language
+expressed_by:
+  - golang/scanner/scanner.go
+  - golang/scanner/typescript.go
+related_invariants:
+  - awareness.graph_core_is_language_neutral
+  - awareness.annotation_grammar_is_language_neutral
+  - awareness.symbol_extraction_may_be_language_specific
+related_to:
+  - awg.language_and_framework_neutral
+status: active
+required_tests:
+  - golang/scanner/typescript_test.go:TestTSScanner_SharedGrammarValidation
+  - golang/scanner/typescript_test.go:TestSymbolID_LanguageSegment

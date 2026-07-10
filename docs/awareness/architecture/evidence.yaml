@@ -1,0 +1,52 @@
+# Evidence — proof a rule / contract / decision / component state is alive
+# (Stage A). The dashboard uses this to tell "rule exists" from "rule is proven
+# alive". `supports` / `stale_for` take class-qualified refs (e.g.
+# "invariant:..", "decision:..").
+evidence:
+  - id: evidence.ci_green
+    name: CI green on master
+    description: The full Go test suite passes on the default branch.
+    kind: ci
+    status: pass
+    command: go test ./...
+    supports:
+      - invariant:awareness.query.no_arbitrary_sparql
+      - decision:decision.dashboard_v1_read_only_over_grpc
+    validates_components:
+      - component.awareness_graph_service
+    source_files:
+      - golang/server/query.go
+
+  - id: evidence.awg_rebuild_check_pass
+    name: Seed freshness gate (awg rebuild --check)
+    description: >-
+      The committed seed matches a fresh rebuild (SHA-256), proving the graph is
+      in sync with the YAML source of truth.
+    kind: audit
+    status: pass
+    command: awg rebuild --check
+    source: golang/server/embeddata/awareness.nt
+    supports:
+      - invariant:awareness.seed_is_generated_author_in_yaml
+      - decision:decision.meta_principle_dual_typed
+    validates_components:
+      - component.corpus_loader
+
+  - id: evidence.awg_validate_zero_dangling
+    name: awg validate — zero dangling references
+    description: >-
+      Static validation of the awareness YAML finds no dangling references and
+      no missing source files.
+    kind: validation
+    status: pass
+    command: awg validate
+    supports:
+      - invariant:awareness.rdf.yaml_is_source_of_truth
+    validates_components:
+      - component.corpus_loader
+    source_files:
+      - cmd/awg/cmd_validate.go
+    uml:
+      kind: Artifact
+      stereotype: validation_report
+      view: awareness

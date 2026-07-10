@@ -1,0 +1,37 @@
+id: imported.skill.productivity.teach
+class: ImplementationPattern
+label: 'Skill: teach'
+status: candidate
+confidence: medium
+when_to_use:
+  - Teach the user a new skill or concept, within this workspace.
+reference_files:
+  - path: skills/productivity/teach/SKILL.md
+    role: source_skill
+must_follow:
+  - 'MISSION.md: A document capturing the reason the user is interested in the topic. This should be used to ground all teaching. Use the format in MISSION-FORMAT.md.'
+  - './reference/*.html: A directory of reference materials. These are the compressed learnings from the lessons - cheat sheets, reference algorithms, syntax, yoga poses, glossaries. They are the raw units of learning. They should be beautiful documents which print'
+  - 'RESOURCES.md: A list of resources which can be explored to ground your teaching in contextual knowledge, or to acquire knowledge and wisdom. Use the format in RESOURCES-FORMAT.md.'
+  - './learning-records/*.md: A directory of learning records, which capture what the user has learned. These are loosely equivalent to architectural decision records in software development - they capture non-obvious lessons and key insights that may need to be re'
+  - './lessons/*.html: A directory of lessons. A lesson is a single, self-contained HTML output that teaches one tightly-scoped thing tied to the mission. This is the primary unit of teaching in this workspace.'
+  - './assets/*: Reusable components shared across lessons. See Assets.'
+  - 'NOTES.md: A scratchpad for you to jot down user preferences, or working notes.'
+  - Knowledge, captured from high-quality, high-trust resources
+  - Skills, acquired through highly-relevant interactive lessons devised by you, based on the knowledge
+  - Wisdom, which comes from interacting with other learners and practitioners
+  - 'You should be careful to split between two types of learning:'
+  - 'Fluency strength: in-the-moment retrieval of knowledge'
+forbidden_shortcuts:
+  - Before the RESOURCES.md is well-populated, your focus should be to find high-quality resources which will help the user acquire knowledge. Never trust your parametric knowledge.
+  - Reuse is the default, not the exception. Before authoring a lesson, read ./assets/ and build from the components already there. When a lesson needs something new and reusable, write it as a component in ./assets/ and link to it — never inline code a future les
+  - 'The user may specify an exact thing they want to learn. If they don''t, figure out their zone of proximal development by:'
+  - For quizzes, each answer should be exactly the same number of words (and characters, if possible). Don't give the user any clues about the answer through formatting.
+  - You should attempt to find high-reputation communities the user can join. If the user expresses a preference that they don't want to join a community, respect it.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: teach
+  Source path: skills/productivity/teach/SKILL.md
+source_files:
+  - skills/productivity/teach/SKILL.md

@@ -1,0 +1,59 @@
+id: awg.signal_over_noise
+level: principle
+title: Signal over noise — a briefing that is ignored is worse than no briefing
+intent: |
+  The value of AWG is proportional to the signal-to-noise ratio of its output.
+  A briefing that returns 50 invariants for every file teaches the agent to ignore
+  briefings. A source-check that reports 500 violations on a healthy codebase
+  teaches the team to skip the check. A visual-audit that flags every page because
+  timestamps changed is useless.
+
+  AWG must be ruthlessly selective about what it surfaces:
+  - Briefings should return 1-5 highly relevant invariants, not every invariant
+    that tangentially relates to the file.
+  - Source-check patterns should have near-zero false positives. A pattern that
+    fires on correct code must be refined or removed.
+  - Visual-audit thresholds should account for dynamic content (timestamps, counts)
+    so only real visual regressions are flagged.
+  - Rendering groups should be small (3-10 files) and specific. A group that
+    contains every file in the project provides no signal.
+
+  The metric is not "how much does AWG know" but "how often does an agent read a
+  briefing and make a better decision because of it." One invariant that prevents
+  a real bug is worth more than 100 invariants that are always true.
+agent_guidance: |
+  Before adding knowledge to AWG, ask: will this change what an agent does when
+  editing a file? If the answer is "probably not" — the invariant is too broad,
+  too obvious, or too theoretical to be useful. Keep it in comments or docs, not
+  in the graph.
+
+  When source-check reports violations, verify each one is real before asking the
+  team to fix it. One false positive destroys trust in the entire tool.
+bad_smells:
+  - briefing returns > 10 invariants for a simple file
+  - source-check has > 20% false positive rate
+  - visual-audit flags every page on every run
+  - agent skips briefing because "it always says the same thing"
+  - rendering group has > 15 files (too broad to be actionable)
+  - invariant that has never prevented a bug in 6 months
+activation_triggers:
+  - briefing quality
+  - false positive
+  - noise
+  - signal
+  - relevance
+expressed_by:
+  - golang/server/briefing.go
+  - cmd/awg/cmd_source_check.go
+related_invariants:
+  - awareness.preflight_node_context_must_not_flood
+zooms_out_to:
+  - awg.mission
+zooms_in_to:
+  - awg.knowledge_earned_not_invented
+related_to:
+  - awg.briefing_is_the_primary_interface
+  - awg.enforcement_at_every_layer
+status: active
+required_tests:
+  - golang/server/implementation_patterns_test.go:TestBriefing_ImplementationPattern_BoundedToThree

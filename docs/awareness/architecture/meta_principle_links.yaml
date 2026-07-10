@@ -1,0 +1,47 @@
+# Meta-principle architectural edges (Stage A).
+#
+# Meta-principles are the existing meta.* invariants (dual-typed aw:MetaPrinciple
+# by the importer). This file attaches their OUTGOING architectural edges —
+# generates / constrains / appliesTo / explains — so an agent resolving a
+# principle sees the rules, decisions, components, boundaries, and contracts it
+# drives. It never re-types or re-authors the principle; the id must be an
+# existing meta.* invariant.
+meta_principle_links:
+  - id: meta.storage_is_not_semantic_authority
+    generates_invariants:
+      - awareness.graph.compiled_context_not_authority
+      - awareness.rdf.yaml_is_source_of_truth
+    constrains_decisions:
+      - decision.candidate_promotion_remains_cli_guarded
+      - decision.meta_principle_dual_typed
+    applies_to_components:
+      - component.oxigraph_store
+      - component.corpus_loader
+    applies_to_boundaries:
+      - boundary.corpus_cli_mutation
+      - boundary.generated_seed
+    applies_to_contracts:
+      - contract.candidate_yaml_schema
+    explains_intents:
+      - awg.graph_is_compiled_context_not_authority
+    recommends_design_patterns:
+      - pattern.port_boundary_adapter
+      - pattern.guarded_mutation_flow
+
+  - id: meta.code.reusable_unit_must_have_a_stable_semantic_boundary
+    applies_to_components:
+      - component.awareness_graph_service
+    applies_to_contracts:
+      - contract.awareness_graph.query
+    explains_intents:
+      - awg.enforcement_at_every_layer
+
+  - id: meta.ui.screen_claim_must_bind_to_authority
+    constrains_decisions:
+      - decision.dashboard_v1_read_only_over_grpc
+    applies_to_components:
+      - component.dashboard_architecture_view
+    applies_to_boundaries:
+      - boundary.dashboard_read_only_grpc
+    recommends_design_patterns:
+      - pattern.read_only_projection

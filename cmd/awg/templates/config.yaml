@@ -1,0 +1,34 @@
+# AWG project configuration.
+#
+# This file configures the Awareness Graph for your project.
+# Edit the values below, then:
+#   awg serve -no-seed &   (start the local store + server)
+#   awg build              (compile docs/awareness into the store)
+
+# Where your awareness YAML sources live (relative to project root).
+sources:
+  - docs/awareness
+
+# Oxigraph RDF store configuration.
+store:
+  # Directory for Oxigraph's RocksDB data.
+  data_dir: .awg/data
+
+  # SPARQL query endpoint (used by the gRPC server).
+  query_url: http://localhost:7878/query
+
+  # Graph Store endpoint (used by awg build to load triples).
+  store_url: http://localhost:7878/store?default
+
+# gRPC server configuration.
+server:
+  addr: localhost:10120
+
+# The portable meta-principle pack (8 categories, 97 principles —
+# authority/signal/lifecycle/dependency for backend truth, perception/
+# composition for screens, structure for code shape, evolution for safe
+# project change) is installed at
+# docs/awareness/meta_principles.yaml and compiled in by `awg build`.
+# Link your own invariants to it via related_invariants: [meta.*].
+seed:
+  meta_principles: true

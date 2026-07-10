@@ -1,0 +1,196 @@
+# ============================================================================
+# EXCEPTION LEDGER — the AWG-owned canonical registry of governed exceptions.
+#
+# An EXCEPTION is an explicit, ongoing bypass/baseline/suppression/tolerated-drift
+# /allowlist that defers or hides a check. Every entry MUST declare reason, owner,
+# created, expires, scope, and removal_condition. Provisional entries MUST also
+# carry review_after (earlier than expires).
+#
+# This is the artifact for meta.exception_must_have_reason_owner_and_expiry. The
+# gate (cmd/principle-check/exception_ledger_test.go) validates ONLY this file —
+# it never scans arbitrary code, so it cannot false-positive. An expired entry,
+# a malformed date, or a missing required field FAILS CI: an exception that
+# outlives its review turns the bell on, not off.
+#
+# What does NOT belong here (verify-first 2026-06-26):
+#   - Improve-only "frozen-count" ratchets (theme-tokens, interactive-element):
+#     they can only DECREASE — they tighten, they don't bypass. Healthy gates,
+#     not exceptions.
+#   - Normal test skips / platform guards (t.Skip on missing toolchain/infra).
+#   - nolint suppressions that document themselves inline at the call site.
+#   - Dead carve-outs (e.g. the re-armed --warn-stale).
+#
+# Provisional note: the first pass (2026-06-26) seeds all entries with owner
+# davecourtois and a single 90-day expiry. This converts invisible exceptions
+# into dated, review-bound objects. Reassign owners and split expiries by risk
+# (CI bypasses ~30d, mirror-lag ~60d, intent carve-outs ~90d) at review_after.
+# ============================================================================
+
+exceptions:
+  - id: exception.dangling_refs_baseline
+    kind: baseline
+    scope:
+      repo: services
+      paths: ["docs/awareness/dangling_refs_baseline.tsv"]
+      command: "yaml2nt -validate-refs -allowed-dangling-refs"
+    reason: >
+      Cite-only ForbiddenFix/Test references not yet anchored in YAML; the baseline
+      keeps the dangling-ref gate from false-positiving on intentional cite-only refs.
+      The baseline is allowed to grow, so it is a governed exception (unlike an
+      improve-only ratchet).
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: >
+      Every baselined reference becomes a real anchor (required_tests.yaml /
+      forbidden_fixes.yaml) or is removed from its citing entry; the baseline drains.
+    evidence: ["services/docs/awareness/dangling_refs_baseline.tsv"]
+
+  - id: exception.ci_services_unit_tests_optional_infra
+    kind: temporary_bypass
+    scope:
+      repo: services
+      paths: [".github/workflows/ci.yml"]
+      command: "go test (build-test job, continue-on-error)"
+    reason: >
+      CI lacks etcd/ScyllaDB, so the unit-test job is continue-on-error. The
+      architectural invariants it would cover are gated by the infra-free hard
+      gates below (principle-check, behavioral ratchets, proto-check).
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: >
+      CI gains optional etcd/ScyllaDB, OR the affected tests move to mocks and no
+      longer need live infra; then drop continue-on-error.
+    evidence: ["services/.github/workflows/ci.yml (build-test continue-on-error)"]
+
+  - id: exception.ci_services_lint_advisory
+    kind: temporary_bypass
+    scope:
+      repo: services
+      paths: [".github/workflows/ci.yml"]
+      command: "golangci-lint --new-from-rev (lint job, continue-on-error)"
+    reason: >
+      Lint runs in ratchet mode (--new-from-rev) but is advisory while green-run
+      stability is proven; legacy errcheck debt burns down on touch. Sunset plan:
+      flip to a hard gate after a week of green runs.
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: "Remove continue-on-error after a week of green lint runs."
+    evidence: ["services/.github/workflows/ci.yml (lint continue-on-error)"]
+
+  - id: exception.ci_services_awareness_graph_checkout_optional
+    kind: suppression
+    scope:
+      repo: services
+      paths: [".github/workflows/ci.yml"]
+      command: "actions/checkout awareness-graph (continue-on-error)"
+    reason: >
+      awareness-graph is private; its checkout is non-fatal so the self-contained
+      services gates still run. principle-check/awg-validate become hard only once
+      an org PAT is configured.
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: "Configure the awareness-graph PAT secret; drop continue-on-error so cross-repo gates are hard."
+    evidence: ["services/.github/workflows/ci.yml (checkout awareness-graph continue-on-error)"]
+
+  - id: exception.ci_globular_lint_advisory
+    kind: temporary_bypass
+    scope:
+      repo: globular
+      paths: [".github/workflows/ci.yml"]
+      command: "golangci-lint-action (lint step, continue-on-error)"
+    reason: >
+      Globular lint is continue-on-error with no inline rationale (presumed advisory
+      for linter stability, mirroring the services lint). Ledgered to force the
+      decision: promote to a hard gate or document why it is permanently optional.
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: "Decide advisory-with-sunset (mirror services) vs permanent; document or remove continue-on-error accordingly."
+    evidence: ["Globular/.github/workflows/ci.yml (lint continue-on-error)"]
+
+  - id: exception.coverage_mirror_lag_tolerance
+    kind: tolerated_drift
+    scope:
+      repo: awareness-graph
+      paths: ["cmd/principle-check/meta_principle_coverage_test.go"]
+      command: "TestMetaPrincipleCoverageMirrorCoherence"
+    reason: >
+      The services coverage mirror may trail the canonical; the coherence gate
+      reports the lag (t.Logf) instead of hard-failing. Tolerated because the mirror
+      is human-facing only — but tolerated drift is what bred phantom Tier E work
+      from a stale mirror, so it is governed here.
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: "Automate mirror regeneration on canonical change (auto-PR), so lag cannot persist; then the tolerance is unnecessary."
+    evidence: ["awareness-graph/cmd/principle-check/meta_principle_coverage_test.go (LAG t.Logf, not t.Errorf)"]
+
+  - id: exception.intent_installed_state_split_authority
+    kind: allowlist
+    scope:
+      repo: services
+      paths: ["docs/intent/meta/audit_history_schema.yaml"]
+      command: "awg audit (intent gate)"
+    reason: >
+      Installed-state has split authority (node-agent owns runtime observation;
+      controller owns desired). Documented architectural choice, marked
+      status: accepted_exception in the intent corpus.
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: "Adopt a single-authority installed-state model (architecture change), or re-affirm the split as a permanent invariant (not an exception)."
+    evidence: ["services/docs/intent/meta/audit_history_schema.yaml (status: accepted_exception)"]
+
+  - id: exception.intent_remediation_healer_direct_actions
+    kind: allowlist
+    scope:
+      repo: services
+      paths: ["docs/intent/meta/audit_history_schema.yaml"]
+      command: "awg audit (intent gate)"
+    reason: >
+      Healer direct actions (bounded by MaxActions/MaxFailures) and rate-limited node
+      restart bypass workflow dispatch. Documented, bounded, audited; marked
+      status: accepted_exception.
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: "Wrap all healer actions in workflow audit records dispatched through the workflow engine."
+    evidence: ["services/docs/intent/meta/audit_history_schema.yaml (status: accepted_exception)"]
+
+  - id: exception.intent_workflow_ai_remediation_async
+    kind: allowlist
+    scope:
+      repo: services
+      paths: ["docs/intent/meta/audit_history_schema.yaml"]
+      command: "awg audit (intent gate)"
+    reason: >
+      AI remediation initiates node restart outside workflow dispatch (async),
+      mitigated by wrapping the restart in a workflow audit record. Documented,
+      bounded; marked status: accepted_exception.
+    owner: davecourtois
+    created: "2026-06-26"
+    expires: "2026-09-26"
+    review_after: "2026-08-26"
+    provisional: true
+    removal_condition: "Integrate all remediator actions into the workflow engine so none initiates state change outside workflow dispatch."
+    evidence: ["services/docs/intent/meta/audit_history_schema.yaml (status: accepted_exception)"]

@@ -1,0 +1,29 @@
+id: imported.skill.personal.obsidian_vault
+class: ImplementationPattern
+label: 'Skill: obsidian-vault'
+status: candidate
+confidence: medium
+when_to_use:
+  - Search, create, and manage notes in the Obsidian vault with wikilinks and index notes. Use when user wants to find, create, or organize notes in Obsidian.
+reference_files:
+  - path: skills/personal/obsidian-vault/SKILL.md
+    role: source_skill
+must_follow:
+  - 'Index notes: aggregate related topics (e.g., Ralph Wiggum Index.md, Skills Index.md, RAG Index.md)'
+  - Title case for all note names
+  - No folders for organization - use links and index notes instead
+  - 'Use Obsidian [[wikilinks]] syntax: [[Note Title]]'
+  - Notes link to dependencies/related notes at the bottom
+  - Index notes are just lists of [[wikilinks]]
+  - Use Title Case for filename
+  - Write content as a unit of learning (per vault rules)
+  - Add [[wikilinks]] to related notes at the bottom
+  - If part of a numbered sequence, use the hierarchical numbering scheme
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: obsidian-vault
+  Source path: skills/personal/obsidian-vault/SKILL.md
+source_files:
+  - skills/personal/obsidian-vault/SKILL.md

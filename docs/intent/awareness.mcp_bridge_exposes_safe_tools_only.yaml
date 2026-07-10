@@ -1,0 +1,25 @@
+id: awareness.mcp_bridge_exposes_safe_tools_only
+level: contract
+title: The MCP bridge exposes only typed safe tools
+intent: |
+  The stdio MCP bridge is a narrow agent-facing surface. It may expose typed
+  briefing, impact, resolve, query, metadata, preflight, and edit-check tools,
+  but it must not expose arbitrary store access or free-form SPARQL.
+agent_guidance: |
+  If a new tool would let an agent bypass typed constraints, it belongs behind
+  a different boundary, not in awareness-mcp.
+bad_smells:
+  - arbitrary query text reaches the store through MCP
+  - MCP tool list exposes mutation or raw store access
+activation_triggers:
+  - mcp
+  - query tool
+  - stdio bridge
+expressed_by:
+  - cmd/awareness-mcp/main.go
+related_invariants:
+  - awareness.query.no_arbitrary_sparql
+status: active
+required_tests:
+  - cmd/awareness-mcp/main_test.go:TestQueryTool_TypedModesOnly
+  - cmd/awareness-mcp/main_test.go:TestServeStdio_AllowsLargeEditCheckPayloads

@@ -1,0 +1,85 @@
+# Globular runtime-evidence adapter manifest (runtime-adapter/v1).
+#
+# This maps Globular's runtime surfaces onto AWG's GENERIC evidence lanes. It is
+# the boundary the runtime proof lane is built on: AWG core validates this shape
+# (`awg runtime-adapter validate --manifest`) and consumes the lanes, but never
+# learns these provider/source names — they live HERE, in the platform's adapter,
+# not in AWG core. Globular is simply the first adapter proving the model.
+#
+# `source` names are real Globular surfaces (MCP tools / their backing RPCs).
+schema_version: runtime-adapter/v1
+adapter:
+  name: globular-runtime-evidence-adapter
+  platform: globular
+
+lanes:
+  # What should be running — controller is the desired-state owner.
+  desired_state:
+    provider: cluster_controller
+    source: cluster_get_desired_state
+    authority: owner
+    freshness_required: true
+
+  # What is actually installed/running — node agent is the per-node owner.
+  observed_state:
+    provider: node_agent
+    source: nodeagent_get_inventory
+    authority: owner
+    freshness_required: true
+
+  # Proof that the running thing is the expected thing (build_id / hashes).
+  runtime_identity:
+    provider: node_agent
+    source: nodeagent_get_installed_package
+    authority: owner
+    freshness_required: true
+
+  # Structured findings — doctor is the diagnostic authority, not an owner.
+  diagnosis:
+    provider: cluster_doctor
+    source: cluster_get_doctor_report
+    authority: diagnostic
+    freshness_required: true
+
+  # Component health.
+  health:
+    provider: cluster_doctor
+    source: cluster_get_health
+    authority: diagnostic
+    freshness_required: true
+
+  # Cluster shape and membership.
+  topology:
+    provider: cluster_controller
+    source: cluster_list_nodes
+    authority: owner
+    freshness_required: true
+
+  # Quorum proof (object-store / db) — surfaced as a doctor diagnostic.
+  quorum:
+    provider: cluster_doctor
+    source: cluster_get_doctor_report
+    authority: diagnostic
+    freshness_required: true
+
+  # Release lifecycle / convergence.
+  release_state:
+    provider: cluster_controller
+    source: cluster_get_reconcile_status
+    authority: owner
+    freshness_required: true
+
+  # What action was taken and by whom — workflow run detail. Only meaningful
+  # when a remediation actually executed.
+  action_trace:
+    provider: workflow
+    source: workflow_get_run
+    authority: derived
+    freshness_required: when_remediation_executed
+
+  # Performance evidence — metrics are derived, not owner truth.
+  performance:
+    provider: metrics
+    source: metrics_query
+    authority: derived
+    freshness_required: false

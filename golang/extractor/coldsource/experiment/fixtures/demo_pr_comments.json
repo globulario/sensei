@@ -1,0 +1,16 @@
+[
+  {
+    "PRID": "1",
+    "CommentID": "demo-1",
+    "Path": "golang/repository/upstream/github.go",
+    "Line": 255,
+    "Body": "Never treat a definitive HTTP 404 as a retryable error — it will never succeed by retrying. Map it to NotFound, not Unavailable."
+  },
+  {
+    "PRID": "1",
+    "CommentID": "demo-2",
+    "Path": "golang/node_agent/node_agent_server/heartbeat.go",
+    "Line": 340,
+    "Body": "The heartbeat must not overwrite controller-authored installed state — skip records that already carry a build_id."
+  }
+]

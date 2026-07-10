@@ -1,0 +1,23 @@
+id: imported.skill.productivity.handoff
+class: ImplementationPattern
+label: 'Skill: handoff'
+status: candidate
+confidence: medium
+when_to_use:
+  - Compact the current conversation into a handoff document for another agent to pick up.
+reference_files:
+  - path: skills/productivity/handoff/SKILL.md
+    role: source_skill
+must_follow:
+  - Include a "suggested skills" section in the document, which suggests skills that the agent should invoke.
+  - 'Evidence required: Do not duplicate content already captured in other artifacts (specs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.'
+forbidden_shortcuts:
+  - Do not duplicate content already captured in other artifacts (specs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: handoff
+  Source path: skills/productivity/handoff/SKILL.md
+source_files:
+  - skills/productivity/handoff/SKILL.md

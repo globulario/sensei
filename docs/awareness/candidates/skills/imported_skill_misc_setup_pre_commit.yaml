@@ -1,0 +1,31 @@
+id: imported.skill.misc.setup_pre_commit
+class: ImplementationPattern
+label: 'Skill: setup-pre-commit'
+status: candidate
+confidence: medium
+when_to_use:
+  - Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when user wants to add pre-commit hooks, set up Husky, configure lint-staged, or add commit-time formatting/typechecking/testing.
+reference_files:
+  - path: skills/misc/setup-pre-commit/SKILL.md
+    role: source_skill
+must_follow:
+  - Husky pre-commit hook
+  - lint-staged running Prettier on all staged files
+  - Prettier config (if missing)
+  - typecheck and test scripts in the pre-commit hook
+  - npm run typecheck
+  - npm run test
+  - '"arrowParens": "always"'
+  - .husky/pre-commit exists and is executable
+  - .lintstagedrc exists
+  - prepare script in package.json is "husky"
+  - prettier config exists
+  - Run npx lint-staged to verify it works
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: setup-pre-commit
+  Source path: skills/misc/setup-pre-commit/SKILL.md
+source_files:
+  - skills/misc/setup-pre-commit/SKILL.md

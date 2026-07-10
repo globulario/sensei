@@ -1,0 +1,270 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.0.5) — without the v prefix'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout awareness-graph
+        uses: actions/checkout@v4
+
+      - name: Checkout services (awareness YAML + intent sources)
+        uses: actions/checkout@v4
+        with:
+          repository: globulario/services
+          path: services
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Extract version
+        id: version
+        run: |
+          set -euo pipefail
+          EVENT="${{ github.event_name }}"
+          INPUT_VERSION="${{ inputs.version }}"
+          REF_NAME="${GITHUB_REF_NAME}"
+
+          if [[ "${EVENT}" == "workflow_dispatch" ]]; then
+            if [[ -z "${INPUT_VERSION}" ]]; then
+              echo "error: manual release requires inputs.version (e.g. 0.0.5), got empty on ref '${REF_NAME}'" >&2
+              exit 1
+            fi
+            VERSION="${INPUT_VERSION}"
+            TAG="v${VERSION}"
+          else
+            VERSION="${REF_NAME#v}"
+            TAG="${REF_NAME}"
+          fi
+
+          if [[ ! "${VERSION}" =~ ^[0-9]+(\.[0-9]+){1,3}([.-][0-9A-Za-z._-]+)?$ ]]; then
+            echo "error: version '${VERSION}' is invalid; expected numeric SemVer (e.g. 0.0.5)" >&2
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${VERSION}, Tag: ${TAG}"
+
+      - name: Check generated files and seed are fresh
+        env:
+          SERVICES_REPO: ${{ github.workspace }}/services
+        run: |
+          scripts/build-awareness-graph.sh --check
+
+      - name: Build binaries
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          LDFLAGS="-s -w -X main.Version=${VERSION}"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags "${LDFLAGS}" \
+            -o bin/awg \
+            ./cmd/awg
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags "${LDFLAGS}" \
+            -o bin/awareness-mcp \
+            ./cmd/awareness-mcp
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags "${LDFLAGS}" \
+            -o bin/awareness-graph \
+            ./golang/server
+          echo "Built bin/awg ($(du -sh bin/awg | cut -f1))"
+          echo "Built bin/awareness-mcp ($(du -sh bin/awareness-mcp | cut -f1))"
+          echo "Built bin/awareness-graph ($(du -sh bin/awareness-graph | cut -f1))"
+
+      - name: Run tests
+        run: go test ./... -count=1 -timeout 60s
+
+      - name: Stage release artifacts
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          SERVICE_ROOT=/tmp/awareness-graph-service-root
+          LOCAL_ROOT=/tmp/awareness-graph-local-root
+          rm -rf "${SERVICE_ROOT}" "${LOCAL_ROOT}"
+          mkdir -p "${SERVICE_ROOT}/bin" "${SERVICE_ROOT}/specs" "${SERVICE_ROOT}/metadata/awareness-graph" "${SERVICE_ROOT}/seed"
+          mkdir -p "${LOCAL_ROOT}/bin" "${LOCAL_ROOT}/scripts"
+
+          cp bin/awareness-graph        "${SERVICE_ROOT}/bin/awareness-graph"
+          cp golang/server/embeddata/awareness.nt "${SERVICE_ROOT}/seed/awareness.nt"
+          cp packaging/specs/awareness_graph_service.yaml \
+                                        "${SERVICE_ROOT}/specs/awareness_graph_service.yaml"
+
+          cp bin/awg                    "${LOCAL_ROOT}/bin/awg"
+          cp bin/awareness-mcp          "${LOCAL_ROOT}/bin/awareness-mcp"
+          cp bin/awareness-graph        "${LOCAL_ROOT}/bin/awareness-graph"
+          cp scripts/fetch-oxigraph.sh  "${LOCAL_ROOT}/scripts/fetch-oxigraph.sh"
+          cp scripts/install-awg-user-services.sh \
+                                        "${LOCAL_ROOT}/scripts/install-awg-user-services.sh"
+          cp INSTALL.md                 "${LOCAL_ROOT}/INSTALL.md"
+          cp QUICKSTART.md              "${LOCAL_ROOT}/QUICKSTART.md"
+
+          # Write package.json and spec with the release version injected.
+          python3 -c "
+          import json, sys
+          with open('packaging/metadata/awareness-graph/package.json') as f:
+              pkg = json.load(f)
+          pkg['version'] = sys.argv[1]
+          with open('${SERVICE_ROOT}/metadata/awareness-graph/package.json', 'w') as f:
+              json.dump(pkg, f, indent=2)
+              f.write('\n')
+          " "${VERSION}"
+
+          # Inject version into the spec so both metadata sources agree.
+          python3 -c "
+          import re, sys
+          with open('packaging/specs/awareness_graph_service.yaml') as f:
+              spec = f.read()
+          spec = re.sub(r'(  version: \")[^\"]*\"', r'\g<1>' + sys.argv[1] + '\"', spec, count=1)
+          with open('${SERVICE_ROOT}/specs/awareness_graph_service.yaml', 'w') as f:
+              f.write(spec)
+          " "${VERSION}"
+
+          # Compute entrypoint checksum (matches Globular installer convention).
+          sha256sum "${SERVICE_ROOT}/bin/awareness-graph" \
+            | awk '{print $1}' \
+            > "${SERVICE_ROOT}/metadata/awareness-graph/entrypoint.sha256"
+
+          cat > "${LOCAL_ROOT}/README.txt" <<EOF
+          awareness-graph local runtime bundle v${VERSION}
+
+          Included binaries:
+            bin/awg
+            bin/awareness-mcp
+            bin/awareness-graph
+
+          Quick start:
+            1. place these binaries on your PATH
+            2. fetch Oxigraph with:
+                 bash scripts/fetch-oxigraph.sh
+            3. install supervised local services with:
+                 bash scripts/install-awg-user-services.sh --skip-build
+
+          This bundle is Linux amd64 only.
+          EOF
+
+          SERVICE_TARBALL="awareness-graph_${VERSION}_linux_amd64.tgz"
+          LOCAL_TARBALL="awg-local_${VERSION}_linux_amd64.tgz"
+          tar czf "/tmp/${SERVICE_TARBALL}" -C "${SERVICE_ROOT}" .
+          tar czf "/tmp/${LOCAL_TARBALL}" -C "${LOCAL_ROOT}" .
+          echo "SERVICE_TARBALL=/tmp/${SERVICE_TARBALL}" >> "$GITHUB_ENV"
+          echo "SERVICE_TARBALL_NAME=${SERVICE_TARBALL}" >> "$GITHUB_ENV"
+          echo "LOCAL_TARBALL=/tmp/${LOCAL_TARBALL}" >> "$GITHUB_ENV"
+          echo "LOCAL_TARBALL_NAME=${LOCAL_TARBALL}" >> "$GITHUB_ENV"
+          echo "Staged: /tmp/${SERVICE_TARBALL} ($(du -sh /tmp/${SERVICE_TARBALL} | cut -f1))"
+          echo "Staged: /tmp/${LOCAL_TARBALL} ($(du -sh /tmp/${LOCAL_TARBALL} | cut -f1))"
+
+      - name: Enforce public/runtime release boundary
+        run: |
+          set -euo pipefail
+          scripts/check-release-boundary.sh \
+            /tmp/awareness-graph-service-root \
+            /tmp/awareness-graph-local-root
+
+      - name: Create SHA256 checksums
+        run: |
+          set -euo pipefail
+          cd /tmp
+          sha256sum "${SERVICE_TARBALL_NAME}" > "${SERVICE_TARBALL_NAME}.sha256"
+          sha256sum "${LOCAL_TARBALL_NAME}" > "${LOCAL_TARBALL_NAME}.sha256"
+          echo "Checksum: $(cat ${SERVICE_TARBALL_NAME}.sha256)"
+          echo "Checksum: $(cat ${LOCAL_TARBALL_NAME}.sha256)"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "${TAG}" \
+            --title "awareness-graph ${TAG}" \
+            --notes "Release ${TAG} — built from commit ${GITHUB_SHA:0:8}" \
+            "/tmp/${SERVICE_TARBALL_NAME}" \
+            "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
+            "/tmp/${LOCAL_TARBALL_NAME}" \
+            "/tmp/${LOCAL_TARBALL_NAME}.sha256"
+          echo "Release ${TAG} created."
+
+      # ── Public mirror on globulario/services ─────────────────────────────
+      # awareness-graph is a private repo; the services-repo Release workflow
+      # cannot fetch its tarballs with the default GITHUB_TOKEN (no cross-repo
+      # private-read). We mirror each release to a public release on
+      # globulario/services under the `awareness-graph-v${VERSION}` tag
+      # prefix — chosen because it does NOT match the services Release
+      # workflow's `v*` trigger glob, so mirror-creation never accidentally
+      # triggers a services platform release.
+      #
+      # Requires repo secret SERVICES_MIRROR_TOKEN: a PAT with
+      # `contents: write` scope on globulario/services. If the secret is
+      # absent, the step is skipped (the release still succeeds on the
+      # private side; the mirror just needs to be done manually until the
+      # secret is configured).
+      - name: Mirror tarball to public services-repo release
+        if: ${{ env.SERVICES_MIRROR_TOKEN != '' }}
+        env:
+          SERVICES_MIRROR_TOKEN: ${{ secrets.SERVICES_MIRROR_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          MIRROR_TAG="awareness-graph-v${VERSION}"
+          MIRROR_TITLE="awareness-graph v${VERSION} (public mirror)"
+          NOTES=$(cat <<EOF
+          Public mirror of awareness-graph release tarball.
+
+          Source: github.com/globulario/awareness-graph v${VERSION} (private)
+          Built from awareness-graph commit ${GITHUB_SHA:0:8}
+
+          This release hosts the service tarball + the local runtime tarball,
+          each with sha256 checksums, and no source code.
+          The service tarball exists so the globulario/services Release workflow
+          can fetch the awareness-graph binary without needing cross-repo
+          private-read auth.
+
+          Created automatically by awareness-graph's release.yml workflow.
+          EOF
+          )
+          GH_TOKEN="${SERVICES_MIRROR_TOKEN}" gh release create "${MIRROR_TAG}" \
+            --repo globulario/services \
+            --title "${MIRROR_TITLE}" \
+            --notes "${NOTES}" \
+            "/tmp/${SERVICE_TARBALL_NAME}" \
+            "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
+            "/tmp/${LOCAL_TARBALL_NAME}" \
+            "/tmp/${LOCAL_TARBALL_NAME}.sha256"
+          echo "Mirror release ${MIRROR_TAG} created on globulario/services."
+
+      - name: Mirror skip notice
+        if: ${{ env.SERVICES_MIRROR_TOKEN == '' }}
+        env:
+          SERVICES_MIRROR_TOKEN: ${{ secrets.SERVICES_MIRROR_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "::warning::SERVICES_MIRROR_TOKEN secret not set — public mirror skipped."
+          echo "::warning::To enable auto-mirroring, set the secret in this repo:"
+          echo "::warning::  gh secret set SERVICES_MIRROR_TOKEN --repo globulario/awareness-graph --body <PAT>"
+          echo "::warning::The PAT needs 'contents: write' scope on globulario/services."
+          echo "::warning::Mirror v${VERSION} manually with:"
+          echo "::warning::  gh release create awareness-graph-v${VERSION} \\"
+          echo "::warning::    /tmp/${SERVICE_TARBALL_NAME} /tmp/${SERVICE_TARBALL_NAME}.sha256 \\"
+          echo "::warning::    /tmp/${LOCAL_TARBALL_NAME} /tmp/${LOCAL_TARBALL_NAME}.sha256 \\"
+          echo "::warning::    --repo globulario/services \\"
+          echo "::warning::    --title 'awareness-graph v${VERSION} (public mirror)'"

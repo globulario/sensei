@@ -1,0 +1,1026 @@
+// awareness_graph.proto — gRPC contract for the awareness graph service.
+//
+// Design rules:
+//   - Briefing is the primary consumer surface. It returns prose composed
+//     from SPARQL results — a single tool agents call instead of 200.
+//   - Impact is the structured equivalent: same data shape as Briefing but
+//     returned as typed nodes rather than narration. Used by code review
+//     tools, the pre-commit guard, etc.
+//   - Query is raw SPARQL passthrough — admin/debug only, RBAC-gated.
+//     Not exposed to MCP tools by default; intended for the operator CLI.
+//   - Resolve is a single-node lookup for following annotation IDs in code
+//     (// @invariant: X) back to their full triple set.
+//
+// Annotation provenance:
+//   When triples come from @-annotations in source code rather than from
+//   a YAML file, the response carries a CodeAnchor: file path + symbol
+//   (if function-scoped) + line range. This is what makes "where is this
+//   rule actually enforced in code" answerable.
+
+syntax = "proto3";
+
+package globular.awareness_graph;
+
+// Generated Go bindings live under golang/pb/ as
+//   import awarenesspb "github.com/globulario/awareness-graph/golang/pb"
+// Regenerate via `make proto` (see Makefile and README "Proto generation").
+option go_package = "github.com/globulario/awareness-graph/golang/pb;awarenesspb";
+
+service AwarenessGraph {
+  // Briefing composes a ~500-token prose briefing for editing a file or
+  // tackling a task. The single entry point agents should call before
+  // significant code changes. Composed from the same SPARQL queries that
+  // back Impact; the difference is presentation, not data.
+  rpc Briefing(BriefingRequest) returns (BriefingResponse);
+
+  // Impact returns the structured data the Briefing composer uses. Direct
+  // (file is the explicit subject of the node) vs Inferred (reached via
+  // package/symbol walks) partition matches the existing services-repo
+  // analysis package contract.
+  rpc Impact(ImpactRequest) returns (ImpactResponse);
+
+  // Query forwards raw SPARQL to the backend store. RBAC-gated to the
+  // awareness.admin role. Not for agent consumption — debugging and
+  // operator workflows only.
+  rpc Query(QueryRequest) returns (QueryResponse);
+
+  // Resolve fetches a single node by its annotation ID (e.g. "invariant:foo",
+  // "pat.bar"). Returns the node's triples plus any code-anchor provenance.
+  // This is the tool agents call after reading a // @invariant: X comment.
+  rpc Resolve(ResolveRequest) returns (ResolveResponse);
+
+  // Metadata returns coverage and freshness signals about the graph itself
+  // — not about any specific file. Agents call this at session start so
+  // they can tell whether an EMPTY briefing means "no rules apply here"
+  // (graph is well-covered) vs "this area is unannotated" (graph coverage
+  // is thin in this domain).
+  //
+  // Cheap: counts are computed live via SPARQL but the queries are bounded
+  // and small. Safe to call once per session or per task.
+  rpc Metadata(MetadataRequest) returns (MetadataResponse);
+
+  // Preflight is the agent's pre-edit decision-support call. Given a task
+  // and optional file list, it returns a single risk_class the agent can
+  // branch on, plus required_actions, forbidden_fixes, tests_to_run, and
+  // files_to_read assembled from anchored graph facts (never invented).
+  //
+  // Reuses Briefing's matching engine; adds risk classification, coverage
+  // discipline, and action-oriented response shape on top. EMPTY does NOT
+  // become LOW_RISK unless coverage explicitly says coverage is
+  // sufficient — if the graph doesn't know the area, the response is
+  // UNKNOWN_IMPACT and the agent is told to proceed carefully.
+  //
+  // Store unavailable degrades to PREFLIGHT_STATUS_DEGRADED with
+  // UNKNOWN_IMPACT and blind_spots="awareness_store_unavailable" rather
+  // than hard-failing. Only returns codes.Unavailable if the handler
+  // cannot construct any response at all.
+  rpc Preflight(PreflightRequest) returns (PreflightResponse);
+
+  // EditCheck evaluates a proposed edit's content against the active
+  // repo-scoped advisory rules ("detect" blocks) that apply to the file, in
+  // the caller's resolved domain. It is WARNING-ONLY: it never blocks, never
+  // modifies code, and returns warnings naming the rule a bad-shape edit
+  // would violate (e.g. replacing dispenser.Errf with fmt.Errorf in a Caddy
+  // Caddyfile unmarshaler). Domain scoping is identical to Briefing/Impact:
+  // a multi-domain graph with no domain fails closed; cross-domain rules
+  // never apply. See golang/server/scope.go.
+  rpc EditCheck(EditCheckRequest) returns (EditCheckResponse);
+
+  // Propose submits a typed feedback entry (failure_mode, invariant,
+  // required_test, forbidden_fix, or contract_unknown) to the awareness
+  // corpus's review queue. It is the agent write path: an agent that learned
+  // something durable proposes it here.
+  //
+  // The entry is validated with the SAME contract-first rules as `awg propose`
+  // and written as a candidate under docs/awareness/candidates/proposals/ — it
+  // is NOT a live graph node and does NOT trigger a rebuild. Promotion into the
+  // canonical corpus stays a human/CI-gated step, so the served graph never
+  // silently mutates durable truth (preserving the CLI-not-durable-mutation
+  // contract; the RPC only queues a proposal). Requires the server to be
+  // configured with a candidates directory; returns Unavailable otherwise.
+  rpc Propose(ProposeRequest) returns (ProposeResponse);
+
+  // ReferenceSites returns, for each requested code-symbol id, the set of
+  // OTHER code symbols that reference it (inbound aw:references edges from
+  // ingested SCIP occurrences). This is the completeness primitive: given the
+  // symbols a change touches, it answers "N sites share this reference; which
+  // ones did the diff miss?". Directed and complete — it reads inbound edges
+  // straight from the store, so a target with many OUTGOING references does not
+  // crowd out its referencing sites (as a bidirectional related-walk would).
+  // External targets (stdlib/third-party, id "external:<name>") have no
+  // in-repo definition and are ignored. Cheap: one inbound describe per id.
+  rpc ReferenceSites(ReferenceSitesRequest) returns (ReferenceSitesResponse);
+}
+
+// ─── Briefing ─────────────────────────────────────────────────────────────
+
+message BriefingRequest {
+  // Either file XOR task must be set.
+  string file = 1;  // repo-relative path, e.g. "golang/foo/bar.go"
+  string task = 2;  // natural-language task description, used as keyword anchor
+
+  // Optional depth control. agent_compact is the narrowest agent-safe payload:
+  // tighter caps on surfaced nodes, references, and code-context lists.
+  // compact is a bounded human/agent summary; standard and deep progressively
+  // expand context.
+  string depth = 3;  // "agent_compact" | "compact" | "standard" | "deep"
+
+  // Optional domain/repo scope. When the graph hosts more than one domain,
+  // a query MUST be scoped or it fails closed (never mixes domains). Empty is
+  // allowed when the graph holds a single domain (resolves trivially) or only
+  // shared meta-principles. A repo value (e.g. "github.com/caddyserver/caddy")
+  // selects that domain plus shared meta-principles. See golang/server/scope.go.
+  string domain = 4;
+}
+
+// BriefingStatus tells the agent whether the prose is authoritative,
+// genuinely empty, or returned in a degraded mode. Without this enum a
+// caller can't distinguish "you forgot to anchor this file" (EMPTY) from
+// "the backend is partially down" (DEGRADED) — both produce an empty
+// prose body otherwise.
+enum BriefingStatus {
+  BRIEFING_STATUS_OK = 0;        // Anchors found; prose composed normally.
+  BRIEFING_STATUS_EMPTY = 1;     // File/task has zero direct or inferred anchors.
+                                 // Action: author awareness for this file, or treat the edit as low-coverage.
+  BRIEFING_STATUS_DEGRADED = 2;  // Backend partially unavailable; prose is best-effort.
+                                 // Action: retry or fall back to local YAML reading.
+}
+
+message BriefingResponse {
+  string prose = 1;        // the narration — ready to display or feed back as context
+
+  // Token budget the briefing was generated within (Oxigraph latency budget,
+  // not the prose token count; the caller can multiply by 4 for a token estimate).
+  int64 generated_in_ms = 2;
+
+  // IDs the briefing references. Values are IRI-shaped / class-qualified so
+  // the agent can call Resolve directly without re-deriving the class.
+  // Examples:
+  //   "invariant:reconcile.dep_block_records_must_be_cleared_when_dep_satisfies"
+  //   "failure_mode:service.runtime_identity_unproven"
+  //   "incident_pattern:pat.reconcile_stale_dep_block_never_cleared"
+  repeated string referenced_ids = 3;
+
+  // Status of this briefing — OK / EMPTY / DEGRADED. Required for the
+  // agent to know whether absence of prose means "no rules apply" or
+  // "backend down". See BriefingStatus.
+  BriefingStatus status = 4;
+
+  // Implementation patterns that match the task text (or the file's
+  // structural shape). Bounded to ≤3, ordered strongest-first. Empty when
+  // no pattern matches strongly enough — never invented to fill space.
+  repeated MatchedImplementationPattern implementation_patterns = 5;
+
+  // Current/provenance stamp for this graph-backed answer.
+  GraphAuthority authority = 6;
+}
+
+// MatchedImplementationPattern is one project recipe surfaced to the agent
+// because the briefing's task/file matched the pattern's activation
+// triggers. The agent should read it as guidance for the SHAPE of code
+// they're about to write, not as a runtime fact.
+message MatchedImplementationPattern {
+  // class-qualified id, e.g.
+  // "implementation_pattern:globular.pattern.grpc_client_standard"
+  string id = 1;
+
+  // rdfs:label — human-readable title.
+  string label = 2;
+
+  // "strong" | "medium" | "narrow" — the match tier. Agents should weight
+  // strong > medium > narrow.
+  string match_strength = 3;
+
+  // Why this pattern matched — one short string per signal.
+  repeated string match_reason = 4;
+
+  // Reference file paths as "role:repo-relative/path.go" literals.
+  repeated string reference_files = 5;
+
+  // Pattern contract surfaced to the agent BEFORE writing code.
+  repeated string must_follow = 6;
+  repeated string required_calls = 7;
+  repeated string forbidden_calls = 8;
+
+  // First line of the pattern's rationale — short enough not to bloat
+  // every briefing. Full rationale stays in the YAML source.
+  string rationale_summary = 9;
+}
+
+// ─── Impact ───────────────────────────────────────────────────────────────
+
+message ImpactRequest {
+  string file = 1;
+
+  // Optional domain/repo scope — same semantics as BriefingRequest.domain:
+  // fail closed on a multi-domain graph when empty; a repo value selects that
+  // domain plus shared meta-principles. See golang/server/scope.go.
+  string domain = 2;
+}
+
+message ImpactResponse {
+  // Direct nodes — the file is named in the node's protects/enforces/etc.
+  repeated KnowledgeNode direct_invariants = 1;
+  repeated KnowledgeNode direct_failure_modes = 2;
+  repeated KnowledgeNode direct_incident_patterns = 3;
+
+  // Inferred nodes — reached via package, symbol, or service walks.
+  repeated KnowledgeNode inferred_invariants = 4;
+  repeated KnowledgeNode inferred_failure_modes = 5;
+  repeated KnowledgeNode inferred_incident_patterns = 6;
+
+  // Tests, forbidden fixes, etc. — flat lists; partition above is the signal-carrier.
+  repeated KnowledgeNode required_tests = 7;
+  repeated KnowledgeNode forbidden_fixes = 8;
+
+  // Intent partition. Reserved in v0.1 — returned empty until the intent
+  // ingestion lands. Allocated now so adding intent later does not break
+  // the wire contract for existing consumers.
+  repeated KnowledgeNode direct_intents = 9;
+  repeated KnowledgeNode inferred_intents = 10;
+
+  // Architectural-spine + design-pattern nodes the file is anchored to:
+  // Component / Boundary / Contract / Decision / Evidence / DesignPattern /
+  // ImplementationPattern / PatternMisuse. One flat list; each node's `class`
+  // distinguishes them. This is the "what architecture governs this file"
+  // context an agent needs before editing.
+  repeated KnowledgeNode direct_architecture = 11;
+
+  // Current/provenance stamp for this graph-backed answer.
+  GraphAuthority authority = 12;
+
+  // Symbol-level nodes defined in the queried file — functions/methods/types
+  // ingested from a SCIP index. Each carries the symbols it references, which
+  // supports sibling-site / convention-completeness review ("these N symbols
+  // reference X; did the change touch all of them?"). Empty when the graph has
+  // no ingested symbols for the file.
+  repeated CodeSymbolNode symbols = 13;
+}
+
+// CodeSymbolNode is one symbol (function/method/type) defined in a file, with
+// the outgoing references recovered from a SCIP index. It is compiled context,
+// not authority — see aw:CodeSymbol / aw:references.
+message CodeSymbolNode {
+  string id = 1;                  // e.g. "command/issue.go:issueClose"
+  string label = 2;               // human name, e.g. "issueClose"
+  string file = 3;                // repo-relative source file
+  string language = 4;            // go | typescript | ...
+  repeated string references = 5; // ids of referenced symbols, incl. "external:<name>"
+}
+
+message KnowledgeNode {
+  string iri      = 1;  // full IRI, e.g. <https://globular.io/awareness#invariant/reconcile.foo>
+  string id       = 2;  // short ID, e.g. "reconcile.foo"
+  string class    = 3;  // "Invariant" | "FailureMode" | ...
+  string label    = 4;  // rdfs:label (human-readable title)
+  string severity = 5;  // critical|high|warning|info|degraded (if set)
+  string status   = 6;  // active|planned|... (if set)
+
+  // Where this triple set was authored — YAML file path, or code-annotation
+  // anchor (see CodeAnchor below).
+  CodeAnchor anchor = 7;
+
+  // rdfs:comment text — long-form note attached to the node.
+  string description = 8;
+
+  // IRI-shaped / class-qualified IDs of nodes this one points at via
+  // outgoing object-property edges.
+  repeated string related_ids = 9;
+
+  // Optional UML profile classification (metadata, not authority). Empty when
+  // the node carries no uml block. See docs/uml-profile.md.
+  string uml_kind = 10;       // Component | Interface | Operation | Constraint | Artifact | Signal | ...
+  string uml_stereotype = 11; // free-form stereotype
+  string uml_view = 12;       // structural | behavioral | interaction | deployment | awareness
+
+  // Literal-valued facts not curated into the fields above — e.g. an
+  // implementation pattern's requiresCall / forbidsCall / mustFollow /
+  // activationTrigger rules, which are rules-about-code (literals), not edges
+  // to other nodes. Read-only; lets a client show what governs a node that has
+  // few or no graph links.
+  repeated NodeFact facts = 13;
+}
+
+// NodeFact is one literal-valued statement about a node — a property name and
+// its literal value (never an IRI; IRI-valued edges are in related_ids).
+message NodeFact {
+  string predicate = 1;  // short property name, e.g. "requiresCall"
+  string value     = 2;  // the literal value
+}
+
+message CodeAnchor {
+  string source_yaml = 1;  // if authored in YAML, the relative file path
+  string file        = 2;  // if @-annotated in code, the file path
+  string symbol      = 3;  // function/method name when annotated on a symbol
+  int32  line_start  = 4;  // first line of annotation (1-based)
+  int32  line_end    = 5;  // last line; equal to line_start for single-line
+}
+
+// ─── Query (typed, constrained) ───────────────────────────────────────────
+
+enum QueryMode {
+  QUERY_MODE_UNSPECIFIED = 0;
+  QUERY_MODE_BY_FILE = 1;
+  QUERY_MODE_BY_ID = 2;
+  QUERY_MODE_BY_CLASS = 3;
+  QUERY_MODE_RELATED = 4;
+}
+
+enum QueryClass {
+  QUERY_CLASS_UNSPECIFIED = 0;
+  QUERY_CLASS_INVARIANT = 1;
+  QUERY_CLASS_FAILURE_MODE = 2;
+  QUERY_CLASS_INCIDENT_PATTERN = 3;
+  QUERY_CLASS_INTENT = 4;
+  QUERY_CLASS_SYMBOL = 5;
+  QUERY_CLASS_SOURCE_FILE = 6;
+  QUERY_CLASS_CODE_SYMBOL = 7;
+  QUERY_CLASS_FORBIDDEN_FIX = 8;
+  QUERY_CLASS_TEST = 9;
+  // Architectural spine (Stage A). META_PRINCIPLE lists the dual-typed meta.*
+  // invariants (queried via aw:MetaPrinciple, resolved via the invariant IRI).
+  QUERY_CLASS_META_PRINCIPLE = 10;
+  QUERY_CLASS_COMPONENT = 11;
+  QUERY_CLASS_BOUNDARY = 12;
+  QUERY_CLASS_CONTRACT = 13;
+  QUERY_CLASS_DECISION = 14;
+  QUERY_CLASS_EVIDENCE = 15;
+  // Design-pattern awareness (the "how" layer).
+  QUERY_CLASS_DESIGN_PATTERN = 16;
+  QUERY_CLASS_IMPLEMENTATION_PATTERN = 17;
+  QUERY_CLASS_PATTERN_MISUSE = 18;
+}
+
+message QueryRequest {
+  QueryMode mode = 3;
+  string file = 4;   // required for QUERY_MODE_BY_FILE
+  string id = 5;     // class-qualified ID; required for BY_ID and RELATED
+  QueryClass class = 6; // required for QUERY_MODE_BY_CLASS
+  int32 limit = 7;   // optional; server enforces bounds
+
+  reserved 1, 2;
+  reserved "sparql", "accept";
+}
+
+message QueryRow {
+  string id = 1;       // class-qualified, e.g. invariant:test.example.invariant
+  string class = 2;    // invariant|failure_mode|incident_pattern|intent|symbol|source_file
+  string label = 3;
+  string severity = 4;
+  string status = 5;
+  string relation = 6; // set for related mode rows
+  string source_file = 7;
+  // Optional UML profile classification (metadata) — lets dashboards group/
+  // filter by view/kind. Empty when the node carries no uml block.
+  string uml_kind = 8;
+  string uml_stereotype = 9;
+  string uml_view = 10;
+}
+
+message QueryResponse {
+  repeated QueryRow rows = 3;
+  int64 generated_in_ms = 4;
+  GraphAuthority authority = 5;
+
+  reserved 1, 2;
+  reserved "body", "content_type";
+}
+
+// ─── Resolve ──────────────────────────────────────────────────────────────
+
+message ResolveRequest {
+  // Bare node ID without class prefix, e.g.:
+  //   "reconcile.dep_block_records_must_be_cleared_when_dep_satisfies"
+  //   "pat.reconcile_stale_dep_block_never_cleared"
+  //   "service.runtime_identity_unproven"
+  string id = 1;
+
+  // Required. Names the awareness class this ID belongs to. The earlier
+  // contract draft tried to infer class from the prefix; that's brittle
+  // because invariants have no uniform prefix. An explicit class field
+  // makes the call unambiguous.
+  //
+  // The accepted values are the snake_case class tokens, matched
+  // case-insensitively. The authoritative whitelist is the switch in
+  // resolveIRIForClassAndID (golang/server/resolve.go); a class outside it
+  // returns InvalidArgument rather than guessing. As of this writing:
+  //   "invariant" | "failure_mode" | "incident_pattern" | "intent" |
+  //   "source_file" | "symbol" | "code_symbol" | "forbidden_fix" | "test" |
+  //   "meta_principle" | "component" | "boundary" | "contract" | "decision" |
+  //   "evidence"
+  //
+  // These are also the values QueryRow.class returns, so a class-qualified id
+  // like "incident_pattern:pat.foo" splits directly into (class, id) for a
+  // Resolve call. "meta_principle" resolves the dual-typed meta.* invariant
+  // node (it carries the invariant IRI).
+  string class = 2;
+
+  // Optional domain/repo scope. When set, the node is returned only if it is
+  // visible in that scope (its own repo domain, or a shared meta-principle);
+  // a node belonging to another repo resolves to found=false. Empty preserves
+  // today's behavior (resolve by explicit id is unambiguous on its own).
+  // Same vocabulary as BriefingRequest.domain. See golang/server/scope.go.
+  string domain = 3;
+}
+
+message ResolveResponse {
+  // The resolved node. Populated when `found` is true; left unset
+  // otherwise.
+  KnowledgeNode node = 1;
+
+  // Whether the requested node exists in the RDF store.
+  bool found = 4;
+  GraphAuthority authority = 5;
+
+  reserved 2, 3;
+  reserved "triples", "inverse_triples";
+}
+
+// ─── Metadata ────────────────────────────────────────────────────────────
+//
+// Metadata reports graph-level coverage and freshness. Used by agents
+// to disambiguate "true empty" (graph healthy, no rules apply) from
+// "low coverage" (this domain is unannotated). No long bodies, no per-file
+// dumps — just counts and provenance.
+
+message MetadataRequest {}
+
+enum BuildProvenanceState {
+  BUILD_PROVENANCE_STATE_UNSPECIFIED = 0;
+  BUILD_PROVENANCE_STATE_STAMPED = 1;
+  BUILD_PROVENANCE_STATE_DEV = 2;
+  BUILD_PROVENANCE_STATE_INCOMPLETE = 3;
+}
+
+enum CoverageState {
+  COVERAGE_STATE_UNSPECIFIED = 0;
+  COVERAGE_STATE_EMPTY = 1;
+  COVERAGE_STATE_THIN = 2;
+  COVERAGE_STATE_SUFFICIENT = 3;
+}
+
+enum SeedState {
+  SEED_STATE_UNSPECIFIED = 0;
+  SEED_STATE_CURRENT = 1;
+  SEED_STATE_STALE = 2;
+  SEED_STATE_UNSTAMPED = 3;
+}
+
+enum GraphFreshnessState {
+  GRAPH_FRESHNESS_STATE_UNSPECIFIED = 0;
+  GRAPH_FRESHNESS_STATE_CURRENT = 1;
+  GRAPH_FRESHNESS_STATE_STALE = 2;
+  GRAPH_FRESHNESS_STATE_UNKNOWN = 3;
+  GRAPH_FRESHNESS_STATE_EMPTY = 4;
+  GRAPH_FRESHNESS_STATE_CHECK_ERROR = 5;
+}
+
+// GraphAuthority is the current/provenance stamp every successful graph-backed
+// response must carry. Callers must not infer authority from prose or rows
+// alone; they must read this block to know whether the answer came from the
+// current validated artifact.
+message GraphAuthority {
+  // True only when the live store was proven to match the expected embedded/
+  // generated artifact digest exactly.
+  bool authoritative = 1;
+
+  // Freshness verdict for the loaded graph.
+  GraphFreshnessState graph_freshness_state = 2;
+  string graph_freshness_detail = 3;
+
+  // Provenance state for the expected artifact.
+  BuildProvenanceState build_provenance_state = 4;
+  SeedState seed_state = 5;
+  string graph_build_commit = 6;
+  int64 graph_build_time_unix = 7;
+  string source_repo_commit = 8;
+
+  // Exact graph identities used for the verdict.
+  string embedded_seed_digest_sha256 = 9;
+  string live_store_graph_digest_sha256 = 10;
+  int64 live_store_graph_triple_count = 11;
+
+  // Embedded cross-repo transaction certification for the expected seed.
+  bool embedded_transaction_stamp_present = 12;
+  string certified_awareness_graph_commit = 13;
+  string certified_services_repo_commit = 14;
+  bool embedded_transaction_matches_seed = 15;
+  string embedded_transaction_detail = 16;
+}
+
+enum CandidateQueueState {
+  CANDIDATE_QUEUE_STATE_UNSPECIFIED = 0;
+  CANDIDATE_QUEUE_STATE_NOT_DETECTED = 1;
+  CANDIDATE_QUEUE_STATE_EMPTY = 2;
+  CANDIDATE_QUEUE_STATE_PRESENT = 3;
+}
+
+enum BenchmarkState {
+  BENCHMARK_STATE_UNSPECIFIED = 0;
+  BENCHMARK_STATE_NOT_DETECTED = 1;
+  BENCHMARK_STATE_EMPTY = 2;
+  BENCHMARK_STATE_PRESENT = 3;
+}
+
+enum GovernancePackState {
+  GOVERNANCE_PACK_STATE_UNSPECIFIED = 0;
+  GOVERNANCE_PACK_STATE_NOT_DETECTED = 1;
+  GOVERNANCE_PACK_STATE_NONE = 2;
+  GOVERNANCE_PACK_STATE_UNVERIFIED = 3;
+  GOVERNANCE_PACK_STATE_CURRENT = 4;
+  GOVERNANCE_PACK_STATE_STALE = 5;
+  GOVERNANCE_PACK_STATE_UNKNOWN = 6;
+}
+
+message MetadataResponse {
+  // ── Build provenance (set at build time via ldflags) ──
+  // Commit SHA of the awareness-graph repo at the time embeddata/awareness.nt
+  // was generated. Empty when the binary was built without ldflags injection
+  // (e.g. local `go build`).
+  string graph_build_commit = 1;
+
+  // Unix timestamp (seconds) when embeddata/awareness.nt was generated.
+  // Zero when not stamped.
+  int64 graph_build_time_unix = 2;
+
+  // Commit SHA of the services repo (intent/awareness YAML source) at the
+  // time the .nt was built. Diverging from the live services repo HEAD
+  // is the staleness signal.
+  string source_repo_commit = 3;
+
+  // Server binary version (-X main.Version=...). "0.0.0-dev" sentinel
+  // means the binary was built without ldflags.
+  string server_version = 4;
+
+  // ── Live counts from the store ──
+  // Total triples in the default graph. Includes generated code-symbol
+  // triples plus authored YAML-sourced triples.
+  int64 triple_count = 5;
+
+  // Counts of nodes by class. Useful to see at a glance whether the
+  // graph has the expected mass of authored knowledge.
+  int64 invariant_count = 6;
+  int64 failure_mode_count = 7;
+  int64 incident_pattern_count = 8;
+  int64 intent_count = 9;
+  int64 forbidden_fix_count = 10;
+  int64 required_test_count = 11;
+
+  // Number of SourceFile nodes — files the graph knows about. Compare
+  // to the repo's actual Go file count to estimate coverage.
+  int64 source_file_count = 12;
+
+  // Number of CodeSymbol nodes — symbols extracted from @awareness
+  // annotations.
+  int64 code_symbol_count = 13;
+
+  // ── Server runtime ──
+  // Wall-clock time the server process started, Unix seconds.
+  int64 server_started_unix = 14;
+
+  // Time spent computing this response (Oxigraph round-trip total).
+  int64 generated_in_ms = 15;
+
+  // ── Architectural spine counts (Stage A) ──
+  // meta_principle_count is the number of dual-typed meta.* invariants
+  // (aw:MetaPrinciple); they are also included in invariant_count.
+  int64 meta_principle_count = 16;
+  int64 component_count = 17;
+  int64 boundary_count = 18;
+  int64 contract_count = 19;
+  int64 decision_count = 20;
+  int64 evidence_count = 21;
+  int64 design_pattern_count = 22;
+  int64 implementation_pattern_count = 23;
+  int64 pattern_misuse_count = 24;
+
+  // Process-local usage counters for the agent-facing surface. Reset when the
+  // server restarts; useful for confirming the bridge stays on compact paths.
+  int64 briefing_call_count = 25;
+  int64 briefing_agent_compact_count = 26;
+  int64 resolve_call_count = 27;
+  int64 resolve_found_count = 28;
+  int64 resolve_miss_count = 29;
+
+  // ── Embedded seed / live-store alignment ──
+  // Deterministic sha256 digest of the embedded awareness.nt payload after
+  // marker stripping + normalization, then restamped by the build pipeline.
+  // Empty means the embedded seed predates marker stamping and cannot be
+  // compared remotely to the live store.
+  string embedded_seed_digest_sha256 = 30;
+
+  // IRI of the embedded seed marker node inside awareness.nt. Remote
+  // consumers can Resolve/Query it if needed. Empty when the embedded seed is
+  // unstamped.
+  string embedded_seed_marker_iri = 31;
+
+  // True when the live store contains the current embedded seed marker. False
+  // means either the live store is older than the embedded seed or the seed
+  // was never additively loaded after a rebuild/release.
+  bool live_store_contains_embedded_seed_marker = 32;
+
+  // ── Server-side verdicts over the raw fields above ──
+  BuildProvenanceState build_provenance_state = 33;
+  CoverageState coverage_state = 34;
+  SeedState seed_state = 35;
+
+  // Exact identity recovered from the currently loaded graph marker, when the
+  // live store carries one. Empty/zero values mean the server could not prove
+  // the live graph identity from the loaded artifact itself.
+  string live_store_graph_digest_sha256 = 46;
+  int64 live_store_graph_triple_count = 47;
+  GraphFreshnessState graph_freshness_state = 48;
+  string graph_freshness_detail = 49;
+
+  // ── Optional local repo/operator summaries ──
+  // Candidate queue visibility is based on docs/awareness/candidates/ under
+  // the server's detected project root. Remote clients can tell whether the
+  // queue exists and whether it is empty without scraping the filesystem.
+  CandidateQueueState candidate_queue_state = 36;
+  int64 local_candidate_file_count = 37;
+  int64 local_candidate_entry_count = 38;
+
+  // Local benchmark/evaluation visibility is based on eval/multi-swe-bench/
+  // when present under the detected project root. This is optional and zeroed
+  // for projects that do not carry benchmark fixtures.
+  BenchmarkState benchmark_state = 39;
+  int64 benchmark_contract_count = 40;
+  int64 benchmark_learning_event_count = 41;
+  int64 benchmark_latest_learning_event_unix = 42;
+  string benchmark_latest_task_id = 43;
+  int64 benchmark_latest_score = 44;
+  string benchmark_latest_certification_status = 45;
+
+  // ── Embedded cross-repo transaction certification ──
+  // True when the binary carries an embedded cross-repo transaction stamp
+  // beside awareness.nt. The stamp certifies which paired repo heads and
+  // build inputs were used when the embedded seed was rebuilt.
+  bool embedded_transaction_stamp_present = 50;
+
+  // Certified awareness-graph commit recorded in the embedded transaction
+  // stamp. Empty when the stamp is absent or incomplete.
+  string certified_awareness_graph_commit = 51;
+
+  // Certified services commit recorded in the embedded transaction stamp.
+  // Empty when the stamp is absent or incomplete.
+  string certified_services_repo_commit = 52;
+
+  // True when the embedded transaction stamp certifies the same seed digest as
+  // the embedded awareness.nt marker. False means the binary carries a stale or
+  // mismatched transaction stamp and must not present it as authoritative.
+  bool embedded_transaction_matches_seed = 53;
+
+  // Short explanatory detail for the embedded transaction verdict.
+  string embedded_transaction_detail = 54;
+
+  // ── Optional local managed-governance summaries ──
+  // Governance-pack visibility is based on .awg/governance/ under the server's
+  // detected project root. This is a local operator summary only; CURRENT/STALЕ
+  // requires full combined-graph verification and may stay UNVERIFIED until
+  // that activation flow is wired.
+  GovernancePackState governance_pack_state = 55;
+  string governance_pack_id = 56;
+  string governance_pack_version = 57;
+  string governance_pack_digest_sha256 = 58;
+  string governance_pack_publisher = 59;
+  string combined_graph_digest_sha256 = 60;
+  int64 combined_graph_triple_count = 61;
+}
+
+// ─── Governance Graph Phase-1 schema ───────────────────────────────────────
+//
+// These types make repair-governance concepts part of the public wire
+// contract before extractors/certifiers start populating them broadly.
+// They are intentionally generic and reusable across repos. Phase-1 does not
+// require every server or event producer to emit them yet.
+
+enum EvidenceLaneMode {
+  EVIDENCE_LANE_MODE_UNSPECIFIED = 0;
+  EVIDENCE_LANE_STATIC_ONLY = 1;
+  EVIDENCE_LANE_RUNTIME_REQUIRED = 2;
+  EVIDENCE_LANE_HYBRID = 3;
+}
+
+enum CertificationVerdict {
+  CERTIFICATION_VERDICT_UNSPECIFIED = 0;
+  CERTIFICATION_VERDICT_CERTIFIED_CLEAN_REPAIR = 1;
+  CERTIFICATION_VERDICT_CERTIFIED_PARTIAL_REPAIR = 2;
+  CERTIFICATION_VERDICT_UNCERTIFIED_SCORE_ONLY = 3;
+  CERTIFICATION_VERDICT_SCOPE_UNBOUNDED = 4;
+  CERTIFICATION_VERDICT_AUTHORITY_UNKNOWN = 5;
+  CERTIFICATION_VERDICT_PROOF_MISSING = 6;
+  CERTIFICATION_VERDICT_RUNTIME_EVIDENCE_MISSING = 7;
+  CERTIFICATION_VERDICT_ARTIFACT_MAPPING_MISSING = 8;
+  CERTIFICATION_VERDICT_FORBIDDEN_MOVE_DETECTED = 9;
+  CERTIFICATION_VERDICT_VERIFICATION_IMPOSSIBLE = 10;
+}
+
+enum PromotionDecision {
+  PROMOTION_DECISION_UNSPECIFIED = 0;
+  PROMOTION_ALLOWED = 1;
+  PROMOTION_BLOCKED = 2;
+  PROMOTION_REVIEW_REQUIRED = 3;
+}
+
+message AuthoritySurface {
+  string id = 1;
+  string kind = 2;
+  string owner = 3;
+  repeated string source_files = 4;
+  repeated string symbols = 5;
+  repeated string mutates_state = 6;
+  repeated string controls_lifecycle = 7;
+  repeated string required_authority = 8;
+  repeated string required_guards = 9;
+  repeated string notes = 10;
+}
+
+message ProofSlot {
+  string id = 1;
+  string kind = 2;
+  string description = 3;
+  bool required = 4;
+  bool satisfied = 5;
+  repeated string evidence_refs = 6;
+}
+
+message ProofObligation {
+  string id = 1;
+  string description = 2;
+  repeated string applies_to = 3;
+  EvidenceLaneMode lane_mode = 4;
+  repeated ProofSlot required_slots = 5;
+}
+
+message ForbiddenRepairMove {
+  string id = 1;
+  string description = 2;
+  repeated string forbids = 3;
+  repeated string blocks = 4;
+  repeated string applies_to = 5;
+}
+
+message ForbiddenMoveEvidence {
+  string kind = 1;
+  string path = 2;
+}
+
+message DetectedForbiddenMove {
+  string id = 1;
+  string reason = 2;
+  ForbiddenMoveEvidence evidence = 3;
+}
+
+message RepairClaim {
+  string id = 1;
+  string summary = 2;
+  repeated string contract_ids = 3;
+  repeated string scope_files = 4;
+  repeated string authority_surface_ids = 5;
+  repeated string proof_obligation_ids = 6;
+  repeated string forbidden_move_ids = 7;
+}
+
+message CertificationRequirement {
+  string id = 1;
+  string description = 2;
+  repeated string contract_ids = 3;
+  repeated string authority_surface_ids = 4;
+  repeated string proof_obligation_ids = 5;
+  repeated string forbidden_move_ids = 6;
+  EvidenceLaneMode lane_mode = 7;
+}
+
+message CertificationLaneResult {
+  string lane = 1;
+  string status = 2;
+  repeated string reasons = 3;
+}
+
+message GovernanceCertification {
+  string repair_claim_id = 1;
+  repeated string certification_requirement_ids = 2;
+  repeated CertificationLaneResult lanes = 3;
+  CertificationVerdict verdict = 4;
+  PromotionDecision promotion = 5;
+  bool score_used_for_certification = 6;
+  repeated string missing_evidence = 7;
+  repeated string blocked_by_forbidden_move_ids = 8;
+  repeated string notes = 9;
+}
+
+// ─── Preflight ───────────────────────────────────────────────────────────
+//
+// Preflight is the agent-facing pre-edit RPC. It composes Briefing's
+// matching engine with a typed risk classifier so the agent gets a single
+// branch-able risk_class instead of having to read 7 invariants and infer.
+
+enum PreflightMode {
+  PREFLIGHT_MODE_UNSPECIFIED = 0;  // server treats as PREFLIGHT_COMPACT
+  PREFLIGHT_COMPACT = 1;            // top 3 invariants / 2 failure_modes / 1 pattern; ≤5 action entries
+  PREFLIGHT_STANDARD = 2;            // top 7 / 5 / 3; ≤10 action entries
+}
+
+enum PreflightStatus {
+  PREFLIGHT_STATUS_UNSPECIFIED = 0;
+  PREFLIGHT_STATUS_OK = 1;           // ≥1 direct anchor or ≥1 pattern matched
+  PREFLIGHT_STATUS_EMPTY = 2;        // zero anchors AND zero patterns AND coverage is sufficient
+  PREFLIGHT_STATUS_DEGRADED = 3;     // store unavailable; response is best-effort with UNKNOWN_IMPACT
+}
+
+enum RiskClass {
+  RISK_CLASS_UNSPECIFIED = 0;
+  LOW_RISK = 1;
+  ARCHITECTURE_SENSITIVE = 2;
+  CONVERGENCE_RISK = 3;
+  SECURITY_RISK = 4;
+  DATA_LOSS_RISK = 5;
+  UNKNOWN_IMPACT = 6;
+}
+
+enum Confidence {
+  CONFIDENCE_UNSPECIFIED = 0;
+  CONFIDENCE_HIGH = 1;     // ≥3 direct anchors AND coverage sufficient
+  CONFIDENCE_MEDIUM = 2;   // 1–2 direct anchors OR strong pattern match
+  CONFIDENCE_LOW = 3;      // anything else (incl. degraded store)
+}
+
+message PreflightRequest {
+  // Free-form task description. Matched against aw:activationTrigger
+  // literals (implementation patterns + intents/invariants if their
+  // activation triggers overlap).
+  string task = 1;
+
+  // Optional list of files the agent intends to touch. Each file is run
+  // through the same Impact query as Briefing. High-risk-directory check
+  // also runs against these paths.
+  repeated string files = 2;
+
+  // Mode controls how much detail the response carries. Unspecified →
+  // compact. No deep/forensic in v1.
+  PreflightMode mode = 3;
+
+  // Optional domain/repo scope, passed through to the per-file Impact query
+  // so a multi-domain graph scopes correctly (and fails closed when empty).
+  // Same semantics as BriefingRequest.domain. Preflight semantics are
+  // otherwise unchanged — this is scope correctness, not enforcement.
+  string domain = 4;
+}
+
+message PreflightResponse {
+  PreflightStatus status = 1;
+  RiskClass risk_class = 2;
+  Confidence confidence = 3;
+
+  // Direct anchors — reuses Briefing's collectImpact per file.
+  repeated KnowledgeNode direct_invariants = 4;
+  repeated KnowledgeNode direct_failure_modes = 5;
+  repeated KnowledgeNode direct_intents = 6;
+  repeated KnowledgeNode direct_forbidden_fixes = 7;
+  repeated KnowledgeNode direct_required_tests = 8;
+
+  // Reuses Phase C ImplementationPattern matcher.
+  repeated MatchedImplementationPattern implementation_patterns = 9;
+
+  // Action-oriented summaries assembled from the anchors + patterns above.
+  // Bounded by mode (compact ≤5 entries each; standard ≤10).
+  repeated string required_actions = 10;
+  repeated string forbidden_fixes = 11;
+  repeated string tests_to_run = 12;
+  repeated string files_to_read = 13;
+
+  // Reasons the classifier reached its verdict, plus any coverage gaps.
+  // Flat strings (no nested taxonomy per the v1 cut).
+  repeated string blind_spots = 14;
+
+  CoverageSummary coverage = 15;
+  int64 generated_in_ms = 16;
+
+  // Architectural spine + pattern nodes governing the touched files
+  // (Component / Boundary / Contract / Decision / Evidence / DesignPattern /
+  // ImplementationPattern / PatternMisuse). Reuses collectImpact's
+  // direct_architecture bucket — same data the Impact RPC returns.
+  repeated KnowledgeNode direct_architecture = 17;
+
+  // Current/provenance stamp for this graph-backed answer.
+  GraphAuthority authority = 18;
+}
+
+message CoverageSummary {
+  int32 direct_anchor_count = 1;   // sum of invariants+failure_modes+intents
+  int32 file_count = 2;             // # files in the request
+  int32 indexed_file_count = 3;     // # of those with a SourceFile IRI
+  bool sufficient = 4;              // load-bearing input to the classifier
+  string note = 5;                  // human-readable summary
+}
+
+// ─── EditCheck (warning-level advisory) ─────────────────────────────────────
+
+message EditCheckRequest {
+  // Repo-relative path of the file being edited, e.g.
+  // "modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go".
+  string file = 1;
+
+  // The proposed new content (full file or the edited region). Detect-rule
+  // patterns are evaluated against this text. Nothing is written anywhere.
+  string proposed_content = 2;
+
+  // Optional domain/repo scope. Same semantics as BriefingRequest.domain:
+  // a multi-domain graph with no domain fails closed; only the resolved
+  // domain's (and shared) rules can warn. See golang/server/scope.go.
+  string domain = 3;
+}
+
+// EditWarning names one advisory rule a proposed edit would violate. Always
+// advisory (severity "warning") in this milestone — never a block.
+message EditWarning {
+  string rule_id  = 1;  // bare node id, e.g. "caddy.reverseproxy.forwardauth_errf_preserves_location"
+  string class    = 2;  // "Invariant" | "ForbiddenFix"
+  string severity = 3;  // always "warning" in v1
+  string message  = 4;  // detect.message, falling back to the rule's label
+  string detail   = 5;  // which pattern tripped, e.g. 'forbidden pattern matched: \bfmt\.Errorf\('
+  string provenance = 6; // compact one-line provenance (repo · origin · review · bundle · range · cites)
+  // The rule's declared enforcement level: "warn" (default/advisory) or
+  // "block" (a would-block under a hard gate). EditCheck itself stays
+  // advisory regardless — this field only lets a gate caller partition warn
+  // from would-block. Absent/empty is treated as "warn".
+  string enforcement = 7;
+}
+
+message EditCheckResponse {
+  // Warnings for rules the proposed content violates. Empty = no advisory
+  // rule tripped (the edit is clean w.r.t. the in-scope detect rules).
+  repeated EditWarning warnings = 1;
+
+  // How many in-scope rules carried a detect block and were evaluated — lets
+  // a caller distinguish "checked, nothing tripped" from "nothing to check".
+  int32 rules_evaluated = 2;
+
+  int64 generated_in_ms = 3;
+}
+
+// ─── Propose (agent write path → review queue) ──────────────────────────────
+
+// ProposeRequest mirrors the CLI's typed feedback payload. Field names match
+// the shared propose.Request so validation is identical across surfaces.
+message ProposeRequest {
+  string kind = 1;   // failure_mode | invariant | required_test | forbidden_fix | contract_unknown
+  string id = 2;     // optional; derived from kind+title when empty
+  string title = 3;
+  string description = 4;
+  string severity = 5;  // critical | high | warning
+  repeated string source_files = 6;
+  repeated string related_invariants = 7;
+  repeated string related_failures = 8;
+  repeated string required_tests = 9;
+  repeated string forbidden_fixes = 10;
+  repeated string evidence = 11;
+  string repo = 12;
+  string domain = 13;
+  string contract = 14;            // the contract violated or clarified
+  string proposed_contract = 15;   // contract_unknown only
+  string revision_request = 16;    // contract_unknown only
+}
+
+enum ProposeStatus {
+  PROPOSE_STATUS_UNSPECIFIED = 0;
+  PROPOSE_STATUS_ACCEPTED = 1;  // validated and written to the candidate review queue
+  PROPOSE_STATUS_REJECTED = 2;  // failed contract-first validation; see validation_errors
+}
+
+message ProposeResponse {
+  ProposeStatus status = 1;
+  // candidate_path is the repo-relative path the proposal was written to
+  // (docs/awareness/candidates/proposals/…), set when accepted. The proposal is
+  // NOT a live graph node — a human/CI step promotes it into the corpus.
+  string candidate_path = 2;
+  repeated string node_ids = 3;
+  repeated string validation_errors = 4;  // set when rejected
+  string note = 5;
+  int64 generated_in_ms = 6;
+}
+
+// ─── ReferenceSites ─────────────────────────────────────────────────────────
+
+message ReferenceSitesRequest {
+  // Target code-symbol ids (format "file:symbol", e.g.
+  // "golang/server/server.go:Impact"). External ids ("external:<name>") are
+  // ignored — they have no in-repo definition to be complete about.
+  repeated string symbol_ids = 1;
+
+  // Optional domain/repo scope — same fail-closed semantics as the other RPCs.
+  string domain = 2;
+}
+
+message ReferenceFamily {
+  string symbol_id = 1;          // the requested target, echoed back
+  // site_ids are the code symbols that reference symbol_id (inbound
+  // aw:references edges), format "file:symbol". Excludes symbol_id itself.
+  repeated string site_ids = 2;
+}
+
+message ReferenceSitesResponse {
+  repeated ReferenceFamily families = 1;
+  GraphAuthority authority = 2;
+  int64 generated_in_ms = 3;
+}

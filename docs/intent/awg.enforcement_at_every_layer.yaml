@@ -1,0 +1,61 @@
+id: awg.enforcement_at_every_layer
+level: principle
+title: Enforce at every layer — briefing, CI, visual, and runtime
+intent: |
+  Knowledge that exists only in the graph but is never enforced is decoration.
+  AWG must push enforcement into every layer where violations can occur:
+
+  1. **Briefing layer** — agent sees invariants before editing. This is pre-emptive:
+     the violation is prevented because the agent knows the rule exists. This is the
+     cheapest enforcement but depends on the agent reading and obeying the briefing.
+
+  2. **CI layer** — `awg source-check` runs against PRs and blocks merge on structural
+     violations (raw hex colors, timer leaks, missing guards). This is automated and
+     cannot be bypassed by the agent ignoring the briefing.
+
+  3. **Visual layer** — `awg visual-audit` compares screenshots against golden images
+     and detects rendering regressions (color shifts, layout breaks, missing elements).
+     This catches violations that no source analysis can see — the rendered pixel is
+     the ultimate truth.
+
+  4. **Runtime layer** — not yet implemented. Would use browser probes to verify that
+     live production pages conform to rendering contracts (green = confirmed healthy,
+     not optimistic). This is the most expensive but catches drift that occurs after
+     deployment.
+
+  A new invariant is not complete until it has enforcement in at least layers 1 and 2.
+  Layer 3 enforcement (golden images) should be added for any visual contract.
+agent_guidance: |
+  When adding a new invariant:
+  1. Add it to the YAML (layer 1 — briefing)
+  2. Add a source_pattern rule if the violation is detectable by regex (layer 2 — CI)
+  3. If it's a visual contract, add the affected routes to visual-audit golden set (layer 3)
+  4. Update the rendering_groups if multiple files must render consistently
+bad_smells:
+  - invariant exists but no source_pattern catches violations
+  - visual contract with no golden images
+  - rendering group defined but no visual-audit route covers the files
+  - CI passes but briefing shows the violation (enforcement gap)
+  - agent bypasses briefing and introduces a known-forbidden pattern
+activation_triggers:
+  - enforcement
+  - CI
+  - source-check
+  - visual-audit
+  - golden images
+  - rendering group
+expressed_by:
+  - cmd/awg/cmd_source_check.go
+  - cmd/awg/cmd_visual_audit.go
+  - golang/server/briefing.go
+related_invariants: []
+zooms_out_to:
+  - awg.mission
+zooms_in_to:
+  - awg.briefing_is_the_primary_interface
+related_to:
+  - awg.knowledge_earned_not_invented
+status: active
+required_tests:
+  - golang/extractor/yaml_import_dir_test.go:TestImportDir_NoSilentSkip
+  - cmd/awg/cmd_visual_audit_test.go:TestCDPDispatch_PropagatesProtocolError

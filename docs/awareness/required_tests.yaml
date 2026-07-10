@@ -1,0 +1,72 @@
+required_tests:
+  # NOTE: required_tests use the path-style id form
+  # (`path/to/foo_test.go:TestFoo`) as canonical — it carries the test-file
+  # location so `awg validate` can machine-check existence, and its short-name
+  # alias (TestFoo) still resolves bare references from failure_modes.yaml.
+  # The earlier bare-id duplicates were removed (they collided via the alias
+  # and tripped `duplicate_id`).
+  - id: TestDestructiveTestGate_Fixtures
+    title: Destructive tests must be double-gated — build tag AND explicit destructive opt-in env var
+    protects:
+      failure_modes:
+        - ci.destructive_test_must_be_double_gated
+      files:
+        - cmd/principle-check/destructive_test_gate_test.go
+  - id: golang/extractor/importgraph/golang_test.go:TestGoImportGraph_ModuleInSubdirEmitsEdges
+    title: Go import graph emits depends_on edges when the module root lives in a subdirectory
+    protects:
+      failure_modes:
+        - failure.importgraph.go_no_edges_when_gomod_in_subdir
+      files:
+        - golang/extractor/importgraph/golang.go
+        - golang/extractor/importgraph/golang_test.go
+
+  - id: golang/extractor/importgraph/golang_test.go:TestGoImportGraph_DropsDanglingEdgeToGeneratedOnlyPackage
+    title: Go import graph drops inferred depends_on edges that target generated-only packages
+    protects:
+      failure_modes:
+        - failure.importgraph.go_dangling_dependson_edge_to_unscanned_package
+      files:
+        - golang/extractor/importgraph/importgraph.go
+        - golang/extractor/importgraph/golang_test.go
+
+  - id: cmd/awg/helpers_test.go:TestFilteredServicesGeneratedDir_ExcludesAwarenessGraphArtifacts
+    title: Rebuild staging keeps services generated authoredIn paths stable and excludes awareness-graph artifacts
+    protects:
+      failure_modes:
+        - failure.rebuild.authoredin_records_per_run_temp_path
+      files:
+        - cmd/awg/cmd_rebuild.go
+        - cmd/awg/helpers_test.go
+
+  - id: golang/extractor/yaml_import_dir_test.go:TestImportDir_NoSilentSkip
+    title: ImportAwarenessDir reports every discovered YAML file with no silent skip
+    protects:
+      invariants:
+        - awareness.rdf.strict_import_must_surface_all_skips
+      files:
+        - golang/extractor/yaml_import_dir.go
+        - golang/extractor/yaml_import_dir_test.go
+
+  - id: golang/server/preflight_signal_quality_test.go:TestPreflightCriticalSignalsLeadTheActionList
+    title: Preflight critical signals lead the action list
+    protects:
+      invariants:
+        - awareness.briefing.deterministic_compact_context
+        - awareness.preflight_node_context_must_not_flood
+      files:
+        - golang/server/preflight.go
+        - golang/server/briefing.go
+        - golang/server/impact.go
+
+  - id: golang/server/preflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions
+    title: Weak pattern matches must not pollute preflight actions
+    protects:
+      invariants:
+        - awareness.preflight_node_context_must_not_flood
+      failure_modes:
+        - awareness.weak_pattern_match_pollutes_actions
+      files:
+        - golang/server/preflight.go
+        - golang/server/implementation_patterns.go
+        - golang/server/briefing.go

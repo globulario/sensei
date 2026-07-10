@@ -1,0 +1,31 @@
+id: imported.skill.misc.scaffold_exercises
+class: ImplementationPattern
+label: 'Skill: scaffold-exercises'
+status: candidate
+confidence: medium
+when_to_use:
+  - Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use when user wants to scaffold exercises, create exercise stubs, or set up a new course section.
+reference_files:
+  - path: skills/misc/scaffold-exercises/SKILL.md
+    role: source_skill
+must_follow:
+  - 'Sections: XX-section-name/ inside exercises/ (e.g., 01-retrieval-skill-building)'
+  - 'Exercises: XX.YY-exercise-name/ inside a section (e.g., 01.03-retrieval-with-bm25)'
+  - Section number = XX, exercise number = XX.YY
+  - Names are dash-case (lowercase, hyphens)
+  - problem/ - student workspace with TODOs
+  - solution/ - reference implementation
+  - explainer/ - conceptual material, no TODOs
+  - 'Each subfolder (problem/, solution/, explainer/) needs a readme.md that:'
+  - Is not empty (must have real content, even a single title line works)
+  - Has no broken links
+  - 'When stubbing, create a minimal readme with a title and a description:'
+  - If the subfolder has code, it also needs a main.ts (>1 line). But for stubs, a readme-only exercise is fine.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: scaffold-exercises
+  Source path: skills/misc/scaffold-exercises/SKILL.md
+source_files:
+  - skills/misc/scaffold-exercises/SKILL.md

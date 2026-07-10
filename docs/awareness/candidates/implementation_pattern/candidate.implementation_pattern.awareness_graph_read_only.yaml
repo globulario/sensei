@@ -1,0 +1,11 @@
+# GENERATED candidate by `awg bootstrap` — status: candidate.
+# A suggestion for human review; never auto-promoted. To accept,
+# move it under docs/awareness/architecture/ and set status accordingly.
+id: candidate.implementation_pattern.awareness_graph_read_only
+class: ImplementationPattern
+label: AwarenessGraph exposes a read-only gRPC API (candidate)
+status: candidate
+confidence: candidate
+description: All RPCs on AwarenessGraph are reads (read_or_write=read). This API shape looks like a ReadOnlyProjection — review and, if correct, declare an ImplementationPattern realizing pattern.read_only_projection.
+source_files:
+  - proto/awareness_graph.proto

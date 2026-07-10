@@ -1,0 +1,10 @@
+# Report-only gate config. Copy to scripts/awg-gate.conf and set the repo's OWN
+# domain explicitly. The gate is always scoped to this domain — never unscoped,
+# and this never changes any server-side default domain.
+#
+# For a foreign-repo adopter this is that repo's domain
+# (e.g. AWG_GATE_DOMAIN=github.com/caddyserver/caddy). For Globular's own code it
+# is the home-domain key the AWG server runs with (e.g. AWG_GATE_DOMAIN=globular).
+#
+# NOTE: the Caddy pilot is a demo fixture only — do NOT point Globular CI at it.
+AWG_GATE_DOMAIN=globular

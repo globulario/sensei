@@ -1,0 +1,49 @@
+# GENERATED candidate authority surfaces by `awg extract-authority`.
+# status:candidate only. Review and promote explicitly before treating
+# any of these surfaces as authoritative governance facts.
+authority_surface_candidates:
+  repo_root: /home/dave/Documents/github.com/globulario/awareness-graph
+  generated_by: awg extract-authority
+  candidates:
+    - id: candidate.authority.cmd.awg.cmd.serve.runserve
+      class: AuthoritySurface
+      status: candidate
+      confidence: candidate
+      kind: lifecycle_control
+      owner: main
+      source_files:
+        - cmd/awg/cmd_serve.go
+      symbols:
+        - runServe
+      mutates_state:
+        - filesystem
+      controls_lifecycle:
+        - signal
+        - start
+        - stop
+      required_authority:
+        - filesystem_authority
+        - service_lifecycle_authority
+      evidence:
+        - filesystem:os.MkdirAll
+        - lifecycle:oxiCmd.Process.Signal
+        - lifecycle:oxiCmd.Start
+        - lifecycle:srvCmd.Process.Signal
+        - lifecycle:srvCmd.Start
+        - lifecycle:timer.Stop
+    - id: candidate.authority.golang.server.main.serve
+      class: AuthoritySurface
+      status: candidate
+      confidence: candidate
+      kind: lifecycle_control
+      owner: main
+      source_files:
+        - golang/server/main.go
+      symbols:
+        - serve
+      controls_lifecycle:
+        - stop
+      required_authority:
+        - service_lifecycle_authority
+      evidence:
+        - lifecycle:signal.Stop

@@ -1,0 +1,32 @@
+# The ONE rule this demo encodes: a real, painful, non-obvious bug class.
+# `awg init` adds the portable principle pack (docs/awareness/meta_principles.yaml)
+# alongside it — that is why `related_invariants` below resolves to a meta-principle.
+
+invariants:
+  - id: money.amounts_are_integer_minor_units
+    title: Monetary amounts are integer minor units (cents); never float — float arithmetic silently loses money to rounding
+    severity: critical
+    status: active
+    summary: |
+      Money is exact. It must be represented and computed as integer minor
+      units (cents), with an explicit rounding rule. Representing or computing
+      money as float64 introduces silent, platform-dependent rounding: a
+      discount, tax, or split computed through float loses fractional cents
+      that accumulate into real money across orders.
+    enforcement: |
+      Before editing order/price/discount/tax math, keep amounts as integer
+      cents and round explicitly. A `float64(amount) * rate` shape — however
+      obvious it looks — is the bug.
+    protects:
+      files:
+        - pkg/orders/total.go
+      symbols:
+        - OrderTotal
+        - DiscountedTotal
+        - Money
+    forbidden_fixes:
+      - convert_money_to_float_for_discount_or_tax
+    required_tests:
+      - TestOrderTotal_DiscountStaysExactInteger
+    related_invariants:
+      - meta.identity_computation_must_be_invariant

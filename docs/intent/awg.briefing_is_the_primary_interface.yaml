@@ -1,0 +1,52 @@
+id: awg.briefing_is_the_primary_interface
+level: principle
+title: The briefing is the primary interface — everything else feeds it
+intent: |
+  AWG has many capabilities (build, check, validate, query, resolve, impact, preflight,
+  source-check, visual-audit). But the PRIMARY consumer-facing interface is the briefing.
+
+  When an agent calls `awareness.briefing(file="auth.ts")`, the response must contain
+  everything that agent needs to make a correct edit: invariants, failure modes, forbidden
+  fixes, rendering group contracts, and relevant implementation patterns. If a piece of
+  knowledge exists in the graph but doesn't surface in briefings, it doesn't exist from
+  the agent's perspective.
+
+  Every new schema, importer, or query capability added to AWG must be evaluated by one
+  question: does this make the briefing more useful? If the answer is no, the feature
+  may still be valuable for CI or auditing, but it is not the primary mission.
+
+  The briefing must be:
+  - Fast (< 100ms, currently ~10ms)
+  - Complete (all relevant knowledge for the file, not just invariants)
+  - Actionable (tells the agent what to do and what not to do)
+  - Honest about uncertainty (EMPTY status when no knowledge, not silence)
+agent_guidance: |
+  When adding new knowledge types to AWG, always verify they surface in briefing output.
+  A schema that produces triples but no briefing prose is incomplete. The test is: run
+  `awg briefing --file <f>` and confirm the new knowledge appears.
+bad_smells:
+  - knowledge in graph but invisible in briefing (query follows wrong edges)
+  - briefing returns EMPTY for a file with 5 invariants (SPARQL gap)
+  - agent must call 3 different AWG RPCs to get full context for one file
+  - briefing prose is so long the agent ignores it (information overload)
+  - briefing returns stale knowledge from a previous build (cache invalidation)
+activation_triggers:
+  - briefing
+  - agent context
+  - pre-edit check
+  - file awareness
+expressed_by:
+  - golang/server/briefing.go
+  - golang/store/oxigraph/oxigraph.go
+related_invariants:
+  - awareness.store_unavailable_explicit
+zooms_out_to:
+  - awg.mission
+zooms_in_to:
+  - awg.graph_is_compiled_context_not_authority
+related_to:
+  - awareness.briefing_returns_explicit_status
+  - awg.enforcement_at_every_layer
+status: active
+required_tests:
+  - golang/server/main_test.go:TestBriefingStoreNil

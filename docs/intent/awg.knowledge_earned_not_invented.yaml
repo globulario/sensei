@@ -1,0 +1,55 @@
+id: awg.knowledge_earned_not_invented
+level: principle
+title: Knowledge is earned from incidents, not invented from speculation
+intent: |
+  Every entry in the awareness graph should trace back to something that happened:
+  a bug that was fixed, a decision that was debated, a failure mode that was observed,
+  a pattern that was repeated enough times to become a rule.
+
+  AWG does not speculate. It does not invent invariants for hypothetical scenarios.
+  It codifies what the codebase has learned through experience. An invariant without
+  a story — "we added this because X broke in production" or "we decided this because
+  Y was debated and Z won" — is a candidate for removal.
+
+  The consequence: a young codebase has few invariants. That's correct. The graph grows
+  as the team learns. Forcing 50 invariants onto a new project produces noise that
+  agents learn to ignore — destroying the signal that makes AWG useful.
+
+  The one exception: meta-principles (meta.ui.*, meta.code.*) are derived from
+  established design theory (Nielsen, WCAG, Parnas, Ousterhout). They are not
+  speculation — they are the compressed experience of the entire field. But even
+  meta-principles must earn their enforcement: a meta-principle without at least one
+  concrete violation found in the codebase is theoretical, not operational.
+agent_guidance: |
+  When creating a new invariant, include the origin: which incident, decision, or
+  repeated pattern justifies it. "Added because it seemed like a good idea" is not
+  a valid origin. "Added because commit abc123 shipped a bug that this would have
+  caught" is.
+
+  When an invariant has no known violations and no incident history, consider demoting
+  it to a comment rather than an enforced graph node.
+bad_smells:
+  - invariant with no origin story
+  - 20 invariants added in one commit with no incident references
+  - forbidden fix that has never been attempted
+  - required test for a failure that has never occurred
+  - meta-principle cited but no concrete violation found in the codebase
+activation_triggers:
+  - new invariant
+  - new forbidden fix
+  - awareness authoring
+  - graph growth
+expressed_by:
+  - docs/awareness/invariants.yaml
+  - docs/awareness/failure_modes.yaml
+  - docs/awareness/incident_patterns.yaml
+  - golang/extractor/yaml_import_dir.go
+related_invariants: []
+zooms_out_to:
+  - awg.mission
+zooms_in_to: []
+related_to:
+  - awg.graph_is_compiled_context_not_authority
+status: active
+required_tests:
+  - golang/extractor/reference_validator_test.go:TestValidateReferences_DefinedAndReferenced

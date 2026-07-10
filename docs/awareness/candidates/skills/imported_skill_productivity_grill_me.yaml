@@ -1,0 +1,20 @@
+id: imported.skill.productivity.grill_me
+class: ImplementationPattern
+label: 'Skill: grill-me'
+status: candidate
+confidence: medium
+when_to_use:
+  - A relentless interview to sharpen a plan or design.
+reference_files:
+  - path: skills/productivity/grill-me/SKILL.md
+    role: source_skill
+must_follow:
+  - Run a /grilling session.
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: grill-me
+  Source path: skills/productivity/grill-me/SKILL.md
+source_files:
+  - skills/productivity/grill-me/SKILL.md

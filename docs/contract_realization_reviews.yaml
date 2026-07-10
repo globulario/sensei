@@ -1,0 +1,19 @@
+# Review decisions on candidateRealizesContract proposals.
+# A pair recorded here is EXCLUDED from future `awg suggest-realizations`
+# runs — the decision sticks. Promoted decisions live in
+# contract_realizations.yaml `realizations:` instead. This is tracked
+# review process-state, NOT graph authority (no predicates).
+contract_realization_reviews:
+  reviews:
+    - implementation: contract.http.api_cors_diagnostics
+      realizes: contract.config_mutation_requires_valid_token
+      decision: rejected
+      reason: read/diagnostic surface; emits CORS diagnostics, performs no config mutation — no authority obligation
+    - implementation: contract.http.api_save_service_config
+      realizes: contract.config_mutation_requires_valid_token
+      decision: needs_human_decision
+      reason: plausible config-mutation surface, but the token-before-mutation obligation is not yet confirmed for this handler
+    - implementation: contract.http.sign_ca_certificate
+      realizes: contract.config_mutation_requires_valid_token
+      decision: rejected
+      reason: CA signing endpoint; not a config mutation — wrong contract (belongs under a PKI/CA authority contract, not config_mutation)

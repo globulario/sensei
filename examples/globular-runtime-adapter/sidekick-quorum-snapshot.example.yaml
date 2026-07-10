@@ -1,0 +1,71 @@
+# Worked example: a Globular runtime-evidence snapshot (runtime-evidence/v1).
+#
+# Scenario (from the runtime proof spec): `sidekick` is not installed on node
+# `nuc`. The NAIVE read is "release convergence failed". The CORRECT read, once
+# the lanes are assembled, is "sidekick is intentionally HELD because object-store
+# quorum is not satisfied" — a blocked state, not a bug. This is exactly the kind
+# of distinction AWG's runtime verdicts (Phase 3) will draw from these lanes.
+#
+# This file is normalized evidence ONLY — the shape AWG consumes. AWG never sees
+# the Globular RPCs behind it; the adapter (see globular-runtime-adapter.yaml)
+# produced it. Validate with: awg runtime-snapshot validate --in <this file>.
+schema_version: runtime-evidence/v1
+platform: globular
+cluster_id: dev-cluster
+generated_at: "2026-06-23T00:00:00Z"
+adapter:
+  name: globular-runtime-evidence-adapter
+  version: "0.1.0"
+
+subject:
+  type: service
+  id: sidekick
+  node: nuc
+
+lanes:
+  desired_state:
+    status: present
+    freshness: fresh
+    owner: cluster_controller
+    source: cluster_get_desired_state
+    observed_at: "2026-06-23T00:00:00Z"
+    facts:
+      desired_build_id: "abc123"
+      desired: present
+
+  observed_state:
+    status: present
+    freshness: fresh
+    owner: node_agent
+    source: nodeagent_get_inventory
+    observed_at: "2026-06-23T00:00:02Z"
+    facts:
+      installed: false
+      running: false
+
+  quorum:
+    status: present
+    freshness: fresh
+    owner: cluster_doctor
+    source: cluster_get_doctor_report
+    observed_at: "2026-06-23T00:00:04Z"
+    facts:
+      subsystem: object_store
+      required_members: 3
+      available_members: 2
+      quorum_met: false
+
+  diagnosis:
+    status: present
+    freshness: fresh
+    owner: cluster_doctor
+    source: cluster_get_doctor_report
+    observed_at: "2026-06-23T00:00:04Z"
+    findings:
+      - id: blocked_by_object_store_quorum
+        severity: blocking
+        summary: sidekick install is HELD because object-store quorum is not satisfied (2/3 members)
+
+# A Phase-3 `awg cluster-diagnose` over this snapshot should yield
+# verdict: blocked_by_quorum (NOT release_install_failed), and classify a
+# "force install" action as forbidden_runtime_action.

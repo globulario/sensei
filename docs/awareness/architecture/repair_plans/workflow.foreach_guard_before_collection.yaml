@@ -1,0 +1,64 @@
+id: repair.workflow.foreach_guard_before_collection
+class: RepairPlan
+label: Evaluate foreach when guard before collection resolution
+status: active
+confidence: high
+blast_radius: service
+approval_gate: review_required
+when_to_use:
+  - foreach when guard
+  - unresolved foreach collection
+  - foreach step skipped on when
+  - nil collection should fail
+repairs_failure_modes:
+  - failure_mode:workflow.foreach_when_guard_evaluated_after_collection_resolution
+  - failure_mode:workflow.run_outputs_data_race
+governs:
+  contracts:
+    - contract.workflow.foreach_guard_order
+  invariants:
+    - meta.silence_is_not_valid_for_unexpected
+    - meta.competing_writers_must_converge_or_be_fenced
+  failure_modes:
+    - workflow.foreach_when_guard_evaluated_after_collection_resolution
+    - workflow.run_outputs_data_race
+  forbidden_fixes:
+    - treat_nil_foreach_collection_as_empty_array
+    - convert_json_null_to_empty_array_globally
+    - remove_nil_collection_failure_invariant
+    - special_case_cluster_reconcile_foreach_guard
+    - suppress_collection_resolution_failure_after_the_fact
+    - read_run_outputs_without_synchronized_snapshot
+expressed_by:
+  files:
+    - golang/workflow/engine/engine.go
+required_tests:
+  - TestForeach_WhenGuardSkipsBeforeUnresolvedCollection
+  - TestForeach_WhenGuardTrueStillFansOut
+  - TestForeach_UnresolvedCollectionFails
+preconditions:
+  - Confirm the foreach step has a when guard or an unresolved collection path to classify.
+  - Verify collection resolution still fails when the guard is true or absent.
+repair_steps:
+  - Evaluate the foreach when guard against a synchronized snapshot before resolving the collection.
+  - Return SKIPPED immediately when the guard is false.
+  - Preserve the nil or unresolved collection failure path for active foreach execution.
+verification_steps:
+  - Run the foreach guard-order tests and confirm the skipped path no longer touches collection resolution.
+  - Confirm active foreach fan-out still executes and unresolved collections still fail.
+rollback_steps:
+  - Revert the guard-order change in golang/workflow/engine/engine.go if the guarded skip path or unresolved collection failure path regresses.
+produces_outcome_feedback: >
+  Record that foreach guard evaluation now happens before collection
+  resolution, including whether skipped paths, active fan-out, and unresolved
+  collection failure were all re-verified.
+requires_runtime_evidence:
+  - workflow engine skip path leaves no collection-resolution error when the guard is false
+  - active foreach still fails closed on nil or unresolved collections
+notes: >
+  Governing contract: foreach `when` guards are evaluated before collection
+  resolution. A false guard skips without dereferencing the collection, while
+  active foreach execution still fails closed for nil or unresolved
+  collections. Forbidden fixes include global nil-to-empty coercion,
+  workflow-specific special cases, and reading run outputs outside a
+  synchronized snapshot.

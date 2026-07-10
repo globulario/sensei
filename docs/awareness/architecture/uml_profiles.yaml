@@ -1,0 +1,18 @@
+# UML profile overlay — attaches optional UML classification to nodes that are
+# NOT authored inline (e.g. SourceFiles, which exist only as anchors) or where a
+# UML label is useful without owning the node. `node` is a class-qualified id;
+# linking never types the node. UML is metadata, never authority.
+uml_profiles:
+  # The proto contract source is a UML deployable/structural Artifact.
+  - node: source_file:proto/awareness_graph.proto
+    kind: Artifact
+    stereotype: proto
+    view: structural
+
+  # A meta-principle reads as a UML Constraint in the awareness view — but it
+  # stays a first-class aw:MetaPrinciple; this is descriptive labelling only.
+  - node: meta_principle:meta.storage_is_not_semantic_authority
+    kind: Constraint
+    stereotype: meta_principle
+    view: awareness
+    confidence: declared

@@ -1,0 +1,111 @@
+name: Seed rebuild (auto-commit)
+
+# GC-2 — automated seed rebuild on merge. When a change lands on master, the
+# committed awareness graph seed (golang/server/embeddata/awareness.nt) and the
+# awareness-graph-owned generated YAML (docs/awareness/generated/) are
+# regenerated deterministically and committed back. This removes the manual
+# cross-repo "regenerate + reconcile seed" step that authors used to run by hand
+# (and kept forgetting), and is the keystone that makes promotion/authoring
+# cheap (unblocks WB-1 and the Tier C coverage grind).
+#
+# Loop safety: a push authored by GITHUB_TOKEN does NOT trigger `on: push`
+# (GitHub by design), so the auto-commit cannot re-trigger this workflow.
+#
+# Determinism: the build is byte-stable (per-run temp roots are stripped from
+# authoredIn — see the awareness-graph determinism fix). yaml2nt runs with
+# -strict -validate-refs -validate-promotion -validate-contradictions, so a
+# broken corpus FAILS the build before anything is committed.
+#
+# The awareness.transaction.tsv stamp CERTIFIES the seed digest, so it is committed
+# WITH the seed. Leaving it stale while committing a refreshed seed is exactly what
+# silently broke master (TestGraphAuthorityCarriesEmbeddedTransactionCertification /
+# TestMetadata_ExposesEmbeddedSeedMarkerState). The stamp embeds a non-reproducible
+# yaml2nt binary SHA, so it is staged ONLY when the seed itself changed (no churn
+# when the seed is stable) and stays excluded from the byte-for-byte freshness gate.
+#
+# Integrity guard: a GITHUB_TOKEN push cannot trigger CI (see Loop safety above), so
+# the auto-commit cannot be validated after the fact. It therefore runs the checks
+# the regenerated artifact can affect (build + embedded-seed/stamp integrity tests)
+# IN-WORKFLOW, before the push — it may not land an unverified change to the embedded
+# governance seed. This is the systemic fix for the [skip ci]-hid-the-breakage wound.
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seed-rebuild-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout awareness-graph
+        uses: actions/checkout@v4
+        with:
+          # The default GITHUB_TOKEN is persisted by actions/checkout so the
+          # commit-back push authenticates. fetch-depth 0 keeps `git diff` and
+          # the push fast-forward-safe.
+          fetch-depth: 0
+
+      - name: Checkout services (awareness YAML + intent sources)
+        uses: actions/checkout@v4
+        with:
+          repository: globulario/services
+          path: services
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Rebuild seed + generated YAML (deterministic, in place)
+        env:
+          SERVICES_REPO: ${{ github.workspace }}/services
+        run: scripts/build-awareness-graph.sh
+
+      - name: Commit refreshed seed + stamp if the seed changed, gated on integrity
+        env:
+          SERVICES_REPO: ${{ github.workspace }}/services
+        run: |
+          set -euo pipefail
+
+          # Stage the load-bearing generated artifacts (the .cache scratch dir is
+          # excluded). The stamp is staged separately below — only if the seed moved.
+          git add -- \
+            golang/server/embeddata/awareness.nt \
+            'docs/awareness/generated/*.yaml'
+
+          if git diff --cached --quiet; then
+            echo "Seed already current — nothing to commit."
+            exit 0
+          fi
+
+          # The seed changed. The transaction stamp certifies the seed digest and
+          # MUST travel with it — committing the seed while leaving the stamp stale
+          # is exactly what broke master. Stage it now, gated on the seed change so
+          # its non-reproducible binary SHA does not churn when the seed is stable.
+          git add -- golang/server/embeddata/awareness.transaction.tsv
+
+          echo "Seed drift detected — committing refreshed artifacts:"
+          git --no-pager diff --cached --stat
+
+          # Integrity gate (the keystone). A GITHUB_TOKEN push cannot trigger CI, so
+          # the auto-commit must validate the checks it can affect HERE, before it
+          # lands. Build + the embedded-seed/stamp integrity tests must pass, or this
+          # workflow fails and NOTHING is pushed — a stale stamp (or any broken seed)
+          # can no longer reach master undetected behind [skip ci].
+          go build ./...
+          go test ./golang/server/ -count=1
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit \
+            -m "chore(awareness): auto-rebuild seed + stamp from authored corpus" \
+            -m "Regenerated golang/server/embeddata/{awareness.nt,awareness.transaction.tsv} and the awareness-graph-owned docs/awareness/generated/ YAML from the authored corpus after a merge to master (GC-2). The stamp is committed WITH the seed (it certifies the digest); the commit is gated on build + embedded-seed integrity tests. No [skip ci] — the change is integrity-checked in-workflow before it lands."
+          git push origin HEAD:master

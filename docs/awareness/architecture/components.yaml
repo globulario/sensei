@@ -1,0 +1,142 @@
+# Architectural components — units of ownership and responsibility (Stage A).
+#
+# Grounded in this repo's real code. A Component owns behaviour, contracts,
+# rules, or state — it is a semantic unit, not just a file. Edges link to
+# existing invariants / intents / failure modes by their real ids. The optional
+# `uml:` block classifies each in standard UML vocabulary (metadata only).
+components:
+  - id: component.awareness_graph_service
+    name: AwarenessGraphService
+    description: >-
+      The read-only gRPC server. Compiles awareness into typed Query / Resolve /
+      Metadata / Briefing / Preflight answers. It is the only legitimate read
+      path into the graph for agents and the dashboard.
+    kind: service
+    owner: awareness_graph
+    owns_invariants:
+      - awareness.query.no_arbitrary_sparql
+      - awareness.graph.compiled_context_not_authority
+    implements_intents:
+      - awg.briefing_is_the_primary_interface
+      - awg.enforcement_at_every_layer
+    exposes_contracts:
+      - contract.awareness_graph.query
+      - contract.awareness_graph.resolve
+      - contract.awareness_graph.metadata
+      - contract.awareness_graph.briefing
+    reads_from:
+      - component.oxigraph_store
+    protected_by:
+      - boundary.dashboard_read_only_grpc
+      - boundary.domain_scope
+    satisfies_meta_principles:
+      - meta.storage_is_not_semantic_authority
+      - meta.code.reusable_unit_must_have_a_stable_semantic_boundary
+    supported_by_evidence:
+      - evidence.ci_green
+    source_files:
+      - golang/server/resolve.go
+      - golang/server/query.go
+      - golang/server/metadata.go
+      - golang/server/briefing.go
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+
+  - id: component.corpus_loader
+    name: CorpusLoader
+    description: >-
+      The YAML→RDF importer. Walks docs/awareness, classifies each file by
+      schema, and emits validated N-Triples. The single writer that turns
+      authored YAML into the compiled graph; the seed is generated, never
+      hand-edited.
+    kind: module
+    owner: awareness_graph
+    owns_invariants:
+      - awareness.rdf.yaml_is_source_of_truth
+      - awareness.seed_is_generated_author_in_yaml
+      - awareness.rdf.ntriples_validated_before_write
+    writes_to:
+      - component.oxigraph_store
+    protected_by:
+      - boundary.corpus_cli_mutation
+      - boundary.generated_seed
+    satisfies_meta_principles:
+      - meta.storage_is_not_semantic_authority
+    supported_by_evidence:
+      - evidence.awg_rebuild_check_pass
+      - evidence.awg_validate_zero_dangling
+    source_files:
+      - golang/extractor/yaml_import_dir.go
+      - golang/extractor/yaml_import.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+
+  - id: component.oxigraph_store
+    name: OxigraphStore
+    description: >-
+      The RDF triple store backing the graph. Holds bytes; it is not the
+      semantic authority — the service that writes and interprets the triples
+      is. Read via the service, never bypassed.
+    kind: storage
+    owner: awareness_graph
+    satisfies_meta_principles:
+      - meta.storage_is_not_semantic_authority
+    source_files:
+      - golang/store/oxigraph/oxigraph.go
+    uml:
+      kind: Node
+      stereotype: embedded_store
+      view: deployment
+
+  - id: component.golang.pb
+    name: GeneratedProtoBindings
+    description: >-
+      Generated protobuf and gRPC bindings shared by the client, server, and
+      MCP bridge. This is the typed wire contract boundary compiled from
+      proto/awareness_graph.proto.
+    kind: module
+    owner: awareness_graph
+    exposes_contracts:
+      - contract.awareness_graph.query
+      - contract.awareness_graph.resolve
+      - contract.awareness_graph.metadata
+      - contract.awareness_graph.briefing
+    source_files:
+      - proto/awareness_graph.proto
+      - golang/pb/awareness_graph.pb.go
+      - golang/pb/awareness_graph_grpc.pb.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+
+  - id: component.dashboard_architecture_view
+    name: DashboardArchitectureView
+    description: >-
+      The VS Code "Project Awareness" webview. Reads the graph over gRPC
+      (Metadata / Query / Resolve / related) and renders counts, lists, and a
+      local-neighborhood focus graph. Read-only: it must not mutate corpus or
+      promote candidates.
+    kind: UI
+    owner: editor
+    implements_intents:
+      - awg.briefing_is_the_primary_interface
+    depends_on:
+      - component.awareness_graph_service
+    reads_from:
+      - component.awareness_graph_service
+    protected_by:
+      - boundary.dashboard_read_only_grpc
+    satisfies_meta_principles:
+      - meta.ui.screen_claim_must_bind_to_authority
+    source_files:
+      - editor/vscode/src/dashboardPanel.ts
+      - editor/vscode/media/dashboard.js
+    uml:
+      kind: Component
+      stereotype: ui_view
+      view: structural

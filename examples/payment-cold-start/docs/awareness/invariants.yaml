@@ -1,0 +1,25 @@
+# The ONE rule this demo encodes. In a real project you'd write one of
+# these per painful, non-obvious bug. `awg init` adds the portable
+# 83-principle pack (docs/awareness/meta_principles.yaml) alongside it —
+# that's why `related_invariants` below resolves to a meta-principle.
+
+invariants:
+  - id: payments.paid_state_requires_processor_confirmation
+    title: An order records as paid only after processor confirmation — never from a local cache write
+    severity: critical
+    status: active
+    summary: |
+      "Paid" is money truth. It must come from the payment processor's
+      confirmation (the authority), not from a local cache or in-memory
+      write. Code that sets paid state from a cache makes every downstream
+      reader — and the operator's screen — believe a charge settled when it
+      may not have.
+    enforcement: |
+      Before editing payment state transitions, verify the paid flag is
+      written only after a processor confirmation/receipt. A cache or DOM
+      write that sets "paid" without that confirmation is the bug.
+    protects:
+      files:
+        - src/payment_processor.py
+    related_invariants:
+      - meta.storage_is_not_semantic_authority

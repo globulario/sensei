@@ -1,0 +1,40 @@
+# Incident Patterns — edit shapes that introduce bugs.
+#
+# Each entry describes a class of code change that has historically
+# caused problems. When someone makes a similar edit, the briefing
+# warns them about the pattern.
+#
+# Think of these as "if you're doing X, watch out for Y."
+#
+# Schema:
+#   id:                  pat.identifier
+#   title:               short name for the pattern
+#   edit_shapes:         descriptions of the dangerous edit
+#   failure_mode:        which failure_mode this triggers
+#   files:               files where this pattern is most dangerous
+#   lesson:              what the developer should know
+#   required_tests:      tests to run after this kind of edit
+#   wrong_fixes:         common but incorrect responses
+
+incident_patterns:
+
+# Example — copy and adapt when you record a real dangerous edit shape:
+#  - id: pat.env_var_fallback_added
+#    title: Environment variable added as config fallback
+#    edit_shapes:
+#      - "Adding os.Getenv() for a service config value"
+#      - "Adding an env var fallback 'for local development'"
+#      - "Wrapping config lookup with env var override"
+#    failure_mode: config.env_var_overrides_production_setting
+#    files:
+#      - path/to/real/config_loader.go
+#    lesson: |
+#      Environment variables are invisible, unversioned, and stale.
+#      A "convenient" env var fallback becomes the actual config source
+#      in any environment where that var happens to be set. The config
+#      store exists to prevent exactly this class of bug.
+#    required_tests:
+#      - path/to/config_test.go:TestConfigLoaderRejectsEnvVars
+#    wrong_fixes:
+#      - "Adding precedence logic (check config first, then env)"
+#      - "Documenting which env vars are 'safe' to use"

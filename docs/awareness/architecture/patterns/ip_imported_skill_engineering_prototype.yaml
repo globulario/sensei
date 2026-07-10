@@ -1,0 +1,30 @@
+id: imported.skill.engineering.prototype
+class: ImplementationPattern
+label: 'Skill: prototype'
+status: active
+confidence: reviewed
+when_to_use:
+    - Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like.
+    - Use when prototyping a validator, state model, workflow, or implementation option to answer a design question before committing production code.
+    - Use prototype when building a throwaway validator or generated candidate experiment for skill ingestion.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - '"Does this logic / state model feel right?" → LOGIC.md. Build a tiny interactive terminal app that pushes the state machine through cases that are hard to reason about on paper.'
+    - '"What should this look like?" → UI.md. Generate several radically different UI variations on a single route, switchable via a URL search param and a floating bottom bar.'
+    - Throwaway from day one, and clearly marked as such. Locate the prototype code close to where it will actually be used (next to the module or page it's prototyping for) so context is obvious — but name it so a casual reader can see it's a prototype, not product
+    - One command to run. Whatever the project's existing task runner supports — pnpm <name>, python <path>, bun <path>, etc. The user must be able to start it without thinking.
+    - No persistence by default. State lives in memory. Persistence is the thing the prototype is checking, not something it should depend on. If the question explicitly involves a database, hit a scratch DB or a local file with a clear "PROTOTYPE — wipe me" name.
+    - Skip the polish. No tests, no error handling beyond what makes the prototype runnable, no abstractions. The point is to learn something fast and then delete it.
+    - Surface the state. After every action (logic) or on every variant switch (UI), print or render the full relevant state so the user can see what changed.
+forbidden_shortcuts:
+    - Delete or absorb when done. When the prototype has answered its question, either delete it or fold the validated decision into the real code — don't leave it rotting in the repo.
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: prototype
+    Source path: skills/engineering/prototype/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

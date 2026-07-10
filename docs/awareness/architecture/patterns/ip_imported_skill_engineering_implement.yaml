@@ -1,0 +1,20 @@
+id: imported.skill.engineering.implement
+class: ImplementationPattern
+label: 'Skill: implement'
+status: active
+confidence: reviewed
+when_to_use:
+    - Implement a piece of work based on a spec or set of tickets.
+reference_files:
+    - path: docs/skill-ingestion.md
+      role: ingestion_policy
+must_follow:
+    - Run typechecking regularly, single test files regularly, and the full test suite once at the end.
+rationale: |-
+    Imported from an external agent skill as a reviewable candidate.
+    This candidate is procedural guidance, not live authority.
+    It must be reviewed before promotion.
+    Source skill: implement
+    Source path: skills/engineering/implement/SKILL.md
+    Human review: promoted into the active AWG corpus as procedural engineering guidance.
+    Original external skill pack: /home/dave/Documents/skills-main.

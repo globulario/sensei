@@ -1,0 +1,53 @@
+id: awg.mission
+level: vision
+title: AWG externalizes architectural intent so it survives the people who wrote it
+intent: |
+  Every codebase has two kinds of knowledge: the code (what it does) and the intent
+  (why it exists, what it protects, what must never change). Code is durable — it lives
+  in version control. Intent is fragile — it lives in the heads of the people who made
+  the decisions, in Slack threads, in PR comments, in onboarding conversations that
+  happen once and are forgotten.
+
+  AWG exists to make intent as durable as code.
+
+  It captures invariants, failure modes, forbidden fixes, rendering contracts, and
+  architectural decisions in a queryable graph. When an agent or developer touches a
+  file, AWG tells them what that file protects, what constraints apply, and what has
+  broken before — without requiring them to have been present when the decisions were made.
+
+  The measure of AWG's success is not how many triples are in the graph. It is whether
+  a new contributor — human or AI — can make a correct change to a file they have never
+  seen, guided only by the briefing, without introducing a bug that someone else already
+  fixed.
+agent_guidance: |
+  AWG is infrastructure for knowledge, not a product feature. It has no user-facing UI.
+  Its consumers are AI agents (via MCP/gRPC briefing), developers (via CLI), and CI
+  pipelines (via source-check/visual-audit). Never build AWG features that require
+  an operator to interact with AWG directly — the knowledge should flow invisibly into
+  the tools they already use.
+bad_smells:
+  - developer must read AWG docs to understand a file (briefing should tell them)
+  - agent makes a change that violates an invariant AWG knows about
+  - knowledge exists only in CLAUDE.md and not in the graph
+  - same invariant violated twice in the same codebase (first fix didn't create an invariant)
+  - AWG graph grows but briefings stay empty (triples exist but query doesn't follow them)
+activation_triggers:
+  - awareness
+  - intent
+  - invariant
+  - architectural knowledge
+  - AWG mission
+expressed_by:
+  - golang/server/briefing.go
+  - golang/extractor/yaml_import_dir.go
+  - cmd/awg/main.go
+related_invariants: []
+zooms_out_to: []
+zooms_in_to:
+  - awg.graph_is_compiled_context_not_authority
+  - awg.briefing_is_the_primary_interface
+  - awg.knowledge_earned_not_invented
+  - awg.enforcement_at_every_layer
+status: active
+required_tests:
+  - golang/server/main_test.go:TestBriefing_DirectIntentOnly

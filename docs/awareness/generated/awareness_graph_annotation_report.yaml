@@ -1,0 +1,16 @@
+scanned_files: 523
+annotated_symbols: 13
+imported_annotations: 37
+discovered_tests: 1082
+missing_namespace:
+  []
+unknown_namespace:
+  []
+unqualified_ids:
+  []
+unsupported_keys:
+  []
+dangling_references:
+  []
+skipped_files:
+  []

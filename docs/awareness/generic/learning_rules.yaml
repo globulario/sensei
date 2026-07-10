@@ -1,0 +1,158 @@
+# Learning rules — how AI-generated awareness should be governed
+#
+# These rules control how AI agents propose, validate, and promote awareness
+# knowledge. They are system-agnostic — any project using AWG with AI agents
+# should respect them. Shipped as generic seed content with AWG.
+
+rules:
+  # ── Proposal governance ────────────────────────────────────────────────────────
+  # These rules control how AI-generated awareness enters the graph.
+
+  - id: learning.must_be_reviewable
+    summary: >
+      AI-generated awareness must be written as proposal YAML in docs/awareness/proposals/,
+      not directly promoted to approved awareness files. Every proposal must be validated
+      and approved before it becomes architecture law.
+
+  - id: learning.no_silent_invariant_creation
+    summary: >
+      New critical invariants require explicit human approval before becoming active.
+      AI may propose invariants, but the promotion step is always gated by a validated
+      proposal and a deliberate operator action.
+
+  - id: learning.no_weakening_existing_laws
+    summary: >
+      AI proposals must not delete or weaken existing critical invariants.
+      A proposal that lowers severity, removes forbidden fixes, or removes required
+      tests from an existing critical invariant is automatically rejected by the validator.
+
+  - id: learning.failure_modes_need_evidence
+    summary: >
+      Failure modes proposed from an incident must reference the source incident,
+      include at least one symptom, a root cause, and an architecture fix.
+      Failure modes without evidence links are rejected during validation.
+
+  - id: learning.required_tests_for_critical_invariant
+    summary: >
+      Critical invariants must include at least one required test or an explicit
+      TODO test entry documenting what test must be written. Invariants without
+      tests are rejected during validation.
+
+  # ── Principle extraction protocol ──────────────────────────────────────────────
+  # These rules define how AI agents extract generative principles from errors.
+  # The goal is not just to document WHAT broke, but to understand WHY at
+  # the level of architectural principle — turning a logging system into a
+  # learning system.
+  #
+  # Origin: Dave + Claude, 2026-06-04. Derived from a session that extracted
+  # 8 meta-principles from 14 production incidents and found 6 new violations
+  # in code that hadn't broken yet.
+
+  - id: learning.classify_error_against_principles
+    summary: >
+      When an AI agent documents an error (failure_mode, incident_pattern, or
+      finding), it must attempt to classify the error against the existing
+      generative meta-principles (invariant:meta.*). The classification step
+      asks: "which principle was violated?" If one fits, the error entry must
+      include a related_invariants link to the meta-principle. This connects
+      specific errors to the class of bugs they belong to, so future briefings
+      surface not just "this specific thing broke" but "this is an instance of
+      a known architectural weakness."
+    meta_principles:
+      - meta.storage_is_not_semantic_authority
+      - meta.fallback_must_degrade_semantics
+      - meta.identity_computation_must_be_invariant
+      - meta.authority_must_express_uncertainty
+      - meta.absence_scope_must_be_explicit
+      - meta.write_creates_completion_obligation
+      - meta.half_done_must_not_look_done
+      - meta.silence_is_not_valid_for_unexpected
+
+  - id: learning.escalate_unclassifiable_errors
+    summary: >
+      If an error does not fit any existing meta-principle, the agent must flag
+      it explicitly: "this error does not match any known generative principle —
+      potential new principle needed." This is the signal for a human-AI session
+      to zoom out from the specific error and look for the generating function.
+      Unclassifiable errors are where the next architectural insight is hiding.
+      The agent should NOT force-fit the error into an existing principle —
+      a bad classification is worse than no classification.
+
+  - id: learning.principle_strength_grows_with_instances
+    summary: >
+      When multiple errors are classified under the same meta-principle, the
+      principle becomes more concrete and more trustworthy. The agent should
+      note when a principle has accumulated new instances since the last session.
+      A principle with 5+ classified instances across different subsystems is
+      load-bearing architecture — it should be treated with the same weight as
+      a hard rule.
+
+  - id: learning.check_principle_coverage_after_classification
+    summary: >
+      After classifying an error under a meta-principle, the agent must check
+      whether the principle's enforcement section already covers this specific
+      case. If not, one of three actions is needed:
+        1. A new forbidden_fix entry (if the error was a known-bad repair pattern)
+        2. A new required_test entry (if the error is regressionable)
+        3. An updated enforcement description (if the scope was too narrow)
+      This ensures principles grow in precision, not just in instance count.
+
+  - id: learning.error_to_principle_workflow
+    summary: >
+      The complete workflow for an AI agent processing an error:
+
+        1. DOCUMENT — write the error as failure_mode or incident_pattern with
+           evidence, symptoms, root cause, and resolution.
+
+        2. CLASSIFY — run the error against meta-principles (invariant:meta.*).
+           Ask: "which principle was violated?" If one fits, add
+           related_invariants: [meta.<id>]. If none fits, flag as unclassifiable.
+
+        3. CHECK COVERAGE — does the principle's enforcement already cover this
+           case? If not, propose a new forbidden_fix, required_test, or
+           enforcement update.
+
+        4. SEARCH FOR SIBLINGS — use the principle as a lens to search for
+           similar violations in code that hasn't broken yet. The principle
+           predicts where the same class of bug is hiding. Report findings
+           even if no fix is made immediately.
+
+        5. REPORT — end the error analysis with:
+           - Error classification: <meta-principle ID> or UNCLASSIFIABLE
+           - Coverage gap: <what enforcement was missing>
+           - Sibling search: <N violations found / N clean>
+           - Principle strength: <total instances under this principle>
+
+  # ── Tooling & cross-repo seed coherence ────────────────────────────────────────
+  # Scars from the 2026-06 package-lifecycle episode (services #75/#76, AG #125/#126).
+
+  - id: learning.authoring_gate_must_match_seed_generator_strictness
+    summary: >
+      The awareness authoring gate (awg validate) must be at least as strict as the
+      seed generator (yaml2nt -validate-refs) for dangling cite-without-define
+      references (Test and ForbiddenFix anchors). In the 2026-06 episode, contracts
+      passed awg validate but cited 22 undefined test anchors and 1 undefined
+      forbidden_fix; yaml2nt rejected them and the seed rebuild aborted, jamming the
+      consuming repo's embeddata-freshness gate AFTER the contracts had already
+      merged. Do not rely on awg validate alone to prove a contract is seed-safe: a
+      reference is "defined" only when it has an aw:authoredIn anchor (a
+      required_tests.yaml / forbidden_fixes entry), not merely when the underlying Go
+      test exists. Fix: awg validate should share yaml2nt's dangling-ref check, or run
+      yaml2nt -validate-refs as part of the authoring gate.
+
+  - id: learning.seed_follows_producer_not_predeclare
+    summary: >
+      For an awareness triple OWNED by a consuming repo (e.g. a sourceFile ->
+      implements -> invariant edge generated from that repo's contracts), the
+      consuming repo is the PRODUCER of truth and the embedded seed FOLLOWS its
+      default branch — the seed is rebuilt from the producer's default branch AFTER
+      the producer lands (post-merge rebuild). Predeclaring the triple in the seed
+      first FAILS, because the seed-freshness gate validates the seed against the
+      producer's default branch, which cannot generate the triple until the producer
+      merges (the 2026-06 AG #125 deadlock). Producer lands first; seed follows.
+      Allowed-temporary-red policy: a producer PR may merge with its
+      embeddata-freshness gate red ONLY when ALL hold — the failure is
+      embeddata-freshness only, caused solely by owned-triple lag between the PR and
+      the seed, all functional checks (build/tests/lint) green, and a mandatory
+      immediate seed rebuild follows the merge. This is "merge with a known
+      post-merge seed-refresh obligation," not "merge red because we don't care."

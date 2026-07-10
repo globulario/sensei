@@ -1,0 +1,33 @@
+id: pattern.registry_dispatch
+class: DesignPattern
+name: Registry / Strategy dispatch
+category: behavioral
+description: >-
+  Behaviour that varies by type/schema/backend is selected through an explicit
+  registry + dispatch table with a safe default, not a sprawling implicit switch.
+  The corpus loader picks an importer per schema this way.
+applies_when: >-
+  Multiple behaviours exist by type, schema, backend, language, or source kind
+  and the set grows over time.
+does_not_apply_when: >-
+  There are only one or two stable cases — a registry is over-engineering.
+forces_or_tradeoffs: >-
+  New behaviours register explicitly; an unrecognised input must fail visibly,
+  not fall through to an unsafe default.
+confidence: declared
+failure_modes_prevented:
+  - awareness.greedy_importer_claims_foreign_files
+forbidden_misuses:
+  - pattern_misuse.silent_default_dispatch
+related_meta_principles:
+  - meta.code.reusable_unit_must_have_a_stable_semantic_boundary
+related_invariants:
+  - awareness.rdf.strict_import_must_surface_all_skips
+related_components:
+  - component.corpus_loader
+example_files:
+  - golang/extractor/yaml_import_dir.go
+uml:
+  kind: Constraint
+  stereotype: design_pattern
+  view: awareness

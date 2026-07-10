@@ -1,0 +1,33 @@
+id: imported.skill.productivity.writing_great_skills
+class: ImplementationPattern
+label: 'Skill: writing-great-skills'
+status: candidate
+confidence: medium
+when_to_use:
+  - Reference for writing and editing skills well — the vocabulary and principles that make a skill predictable.
+reference_files:
+  - path: skills/productivity/writing-great-skills/SKILL.md
+    role: source_skill
+must_follow:
+  - 'In-skill step — an ordered action in SKILL.md, the primary tier: what the agent does, in order. Each step ends on a completion criterion, the condition that tells the agent the work is done. Make it checkable (can the agent tell done from not-done?) and, where'
+  - A demanding completion criterion drives thorough legwork — the digging the agent does within the work — whether the skill has steps or not, since "every rule applied" binds flat reference just as "every step done" binds a sequence.
+  - 'Premature completion — ending a step before it''s genuinely done, attention slipping to being done. Defence, in order: sharpen the completion criterion first (cheap, local); only if it is irreducibly fuzzy and you observe the rush, hide the post-completion step'
+  - A skill exists to wrangle determinism out of a stochastic system. Predictability — the agent taking the same process every run, not producing the same output — is the root virtue; every lever below serves it.
+  - 'A model-invoked skill keeps a description, so the agent can fire it autonomously and other skills can reach it (you can still type its name too). It contributes to context load — the description sits in the window every turn. Mechanics: omit disable-model-invo'
+  - 'A user-invoked skill strips the description from the agent''s reach: only you, typing its name, can invoke it — and no other skill can. Zero context load, but it spends cognitive load: you are the index that must remember it exists. Mechanics: set disable-model'
+  - Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked and pay no context load.
+  - 'A model-invoked description does two jobs — state what the skill is, and list the branches that should trigger it. Every word increases context load, so a description earns even harder pruning than the body:'
+  - Front-load the skill's leading word — the description is where it does its invocation work.
+  - One trigger per branch. Synonyms that rename a single branch are duplication — "build features using TDD … asks for test-first development" is one branch written twice. Collapse them; keep only genuinely distinct branches.
+  - Cut identity that's already in the body. Keep the description to triggers, plus any "when another skill needs…" reach clause.
+  - In-skill reference — a definition, rule, or fact in SKILL.md, consulted on demand. Often a legitimately flat peer-set (every rule of a review on one rung) — a fine arrangement, not a smell. This skill is all reference.
+forbidden_shortcuts:
+  - 'Negation — steering by prohibition backfires: don''t think of an elephant names the elephant and makes it more available, not less. Prompt the positive — state the target behaviour so the banned one is never spoken; keep a prohibition only as a hard guardrail y'
+rationale: |-
+  Imported from an external agent skill as a reviewable candidate.
+  This candidate is procedural guidance, not live authority.
+  It must be reviewed before promotion.
+  Source skill: writing-great-skills
+  Source path: skills/productivity/writing-great-skills/SKILL.md
+source_files:
+  - skills/productivity/writing-great-skills/SKILL.md

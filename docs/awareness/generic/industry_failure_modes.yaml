@@ -1,0 +1,271 @@
+# Industry-pattern failure modes — generic knowledge for any distributed system
+#
+# These failure modes are not project-specific. They describe well-known distributed-system,
+# SRE, and operator-UX failure classes that recur across the industry. Seed them in your
+# project so the awareness system protects against them proactively — before a production
+# incident proves them relevant.
+#
+# Origin: industry_pattern — observed across the industry, medium/high trust.
+#
+# Shipped as generic seed content with AWG.
+
+failure_modes:
+
+  - id: fm.industry.partial_failure_hidden_by_global_green
+    title: A global healthy/green status conceals a degraded or unknown subsystem
+    severity: high
+    # origin: { type: industry_pattern, confidence: high }
+    symptoms:
+      - Dashboard or CLI shows all-green while one subsystem is degraded or has no data
+      - Global status derived from an aggregate that silently drops unknown states
+      - Operator receives no alert because the summary rolled up to healthy
+      - Incident discovered only after a user reports a symptom, not from monitoring
+    root_cause: |
+      The status aggregation logic defaults unknown subsystem states to healthy
+      rather than preserving the unknown/degraded classification. This happens when:
+        - A collector silently omits data for an unreachable node
+        - An AND/OR rollup treats missing evidence as passing
+        - A summary badge is computed before all collectors finish
+        - The system treats "no bad news" as "good news"
+    architecture_fix: |
+      Status aggregation must treat unknown state as explicitly not-green.
+      Every subsystem must contribute a signed status: HEALTHY, DEGRADED, UNKNOWN.
+      UNKNOWN must never roll up to HEALTHY. The summary badge must reflect the
+      worst observed state, including UNKNOWN. Show the authority and freshness of
+      each subsystem status — not just the computed rollup.
+    known_bad_fixes:
+      - Default unknown to healthy to reduce noise
+      - Suppress warnings that fire too often
+      - Aggregate with OR so any passing check makes the cluster green
+    related_invariants:
+      - state.runtime_not_desired
+      - runtime.desired_enabled_not_alive
+    required_tests:
+      - TestStatusRollup_UnknownSubsystem_NotGreen
+      - TestStatusRollup_DegradedSubsystem_PropagatesToSummary
+
+  - id: fm.industry.optimistic_success_for_irreversible_action
+    title: UI or CLI reports success immediately after dispatching an irreversible or destructive action
+    severity: high
+    # origin: { type: industry_pattern, confidence: high }
+    symptoms:
+      - Success toast or CLI "ok" appears before backend confirmation
+      - Destructive operation appears to succeed but fails silently in the background
+      - User retries because the operation appeared to complete but the outcome never materialized
+      - Retry of an irreversible action causes double-application (two deinstalls, two wipes, etc.)
+    root_cause: |
+      The caller treats HTTP 202 Accepted or gRPC OK response as operation success.
+      For fire-and-forget APIs, the dispatch confirmation and the operation result
+      are two distinct events. When the operation takes time — installs, upgrades,
+      topology changes, decommission — early success is a lie.
+    architecture_fix: |
+      Separate accepted, running, succeeded, failed, and blocked states explicitly.
+      For any operation dispatched through a workflow, the caller must:
+        1. Receive an accepted receipt (not success) at dispatch time
+        2. Stream or poll workflow status until a terminal state is reached
+        3. Report the terminal state (succeeded/failed/blocked) to the user
+      Destructive or irreversible operations must additionally require explicit
+      confirmation from the operator before dispatch.
+    known_bad_fixes:
+      - Assume API call accepted means operation succeeded
+      - Use optimistic UI update and reconcile later
+      - Return success from the handler and rely on background retry if it fails
+    related_invariants:
+      - workflow.success_requires_backend_confirmation
+    required_tests:
+      - TestDestructiveAction_RequiresConfirmation
+      - TestDispatch_ReturnsAccepted_NotSuccess
+      - TestCLI_PolsWorkflowUntilTerminal
+
+  - id: fm.industry.permission_denied_rendered_as_network_error
+    title: Permission errors displayed as generic network or unknown errors
+    severity: high
+    # origin: { type: industry_pattern, confidence: high }
+    symptoms:
+      - User sees "connection failed" or "unknown error" for an action they lack permission to perform
+      - Retry button appears for a non-retryable permission denial
+      - Operator wastes time checking network connectivity when the issue is RBAC
+      - User is unable to distinguish an outage from an authorization problem
+    root_cause: |
+      The error-handling path that maps gRPC status codes to user-facing messages
+      does not distinguish PERMISSION_DENIED from UNAVAILABLE, DEADLINE_EXCEEDED,
+      or UNKNOWN. All become generic network errors. This happens because:
+        - Frontend catches all errors as a generic "request failed"
+        - CLI uses a catch-all error formatter
+        - The backend returns INTERNAL instead of PERMISSION_DENIED to avoid leaking details
+    architecture_fix: |
+      Map gRPC PERMISSION_DENIED distinctly from transient errors.
+      For PERMISSION_DENIED:
+        - Show a clear "not authorized" message, not a retry button
+        - Surface the missing permission or action when it is safe to do so
+        - Disable the UI action before the user submits if RBAC state is known ahead of time
+      Do not retry PERMISSION_DENIED automatically — it will not succeed without a grant.
+    known_bad_fixes:
+      - Auto-retry permission denied as if it were a transient network error
+      - Replace the permission-denied reason with a generic frontend message
+      - Catch all gRPC errors under a single "network error" handler
+    related_invariants:
+      - ui.action_requires_permission_contract
+    required_tests:
+      - TestPermissionDenied_RenderedDistinctlyFromNetworkError
+      - TestRetryButton_NotShown_ForPermissionDenied
+
+  - id: fm.industry.stale_cache_served_as_live_state
+    title: A cached or locally computed state is served in place of authoritative live state after the TTL expires
+    severity: high
+    # origin: { type: industry_pattern, confidence: high }
+    symptoms:
+      - Status shown to user is minutes or hours stale
+      - Dashboard shows healthy after the service went down (cache holdover)
+      - Cluster doctor applies a wrong fix because its snapshot is from before the incident
+      - A second failure masks the first because the cache still shows nominal
+    root_cause: |
+      A status or state value is fetched once and cached. The cache TTL is too long,
+      is not enforced, or is silently bypassed when the upstream is unavailable.
+      "Stale-on-error" behavior means cache continues to serve the last-good value
+      indefinitely when the source is unreachable — hiding the outage itself.
+    architecture_fix: |
+      Every cached status must have an explicit freshness timestamp visible to consumers.
+      When the cache has expired, the response must say "STALE as of T" — not show
+      the stale value as if it were current. For health-critical state, stale must
+      be treated the same as UNKNOWN, not as HEALTHY.
+    known_bad_fixes:
+      - Extend the cache TTL to reduce upstream pressure at the cost of freshness
+      - Serve the last-good cached value silently when the upstream is unavailable
+      - Remove the freshness timestamp from the response to simplify the UI
+    related_invariants:
+      - state.runtime_not_desired
+    required_tests:
+      - TestCachedStatus_MarkedStale_WhenExpired
+      - TestExpiredCache_TreatedAsUnknown_NotHealthy
+
+  - id: fm.industry.split_brain_authority
+    title: Two processes or nodes simultaneously believe they are the authority for the same resource
+    severity: critical
+    # origin: { type: industry_pattern, confidence: high }
+    symptoms:
+      - Two nodes both write to the same etcd key in conflicting directions
+      - Installation appears to complete on node A and fail on node B simultaneously
+      - A resource is reconciled by two controllers at the same time
+      - Lease expiry events and writes arrive out of order causing flip-flopping state
+    root_cause: |
+      Leader election or lease renewal failed without the authority relinquishing
+      control. A new leader was elected while the old leader was still in its
+      reconcile loop. Network partitions, clock skew, or missed heartbeats are
+      the most common triggers.
+    architecture_fix: |
+      All state mutations must be gated behind a single-writer lease.
+      Lease expiry must fence the writer immediately — any write after expiry
+      must be rejected by the store (etcd compare-and-swap or generation check).
+      The new leader must not begin reconciling until the prior leader's lease has
+      been proven expired, not just assumed expired from a timeout.
+    known_bad_fixes:
+      - Increase lease TTL to reduce expiry rate — this widens the window, not closes it
+      - Use timestamp comparison instead of etcd compare-and-swap
+      - Allow two controllers to run simultaneously for "high availability"
+    required_tests:
+      - TestLeaderFence_RejectsWriteAfterLeaseExpiry
+      - TestNewLeader_WaitsForPriorLeaseExpiry
+
+  # ── Second-pass industry patterns: generalization layer ──────────────────────
+  # These two patterns complete the reasoning chain:
+  #   Globular incident → industry pattern → architecture principle → invariant
+  # They are the generalization of the two most critical Globular-specific incidents.
+
+  - id: fm.industry.missing_inventory_misclassified_as_down
+    title: A collector or inventory gap is interpreted as proof that a node, service, or dependency is down
+    severity: critical
+    # origin: { type: industry_pattern, confidence: high }
+    symptoms:
+      - A doctor rule or health check fires CRITICAL because a node record is absent from a snapshot
+      - Incomplete inventory produces quorum-loss or member-missing findings
+      - Collector failure masquerades as service failure
+      - Restarting the collector (not the target service) clears the "failure" finding
+      - Finding disappears on the next collection cycle without any service change
+    root_cause: |
+      The diagnostic rule that counts "bad" or "down" members conflates two distinct states:
+        - ABSENT: the collector did not receive the record (could be a collection gap)
+        - KNOWN_BAD: the record is present and explicitly reports unhealthy/unreachable
+      Only KNOWN_BAD should increment the failure counter. ABSENT should increment the
+      UNKNOWN counter and produce a caveat, not a critical finding.
+
+      This class of mistake recurs because:
+        - Partial snapshots are treated as complete snapshots
+        - Null / missing entries in a map are treated as negative evidence
+        - The DataIncomplete flag is ignored or not propagated
+        - Quorum formulas use len(allNodes) - len(healthyNodes) without an UNKNOWN bucket
+    architecture_fix: |
+      Every health rule that counts cluster members must use a three-bucket model:
+        PRESENT (confirmed healthy) / UNKNOWN (absent, no evidence) / KNOWN_BAD (confirmed bad)
+      Only KNOWN_BAD increments the severity counter.
+      When the snapshot has DataIncomplete=true and KNOWN_BAD count is 0, suppress CRITICAL.
+      Emit a caveat: "partial snapshot — N nodes unobserved; result may be incomplete."
+    known_bad_fixes:
+      - Treat absent node record as known-down to simplify the quorum formula
+      - Remove the UNKNOWN bucket to reduce code complexity
+      - Fire CRITICAL on first collection without checking DataIncomplete
+      - Increase severity when data is sparse, on the theory that "less data = more risk"
+    related_invariants:
+      - evidence.missing_is_not_known_bad
+      - objectstore.partial_snapshot_unknown_not_down
+      - state.unknown_must_not_default_to_healthy
+    related_globular_failure_modes:
+      - fm.globular.objectstore_partial_snapshot
+    required_tests:
+      - TestAbsentRecord_ClassifiedAsUnknown_NotKnownBad
+      - TestPartialSnapshot_NoCritical_WhenOnlyUnknown
+      - TestDataIncomplete_SuppressesCritical_WhenNoKnownBad
+
+  - id: fm.industry.floating_address_used_as_durable_identity
+    title: A Virtual IP, load balancer address, or failover endpoint is used as the stable identity of a node or cluster member
+    severity: critical
+    # origin: { type: industry_pattern, confidence: high }
+    symptoms:
+      - Member identity changes unexpectedly during a VIP failover or load balancer reconfiguration
+      - Leader election selects the wrong node because it compares against the floating address
+      - Database or storage cluster membership includes the VIP instead of stable node IPs
+      - A service that does not hold the VIP suddenly becomes unreachable after the VIP moves
+      - Bootstrap or config scripts write the floating address into advertise URLs or peer lists
+      - Healthy node gets evicted from cluster membership after VIP transition to a different node
+    root_cause: |
+      A floating IP address (keepalived VIP, Elastic IP, load balancer frontend, failover DNS)
+      represents "reachability for the cluster role right now." It is not a property of any
+      single physical node — it can move to any node that wins the failover election.
+
+      When code uses this address as the node's identity (etcd peer URL, ScyllaDB seed,
+      MinIO pool member, leader election match), it writes an address that will later point
+      to a DIFFERENT physical node. The original node's identity is corrupted silently.
+      On the next VIP transition:
+        - The old holder's peer URL no longer matches its physical address
+        - The new holder's address is confused with the old holder's
+        - Membership reconcilers see a "stale member" and evict the original node
+
+      The root cause is always the same: `PrimaryIP()` or `Ips[0]` returns the VIP
+      when a node holds it, because VIPs appear as normal network interfaces.
+    architecture_fix: |
+      Separate stable node identity from floating reachability address at the data-model level.
+      Every consumer that needs a durable node IP must use a VIP-aware selection helper:
+        - Filter the known cluster VIP from the IP list before selecting
+        - Use StableIP(clusterVIP) — not PrimaryIP() or Ips[0]
+      Audit all identity-bearing code surfaces during any VIP transition:
+        - etcd member advertise/listen URLs
+        - Database seed node lists (ScyllaDB, etcd)
+        - Object storage pool member lists (MinIO)
+        - Leader election self-identification
+        - Health endpoint registration
+    known_bad_fixes:
+      - Normalize all node IPs to the currently-reachable address (picks up the VIP)
+      - Use PrimaryIP() without filtering the cluster VIP
+      - Patch only one subsystem (e.g., etcd) while leaving ScyllaDB or MinIO with the VIP
+      - Add the VIP to advertise URLs to "ensure reachability" (doubles the contamination)
+      - Maintain a hardcoded node→pool mapping to work around the wrong IP selection
+    related_invariants:
+      - identity.stable_node_identity_not_floating_vip
+      - ops.vip_requires_observed_owner
+    related_globular_failure_modes:
+      - fm.globular.vip_transition_cascade
+    required_tests:
+      - TestStableIP_ExcludesVIP
+      - TestEtcdAdvertiseURL_UsesStableIP_NotVIP
+      - TestScyllaHosts_ExcludeVIP
+      - TestNodeAgentFallback_NeverReturnsVIP

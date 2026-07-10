@@ -1,0 +1,46 @@
+id: implementation_pattern.collect_impact_scope_resolver
+class: ImplementationPattern
+label: collectImpact resolved-scope filtering
+description: >-
+  Impact/briefing resolves a domain scope once; downstream loaders filter by the
+  resolved scope and untagged nodes default to the home domain, so foreign rules
+  never apply to the wrong repo.
+status: active
+confidence: declared
+when_to_use:
+  - building impact or briefing results that span repos/domains
+  - loading knowledge that must be constrained to a resolved scope
+  - adding a query path that could otherwise leak foreign rules
+must_follow:
+  - Resolve the scope once and thread it through impact/briefing collection.
+  - Filter every loaded node by the resolved domain; never widen scope downstream.
+reference_files:
+  - path: golang/server/scope.go
+    role: canonical
+  - path: golang/server/impact.go
+    role: caller
+rationale: >-
+  Resolving scope once and filtering downstream keeps each repo's briefing free
+  of foreign rules and gives agents valid architectural context.
+implements_pattern: pattern.scope_resolver
+project_scope: golang/server
+forbidden_shortcuts:
+  - Loading nodes without applying the resolved scope filter.
+  - Treating an untagged node as belonging to every domain.
+used_by_components:
+  - component.awareness_graph_service
+implements_decisions:
+  - decision.untagged_domain_defaults_home
+protects_boundaries:
+  - boundary.domain_scope
+satisfies_invariants:
+  - awareness.briefing.sections_honor_domain_scope
+prevents_failure_modes:
+  - awareness.greedy_importer_claims_foreign_files
+source_files:
+  - golang/server/scope.go
+  - golang/server/impact.go
+uml:
+  kind: Activity
+  stereotype: implementation_pattern
+  view: behavioral

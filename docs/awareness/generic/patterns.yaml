@@ -1,0 +1,623 @@
+# Anti-patterns — universal code smells and failure patterns
+#
+# These patterns (Persistence Gap, Error Swallowing, Stale Authority, etc.) recur
+# across any system. Shipped as generic seed content with AWG.
+
+patterns:
+  - id: pattern.persistence_gap
+    title: Persistence Gap
+    definition: State changes in memory but does not become durable. The persistent store is never updated.
+    detect: Look for field/map/struct updates with no etcd write, no persistStateLocked(), no saveState() after. Persistence error ignored. Background goroutines launched before durable write succeeds.
+    code_smells:
+      - "x = newValue with no persistence call"
+      - "persistence error ignored"
+      - "goroutine launched before persist success"
+    failure_modes:
+      - restart loses truth
+      - leader failover sees different truth
+      - memory and etcd diverge
+    safe_fix_rule: "Every state mutation that matters to control flow must cross a persistence barrier or fail. Update state, persist, check error, then trigger side effects."
+    related_invariants:
+      - install.result.atomic_commit
+      - critical_state.registry_ownership_required
+
+  - id: pattern.error_swallowing
+    title: Error Swallowing
+    definition: An error happens, but the code reports success or suppresses recovery.
+    detect: Look for return nil in failure branch, ignored err, log-only failure in control path, if err != nil { log... } but continue as healthy.
+    code_smells:
+      - "return nil in error branch"
+      - "ignored err"
+      - "log-only failure in control path"
+    failure_modes:
+      - rediscovery never triggers
+      - retries never happen
+      - health appears good while logic is broken
+    safe_fix_rule: Errors that affect control decisions must propagate into the loop that can react.
+    related_invariants:
+      - convergence.no_infinite_retry
+      - critical_queries.must_be_bounded
+
+  - id: pattern.stale_authority
+    title: Stale Authority
+    definition: A component keeps using an old leader, endpoint, owner, or routing decision.
+    detect: Look for cached endpoint, cached client, leader address stored once, refresh only when empty not when unhealthy.
+    code_smells:
+      - "cached endpoint refreshed only when nil"
+      - "leader address stored once"
+      - "multiple independent dial paths"
+    failure_modes:
+      - heartbeats sent to dead leader
+      - client talks to old controller
+      - node stays connected to obsolete authority
+    safe_fix_rule: Authority must be refreshed when unhealthy, not only when missing.
+    related_invariants:
+      - desired.bootstrap_state_requires_promotion
+      - topology.reconciler_must_respect_safety_contract
+
+  - id: pattern.partial_truth
+    title: Partial Truth
+    definition: A richer identity or state exists, but control logic uses only part of it.
+    detect: Look for version-only comparisons where true identity should include name, version, build number, platform, checksum.
+    code_smells:
+      - "installed == version"
+      - "map[string]string for desired versions"
+      - "version-only equality"
+    failure_modes:
+      - wrong build treated as healthy
+      - wrong rollback target chosen
+      - same-version hotfix not deployed
+    safe_fix_rule: All control paths must use canonical identity (name+version+build_number+checksum), never partial identity.
+    related_invariants:
+      - desired.build_id_immutable
+
+  - id: pattern.unverified_runtime_truth
+    title: Unverified Runtime Truth
+    definition: Runtime observation is treated as desired authority without validation.
+    detect: Look for runtime state promoting itself to desired state, heartbeat creating release records, discovered runtime overwriting desired.
+    code_smells:
+      - "heartbeat creates InfrastructureRelease"
+      - "runtime state written as DesiredService"
+      - "discovered state overwrites desired state"
+    failure_modes:
+      - runtime observation permanently overrides desired state
+      - rollback impossible because desired == runtime
+      - drift is hidden
+    safe_fix_rule: "Desired state flows top-down: controller decides, node-agent executes. Runtime observation must never write to desired-state keys."
+    related_invariants:
+      - desired.bootstrap_state_requires_promotion
+
+  - id: pattern.unbounded_critical_query
+    title: Unbounded Critical Query
+    definition: A query in a critical control path runs without a context deadline and can block indefinitely.
+    detect: Look for Scylla/etcd/DNS queries in reconcile paths without context.WithTimeout or context.WithDeadline.
+    code_smells:
+      - "query without context deadline"
+      - "ctx.Background() in reconcile path"
+      - "no withBounded() wrapper"
+    failure_modes:
+      - reconcile loop hangs forever
+      - controller watchdog fires
+      - cluster stops converging
+    safe_fix_rule: All critical-path queries must be bounded at 5-15s. Timeout must map to DEGRADED result, not hang.
+    related_invariants:
+      - critical_queries.must_be_bounded
+
+  - id: pattern.destructive_absence
+    title: Destructive Absence
+    definition: Missing, timed-out, or invalid control-plane state is interpreted as a stop or delete command.
+    detect: Look for code that stops/deletes/disables a runtime service when a key is absent, instead of holding LKG.
+    code_smells:
+      - "if spec == nil { stop service }"
+      - "if err != nil { disable runtime }"
+      - "missing key => delete runtime state"
+    failure_modes:
+      - runtime stops without explicit operator intent
+      - temporary etcd outage kills live services
+      - LKG ignored in favor of empty config
+    safe_fix_rule: Missing/timeout/invalid state => HOLD_LAST_KNOWN_GOOD. Only an explicit valid disable spec with reason+generation may stop a runtime.
+    related_invariants:
+      - critical_state.absence_is_not_destructive_intent
+      - runtime.last_known_good_required_for_critical_consumers
+
+  - id: pattern.missing_intent_marker
+    title: Missing Intent Marker
+    definition: A destructive action is performed without an explicit audited intent marker (approval token, generation, reason).
+    detect: Look for stop/wipe/delete operations that check only for presence of a flag rather than requiring an explicit signed approval record.
+    code_smells:
+      - "if disabled { stop }"
+      - "wipe without generation check"
+      - "delete without approval marker lookup"
+    failure_modes:
+      - services stopped by accident on key deletion
+      - destructive operations non-auditable
+      - operator has no record of who authorized action
+    safe_fix_rule: Every destructive action requires explicit_disabled=true + non-empty reason + matching generation. Controller verifies approval marker before acting.
+    related_invariants:
+      - critical_state.deletion_requires_audited_intent
+      - destructive_actions.require_explicit_guard
+
+  - id: pattern.version_only_identity
+    title: Version-Only Identity
+    definition: Control logic uses only the version string to identify an artifact or release, ignoring build_id, checksum, and platform.
+    detect: Look for version string comparison where build_id+checksum are available but ignored.
+    code_smells:
+      - "if installed.Version == desired.Version { skip }"
+      - "version string as map key"
+      - "rollback keyed only by version"
+    failure_modes:
+      - same-version hotfix skipped
+      - wrong build installed silently
+      - audit trail broken
+    safe_fix_rule: Use canonical identity struct (name+version+build_id+checksum). Never compare by version string alone in control paths.
+    related_invariants:
+      - desired.build_id_immutable
+
+  - id: pattern.runtime_observation_as_desired_authority
+    title: Runtime Observation As Desired Authority
+    definition: A component observes the running state and writes it back as the authoritative desired state, bypassing the controller's decision authority.
+    detect: Look for node-agent or heartbeat writing to /globular/resources/DesiredService/ or creating InfrastructureRelease records from local observations.
+    code_smells:
+      - "heartbeat writes to DesiredService"
+      - "ManagedInstalled creates InfrastructureRelease"
+      - "node-agent promotes runtime to desired"
+    failure_modes:
+      - runtime truth permanently overrides desired
+      - controller can no longer distinguish desired from installed
+      - drift detection breaks
+    safe_fix_rule: Only the controller may write to desired-state keys. Node-agent writes to installed-state only. Runtime observation never becomes desired authority.
+    related_invariants:
+      - desired.bootstrap_state_requires_promotion
+
+  - id: pattern.ephemeral_state_contamination
+    title: Ephemeral State Contamination
+    definition: Persistent storage from a previous cluster lifecycle carries stale node identities, profiles, or ownership records into a fresh boot. The new cluster silently inherits corrupted authority and diverges from the intended initial state.
+    detect: Look for etcd volumes not wiped between cluster teardown and re-creation. Watch for node UUIDs in controller state that don't match any live heartbeat. Watch for profiles assigned from a previous run persisting on "new" nodes.
+    code_smells:
+      - "docker compose down without -v flag"
+      - "etcd data volumes not removed between cluster wipes"
+      - "assign-profiles says 'already assigned' on a fresh cluster"
+      - "node UUID in state has no matching heartbeat"
+    failure_modes:
+      - wrong profiles assigned to founding nodes
+      - founding quorum check passes with wrong node set
+      - DNS A records generated for wrong node-to-IP mappings
+      - reconciler installs services on wrong nodes
+    safe_fix_rule: "Cluster re-creation requires explicit volume wipe. Treat etcd state as fully owned by a cluster lifetime: on wipe, destroy ALL etcd volumes. Never re-use volumes across cluster lifetimes."
+    related_invariants:
+      - critical_state.registry_ownership_required
+
+  - id: pattern.unit_type_shadowing
+    title: Unit Type Shadowing
+    definition: A systemd unit declares Type= more than once. The last declaration silently wins. Services that expect Type=simple but have a later Type=notify never leave activating state, blocking any unit with After= or Wants= on them.
+    detect: Look for multiple Type= lines in a .service file. Search for Type=simple AND Type=notify in the same [Service] block. Watch for services stuck in 'activating (start)' with a running main process and no obvious errors.
+    code_smells:
+      - "two Type= lines in [Service] block"
+      - "Type=simple followed by Type=notify later in file"
+      - "WatchdogSec= present without matching Type=notify intent"
+      - "service active=activating but process is running and logging normally"
+    failure_modes:
+      - dependent services (node-agent, assign-profiles) never start
+      - watchdog fires because sd_notify READY=1 is never sent
+      - cluster bootstrap deadlock if controller is the blocked service
+    safe_fix_rule: "A unit file MUST have exactly one Type= declaration. WatchdogSec= is only valid with Type=notify. If the process does not call sd_notify, use Type=simple. Validate all units with 'systemd-analyze verify'."
+    related_invariants:
+
+  # ── Distributed-System Patterns ──────────────────────────────────────────────
+  # These 20 patterns cover control-plane / data-plane, reconciliation, leadership,
+  # LKG, circuit breaking, sagas, idempotency, bulkheads, health gates, split-brain,
+  # bounded queries, bootstrap promotion, DNS-independent recovery, and degraded mode.
+
+  - id: pattern.control_plane_data_plane
+    title: Control Plane / Data Plane Boundary
+    definition: A control plane decides and publishes authoritative intent; a data plane executes or serves runtime traffic. Runtime observation from the data plane must not become desired-state authority. Search for heartbeat, InfrastructureRelease, DesiredService, xDS, data-plane discovery.
+    detect: Look for controller writing desired state from a heartbeat or runtime health report. Look for node-agent observation creating InfrastructureRelease or DesiredService records. Look for Envoy/xDS applied state being treated as desired policy, or data-plane discovery mutating control-plane contracts.
+    code_smells:
+      - "heartbeat creates or overwrites desired-state record"
+      - "runtime observation written to DesiredService path"
+      - "data-plane state used as authoritative install intent"
+      - "controller trusts runtime observation without desired contract"
+      - "missing desired state repaired from data-plane observation alone"
+    failure_modes:
+      - runtime observation becomes permanent desired authority
+      - heartbeat-created InfrastructureRelease overrides controller intent
+      - data-plane state pollutes desired state after restart
+    safe_fix_rule: Separate observation from authority. Runtime facts may create findings or incidents, but desired state must be created by an authoritative owner through a validated contract — never from heartbeat or data-plane discovery.
+    related_invariants:
+      - infra.heartbeat_not_desired_authority
+      - critical_state.registry_ownership_required
+      - runtime.installed_state_not_liveness
+      - objectstore.desired_state_must_be_registry_governed
+
+  - id: pattern.desired_state_reconciliation
+    title: Desired State Reconciliation
+    definition: A reconciler compares authoritative desired state with installed/runtime state and moves toward convergence through explicit, bounded, and proven transitions. The three layers — desired, installed, runtime — are always distinct. Search for ComputeInfrastructureDesiredHash, CONVERGED, atomic_commit, installed_state, reconcile tick.
+    detect: Look for repeated workflow dispatch without terminal state, desired-hash compared to artifact digest, installed-state write separated from action cleanup, runtime liveness used as installed proof, or new work started while a terminal commit is blocked.
+    code_smells:
+      - "retry loop without terminal BLOCKED state"
+      - "local success treated as global convergence"
+      - "desired hash compared to artifact digest instead of desired hash"
+      - "installed-state write separated from action cleanup"
+      - "runtime liveness used as installed proof"
+      - "reconciliation dispatches new work while commit is still blocked"
+    failure_modes:
+      - desired-hash mismatch triggers infinite install loop
+      - installed state missing while runtime is alive
+      - repeated workflow dispatch after local success
+      - local success never promoted to global commit
+    safe_fix_rule: Fix the proof chain, not the symptom. Desired, installed, and runtime are distinct layers. Convergence requires durable installed-state proof and bounded retry behaviour.
+    related_invariants:
+      - convergence.no_infinite_retry
+      - install.result.atomic_commit
+      - infra.desired_hash_consistency
+      - runtime.installed_state_not_liveness
+      - reconcile.global_work_must_not_starve_completion
+
+  - id: pattern.leased_leadership_single_writer
+    title: Leased Leadership / Single Writer
+    definition: Only the current elected owner may write authoritative state. Leadership, ownership, and writer identity must be explicit and refreshed before committing critical state. Search for isLeader, leaderOnly, forwardToLeader, critical_state registry, owner field.
+    detect: Look for stale controller writes after failover, multiple writers updating the same critical key, ownership not recorded for desired state, cached leadership used without revalidation, or critical keys with no registered owner.
+    code_smells:
+      - "write path proceeds without owner check"
+      - "critical state updated outside the leader-only path"
+      - "cached leadership used without revalidation on each tick"
+      - "multiple services writing to the same desired key"
+      - "audit record missing writer identity"
+    failure_modes:
+      - stale leader wrote authoritative state after failover
+      - split-brain with two controllers writing the same critical key
+      - unowned critical key mutated without registry check
+    safe_fix_rule: Every critical state mutation requires a single registered owner, current leadership or lease proof, and auditable writer identity. Leadership must be re-verified on each write, not cached across ticks.
+    related_invariants:
+      - critical_state.registry_ownership_required
+      - critical_state.deletion_requires_audited_intent
+      - topology.reconciler_must_respect_safety_contract
+      - service.desired_state.direct_etcd_write
+
+  - id: pattern.consensus_backed_authority
+    title: Consensus-Backed Authority
+    definition: Critical cluster intent must be stored in a consensus-backed authority, not inferred from local disk, local runtime, or partial observation. etcd is the sole consensus backend. Search for etcd key paths, DesiredService, objectstore topology, local disk scan.
+    detect: Look for local disk presence controlling topology decisions, services starting without etcd desired state, objectstore topology inferred from local disk, package install intent inferred from heartbeat, or derived cache blocking authority publication.
+    code_smells:
+      - "local file used as cluster authority"
+      - "runtime observation creates an authoritative record"
+      - "topology created from local disk scan without etcd confirmation"
+      - "service start permitted without desired contract in etcd"
+      - "cache availability required before authority write"
+    failure_modes:
+      - objectstore topology inferred from local state diverges from cluster truth
+      - derived state blocks authority publication during recovery
+      - local runtime promoted to cluster-wide truth after restart
+    safe_fix_rule: Use etcd as the source of truth. Local observation may inform diagnostics, but must not replace authoritative desired-state ownership stored in consensus.
+    related_invariants:
+      - objectstore.desired_state_must_be_registry_governed
+      - topology.reconciler_must_respect_safety_contract
+      - derived_state.must_not_block_authority
+      - critical_state.registry_ownership_required
+
+  - id: pattern.last_known_good
+    title: Last-Known-Good Runtime Continuity
+    definition: Critical consumers must preserve service continuity using the last validated good configuration when authority is temporarily unavailable. Never overwrite LKG with invalid or incomplete state. Search for LKG, last_known_good, holdConfig, ErrCompacted, Watch returns nil.
+    detect: Look for authority unavailability clearing runtime config, missing etcd key stopping a service, invalid config overwriting working config, LKG existing but being ignored, or no validation before persisting LKG.
+    code_smells:
+      - "overwrite LKG with invalid or incomplete config"
+      - "clear runtime config on read failure"
+      - "stop service on missing key without checking LKG"
+      - "no validation before persisting LKG"
+      - "no timestamp or generation recorded on LKG"
+    failure_modes:
+      - transient authority unavailability clears runtime config permanently
+      - corrupt LKG accepted and applied
+      - service stopped without explicit delete intent — absence treated as stop
+    safe_fix_rule: When authority is temporarily unavailable, hold the last validated safe configuration and surface DEGRADED status. Never overwrite LKG with invalid or incomplete state. Stop requires explicit intent, not absence.
+    related_invariants:
+      - runtime.last_known_good_required_for_critical_consumers
+      - critical_state.absence_is_not_destructive_intent
+      - recovery.must_not_depend_on_dns_only
+
+  - id: pattern.circuit_breaker_distributed
+    title: Circuit Breaker (Distributed Control Path)
+    definition: When a dependency is unhealthy, the system must stop amplifying the failure. It should fail fast, enter BLOCKED or DEGRADED state, or probe safely before resuming. Search for openCircuitBreaker, halfOpen, backoff, singleflight, DEGRADED, backend_health_gate.
+    detect: Look for workflow dispatch continuing while backend is unhealthy, repeated retry into unavailable repository, event publishing hammering a failed backend, service restart loops after deterministic errors, or health gates being bypassed.
+    code_smells:
+      - "retry without bounded backoff or singleflight gate"
+      - "no half-open probe before resuming dispatch"
+      - "backend unhealthy but work dispatch continues unchanged"
+      - "deterministic error treated as transient — no BLOCKED state"
+      - "circuit state not visible in doctor or preflight output"
+    failure_modes:
+      - workflow dispatch continues bypassing circuit breaker
+      - deterministic failure retried indefinitely never reaching BLOCKED
+      - backend unhealthy retry storm saturates dependency
+    safe_fix_rule: Respect dependency health gates. Deterministic failures must become BLOCKED or DEGRADED, not infinite retry loops. Use singleflight and bounded backoff. Probe with a smaller budget before resuming.
+    related_invariants:
+      - convergence.no_infinite_retry
+      - workflow.backend_health_gate
+      - critical_queries.must_be_bounded
+      - service.restart_singleflight
+
+  - id: pattern.bulkhead
+    title: Bulkhead / Failure Isolation
+    definition: Failure in one subsystem must not consume all shared control-plane capacity or starve unrelated work. Search for singleflight, per-service semaphore, lane, reconcile_slot, bounded concurrency, restart storm.
+    detect: Look for one stuck package blocking all reconciliation, restart storm consuming service manager capacity, unbounded query blocking the controller loop, one failed dependency blocking unrelated package installs, or global work starving completion.
+    code_smells:
+      - "global semaphore shared by unrelated recovery paths"
+      - "no per-service restart singleflight"
+      - "no timeout around critical query blocking shared loop"
+      - "one workflow blocks all dispatch slots"
+      - "no degraded-mode boundary isolating failure domain"
+    failure_modes:
+      - global reconciliation starvation from one stuck package
+      - restart storm consumed service manager capacity
+      - unbounded query blocked entire control loop
+    safe_fix_rule: Limit concurrency per service, isolate failure domains, and apply per-lane timeouts. Stuck work must age, block, or degrade — never starve unrelated critical progress.
+    related_invariants:
+      - reconcile.global_work_must_not_starve_completion
+      - critical_queries.must_be_bounded
+      - service.restart_singleflight
+      - services.drift_must_age_and_escalate
+
+  - id: pattern.saga_durable_workflow
+    title: Saga / Durable Workflow
+    definition: A multi-step operation must record durable progress and be resumable after crashes, leader changes, and partial failures. Search for step_receipts, pending_sync, workflow receipt, atomic_commit, executor_lease, idempotent step.
+    detect: Look for action cleanup occurring before result promotion, local success with no controller commit, workflow steps lacking receipts, non-idempotent steps retried after leader crash, or retry re-executing side effects without guard.
+    code_smells:
+      - "state mutation without durable receipt"
+      - "cleanup before durable commit"
+      - "success returned before installed-state write"
+      - "no pending-sync state in partial-result scenario"
+      - "non-idempotent step retried without already-done guard"
+    failure_modes:
+      - leader failover leaves partial result without commit
+      - action cleared before installed state was written
+      - workflow replay re-executes non-idempotent side effect
+    safe_fix_rule: Each step must be idempotent, receipted, or durably committed. Result promotion, installed-state write, and action cleanup must be atomic or recoverable after crash and replay.
+    related_invariants:
+      - install.result.atomic_commit
+      - convergence.no_infinite_retry
+      - workflow.backend_health_gate
+
+  - id: pattern.idempotent_executor
+    title: Idempotent Executor
+    definition: Executors must tolerate repeated instructions without corrupting state, duplicating side effects, or producing false success. Search for already-done guard, idempotent, checksum verify, singleflight, restart used as proof.
+    detect: Look for node-agent receiving the same package install repeatedly with visible state change, workflow retrying a step after timeout, repair workflow re-running after partial success, or restart called repeatedly as proof of convergence.
+    code_smells:
+      - "no already-done check before re-executing install"
+      - "repeated install changes checksum unexpectedly"
+      - "retry creates duplicate metadata records"
+      - "repair path is not safe to rerun — has non-idempotent side effects"
+      - "repeated restart used as convergence proof"
+    failure_modes:
+      - repeated install corrupted installed state
+      - repair rerun corrupted runtime after partial apply
+      - restart used as convergence proof masked real failure
+    safe_fix_rule: Before executing, check durable desired/installed identity and idempotency guard. Repeated execution must either no-op safely or converge to the same proof without side effects.
+    related_invariants:
+      - install.result.atomic_commit
+      - service.restart_singleflight
+      - infra.desired_hash_consistency
+      - convergence.no_infinite_retry
+
+  - id: pattern.durable_event_outbox
+    title: Durable Event / Outbox
+    definition: State changes and event publication must not split into inconsistent partial truth. If event publication fails, state must remain recoverable or the event must be replayable. Search for audit record, event publish, workflow receipt, observation, notification.
+    detect: Look for state updated but event missing, event emitted before durable state, audit record missing for critical mutation, workflow result committed but notification lost, or event bus unavailability hiding a failure.
+    code_smells:
+      - "event published before state is durably committed"
+      - "dropped event with no recovery or replay path"
+      - "event failure ignored in critical mutation path"
+      - "audit record missing actor or intent"
+      - "event emitted from uncommitted local state"
+    failure_modes:
+      - state and event publication split-brain — state changed but event lost
+      - lost event hid a critical failure from operators
+      - audit trail missing for a critical mutation
+    safe_fix_rule: Critical state changes must be auditable and event publication must be recoverable, replayable, or explicitly best-effort with degraded visibility surfaced to doctor.
+    related_invariants:
+      - install.result.atomic_commit
+      - critical_state.registry_ownership_required
+      - critical_state.deletion_requires_audited_intent
+
+  - id: pattern.health_gate
+    title: Health Gate
+    definition: Work must not be dispatched into a dependency unless that dependency is healthy enough for the class of work. Search for backend_health_gate, isHealthy, BLOCKED, DEGRADED, readiness, liveness.
+    detect: Look for workflow dispatch while Scylla is unavailable, repository package install while repository reads fail, MinIO writes attempted without objectstore authority, controller starting recovery while dependency health is unknown, or doctor findings being ignored by the dispatch path.
+    code_smells:
+      - "health check result unused before dispatch"
+      - "unknown health treated as healthy — no explicit check"
+      - "dependency DEGRADED but write path proceeds optimistically"
+      - "no explicit DEGRADED or BLOCKED state emitted on gate failure"
+      - "readiness and liveness confused — healthy process != ready service"
+    failure_modes:
+      - dispatch into unhealthy backend caused cascading failure
+      - degraded dependency treated as available corrupted state
+      - liveness confused with readiness caused premature convergence claim
+    safe_fix_rule: Gate work by dependency capability. Unknown or unhealthy dependencies must produce BLOCKED or DEGRADED state, not optimistic writes. Liveness and readiness are separate gates.
+    related_invariants:
+      - workflow.backend_health_gate
+      - repository.metadata_first
+      - objectstore.desired_state_must_be_registry_governed
+      - convergence.no_infinite_retry
+
+  - id: pattern.explicit_degraded_mode
+    title: Explicit Degraded Mode
+    definition: A distributed subsystem must expose whether it is FULL, DEGRADED, READ_ONLY, LOCAL_ONLY, BLOCKED, or UNAVAILABLE instead of failing ambiguously. Search for capability flags, degraded_reason, DEGRADED status, doctor finding, escalation.
+    detect: Look for repository unavailable because an optional mirror is down, read-only mode not distinguished from full failure, local fallback not visible to doctor, degraded dependency causing generic error, or cluster warnings that never escalate.
+    code_smells:
+      - "generic unavailable returned for a partial degraded mode"
+      - "optional backend failure blocks a required read path"
+      - "no capability flags — full or unavailable only"
+      - "degraded mode not surfaced to awareness or doctor"
+      - "status lacks reason field"
+    failure_modes:
+      - degraded mode collapsed to generic unavailable — operator cannot diagnose
+      - optional backend blocked required path causing false total outage
+      - doctor could not classify degraded state — finding silently lost
+    safe_fix_rule: Expose capability-specific degraded state with a reason. Do not collapse partial availability into generic failure. Doctor must be able to classify and escalate every degraded mode.
+    related_invariants:
+      - repository.metadata_first
+      - services.drift_must_age_and_escalate
+      - workflow.backend_health_gate
+
+  - id: pattern.fencing_token_generation_guard
+    title: Fencing Token / Generation Guard
+    definition: Writers must prove they still own the current leadership epoch, topology generation, or approval generation before committing authoritative state. Search for generation, compare-and-swap, approval_generation, topology_generation, epoch.
+    detect: Look for stale topology transitions applied after generation changed, delete approvals reused after generation rollover, leader writing after losing leadership, rendered config generation not matching desired generation, or workflow owner committing after ownership moved.
+    code_smells:
+      - "generation not checked before write — no compare-and-swap"
+      - "approval record lacks generation field"
+      - "cached leadership used as write proof without revalidation"
+      - "stale rendered config accepted without generation comparison"
+      - "topology update lacks compare-and-swap guard"
+    failure_modes:
+      - stale generation applied — topology or config from previous epoch committed
+      - stale delete approval accepted after generation changed
+      - stale leader committed authoritative state after failover
+    safe_fix_rule: Every critical mutation must compare the current generation, epoch, or lease before committing. Stale writers must fail closed. Approvals are single-use per generation.
+    related_invariants:
+      - topology.reconciler_must_respect_safety_contract
+      - critical_state.deletion_requires_audited_intent
+      - critical_state.registry_ownership_required
+
+  - id: pattern.intent_marker_tombstone
+    title: Intent Marker / Tombstone
+    definition: Deletion or destructive state transition must be represented by explicit intent, not inferred from missing state. Absence is unknown, not a command. Search for IsExplicitDisable, approval_marker, explicit_disabled, reason field, generation guard.
+    detect: Look for missing key stopping a service, absent desired state deleting runtime, timeout treated as disable intent, delete happening without an approval marker, or tombstone being stale or missing actor and generation.
+    code_smells:
+      - "missing key branch calls stop or delete"
+      - "timeout path mutates desired state to deleted"
+      - "invalid or nil spec treated as disable command"
+      - "delete marker lacks actor, reason, or generation"
+      - "cleanup removes evidence before repair path can use it"
+    failure_modes:
+      - absence interpreted as destructive intent — service stopped by missing key
+      - stale tombstone caused delete after recovery
+      - timeout deleted runtime state without operator intent
+    safe_fix_rule: Absence is unknown, not intent. Destructive transitions require explicit, audited, fresh intent markers with actor, reason, and generation. Absence must produce HOLD_LAST_KNOWN_GOOD, not stop.
+    related_invariants:
+      - critical_state.absence_is_not_destructive_intent
+      - critical_state.deletion_requires_audited_intent
+      - destructive_actions.require_explicit_guard
+
+  - id: pattern.read_repair_authority_repair
+    title: Read Repair / Authority Repair
+    definition: Authoritative owners must repair missing derived or published state from durable source when safe, rather than letting derived absence block recovery. Only the owner may repair — never infer authority from derived absence. Search for republish, repair, pki.ca_metadata, objectstore desired state, read_repair.
+    detect: Look for PKI CA metadata missing but CA exists on disk, objectstore config missing but desired topology is in etcd, repository blob missing but ledger has the artifact, or derived state absence blocking authority publication.
+    code_smells:
+      - "derived key absence blocks authoritative write path"
+      - "no republish path from authoritative owner on missing derived key"
+      - "repair lacks owner validation — any caller can repair"
+      - "repair creates new authority from derived state"
+      - "missing derived state treated as fatal instead of repairable"
+    failure_modes:
+      - missing derived state blocked recovery indefinitely
+      - owner failed to republish critical key after transient loss
+      - read repair created wrong authority from derived absence
+    safe_fix_rule: Only the authoritative owner may repair derived state, using its durable source and registered schema. Repair must not create new authority from derived absence. Derived absence must surface as DEGRADED, not FATAL.
+    related_invariants:
+      - derived_state.must_not_block_authority
+      - pki.ca_metadata_must_be_published
+      - objectstore.desired_state_must_be_registry_governed
+      - repository.metadata_first
+
+  - id: pattern.backpressure
+    title: Backpressure
+    definition: When the control plane cannot process work safely, it must slow, reject, or block new work instead of accumulating unsafe concurrency. Search for singleflight, retry budget, BLOCKED, bounded queue, dispatch gate.
+    detect: Look for workflow queue growing during backend outage, reconcile tick starting new work while previous run is active, package install dispatch exceeding safe concurrency, critical query blocking the tick loop, or restart storm saturating systemd.
+    code_smells:
+      - "no singleflight around reconcile tick"
+      - "queue grows without bounded drain — unbounded backlog"
+      - "retry has no budget and no BLOCKED terminal state"
+      - "dispatch ignores backend pressure signal"
+      - "concurrent repair of same service without singleflight guard"
+    failure_modes:
+      - unbounded reconcile backlog during backend outage
+      - dispatch pressure signal ignored — work queued beyond capacity
+      - retry budget exhausted but not recorded — failure invisible
+    safe_fix_rule: Apply bounded concurrency, retry budgets, singleflight, and BLOCKED or DEGRADED states. Backpressure is safer than unbounded optimism. Exceeding budget must produce a durable finding, not a silent drop.
+    related_invariants:
+      - reconcile.global_work_must_not_starve_completion
+      - convergence.no_infinite_retry
+      - service.restart_singleflight
+      - critical_queries.must_be_bounded
+
+  - id: pattern.bootstrap_then_promote
+    title: Bootstrap Then Promote
+    definition: Bootstrap state is temporary scaffolding. It must be validated and promoted into authoritative desired state before it is treated as convergence truth. Search for bootstrap marker, promotion workflow, seed state, authoritative field.
+    detect: Look for seed config becoming desired state without explicit promotion, first boot claiming CONVERGED before promotion, bootstrap record lacking owner or schema, installer state persisting as runtime authority, or doctor trusting a bootstrap-only record.
+    code_smells:
+      - "bootstrap marker missing — no distinction from authoritative record"
+      - "bootstrap record used by steady-state reconciler as authority"
+      - "no promotion workflow — bootstrap transitions directly to active"
+      - "first boot writes desired state without validation step"
+      - "doctor cannot distinguish bootstrap record from promoted desired state"
+    failure_modes:
+      - bootstrap state treated as cluster-wide authority before promotion
+      - first boot claimed convergence too early — installed state not confirmed
+      - seed state polluted desired state across cluster restart
+    safe_fix_rule: Bootstrap data must carry a marker, owner, schema, and promotion path. Steady-state reconcilers must reject unpromoted bootstrap records. CONVERGED must not be claimed until all four layers agree.
+    related_invariants:
+      - desired.bootstrap_state_requires_promotion
+      - critical_state.registry_ownership_required
+      - runtime.installed_state_must_match_package_kind
+
+  - id: pattern.dns_independent_recovery
+    title: DNS-Independent Recovery
+    definition: Recovery paths must not depend only on DNS or service discovery when DNS or service discovery may be part of the failure. Provide direct endpoint, cached endpoint, or bootstrap authority fallback. Search for recovery.must_not_depend_on_dns_only, bootstrap endpoint, IP fallback, direct dial.
+    detect: Look for DNS recovery requiring a DNS lookup, service discovery required while discovery is unhealthy, join or recovery unable to contact authority without DNS, bootstrap path lacking an IP fallback, or certificate/routing repair depending on a broken gateway.
+    code_smells:
+      - "recovery path uses only DNS name — no direct endpoint fallback"
+      - "no cached or bootstrap endpoint for recovery"
+      - "DNS failure blocks DNS repair path"
+      - "gateway dependency blocks gateway repair — self-dependency loop"
+      - "certificate repair requires healthy mesh routing"
+    failure_modes:
+      - DNS required for DNS recovery — bootstrap deadlock
+      - service discovery required when discovery is unhealthy
+      - recovery path lacked bootstrap endpoint — operator manual intervention required
+    safe_fix_rule: Provide direct endpoint, cached endpoint, or bootstrap authority fallback for recovery paths that may need to repair DNS, discovery, or gateway. Recovery must not depend on the service it is trying to repair.
+    related_invariants:
+      - recovery.must_not_depend_on_dns_only
+      - runtime.last_known_good_required_for_critical_consumers
+      - pki.ca_metadata_must_be_published
+
+  - id: pattern.split_brain_prevention
+    title: Split-Brain Prevention
+    definition: Two actors or subsystems must not both believe they are the authoritative owner of the same critical state or topology. Search for single-owner registry, cluster_id, conflict resolution, last-write-wins, writer identity audit.
+    detect: Look for two controllers writing the same desired key, local topology and etcd topology disagreeing, repository ledger and objectstore authority disagreeing, DNS having multiple competing authorities, or stale leader continuing to write.
+    code_smells:
+      - "no single-owner registry per critical key"
+      - "local authority accepted alongside consensus authority"
+      - "conflict resolution is last-write-wins without generation check"
+      - "missing cluster_id check — writer may be from old cluster"
+      - "writer identity not audited on critical mutation"
+    failure_modes:
+      - split-brain critical state — two controllers wrote the same key
+      - competing topology authorities caused objectstore to diverge
+      - stale writer overwrote authoritative state after failover
+    safe_fix_rule: Use single-owner registry, cluster identity, generation checks, and fail-closed conflict handling. Never resolve authority conflicts with blind last-write-wins. Stale writers must fail closed.
+    related_invariants:
+      - critical_state.registry_ownership_required
+      - topology.reconciler_must_respect_safety_contract
+      - repository.metadata_first
+      - service.desired_state.direct_etcd_write
+
+  - id: pattern.bounded_critical_query
+    title: Bounded Critical Query
+    definition: Queries in critical control paths must be bounded by context deadline, timeout, pagination, or safe fallback so they cannot block convergence indefinitely. Search for withBounded, context.WithTimeout, deadline, Query limit, pagination, bounded scan.
+    detect: Look for controller loop waiting forever on a query, reconcile path scanning an unbounded table, critical query ignoring context cancellation, external dependency blocking the control loop, or no timeout around metadata reads in the reconciler hot path.
+    code_smells:
+      - "Query() called without context deadline"
+      - "full table scan in reconcile hot path with no limit"
+      - "no timeout around critical read — missing withBounded() or context.WithTimeout"
+      - "timeout error swallowed in critical path — degraded state not set"
+      - "blocking external call inside global reconcile lock"
+    failure_modes:
+      - unbounded query blocked reconcile loop indefinitely
+      - critical query ignored context cancellation — watchdog fired
+      - external query starved controller loop — convergence stopped
+    safe_fix_rule: Critical queries must have context, timeout, bounded scope, and explicit DEGRADED or error behaviour. Timeout must map to a DEGRADED result, not a hang. Use withBounded() on all hot reconcile paths.
+    related_invariants:
+      - critical_queries.must_be_bounded
+      - reconcile.global_work_must_not_starve_completion
+      - workflow.backend_health_gate
