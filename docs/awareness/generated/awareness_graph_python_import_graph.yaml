@@ -2,29 +2,6 @@
 # Run `make import-graph` to regenerate from source imports.
 # Component dependency edges inferred from python imports (assertion: inferred). importgraph v1.
 components:
-  - id: component.eval
-    name: eval
-    kind: module
-    assertion: inferred
-    source_files:
-      - eval/multi-swe-bench/mode_c_retry_controller.py
-      - eval/multi-swe-bench/mode_d_certification.py
-      - eval/multi-swe-bench/mode_d_contract_assess.py
-      - eval/multi-swe-bench/mode_d_failure_handler.py
-      - eval/multi-swe-bench/mode_d_learning_event.py
-      - eval/multi-swe-bench/mode_d_learning_health.py
-      - eval/multi-swe-bench/mode_d_retry_controller.py
-    external_imports:
-      - mode_d_certification
-      - mode_d_contract_assess
-      - mode_d_failure_handler
-      - mode_d_retry_controller
-      - yaml
-    uml:
-      kind: Component
-      stereotype: module
-      view: structural
-      confidence: inferred
   - id: component.scripts
     name: scripts
     kind: module
