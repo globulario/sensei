@@ -65,15 +65,19 @@ you'll paste it in the next step.
 
 > **Prefer a prebuilt binary?** Each [release](https://github.com/globulario/sensei/releases)
 > ships a self-contained `sensei-<platform>.tar.gz` for `linux-amd64`,
-> `linux-arm64`, and `darwin-arm64` (Apple Silicon) — every binary you need
-> (`sensei`, `awareness-graph`, `awareness-mcp`, `oxigraph`) plus a `setup.sh`.
-> No Go toolchain, no separate store download:
+> `linux-arm64`, `darwin-arm64` (Apple Silicon), and `windows-amd64` — every
+> binary you need (`sensei`, `awareness-graph`, `awareness-mcp`, `oxigraph`)
+> plus a `setup.sh`. No Go toolchain, no separate store download:
 >
 > ```bash
 > curl -fsSL -O https://github.com/globulario/sensei/releases/latest/download/sensei-linux-amd64.tar.gz
 > tar xzf sensei-linux-amd64.tar.gz && cd sensei-linux-amd64
 > ./setup.sh            # symlinks the binaries onto your PATH (~/.local/bin)
 > ```
+>
+> On **Windows** the `sensei.exe` binaries run and the CI Action works; run
+> `setup.sh` from **Git Bash** (the pre-edit enforcement hooks are bash, so
+> local enforcement needs Git Bash or WSL).
 
 > Kick the tires first (optional): `sensei demo` stands up the whole stack on
 > throwaway ports and returns one real briefing, then cleans up.

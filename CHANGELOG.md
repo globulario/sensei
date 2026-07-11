@@ -3,6 +3,21 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v1.1.0 — Windows binaries
+
+- **`windows-amd64` prebuilt tarball.** Releases now include
+  `sensei-windows-amd64.tar.gz` (`sensei.exe`, `awareness-graph.exe`,
+  `awareness-mcp.exe`, `oxigraph.exe` + `setup.sh`), built natively on a
+  `windows-latest` runner. Oxigraph's official Windows build ships in the bundle.
+- **The CI Action runs on Windows.** `globulario/sensei-action` detects a Windows
+  runner (Git Bash) and installs the Windows bundle; the gate runs under
+  `shell: bash`.
+- **Binary lookup is `.exe`-aware.** `sensei serve` finds `awareness-graph.exe` /
+  `oxigraph.exe` next to itself on Windows.
+- **Caveat — local enforcement needs a POSIX shell.** The pre-edit enforcement
+  hooks and `setup.sh` are bash; on Windows run them under **Git Bash** or WSL.
+  The compiled `sensei.exe` (`serve`, `build`, `gate`, queries) works natively.
+
 ## v1.0.0 — Multi-platform binaries
 
 The first `1.0` release. Sensei is stable enough to build on: the CLI surface,
