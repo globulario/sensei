@@ -252,6 +252,8 @@ export interface MetadataResponse {
   pattern_misuse_count?: string;
   server_started_unix?: string;
   generated_in_ms?: string;
+  /** Distinct selectable domain keys in the graph (for the domain filter). */
+  available_domains?: string[];
 }
 
 export interface QueryRow {
@@ -279,8 +281,13 @@ export interface ResolveResult {
   authority?: GraphAuthority;
 }
 
-export function metadata(addr: string, timeoutMs: number): Promise<MetadataResponse> {
-  return unary<MetadataResponse>(addr, 'Metadata', {}, timeoutMs);
+export function metadata(
+  addr: string,
+  timeoutMs: number,
+  domain?: string
+): Promise<MetadataResponse> {
+  const body = domain ? { domain } : {};
+  return unary<MetadataResponse>(addr, 'Metadata', body, timeoutMs);
 }
 
 /** List all nodes of a class. `cls` is a QueryClass enum name (string). */
@@ -288,14 +295,14 @@ export function queryByClass(
   addr: string,
   cls: string,
   limit: number,
-  timeoutMs: number
+  timeoutMs: number,
+  domain?: string
 ): Promise<QueryResponse> {
-  return unary<QueryResponse>(
-    addr,
-    'Query',
-    { mode: 'QUERY_MODE_BY_CLASS', class: cls, limit },
-    timeoutMs
-  );
+  const body: Record<string, unknown> = { mode: 'QUERY_MODE_BY_CLASS', class: cls, limit };
+  if (domain) {
+    body.domain = domain;
+  }
+  return unary<QueryResponse>(addr, 'Query', body, timeoutMs);
 }
 
 /** Neighbors of a class-qualified id, each row carrying its edge `relation`. */
