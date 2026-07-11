@@ -64,9 +64,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { runner: ubuntu-latest,    goos: linux,  goarch: amd64 }
-          - { runner: ubuntu-24.04-arm, goos: linux,  goarch: arm64 }
-          - { runner: macos-14,         goos: darwin, goarch: arm64 }
+          - { runner: ubuntu-latest,    goos: linux,   goarch: amd64 }
+          - { runner: ubuntu-24.04-arm, goos: linux,   goarch: arm64 }
+          - { runner: macos-14,         goos: darwin,  goarch: arm64 }
+          - { runner: windows-latest,   goos: windows, goarch: amd64 }
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
@@ -79,6 +80,7 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Build binaries + assemble self-contained tarball (${{ matrix.goos }}-${{ matrix.goarch }})
+        shell: bash   # runs under Git Bash on the windows-latest runner
         env:
           VERSION: ${{ needs.meta.outputs.version }}
           GOOS: ${{ matrix.goos }}
@@ -87,6 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           SUFFIX="${GOOS}-${GOARCH}"
+          EXE=""; [ "${GOOS}" = windows ] && EXE=".exe"   # Windows binaries carry .exe
           LDFLAGS="-s -w -X main.Version=${VERSION}"
           OUT="$RUNNER_TEMP/dist"; mkdir -p "$OUT"
 
@@ -97,20 +100,21 @@ jobs:
           STAGE="$RUNNER_TEMP/${PKG}"; rm -rf "$STAGE"; mkdir -p "$STAGE/bin"
 
           # Native build: GOOS/GOARCH match the host, CGO stays on for tree-sitter.
-          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/sensei"          ./cmd/awg
-          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/awareness-graph" ./golang/server
-          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/awareness-mcp"   ./cmd/awareness-mcp
-          cp "$STAGE/bin/sensei" "$STAGE/bin/awg"   # deprecated alias, still shipped
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/sensei${EXE}"          ./cmd/awg
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/awareness-graph${EXE}" ./golang/server
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/awareness-mcp${EXE}"   ./cmd/awareness-mcp
+          cp "$STAGE/bin/sensei${EXE}" "$STAGE/bin/awg${EXE}"   # deprecated alias, still shipped
 
           # Oxigraph is one of the binaries `sensei serve` runs — ship it in the
           # bundle so the download is self-contained (no upstream fetch needed).
           case "${SUFFIX}" in
-            linux-amd64)  OXA="x86_64_linux_gnu";;
-            linux-arm64)  OXA="aarch64_linux_gnu";;
-            darwin-arm64) OXA="aarch64_apple";;
+            linux-amd64)   OXA="x86_64_linux_gnu";;
+            linux-arm64)   OXA="aarch64_linux_gnu";;
+            darwin-arm64)  OXA="aarch64_apple";;
+            windows-amd64) OXA="x86_64_windows_msvc.exe";;
             *) echo "::error::no Oxigraph asset mapping for ${SUFFIX}"; exit 1;;
           esac
-          curl -fsSL -o "$STAGE/bin/oxigraph" \
+          curl -fsSL -o "$STAGE/bin/oxigraph${EXE}" \
             "https://github.com/oxigraph/oxigraph/releases/download/v${OXV}/oxigraph_v${OXV}_${OXA}"
           chmod +x "$STAGE/bin/"*
 
@@ -258,6 +262,7 @@ jobs:
             /tmp/dist/sensei-linux-amd64.tar.gz    /tmp/dist/sensei-linux-amd64.tar.gz.sha256 \
             /tmp/dist/sensei-linux-arm64.tar.gz    /tmp/dist/sensei-linux-arm64.tar.gz.sha256 \
             /tmp/dist/sensei-darwin-arm64.tar.gz   /tmp/dist/sensei-darwin-arm64.tar.gz.sha256 \
+            /tmp/dist/sensei-windows-amd64.tar.gz  /tmp/dist/sensei-windows-amd64.tar.gz.sha256 \
             "/tmp/${SERVICE_TARBALL_NAME}" \
             "/tmp/${SERVICE_TARBALL_NAME}.sha256"
           echo "Release ${TAG} created."
