@@ -58,6 +58,7 @@ components:
       - cmd/awg/cmd_contract_assess.go
       - cmd/awg/cmd_contract_bootstrap.go
       - cmd/awg/cmd_corpus.go
+      - cmd/awg/cmd_demo.go
       - cmd/awg/cmd_draft_candidate.go
       - cmd/awg/cmd_edit_check.go
       - cmd/awg/cmd_edit_guard.go
@@ -132,6 +133,7 @@ components:
       - component.golang.scipingest
       - component.golang.seedmeta
       - component.golang.skillimport
+      - component.golang.statedir
       - component.golang.store
     external_imports:
       - github.com/gorilla/websocket
@@ -459,6 +461,7 @@ components:
     depends_on:
       - component.golang.extractor
       - component.golang.seedmeta
+      - component.golang.statedir
     uml:
       kind: Component
       stereotype: module
@@ -547,6 +550,7 @@ components:
       - golang/seedmeta/transaction.go
       - golang/seedmeta/verify.go
     depends_on:
+      - component.golang.statedir
       - component.golang.store
     uml:
       kind: Component
@@ -627,6 +631,17 @@ components:
       - golang/skillimport/skill.go
     external_imports:
       - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.statedir
+    name: statedir
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/statedir/statedir.go
     uml:
       kind: Component
       stereotype: module
