@@ -3,6 +3,17 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- **One-line installers.** `install.sh` (Linux/macOS,
+  `curl -fsSL …/install.sh | sh`) and `install.ps1` (Windows,
+  `irm …/install.ps1 | iex`) detect the platform, download and checksum-verify
+  the matching release tarball (via GitHub's `latest` redirect — no API, no rate
+  limit), install the binaries onto PATH, and print the MCP config.
+  `SENSEI_VERSION` / `SENSEI_PREFIX` override the release and target dir. A CI
+  job (`installer-test.yml`) smoke-tests both across linux-amd64/arm64,
+  darwin-arm64, and windows-amd64.
+
 ## v1.1.0 — Windows binaries
 
 - **`windows-amd64` prebuilt tarball.** Releases now include

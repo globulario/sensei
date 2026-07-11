@@ -49,35 +49,49 @@ Required test:  TestPaidStateRequiresVerifiedConfirmation
 
 ---
 
-## Install (about 3 minutes)
+## Install (one line)
 
-Linux or macOS, **Go 1.25+**. Oxigraph (the local store) is fetched for you — no Docker.
+Prebuilt, self-contained (`sensei` + server + MCP bridge + `oxigraph`) — no Go
+toolchain, no Docker. **Linux / macOS:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/globulario/sensei/main/install.sh | sh
+```
+
+**Windows** (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/globulario/sensei/main/install.ps1 | iex
+```
+
+It detects your platform (`linux-amd64/arm64`, `darwin-arm64`, `windows-amd64`),
+downloads and checksum-verifies the matching release, installs the binaries onto
+your PATH, and prints the MCP config to hand your agent. Pin a version with
+`SENSEI_VERSION=v1.1.0`, or change the target dir with `SENSEI_PREFIX=…`.
+
+<details>
+<summary>Other ways: download a tarball, or build from source</summary>
+
+Each [release](https://github.com/globulario/sensei/releases) also ships the
+raw `sensei-<platform>.tar.gz` (the four binaries + a `setup.sh`) if you prefer
+to grab it yourself:
+
+```bash
+curl -fsSL -O https://github.com/globulario/sensei/releases/latest/download/sensei-linux-amd64.tar.gz
+tar xzf sensei-linux-amd64.tar.gz && cd sensei-linux-amd64 && ./setup.sh
+```
+
+Or build from source (needs **Go 1.25+**):
 
 ```bash
 git clone https://github.com/globulario/sensei.git
-cd sensei
-./scripts/install.sh                 # builds sensei + server + MCP bridge, fetches oxigraph → bin/
-export PATH="$PWD/bin:$PATH"
+cd sensei && ./scripts/install.sh && export PATH="$PWD/bin:$PATH"
 ```
 
-The installer ends by printing the exact MCP config to hand your agent. Keep it —
-you'll paste it in the next step.
-
-> **Prefer a prebuilt binary?** Each [release](https://github.com/globulario/sensei/releases)
-> ships a self-contained `sensei-<platform>.tar.gz` for `linux-amd64`,
-> `linux-arm64`, `darwin-arm64` (Apple Silicon), and `windows-amd64` — every
-> binary you need (`sensei`, `awareness-graph`, `awareness-mcp`, `oxigraph`)
-> plus a `setup.sh`. No Go toolchain, no separate store download:
->
-> ```bash
-> curl -fsSL -O https://github.com/globulario/sensei/releases/latest/download/sensei-linux-amd64.tar.gz
-> tar xzf sensei-linux-amd64.tar.gz && cd sensei-linux-amd64
-> ./setup.sh            # symlinks the binaries onto your PATH (~/.local/bin)
-> ```
->
-> On **Windows** the `sensei.exe` binaries run and the CI Action works; run
-> `setup.sh` from **Git Bash** (the pre-edit enforcement hooks are bash, so
-> local enforcement needs Git Bash or WSL).
+On **Windows**, `sensei.exe` (serve/build/gate/queries) and the CI Action run
+natively; the pre-edit enforcement hooks are bash, so *local* enforcement needs
+Git Bash or WSL.
+</details>
 
 > Kick the tires first (optional): `sensei demo` stands up the whole stack on
 > throwaway ports and returns one real briefing, then cleans up.
