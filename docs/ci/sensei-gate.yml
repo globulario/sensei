@@ -1,12 +1,16 @@
-# Copy this to .github/workflows/sensei-gate.yml in YOUR repo.
-# It gates every pull request against your committed docs/awareness/ graph.
-name: Sensei architecture gate
+# Copy this to .github/workflows/sensei.yml in YOUR repo.
+# It reviews every pull request against your committed docs/awareness/ graph and
+# writes a Markdown summary into the Actions job summary.
+name: Sensei architectural review
 
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  architecture-gate:
+  review:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,6 +19,6 @@ jobs:
 
       - uses: globulario/sensei/.github/actions/sensei-gate@main
         with:
-          enforce: 'true'           # 'false' = advisory report, never blocks
+          mode: advisory            # advisory (report, never blocks) | enforce (fail on a violation)
           # awareness-dir: docs/awareness
           # domain: github.com/you/yourrepo
