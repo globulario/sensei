@@ -31,7 +31,7 @@ import (
 // comes from ldflags set at compile time. A nil store returns Unavailable
 // — never a silent zero response that an agent could misread as a healthy
 // empty graph.
-func (s *server) Metadata(ctx context.Context, _ *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
 	if s.store == nil {
 		return nil, status.Error(codes.Unavailable, "store is unavailable")
 	}
@@ -113,29 +113,50 @@ func (s *server) Metadata(ctx context.Context, _ *awarenesspb.MetadataRequest) (
 		return resp, nil
 	}
 
+	// The selectable domains, so a client can offer a filter.
+	resp.AvailableDomains = s.availableDomains(ctx)
+
+	// Per-class counts. Graph-wide by default (fast COUNT); when a domain is
+	// requested, count only nodes visible to it (reusing InScope over the facts
+	// ClassFacts already returns) so a multi-domain graph reports this project's
+	// totals. triple_count stays the raw store size — triples are not cleanly
+	// domain-attributable — so the client labels it graph-wide.
+	domain := strings.TrimSpace(req.GetDomain())
+	countClass := func(classIRI string) int64 {
+		if domain == "" {
+			n, _ := c.CountByClass(ctx, classIRI)
+			return n
+		}
+		facts, err := s.store.ClassFacts(ctx, classIRI, 0)
+		if err != nil {
+			return 0
+		}
+		return countClassInScope(facts, s.homeDomain, domain)
+	}
+
 	if n, err := c.CountTriples(ctx); err == nil {
 		resp.TripleCount = n
 	}
-	resp.InvariantCount, _ = c.CountByClass(ctx, rdf.ClassInvariant)
-	resp.FailureModeCount, _ = c.CountByClass(ctx, rdf.ClassFailureMode)
-	resp.IncidentPatternCount, _ = c.CountByClass(ctx, rdf.ClassIncidentPattern)
-	resp.IntentCount, _ = c.CountByClass(ctx, rdf.ClassIntent)
-	resp.ForbiddenFixCount, _ = c.CountByClass(ctx, rdf.ClassForbiddenFix)
-	resp.RequiredTestCount, _ = c.CountByClass(ctx, rdf.ClassTest)
-	resp.SourceFileCount, _ = c.CountByClass(ctx, rdf.ClassSourceFile)
-	resp.CodeSymbolCount, _ = c.CountByClass(ctx, rdf.ClassCodeSymbol)
+	resp.InvariantCount = countClass(rdf.ClassInvariant)
+	resp.FailureModeCount = countClass(rdf.ClassFailureMode)
+	resp.IncidentPatternCount = countClass(rdf.ClassIncidentPattern)
+	resp.IntentCount = countClass(rdf.ClassIntent)
+	resp.ForbiddenFixCount = countClass(rdf.ClassForbiddenFix)
+	resp.RequiredTestCount = countClass(rdf.ClassTest)
+	resp.SourceFileCount = countClass(rdf.ClassSourceFile)
+	resp.CodeSymbolCount = countClass(rdf.ClassCodeSymbol)
 
 	// Architectural-spine counts (Stage A). meta_principle_count counts the
 	// dual-typed meta.* invariants (also included in invariant_count).
-	resp.MetaPrincipleCount, _ = c.CountByClass(ctx, rdf.ClassMetaPrinciple)
-	resp.ComponentCount, _ = c.CountByClass(ctx, rdf.ClassComponent)
-	resp.BoundaryCount, _ = c.CountByClass(ctx, rdf.ClassBoundary)
-	resp.ContractCount, _ = c.CountByClass(ctx, rdf.ClassContract)
-	resp.DecisionCount, _ = c.CountByClass(ctx, rdf.ClassDecision)
-	resp.EvidenceCount, _ = c.CountByClass(ctx, rdf.ClassEvidence)
-	resp.DesignPatternCount, _ = c.CountByClass(ctx, rdf.ClassDesignPattern)
-	resp.ImplementationPatternCount, _ = c.CountByClass(ctx, rdf.ClassImplementationPattern)
-	resp.PatternMisuseCount, _ = c.CountByClass(ctx, rdf.ClassPatternMisuse)
+	resp.MetaPrincipleCount = countClass(rdf.ClassMetaPrinciple)
+	resp.ComponentCount = countClass(rdf.ClassComponent)
+	resp.BoundaryCount = countClass(rdf.ClassBoundary)
+	resp.ContractCount = countClass(rdf.ClassContract)
+	resp.DecisionCount = countClass(rdf.ClassDecision)
+	resp.EvidenceCount = countClass(rdf.ClassEvidence)
+	resp.DesignPatternCount = countClass(rdf.ClassDesignPattern)
+	resp.ImplementationPatternCount = countClass(rdf.ClassImplementationPattern)
+	resp.PatternMisuseCount = countClass(rdf.ClassPatternMisuse)
 
 	resp.BuildProvenanceState = classifyBuildProvenance(resp)
 	resp.CoverageState = classifyCoverage(resp)

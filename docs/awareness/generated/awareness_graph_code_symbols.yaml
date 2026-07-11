@@ -4921,6 +4921,27 @@ test_symbols:
     package: main
     language: go
     doc: "TestContractSpineV1_GoldenBriefing is the certification of Contract Spine v1:\nfor the /api/save-config demo, the briefing must render BOTH the authoritative\nrealized-contract chain (impl → realizesContract → arch → invariant → required\ntest) AND the candidate as a clearly-marked REVIEW-ONLY entry that is never\npresented as authority. See docs/contract-spine-v1.md.\n\nIt reuses spineFakeStore()/archImpact() from realized_contracts_test.go, which\nmodel the exact committed spine (api_save_config realizes\nconfig_mutation_requires_valid_token; api_cors_diagnostics is a candidate)."
+  - id: golang/server/domain_scope_test.go:TestCountClassInScope
+    file: golang/server/domain_scope_test.go
+    symbol: TestCountClassInScope
+    package: main
+    language: go
+  - id: golang/server/domain_scope_test.go:TestEmbeddedSeedStoreDomains
+    file: golang/server/domain_scope_test.go
+    symbol: TestEmbeddedSeedStoreDomains
+    package: main
+    language: go
+  - id: golang/server/domain_scope_test.go:TestKeepIRIsInScope_NoCrossDomainLeak
+    file: golang/server/domain_scope_test.go
+    symbol: TestKeepIRIsInScope_NoCrossDomainLeak
+    package: main
+    language: go
+    doc: "The leak test: filtering to one domain must never surface another domain's\nnodes — the invariant the whole design exists to protect."
+  - id: golang/server/domain_scope_test.go:TestNodeDomainsFromFacts
+    file: golang/server/domain_scope_test.go
+    symbol: TestNodeDomainsFromFacts
+    package: main
+    language: go
   - id: golang/server/edit_check_test.go:TestEditCheck_BadShape_WarnsInCaddyDomain
     file: golang/server/edit_check_test.go
     symbol: TestEditCheck_BadShape_WarnsInCaddyDomain

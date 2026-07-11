@@ -535,6 +535,50 @@ func (c *Client) CountByClass(ctx context.Context, classIRI string) (int64, erro
 	return n, nil
 }
 
+// Domains returns the distinct aw:repo domain keys present in the graph — the
+// selectable domains (e.g. "github.com/owner/repo"), excluding shared
+// meta-principles (which carry aw:domain "shared", not aw:repo). Used by
+// Metadata to offer a domain filter.
+func (c *Client) Domains(ctx context.Context) ([]string, error) {
+	q := `SELECT DISTINCT ?repo WHERE { ?s <https://globular.io/awareness#repo> ?repo }`
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph domains: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph domains: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("oxigraph domains: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+
+	var result struct {
+		Results struct {
+			Bindings []struct {
+				Repo struct {
+					Value string `json:"value"`
+				} `json:"repo"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("oxigraph domains: decode: %w", err)
+	}
+	out := make([]string, 0, len(result.Results.Bindings))
+	for _, b := range result.Results.Bindings {
+		if b.Repo.Value != "" {
+			out = append(out, b.Repo.Value)
+		}
+	}
+	return out, nil
+}
+
 // Subjects returns every distinct subject IRI in the default graph. Blank-node
 // and non-IRI subjects are skipped (they cannot be reconciled by IRI). Used by
 // `awg reconcile` to diff the live store's node set against the committed seed
