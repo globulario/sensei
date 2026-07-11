@@ -1357,6 +1357,11 @@ test_symbols:
     symbol: TestScaffoldProject_HooksExecutable
     package: main
     language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_MCPMergeOptIn
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_MCPMergeOptIn
+    package: main
+    language: go
   - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_MetaPrinciples
     file: cmd/awg/cmd_init_test.go
     symbol: TestScaffoldProject_MetaPrinciples
