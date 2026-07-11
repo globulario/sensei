@@ -263,7 +263,7 @@ func runRuntimeAdapter(args []string) int {
 			return validateRuntimeAdapterManifest(m), nil
 		})
 	}
-	fmt.Fprintln(os.Stderr, "usage: awg runtime-adapter validate --manifest <file.yaml> [--json]")
+	fmt.Fprintln(os.Stderr, "usage: sensei runtime-adapter validate --manifest <file.yaml> [--json]")
 	return 2
 }
 
@@ -277,14 +277,14 @@ func runRuntimeSnapshot(args []string) int {
 			return validateRuntimeSnapshot(s), nil
 		})
 	}
-	fmt.Fprintln(os.Stderr, "usage: awg runtime-snapshot validate --in <snapshot.yaml> [--json]\n"+
+	fmt.Fprintln(os.Stderr, "usage: sensei runtime-snapshot validate --in <snapshot.yaml> [--json]\n"+
 		"  (Phase 1: schema validation only; collection from a platform adapter is Phase 2.)")
 	return 2
 }
 
 // runRuntimeValidate is the shared validate-a-file flow for both schema kinds.
 func runRuntimeValidate(args []string, cmdName, pathFlag string, validate func([]byte) ([]finding, error)) int {
-	fs := flag.NewFlagSet("awg "+cmdName, flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei "+cmdName, flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	path := fs.String(pathFlag, "", "path to the YAML file to validate (required)")
 	asJSON := fs.Bool("json", false, "machine-readable summary")
@@ -292,17 +292,17 @@ func runRuntimeValidate(args []string, cmdName, pathFlag string, validate func([
 		return 2
 	}
 	if *path == "" {
-		fmt.Fprintf(os.Stderr, "awg %s: --%s <file> is required\n", cmdName, pathFlag)
+		fmt.Fprintf(os.Stderr, "sensei %s: --%s <file> is required\n", cmdName, pathFlag)
 		return 2
 	}
 	raw, err := os.ReadFile(*path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg %s: read %s: %v\n", cmdName, *path, err)
+		fmt.Fprintf(os.Stderr, "sensei %s: read %s: %v\n", cmdName, *path, err)
 		return 1
 	}
 	findings, err := validate(raw)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg %s: parse %s: %v\n", cmdName, *path, err)
+		fmt.Fprintf(os.Stderr, "sensei %s: parse %s: %v\n", cmdName, *path, err)
 		return 1
 	}
 	errs := 0
@@ -321,9 +321,9 @@ func runRuntimeValidate(args []string, cmdName, pathFlag string, validate func([
 			fmt.Printf("  %-7s %s: %s\n", strings.ToUpper(f.Severity), f.Where, f.Message)
 		}
 		if errs == 0 {
-			fmt.Printf("awg %s: %s is a valid %s (%d warning(s))\n", cmdName, *path, runtimeSchemaLabel(cmdName), warns)
+			fmt.Printf("sensei %s: %s is a valid %s (%d warning(s))\n", cmdName, *path, runtimeSchemaLabel(cmdName), warns)
 		} else {
-			fmt.Printf("awg %s: %s is INVALID — %d error(s), %d warning(s)\n", cmdName, *path, errs, warns)
+			fmt.Printf("sensei %s: %s is INVALID — %d error(s), %d warning(s)\n", cmdName, *path, errs, warns)
 		}
 	}
 	if errs > 0 {

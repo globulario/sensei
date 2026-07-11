@@ -3,7 +3,7 @@
 #
 # This simulates the prebuilt Linux bundle path:
 #   build a local-runtime tarball → extract it → provide oxigraph →
-#   run awg serve -no-seed from the extracted bundle →
+#   run sensei serve -no-seed from the extracted bundle →
 #   build a tiny project graph → confirm briefing returns the project invariant.
 #
 # CI-safe: builds into /tmp, uses dedicated ports, kills by PID only, and never
@@ -50,12 +50,12 @@ for prt in "${GRPC_PORT}" "${OXI_PORT}"; do
 done
 
 echo "==> building release bundle binaries"
-( cd "${REPO_ROOT}" && go build -o "${WORK}/build/bin/awg" ./cmd/awg \
+( cd "${REPO_ROOT}" && go build -o "${WORK}/build/bin/sensei" ./cmd/awg \
                     && go build -o "${WORK}/build/bin/awareness-mcp" ./cmd/awareness-mcp \
                     && go build -o "${WORK}/build/bin/awareness-graph" ./golang/server )
 
 mkdir -p "${WORK}/bundle/bin" "${WORK}/bundle/scripts"
-cp "${WORK}/build/bin/awg" "${WORK}/bundle/bin/awg"
+cp "${WORK}/build/bin/sensei" "${WORK}/bundle/bin/sensei"
 cp "${WORK}/build/bin/awareness-mcp" "${WORK}/bundle/bin/awareness-mcp"
 cp "${WORK}/build/bin/awareness-graph" "${WORK}/bundle/bin/awareness-graph"
 cp "${REPO_ROOT}/scripts/fetch-oxigraph.sh" "${WORK}/bundle/scripts/fetch-oxigraph.sh"
@@ -67,7 +67,7 @@ tar czf "${WORK}/awg-local_test_linux_amd64.tgz" -C "${WORK}/bundle" .
 mkdir -p "${WORK}/extract"
 tar -xzf "${WORK}/awg-local_test_linux_amd64.tgz" -C "${WORK}/extract"
 
-[[ -x "${WORK}/extract/bin/awg" ]] || fail "extracted bundle missing bin/awg"
+[[ -x "${WORK}/extract/bin/sensei" ]] || fail "extracted bundle missing bin/sensei"
 [[ -x "${WORK}/extract/bin/awareness-graph" ]] || fail "extracted bundle missing bin/awareness-graph"
 [[ -f "${WORK}/extract/scripts/install-awg-user-services.sh" ]] || fail "extracted bundle missing install-awg-user-services.sh"
 
@@ -81,7 +81,7 @@ else
 fi
 chmod +x "${WORK}/extract/bin/oxigraph"
 
-mkdir -p "${PROJ:-${WORK}/project}/.awg/oxigraph"
+mkdir -p "${PROJ:-${WORK}/project}/.sensei/oxigraph"
 "${WORK}/extract/bin/oxigraph" serve \
   --location "${WORK}/external-oxigraph" \
   --bind "127.0.0.1:${OXI_PORT}" > "${WORK}/oxigraph.log" 2>&1 &
@@ -96,7 +96,7 @@ done
 echo "==> scaffolding project with extracted awg"
 PROJ="${WORK}/project"
 mkdir -p "${PROJ}/src"
-( cd "${PROJ}" && git init -q . && "${WORK}/extract/bin/awg" init -dir . >/dev/null )
+( cd "${PROJ}" && git init -q . && "${WORK}/extract/bin/sensei" init -dir . >/dev/null )
 
 cat > "${PROJ}/src/payment_processor.py" <<'PY'
 def mark_paid(order, cache):
@@ -118,7 +118,7 @@ cat >> "${PROJ}/docs/awareness/invariants.yaml" <<'YAML'
 YAML
 
 echo "==> serve from extracted bundle"
-( cd "${PROJ}" && exec "${WORK}/extract/bin/awg" serve \
+( cd "${PROJ}" && exec "${WORK}/extract/bin/sensei" serve \
     -addr ":${GRPC_PORT}" \
     -oxigraph-bind "127.0.0.1:${OXI_PORT}" \
     -no-oxigraph \
@@ -131,13 +131,13 @@ for i in $(seq 1 30); do
 done
 
 echo "==> build with extracted awg"
-( cd "${PROJ}" && "${WORK}/extract/bin/awg" build -strict \
+( cd "${PROJ}" && "${WORK}/extract/bin/sensei" build -strict \
     -input docs/awareness \
     -store-url "http://127.0.0.1:${OXI_PORT}/store?default" ) \
-  || fail "bundle awg build -strict failed"
+  || fail "bundle sensei build -strict failed"
 
 echo "==> briefing with extracted awg"
-BRIEFING=$( cd "${PROJ}" && "${WORK}/extract/bin/awg" briefing -addr "localhost:${GRPC_PORT}" \
+BRIEFING=$( cd "${PROJ}" && "${WORK}/extract/bin/sensei" briefing -addr "localhost:${GRPC_PORT}" \
     -file src/payment_processor.py -task "refactor mark_paid" )
 echo "${BRIEFING}" | grep -q "payments.paid_state_requires_processor_confirmation" \
   || { echo "${BRIEFING}" >&2; fail "briefing missing the project invariant"; }

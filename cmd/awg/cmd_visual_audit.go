@@ -217,17 +217,17 @@ func (c *cdpClient) screenshot(ctx context.Context) ([]byte, error) {
 // ── Visual audit command ────────────────────────────────────────────────────
 
 func runVisualAudit(args []string) int {
-	fs := flag.NewFlagSet("awg visual-audit", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei visual-audit", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	chromePort := fs.Int("chrome-port", 9222, "Chrome debugging port")
 	routesStr := fs.String("routes", "", "comma-separated hash routes to screenshot")
-	goldenDir := fs.String("golden-dir", ".awg/golden", "directory for golden screenshots")
+	goldenDir := fs.String("golden-dir", ".sensei/golden", "directory for golden screenshots")
 	baseURL := fs.String("base-url", "http://localhost:5173", "app base URL")
 	update := fs.Bool("update", false, "save current screenshots as new golden images")
 	threshold := fs.Float64("threshold", 1.0, "pixel difference % to flag as FAIL")
 	waitSec := fs.Int("wait", 3, "seconds to wait after navigation for page render")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg visual-audit --routes "#/dashboard,#/cluster/nodes" [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei visual-audit --routes "#/dashboard,#/cluster/nodes" [flags]
 
 Capture screenshots of each route and compare against golden images.
 Requires Chrome running with --remote-debugging-port.

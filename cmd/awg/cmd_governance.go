@@ -17,7 +17,7 @@ import (
 
 func runGovernance(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, `Usage: awg governance <subcommand> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei governance <subcommand> [flags]
 
 Subcommands:
   init                        Create local governance directory and trust-store scaffold
@@ -49,16 +49,16 @@ Subcommands:
 	case "status":
 		return runGovernanceStatus(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "awg governance: unknown subcommand %q\n", args[0])
+		fmt.Fprintf(os.Stderr, "sensei governance: unknown subcommand %q\n", args[0])
 		return 2
 	}
 }
 
 func runGovernanceFetch(args []string) int {
-	fs := flag.NewFlagSet("awg governance fetch", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance fetch", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
-	trustedKeysFlag := fs.String("trusted-keys", "", "path to trusted publisher key set (default: <project>/.awg/governance/trusted-publishers.json)")
+	trustedKeysFlag := fs.String("trusted-keys", "", "path to trusted publisher key set (default: <project>/.sensei/governance/trusted-publishers.json)")
 	source := fs.String("source", "", "publication root dir or base URL")
 	packID := fs.String("pack-id", "", "governance pack id")
 	packVersion := fs.String("pack-version", "", "governance pack version")
@@ -71,7 +71,7 @@ func runGovernanceFetch(args []string) int {
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance fetch: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance fetch: resolve project root: %v\n", err)
 		return 1
 	}
 	trustedKeysPath := strings.TrimSpace(*trustedKeysFlag)
@@ -80,7 +80,7 @@ func runGovernanceFetch(args []string) int {
 	}
 	verified, fetched, err := fetchGovernancePack(*source, trustedKeysPath, root, *packID, *packVersion, *channel)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance fetch: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance fetch: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Fetched pack:       %s %s\n", verified.Manifest.PackID, verified.Manifest.PackVersion)
@@ -102,7 +102,7 @@ func runGovernanceFetch(args []string) int {
 
 func runGovernancePublish(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, `Usage: awg governance publish <subcommand> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei governance publish <subcommand> [flags]
 
 Subcommands:
   gen-key  Generate a local publisher signing key for governance-pack publication
@@ -125,13 +125,13 @@ Subcommands:
 	case "release":
 		return runGovernancePublishRelease(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "awg governance publish: unknown subcommand %q\n", args[0])
+		fmt.Fprintf(os.Stderr, "sensei governance publish: unknown subcommand %q\n", args[0])
 		return 2
 	}
 }
 
 func runGovernancePublishGenKey(args []string) int {
-	fs := flag.NewFlagSet("awg governance publish gen-key", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance publish gen-key", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	out := fs.String("out", "", "output path for awg.signing-key.v1 JSON")
 	publisherID := fs.String("publisher-id", "", "publisher id")
@@ -140,12 +140,12 @@ func runGovernancePublishGenKey(args []string) int {
 		return 2
 	}
 	if strings.TrimSpace(*out) == "" || strings.TrimSpace(*publisherID) == "" || strings.TrimSpace(*keyID) == "" {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance publish gen-key --out <path> --publisher-id <id> --key-id <id>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance publish gen-key --out <path> --publisher-id <id> --key-id <id>")
 		return 2
 	}
 	key, err := generateGovernanceSigningKey(*out, *publisherID, *keyID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance publish gen-key: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance publish gen-key: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Signing key:        %s\n", *out)
@@ -156,7 +156,7 @@ func runGovernancePublishGenKey(args []string) int {
 }
 
 func runGovernancePublishTrustRoot(args []string) int {
-	fs := flag.NewFlagSet("awg governance publish trust-root", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance publish trust-root", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	signingKey := fs.String("signing-key", "", "path to awg.signing-key.v1 JSON")
 	out := fs.String("out", "", "output path for trusted-publishers.json")
@@ -166,12 +166,12 @@ func runGovernancePublishTrustRoot(args []string) int {
 		return 2
 	}
 	if strings.TrimSpace(*signingKey) == "" || strings.TrimSpace(*out) == "" {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance publish trust-root --signing-key <path> --out <path> [--display-name <name>] [--status active]")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance publish trust-root --signing-key <path> --out <path> [--display-name <name>] [--status active]")
 		return 2
 	}
 	store, err := buildGovernanceTrustRoot(*signingKey, *out, *displayName, *status)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance publish trust-root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance publish trust-root: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Trust root:         %s\n", *out)
@@ -184,7 +184,7 @@ func runGovernancePublishTrustRoot(args []string) int {
 }
 
 func runGovernancePublishBuild(args []string) int {
-	fs := flag.NewFlagSet("awg governance publish build", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance publish build", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	var inputDirs stringSlice
 	fs.Var(&inputDirs, "input", "canonical governance YAML directory (repeatable)")
@@ -206,7 +206,7 @@ func runGovernancePublishBuild(args []string) int {
 	}
 	payloadInput, err := readPackBuildInput(*inputNT, inputDirs, *strict)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance publish build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance publish build: %v\n", err)
 		return 1
 	}
 	marker, err := buildGovernancePackFromBytes(payloadInput, governancePublishBuildOptions{
@@ -223,7 +223,7 @@ func runGovernancePublishBuild(args []string) int {
 		OutputDir:          *outDir,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance publish build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance publish build: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Output dir:         %s\n", *outDir)
@@ -237,19 +237,19 @@ func runGovernancePublishBuild(args []string) int {
 }
 
 func runGovernancePublishSign(args []string) int {
-	fs := flag.NewFlagSet("awg governance publish sign", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance publish sign", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	signingKey := fs.String("signing-key", "", "path to awg.signing-key.v1 JSON file")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 || strings.TrimSpace(*signingKey) == "" {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance publish sign --signing-key <path> <pack-dir-or-manifest>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance publish sign --signing-key <path> <pack-dir-or-manifest>")
 		return 2
 	}
 	manifest, sig, err := signGovernancePack(fs.Arg(0), *signingKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance publish sign: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance publish sign: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Pack id:            %s\n", manifest.PackID)
@@ -262,7 +262,7 @@ func runGovernancePublishSign(args []string) int {
 }
 
 func runGovernancePublishRelease(args []string) int {
-	fs := flag.NewFlagSet("awg governance publish release", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance publish release", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	trustedKeys := fs.String("trusted-keys", "", "path to trusted-publishers.json used to verify published packs")
 	signingKey := fs.String("signing-key", "", "path to awg.signing-key.v1 JSON file used to sign the publication index")
@@ -273,12 +273,12 @@ func runGovernancePublishRelease(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 1 || strings.TrimSpace(*trustedKeys) == "" || strings.TrimSpace(*publicationRoot) == "" || strings.TrimSpace(*signingKey) == "" {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance publish release --trusted-keys <path> --signing-key <path> --publication-root <dir> [--channel stable] <pack-dir-or-manifest>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance publish release --trusted-keys <path> --signing-key <path> --publication-root <dir> [--channel stable] <pack-dir-or-manifest>")
 		return 2
 	}
 	verified, indexPath, err := releaseGovernancePack(fs.Arg(0), *trustedKeys, *publicationRoot, *signingKey, channels)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance publish release: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance publish release: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Publication root:   %s\n", *publicationRoot)
@@ -295,7 +295,7 @@ func runGovernancePublishRelease(args []string) int {
 }
 
 func runGovernanceInit(args []string) int {
-	fs := flag.NewFlagSet("awg governance init", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance init", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	if err := fs.Parse(args); err != nil {
@@ -303,19 +303,19 @@ func runGovernanceInit(args []string) int {
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance init: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance init: resolve project root: %v\n", err)
 		return 1
 	}
 	dir := governancepack.GovernanceDirPath(root)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance init: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance init: %v\n", err)
 		return 1
 	}
 	trustPath := governancepack.TrustedKeysPath(root)
 	if _, err := os.Stat(trustPath); os.IsNotExist(err) {
 		store := governancepack.TrustStore{SchemaVersion: governancepack.TrustStoreSchemaV1, Publishers: []governancepack.TrustedPublisher{}}
 		if err := governancepack.WriteTrustStore(trustPath, store); err != nil {
-			fmt.Fprintf(os.Stderr, "awg governance init: write trust store: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei governance init: write trust store: %v\n", err)
 			return 1
 		}
 	}
@@ -327,7 +327,7 @@ func runGovernanceInit(args []string) int {
 
 func runGovernanceTrust(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, `Usage: awg governance trust <subcommand> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei governance trust <subcommand> [flags]
 
 Subcommands:
   add --file <path>
@@ -350,13 +350,13 @@ Subcommands:
 	case "rotate-check":
 		return runGovernanceTrustRotateCheck(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "awg governance trust: unknown subcommand %q\n", args[0])
+		fmt.Fprintf(os.Stderr, "sensei governance trust: unknown subcommand %q\n", args[0])
 		return 2
 	}
 }
 
 func runGovernanceTrustFetch(args []string) int {
-	fs := flag.NewFlagSet("awg governance trust fetch", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance trust fetch", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	sourceFlag := fs.String("source", "", "directory, file, or base URL for trusted-publishers.json")
@@ -364,17 +364,17 @@ func runGovernanceTrustFetch(args []string) int {
 		return 2
 	}
 	if strings.TrimSpace(*sourceFlag) == "" {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance trust fetch --source <path-or-url>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance trust fetch --source <path-or-url>")
 		return 2
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust fetch: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust fetch: resolve project root: %v\n", err)
 		return 1
 	}
 	store, stagePath, err := fetchTrustStoreCandidate(*sourceFlag, root)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust fetch: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust fetch: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Fetched trust root:  %s\n", stagePath)
@@ -383,12 +383,12 @@ func runGovernanceTrustFetch(args []string) int {
 		fmt.Printf("%s  %s (%d key(s))\n", p.PublisherID, displayTrustPublisherName(p.DisplayName), len(p.Keys))
 	}
 	fmt.Println("Fetch:               ok")
-	fmt.Printf("Next step:           awg governance trust add --file %s\n", stagePath)
+	fmt.Printf("Next step:           sensei governance trust add --file %s\n", stagePath)
 	return 0
 }
 
 func runGovernanceTrustAdd(args []string) int {
-	fs := flag.NewFlagSet("awg governance trust add", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance trust add", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	fileFlag := fs.String("file", "", "path to trusted-publishers.json")
@@ -396,17 +396,17 @@ func runGovernanceTrustAdd(args []string) int {
 		return 2
 	}
 	if strings.TrimSpace(*fileFlag) == "" {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance trust add --file <path>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance trust add --file <path>")
 		return 2
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust add: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust add: resolve project root: %v\n", err)
 		return 1
 	}
 	incoming, err := governancepack.LoadTrustStore(*fileFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust add: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust add: %v\n", err)
 		return 1
 	}
 	target := governancepack.TrustedKeysPath(root)
@@ -414,17 +414,17 @@ func runGovernanceTrustAdd(args []string) int {
 	if _, err := os.Stat(target); err == nil {
 		existing, err = governancepack.LoadTrustStore(target)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg governance trust add: load existing trust store: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei governance trust add: load existing trust store: %v\n", err)
 			return 1
 		}
 	}
 	merged, err := governancepack.MergeTrustStore(existing, incoming)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust add: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust add: %v\n", err)
 		return 1
 	}
 	if err := governancepack.WriteTrustStore(target, merged); err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust add: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust add: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Trust store:         %s\n", target)
@@ -433,7 +433,7 @@ func runGovernanceTrustAdd(args []string) int {
 }
 
 func runGovernanceTrustList(args []string) int {
-	fs := flag.NewFlagSet("awg governance trust list", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance trust list", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	if err := fs.Parse(args); err != nil {
@@ -441,12 +441,12 @@ func runGovernanceTrustList(args []string) int {
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust list: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust list: resolve project root: %v\n", err)
 		return 1
 	}
 	store, err := governancepack.LoadTrustStore(governancepack.TrustedKeysPath(root))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust list: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust list: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Trust store:         %s\n", governancepack.TrustedKeysPath(root))
@@ -474,24 +474,24 @@ func displayTrustPublisherName(name string) string {
 }
 
 func runGovernanceTrustShow(args []string) int {
-	fs := flag.NewFlagSet("awg governance trust show", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance trust show", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance trust show <publisher-id>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance trust show <publisher-id>")
 		return 2
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust show: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust show: resolve project root: %v\n", err)
 		return 1
 	}
 	store, err := governancepack.LoadTrustStore(governancepack.TrustedKeysPath(root))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust show: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust show: %v\n", err)
 		return 1
 	}
 	want := fs.Arg(0)
@@ -504,12 +504,12 @@ func runGovernanceTrustShow(args []string) int {
 		_ = enc.Encode(p)
 		return 0
 	}
-	fmt.Fprintf(os.Stderr, "awg governance trust show: publisher %s not found\n", want)
+	fmt.Fprintf(os.Stderr, "sensei governance trust show: publisher %s not found\n", want)
 	return 1
 }
 
 func runGovernanceTrustRotateCheck(args []string) int {
-	fs := flag.NewFlagSet("awg governance trust rotate-check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance trust rotate-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	if err := fs.Parse(args); err != nil {
@@ -517,12 +517,12 @@ func runGovernanceTrustRotateCheck(args []string) int {
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust rotate-check: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust rotate-check: resolve project root: %v\n", err)
 		return 1
 	}
 	store, err := governancepack.LoadTrustStore(governancepack.TrustedKeysPath(root))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance trust rotate-check: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance trust rotate-check: %v\n", err)
 		return 1
 	}
 	active, _ := readActiveGovernance(root)
@@ -542,20 +542,20 @@ func runGovernanceTrustRotateCheck(args []string) int {
 }
 
 func runGovernanceVerifyPack(args []string) int {
-	fs := flag.NewFlagSet("awg governance verify-pack", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance verify-pack", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
-	trustedKeysFlag := fs.String("trusted-keys", "", "path to trusted publisher key set (default: <project>/.awg/governance/trusted-publishers.json)")
+	trustedKeysFlag := fs.String("trusted-keys", "", "path to trusted publisher key set (default: <project>/.sensei/governance/trusted-publishers.json)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance verify-pack [flags] <path-or-dir>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance verify-pack [flags] <path-or-dir>")
 		return 2
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance verify-pack: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance verify-pack: resolve project root: %v\n", err)
 		return 1
 	}
 	trustedKeysPath := strings.TrimSpace(*trustedKeysFlag)
@@ -564,7 +564,7 @@ func runGovernanceVerifyPack(args []string) int {
 	}
 	verified, err := governancepack.VerifyPack(fs.Arg(0), trustedKeysPath, Version)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance verify-pack: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance verify-pack: %v\n", err)
 		return 1
 	}
 	fmt.Printf("Pack id:            %s\n", verified.Manifest.PackID)
@@ -580,22 +580,22 @@ func runGovernanceVerifyPack(args []string) int {
 }
 
 func runGovernanceActivate(args []string) int {
-	fs := flag.NewFlagSet("awg governance activate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance activate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
-	trustedKeysFlag := fs.String("trusted-keys", "", "path to trusted publisher key set (default: <project>/.awg/governance/trusted-publishers.json)")
+	trustedKeysFlag := fs.String("trusted-keys", "", "path to trusted publisher key set (default: <project>/.sensei/governance/trusted-publishers.json)")
 	storeURL := fs.String("store-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint")
-	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful load (default: <project>/.awg/graph-authority.json)")
+	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful load (default: <project>/.sensei/graph-authority.json)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Usage: awg governance activate [flags] <path-or-dir>")
+		fmt.Fprintln(os.Stderr, "Usage: sensei governance activate [flags] <path-or-dir>")
 		return 2
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance activate: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: resolve project root: %v\n", err)
 		return 1
 	}
 	trustedKeysPath := strings.TrimSpace(*trustedKeysFlag)
@@ -607,36 +607,36 @@ func runGovernanceActivate(args []string) int {
 	verified, err := governancepack.VerifyPack(fs.Arg(0), trustedKeysPath, Version)
 	if err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, nil, "", "", err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: %v\n", err)
 		return 1
 	}
 	staged, err := stageGovernancePack(root, verified)
 	if err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureActivationIncomplete, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: %v\n", err)
 		return 1
 	}
 	verified.Paths = staged
 	combinedNT, marker, err := buildCombinedGovernedArtifact(root, &verified)
 	if err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureActivationIncomplete, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: %v\n", err)
 		return 1
 	}
 	endpoint, err := normalizeStoreURL(*storeURL)
 	if err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureActivationIncomplete, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: invalid --store-url: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: invalid --store-url: %v\n", err)
 		return 1
 	}
 	if err := uploadNTriples(httpDefaultClient(), endpoint, combinedNT); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureGraphDown, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: upload to %s: %v\n", endpoint, err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: upload to %s: %v\n", endpoint, err)
 		return 1
 	}
 	if err := verifyLoadedGraph(endpoint, combinedNT); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureGraphUnknown, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: live-store verification failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: live-store verification failed: %v\n", err)
 		return 1
 	}
 	markerPath := strings.TrimSpace(*graphMarkerFile)
@@ -645,7 +645,7 @@ func runGovernanceActivate(args []string) int {
 	}
 	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureActivationIncomplete, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: publish graph marker: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: publish graph marker: %v\n", err)
 		return 1
 	}
 	active := governancepack.ActiveRecord{
@@ -664,7 +664,7 @@ func runGovernanceActivate(args []string) int {
 	}
 	if err := governancepack.WriteActiveRecord(governancepack.ActiveRecordPath(root), active); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureActivationIncomplete, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "awg governance activate: write active record: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: write active record: %v\n", err)
 		return 1
 	}
 	_ = governancepack.AppendActivationLog(logPath, governancepack.ActivationLogEntry{
@@ -687,7 +687,7 @@ func runGovernanceActivate(args []string) int {
 }
 
 func runGovernanceStatus(args []string) int {
-	fs := flag.NewFlagSet("awg governance status", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei governance status", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	if err := fs.Parse(args); err != nil {
@@ -695,7 +695,7 @@ func runGovernanceStatus(args []string) int {
 	}
 	root, err := resolveProjectRoot(*rootFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg governance status: resolve project root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance status: resolve project root: %v\n", err)
 		return 1
 	}
 	status := governancepack.AssessLocalStatus(root, Version)

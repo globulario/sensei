@@ -13,7 +13,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// awg promote-realization — the review turnstile.
+// sensei promote-realization — the review turnstile.
 //
 // It moves ONE explicitly-selected, already-existing candidateRealizesContract
 // entry into authoritative realizations. It does not score, does not infer, and
@@ -32,7 +32,7 @@ type crFile struct {
 }
 
 func runPromoteRealization(args []string) int {
-	fs := flag.NewFlagSet("awg promote-realization", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei promote-realization", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	impl := fs.String("impl", "", "implementation contract id to promote (required)")
 	arch := fs.String("arch", "", "architectural contract id (required only when --impl has more than one candidate)")
@@ -42,11 +42,11 @@ func runPromoteRealization(args []string) int {
 	authoredFlag := fs.String("authored", "", "authored contract_realizations.yaml (default: in ag-repo)")
 	candidatesFlag := fs.String("candidates", "", "generated candidate file (default: in ag-repo)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg promote-realization --impl <id> [--arch <id>]
+		fmt.Fprint(os.Stderr, `Usage: sensei promote-realization --impl <id> [--arch <id>]
 
 Promote ONE reviewed candidateRealizesContract entry into authoritative
 realizations. Review action only — never scores, never infers, never bulk-promotes.
-Run 'awg rebuild' afterward to emit realizesContract / realizedByContract.
+Run 'sensei rebuild' afterward to emit realizesContract / realizedByContract.
 `)
 		fs.PrintDefaults()
 	}
@@ -54,11 +54,11 @@ Run 'awg rebuild' afterward to emit realizesContract / realizedByContract.
 		return 2
 	}
 	if *impl == "" {
-		fmt.Fprintln(os.Stderr, "awg promote-realization: --impl is required")
+		fmt.Fprintln(os.Stderr, "sensei promote-realization: --impl is required")
 		return 2
 	}
 	if *why == "" {
-		fmt.Fprintln(os.Stderr, "awg promote-realization: --why is required — promotion needs an obligation note (why the implementation MUST honor the contract: code enforcement / test / failure mode / authored rule / human confirmation). Plausibility is not proof.")
+		fmt.Fprintln(os.Stderr, "sensei promote-realization: --why is required — promotion needs an obligation note (why the implementation MUST honor the contract: code enforcement / test / failure mode / authored rule / human confirmation). Plausibility is not proof.")
 		return 2
 	}
 
@@ -78,12 +78,12 @@ Run 'awg rebuild' afterward to emit realizesContract / realizedByContract.
 
 	authoredRaw, err := os.ReadFile(authoredPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote-realization: read authored: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote-realization: read authored: %v\n", err)
 		return 1
 	}
 	var authored crFile
 	if err := yaml.Unmarshal(authoredRaw, &authored); err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote-realization: parse authored: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote-realization: parse authored: %v\n", err)
 		return 1
 	}
 	var generated crFile
@@ -94,31 +94,31 @@ Run 'awg rebuild' afterward to emit realizesContract / realizedByContract.
 
 	promoted, fromGenerated, err := promoteCandidate(&authored, &generated, *impl, *arch, *why)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote-realization: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote-realization: %v\n", err)
 		return 1
 	}
 
 	if err := os.WriteFile(authoredPath, renderCRFile(&authored, authoredHeader), 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote-realization: write authored: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote-realization: write authored: %v\n", err)
 		return 1
 	}
 	if fromGenerated {
 		// Use the generator's own renderer so the file stays byte-identical to a
-		// fresh `awg suggest-realizations` run (its --check freshness gate).
+		// fresh `sensei suggest-realizations` run (its --check freshness gate).
 		genOut, rerr := renderCandidates(generated.ContractRealizations.Candidates)
 		if rerr != nil {
-			fmt.Fprintf(os.Stderr, "awg promote-realization: render candidates: %v\n", rerr)
+			fmt.Fprintf(os.Stderr, "sensei promote-realization: render candidates: %v\n", rerr)
 			return 1
 		}
 		if err := os.WriteFile(candidatesPath, genOut, 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "awg promote-realization: write candidates: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei promote-realization: write candidates: %v\n", err)
 			return 1
 		}
 	}
 
 	fmt.Fprintf(os.Stderr, "promote-realization: promoted %s --realizesContract--> %s (was confidence=%s)\n",
 		promoted.Implementation, promoted.Realizes, promoted.Confidence)
-	fmt.Fprintln(os.Stderr, "  run `awg rebuild` to emit realizesContract / realizedByContract.")
+	fmt.Fprintln(os.Stderr, "  run `sensei rebuild` to emit realizesContract / realizedByContract.")
 	return 0
 }
 
@@ -210,7 +210,7 @@ func sortCandidates(s []realizationCandidate) {
 const authoredHeader = `# Contract-spine Phase 2 — authoritative impl→architectural realizations.
 #
 #   realizations: authoritative (hand-authored or promoted via
-#                 ` + "`awg promote-realization`" + `). Emit realizesContract + realizedByContract.
+#                 ` + "`sensei promote-realization`" + `). Emit realizesContract + realizedByContract.
 #   candidates:   NON-authoritative, awaiting promotion. Emit candidateRealizesContract ONLY.
 #
 # Generator-discovered candidates live in contract_realization_candidates.yaml.

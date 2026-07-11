@@ -40,7 +40,7 @@ Offline fixture is the default, recommended path. One command:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-... \
-awg cold-bootstrap \
+sensei cold-bootstrap \
   --repo /path/to/services \
   --since HEAD~400..HEAD \
   --drafter llm \
@@ -49,7 +49,7 @@ awg cold-bootstrap \
   --max 10
 ```
 
-Or via the convenience runner (builds `awg` if needed):
+Or via the convenience runner (builds `sensei` if needed):
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-... \
@@ -61,7 +61,7 @@ citation-check → report) with the deterministic echo drafter — **no key, no 
 call**:
 
 ```bash
-awg cold-bootstrap --repo /path/to/services --since HEAD~400..HEAD \
+sensei cold-bootstrap --repo /path/to/services --since HEAD~400..HEAD \
   --drafter echo --pr-comments .../fixtures/demo_pr_comments.json --dry-run
 ```
 
@@ -92,7 +92,7 @@ Use it to detect regressions in extraction/triangulation/theme-clustering.
 # clone the benchmark repo (reverts come from real git history)
 git clone --depth 600 https://github.com/caddyserver/caddy.git /tmp/caddy
 
-awg cold-bootstrap --repo /tmp/caddy --since HEAD~500..HEAD \
+sensei cold-bootstrap --repo /tmp/caddy --since HEAD~500..HEAD \
   --pr-comments golang/extractor/coldsource/experiment/fixtures/caddy_pr_comments.json \
   --drafter echo --dry-run --max 10
 ```

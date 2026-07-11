@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Report-only CI entrypoint for `awg gate`.
+# Report-only CI entrypoint for `sensei gate`.
 #
 # Resolves the repo's OWN domain explicitly (env or repo-local config), runs the
 # dry-run gate over the PR diff, and ALWAYS exits 0. It never blocks a merge —
@@ -38,5 +38,5 @@ if [ -z "$DOMAIN" ]; then
 fi
 
 "$AWG_BIN" gate --report-only --diff "$RANGE" --domain "$DOMAIN" --addr "$ADDR" --repo-root "$ROOT"
-# `awg gate --report-only` already always exits 0; belt-and-suspenders for CI:
+# `sensei gate --report-only` already always exits 0; belt-and-suspenders for CI:
 exit 0

@@ -32,7 +32,7 @@ const applyBar = 0.80
 // proposer (echo or LLM) PROPOSES; GroundIntent GROUNDS; a human APPROVES. The
 // LLM drafter is opt-in and reads ANTHROPIC_API_KEY from the environment only.
 func runIntentMine(args []string) int {
-	fs := flag.NewFlagSet("awg intent-mine", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei intent-mine", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repo := fs.String("repo", ".", "repo working tree for grounding + extraction")
 	candidates := fs.String("candidates", "", "YAML file of proposed candidates (skips extraction)")
@@ -46,9 +46,9 @@ func runIntentMine(args []string) int {
 	_ = fs.Bool("dry-run", true, "report only (default); accepted for back-compat — use --apply to write")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage:
-  awg intent-mine --repo . --sources docs,comments,schemas,tests [--drafter echo|llm] [--max N]
-  awg intent-mine --repo . --sources ... --drafter llm --apply        # land passing intents in the graph
-  awg intent-mine --candidates <file.yaml> --repo .
+  sensei intent-mine --repo . --sources docs,comments,schemas,tests [--drafter echo|llm] [--max N]
+  sensei intent-mine --repo . --sources ... --drafter llm --apply        # land passing intents in the graph
+  sensei intent-mine --candidates <file.yaml> --repo .
 
 Extract architectural-intent candidates from a repo's stated charter (or read
 proposed candidates from YAML), ground them against the tree, and print output
@@ -123,7 +123,7 @@ Flags:
 			fmt.Printf("  %d already present (skipped)\n", skipped)
 		}
 		if landed > 0 {
-			fmt.Printf("Run `awg build` (or `awg rebuild`) to emit the triples.\n")
+			fmt.Printf("Run `sensei build` (or `sensei rebuild`) to emit the triples.\n")
 		}
 	}
 	return 0
@@ -200,14 +200,14 @@ func writeAppliedIntent(awDir string, c coldsource.IntentCandidate, g coldsource
 		RelatedInvariants: c.RelatedInvariants,
 		Provenance: map[string]any{
 			"promoted_from":           "candidate",
-			"discovered_from":         "awg intent-mine --drafter llm (coldsource); grounded against the live tree",
+			"discovered_from":         "sensei intent-mine --drafter llm (coldsource); grounded against the live tree",
 			"confidence_at_promotion": confidenceFromCertainty(g.Certainty),
 			"grounding_tier":          g.GroundingTier.String(),
 			"category":                c.Category,
 		},
 	}
 	var buf bytes.Buffer
-	buf.WriteString("# Applied by `awg intent-mine --apply` — a grounded strong_intent (≥0.80).\n")
+	buf.WriteString("# Applied by `sensei intent-mine --apply` — a grounded strong_intent (≥0.80).\n")
 	buf.WriteString("# Mined from the repo's charter, grounded against the live tree. Refine by hand as needed.\n")
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
@@ -230,7 +230,7 @@ func parkedIntentCandidate(c coldsource.IntentCandidate, g coldsource.IntentGrou
 		"label":           humanizeIntentTitle(c.IntentID),
 		"summary":         normalizeWS(c.Claim),
 		"evidence":        intentEvidenceString(c, g),
-		"discovered_from": "awg intent-mine --drafter llm (coldsource); grounded against the live tree",
+		"discovered_from": "sensei intent-mine --drafter llm (coldsource); grounded against the live tree",
 	}
 }
 
@@ -271,8 +271,8 @@ func writeParkedCandidates(path string, entries []map[string]any) error {
 	if err != nil {
 		return err
 	}
-	header := "# Parked by `awg intent-mine --apply` — sub-bar / divergence candidates.\n" +
-		"# The importer SKIPS candidates/. Review and `awg promote` to make them graph knowledge.\n"
+	header := "# Parked by `sensei intent-mine --apply` — sub-bar / divergence candidates.\n" +
+		"# The importer SKIPS candidates/. Review and `sensei promote` to make them graph knowledge.\n"
 	return os.WriteFile(path, append([]byte(header), out...), 0o644)
 }
 
@@ -345,7 +345,7 @@ func intentEvidenceString(c coldsource.IntentCandidate, g coldsource.IntentGroun
 		parts = append(parts, fmt.Sprintf("grounded (%s, %.2f) at: %s", g.GroundingTier.String(), g.Certainty, strings.Join(anchors, ", ")))
 	}
 	if len(parts) == 0 {
-		return "mined by awg intent-mine; see claim"
+		return "mined by sensei intent-mine; see claim"
 	}
 	return strings.Join(parts, "; ")
 }

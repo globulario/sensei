@@ -5,10 +5,10 @@
 // @awareness file_role=session_feedback_gap_detector
 // @awareness risk=medium
 //
-// awg feedback-check is the backing logic for the AWG Stop-hook. It inspects
+// sensei feedback-check is the backing logic for the AWG Stop-hook. It inspects
 // the files a session changed and warns — advisory only, never blocking — when
 // a fix likely produced graph-worthy knowledge (a scar) but no awareness graph
-// feedback was written. It is the nudge that keeps the write path (awg propose)
+// feedback was written. It is the nudge that keeps the write path (sensei propose)
 // from being deferred.
 package main
 
@@ -38,7 +38,7 @@ type feedbackGapResult struct {
 const feedbackReminderText = "Possible missing AWG feedback: this session fixed a durable error class but did not add graph feedback."
 
 func runFeedbackCheck(args []string) int {
-	fs := flag.NewFlagSet("awg feedback-check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei feedback-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
 	repoRoot := fs.String("repo-root", "", "repo root (auto-detect)")
@@ -50,7 +50,7 @@ func runFeedbackCheck(args []string) int {
 	quiet := fs.Bool("quiet", false, "print nothing when there is no gap")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg feedback-check [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei feedback-check [flags]
 
 Advisory check (Stop-hook backing): warns when a session changed risky code or
 added an incident/regression test but wrote no awareness graph feedback.
@@ -69,7 +69,7 @@ Flags:
 
 	root, err := resolveProjectRoot(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg feedback-check: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei feedback-check: %v\n", err)
 		return 0 // advisory: never fail the session on our own error
 	}
 
@@ -162,10 +162,10 @@ func evaluateFeedbackGap(changed []string, highRiskPrefixes []string) feedbackGa
 
 func feedbackSuggestions() []string {
 	return []string{
-		`awg propose --kind failure_mode --title "<what broke>" --related-invariant <inv.id> --evidence "<observed>" --source-file <path>`,
-		`awg propose --kind required_test --id "<path>_test.go:TestName" --title "<what it proves>" --related-failure <fm.id>`,
-		`awg propose --kind forbidden_fix --title "<the wrong fix>" --related-invariant <inv.id> --description "<why it's wrong>"`,
-		`awg propose --kind invariant --title "<rule that must hold>" --source-file <path> --related-failure <fm.id>`,
+		`sensei propose --kind failure_mode --title "<what broke>" --related-invariant <inv.id> --evidence "<observed>" --source-file <path>`,
+		`sensei propose --kind required_test --id "<path>_test.go:TestName" --title "<what it proves>" --related-failure <fm.id>`,
+		`sensei propose --kind forbidden_fix --title "<the wrong fix>" --related-invariant <inv.id> --description "<why it's wrong>"`,
+		`sensei propose --kind invariant --title "<rule that must hold>" --source-file <path> --related-failure <fm.id>`,
 	}
 }
 
@@ -250,9 +250,9 @@ func printFeedbackGap(res feedbackGapResult, quiet bool) {
 	if !res.Warn {
 		if !quiet {
 			if res.FeedbackWritten {
-				fmt.Println("awg feedback-check: graph feedback was added this session — ok")
+				fmt.Println("sensei feedback-check: graph feedback was added this session — ok")
 			} else {
-				fmt.Println("awg feedback-check: no graph-worthy changes detected — ok")
+				fmt.Println("sensei feedback-check: no graph-worthy changes detected — ok")
 			}
 		}
 		return

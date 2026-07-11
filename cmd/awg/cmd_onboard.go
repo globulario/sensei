@@ -31,15 +31,15 @@ import (
 // so the model is a drop-in for the client's own agent, with AWG as validator.
 // The default (`--drafter none`) keeps export keyless and byte-for-byte the same.
 //
-//	awg onboard export [--repo .] [--out brief.md]        # brief for your agent
-//	awg onboard export [--repo .] --drafter llm [--max N] # draft candidates directly (needs ANTHROPIC_API_KEY)
-//	awg onboard import [--repo .] [--from drafts.json|-]  # land drafts as candidates
+//	sensei onboard export [--repo .] [--out brief.md]        # brief for your agent
+//	sensei onboard export [--repo .] --drafter llm [--max N] # draft candidates directly (needs ANTHROPIC_API_KEY)
+//	sensei onboard import [--repo .] [--from drafts.json|-]  # land drafts as candidates
 func runOnboard(args []string) int {
 	mode := "export"
 	if len(args) > 0 && (args[0] == "export" || args[0] == "import") {
 		mode, args = args[0], args[1:]
 	}
-	fs := flag.NewFlagSet("awg onboard "+mode, flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei onboard "+mode, flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repo := fs.String("repo", ".", "repository to onboard")
 	out := fs.String("out", "", "export: write the brief here (default: stdout)")
@@ -48,7 +48,7 @@ func runOnboard(args []string) int {
 	model := fs.String("model", "", "drafter LLM model override (default "+coldsource.DefaultModel+")")
 	maxN := fs.Int("max", 15, "drafter: max candidates to propose")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg onboard [export|import] [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei onboard [export|import] [flags]
 
 Zero-hand-authoring onboarding. export builds a self-contained brief (your repo's
 architecture + the candidate schema + a drafting prompt) for the AI agent of your
@@ -69,7 +69,7 @@ Flags:
 	}
 	root, err := filepath.Abs(*repo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei onboard: %v\n", err)
 		return 1
 	}
 	if mode == "import" {
@@ -90,10 +90,10 @@ func onboardExport(root, outPath string) int {
 		return 0
 	}
 	if err := os.WriteFile(outPath, data, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard export: write %s: %v\n", outPath, err)
+		fmt.Fprintf(os.Stderr, "sensei onboard export: write %s: %v\n", outPath, err)
 		return 1
 	}
-	fmt.Fprintf(os.Stderr, "awg onboard: wrote brief to %s — hand it to your agent, then `awg onboard import`\n", outPath)
+	fmt.Fprintf(os.Stderr, "sensei onboard: wrote brief to %s — hand it to your agent, then `sensei onboard import`\n", outPath)
 	return 0
 }
 
@@ -117,7 +117,7 @@ func buildOnboardBrief(root string) string {
 	fmt.Fprintf(&b, "# AWG onboarding brief — %s\n\n", filepath.Base(root))
 	b.WriteString("You are proposing a STARTER set of awareness rules for this repository. ")
 	b.WriteString("Ground every rule in the architecture below — do not invent facts. ")
-	b.WriteString("Output a JSON array of candidate objects matching the schema, then a human runs `awg onboard import`.\n\n")
+	b.WriteString("Output a JSON array of candidate objects matching the schema, then a human runs `sensei onboard import`.\n\n")
 
 	b.WriteString("## Architecture (deterministic scan)\n\n")
 	fmt.Fprintf(&b, "- components: %d\n- proto contracts: %d\n- high-risk path prefixes: %d\n\n", len(comps), contractCount, len(highRisk))
@@ -148,7 +148,7 @@ func buildOnboardBrief(root string) string {
 	b.WriteString("Prefer invariants (rules that must hold) and the failure_modes they guard. ")
 	b.WriteString("Every entry MUST be contract-first: link a related_invariant/related_failure or set `contract`. ")
 	b.WriteString("Output ONLY a JSON array of candidate objects (the schema above), no prose. ")
-	b.WriteString("Then a human runs: `awg onboard import --from your-drafts.json`.\n")
+	b.WriteString("Then a human runs: `sensei onboard import --from your-drafts.json`.\n")
 
 	return b.String()
 }
@@ -177,22 +177,22 @@ func candidateSchemaSection() string {
 func onboardImport(root, fromPath string) int {
 	raw, err := readOnboardDrafts(fromPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard import: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei onboard import: %v\n", err)
 		return 2
 	}
 	var drafts []propose.Request
 	if err := json.Unmarshal(raw, &drafts); err != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard import: parse drafts JSON (expected an array of candidate objects): %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei onboard import: parse drafts JSON (expected an array of candidate objects): %v\n", err)
 		return 2
 	}
 	if len(drafts) == 0 {
-		fmt.Fprintln(os.Stderr, "awg onboard import: no candidates in the drafts")
+		fmt.Fprintln(os.Stderr, "sensei onboard import: no candidates in the drafts")
 		return 1
 	}
 
 	accepted, rejected, werr := writeOnboardCandidates(root, drafts)
 	if werr != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard import: %v\n", werr)
+		fmt.Fprintf(os.Stderr, "sensei onboard import: %v\n", werr)
 		return 1
 	}
 
@@ -262,19 +262,19 @@ func selectOnboardClient(drafter, model string) (coldsource.LLMClient, int) {
 	case "llm":
 		client, err := coldsource.NewAnthropicClientFromEnv(model)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg onboard: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei onboard: %v\n", err)
 			return nil, 2
 		}
 		return client, 0
 	case "claude-cli":
 		client, err := coldsource.NewClaudeCLIClient(model)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg onboard: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei onboard: %v\n", err)
 			return nil, 2
 		}
 		return client, 0
 	default:
-		fmt.Fprintf(os.Stderr, "awg onboard: unknown --drafter %q (use none|llm|claude-cli)\n", drafter)
+		fmt.Fprintf(os.Stderr, "sensei onboard: unknown --drafter %q (use none|llm|claude-cli)\n", drafter)
 		return nil, 2
 	}
 }
@@ -285,21 +285,21 @@ func onboardDraftWith(root string, client coldsource.LLMClient, maxN int) int {
 	brief := buildOnboardBrief(root)
 	raw, err := coldsource.DraftOnboardingCandidates(context.Background(), client, brief, maxN)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard --drafter: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei onboard --drafter: %v\n", err)
 		return 1
 	}
 	var drafts []propose.Request
 	if err := json.Unmarshal(raw, &drafts); err != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard --drafter: parse drafted candidates: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei onboard --drafter: parse drafted candidates: %v\n", err)
 		return 1
 	}
 	if len(drafts) == 0 {
-		fmt.Fprintln(os.Stderr, "awg onboard --drafter: model proposed no candidates")
+		fmt.Fprintln(os.Stderr, "sensei onboard --drafter: model proposed no candidates")
 		return 1
 	}
 	accepted, rejected, werr := writeOnboardCandidates(root, drafts)
 	if werr != nil {
-		fmt.Fprintf(os.Stderr, "awg onboard --drafter: %v\n", werr)
+		fmt.Fprintf(os.Stderr, "sensei onboard --drafter: %v\n", werr)
 		return 1
 	}
 	fmt.Printf("\nonboard draft: %d accepted, %d rejected (of %d proposed).\n", accepted, rejected, len(drafts))

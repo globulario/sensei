@@ -36,7 +36,7 @@ type proofPlanResult struct {
 }
 
 func runProofPlan(args []string) int {
-	fs := flag.NewFlagSet("awg proof-plan", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei proof-plan", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	fileArg := fs.String("file", "", "repo-relative file path to inspect")
@@ -49,7 +49,7 @@ func runProofPlan(args []string) int {
 	format := fs.String("format", "text", "output format: text | json")
 	asJSON := fs.Bool("json", false, "deprecated alias for --format json")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg proof-plan [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei proof-plan [flags]
 
 Resolve the governance proof plan for a file, authority surface, proof
 obligation, or authored repair claim. Read-only: this command explains what
@@ -78,12 +78,12 @@ Flags:
 		}
 	}
 	if selectorCount != 1 {
-		fmt.Fprintln(os.Stderr, "awg proof-plan: exactly one of --file, --authority-surface-id, --proof-obligation-id, or --repair-claim is required")
+		fmt.Fprintln(os.Stderr, "sensei proof-plan: exactly one of --file, --authority-surface-id, --proof-obligation-id, or --repair-claim is required")
 		return 2
 	}
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg proof-plan: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei proof-plan: resolve repo root: %v\n", err)
 		return 1
 	}
 	authPath := *authorityPath
@@ -100,23 +100,23 @@ Flags:
 	}
 	authorities, err := loadAuthoritySurfaces(authPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg proof-plan: load authority surfaces: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei proof-plan: load authority surfaces: %v\n", err)
 		return 1
 	}
 	proofDoc, err := loadProofObligationsForCertify(proofObPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg proof-plan: load proof obligations: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei proof-plan: load proof obligations: %v\n", err)
 		return 1
 	}
 	forbiddenFixes, err := loadForbiddenFixes(forbiddenFixPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg proof-plan: load forbidden fixes: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei proof-plan: load forbidden fixes: %v\n", err)
 		return 1
 	}
 
 	res, err := buildProofPlan(root, authorities, proofDoc, forbiddenFixes, strings.TrimSpace(*fileArg), strings.TrimSpace(*authorityID), strings.TrimSpace(*proofID), strings.TrimSpace(*repairClaimPath))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg proof-plan: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei proof-plan: %v\n", err)
 		return 1
 	}
 

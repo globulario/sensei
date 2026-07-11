@@ -32,14 +32,14 @@ func shallowHistoryNote(repo string) string {
 
 // runColdBootstrap is the cold-source / history-signal candidate MINER — it
 // learns from a repository's scars. It is NOT the product bootstrap command:
-// `awg bootstrap` is the production repo-initialization path and may call this
+// `sensei bootstrap` is the production repo-initialization path and may call this
 // miner as one optional candidate stage. This drafts awareness candidates from
 // two deterministic cold signals (revert/regression commits + PR review
 // comments), triangulates them, and emits status:candidate YAML under
 // docs/awareness/candidates/. It NEVER promotes, never edits active knowledge,
 // and never touches the promotion gate.
 func runColdBootstrap(args []string) int {
-	fs := flag.NewFlagSet("awg cold-bootstrap", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei cold-bootstrap", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repo := fs.String("repo", ".", "path to the target git repo working tree")
 	since := fs.String("since", "", "git range to scan, e.g. v1.0.0..HEAD (default HEAD~200..HEAD)")
@@ -54,7 +54,7 @@ func runColdBootstrap(args []string) int {
 	autoWindow := fs.Bool("auto-window", false, "plan the revert-scan window automatically: widen (bounded) until enough revert/regression signals are found; overrides --since. Never scans full history.")
 	awTarget := fs.Int("auto-window-target", coldsource.DefaultWindowTargetReverts, "auto-window: stop widening once this many revert/regression commits are in the window")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg cold-bootstrap --repo <path> [--since <range>] [--out <dir>] [--dry-run] [--max N]
+		fmt.Fprint(os.Stderr, `Usage: sensei cold-bootstrap --repo <path> [--since <range>] [--out <dir>] [--dry-run] [--max N]
                         [--pr-comments <file.json> | --repo-slug owner/name]
 
 Drafts awareness candidates from cold day-0 signals (revert/regression commits +

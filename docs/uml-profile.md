@@ -73,7 +73,7 @@ present.
 
 ## Validation
 
-`awg validate` rejects an out-of-set `uml.kind` (`invalid_uml_kind`) or
+`sensei validate` rejects an out-of-set `uml.kind` (`invalid_uml_kind`) or
 `uml.view` (`invalid_uml_view`). Stereotype is free-form.
 
 ## Recommended Sensei → UML mappings

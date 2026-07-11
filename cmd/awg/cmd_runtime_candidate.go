@@ -16,7 +16,7 @@
 //
 // So this command SUGGESTS (emits status=candidate, requires_review=true) and
 // NEVER writes the corpus or seed. Promotion is a separate, human/governed step
-// (awg propose / behavioral_promote_principle). buildRuntimeCandidate is pure
+// (sensei propose / behavioral_promote_principle). buildRuntimeCandidate is pure
 // and fixture-tested; the key invariant under test is that its output is always a
 // candidate, never an active/enforced rule.
 package main
@@ -70,7 +70,7 @@ func buildRuntimeCandidate(in runtimeReportInput) (runtimeCandidate, bool) {
 		RequiresReview: true,        // invariant: AWG governs; memory only suggests
 		Subject:        in.Subject,
 		SourceVerdict:  in.Verdict,
-		PromotionPath:  "human/governed review, then `awg propose` or behavioral_promote_principle — never auto-enforced",
+		PromotionPath:  "human/governed review, then `sensei propose` or behavioral_promote_principle — never auto-enforced",
 	}
 	switch in.Verdict {
 	case vConverged, rrValid:
@@ -141,13 +141,13 @@ func sanitizeVerdict(v string) string {
 }
 
 func runRuntimeCandidate(args []string) int {
-	fs := flag.NewFlagSet("awg runtime-candidate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei runtime-candidate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	report := fs.String("report", "", "path to a runtime report (cluster-diagnose / runtime-repair-report output) (required)")
 	out := fs.String("out", "", "write the candidate here (default: stdout)")
 	asJSON := fs.Bool("json", false, "emit JSON (default: YAML)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg runtime-candidate --report <file> [--out <file>] [--json]
+		fmt.Fprint(os.Stderr, `Usage: sensei runtime-candidate --report <file> [--out <file>] [--json]
 
 Turns a recurring runtime verdict into a CANDIDATE governance artifact for review.
 It SUGGESTS only: status is always "candidate", requires_review is always true,
@@ -159,23 +159,23 @@ Healthy verdicts (cluster_converged / valid_runtime_repair) yield no candidate.
 		return 2
 	}
 	if *report == "" {
-		fmt.Fprintln(os.Stderr, "awg runtime-candidate: --report <file> is required")
+		fmt.Fprintln(os.Stderr, "sensei runtime-candidate: --report <file> is required")
 		return 2
 	}
 	raw, err := os.ReadFile(*report)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg runtime-candidate: read %s: %v\n", *report, err)
+		fmt.Fprintf(os.Stderr, "sensei runtime-candidate: read %s: %v\n", *report, err)
 		return 1
 	}
 	var in runtimeReportInput
 	if err := yaml.Unmarshal(raw, &in); err != nil {
-		fmt.Fprintf(os.Stderr, "awg runtime-candidate: parse %s: %v\n", *report, err)
+		fmt.Fprintf(os.Stderr, "sensei runtime-candidate: parse %s: %v\n", *report, err)
 		return 1
 	}
 
 	cand, ok := buildRuntimeCandidate(in)
 	if !ok {
-		fmt.Printf("awg runtime-candidate: verdict %q is healthy — no governance candidate needed\n", in.Verdict)
+		fmt.Printf("sensei runtime-candidate: verdict %q is healthy — no governance candidate needed\n", in.Verdict)
 		return 0
 	}
 
@@ -188,10 +188,10 @@ Healthy verdicts (cluster_converged / valid_runtime_repair) yield no candidate.
 	}
 	if *out != "" {
 		if err := os.WriteFile(*out, rendered, 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "awg runtime-candidate: write %s: %v\n", *out, err)
+			fmt.Fprintf(os.Stderr, "sensei runtime-candidate: write %s: %v\n", *out, err)
 			return 1
 		}
-		fmt.Printf("awg runtime-candidate: wrote candidate %s (status=candidate, requires_review) to %s\n", cand.ProposedID, *out)
+		fmt.Printf("sensei runtime-candidate: wrote candidate %s (status=candidate, requires_review) to %s\n", cand.ProposedID, *out)
 	} else {
 		fmt.Print(string(rendered))
 	}

@@ -51,9 +51,9 @@ laptop. So the cold-start path is exercised on a **clean GitHub Actions
 runner** — fresh OS, no prior state — as a required CI gate:
 
 1. fetch the Oxigraph binary for the platform
-2. scaffold a throwaway project (`awg init`)
+2. scaffold a throwaway project (`sensei init`)
 3. write one source file and one invariant linked to a universal principle
-4. `awg serve -no-seed` → `awg build` → `awg briefing`
+4. `sensei serve -no-seed` → `sensei build` → `sensei briefing`
 
 It asserts two things, and both must hold for CI to go green:
 

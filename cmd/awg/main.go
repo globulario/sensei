@@ -1,51 +1,55 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Command awg is the standalone Sensei CLI.
+// Command sensei is the standalone Sensei CLI.
 //
 // Sensei makes architectural intent queryable at the point of edit,
 // preventing the slow drift that kills codebases.
 //
+// The binary was named "awg" (Awareness Graph) before the rename; it is still
+// installed as a deprecated alias for one release. Invoking it as "awg" prints
+// a deprecation notice and otherwise behaves identically.
+//
 // Usage:
 //
-//	awg init                             Scaffold awareness for a new project
-//	awg build                            Compile YAML sources and load into store
-//	awg serve                            Start the gRPC awareness server
-//	awg briefing --file <path>           Query the graph for a file
-//	awg impact --file <path>             Structured knowledge nodes for a file
-//	awg preflight --file <path>          Risk classification before editing
-//	awg contract-assess                  Report contract-gate outcome from explicit evidence
-//	awg contract-bootstrap               Build a proposed repair-contract bootstrap
-//	awg resolve <class> <id>             Fetch a single node by class + id
-//	awg query --mode <mode>              Structured browse of the graph
-//	awg metadata                         Graph-level coverage and freshness
-//	awg governance status                Show local managed-governance state
-//	awg check                            Validate YAML sources without building
-//	awg validate                         Deep structural check of YAML sources
-//	awg audit                            Self-audit for drift, gaps, inconsistencies
-//	awg repo-eval                        Evidence-based repository quality evaluation
-//	awg benchmark-brief                  Local repair envelope for benchmark/PR fixing
-//	awg benchmark-judge                  Local post-patch contract/test judge
-//	awg benchmark-score                  Standard brief->judge benchmark workflow
-//	awg benchmark-retry                  Benchmark retry-plan controller
-//	awg benchmark-event-meta             Read orchestration metadata from learning events
-//	awg certify                          Local governance certification over authored event metadata
-//	awg extract-authority                Extract candidate authority surfaces from code
-//	awg extract-proof-obligations        Generate proof obligations from authority surfaces
-//	awg proof-plan                       Show required proof before a repair can be promoted
-//	awg repair-plan                      Build an authoritative governed repair plan
-//	awg seed-status                      Check generated/committed/live seed authority alignment
-//	awg repair-report                    Emit a governed post-edit repair report artifact
-//	awg repair-gate                      CI-friendly governed repair verdict
-//	awg repo-eval fix                    Safe evidence-backed metadata repair
-//	awg repo-eval draft-upgrade          Draft review-only governance candidates from repo-eval
-//	awg rebuild                          Rebuild awareness.nt from YAML sources
-//	awg promote <id>                     Promote a candidate to canonical YAML
-//	awg propose --kind <kind> ...        Append one typed feedback entry (scar) and rebuild
-//	awg feedback-check                   Warn when a fix added durable knowledge but no graph feedback
-//	awg ingest --from-file <path>        Feed new knowledge into the graph
-//	awg skill-ingest <skill-pack-root>   Generate review-only candidates from external skills
-//	awg pattern-check <file>...          Check files against pattern recipes
-//	awg version                          Print version and exit
+//	sensei init                             Scaffold awareness for a new project
+//	sensei build                            Compile YAML sources and load into store
+//	sensei serve                            Start the gRPC awareness server
+//	sensei briefing --file <path>           Query the graph for a file
+//	sensei impact --file <path>             Structured knowledge nodes for a file
+//	sensei preflight --file <path>          Risk classification before editing
+//	sensei contract-assess                  Report contract-gate outcome from explicit evidence
+//	sensei contract-bootstrap               Build a proposed repair-contract bootstrap
+//	sensei resolve <class> <id>             Fetch a single node by class + id
+//	sensei query --mode <mode>              Structured browse of the graph
+//	sensei metadata                         Graph-level coverage and freshness
+//	sensei governance status                Show local managed-governance state
+//	sensei check                            Validate YAML sources without building
+//	sensei validate                         Deep structural check of YAML sources
+//	sensei audit                            Self-audit for drift, gaps, inconsistencies
+//	sensei repo-eval                        Evidence-based repository quality evaluation
+//	sensei benchmark-brief                  Local repair envelope for benchmark/PR fixing
+//	sensei benchmark-judge                  Local post-patch contract/test judge
+//	sensei benchmark-score                  Standard brief->judge benchmark workflow
+//	sensei benchmark-retry                  Benchmark retry-plan controller
+//	sensei benchmark-event-meta             Read orchestration metadata from learning events
+//	sensei certify                          Local governance certification over authored event metadata
+//	sensei extract-authority                Extract candidate authority surfaces from code
+//	sensei extract-proof-obligations        Generate proof obligations from authority surfaces
+//	sensei proof-plan                       Show required proof before a repair can be promoted
+//	sensei repair-plan                      Build an authoritative governed repair plan
+//	sensei seed-status                      Check generated/committed/live seed authority alignment
+//	sensei repair-report                    Emit a governed post-edit repair report artifact
+//	sensei repair-gate                      CI-friendly governed repair verdict
+//	sensei repo-eval fix                    Safe evidence-backed metadata repair
+//	sensei repo-eval draft-upgrade          Draft review-only governance candidates from repo-eval
+//	sensei rebuild                          Rebuild awareness.nt from YAML sources
+//	sensei promote <id>                     Promote a candidate to canonical YAML
+//	sensei propose --kind <kind> ...        Append one typed feedback entry (scar) and rebuild
+//	sensei feedback-check                   Warn when a fix added durable knowledge but no graph feedback
+//	sensei ingest --from-file <path>        Feed new knowledge into the graph
+//	sensei skill-ingest <skill-pack-root>   Generate review-only candidates from external skills
+//	sensei pattern-check <file>...          Check files against pattern recipes
+//	sensei version                          Print version and exit
 //
 // See https://github.com/globulario/sensei for documentation.
 package main
@@ -53,11 +57,26 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 var Version = "0.0.1-dev"
 
+// warnIfLegacyAlias prints a deprecation notice when the binary is invoked
+// under its pre-rename name ("awg"). The alias is kept for one release so CI
+// scripts and muscle memory don't break; the notice goes to stderr so it never
+// pollutes stdout pipelines.
+func warnIfLegacyAlias() {
+	base := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	if base == "awg" {
+		fmt.Fprintln(os.Stderr, "warning: 'awg' is deprecated and will be removed in a future release; use 'sensei' instead")
+	}
+}
+
 func main() {
+	warnIfLegacyAlias()
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(2)
@@ -202,7 +221,7 @@ func main() {
 	case "help", "-h", "--help":
 		printUsage()
 	default:
-		fmt.Fprintf(os.Stderr, "awg: unknown command %q\n\n", cmd)
+		fmt.Fprintf(os.Stderr, "sensei: unknown command %q\n\n", cmd)
 		printUsage()
 		os.Exit(2)
 	}
@@ -211,7 +230,7 @@ func main() {
 func printUsage() {
 	fmt.Fprint(os.Stderr, `Sensei — architectural awareness for any codebase
 
-Usage: awg <command> [flags]
+Usage: sensei <command> [flags]
 
 Query commands (require a running Sensei server):
   briefing       Query the graph for a file or task
@@ -273,6 +292,6 @@ Local commands (no server required):
 Other:
   version        Print version and exit
 
-Run "awg <command> --help" for details on each command.
+Run "sensei <command> --help" for details on each command.
 `)
 }

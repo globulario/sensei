@@ -14,7 +14,7 @@ import (
 )
 
 func runContractAssess(args []string) int {
-	fs := flag.NewFlagSet("awg contract-assess", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei contract-assess", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
 	explicitContract := fs.Bool("explicit-contract", false, "existing explicit contract already governs the change")
@@ -34,7 +34,7 @@ func runContractAssess(args []string) int {
 	fs.Var(&blockers, "blocker", "hard blocker (repeatable): conflicting-explicit-contract | conflicting-test | missing-ownership-authority | product-ambiguity | weak-pattern-only | generic-evidence-only")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg contract-assess [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei contract-assess [flags]
 
 Report-only contract synthesis assessment. This command does NOT query the
 graph, infer evidence, generate contracts, or change runtime behavior. It
@@ -55,7 +55,7 @@ Flags:
 
 	parsedBlockers, err := parseAssessmentBlockers(blockers)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg contract-assess: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei contract-assess: %v\n", err)
 		return 2
 	}
 

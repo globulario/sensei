@@ -18,7 +18,7 @@ Every Sensei project ships with the full set as seed content in `docs/awareness/
 This page explains the framework and walks the **Authority / Signal / Lifecycle / Dependency** backend categories in depth. The **Perception / Composition / Structure** categories were added later for GUI truth, visual composition, and code structure; **Evolution** is the newest — the engineering laws of safe project change (releasable trunk, reviewable slices, deterministic builds, observable change, intent-before-drift). The authoritative, always-current list of all 133 is the generated pack itself. Query any principle live:
 
 ```bash
-awg resolve invariant meta.ui.screen_claim_must_bind_to_authority
+sensei resolve invariant meta.ui.screen_claim_must_bind_to_authority
 ```
 
 > The pack is **generated** from one canonical corpus by

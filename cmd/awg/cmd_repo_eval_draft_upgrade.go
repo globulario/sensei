@@ -16,7 +16,7 @@ import (
 )
 
 func runRepoEvalDraftUpgrade(args []string) int {
-	fs := flag.NewFlagSet("awg repo-eval draft-upgrade", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei repo-eval draft-upgrade", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	asJSON := fs.Bool("json", false, "output as JSON")
 	repoFlag := fs.String("repo", "", "target repository root to evaluate and draft from")
@@ -24,7 +24,7 @@ func runRepoEvalDraftUpgrade(args []string) int {
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	dryRun := fs.Bool("dry-run", false, "print draft contents; do not write files")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg repo-eval draft-upgrade [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei repo-eval draft-upgrade [flags]
 
 Draft review-only upgrade candidates from repo-eval's guarded upgrade path.
 This command NEVER edits live authority. It writes only under
@@ -41,12 +41,12 @@ Flags:
 
 	rep, target, err := evaluateRepoForDraft(*repoFlag, *svcRepoFlag, *agRepoFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval draft-upgrade: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval draft-upgrade: %v\n", err)
 		return 1
 	}
 	drafts, err := buildRepoEvalUpgradeDrafts(target.root, rep)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval draft-upgrade: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval draft-upgrade: %v\n", err)
 		return 1
 	}
 
@@ -66,11 +66,11 @@ Flags:
 		for _, draft := range drafts {
 			full := filepath.Join(target.root, draft.Path)
 			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-				fmt.Fprintf(os.Stderr, "awg repo-eval draft-upgrade: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei repo-eval draft-upgrade: %v\n", err)
 				return 1
 			}
 			if err := os.WriteFile(full, []byte(draft.Content), 0o644); err != nil {
-				fmt.Fprintf(os.Stderr, "awg repo-eval draft-upgrade: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei repo-eval draft-upgrade: %v\n", err)
 				return 1
 			}
 		}
@@ -249,7 +249,7 @@ func renderRepoEvalUpgradeDraft(repoRoot, verdict string, candidate repoeval.Upg
 	if err != nil {
 		return repoEvalUpgradeDraft{}, err
 	}
-	header := fmt.Sprintf("# DRAFT from `awg repo-eval draft-upgrade` for repo %q.\n# status:candidate — importer must skip this file until a human reviews and promotes it.\n", repoRoot)
+	header := fmt.Sprintf("# DRAFT from `sensei repo-eval draft-upgrade` for repo %q.\n# status:candidate — importer must skip this file until a human reviews and promotes it.\n", repoRoot)
 	relPath := filepath.Join("docs", "awareness", "candidates", "repo_eval_upgrade", candidate.Kind+"_"+repoEvalSlug(candidate.ID)+".yaml")
 	return repoEvalUpgradeDraft{
 		Path:    relPath,

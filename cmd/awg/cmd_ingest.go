@@ -14,7 +14,7 @@ import (
 )
 
 func runIngest(args []string) int {
-	fs := flag.NewFlagSet("awg ingest", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei ingest", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fromFile := fs.String("from-file", "", "YAML file with awareness entries")
 	fromScan := fs.Bool("from-scan", false, "re-run annotation scanner + rebuild")
@@ -23,7 +23,7 @@ func runIngest(args []string) int {
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg ingest --from-file <path.yaml> | --from-scan [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei ingest --from-file <path.yaml> | --from-scan [flags]
 
 Feed new knowledge into the awareness graph.
 
@@ -54,7 +54,7 @@ Flags:
 		sources++
 	}
 	if sources != 1 {
-		fmt.Fprintln(os.Stderr, "awg ingest: exactly one of --from-file or --from-scan is required")
+		fmt.Fprintln(os.Stderr, "sensei ingest: exactly one of --from-file or --from-scan is required")
 		return 2
 	}
 
@@ -85,18 +85,18 @@ var ingestClassToFile = map[string]string{
 func ingestFromFile(inputPath, svcRepo, agRepo string, dryRun, noRebuild bool) int {
 	absPath, err := filepath.Abs(inputPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: %v\n", err)
 		return 1
 	}
 	raw, err := os.ReadFile(absPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: read: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: read: %v\n", err)
 		return 1
 	}
 
 	var doc map[string]interface{}
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: parse: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: parse: %v\n", err)
 		return 1
 	}
 
@@ -108,7 +108,7 @@ func ingestFromFile(inputPath, svcRepo, agRepo string, dryRun, noRebuild bool) i
 		}
 	}
 	if topKey == "" {
-		fmt.Fprintf(os.Stderr, "awg ingest: unrecognized top-level key in %s\n", absPath)
+		fmt.Fprintf(os.Stderr, "sensei ingest: unrecognized top-level key in %s\n", absPath)
 		return 1
 	}
 
@@ -122,11 +122,11 @@ func ingestFromFile(inputPath, svcRepo, agRepo string, dryRun, noRebuild bool) i
 		}
 		_ = os.MkdirAll(destDir, 0o755)
 		if err := os.WriteFile(dest, raw, 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "awg ingest: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei ingest: %v\n", err)
 			return 1
 		}
 		fmt.Printf("  candidate file written: %s\n", dest)
-		fmt.Println("  use 'awg promote <id>' to promote entries")
+		fmt.Println("  use 'sensei promote <id>' to promote entries")
 		return 0
 	}
 
@@ -136,18 +136,18 @@ func ingestFromFile(inputPath, svcRepo, agRepo string, dryRun, noRebuild bool) i
 
 	existingRaw, err := os.ReadFile(targetPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: read %s: %v\n", canonicalFile, err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: read %s: %v\n", canonicalFile, err)
 		return 1
 	}
 	var existing map[string]interface{}
 	if err := yaml.Unmarshal(existingRaw, &existing); err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: parse %s: %v\n", canonicalFile, err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: parse %s: %v\n", canonicalFile, err)
 		return 1
 	}
 
 	newEntries, ok := doc[topKey].([]interface{})
 	if !ok || len(newEntries) == 0 {
-		fmt.Fprintf(os.Stderr, "awg ingest: no entries under %q\n", topKey)
+		fmt.Fprintf(os.Stderr, "sensei ingest: no entries under %q\n", topKey)
 		return 1
 	}
 
@@ -160,7 +160,7 @@ func ingestFromFile(inputPath, svcRepo, agRepo string, dryRun, noRebuild bool) i
 		}
 		id, _ := m["id"].(string)
 		if id == "" {
-			fmt.Fprintf(os.Stderr, "awg ingest: entry missing 'id'\n")
+			fmt.Fprintf(os.Stderr, "sensei ingest: entry missing 'id'\n")
 			return 1
 		}
 		if existingIDs[id] {
@@ -185,11 +185,11 @@ func ingestFromFile(inputPath, svcRepo, agRepo string, dryRun, noRebuild bool) i
 
 	out, err := yaml.Marshal(existing)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: marshal: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: marshal: %v\n", err)
 		return 1
 	}
 	if err := os.WriteFile(targetPath, out, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: write: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: write: %v\n", err)
 		return 1
 	}
 	fmt.Printf("  wrote %d new entries to %s\n", added, targetPath)
@@ -199,7 +199,7 @@ func ingestFromFile(inputPath, svcRepo, agRepo string, dryRun, noRebuild bool) i
 		return 0
 	}
 	if err := ensureCrossRepoRebuildPrereqs(agRepo, svcRepo); err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: %v\n", err)
 		return 1
 	}
 	fmt.Println("\nTriggering rebuild...")
@@ -235,16 +235,16 @@ func collectEntryIDs(list interface{}) map[string]bool {
 
 func ingestFromScan(svcRepo, agRepo string, dryRun bool) int {
 	if agRepo == "" {
-		fmt.Fprintln(os.Stderr, "awg ingest --from-scan: cannot find awareness-graph repo")
+		fmt.Fprintln(os.Stderr, "sensei ingest --from-scan: cannot find awareness-graph repo")
 		return 1
 	}
 	if err := ensureCrossRepoRebuildPrereqs(agRepo, svcRepo); err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: %v\n", err)
 		return 1
 	}
 	scriptPath := filepath.Join(agRepo, "scripts", "build-awareness-graph.sh")
 	if _, err := os.Stat(scriptPath); err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: script not found: %s\n", scriptPath)
+		fmt.Fprintf(os.Stderr, "sensei ingest: script not found: %s\n", scriptPath)
 		return 1
 	}
 	if dryRun {
@@ -263,7 +263,7 @@ func ingestFromScan(svcRepo, agRepo string, dryRun bool) int {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "awg ingest: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei ingest: %v\n", err)
 		return 1
 	}
 	fmt.Println("\nDone.")

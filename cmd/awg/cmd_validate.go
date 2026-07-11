@@ -19,7 +19,7 @@ import (
 )
 
 func runValidate(args []string) int {
-	fs_ := flag.NewFlagSet("awg validate", flag.ContinueOnError)
+	fs_ := flag.NewFlagSet("sensei validate", flag.ContinueOnError)
 	fs_.SetOutput(os.Stderr)
 	var dirs multiString
 	fs_.Var(&dirs, "dir", "directories to scan (repeat; default: docs/awareness + docs/intent)")
@@ -31,7 +31,7 @@ func runValidate(args []string) int {
 	var extraRoots multiString
 	fs_.Var(&extraRoots, "extra-root", "additional repo root for resolving cross-repo source/test file references, e.g. the Globular gateway repo (repeat; accepts a path or name=...,path=...)")
 	fs_.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg validate [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei validate [flags]
 
 Static check of awareness YAML sources. Read-only — never modifies files.
 
@@ -52,13 +52,13 @@ Flags:
 	}
 	valScope, err := parseValidateScope(*scope)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg validate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei validate: %v\n", err)
 		return 2
 	}
 
 	root, err := resolveProjectRoot(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg validate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei validate: %v\n", err)
 		return 1
 	}
 
@@ -74,7 +74,7 @@ Flags:
 	// out of services 2026-06-13). When validating another repo (e.g. services),
 	// load that corpus as definition-only context so cross-repo meta.* references
 	// resolve instead of dangling. Default to the current working directory,
-	// which is the awareness-graph checkout when CI runs `awg validate`.
+	// which is the awareness-graph checkout when CI runs `sensei validate`.
 	agRoot := strings.TrimSpace(*agRepo)
 	if agRoot == "" {
 		if cwd, werr := os.Getwd(); werr == nil {
@@ -148,7 +148,7 @@ Flags:
 
 	report, err := doValidate(root, scanDirs, extraDefDirs, sourceRoots, valScope)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg validate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei validate: %v\n", err)
 		return 1
 	}
 
@@ -898,7 +898,7 @@ func collectYAMLFiles(dirs []string) ([]string, error) {
 
 func printValidateTable(r *validateReport) {
 	if len(r.Findings) == 0 {
-		fmt.Printf("awg validate (%s): scanned %d files in %s — no findings\n",
+		fmt.Printf("sensei validate (%s): scanned %d files in %s — no findings\n",
 			r.Scope, len(r.Scanned), r.RepoRoot)
 		return
 	}
@@ -910,7 +910,7 @@ func printValidateTable(r *validateReport) {
 			truncate(f.EntityID, 50), truncate(f.Ref, 60), truncate(f.Message, 100))
 	}
 	tw.Flush()
-	fmt.Printf("\nawg validate (%s): scanned %d files, %d finding(s):\n",
+	fmt.Printf("\nsensei validate (%s): scanned %d files, %d finding(s):\n",
 		r.Scope, len(r.Scanned), len(r.Findings))
 	for check, n := range r.Counts {
 		fmt.Printf("  %s: %d\n", check, n)

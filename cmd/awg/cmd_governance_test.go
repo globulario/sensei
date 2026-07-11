@@ -549,11 +549,11 @@ func TestGovernanceFetch_FromLocalPublicationRoot(t *testing.T) {
 	}); code != 0 {
 		t.Fatalf("fetch code=%d", code)
 	}
-	fetchedManifest := filepath.Join(projectRoot, ".awg", "governance", "fetched", "core.meta-principles", "2026.06.21", "governance-pack.manifest.json")
+	fetchedManifest := filepath.Join(projectRoot, ".sensei", "governance", "fetched", "core.meta-principles", "2026.06.21", "governance-pack.manifest.json")
 	if _, err := os.Stat(fetchedManifest); err != nil {
 		t.Fatalf("fetched manifest missing: %v", err)
 	}
-	fetchedRecord, err := governancepack.ReadFetchedRecord(filepath.Join(projectRoot, ".awg", "governance", "fetched", "core.meta-principles", "2026.06.21", "fetch.json"))
+	fetchedRecord, err := governancepack.ReadFetchedRecord(filepath.Join(projectRoot, ".sensei", "governance", "fetched", "core.meta-principles", "2026.06.21", "fetch.json"))
 	if err != nil {
 		t.Fatalf("ReadFetchedRecord: %v", err)
 	}
@@ -609,7 +609,7 @@ func TestGovernanceFetch_FromHTTPPublicationRoot(t *testing.T) {
 	}); code != 0 {
 		t.Fatalf("fetch code=%d", code)
 	}
-	fetchedPayload := filepath.Join(projectRoot, ".awg", "governance", "fetched", "core.meta-principles", "2026.06.21", "governance-pack.nt")
+	fetchedPayload := filepath.Join(projectRoot, ".sensei", "governance", "fetched", "core.meta-principles", "2026.06.21", "governance-pack.nt")
 	if _, err := os.Stat(fetchedPayload); err != nil {
 		t.Fatalf("fetched payload missing: %v", err)
 	}
@@ -641,7 +641,7 @@ func TestGovernanceFetch_MissingChannelFailsClosed(t *testing.T) {
 	}); code == 0 {
 		t.Fatal("fetch should fail when channel target is missing")
 	}
-	gotDir := filepath.Join(projectRoot, ".awg", "governance", "fetched")
+	gotDir := filepath.Join(projectRoot, ".sensei", "governance", "fetched")
 	if _, err := os.Stat(gotDir); !os.IsNotExist(err) {
 		t.Fatalf("fetched dir should not exist, stat err=%v", err)
 	}
@@ -761,7 +761,7 @@ func TestGovernanceStatus_ShowsFetchedProvenanceAndDetectsFetchedStale(t *testin
 	if capture.code != 0 || !strings.Contains(capture.stdout, "Fetched state:       current") || !strings.Contains(capture.stdout, "Fetched channel:     stable") {
 		t.Fatalf("status stdout=%q stderr=%q code=%d", capture.stdout, capture.stderr, capture.code)
 	}
-	writeFile(t, filepath.Join(projectRoot, ".awg", "governance", "fetched", "core.meta-principles", "2026.06.21", "governance-pack.nt"), "<https://tampered> <https://p> \"x\" .\n")
+	writeFile(t, filepath.Join(projectRoot, ".sensei", "governance", "fetched", "core.meta-principles", "2026.06.21", "governance-pack.nt"), "<https://tampered> <https://p> \"x\" .\n")
 	status := governancepack.AssessLocalStatus(projectRoot, Version)
 	if status.FetchedState != governancepack.StateStale {
 		t.Fatalf("FetchedState=%s want stale detail=%s", status.FetchedState, status.FetchedDetail)

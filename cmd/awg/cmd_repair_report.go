@@ -106,7 +106,7 @@ var repairReportEditCheck = func(ctx context.Context, addr string, req *awarenes
 }
 
 func runRepairReport(args []string) int {
-	fs := flag.NewFlagSet("awg repair-report", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei repair-report", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task or issue summary")
 	issue := fs.String("issue", "", "issue summary override (defaults to --task)")
@@ -129,7 +129,7 @@ func runRepairReport(args []string) int {
 	fs.Var(&checksPass, "check-pass", "named check that passed (repeatable)")
 	fs.Var(&checksFail, "check-fail", "named check that failed (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg repair-report [--file <path>]... [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei repair-report [--file <path>]... [flags]
 
 Build a governed repair report for the current post-edit state. The report
 turns preflight, authority, forbidden-move checks, scope, and test evidence
@@ -163,12 +163,12 @@ Flags:
 		ChecksFail: dedupeStrings(checksFail),
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-report: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-report: %v\n", err)
 		return 1
 	}
 	if *outPath != "" {
 		if err := writeRepairReportArtifact(*outPath, report); err != nil {
-			fmt.Fprintf(os.Stderr, "awg repair-report: write artifact: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei repair-report: write artifact: %v\n", err)
 			return 1
 		}
 	}
@@ -185,7 +185,7 @@ Flags:
 }
 
 func runRepairGate(args []string) int {
-	fs := flag.NewFlagSet("awg repair-gate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei repair-gate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	reportPath := fs.String("report", "", "path to a JSON repair report artifact")
 	task := fs.String("task", "", "task or issue summary")
@@ -210,7 +210,7 @@ func runRepairGate(args []string) int {
 	fs.Var(&checksFail, "check-fail", "named check that failed (repeatable)")
 	fs.Var(&allowClassifications, "allow-classification", "classification allowed to pass as a warning state (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg repair-gate [--report <path>] [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei repair-gate [--report <path>] [flags]
 
 Fail-closed governed repair gate. Consumes a repair-report artifact or computes
 the same classification directly, then exits non-zero unless the classification
@@ -231,11 +231,11 @@ Flags:
 	if strings.TrimSpace(*reportPath) != "" {
 		data, err := os.ReadFile(*reportPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg repair-gate: read report: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei repair-gate: read report: %v\n", err)
 			return 1
 		}
 		if err := json.Unmarshal(data, &report); err != nil {
-			fmt.Fprintf(os.Stderr, "awg repair-gate: parse report: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei repair-gate: parse report: %v\n", err)
 			return 1
 		}
 	} else {
@@ -255,7 +255,7 @@ Flags:
 			ChecksFail: dedupeStrings(checksFail),
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg repair-gate: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei repair-gate: %v\n", err)
 			return 1
 		}
 	}

@@ -93,7 +93,7 @@ type benchmarkForbiddenFixesDoc struct {
 }
 
 func runBenchmarkBrief(args []string) int {
-	fs := flag.NewFlagSet("awg benchmark-brief", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei benchmark-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address for authoritative repair-plan resolution")
@@ -108,7 +108,7 @@ func runBenchmarkBrief(args []string) int {
 	fs.Var(&tests, "f2p-test", "fail-to-pass test name (repeatable)")
 	fs.Var(&files, "file", "changed or suspect file path (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg benchmark-brief [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei benchmark-brief [flags]
 
 Build a governed repair envelope for benchmark or PR fixing from issue text,
 fail-to-pass tests, changed files, authored awareness metadata, and an
@@ -129,28 +129,28 @@ Flags:
 
 	task, source, err := loadBenchmarkBriefTask(*taskFile, *issue, tests, files)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-brief: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", err)
 		return 2
 	}
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-brief: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: resolve repo root: %v\n", err)
 		return 1
 	}
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 	if err := benchmarkAtomicGuard(agRepo, svcRepo); err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-brief: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", err)
 		return 1
 	}
 	res, err := buildBenchmarkBrief(root, task, source)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-brief: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", err)
 		return 1
 	}
 	repairPlan, err := buildAuthoritativeRepairPlan(root, *addr, strings.TrimSpace(task.Issue), res.LikelyImplementationFiles)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-brief: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", err)
 		return 1
 	}
 	res.RepairPlan = &repairPlan

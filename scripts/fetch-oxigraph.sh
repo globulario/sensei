@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # fetch-oxigraph.sh — download the upstream Oxigraph binary for this platform
-# into bin/oxigraph. No Docker. This is what makes `awg serve` work standalone
+# into bin/oxigraph. No Docker. This is what makes `sensei serve` work standalone
 # (it runs Oxigraph as a child process and looks for the binary next to awg,
 # in ./bin/, or on PATH).
 #

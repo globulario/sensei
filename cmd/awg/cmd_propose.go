@@ -5,7 +5,7 @@
 // @awareness file_role=typed_graph_feedback_writer
 // @awareness risk=high
 //
-// awg propose is the typed write path for the awareness graph. It turns a
+// sensei propose is the typed write path for the awareness graph. It turns a
 // structured feedback payload (a failure_mode, invariant, required_test,
 // forbidden_fix, or a contract_unknown queue entry) into an appended YAML
 // source entry, rebuilds the seed, reloads the local Oxigraph store, and
@@ -84,7 +84,7 @@ var proposeKindToFile = map[string]proposeKind{
 }
 
 func runPropose(args []string) int {
-	fs := flag.NewFlagSet("awg propose", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei propose", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
 	jsonPath := fs.String("json", "", "read the ProposeRequest from this JSON file (use '-' for stdin)")
@@ -118,8 +118,8 @@ func runPropose(args []string) int {
 	format := fs.String("format", "text", "output format: text | json")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg propose --json <file|-> [flags]
-       awg propose --kind <kind> --title ... [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei propose --json <file|-> [flags]
+       sensei propose --kind <kind> --title ... [flags]
 
 Append one typed feedback entry to the awareness graph YAML sources, rebuild
 the seed, reload the local store, and stage the change. Never commits.
@@ -149,11 +149,11 @@ Flags:
 	if *jsonPath != "" {
 		raw, err := readProposeJSON(*jsonPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg propose: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei propose: %v\n", err)
 			return 2
 		}
 		if err := json.Unmarshal(raw, &req); err != nil {
-			fmt.Fprintf(os.Stderr, "awg propose: parse json: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei propose: parse json: %v\n", err)
 			return 2
 		}
 	}
@@ -318,7 +318,7 @@ func applyProposal(req *ProposeRequest, opt proposeOptions) (ProposeResult, int)
 		if plan.IsCandidate {
 			res.Note = "queued in candidates/ for human contract definition; no rebuild (not yet a live node)"
 		} else {
-			res.Note = "rebuild skipped (--no-rebuild); run 'awg rebuild' before committing"
+			res.Note = "rebuild skipped (--no-rebuild); run 'sensei rebuild' before committing"
 		}
 	} else {
 		rebuildArgs := []string{"--oxigraph-url", opt.oxigraphURL}
@@ -332,7 +332,7 @@ func applyProposal(req *ProposeRequest, opt proposeOptions) (ProposeResult, int)
 			res.Reload = "ok"
 		} else {
 			res.Reload = "failed"
-			res.ReloadDetail = "awg rebuild returned a non-zero exit; see output above"
+			res.ReloadDetail = "sensei rebuild returned a non-zero exit; see output above"
 		}
 		// The seed is regenerated in the awareness-graph repo; stage it too.
 		if opt.agRepo != "" {
@@ -771,7 +771,7 @@ func printProposeResult(res ProposeResult, format string) {
 	}
 
 	if res.Status == "validation_failed" {
-		fmt.Fprintf(os.Stderr, "awg propose: rejected (%s) — no files changed\n", res.Validation)
+		fmt.Fprintf(os.Stderr, "sensei propose: rejected (%s) — no files changed\n", res.Validation)
 		for _, e := range res.ValidationErrors {
 			fmt.Fprintf(os.Stderr, "  - %s\n", e)
 		}

@@ -154,7 +154,7 @@ every consumer inherits your project's scars.
 > with it are documented as *provenance* ("validated here; replace with yours").
 > A stranger cloning the tool now gets the whole corpus, not a leftover copy.
 
-**The tool's part:** `awg init` ships the portable pack to any project; the
+**The tool's part:** `sensei init` ships the portable pack to any project; the
 project authors its own local invariants on top.
 
 ---

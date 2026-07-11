@@ -4,7 +4,7 @@ The smallest possible Sensei project. One source file, one rule. It shows the
 whole loop: a rule you write becomes a briefing an AI agent (or you) gets
 **before** editing the risky file.
 
-No Globular. No cluster. No database to run. About 3 minutes once `awg` is
+No Globular. No cluster. No database to run. About 3 minutes once `sensei` is
 built (see the repo [INSTALL.md](../../INSTALL.md)).
 
 ## The rule
@@ -17,16 +17,16 @@ confirms first).
 
 ## Run it
 
-From this folder, with `awg` and `oxigraph` on your PATH (the repo
+From this folder, with `sensei` and `oxigraph` on your PATH (the repo
 `./scripts/install.sh` puts them in `bin/`):
 
 ```bash
 cd examples/payment-cold-start
 
-awg init                 # adds the 83-principle pack + hooks alongside the rule already here
-awg serve -no-seed &     # local store + server; -no-seed = your rules only, not Globular's
-awg build                # compile docs/awareness into the graph
-awg briefing -file src/payment_processor.py -task "refactor mark_paid"
+sensei init                 # adds the 83-principle pack + hooks alongside the rule already here
+sensei serve -no-seed &     # local store + server; -no-seed = your rules only, not Globular's
+sensei build                # compile docs/awareness into the graph
+sensei briefing -file src/payment_processor.py -task "refactor mark_paid"
 ```
 
 ## Expected output
@@ -48,17 +48,17 @@ Referenced IDs:
 
 That's the point: an agent about to touch `payment_processor.py` is told
 the rule first. The rule also links to the universal principle behind it —
-`awg init` installed the pack, so this resolves:
+`sensei init` installed the pack, so this resolves:
 
 ```bash
-awg resolve invariant meta.storage_is_not_semantic_authority
+sensei resolve invariant meta.storage_is_not_semantic_authority
 ```
 
-## What you committed vs what `awg init` generated
+## What you committed vs what `sensei init` generated
 
 This demo commits only the two files **you** would write:
 `docs/awareness/invariants.yaml` and `docs/awareness/high_risk_files.yaml`,
-plus the source. `awg init` generates the rest (the principle pack, the
+plus the source. `sensei init` generates the rest (the principle pack, the
 Claude Code hooks, `CLAUDE.md`) — those are `.gitignore`d here so the demo
 stays small and obvious.
 
@@ -66,7 +66,7 @@ stays small and obvious.
 
 ```bash
 kill %1                   # stop the server
-rm -rf .awg .claude docs/awareness/meta_principles.yaml \
+rm -rf .sensei .claude docs/awareness/meta_principles.yaml \
        docs/awareness/failure_modes.yaml docs/awareness/incident_patterns.yaml \
        docs/awareness/activation_rules.yaml CLAUDE.md
 ```

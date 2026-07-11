@@ -34,10 +34,10 @@ Six steps. No edit happens before step 4; no "resolved" status before step 6.
 
 1. **Retrieve existing contracts.** Query the graph for what already governs the
    candidate files/symbols:
-   - `awg impact --file <f> --domain <repo>` → invariants, failure-modes, intents
+   - `sensei impact --file <f> --domain <repo>` → invariants, failure-modes, intents
      anchored to the file
-   - `awg briefing --file <f> --domain <repo>` → architecture + governing rules
-   - `awg resolve <symbol|node> --domain <repo>` → a specific contract node
+   - `sensei briefing --file <f> --domain <repo>` → architecture + governing rules
+   - `sensei resolve <symbol|node> --domain <repo>` → a specific contract node
    Candidate files come from the issue text + repo search — **never the gold
    patch**.
 
@@ -67,7 +67,7 @@ Six steps. No edit happens before step 4; no "resolved" status before step 6.
 
 5. **Gate the final patch against the stated contract.** Run the contract's
    detect rule over the diff:
-   - `awg gate --diff <range> --domain <repo>` / `awg edit-check` for pattern
+   - `sensei gate --diff <range> --domain <repo>` / `sensei edit-check` for pattern
      contracts
    - for non-pattern contracts, an LLM judge that checks the diff against the
      stated contract (reads the *patch*, not the answer key — leak-proof)
@@ -89,7 +89,7 @@ different oracles:
 |---|---|---|---|
 | Structural awareness | did Sensei surface the right component/blast-radius? | graph vs. file | n/a |
 | Contract discovery | did Sensei identify/infer a contract at all, and at what confidence? | the protocol's step 1–3 | yes (no answer key) |
-| Contract respect | does the patch honor the stated contract? | `awg gate` on the diff | **yes** — reads the patch |
+| Contract respect | does the patch honor the stated contract? | `sensei gate` on the diff | **yes** — reads the patch |
 | Hidden-test fix rate | did it match the maintainer's interpretation? | SWE-bench FAIL_TO_PASS | no (can leak) |
 
 The headline Sensei claim lives in *contract discovery* + *contract respect*, not
@@ -122,5 +122,5 @@ fix-rate. Fix-rate is reported, but framed as the oracle it is.
   (`docs/design/contract-first-resolution-protocol.md`) and wired into the
   services `CLAUDE.md` — the operating layer governs repairs where they happen.
   Enforced as agent discipline, **not yet a mechanical CI gate** (that is the
-  Phase-2 `awg gate` step against a frozen contract set). Not yet wired into the
+  Phase-2 `sensei gate` step against a frozen contract set). Not yet wired into the
   eval harness (Mode C).

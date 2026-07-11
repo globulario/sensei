@@ -21,17 +21,17 @@ type benchmarkEventMeta struct {
 }
 
 func runBenchmarkEventMeta(args []string) int {
-	fs := flag.NewFlagSet("awg benchmark-event-meta", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei benchmark-event-meta", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	eventPath := fs.String("event", "", "learning event YAML/JSON file")
 	format := fs.String("format", "text", "output format: text | json")
 	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
 	field := fs.String("field", "", "print only one field: event_id | task | decision_action | primary_failure_mode | certification_status | learning_evidence | retry_result_classification")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg benchmark-event-meta [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei benchmark-event-meta [flags]
 
 Read a benchmark learning-event file and emit small stable metadata for
-orchestration layers. This keeps event introspection in awg instead of shell
+orchestration layers. This keeps event introspection in sensei instead of shell
 snippets or Python one-liners.
 
 Flags:
@@ -45,12 +45,12 @@ Flags:
 		*format = "json"
 	}
 	if strings.TrimSpace(*eventPath) == "" {
-		fmt.Fprintln(os.Stderr, "awg benchmark-event-meta: --event is required")
+		fmt.Fprintln(os.Stderr, "sensei benchmark-event-meta: --event is required")
 		return 2
 	}
 	doc, err := loadBenchmarkRetryDoc(*eventPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-event-meta: load event: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-event-meta: load event: %v\n", err)
 		return 1
 	}
 	event := benchmarkRetryUnwrapEvent(doc)
@@ -81,7 +81,7 @@ Flags:
 		case "retry_result_classification":
 			fmt.Println(meta.RetryResultClass)
 		default:
-			fmt.Fprintf(os.Stderr, "awg benchmark-event-meta: unknown --field %q\n", *field)
+			fmt.Fprintf(os.Stderr, "sensei benchmark-event-meta: unknown --field %q\n", *field)
 			return 2
 		}
 		return 0

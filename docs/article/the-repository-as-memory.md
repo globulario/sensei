@@ -286,9 +286,9 @@ authority:
 ```
 extractors find surfaces     proto-scan (gRPC) · http-scan (HTTP routes)
         ↓
-generator proposes           awg suggest-realizations   (candidates only, scored on hard evidence)
+generator proposes           sensei suggest-realizations   (candidates only, scored on hard evidence)
         ↓
-human review confirms        awg promote-realization    (explicit, one at a time)
+human review confirms        sensei promote-realization    (explicit, one at a time)
         ↓
 realizesContract = authority briefing speaks it; audit protects it
 ```
@@ -298,7 +298,7 @@ hard evidence — shared source file, path-glob coverage, shared failure-mode
 context, name-token overlap — and it *refuses weak evidence*: name overlap alone
 yields nothing, a read-only surface won't be matched to a write-only contract, and
 candidates never cross repository domains. Only an explicit human
-`awg promote-realization` — one reviewed pair at a time, never in bulk, never from
+`sensei promote-realization` — one reviewed pair at a time, never in bulk, never from
 name overlap — turns a candidate into an authoritative `realizesContract`.
 Promotion is a review action, never a scoring action.
 
@@ -422,7 +422,7 @@ Realized architectural contracts (AUTHORITY — respect or do not claim resoluti
   - Required proof: save_config_test.go:TestSaveConfig_RequiresToken, …
   - Do not claim resolution if this contract is bypassed, weakened, or left untested.
 
-Candidate realized contracts (REVIEW-ONLY — not authority; promote with `awg promote-realization`):
+Candidate realized contracts (REVIEW-ONLY — not authority; promote with `sensei promote-realization`):
 - HTTP /api/cors-diagnostics ~candidate~> contract.config_mutation_requires_valid_token
   (unverified — do not treat as a guarantee)
 ```
@@ -445,12 +445,12 @@ the engineering, and it wires that into the build:
    separate, explicitly REVIEW-ONLY section and is never treated as a guarantee.
    The generator emits *only* candidates.
 2. **Promotion is explicit and singular.** `realizesContract` is created only by a
-   human running `awg promote-realization`, one reviewed pair at a time — never in
+   human running `sensei promote-realization`, one reviewed pair at a time — never in
    bulk, never from path or name overlap.
 3. **Unproven authority fails the build.** The `contract-verification-wiring`
    audit check is **FAIL-level**: a home-domain contract that claims it requires
    verification but wires none of `requiresTest` / `constrainedByInvariant` /
-   `violatedBy` / `detect` fails `awg audit --check`. *Authority must carry its
+   `violatedBy` / `detect` fails `sensei audit --check`. *Authority must carry its
    proof*, mechanically, or the gate goes red.
 
 The consequence is a rule you can state in one line — *no resolution without a
@@ -531,10 +531,10 @@ architecture in its head to avoid breaking it. It asks the indirection layer one
 question — *"what do I need to know before editing this file?"* — and the truth is
 handed back. The knowledge stopped depending on who happens to be looking.
 
-Every query is a traversal of that layer. `awg briefing` answers *"what must I
+Every query is a traversal of that layer. `sensei briefing` answers *"what must I
 know before touching this file?"* — files → invariants → contracts → failure modes
-→ forbidden fixes → required tests. `awg impact` answers *"what is the blast radius
-of this change?"* — outward along the reference and contract edges. `awg preflight`
+→ forbidden fixes → required tests. `sensei impact` answers *"what is the blast radius
+of this change?"* — outward along the reference and contract edges. `sensei preflight`
 answers *"am I about to drift outside the intended contract or authority
 boundary?"* None of them call an LLM. They compile authored YAML into RDF triples,
 load them into a local store, and answer with SPARQL: same repository state, same

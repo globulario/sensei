@@ -28,7 +28,7 @@ func TestScaffoldProject(t *testing.T) {
 		"docs/awareness/high_risk_files.yaml",
 		"docs/awareness/activation_rules.yaml",
 		"docs/awareness/meta_principles.yaml",
-		".awg/config.yaml",
+		".sensei/config.yaml",
 		".claude/hooks/enforce-briefing.sh",
 		".claude/hooks/record-briefing.sh",
 		".claude/hooks/edit-check-guard.sh",

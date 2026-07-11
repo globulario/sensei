@@ -5,7 +5,7 @@
 // @awareness file_role=merge_authority_verifier
 // @awareness enforces=ci.merge_authority_requires_explicit_check_success
 
-// awg merge-check — merge-authority verifier.
+// sensei merge-check — merge-authority verifier.
 //
 // Codifies the merge discipline proven in the awareness-graph #103 / services
 // #60 / awareness-graph #111 sequence: a PR is merge-authorized ONLY when every
@@ -416,7 +416,7 @@ func fetchRequiredChecks(repo, base string) (names []string, known bool) {
 }
 
 func runMergeCheck(args []string) int {
-	fs := flag.NewFlagSet("awg merge-check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei merge-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	prNum := fs.Int("pr", 0, "PR number (required)")
 	repo := fs.String("repo", "", "owner/repo (required)")
@@ -425,7 +425,7 @@ func runMergeCheck(args []string) int {
 	retries := fs.Int("retries", 5, "re-fetch attempts while GitHub mergeability is UNKNOWN (lazy computation)")
 	asJSON := fs.Bool("json", false, "emit the full result as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg merge-check --pr <n> --repo <owner/repo> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei merge-check --pr <n> --repo <owner/repo> [flags]
 
 Merge-authority verifier. Exits 0 ONLY for MERGE_AUTHORIZED; non-zero for every
 blocked/unknown verdict. Never merges. Authority is GitHub's actual mergeable +
