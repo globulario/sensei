@@ -13,10 +13,21 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 )
+
+// exeName appends the platform executable extension (".exe" on Windows) so the
+// same-directory and ./bin/ lookups find e.g. oxigraph.exe. exec.LookPath
+// already honors PATHEXT on Windows, so PATH lookups pass the base name.
+func exeName(base string) string {
+	if runtime.GOOS == "windows" {
+		return base + ".exe"
+	}
+	return base
+}
 
 const (
 	backendHealthPollInterval  = 2 * time.Second
@@ -230,16 +241,17 @@ Flags:
 
 // findServerBinary locates the awareness-graph server binary.
 func findServerBinary() (string, error) {
+	name := exeName("awareness-graph")
 	// Check next to the sensei binary itself.
 	if exe, err := os.Executable(); err == nil {
-		candidate := filepath.Join(filepath.Dir(exe), "awareness-graph")
+		candidate := filepath.Join(filepath.Dir(exe), name)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate, nil
 		}
 	}
 	// Check ./bin/
-	if _, err := os.Stat("./bin/awareness-graph"); err == nil {
-		return "./bin/awareness-graph", nil
+	if _, err := os.Stat("./bin/" + name); err == nil {
+		return "./bin/" + name, nil
 	}
 	// Check PATH.
 	if path, err := exec.LookPath("awareness-graph"); err == nil {
@@ -250,16 +262,17 @@ func findServerBinary() (string, error) {
 
 // findOxigraphBinary locates the oxigraph binary.
 func findOxigraphBinary() (string, error) {
+	name := exeName("oxigraph")
 	// Check next to the sensei binary.
 	if exe, err := os.Executable(); err == nil {
-		candidate := filepath.Join(filepath.Dir(exe), "oxigraph")
+		candidate := filepath.Join(filepath.Dir(exe), name)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate, nil
 		}
 	}
 	// Check ./bin/
-	if _, err := os.Stat("./bin/oxigraph"); err == nil {
-		return "./bin/oxigraph", nil
+	if _, err := os.Stat("./bin/" + name); err == nil {
+		return "./bin/" + name, nil
 	}
 	// Check PATH.
 	if path, err := exec.LookPath("oxigraph"); err == nil {

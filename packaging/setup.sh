@@ -22,6 +22,9 @@ BIN_SRC="${HERE}/bin"
 PREFIX="${HOME}/.local/bin"
 MODE="symlink"
 
+# On Windows (Git Bash / MSYS) symlinks are unreliable — copy by default.
+case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*|CYGWIN*) MODE="copy" ;; esac
+
 usage() { sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
