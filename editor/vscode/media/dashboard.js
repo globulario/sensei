@@ -68,7 +68,7 @@
   // tab reads the count for its "promote candidates carefully" proposal.
   let candidateFiles = null;
   let candidatesMsg = null; // last full 'candidates' message (for re-render)
-  // Whether the host may run local awg writes (opt-in setting). When false the
+  // Whether the host may run local sensei writes (opt-in setting). When false the
   // Candidates tab stays read-only and shows the guarded CLI to run by hand.
   let localOps = { enabled: false, hasWorkspace: false, rebuild: { mode: 'single' } };
   let capabilities = {}; // { hasWorkspace, isAwgProject, awgAvailable, candidateCount }
@@ -267,7 +267,7 @@
 
   // ---- two-mode refresh --------------------------------------------------
   // Reload re-pulls the served graph (Metadata) — cheap, always available.
-  // Rebuild runs `awg rebuild` then reloads — a gated local op with progress
+  // Rebuild runs `sensei rebuild` then reloads — a gated local op with progress
   // and before/after counts. Together they close the read→reload→rebuild loop.
   function renderRefreshBar() {
     const acts = $('bannerActions');
@@ -279,11 +279,11 @@
     // or why the button is disabled.
     let hintText;
     if (!localOps.enabled) {
-      hintText = 'Enable awarenessGraph.enableLocalOperations to rebuild from the dashboard';
+      hintText = 'Enable sensei.enableLocalOperations to rebuild from the dashboard';
     } else if (blocked) {
-      hintText = rb.reason || 'Combined graph rebuild requires awarenessGraph.servicesRepoPath';
+      hintText = rb.reason || 'Combined graph rebuild requires sensei.servicesRepoPath';
     } else {
-      hintText = 'Runs: ' + (rb.command || 'awg rebuild')
+      hintText = 'Runs: ' + (rb.command || 'sensei rebuild')
         + (rb.mode === 'combined' ? '  (combined graph)' : '  (single-repo)');
     }
     acts.innerHTML =
@@ -341,7 +341,7 @@
       if (dT) s += ` (${dT > 0 ? '+' : ''}${dT})`;
       el.textContent = s;
     } else {
-      el.textContent = m.reloaded ? '✓ Rebuilt' : '✓ Rebuilt (restart awg serve to reload)';
+      el.textContent = m.reloaded ? '✓ Rebuilt' : '✓ Rebuilt (restart sensei serve to reload)';
     }
   }
 
@@ -559,7 +559,7 @@
       txt += ` · live ${esc(String(a.live_store_graph_digest_sha256).slice(0, 8))}`;
     }
     if (a.certified_awareness_graph_commit || a.certified_services_repo_commit) {
-      txt += ` · tx awg ${esc(String(a.certified_awareness_graph_commit || 'n/a').slice(0, 8))}`;
+      txt += ` · tx graph ${esc(String(a.certified_awareness_graph_commit || 'n/a').slice(0, 8))}`;
       txt += ` · tx svc ${esc(String(a.certified_services_repo_commit || 'n/a').slice(0, 8))}`;
     }
     if (a.embedded_transaction_detail) {
@@ -770,8 +770,8 @@
 
   // ---- candidates --------------------------------------------------------
   // The review→promote surface. Each candidate gets a card with Preview
-  // (`awg promote --dry-run`, no writes) and, when local ops are enabled,
-  // Promote (`awg promote`, which validates → writes canonical YAML → rebuilds,
+  // (`sensei promote --dry-run`, no writes) and, when local ops are enabled,
+  // Promote (`sensei promote`, which validates → writes canonical YAML → rebuilds,
   // surfaced as a git diff the user commits). When local ops are off, the tab
   // stays read-only and shows the guarded CLI to run by hand.
   function flatCandidates(m) {
@@ -810,7 +810,7 @@
 
     let h = '<div class="cand">';
     h += `<div class="cand__trust"><b>Candidate knowledge ≠ graph truth.</b> Candidates require human approval before promotion. `
-      + `Promotion runs the guarded <code>awg promote</code> → <code>awg rebuild</code> path locally; nothing enters the graph except through a deterministic rebuild you commit.</div>`;
+      + `Promotion runs the guarded <code>sensei promote</code> → <code>sensei rebuild</code> path locally; nothing enters the graph except through a deterministic rebuild you commit.</div>`;
     h += capabilityBanner();
     h += scanPanel();
     h += batchBar(approvedCount, items.length);
@@ -863,7 +863,7 @@
   // grounded intents + parks candidates for review (a git diff the user commits).
   function scanPanel() {
     const dis = localOps.enabled ? '' : 'disabled';
-    const hint = localOps.enabled ? '' : ' title="Enable awarenessGraph.enableLocalOperations to run awg from the dashboard"';
+    const hint = localOps.enabled ? '' : ' title="Enable sensei.enableLocalOperations to run sensei from the dashboard"';
     let h = '<div class="scan">';
     h += '<div class="scan__head"><b>Scan codebase for knowledge</b>'
       + '<span class="scan__sub">Deterministic — echo drafter, no LLM, no cost.</span></div>';
@@ -874,7 +874,7 @@
     h += `<button class="scan__act scan__act--apply" data-scan="apply" ${dis}${hint}>Apply to queue…</button>`;
     h += '</div>';
     if (!localOps.enabled) {
-      h += '<div class="scan__cli muted">Or run it yourself: <code>awg intent-mine --repo . --sources docs,comments,schemas,tests --drafter echo</code> (add <code>--apply</code> to write).</div>';
+      h += '<div class="scan__cli muted">Or run it yourself: <code>sensei intent-mine --repo . --sources docs,comments,schemas,tests --drafter echo</code> (add <code>--apply</code> to write).</div>';
     }
     h += '<div class="scan__result" hidden></div>';
     h += '</div>';
@@ -909,7 +909,7 @@
     if (kind === 'apply') {
       let html = '<b>Scan applied.</b> Review the git diff + the refreshed queue, then commit.';
       if (m.diffStat) html += `<pre>${esc(m.diffStat)}</pre>`;
-      if (m.stdout) html += `<details><summary>awg output</summary><pre>${esc(m.stdout)}</pre></details>`;
+      if (m.stdout) html += `<details><summary>sensei output</summary><pre>${esc(m.stdout)}</pre></details>`;
       el.innerHTML = html;
     } else {
       el.innerHTML = `<b>Scan report (dry-run — nothing written):</b><pre>${esc(m.stdout || '(no output)')}</pre>`
@@ -923,16 +923,16 @@
     const c = capabilities;
     if (!localOps.enabled) {
       return `<div class="cand__warn"><b>Review only.</b> Approve/reject works, but promotion is off. `
-        + `Set <code>awarenessGraph.enableLocalOperations: true</code> to promote from here, or use the guarded CLI below.</div>`;
+        + `Set <code>sensei.enableLocalOperations: true</code> to promote from here, or use the guarded CLI below.</div>`;
     }
     if (c.hasWorkspace === false) {
-      return `<div class="cand__warn"><b>No workspace open.</b> Open the AWG project folder to run local operations.</div>`;
+      return `<div class="cand__warn"><b>No workspace open.</b> Open the Sensei project folder to run local operations.</div>`;
     }
     if (c.awgAvailable === false) {
-      return `<div class="cand__warn"><b><code>awg</code> not found.</b> The CLI could not be spawned. Install it or set <code>awarenessGraph.awgPath</code>. Until then, use the guarded CLI below.</div>`;
+      return `<div class="cand__warn"><b><code>sensei</code> not found.</b> The CLI could not be spawned. Install it or set <code>sensei.senseiPath</code>. Until then, use the guarded CLI below.</div>`;
     }
     if (c.isAwgProject === false) {
-      return `<div class="cand__warn"><b>Not an AWG project here.</b> No <code>docs/awareness</code> in this workspace — promotion targets may not resolve.</div>`;
+      return `<div class="cand__warn"><b>Not an Sensei project here.</b> No <code>docs/awareness</code> in this workspace — promotion targets may not resolve.</div>`;
     }
     return `<div class="cand__warn cand__warn--ok"><b>Local operations ready.</b> Approve candidates, then <b>Promote approved</b> to run the guarded promote → rebuild → reload flow. You review the git diff and commit.</div>`;
   }
@@ -941,7 +941,7 @@
   function batchBar(approvedCount, total) {
     const canRun = localOps.enabled && capabilities.awgAvailable !== false && approvedCount > 0;
     const dis = canRun ? '' : 'disabled';
-    const hint = !localOps.enabled ? ' title="Enable awarenessGraph.enableLocalOperations"'
+    const hint = !localOps.enabled ? ' title="Enable sensei.enableLocalOperations"'
       : approvedCount === 0 ? ' title="Approve at least one candidate first"' : '';
     let h = '<div class="batchbar">';
     h += `<span class="batchbar__count">${approvedCount} approved · ${total} in queue</span>`;
@@ -973,7 +973,7 @@
       if (extra.length) line += ` (${extra.join(', ')})`;
       line += '.';
     } else if (op.ok) {
-      line += ' Seed rebuilt on disk; restart awg serve if counts look unchanged.';
+      line += ' Seed rebuilt on disk; restart sensei serve if counts look unchanged.';
     }
     let h = `<div class="opsum ${cls}"><div><b>${op.ok ? '✓' : '✕'} ${line}</b></div>`;
     if (authorityWarning) {
@@ -1011,7 +1011,7 @@
 
     h += '<div class="candx__actions">';
     const dis = localOps.enabled ? '' : 'disabled';
-    const hint = localOps.enabled ? '' : ' title="Enable awarenessGraph.enableLocalOperations to validate via awg"';
+    const hint = localOps.enabled ? '' : ' title="Enable sensei.enableLocalOperations to validate via sensei"';
     h += `<button class="candx__act btn-mini" data-act="preview" data-id="${esc(e.id)}" data-label="${esc(e.label || e.id)}" ${dis}${hint}>Preview (dry-run)</button>`;
     if (decided === 'approved') {
       h += `<button class="candx__act candx__act--approved" data-act="undecide" data-id="${esc(e.id)}">✓ Approved (undo)</button>`;
@@ -1037,7 +1037,7 @@
     if (act === 'open') { vscode.postMessage({ type: 'candidateOpen', id }); return; }
     // preview (dry-run validate) — needs local ops.
     if (!localOps.enabled) return;
-    setCandResult(id, '<span class="muted">Running <code>awg promote --dry-run</code>…</span>', '');
+    setCandResult(id, '<span class="muted">Running <code>sensei promote --dry-run</code>…</span>', '');
     vscode.postMessage({ type: 'candidatePreview', id, label });
   }
 
@@ -1080,7 +1080,7 @@
         html += `<div class="muted">${m.unreachable
           ? 'Review the git diff and do not treat graph-backed answers as authoritative until the backend is reachable again and the dashboard can verify current authority.'
           : 'Review the git diff and do not treat graph-backed answers as authoritative until the dashboard reports current authority.'}</div>`;
-        if (m.stdout) html += `<details><summary>awg output</summary><pre>${esc(m.stdout)}</pre></details>`;
+        if (m.stdout) html += `<details><summary>sensei output</summary><pre>${esc(m.stdout)}</pre></details>`;
         setCandResult(id, html, 'candx__result--bad');
         vscode.postMessage({ type: 'getCandidates' });
         return;
@@ -1095,8 +1095,8 @@
         + `${dT ? ` (${dT > 0 ? '+' : ''}${dT})` : ''}</div>`;
     }
     if (m.diffStat) html += `<pre>${esc(m.diffStat)}</pre>`;
-    html += `<div class="muted">${m.reloaded ? 'Graph metadata reloaded.' : 'Seed rebuilt on disk; restart <code>awg serve</code> if the served graph looks unchanged.'}</div>`;
-    if (m.stdout) html += `<details><summary>awg output</summary><pre>${esc(m.stdout)}</pre></details>`;
+    html += `<div class="muted">${m.reloaded ? 'Graph metadata reloaded.' : 'Seed rebuilt on disk; restart <code>sensei serve</code> if the served graph looks unchanged.'}</div>`;
+    if (m.stdout) html += `<details><summary>sensei output</summary><pre>${esc(m.stdout)}</pre></details>`;
     setCandResult(id, html, 'candx__result--ok');
     // The promoted candidate is gone from the queue — refresh the list.
     vscode.postMessage({ type: 'getCandidates' });
@@ -1105,7 +1105,7 @@
   // ---- review (evidence-based project score + proposals) -----------------
   // Everything here is computed client-side from data the dashboard already
   // holds: Metadata counts + the candidate file list. No new RPC, no mutation,
-  // no LLM. The product rule is evidence language only — we report what AWG can
+  // no LLM. The product rule is evidence language only — we report what Sensei can
   // see, never absolute verdicts ("architecture is bad") or fabricated
   // per-file/per-invariant findings the aggregate counts can't support.
 
@@ -1138,7 +1138,7 @@
     const score = Math.round((present / dims.length) * 100);
     return {
       score,
-      note: `AWG sees ${present}/${dims.length} node classes populated across ${fmt(num(m, 'triple_count'))} triples.`,
+      note: `Sensei sees ${present}/${dims.length} node classes populated across ${fmt(num(m, 'triple_count'))} triples.`,
       strength: score >= 70 ? `The graph spans ${present} of ${dims.length} knowledge classes — broad coverage.` : null,
       risk: score < 45 ? `Only ${present}/${dims.length} knowledge classes are populated; the graph suggests limited coverage.` : null,
     };
@@ -1158,7 +1158,7 @@
     // Aggregate counts only — we deliberately do NOT claim which invariants lack tests.
     return {
       score,
-      note: `AWG metadata reports ${inv} invariants and ${tests} required tests. Counts are aggregate; per-invariant coverage is not asserted here.`,
+      note: `Sensei metadata reports ${inv} invariants and ${tests} required tests. Counts are aggregate; per-invariant coverage is not asserted here.`,
       strength, risk,
     };
   }
@@ -1169,7 +1169,7 @@
       return { score: 10, note: 'Freshness check errored — authority is not proven.', strength: null, risk: m.graph_freshness_detail || 'The daemon could not verify the loaded graph.' };
     }
     if (m.coverage_state === 'COVERAGE_STATE_EMPTY' || num(m, 'triple_count') === 0) {
-      return { score: 0, note: 'Graph is empty — no evidence to reason about.', strength: null, risk: 'The graph is empty; AWG has no evidence to assess.' };
+      return { score: 0, note: 'Graph is empty — no evidence to reason about.', strength: null, risk: 'The graph is empty; Sensei has no evidence to assess.' };
     }
     if (freshness === 'GRAPH_FRESHNESS_STATE_STALE') {
       return { score: 20, note: 'Live graph is stale relative to the verified artifact.', strength: null, risk: m.graph_freshness_detail || 'The daemon reports stale graph authority.' };
@@ -1178,7 +1178,7 @@
       return { score: 15, note: 'Live graph identity is unknown.', strength: null, risk: m.graph_freshness_detail || 'The daemon cannot prove the loaded graph identity.' };
     }
     if (freshness === 'GRAPH_FRESHNESS_STATE_EMPTY') {
-      return { score: 0, note: 'Live graph is empty.', strength: null, risk: 'The live store is empty, so AWG has no authority to serve.' };
+      return { score: 0, note: 'Live graph is empty.', strength: null, risk: 'The live store is empty, so Sensei has no authority to serve.' };
     }
     if (m.build_provenance_state === 'BUILD_PROVENANCE_STATE_DEV' || isDevBuild(m)) {
       return { score: 45, note: 'Dev build — provenance unstamped (no graph build commit).', strength: null, risk: 'Build provenance is unstamped; freshness vs. source cannot be verified.' };
@@ -1204,13 +1204,13 @@
     if (present >= 4) strength = 'The architectural spine (components, boundaries, contracts, decisions, evidence) is well populated.';
     if (present <= 1 && (sf >= 10 || inv >= 10)) {
       score = Math.min(score, 35);
-      risk = 'The graph has many files/invariants but little architectural spine; AWG suggests adding component/boundary/contract structure.';
+      risk = 'The graph has many files/invariants but little architectural spine; Sensei suggests adding component/boundary/contract structure.';
     } else if (present <= 2) {
       risk = 'Architectural spine nodes are sparse; the graph suggests room for explicit structure.';
     }
     return {
       score,
-      note: `AWG sees ${fmt(num(m, 'component_count'))} components, ${fmt(num(m, 'boundary_count'))} boundaries, ${fmt(num(m, 'contract_count'))} contracts, ${fmt(num(m, 'decision_count'))} decisions, ${fmt(num(m, 'evidence_count'))} evidence nodes.`,
+      note: `Sensei sees ${fmt(num(m, 'component_count'))} components, ${fmt(num(m, 'boundary_count'))} boundaries, ${fmt(num(m, 'contract_count'))} contracts, ${fmt(num(m, 'decision_count'))} decisions, ${fmt(num(m, 'evidence_count'))} evidence nodes.`,
       strength, risk,
     };
   }
@@ -1224,10 +1224,10 @@
     if (dp + ip > 0) { score = 90; strength = `The graph contains reusable design knowledge (${dp} design + ${ip} implementation patterns).`; }
     if (misuse > 0) {
       score -= Math.min(45, misuse * 9);
-      risk = `AWG sees ${misuse} pattern misuse${misuse === 1 ? '' : 's'}; review and convert repeated misuse into a forbidden fix or implementation pattern.`;
+      risk = `Sensei sees ${misuse} pattern misuse${misuse === 1 ? '' : 's'}; review and convert repeated misuse into a forbidden fix or implementation pattern.`;
     }
     score = Math.max(0, Math.min(100, score));
-    return { score, note: `AWG sees ${dp} design patterns, ${ip} implementation patterns, ${misuse} pattern misuses.`, strength, risk };
+    return { score, note: `Sensei sees ${dp} design patterns, ${ip} implementation patterns, ${misuse} pattern misuses.`, strength, risk };
   }
 
   function scoreAgentReadiness(m) {
@@ -1238,7 +1238,7 @@
     const score = Math.round((rules / ruleDims.length) * 70 + (sf ? 10 : 0) + (spine ? 20 : 0));
     return {
       score,
-      note: `AWG sees authored intent/rules in ${rules}/${ruleDims.length} channels${sf ? ', anchored to source files' : ''}${spine ? ', with architectural spine' : ''}.`,
+      note: `Sensei sees authored intent/rules in ${rules}/${ruleDims.length} channels${sf ? ', anchored to source files' : ''}${spine ? ', with architectural spine' : ''}.`,
       strength: score >= 75 ? 'The graph carries authored intent, rules, and structure — agents get strong pre-edit guidance.' : null,
       risk: score < 50 ? 'The graph is mostly raw structure with little authored intent/rules; Preflight guidance will be limited.' : null,
     };
@@ -1269,9 +1269,9 @@
 
   function reviewSummary(m, overall, confidence) {
     if (num(m, 'triple_count') === 0) {
-      return 'The graph is empty — AWG does not have enough evidence to review this project yet.';
+      return 'The graph is empty — Sensei does not have enough evidence to review this project yet.';
     }
-    return `Based on graph metadata and visible structure, AWG scores this project's architecture evidence at ${overall}/100 `
+    return `Based on graph metadata and visible structure, Sensei scores this project's architecture evidence at ${overall}/100 `
       + `(${confidence.toLowerCase()} confidence). A low score can mean thin graph evidence, not necessarily weak architecture.`;
   }
 
@@ -1309,7 +1309,7 @@
       out.push({
         title: 'Add explicit architectural spine for high-value services',
         severity: count('invariant_count') >= 25 ? 'high' : 'warning',
-        evidence: `AWG sees ${fmt(count('source_file_count'))} source files and ${fmt(count('invariant_count'))} invariants but only ${fmt(spineSum)} component/boundary/contract/decision nodes.`,
+        evidence: `Sensei sees ${fmt(count('source_file_count'))} source files and ${fmt(count('invariant_count'))} invariants but only ${fmt(spineSum)} component/boundary/contract/decision nodes.`,
         why: 'Without an explicit spine, agents see rules but not the structure they protect, so impact analysis stays shallow.',
         next_step: 'Add explicit component/boundary/contract annotations for the highest-value services.',
         confidence: 'medium',
@@ -1323,7 +1323,7 @@
       out.push({
         title: 'Add required-test evidence for high-value invariants',
         severity: tests < inv * 0.1 ? 'high' : 'warning',
-        evidence: `AWG metadata reports ${inv} invariants and ${tests} required tests.`,
+        evidence: `Sensei metadata reports ${inv} invariants and ${tests} required tests.`,
         why: 'Agents can see rules, but weak test linkage makes it harder to verify that a change preserved the rule.',
         next_step: 'Start with critical/high invariants and add aw:requiredTest links or test anchors.',
         confidence: 'medium',
@@ -1337,7 +1337,7 @@
       out.push({
         title: 'Resolve recorded pattern misuses',
         severity: misuse > 5 ? 'high' : 'warning',
-        evidence: `AWG sees ${misuse} pattern misuse node${misuse === 1 ? '' : 's'} in the graph.`,
+        evidence: `Sensei sees ${misuse} pattern misuse node${misuse === 1 ? '' : 's'} in the graph.`,
         why: 'Repeated misuse is a signal that a rule or reusable pattern is missing or unclear.',
         next_step: 'Review pattern misuse nodes and convert repeated misuse into either a forbidden fix or an implementation pattern.',
         confidence: 'medium',
@@ -1355,10 +1355,10 @@
         title: 'Stamp graph builds and wire freshness into CI',
         severity: num(m, 'triple_count') === 0 ? 'critical' : (dev || missingProv ? 'high' : 'warning'),
         evidence: dev
-          ? 'AWG reports a dev build with unstamped provenance.'
+          ? 'Sensei reports a dev build with unstamped provenance.'
           : (stale
-            ? `AWG build is ${Math.round(age)} days old.`
-            : 'AWG build is missing one or more provenance fields (build commit, source commit, build time).'),
+            ? `Sensei build is ${Math.round(age)} days old.`
+            : 'Sensei build is missing one or more provenance fields (build commit, source commit, build time).'),
         why: 'Without stamped provenance, freshness vs. the source tree cannot be verified and reviews lose confidence.',
         next_step: 'Stamp graph builds (build commit, source commit, build time) and wire seed freshness into CI.',
         confidence: 'high',
@@ -1371,7 +1371,7 @@
       out.push({
         title: 'Review the candidate queue before promoting',
         severity: 'info',
-        evidence: `AWG sees ${cand.length} candidate file${cand.length === 1 ? '' : 's'} under docs/awareness/candidates/.`,
+        evidence: `Sensei sees ${cand.length} candidate file${cand.length === 1 ? '' : 's'} under docs/awareness/candidates/.`,
         why: 'Candidates are unverified proposals; promoting without an evidence check can land un-anchored rules.',
         next_step: 'Review the candidate queue; promote only with the guarded CLI after an evidence check (this dashboard stays read-only).',
         confidence: 'high',
@@ -1384,7 +1384,7 @@
       out.push({
         title: 'Improve agent pre-edit reliability',
         severity: 'warning',
-        evidence: `AWG sees ${fmt(count('intent_count'))} intents, ${fmt(count('invariant_count'))} invariants, ${fmt(count('source_file_count'))} source files.`,
+        evidence: `Sensei sees ${fmt(count('intent_count'))} intents, ${fmt(count('invariant_count'))} invariants, ${fmt(count('source_file_count'))} source files.`,
         why: 'Preflight is only as useful as the authored intent and file anchors behind it.',
         next_step: 'Add file anchors and human intent so Preflight can give grounded pre-edit guidance.',
         confidence: 'medium',
@@ -1447,7 +1447,7 @@
     h += '<div class="rev-card"><h3>Architecture Enhancement Proposals</h3>'
       + '<div class="rev-card__sub">Suggestions traceable to graph evidence — not automatic changes. The dashboard stays read-only.</div>';
     if (!r.proposals.length) {
-      h += '<div class="notice">No structural gaps surfaced from current metadata. AWG has nothing to propose right now.</div>';
+      h += '<div class="notice">No structural gaps surfaced from current metadata. Sensei has nothing to propose right now.</div>';
     } else {
       for (const p of r.proposals) {
         const col = sev(p.severity);
@@ -1470,7 +1470,7 @@
   // ---- errors ------------------------------------------------------------
   function renderError(m) {
     const msg = m.unreachable
-      ? `AWG server not reachable. Start it with <code>awg serve</code> or set <code>awarenessGraph.serverAddr</code>.`
+      ? `Sensei server not reachable. Start it with <code>sensei serve</code> or set <code>sensei.serverAddr</code>.`
       : esc(m.message);
     const html = `<div class="notice notice--bad">Request failed (${esc(m.context)}): ${msg}</div>`;
     if (m.context === 'getMetadata') {

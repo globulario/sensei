@@ -42,7 +42,7 @@ import {
 import { candidatePromotePlan } from './localOpsPlan';
 
 // Shared "Awareness Operations" output channel — the full, auditable log of
-// every awg command the dashboard runs (command, cwd, exit, stdout/stderr).
+// every sensei command the dashboard runs (command, cwd, exit, stdout/stderr).
 // Created lazily so a read-only session never opens an empty channel.
 let opChannel: vscode.OutputChannel | undefined;
 function ops(): vscode.OutputChannel {
@@ -52,7 +52,7 @@ function ops(): vscode.OutputChannel {
   return opChannel;
 }
 
-// class → canonical YAML file `awg promote` appends to (golang promote map).
+// class → canonical YAML file `sensei promote` appends to (golang promote map).
 // Classes outside this set have no promotion target.
 const PROMOTE_TARGET: Record<string, string> = {
   invariant: 'invariants.yaml',
@@ -62,9 +62,9 @@ const PROMOTE_TARGET: Record<string, string> = {
 };
 
 type ReviewDecision = 'approved' | 'rejected';
-const reviewKey = (id: string): string => 'awg.review:' + id;
+const reviewKey = (id: string): string => 'sensei.review:' + id;
 
-// awg ops can rebuild the seed, which takes longer than a query — give promote
+// sensei ops can rebuild the seed, which takes longer than a query — give promote
 // a generous deadline independent of the per-request gRPC timeout.
 const AWG_OP_TIMEOUT_MS = 180000;
 
@@ -88,7 +88,7 @@ const SCAN_ARGS = [
 ];
 
 // A candidate entry parsed (dependency-free) from a candidates/*.yaml file.
-// This is only for listing + the review card; `awg promote --dry-run` remains
+// This is only for listing + the review card; `sensei promote --dry-run` remains
 // the source of truth for what actually lands.
 interface CandidateEntry {
   id: string;
@@ -176,7 +176,7 @@ const unquote = (s: string): string => s.trim().replace(/^["']|["']$/g, '').trim
 
 // Capture a YAML scalar that may be inline (`key: value`) or a block scalar
 // (`key: >-` / `|` followed by indented lines). Dependency-free and lossy by
-// design: it feeds the review card, while `awg promote --dry-run` stays the
+// design: it feeds the review card, while `sensei promote --dry-run` stays the
 // source of truth for what actually lands.
 function blockScalar(block: string[], key: string, cap = 600): string | undefined {
   const re = new RegExp(`^(\\s*)${key}:\\s*(.*)$`);
@@ -272,7 +272,7 @@ function parseCandidateEntries(content: string): CandidateEntry[] {
 
 export class DashboardPanel {
   static current: DashboardPanel | undefined;
-  static readonly viewType = 'awarenessGraph.dashboard';
+  static readonly viewType = 'sensei.dashboard';
 
   private readonly disposables: vscode.Disposable[] = [];
 
@@ -329,7 +329,7 @@ export class DashboardPanel {
   }
 
   private cfg(): { addr: string; domain: string; timeout: number } {
-    const c = vscode.workspace.getConfiguration('awarenessGraph');
+    const c = vscode.workspace.getConfiguration('sensei');
     return {
       addr: c.get<string>('serverAddr', 'localhost:10120'),
       domain: c.get<string>('domain', '') || '',
@@ -454,7 +454,7 @@ export class DashboardPanel {
     }
   }
 
-  // Rebuild: regenerate the seed from source (`awg rebuild`) in the workspace,
+  // Rebuild: regenerate the seed from source (`sensei rebuild`) in the workspace,
   // then reload Metadata and report before/after counts. A local op — gated,
   // confirmed, logged, and surfaced as a git diff the user commits.
   private async handleRefreshRebuild(): Promise<void> {
@@ -524,7 +524,7 @@ export class DashboardPanel {
     if (res.stdout.trim()) ch.appendLine(indentLog(res.stdout));
     if (res.stderr.trim()) ch.appendLine(indentLog(res.stderr));
     if (!res.ok) {
-      // awg writes the seed only after validation passes, so a failure usually
+      // sensei writes the seed only after validation passes, so a failure usually
       // left it untouched — restore from backup defensively all the same.
       if (restoreSeed(plan.seedPath, backup)) ch.appendLine('  restored previous seed (rebuild failed)');
       ch.appendLine(`  exit ${res.code} — rebuild failed`);
@@ -540,7 +540,7 @@ export class DashboardPanel {
       const msg =
         `Rebuild produced a much smaller seed (${preLines} → ${postLines} lines) — refusing to reload the ` +
         `live store.${restored ? ' Previous seed restored.' : ''} This usually means the combined services ` +
-        `graph was not included; set awarenessGraph.servicesRepoPath.`;
+        `graph was not included; set sensei.servicesRepoPath.`;
       ch.appendLine('  SHRINK GUARD TRIPPED: ' + msg);
       this.post({ type: 'refreshResult', mode: 'rebuild', ok: false, message: msg, guard: 'shrink', before: before?.counts });
       void vscode.window.showErrorMessage('Awareness: ' + msg);
@@ -750,10 +750,10 @@ export class DashboardPanel {
     }
     // Guarded, documented promotion flow — shown, never executed by the UI.
     const commands = [
-      { label: 'Validate candidates before promoting', cmd: 'awg corpus validate' },
-      { label: 'Promote a reviewed candidate by id', cmd: 'awg promote <candidate-id>' },
-      { label: 'Rebuild the graph after promotion', cmd: 'awg rebuild' },
-      { label: 'Verify the promoted rule actually anchors to files', cmd: 'awg impact --file <path-it-should-protect>' },
+      { label: 'Validate candidates before promoting', cmd: 'sensei corpus validate' },
+      { label: 'Promote a reviewed candidate by id', cmd: 'sensei promote <candidate-id>' },
+      { label: 'Rebuild the graph after promotion', cmd: 'sensei rebuild' },
+      { label: 'Verify the promoted rule actually anchors to files', cmd: 'sensei impact --file <path-it-should-protect>' },
     ];
     const candidateCount = files.reduce((n, f) => n + f.entries.length, 0);
     this.post({
@@ -770,7 +770,7 @@ export class DashboardPanel {
     });
   }
 
-  // Preview a promotion without touching anything: `awg promote <id> --dry-run`
+  // Preview a promotion without touching anything: `sensei promote <id> --dry-run`
   // validates the candidate and prints the canonical YAML it WOULD append.
   private async handleCandidatePreview(id: string): Promise<void> {
     let res: AwgRunResult;
@@ -791,7 +791,7 @@ export class DashboardPanel {
   }
 
   // Promote for real, after an explicit user confirmation. Runs
-  // `awg promote --no-rebuild` in the working tree (validate → append canonical
+  // `sensei promote --no-rebuild` in the working tree (validate → append canonical
   // YAML → remove candidate), then rebuilds through the same project-aware
   // rebuild plan the banner uses. This avoids clobbering the combined seed in
   // the awareness-graph repo with a plain single-repo rebuild.
@@ -966,8 +966,8 @@ export class DashboardPanel {
   }
 
   // Batch-promote every approved candidate through the guarded path: each
-  // `awg promote <id> --no-rebuild` (validate → append canonical YAML → remove
-  // from queue), then ONE `awg rebuild`, then reload metadata for before/after
+  // `sensei promote <id> --no-rebuild` (validate → append canonical YAML → remove
+  // from queue), then ONE `sensei rebuild`, then reload metadata for before/after
   // counts. Stops on the first validation failure and reports it. The graph
   // only changes through the deterministic rebuild; the user commits the diff.
   private async handlePromoteApproved(): Promise<void> {
@@ -984,8 +984,8 @@ export class DashboardPanel {
     const summary = approved.map((id) => '  • ' + (this.candidateIndex.get(id)?.label || id)).join('\n');
     const choice = await vscode.window.showWarningMessage(
       `Promote ${approved.length} approved candidate(s) into the graph?\n\n${summary}\n\n` +
-        `Each runs "awg promote <id>" (validate → append canonical YAML → remove from queue), then one ` +
-        `"awg rebuild". Files change but are NOT committed — review the git diff and commit. Stops on the ` +
+        `Each runs "sensei promote <id>" (validate → append canonical YAML → remove from queue), then one ` +
+        `"sensei rebuild". Files change but are NOT committed — review the git diff and commit. Stops on the ` +
         `first validation failure.`,
       { modal: true },
       'Promote approved'
@@ -1021,7 +1021,7 @@ export class DashboardPanel {
       async (progress) => {
         for (const id of approved) {
           progress.report({ message: id });
-          ch.appendLine(`$ awg promote ${id} --no-rebuild`);
+          ch.appendLine(`$ sensei promote ${id} --no-rebuild`);
           let res: AwgRunResult;
           try {
             res = await runAwg(['promote', id, '--no-rebuild'], AWG_OP_TIMEOUT_MS);
@@ -1172,7 +1172,7 @@ export class DashboardPanel {
     }
     const choice = await vscode.window.showWarningMessage(
       'Apply scan results to the candidate queue?\n\n' +
-        'This runs "awg intent-mine --apply" in your workspace: it writes grounded intents ' +
+        'This runs "sensei intent-mine --apply" in your workspace: it writes grounded intents ' +
         '(≥0.80 → docs/awareness/intent_*.yaml) and parks weaker proposals + findings under ' +
         'docs/awareness/candidates/ for review. Your files change but are NOT committed — you ' +
         'review the git diff and commit yourself. Nothing reaches the graph until you rebuild.',
@@ -1184,7 +1184,7 @@ export class DashboardPanel {
       return;
     }
     const ch = ops();
-    ch.appendLine('\n=== Scan apply (awg intent-mine --apply) ===');
+    ch.appendLine('\n=== Scan apply (sensei intent-mine --apply) ===');
     ch.appendLine(`cwd: ${workspaceRoot()}`);
     let res: AwgRunResult;
     try {

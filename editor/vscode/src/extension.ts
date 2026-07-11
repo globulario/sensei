@@ -14,7 +14,7 @@ const REFRESH_DEBOUNCE_MS = 250;
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new AwarenessProvider();
-  const view = vscode.window.createTreeView('awarenessGraph.fileAwareness', {
+  const view = vscode.window.createTreeView('sensei.fileAwareness', {
     treeDataProvider: provider,
     showCollapseAll: true,
   });
@@ -73,16 +73,16 @@ export function activate(context: vscode.ExtensionContext): void {
     // A save can change which rules detect-match the content; re-query on save.
     vscode.workspace.onDidSaveTextDocument(() => scheduleRefresh()),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('awarenessGraph')) {
+      if (e.affectsConfiguration('sensei')) {
         scheduleRefresh();
       }
     }),
-    vscode.commands.registerCommand('awarenessGraph.refresh', () => scheduleRefresh()),
-    vscode.commands.registerCommand('awarenessGraph.openDashboard', () =>
+    vscode.commands.registerCommand('sensei.refresh', () => scheduleRefresh()),
+    vscode.commands.registerCommand('sensei.openDashboard', () =>
       DashboardPanel.show(context)
     ),
     vscode.commands.registerCommand(
-      'awarenessGraph.revealAnchor',
+      'sensei.revealAnchor',
       (anchor: { file: string; line: number }) => revealAnchor(anchor)
     ),
     { dispose: () => disposeClient() }
@@ -90,12 +90,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // First-run discovery: surface the panel once so a new user sees it exists.
   // After that it never steals focus — it just tracks the active editor.
-  const REVEAL_KEY = 'awarenessGraph.firstRunRevealed';
+  const REVEAL_KEY = 'sensei.firstRunRevealed';
   if (!context.globalState.get<boolean>(REVEAL_KEY)) {
     void context.globalState.update(REVEAL_KEY, true);
     // Delay so the view is registered before we focus it (activation race).
     setTimeout(() => {
-      void vscode.commands.executeCommand('awarenessGraph.fileAwareness.focus');
+      void vscode.commands.executeCommand('sensei.fileAwareness.focus');
     }, 1200);
   }
 

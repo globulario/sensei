@@ -3,7 +3,7 @@
 // gRPC client for the awareness-graph backend.
 //
 // The extension is a first-class gRPC client of the same `AwarenessGraph`
-// service every other consumer uses (the `awg` CLI, the MCP bridge) — it does
+// service every other consumer uses (the `sensei` CLI, the MCP bridge) — it does
 // not shell out to a binary. The contract is loaded dynamically from the
 // vendored proto via @grpc/proto-loader, so there is no generated-stub build
 // step and no risk of the TypeScript drifting from the wire format.

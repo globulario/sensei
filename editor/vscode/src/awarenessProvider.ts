@@ -50,7 +50,7 @@ export class AwarenessProvider implements vscode.TreeDataProvider<Element> {
 
   /** Re-query for the given file URI (or clear the panel when none applies). */
   async refresh(uri: vscode.Uri | undefined): Promise<void> {
-    const cfg = vscode.workspace.getConfiguration('awarenessGraph');
+    const cfg = vscode.workspace.getConfiguration('sensei');
     if (!cfg.get<boolean>('enabled', true)) {
       this.setState({ kind: 'disabled' });
       return;
@@ -112,7 +112,7 @@ export class AwarenessProvider implements vscode.TreeDataProvider<Element> {
     switch (this.state.kind) {
       case 'disabled':
         return [msg('Awareness querying is off', 'circle-slash',
-          'Enable `awarenessGraph.enabled` to query the graph as you switch files.')];
+          'Enable `sensei.enabled` to query the graph as you switch files.')];
       case 'noFile':
         return [msg('Open a file to see what governs it', 'info')];
       case 'loading':
@@ -126,13 +126,13 @@ export class AwarenessProvider implements vscode.TreeDataProvider<Element> {
 
   private errorRow(error: AwgError): Element {
     const addr = vscode.workspace
-      .getConfiguration('awarenessGraph')
+      .getConfiguration('sensei')
       .get<string>('serverAddr', 'localhost:10120');
     if (error.unreachable) {
-      return msg(`AWG unavailable — no graph briefing`, 'debug-disconnect',
+      return msg(`Sensei unavailable — no graph briefing`, 'debug-disconnect',
         `Could not reach the awareness-graph server at \`${addr}\`.\n\n` +
         'This is not an empty or low-coverage answer. The file panel has no graph-backed guidance because the authority backend is down or unreachable.\n\n' +
-        'Start it with `awg serve`, or set `awarenessGraph.serverAddr`.');
+        'Start it with `sensei serve`, or set `sensei.serverAddr`.');
     }
     return msg(`Awareness query failed`, 'warning', error.message);
   }
@@ -257,7 +257,7 @@ function nodeTreeItem(node: KnowledgeNode): vscode.TreeItem {
   const anchor = bestAnchor(node.anchor);
   if (anchor) {
     item.command = {
-      command: 'awarenessGraph.revealAnchor',
+      command: 'sensei.revealAnchor',
       title: 'Open Source Anchor',
       arguments: [anchor],
     };
@@ -326,7 +326,7 @@ function authorityTooltip(authority?: GraphAuthority): string {
   }
   let out = `\n\nAuthority: ${prefix} · freshness ${freshness} · provenance ${provenance} · transaction ${transaction}`;
   if (authority.certified_awareness_graph_commit || authority.certified_services_repo_commit) {
-    out += `\ntransaction commits: awg=${authority.certified_awareness_graph_commit || 'n/a'} services=${authority.certified_services_repo_commit || 'n/a'}`;
+    out += `\ntransaction commits: graph=${authority.certified_awareness_graph_commit || 'n/a'} services=${authority.certified_services_repo_commit || 'n/a'}`;
   }
   if (authority.embedded_transaction_detail) {
     out += `\n${authority.embedded_transaction_detail}`;
@@ -396,7 +396,7 @@ function stringGroup(label: string, icon: string, items: string[]): Element {
 }
 
 /**
- * Map a document URI to a repo-relative POSIX path, the form AWG anchors on
+ * Map a document URI to a repo-relative POSIX path, the form Sensei anchors on
  * (e.g. "golang/server/impact.go"). Returns undefined for non-file documents
  * (output panels, git diffs, untitled) and files outside any workspace folder.
  */

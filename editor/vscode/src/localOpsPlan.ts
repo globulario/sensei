@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface RebuildPlanLike {
-  awgPath: string;
+  senseiPath: string;
   args: string[];
   command: string;
 }
@@ -37,7 +37,7 @@ export function candidatePromotePlan(
     {
       label: 'promote',
       args: ['promote', id, '--no-rebuild'],
-      command: `${plan.awgPath} promote ${id} --no-rebuild`,
+      command: `${plan.senseiPath} promote ${id} --no-rebuild`,
     },
     {
       label: 'rebuild',
@@ -49,7 +49,7 @@ export function candidatePromotePlan(
 
 const SEED_REL = path.join('golang', 'server', 'embeddata', 'awareness.nt');
 
-/** A services checkout is identified by namespaces.yaml — the same marker awg's
+/** A services checkout is identified by namespaces.yaml — the same marker sensei's
  * own resolveServicesRepo() walks up to find. */
 export function isServicesRepo(p: string): boolean {
   return fs.existsSync(path.join(p, 'docs', 'awareness', 'namespaces.yaml'));
@@ -73,17 +73,17 @@ export function findAwarenessGraphRoot(start: string): string | undefined {
 
 /** Work out the correct rebuild command for the current workspace/repo shape. */
 export function resolveRebuildPlan(
-  awgPath: string,
+  senseiPath: string,
   cwd: string | undefined,
   servicesRepoSetting: string
 ): RebuildPlan {
   const single: RebuildPlan = {
     mode: 'single',
-    awgPath,
+    senseiPath,
     cwd,
     args: ['rebuild'],
     servicesDetected: false,
-    command: `${awgPath} rebuild`,
+    command: `${senseiPath} rebuild`,
   };
   if (!cwd) {
     return single;
@@ -108,7 +108,7 @@ export function resolveRebuildPlan(
         seedPath,
         mode: 'blocked',
         reason:
-          `awarenessGraph.servicesRepoPath is set to "${configured}" but that is not a ` +
+          `sensei.servicesRepoPath is set to "${configured}" but that is not a ` +
           `services repo (no docs/awareness/namespaces.yaml). Fix the path to rebuild the combined graph.`,
       };
     }
@@ -128,18 +128,18 @@ export function resolveRebuildPlan(
       mode: 'blocked',
       reason:
         'Combined graph rebuild requires a services repo path. Configure ' +
-        'awarenessGraph.servicesRepoPath (or place the services repo at ../services).',
+        'sensei.servicesRepoPath (or place the services repo at ../services).',
     };
   }
 
   return {
     mode: 'combined',
-    awgPath,
+    senseiPath,
     cwd,
     seedPath,
     servicesRepoPath: svc,
     servicesDetected: detected,
     args: ['rebuild', '--services-repo', svc],
-    command: `${awgPath} rebuild --services-repo ${svc}`,
+    command: `${senseiPath} rebuild --services-repo ${svc}`,
   };
 }
