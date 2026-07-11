@@ -9,7 +9,7 @@ DevOps / Marketplace identity.
 
 1. **Create the publisher.** Go to <https://marketplace.visualstudio.com/manage>,
    sign in with the Microsoft account that should own the listing, and create a
-   publisher with the ID **`davecourtois`** (must match `"publisher"` in
+   publisher with the ID **`globulario`** (must match `"publisher"` in
    `package.json`).
 
 2. **Generate a Personal Access Token (PAT).** In Azure DevOps
@@ -39,7 +39,7 @@ release** (and add a `CHANGELOG.md` entry).
 ```sh
 cd editor/vscode
 npm ci
-npx @vscode/vsce publish -p <YOUR_PAT>     # or: vsce login davecourtois, then vsce publish
+npx @vscode/vsce publish -p <YOUR_PAT>     # or: vsce login globulario, then vsce publish
 ```
 
 ## Install without the Marketplace
