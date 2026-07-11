@@ -67,8 +67,9 @@ jobs:
           LDFLAGS="-s -w -X main.Version=${VERSION}"
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags "${LDFLAGS}" \
-            -o bin/awg \
+            -o bin/sensei \
             ./cmd/awg
+          cp bin/sensei bin/awg   # deprecated alias, still shipped in the local bundle
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags "${LDFLAGS}" \
             -o bin/awareness-mcp \
@@ -77,9 +78,21 @@ jobs:
             go build -trimpath -ldflags "${LDFLAGS}" \
             -o bin/awareness-graph \
             ./golang/server
-          echo "Built bin/awg ($(du -sh bin/awg | cut -f1))"
+          echo "Built bin/sensei ($(du -sh bin/sensei | cut -f1))"
           echo "Built bin/awareness-mcp ($(du -sh bin/awareness-mcp | cut -f1))"
           echo "Built bin/awareness-graph ($(du -sh bin/awareness-graph | cut -f1))"
+
+      - name: Stage standalone binaries (fast path for the GitHub Action)
+        run: |
+          set -euo pipefail
+          cp bin/sensei          /tmp/sensei-linux-amd64
+          cp bin/awareness-graph /tmp/awareness-graph-linux-amd64
+          cp bin/awareness-mcp   /tmp/awareness-mcp-linux-amd64
+          cd /tmp
+          for f in sensei-linux-amd64 awareness-graph-linux-amd64 awareness-mcp-linux-amd64; do
+            sha256sum "$f" > "$f.sha256"
+          done
+          echo "Staged standalone binaries: sensei, awareness-graph, awareness-mcp (linux-amd64)"
 
       - name: Run tests
         run: go test ./... -count=1 -timeout 120s
@@ -204,5 +217,8 @@ jobs:
             "/tmp/${SERVICE_TARBALL_NAME}" \
             "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
             "/tmp/${LOCAL_TARBALL_NAME}" \
-            "/tmp/${LOCAL_TARBALL_NAME}.sha256"
+            "/tmp/${LOCAL_TARBALL_NAME}.sha256" \
+            /tmp/sensei-linux-amd64 /tmp/sensei-linux-amd64.sha256 \
+            /tmp/awareness-graph-linux-amd64 /tmp/awareness-graph-linux-amd64.sha256 \
+            /tmp/awareness-mcp-linux-amd64 /tmp/awareness-mcp-linux-amd64.sha256
           echo "Release ${TAG} created."
