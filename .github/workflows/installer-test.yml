@@ -1,0 +1,40 @@
+# Validate the one-line installers against the current published release, so
+# install.sh / install.ps1 can't silently rot. Runs on changes to the installers
+# and on demand.
+name: Installer test
+
+on:
+  push:
+    branches: [main]
+    paths: ['install.sh', 'install.ps1', '.github/workflows/installer-test.yml']
+  pull_request:
+    paths: ['install.sh', 'install.ps1', '.github/workflows/installer-test.yml']
+  workflow_dispatch:
+
+jobs:
+  posix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install via install.sh (latest release) and smoke-test
+        run: |
+          set -eu
+          SENSEI_PREFIX="$RUNNER_TEMP/sensei" sh install.sh
+          "$RUNNER_TEMP/sensei/sensei" version
+          "$RUNNER_TEMP/sensei/oxigraph" --version
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install via install.ps1 (latest release) and smoke-test
+        shell: pwsh
+        run: |
+          $env:SENSEI_PREFIX = "$env:RUNNER_TEMP\sensei"
+          ./install.ps1
+          & "$env:RUNNER_TEMP\sensei\sensei.exe" version
+          & "$env:RUNNER_TEMP\sensei\oxigraph.exe" --version
