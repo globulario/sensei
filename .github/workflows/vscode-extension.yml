@@ -46,3 +46,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Package (validate the .vsix builds)
+        run: npx --yes @vscode/vsce package --no-git-tag-version -o /tmp/sensei.vsix

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// Local `awg` CLI runner — the extension's only write channel.
+// Local `sensei` CLI runner — the extension's only write channel.
 //
 // The dashboard is a pure gRPC *read* client. Write operations (promoting a
 // reviewed candidate) are inherently local: they mutate the workspace's
 // awareness YAML and rebuild the embedded seed, which the remote daemon cannot
 // do because it does not have the user's checkout. So those run the local
-// `awg` binary in the workspace — and only when the user has explicitly opted
-// in via `awarenessGraph.enableLocalOperations` (default off).
+// `sensei` binary in the workspace — and only when the user has explicitly opted
+// in via `sensei.enableLocalOperations` (default off).
 //
-// We never bypass `awg`'s guards: `awg promote` validates naming/status/
+// We never bypass `sensei`'s guards: `sensei promote` validates naming/status/
 // confidence/evidence, appends to the canonical YAML, removes the candidate,
 // and rebuilds. The GUI just drives it (with `--dry-run` for preview) and shows
 // the resulting git diff. Nothing lands invisibly; the user still commits.
@@ -25,7 +25,7 @@ export interface AwgRunResult {
   code: number | null;
   stdout: string;
   stderr: string;
-  /** Set when the process could not be started (e.g. awg not found). */
+  /** Set when the process could not be started (e.g. sensei not found). */
   spawnError?: string;
 }
 
@@ -33,8 +33,8 @@ export interface AwgRunResult {
 export class LocalOpsDisabledError extends Error {
   constructor() {
     super(
-      'Local operations are disabled. Enable "awarenessGraph.enableLocalOperations" ' +
-        'to let the dashboard run awg in your workspace.'
+      'Local operations are disabled. Enable "sensei.enableLocalOperations" ' +
+        'to let the dashboard run sensei in your workspace.'
     );
     this.name = 'LocalOpsDisabledError';
   }
@@ -42,18 +42,18 @@ export class LocalOpsDisabledError extends Error {
 
 export function localOpsEnabled(): boolean {
   return vscode.workspace
-    .getConfiguration('awarenessGraph')
+    .getConfiguration('sensei')
     .get<boolean>('enableLocalOperations', false);
 }
 
-function awgPath(): string {
+function senseiPath(): string {
   return (
-    vscode.workspace.getConfiguration('awarenessGraph').get<string>('awgPath', 'awg') || 'awg'
+    vscode.workspace.getConfiguration('sensei').get<string>('senseiPath', 'sensei') || 'sensei'
   );
 }
 
-// The workspace root to run awg from. Prefer a folder that actually holds an
-// awareness candidate tree (so awg auto-detects the right repos); otherwise the
+// The workspace root to run sensei from. Prefer a folder that actually holds an
+// awareness candidate tree (so sensei auto-detects the right repos); otherwise the
 // first workspace folder.
 export function workspaceRoot(): string | undefined {
   const folders = vscode.workspace.workspaceFolders ?? [];
@@ -90,16 +90,16 @@ function run(
   });
 }
 
-/** Run `awg <args>` in the workspace. Throws if local ops are disabled or there is no workspace. */
+/** Run `sensei <args>` in the workspace. Throws if local ops are disabled or there is no workspace. */
 export function runAwg(args: string[], timeoutMs: number): Promise<AwgRunResult> {
   if (!localOpsEnabled()) {
     return Promise.reject(new LocalOpsDisabledError());
   }
   const cwd = workspaceRoot();
   if (!cwd) {
-    return Promise.reject(new Error('No workspace folder open to run awg in.'));
+    return Promise.reject(new Error('No workspace folder open to run sensei in.'));
   }
-  return run(awgPath(), args, cwd, timeoutMs);
+  return run(senseiPath(), args, cwd, timeoutMs);
 }
 
 /** `git diff --stat` over the awareness tree, so the user sees exactly what a promote changed. */
@@ -121,7 +121,7 @@ export async function awarenessDiffStat(timeoutMs = 10000): Promise<string> {
 
 let awgAvailableCache: boolean | undefined;
 
-/** True when the configured `awg` binary can be spawned in the workspace.
+/** True when the configured `sensei` binary can be spawned in the workspace.
  * Independent of enableLocalOperations — capability detection must work even
  * when local ops are off, so the UI can tell the user what they're missing. */
 export async function awgAvailable(timeoutMs = 5000): Promise<boolean> {
@@ -134,12 +134,12 @@ export async function awgAvailable(timeoutMs = 5000): Promise<boolean> {
   }
   // A non-zero exit (unknown flag) still means the binary spawned; only ENOENT
   // (captured as spawnError) means "not found".
-  const res = await run(awgPath(), ['--help'], cwd, timeoutMs);
+  const res = await run(senseiPath(), ['--help'], cwd, timeoutMs);
   awgAvailableCache = !res.spawnError;
   return awgAvailableCache;
 }
 
-/** True when the workspace root looks like an AWG-enabled project. */
+/** True when the workspace root looks like an Sensei-enabled project. */
 export function isAwgProject(): boolean {
   const root = workspaceRoot();
   return !!root && fs.existsSync(path.join(root, 'docs', 'awareness'));
@@ -147,13 +147,13 @@ export function isAwgProject(): boolean {
 
 function servicesRepoSetting(): string {
   return (
-    vscode.workspace.getConfiguration('awarenessGraph').get<string>('servicesRepoPath', '') || ''
+    vscode.workspace.getConfiguration('sensei').get<string>('servicesRepoPath', '') || ''
   ).trim();
 }
 
 /** Work out the correct rebuild command for the current workspace. */
 export function rebuildPlan(): RebuildPlan {
-  return resolveRebuildPlan(awgPath(), workspaceRoot(), servicesRepoSetting());
+  return resolveRebuildPlan(senseiPath(), workspaceRoot(), servicesRepoSetting());
 }
 
 /** Lines in the committed seed (0 if missing) — the cheap, deterministic metric

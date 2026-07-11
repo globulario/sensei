@@ -5,24 +5,38 @@
   "version": "0.1.0",
   "publisher": "globulario",
   "license": "Apache-2.0",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/globulario/sensei.git",
     "directory": "editor/vscode"
   },
+  "homepage": "https://github.com/globulario/sensei/tree/main/editor/vscode#readme",
+  "bugs": {
+    "url": "https://github.com/globulario/sensei/issues"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "AI",
+    "Linters",
+    "Visualization"
   ],
   "keywords": [
+    "sensei",
     "awareness",
     "architecture",
     "invariants",
     "ai",
+    "code review",
     "grpc"
   ],
+  "galleryBanner": {
+    "color": "#1b1b2f",
+    "theme": "dark"
+  },
+  "pricing": "Free",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -31,16 +45,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "awarenessGraph",
-          "title": "Awareness",
+          "id": "sensei",
+          "title": "Sensei",
           "icon": "media/awareness.svg"
         }
       ]
     },
     "views": {
-      "awarenessGraph": [
+      "sensei": [
         {
-          "id": "awarenessGraph.fileAwareness",
+          "id": "sensei.fileAwareness",
           "name": "This File",
           "icon": "media/awareness.svg",
           "contextualTitle": "Sensei"
@@ -49,30 +63,30 @@
     },
     "commands": [
       {
-        "command": "awarenessGraph.refresh",
-        "title": "Awareness: Refresh",
+        "command": "sensei.refresh",
+        "title": "Sensei: Refresh",
         "icon": "$(refresh)"
       },
       {
-        "command": "awarenessGraph.revealAnchor",
-        "title": "Awareness: Open Source Anchor"
+        "command": "sensei.revealAnchor",
+        "title": "Sensei: Open Source Anchor"
       },
       {
-        "command": "awarenessGraph.openDashboard",
-        "title": "Awareness: Open Project Dashboard",
+        "command": "sensei.openDashboard",
+        "title": "Sensei: Open Project Dashboard",
         "icon": "$(graph)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "awarenessGraph.openDashboard",
-          "when": "view == awarenessGraph.fileAwareness",
+          "command": "sensei.openDashboard",
+          "when": "view == sensei.fileAwareness",
           "group": "navigation@1"
         },
         {
-          "command": "awarenessGraph.refresh",
-          "when": "view == awarenessGraph.fileAwareness",
+          "command": "sensei.refresh",
+          "when": "view == sensei.fileAwareness",
           "group": "navigation@2"
         }
       ]
@@ -80,17 +94,17 @@
     "configuration": {
       "title": "Sensei",
       "properties": {
-        "awarenessGraph.serverAddr": {
+        "sensei.serverAddr": {
           "type": "string",
           "default": "localhost:10120",
-          "description": "Address of the awareness-graph gRPC server (host:port). Started with `awg serve`."
+          "description": "Address of the awareness-graph gRPC server (host:port). Started with `sensei serve`."
         },
-        "awarenessGraph.domain": {
+        "sensei.domain": {
           "type": "string",
           "default": "",
           "description": "Domain/repo scope (e.g. github.com/owner/repo). Required when the graph hosts more than one domain; leave empty for a single-domain graph."
         },
-        "awarenessGraph.mode": {
+        "sensei.mode": {
           "type": "string",
           "enum": [
             "compact",
@@ -99,30 +113,30 @@
           "default": "standard",
           "description": "Preflight detail level. compact: top few anchors; standard: a fuller set."
         },
-        "awarenessGraph.enabled": {
+        "sensei.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Query the awareness graph as you switch files. Turn off to stop all background gRPC calls."
         },
-        "awarenessGraph.requestTimeoutMs": {
+        "sensei.requestTimeoutMs": {
           "type": "number",
           "default": 10000,
           "description": "Per-request gRPC deadline in milliseconds."
         },
-        "awarenessGraph.enableLocalOperations": {
+        "sensei.enableLocalOperations": {
           "type": "boolean",
           "default": false,
-          "description": "Allow the dashboard to run the local `awg` CLI in your workspace for write operations (e.g. promoting a reviewed candidate). Off by default: the dashboard stays read-only and shows the guarded CLI to run yourself. When on, promotion runs `awg promote` in your working tree and surfaces the resulting git diff for you to review and commit — it never auto-commits."
+          "description": "Allow the dashboard to run the local `sensei` CLI in your workspace for write operations (e.g. promoting a reviewed candidate). Off by default: the dashboard stays read-only and shows the guarded CLI to run yourself. When on, promotion runs `sensei promote` in your working tree and surfaces the resulting git diff for you to review and commit — it never auto-commits."
         },
-        "awarenessGraph.awgPath": {
+        "sensei.senseiPath": {
           "type": "string",
-          "default": "awg",
-          "description": "Path to the `awg` CLI used for local operations (see awarenessGraph.enableLocalOperations). Defaults to `awg` on PATH."
+          "default": "sensei",
+          "description": "Path to the `sensei` CLI used for local operations (see sensei.enableLocalOperations). Defaults to `sensei` on PATH."
         },
-        "awarenessGraph.servicesRepoPath": {
+        "sensei.servicesRepoPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the sibling `services` repo, for rebuilding the COMBINED awareness-graph + services seed. Required only when the workspace is the awareness-graph repo (whose committed seed is the combined graph). When set, Rebuild runs `awg rebuild --services-repo <path>`; relative paths resolve against the awareness-graph repo root. Leave empty to auto-detect `../services` — if the workspace needs a combined seed and none is found, Rebuild is disabled rather than silently producing a single-repo seed."
+          "description": "Path to the sibling `services` repo, for rebuilding the COMBINED awareness-graph + services seed. Required only when the workspace is the awareness-graph repo (whose committed seed is the combined graph). When set, Rebuild runs `sensei rebuild --services-repo <path>`; relative paths resolve against the awareness-graph repo root. Leave empty to auto-detect `../services` — if the workspace needs a combined seed and none is found, Rebuild is disabled rather than silently producing a single-repo seed."
         }
       }
     }

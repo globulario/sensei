@@ -14,25 +14,25 @@ import {
 
 test('candidatePromotePlan stages candidate without implicit rebuild', () => {
   const rebuild: RebuildPlanLike = {
-    awgPath: 'awg',
+    senseiPath: 'sensei',
     args: ['rebuild'],
-    command: 'awg rebuild',
+    command: 'sensei rebuild',
   };
 
   const steps = candidatePromotePlan('candidate.one', rebuild);
 
   assert.equal(steps.length, 2);
   assert.deepEqual(steps[0].args, ['promote', 'candidate.one', '--no-rebuild']);
-  assert.equal(steps[0].command, 'awg promote candidate.one --no-rebuild');
+  assert.equal(steps[0].command, 'sensei promote candidate.one --no-rebuild');
   assert.deepEqual(steps[1].args, ['rebuild']);
-  assert.equal(steps[1].command, 'awg rebuild');
+  assert.equal(steps[1].command, 'sensei rebuild');
 });
 
 test('candidatePromotePlan preserves project-aware combined rebuild command', () => {
   const rebuild: RebuildPlanLike = {
-    awgPath: '/usr/local/bin/awg',
+    senseiPath: '/usr/local/bin/sensei',
     args: ['rebuild', '--services-repo', '/work/services'],
-    command: '/usr/local/bin/awg rebuild --services-repo /work/services',
+    command: '/usr/local/bin/sensei rebuild --services-repo /work/services',
   };
 
   const steps = candidatePromotePlan('candidate.two', rebuild);
@@ -41,12 +41,12 @@ test('candidatePromotePlan preserves project-aware combined rebuild command', ()
   assert.deepEqual(steps[1].args, ['rebuild', '--services-repo', '/work/services']);
   assert.equal(
     steps[1].command,
-    '/usr/local/bin/awg rebuild --services-repo /work/services'
+    '/usr/local/bin/sensei rebuild --services-repo /work/services'
   );
 });
 
 function tempDir(t: test.TestContext): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'awg-vscode-plan-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sensei-vscode-plan-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -59,11 +59,11 @@ test('resolveRebuildPlan stays single-repo outside awareness-graph checkout', (t
   const root = tempDir(t);
   mkdirp(path.join(root, 'docs', 'awareness'));
 
-  const plan = resolveRebuildPlan('awg', root, '');
+  const plan = resolveRebuildPlan('sensei', root, '');
 
   assert.equal(plan.mode, 'single');
   assert.deepEqual(plan.args, ['rebuild']);
-  assert.equal(plan.command, 'awg rebuild');
+  assert.equal(plan.command, 'sensei rebuild');
 });
 
 test('resolveRebuildPlan auto-detects sibling services for awareness-graph repo', (t) => {
@@ -75,13 +75,13 @@ test('resolveRebuildPlan auto-detects sibling services for awareness-graph repo'
   fs.writeFileSync(path.join(services, 'docs', 'awareness', 'namespaces.yaml'), 'namespaces: []\n');
   fs.writeFileSync(path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'), '<s> <p> <o> .\n');
 
-  const plan = resolveRebuildPlan('awg', path.join(ag, 'editor'), '');
+  const plan = resolveRebuildPlan('sensei', path.join(ag, 'editor'), '');
 
   assert.equal(plan.mode, 'combined');
   assert.equal(plan.servicesDetected, true);
   assert.equal(plan.servicesRepoPath, services);
   assert.deepEqual(plan.args, ['rebuild', '--services-repo', services]);
-  assert.equal(plan.command, `awg rebuild --services-repo ${services}`);
+  assert.equal(plan.command, `sensei rebuild --services-repo ${services}`);
   assert.equal(plan.seedPath, path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'));
 });
 
@@ -91,7 +91,7 @@ test('resolveRebuildPlan blocks awareness-graph rebuild when services repo is mi
   mkdirp(path.join(ag, 'golang', 'server', 'embeddata'));
   fs.writeFileSync(path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'), '<s> <p> <o> .\n');
 
-  const plan = resolveRebuildPlan('awg', ag, '');
+  const plan = resolveRebuildPlan('sensei', ag, '');
 
   assert.equal(plan.mode, 'blocked');
   assert.match(plan.reason || '', /Combined graph rebuild requires a services repo path/);
@@ -104,7 +104,7 @@ test('resolveRebuildPlan blocks invalid configured services repo path', (t) => {
   fs.writeFileSync(path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'), '<s> <p> <o> .\n');
   mkdirp(path.join(parent, 'not-services'));
 
-  const plan = resolveRebuildPlan('awg', ag, '../not-services');
+  const plan = resolveRebuildPlan('sensei', ag, '../not-services');
 
   assert.equal(plan.mode, 'blocked');
   assert.match(plan.reason || '', /is set to "\.\.\/not-services" but that is not a services repo/);
