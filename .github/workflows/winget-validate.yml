@@ -1,0 +1,55 @@
+# Validate the winget manifests against a real Windows runner: schema-validate,
+# install from the local manifests (downloads the actual release zip + verifies
+# its SHA256), then smoke-test that the installed sensei.exe runs AND that
+# `sensei serve` resolves its awareness-graph.exe / oxigraph.exe siblings.
+name: Winget validate
+
+on:
+  push:
+    branches: [main]
+    paths: ['packaging/winget/**', '.github/workflows/winget-validate.yml']
+  pull_request:
+    paths: ['packaging/winget/**', '.github/workflows/winget-validate.yml']
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate manifest schema
+        shell: pwsh
+        run: winget validate --manifest packaging/winget
+
+      - name: Install from the local manifest (downloads the real release zip)
+        shell: pwsh
+        run: |
+          winget install --manifest packaging/winget `
+            --accept-package-agreements --accept-source-agreements --disable-interactivity
+
+      - name: Smoke-test the installed binaries (version + serve resolves siblings)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Find the extracted portable install (winget Packages dir).
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filter sensei.exe |
+                 Select-Object -First 1 -ExpandProperty FullName
+          if (-not $exe) { throw "installed sensei.exe not found" }
+          Write-Host "installed: $exe"
+          & $exe version
+
+          # serve must spawn awareness-graph.exe + oxigraph.exe (siblings of sensei.exe)
+          # and listen on :10120 — this proves the .exe sibling lookup in the winget layout.
+          $p = Start-Process $exe -ArgumentList 'serve','-no-seed','--allow-stale-seed' -PassThru -NoNewWindow
+          try {
+            $up = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              try { $c = New-Object Net.Sockets.TcpClient('127.0.0.1', 10120); if ($c.Connected) { $up = $true; $c.Close(); break } } catch {}
+              Start-Sleep -Seconds 1
+            }
+            if (-not $up) { throw "sensei serve did not come up — sibling resolution (oxigraph/awareness-graph) failed?" }
+            Write-Host "OK: sensei serve is up on :10120 (siblings resolved)"
+          } finally {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          }
