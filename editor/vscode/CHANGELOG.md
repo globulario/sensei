@@ -1,7 +1,12 @@
 # Changelog
 
-## 0.1.1
+## 0.1.2
 
+- **Robust domain default.** The dashboard no longer scopes the banner/lists to a
+  git-remote-derived domain the graph doesn't actually key on (which showed
+  near-empty counts and looked like Reload was broken) — it self-heals to the
+  graph-wide view when the derived project domain isn't among the graph's
+  domains; you can still pick any domain from the filter.
 - **Domain filtering — scope the whole dashboard to a project.** On a graph that
   hosts more than one repo/domain, the "This File" view and node detail resolve
   against *this* project's domain (derived from the workspace git remote;

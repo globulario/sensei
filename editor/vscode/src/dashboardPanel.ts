@@ -444,10 +444,23 @@ export class DashboardPanel {
     };
   }
 
+  private domainDefaultResolved = false;
+
   private async handleMetadata(): Promise<void> {
     const { addr, timeout } = this.cfg();
-    const domain = await this.activeDomain();
-    const data = await metadata(addr, timeout, domain || undefined);
+    let domain = await this.activeDomain();
+    let data = await metadata(addr, timeout, domain || undefined);
+    // One-time self-heal: if we auto-defaulted to a project domain the graph
+    // doesn't actually key on (its git remote ≠ the graph's domain key), the
+    // scoped counts would be near-empty and look broken. Fall back to graph-wide.
+    if (!this.domainDefaultResolved && this.selectedDomain === undefined && domain) {
+      this.domainDefaultResolved = true;
+      if (!(data.available_domains ?? []).includes(domain)) {
+        this.selectedDomain = '';
+        domain = '';
+        data = await metadata(addr, timeout, undefined);
+      }
+    }
     this.post({ type: 'metadata', data, activeDomain: domain, localOps: this.localOpsPayload() });
   }
 
