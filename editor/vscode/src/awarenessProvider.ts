@@ -132,7 +132,10 @@ export class AwarenessProvider implements vscode.TreeDataProvider<Element> {
       return msg(`Sensei unavailable — no graph briefing`, 'debug-disconnect',
         `Could not reach the awareness-graph server at \`${addr}\`.\n\n` +
         'This is not an empty or low-coverage answer. The file panel has no graph-backed guidance because the authority backend is down or unreachable.\n\n' +
-        'Start it with `sensei serve`, or set `sensei.serverAddr`.');
+        'This extension is a client of the Sensei CLI (https://github.com/globulario/sensei). ' +
+        'Install it — `brew install globulario/tap/sensei`, `winget install Globulario.Sensei`, or ' +
+        '`curl -fsSL https://raw.githubusercontent.com/globulario/sensei/main/install.sh | sh` — then start it with `sensei serve` ' +
+        '(or set `sensei.serverAddr`).');
     }
     return msg(`Awareness query failed`, 'warning', error.message);
   }

@@ -1301,6 +1301,11 @@ export class DashboardPanel {
     </section>
   </main>
 
+  <footer class="footer">
+    This view is a client of the <a href="https://github.com/globulario/sensei">Sensei CLI</a> — it reads the awareness graph that <code>sensei serve</code> hosts.
+    Install it: <code>brew install globulario/tap/sensei</code> · <code>winget install Globulario.Sensei</code> · <code>curl -fsSL https://raw.githubusercontent.com/globulario/sensei/main/install.sh | sh</code>, then run <code>sensei serve</code>.
+  </footer>
+
   <script nonce="${nonce}" src="${jsUri}"></script>
 </body>
 </html>`;

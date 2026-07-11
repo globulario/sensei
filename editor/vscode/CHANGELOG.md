@@ -2,6 +2,10 @@
 
 ## 0.1.1
 
+- **Point users at the Sensei CLI.** The extension is a *client* of the `sensei`
+  CLI — the dashboard now has a footer linking the project with one-line install
+  commands (Homebrew / winget / curl), and the "server unreachable" message in
+  the This File view explains how to install and start `sensei serve`.
 - **Fix a confusing dashboard status after Reload/Rebuild.** When the graph is
   fresh but served by a locally-built (dev) server, the status no longer reads
   the self-contradictory "graph is current — authority disabled". It now states
