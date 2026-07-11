@@ -34,9 +34,27 @@ says so explicitly, and distinguishes:
 This is deliberate: a rule authored without a file anchor shows up as governing
 *nothing*, instead of silently surfacing nowhere.
 
+## Install
+
+From the VS Code **Extensions** view, search **Sensei** — or from the command line:
+
+```sh
+code --install-extension globulario.sensei
+```
+
+Or install a packaged build directly:
+
+```sh
+code --install-extension sensei-0.1.0.vsix
+```
+
+You'll also need the `sensei` CLI itself — see the
+[install options](https://github.com/globulario/sensei#install-one-line)
+(one-line installer, Homebrew, winget, or from source).
+
 ## Requirements
 
-A running awareness-graph server:
+A running `awareness-graph` server (the gRPC backend `sensei serve` starts):
 
 ```sh
 sensei serve            # defaults to localhost:10120
@@ -49,11 +67,11 @@ The extension is a first-class **gRPC client** of that server — the same
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `awarenessGraph.serverAddr` | `localhost:10120` | gRPC server address (`host:port`). |
-| `awarenessGraph.domain` | `""` | Domain/repo scope (e.g. `github.com/owner/repo`). Required on a multi-domain graph. |
-| `awarenessGraph.mode` | `standard` | Preflight detail level: `compact` or `standard`. |
-| `awarenessGraph.enabled` | `true` | Query the graph as you switch files. |
-| `awarenessGraph.requestTimeoutMs` | `10000` | Per-request gRPC deadline. |
+| `sensei.serverAddr` | `localhost:10120` | gRPC server address (`host:port`). |
+| `sensei.domain` | `""` | Domain/repo scope (e.g. `github.com/owner/repo`). Required on a multi-domain graph. |
+| `sensei.mode` | `standard` | Preflight detail level: `compact` or `standard`. |
+| `sensei.enabled` | `true` | Query the graph as you switch files. |
+| `sensei.requestTimeoutMs` | `10000` | Per-request gRPC deadline. |
 
 ## Develop
 
@@ -71,7 +89,7 @@ canonical `proto/awareness_graph.proto`.
 
 ## Project dashboard
 
-Open **Awareness: Open Project Dashboard** (the graph icon in the "This File"
+Open **Sensei: Open Project Dashboard** (the graph icon in the "This File"
 view header, or the command palette) for an architect's cockpit:
 
 - **Control banner** from `Metadata` — totals per class + a state signal
@@ -168,8 +186,8 @@ single-repo rebuild.
 
 ### Prerequisites & graceful degradation
 
-Promotion needs: a workspace open, `awarenessGraph.enableLocalOperations: true`,
-and the `sensei` CLI on `PATH` (or `awarenessGraph.awgPath`). The tab detects each
+Promotion needs: a workspace open, `sensei.enableLocalOperations: true`,
+and the `sensei` CLI on `PATH` (or `sensei.senseiPath`). The tab detects each
 and **degrades gracefully** — if local ops are off, `sensei` is missing, or the
 folder isn't an Sensei project, it says exactly what's missing and shows the guarded
 CLI to run by hand. It never fails silently.
@@ -225,6 +243,6 @@ and architecture proposals (read-only); a candidate loop that **scans** the
 codebase to fill the queue and **reviews → approves → promotes** to drain it;
 and **two-mode refresh** (Reload re-pulls the served graph; Rebuild runs
 `sensei rebuild` then reloads). Every write goes through the opt-in local `sensei`
-path (`awarenessGraph.enableLocalOperations`, off by default); the graph server
+path (`sensei.enableLocalOperations`, off by default); the graph server
 stays read-only. Planned next: preflight diagnostics (squiggles) on the edited
 region, and direct test↔failure-mode edges.
