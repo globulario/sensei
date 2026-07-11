@@ -69,7 +69,7 @@ https://globular.io/awareness#ForbiddenFix	forbidden.event_emit_without_dedup_ca
 https://globular.io/awareness#ForbiddenFix	forbidden.eventually_consistent_with_no_bound
 https://globular.io/awareness#ForbiddenFix	forbidden.fabricate_identity_from_secondary_observation
 https://globular.io/awareness#ForbiddenFix	forbidden.fast_decision_on_slow_signal_without_staleness_check
-https://globular.io/awareness#ForbiddenFix	forbidden.feature_with_only_globular_native_mode
+https://globular.io/awareness#ForbiddenFix	forbidden.feature_with_only_platform_native_mode
 https://globular.io/awareness#ForbiddenFix	forbidden.fire_and_forget_goroutine_on_error_path
 https://globular.io/awareness#ForbiddenFix	forbidden.handler_reads_workflow_runs_to_reconstruct_engine_state
 https://globular.io/awareness#ForbiddenFix	forbidden.hardcoded_string_translation_between_name_forms
@@ -196,7 +196,6 @@ https://globular.io/awareness#Test	cmd/principle-check/positive_control_test.go:
 https://globular.io/awareness#Test	cmd/yaml2nt/main_test.go:TestRun_StdoutMode_ProducesValidNTriples
 https://globular.io/awareness#Test	cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped
 https://globular.io/awareness#Test	cmd/yaml2nt/main_test.go:TestRun_StrictMode_PassesWhenAllImported
-https://globular.io/awareness#Test	golang/deploy/deploy_test.go:TestGenerateSpec_MatchesExisting
 https://globular.io/awareness#Test	golang/extractor/intent_yaml_import_test.go:TestPhaseC_Intent_IntegrationSelfAwareness
 https://globular.io/awareness#Test	golang/extractor/reference_validator_test.go:TestValidateReferences_DanglingForbiddenFix
 https://globular.io/awareness#Test	golang/extractor/reference_validator_test.go:TestValidateReferences_DefinedAndReferenced
