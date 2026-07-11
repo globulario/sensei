@@ -220,6 +220,7 @@ func runGate(args []string) int {
 	eventLog := fs.String("event-log", os.Getenv("AWG_EVENT_LOG"), "append a JSONL outcome event (block/warn/allow + rules) to this ledger for evidence; see `sensei evidence`. Default: $AWG_EVENT_LOG (off when empty).")
 	maxFanout := fs.Int("completeness-max-fanout", 12, "completeness: ignore reference families larger than this (likely shared types/utilities, not must-change-together conventions)")
 	mode := fs.String("mode", "", "shorthand for the enforcement mode: advisory (= --report-only), enforce (= --enforce), or dry-run (the default). Overrides --enforce/--report-only when set.")
+	sarifPath := fs.String("sarif", "", "write a SARIF v2.1.0 report of findings to this file (upload with github/codeql-action/upload-sarif so findings surface in GitHub code scanning).")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei gate [--diff <range>] [--domain <repo>] [--enforce] [flags]
 
@@ -376,6 +377,14 @@ Flags:
 			changedFiles[f] = true
 		}
 		compFindings, compNote = runCompleteness(ctx, client, changedFiles, *domain, *maxFanout)
+	}
+
+	// SARIF: write a code-scanning report of the findings regardless of mode
+	// (empty results clear prior alerts). The gate never fails on a SARIF write.
+	if strings.TrimSpace(*sarifPath) != "" {
+		if err := writeGateSARIF(*sarifPath, *diff, findings); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei gate: write sarif to %s: %v\n", *sarifPath, err)
+		}
 	}
 
 	// Enforcing mode: a REAL gate. Exit non-zero on any enforcement:block
