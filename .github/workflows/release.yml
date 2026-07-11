@@ -131,6 +131,19 @@ jobs:
           echo "Assembled ${TARBALL} (incl. Oxigraph v${OXV}):"
           ( cd "$OUT" && tar tzf "${TARBALL}" ) | sed 's/^/  /'
 
+      - name: Also produce a .zip (Windows — winget can't consume .tar.gz)
+        if: matrix.goos == 'windows'
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'sensei-windows-amd64'
+          $out   = Join-Path $env:RUNNER_TEMP 'dist'
+          $zip   = Join-Path $out 'sensei-windows-amd64.zip'
+          # Include the top-level sensei-windows-amd64\ folder (matches the tarball).
+          Compress-Archive -Path $stage -DestinationPath $zip -Force
+          $h = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$h  sensei-windows-amd64.zip" | Out-File -Encoding ascii -NoNewline "$zip.sha256"
+          Write-Host "Assembled sensei-windows-amd64.zip"
+
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
@@ -265,6 +278,7 @@ jobs:
             /tmp/dist/sensei-linux-arm64.tar.gz    /tmp/dist/sensei-linux-arm64.tar.gz.sha256 \
             /tmp/dist/sensei-darwin-arm64.tar.gz   /tmp/dist/sensei-darwin-arm64.tar.gz.sha256 \
             /tmp/dist/sensei-windows-amd64.tar.gz  /tmp/dist/sensei-windows-amd64.tar.gz.sha256 \
+            /tmp/dist/sensei-windows-amd64.zip     /tmp/dist/sensei-windows-amd64.zip.sha256 \
             "/tmp/${SERVICE_TARBALL_NAME}" \
             "/tmp/${SERVICE_TARBALL_NAME}.sha256"
           echo "Release ${TAG} created."
