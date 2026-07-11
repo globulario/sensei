@@ -121,13 +121,15 @@ jobs:
           cp packaging/setup.sh "$STAGE/setup.sh"; chmod +x "$STAGE/setup.sh"
 
           # One tarball per platform: sensei-<os>-<arch>.tar.gz → { bin/, setup.sh }.
+          # Use RELATIVE -f paths from within RUNNER_TEMP: on Windows, Git Bash tar
+          # reads "D:\..." as a remote host (host:path), so avoid colons in -f.
           TARBALL="${PKG}.tar.gz"
-          tar czf "$OUT/${TARBALL}" -C "$RUNNER_TEMP" "${PKG}"
+          ( cd "$RUNNER_TEMP" && tar czf "dist/${TARBALL}" "${PKG}" )
           sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi; }
           ( cd "$OUT" && sha "${TARBALL}" > "${TARBALL}.sha256" )
 
           echo "Assembled ${TARBALL} (incl. Oxigraph v${OXV}):"
-          tar tzf "$OUT/${TARBALL}" | sed 's/^/  /'
+          ( cd "$OUT" && tar tzf "${TARBALL}" ) | sed 's/^/  /'
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
