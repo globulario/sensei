@@ -1,0 +1,21 @@
+# Dogfood: run the published Sensei Marketplace action against this repo's own
+# awareness graph. Advisory (never blocks). Also proves the action works.
+name: Sensei self-test (dogfood the action)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: globulario/sensei-action@v1
+        with:
+          mode: advisory
