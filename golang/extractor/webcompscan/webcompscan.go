@@ -57,7 +57,7 @@ var sourceExts = map[string]bool{".ts": true, ".tsx": true, ".js": true, ".jsx":
 func excludedDir(name string) bool {
 	switch name {
 	case "vendor", "node_modules", ".git", "dist", "build", "bin", "out",
-		"third_party", "thirdparty", "generated", "candidates", ".awg", "testdata",
+		"third_party", "thirdparty", "generated", "candidates", ".sensei", ".awg", "testdata",
 		"target", "example", "examples", ".vscode":
 		return true
 	}

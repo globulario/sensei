@@ -488,7 +488,7 @@ curl -s 'http://localhost:7878/query' \
 
 A count of zero with a running service means the seed load failed or the store
 was never populated. Load the seed additively with `loadnt`, then verify with
-`awg seed-status --require-current`.
+`sensei seed-status --require-current`.
 
 ### annotation-scanner: "namespace not registered"
 

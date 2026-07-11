@@ -23,13 +23,13 @@ var resolveRPC = func(ctx context.Context, addr, class, id, domain string) (*awa
 }
 
 func runResolve(args []string) int {
-	fs := flag.NewFlagSet("awg resolve", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei resolve", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
 	domain := fs.String("domain", "", "optional domain/repo scope; a node outside this scope resolves to not-found")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg resolve <class> <id>
+		fmt.Fprint(os.Stderr, `Usage: sensei resolve <class> <id>
 
 Fetches a single awareness node by class + bare id.
 
@@ -39,8 +39,8 @@ Classes: Invariant, FailureMode, IncidentPattern, Intent,
          DesignPattern, ImplementationPattern, PatternMisuse
 
 Examples:
-  awg resolve Invariant reconcile.dep_block_records_must_be_cleared
-  awg resolve FailureMode service.runtime_identity_unproven
+  sensei resolve Invariant reconcile.dep_block_records_must_be_cleared
+  sensei resolve FailureMode service.runtime_identity_unproven
 
 Flags:
 `)
@@ -51,7 +51,7 @@ Flags:
 		return 2
 	}
 	if fs.NArg() != 2 {
-		fmt.Fprintln(os.Stderr, "awg resolve: requires exactly 2 args: <class> <id>")
+		fmt.Fprintln(os.Stderr, "sensei resolve: requires exactly 2 args: <class> <id>")
 		return 2
 	}
 	class := fs.Arg(0)
@@ -62,7 +62,7 @@ Flags:
 
 	resp, err := resolveRPC(ctx, *addr, class, id, *domain)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg resolve: %s\n", formatReadSurfaceError("resolve", err))
+		fmt.Fprintf(os.Stderr, "sensei resolve: %s\n", formatReadSurfaceError("resolve", err))
 		return 1
 	}
 

@@ -14,7 +14,7 @@ import (
 )
 
 func runBriefing(args []string) int {
-	fs := flag.NewFlagSet("awg briefing", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei briefing", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	file := fs.String("file", "", "repo-relative file path")
 	task := fs.String("task", "", "task description")
@@ -23,7 +23,7 @@ func runBriefing(args []string) int {
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg briefing [--file <path>] [--task "description"] [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei briefing [--file <path>] [--task "description"] [flags]
 
 Queries the awareness graph for context relevant to a file or task.
 Returns invariants, forbidden fixes, required tests, and failure modes.
@@ -39,7 +39,7 @@ Flags:
 		return 2
 	}
 	if *file == "" && *task == "" {
-		fmt.Fprintln(os.Stderr, "awg briefing: provide --file and/or --task")
+		fmt.Fprintln(os.Stderr, "sensei briefing: provide --file and/or --task")
 		return 2
 	}
 
@@ -48,7 +48,7 @@ Flags:
 
 	conn, err := client.DialConn(*addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg briefing: connect %s: %v\n", *addr, err)
+		fmt.Fprintf(os.Stderr, "sensei briefing: connect %s: %v\n", *addr, err)
 		return 1
 	}
 	defer conn.Close()
@@ -61,7 +61,7 @@ Flags:
 		Domain: *domain,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg briefing: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei briefing: %v\n", err)
 		return 1
 	}
 

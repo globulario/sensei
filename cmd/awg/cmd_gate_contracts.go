@@ -2,9 +2,9 @@
 
 package main
 
-// Frozen contract-set support for `awg gate` (Phase-2, PR1).
+// Frozen contract-set support for `sensei gate` (Phase-2, PR1).
 //
-// This is a SEPARATE, self-contained code path from the default `awg gate`
+// This is a SEPARATE, self-contained code path from the default `sensei gate`
 // (EditCheck/gRPC) flow: it activates only when --contracts is passed, never
 // touches the AWG server, and leaves default behavior unchanged. It proves the
 // mechanical core of Phase-2 — a frozen, human-authored contract can be checked
@@ -624,17 +624,17 @@ func gateContractsExitCode(verdicts []contractVerdict, enforce bool) int {
 func runGateContracts(repoRoot, diff, contractsPath string, enforce, asJSON bool) int {
 	sets, err := loadContractSets(contractsPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg gate: load contracts: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei gate: load contracts: %v\n", err)
 		return 2
 	}
 	changes, err := gitAddedLinesByFile(repoRoot, diff)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg gate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei gate: %v\n", err)
 		return 2
 	}
 	verdicts, err := evaluateContractsWithFiles(changes, gitChangedFiles(repoRoot), sets)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg gate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei gate: %v\n", err)
 		return 2
 	}
 	report := buildContractReport(diff, enforce, verdicts)

@@ -13,13 +13,13 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// awg review-realization — the review docket.
+// sensei review-realization — the review docket.
 //
 // A candidateRealizesContract is a HYPOTHESIS. This command records a human (or
 // deterministic) review DECISION about one, so the same weak association is not
 // proposed again and so a rejected lead still teaches the corpus what is NOT
 // authority. Promotion (candidate -> realizesContract knowledge) is the separate
-// `awg promote-realization`; this command records everything that is not yet
+// `sensei promote-realization`; this command records everything that is not yet
 // knowledge:
 //
 //	rejected             not an obligation — never propose again
@@ -54,7 +54,7 @@ type reviewsFile struct {
 }
 
 func runReviewRealization(args []string) int {
-	fs := flag.NewFlagSet("awg review-realization", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei review-realization", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	impl := fs.String("impl", "", "implementation contract id (required)")
 	arch := fs.String("arch", "", "architectural contract id (required)")
@@ -64,11 +64,11 @@ func runReviewRealization(args []string) int {
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	reviewsFlag := fs.String("reviews", "", "reviews file (default: in ag-repo)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg review-realization --impl <id> --arch <id> --decision <d> --reason "<why>"
+		fmt.Fprint(os.Stderr, `Usage: sensei review-realization --impl <id> --arch <id> --decision <d> --reason "<why>"
 
 Record a review decision on a candidateRealizesContract. The pair is then
-excluded from future 'awg suggest-realizations' runs. Promotion is a separate
-command (awg promote-realization).
+excluded from future 'sensei suggest-realizations' runs. Promotion is a separate
+command (sensei promote-realization).
 `)
 		fs.PrintDefaults()
 	}
@@ -76,11 +76,11 @@ command (awg promote-realization).
 		return 2
 	}
 	if *impl == "" || *arch == "" || *decision == "" || *reason == "" {
-		fmt.Fprintln(os.Stderr, "awg review-realization: --impl, --arch, --decision and --reason are all required")
+		fmt.Fprintln(os.Stderr, "sensei review-realization: --impl, --arch, --decision and --reason are all required")
 		return 2
 	}
 	if !reviewDecisions[*decision] {
-		fmt.Fprintf(os.Stderr, "awg review-realization: invalid --decision %q (want rejected|needs_contract|needs_test|needs_failure_mode|needs_human_decision)\n", *decision)
+		fmt.Fprintf(os.Stderr, "sensei review-realization: invalid --decision %q (want rejected|needs_contract|needs_test|needs_failure_mode|needs_human_decision)\n", *decision)
 		return 2
 	}
 
@@ -100,7 +100,7 @@ command (awg promote-realization).
 	}
 	updated := recordReview(&f, *impl, *arch, *decision, *reason)
 	if err := os.WriteFile(path, renderReviews(&f), 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg review-realization: write: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei review-realization: write: %v\n", err)
 		return 1
 	}
 	verb := "recorded"
@@ -108,7 +108,7 @@ command (awg promote-realization).
 		verb = "updated"
 	}
 	fmt.Fprintf(os.Stderr, "review-realization: %s %s ~> %s = %s\n", verb, *impl, *arch, *decision)
-	fmt.Fprintln(os.Stderr, "  this pair will no longer be proposed by `awg suggest-realizations`.")
+	fmt.Fprintln(os.Stderr, "  this pair will no longer be proposed by `sensei suggest-realizations`.")
 	return 0
 }
 
@@ -156,7 +156,7 @@ func renderReviews(f *reviewsFile) []byte {
 	}
 	var buf bytes.Buffer
 	buf.WriteString("# Review decisions on candidateRealizesContract proposals.\n")
-	buf.WriteString("# A pair recorded here is EXCLUDED from future `awg suggest-realizations`\n")
+	buf.WriteString("# A pair recorded here is EXCLUDED from future `sensei suggest-realizations`\n")
 	buf.WriteString("# runs — the decision sticks. Promoted decisions live in\n")
 	buf.WriteString("# contract_realizations.yaml `realizations:` instead. This is tracked\n")
 	buf.WriteString("# review process-state, NOT graph authority (no predicates).\n")

@@ -39,11 +39,11 @@ This is deliberate: a rule authored without a file anchor shows up as governing
 A running awareness-graph server:
 
 ```sh
-awg serve            # defaults to localhost:10120
+sensei serve            # defaults to localhost:10120
 ```
 
 The extension is a first-class **gRPC client** of that server — the same
-`AwarenessGraph` service the `awg` CLI uses. It does not shell out to a binary.
+`AwarenessGraph` service the `sensei` CLI uses. It does not shell out to a binary.
 
 ## Settings
 
@@ -77,7 +77,7 @@ view header, or the command palette) for an architect's cockpit:
 - **Control banner** from `Metadata` — totals per class + a state signal
   (in control / stale / dev-unstamped / unknown). Trust in five seconds. Two
   refresh controls: **Reload** re-pulls the served graph (cheap, always on);
-  **Rebuild** runs `awg rebuild` then reloads, with a before/after count
+  **Rebuild** runs `sensei rebuild` then reloads, with a before/after count
   (*"22,753 → 23,184 triples"*) — a gated local op (opt-in, see below).
 - **Aspect navigation** — Invariants, Failure modes, Intents, Incident
   patterns, Files via `Query(by_class)`. Forbidden fixes and Tests have no
@@ -94,11 +94,11 @@ view header, or the command palette) for an architect's cockpit:
 - **Candidates** — a review→promote queue (see below): reads
   `docs/awareness/candidates/*.yaml`, renders each candidate as a review card,
   and — only when you opt in — can promote a reviewed candidate by driving the
-  guarded `awg promote` flow. Read-only by default.
+  guarded `sensei promote` flow. Read-only by default.
 
 The dashboard derives its diagram from queryable edges — the backend has no
 diagram of its own. Reads are gRPC; the only write path is the opt-in local
-`awg promote` described below.
+`sensei promote` described below.
 
 ## Reviewing and promoting candidates
 
@@ -116,7 +116,7 @@ The trusted path is never bypassed:
 ### Filling the queue (scan)
 
 The **Scan codebase for knowledge** panel discovers candidates without leaving
-the editor, via `awg intent-mine --drafter echo` — **deterministic, no LLM, no
+the editor, via `sensei intent-mine --drafter echo` — **deterministic, no LLM, no
 API key, no cost**:
 
 - **Scan (preview)** — a dry-run that grounds architectural-intent proposals
@@ -133,7 +133,7 @@ API key, no cost**:
   rejected), class, confidence, review label, evidence summary, source anchors,
   and the proposed target corpus file, parsed from
   `docs/awareness/candidates/*.yaml`.
-- **Preview (dry-run)** — runs `awg promote <id> --dry-run`: validates the
+- **Preview (dry-run)** — runs `sensei promote <id> --dry-run`: validates the
   candidate and shows the exact canonical YAML it *would* append. **Nothing is
   written.**
 - **Approve / Reject** — a local staging decision (persisted in the workspace).
@@ -147,9 +147,9 @@ One explicit action — **Promote approved (N)** — runs the guarded path for e
 approved candidate:
 
 1. confirmation summary listing the approved candidates;
-2. `awg promote <id> --no-rebuild` for each (validate → append canonical YAML →
+2. `sensei promote <id> --no-rebuild` for each (validate → append canonical YAML →
    remove from queue), **stopping on the first validation failure**;
-3. a single `awg rebuild` (deterministic);
+3. a single `sensei rebuild` (deterministic);
 4. reload `Metadata` over the read-only gRPC server;
 5. an operation summary: *"Promoted 3 candidates. Rebuilt graph: 22,753 → 23,184
    triples (+3 invariants). Changed files: …"*
@@ -160,8 +160,8 @@ expandable detail. Your working tree changes but is **not committed** — you
 review the `git diff` and commit.
 
 The same safety rule now applies to **single-candidate Promote**: the extension
-does **not** rely on a plain `awg promote` rebuild. It runs
-`awg promote <id> --no-rebuild` first, then performs the same project-aware
+does **not** rely on a plain `sensei promote` rebuild. It runs
+`sensei promote <id> --no-rebuild` first, then performs the same project-aware
 rebuild plan the dashboard uses for the main **Rebuild** action, so the
 `awareness-graph` repo cannot accidentally clobber its combined seed with a
 single-repo rebuild.
@@ -169,8 +169,8 @@ single-repo rebuild.
 ### Prerequisites & graceful degradation
 
 Promotion needs: a workspace open, `awarenessGraph.enableLocalOperations: true`,
-and the `awg` CLI on `PATH` (or `awarenessGraph.awgPath`). The tab detects each
-and **degrades gracefully** — if local ops are off, `awg` is missing, or the
+and the `sensei` CLI on `PATH` (or `awarenessGraph.awgPath`). The tab detects each
+and **degrades gracefully** — if local ops are off, `sensei` is missing, or the
 folder isn't an Sensei project, it says exactly what's missing and shows the guarded
 CLI to run by hand. It never fails silently.
 
@@ -179,13 +179,13 @@ CLI to run by hand. It never fails silently.
 - **The graph server remains read-only.** Promotion is performed locally through
   corpus files and deterministic rebuilds — no write RPC, no live triple insert.
 - **The extension never validates or writes knowledge itself** — it drives
-  `awg`, which owns the guards (naming, status, confidence, evidence, anchoring).
+  `sensei`, which owns the guards (naming, status, confidence, evidence, anchoring).
   A candidate that fails validation cannot be promoted.
 - **Opt-in & auditable.** Off by default; approve/reject is staging only;
   promotion is a git-diffable change you commit, and the graph only gains the
   knowledge through the same deterministic rebuild every other build uses.
 - **Manual recovery.** Anything the dashboard does maps to a CLI command shown in
-  the tab: `awg promote <id>`, `awg rebuild`, `awg corpus validate`.
+  the tab: `sensei promote <id>`, `sensei rebuild`, `sensei corpus validate`.
 
 ## Project review and architecture proposals
 
@@ -224,7 +224,7 @@ v0.1 — "This File" panel + project dashboard: an evidence-based project review
 and architecture proposals (read-only); a candidate loop that **scans** the
 codebase to fill the queue and **reviews → approves → promotes** to drain it;
 and **two-mode refresh** (Reload re-pulls the served graph; Rebuild runs
-`awg rebuild` then reloads). Every write goes through the opt-in local `awg`
+`sensei rebuild` then reloads). Every write goes through the opt-in local `sensei`
 path (`awarenessGraph.enableLocalOperations`, off by default); the graph server
 stays read-only. Planned next: preflight diagnostics (squiggles) on the edited
 region, and direct test↔failure-mode edges.

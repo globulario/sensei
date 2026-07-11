@@ -1,8 +1,11 @@
-# Local runtime state (graph-authority marker written by `awg rebuild`/`awg serve`)
+# Local runtime state (graph-authority marker written by `sensei rebuild`/`sensei serve`).
+# .awg/ is the pre-rename name, still honored for existing repos.
+/.sensei/
 /.awg/
 
 # Go build artifacts
 /bin/
+/sensei
 /awg
 /server
 /principle-check

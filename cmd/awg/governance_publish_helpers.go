@@ -19,6 +19,7 @@ import (
 
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/statedir"
 )
 
 func generateGovernanceSigningKey(outPath, publisherID, keyID string) (governancepack.SigningKey, error) {
@@ -361,7 +362,7 @@ func fetchGovernancePack(source, trustedKeysPath, root, packID, packVersion, cha
 		Source:               strings.TrimSpace(source),
 		RequestedChannel:     strings.TrimSpace(channel),
 		RequestedPackVersion: strings.TrimSpace(packVersion),
-		ManifestPath:         filepath.ToSlash(filepath.Join(".awg", "governance", "fetched", verified.Manifest.PackID, verified.Manifest.PackVersion, "governance-pack.manifest.json")),
+		ManifestPath:         filepath.ToSlash(filepath.Join(statedir.Name(root), "governance", "fetched", verified.Manifest.PackID, verified.Manifest.PackVersion, "governance-pack.manifest.json")),
 	}
 	if err := governancepack.WriteFetchedRecord(filepath.Join(destDir, "fetch.json"), rec); err != nil {
 		return governancepack.VerifiedPack{}, governancepack.BundlePaths{}, err

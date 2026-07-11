@@ -13,7 +13,7 @@ activation_rules:
       enforcement: hook
       paths: []  # Populated from high_risk_files.yaml
       tools:
-        - awg briefing --file <path>
+        - sensei briefing --file <path>
 
     # MANUAL: Agent judgment for task-level awareness.
     - id: manual_briefing
@@ -26,7 +26,7 @@ activation_rules:
         - deployment
         - configuration
       tools:
-        - awg briefing --task <description>
+        - sensei briefing --task <description>
 
   # How to handle empty briefing results.
   empty_policy:

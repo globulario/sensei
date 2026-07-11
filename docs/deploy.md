@@ -1,7 +1,7 @@
 # Deploying Sensei (self-host)
 
 Sensei is two things: a **service** (the awareness-graph gRPC server + an Oxigraph
-store) and **client tools** (`awg` CLI, `awareness-mcp` bridge) that agents and
+store) and **client tools** (`sensei` CLI, `awareness-mcp` bridge) that agents and
 CI point at it. This guide self-hosts both. Managed hosting comes later; the
 same client tools will point at it unchanged.
 
@@ -16,15 +16,15 @@ The server seeds the store from its embedded corpus on first start (idempotent â
 it skips seeding a non-empty store), so there is nothing else to load. The store
 lives in the `awg-oxigraph` volume and survives restarts.
 
-> **Local dev without Docker?** `awg serve` runs the same server directly, but it
+> **Local dev without Docker?** `sensei serve` runs the same server directly, but it
 > needs an `oxigraph` binary on PATH (or `--no-oxigraph` pointing at an external
 > one) â€” `go install` does not provide it. Compose bundles Oxigraph, so it is the
-> recommended path; reach for `awg serve` only when you already have Oxigraph.
+> recommended path; reach for `sensei serve` only when you already have Oxigraph.
 
 Verify it:
 
 ```bash
-AWG_ADDR=localhost:10120 awg metadata     # coverage + freshness
+AWG_ADDR=localhost:10120 sensei metadata     # coverage + freshness
 ```
 
 ## 2. Install the client tools
@@ -34,7 +34,7 @@ curl -fsSL https://raw.githubusercontent.com/globulario/sensei/master/deploy/ins
 # or, from a checkout:  ./deploy/install.sh
 ```
 
-This installs `awg` and `awareness-mcp` with Go into `$(go env GOBIN)` (or
+This installs `sensei` and `awareness-mcp` with Go into `$(go env GOBIN)` (or
 `$GOPATH/bin`). Point every client at the service with `AWG_ADDR` (or each
 command's `--addr`).
 
@@ -51,7 +51,7 @@ docker compose up -d
 
 # clients:
 export AWG_TOKEN=<the same token>
-awg metadata                       # now authenticated
+sensei metadata                       # now authenticated
 ```
 
 - Health and reflection stay open so liveness probes and tooling keep working.
@@ -64,11 +64,11 @@ awg metadata                       # now authenticated
 
 ## 4. Wire it to an agent
 
-- **CI gate:** see `docs/awg-gate.example.yml` (`awg gate --enforce`), and
-  `AWG_EVENT_LOG` + `awg evidence` for outcome tracking (`docs/awg-gate.example.yml`).
+- **CI gate:** see `docs/awg-gate.example.yml` (`sensei gate --enforce`), and
+  `AWG_EVENT_LOG` + `sensei evidence` for outcome tracking (`docs/awg-gate.example.yml`).
 - **Any agent over MCP:** run `awareness-mcp --awareness-addr localhost:10120`;
   every tool returns structured `structuredContent` (see Pillar 3.1).
-- **Pre-edit guard, any agent:** `awg edit-guard --format exit-code`
+- **Pre-edit guard, any agent:** `sensei edit-guard --format exit-code`
   (`docs/awg-edit-guard-neutral.example.md`).
 
 All three honor `AWG_TOKEN`, so enabling auth secures the whole surface at once.

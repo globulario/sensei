@@ -12,17 +12,17 @@ import (
 	"github.com/globulario/sensei/golang/evidence"
 )
 
-// runEvidence aggregates the outcome ledger that `awg gate`/`awg edit-guard`
+// runEvidence aggregates the outcome ledger that `sensei gate`/`sensei edit-guard`
 // append to (when --event-log / $AWG_EVENT_LOG is set) into the headline the
 // control claim needs: "caught N drift incidents across M repos". It reads only;
 // it never writes.
 func runEvidence(args []string) int {
-	fs := flag.NewFlagSet("awg evidence", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei evidence", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	path := fs.String("log", os.Getenv("AWG_EVENT_LOG"), "path to the JSONL evidence ledger (default: $AWG_EVENT_LOG)")
 	asJSON := fs.Bool("json", false, "output the aggregated summary as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg evidence [--log <path>] [--json]
+		fmt.Fprint(os.Stderr, `Usage: sensei evidence [--log <path>] [--json]
 
 Aggregate the gate/guard outcome ledger into evidence: how many drift incidents
 were caught (enforcement:block findings), across how many repos, by which rules.
@@ -37,13 +37,13 @@ Flags:
 		return 2
 	}
 	if *path == "" {
-		fmt.Fprintln(os.Stderr, "awg evidence: no ledger path — pass --log <path> or set $AWG_EVENT_LOG")
+		fmt.Fprintln(os.Stderr, "sensei evidence: no ledger path — pass --log <path> or set $AWG_EVENT_LOG")
 		return 2
 	}
 
 	events, err := evidence.Load(*path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg evidence: read ledger: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei evidence: read ledger: %v\n", err)
 		return 1
 	}
 	sum := evidence.Aggregate(events)

@@ -17,13 +17,13 @@ import (
 
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/statedir"
 )
 
 const (
-	ManifestSchemaV1        = "awg.governance-pack.v1"
-	ActiveRecordSchemaV1    = "awg.active-governance.v1"
-	TrustedKeysRelativePath = ".awg/governance/trusted-publishers.json"
-	TrustStoreSchemaV1      = "awg.trusted-publishers.v1"
+	ManifestSchemaV1     = "awg.governance-pack.v1"
+	ActiveRecordSchemaV1 = "awg.active-governance.v1"
+	TrustStoreSchemaV1   = "awg.trusted-publishers.v1"
 )
 
 const (
@@ -123,10 +123,7 @@ type VerifiedPack struct {
 }
 
 func TrustedKeysPath(root string) string {
-	if root == "" {
-		return TrustedKeysRelativePath
-	}
-	return filepath.Join(root, TrustedKeysRelativePath)
+	return statedir.Path(root, "governance", "trusted-publishers.json")
 }
 
 func (m Manifest) Validate() error {

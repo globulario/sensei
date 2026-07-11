@@ -21,7 +21,7 @@ import (
 )
 
 func runAudit(args []string) int {
-	fs := flag.NewFlagSet("awg audit", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei audit", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	verbose := fs.Bool("verbose", false, "show per-finding details")
 	ciMode := fs.Bool("check", false, "exit 1 on any FAIL (CI mode)")
@@ -30,7 +30,7 @@ func runAudit(args []string) int {
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg audit [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei audit [flags]
 
 Self-audit the awareness graph for drift, gaps, and inconsistencies.
 
@@ -62,7 +62,7 @@ Flags:
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 
 	if svcRepo == "" && agRepo == "" {
-		fmt.Fprintln(os.Stderr, "awg audit: cannot find repos; use --services-repo / --ag-repo")
+		fmt.Fprintln(os.Stderr, "sensei audit: cannot find repos; use --services-repo / --ag-repo")
 		return 1
 	}
 
@@ -71,7 +71,7 @@ Flags:
 
 	inputDirs, intentDir, err := collectInputDirs(svcRepo, agRepo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg audit: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei audit: %v\n", err)
 		return 1
 	}
 
@@ -791,7 +791,7 @@ func auditGatedInstancesFromMakefile(path string) ([]string, error) {
 // checkSeedOrphans flags nodes in the COMMITTED seed whose authoring YAML no
 // longer exists under any known repo root — a ghost the seed carries with no
 // authored origin. This is the third leg of the coherence gate (alongside
-// `awg validate`'s duplicate_id and dangling_*_ref checks); together they make
+// `sensei validate`'s duplicate_id and dangling_*_ref checks); together they make
 // "no incoherent graph merges" fail-closed.
 //
 // Why the COMMITTED seed and not the freshly generated N-Triples: the generated

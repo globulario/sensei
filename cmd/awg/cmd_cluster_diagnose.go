@@ -218,12 +218,12 @@ func exitCodeForDiagnosis(verdict string) int {
 }
 
 func runClusterDiagnose(args []string) int {
-	fs := flag.NewFlagSet("awg cluster-diagnose", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei cluster-diagnose", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	evidence := fs.String("runtime-evidence", "", "path to a runtime-evidence/v1 snapshot (yaml or json) (required)")
 	asJSON := fs.Bool("json", false, "machine-readable verdict")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg cluster-diagnose --runtime-evidence <snapshot.yaml|json> [--json]
+		fmt.Fprint(os.Stderr, `Usage: sensei cluster-diagnose --runtime-evidence <snapshot.yaml|json> [--json]
 
 Produces a typed runtime verdict from a normalized snapshot. Exit 0 for a
 produced diagnosis (converged / blocked_by_* / runtime_identity_mismatch /
@@ -236,22 +236,22 @@ evidence). Consumes normalized evidence only — never a platform RPC.
 		return 2
 	}
 	if *evidence == "" {
-		fmt.Fprintln(os.Stderr, "awg cluster-diagnose: --runtime-evidence <file> is required")
+		fmt.Fprintln(os.Stderr, "sensei cluster-diagnose: --runtime-evidence <file> is required")
 		return 2
 	}
 	raw, err := os.ReadFile(*evidence)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg cluster-diagnose: read %s: %v\n", *evidence, err)
+		fmt.Fprintf(os.Stderr, "sensei cluster-diagnose: read %s: %v\n", *evidence, err)
 		return 1
 	}
 	var snap runtimeEvidenceSnapshot
 	if err := yaml.Unmarshal(raw, &snap); err != nil { // yaml.Unmarshal also parses JSON
-		fmt.Fprintf(os.Stderr, "awg cluster-diagnose: parse %s: %v\n", *evidence, err)
+		fmt.Fprintf(os.Stderr, "sensei cluster-diagnose: parse %s: %v\n", *evidence, err)
 		return 1
 	}
 	// Refuse to diagnose a structurally invalid snapshot.
 	if vf := validateRuntimeSnapshot(snap); hasErrors(vf) {
-		fmt.Fprintf(os.Stderr, "awg cluster-diagnose: %s is not a valid runtime-evidence/v1 snapshot (run `awg runtime-snapshot validate`)\n", *evidence)
+		fmt.Fprintf(os.Stderr, "sensei cluster-diagnose: %s is not a valid runtime-evidence/v1 snapshot (run `sensei runtime-snapshot validate`)\n", *evidence)
 		return 1
 	}
 

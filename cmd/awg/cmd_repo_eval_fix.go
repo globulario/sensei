@@ -91,7 +91,7 @@ type repoEvalAuthorityProposal struct {
 }
 
 func runRepoEvalFix(args []string) int {
-	fs := flag.NewFlagSet("awg repo-eval fix", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei repo-eval fix", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	asJSON := fs.Bool("json", false, "output as JSON")
 	format := fs.String("format", "text", "output format: text | json | review")
@@ -102,7 +102,7 @@ func runRepoEvalFix(args []string) int {
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg repo-eval fix [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei repo-eval fix [flags]
 
 Apply safe, evidence-backed repository fixes. Current scope:
   - populate missing critical/high invariant required_tests only when code
@@ -125,18 +125,18 @@ Flags:
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 	if svcRepo == "" && agRepo == "" {
-		fmt.Fprintln(os.Stderr, "awg repo-eval fix: cannot find repos; use --services-repo / --ag-repo")
+		fmt.Fprintln(os.Stderr, "sensei repo-eval fix: cannot find repos; use --services-repo / --ag-repo")
 		return 1
 	}
 	target, err := resolveRepoEvalTarget(targetRepo, svcRepo, agRepo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval fix: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval fix: %v\n", err)
 		return 1
 	}
 
 	report, err := runSafeInvariantTestFixWithMode(target.root, *apply, *proposal, *proposalSnippets)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval fix: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval fix: %v\n", err)
 		return 1
 	}
 

@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BIN_DIR="$REPO_ROOT/bin"
 SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
-OXIGRAPH_DATA_DIR="${OXIGRAPH_DATA_DIR:-$HOME/.local/share/awg/oxigraph}"
+OXIGRAPH_DATA_DIR="${OXIGRAPH_DATA_DIR:-$HOME/.local/share/sensei/oxigraph}"
 OXIGRAPH_BIND="${OXIGRAPH_BIND:-127.0.0.1:7878}"
 OXIGRAPH_QUERY_URL="${OXIGRAPH_QUERY_URL:-http://127.0.0.1:7878/query}"
 AWARENESS_ADDR="${AWARENESS_ADDR:-:10120}"
@@ -32,7 +32,7 @@ Installs one or two supervised local user services:
   awg-oxigraph.service (only when not reusing an existing Oxigraph)
 
 Default behavior:
-  1. rebuild ./bin/awg and ./bin/awareness-graph
+  1. rebuild ./bin/sensei and ./bin/awareness-graph
   2. write systemd --user unit files under:
        $SYSTEMD_USER_DIR
   3. systemctl --user daemon-reload
@@ -101,7 +101,8 @@ if [[ "$SKIP_BUILD" == true ]]; then
   echo "==> reuse prebuilt binaries"
 else
   echo "==> rebuild"
-  env GOCACHE="$GOCACHE_DIR" go build -o "$BIN_DIR/awg" ./cmd/awg
+  env GOCACHE="$GOCACHE_DIR" go build -o "$BIN_DIR/sensei" ./cmd/awg
+  cp "$BIN_DIR/sensei" "$BIN_DIR/awg"   # deprecated alias (one release)
   env GOCACHE="$GOCACHE_DIR" go build -o "$BIN_DIR/awareness-graph" ./golang/server
 fi
 
@@ -194,7 +195,7 @@ echo
 echo "==> verify"
 cat <<EOF
 Run:
-  $BIN_DIR/awg metadata
+  $BIN_DIR/sensei metadata
 
 Expected:
   Freshness state:     current

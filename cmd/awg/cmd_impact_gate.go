@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// runImpactGate implements `awg impact-gate` (CG-5): the per-change enforcement
+// runImpactGate implements `sensei impact-gate` (CG-5): the per-change enforcement
 // that turns `required_tests` from advisory metadata into a fail-closed gate.
 //
 // When a PR changes a file, the invariants that protect that file (via
@@ -32,11 +32,11 @@ import (
 // Usage in CI (two-step, fail-closed):
 //
 //	files=$(git diff --name-only "$BASE"...HEAD)
-//	plan=$(awg impact-gate -changed-files "$files" -services-repo "$SVC" -format run)
+//	plan=$(sensei impact-gate -changed-files "$files" -services-repo "$SVC" -format run)
 //	(cd "$SVC/golang" && go test -run "$plan" ./... -json) > results.json || true
-//	awg impact-gate -changed-files "$files" -services-repo "$SVC" -ran results.json   # exits 1 on any miss
+//	sensei impact-gate -changed-files "$files" -services-repo "$SVC" -ran results.json   # exits 1 on any miss
 func runImpactGate(args []string) int {
-	fs := flag.NewFlagSet("awg impact-gate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei impact-gate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	changed := fs.String("changed-files", "", "changed files (newline/comma/space separated, or '-' for stdin)")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
@@ -44,7 +44,7 @@ func runImpactGate(args []string) int {
 	format := fs.String("format", "plan", "output: plan | run | json (ignored in -ran verify mode)")
 	requireCoverage := fs.Bool("require-coverage", false, "also FAIL if a changed protected file has a protecting invariant with NO required_tests")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg impact-gate [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei impact-gate [flags]
 
 Resolve changed files -> protecting invariants -> required_tests, then either
 emit a run-plan (-format run|plan|json) or VERIFY a go-test-json result (-ran)
@@ -60,17 +60,17 @@ Flags:
 
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
 	if svcRepo == "" {
-		fmt.Fprintln(os.Stderr, "awg impact-gate: cannot resolve services repo; pass -services-repo")
+		fmt.Fprintln(os.Stderr, "sensei impact-gate: cannot resolve services repo; pass -services-repo")
 		return 2
 	}
 	files, err := readChangedFiles(*changed)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg impact-gate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei impact-gate: %v\n", err)
 		return 2
 	}
 	invs, err := loadImpactInvariants(filepath.Join(svcRepo, "docs", "awareness", "invariants.yaml"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg impact-gate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei impact-gate: %v\n", err)
 		return 1
 	}
 
@@ -80,7 +80,7 @@ Flags:
 	if strings.TrimSpace(*ran) != "" {
 		passed, perr := parsePassedTests(*ran)
 		if perr != nil {
-			fmt.Fprintf(os.Stderr, "awg impact-gate: %v\n", perr)
+			fmt.Fprintf(os.Stderr, "sensei impact-gate: %v\n", perr)
 			return 1
 		}
 		var missing []string
@@ -95,19 +95,19 @@ Flags:
 		}
 		sort.Strings(missing)
 		if len(missing) > 0 {
-			fmt.Fprintf(os.Stderr, "awg impact-gate: FAIL — %d required test(s) for changed protected files did not pass:\n", len(missing))
+			fmt.Fprintf(os.Stderr, "sensei impact-gate: FAIL — %d required test(s) for changed protected files did not pass:\n", len(missing))
 			for _, m := range missing {
 				fmt.Fprintf(os.Stderr, "  - %s\n", m)
 			}
 			return 1
 		}
-		fmt.Printf("awg impact-gate: PASS — all %d required test(s) for %d changed protected file(s) passed\n",
+		fmt.Printf("sensei impact-gate: PASS — all %d required test(s) for %d changed protected file(s) passed\n",
 			len(res.UnionTests), len(res.PerFile))
 		return 0
 	}
 
 	if *requireCoverage && len(res.Gaps) > 0 {
-		fmt.Fprintf(os.Stderr, "awg impact-gate: FAIL — %d protecting invariant(s) on changed files have no required_tests:\n", len(res.Gaps))
+		fmt.Fprintf(os.Stderr, "sensei impact-gate: FAIL — %d protecting invariant(s) on changed files have no required_tests:\n", len(res.Gaps))
 		for _, g := range res.Gaps {
 			fmt.Fprintf(os.Stderr, "  - %s\n", g)
 		}
@@ -238,7 +238,7 @@ func runRegex(tests []string) string {
 
 func printImpactPlan(res impactResult) {
 	if len(res.PerFile) == 0 {
-		fmt.Println("awg impact-gate: no changed file is protected by an invariant — nothing to enforce")
+		fmt.Println("sensei impact-gate: no changed file is protected by an invariant — nothing to enforce")
 		return
 	}
 	files := make([]string, 0, len(res.PerFile))

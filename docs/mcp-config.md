@@ -10,8 +10,8 @@ This repo exposes awareness context to agents through a separate MCP bridge proc
 Terminal 1:
 
 ```bash
-awg serve -no-seed &
-awg build
+sensei serve -no-seed &
+sensei build
 ```
 
 Terminal 2:

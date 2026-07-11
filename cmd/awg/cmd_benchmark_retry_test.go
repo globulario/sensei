@@ -25,7 +25,7 @@ func TestBenchmarkModeCRetryPlan_AllowsFocusedRetry(t *testing.T) {
 	if !plan.RequireAuthoritativeRepairPlan {
 		t.Fatalf("authoritative repair plan must be required: %+v", plan)
 	}
-	if len(plan.RequiredPreflight) == 0 || plan.RequiredPreflight[0] != "run awg benchmark-brief and require its authoritative repair plan output" {
+	if len(plan.RequiredPreflight) == 0 || plan.RequiredPreflight[0] != "run sensei benchmark-brief and require its authoritative repair plan output" {
 		t.Fatalf("required preflight missing governed repair spine: %+v", plan.RequiredPreflight)
 	}
 }

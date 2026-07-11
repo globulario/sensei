@@ -21,7 +21,7 @@ port_busy() { ss -ltn 2>/dev/null | grep -q ":$1 " ; }
 
 cleanup() {
   local rc=$?
-  # `awg serve` traps SIGTERM and stops its oxigraph + server children
+  # `sensei serve` traps SIGTERM and stops its oxigraph + server children
   # cleanly, so a plain kill of the PID we own tears down the whole tree.
   if [[ -n "${SERVE_PID}" ]] && kill -0 "${SERVE_PID}" 2>/dev/null; then
     kill "${SERVE_PID}" 2>/dev/null || true
@@ -43,11 +43,11 @@ trap cleanup EXIT
 
 fail() { echo "SMOKE FAIL: $*" >&2; exit 1; }
 
-echo "==> building awg + server"
-( cd "${REPO_ROOT}" && go build -o "${WORK}/awg" ./cmd/awg \
+echo "==> building sensei + server"
+( cd "${REPO_ROOT}" && go build -o "${WORK}/sensei" ./cmd/awg \
                     && go build -o "${WORK}/awareness-graph" ./golang/server )
 
-# serve discovers the server + oxigraph next to the awg binary.
+# serve discovers the server + oxigraph next to the sensei binary.
 if [[ -x "${REPO_ROOT}/bin/oxigraph" ]]; then
   cp "${REPO_ROOT}/bin/oxigraph" "${WORK}/oxigraph"
 elif command -v oxigraph >/dev/null 2>&1; then
@@ -59,7 +59,7 @@ fi
 echo "==> scaffolding stranger project"
 PROJ="${WORK}/project"
 mkdir -p "${PROJ}/src"
-( cd "${PROJ}" && git init -q . && "${WORK}/awg" init -dir . >/dev/null )
+( cd "${PROJ}" && git init -q . && "${WORK}/sensei" init -dir . >/dev/null )
 
 [[ -f "${PROJ}/docs/awareness/meta_principles.yaml" ]] || fail "init did not install the principle pack"
 PACK_COUNT=$(python3 -c "import yaml;print(len(yaml.safe_load(open('${PROJ}/docs/awareness/meta_principles.yaml'))['invariants']))")
@@ -89,10 +89,10 @@ for prt in "${GRPC_PORT}" "${OXI_PORT}"; do
 done
 
 echo "==> serve -no-seed (grpc :${GRPC_PORT}, oxigraph :${OXI_PORT})"
-( cd "${PROJ}" && exec "${WORK}/awg" serve \
+( cd "${PROJ}" && exec "${WORK}/sensei" serve \
     -addr ":${GRPC_PORT}" \
     -oxigraph-bind "127.0.0.1:${OXI_PORT}" \
-    -data "${PROJ}/.awg/oxigraph" \
+    -data "${PROJ}/.sensei/oxigraph" \
     -no-seed > "${WORK}/serve.log" 2>&1 ) &
 SERVE_PID=$!
 
@@ -110,13 +110,13 @@ done
 grep -q -- "-no-seed" "${WORK}/serve.log" || { cat "${WORK}/serve.log" >&2; fail "server did not acknowledge -no-seed"; }
 
 echo "==> build"
-( cd "${PROJ}" && "${WORK}/awg" build -strict \
+( cd "${PROJ}" && "${WORK}/sensei" build -strict \
     -input docs/awareness \
     -store-url "http://127.0.0.1:${OXI_PORT}/store?default" ) \
-  || fail "awg build -strict failed"
+  || fail "sensei build -strict failed"
 
 echo "==> briefing"
-BRIEFING=$( cd "${PROJ}" && "${WORK}/awg" briefing -addr "localhost:${GRPC_PORT}" \
+BRIEFING=$( cd "${PROJ}" && "${WORK}/sensei" briefing -addr "localhost:${GRPC_PORT}" \
     -file src/payment_processor.py -task "refactor mark_paid" )
 echo "${BRIEFING}" | grep -q "payments.paid_state_requires_processor_confirmation" \
   || { echo "${BRIEFING}" >&2; fail "briefing missing the project invariant"; }
@@ -125,12 +125,12 @@ echo "==> negative checks (no Globular-only seed leakage)"
 echo "${BRIEFING}" | grep -qiE "scylla|minio|globular-only" \
   && fail "briefing leaked Globular content"
 # A Globular-seed-only invariant must NOT resolve in this project's graph.
-LEAK=$( "${WORK}/awg" resolve -addr "localhost:${GRPC_PORT}" \
+LEAK=$( "${WORK}/sensei" resolve -addr "localhost:${GRPC_PORT}" \
     invariant repository.fallback_requires_manifest_and_checksum 2>&1 || true )
 echo "${LEAK}" | grep -qi "not found" \
   || fail "Globular seed invariant resolved in a cold-start graph: ${LEAK}"
 # The portable pack MUST resolve.
-"${WORK}/awg" resolve -addr "localhost:${GRPC_PORT}" \
+"${WORK}/sensei" resolve -addr "localhost:${GRPC_PORT}" \
     invariant meta.ui.screen_claim_must_bind_to_authority >/dev/null \
   || fail "pack principle did not resolve"
 

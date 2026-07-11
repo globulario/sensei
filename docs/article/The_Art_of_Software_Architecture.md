@@ -1806,4 +1806,4 @@ The highest skill was never to write the most code the fastest. It is to keep th
 
 ---
 
-*The Art of Software Architecture is drawn from Sensei, open source at [github.com/globulario/sensei](https://github.com/globulario/sensei). The 133 meta-principles were distilled from real production incidents on the [Globular](https://github.com/globulario) platform and are shipped as portable, domain-independent seed knowledge with every `awg init`. What bit us is provenance; what we learned belongs to everyone.*
+*The Art of Software Architecture is drawn from Sensei, open source at [github.com/globulario/sensei](https://github.com/globulario/sensei). The 133 meta-principles were distilled from real production incidents on the [Globular](https://github.com/globulario) platform and are shipped as portable, domain-independent seed knowledge with every `sensei init`. What bit us is provenance; what we learned belongs to everyone.*

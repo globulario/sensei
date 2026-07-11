@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Build and set up AWG for local development.
+# install.sh — Build and set up Sensei for local development.
 #
 # Usage:
 #   ./scripts/install.sh                       # build binaries + seed graph
@@ -14,7 +14,7 @@
 # After install:
 #   1. ./scripts/install-awg-user-services.sh   # supervised local runtime (recommended)
 #   2. awareness-mcp                            # start the MCP bridge (stdio)
-#   3. awg briefing --file <path>               # query the graph
+#   3. sensei briefing --file <path>               # query the graph
 
 set -euo pipefail
 
@@ -25,7 +25,7 @@ BIN_DIR="$REPO_ROOT/bin"
 NO_SEED=false
 OXIGRAPH_URL="http://localhost:7878"
 USER_SERVICES=false
-OXIGRAPH_DATA_DIR="${OXIGRAPH_DATA_DIR:-$HOME/.local/share/awg/oxigraph}"
+OXIGRAPH_DATA_DIR="${OXIGRAPH_DATA_DIR:-$HOME/.local/share/sensei/oxigraph}"
 
 usage() {
   cat <<'EOF'
@@ -38,7 +38,7 @@ Options:
   --help            Show this help
 
 What it does:
-  1. Builds awg, awareness-mcp, and awareness-graph binaries → bin/
+  1. Builds sensei, awareness-mcp, and awareness-graph binaries → bin/
   2. Fetches the Oxigraph binary into bin/
   3. Seeds the graph from YAML sources using an existing or temporary local Oxigraph
   4. Optionally installs supervised local user services
@@ -57,15 +57,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "AWG install — $REPO_ROOT"
+echo "Sensei install — $REPO_ROOT"
 echo
 
 # ── 1. Build binaries ────────────────────────────────────────────────────
 echo "Building binaries..."
 mkdir -p "$BIN_DIR"
 
-go build -o "$BIN_DIR/awg" "$REPO_ROOT/cmd/awg"
-echo "  ✓ bin/awg"
+go build -o "$BIN_DIR/sensei" "$REPO_ROOT/cmd/awg"
+cp "$BIN_DIR/sensei" "$BIN_DIR/awg"   # deprecated alias (one release)
+echo "  ✓ bin/sensei (with deprecated bin/awg alias)"
 
 go build -o "$BIN_DIR/awareness-mcp" "$REPO_ROOT/cmd/awareness-mcp"
 echo "  ✓ bin/awareness-mcp"
@@ -76,8 +77,8 @@ echo "  ✓ bin/awareness-graph"
 echo
 
 # ── 1b. Fetch the Oxigraph binary (no Docker needed) ─────────────────────
-# `awg serve` runs Oxigraph as a child process and looks for the binary in
-# bin/. Fetching it here means the standalone path (`awg serve -no-seed`)
+# `sensei serve` runs Oxigraph as a child process and looks for the binary in
+# bin/. Fetching it here means the standalone path (`sensei serve -no-seed`)
 # works out of the box. Best-effort: a failure is non-fatal — the Docker
 # path below and the manual instructions remain.
 if [ ! -x "$BIN_DIR/oxigraph" ]; then
@@ -147,7 +148,7 @@ if [ "$NO_SEED" = "false" ]; then
     if [ ${#SEED_ARGS[@]} -eq 0 ]; then
       echo "  ⚠ No docs/awareness directories found — skipping seed"
     else
-      "$BIN_DIR/awg" build "${SEED_ARGS[@]}" --store-url "$OXIGRAPH_URL/store?default"
+      "$BIN_DIR/sensei" build "${SEED_ARGS[@]}" --store-url "$OXIGRAPH_URL/store?default"
       echo "  ✓ Graph seeded"
     fi
     echo
@@ -164,7 +165,7 @@ fi
 
 # ── 5. Print connection info ─────────────────────────────────────────────
 cat <<EOF
-Done! AWG is ready.
+Done! Sensei is ready.
 
 Recommended local runtime:
   bash $REPO_ROOT/scripts/install-awg-user-services.sh
@@ -173,14 +174,14 @@ Ad hoc local runtime:
   $BIN_DIR/awareness-graph --addr :10120 --oxigraph-url $OXIGRAPH_URL/query
 
 Or use the CLI directly:
-  $BIN_DIR/awg briefing --file <path>
-  $BIN_DIR/awg validate
-  $BIN_DIR/awg audit
+  $BIN_DIR/sensei briefing --file <path>
+  $BIN_DIR/sensei validate
+  $BIN_DIR/sensei audit
 
 Claude Code MCP config (add to .mcp.json):
   {
     "mcpServers": {
-      "awg": {
+      "sensei": {
         "command": "$BIN_DIR/awareness-mcp",
         "args": ["--awareness-addr", "localhost:10120"]
       }
@@ -188,7 +189,7 @@ Claude Code MCP config (add to .mcp.json):
   }
 
 Tool names after MCP registration:
-  mcp__awg__awareness_briefing
-  mcp__awg__awareness_impact
-  mcp__awg__awareness_resolve
+  mcp__sensei__awareness_briefing
+  mcp__sensei__awareness_impact
+  mcp__sensei__awareness_resolve
 EOF

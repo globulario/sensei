@@ -15,13 +15,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// runDraftCandidate implements `awg draft-candidate` (WB-2): the incident →
+// runDraftCandidate implements `sensei draft-candidate` (WB-2): the incident →
 // candidate bridge. It turns a runtime observation — a cluster-doctor finding, a
 // scar, an incident record — into a structured DRAFT entry in the awareness
 // review queue (docs/awareness/candidates/), carrying provenance back to the
 // originating incident. It NEVER promotes and NEVER rebuilds: candidates are
 // excluded from the live graph build (extractor skips candidates/) until a human
-// reviews and runs `awg promote`.
+// reviews and runs `sensei promote`.
 //
 // This closes the open end of the write-back loop: previously a raw incident had
 // no path to a drafted candidate — an agent hand-authored every one. The drafter
@@ -34,7 +34,7 @@ import (
 //	  "severity": "high", "source_files": ["..."], "evidence": ["..."],
 //	  "discovered_from": "doctor-finding:quorum-lost-2026-06-24" }
 func runDraftCandidate(args []string) int {
-	fs := flag.NewFlagSet("awg draft-candidate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei draft-candidate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	jsonIn := fs.String("json", "", "read the incident payload as JSON from a file or '-' for stdin")
 	class := fs.String("class", "", "candidate class: invariant | forbidden_fix | required_test | failure_mode")
@@ -50,11 +50,11 @@ func runDraftCandidate(args []string) int {
 	dryRun := fs.Bool("dry-run", false, "print the drafted candidate; do not write")
 	asJSON := fs.Bool("json-out", false, "emit the result as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg draft-candidate [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei draft-candidate [flags]
 
 Draft a runtime incident/finding/scar into a structured candidate in the
 awareness review queue (docs/awareness/candidates/). status:candidate — excluded
-from the graph build until reviewed and promoted with `+"`awg promote`"+`.
+from the graph build until reviewed and promoted with `+"`sensei promote`"+`.
 
 Flags:
 `)
@@ -77,18 +77,18 @@ Flags:
 	if strings.TrimSpace(*jsonIn) != "" {
 		raw, err := readJSONInput(*jsonIn)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg draft-candidate: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei draft-candidate: %v\n", err)
 			return 1
 		}
 		if err := json.Unmarshal(raw, &in); err != nil {
-			fmt.Fprintf(os.Stderr, "awg draft-candidate: parse json: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei draft-candidate: parse json: %v\n", err)
 			return 1
 		}
 	}
 
 	relPath, content, err := draftCandidateDoc(in)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg draft-candidate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei draft-candidate: %v\n", err)
 		return 1
 	}
 
@@ -102,27 +102,27 @@ Flags:
 		root, _ = resolveServicesRepo("")
 	}
 	if root == "" {
-		fmt.Fprintln(os.Stderr, "awg draft-candidate: cannot resolve a repo for docs/awareness/candidates/; pass -repo-root or use -dry-run")
+		fmt.Fprintln(os.Stderr, "sensei draft-candidate: cannot resolve a repo for docs/awareness/candidates/; pass -repo-root or use -dry-run")
 		return 1
 	}
 	outPath := filepath.Join(root, "docs", "awareness", relPath)
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "awg draft-candidate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei draft-candidate: %v\n", err)
 		return 1
 	}
 	if err := os.WriteFile(outPath, content, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg draft-candidate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei draft-candidate: %v\n", err)
 		return 1
 	}
 
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(map[string]string{"status": "drafted", "path": relPath, "review_with": "awg promote " + draftedID(in)})
+		_ = enc.Encode(map[string]string{"status": "drafted", "path": relPath, "review_with": "sensei promote " + draftedID(in)})
 		return 0
 	}
 	fmt.Printf("drafted candidate: %s\n", outPath)
-	fmt.Printf("  status:candidate — review and `awg promote %s` to enter the graph\n", draftedID(in))
+	fmt.Printf("  status:candidate — review and `sensei promote %s` to enter the graph\n", draftedID(in))
 	return 0
 }
 
@@ -220,9 +220,9 @@ func draftCandidateDoc(in draftCandidateInput) (relPath string, content []byte, 
 	if err != nil {
 		return "", nil, err
 	}
-	header := fmt.Sprintf("# DRAFT candidate from incident %q (awg draft-candidate, WB-2).\n"+
+	header := fmt.Sprintf("# DRAFT candidate from incident %q (sensei draft-candidate, WB-2).\n"+
 		"# status:candidate — excluded from the graph build until reviewed and\n"+
-		"# promoted with `awg promote %s`.\n", entry.DiscoveredFrom, id)
+		"# promoted with `sensei promote %s`.\n", entry.DiscoveredFrom, id)
 	relPath = filepath.Join("candidates", spec.subdir, slugify(id)+".yaml")
 	return relPath, append([]byte(header), body...), nil
 }

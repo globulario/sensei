@@ -197,7 +197,7 @@ var knownSourceRoots = map[string]bool{
 func excludedDir(name string) bool {
 	switch name {
 	case "vendor", "node_modules", ".git", "dist", "build", "bin", "out",
-		"third_party", "thirdparty", "generated", "candidates", ".awg",
+		"third_party", "thirdparty", "generated", "candidates", ".sensei", ".awg",
 		"testdata", "target", ".venv", "venv", "__pycache__", ".idea", ".vscode",
 		// Illustrative sample trees are not the project's own architecture
 		// (matches coldsource/surfaces.go's exclusion).

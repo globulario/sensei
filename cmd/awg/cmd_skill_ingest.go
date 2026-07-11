@@ -18,7 +18,7 @@ func runSkillIngest(args []string) int {
 		args = args[1:]
 	}
 
-	fs := flag.NewFlagSet("awg skill-ingest", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei skill-ingest", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	outDir := fs.String("out", filepath.Join("docs", "awareness", "candidates", "skills"), "directory to write generated candidate YAML")
 	repo := fs.String("repo", "", "repository domain for provenance reporting")
@@ -26,7 +26,7 @@ func runSkillIngest(args []string) int {
 	includeDeprecated := fs.Bool("include-deprecated", false, "include skills/deprecated")
 	dryRun := fs.Bool("dry-run", false, "validate and report without writing files")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg skill-ingest <skill-pack-root> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei skill-ingest <skill-pack-root> [flags]
 
 Generate review-only AWG ImplementationPattern candidates from external SKILL.md files.
 Generated candidates are written under docs/awareness/candidates/skills by default and are not active graph authority.
@@ -42,7 +42,7 @@ Flags:
 		rootArg = fs.Arg(0)
 	}
 	if rootArg == "" || fs.NArg() > 0 {
-		fmt.Fprintln(os.Stderr, "awg skill-ingest: exactly one <skill-pack-root> is required")
+		fmt.Fprintln(os.Stderr, "sensei skill-ingest: exactly one <skill-pack-root> is required")
 		fs.Usage()
 		return 2
 	}
@@ -50,11 +50,11 @@ Flags:
 	root := rootArg
 	discovered, err := skillimport.DiscoverSkillsWithReport(root, *includeDeprecated)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg skill-ingest: discover: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei skill-ingest: discover: %v\n", err)
 		return 1
 	}
 	if len(discovered.Skills) == 0 {
-		fmt.Fprintf(os.Stderr, "awg skill-ingest: zero valid skills found under %s\n", root)
+		fmt.Fprintf(os.Stderr, "sensei skill-ingest: zero valid skills found under %s\n", root)
 		if len(discovered.Invalid) > 0 {
 			printInvalidSkills(discovered.Invalid)
 		}
@@ -77,11 +77,11 @@ Flags:
 		for _, candidate := range candidates {
 			data, err := skillimport.RenderCandidate(candidate)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "awg skill-ingest: render %s: %v\n", candidate.ID, err)
+				fmt.Fprintf(os.Stderr, "sensei skill-ingest: render %s: %v\n", candidate.ID, err)
 				return 1
 			}
 			if err := skillimport.ValidateCandidateYAML(data); err != nil {
-				fmt.Fprintf(os.Stderr, "awg skill-ingest: validate %s: %v\n", candidate.ID, err)
+				fmt.Fprintf(os.Stderr, "sensei skill-ingest: validate %s: %v\n", candidate.ID, err)
 				return 1
 			}
 			path := filepath.Join(*outDir, skillimport.CandidateFileName(candidate))
@@ -91,13 +91,13 @@ Flags:
 		printSkillIngestSummary(len(discovered.Skills), wouldWrite, len(discovered.Skipped), len(discovered.Invalid), *outDir)
 		printInvalidSkills(discovered.Invalid)
 		fmt.Println()
-		fmt.Println("Candidates are review-only. Run awg promote after human review.")
+		fmt.Println("Candidates are review-only. Run sensei promote after human review.")
 		return 0
 	}
 
 	written, err := skillimport.WriteCandidates(candidates, opts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg skill-ingest: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei skill-ingest: %v\n", err)
 		return 1
 	}
 
@@ -107,7 +107,7 @@ Flags:
 	}
 	printInvalidSkills(discovered.Invalid)
 	fmt.Println()
-	fmt.Println("Candidates are review-only. Run awg promote after human review.")
+	fmt.Println("Candidates are review-only. Run sensei promote after human review.")
 	return 0
 }
 

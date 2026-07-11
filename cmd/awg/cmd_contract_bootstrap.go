@@ -126,7 +126,7 @@ type bootstrapAWGClient interface {
 var contractBootstrapConnectAWG = connectAWG
 
 func runContractBootstrap(args []string) int {
-	fs := flag.NewFlagSet("awg contract-bootstrap", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei contract-bootstrap", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/domain/f2p_tests")
@@ -138,7 +138,7 @@ func runContractBootstrap(args []string) int {
 	var tests stringSlice
 	fs.Var(&tests, "f2p-test", "fail-to-pass test name (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg contract-bootstrap [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei contract-bootstrap [flags]
 
 Build a proposed repair-contract bootstrap from issue text, fail-to-pass tests,
 repo surfaces, and optional AWG cross-references.
@@ -159,12 +159,12 @@ Flags:
 
 	task, source, err := loadBootstrapTask(*taskFile, *issue, tests)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg contract-bootstrap: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei contract-bootstrap: %v\n", err)
 		return 2
 	}
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg contract-bootstrap: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei contract-bootstrap: resolve repo root: %v\n", err)
 		return 1
 	}
 	if strings.TrimSpace(*domain) == "" {
@@ -173,7 +173,7 @@ Flags:
 
 	result, err := buildContractBootstrap(root, *addr, *domain, task, source)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg contract-bootstrap: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei contract-bootstrap: %v\n", err)
 		return 1
 	}
 
@@ -185,7 +185,7 @@ Flags:
 	case "scaffold":
 		data, err := yaml.Marshal(result.ContractScaffold)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg contract-bootstrap: render scaffold: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei contract-bootstrap: render scaffold: %v\n", err)
 			return 1
 		}
 		fmt.Print(string(data))

@@ -6,7 +6,7 @@
 
 // Runtime proof lane — Phase 4: before/action/after runtime repair validation.
 //
-// `awg runtime-repair-report` classifies a runtime repair claim. A repair is
+// `sensei runtime-repair-report` classifies a runtime repair claim. A repair is
 // valid_runtime_repair ONLY when all of these hold (per the spec):
 //  1. a governing contract is identified
 //  2. required runtime evidence lanes are present (in the AFTER snapshot)
@@ -20,7 +20,7 @@
 // scope_drift, still_not_converged) — never a false "repaired". Pure
 // (fixture-tested); reuses the Phase-3 diagnosis engine for after-state.
 //
-// Note: distinct from `awg repair-report` (the governed POST-EDIT artifact);
+// Note: distinct from `sensei repair-report` (the governed POST-EDIT artifact);
 // this is the RUNTIME repair validator.
 package main
 
@@ -172,7 +172,7 @@ func exitCodeForRepair(verdict string) int {
 }
 
 func runRuntimeRepairReport(args []string) int {
-	fs := flag.NewFlagSet("awg runtime-repair-report", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei runtime-repair-report", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	beforePath := fs.String("before", "", "runtime-evidence/v1 snapshot BEFORE the action (required)")
 	afterPath := fs.String("after", "", "runtime-evidence/v1 snapshot AFTER the action (required)")
@@ -180,11 +180,11 @@ func runRuntimeRepairReport(args []string) int {
 	contract := fs.String("contract", "", "the governing contract id (required for a valid repair)")
 	asJSON := fs.Bool("json", false, "machine-readable verdict")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg runtime-repair-report --before <b> --after <a> --action <name> [--contract <id>] [--json]
+		fmt.Fprint(os.Stderr, `Usage: sensei runtime-repair-report --before <b> --after <a> --action <name> [--contract <id>] [--json]
 
 Validates a runtime repair claim (before/action/after). Exit 0 ONLY for
 valid_runtime_repair; non-zero for every other verdict. Consumes normalized
-snapshots only — never a platform RPC. (Distinct from "awg repair-report", the
+snapshots only — never a platform RPC. (Distinct from "sensei repair-report", the
 governed post-edit artifact.)
 `)
 	}
@@ -192,22 +192,22 @@ governed post-edit artifact.)
 		return 2
 	}
 	if *beforePath == "" || *afterPath == "" || *action == "" {
-		fmt.Fprintln(os.Stderr, "awg runtime-repair-report: --before, --after, and --action are required")
+		fmt.Fprintln(os.Stderr, "sensei runtime-repair-report: --before, --after, and --action are required")
 		return 2
 	}
 	before, err := loadSnapshot(*beforePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg runtime-repair-report: before: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei runtime-repair-report: before: %v\n", err)
 		return 1
 	}
 	after, err := loadSnapshot(*afterPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg runtime-repair-report: after: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei runtime-repair-report: after: %v\n", err)
 		return 1
 	}
 	rep := classifyRuntimeRepair(before, after, *action, *contract)
 	if *asJSON {
-		b, _ := json.Marshal(rep) // real JSON so `awg runtime-gate --report` can consume it
+		b, _ := json.Marshal(rep) // real JSON so `sensei runtime-gate --report` can consume it
 		fmt.Println(string(b))
 	} else {
 		fmt.Printf("runtime-repair-report: %s\n", rep.Subject)
@@ -232,7 +232,7 @@ func loadSnapshot(path string) (runtimeEvidenceSnapshot, error) {
 		return s, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if vf := validateRuntimeSnapshot(s); hasErrors(vf) {
-		return s, fmt.Errorf("%s is not a valid runtime-evidence/v1 snapshot (run `awg runtime-snapshot validate`)", path)
+		return s, fmt.Errorf("%s is not a valid runtime-evidence/v1 snapshot (run `sensei runtime-snapshot validate`)", path)
 	}
 	return s, nil
 }

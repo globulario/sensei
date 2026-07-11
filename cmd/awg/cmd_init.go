@@ -11,19 +11,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/globulario/sensei/golang/statedir"
 )
 
 //go:embed templates/*
 var templates embed.FS
 
 func runInit(args []string) int {
-	fs := flag.NewFlagSet("awg init", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei init", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	dir := fs.String("dir", ".", "project root directory")
 	withHooks := fs.Bool("hooks", true, "generate Claude Code hook scripts")
-	withClaudeMD := fs.Bool("claude-md", true, "append AWG snippet to CLAUDE.md")
+	withClaudeMD := fs.Bool("claude-md", true, "append Sensei snippet to CLAUDE.md")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg init [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei init [flags]
 
 Scaffolds awareness for a new project. Creates:
   docs/awareness/invariants.yaml         Your architectural rules
@@ -31,7 +33,7 @@ Scaffolds awareness for a new project. Creates:
   docs/awareness/incident_patterns.yaml  Edit shapes that introduce bugs
   docs/awareness/high_risk_files.yaml    Files requiring briefing
   docs/awareness/activation_rules.yaml   When briefing is required
-  .awg/config.yaml                       AWG configuration
+  .sensei/config.yaml                    Sensei configuration
 
 Flags:
 `)
@@ -44,13 +46,13 @@ Flags:
 
 	root, err := filepath.Abs(*dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg init: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei init: %v\n", err)
 		return 1
 	}
 
 	created, err := scaffoldProject(root, *withHooks, *withClaudeMD)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg init: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei init: %v\n", err)
 		return 1
 	}
 
@@ -70,11 +72,11 @@ Next steps:
      (the 7-category meta-principle pack is already installed:
       docs/awareness/meta_principles.yaml — link your rules to it
       via related_invariants)
-  3. Start the server:  awg serve -no-seed &
+  3. Start the server:  sensei serve -no-seed &
      (-no-seed: your project builds its own graph — without it the
       server seeds the embedded Globular reference graph)
-  4. Compile your graph: awg build
-  5. First briefing:     awg briefing -file <your-critical-file>
+  4. Compile your graph: sensei build
+  5. First briefing:     sensei briefing -file <your-critical-file>
 `)
 	return 0
 }
@@ -110,12 +112,12 @@ func scaffoldProject(root string, withHooks, withClaudeMD bool) ([]string, error
 		created = append(created, dst)
 	}
 
-	// Create .awg/config.yaml.
-	awgDir := filepath.Join(root, ".awg")
-	if err := os.MkdirAll(awgDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create .awg: %w", err)
+	// Create the state directory (.sensei, or a pre-existing legacy .awg).
+	stateDir := statedir.Path(root)
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create %s: %w", statedir.Name(root), err)
 	}
-	cfgPath := filepath.Join(awgDir, "config.yaml")
+	cfgPath := filepath.Join(stateDir, "config.yaml")
 	if _, err := os.Stat(cfgPath); err != nil {
 		content, err := templates.ReadFile("templates/config.yaml")
 		if err != nil {

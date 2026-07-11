@@ -14,18 +14,22 @@ gate enforces **after**.
 
 ### Highlights
 
+- **`sensei` CLI.** The command is `sensei` (formerly `awg`, an acronym of the
+  old "Awareness Graph" name). The `awg` binary is still installed as a
+  deprecated alias for one release — it prints a deprecation notice and forwards.
+  Local state now lives in `.sensei/` (a pre-existing `.awg/` is still honored).
 - **Local-first, you own the graph.** Your project's rules are YAML in your repo,
   compiled into a local Oxigraph store. No SaaS, no account, no source upload.
-- **Consult before edit.** `awg briefing`/`preflight` surface the invariants,
+- **Consult before edit.** `sensei briefing`/`preflight` surface the invariants,
   contracts, and forbidden fixes that govern a file — in ~2 ms.
-- **Enforce, not just inform.** `awg gate --enforce` fails a CI check on a
+- **Enforce, not just inform.** `sensei gate --enforce` fails a CI check on a
   contract/forbidden-fix violation, with rule id + provenance; `--completeness`
   flags sibling call-sites a diff missed; per-repo `warn`/`block` policy.
 - **Tool-agnostic.** A CLI + local gRPC server + MCP bridge (structured tools:
   briefing, impact, preflight, edit-check, resolve, query, metadata, propose).
   Drive it from Claude Code, Codex, Cursor, CI, or a plain shell.
-- **Self-maintaining corpus.** `awg onboard` proposes a starter graph from your
-  repo for review; `awg propose` writes typed feedback back into the graph.
+- **Self-maintaining corpus.** `sensei onboard` proposes a starter graph from your
+  repo for review; `sensei propose` writes typed feedback back into the graph.
 - **133 universal meta-principles** across 8 categories, distilled from real
   production incidents, ship as a starting vocabulary.
 - **Standalone build.** `scripts/build-awareness-graph-self.sh` builds the

@@ -14,7 +14,7 @@ import (
 	"github.com/globulario/sensei/golang/extractor/protoscan"
 )
 
-// Minimum, conservative candidate extractors for `awg bootstrap` — pattern and
+// Minimum, conservative candidate extractors for `sensei bootstrap` — pattern and
 // misuse candidates. They are deliberately low-noise and grounded in signals we
 // already have (proto API shape, storage-driver imports), emitted as
 // status: candidate / confidence: candidate under docs/awareness/candidates/.
@@ -39,7 +39,7 @@ type candidateFile struct {
 
 func renderCandidate(c candidateDoc) ([]byte, error) {
 	var buf bytes.Buffer
-	buf.WriteString("# GENERATED candidate by `awg bootstrap` — status: candidate.\n")
+	buf.WriteString("# GENERATED candidate by `sensei bootstrap` — status: candidate.\n")
 	buf.WriteString("# A suggestion for human review; never auto-promoted. To accept,\n")
 	buf.WriteString("# move it under docs/awareness/architecture/ and set status accordingly.\n")
 	enc := yaml.NewEncoder(&buf)

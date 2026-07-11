@@ -20,7 +20,7 @@ This page is the operational contract. For the wire surface see
 
 ## The seven tools
 
-You reach these as MCP tools (`awareness_*`) or as `awg` subcommands. Pick by
+You reach these as MCP tools (`awareness_*`) or as `sensei` subcommands. Pick by
 what you're about to do — don't default to `briefing` for everything.
 
 | About to… | Call | Why |
@@ -79,7 +79,7 @@ clarified, a forbidden fix you ruled out, a regression test that pins it),
 record it with **one typed call**:
 
 ```bash
-awg propose --kind failure_mode --title "…" \
+sensei propose --kind failure_mode --title "…" \
   --contract "<the contract that was violated/clarified>" \
   --related-invariant <inv.id> \
   --source-file <path> --required-test <file.go:TestName> \
@@ -95,7 +95,7 @@ rejected. If the contract is genuinely unknown, use `--kind contract_unknown`
 with `--proposed-contract` or `--revision-request`; the entry is parked under
 `docs/awareness/candidates/` until the contract is resolved.
 
-The `Stop` hook (`awg feedback-check`) is advisory: it reminds you when a
+The `Stop` hook (`sensei feedback-check`) is advisory: it reminds you when a
 session fixed a risky area but wrote no graph feedback. A session that already
 proposed feedback (or changed nothing risky) stays silent.
 

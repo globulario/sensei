@@ -105,17 +105,17 @@ governance packs through the managed-governance root so a client can bootstrap
 trust from the published root itself:
 
 ```bash
-./bin/awg governance publish gen-key \
+./bin/sensei governance publish gen-key \
   --out /secure/vendor/signing-key.json \
   --publisher-id core@globular.io \
   --key-id core-2026-q3
 
-./bin/awg governance publish trust-root \
+./bin/sensei governance publish trust-root \
   --signing-key /secure/vendor/signing-key.json \
   --out /secure/vendor/trusted-publishers.json \
   --display-name "Globular Core"
 
-./bin/awg governance publish build \
+./bin/sensei governance publish build \
   --input docs/awareness \
   --out-dir /tmp/governance-pack/core.meta-principles/2026.06.25 \
   --pack-id core.meta-principles \
@@ -127,11 +127,11 @@ trust from the published root itself:
   --key-id core-2026-q3 \
   --strict
 
-./bin/awg governance publish sign \
+./bin/sensei governance publish sign \
   --signing-key /secure/vendor/signing-key.json \
   /tmp/governance-pack/core.meta-principles/2026.06.25
 
-./bin/awg governance publish release \
+./bin/sensei governance publish release \
   --trusted-keys /secure/vendor/trusted-publishers.json \
   --signing-key /secure/vendor/signing-key.json \
   --publication-root /srv/awg-governance \
@@ -149,8 +149,8 @@ Expected publication-root shape after release:
 That root is what clients should point at for:
 
 ```bash
-./bin/awg governance trust fetch --source /srv/awg-governance
-./bin/awg governance fetch --source /srv/awg-governance --pack-id core.meta-principles --channel stable
+./bin/sensei governance trust fetch --source /srv/awg-governance
+./bin/sensei governance fetch --source /srv/awg-governance --pack-id core.meta-principles --channel stable
 ```
 
 Run `scripts/smoke-governance-publication.sh` before treating this path as
@@ -235,7 +235,7 @@ make load-release-seed
 Then verify the committed seed, transaction stamp, and live store all align:
 
 ```bash
-./bin/awg seed-status \
+./bin/sensei seed-status \
   --seed golang/server/embeddata/awareness.nt \
   --oxigraph-url http://localhost:7878/query \
   --require-current

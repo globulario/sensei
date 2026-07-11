@@ -20,7 +20,7 @@ Every durable agent-memory system sits on a spectrum between two poles:
   free-form memory files live here.
 - **Fail-closed (write-time correctness).** Reject a write unless it names an
   explicit contract, carries provenance, and types cleanly. The store is a
-  verifiable artifact, not an accumulating pile. Sensei lives here: `awg propose`
+  verifiable artifact, not an accumulating pile. Sensei lives here: `sensei propose`
   routes anything that resolves to `contract_unknown` into `candidates/` instead
   of the graph.
 
@@ -163,7 +163,7 @@ honored rather than ignored.
 Because the cost is *where* not *whether*, a system can place different memory
 classes at different poles:
 
-- **Structured engineering facts** → fail-closed graph (Sensei, `awg propose`,
+- **Structured engineering facts** → fail-closed graph (Sensei, `sensei propose`,
   contract-first, Evidence-backed).
 - **Episodic / preference / cold-start notes** → fail-open free-form capture,
   with a *later* promotion path: a note can graduate into the graph once a

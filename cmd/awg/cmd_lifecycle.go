@@ -2,7 +2,7 @@
 
 package main
 
-// cmd_lifecycle.go — `awg lifecycle`: the governed-memory state surface.
+// cmd_lifecycle.go — `sensei lifecycle`: the governed-memory state surface.
 //
 // One consolidated readout of WHERE the project's learned knowledge sits in the
 // scar lifecycle, so the system can SEE its own enforcement gaps instead of
@@ -20,7 +20,7 @@ package main
 //
 // It re-derives nothing: enforcement tiers come from meta_principle_coverage.yaml
 // (ratchet-enforced by TestMetaPrincipleCoverage); artifact coherence comes from
-// `awg audit` (run with --audit). It refuses false certainty — states it cannot
+// `sensei audit` (run with --audit). It refuses false certainty — states it cannot
 // determine offline (observed/candidate/reviewed = behavioral runtime;
 // protected = branch protection) are labelled as such, never claimed.
 
@@ -66,7 +66,7 @@ type tierTally struct {
 // switch does not recognise lands in Other (UNCLASSIFIED), and a principle listed
 // more than once lands in Conflicts. Pure (no I/O) so the classification is
 // unit-tested; this is the function whose missing `declaration` case made
-// `awg lifecycle` mis-report 7 correctly-tiered principles as UNCLASSIFIED.
+// `sensei lifecycle` mis-report 7 correctly-tiered principles as UNCLASSIFIED.
 func tallyCoverageTiers(entries []coveragePrinciple) tierTally {
 	var t tierTally
 	tiersByID := map[string][]string{}
@@ -107,10 +107,10 @@ func tallyCoverageTiers(entries []coveragePrinciple) tierTally {
 }
 
 func runLifecycle(args []string) int {
-	fs := flag.NewFlagSet("awg lifecycle", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei lifecycle", flag.ContinueOnError)
 	svcRepo := fs.String("services-repo", "", "path to services repo (default: ../services next to ag-repo)")
 	agRepo := fs.String("ag-repo", "", "path to awareness-graph repo (default: current dir)")
-	withAudit := fs.Bool("audit", false, "also run `awg audit -check` for live artifact-coherence states")
+	withAudit := fs.Bool("audit", false, "also run `sensei audit -check` for live artifact-coherence states")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -129,12 +129,12 @@ func runLifecycle(args []string) int {
 	covPath := filepath.Join(svc, "docs", "awareness", "meta_principle_coverage.yaml")
 	raw, err := os.ReadFile(covPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg lifecycle: cannot read %s: %v\n  pass --services-repo <path>\n", covPath, err)
+		fmt.Fprintf(os.Stderr, "sensei lifecycle: cannot read %s: %v\n  pass --services-repo <path>\n", covPath, err)
 		return 1
 	}
 	var cov coverageFile
 	if err := yaml.Unmarshal(raw, &cov); err != nil {
-		fmt.Fprintf(os.Stderr, "awg lifecycle: parse %s: %v\n", covPath, err)
+		fmt.Fprintf(os.Stderr, "sensei lifecycle: parse %s: %v\n", covPath, err)
 		return 1
 	}
 
@@ -144,7 +144,7 @@ func runLifecycle(args []string) int {
 	behavioral, declaration, planned, reviewOnly, other, conflicts :=
 		t.Behavioral, t.Declaration, t.Planned, t.ReviewOnly, t.Other, t.Conflicts
 
-	fmt.Println("awg lifecycle — governed-memory state")
+	fmt.Println("sensei lifecycle — governed-memory state")
 	fmt.Println("=====================================")
 
 	fmt.Println("\nENFORCEMENT TIERS  (meta.* principles; meta_principle_coverage.yaml)")
@@ -184,10 +184,10 @@ func runLifecycle(args []string) int {
 		{"candidate", "runtime", "behavioral promotion queue (behavioral_list_promotion_candidates)"},
 		{"reviewed", "runtime", "behavioral_promote_principle (review-gated; not auto)"},
 		{"authored", "local", "docs/awareness/*.yaml (the rule exists in source)"},
-		{"generated", "local", "awg rebuild / awg learn (deterministic regen)"},
+		{"generated", "local", "sensei rebuild / sensei learn (deterministic regen)"},
 		{"embedded", "local", "golang/server/embeddata/awareness.nt (committed)"},
-		{"validated", "CI hard gate", "awg validate (dangling refs, dup ids, missing sources)"},
-		{"enforced", "CI hard gate", "principle-check-all + behavioral ratchets + awg audit freshness"},
+		{"validated", "CI hard gate", "sensei validate (dangling refs, dup ids, missing sources)"},
+		{"enforced", "CI hard gate", "principle-check-all + behavioral ratchets + sensei audit freshness"},
 		{"protected", "external", "branch protection — verify: gh api repos/<owner>/<repo>/branches/master/protection"},
 	}
 	for _, r := range rows {
@@ -202,7 +202,7 @@ func runLifecycle(args []string) int {
 	fmt.Println("    are enforced-in-CI but BYPASSABLE until protected. Treat that as an enforcement gap.")
 
 	if *withAudit {
-		fmt.Println("\nARTIFACT COHERENCE  (awg audit -check)")
+		fmt.Println("\nARTIFACT COHERENCE  (sensei audit -check)")
 		fmt.Println("---------------------------------------")
 		auditArgs := []string{"-check"}
 		if *svcRepo != "" {
@@ -212,7 +212,7 @@ func runLifecycle(args []string) int {
 			auditArgs = append(auditArgs, "-ag-repo", *agRepo)
 		}
 		if rc := runAudit(auditArgs); rc != 0 {
-			fmt.Fprintln(os.Stderr, "\nawg lifecycle: artifact coherence FAILED — generated/embedded artifacts drift from source.")
+			fmt.Fprintln(os.Stderr, "\nsensei lifecycle: artifact coherence FAILED — generated/embedded artifacts drift from source.")
 			return rc
 		}
 	}

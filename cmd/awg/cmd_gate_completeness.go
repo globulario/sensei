@@ -16,7 +16,7 @@ import (
 // can say "you changed 3 of the 9 call-sites of X — here are the 6 you missed".
 // It is ADVISORY (a hint, not a block): a partial change is often correct, so
 // this never affects the gate's exit code. It is built on the SCIP aw:references
-// edges surfaced by `awg scip-ingest`; with no ingested symbols it finds nothing
+// edges surfaced by `sensei scip-ingest`; with no ingested symbols it finds nothing
 // and stays silent.
 
 // completenessFinding is one reference family the diff touched incompletely.

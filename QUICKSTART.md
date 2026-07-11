@@ -11,7 +11,7 @@ Source build:
 
 ```bash
 git clone https://github.com/globulario/sensei
-cd awareness-graph && ./scripts/install.sh      # builds awg + server, fetches oxigraph → bin/
+cd awareness-graph && ./scripts/install.sh      # builds sensei + server, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
 ```
 
@@ -35,14 +35,14 @@ bash ./scripts/install-awg-user-services.sh --skip-build
 ```
 
 That gives you a supervised local Sensei stack and is the preferred path for real
-day-to-day use. The ad hoc `awg serve -no-seed` path below remains fine for a
+day-to-day use. The ad hoc `sensei serve -no-seed` path below remains fine for a
 quick demo.
 
 ## 2. Initialize your project
 
 ```bash
 cd /path/to/your/project
-awg init
+sensei init
 ```
 
 This scaffolds:
@@ -59,8 +59,8 @@ This scaffolds:
 ## 3. Start the graph
 
 ```bash
-awg serve -no-seed &     # starts the local Oxigraph store + gRPC server (no Docker)
-awg build                # compiles docs/awareness into the graph
+sensei serve -no-seed &     # starts the local Oxigraph store + gRPC server (no Docker)
+sensei build                # compiles docs/awareness into the graph
 ```
 
 `-no-seed` matters: without it the server seeds the embedded Globular
@@ -69,7 +69,7 @@ reference graph. Your project builds its own.
 ## 4. First briefing
 
 ```bash
-awg briefing -file src/your/critical_file.py -task "what you're about to do"
+sensei briefing -file src/your/critical_file.py -task "what you're about to do"
 ```
 
 Empty is honest — it means no rules are anchored there YET. Write your
@@ -93,13 +93,13 @@ non-obvious, it belongs here. Append to `docs/awareness/invariants.yaml`:
       - meta.code.local_state_must_not_become_hidden_authority
 ```
 
-Re-run `awg build`, then the briefing — your rule now confronts every
+Re-run `sensei build`, then the briefing — your rule now confronts every
 agent that opens that file. Linking `related_invariants` to `meta.*`
 connects your specific rule to the generative principle behind it.
 
 ## 6. Wire your AI agent (Claude Code)
 
-`awg init` created `.claude/hooks/` and a CLAUDE.md section. Two things to wire.
+`sensei init` created `.claude/hooks/` and a CLAUDE.md section. Two things to wire.
 
 **a) Enforcement hooks.** In plain terms: *Claude is blocked from editing a
 high-risk file until it has requested a briefing for it, and blocked from
@@ -140,15 +140,15 @@ project's `.claude/settings.json` (create the file if it doesn't exist):
 The `PreToolUse` hooks run in order: `enforce-briefing.sh` blocks edits to
 paths listed in `docs/awareness/high_risk_files.yaml` until a briefing is
 recorded, then `edit-check-guard.sh` runs the proposed content through
-`awg edit-check` and blocks it if it introduces a forbidden-fix or
+`sensei edit-check` and blocks it if it introduces a forbidden-fix or
 high-severity shape (set `AWG_EDIT_CHECK_ADVISORY=1` to make that one
 warn-only). The `PostToolUse` hook records the briefing when Claude calls it.
 Nothing else is blocked — low-risk files with rule-clean edits edit normally.
 
 The `Stop` hook is **advisory and never blocks**: when a session ends it runs
-`awg feedback-check` and, if the work touched risky code or added an
+`sensei feedback-check` and, if the work touched risky code or added an
 incident/regression test but wrote no awareness feedback, it prints a reminder
-to record the scar with `awg propose`. A session that already added graph
+to record the scar with `sensei propose`. A session that already added graph
 feedback (or changed nothing risky) stays silent.
 
 **b) In-conversation tools (optional).** Point Claude's MCP config at the
@@ -156,7 +156,7 @@ bridge for `awareness_briefing` / `impact` / `resolve` / `query` /
 `metadata` / `preflight` as callable tools:
 
 ```json
-{ "mcpServers": { "awg": {
+{ "mcpServers": { "sensei": {
     "command": "/path/to/awareness-graph/bin/awareness-mcp",
     "args": ["--awareness-addr", "localhost:10120"] } } }
 ```
@@ -164,14 +164,14 @@ bridge for `awareness_briefing` / `impact` / `resolve` / `query` /
 ## 7. Gate your CI
 
 ```yaml
-- run: awg validate -repo-root .          # YAML structure, dangling refs
-- run: awg audit -check -services-repo .  # freshness, coverage, stale refs
+- run: sensei validate -repo-root .          # YAML structure, dangling refs
+- run: sensei audit -check -services-repo .  # freshness, coverage, stale refs
 ```
 
 ## 8. Evaluate whether the repo is ready for controlled agents
 
 ```bash
-awg repo-eval --repo .
+sensei repo-eval --repo .
 ```
 
 This gives a plain-language posture report for the repository, including:
@@ -189,7 +189,7 @@ stable authority yet for broader autonomous change.
 ## 9. Draft the next governance layer without promoting it
 
 ```bash
-awg repo-eval draft-upgrade --repo .
+sensei repo-eval draft-upgrade --repo .
 ```
 
 This writes review-only candidate files under:
@@ -211,7 +211,7 @@ silently upgrading machine guesses into live authority.
 ## The loop that makes it compound
 
 ```
-incident → write the failure_mode + invariant → awg build
+incident → write the failure_mode + invariant → sensei build
         → next agent gets briefed → gate test pins it → drift caught
 ```
 

@@ -15,7 +15,7 @@ import (
 )
 
 func runPreflight(args []string) int {
-	fs := flag.NewFlagSet("awg preflight", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei preflight", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
@@ -25,7 +25,7 @@ func runPreflight(args []string) int {
 	var files stringSlice
 	fs.Var(&files, "file", "repo-relative file (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg preflight [--file <path>]... [--task "description"] [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei preflight [--file <path>]... [--task "description"] [flags]
 
 Risk classification for a planned edit. Returns risk class, required
 actions, forbidden fixes, and tests to run.
@@ -41,7 +41,7 @@ Flags:
 		return 2
 	}
 	if len(files) == 0 && *task == "" {
-		fmt.Fprintln(os.Stderr, "awg preflight: provide --file and/or --task")
+		fmt.Fprintln(os.Stderr, "sensei preflight: provide --file and/or --task")
 		return 2
 	}
 
@@ -50,7 +50,7 @@ Flags:
 
 	conn, err := client.DialConn(*addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg preflight: connect %s: %v\n", *addr, err)
+		fmt.Fprintf(os.Stderr, "sensei preflight: connect %s: %v\n", *addr, err)
 		return 1
 	}
 	defer conn.Close()
@@ -68,7 +68,7 @@ Flags:
 		Domain: *domain,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg preflight: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
 		return 1
 	}
 

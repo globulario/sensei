@@ -22,12 +22,12 @@ supports_benchmark_score() {
 
 if [ -n "$AWG_BIN_PATH" ] && supports_benchmark_score "$AWG_BIN_PATH"; then
   :
-elif supports_benchmark_score "$AG_ROOT/bin/awg"; then
-  AWG_BIN_PATH="$AG_ROOT/bin/awg"
+elif supports_benchmark_score "$AG_ROOT/bin/sensei"; then
+  AWG_BIN_PATH="$AG_ROOT/bin/sensei"
 else
   mkdir -p /tmp/go-build-cache
-  GOCACHE=/tmp/go-build-cache go build -o "$AG_ROOT/bin/awg" "$AG_ROOT/cmd/awg"
-  AWG_BIN_PATH="$AG_ROOT/bin/awg"
+  GOCACHE=/tmp/go-build-cache go build -o "$AG_ROOT/bin/sensei" "$AG_ROOT/cmd/awg"
+  AWG_BIN_PATH="$AG_ROOT/bin/sensei"
 fi
 
 exec "$AWG_BIN_PATH" benchmark-score \

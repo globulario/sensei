@@ -23,12 +23,12 @@ var metadataRPC = func(ctx context.Context, addr string) (*awarenesspb.MetadataR
 }
 
 func runMetadata(args []string) int {
-	fs := flag.NewFlagSet("awg metadata", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg metadata [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei metadata [flags]
 
 Shows graph-level coverage, freshness, and build provenance.
 Use this to tell whether an EMPTY briefing means "no rules apply"
@@ -48,7 +48,7 @@ Flags:
 
 	resp, err := metadataRPC(ctx, *addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg metadata: %s\n", formatReadSurfaceError("metadata", err))
+		fmt.Fprintf(os.Stderr, "sensei metadata: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
 	}
 
