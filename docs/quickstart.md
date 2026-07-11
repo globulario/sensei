@@ -249,7 +249,11 @@ candidate-only and must be reviewed before anything becomes live authority.
 
 ## Step 9: Enable Claude Code hooks (optional)
 
-If you use Claude Code, the hooks created by `sensei init` enforce briefing before edits. Add this to your `.claude/settings.json`:
+If you use Claude Code, `sensei init` drops hook scripts into `.claude/hooks/`.
+Wire them in `.claude/settings.json`. The recommended pair **pushes** the file's
+briefing to the agent before it edits, and **blocks** a write that violates a
+rule — so the agent gets the invariants delivered (not demanded) *and* can't ship
+a forbidden fix:
 
 ```json
 {
@@ -260,19 +264,12 @@ If you use Claude Code, the hooks created by `sensei init` enforce briefing befo
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/enforce-briefing.sh",
+            "command": ".claude/hooks/push-briefing.sh",
             "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "awareness_briefing",
-        "hooks": [
+          },
           {
             "type": "command",
-            "command": ".claude/hooks/record-briefing.sh",
+            "command": ".claude/hooks/edit-check-guard.sh",
             "timeout": 10
           }
         ]
@@ -281,6 +278,17 @@ If you use Claude Code, the hooks created by `sensei init` enforce briefing befo
   }
 }
 ```
+
+`push-briefing.sh` (`sensei edit-brief`) hands the agent the file's invariants,
+forbidden fixes, and failure modes as context on every edit — the agent can't
+forget to consult Sensei because the harness delivers it, and it never blocks.
+`edit-check-guard.sh` (`sensei edit-guard`) blocks a write that would introduce a
+forbidden-fix shape or trip a high-severity rule.
+
+> Prefer to *require* an explicit briefing call instead of pushing it? Swap
+> `push-briefing.sh` for `enforce-briefing.sh` and add a `PostToolUse` hook on
+> `awareness_briefing` running `record-briefing.sh` — that blocks edits to
+> high-risk files until the agent has called `awareness_briefing` itself.
 
 Now Claude Code will be blocked from editing files in your high-risk directories until it calls `sensei briefing` first.
 

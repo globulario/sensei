@@ -22,7 +22,7 @@ func runEditCheck(args []string) int {
 	content := fs.String("content", "", "proposed new content (inline)")
 	contentFile := fs.String("content-file", "", "read proposed content from this path ('-' for stdin)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei edit-check --file <path> [--content <text> | --content-file <path>|-] [flags]

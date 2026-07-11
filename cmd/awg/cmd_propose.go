@@ -114,7 +114,7 @@ func runPropose(args []string) int {
 	targetRepoFlag := fs.String("target-repo", "", "repo whose docs/awareness/ receives the entry (default: awareness-graph repo)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
-	oxigraphURL := fs.String("oxigraph-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint for reload")
+	oxigraphURL := fs.String("oxigraph-url", defaultOxigraphStoreURL(), "Oxigraph Graph Store endpoint for reload")
 	format := fs.String("format", "text", "output format: text | json")
 
 	fs.Usage = func() {

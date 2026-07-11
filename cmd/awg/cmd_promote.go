@@ -52,7 +52,7 @@ func runPromote(args []string) int {
 	repoFlag := fs.String("repo", "", "PILOT: foreign repo domain, e.g. github.com/caddyserver/caddy — routes the promotion into pilot/<repo>/ as a separate domain-scoped graph")
 	domainFlag := fs.String("domain", "", "PILOT: domain kind (repo|shared); defaults to repo when --repo is set")
 	sourceSetFlag := fs.String("source-set", "", "PILOT: source-set namespace (default: pilot/<repo-slug>)")
-	oxigraphURLFlag := fs.String("oxigraph-url", "http://localhost:7878/store?default", "PILOT: Oxigraph endpoint to additively load the pilot graph into")
+	oxigraphURLFlag := fs.String("oxigraph-url", defaultOxigraphStoreURL(), "PILOT: Oxigraph endpoint to additively load the pilot graph into")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei promote <candidate-id> [flags]
 

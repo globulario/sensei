@@ -23,6 +23,7 @@ components:
       - cmd/awareness-mcp/main.go
     depends_on:
       - component.golang.client
+      - component.golang.netcfg
     external_imports:
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
@@ -60,6 +61,7 @@ components:
       - cmd/awg/cmd_corpus.go
       - cmd/awg/cmd_demo.go
       - cmd/awg/cmd_draft_candidate.go
+      - cmd/awg/cmd_edit_brief.go
       - cmd/awg/cmd_edit_check.go
       - cmd/awg/cmd_edit_guard.go
       - cmd/awg/cmd_evidence.go
@@ -112,6 +114,7 @@ components:
       - cmd/awg/cmd_visual_audit.go
       - cmd/awg/cross_repo_atomic.go
       - cmd/awg/cross_repo_guard.go
+      - cmd/awg/defaults.go
       - cmd/awg/gate_policy.go
       - cmd/awg/governance_helpers.go
       - cmd/awg/governance_publish_helpers.go
@@ -127,6 +130,7 @@ components:
       - component.golang.evidence
       - component.golang.extractor
       - component.golang.governancepack
+      - component.golang.netcfg
       - component.golang.propose
       - component.golang.rdf
       - component.golang.repoeval
@@ -468,6 +472,17 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.netcfg
+    name: netcfg
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/netcfg/netcfg.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.propose
     name: propose
     kind: module
@@ -572,7 +587,6 @@ components:
       - golang/server/config.go
       - golang/server/edit_check.go
       - golang/server/embedded_seed.go
-      - golang/server/etcd_register.go
       - golang/server/graph_authority.go
       - golang/server/graph_freshness.go
       - golang/server/impact.go
@@ -601,12 +615,12 @@ components:
     depends_on:
       - component.golang.coverage
       - component.golang.governancepack
+      - component.golang.netcfg
       - component.golang.propose
       - component.golang.rdf
       - component.golang.seedmeta
       - component.golang.store
     external_imports:
-      - go.etcd.io/etcd/client/v3
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
       - google.golang.org/grpc/credentials

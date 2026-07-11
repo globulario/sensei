@@ -33,7 +33,7 @@ func runBuild(args []string) int {
 	var inputDirs stringSlice
 	fs.Var(&inputDirs, "input", "awareness YAML directory (repeatable; default: docs/awareness)")
 	output := fs.String("output", "", "write N-Triples to file instead of loading into store")
-	storeURL := fs.String("store-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint")
+	storeURL := fs.String("store-url", defaultOxigraphStoreURL(), "Oxigraph Graph Store endpoint")
 	strict := fs.Bool("strict", false, "fail on unrecognized YAML schemas (recognized non-graph config files are reported, not fatal)")
 	validateRefs := fs.Bool("validate-refs", false, "fail on dangling references")
 	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful store load (default: <project>/.sensei/graph-authority.json)")

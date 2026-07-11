@@ -42,6 +42,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	awarenessclient "github.com/globulario/sensei/golang/client"
+	"github.com/globulario/sensei/golang/netcfg"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
@@ -590,7 +591,7 @@ func awarenessAddrs(raw string) []string {
 		appendAddr(addr)
 	}
 	if len(addrs) == 0 {
-		appendAddr("localhost:10120")
+		appendAddr(netcfg.ServiceAddr())
 	}
 	if len(addrs) == 1 {
 		host := addrs[0]
@@ -599,7 +600,7 @@ func awarenessAddrs(raw string) []string {
 		}
 		switch strings.Trim(host, "[]") {
 		case "localhost", "127.0.0.1", "::1":
-			appendAddr("localhost:10120")
+			appendAddr(netcfg.DefaultServiceHostPort)
 			appendAddr("localhost:9090")
 		}
 	}
@@ -1390,7 +1391,7 @@ func serveStdio(br *bridge, r io.Reader, w io.Writer) error {
 // @awareness component=mcp.bridge
 // @awareness relates_to=globular.awareness_graph:intent.awareness.mcp_tools_use_gateway_client_pool
 func main() {
-	awarenessAddr := flag.String("awareness-addr", "localhost:10120", "awareness-graph gRPC address (or comma-separated fallback list)")
+	awarenessAddr := flag.String("awareness-addr", netcfg.ServiceAddr(), "awareness-graph gRPC address (or comma-separated fallback list; honors $AWG_ADDR)")
 	timeout := flag.Duration("timeout", 5*time.Second, "per-request gRPC timeout")
 	flag.Parse()
 

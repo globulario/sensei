@@ -959,6 +959,11 @@ test_symbols:
     symbol: TestDraftCandidateDoc_RequiresTitleOrID
     package: main
     language: go
+  - id: cmd/awg/cmd_edit_brief_test.go:TestEditBrief
+    file: cmd/awg/cmd_edit_brief_test.go
+    symbol: TestEditBrief
+    package: main
+    language: go
   - id: cmd/awg/cmd_edit_guard_neutral_test.go:TestResolveGuardInput
     file: cmd/awg/cmd_edit_guard_neutral_test.go
     symbol: TestResolveGuardInput
@@ -4464,6 +4469,21 @@ test_symbols:
     symbol: TestVerifyPack_Valid
     package: governancepack
     language: go
+  - id: golang/netcfg/netcfg_test.go:TestOxigraphBind
+    file: golang/netcfg/netcfg_test.go
+    symbol: TestOxigraphBind
+    package: netcfg
+    language: go
+  - id: golang/netcfg/netcfg_test.go:TestOxigraphURLs
+    file: golang/netcfg/netcfg_test.go
+    symbol: TestOxigraphURLs
+    package: netcfg
+    language: go
+  - id: golang/netcfg/netcfg_test.go:TestServiceAddrDefaultAndEnv
+    file: golang/netcfg/netcfg_test.go
+    symbol: TestServiceAddrDefaultAndEnv
+    package: netcfg
+    language: go
   - id: golang/pb/compile_test.go:TestBriefingStatusEnumValuesExist
     file: golang/pb/compile_test.go
     symbol: TestBriefingStatusEnumValuesExist
@@ -4938,26 +4958,6 @@ test_symbols:
     package: main
     language: go
     doc: "applies_to_paths refinement: a bad shape on a file that does not match the\nrule's path globs is not evaluated (rules_evaluated=0), so no warning."
-  - id: golang/server/etcd_register_test.go:TestParsePortFromServiceConfigJSON_Missing
-    file: golang/server/etcd_register_test.go
-    symbol: TestParsePortFromServiceConfigJSON_Missing
-    package: main
-    language: go
-  - id: golang/server/etcd_register_test.go:TestParsePortFromServiceConfigJSON_Number
-    file: golang/server/etcd_register_test.go
-    symbol: TestParsePortFromServiceConfigJSON_Number
-    package: main
-    language: go
-  - id: golang/server/etcd_register_test.go:TestParsePortFromServiceConfigJSON_OutOfRange
-    file: golang/server/etcd_register_test.go
-    symbol: TestParsePortFromServiceConfigJSON_OutOfRange
-    package: main
-    language: go
-  - id: golang/server/etcd_register_test.go:TestParsePortFromServiceConfigJSON_String
-    file: golang/server/etcd_register_test.go
-    symbol: TestParsePortFromServiceConfigJSON_String
-    package: main
-    language: go
   - id: golang/server/final_form_golden_test.go:TestAwarenessFinalForm_DoctorRemediationPath
     file: golang/server/final_form_golden_test.go
     symbol: TestAwarenessFinalForm_DoctorRemediationPath
