@@ -2,6 +2,22 @@
 # Run `make import-graph` to regenerate from source imports.
 # Component dependency edges inferred from python imports (assertion: inferred). importgraph v1.
 components:
+  - id: component.docs
+    name: docs
+    kind: module
+    assertion: inferred
+    source_files:
+      - docs/article/build_art_of_software_architecture.py
+      - docs/article/build_pdf.py
+    external_imports:
+      - markdown
+      - weasyprint
+      - yaml
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.scripts
     name: scripts
     kind: module
