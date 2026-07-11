@@ -7,25 +7,28 @@ pack of 133 battle-validated meta-principles to start from on day one.
 
 ## 1. Install (one time)
 
-Source build:
+One line — prebuilt, self-contained (no Go, no Docker):
+
+```bash
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/globulario/sensei/main/install.sh | sh
+```
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/globulario/sensei/main/install.ps1 | iex
+```
+
+Or via a package manager: `brew install globulario/tap/sensei` (macOS / Linux) ·
+`winget install Globulario.Sensei` (Windows).
+
+Prefer to build from source? Needs Go 1.25+, git, curl, python3:
 
 ```bash
 git clone https://github.com/globulario/sensei
-cd sensei && ./scripts/install.sh      # builds sensei + server, fetches oxigraph → bin/
-export PATH="$PWD/bin:$PATH"
+cd sensei && ./scripts/install.sh && export PATH="$PWD/bin:$PATH"
 ```
 
-Prebuilt Linux `amd64` alternative:
-
-```bash
-tar -xzf awg-local_<version>_linux_amd64.tgz
-cd extracted-dir
-export PATH="$PWD/bin:$PATH"
-bash ./scripts/fetch-oxigraph.sh
-```
-
-Source build requires Go1.25+, git, curl, python3. The prebuilt Linux bundle
-does not require Go. Full platform notes (macOS, the Oxigraph dependency, the
+Full platform notes (tarballs, macOS/Windows, the Oxigraph dependency, the
 Docker alternative): **[INSTALL.md](INSTALL.md)**.
 
 Recommended local runtime:
