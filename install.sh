@@ -103,7 +103,9 @@ case ":${PATH}:" in
 esac
 
 say ""
-say "Give your agent the MCP tools (Claude Code, .mcp.json at your repo root):"
+say "Wire your agent up (from your repo):  sensei init --mcp"
+say "  → writes CLAUDE.md / AGENTS.md / .cursor rule + the MCP server into .mcp.json."
+say "Or add the MCP tools by hand (Claude Code, .mcp.json at your repo root):"
 say '    { "mcpServers": { "sensei": {'
 say "        \"command\": \"${PREFIX}/awareness-mcp\","
 say '        "args": ["--awareness-addr", "localhost:10120"] } } }'
