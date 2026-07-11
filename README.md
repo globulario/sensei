@@ -49,6 +49,22 @@ Required test:  TestPaidStateRequiresVerifiedConfirmation
 
 ---
 
+## Proof: does it work on a real codebase?
+
+We pointed Sensei at [**Caddy**](https://github.com/caddyserver/caddy) from a
+pristine, pre-Sensei checkout. Cold and deterministic, it mapped the structure
+(17 components, 490 tests, 176 source anchors). Fed the project's PR history, it
+recovered real architecture laws — **each citing a specific Caddy PR** — like:
+
+> A streaming reverse-proxy copy must honor context cancellation — the shortcut
+> leaks the connection. *Grounded in PR #4952, tried in `f5dce84a` and reverted
+> by `238f1108`.*
+
+That's mined from Caddy's own history, not guessed. **[Read the full Caddy case
+study →](docs/case-studies/caddy.md)** (every command reproducible).
+
+---
+
 ## Install (one line)
 
 Prebuilt, self-contained (`sensei` + server + MCP bridge + `oxigraph`) — no Go
