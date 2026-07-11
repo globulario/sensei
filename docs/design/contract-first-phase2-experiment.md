@@ -2,7 +2,7 @@
 
 > Status: **design / protocol only.** This document defines the experiment. It is
 > not the implementation. Build order is incremental, smallest-PR-first; PR1
-> (frozen-contract support in `awg gate`) is the only code that exists when this
+> (frozen-contract support in `sensei gate`) is the only code that exists when this
 > doc lands.
 >
 > Pairs with [`contract-first-resolution.md`](./contract-first-resolution.md)
@@ -32,7 +32,7 @@ inferences and fewer confident wrong patches** than baseline?
 |---|---|---|
 | **A — tools-only** | repo + shell + ripgrep; no Sensei | baseline; agent infers the contract |
 | **B — structural Sensei** | A + components/deps (Phase-1 Mode C) | replicate the B≈C control |
-| **D — contract Sensei** | B + frozen contracts via `briefing`/`resolve` + `awg gate` self-check | the treatment |
+| **D — contract Sensei** | B + frozen contracts via `briefing`/`resolve` + `sensei gate` self-check | the treatment |
 
 Same model, temperature, seed, and token budget across arms. B is the honesty
 control: it must stay ≈ A on localizable tasks, isolating that D's lift is the
@@ -42,12 +42,12 @@ control: it must stay ≈ A on localizable tasks, isolating that D's lift is the
 
 | Term | Definition (operational) |
 |---|---|
-| **explicit contract** | a frozen contract authored *before runs*, in the contract-set, with a `detect` rule; retrievable via `awg resolve`. |
+| **explicit contract** | a frozen contract authored *before runs*, in the contract-set, with a `detect` rule; retrievable via `sensei resolve`. |
 | **inferred contract** | agent-produced claim grounded in ≥2 cited artifacts (invariant/test/failure-mode/history); no matching frozen explicit one. |
 | **proposed contract** | agent-produced, single weak signal, flagged "candidate, unconfirmed". |
 | **contract-unknown** | agent asserts no contract is derivable and **emits no behavioral patch** (revision request only). |
 | **invalid contract claim** | agent labels "explicit/inferred" but cites nothing grounded, or cites a contract that does not govern the changed code (judge-checked). |
-| **respected contract** | `awg gate` finds **no** frozen detect rule violated by the diff's added/changed lines for any contract whose `governs` matches a changed file. |
+| **respected contract** | `sensei gate` finds **no** frozen detect rule violated by the diff's added/changed lines for any contract whose `governs` matches a changed file. |
 | **violated contract** | ≥1 applicable frozen detect rule matches the diff. |
 
 ## 3. Frozen contract-set format (`eval/multi-swe-bench/contracts/<task-id>.yaml`)
@@ -103,11 +103,11 @@ These scope fields are advisory at the harness layer. A contract may be present
 yet still underconstrained; the gate should warn instead of treating
 `contract_found` as clean evidence by itself.
 
-Two load paths (use the cheaper first): **(a)** `awg gate --contracts <file>` reads
+Two load paths (use the cheaper first): **(a)** `sensei gate --contracts <file>` reads
 the YAML directly; **(b)** promote into the graph with `status: frozen` so
-`awg resolve` serves it in arm D. PR1 implements (a) for grading only.
+`sensei resolve` serves it in arm D. PR1 implements (a) for grading only.
 
-## 4. `awg gate` behavior (extend the existing command)
+## 4. `sensei gate` behavior (extend the existing command)
 
 Add to `runGate` (without changing default behavior — new code path activates
 only with `--contracts`):
@@ -139,7 +139,7 @@ gold patch**).
 The agent must emit `contract_block.json` **before** producing any diff:
 
 ```
-1. RETRIEVE   — awg briefing(file) ; awg impact(file) ; awg resolve(id) per returned id.
+1. RETRIEVE   — sensei briefing(file) ; sensei impact(file) ; sensei resolve(id) per returned id.
                 (A/B: ripgrep/code-read instead.)
 2. STATE      — write contract_block.json:
                 { "status":"found|inferred|proposed|unknown",
@@ -157,7 +157,7 @@ The agent must emit `contract_block.json` **before** producing any diff:
                 If scope is underconstrained, prefer revision_request.md; if you
                 still patch, mark the contract partial and explain why.
 4. PATCH      — produce the diff.
-5. SELF-GATE  — run `awg gate --contracts ... --diff` (advisory; not the grade).
+5. SELF-GATE  — run `sensei gate --contracts ... --diff` (advisory; not the grade).
 6. VERIFY     — write verification.md: which detect rule / required path / test
                 proves respect, and whether any scope broadening was necessary.
 ```
@@ -177,7 +177,7 @@ Let `N` = tasks; `Nc` = tasks with a frozen contract; `Nt` = trap+unknown subset
 
 ## 7. Non-circular grading (explicit guarantees)
 
-- Contract-**respect** is judged by `awg gate` against the **frozen,
+- Contract-**respect** is judged by `sensei gate` against the **frozen,
   human-authored** detect rule — never the agent's claimed contract.
 - Contract-**discovery** is judged against the frozen governing id — never the
   agent's own inference.
@@ -194,7 +194,7 @@ Let `N` = tasks; `Nc` = tasks with a frozen contract; `Nt` = trap+unknown subset
    baseline ships the trap.*
 2. **Owner-elsewhere contract** — the governing contract lives in a different
    component than the error site. *Structural tools localize to the symptom;
-   `awg impact` points to the owner.*
+   `sensei impact` points to the owner.*
 3. **Underspecified issue → contract-unknown** — ambiguous report; correct
    behavior genuinely undecided. *Sensei → stop/ask; baseline → confident guess.*
 4. **Scar / implicit-invariant regression** — fix that works locally but reopens a
@@ -247,7 +247,7 @@ or the detect rules were too weak.
 
 ## 12. Build order (smallest-PR-first)
 
-1. **PR1 — frozen-contract support in `awg gate`** (`--contracts`, `--enforce`,
+1. **PR1 — frozen-contract support in `sensei gate`** (`--contracts`, `--enforce`,
    JSON verdicts, `regex_forbidden` only, added/changed lines only,
    respected/violated/not_applicable, exit non-zero only with `--enforce` on a
    violation). **No default-behavior change.** Proves the mechanical core: a

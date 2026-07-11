@@ -3,7 +3,7 @@
 # path works end to end.
 #
 # Flow:
-#   build awg -> mint publisher key -> derive trust root -> build/sign/release
+#   build sensei -> mint publisher key -> derive trust root -> build/sign/release
 #   a governance pack -> bootstrap a fresh client from the published trust root
 #   -> fetch + activate the pack against a local Oxigraph -> verify current
 #   governance status.
@@ -40,7 +40,7 @@ fail() { echo "GOVERNANCE SMOKE FAIL: $*" >&2; exit 1; }
 port_busy "${OXI_PORT}" && fail "port ${OXI_PORT} already in use — set AWG_GOVERNANCE_SMOKE_OXI_PORT"
 
 echo "==> building awg"
-( cd "${REPO_ROOT}" && go build -o "${WORK}/awg" ./cmd/awg )
+( cd "${REPO_ROOT}" && go build -o "${WORK}/sensei" ./cmd/awg )
 
 if [[ -x "${REPO_ROOT}/bin/oxigraph" ]]; then
   cp "${REPO_ROOT}/bin/oxigraph" "${WORK}/oxigraph"
@@ -70,17 +70,17 @@ PUB_ROOT="${WORK}/vendor/published"
 SIGNING_KEY="${WORK}/vendor/signing-key.json"
 TRUST_ROOT="${WORK}/vendor/trusted-publishers.json"
 
-"${WORK}/awg" governance publish gen-key \
+"${WORK}/sensei" governance publish gen-key \
   --out "${SIGNING_KEY}" \
   --publisher-id "core@globular.io" \
   --key-id "core-2026-q3" >/dev/null
 
-"${WORK}/awg" governance publish trust-root \
+"${WORK}/sensei" governance publish trust-root \
   --signing-key "${SIGNING_KEY}" \
   --out "${TRUST_ROOT}" \
   --display-name "Globular Core" >/dev/null
 
-"${WORK}/awg" governance publish build \
+"${WORK}/sensei" governance publish build \
   --input-nt "${WORK}/canonical.nt" \
   --out-dir "${PACK_DIR}" \
   --pack-id "core.meta-principles" \
@@ -91,11 +91,11 @@ TRUST_ROOT="${WORK}/vendor/trusted-publishers.json"
   --min-awg-version "0.0.0" \
   --key-id "core-2026-q3" >/dev/null
 
-"${WORK}/awg" governance publish sign \
+"${WORK}/sensei" governance publish sign \
   --signing-key "${SIGNING_KEY}" \
   "${PACK_DIR}" >/dev/null
 
-"${WORK}/awg" governance publish release \
+"${WORK}/sensei" governance publish release \
   --trusted-keys "${TRUST_ROOT}" \
   --signing-key "${SIGNING_KEY}" \
   --publication-root "${PUB_ROOT}" \
@@ -108,15 +108,15 @@ TRUST_ROOT="${WORK}/vendor/trusted-publishers.json"
 echo "==> bootstrapping fresh client from published root"
 CLIENT="${WORK}/client"
 mkdir -p "${CLIENT}"
-( cd "${CLIENT}" && git init -q . && "${WORK}/awg" init -dir . >/dev/null )
-"${WORK}/awg" governance init -project-root "${CLIENT}" >/dev/null
-"${WORK}/awg" governance trust fetch -project-root "${CLIENT}" --source "${PUB_ROOT}" >/dev/null
-"${WORK}/awg" governance trust add \
+( cd "${CLIENT}" && git init -q . && "${WORK}/sensei" init -dir . >/dev/null )
+"${WORK}/sensei" governance init -project-root "${CLIENT}" >/dev/null
+"${WORK}/sensei" governance trust fetch -project-root "${CLIENT}" --source "${PUB_ROOT}" >/dev/null
+"${WORK}/sensei" governance trust add \
   -project-root "${CLIENT}" \
-  --file "${CLIENT}/.awg/governance/incoming/trusted-publishers.json" >/dev/null
+  --file "${CLIENT}/.sensei/governance/incoming/trusted-publishers.json" >/dev/null
 
 echo "==> fetching and activating signed governance pack"
-"${WORK}/awg" governance fetch \
+"${WORK}/sensei" governance fetch \
   -project-root "${CLIENT}" \
   -source "${PUB_ROOT}" \
   -pack-id "core.meta-principles" \
@@ -124,7 +124,7 @@ echo "==> fetching and activating signed governance pack"
   -activate \
   -store-url "http://127.0.0.1:${OXI_PORT}/store?default" >/dev/null
 
-STATUS="$("${WORK}/awg" governance status -project-root "${CLIENT}")"
+STATUS="$("${WORK}/sensei" governance status -project-root "${CLIENT}")"
 echo "${STATUS}" | grep -q "Managed mode:        true" || fail "managed mode not enabled"
 echo "${STATUS}" | grep -q "Governance state:    current" || { echo "${STATUS}" >&2; fail "governance status not current"; }
 echo "${STATUS}" | grep -q "Fetched state:       current" || { echo "${STATUS}" >&2; fail "fetched status not current"; }

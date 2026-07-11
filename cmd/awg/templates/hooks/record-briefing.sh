@@ -1,5 +1,5 @@
 #!/bin/bash
-# AWG record-briefing hook for Claude Code.
+# Sensei record-briefing hook for Claude Code.
 #
 # PostToolUse hook on awareness_briefing: records that a briefing was
 # obtained so the enforce-briefing hook permits subsequent edits.
@@ -34,7 +34,7 @@ FILE_PATH=$(realpath -m "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
 
 # Create marker file.
 SESSION_ID="${CLAUDE_SESSION_ID:-default}"
-MARKER_DIR="/tmp/awg-briefings/$SESSION_ID"
+MARKER_DIR="/tmp/sensei-briefings/$SESSION_ID"
 mkdir -p "$MARKER_DIR"
 PATH_HASH=$(echo -n "$FILE_PATH" | sha256sum | cut -d' ' -f1)
 touch "$MARKER_DIR/$PATH_HASH"

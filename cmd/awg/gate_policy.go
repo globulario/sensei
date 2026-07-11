@@ -5,12 +5,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/statedir"
 )
 
 // Per-repo enforcement policy (Pillar 2.3). A rule's declared enforcement lives
@@ -29,7 +29,7 @@ const (
 	enforceOff     = "off"     // drop the finding entirely for this repo
 )
 
-// gatePolicy is the on-disk shape of <repo>/.awg/gate-policy.yaml.
+// gatePolicy is the on-disk shape of <repo>/.sensei/gate-policy.yaml.
 type gatePolicy struct {
 	// Default enforcement for rules with no explicit entry. Empty or "inherit"
 	// keeps each rule's declared level.
@@ -44,7 +44,7 @@ type gatePolicy struct {
 
 // defaultGatePolicyPath is where the gate looks when --policy is not given.
 func defaultGatePolicyPath(repoRoot string) string {
-	return filepath.Join(repoRoot, ".awg", "gate-policy.yaml")
+	return statedir.Path(repoRoot, "gate-policy.yaml")
 }
 
 var validEnforcementLevels = map[string]bool{

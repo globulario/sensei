@@ -3,22 +3,22 @@
 #
 # Ingests a foreign repo's structural facts (components, file anchors, import
 # dependencies) into an ISOLATED, domain-scoped AWG graph and proves that
-# file-level context answers — so `awg impact/briefing --domain <repo>` returns
+# file-level context answers — so `sensei impact/briefing --domain <repo>` returns
 # real structural context for that repo, with no leakage to/from other domains.
 #
 #   extract (import-scan per language)
-#     → awg build --repo <domain>   (tags every structural node to the domain)
+#     → sensei build --repo <domain>   (tags every structural node to the domain)
 #     → load into an ISOLATED Oxigraph (never the shared :7878 / live store)
 #     → validate: impact for an extracted file is NON-EMPTY and domain-scoped
 #
 # Optimization: the isolated store is cacheable. If the foreign checkout HEAD,
-# target domain, selected languages, and awg binary fingerprint match the last
+# target domain, selected languages, and sensei binary fingerprint match the last
 # bootstrap recorded in DATA_DIR/.bootstrap-meta, we reuse the existing store
 # instead of rescanning and rebuilding. That keeps extracted structural value
 # "earned once" per repo revision while still invalidating on code/tool drift.
 #
 # Scar/intent cold-bootstrap is intentionally NOT here — it is optional
-# enrichment layered on top (see `awg cold-bootstrap`), never the only context.
+# enrichment layered on top (see `sensei cold-bootstrap`), never the only context.
 #
 # Usage:
 #   scripts/awg-bootstrap-foreign.sh <checkout_dir> <domain> [probe_file]
@@ -26,7 +26,7 @@
 #   scripts/awg-bootstrap-foreign.sh /tmp/cli github.com/cli/cli api/client.go
 #
 # Env (all have safe isolated defaults — never the live ports):
-#   AWG_BIN   awg binary (default: ./awg, built if missing)
+#   AWG_BIN   sensei binary (default: ./awg, built if missing)
 #   PORT      isolated gRPC port      (default 10131; MUST NOT be 10120)
 #   OXI_PORT  isolated Oxigraph port  (default 7889;  MUST NOT be 7878)
 #   DATA_DIR  isolated store dir      (default /tmp/awg-foreign-<slug>)
@@ -42,7 +42,7 @@ domain="${2:?usage: awg-bootstrap-foreign.sh <checkout_dir> <domain> [probe_file
 probe="${3:-}"
 slug="${domain#github.com/}"; slug="${slug//\//__}"
 
-AWG_BIN="${AWG_BIN:-$AG_REPO/awg}"
+AWG_BIN="${AWG_BIN:-$AG_REPO/sensei}"
 PORT="${PORT:-10131}"
 OXI_PORT="${OXI_PORT:-7889}"
 DATA_DIR="${DATA_DIR:-/tmp/awg-foreign-$slug}"
@@ -186,8 +186,8 @@ if [ "$cache_hit" != 1 ]; then
   rm -rf "$DATA_DIR"
 fi
 mkdir -p "$DATA_DIR"
-MARKER_FILE="$DATA_DIR/.awg/graph-authority.json"
-mkdir -p "$DATA_DIR/.awg"
+MARKER_FILE="$DATA_DIR/.sensei/graph-authority.json"
+mkdir -p "$DATA_DIR/.sensei"
 "$AWG_BIN" serve --addr ":$PORT" --oxigraph-bind "127.0.0.1:$OXI_PORT" --no-seed \
     --graph-marker-file "$MARKER_FILE" \
     --home-domain "$domain" --data "$DATA_DIR" >/tmp/awg-foreign-$slug.log 2>&1 &

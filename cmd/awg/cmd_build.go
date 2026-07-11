@@ -27,7 +27,7 @@ func finalizeBuildArtifact(nt []byte) ([]byte, seedmeta.Marker, int, int) {
 }
 
 func runBuild(args []string) int {
-	fs := flag.NewFlagSet("awg build", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei build", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
 	var inputDirs stringSlice
@@ -36,7 +36,7 @@ func runBuild(args []string) int {
 	storeURL := fs.String("store-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint")
 	strict := fs.Bool("strict", false, "fail on unrecognized YAML schemas (recognized non-graph config files are reported, not fatal)")
 	validateRefs := fs.Bool("validate-refs", false, "fail on dangling references")
-	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful store load (default: <project>/.awg/graph-authority.json)")
+	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful store load (default: <project>/.sensei/graph-authority.json)")
 	graphTransactionFile := fs.String("graph-transaction-file", "", "write runtime transaction certification beside the graph marker after a successful store load (default: sibling of graph marker when repo context is available)")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo for runtime transaction certification (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo for runtime transaction certification (auto-detect)")
@@ -44,7 +44,7 @@ func runBuild(args []string) int {
 	domain := fs.String("domain", "", "default domain kind for untagged nodes: repo|shared (inferred 'repo' when --repo is set)")
 	sourceSet := fs.String("source-set", "", "default source-set namespace for untagged nodes, e.g. pilot/cli")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg build [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei build [flags]
 
 Compiles awareness YAML sources into N-Triples and loads them into
 the Oxigraph store. If --output is given, writes to a file instead.
@@ -67,7 +67,7 @@ Flags:
 	}
 	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
 	ntBytes, marker, uniqueCount, dupCount := finalizeBuildArtifact(rawProjectNT)
@@ -75,7 +75,7 @@ Flags:
 	if governancepack.ManagedModeEnabled(root) {
 		verifiedPack, _, err := verifyActiveGovernancePack(root)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg build: managed governance requires a verified active pack: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei build: managed governance requires a verified active pack: %v\n", err)
 			return 1
 		}
 		ntBytes, marker, uniqueCount, dupCount = combineGraphArtifacts(verifiedPack.PayloadBytes, ntBytes)
@@ -86,10 +86,10 @@ Flags:
 	if errs := extractor.ValidateNTriples(bytes.NewReader(ntBytes)); len(errs) > 0 {
 		for i, e := range errs {
 			if i >= 20 {
-				fmt.Fprintf(os.Stderr, "awg build: ... %d more errors\n", len(errs)-i)
+				fmt.Fprintf(os.Stderr, "sensei build: ... %d more errors\n", len(errs)-i)
 				break
 			}
-			fmt.Fprintf(os.Stderr, "awg build: %s\n", e)
+			fmt.Fprintf(os.Stderr, "sensei build: %s\n", e)
 		}
 		return 1
 	}
@@ -107,7 +107,7 @@ Flags:
 	// Output: file or store.
 	if *output != "" {
 		if err := os.WriteFile(*output, ntBytes, 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "awg build: write %s: %v\n", *output, err)
+			fmt.Fprintf(os.Stderr, "sensei build: write %s: %v\n", *output, err)
 			return 1
 		}
 		fmt.Fprintf(os.Stderr, "  wrote %s (%d bytes)\n", *output, len(ntBytes))
@@ -117,29 +117,29 @@ Flags:
 	// Load into Oxigraph.
 	endpoint, err := normalizeStoreURL(*storeURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg build: invalid --store-url: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei build: invalid --store-url: %v\n", err)
 		return 1
 	}
 
 	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes); err != nil {
-		fmt.Fprintf(os.Stderr, "awg build: upload to %s: %v\n", endpoint, err)
-		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `awg serve -no-seed` or `bash ./scripts/install-awg-user-services.sh`.\n")
+		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
+		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-awg-user-services.sh`.\n")
 		return 1
 	}
 	if err := verifyLoadedGraph(endpoint, ntBytes); err != nil {
-		fmt.Fprintf(os.Stderr, "awg build: verification after upload failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei build: verification after upload failed: %v\n", err)
 		return 1
 	}
 	markerPath := strings.TrimSpace(*graphMarkerFile)
 	if markerPath == "" {
 		markerPath, err = defaultRuntimeMarkerFile()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg build: resolve graph marker file: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei build: resolve graph marker file: %v\n", err)
 			return 1
 		}
 	}
 	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-		fmt.Fprintf(os.Stderr, "awg build: publish graph marker: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei build: publish graph marker: %v\n", err)
 		return 1
 	}
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
@@ -153,13 +153,13 @@ Flags:
 		txBytes, err := buildTransactionTSV(agRepo, svcRepo, ntBytes)
 		if err != nil {
 			if txRequested {
-				fmt.Fprintf(os.Stderr, "awg build: publish runtime transaction: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei build: publish runtime transaction: %v\n", err)
 				return 1
 			}
 			fmt.Fprintf(os.Stderr, "  runtime transaction: skipped (%v)\n", err)
 		} else if err := writeFileAtomic(txPath, txBytes); err != nil {
 			if txRequested {
-				fmt.Fprintf(os.Stderr, "awg build: publish runtime transaction: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei build: publish runtime transaction: %v\n", err)
 				return 1
 			}
 			fmt.Fprintf(os.Stderr, "  runtime transaction: skipped (%v)\n", err)

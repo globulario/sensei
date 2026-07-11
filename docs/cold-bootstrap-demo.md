@@ -39,8 +39,8 @@ comments) — gets:
 ```bash
 git clone https://github.com/globulario/sensei && cd awareness-graph
 
-# Build the CLI and the server binary (awg serve execs ./bin/awareness-graph),
-go build -o /tmp/awg ./cmd/awg
+# Build the CLI and the server binary (sensei serve execs ./bin/awareness-graph),
+go build -o /tmp/sensei ./cmd/awg
 go build -o bin/awareness-graph ./golang/server
 # and have an `oxigraph` binary on PATH or in ./bin/ (the demo starts its own).
 ```
@@ -48,7 +48,7 @@ go build -o bin/awareness-graph ./golang/server
 ## The fast path — one command
 
 ```bash
-AWG_BIN=/tmp/awg bash pilot/caddy/demo.sh
+AWG_BIN=/tmp/sensei bash pilot/caddy/demo.sh
 ```
 
 It starts an **isolated** Sensei (gRPC `:10121`, a throwaway Oxigraph on `:7901`
@@ -63,7 +63,7 @@ moving parts, run the steps yourself.
 ### 0. Start an isolated Sensei (separate ports + throwaway data dir)
 
 ```bash
-/tmp/awg serve --addr :10121 --oxigraph-bind 127.0.0.1:7901 --data /tmp/awg-pilot-demo &
+/tmp/sensei serve --addr :10121 --oxigraph-bind 127.0.0.1:7901 --data /tmp/awg-pilot-demo &
 ```
 
 It seeds the embedded Globular graph into the fresh store; nothing touches your
@@ -72,7 +72,7 @@ real `:7878` store.
 ### 1. Promote the reviewed Caddy candidate
 
 ```bash
-/tmp/awg promote --repo github.com/caddyserver/caddy --no-rebuild \
+/tmp/sensei promote --repo github.com/caddyserver/caddy --no-rebuild \
   caddy.reverseproxy.forwardauth_errf_preserves_location
 ```
 
@@ -83,7 +83,7 @@ Promotion is explicit and human-gated — there is no auto-promotion.
 Then load just that pilot graph into the isolated store (additive):
 
 ```bash
-/tmp/awg build --input pilot/caddy --output /tmp/pilot.nt
+/tmp/sensei build --input pilot/caddy --output /tmp/pilot.nt
 curl -s -X POST -H 'Content-Type: application/n-triples' \
   --data-binary @/tmp/pilot.nt 'http://localhost:7901/store?default'
 ```
@@ -91,7 +91,7 @@ curl -s -X POST -H 'Content-Type: application/n-triples' \
 ### 2. Brief the real Caddy file — the rule appears, with provenance
 
 ```bash
-/tmp/awg briefing --addr localhost:10121 \
+/tmp/sensei briefing --addr localhost:10121 \
   --file modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go \
   --domain github.com/caddyserver/caddy
 ```
@@ -110,7 +110,7 @@ cold-sourced, the human review label, and the citations behind it.
 ### 3. Edit-check a **bad** future edit — it warns
 
 ```bash
-/tmp/awg edit-check --addr localhost:10121 \
+/tmp/sensei edit-check --addr localhost:10121 \
   --file modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go \
   --domain github.com/caddyserver/caddy \
   --content 'return fmt.Errorf("cannot re-declare uri: %s", uri)'
@@ -128,7 +128,7 @@ This is **advisory** — a warning, never a block, and it never edits your code.
 ### 4. Edit-check a **compliant** edit — silence
 
 ```bash
-/tmp/awg edit-check --addr localhost:10121 \
+/tmp/sensei edit-check --addr localhost:10121 \
   --file modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go \
   --domain github.com/caddyserver/caddy \
   --content 'return dispenser.Errf("cannot re-declare uri: %s", uri)'
@@ -145,7 +145,7 @@ and the same bad `fmt.Errorf` edit on a Globular file raises **no** Caddy
 warning:
 
 ```bash
-/tmp/awg edit-check --addr localhost:10121 \
+/tmp/sensei edit-check --addr localhost:10121 \
   --file golang/repository/repository_server/repository_server.go \
   --content 'return fmt.Errorf("boom")'
 # warnings: 0   (the Caddy rule is out of scope here)

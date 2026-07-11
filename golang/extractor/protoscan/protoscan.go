@@ -72,7 +72,7 @@ func ParseComponentMap(pairs []string) (map[string]string, error) {
 func excludedDir(name string) bool {
 	switch name {
 	case "vendor", "node_modules", ".git", "dist", "build", "bin", "out",
-		"third_party", "thirdparty", "generated", ".awg", "testdata":
+		"third_party", "thirdparty", "generated", ".sensei", ".awg", "testdata":
 		return true
 	}
 	return false

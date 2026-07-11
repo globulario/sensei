@@ -25,7 +25,7 @@ import (
 // It is the compliance half of enforcement: enforce-briefing.sh checks that a
 // briefing was *requested*; this checks that what is about to be *written* does
 // not violate a rule. All the decision logic lives here (tested) rather than in
-// the shell hook, which stays a thin `exec awg edit-guard` wrapper.
+// the shell hook, which stays a thin `exec sensei edit-guard` wrapper.
 //
 // AWG's edit_check RPC is advisory and never blocks — that contract is intact.
 // This guard is an opt-in local enforcement layer over it. It fails OPEN: if
@@ -33,11 +33,11 @@ import (
 // is unreachable, it allows the edit. It only ever blocks on an actual rule
 // match, and always exits 0 (Claude Code reads the decision from stdout JSON).
 func runEditGuard(args []string) int {
-	fs := flag.NewFlagSet("awg edit-guard", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei edit-guard", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	addr := fs.String("addr", envOr("AWG_ADDR", "localhost:10120"), "AWG gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
-	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .awg/config.yaml)")
+	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	blockSeverity := fs.String("block-severity", envOr("AWG_EDIT_CHECK_BLOCK_SEVERITY", "critical,high"),
 		"comma-separated severities that block the edit")
 	advisory := fs.Bool("advisory", os.Getenv("AWG_EDIT_CHECK_ADVISORY") == "1",
@@ -46,9 +46,9 @@ func runEditGuard(args []string) int {
 	contentFile := fs.String("content-file", "", "neutral input: path to a file holding the proposed content (with --file); '-' or omitted reads content from stdin")
 	format := fs.String("format", envOr("AWG_EDIT_GUARD_FORMAT", "claude"),
 		"output adapter: claude (PreToolUse decision JSON) | json (neutral verdict) | exit-code (block => exit 2)")
-	eventLog := fs.String("event-log", os.Getenv("AWG_EVENT_LOG"), "append a JSONL outcome event to this ledger for evidence; see `awg evidence`. Default: $AWG_EVENT_LOG (off when empty).")
+	eventLog := fs.String("event-log", os.Getenv("AWG_EVENT_LOG"), "append a JSONL outcome event to this ledger for evidence; see `sensei evidence`. Default: $AWG_EVENT_LOG (off when empty).")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg edit-guard [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei edit-guard [flags]
 
 Runs a proposed edit's content through edit_check and blocks when it would
 introduce a forbidden-fix shape or a high-severity rule violation. The decision
@@ -66,7 +66,7 @@ Output adapters (--format):
 
 Fails OPEN in every mode: an unparseable payload, an out-of-project file, or an
 unreachable server allows the edit (exit 0). It only blocks on a real rule match.
-For a fail-CLOSED CI gate over a diff, use 'awg gate --enforce' instead.
+For a fail-CLOSED CI gate over a diff, use 'sensei gate --enforce' instead.
 
 Flags:
 `)
@@ -76,7 +76,7 @@ Flags:
 		return 0 // never wedge editing on a flag parse error
 	}
 	if *format != "claude" && *format != "json" && *format != "exit-code" {
-		fmt.Fprintf(os.Stderr, "awg edit-guard: --format must be claude|json|exit-code, got %q\n", *format)
+		fmt.Fprintf(os.Stderr, "sensei edit-guard: --format must be claude|json|exit-code, got %q\n", *format)
 		return 0
 	}
 
@@ -104,7 +104,7 @@ Flags:
 	if err != nil {
 		// Advisory backend being unreachable is NOT a rule match. Never block on
 		// it; note it so it is not silently swallowed.
-		fmt.Fprintf(os.Stderr, "awg edit-guard: edit-check unavailable (allowing edit): %s\n", firstLine(err.Error()))
+		fmt.Fprintf(os.Stderr, "sensei edit-guard: edit-check unavailable (allowing edit): %s\n", firstLine(err.Error()))
 		return 0
 	}
 

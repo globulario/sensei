@@ -13,5 +13,5 @@ Before editing any file in this repository:
 - Do not bypass required tests or guardrails surfaced by awareness context.
 
 After a fix that taught you something durable, record it with one
-`awg propose --kind <…> --contract "<…>" …` call (contract-first; it stages,
-never commits). The `Stop` hook `awg feedback-check` reminds you if you forgot.
+`sensei propose --kind <…> --contract "<…>" …` call (contract-first; it stages,
+never commits). The `Stop` hook `sensei feedback-check` reminds you if you forgot.

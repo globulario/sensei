@@ -30,15 +30,15 @@ func runRepoEval(args []string) int {
 		return runRepoEvalDraftUpgrade(args[1:])
 	}
 
-	fs := flag.NewFlagSet("awg repo-eval", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei repo-eval", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	asJSON := fs.Bool("json", false, "output as JSON")
 	repoFlag := fs.String("repo", "", "target repository root to evaluate (defaults to current project root)")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg repo-eval [flags]
-       awg repo-eval fix [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei repo-eval [flags]
+       sensei repo-eval fix [flags]
 
 Evaluate a repository's architecture and awareness quality from explicit evidence.
 The report is evidence-based: visible subscores, findings, and recommendations.
@@ -55,17 +55,17 @@ Flags:
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 	if svcRepo == "" && agRepo == "" && targetRepo == "" {
-		fmt.Fprintln(os.Stderr, "awg repo-eval: cannot find repos; use --services-repo / --ag-repo")
+		fmt.Fprintln(os.Stderr, "sensei repo-eval: cannot find repos; use --services-repo / --ag-repo")
 		return 1
 	}
 	target, err := resolveRepoEvalTarget(targetRepo, svcRepo, agRepo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: %v\n", err)
 		return 1
 	}
 	inputDirs, intentDir, err := repoEvalInputDirs(target, svcRepo, agRepo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: %v\n", err)
 		return 1
 	}
 	graphSvcRepo, graphAgRepo := repoEvalGraphRoots(target, svcRepo, agRepo)
@@ -75,7 +75,7 @@ Flags:
 	}
 	ntBytes, _, _, err := generateNTWithOwnership(inputDirs, intentDir, []string{graphAgRepo, graphSvcRepo}, servicesOwnershipRepo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: generate graph: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: generate graph: %v\n", err)
 		return 1
 	}
 
@@ -94,30 +94,30 @@ Flags:
 	)
 	validateChecks, err := repoEvalValidateChecks(target, inputDirs, intentDir, graphSvcRepo, graphAgRepo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: validate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: validate: %v\n", err)
 		return 1
 	}
 	integrityChecks = append(integrityChecks, validateChecks...)
 
 	coverageRep, err := buildRepoCoverageReport(target.root, ntBytes)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: coverage: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: coverage: %v\n", err)
 		return 1
 	}
 	testStats, err := collectTestCoverageStats(target.root)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: test coverage: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: test coverage: %v\n", err)
 		return 1
 	}
 	contractStats, err := collectContractAssessmentStats(target.intentDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: contract posture: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: contract posture: %v\n", err)
 		return 1
 	}
 	seedStats := collectSeedStats(ntBytes)
 	upgradePath, err := collectRepoEvalUpgradePath(target.root, target.intentDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repo-eval: upgrade path: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repo-eval: upgrade path: %v\n", err)
 		return 1
 	}
 

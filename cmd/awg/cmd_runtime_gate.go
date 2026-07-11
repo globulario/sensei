@@ -6,7 +6,7 @@
 
 // Runtime proof lane — Phase 5: the CI/operator gate.
 //
-// `awg runtime-gate --report <file>` reads a runtime verdict (from
+// `sensei runtime-gate --report <file>` reads a runtime verdict (from
 // cluster-diagnose or runtime-repair-report) and FAILS CLOSED. Only a clean pass
 // (valid_runtime_repair / cluster_converged) authorizes (exit 0). Every other
 // verdict blocks (exit non-zero) — there is NO implicit green: an empty or
@@ -69,12 +69,12 @@ type gateReport struct {
 }
 
 func runRuntimeGate(args []string) int {
-	fs := flag.NewFlagSet("awg runtime-gate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei runtime-gate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	report := fs.String("report", "", "path to a runtime report (cluster-diagnose or runtime-repair-report output; yaml/json) (required)")
 	allowCSV := fs.String("allow", "", "comma-separated explicitly-tolerated non-blocking states (e.g. external_stale_allowed)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg runtime-gate --report <file> [--allow external_stale_allowed,...]
+		fmt.Fprint(os.Stderr, `Usage: sensei runtime-gate --report <file> [--allow external_stale_allowed,...]
 
 Fail-closed CI/operator gate over a runtime verdict. Exit 0 ONLY for a clean pass
 (valid_runtime_repair / cluster_converged) or an explicitly-allowed warn state.
@@ -85,17 +85,17 @@ Every other verdict — including empty/unknown — exits non-zero. No implicit 
 		return 2
 	}
 	if *report == "" {
-		fmt.Fprintln(os.Stderr, "awg runtime-gate: --report <file> is required")
+		fmt.Fprintln(os.Stderr, "sensei runtime-gate: --report <file> is required")
 		return 2
 	}
 	raw, err := os.ReadFile(*report)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg runtime-gate: read %s: %v\n", *report, err)
+		fmt.Fprintf(os.Stderr, "sensei runtime-gate: read %s: %v\n", *report, err)
 		return 1 // cannot read the report → fail closed
 	}
 	var rep gateReport
 	if err := yaml.Unmarshal(raw, &rep); err != nil {
-		fmt.Fprintf(os.Stderr, "awg runtime-gate: parse %s: %v\n", *report, err)
+		fmt.Fprintf(os.Stderr, "sensei runtime-gate: parse %s: %v\n", *report, err)
 		return 1
 	}
 	allow := map[string]bool{}

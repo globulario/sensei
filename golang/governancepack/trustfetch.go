@@ -2,13 +2,8 @@
 
 package governancepack
 
-import "path/filepath"
-
-const StagedTrustStoreRelativePath = ".awg/governance/incoming/trusted-publishers.json"
+import "github.com/globulario/sensei/golang/statedir"
 
 func StagedTrustStorePath(root string) string {
-	if root == "" {
-		return StagedTrustStoreRelativePath
-	}
-	return filepath.Join(root, StagedTrustStoreRelativePath)
+	return statedir.Path(root, "governance", "incoming", "trusted-publishers.json")
 }

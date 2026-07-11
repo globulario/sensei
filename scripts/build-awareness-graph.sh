@@ -481,7 +481,7 @@ done < <(scan_targets)
 # look "stale"). Use the ownership-aware comparator instead: it fails only when
 # THIS repo's owned triples drift; services-authored triples that lead/lag
 # services master are tolerated cross-repo context. Owned drift, dangling refs,
-# and N-Triples validity are still enforced (here and by `awg audit`).
+# and N-Triples validity are still enforced (here and by `sensei audit`).
 echo "Checking awareness.nt (ownership-aware seed freshness)..."
 if ! go run ./cmd/awg seed-freshness \
     -committed "$SEED" \

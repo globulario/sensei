@@ -125,9 +125,9 @@ The seed (`golang/server/embeddata/awareness.nt`) and the generated principle pa
 Integration must not let them drift.
 
 - **No full seed regen drift.** Append only the **minimal owned triples** for the
-  new entry — never a full `awg rebuild` (which produces large unrelated churn and
+  new entry — never a full `sensei rebuild` (which produces large unrelated churn and
   removes triples it doesn't own). Extract the entry's triples from
-  `awg build --input docs/awareness/<dir>` and append exactly those.
+  `sensei build --input docs/awareness/<dir>` and append exactly those.
 - **Generated pack changes only when meta-principles change.** A non-`meta.*` entry
   (an invariant/intent/failure_mode) must leave `meta_principles.yaml` untouched.
 - **`scripts/build-awareness-graph.sh --check` must pass** — the ownership-aware
@@ -181,9 +181,9 @@ A "no" or "unsure" on 1, 2, or 8 means **do not integrate** (or integrate only a
 ## 9. Proposed future CLI shape (design only — not implemented)
 
 ```
-awg corpus plan        --from <report.yaml>        # show what COULD integrate, by §1/§2
-awg corpus materialize --selected <ids> --status candidate   # author YAML + minimal triples
-awg corpus validate                                 # run the §6 generation gates locally
+sensei corpus plan        --from <report.yaml>        # show what COULD integrate, by §1/§2
+sensei corpus materialize --selected <ids> --status candidate   # author YAML + minimal triples
+sensei corpus validate                                 # run the §6 generation gates locally
 ```
 
 `plan` is read-only and classifies a run's findings into integrate / hold / never.
@@ -222,7 +222,7 @@ Globular briefing.
 ---
 
 *Status: design proposal. No code, graph, seed, pack, or principle changes were
-made in producing this note. The implementing work (the `awg corpus` commands and
+made in producing this note. The implementing work (the `sensei corpus` commands and
 the YAML→minimal-triples generator) is a separate, explicitly-approved step.
 Related: [`coldsource-grounding-design.md`](coldsource-grounding-design.md) (the
 grounding spine), [`intent-mining-design.md`](intent-mining-design.md) (the intent

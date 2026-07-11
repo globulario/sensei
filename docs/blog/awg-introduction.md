@@ -17,7 +17,7 @@ We built Sensei to fix this.
 Sensei makes architectural intent queryable at the point of edit. Before you change a file, Sensei tells you what you need to know:
 
 ```
-$ awg briefing --file src/auth/session.go
+$ sensei briefing --file src/auth/session.go
 
 Status: OK
 
@@ -76,11 +76,11 @@ invariants:
 
 **2. A knowledge graph compiled from those YAML files.**
 
-`awg build` compiles your YAML into RDF triples and loads them into Oxigraph, a lightweight SPARQL store. The graph connects files to invariants, invariants to failure modes, failure modes to forbidden fixes. When you query "what do I need to know about this file?", the graph traverses these connections and returns everything relevant.
+`sensei build` compiles your YAML into RDF triples and loads them into Oxigraph, a lightweight SPARQL store. The graph connects files to invariants, invariants to failure modes, failure modes to forbidden fixes. When you query "what do I need to know about this file?", the graph traverses these connections and returns everything relevant.
 
 **3. A query layer that fires before edits.**
 
-`awg briefing`, `awg impact`, and `awg preflight` are thin gRPC clients that query the graph. Claude Code hooks can enforce consultation before edits — if you try to modify a file in a protected directory without calling briefing first, the hook blocks the edit.
+`sensei briefing`, `sensei impact`, and `sensei preflight` are thin gRPC clients that query the graph. Claude Code hooks can enforce consultation before edits — if you try to modify a file in a protected directory without calling briefing first, the hook blocks the edit.
 
 ## What makes this different
 
@@ -148,9 +148,9 @@ We solve this three ways:
 
 **Start with your most painful recent bugs.** Don't try to encode everything. Take the last 3-5 bugs that required patch releases or caused outages. Each one becomes an invariant + failure mode + incident pattern. Five entries is enough to start getting value.
 
-**Ship the meta-principles as seed content.** `awg init` creates `meta_principles.yaml` with all 133 principles. They're immediately queryable. When your first bug doesn't match any of your project-specific invariants, it probably matches a meta-principle — and that principle tells you what to search for.
+**Ship the meta-principles as seed content.** `sensei init` creates `meta_principles.yaml` with all 133 principles. They're immediately queryable. When your first bug doesn't match any of your project-specific invariants, it probably matches a meta-principle — and that principle tells you what to search for.
 
-**Make the incident-to-invariant workflow fast.** After fixing a bug, encoding it should take 5 minutes: add the invariant, add the failure mode, run `awg build`. If it takes longer, people won't do it. The YAML schema is designed to be writable without reading documentation.
+**Make the incident-to-invariant workflow fast.** After fixing a bug, encoding it should take 5 minutes: add the invariant, add the failure mode, run `sensei build`. If it takes longer, people won't do it. The YAML schema is designed to be writable without reading documentation.
 
 ## AI agents and drift prevention
 
@@ -167,21 +167,21 @@ The cases where you are most confident a fix is "too simple to need awareness" a
 ## Getting started
 
 ```bash
-# Install (builds awg + server, fetches oxigraph — no Docker needed)
+# Install (builds sensei + server, fetches oxigraph — no Docker needed)
 git clone https://github.com/globulario/sensei.git
 cd awareness-graph && ./scripts/install.sh
 export PATH="$PWD/bin:$PATH"
 
 # Scaffold your project
 cd /path/to/your-project
-awg init
+sensei init
 
 # Start the graph and compile your awareness YAML
-awg serve -no-seed &
-awg build
+sensei serve -no-seed &
+sensei build
 
 # Query it
-awg briefing --file <your-critical-file>
+sensei briefing --file <your-critical-file>
 ```
 
 The [quickstart guide](https://github.com/globulario/sensei/blob/master/docs/quickstart.md) walks through the full setup in 10 minutes.

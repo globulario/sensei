@@ -1,21 +1,21 @@
 # Sensei CLI Reference
 
-Complete reference for the `awg` command. For the gRPC/MCP wire surface see
+Complete reference for the `sensei` command. For the gRPC/MCP wire surface see
 [api-reference.md](./api-reference.md); for the agent workflow see
 [agent-usage.md](./agent-usage.md).
 
 ```
-awg <command> [flags]
-awg <command> --help     # per-command flag help
-awg help                 # command index
-awg version              # print version and exit
+sensei <command> [flags]
+sensei <command> --help     # per-command flag help
+sensei help                 # command index
+sensei version              # print version and exit
 ```
 
 **Conventions used below**
 
 - Flags accept either a single or double dash (`-file` and `--file` are
   equivalent — Go's flag parser). Examples use `--`.
-- "**Server**" = needs a running `awg serve` (gRPC) — default address
+- "**Server**" = needs a running `sensei serve` (gRPC) — default address
   `localhost:10120`, overridable with `--addr`.
 - "**Oxigraph**" = needs the Oxigraph HTTP store (default
   `http://localhost:7878`) but not the gRPC server.
@@ -39,7 +39,7 @@ awg version              # print version and exit
 
 ## Setup & build
 
-### `awg init` — Local
+### `sensei init` — Local
 
 Scaffold awareness for a new project.
 
@@ -52,9 +52,9 @@ Scaffold awareness for a new project.
 Creates `docs/awareness/` with templates (`invariants.yaml`,
 `failure_modes.yaml`, `incident_patterns.yaml`, `high_risk_files.yaml`,
 `activation_rules.yaml`, and the **98-principle** `meta_principles.yaml` pack),
-plus `.awg/config.yaml`. Prints created files and next steps.
+plus `.sensei/config.yaml`. Prints created files and next steps.
 
-### `awg bootstrap` — Local
+### `sensei bootstrap` — Local
 
 Initialize Sensei for an *existing* repo: scaffold if missing, run deterministic
 architecture extraction (proto/REST contracts, web components, components,
@@ -74,7 +74,7 @@ Extractors write to `docs/awareness/generated/` (`contracts.yaml`,
 `components.yaml`, `<lang>_import_graph.yaml`, `source_symbols.yaml` /
 `source_edges.yaml` when a `namespaces.yaml` registry exists, `tests.yaml`).
 
-### `awg build` — Oxigraph (or `--output`)
+### `sensei build` — Oxigraph (or `--output`)
 
 Compile awareness YAML → N-Triples and load into Oxigraph.
 
@@ -95,17 +95,17 @@ Compile awareness YAML → N-Triples and load into Oxigraph.
 Validates N-Triples before upload; appends the deterministic seed marker. Prints
 per-directory file/triple counts.
 
-When loading into a live store, `awg build` can now publish a local runtime
+When loading into a live store, `sensei build` can now publish a local runtime
 authority pair:
 
-- graph marker: `.awg/graph-authority.json`
-- matching transaction certification: `.awg/graph-authority.transaction.tsv`
+- graph marker: `.sensei/graph-authority.json`
+- matching transaction certification: `.sensei/graph-authority.transaction.tsv`
 
-That pair lets `awg serve --no-seed` treat the loaded graph as
+That pair lets `sensei serve --no-seed` treat the loaded graph as
 `current + transaction=certified` on its own runtime terms, instead of trying
 to reuse the embedded Globular transaction stamp.
 
-### `awg rebuild` — Oxigraph (optional)
+### `sensei rebuild` — Oxigraph (optional)
 
 Rebuild `awareness.nt` from YAML sources across repos and (optionally) reload
 Oxigraph. Steps: scan YAML → N-Triples → validate → update `embeddata/` → PUT to
@@ -123,7 +123,7 @@ Oxigraph.
 > `propose`, `promote`, and `ingest` call this internally — you rarely run it by
 > hand outside CI staleness checks.
 
-### `awg serve` — starts the server
+### `sensei serve` — starts the server
 
 Start Oxigraph (as a managed child process) **and** the gRPC server as one
 unit. No Docker.
@@ -133,11 +133,11 @@ unit. No Docker.
 | `--addr` | `:10120` | gRPC listen address |
 | `--oxigraph-bind` | `127.0.0.1:7878` | Oxigraph listen address |
 | `--no-seed` | `false` | skip the embedded Globular seed — **use this for your own project** so it builds its own graph |
-| `--data` | `~/.local/share/awg/oxigraph` | Oxigraph data directory |
+| `--data` | `~/.local/share/sensei/oxigraph` | Oxigraph data directory |
 | `--no-oxigraph` | `false` | don't start Oxigraph; connect to an external instance |
 | `--home-domain` | `globular` | domain key for untagged host-project nodes |
 
-Searches for the `oxigraph`/`awareness-graph` binaries next to `awg`, then in
+Searches for the `oxigraph`/`awareness-graph` binaries next to `sensei`, then in
 `./bin/`, then on `PATH`. Reuses an Oxigraph already bound to the port. SIGINT/
 SIGTERM shuts both down cleanly.
 
@@ -148,7 +148,7 @@ SIGTERM shuts both down cleanly.
 All require a running **Server** (`--addr`, default `localhost:10120`) and
 accept `--json`.
 
-### `awg briefing`
+### `sensei briefing`
 
 Prose context (~500 tokens) for a file or task. **Call this first.**
 
@@ -162,7 +162,7 @@ Prose context (~500 tokens) for a file or task. **Call this first.**
 At least one of `--file` / `--task` is required. Prints status, prose,
 `referenced_ids`, generation time.
 
-### `awg impact`
+### `sensei impact`
 
 Structured `KnowledgeNode`s for a file (no prose) — direct + inferred
 invariants/failure modes/intents, architecture spine, forbidden fixes, required
@@ -173,7 +173,7 @@ tests.
 | `--file` | — | repo-relative path (**required**) |
 | `--domain` | — | repo/domain scope; required on a multi-domain graph |
 
-### `awg preflight`
+### `sensei preflight`
 
 Risk classification before editing. Returns `risk_class` + `confidence` +
 action lists. Branch on this before reading prose.
@@ -190,13 +190,13 @@ verdict is reported in output, not the exit code). See
 [api-reference.md#preflight](./api-reference.md#preflight) for the `risk_class`
 values.
 
-### `awg resolve <class> <id>`
+### `sensei resolve <class> <id>`
 
 Fetch one node by class + bare id. Positional args, **not** flags.
 
 ```bash
-awg resolve invariant reconcile.dep_block_records_must_be_cleared_when_dep_satisfies
-awg resolve meta_principle storage_is_not_semantic_authority
+sensei resolve invariant reconcile.dep_block_records_must_be_cleared_when_dep_satisfies
+sensei resolve meta_principle storage_is_not_semantic_authority
 ```
 
 `--domain` optionally scopes the lookup. Classes: `Invariant`, `FailureMode`,
@@ -205,7 +205,7 @@ awg resolve meta_principle storage_is_not_semantic_authority
 `Evidence`, `DesignPattern`, `ImplementationPattern`, `PatternMisuse`
 (case-insensitive). Exit 2 on not-found / wrong arg count.
 
-### `awg query --mode <mode>`
+### `sensei query --mode <mode>`
 
 Typed, whitelisted browse — **no raw SPARQL**.
 
@@ -220,14 +220,14 @@ Typed, whitelisted browse — **no raw SPARQL**.
 Tab-delimited table (CLASS, ID, LABEL, SEVERITY, STATUS, RELATION, SOURCE) or
 JSON.
 
-### `awg metadata`
+### `sensei metadata`
 
 Graph-level coverage, freshness, build provenance, and the architectural-spine
 counts. No required args. Call once per session to interpret `EMPTY` briefings.
 Returns `build_provenance_state` / `coverage_state` / `seed_state` verdicts plus
 local candidate-queue and benchmark summaries when detected.
 
-### `awg edit-check`
+### `sensei edit-check`
 
 Advisory: evaluate proposed edit content against repo-scoped `detect` rules for
 a file. **Warning-only — never blocks, never edits.**
@@ -247,7 +247,7 @@ detail · provenance). Always exits 0.
 
 ## Authoring & feedback
 
-### `awg propose` — Oxigraph (optional)
+### `sensei propose` — Oxigraph (optional)
 
 Append **one** typed feedback entry (a "scar") to the right YAML source,
 rebuild the seed, reload the local store, and `git add` it. **Never commits —
@@ -284,7 +284,7 @@ Result status: `created` · `duplicate` · `validation_failed` · `dry_run`. A
 active build until the contract is resolved.
 
 ```bash
-awg propose --kind failure_mode --title "Stale seed served after reload" \
+sensei propose --kind failure_mode --title "Stale seed served after reload" \
   --contract "reload must serve fresh triples" \
   --related-invariant awareness.seed_reload_must_be_fresh \
   --source-file golang/server/reload.go \
@@ -292,7 +292,7 @@ awg propose --kind failure_mode --title "Stale seed served after reload" \
   --evidence "observed stale node after PUT"
 ```
 
-### `awg feedback-check` — Local
+### `sensei feedback-check` — Local
 
 Advisory Stop-hook backing: warns when a session changed risky code or added an
 incident/regression test but wrote no graph feedback. **Never blocks.**
@@ -306,7 +306,7 @@ incident/regression test but wrote no graph feedback. **Never blocks.**
 | `--format` | `text` | `text` \| `json` |
 | `--quiet` | `false` | print nothing when there is no gap |
 
-### `awg promote <candidate-id>` — Oxigraph (pilot mode)
+### `sensei promote <candidate-id>` — Oxigraph (pilot mode)
 
 Promote a candidate from `docs/awareness/candidates/` into the matching
 canonical YAML (home domain) or into a pilot domain-tagged file (foreign repo).
@@ -323,7 +323,7 @@ canonical YAML (home domain) or into a pilot domain-tagged file (foreign repo).
 
 Never commits.
 
-### `awg ingest` — Local
+### `sensei ingest` — Local
 
 Feed knowledge from a YAML file, or re-run the annotation scanner.
 
@@ -337,7 +337,7 @@ Feed knowledge from a YAML file, or re-run the annotation scanner.
 
 Exactly one of `--from-file` / `--from-scan`.
 
-### `awg skill-ingest <skill-pack-root>` — Local
+### `sensei skill-ingest <skill-pack-root>` — Local
 
 Generate review-only `ImplementationPattern` candidates from external agent
 skill packs. See [skill-ingestion.md](./skill-ingestion.md) for the workflow and
@@ -357,7 +357,7 @@ skill under the candidate directory, with `class: ImplementationPattern` and
 `status: candidate`.
 
 It never rebuilds, never promotes, and never writes into active awareness corpus
-paths by default. Candidate directories are skipped by normal `awg build` until
+paths by default. Candidate directories are skipped by normal `sensei build` until
 a human reviews and promotes or manually moves the candidate into an active
 corpus path.
 
@@ -365,7 +365,7 @@ corpus path.
 
 ## Validation & audit
 
-### `awg check` — Local
+### `sensei check` — Local
 
 Validate YAML sources without building (schema recognition + reference
 integrity + N-Triples validity).
@@ -375,7 +375,7 @@ integrity + N-Triples validity).
 | `--input` (rep.) | `docs/awareness` | YAML directory |
 | `--strict` | `false` | fail on unrecognized/invalid schemas |
 
-### `awg validate` — Local
+### `sensei validate` — Local
 
 Deeper static check: dangling references, missing source files, duplicate IDs,
 UML enums.
@@ -391,7 +391,7 @@ UML enums.
 
 Exit 1 if errors found.
 
-### `awg validate-draft` — Local
+### `sensei validate-draft` — Local
 
 Validate one externally-drafted candidate against one exported bundle through
 the cold-bootstrap import cage. Prints PASS or FAIL+reasons; writes/promotes
@@ -403,7 +403,7 @@ nothing.
 | `--draft` | — | candidate draft, JSON or YAML (**required**) |
 | `--repo` | `.` | working tree for citation resolution |
 
-### `awg audit` — Oxigraph (optional)
+### `sensei audit` — Oxigraph (optional)
 
 Self-audit for drift across 7 checks (embeddata freshness, YAML validity,
 N-Triples validity, coverage gaps, stale file refs, test coverage, contract
@@ -416,7 +416,7 @@ assessment).
 | `--fix` | `false` | auto-repair mechanical issues (update embeddata + reload Oxigraph) |
 | `--services-repo` / `--ag-repo` | auto | repo paths |
 
-### `awg repo-eval` — Local
+### `sensei repo-eval` — Local
 
 Evidence-based repository architecture/awareness quality report with visible
 subscores, findings, and recommendations. The report is meant to answer a
@@ -457,7 +457,7 @@ Example JSON shape:
 | `--services-repo` / `--ag-repo` | auto | repo paths |
 | `--json` | `false` | JSON report |
 
-#### `awg repo-eval fix` — Local
+#### `sensei repo-eval fix` — Local
 
 Apply **safe, evidence-backed** fixes: auto-populate missing critical/high
 invariant `required_tests` when code annotations declare both
@@ -472,7 +472,7 @@ commits.
 | `--format` | `text` | `text` \| `json` \| `review` |
 | `--repo` / `--services-repo` / `--ag-repo` | auto | repo paths |
 
-#### `awg repo-eval draft-upgrade` — Local
+#### `sensei repo-eval draft-upgrade` — Local
 
 Generate review-only governance candidates from the current `repo-eval`
 `upgrade_path`. This command does **not** promote anything into live authority.
@@ -499,8 +499,8 @@ authority, while keeping anti-drift controls intact.
 Example usage:
 
 ```bash
-awg repo-eval draft-upgrade --repo . --dry-run
-awg repo-eval draft-upgrade --repo . --json
+sensei repo-eval draft-upgrade --repo . --dry-run
+sensei repo-eval draft-upgrade --repo . --json
 ```
 
 | Flag | Default | Purpose |
@@ -513,7 +513,7 @@ awg repo-eval draft-upgrade --repo . --json
 
 ## Gating
 
-### `awg gate` — Server (or `--contracts`, Local)
+### `sensei gate` — Server (or `--contracts`, Local)
 
 Two modes.
 
@@ -542,7 +542,7 @@ Evaluates `regex_forbidden` detect rules and emits a verdict per contract:
 `respected` / `violated` / `not_applicable`, with scope warnings, proof status,
 and required test paths.
 
-### `awg contract-assess` — Local
+### `sensei contract-assess` — Local
 
 Report-only contract-synthesis assessment from **explicitly supplied** evidence
 scores + blockers. Does not query the graph or infer anything.
@@ -557,7 +557,7 @@ Booleans: `--explicit-contract`, `--governing-test`. `--blocker` (repeatable):
 `missing-ownership-authority` \| `product-ambiguity` \| `weak-pattern-only` \|
 `generic-evidence-only`. `--json` for JSON.
 
-### `awg contract-bootstrap` — Server (optional)
+### `sensei contract-bootstrap` — Server (optional)
 
 Build a *proposed* repair-contract bootstrap from issue text, fail-to-pass
 tests, repo surfaces, and optional Sensei cross-references. Mutates nothing.
@@ -570,13 +570,13 @@ tests, repo surfaces, and optional Sensei cross-references. Mutates nothing.
 | `--f2p-test` (rep.) | — | fail-to-pass test name |
 | `--domain` | — | scope for Sensei cross-reference |
 | `--addr` | `localhost:10120` | gRPC server (used only if reachable) |
-| `--format` | `text` | `text` \| `json` \| `prompt` (LLM context) \| `scaffold` (YAML ready for `awg gate --contracts`) |
+| `--format` | `text` | `text` \| `json` \| `prompt` (LLM context) \| `scaffold` (YAML ready for `sensei gate --contracts`) |
 
 ---
 
 ## Pattern & structural checks
 
-### `awg pattern-check <file>...` — Server
+### `sensei pattern-check <file>...` — Server
 
 Text-scan each file against the ImplementationPattern recipes the briefing
 returns; report missing required calls / present forbidden calls.
@@ -587,7 +587,7 @@ returns; report missing required calls / present forbidden calls.
 | `--format` | `table` | `table` \| `json` |
 | `--fail-on-violation` | `true` | exit non-zero on violation |
 
-### `awg source-check` — Local
+### `sensei source-check` — Local
 
 Scan source files for structural violations using regex patterns from a YAML
 config (scope: file / class / method).
@@ -599,7 +599,7 @@ config (scope: file / class / method).
 | `--extensions` | `.ts,.js,.go` | comma-separated extensions |
 | `--strict` | `false` | exit 1 on any violation |
 
-### `awg visual-audit` — Chrome CDP + web app
+### `sensei visual-audit` — Chrome CDP + web app
 
 Screenshot each route and compare against golden images. Requires Chrome with
 `--remote-debugging-port`.
@@ -609,7 +609,7 @@ Screenshot each route and compare against golden images. Requires Chrome with
 | `--routes` | — | comma-separated hash routes (**required**) |
 | `--base-url` | `http://localhost:5173` | app base URL |
 | `--chrome-port` | `9222` | Chrome debugging port |
-| `--golden-dir` | `.awg/golden` | golden image directory |
+| `--golden-dir` | `.sensei/golden` | golden image directory |
 | `--update` | `false` | save current screenshots as new goldens |
 | `--threshold` | `1.0` | pixel-diff % to flag FAIL |
 | `--wait` | `3` | seconds to wait after navigation |
@@ -618,7 +618,7 @@ Screenshot each route and compare against golden images. Requires Chrome with
 
 ## Cold bootstrap & mining
 
-### `awg cold-bootstrap` — Local (+ optional LLM)
+### `sensei cold-bootstrap` — Local (+ optional LLM)
 
 Mine awareness candidates from cold day-0 signals (revert/regression commits +
 PR review comments), triangulate, enforce the citation contract, bound to top N.
@@ -640,7 +640,7 @@ graph.**
 | `--auto-window` | `false` | widen the revert-scan window automatically until enough signals |
 | `--auto-window-target` | `10` | stop widening at this many revert/regression commits |
 
-### `awg intent-mine` — Local (+ optional LLM)
+### `sensei intent-mine` — Local (+ optional LLM)
 
 Ground architectural-intent candidates against a repo tree; dry-run report
 grouped by output class. Proposer proposes, Sensei grounds, human approves.
@@ -657,17 +657,17 @@ grouped by output class. Proposer proposes, Sensei grounds, human approves.
 | `--max` | `12` | max candidates to propose |
 | `--apply` | `false` | write: grounding ≥0.80 → `docs/awareness/intent_<id>.yaml`; everything else → `candidates/intents.yaml` |
 
-### `awg corpus <subcommand>` — Local
+### `sensei corpus <subcommand>` — Local
 
 Human-gated corpus-integration dispatch. None promote, mutate a graph, touch
 seed, or use an LLM.
 
-- `awg corpus plan --from <report.yaml>` — classify findings into
+- `sensei corpus plan --from <report.yaml>` — classify findings into
   integrate/hold/never (read-only table).
-- `awg corpus materialize --from <report.yaml> --selected <id1,id2> --out <dir>`
+- `sensei corpus materialize --from <report.yaml> --selected <id1,id2> --out <dir>`
   — write `status:candidate` entries for selected, integrate-eligible findings
   (always under `candidates/`).
-- `awg corpus validate --from <report.yaml>` — validate report structure.
+- `sensei corpus validate --from <report.yaml>` — validate report structure.
 
 ---
 
@@ -677,7 +677,7 @@ These power the Multi-SWE-bench harness (`eval/multi-swe-bench/`) and the
 contract-first repair loop. All are **Local** unless noted. Each accepts
 `--format text|json` (and a deprecated `--json` alias).
 
-### `awg benchmark-brief`
+### `sensei benchmark-brief`
 
 Build a compact local repair envelope from issue text, fail-to-pass tests,
 changed files, and authored awareness.
@@ -690,20 +690,20 @@ changed files, and authored awareness.
 | `--f2p-test` (rep.) | — | fail-to-pass test name |
 | `--file` (rep.) | — | changed or suspect file |
 
-### `awg benchmark-judge`
+### `sensei benchmark-judge`
 
 Judge a patch envelope locally for contract preservation, test discipline, and
 authority discipline. Same input flags as `benchmark-brief`, plus `--test-run`
 (repeatable) for executed test ids.
 
-### `awg benchmark-score`
+### `sensei benchmark-score`
 
 Run brief → judge → score in one pass; emits an overall 0–100 score and a
 certification breakdown (scope / proof / authority / evidence lanes). Same input
 flags as `benchmark-judge`, plus `--repair-success` to mark the repair itself
 successful.
 
-### `awg benchmark-retry`
+### `sensei benchmark-retry`
 
 Build a reusable retry plan from a run record (and, for contract-first flows,
 the learning event).
@@ -716,7 +716,7 @@ the learning event).
 | `--retry-event` | — | optional retry attempt event for classification |
 | `--retry-budget` | `1` | max retry attempts for this failure family |
 
-### `awg benchmark-event-meta`
+### `sensei benchmark-event-meta`
 
 Read a learning-event file and emit small stable orchestration metadata.
 
@@ -725,7 +725,7 @@ Read a learning-event file and emit small stable orchestration metadata.
 | `--event` | — | learning event YAML/JSON (**required**) |
 | `--field` | — | print only one field (`event_id`, `task`, `decision_action`, `primary_failure_mode`, `certification_status`, `learning_evidence`, `retry_result_classification`) |
 
-### `awg certify`
+### `sensei certify`
 
 Evaluate repair-governance certification from an authored learning event. This
 is the local governance gate: score may be reported by the event, but
@@ -770,7 +770,7 @@ Detected forbidden moves are evaluated as hard blockers. A repair with
 `detected_forbidden_moves` remains `forbidden_move_detected` even if all proof
 slots are satisfied and the event score is high.
 
-### `awg extract-authority`
+### `sensei extract-authority`
 
 Extract conservative `AuthoritySurface` candidates from Go source and write them
 under the repo's candidate queue. This is extractor-only: emitted surfaces are
@@ -793,7 +793,7 @@ The extractor currently looks for clear authority signals only:
 
 It intentionally emits reviewable candidates, not promoted facts.
 
-### `awg extract-proof-obligations`
+### `sensei extract-proof-obligations`
 
 Generate deterministic proof obligations from authority surfaces. This is the
 governance layer between project knowledge and repair certification: the output
@@ -819,7 +819,7 @@ Each generated obligation declares an evidence lane (`static_only`,
 `hybrid`, or `runtime_required`) and required proof slots such as
 `static_guard`, `artifact`, `before_after`, `runtime`, or `negative_contract`.
 
-### `awg proof-plan`
+### `sensei proof-plan`
 
 Show the governance checklist for a repair before editing. This command is
 read-only: it resolves authority surfaces, proof obligations, and matching
@@ -847,7 +847,7 @@ The output includes:
 - required slots that must be satisfied before promotion
 - file-matched forbidden fixes that remain hard blockers if detected
 
-### `awg seed-status` — Oxigraph
+### `sensei seed-status` — Oxigraph
 
 Check whether generated graph state, committed `awareness.nt` /
 `awareness.transaction.tsv`, and the live Oxigraph store are aligned. When repo

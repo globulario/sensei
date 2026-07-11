@@ -1,5 +1,5 @@
 #!/bin/bash
-# AWG enforce-briefing hook for Claude Code.
+# Sensei enforce-briefing hook for Claude Code.
 #
 # PreToolUse hook on Edit/Write/MultiEdit: blocks edits to files in
 # high-risk directories unless an awareness briefing was obtained first.
@@ -37,11 +37,12 @@ if [[ "$FILE_PATH" != /* ]]; then
 fi
 FILE_PATH=$(realpath -m "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
 
-# Find project root (walk up to find .awg/config.yaml or docs/awareness/).
+# Find project root (walk up to find a state-dir config — .sensei/config.yaml
+# or the legacy .awg/config.yaml — or docs/awareness/).
 PROJECT_ROOT="$(pwd)"
 check="$PROJECT_ROOT"
 while [ "$check" != "/" ]; do
-    if [ -f "$check/.awg/config.yaml" ] || [ -d "$check/docs/awareness" ]; then
+    if [ -f "$check/.sensei/config.yaml" ] || [ -f "$check/.awg/config.yaml" ] || [ -d "$check/docs/awareness" ]; then
         PROJECT_ROOT="$check"
         break
     fi
@@ -77,7 +78,7 @@ fi
 
 # Check for briefing marker.
 SESSION_ID="${CLAUDE_SESSION_ID:-default}"
-MARKER_DIR="/tmp/awg-briefings/$SESSION_ID"
+MARKER_DIR="/tmp/sensei-briefings/$SESSION_ID"
 PATH_HASH=$(echo -n "$FILE_PATH" | sha256sum | cut -d' ' -f1)
 
 if [ -f "$MARKER_DIR/$PATH_HASH" ]; then
@@ -88,6 +89,6 @@ fi
 cat <<EOF
 {
   "decision": "block",
-  "reason": "AWG: call awareness briefing for $REL_PATH before editing this high-risk path. Run: awg briefing --file $REL_PATH"
+  "reason": "Sensei: call awareness briefing for $REL_PATH before editing this high-risk path. Run: sensei briefing --file $REL_PATH"
 }
 EOF

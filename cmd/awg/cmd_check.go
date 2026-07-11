@@ -12,13 +12,13 @@ import (
 )
 
 func runCheck(args []string) int {
-	fs := flag.NewFlagSet("awg check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	var inputDirs stringSlice
 	fs.Var(&inputDirs, "input", "awareness YAML directory (repeatable; default: docs/awareness)")
 	strict := fs.Bool("strict", false, "fail on unrecognized or invalid YAML schemas")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg check [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei check [flags]
 
 Validates awareness YAML sources without building or loading.
 Checks schema recognition, reference integrity, and N-Triples validity.
@@ -42,11 +42,11 @@ Flags:
 	for _, dir := range inputDirs {
 		info, err := os.Stat(dir)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg check: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei check: %v\n", err)
 			return 1
 		}
 		if !info.IsDir() {
-			fmt.Fprintf(os.Stderr, "awg check: %s is not a directory\n", dir)
+			fmt.Fprintf(os.Stderr, "sensei check: %s is not a directory\n", dir)
 			return 1
 		}
 

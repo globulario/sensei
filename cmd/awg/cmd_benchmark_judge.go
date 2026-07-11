@@ -27,7 +27,7 @@ type benchmarkJudgeResult struct {
 }
 
 func runBenchmarkJudge(args []string) int {
-	fs := flag.NewFlagSet("awg benchmark-judge", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei benchmark-judge", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/f2p_tests/files")
@@ -41,7 +41,7 @@ func runBenchmarkJudge(args []string) int {
 	fs.Var(&files, "file", "changed or judged file path (repeatable)")
 	fs.Var(&testsRun, "test-run", "executed test id, function, or file path (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg benchmark-judge [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei benchmark-judge [flags]
 
 Judge a benchmark or PR patch envelope locally from touched files, executed
 tests, and authored awareness metadata.
@@ -62,17 +62,17 @@ Flags:
 
 	task, _, err := loadBenchmarkBriefTask(*taskFile, *issue, tests, files)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-judge: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-judge: %v\n", err)
 		return 2
 	}
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-judge: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-judge: resolve repo root: %v\n", err)
 		return 1
 	}
 	res, err := buildBenchmarkJudge(root, task, testsRun)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-judge: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-judge: %v\n", err)
 		return 1
 	}
 

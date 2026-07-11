@@ -34,7 +34,7 @@ Requires **Go 1.23+** (Linux or macOS; Windows is not yet a validated path).
 ```bash
 git clone https://github.com/globulario/sensei.git
 cd awareness-graph
-./scripts/install.sh          # builds awg + server, fetches the oxigraph binary
+./scripts/install.sh          # builds sensei + server, fetches the oxigraph binary
 export PATH="$PWD/bin:$PATH"
 ```
 

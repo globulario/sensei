@@ -32,7 +32,7 @@ An agent asks that **before** it edits — and gets the rules that apply, in
 about two milliseconds.
 
 ```
-$ awg briefing -file src/payment_processor.py -task "refactor mark_paid"
+$ sensei briefing -file src/payment_processor.py -task "refactor mark_paid"
 
 Direct invariants:
 - [critical] payments.paid_state_requires_processor_confirmation —
@@ -62,7 +62,7 @@ Honest assumptions, Linux or macOS:
 - **Windows is not yet a validated path** (the enforcement hooks are bash). Coming next.
 
 ```bash
-# 1. Install — builds awg + server, fetches the oxigraph binary into bin/
+# 1. Install — builds sensei + server, fetches the oxigraph binary into bin/
 git clone https://github.com/globulario/sensei.git
 cd awareness-graph && ./scripts/install.sh
 export PATH="$PWD/bin:$PATH"
@@ -77,18 +77,18 @@ bash ./scripts/install-awg-user-services.sh
 
 # 2. Run the bundled demo (no setup — one rule, one file)
 cd examples/payment-cold-start
-awg init                 # adds the 83-principle pack + hooks alongside the rule already here
-awg serve -no-seed &     # local store + server; -no-seed = your rules only
-awg build                # compile docs/awareness into the graph
-awg briefing -file src/payment_processor.py -task "refactor mark_paid"
+sensei init                 # adds the 83-principle pack + hooks alongside the rule already here
+sensei serve -no-seed &     # local store + server; -no-seed = your rules only
+sensei build                # compile docs/awareness into the graph
+sensei briefing -file src/payment_processor.py -task "refactor mark_paid"
 ```
 
 You should see the `payments.paid_state_requires_processor_confirmation`
 invariant come back. That's the whole idea: the rule you wrote now reaches the
 agent before the edit. Full walkthrough of the demo: **[examples/payment-cold-start/](examples/payment-cold-start/)**.
 
-To do the same on **your** project: `cd` into it, `awg init`, write your first
-rule in `docs/awareness/invariants.yaml`, then `awg serve -no-seed & && awg build`.
+To do the same on **your** project: `cd` into it, `sensei init`, write your first
+rule in `docs/awareness/invariants.yaml`, then `sensei serve -no-seed & && sensei build`.
 
 - **[QUICKSTART.md](QUICKSTART.md)** — the 15-minute guide, including the Claude Code hook wiring.
 - **[INSTALL.md](INSTALL.md)** — platforms, the Oxigraph dependency, and the supervised local runtime path.
@@ -155,22 +155,22 @@ documents all ~30 with every flag.
 
 | Command | What it does |
 |---------|-------------|
-| `awg init` | Scaffold a new project (YAML templates, hooks, CLAUDE.md) |
-| `awg bootstrap` | Initialize Sensei for an existing repo (extraction + optional history) |
-| `awg build` | Compile YAML → N-Triples, load into Oxigraph (`--output file.nt` for no-Oxigraph) |
-| `awg serve` | Start Oxigraph + the gRPC awareness server |
-| `awg briefing --file <path>` / `--task "desc"` | Prose context for a file or task |
-| `awg impact --file <path>` | Structured knowledge nodes for a file |
-| `awg preflight --task ... --file ...` | Risk classification before editing |
-| `awg edit-check --file <path> --content-file -` | Advisory: does this edit violate a rule? |
-| `awg resolve <class> <id>` | Fetch one node |
-| `awg query --mode <mode>` | Typed graph browse (`by_file`/`by_id`/`by_class`/`related`) |
-| `awg metadata` | Graph coverage, freshness, build provenance |
-| `awg propose --kind ...` | Record a scar (typed feedback), rebuild, stage — never commits |
-| `awg feedback-check` | Stop-hook: warn if a fix added no graph feedback |
-| `awg check` / `validate` / `audit` | Validate YAML / deep structural check / self-audit drift |
-| `awg gate --diff <range>` | Dry-run hard gate over a git diff |
-| `awg version` | Print version |
+| `sensei init` | Scaffold a new project (YAML templates, hooks, CLAUDE.md) |
+| `sensei bootstrap` | Initialize Sensei for an existing repo (extraction + optional history) |
+| `sensei build` | Compile YAML → N-Triples, load into Oxigraph (`--output file.nt` for no-Oxigraph) |
+| `sensei serve` | Start Oxigraph + the gRPC awareness server |
+| `sensei briefing --file <path>` / `--task "desc"` | Prose context for a file or task |
+| `sensei impact --file <path>` | Structured knowledge nodes for a file |
+| `sensei preflight --task ... --file ...` | Risk classification before editing |
+| `sensei edit-check --file <path> --content-file -` | Advisory: does this edit violate a rule? |
+| `sensei resolve <class> <id>` | Fetch one node |
+| `sensei query --mode <mode>` | Typed graph browse (`by_file`/`by_id`/`by_class`/`related`) |
+| `sensei metadata` | Graph coverage, freshness, build provenance |
+| `sensei propose --kind ...` | Record a scar (typed feedback), rebuild, stage — never commits |
+| `sensei feedback-check` | Stop-hook: warn if a fix added no graph feedback |
+| `sensei check` / `validate` / `audit` | Validate YAML / deep structural check / self-audit drift |
+| `sensei gate --diff <range>` | Dry-run hard gate over a git diff |
+| `sensei version` | Print version |
 
 ## The meta-principles
 
@@ -187,14 +187,14 @@ Every Sensei project ships with **133 universal principles across 8 categories**
 | **Structure** | 12 | GenericMegaTable merged on resemblance; pass-through wrapper hiding nothing |
 | **Evolution** | 11 | Releasable trunk; reviewable slices; deterministic builds; intent before drift |
 
-See **[docs/meta-principles.md](docs/meta-principles.md)** for the framework reference. The authoritative list is the generated pack (`docs/awareness/meta_principles.yaml`) — query any principle with `awg resolve invariant meta.<id>`.
+See **[docs/meta-principles.md](docs/meta-principles.md)** for the framework reference. The authoritative list is the generated pack (`docs/awareness/meta_principles.yaml`) — query any principle with `sensei resolve invariant meta.<id>`.
 
 ## Claude Code integration
 
-`awg init` generates Claude Code hooks that enforce *consult-then-comply* before edits:
+`sensei init` generates Claude Code hooks that enforce *consult-then-comply* before edits:
 
-- **enforce-briefing.sh** — blocks edits to high-risk files unless `awg briefing` was called first (did you *look*?)
-- **edit-check-guard.sh** — runs the proposed edit content through `awg edit-check` and blocks a forbidden-fix / high-severity shape (does what you're about to *write* violate a rule?). Advisory by default for low-severity; `AWG_EDIT_CHECK_ADVISORY=1` makes it warn-only.
+- **enforce-briefing.sh** — blocks edits to high-risk files unless `sensei briefing` was called first (did you *look*?)
+- **edit-check-guard.sh** — runs the proposed edit content through `sensei edit-check` and blocks a forbidden-fix / high-severity shape (does what you're about to *write* violate a rule?). Advisory by default for low-severity; `AWG_EDIT_CHECK_ADVISORY=1` makes it warn-only.
 - **record-briefing.sh** — records that a briefing was obtained
 
 Add to `.claude/settings.json`:
@@ -219,12 +219,12 @@ Add to `.claude/settings.json`:
 ## Architecture
 
 ```
-Your YAML files         awg build           Oxigraph          awg serve
+Your YAML files         sensei build           Oxigraph          sensei serve
 (docs/awareness/)  -->  (yaml2nt)    -->   (RDF store)   -->  (gRPC)
                                                                  |
-                        awg briefing  <--- gRPC client  <--------+
-                        awg impact
-                        awg preflight
+                        sensei briefing  <--- gRPC client  <--------+
+                        sensei impact
+                        sensei preflight
 ```
 
 Sensei compiles YAML into RDF triples (N-Triples format), stores them in Oxigraph (a single-binary SPARQL store backed by RocksDB), and serves them via a gRPC API. The CLI commands are thin gRPC clients.
@@ -272,7 +272,7 @@ ontology/
   awareness.ttl            RDF vocabulary (Turtle) — source of truth
 
 docs/
-  cli-reference.md         every awg command + flag
+  cli-reference.md         every sensei command + flag
   api-reference.md         gRPC service + MCP bridge
   agent-usage.md           how an agent should call Sensei before edits
   meta-principles.md       the meta-principle framework reference
@@ -287,21 +287,21 @@ docs/
 go build ./...
 
 # Build the standalone CLI and server together
-make awg
+make sensei
 
 # Or build them separately if you need one artifact only
-make awg-cli
+make sensei-cli
 make service-build
 
 # Direct Go builds are still available
-go build -o bin/awg ./cmd/awg
+go build -o bin/sensei ./cmd/awg
 go build -o bin/awareness-graph ./golang/server
 
 # Run tests
 go test ./...
 
 # Run Sensei smoke test
-make awg-smoke
+make sensei-smoke
 ```
 
 ## Oxigraph
@@ -313,7 +313,7 @@ Oxigraph is the RDF store that holds the compiled knowledge graph. It's a single
 docker run -d --name oxigraph -p 7878:7878 ghcr.io/oxigraph/oxigraph
 
 # Or binary (download from https://github.com/oxigraph/oxigraph/releases)
-oxigraph serve --location .awg/data --bind 0.0.0.0:7878
+oxigraph serve --location .sensei/data --bind 0.0.0.0:7878
 
 # Verify
 curl -s -X POST -H "Content-Type: application/sparql-query" \
@@ -323,7 +323,7 @@ curl -s -X POST -H "Content-Type: application/sparql-query" \
 
 Endpoints:
 - Query: `http://localhost:7878/query` (SPARQL, used by the server)
-- Store: `http://localhost:7878/store?default` (Graph Store, used by `awg build`)
+- Store: `http://localhost:7878/store?default` (Graph Store, used by `sensei build`)
 
 ## Server flags
 
@@ -381,7 +381,7 @@ Sensei was extracted from the [Globular](https://github.com/globulario/services)
 - **MCP bridge** — exposes briefing/impact/resolve as MCP tools
 - **Globular packaging** — `make service-package` builds a Globular-native package
 
-For standalone use, none of this is needed — `awg serve` works with just Oxigraph.
+For standalone use, none of this is needed — `sensei serve` works with just Oxigraph.
 
 ### Globular packaging
 
@@ -414,7 +414,7 @@ The meta-principles emerged from classifying those incidents. They turned out to
 ## License
 
 Sensei is licensed under the **GNU Affero General Public License, Version 3 (AGPLv3)** — see [LICENSE](LICENSE)
-and [NOTICE](NOTICE). This covers the local runtime: the `awg` CLI, the gRPC
+and [NOTICE](NOTICE). This covers the local runtime: the `sensei` CLI, the gRPC
 server, the MCP bridge, the extraction/scanner pipeline, the gate, and the VS Code
 extension. You may use, modify, and redistribute it, including commercially, under
 the terms of that license.

@@ -6,13 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
-)
 
-const (
-	GovernanceDirRelativePath = ".awg/governance"
-	ActiveRecordRelativePath  = ".awg/governance/active.json"
+	"github.com/globulario/sensei/golang/statedir"
 )
 
 type ActiveRecord struct {
@@ -31,17 +27,11 @@ type ActiveRecord struct {
 }
 
 func GovernanceDirPath(root string) string {
-	if root == "" {
-		return GovernanceDirRelativePath
-	}
-	return filepath.Join(root, GovernanceDirRelativePath)
+	return statedir.Path(root, "governance")
 }
 
 func ActiveRecordPath(root string) string {
-	if root == "" {
-		return ActiveRecordRelativePath
-	}
-	return filepath.Join(root, ActiveRecordRelativePath)
+	return statedir.Path(root, "governance", "active.json")
 }
 
 func (r ActiveRecord) Validate() error {

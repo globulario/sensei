@@ -32,6 +32,7 @@ check_root() {
     '*/governance-pack.manifest.sig'
     '*/trusted-publishers.json'
     '*/active.json'
+    '*/.sensei/governance/*'
     '*/.awg/governance/*'
     '*/governance/packs/*'
     '*/governance/incoming/*'

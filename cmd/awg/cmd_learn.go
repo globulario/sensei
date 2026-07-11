@@ -2,7 +2,7 @@
 
 package main
 
-// cmd_learn.go — `awg learn`: the single governed write-back command.
+// cmd_learn.go — `sensei learn`: the single governed write-back command.
 //
 // A scar/principle is only "learned" when it has been authored, deterministically
 // regenerated, validated against source, embedded, and proven coherent — never when
@@ -24,7 +24,7 @@ package main
 //
 // Idempotent: running it twice with no source changes produces no diff (rebuild only
 // writes the seed when its content hash changes). That is the property that lets the
-// freshness gate be authoritative — see `awg audit -check`.
+// freshness gate be authoritative — see `sensei audit -check`.
 
 import (
 	"flag"
@@ -35,13 +35,13 @@ import (
 )
 
 func runLearn(args []string) int {
-	fs := flag.NewFlagSet("awg learn", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei learn", flag.ContinueOnError)
 	svcRepo := fs.String("services-repo", "", "path to services repo (auto-detected if empty)")
 	agRepo := fs.String("ag-repo", "", "path to awareness-graph repo (defaults to current dir for staging)")
 	stage := fs.Bool("stage", false, "git add the regenerated embeddata after a clean rebuild")
 	checkOnly := fs.Bool("check", false, "verify only: compare/validate/audit, never write the seed (CI/preflight)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: awg learn [--services-repo P] [--ag-repo P] [--stage] [--check]")
+		fmt.Fprintln(os.Stderr, "Usage: sensei learn [--services-repo P] [--ag-repo P] [--stage] [--check]")
 		fmt.Fprintln(os.Stderr, "Governed write-back: rebuild -> validate -> audit -> stage. Refuses success on any failure.")
 	}
 	if err := fs.Parse(args); err != nil {
@@ -59,7 +59,7 @@ func runLearn(args []string) int {
 		return a
 	}
 
-	fmt.Println("awg learn — governed write-back (rebuild -> validate -> audit -> stage)")
+	fmt.Println("sensei learn — governed write-back (rebuild -> validate -> audit -> stage)")
 
 	// 1. Rebuild embeddata. -no-runtime-reload keeps it headless-safe (no Oxigraph
 	//    dependency); --check makes it compare-only (no write).
@@ -69,7 +69,7 @@ func runLearn(args []string) int {
 		rebuildArgs = append(rebuildArgs, "-check")
 	}
 	if rc := runRebuild(rebuildArgs); rc != 0 {
-		fmt.Fprintln(os.Stderr, "\nawg learn: blocked_by_rebuild — generation failed; the rule cannot be embedded.")
+		fmt.Fprintln(os.Stderr, "\nsensei learn: blocked_by_rebuild — generation failed; the rule cannot be embedded.")
 		return rc
 	}
 
@@ -84,7 +84,7 @@ func runLearn(args []string) int {
 		valArgs = append(valArgs, "-ag-repo", *agRepo)
 	}
 	if rc := runValidate(valArgs); rc != 0 {
-		fmt.Fprintln(os.Stderr, "\nawg learn: blocked_by_dangling_refs — fix references before the rule can be enforced.")
+		fmt.Fprintln(os.Stderr, "\nsensei learn: blocked_by_dangling_refs — fix references before the rule can be enforced.")
 		return rc
 	}
 
@@ -93,13 +93,13 @@ func runLearn(args []string) int {
 	fmt.Println("\n[3/4] audit (freshness + coherence)...")
 	auditArgs := append([]string{"-check"}, pass(true, true)...)
 	if rc := runAudit(auditArgs); rc != 0 {
-		fmt.Fprintln(os.Stderr, "\nawg learn: drift_detected — embeddata stale after rebuild (nondeterministic generator?). Refusing to report 'learned'.")
+		fmt.Fprintln(os.Stderr, "\nsensei learn: drift_detected — embeddata stale after rebuild (nondeterministic generator?). Refusing to report 'learned'.")
 		return rc
 	}
 
 	// 4. Stage / report.
 	if *checkOnly {
-		fmt.Println("\nawg learn: advisory_clean — corpus is fresh, valid, and coherent (--check: no writes).")
+		fmt.Println("\nsensei learn: advisory_clean — corpus is fresh, valid, and coherent (--check: no writes).")
 		return 0
 	}
 	if *stage {
@@ -112,7 +112,7 @@ func runLearn(args []string) int {
 		cmd := exec.Command("git", "-C", ag, "add", "--", seed)
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "awg learn: staged rebuild OK but `git add %s` failed: %v\n", seed, err)
+			fmt.Fprintf(os.Stderr, "sensei learn: staged rebuild OK but `git add %s` failed: %v\n", seed, err)
 			fmt.Fprintln(os.Stderr, "  stage it manually, then commit. (The authored source YAML in the services repo must be committed there.)")
 			return 1
 		}
@@ -123,7 +123,7 @@ func runLearn(args []string) int {
 		fmt.Println("\n[4/4] staging skipped (pass --stage to git add the embeddata).")
 	}
 
-	fmt.Println("\nawg learn: enforced_clean — rebuilt, validated, audited; embeddata is byte-stable.")
+	fmt.Println("\nsensei learn: enforced_clean — rebuilt, validated, audited; embeddata is byte-stable.")
 	fmt.Println("  A new/changed rule is now generated + embedded + validated. It becomes ENFORCED")
 	fmt.Println("  once the awg-audit freshness gate runs in CI (hard gate) on the committed seed.")
 	return 0

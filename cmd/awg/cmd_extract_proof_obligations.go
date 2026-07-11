@@ -54,7 +54,7 @@ type proofTemplate struct {
 }
 
 func runExtractProofObligations(args []string) int {
-	fs := flag.NewFlagSet("awg extract-proof-obligations", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei extract-proof-obligations", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	authorityPath := fs.String("authority", "", "authority surfaces YAML (default: <repo>/docs/awareness/candidates/authority_surface_candidates.yaml)")
@@ -63,7 +63,7 @@ func runExtractProofObligations(args []string) int {
 	format := fs.String("format", "text", "output format: text | json")
 	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg extract-proof-obligations [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei extract-proof-obligations [flags]
 
 Generate deterministic proof-obligation YAML from authority surfaces. This is a
 governance-layer extractor: it derives expected proof slots by authority kind,
@@ -81,7 +81,7 @@ Flags:
 	}
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-proof-obligations: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: resolve repo root: %v\n", err)
 		return 1
 	}
 	authPath := *authorityPath
@@ -90,13 +90,13 @@ Flags:
 	}
 	surfaces, err := loadAuthoritySurfaces(authPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-proof-obligations: load authority surfaces: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: load authority surfaces: %v\n", err)
 		return 1
 	}
 	doc := buildProofObligations(surfaces)
 	out, err := renderProofObligations(doc)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-proof-obligations: render: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: render: %v\n", err)
 		return 1
 	}
 	target := *output
@@ -112,11 +112,11 @@ Flags:
 	}
 	if !*check {
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			fmt.Fprintf(os.Stderr, "awg extract-proof-obligations: mkdir: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: mkdir: %v\n", err)
 			return 1
 		}
 		if err := os.WriteFile(target, out, 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "awg extract-proof-obligations: write: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: write: %v\n", err)
 			return 1
 		}
 	}
@@ -176,7 +176,7 @@ func buildProofObligations(surfaces []authoritySurfaceCandidate) proofObligation
 
 func renderProofObligations(doc proofObligationsDoc) ([]byte, error) {
 	var buf bytes.Buffer
-	buf.WriteString("# GENERATED proof obligations by `awg extract-proof-obligations`.\n")
+	buf.WriteString("# GENERATED proof obligations by `sensei extract-proof-obligations`.\n")
 	buf.WriteString("# These obligations are derived from authority surfaces. They define\n")
 	buf.WriteString("# what proof slots a repair must satisfy before certification can pass.\n")
 	enc := yaml.NewEncoder(&buf)

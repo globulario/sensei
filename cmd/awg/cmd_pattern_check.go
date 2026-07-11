@@ -17,13 +17,13 @@ import (
 )
 
 func runPatternCheck(args []string) int {
-	fs := flag.NewFlagSet("awg pattern-check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei pattern-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
 	format := fs.String("format", "table", "output format: table | json")
 	failOnViolation := fs.Bool("fail-on-violation", true, "exit non-zero on violation")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg pattern-check <file>... [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei pattern-check <file>... [flags]
 
 Text-scans each file against ImplementationPattern recipes returned by
 the awareness-graph briefing. Reports missing required calls and present
@@ -40,13 +40,13 @@ Flags:
 		return 2
 	}
 	if fs.NArg() == 0 {
-		fmt.Fprintln(os.Stderr, "awg pattern-check: requires at least one file argument")
+		fmt.Fprintln(os.Stderr, "sensei pattern-check: requires at least one file argument")
 		return 2
 	}
 
 	c, err := connectAWG(*addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg pattern-check: connect: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei pattern-check: connect: %v\n", err)
 		return 1
 	}
 	defer c.Close()

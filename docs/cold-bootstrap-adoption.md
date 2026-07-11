@@ -16,9 +16,9 @@ The loop you are adopting:
 your repo's history (reverts, fix/perf/refactor commits, PR reviews)
   → candidate rules (dry-run, cited)        [cold-bootstrap]
   → you review + label                       [human]
-  → promote the load-bearing ones, scoped    [awg promote --repo]
-  → serve briefings with provenance          [awg briefing --domain]
-  → warn on a bad future edit (advisory)     [awg edit-check / gate]
+  → promote the load-bearing ones, scoped    [sensei promote --repo]
+  → serve briefings with provenance          [sensei briefing --domain]
+  → warn on a bad future edit (advisory)     [sensei edit-check / gate]
 ```
 
 Each step below is shown first against the committed **Caddy pilot** (real
@@ -30,8 +30,8 @@ commands, reproducible, no key), then generalized to **your repo**.
 
 ```bash
 git clone https://github.com/globulario/sensei && cd awareness-graph
-go build -o /tmp/awg ./cmd/awg
-go build -o bin/awareness-graph ./golang/server   # awg serve execs this
+go build -o /tmp/sensei ./cmd/awg
+go build -o bin/awareness-graph ./golang/server   # sensei serve execs this
 # plus an `oxigraph` binary on PATH or in ./bin/
 ```
 
@@ -48,7 +48,7 @@ high-engagement review thread). A theme is only drafted when both channels agree
 ```bash
 git clone --depth 600 https://github.com/<owner>/<repo> /tmp/yourrepo
 # --repo-slug pulls real PR review comments via gh (needs gh + jq)
-/tmp/awg cold-bootstrap --repo /tmp/yourrepo --since HEAD~500..HEAD \
+/tmp/sensei cold-bootstrap --repo /tmp/yourrepo --since HEAD~500..HEAD \
   --repo-slug <owner>/<repo> \
   --drafter echo --dry-run --max 12
 ```
@@ -60,13 +60,13 @@ only in how the model is reached:
 ```bash
 # (a) --drafter llm — a Console API key exported in the environment
 #     (never pasted into a chat or a command line):
-/tmp/awg cold-bootstrap --repo /tmp/yourrepo --since HEAD~500..HEAD \
+/tmp/sensei cold-bootstrap --repo /tmp/yourrepo --since HEAD~500..HEAD \
   --repo-slug <owner>/<repo> --drafter llm --dry-run --max 12
 
 # (b) --drafter claude-cli — no API key; uses the locally-installed, already
 #     authed Claude Code CLI (e.g. a Claude subscription login). Mirrors the
 #     Globular ai-executor strategy: the authed CLI is the LLM backend.
-/tmp/awg cold-bootstrap --repo /tmp/yourrepo --since HEAD~500..HEAD \
+/tmp/sensei cold-bootstrap --repo /tmp/yourrepo --since HEAD~500..HEAD \
   --repo-slug <owner>/<repo> --drafter claude-cli --dry-run --max 12
 ```
 
@@ -117,7 +117,7 @@ The committed **Caddy pilot** is the reference shape. Reproduce it end to end:
 bash pilot/caddy/demo.sh
 ```
 
-It promotes one reviewed Caddy candidate (`awg promote --repo
+It promotes one reviewed Caddy candidate (`sensei promote --repo
 github.com/caddyserver/caddy …`), loads it into an **isolated** Oxigraph (never
 your production store), and proves the serving + isolation below. See
 [`pilot/caddy/README.md`](../pilot/caddy/README.md) for the provenance contract
@@ -128,7 +128,7 @@ For **your repo**, mirror `pilot/caddy/`: put reviewed candidates under
 `pilot/<repo>/candidates/`, then:
 
 ```bash
-/tmp/awg promote --repo github.com/<owner>/<repo> <candidate-id>
+/tmp/sensei promote --repo github.com/<owner>/<repo> <candidate-id>
 ```
 
 which writes the domain-tagged rule and loads **only** that pilot graph. No bulk
@@ -137,7 +137,7 @@ promotion, no auto-promotion.
 ## 4. Serve briefings — scoped, with provenance
 
 ```bash
-/tmp/awg briefing --addr localhost:10120 \
+/tmp/sensei briefing --addr localhost:10120 \
   --file <a real file the rule protects> \
   --domain github.com/<owner>/<repo>
 ```
@@ -153,12 +153,12 @@ If a promoted rule carries a `detect` block, `edit-check` warns when a proposed
 edit violates it — **advisory only, never a block, never a code change**:
 
 ```bash
-/tmp/awg edit-check --addr localhost:10120 \
+/tmp/sensei edit-check --addr localhost:10120 \
   --file <the protected file> --domain github.com/<owner>/<repo> \
   --content '<the proposed edit>'
 ```
 
-And `awg gate --diff <range> --domain …` runs the same check over a git diff as a
+And `sensei gate --diff <range> --domain …` runs the same check over a git diff as a
 **dry-run** report (always exits 0). See
 [`hard-gate-design.md`](hard-gate-design.md) for how this could later graduate to
 a real merge gate — by design, not by default.

@@ -129,14 +129,14 @@ func matchViolations(cp compiledPattern, path string, lines []string, full strin
 }
 
 func runSourceCheck(args []string) int {
-	fs := flag.NewFlagSet("awg source-check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei source-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	patterns := fs.String("patterns", "", "path to source_patterns.yaml")
 	source := fs.String("source", "", "source directory to scan")
 	strict := fs.Bool("strict", false, "exit 1 on any violations")
 	exts := fs.String("extensions", ".ts,.js,.go", "comma-separated file extensions to scan")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg source-check --patterns <path.yaml> --source <dir> [--strict] [--extensions .ts,.js]
+		fmt.Fprint(os.Stderr, `Usage: sensei source-check --patterns <path.yaml> --source <dir> [--strict] [--extensions .ts,.js]
 
 Scan source files for structural pattern violations.
 

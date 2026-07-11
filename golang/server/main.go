@@ -229,7 +229,9 @@ func main() {
 
 	markerFile := strings.TrimSpace(*graphMarkerFile)
 	if *noSeed && markerFile == "" {
-		markerFile = seedmeta.RuntimeMarkerRelativePath
+		// Relative to the working directory; RuntimeMarkerPath honors an
+		// existing legacy .awg/ store, otherwise defaults to .sensei/.
+		markerFile = seedmeta.RuntimeMarkerPath(".")
 	}
 	if err := serve(finalAddr, cfg, finalRequireStore, *noSeed, *allowStaleSeed, strings.TrimSpace(*homeDomain), markerFile, strings.TrimSpace(*awarenessDir), strings.TrimSpace(*authToken), log.Default()); err != nil {
 		log.Fatalf("awareness-graph: %v", err)

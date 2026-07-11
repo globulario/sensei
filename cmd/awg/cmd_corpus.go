@@ -19,7 +19,7 @@ import (
 // under a candidates/ tree; promotion is a separate human/PR step.
 func runCorpus(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: awg corpus <plan|materialize|validate> [flags]")
+		fmt.Fprintln(os.Stderr, "usage: sensei corpus <plan|materialize|validate> [flags]")
 		return 2
 	}
 	switch args[0] {
@@ -30,14 +30,14 @@ func runCorpus(args []string) int {
 	case "validate":
 		return runCorpusValidate(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "awg corpus: unknown subcommand %q (plan|materialize|validate)\n", args[0])
+		fmt.Fprintf(os.Stderr, "sensei corpus: unknown subcommand %q (plan|materialize|validate)\n", args[0])
 		return 2
 	}
 }
 
 // runCorpusPlan: read-only. Classify a findings report into integrate/hold/never.
 func runCorpusPlan(args []string) int {
-	fs := flag.NewFlagSet("awg corpus plan", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei corpus plan", flag.ContinueOnError)
 	from := fs.String("from", "", "findings report YAML (findings: [...])")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -76,7 +76,7 @@ func runCorpusPlan(args []string) int {
 // runCorpusMaterialize: write candidate entries for SELECTED, integrate-eligible
 // findings. Always status:candidate, always under a candidates/ tree.
 func runCorpusMaterialize(args []string) int {
-	fs := flag.NewFlagSet("awg corpus materialize", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei corpus materialize", flag.ContinueOnError)
 	from := fs.String("from", "", "findings report YAML")
 	selected := fs.String("selected", "", "comma list of finding ids to materialize (required)")
 	out := fs.String("out", "", "output directory under a candidates/ tree (required)")
@@ -130,13 +130,13 @@ func runCorpusMaterialize(args []string) int {
 		written++
 	}
 	fmt.Printf("\nmaterialized %d candidate entrie(s), skipped %d. Nothing promoted; nothing in any graph.\n", written, skipped)
-	fmt.Printf("Next (human): review, run `awg build` to extract minimal owned triples, open a PR.\n")
+	fmt.Printf("Next (human): review, run `sensei build` to extract minimal owned triples, open a PR.\n")
 	return 0
 }
 
 // runCorpusValidate: check candidate entry files against the §4/§5 rules.
 func runCorpusValidate(args []string) int {
-	fs := flag.NewFlagSet("awg corpus validate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei corpus validate", flag.ContinueOnError)
 	entry := fs.String("entry", "", "a candidate entry YAML (or use --dir)")
 	dir := fs.String("dir", "", "a directory of candidate entry YAMLs")
 	repo := fs.String("repo", ".", "repo for citation resolution (active entries)")

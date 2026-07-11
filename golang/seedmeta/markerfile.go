@@ -8,15 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/globulario/sensei/golang/statedir"
 )
 
-const RuntimeMarkerRelativePath = ".awg/graph-authority.json"
-
 func RuntimeMarkerPath(root string) string {
-	if root == "" {
-		return RuntimeMarkerRelativePath
-	}
-	return filepath.Join(root, RuntimeMarkerRelativePath)
+	return statedir.Path(root, "graph-authority.json")
 }
 
 func RuntimeTransactionPath(markerPath string) string {

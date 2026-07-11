@@ -37,9 +37,9 @@ Edges (all already in the vocabulary — Spine v1 adds **no** new predicates):
 ```
 extractors find surfaces        proto-scan (gRPC) · http-scan (HTTP routes)
         ↓
-candidate generator proposes    awg suggest-realizations  (conservative, candidates only)
+candidate generator proposes    sensei suggest-realizations  (conservative, candidates only)
         ↓
-human review confirms           awg promote-realization   (explicit, one at a time)
+human review confirms           sensei promote-realization   (explicit, one at a time)
         ↓
 realizesContract = authority     briefing speaks it; audit protects it
 ```
@@ -48,13 +48,13 @@ Each step is one of these tools:
 
 - **`http-scan`** turns `mux.Handle("/route", h)` registrations into inferred HTTP
   implementation contracts (`kind: http`). `make http-contracts`.
-- **`awg suggest-realizations`** scores `(impl, arch)` pairs on hard evidence
+- **`sensei suggest-realizations`** scores `(impl, arch)` pairs on hard evidence
   (shared source file, `coversPath` glob, same directory, shared failure-mode
   context, name-token overlap) and writes `candidateRealizesContract` entries.
   Candidates only — never `realizesContract`. Name overlap alone yields nothing;
   path/dir overlap alone is low confidence; a read-only surface won't realize a
   write-only contract without a strong signal; candidates never cross repo domains.
-- **`awg promote-realization --impl <id> [--arch <id>]`** moves one reviewed
+- **`sensei promote-realization --impl <id> [--arch <id>]`** moves one reviewed
   candidate into authoritative `realizations:`. It refuses missing / ambiguous /
   already-authoritative, never bulk-promotes, and never scores. Promotion is a
   review action, not a scoring action.
@@ -76,7 +76,7 @@ contract.config_mutation_requires_valid_token                      (authored arc
 
 ### Briefing renders this as a repair instruction
 
-`awg briefing --file internal/gateway/handlers/config/config.go`:
+`sensei briefing --file internal/gateway/handlers/config/config.go`:
 
 ```
 Realized architectural contracts (AUTHORITY — respect or do not claim resolution):
@@ -86,28 +86,28 @@ Realized architectural contracts (AUTHORITY — respect or do not claim resoluti
   - Required proof: internal/gateway/handlers/config/save_config_test.go:TestSaveConfig_RequiresToken, …
   - Do not claim resolution if this contract is bypassed, weakened, or left untested.
 
-Candidate realized contracts (REVIEW-ONLY — not authority; promote with `awg promote-realization`):
+Candidate realized contracts (REVIEW-ONLY — not authority; promote with `sensei promote-realization`):
 - HTTP /api/cors-diagnostics ~candidate~> contract.config_mutation_requires_valid_token (unverified — do not treat as a guarantee)
 ```
 
 ## Reproduce it
 
 From the `awareness-graph` repo (with the services + Globular repos as siblings,
-and `awg serve` running):
+and `sensei serve` running):
 
 ```bash
 make http-contracts-check            # HTTP impl contracts are fresh from gateway routes
-awg suggest-realizations --check     # candidate set is fresh and conservative
+sensei suggest-realizations --check     # candidate set is fresh and conservative
 
 # Promotion is a one-time review action. /api/save-config is already promoted in
 # this repo, so re-running it correctly refuses ("no candidate … to promote").
 # For an un-promoted candidate you would run, e.g.:
-awg promote-realization --impl contract.http.api_save_config \
+sensei promote-realization --impl contract.http.api_save_config \
                         --arch contract.config_mutation_requires_valid_token
 
-awg rebuild                          # emit realizesContract / realizedByContract into the store
-awg briefing --file internal/gateway/handlers/config/config.go   # see the authority chain
-awg audit --check                    # the gate (below) is green and FAIL-level
+sensei rebuild                          # emit realizesContract / realizedByContract into the store
+sensei briefing --file internal/gateway/handlers/config/config.go   # see the authority chain
+sensei audit --check                    # the gate (below) is green and FAIL-level
 ```
 
 ## Governance guarantee
@@ -118,12 +118,12 @@ The spine is designed so the graph cannot quietly grow fake authority:
    separate, explicitly REVIEW-ONLY briefing section and is never treated as a
    guarantee. The generator emits *only* candidates.
 2. **Promotion is explicit.** `realizesContract` is created only by
-   `awg promote-realization` (or hand-authoring) — one reviewed pair at a time,
+   `sensei promote-realization` (or hand-authoring) — one reviewed pair at a time,
    never in bulk, never from path/name overlap.
 3. **Unproven authority fails audit.** The `contract-verification-wiring` audit
    check is **FAIL-level**: a home-domain contract that claims `requiresVerification`
    but wires none of `requiresTest` / `constrainedByInvariant` / `violatedBy` /
-   `detect` fails `awg audit --check`. Authority must carry its proof.
+   `detect` fails `sensei audit --check`. Authority must carry its proof.
 4. **Benchmark fixtures are excluded.** Repo-tagged contracts (the Multi-SWE-bench
    `frozen_contract_set` fixtures under `eval/`, e.g. `github.com/example/tinyrepo`)
    have their own verification model (the frozen-contract gate) and are *not*

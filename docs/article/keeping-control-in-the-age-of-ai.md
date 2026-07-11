@@ -56,7 +56,7 @@ An ordinary agent's loop is: read the task, read some files, write a patch.
 With Sensei wired in, one step gets inserted that changes everything downstream:
 
 ```
-$ awg briefing -file src/payment_processor.py -task "refactor mark_paid"
+$ sensei briefing -file src/payment_processor.py -task "refactor mark_paid"
 
 Direct invariants:
 - [critical] payments.paid_state_requires_processor_confirmation —
@@ -139,7 +139,7 @@ that satisfies a "done" check before it's actually done.
 
 Sensei distills these into ~130 domain-independent **meta-principles** across eight
 categories — authority, signal, lifecycle, dependency, perception, composition,
-structure, evolution — and ships them as seed content with `awg init`. They're
+structure, evolution — and ships them as seed content with `sensei init`. They're
 queryable on day one, before you've written a single project-specific rule.
 
 Their real power is as a *lens after an incident*. "This bug violated

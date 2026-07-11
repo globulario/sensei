@@ -4,8 +4,8 @@ Sensei has three pieces:
 
 | Piece | What it is | How you get it |
 |---|---|---|
-| `awg` | the CLI (init, build, serve, briefing, validate, audit) | source build or Linux `amd64` prebuilt bundle |
-| `awareness-graph` | the gRPC server `awg serve` launches | source build or Linux `amd64` prebuilt bundle |
+| `sensei` | the CLI (init, build, serve, briefing, validate, audit) | source build or Linux `amd64` prebuilt bundle |
+| `awareness-graph` | the gRPC server `sensei serve` launches | source build or Linux `amd64` prebuilt bundle |
 | `oxigraph` | the RDF store (one static binary, from the upstream project) | fetched by the installer |
 
 > **Honest dependency note:** Sensei is not a single zero-dependency binary.
@@ -22,7 +22,7 @@ Requires **Go 1.23+**, `git`, `curl`, `python3`.
 ```bash
 git clone https://github.com/globulario/sensei
 cd awareness-graph
-./scripts/install.sh            # builds awg + awareness-graph, fetches oxigraph → bin/
+./scripts/install.sh            # builds sensei + awareness-graph, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
 ```
 
@@ -40,7 +40,7 @@ Oxigraph if one exists, and otherwise starts a local Sensei-owned Oxigraph.
 Ad hoc runtime remains available:
 
 ```bash
-awg serve -no-seed &            # starts oxigraph + the server, no Docker
+sensei serve -no-seed &            # starts oxigraph + the server, no Docker
 ```
 
 See **[docs/initialize-user-services.md](docs/initialize-user-services.md)** for
@@ -55,7 +55,7 @@ For `linux/amd64`, releases now publish a local runtime tarball:
 
 It contains:
 
-- `bin/awg`
+- `bin/sensei`
 - `bin/awareness-mcp`
 - `bin/awareness-graph`
 - `scripts/fetch-oxigraph.sh`
@@ -94,24 +94,24 @@ scripts/fetch-oxigraph.sh 0.5.8
 
 ## Just the Oxigraph binary
 
-If you already build `awg` yourself and only need the store:
+If you already build `sensei` yourself and only need the store:
 
 ```bash
 scripts/fetch-oxigraph.sh        # → bin/oxigraph (matched to your platform)
 ```
 
 Or download it directly from <https://github.com/oxigraph/oxigraph/releases>
-and place it on your `PATH` or in `./bin/`. `awg serve` looks for `oxigraph`
-next to the `awg` binary, in `./bin/`, then on `PATH`.
+and place it on your `PATH` or in `./bin/`. `sensei serve` looks for `oxigraph`
+next to the `sensei` binary, in `./bin/`, then on `PATH`.
 
 ## Docker alternative
 
-If you prefer not to fetch a binary, `awg serve -no-oxigraph` connects to
+If you prefer not to fetch a binary, `sensei serve -no-oxigraph` connects to
 an Oxigraph you run yourself:
 
 ```bash
 docker run -d -p 7878:7878 ghcr.io/oxigraph/oxigraph serve --bind 0.0.0.0:7878
-awg serve -no-oxigraph -no-seed &
+sensei serve -no-oxigraph -no-seed &
 ```
 
 ## Next

@@ -33,16 +33,16 @@ in the portable meta-principle `meta.identity_computation_must_be_invariant`.
 examples/orders-money-scar/run.sh
 ```
 
-`run.sh` is hermetic: it builds `awg` + the server, copies this example into a
+`run.sh` is hermetic: it builds `sensei` + the server, copies this example into a
 throwaway temp dir, and runs the full loop there — **the committed example is
 never mutated**. Override ports with `AWG_DEMO_GRPC_PORT` / `AWG_DEMO_OXI_PORT`.
 
 ## What it proves (and the expected output)
 
 ```
-==> [1] awg init (portable pack + scaffold)
+==> [1] sensei init (portable pack + scaffold)
     portable pack: 95 principles; scar present
-==> [3] awg build -strict
+==> [3] sensei build -strict
   total: 803 triples, validated
   Build complete.
 ==> [4] no Globular seed leak
@@ -57,9 +57,9 @@ PASS — cold-start money-scar proof green
 
 | # | Step | Proof |
 |---|------|-------|
-| 1 | `awg init` | installs the ~95-principle portable pack + scaffolds awareness files |
+| 1 | `sensei init` | installs the ~95-principle portable pack + scaffolds awareness files |
 | 2 | human scar | `money.amounts_are_integer_minor_units` protects `total.go` |
-| 3 | `awg build -strict` | the project graph validates (803 triples) |
+| 3 | `sensei build -strict` | the project graph validates (803 triples) |
 | 4 | no seed leak | a Globular-only invariant resolves **not found** |
 | 5 | task briefing | "add a 10% discount" surfaces the **critical** money rule |
 | 6 | unguided fix | `Money(float64(total) * 0.9)` → **899 cents** |
@@ -90,14 +90,14 @@ run.sh                              # hermetic proof runner
 go.mod  pkg/orders/total.go         # tiny fixture service (safe integer money)
         pkg/orders/total_test.go    # float-vs-integer proof test
 docs/awareness/invariants.yaml      # the human-authored money scar
-.gitignore                          # excludes init-generated files (pack, CLAUDE.md, .awg/)
+.gitignore                          # excludes init-generated files (pack, CLAUDE.md, .sensei/)
 ```
 
-`awg init` generates the principle pack, `CLAUDE.md`, the other awareness files,
-and `.awg/` — all gitignored, so this directory stays minimal and deterministic.
+`sensei init` generates the principle pack, `CLAUDE.md`, the other awareness files,
+and `.sensei/` — all gitignored, so this directory stays minimal and deterministic.
 
 ## Cleanup
 
 `run.sh` cleans up after itself (temp dir + serve process removed on exit). If
-you ran the steps by hand, stop the background `awg serve` and remove any
+you ran the steps by hand, stop the background `sensei serve` and remove any
 generated files: `git clean -xfd` inside your throwaway copy.

@@ -26,7 +26,7 @@ sitting out = a corpus that has drifted from source. You do not serve spoiled
 awareness. You whip it (rebuild) *before* it turns.
 
 **"When something's going wrong / You must whip it"**
-→ `awg gate --enforce`, exit 1. Something going wrong = a forbidden-fix shape in the
+→ `sensei gate --enforce`, exit 1. Something going wrong = a forbidden-fix shape in the
 diff. You don't *comment* on it (that's for the post-hoc-review crowd). You **whip
 it** — block, fail closed.
 

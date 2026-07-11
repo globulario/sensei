@@ -45,7 +45,7 @@ fail the check iff any block-level warning remains
 - **Only the diff is judged** — the gate never blocks on pre-existing code the PR
   didn't touch. You can adopt a blocking rule without first fixing the whole repo.
 
-This needs a thin new **diff mode** (`awg gate --diff <range> --domain <repo>`)
+This needs a thin new **diff mode** (`sensei gate --diff <range> --domain <repo>`)
 that maps a diff to per-file EditCheck calls and aggregates. That is future
 *implementation*, named here, not built.
 
@@ -65,7 +65,7 @@ detect:
 
 ### Graduation: how a rule earns `block`
 
-`awg promote` refuses `enforcement: block` unless the candidate attests it has
+`sensei promote` refuses `enforcement: block` unless the candidate attests it has
 graduated — a small `graduation:` block recording:
 
 - **review label** `load-bearing` (already required for pilot promotion),
