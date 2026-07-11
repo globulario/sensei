@@ -35,7 +35,7 @@ import (
 func runEditGuard(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-guard", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", envOr("AWG_ADDR", "localhost:10120"), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	blockSeverity := fs.String("block-severity", envOr("AWG_EDIT_CHECK_BLOCK_SEVERITY", "critical,high"),

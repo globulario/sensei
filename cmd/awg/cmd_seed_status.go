@@ -46,7 +46,7 @@ func runSeedStatus(args []string) int {
 	fs := flag.NewFlagSet("sensei seed-status", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	seedPathFlag := fs.String("seed", "", "path to awareness.nt (default: auto-detect embedded seed)")
-	oxigraphURL := fs.String("oxigraph-url", "http://localhost:7878/query", "Oxigraph query or store endpoint")
+	oxigraphURL := fs.String("oxigraph-url", defaultOxigraphQueryURL(), "Oxigraph query or store endpoint")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	requireCurrent := fs.Bool("require-current", false, "exit 1 when the live store does not contain this seed marker")

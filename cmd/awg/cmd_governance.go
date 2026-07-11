@@ -64,7 +64,7 @@ func runGovernanceFetch(args []string) int {
 	packVersion := fs.String("pack-version", "", "governance pack version")
 	channel := fs.String("channel", "", "publication channel pointer such as stable")
 	activate := fs.Bool("activate", false, "activate the fetched pack after local verification")
-	storeURL := fs.String("store-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint when --activate is set")
+	storeURL := fs.String("store-url", defaultOxigraphStoreURL(), "Oxigraph Graph Store endpoint when --activate is set")
 	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful activation")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -584,7 +584,7 @@ func runGovernanceActivate(args []string) int {
 	fs.SetOutput(os.Stderr)
 	rootFlag := fs.String("project-root", "", "project root (auto-detect)")
 	trustedKeysFlag := fs.String("trusted-keys", "", "path to trusted publisher key set (default: <project>/.sensei/governance/trusted-publishers.json)")
-	storeURL := fs.String("store-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint")
+	storeURL := fs.String("store-url", defaultOxigraphStoreURL(), "Oxigraph Graph Store endpoint")
 	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful load (default: <project>/.sensei/graph-authority.json)")
 	if err := fs.Parse(args); err != nil {
 		return 2

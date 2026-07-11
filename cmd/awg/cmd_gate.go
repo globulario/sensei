@@ -209,7 +209,7 @@ func runGate(args []string) int {
 	fs.SetOutput(os.Stderr)
 	diff := fs.String("diff", "HEAD", "git diff range to gate, e.g. 'origin/main...HEAD' or 'HEAD' (working tree vs HEAD)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "path to the git repo to diff")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	reportOnly := fs.Bool("report-only", false, "CI mode: always exit 0 (fail-open on any error), print a non-blocking report with a summary line")

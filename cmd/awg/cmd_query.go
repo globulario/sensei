@@ -25,7 +25,7 @@ var queryRPC = func(ctx context.Context, addr string, req *awarenesspb.QueryRequ
 func runQuery(args []string) int {
 	fs := flag.NewFlagSet("sensei query", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	mode := fs.String("mode", "", "by_file | by_id | by_class | related (required)")
 	file := fs.String("file", "", "repo-relative path (for mode=by_file)")
 	id := fs.String("id", "", "class-qualified id (for mode=by_id/related)")

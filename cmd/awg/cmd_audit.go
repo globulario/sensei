@@ -103,7 +103,7 @@ Flags:
 				if updated {
 					fmt.Printf("    embeddata updated: %s\n", seedPath)
 				}
-				_ = reloadOxigraphStore(ntBytes, "http://localhost:7878/store?default")
+				_ = reloadOxigraphStore(ntBytes, defaultOxigraphStoreURL())
 				return nil
 			}
 			c.fixDesc = "rebuild embeddata + reload Oxigraph"
