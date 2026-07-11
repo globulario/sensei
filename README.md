@@ -69,6 +69,12 @@ downloads and checksum-verifies the matching release, installs the binaries onto
 your PATH, and prints the MCP config to hand your agent. Pin a version with
 `SENSEI_VERSION=v1.1.0`, or change the target dir with `SENSEI_PREFIX=…`.
 
+**Homebrew** (macOS Apple Silicon / Linux) — get `brew upgrade` for free:
+
+```bash
+brew install globulario/tap/sensei
+```
+
 <details>
 <summary>Other ways: download a tarball, or build from source</summary>
 
