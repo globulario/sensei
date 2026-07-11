@@ -319,7 +319,20 @@
         return;
       }
       if (m.authority && m.reloaded !== false) {
-        el.textContent = `${m.mode === 'rebuild' ? 'Rebuild' : 'Reload'} finished, but graph is ${m.authority.state} — authority disabled`;
+        const done = m.mode === 'rebuild' ? 'Rebuilt' : 'Reloaded';
+        // Surface the *reason* authority is off (e.g. "Dev build — provenance
+        // unstamped"), not a self-contradictory "graph is current — authority
+        // disabled".
+        const why = m.authority.summary || `authority ${m.authority.state}`;
+        if (m.authority.state === 'current') {
+          // The graph is fresh; only the release provenance is unstamped (a local
+          // or dev-built server). That's fine to work against — it's an advisory,
+          // not a failure — so don't cry wolf with a red status.
+          el.className = 'rfr__status';
+          el.textContent = `✓ ${done} — ${why}`;
+        } else {
+          el.textContent = `${done === 'Rebuilt' ? 'Rebuild' : 'Reload'} finished — ${why}`;
+        }
       } else {
         el.textContent = `${m.mode === 'rebuild' ? 'Rebuild' : 'Reload'} failed${m.mode === 'rebuild' ? ' — see Awareness Operations log' : ''}`;
       }

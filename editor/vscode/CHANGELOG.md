@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1
+
+- **Fix a confusing dashboard status after Reload/Rebuild.** When the graph is
+  fresh but served by a locally-built (dev) server, the status no longer reads
+  the self-contradictory "graph is current — authority disabled". It now states
+  the actual reason (e.g. "✓ Reloaded — Dev build — provenance unstamped") and
+  treats a current-but-unstamped graph as an advisory, not a red failure — the
+  reload succeeded and the graph is usable; only the release-provenance stamp
+  that governance/trust contexts need is absent.
+
 ## 0.1.0 — First public release
 
 - **This File** view (activity bar): the invariants, failure modes, intent, risk
