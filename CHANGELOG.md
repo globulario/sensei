@@ -3,8 +3,21 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## v1.2.0 — edit-brief push hook + domain scoping
 
+- **`sensei edit-brief`** — a Claude Code PreToolUse *push* hook: it hands the
+  agent the invariants, forbidden fixes, and failure modes that govern the file
+  it's about to edit as `additionalContext`, so the agent gets the awareness
+  unprompted and can't forget to consult Sensei. Completes the `edit-check`
+  (advisory) / `edit-guard` (block) / `edit-brief` (push) triad; `sensei init`
+  installs the `push-briefing.sh` hook and the quickstart recommends it alongside
+  `edit-check-guard`.
+- **Domain-scoped `Metadata` + `Query`.** `MetadataRequest`/`QueryRequest` accept
+  a `domain`; per-class counts and by-class lists scope to a single repo/domain
+  (reusing the pure, tested `InScope` core — with a no-cross-domain-leak test),
+  and `MetadataResponse.available_domains` enumerates the selectable domains.
+  This powers the VS Code extension's dashboard domain filter (scope the whole
+  cockpit to one project).
 - **Homebrew tap.** `brew install globulario/tap/sensei` installs the CLI,
   server, MCP bridge, and bundled Oxigraph on macOS (Apple Silicon) and Linux
   (amd64/arm64), with `brew upgrade` for updates. The tap
