@@ -1,0 +1,63 @@
+# Publish the VS Code extension to the Marketplace.
+#
+# One-time setup (see editor/vscode/PUBLISHING.md):
+#   1. Create the `globulario` publisher at https://marketplace.visualstudio.com/manage
+#   2. Generate an Azure DevOps PAT with the Marketplace > Manage scope
+#   3. Add it as the repo secret VSCE_PAT (Settings → Secrets and variables → Actions)
+#
+# Then publish by running this workflow (Actions → Publish VS Code extension → Run),
+# or by pushing a tag like `vscode-v0.1.0`. The version published is the one in
+# editor/vscode/package.json — bump it before releasing.
+name: Publish VS Code extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Package and validate only — do not publish"
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'vscode-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editor/vscode
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: editor/vscode/package-lock.json
+
+      - run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Package the .vsix
+        run: npx --yes @vscode/vsce package --no-git-tag-version -o /tmp/sensei.vsix
+
+      - name: Upload the .vsix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensei-vsix
+          path: /tmp/sensei.vsix
+
+      - name: Publish to the Marketplace
+        if: ${{ github.event_name == 'push' || !inputs.dry_run }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "${VSCE_PAT:-}" ]; then
+            echo "::error::VSCE_PAT secret is not set. Create the globulario publisher and a PAT (see editor/vscode/PUBLISHING.md), then add VSCE_PAT under repo Settings → Secrets → Actions."
+            exit 1
+          fi
+          npx --yes @vscode/vsce publish --packagePath /tmp/sensei.vsix -p "$VSCE_PAT"
+          echo "Published editor/vscode to the Marketplace."
