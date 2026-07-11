@@ -219,6 +219,7 @@ func runGate(args []string) int {
 	policyPath := fs.String("policy", "", "path to a per-repo enforcement-policy YAML (rule_id -> warn|block|off, plus optional default); overrides each rule's declared level. Default: <repo-root>/.sensei/gate-policy.yaml when present.")
 	eventLog := fs.String("event-log", os.Getenv("AWG_EVENT_LOG"), "append a JSONL outcome event (block/warn/allow + rules) to this ledger for evidence; see `sensei evidence`. Default: $AWG_EVENT_LOG (off when empty).")
 	maxFanout := fs.Int("completeness-max-fanout", 12, "completeness: ignore reference families larger than this (likely shared types/utilities, not must-change-together conventions)")
+	mode := fs.String("mode", "", "shorthand for the enforcement mode: advisory (= --report-only), enforce (= --enforce), or dry-run (the default). Overrides --enforce/--report-only when set.")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei gate [--diff <range>] [--domain <repo>] [--enforce] [flags]
 
@@ -251,6 +252,21 @@ Flags:
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	// --mode is an ergonomic alias so CI and the GitHub Action read cleanly.
+	switch strings.ToLower(strings.TrimSpace(*mode)) {
+	case "":
+		// leave --enforce / --report-only as given
+	case "advisory", "report-only", "report_only":
+		*reportOnly, *enforce = true, false
+	case "enforce", "block":
+		*enforce, *reportOnly = true, false
+	case "dry-run", "dry_run", "dryrun":
+		*enforce, *reportOnly = false, false
+	default:
+		fmt.Fprintf(os.Stderr, "sensei gate: unknown --mode %q (use advisory | enforce | dry-run)\n", *mode)
 		return 2
 	}
 
