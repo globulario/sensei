@@ -133,6 +133,9 @@ and writes a summary into the job — so the consuming workflow is one `uses:` l
 # .github/workflows/sensei.yml  (full example: docs/ci/sensei-gate.yml)
 name: Sensei architectural review
 on: [pull_request]
+permissions:
+  contents: read
+  security-events: write     # so findings appear in Security → Code scanning
 jobs:
   review:
     runs-on: ubuntu-latest
