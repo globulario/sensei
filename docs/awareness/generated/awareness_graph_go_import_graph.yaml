@@ -585,6 +585,7 @@ components:
       - golang/server/change_impact.go
       - golang/server/code_symbol.go
       - golang/server/config.go
+      - golang/server/domain_scope.go
       - golang/server/edit_check.go
       - golang/server/embedded_seed.go
       - golang/server/graph_authority.go
