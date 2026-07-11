@@ -22,6 +22,10 @@ jobs:
         shell: pwsh
         run: winget validate --manifest packaging/winget
 
+      - name: Allow installing from local manifests
+        shell: pwsh
+        run: winget settings --enable LocalManifestFiles
+
       - name: Install from the local manifest (downloads the real release zip)
         shell: pwsh
         run: |
