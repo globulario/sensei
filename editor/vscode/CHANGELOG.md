@@ -2,11 +2,14 @@
 
 ## 0.1.1
 
-- **Scope the file view to the current project.** On a graph that hosts more
-  than one repo/domain, the "This File" view and node detail now resolve against
-  *this* project's domain — derived automatically from the workspace's git remote
-  (`sensei.domain` overrides it) — instead of risking another repo's rules. (The
-  dashboard banner/lists remain graph-wide for now; per-domain totals are next.)
+- **Domain filtering — scope the whole dashboard to a project.** On a graph that
+  hosts more than one repo/domain, the "This File" view and node detail resolve
+  against *this* project's domain (derived from the workspace git remote;
+  `sensei.domain` overrides), and the **Project dashboard gains a domain filter**
+  next to Reload/Rebuild — the control-banner per-class totals and the aspect
+  lists scope to the selected project (defaulting to the current one), with an
+  "All domains" option for the graph-wide view. Backed by domain-scoped
+  `Metadata`/`Query` on the server; `triple_count` stays the raw store size.
 - **Point users at the Sensei CLI.** The extension is a *client* of the `sensei`
   CLI — the dashboard now has a footer linking the project with one-line install
   commands (Homebrew / winget / curl), and the "server unreachable" message in
