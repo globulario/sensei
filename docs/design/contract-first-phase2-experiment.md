@@ -58,7 +58,7 @@ the gold patch.
 ```yaml
 contract_set_version: 1
 task_id: gl-runtime-available-from-local
-repo: github.com/globulario/services
+repo: github.com/example/target-repo
 base_commit: <sha>
 contracts:
   - id: contract.state.runtime_not_desired
@@ -66,13 +66,13 @@ contracts:
     confidence: explicit
     statement: "Runtime health must never be inferred from desired/installed state."
     required_scope:
-      files: ["golang/node_agent/**/runtime_proof.go"]
+      files: ["example/service_pkg/handler.go"]
       behavior: ["runtime health rendering path"]
     allowed_related_scope:
-      files: ["golang/node_agent/**/status_helpers.go"]
+      files: ["example/service_pkg/handler.go"]
       behavior: ["shared helper used directly by runtime health rendering"]
     out_of_scope:
-      files: ["golang/cluster_controller/**"]
+      files: ["example/service_pkg/**"]
       behavior: ["neighboring status messages outside runtime health ownership"]
     required_paths:
       - "runtime health success path"
@@ -83,7 +83,7 @@ contracts:
       scope_precision: high         # high | medium | low
       required_paths_coverage: high # high | medium | low
     governs:
-      files: ["golang/node_agent/**/runtime_proof.go"]
+      files: ["example/service_pkg/handler.go"]
       symbols: ["ReportRuntimeHealth"]
     detect:                         # reads the DIFF only -> leak-proof
       type: regex_forbidden         # regex_forbidden|regex_required|ruleguard|test_must_pass|judge_rubric
@@ -121,7 +121,7 @@ only with `--contracts`):
 {"mode":"contract-gate","diff":"HEAD","enforce":true,
  "contracts":[
   {"task_id":"...","id":"contract.state.runtime_not_desired","kind":"invariant",
-   "verdict":"violated","applicable_files":["golang/node_agent/node_agent_server/runtime_proof.go"],
+   "verdict":"violated","applicable_files":["example/service_pkg/handler.go"],
    "evidence":{"file":"...","line":12,"matched":"status = Available ... installed",
                "message":"marks Available from installed/local success ..."}}],
  "summary":{"contracts":1,"respected":0,"violated":1,"not_applicable":0}}
@@ -210,7 +210,7 @@ already exist (406 invariants, 824 forbidden_fixes, 173 failure-modes, many with
 ruleguard/pattern detect rules). Construct tasks from real scars where a
 `forbidden_fix` is the tempting wrong patch:
 
-- **1 repo** (`globulario/services`), **single model**, **N ≥ 3 seeds/arm**.
+- **1 repo** (`example/target-repo`), **single model**, **N ≥ 3 seeds/arm**.
 - **18 tasks**: **12 contract-trap/unknown** (types 1–5) + **6 localizable
   controls** (where B≈A must hold).
 - Each task: `{issue.md, base_commit, FAIL_TO_PASS tests, contracts/<id>.yaml,

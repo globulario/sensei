@@ -157,7 +157,7 @@ Each maxim is given in three parts: **the law** itself; **the trap**, which is t
 **The discipline.** For every new actor (service account, AI service, workflow, scheduled task, automation hook):
 
 - INITIAL STATE — zero privileges. The creation flow that grants any privilege must require the privilege to be NAMED.
-- NAMED REASON — each grant carries a brief reason in the role binding metadata. "Needs to read /globular/services" is a reason; "for the X service" is not.
+- NAMED REASON — each grant carries a brief reason in the role binding metadata. "Needs to read /example/services" is a reason; "for the X service" is not.
 - BOUNDED SCOPE — privileges name resources, not wildcards, except where the wildcard is structurally necessary (e.g. "list all services" by definition cannot name each).
 - PERIODIC REVIEW — privileges granted should have an expiration or review marker; permanent grants are reserved for foundational service accounts.
 
@@ -1369,7 +1369,7 @@ Each maxim is given in three parts: **the law** itself; **the trap**, which is t
 
 *Critical severity.*
 
-**The trap.** Extract whatever repeats into a shared unit and let consumers adapt to it. Its familiar disguise: *“A 'shared' component whose consumers import its internals, patch its DOM, and break on every refactor”*. A reusable unit must represent a stable semantic concept with an explicit public contract, hidden internal complexity, owned lifecycle (subscriptions, timers, listeners, async work — acquired and released locally), inspectable runtime behavior, and extension points that do not require consumers to depend on private implementation details. Every other structure principle elaborates one clause of this one. <globular-node-health> done right is the shape: the tag is a contract, the internals are nobody's business, the lifecycle ends at disconnectedCallback.
+**The trap.** Extract whatever repeats into a shared unit and let consumers adapt to it. Its familiar disguise: *“A 'shared' component whose consumers import its internals, patch its DOM, and break on every refactor”*. A reusable unit must represent a stable semantic concept with an explicit public contract, hidden internal complexity, owned lifecycle (subscriptions, timers, listeners, async work — acquired and released locally), inspectable runtime behavior, and extension points that do not require consumers to depend on private implementation details. Every other structure principle elaborates one clause of this one. <example-node-health> done right is the shape: the tag is a contract, the internals are nobody's business, the lifecycle ends at disconnectedCallback.
 
 **The discipline.** Before extracting or publishing a reusable unit, write its boundary first: name the concept, the inputs, the outputs/events, the states it exposes, the extension points, and what its lifecycle acquires and releases. If the boundary cannot be written without describing internals, the unit is not ready to be shared.
 

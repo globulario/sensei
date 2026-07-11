@@ -61,7 +61,7 @@ Each step is one of these tools:
 
 ## Primary demo: `/api/save-config`
 
-The Globular gateway's `/api/save-config` handler (`NewSaveConfig`) requires a
+An HTTP gateway's `/api/save-config` handler (`NewSaveConfig`) requires a
 header token and returns `401` without it — config is never mutated without valid
 authority. The spine, end to end:
 
@@ -70,20 +70,20 @@ HTTP implementation contract  contract.http.api_save_config        (extracted by
   --realizesContract-->                                            (promoted from a candidate)
 contract.config_mutation_requires_valid_token                      (authored architectural contract)
   --constrainedByInvariant--> meta.authority_must_express_uncertainty
-  --requiresTest-----------> internal/gateway/handlers/config/save_config_test.go:TestSaveConfig_RequiresToken
+  --requiresTest-----------> internal/http/handlers/save_config_test.go:TestSaveConfig_RequiresToken
                              (+ TestSaveConfig_InvalidToken401, TestSaveConfig_ValidTokenSaves204)
 ```
 
 ### Briefing renders this as a repair instruction
 
-`sensei briefing --file internal/gateway/handlers/config/config.go`:
+`sensei briefing --file internal/http/handlers/config.go`:
 
 ```
 Realized architectural contracts (AUTHORITY — respect or do not claim resolution):
 - HTTP /api/save-config realizes contract.config_mutation_requires_valid_token
   - The contract requires: Config mutation requires a valid token
   - Constrained by: meta.authority_must_express_uncertainty
-  - Required proof: internal/gateway/handlers/config/save_config_test.go:TestSaveConfig_RequiresToken, …
+  - Required proof: internal/http/handlers/save_config_test.go:TestSaveConfig_RequiresToken, …
   - Do not claim resolution if this contract is bypassed, weakened, or left untested.
 
 Candidate realized contracts (REVIEW-ONLY — not authority; promote with `sensei promote-realization`):
@@ -92,7 +92,7 @@ Candidate realized contracts (REVIEW-ONLY — not authority; promote with `sense
 
 ## Reproduce it
 
-From the `awareness-graph` repo (with the services + Globular repos as siblings,
+From the `awareness-graph` repo (with sibling repos,
 and `sensei serve` running):
 
 ```bash
@@ -106,7 +106,7 @@ sensei promote-realization --impl contract.http.api_save_config \
                         --arch contract.config_mutation_requires_valid_token
 
 sensei rebuild                          # emit realizesContract / realizedByContract into the store
-sensei briefing --file internal/gateway/handlers/config/config.go   # see the authority chain
+sensei briefing --file internal/http/handlers/config.go   # see the authority chain
 sensei audit --check                    # the gate (below) is green and FAIL-level
 ```
 
