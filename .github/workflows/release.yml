@@ -78,7 +78,7 @@ jobs:
           go-version: '1.25'
           cache-dependency-path: go.sum
 
-      - name: Build standalone binaries + bundle Oxigraph (${{ matrix.goos }}-${{ matrix.goarch }})
+      - name: Build binaries + assemble self-contained tarball (${{ matrix.goos }}-${{ matrix.goarch }})
         env:
           VERSION: ${{ needs.meta.outputs.version }}
           GOOS: ${{ matrix.goos }}
@@ -90,29 +90,40 @@ jobs:
           LDFLAGS="-s -w -X main.Version=${VERSION}"
           OUT="$RUNNER_TEMP/dist"; mkdir -p "$OUT"
 
+          # Assemble the bundle layout directly: one bin/ dir with every binary
+          # sensei needs. sensei locates awareness-graph and oxigraph next to its
+          # own executable, so this layout runs with no further setup.
+          PKG="sensei-${SUFFIX}"
+          STAGE="$RUNNER_TEMP/${PKG}"; rm -rf "$STAGE"; mkdir -p "$STAGE/bin"
+
           # Native build: GOOS/GOARCH match the host, CGO stays on for tree-sitter.
-          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/sensei-${SUFFIX}"           ./cmd/awg
-          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/awareness-graph-${SUFFIX}"  ./golang/server
-          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/awareness-mcp-${SUFFIX}"    ./cmd/awareness-mcp
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/sensei"          ./cmd/awg
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/awareness-graph" ./golang/server
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$STAGE/bin/awareness-mcp"   ./cmd/awareness-mcp
+          cp "$STAGE/bin/sensei" "$STAGE/bin/awg"   # deprecated alias, still shipped
 
           # Oxigraph is one of the binaries `sensei serve` runs — ship it in the
-          # release so the download is self-contained (no upstream fetch needed).
+          # bundle so the download is self-contained (no upstream fetch needed).
           case "${SUFFIX}" in
             linux-amd64)  OXA="x86_64_linux_gnu";;
             linux-arm64)  OXA="aarch64_linux_gnu";;
             darwin-arm64) OXA="aarch64_apple";;
             *) echo "::error::no Oxigraph asset mapping for ${SUFFIX}"; exit 1;;
           esac
-          curl -fsSL -o "$OUT/oxigraph-${SUFFIX}" \
+          curl -fsSL -o "$STAGE/bin/oxigraph" \
             "https://github.com/oxigraph/oxigraph/releases/download/v${OXV}/oxigraph_v${OXV}_${OXA}"
-          chmod +x "$OUT/oxigraph-${SUFFIX}"
+          chmod +x "$STAGE/bin/"*
 
-          # Portable checksums (macOS ships shasum, not sha256sum).
+          cp packaging/setup.sh "$STAGE/setup.sh"; chmod +x "$STAGE/setup.sh"
+
+          # One tarball per platform: sensei-<os>-<arch>.tar.gz → { bin/, setup.sh }.
+          TARBALL="${PKG}.tar.gz"
+          tar czf "$OUT/${TARBALL}" -C "$RUNNER_TEMP" "${PKG}"
           sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi; }
-          ( cd "$OUT" && for f in *-"${SUFFIX}"; do case "$f" in *.sha256) ;; *) sha "$f" > "$f.sha256";; esac; done )
+          ( cd "$OUT" && sha "${TARBALL}" > "${TARBALL}.sha256" )
 
-          echo "Built for ${SUFFIX} (incl. Oxigraph v${OXV}):"
-          ls -lh "$OUT" | sed 's/^/  /'
+          echo "Assembled ${TARBALL} (incl. Oxigraph v${OXV}):"
+          tar tzf "$OUT/${TARBALL}" | sed 's/^/  /'
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
@@ -147,51 +158,38 @@ jobs:
       - name: Run tests
         run: go test ./... -count=1 -timeout 120s
 
-      - name: Download all platform binaries
+      - name: Download all platform tarballs
         uses: actions/download-artifact@v4
         with:
           path: /tmp/dist
           pattern: binaries-*
           merge-multiple: true
 
-      - name: List downloaded binaries
+      - name: List downloaded artifacts
         run: ls -lh /tmp/dist | sed 's/^/  /'
 
-      - name: Assemble Linux tarball bundles
+      - name: Assemble Linux service bundle (Globular installer)
         env:
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
           set -euo pipefail
-          # The supervised tarball bundles remain Linux amd64 only; the raw
-          # per-platform binaries above cover macOS and arm64.
-          mkdir -p bin
-          cp /tmp/dist/sensei-linux-amd64          bin/sensei
-          cp /tmp/dist/sensei-linux-amd64          bin/awg            # deprecated alias
-          cp /tmp/dist/awareness-graph-linux-amd64 bin/awareness-graph
-          cp /tmp/dist/awareness-mcp-linux-amd64   bin/awareness-mcp
-          cp /tmp/dist/oxigraph-linux-amd64        bin/oxigraph
-          chmod +x bin/sensei bin/awg bin/awareness-graph bin/awareness-mcp bin/oxigraph
+          # The end-user download is the per-platform sensei-<os>-<arch>.tar.gz
+          # (bin/ + setup.sh) built in the matrix. This step additionally produces
+          # the machine-readable Globular service bundle (specs + metadata +
+          # entrypoint checksum) that the Globular installer consumes — sourcing
+          # its server binary from the already-built linux-amd64 tarball.
+          EX=/tmp/linux-amd64; rm -rf "$EX"; mkdir -p "$EX"
+          tar xzf /tmp/dist/sensei-linux-amd64.tar.gz -C "$EX"
+          SRC_BIN="$EX/sensei-linux-amd64/bin"
 
           SERVICE_ROOT=/tmp/awareness-graph-service-root
-          LOCAL_ROOT=/tmp/awareness-graph-local-root
-          rm -rf "${SERVICE_ROOT}" "${LOCAL_ROOT}"
+          rm -rf "${SERVICE_ROOT}"
           mkdir -p "${SERVICE_ROOT}/bin" "${SERVICE_ROOT}/specs" "${SERVICE_ROOT}/metadata/awareness-graph" "${SERVICE_ROOT}/seed"
-          mkdir -p "${LOCAL_ROOT}/bin" "${LOCAL_ROOT}/scripts"
 
-          cp bin/awareness-graph        "${SERVICE_ROOT}/bin/awareness-graph"
+          cp "${SRC_BIN}/awareness-graph" "${SERVICE_ROOT}/bin/awareness-graph"
           cp golang/server/embeddata/awareness.nt "${SERVICE_ROOT}/seed/awareness.nt"
           cp packaging/specs/awareness_graph_service.yaml \
                                         "${SERVICE_ROOT}/specs/awareness_graph_service.yaml"
-
-          cp bin/awg                    "${LOCAL_ROOT}/bin/awg"
-          cp bin/awareness-mcp          "${LOCAL_ROOT}/bin/awareness-mcp"
-          cp bin/awareness-graph        "${LOCAL_ROOT}/bin/awareness-graph"
-          cp bin/oxigraph               "${LOCAL_ROOT}/bin/oxigraph"
-          cp scripts/fetch-oxigraph.sh  "${LOCAL_ROOT}/scripts/fetch-oxigraph.sh"
-          cp scripts/install-awg-user-services.sh \
-                                        "${LOCAL_ROOT}/scripts/install-awg-user-services.sh"
-          cp INSTALL.md                 "${LOCAL_ROOT}/INSTALL.md"
-          cp QUICKSTART.md              "${LOCAL_ROOT}/QUICKSTART.md"
 
           # Write package.json and spec with the release version injected.
           python3 -c "
@@ -219,51 +217,23 @@ jobs:
             | awk '{print $1}' \
             > "${SERVICE_ROOT}/metadata/awareness-graph/entrypoint.sha256"
 
-          cat > "${LOCAL_ROOT}/README.txt" <<EOF
-          awareness-graph local runtime bundle v${VERSION}
-
-          Included binaries (fully self-contained — Oxigraph included):
-            bin/awg
-            bin/awareness-mcp
-            bin/awareness-graph
-            bin/oxigraph
-
-          Quick start:
-            1. place these binaries on your PATH
-            2. install supervised local services with:
-                 bash scripts/install-awg-user-services.sh --skip-build
-            (scripts/fetch-oxigraph.sh is included only as a fallback; the
-             bundled bin/oxigraph is already this platform's binary.)
-
-          This bundle is Linux amd64 only. For macOS (Apple Silicon) and
-          linux-arm64, use the raw sensei-<os>-<arch> / awareness-graph-<os>-<arch>
-          / oxigraph-<os>-<arch> binaries on the release page.
-          EOF
-
           SERVICE_TARBALL="awareness-graph_${VERSION}_linux_amd64.tgz"
-          LOCAL_TARBALL="awg-local_${VERSION}_linux_amd64.tgz"
           tar czf "/tmp/${SERVICE_TARBALL}" -C "${SERVICE_ROOT}" .
-          tar czf "/tmp/${LOCAL_TARBALL}" -C "${LOCAL_ROOT}" .
           echo "SERVICE_TARBALL_NAME=${SERVICE_TARBALL}" >> "$GITHUB_ENV"
-          echo "LOCAL_TARBALL_NAME=${LOCAL_TARBALL}" >> "$GITHUB_ENV"
           echo "Staged: /tmp/${SERVICE_TARBALL} ($(du -sh /tmp/${SERVICE_TARBALL} | cut -f1))"
-          echo "Staged: /tmp/${LOCAL_TARBALL} ($(du -sh /tmp/${LOCAL_TARBALL} | cut -f1))"
 
       - name: Enforce public/runtime release boundary
         run: |
           set -euo pipefail
           scripts/check-release-boundary.sh \
-            /tmp/awareness-graph-service-root \
-            /tmp/awareness-graph-local-root
+            /tmp/awareness-graph-service-root
 
-      - name: Create SHA256 checksums for tarballs
+      - name: Create SHA256 checksum for the service bundle
         run: |
           set -euo pipefail
           cd /tmp
           sha256sum "${SERVICE_TARBALL_NAME}" > "${SERVICE_TARBALL_NAME}.sha256"
-          sha256sum "${LOCAL_TARBALL_NAME}" > "${LOCAL_TARBALL_NAME}.sha256"
           echo "Checksum: $(cat ${SERVICE_TARBALL_NAME}.sha256)"
-          echo "Checksum: $(cat ${LOCAL_TARBALL_NAME}.sha256)"
 
       - name: Create GitHub Release
         env:
@@ -285,20 +255,9 @@ jobs:
           gh release create "${TAG}" \
             --title "sensei ${TAG}" \
             --notes-file "$NOTES_FILE" \
+            /tmp/dist/sensei-linux-amd64.tar.gz    /tmp/dist/sensei-linux-amd64.tar.gz.sha256 \
+            /tmp/dist/sensei-linux-arm64.tar.gz    /tmp/dist/sensei-linux-arm64.tar.gz.sha256 \
+            /tmp/dist/sensei-darwin-arm64.tar.gz   /tmp/dist/sensei-darwin-arm64.tar.gz.sha256 \
             "/tmp/${SERVICE_TARBALL_NAME}" \
-            "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
-            "/tmp/${LOCAL_TARBALL_NAME}" \
-            "/tmp/${LOCAL_TARBALL_NAME}.sha256" \
-            /tmp/dist/sensei-linux-amd64           /tmp/dist/sensei-linux-amd64.sha256 \
-            /tmp/dist/sensei-linux-arm64           /tmp/dist/sensei-linux-arm64.sha256 \
-            /tmp/dist/sensei-darwin-arm64          /tmp/dist/sensei-darwin-arm64.sha256 \
-            /tmp/dist/awareness-graph-linux-amd64  /tmp/dist/awareness-graph-linux-amd64.sha256 \
-            /tmp/dist/awareness-graph-linux-arm64  /tmp/dist/awareness-graph-linux-arm64.sha256 \
-            /tmp/dist/awareness-graph-darwin-arm64 /tmp/dist/awareness-graph-darwin-arm64.sha256 \
-            /tmp/dist/awareness-mcp-linux-amd64    /tmp/dist/awareness-mcp-linux-amd64.sha256 \
-            /tmp/dist/awareness-mcp-linux-arm64    /tmp/dist/awareness-mcp-linux-arm64.sha256 \
-            /tmp/dist/awareness-mcp-darwin-arm64   /tmp/dist/awareness-mcp-darwin-arm64.sha256 \
-            /tmp/dist/oxigraph-linux-amd64         /tmp/dist/oxigraph-linux-amd64.sha256 \
-            /tmp/dist/oxigraph-linux-arm64         /tmp/dist/oxigraph-linux-arm64.sha256 \
-            /tmp/dist/oxigraph-darwin-arm64        /tmp/dist/oxigraph-darwin-arm64.sha256
+            "/tmp/${SERVICE_TARBALL_NAME}.sha256"
           echo "Release ${TAG} created."
