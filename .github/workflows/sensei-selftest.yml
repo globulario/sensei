@@ -12,7 +12,11 @@ permissions:
 
 jobs:
   review:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]   # windows proves the .exe bundle runs (serve+gate)
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
