@@ -105,7 +105,6 @@ failure_modes:
       - Replace the permission-denied reason with a generic frontend message
       - Catch all gRPC errors under a single "network error" handler
     related_invariants:
-      - ui.action_requires_permission_contract
     required_tests:
       - TestPermissionDenied_RenderedDistinctlyFromNetworkError
       - TestRetryButton_NotShown_ForPermissionDenied
@@ -169,8 +168,8 @@ failure_modes:
 
   # ── Second-pass industry patterns: generalization layer ──────────────────────
   # These two patterns complete the reasoning chain:
-  #   Globular incident → industry pattern → architecture principle → invariant
-  # They are the generalization of the two most critical Globular-specific incidents.
+  #   a production incident → industry pattern → architecture principle → invariant
+  # They are the generalization of the two most critical platform-specific incidents.
 
   - id: fm.industry.missing_inventory_misclassified_as_down
     title: A collector or inventory gap is interpreted as proof that a node, service, or dependency is down
@@ -209,8 +208,8 @@ failure_modes:
       - evidence.missing_is_not_known_bad
       - objectstore.partial_snapshot_unknown_not_down
       - state.unknown_must_not_default_to_healthy
-    related_globular_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
+    related_example_failure_modes:
+      - fm.example.objectstore_partial_snapshot
     required_tests:
       - TestAbsentRecord_ClassifiedAsUnknown_NotKnownBad
       - TestPartialSnapshot_NoCritical_WhenOnlyUnknown
@@ -262,8 +261,8 @@ failure_modes:
     related_invariants:
       - identity.stable_node_identity_not_floating_vip
       - ops.vip_requires_observed_owner
-    related_globular_failure_modes:
-      - fm.globular.vip_transition_cascade
+    related_example_failure_modes:
+      - fm.example.vip_transition_cascade
     required_tests:
       - TestStableIP_ExcludesVIP
       - TestEtcdAdvertiseURL_UsesStableIP_NotVIP

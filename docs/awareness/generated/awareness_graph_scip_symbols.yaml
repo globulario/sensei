@@ -58,7 +58,7 @@ code_symbols:
     language: go
     file: cmd/awareness-mcp/main.go
     symbol: Impact
-    kind: var
+    kind: method
   - id: cmd/awareness-mcp/main.go:InputSchema
     namespace: structural.scip
     language: go
@@ -107,12 +107,18 @@ code_symbols:
     file: cmd/awareness-mcp/main.go
     symbol: Preflight
     kind: method
+  - id: cmd/awareness-mcp/main.go:Propose
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: Propose
+    kind: var
   - id: cmd/awareness-mcp/main.go:Query
     namespace: structural.scip
     language: go
     file: cmd/awareness-mcp/main.go
     symbol: Query
-    kind: var
+    kind: method
   - id: cmd/awareness-mcp/main.go:Resolve
     namespace: structural.scip
     language: go
@@ -125,12 +131,48 @@ code_symbols:
     file: cmd/awareness-mcp/main.go
     symbol: Result
     kind: var
+  - id: cmd/awareness-mcp/main.go:Structured
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: Structured
+    kind: var
+  - id: cmd/awareness-mcp/main.go:Text
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: Text
+    kind: var
   - id: cmd/awareness-mcp/main.go:addr
     namespace: structural.scip
     language: go
     file: cmd/awareness-mcp/main.go
     symbol: addr
     kind: var
+  - id: cmd/awareness-mcp/main.go:argString
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: argString
+    kind: function
+  - id: cmd/awareness-mcp/main.go:argStrings
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: argStrings
+    kind: function
+  - id: cmd/awareness-mcp/main.go:authorityOneLine
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: authorityOneLine
+    kind: function
+  - id: cmd/awareness-mcp/main.go:authorityStruct
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: authorityStruct
+    kind: function
   - id: cmd/awareness-mcp/main.go:awarenessAddrs
     namespace: structural.scip
     language: go
@@ -149,6 +191,12 @@ code_symbols:
     file: cmd/awareness-mcp/main.go
     symbol: bridge
     kind: type
+  - id: cmd/awareness-mcp/main.go:callPropose
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: callPropose
+    kind: method
   - id: cmd/awareness-mcp/main.go:callTool
     namespace: structural.scip
     language: go
@@ -221,6 +269,12 @@ code_symbols:
     file: cmd/awareness-mcp/main.go
     symbol: formatPreflight
     kind: function
+  - id: cmd/awareness-mcp/main.go:formatPropose
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: formatPropose
+    kind: function
   - id: cmd/awareness-mcp/main.go:formatQuery
     namespace: structural.scip
     language: go
@@ -257,11 +311,35 @@ code_symbols:
     file: cmd/awareness-mcp/main.go
     symbol: newStdioSession
     kind: function
+  - id: cmd/awareness-mcp/main.go:nodeObj
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: nodeObj
+    kind: function
+  - id: cmd/awareness-mcp/main.go:nodeObjs
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: nodeObjs
+    kind: function
   - id: cmd/awareness-mcp/main.go:preflightModeFromString
     namespace: structural.scip
     language: go
     file: cmd/awareness-mcp/main.go
     symbol: preflightModeFromString
+    kind: function
+  - id: cmd/awareness-mcp/main.go:putNodes
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: putNodes
+    kind: function
+  - id: cmd/awareness-mcp/main.go:putStrings
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: putStrings
     kind: function
   - id: cmd/awareness-mcp/main.go:queryClassFromString
     namespace: structural.scip
@@ -329,6 +407,54 @@ code_symbols:
     file: cmd/awareness-mcp/main.go
     symbol: stdioSession
     kind: type
+  - id: cmd/awareness-mcp/main.go:structBriefing
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structBriefing
+    kind: function
+  - id: cmd/awareness-mcp/main.go:structEditCheck
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structEditCheck
+    kind: function
+  - id: cmd/awareness-mcp/main.go:structImpact
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structImpact
+    kind: function
+  - id: cmd/awareness-mcp/main.go:structMetadata
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structMetadata
+    kind: function
+  - id: cmd/awareness-mcp/main.go:structPreflight
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structPreflight
+    kind: function
+  - id: cmd/awareness-mcp/main.go:structProposeResp
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structProposeResp
+    kind: function
+  - id: cmd/awareness-mcp/main.go:structQuery
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structQuery
+    kind: function
+  - id: cmd/awareness-mcp/main.go:structResolve
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: structResolve
+    kind: function
   - id: cmd/awareness-mcp/main.go:timeout
     namespace: structural.scip
     language: go
@@ -347,6 +473,12 @@ code_symbols:
     file: cmd/awareness-mcp/main.go
     symbol: toolRPCError
     kind: function
+  - id: cmd/awareness-mcp/main.go:toolResult
+    namespace: structural.scip
+    language: go
+    file: cmd/awareness-mcp/main.go
+    symbol: toolResult
+    kind: type
   - id: cmd/awareness-mcp/main.go:tools
     namespace: structural.scip
     language: go
@@ -2315,6 +2447,12 @@ code_symbols:
     file: cmd/awg/cmd_bootstrap.go
     symbol: agAwarenessDir
     kind: function
+  - id: cmd/awg/cmd_bootstrap.go:bootstrapOwnedGenerated
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_bootstrap.go
+    symbol: bootstrapOwnedGenerated
+    kind: var
   - id: cmd/awg/cmd_bootstrap.go:bootstrapReport
     namespace: structural.scip
     language: go
@@ -2429,6 +2567,12 @@ code_symbols:
     file: cmd/awg/cmd_bootstrap.go
     symbol: genFile
     kind: type
+  - id: cmd/awg/cmd_bootstrap.go:hasCuratedGenerated
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_bootstrap.go
+    symbol: hasCuratedGenerated
+    kind: function
   - id: cmd/awg/cmd_bootstrap.go:historyCandidates
     namespace: structural.scip
     language: go
@@ -3371,6 +3515,12 @@ code_symbols:
     file: cmd/awg/cmd_cold_bootstrap.go
     symbol: runColdBootstrap
     kind: function
+  - id: cmd/awg/cmd_cold_bootstrap.go:shallowHistoryNote
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_cold_bootstrap.go
+    symbol: shallowHistoryNote
+    kind: function
   - id: cmd/awg/cmd_contract_assess.go:parseAssessmentBlockers
     namespace: structural.scip
     language: go
@@ -4223,6 +4373,18 @@ code_symbols:
     file: cmd/awg/cmd_edit_guard.go
     symbol: editGuardCheckRPC
     kind: var
+  - id: cmd/awg/cmd_edit_guard.go:emitGuardEvent
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_edit_guard.go
+    symbol: emitGuardEvent
+    kind: function
+  - id: cmd/awg/cmd_edit_guard.go:emitGuardVerdict
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_edit_guard.go
+    symbol: emitGuardVerdict
+    kind: function
   - id: cmd/awg/cmd_edit_guard.go:envOr
     namespace: structural.scip
     language: go
@@ -4289,6 +4451,12 @@ code_symbols:
     file: cmd/awg/cmd_edit_guard.go
     symbol: relWithinRoot
     kind: function
+  - id: cmd/awg/cmd_edit_guard.go:resolveGuardInput
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_edit_guard.go
+    symbol: resolveGuardInput
+    kind: function
   - id: cmd/awg/cmd_edit_guard.go:runEditGuard
     namespace: structural.scip
     language: go
@@ -4300,6 +4468,18 @@ code_symbols:
     language: go
     file: cmd/awg/cmd_edit_guard.go
     symbol: warningBlocks
+    kind: function
+  - id: cmd/awg/cmd_edit_guard.go:warningsToJSON
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_edit_guard.go
+    symbol: warningsToJSON
+    kind: function
+  - id: cmd/awg/cmd_evidence.go:runEvidence
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_evidence.go
+    symbol: runEvidence
     kind: function
   - id: cmd/awg/cmd_extract_authority.go:AuthoritySurfaceCandidates
     namespace: structural.scip
@@ -4997,11 +5177,59 @@ code_symbols:
     file: cmd/awg/cmd_feedback_check.go
     symbol: testFileRe
     kind: var
+  - id: cmd/awg/cmd_gate.go:File
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: File
+    kind: var
+  - id: cmd/awg/cmd_gate.go:ScopeError
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: ScopeError
+    kind: var
+  - id: cmd/awg/cmd_gate.go:Warnings
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: Warnings
+    kind: var
+  - id: cmd/awg/cmd_gate.go:decisionFromCode
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: decisionFromCode
+    kind: function
+  - id: cmd/awg/cmd_gate.go:emitGateEvent
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: emitGateEvent
+    kind: function
+  - id: cmd/awg/cmd_gate.go:fileFinding
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: fileFinding
+    kind: type
   - id: cmd/awg/cmd_gate.go:finalReportLine
     namespace: structural.scip
     language: go
     file: cmd/awg/cmd_gate.go
     symbol: finalReportLine
+    kind: function
+  - id: cmd/awg/cmd_gate.go:gateFindingRules
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: gateFindingRules
+    kind: function
+  - id: cmd/awg/cmd_gate.go:gateVerdict
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: gateVerdict
     kind: function
   - id: cmd/awg/cmd_gate.go:gitAddedLinesByFile
     namespace: structural.scip
@@ -5015,11 +5243,35 @@ code_symbols:
     file: cmd/awg/cmd_gate.go
     symbol: parseAddedLinesFromDiff
     kind: function
+  - id: cmd/awg/cmd_gate.go:policyJSON
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: policyJSON
+    kind: function
+  - id: cmd/awg/cmd_gate.go:printGateFindings
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: printGateFindings
+    kind: function
+  - id: cmd/awg/cmd_gate.go:printPolicyLine
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: printPolicyLine
+    kind: function
   - id: cmd/awg/cmd_gate.go:printReportHeader
     namespace: structural.scip
     language: go
     file: cmd/awg/cmd_gate.go
     symbol: printReportHeader
+    kind: function
+  - id: cmd/awg/cmd_gate.go:reportDecision
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate.go
+    symbol: reportDecision
     kind: function
   - id: cmd/awg/cmd_gate.go:reportDegraded
     namespace: structural.scip
@@ -5032,6 +5284,90 @@ code_symbols:
     language: go
     file: cmd/awg/cmd_gate.go
     symbol: runGate
+    kind: function
+  - id: cmd/awg/cmd_gate_completeness.go:MissedFiles
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: MissedFiles
+    kind: var
+  - id: cmd/awg/cmd_gate_completeness.go:Target
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: Target
+    kind: var
+  - id: cmd/awg/cmd_gate_completeness.go:TargetLabel
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: TargetLabel
+    kind: var
+  - id: cmd/awg/cmd_gate_completeness.go:TotalSites
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: TotalSites
+    kind: var
+  - id: cmd/awg/cmd_gate_completeness.go:TouchedSites
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: TouchedSites
+    kind: var
+  - id: cmd/awg/cmd_gate_completeness.go:analyzeReferenceFamily
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: analyzeReferenceFamily
+    kind: function
+  - id: cmd/awg/cmd_gate_completeness.go:collectInternalTargets
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: collectInternalTargets
+    kind: function
+  - id: cmd/awg/cmd_gate_completeness.go:completenessFinding
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: completenessFinding
+    kind: type
+  - id: cmd/awg/cmd_gate_completeness.go:labelOfSymbol
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: labelOfSymbol
+    kind: function
+  - id: cmd/awg/cmd_gate_completeness.go:maxCompletenessFindings
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: maxCompletenessFindings
+    kind: const
+  - id: cmd/awg/cmd_gate_completeness.go:printCompleteness
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: printCompleteness
+    kind: function
+  - id: cmd/awg/cmd_gate_completeness.go:runCompleteness
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: runCompleteness
+    kind: function
+  - id: cmd/awg/cmd_gate_completeness.go:shouldReportFamily
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: shouldReportFamily
+    kind: function
+  - id: cmd/awg/cmd_gate_completeness.go:symbolFileOf
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_gate_completeness.go
+    symbol: symbolFileOf
     kind: function
   - id: cmd/awg/cmd_gate_contracts.go:ActualChangedFiles
     namespace: structural.scip
@@ -6503,6 +6839,66 @@ code_symbols:
     file: cmd/awg/cmd_metadata.go
     symbol: runMetadata
     kind: function
+  - id: cmd/awg/cmd_onboard.go:buildOnboardBrief
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: buildOnboardBrief
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:candidateSchemaSection
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: candidateSchemaSection
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:onboardDraft
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: onboardDraft
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:onboardDraftWith
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: onboardDraftWith
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:onboardExport
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: onboardExport
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:onboardImport
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: onboardImport
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:readOnboardDrafts
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: readOnboardDrafts
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:runOnboard
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: runOnboard
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:selectOnboardClient
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: selectOnboardClient
+    kind: function
+  - id: cmd/awg/cmd_onboard.go:writeOnboardCandidates
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_onboard.go
+    symbol: writeOnboardCandidates
+    kind: function
   - id: cmd/awg/cmd_pattern_check.go:Error
     namespace: structural.scip
     language: go
@@ -7115,12 +7511,6 @@ code_symbols:
     file: cmd/awg/cmd_propose.go
     symbol: RelatedFailureModes
     kind: var
-  - id: cmd/awg/cmd_propose.go:RelatedFailures
-    namespace: structural.scip
-    language: go
-    file: cmd/awg/cmd_propose.go
-    symbol: RelatedFailures
-    kind: var
   - id: cmd/awg/cmd_propose.go:RelatedInvariants
     namespace: structural.scip
     language: go
@@ -7138,12 +7528,6 @@ code_symbols:
     language: go
     file: cmd/awg/cmd_propose.go
     symbol: ReloadDetail
-    kind: var
-  - id: cmd/awg/cmd_propose.go:Repo
-    namespace: structural.scip
-    language: go
-    file: cmd/awg/cmd_propose.go
-    symbol: Repo
     kind: var
   - id: cmd/awg/cmd_propose.go:RequiredTests
     namespace: structural.scip
@@ -7241,12 +7625,6 @@ code_symbols:
     file: cmd/awg/cmd_propose.go
     symbol: buildCommitCommand
     kind: function
-  - id: cmd/awg/cmd_propose.go:cleanList
-    namespace: structural.scip
-    language: go
-    file: cmd/awg/cmd_propose.go
-    symbol: cleanList
-    kind: function
   - id: cmd/awg/cmd_propose.go:composeDiffSummary
     namespace: structural.scip
     language: go
@@ -7313,12 +7691,6 @@ code_symbols:
     file: cmd/awg/cmd_propose.go
     symbol: key
     kind: var
-  - id: cmd/awg/cmd_propose.go:looksLikeTestID
-    namespace: structural.scip
-    language: go
-    file: cmd/awg/cmd_propose.go
-    symbol: looksLikeTestID
-    kind: function
   - id: cmd/awg/cmd_propose.go:noRebuild
     namespace: structural.scip
     language: go
@@ -7493,23 +7865,11 @@ code_symbols:
     file: cmd/awg/cmd_propose.go
     symbol: targetRepo
     kind: var
-  - id: cmd/awg/cmd_propose.go:testIDPattern
-    namespace: structural.scip
-    language: go
-    file: cmd/awg/cmd_propose.go
-    symbol: testIDPattern
-    kind: var
   - id: cmd/awg/cmd_propose.go:topKeyLine
     namespace: structural.scip
     language: go
     file: cmd/awg/cmd_propose.go
     symbol: topKeyLine
-    kind: var
-  - id: cmd/awg/cmd_propose.go:validSeverities
-    namespace: structural.scip
-    language: go
-    file: cmd/awg/cmd_propose.go
-    symbol: validSeverities
     kind: var
   - id: cmd/awg/cmd_propose.go:validateProposal
     namespace: structural.scip
@@ -10799,6 +11159,24 @@ code_symbols:
     file: cmd/awg/cmd_serve.go
     symbol: watchBackendHealth
     kind: function
+  - id: cmd/awg/cmd_skill_ingest.go:printInvalidSkills
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_skill_ingest.go
+    symbol: printInvalidSkills
+    kind: function
+  - id: cmd/awg/cmd_skill_ingest.go:printSkillIngestSummary
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_skill_ingest.go
+    symbol: printSkillIngestSummary
+    kind: function
+  - id: cmd/awg/cmd_skill_ingest.go:runSkillIngest
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/cmd_skill_ingest.go
+    symbol: runSkillIngest
+    kind: function
   - id: cmd/awg/cmd_source_check.go:Except
     namespace: structural.scip
     language: go
@@ -10912,7 +11290,7 @@ code_symbols:
     language: go
     file: cmd/awg/cmd_source_check.go
     symbol: sourcePattern
-    kind: var
+    kind: type
   - id: cmd/awg/cmd_source_check.go:sourcePatternsYAML
     namespace: structural.scip
     language: go
@@ -11789,6 +12167,96 @@ code_symbols:
     file: cmd/awg/cross_repo_guard.go
     symbol: requiresCombinedServicesRepo
     kind: function
+  - id: cmd/awg/gate_policy.go:Default
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: Default
+    kind: var
+  - id: cmd/awg/gate_policy.go:Rules
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: Rules
+    kind: var
+  - id: cmd/awg/gate_policy.go:applyGatePolicy
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: applyGatePolicy
+    kind: function
+  - id: cmd/awg/gate_policy.go:defaultGatePolicyPath
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: defaultGatePolicyPath
+    kind: function
+  - id: cmd/awg/gate_policy.go:effectiveEnforcement
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: effectiveEnforcement
+    kind: function
+  - id: cmd/awg/gate_policy.go:enforceBlock
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: enforceBlock
+    kind: const
+  - id: cmd/awg/gate_policy.go:enforceInherit
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: enforceInherit
+    kind: const
+  - id: cmd/awg/gate_policy.go:enforceOff
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: enforceOff
+    kind: const
+  - id: cmd/awg/gate_policy.go:enforceWarn
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: enforceWarn
+    kind: const
+  - id: cmd/awg/gate_policy.go:gatePolicy
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: gatePolicy
+    kind: type
+  - id: cmd/awg/gate_policy.go:loadGatePolicy
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: loadGatePolicy
+    kind: function
+  - id: cmd/awg/gate_policy.go:loadedFrom
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: loadedFrom
+    kind: var
+  - id: cmd/awg/gate_policy.go:normalizeAndValidate
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: normalizeAndValidate
+    kind: method
+  - id: cmd/awg/gate_policy.go:resolveGatePolicy
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: resolveGatePolicy
+    kind: function
+  - id: cmd/awg/gate_policy.go:validEnforcementLevels
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/gate_policy.go
+    symbol: validEnforcementLevels
+    kind: var
   - id: cmd/awg/governance_helpers.go:base64Encode
     namespace: structural.scip
     language: go
@@ -12100,6 +12568,12 @@ code_symbols:
     language: go
     file: cmd/awg/main.go
     symbol: printUsage
+    kind: function
+  - id: cmd/awg/main.go:warnIfLegacyAlias
+    namespace: structural.scip
+    language: go
+    file: cmd/awg/main.go
+    symbol: warnIfLegacyAlias
     kind: function
   - id: cmd/awg/seedfreshness.go:classifySeedDiff
     namespace: structural.scip
@@ -12736,7 +13210,7 @@ code_symbols:
     language: go
     file: cmd/principle-check/main.go
     symbol: bucket
-    kind: var
+    kind: type
   - id: cmd/principle-check/main.go:bucketConformant
     namespace: structural.scip
     language: go
@@ -12965,6 +13439,60 @@ code_symbols:
     file: cmd/yaml2nt/main.go
     symbol: staleBaselineEntries
     kind: function
+  - id: golang/client/auth.go:BearerToken
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: BearerToken
+    kind: function
+  - id: golang/client/auth.go:DialConn
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: DialConn
+    kind: function
+  - id: golang/client/auth.go:GetRequestMetadata
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: GetRequestMetadata
+    kind: method
+  - id: golang/client/auth.go:RequireTransportSecurity
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: RequireTransportSecurity
+    kind: method
+  - id: golang/client/auth.go:TokenEnv
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: TokenEnv
+    kind: const
+  - id: golang/client/auth.go:TokenFromEnv
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: TokenFromEnv
+    kind: function
+  - id: golang/client/auth.go:bearerPerRPC
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: bearerPerRPC
+    kind: type
+  - id: golang/client/auth.go:client
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: client
+    kind: function
+  - id: golang/client/auth.go:token
+    namespace: structural.scip
+    language: go
+    file: golang/client/auth.go
+    symbol: token
+    kind: var
   - id: golang/client/authority.go:Authoritative
     namespace: structural.scip
     language: go
@@ -13019,12 +13547,6 @@ code_symbols:
     file: golang/client/authority.go
     symbol: Warning
     kind: var
-  - id: golang/client/authority.go:client
-    namespace: structural.scip
-    language: go
-    file: golang/client/authority.go
-    symbol: client
-    kind: function
   - id: golang/client/authority.go:isCurrentMetadataAuthority
     namespace: structural.scip
     language: go
@@ -13090,6 +13612,12 @@ code_symbols:
     language: go
     file: golang/client/client.go
     symbol: Preflight
+    kind: method
+  - id: golang/client/client.go:Propose
+    namespace: structural.scip
+    language: go
+    file: golang/client/client.go
+    symbol: Propose
     kind: method
   - id: golang/client/client.go:Query
     namespace: structural.scip
@@ -13660,6 +14188,204 @@ code_symbols:
     language: go
     file: golang/coverage/weight.go
     symbol: normPath
+    kind: function
+  - id: golang/evidence/evidence.go:Aggregate
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Aggregate
+    kind: function
+  - id: golang/evidence/evidence.go:Allows
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Allows
+    kind: var
+  - id: golang/evidence/evidence.go:Append
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Append
+    kind: function
+  - id: golang/evidence/evidence.go:BlockedRules
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: BlockedRules
+    kind: var
+  - id: golang/evidence/evidence.go:Blocks
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Blocks
+    kind: var
+  - id: golang/evidence/evidence.go:ByRepo
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: ByRepo
+    kind: var
+  - id: golang/evidence/evidence.go:CannotVerify
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: CannotVerify
+    kind: var
+  - id: golang/evidence/evidence.go:CatchesByRule
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: CatchesByRule
+    kind: var
+  - id: golang/evidence/evidence.go:Commit
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Commit
+    kind: var
+  - id: golang/evidence/evidence.go:Decision
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Decision
+    kind: var
+  - id: golang/evidence/evidence.go:DecisionAllow
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: DecisionAllow
+    kind: const
+  - id: golang/evidence/evidence.go:DecisionBlock
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: DecisionBlock
+    kind: const
+  - id: golang/evidence/evidence.go:DecisionCannotVerify
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: DecisionCannotVerify
+    kind: const
+  - id: golang/evidence/evidence.go:DecisionWarn
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: DecisionWarn
+    kind: const
+  - id: golang/evidence/evidence.go:DecisionWouldBlock
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: DecisionWouldBlock
+    kind: const
+  - id: golang/evidence/evidence.go:DiffRange
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: DiffRange
+    kind: var
+  - id: golang/evidence/evidence.go:Enforced
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Enforced
+    kind: var
+  - id: golang/evidence/evidence.go:Event
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Event
+    kind: type
+  - id: golang/evidence/evidence.go:Events
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Events
+    kind: var
+  - id: golang/evidence/evidence.go:Files
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Files
+    kind: var
+  - id: golang/evidence/evidence.go:FirstTS
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: FirstTS
+    kind: var
+  - id: golang/evidence/evidence.go:HardBlocks
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: HardBlocks
+    kind: var
+  - id: golang/evidence/evidence.go:LastTS
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: LastTS
+    kind: var
+  - id: golang/evidence/evidence.go:Load
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Load
+    kind: function
+  - id: golang/evidence/evidence.go:Repo
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Repo
+    kind: var
+  - id: golang/evidence/evidence.go:RepoStat
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: RepoStat
+    kind: type
+  - id: golang/evidence/evidence.go:Repos
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Repos
+    kind: var
+  - id: golang/evidence/evidence.go:Summary
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Summary
+    kind: type
+  - id: golang/evidence/evidence.go:TS
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: TS
+    kind: var
+  - id: golang/evidence/evidence.go:Tool
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Tool
+    kind: var
+  - id: golang/evidence/evidence.go:WarnedRules
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: WarnedRules
+    kind: var
+  - id: golang/evidence/evidence.go:Warns
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: Warns
+    kind: var
+  - id: golang/evidence/evidence.go:evidence
+    namespace: structural.scip
+    language: go
+    file: golang/evidence/evidence.go
+    symbol: evidence
     kind: function
   - id: golang/extractor/agent_run_jsonl_import.go:AgentName
     namespace: structural.scip
@@ -14626,7 +15352,7 @@ code_symbols:
     language: go
     file: golang/extractor/coldsource/bundle_export.go
     symbol: BundleID
-    kind: method
+    kind: var
   - id: golang/extractor/coldsource/bundle_export.go:Bundles
     namespace: structural.scip
     language: go
@@ -15964,7 +16690,7 @@ code_symbols:
     language: go
     file: golang/extractor/coldsource/intent_draft.go
     symbol: DraftIntents
-    kind: var
+    kind: method
   - id: golang/extractor/coldsource/intent_draft.go:EchoIntentDrafter
     namespace: structural.scip
     language: go
@@ -16678,7 +17404,7 @@ code_symbols:
     language: go
     file: golang/extractor/coldsource/llm_client.go
     symbol: Complete
-    kind: method
+    kind: var
   - id: golang/extractor/coldsource/llm_client.go:Content
     namespace: structural.scip
     language: go
@@ -16835,6 +17561,12 @@ code_symbols:
     file: golang/extractor/coldsource/llm_client.go
     symbol: anthropicResponse
     kind: type
+  - id: golang/extractor/coldsource/onboard_draft_llm.go:DraftOnboardingCandidates
+    namespace: structural.scip
+    language: go
+    file: golang/extractor/coldsource/onboard_draft_llm.go
+    symbol: DraftOnboardingCandidates
+    kind: function
   - id: golang/extractor/coldsource/signals.go:Citations
     namespace: structural.scip
     language: go
@@ -23189,12 +23921,6 @@ code_symbols:
     file: golang/governancepack/active.go
     symbol: ActiveRecordPath
     kind: function
-  - id: golang/governancepack/active.go:ActiveRecordRelativePath
-    namespace: structural.scip
-    language: go
-    file: golang/governancepack/active.go
-    symbol: ActiveRecordRelativePath
-    kind: const
   - id: golang/governancepack/active.go:CombinedGraphDigestSHA256
     namespace: structural.scip
     language: go
@@ -23213,12 +23939,6 @@ code_symbols:
     file: golang/governancepack/active.go
     symbol: GovernanceDirPath
     kind: function
-  - id: golang/governancepack/active.go:GovernanceDirRelativePath
-    namespace: structural.scip
-    language: go
-    file: golang/governancepack/active.go
-    symbol: GovernanceDirRelativePath
-    kind: const
   - id: golang/governancepack/active.go:ManifestDigestSHA256
     namespace: structural.scip
     language: go
@@ -23423,12 +24143,6 @@ code_symbols:
     file: golang/governancepack/log.go
     symbol: ActivationLogPath
     kind: function
-  - id: golang/governancepack/log.go:ActivationLogRelativePath
-    namespace: structural.scip
-    language: go
-    file: golang/governancepack/log.go
-    symbol: ActivationLogRelativePath
-    kind: const
   - id: golang/governancepack/log.go:AppendActivationLog
     namespace: structural.scip
     language: go
@@ -23939,12 +24653,6 @@ code_symbols:
     file: golang/governancepack/trustfetch.go
     symbol: StagedTrustStorePath
     kind: function
-  - id: golang/governancepack/trustfetch.go:StagedTrustStoreRelativePath
-    namespace: structural.scip
-    language: go
-    file: golang/governancepack/trustfetch.go
-    symbol: StagedTrustStoreRelativePath
-    kind: const
   - id: golang/governancepack/trustfetch_record.go:FetchedAt
     namespace: structural.scip
     language: go
@@ -24491,12 +25199,6 @@ code_symbols:
     file: golang/governancepack/verify.go
     symbol: TrustedKeysPath
     kind: function
-  - id: golang/governancepack/verify.go:TrustedKeysRelativePath
-    namespace: structural.scip
-    language: go
-    file: golang/governancepack/verify.go
-    symbol: TrustedKeysRelativePath
-    kind: const
   - id: golang/governancepack/verify.go:TrustedPublisher
     namespace: structural.scip
     language: go
@@ -24670,7 +25372,7 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: BenchmarkState
-    kind: type
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:BenchmarkState_BENCHMARK_STATE_EMPTY
     namespace: structural.scip
     language: go
@@ -24832,6 +25534,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: BuildProvenanceState_value
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:CandidatePath
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: CandidatePath
     kind: var
   - id: golang/pb/awareness_graph.pb.go:CandidateQueueState
     namespace: structural.scip
@@ -25036,7 +25744,7 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: Confidence
-    kind: var
+    kind: type
   - id: golang/pb/awareness_graph.pb.go:Confidence_CONFIDENCE_HIGH
     namespace: structural.scip
     language: go
@@ -25073,6 +25781,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: Confidence_value
     kind: var
+  - id: golang/pb/awareness_graph.pb.go:Contract
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: Contract
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:ContractCount
     namespace: structural.scip
     language: go
@@ -25102,7 +25816,7 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: CoverageState
-    kind: var
+    kind: type
   - id: golang/pb/awareness_graph.pb.go:CoverageState_COVERAGE_STATE_EMPTY
     namespace: structural.scip
     language: go
@@ -25379,6 +26093,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: FailureModeCount
     kind: var
+  - id: golang/pb/awareness_graph.pb.go:Families
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: Families
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:File
     namespace: structural.scip
     language: go
@@ -25577,6 +26297,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: GetBuildProvenanceState
     kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetCandidatePath
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetCandidatePath
+    kind: method
   - id: golang/pb/awareness_graph.pb.go:GetCandidateQueueState
     namespace: structural.scip
     language: go
@@ -25636,6 +26362,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: GetConfidence
+    kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetContract
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetContract
     kind: method
   - id: golang/pb/awareness_graph.pb.go:GetContractCount
     namespace: structural.scip
@@ -25816,6 +26548,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: GetFailureModeCount
+    kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetFamilies
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetFamilies
     kind: method
   - id: golang/pb/awareness_graph.pb.go:GetFile
     namespace: structural.scip
@@ -26147,6 +26885,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: GetNode
     kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetNodeIds
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetNodeIds
+    kind: method
   - id: golang/pb/awareness_graph.pb.go:GetNote
     namespace: structural.scip
     language: go
@@ -26201,6 +26945,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: GetProposedContent
     kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetProposedContract
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetProposedContract
+    kind: method
   - id: golang/pb/awareness_graph.pb.go:GetProse
     namespace: structural.scip
     language: go
@@ -26249,11 +26999,23 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: GetReferences
     kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetRelatedFailures
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetRelatedFailures
+    kind: method
   - id: golang/pb/awareness_graph.pb.go:GetRelatedIds
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: GetRelatedIds
+    kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetRelatedInvariants
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetRelatedInvariants
     kind: method
   - id: golang/pb/awareness_graph.pb.go:GetRelation
     namespace: structural.scip
@@ -26266,6 +27028,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: GetRepairClaimId
+    kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetRepo
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetRepo
     kind: method
   - id: golang/pb/awareness_graph.pb.go:GetRequired
     namespace: structural.scip
@@ -26333,6 +27101,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: GetResolveMissCount
     kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetRevisionRequest
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetRevisionRequest
+    kind: method
   - id: golang/pb/awareness_graph.pb.go:GetRiskClass
     namespace: structural.scip
     language: go
@@ -26399,6 +27173,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: GetSeverity
     kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetSiteIds
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetSiteIds
+    kind: method
   - id: golang/pb/awareness_graph.pb.go:GetSourceFile
     namespace: structural.scip
     language: go
@@ -26453,6 +27233,18 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: GetSymbol
     kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetSymbolId
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetSymbolId
+    kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetSymbolIds
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetSymbolIds
+    kind: method
   - id: golang/pb/awareness_graph.pb.go:GetSymbols
     namespace: structural.scip
     language: go
@@ -26470,6 +27262,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: GetTestsToRun
+    kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetTitle
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetTitle
     kind: method
   - id: golang/pb/awareness_graph.pb.go:GetTripleCount
     namespace: structural.scip
@@ -26494,6 +27292,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: GetUmlView
+    kind: method
+  - id: golang/pb/awareness_graph.pb.go:GetValidationErrors
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: GetValidationErrors
     kind: method
   - id: golang/pb/awareness_graph.pb.go:GetValue
     namespace: structural.scip
@@ -26632,7 +27436,7 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: GraphFreshnessState
-    kind: var
+    kind: type
   - id: golang/pb/awareness_graph.pb.go:GraphFreshnessState_GRAPH_FRESHNESS_STATE_CHECK_ERROR
     namespace: structural.scip
     language: go
@@ -26933,6 +27737,12 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: NodeFact
     kind: type
+  - id: golang/pb/awareness_graph.pb.go:NodeIds
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: NodeIds
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:Note
     namespace: structural.scip
     language: go
@@ -27131,11 +27941,65 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: ProofSlot
     kind: type
+  - id: golang/pb/awareness_graph.pb.go:ProposeRequest
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeRequest
+    kind: type
+  - id: golang/pb/awareness_graph.pb.go:ProposeResponse
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeResponse
+    kind: type
+  - id: golang/pb/awareness_graph.pb.go:ProposeStatus
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeStatus
+    kind: type
+  - id: golang/pb/awareness_graph.pb.go:ProposeStatus_PROPOSE_STATUS_ACCEPTED
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeStatus_PROPOSE_STATUS_ACCEPTED
+    kind: const
+  - id: golang/pb/awareness_graph.pb.go:ProposeStatus_PROPOSE_STATUS_REJECTED
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeStatus_PROPOSE_STATUS_REJECTED
+    kind: const
+  - id: golang/pb/awareness_graph.pb.go:ProposeStatus_PROPOSE_STATUS_UNSPECIFIED
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeStatus_PROPOSE_STATUS_UNSPECIFIED
+    kind: const
+  - id: golang/pb/awareness_graph.pb.go:ProposeStatus_name
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeStatus_name
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:ProposeStatus_value
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposeStatus_value
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:ProposedContent
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: ProposedContent
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:ProposedContract
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ProposedContract
     kind: var
   - id: golang/pb/awareness_graph.pb.go:Prose
     namespace: structural.scip
@@ -27377,12 +28241,30 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: Reasons
     kind: var
+  - id: golang/pb/awareness_graph.pb.go:ReferenceFamily
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ReferenceFamily
+    kind: type
   - id: golang/pb/awareness_graph.pb.go:ReferenceFiles
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: ReferenceFiles
     kind: var
+  - id: golang/pb/awareness_graph.pb.go:ReferenceSitesRequest
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ReferenceSitesRequest
+    kind: type
+  - id: golang/pb/awareness_graph.pb.go:ReferenceSitesResponse
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ReferenceSitesResponse
+    kind: type
   - id: golang/pb/awareness_graph.pb.go:ReferencedIds
     namespace: structural.scip
     language: go
@@ -27395,11 +28277,23 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: References
     kind: var
+  - id: golang/pb/awareness_graph.pb.go:RelatedFailures
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: RelatedFailures
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:RelatedIds
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: RelatedIds
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:RelatedInvariants
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: RelatedInvariants
     kind: var
   - id: golang/pb/awareness_graph.pb.go:Relation
     namespace: structural.scip
@@ -27418,6 +28312,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: RepairClaimId
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:Repo
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: Repo
     kind: var
   - id: golang/pb/awareness_graph.pb.go:Required
     namespace: structural.scip
@@ -27503,12 +28403,18 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: ResolveResponse
     kind: type
+  - id: golang/pb/awareness_graph.pb.go:RevisionRequest
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: RevisionRequest
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:RiskClass
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: RiskClass
-    kind: var
+    kind: type
   - id: golang/pb/awareness_graph.pb.go:RiskClass_ARCHITECTURE_SENSITIVE
     namespace: structural.scip
     language: go
@@ -27604,7 +28510,7 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: SeedState
-    kind: var
+    kind: type
   - id: golang/pb/awareness_graph.pb.go:SeedState_SEED_STATE_CURRENT
     namespace: structural.scip
     language: go
@@ -27658,6 +28564,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: Severity
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:SiteIds
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: SiteIds
     kind: var
   - id: golang/pb/awareness_graph.pb.go:SourceFile
     namespace: structural.scip
@@ -27719,6 +28631,18 @@ code_symbols:
     file: golang/pb/awareness_graph.pb.go
     symbol: Symbol
     kind: var
+  - id: golang/pb/awareness_graph.pb.go:SymbolId
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: SymbolId
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:SymbolIds
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: SymbolIds
+    kind: var
   - id: golang/pb/awareness_graph.pb.go:Symbols
     namespace: structural.scip
     language: go
@@ -27736,6 +28660,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: TestsToRun
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:Title
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: Title
     kind: var
   - id: golang/pb/awareness_graph.pb.go:TripleCount
     namespace: structural.scip
@@ -27766,6 +28696,12 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph.pb.go
     symbol: UmlView
+    kind: var
+  - id: golang/pb/awareness_graph.pb.go:ValidationErrors
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph.pb.go
+    symbol: ValidationErrors
     kind: var
   - id: golang/pb/awareness_graph.pb.go:Value
     namespace: structural.scip
@@ -27917,11 +28853,23 @@ code_symbols:
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: AwarenessGraph_Preflight_FullMethodName
     kind: const
+  - id: golang/pb/awareness_graph_grpc.pb.go:AwarenessGraph_Propose_FullMethodName
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph_grpc.pb.go
+    symbol: AwarenessGraph_Propose_FullMethodName
+    kind: const
   - id: golang/pb/awareness_graph_grpc.pb.go:AwarenessGraph_Query_FullMethodName
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: AwarenessGraph_Query_FullMethodName
+    kind: const
+  - id: golang/pb/awareness_graph_grpc.pb.go:AwarenessGraph_ReferenceSites_FullMethodName
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph_grpc.pb.go
+    symbol: AwarenessGraph_ReferenceSites_FullMethodName
     kind: const
   - id: golang/pb/awareness_graph_grpc.pb.go:AwarenessGraph_Resolve_FullMethodName
     namespace: structural.scip
@@ -27971,12 +28919,24 @@ code_symbols:
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: Preflight
     kind: method
+  - id: golang/pb/awareness_graph_grpc.pb.go:Propose
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph_grpc.pb.go
+    symbol: Propose
+    kind: method
   - id: golang/pb/awareness_graph_grpc.pb.go:Query
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: Query
-    kind: var
+    kind: method
+  - id: golang/pb/awareness_graph_grpc.pb.go:ReferenceSites
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph_grpc.pb.go
+    symbol: ReferenceSites
+    kind: method
   - id: golang/pb/awareness_graph_grpc.pb.go:RegisterAwarenessGraphServer
     namespace: structural.scip
     language: go
@@ -27988,7 +28948,7 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: Resolve
-    kind: var
+    kind: method
   - id: golang/pb/awareness_graph_grpc.pb.go:UnimplementedAwarenessGraphServer
     namespace: structural.scip
     language: go
@@ -28037,11 +28997,23 @@ code_symbols:
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: _AwarenessGraph_Preflight_Handler
     kind: function
+  - id: golang/pb/awareness_graph_grpc.pb.go:_AwarenessGraph_Propose_Handler
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph_grpc.pb.go
+    symbol: _AwarenessGraph_Propose_Handler
+    kind: function
   - id: golang/pb/awareness_graph_grpc.pb.go:_AwarenessGraph_Query_Handler
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: _AwarenessGraph_Query_Handler
+    kind: function
+  - id: golang/pb/awareness_graph_grpc.pb.go:_AwarenessGraph_ReferenceSites_Handler
+    namespace: structural.scip
+    language: go
+    file: golang/pb/awareness_graph_grpc.pb.go
+    symbol: _AwarenessGraph_ReferenceSites_Handler
     kind: function
   - id: golang/pb/awareness_graph_grpc.pb.go:_AwarenessGraph_Resolve_Handler
     namespace: structural.scip
@@ -28066,13 +29038,259 @@ code_symbols:
     language: go
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: mustEmbedUnimplementedAwarenessGraphServer
-    kind: method
+    kind: var
   - id: golang/pb/awareness_graph_grpc.pb.go:testEmbeddedByValue
     namespace: structural.scip
     language: go
     file: golang/pb/awareness_graph_grpc.pb.go
     symbol: testEmbeddedByValue
     kind: method
+  - id: golang/propose/propose.go:Candidate
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Candidate
+    kind: type
+  - id: golang/propose/propose.go:Content
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Content
+    kind: var
+  - id: golang/propose/propose.go:Contract
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Contract
+    kind: var
+  - id: golang/propose/propose.go:DeriveID
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: DeriveID
+    kind: function
+  - id: golang/propose/propose.go:Description
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Description
+    kind: var
+  - id: golang/propose/propose.go:Domain
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Domain
+    kind: var
+  - id: golang/propose/propose.go:Evidence
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Evidence
+    kind: var
+  - id: golang/propose/propose.go:ForbiddenFixes
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: ForbiddenFixes
+    kind: var
+  - id: golang/propose/propose.go:ID
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: ID
+    kind: var
+  - id: golang/propose/propose.go:Kind
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Kind
+    kind: var
+  - id: golang/propose/propose.go:Kinds
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Kinds
+    kind: function
+  - id: golang/propose/propose.go:NodeIDs
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: NodeIDs
+    kind: var
+  - id: golang/propose/propose.go:Normalize
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Normalize
+    kind: function
+  - id: golang/propose/propose.go:Proposal
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Proposal
+    kind: var
+  - id: golang/propose/propose.go:ProposedBy
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: ProposedBy
+    kind: var
+  - id: golang/propose/propose.go:ProposedContract
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: ProposedContract
+    kind: var
+  - id: golang/propose/propose.go:RelPath
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: RelPath
+    kind: var
+  - id: golang/propose/propose.go:RelatedFailures
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: RelatedFailures
+    kind: var
+  - id: golang/propose/propose.go:RelatedInvariants
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: RelatedInvariants
+    kind: var
+  - id: golang/propose/propose.go:RenderCandidate
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: RenderCandidate
+    kind: function
+  - id: golang/propose/propose.go:Repo
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Repo
+    kind: var
+  - id: golang/propose/propose.go:Request
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Request
+    kind: type
+  - id: golang/propose/propose.go:RequiredTests
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: RequiredTests
+    kind: var
+  - id: golang/propose/propose.go:RevisionRequest
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: RevisionRequest
+    kind: var
+  - id: golang/propose/propose.go:Severity
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Severity
+    kind: var
+  - id: golang/propose/propose.go:SourceFiles
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: SourceFiles
+    kind: var
+  - id: golang/propose/propose.go:Status
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Status
+    kind: var
+  - id: golang/propose/propose.go:Title
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Title
+    kind: var
+  - id: golang/propose/propose.go:Validate
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: Validate
+    kind: function
+  - id: golang/propose/propose.go:candidateDoc
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: candidateDoc
+    kind: type
+  - id: golang/propose/propose.go:candidateEntry
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: candidateEntry
+    kind: type
+  - id: golang/propose/propose.go:cleanList
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: cleanList
+    kind: function
+  - id: golang/propose/propose.go:domainHint
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: domainHint
+    kind: function
+  - id: golang/propose/propose.go:idPrefixByKind
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: idPrefixByKind
+    kind: var
+  - id: golang/propose/propose.go:looksLikeTestID
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: looksLikeTestID
+    kind: function
+  - id: golang/propose/propose.go:nonSlugRun
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: nonSlugRun
+    kind: var
+  - id: golang/propose/propose.go:propose
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: propose
+    kind: function
+  - id: golang/propose/propose.go:slugify
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: slugify
+    kind: function
+  - id: golang/propose/propose.go:testIDPattern
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: testIDPattern
+    kind: var
+  - id: golang/propose/propose.go:validKinds
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: validKinds
+    kind: var
+  - id: golang/propose/propose.go:validSeverities
+    namespace: structural.scip
+    language: go
+    file: golang/propose/propose.go
+    symbol: validSeverities
+    kind: var
   - id: golang/rdf/builder.go:ByClass
     namespace: structural.scip
     language: go
@@ -29974,7 +31192,7 @@ code_symbols:
     language: go
     file: golang/repoeval/repoeval.go
     symbol: AgentReadiness
-    kind: type
+    kind: var
   - id: golang/repoeval/repoeval.go:AllowedModes
     namespace: structural.scip
     language: go
@@ -29998,6 +31216,12 @@ code_symbols:
     language: go
     file: golang/repoeval/repoeval.go
     symbol: Blockers
+    kind: var
+  - id: golang/repoeval/repoeval.go:Caveats
+    namespace: structural.scip
+    language: go
+    file: golang/repoeval/repoeval.go
+    symbol: Caveats
     kind: var
   - id: golang/repoeval/repoeval.go:Check
     namespace: structural.scip
@@ -30316,7 +31540,7 @@ code_symbols:
     language: go
     file: golang/repoeval/repoeval.go
     symbol: UpgradePath
-    kind: type
+    kind: var
   - id: golang/repoeval/repoeval.go:Verdict
     namespace: structural.scip
     language: go
@@ -30370,6 +31594,12 @@ code_symbols:
     language: go
     file: golang/repoeval/repoeval.go
     symbol: dedupeStrings
+    kind: function
+  - id: golang/repoeval/repoeval.go:deriveConfidence
+    namespace: structural.scip
+    language: go
+    file: golang/repoeval/repoeval.go
+    symbol: deriveConfidence
     kind: function
   - id: golang/repoeval/repoeval.go:dimension
     namespace: structural.scip
@@ -31379,6 +32609,12 @@ code_symbols:
     file: golang/scanner/typescript.go
     symbol: tsUnwrapExport
     kind: function
+  - id: golang/scipingest/scipingest.go:ExcludeTestFiles
+    namespace: structural.scip
+    language: go
+    file: golang/scipingest/scipingest.go
+    symbol: ExcludeTestFiles
+    kind: var
   - id: golang/scipingest/scipingest.go:File
     namespace: structural.scip
     language: go
@@ -31493,6 +32729,12 @@ code_symbols:
     file: golang/scipingest/scipingest.go
     symbol: isRepoRelative
     kind: function
+  - id: golang/scipingest/scipingest.go:isTestFile
+    namespace: structural.scip
+    language: go
+    file: golang/scipingest/scipingest.go
+    symbol: isTestFile
+    kind: function
   - id: golang/scipingest/scipingest.go:line
     namespace: structural.scip
     language: go
@@ -31583,12 +32825,6 @@ code_symbols:
     file: golang/seedmeta/markerfile.go
     symbol: RuntimeMarkerPath
     kind: function
-  - id: golang/seedmeta/markerfile.go:RuntimeMarkerRelativePath
-    namespace: structural.scip
-    language: go
-    file: golang/seedmeta/markerfile.go
-    symbol: RuntimeMarkerRelativePath
-    kind: const
   - id: golang/seedmeta/markerfile.go:RuntimeTransactionPath
     namespace: structural.scip
     language: go
@@ -31895,6 +33131,42 @@ code_symbols:
     file: golang/seedmeta/verify.go
     symbol: markerFromTriples
     kind: function
+  - id: golang/server/auth.go:bearerStreamInterceptor
+    namespace: structural.scip
+    language: go
+    file: golang/server/auth.go
+    symbol: bearerStreamInterceptor
+    kind: function
+  - id: golang/server/auth.go:bearerUnaryInterceptor
+    namespace: structural.scip
+    language: go
+    file: golang/server/auth.go
+    symbol: bearerUnaryInterceptor
+    kind: function
+  - id: golang/server/auth.go:checkBearer
+    namespace: structural.scip
+    language: go
+    file: golang/server/auth.go
+    symbol: checkBearer
+    kind: function
+  - id: golang/server/auth.go:isAuthExemptMethod
+    namespace: structural.scip
+    language: go
+    file: golang/server/auth.go
+    symbol: isAuthExemptMethod
+    kind: function
+  - id: golang/server/auth.go:main
+    namespace: structural.scip
+    language: go
+    file: golang/server/auth.go
+    symbol: main
+    kind: function
+  - id: golang/server/auth.go:parseBearer
+    namespace: structural.scip
+    language: go
+    file: golang/server/auth.go
+    symbol: parseBearer
+    kind: function
   - id: golang/server/authority_domains.go:CoversPaths
     namespace: structural.scip
     language: go
@@ -32051,12 +33323,6 @@ code_symbols:
     file: golang/server/authority_domains.go
     symbol: loadedAuthorityDomain
     kind: type
-  - id: golang/server/authority_domains.go:main
-    namespace: structural.scip
-    language: go
-    file: golang/server/authority_domains.go
-    symbol: main
-    kind: function
   - id: golang/server/authority_domains.go:matchAuthorityDomains
     namespace: structural.scip
     language: go
@@ -33497,6 +34763,12 @@ code_symbols:
     file: golang/server/main.go
     symbol: Version
     kind: var
+  - id: golang/server/main.go:awarenessDir
+    namespace: structural.scip
+    language: go
+    file: golang/server/main.go
+    symbol: awarenessDir
+    kind: var
   - id: golang/server/main.go:buildServerTLS
     namespace: structural.scip
     language: go
@@ -34073,6 +35345,12 @@ code_symbols:
     file: golang/server/preflight_cli.go
     symbol: stringListFlag
     kind: type
+  - id: golang/server/propose.go:Propose
+    namespace: structural.scip
+    language: go
+    file: golang/server/propose.go
+    symbol: Propose
+    kind: method
   - id: golang/server/provenance.go:BundleID
     namespace: structural.scip
     language: go
@@ -34409,6 +35687,24 @@ code_symbols:
     file: golang/server/realized_contracts.go
     symbol: tests
     kind: var
+  - id: golang/server/reference_sites.go:ReferenceSites
+    namespace: structural.scip
+    language: go
+    file: golang/server/reference_sites.go
+    symbol: ReferenceSites
+    kind: method
+  - id: golang/server/reference_sites.go:codeSymbolIDFromIRI
+    namespace: structural.scip
+    language: go
+    file: golang/server/reference_sites.go
+    symbol: codeSymbolIDFromIRI
+    kind: function
+  - id: golang/server/reference_sites.go:referencingSites
+    namespace: structural.scip
+    language: go
+    file: golang/server/reference_sites.go
+    symbol: referencingSites
+    kind: method
   - id: golang/server/repair_plans.go:ActivationTriggers
     namespace: structural.scip
     language: go
@@ -35669,6 +36965,756 @@ code_symbols:
     file: golang/server/surface_observability.go
     symbol: surfaceUsageSnapshot
     kind: type
+  - id: golang/skillimport/extract.go:ExtractCandidates
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: ExtractCandidates
+    kind: function
+  - id: golang/skillimport/extract.go:appendUniqueLimited
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: appendUniqueLimited
+    kind: function
+  - id: golang/skillimport/extract.go:boldRE
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: boldRE
+    kind: var
+  - id: golang/skillimport/extract.go:codeRE
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: codeRE
+    kind: var
+  - id: golang/skillimport/extract.go:confidenceOrDefault
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: confidenceOrDefault
+    kind: function
+  - id: golang/skillimport/extract.go:containsAny
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: containsAny
+    kind: function
+  - id: golang/skillimport/extract.go:defaultConfidence
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: defaultConfidence
+    kind: const
+  - id: golang/skillimport/extract.go:defaultStatus
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: defaultStatus
+    kind: const
+  - id: golang/skillimport/extract.go:evidenceAsMustFollow
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: evidenceAsMustFollow
+    kind: function
+  - id: golang/skillimport/extract.go:extractForbiddenShortcuts
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: extractForbiddenShortcuts
+    kind: function
+  - id: golang/skillimport/extract.go:extractMustFollow
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: extractMustFollow
+    kind: function
+  - id: golang/skillimport/extract.go:extractRequiredEvidence
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: extractRequiredEvidence
+    kind: function
+  - id: golang/skillimport/extract.go:extractWhenToUse
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: extractWhenToUse
+    kind: function
+  - id: golang/skillimport/extract.go:forbiddenKeywords
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: forbiddenKeywords
+    kind: var
+  - id: golang/skillimport/extract.go:isBullet
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: isBullet
+    kind: function
+  - id: golang/skillimport/extract.go:isHeading
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: isHeading
+    kind: function
+  - id: golang/skillimport/extract.go:italicRE
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: italicRE
+    kind: var
+  - id: golang/skillimport/extract.go:linkRE
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: linkRE
+    kind: var
+  - id: golang/skillimport/extract.go:looksLikeBehaviorRule
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: looksLikeBehaviorRule
+    kind: function
+  - id: golang/skillimport/extract.go:looksLikeNoNoRule
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: looksLikeNoNoRule
+    kind: function
+  - id: golang/skillimport/extract.go:markdownLines
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: markdownLines
+    kind: function
+  - id: golang/skillimport/extract.go:markdownParagraphs
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: markdownParagraphs
+    kind: function
+  - id: golang/skillimport/extract.go:mergeLimited
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: mergeLimited
+    kind: function
+  - id: golang/skillimport/extract.go:mustKeywords
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: mustKeywords
+    kind: var
+  - id: golang/skillimport/extract.go:mustPriorityKeywords
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: mustPriorityKeywords
+    kind: var
+  - id: golang/skillimport/extract.go:mustRejectKeywords
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: mustRejectKeywords
+    kind: var
+  - id: golang/skillimport/extract.go:nonSlugRE
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: nonSlugRE
+    kind: var
+  - id: golang/skillimport/extract.go:normalizeMarkdown
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: normalizeMarkdown
+    kind: function
+  - id: golang/skillimport/extract.go:numberRE
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: numberRE
+    kind: var
+  - id: golang/skillimport/extract.go:prioritizeLimited
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: prioritizeLimited
+    kind: function
+  - id: golang/skillimport/extract.go:rationale
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: rationale
+    kind: function
+  - id: golang/skillimport/extract.go:requiredEvidenceKeywords
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: requiredEvidenceKeywords
+    kind: var
+  - id: golang/skillimport/extract.go:skillCandidateID
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: skillCandidateID
+    kind: function
+  - id: golang/skillimport/extract.go:skillimport
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: skillimport
+    kind: function
+  - id: golang/skillimport/extract.go:slug
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: slug
+    kind: function
+  - id: golang/skillimport/extract.go:slugSepRE
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: slugSepRE
+    kind: var
+  - id: golang/skillimport/extract.go:trimRunes
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: trimRunes
+    kind: function
+  - id: golang/skillimport/extract.go:whenPhrases
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/extract.go
+    symbol: whenPhrases
+    kind: var
+  - id: golang/skillimport/parse.go:Description
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: Description
+    kind: var
+  - id: golang/skillimport/parse.go:DiscoverSkills
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: DiscoverSkills
+    kind: function
+  - id: golang/skillimport/parse.go:DiscoverSkillsWithReport
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: DiscoverSkillsWithReport
+    kind: function
+  - id: golang/skillimport/parse.go:Name
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: Name
+    kind: var
+  - id: golang/skillimport/parse.go:ParseSkillFile
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: ParseSkillFile
+    kind: function
+  - id: golang/skillimport/parse.go:inferCategory
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: inferCategory
+    kind: function
+  - id: golang/skillimport/parse.go:relSlash
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: relSlash
+    kind: function
+  - id: golang/skillimport/parse.go:shouldSkipDir
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: shouldSkipDir
+    kind: function
+  - id: golang/skillimport/parse.go:skillFrontMatter
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/parse.go
+    symbol: skillFrontMatter
+    kind: type
+  - id: golang/skillimport/render.go:CandidateFileName
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: CandidateFileName
+    kind: function
+  - id: golang/skillimport/render.go:Class
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: Class
+    kind: var
+  - id: golang/skillimport/render.go:Confidence
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: Confidence
+    kind: var
+  - id: golang/skillimport/render.go:ForbiddenShortcuts
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: ForbiddenShortcuts
+    kind: var
+  - id: golang/skillimport/render.go:ID
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: ID
+    kind: var
+  - id: golang/skillimport/render.go:Label
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: Label
+    kind: var
+  - id: golang/skillimport/render.go:MustFollow
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: MustFollow
+    kind: var
+  - id: golang/skillimport/render.go:Path
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: Path
+    kind: var
+  - id: golang/skillimport/render.go:Rationale
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: Rationale
+    kind: var
+  - id: golang/skillimport/render.go:ReferenceFiles
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: ReferenceFiles
+    kind: var
+  - id: golang/skillimport/render.go:RenderCandidate
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: RenderCandidate
+    kind: function
+  - id: golang/skillimport/render.go:Role
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: Role
+    kind: var
+  - id: golang/skillimport/render.go:SourceFiles
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: SourceFiles
+    kind: var
+  - id: golang/skillimport/render.go:Status
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: Status
+    kind: var
+  - id: golang/skillimport/render.go:ValidateCandidateYAML
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: ValidateCandidateYAML
+    kind: function
+  - id: golang/skillimport/render.go:ValidateGeneratedCandidates
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: ValidateGeneratedCandidates
+    kind: function
+  - id: golang/skillimport/render.go:WhenToUse
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: WhenToUse
+    kind: var
+  - id: golang/skillimport/render.go:WriteCandidates
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: WriteCandidates
+    kind: function
+  - id: golang/skillimport/render.go:asString
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: asString
+    kind: function
+  - id: golang/skillimport/render.go:hasNonEmptyList
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: hasNonEmptyList
+    kind: function
+  - id: golang/skillimport/render.go:implementationPatternYAML
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: implementationPatternYAML
+    kind: type
+  - id: golang/skillimport/render.go:referenceFileYAML
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: referenceFileYAML
+    kind: type
+  - id: golang/skillimport/render.go:referenceFilesContainSkill
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: referenceFilesContainSkill
+    kind: function
+  - id: golang/skillimport/render.go:sourceFiles
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/render.go
+    symbol: sourceFiles
+    kind: function
+  - id: golang/skillimport/skill.go:Body
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Body
+    kind: var
+  - id: golang/skillimport/skill.go:CandidateForbiddenFix
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: CandidateForbiddenFix
+    kind: const
+  - id: golang/skillimport/skill.go:CandidateImplementationPattern
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: CandidateImplementationPattern
+    kind: const
+  - id: golang/skillimport/skill.go:CandidateInvariant
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: CandidateInvariant
+    kind: const
+  - id: golang/skillimport/skill.go:CandidateKind
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: CandidateKind
+    kind: type
+  - id: golang/skillimport/skill.go:CandidateRequiredEvidence
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: CandidateRequiredEvidence
+    kind: const
+  - id: golang/skillimport/skill.go:CandidateRequiredTest
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: CandidateRequiredTest
+    kind: const
+  - id: golang/skillimport/skill.go:CandidateWorkflowContract
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: CandidateWorkflowContract
+    kind: const
+  - id: golang/skillimport/skill.go:Category
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Category
+    kind: var
+  - id: golang/skillimport/skill.go:Class
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Class
+    kind: var
+  - id: golang/skillimport/skill.go:Confidence
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Confidence
+    kind: var
+  - id: golang/skillimport/skill.go:DefaultConfidence
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: DefaultConfidence
+    kind: var
+  - id: golang/skillimport/skill.go:DefaultStatus
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: DefaultStatus
+    kind: var
+  - id: golang/skillimport/skill.go:Description
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Description
+    kind: var
+  - id: golang/skillimport/skill.go:DiscoverResult
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: DiscoverResult
+    kind: type
+  - id: golang/skillimport/skill.go:Err
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Err
+    kind: var
+  - id: golang/skillimport/skill.go:FileIssue
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: FileIssue
+    kind: type
+  - id: golang/skillimport/skill.go:ForbiddenShortcuts
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: ForbiddenShortcuts
+    kind: var
+  - id: golang/skillimport/skill.go:ID
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: ID
+    kind: var
+  - id: golang/skillimport/skill.go:ImportOptions
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: ImportOptions
+    kind: type
+  - id: golang/skillimport/skill.go:IncludeDeprecated
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: IncludeDeprecated
+    kind: var
+  - id: golang/skillimport/skill.go:InputRoot
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: InputRoot
+    kind: var
+  - id: golang/skillimport/skill.go:Invalid
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Invalid
+    kind: var
+  - id: golang/skillimport/skill.go:Label
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Label
+    kind: var
+  - id: golang/skillimport/skill.go:MustFollow
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: MustFollow
+    kind: var
+  - id: golang/skillimport/skill.go:Name
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Name
+    kind: var
+  - id: golang/skillimport/skill.go:OutputDir
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: OutputDir
+    kind: var
+  - id: golang/skillimport/skill.go:Path
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Path
+    kind: var
+  - id: golang/skillimport/skill.go:Paths
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Paths
+    kind: var
+  - id: golang/skillimport/skill.go:Rationale
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Rationale
+    kind: var
+  - id: golang/skillimport/skill.go:ReferenceFile
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: ReferenceFile
+    kind: type
+  - id: golang/skillimport/skill.go:ReferenceFiles
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: ReferenceFiles
+    kind: var
+  - id: golang/skillimport/skill.go:Repo
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Repo
+    kind: var
+  - id: golang/skillimport/skill.go:RequiredEvidence
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: RequiredEvidence
+    kind: var
+  - id: golang/skillimport/skill.go:RequiredTests
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: RequiredTests
+    kind: var
+  - id: golang/skillimport/skill.go:Role
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Role
+    kind: var
+  - id: golang/skillimport/skill.go:Skill
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Skill
+    kind: type
+  - id: golang/skillimport/skill.go:SkillCandidate
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: SkillCandidate
+    kind: type
+  - id: golang/skillimport/skill.go:SkillIngestionCandidateSchema
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: SkillIngestionCandidateSchema
+    kind: const
+  - id: golang/skillimport/skill.go:Skills
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Skills
+    kind: var
+  - id: golang/skillimport/skill.go:Skipped
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Skipped
+    kind: var
+  - id: golang/skillimport/skill.go:SourcePath
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: SourcePath
+    kind: var
+  - id: golang/skillimport/skill.go:SourceSet
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: SourceSet
+    kind: var
+  - id: golang/skillimport/skill.go:SourceSkill
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: SourceSkill
+    kind: var
+  - id: golang/skillimport/skill.go:Status
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Status
+    kind: var
+  - id: golang/skillimport/skill.go:Tags
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: Tags
+    kind: var
+  - id: golang/skillimport/skill.go:WhenToUse
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: WhenToUse
+    kind: var
+  - id: golang/skillimport/skill.go:WriteResult
+    namespace: structural.scip
+    language: go
+    file: golang/skillimport/skill.go
+    symbol: WriteResult
+    kind: type
+  - id: golang/statedir/statedir.go:DefaultName
+    namespace: structural.scip
+    language: go
+    file: golang/statedir/statedir.go
+    symbol: DefaultName
+    kind: const
+  - id: golang/statedir/statedir.go:LegacyName
+    namespace: structural.scip
+    language: go
+    file: golang/statedir/statedir.go
+    symbol: LegacyName
+    kind: const
+  - id: golang/statedir/statedir.go:Name
+    namespace: structural.scip
+    language: go
+    file: golang/statedir/statedir.go
+    symbol: Name
+    kind: function
+  - id: golang/statedir/statedir.go:Path
+    namespace: structural.scip
+    language: go
+    file: golang/statedir/statedir.go
+    symbol: Path
+    kind: function
+  - id: golang/statedir/statedir.go:isDir
+    namespace: structural.scip
+    language: go
+    file: golang/statedir/statedir.go
+    symbol: isDir
+    kind: function
+  - id: golang/statedir/statedir.go:statedir
+    namespace: structural.scip
+    language: go
+    file: golang/statedir/statedir.go
+    symbol: statedir
+    kind: function
   - id: golang/store/oxigraph/oxigraph.go:Bindings
     namespace: structural.scip
     language: go

@@ -39,11 +39,11 @@ gate enforces **after**.
 
 ```bash
 git clone https://github.com/globulario/sensei.git
-cd awareness-graph && ./scripts/install.sh
+cd sensei && ./scripts/install.sh
 export PATH="$PWD/bin:$PATH"
 ```
 
-Linux and macOS are validated paths; Go 1.23+ required for source builds. A
+Linux and macOS are validated paths; Go1.25+ required for source builds. A
 prebuilt Linux amd64 local runtime bundle is attached to this release.
 
 ### Notes

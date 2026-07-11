@@ -377,100 +377,6 @@
 <https://globular.io/awareness#contract/contract.yaml2nt_ntriples_output> <https://globular.io/awareness#umlKind> "Artifact" .
 <https://globular.io/awareness#contract/contract.yaml2nt_ntriples_output> <https://globular.io/awareness#umlStereotype> "file_format" .
 <https://globular.io/awareness#contract/contract.yaml2nt_ntriples_output> <https://globular.io/awareness#umlView> "structural" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <http://www.w3.org/2000/01/rdf-schema#label> "Workflow foreach guard order" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <http://www.w3.org/2000/01/rdf-schema#comment> "Foreach steps must evaluate the optional `when` guard before resolving the foreach collection. A false guard skips the step without touching the collection, while a true or absent guard preserves the invariant that nil or unresolved collections fail rather than silently coercing to success." .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#kind> "control_flow" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#stability> "stable" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#readOrWrite> "read_write" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#assertionMethod> "declared" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/contracts.yaml" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/meta.competing_writers_must_converge_or_be_fenced> .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestForeach_WhenGuardSkipsBeforeUnresolvedCollection> .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestForeach_WhenGuardTrueStillFansOut> .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestForeach_UnresolvedCollectionFails> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#umlStereotype> "control_flow" .
-<https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> <https://globular.io/awareness#umlView> "behavioral" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <http://www.w3.org/2000/01/rdf-schema#label> "Config mutation requires a valid token" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <http://www.w3.org/2000/01/rdf-schema#comment> "Any HTTP endpoint that mutates configuration must require and validate an access token (header-only; query-parameter tokens are refused) BEFORE persisting any change. A missing or invalid token must fail closed with 401 and write nothing." .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#kind> "http_authority" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#stability> "stable" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#readOrWrite> "write" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#assertionMethod> "declared" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/contracts.yaml" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/meta.authority_must_express_uncertainty> .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Fconfig%2Fsave_config.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Fconfig%2Fsave_config.go> .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Fconfig%2Fsave_config.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#umlStereotype> "http_authority" .
-<https://globular.io/awareness#contract/contract.config_mutation_requires_valid_token> <https://globular.io/awareness#umlView> "behavioral" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <http://www.w3.org/2000/01/rdf-schema#label> "Served file paths must be anchored and confined" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <http://www.w3.org/2000/01/rdf-schema#comment> "Any HTTP endpoint that serves or accepts files must normalize the request path, anchor it under an expected base directory, and refuse anything that escapes that root (`..`, absolute paths, symlink escape). Authorization must be decided before any data write. Path traversal must be rejected, not sanitized into a different file." .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#kind> "http_confinement" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#stability> "stable" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#readOrWrite> "read_write" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#assertionMethod> "declared" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/contracts.yaml" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/file.path.normalization_must_not_escape_virtual_roots> .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/file.authz.streaming_write_path_must_be_authorized_before_data_write> .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Ffiles%2Fserve.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Ffiles%2Fserve.go> .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Ffiles%2Fserve.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Ffiles%2Fupload.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Ffiles%2Fupload.go> .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Ffiles%2Fupload.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#umlStereotype> "http_confinement" .
-<https://globular.io/awareness#contract/contract.served_path_must_be_anchored_and_confined> <https://globular.io/awareness#umlView> "behavioral" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <http://www.w3.org/2000/01/rdf-schema#label> "Artifact deletion must preserve active desired builds" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <http://www.w3.org/2000/01/rdf-schema#comment> "Deleting or purging a repository artifact must refuse to remove a build that an active DesiredService still references, and destructive deletion must be explicitly guarded (a force flag) — never implied by the mere absence of a record. Exposed over the admin surface /admin/repository/artifact and the repository delete RPC." .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#kind> "data_safety" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#stability> "stable" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#readOrWrite> "write" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#assertionMethod> "declared" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/contracts.yaml" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/repository.purge_must_not_delete_active_desired_builds> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/destructive_actions.require_explicit_guard> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/critical_state.absence_is_not_destructive_intent> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Frepository%2Frepository_server%2Fartifact_handlers_test.go:TestDeleteArtifact_ForceField> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Frepository%2Frepository_server%2Fpackage_identity_required_tests_test.go:TestCollisionRepairRefusesDesiredPinnedArtifact> .
-<https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Freachability_guard.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Freachability_guard.go> .
-<https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Freachability_guard.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> .
-<https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Fartifact_handlers.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Fartifact_handlers.go> .
-<https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Fartifact_handlers.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#umlStereotype> "data_safety" .
-<https://globular.io/awareness#contract/contract.artifact_deletion_must_preserve_active_desired_builds> <https://globular.io/awareness#umlView> "behavioral" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <http://www.w3.org/2000/01/rdf-schema#label> "CA metadata must be published for chain verification" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <http://www.w3.org/2000/01/rdf-schema#comment> "A CA certificate operation (issue/sign/regenerate) must publish the CA metadata to the cluster registry so peers can verify the trust chain; a CA change that does not publish metadata silently breaks verification across the mesh. Exposed over /get_ca_certificate and /sign_ca_certificate." .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#kind> "pki_authority" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#stability> "stable" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#readOrWrite> "write" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#assertionMethod> "declared" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/contracts.yaml" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#constrainedByInvariant> <https://globular.io/awareness#invariant/pki.ca_metadata_must_be_published> .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Fsecurity%2Ftls_pki_test.go:TestCAMetadataRoundTrip> .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fcritical_keys.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fcritical_keys.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fcritical_keys.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fcritical_state_registry.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fcritical_state_registry.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fcritical_state_registry.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#umlStereotype> "pki_authority" .
-<https://globular.io/awareness#contract/contract.ca_metadata_must_be_published> <https://globular.io/awareness#umlView> "behavioral" .
 <https://globular.io/awareness#decision/decision.dashboard_v1_read_only_over_grpc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Decision> .
 <https://globular.io/awareness#decision/decision.dashboard_v1_read_only_over_grpc> <http://www.w3.org/2000/01/rdf-schema#label> "Dashboard v1 is read-only over gRPC" .
 <https://globular.io/awareness#decision/decision.dashboard_v1_read_only_over_grpc> <https://globular.io/awareness#status> "accepted" .
@@ -596,70 +502,6 @@
 <https://globular.io/awareness#forbiddenFix/ui_direct_candidate_promotion_without_guarded_backend_api> <https://globular.io/awareness#umlView> "awareness" .
 <https://globular.io/awareness#forbiddenFix/ui_direct_candidate_promotion_without_guarded_backend_api> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/awareness.graph.compiled_context_not_authority> .
 <https://globular.io/awareness#forbiddenFix/ui_direct_candidate_promotion_without_guarded_backend_api> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/awareness.seed_is_generated_author_in_yaml> .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <http://www.w3.org/2000/01/rdf-schema#label> "Treat nil foreach collections as empty arrays" .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <http://www.w3.org/2000/01/rdf-schema#comment> "It hides a real resolution failure, breaks the fail-closed contract for active foreach steps, and converts missing state into apparent success." .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <https://globular.io/awareness#umlStereotype> "forbidden_fix" .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <https://globular.io/awareness#umlView> "awareness" .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.competing_writers_must_converge_or_be_fenced> .
-<https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <http://www.w3.org/2000/01/rdf-schema#label> "Convert JSON null to empty arrays globally" .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <http://www.w3.org/2000/01/rdf-schema#comment> "It broadens one workflow repair into a global semantic rewrite, hides ownership and truth-layer bugs, and silently changes behavior outside the governed foreach contract." .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <https://globular.io/awareness#umlStereotype> "forbidden_fix" .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <https://globular.io/awareness#umlView> "awareness" .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> .
-<https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <http://www.w3.org/2000/01/rdf-schema#label> "Remove the nil-collection failure invariant" .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <http://www.w3.org/2000/01/rdf-schema#comment> "The foreach guard-order repair depends on preserving the failure path for active execution. Removing that invariant turns a control-flow repair into silent success." .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <https://globular.io/awareness#umlStereotype> "forbidden_fix" .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <https://globular.io/awareness#umlView> "awareness" .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> .
-<https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <http://www.w3.org/2000/01/rdf-schema#label> "Special-case one workflow for foreach guard ordering" .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <http://www.w3.org/2000/01/rdf-schema#comment> "The failure is in generic workflow engine behavior. A workflow-specific branch leaves the engine contract broken and guarantees future repeats in neighboring workflows." .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <https://globular.io/awareness#umlStereotype> "forbidden_fix" .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <https://globular.io/awareness#umlView> "awareness" .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.competing_writers_must_converge_or_be_fenced> .
-<https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <http://www.w3.org/2000/01/rdf-schema#label> "Suppress collection-resolution failure after it occurs" .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <http://www.w3.org/2000/01/rdf-schema#comment> "The contract requires ordering the guard before collection resolution, not tolerating the failure after the engine already touched the wrong path." .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <https://globular.io/awareness#umlStereotype> "forbidden_fix" .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <https://globular.io/awareness#umlView> "awareness" .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> .
-<https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <http://www.w3.org/2000/01/rdf-schema#label> "Read workflow run outputs without synchronized snapshot" .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <http://www.w3.org/2000/01/rdf-schema#comment> "It reintroduces the existing workflow run-outputs race while attempting to fix the foreach guard-order bug." .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <https://globular.io/awareness#umlKind> "Constraint" .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <https://globular.io/awareness#umlStereotype> "forbidden_fix" .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <https://globular.io/awareness#umlView> "awareness" .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.competing_writers_must_converge_or_be_fenced> .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fresume.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fresume.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fresume.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> .
 <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> <https://globular.io/awareness#assertionMethod> "declared" .
 <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> <https://globular.io/awareness#generates> <https://globular.io/awareness#invariant/awareness.graph.compiled_context_not_authority> .
 <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> <https://globular.io/awareness#generates> <https://globular.io/awareness#invariant/awareness.rdf.yaml_is_source_of_truth> .
@@ -1296,42 +1138,6 @@
 <https://globular.io/awareness#patternMisuse/pattern_misuse.ui_direct_promotion> <https://globular.io/awareness#umlKind> "Constraint" .
 <https://globular.io/awareness#patternMisuse/pattern_misuse.ui_direct_promotion> <https://globular.io/awareness#umlStereotype> "pattern_misuse" .
 <https://globular.io/awareness#patternMisuse/pattern_misuse.ui_direct_promotion> <https://globular.io/awareness#umlView> "awareness" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#RepairPlan> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <http://www.w3.org/2000/01/rdf-schema#label> "Evaluate foreach when guard before collection resolution" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#hasConfidence> "high" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#hasBlastRadius> "service" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#requiresApprovalGate> "review_required" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#producesOutcomeFeedback> "Record that foreach guard evaluation now happens before collection resolution, including whether skipped paths, active fan-out, and unresolved collection failure were all re-verified." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <http://www.w3.org/2000/01/rdf-schema#comment> "Governing contract: foreach `when` guards are evaluated before collection resolution. A false guard skips without dereferencing the collection, while active foreach execution still fails closed for nil or unresolved collections. Forbidden fixes include global nil-to-empty coercion, workflow-specific special cases, and reading run outputs outside a synchronized snapshot." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/repair_plans/workflow.foreach_guard_before_collection.yaml" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#activationTrigger> "foreach when guard" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#activationTrigger> "unresolved foreach collection" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#activationTrigger> "foreach step skipped on when" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#activationTrigger> "nil collection should fail" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#requiresPrecondition> "Confirm the foreach step has a when guard or an unresolved collection path to classify." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#requiresPrecondition> "Verify collection resolution still fails when the guard is true or absent." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#hasRepairStep> "Evaluate the foreach when guard against a synchronized snapshot before resolving the collection." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#hasRepairStep> "Return SKIPPED immediately when the guard is false." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#hasRepairStep> "Preserve the nil or unresolved collection failure path for active foreach execution." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#requiresVerification> "Run the foreach guard-order tests and confirm the skipped path no longer touches collection resolution." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#requiresVerification> "Confirm active foreach fan-out still executes and unresolved collections still fail." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#hasRollbackStep> "Revert the guard-order change in golang/workflow/engine/engine.go if the guarded skip path or unresolved collection failure path regresses." .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#requiresRuntimeEvidence> "workflow engine skip path leaves no collection-resolution error when the guard is false" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#requiresRuntimeEvidence> "active foreach still fails closed on nil or unresolved collections" .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#repairsFailureMode> <https://globular.io/awareness#failureMode/workflow.foreach_when_guard_evaluated_after_collection_resolution> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#repairsFailureMode> <https://globular.io/awareness#failureMode/workflow.run_outputs_data_race> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#mustNotViolateInvariant> <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#mustNotViolateInvariant> <https://globular.io/awareness#invariant/meta.competing_writers_must_converge_or_be_fenced> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#governedByContract> <https://globular.io/awareness#contract/contract.workflow.foreach_guard_order> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/treat_nil_foreach_collection_as_empty_array> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/convert_json_null_to_empty_array_globally> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/remove_nil_collection_failure_invariant> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/special_case_cluster_reconcile_foreach_guard> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/suppress_collection_resolution_failure_after_the_fact> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/read_run_outputs_without_synchronized_snapshot> .
-<https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> <https://globular.io/awareness#expressedBy> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#repairPlan/repair.workflow.foreach_guard_before_collection> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#umlKind> "Artifact" .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#umlStereotype> "proto" .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#umlView> "structural" .
@@ -1439,141 +1245,42 @@
 <https://globular.io/awareness#failureMode/failure.rebuild.authoredin_records_per_run_temp_path> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/cmd%2Fawg%2Fhelpers_test.go:TestFilteredServicesGeneratedDir_ExcludesAwarenessGraphArtifacts> .
 <https://globular.io/awareness#failureMode/failure.rebuild.authoredin_records_per_run_temp_path> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_rebuild.go> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_rebuild.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.rebuild.authoredin_records_per_run_temp_path> .
-<https://globular.io/awareness#failureMode/backup_manager.scylla_registration_skipped_on_synthetic_marker> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
-<https://globular.io/awareness#failureMode/backup_manager.scylla_registration_skipped_on_synthetic_marker> <http://www.w3.org/2000/01/rdf-schema#label> "scylla cluster never registered because reachable-but-unregistered ScyllaDB is mistaken for registered" .
-<https://globular.io/awareness#failureMode/backup_manager.scylla_registration_skipped_on_synthetic_marker> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
-<https://globular.io/awareness#failureMode/backup_manager.scylla_registration_skipped_on_synthetic_marker> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/backup_manager.scylla_registration_excludes_synthetic_markers> .
-<https://globular.io/awareness#sourceFile/golang%2Fbackup_manager%2Fbackup_manager_server%2Fpreflight.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#failureMode/backup_manager.scylla_registration_skipped_on_synthetic_marker> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fbackup_manager%2Fbackup_manager_server%2Fpreflight.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fbackup_manager%2Fbackup_manager_server%2Fpreflight.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/backup_manager.scylla_registration_skipped_on_synthetic_marker> .
-<https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
-<https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> <http://www.w3.org/2000/01/rdf-schema#label> "Two systemd-unit template generators drift; a fix lands in one and still ships broken via the other" .
-<https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> <https://globular.io/awareness#severity> "high" .
-<https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
-<https://globular.io/awareness#test/golang%2Fdeploy%2Fdeploy_test.go:TestGenerateSpec_MatchesExisting> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Fdeploy%2Fdeploy_test.go:TestGenerateSpec_MatchesExisting> .
-<https://globular.io/awareness#sourceFile/golang%2Fglobularcli%2Ftools%2Fspecgen%2Fspecgen.sh> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fglobularcli%2Ftools%2Fspecgen%2Fspecgen.sh> .
-<https://globular.io/awareness#sourceFile/golang%2Fglobularcli%2Ftools%2Fspecgen%2Fspecgen.sh> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> .
-<https://globular.io/awareness#sourceFile/golang%2Fdeploy%2Fspecgen.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fdeploy%2Fspecgen.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fdeploy%2Fspecgen.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/build.dual_systemd_unit_templates_drift> .
 <https://globular.io/awareness#forbiddenFix/add_second_package_identity_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/add_second_package_identity_authority> <http://www.w3.org/2000/01/rdf-schema#label> "add a second package-identity authority" .
 <https://globular.io/awareness#forbiddenFix/add_second_package_identity_authority> <http://www.w3.org/2000/01/rdf-schema#comment> "packages/registry.yaml is the SOLE package-identity authority; all other surfaces are projections validated against it" .
 <https://globular.io/awareness#forbiddenFix/add_second_package_identity_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/add_second_package_identity_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.package_identity_and_recipe_authority_split> .
 <https://globular.io/awareness#forbiddenFix/infer_package_identity_from_binary_or_tarball> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/infer_package_identity_from_binary_or_tarball> <http://www.w3.org/2000/01/rdf-schema#label> "infer package identity from a binary or tarball" .
 <https://globular.io/awareness#forbiddenFix/infer_package_identity_from_binary_or_tarball> <http://www.w3.org/2000/01/rdf-schema#comment> "resolve identity from registry.yaml; filenames/binaries are outputs, never authority (do not infer truth from filenames when a manifest exists)" .
 <https://globular.io/awareness#forbiddenFix/infer_package_identity_from_binary_or_tarball> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/infer_package_identity_from_binary_or_tarball> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.package_identity_and_recipe_authority_split> .
 <https://globular.io/awareness#forbiddenFix/keep_undeclared_binary_aliases_in_packages_bin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/keep_undeclared_binary_aliases_in_packages_bin> <http://www.w3.org/2000/01/rdf-schema#label> "keep undeclared binary aliases in packages/bin" .
 <https://globular.io/awareness#forbiddenFix/keep_undeclared_binary_aliases_in_packages_bin> <http://www.w3.org/2000/01/rdf-schema#comment> "packages/bin stages only registry-declared binaries; remove undeclared/stale aliases" .
 <https://globular.io/awareness#forbiddenFix/keep_undeclared_binary_aliases_in_packages_bin> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/keep_undeclared_binary_aliases_in_packages_bin> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.package_identity_and_recipe_authority_split> .
 <https://globular.io/awareness#forbiddenFix/treat_generated_specs_as_canonical_recipe> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/treat_generated_specs_as_canonical_recipe> <http://www.w3.org/2000/01/rdf-schema#label> "treat generated specs as the canonical recipe" .
 <https://globular.io/awareness#forbiddenFix/treat_generated_specs_as_canonical_recipe> <http://www.w3.org/2000/01/rdf-schema#comment> "the canonical recipe is packages/metadata/<name>/specs; generated specs are derived build inputs" .
 <https://globular.io/awareness#forbiddenFix/treat_generated_specs_as_canonical_recipe> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/treat_generated_specs_as_canonical_recipe> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.package_identity_and_recipe_authority_split> .
 <https://globular.io/awareness#forbiddenFix/revive_legacy_spec_forest_in_consumed_paths> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/revive_legacy_spec_forest_in_consumed_paths> <http://www.w3.org/2000/01/rdf-schema#label> "revive a legacy spec forest in consumed paths" .
 <https://globular.io/awareness#forbiddenFix/revive_legacy_spec_forest_in_consumed_paths> <http://www.w3.org/2000/01/rdf-schema#comment> "consume specs only from packages/metadata; do not revive legacy spec roots" .
 <https://globular.io/awareness#forbiddenFix/revive_legacy_spec_forest_in_consumed_paths> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/revive_legacy_spec_forest_in_consumed_paths> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.package_identity_and_recipe_authority_split> .
 <https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <http://www.w3.org/2000/01/rdf-schema#label> "restore dist/bin as a long-lived authority path" .
 <https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <http://www.w3.org/2000/01/rdf-schema#comment> "dist/bin is transient staging; binaries are compiled fresh each build" .
 <https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.release_workspace_and_output_are_not_authority> .
 <https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <http://www.w3.org/2000/01/rdf-schema#label> "delete generated/ mid-flow without regenerating" .
 <https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <http://www.w3.org/2000/01/rdf-schema#comment> "regenerate generated/ at the sanctioned boundary (regenerate-release-inputs.sh / --full-regenerate); never delete mid-flow" .
 <https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.release_workspace_and_output_are_not_authority> .
 <https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <http://www.w3.org/2000/01/rdf-schema#label> "consume the generated workspace as release authority" .
 <https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <http://www.w3.org/2000/01/rdf-schema#comment> "generated/ is a derived workspace validated against registry/metadata; authority stays in packages" .
 <https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.release_workspace_and_output_are_not_authority> .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_packagecatalog_specs> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_packagecatalog_specs> <http://www.w3.org/2000/01/rdf-schema#label> "hand-edit installer packagecatalog specs" .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_packagecatalog_specs> <http://www.w3.org/2000/01/rdf-schema#comment> "regenerate the packagecatalog mirror with make sync-specs; it is a generated mirror bound to registry.yaml by digest" .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_packagecatalog_specs> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_packagecatalog_specs> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.installer_embedded_assets_are_generated_mirrors_only> .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_webroot_as_source> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_webroot_as_source> <http://www.w3.org/2000/01/rdf-schema#label> "hand-edit installer webroot as source" .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_webroot_as_source> <http://www.w3.org/2000/01/rdf-schema#comment> "it is a generated mirror of services/webroot; edit services/webroot and re-sync" .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_webroot_as_source> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/hand_edit_installer_webroot_as_source> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.installer_embedded_assets_are_generated_mirrors_only> .
-<https://globular.io/awareness#forbiddenFix/treat_installer_assets_bin_as_release_binary_store> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/treat_installer_assets_bin_as_release_binary_store> <http://www.w3.org/2000/01/rdf-schema#label> "treat installer assets/bin as a release binary store" .
-<https://globular.io/awareness#forbiddenFix/treat_installer_assets_bin_as_release_binary_store> <http://www.w3.org/2000/01/rdf-schema#comment> "that dir is for installer-private helper assets only; release binaries live in the release bundle" .
-<https://globular.io/awareness#forbiddenFix/treat_installer_assets_bin_as_release_binary_store> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/treat_installer_assets_bin_as_release_binary_store> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.installer_embedded_assets_are_generated_mirrors_only> .
-<https://globular.io/awareness#forbiddenFix/bypass_registry_digest_binding_for_embedded_catalog> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/bypass_registry_digest_binding_for_embedded_catalog> <http://www.w3.org/2000/01/rdf-schema#label> "bypass registry digest binding for the embedded catalog" .
-<https://globular.io/awareness#forbiddenFix/bypass_registry_digest_binding_for_embedded_catalog> <http://www.w3.org/2000/01/rdf-schema#comment> "keep the packagecatalog manifest registry_sha256/package_count in sync via sync-specs; the digest binding is the integrity check" .
-<https://globular.io/awareness#forbiddenFix/bypass_registry_digest_binding_for_embedded_catalog> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/bypass_registry_digest_binding_for_embedded_catalog> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.installer_embedded_assets_are_generated_mirrors_only> .
-<https://globular.io/awareness#forbiddenFix/move_real_install_workflow_into_release_wrapper> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/move_real_install_workflow_into_release_wrapper> <http://www.w3.org/2000/01/rdf-schema#label> "move the real install workflow into the release wrapper" .
-<https://globular.io/awareness#forbiddenFix/move_real_install_workflow_into_release_wrapper> <http://www.w3.org/2000/01/rdf-schema#comment> "install.sh is a thin release wrapper; install execution authority stays in install-day0.sh" .
-<https://globular.io/awareness#forbiddenFix/move_real_install_workflow_into_release_wrapper> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/move_real_install_workflow_into_release_wrapper> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.release_wrapper_is_not_install_execution_authority> .
-<https://globular.io/awareness#forbiddenFix/make_services_repo_owner_of_installer_execution> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/make_services_repo_owner_of_installer_execution> <http://www.w3.org/2000/01/rdf-schema#label> "make the services repo own installer execution" .
-<https://globular.io/awareness#forbiddenFix/make_services_repo_owner_of_installer_execution> <http://www.w3.org/2000/01/rdf-schema#comment> "services owns release publication; globular-installer owns install execution — keep the split" .
-<https://globular.io/awareness#forbiddenFix/make_services_repo_owner_of_installer_execution> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/make_services_repo_owner_of_installer_execution> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.release_wrapper_is_not_install_execution_authority> .
-<https://globular.io/awareness#forbiddenFix/treat_installer_mirror_assets_as_release_source_of_truth> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#forbiddenFix/treat_installer_mirror_assets_as_release_source_of_truth> <http://www.w3.org/2000/01/rdf-schema#label> "treat installer mirror assets as release source of truth" .
-<https://globular.io/awareness#forbiddenFix/treat_installer_mirror_assets_as_release_source_of_truth> <http://www.w3.org/2000/01/rdf-schema#comment> "the source of truth is packages/registry.yaml + services/webroot; installer mirrors are generated projections" .
-<https://globular.io/awareness#forbiddenFix/treat_installer_mirror_assets_as_release_source_of_truth> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/treat_installer_mirror_assets_as_release_source_of_truth> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.release_wrapper_is_not_install_execution_authority> .
 <https://globular.io/awareness#forbiddenFix/treat_dist_as_persistent_source_tree> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/treat_dist_as_persistent_source_tree> <http://www.w3.org/2000/01/rdf-schema#label> "treat services/dist as a persistent source tree" .
 <https://globular.io/awareness#forbiddenFix/treat_dist_as_persistent_source_tree> <http://www.w3.org/2000/01/rdf-schema#comment> "services/dist is disposable release output — wiped and recreated each build; never authored source" .
 <https://globular.io/awareness#forbiddenFix/treat_dist_as_persistent_source_tree> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
-<https://globular.io/awareness#forbiddenFix/treat_dist_as_persistent_source_tree> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/repo.release_workspace_and_output_are_not_authority> .
-<https://globular.io/awareness#pattern/pattern.circuit_breaker> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/pattern.circuit_breaker> <http://www.w3.org/2000/01/rdf-schema#label> "Circuit Breaker" .
-<https://globular.io/awareness#pattern/pattern.circuit_breaker> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/pattern.saga_workflow> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/pattern.saga_workflow> <http://www.w3.org/2000/01/rdf-schema#label> "Saga Workflow" .
-<https://globular.io/awareness#pattern/pattern.saga_workflow> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/pattern.state_machine> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/pattern.state_machine> <http://www.w3.org/2000/01/rdf-schema#label> "Explicit State Machine" .
-<https://globular.io/awareness#pattern/pattern.state_machine> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/pattern.repository_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/pattern.repository_authority> <http://www.w3.org/2000/01/rdf-schema#label> "Repository as Artifact Authority" .
-<https://globular.io/awareness#pattern/pattern.repository_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/pattern.supervisor> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/pattern.supervisor> <http://www.w3.org/2000/01/rdf-schema#label> "Supervisor Pattern for Process Control" .
-<https://globular.io/awareness#pattern/pattern.supervisor> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/pattern.leader_election> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/pattern.leader_election> <http://www.w3.org/2000/01/rdf-schema#label> "Leader Election with Write Forwarding" .
-<https://globular.io/awareness#pattern/pattern.leader_election> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/pattern.idempotent_reconciliation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/pattern.idempotent_reconciliation> <http://www.w3.org/2000/01/rdf-schema#label> "Idempotent Reconciliation Loop" .
-<https://globular.io/awareness#pattern/pattern.idempotent_reconciliation> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/antipattern.runtime_observation_as_desired_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/antipattern.runtime_observation_as_desired_authority> <http://www.w3.org/2000/01/rdf-schema#label> "Runtime Observation as Desired Authority" .
-<https://globular.io/awareness#pattern/antipattern.runtime_observation_as_desired_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/antipattern.absence_as_destructive_intent> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/antipattern.absence_as_destructive_intent> <http://www.w3.org/2000/01/rdf-schema#label> "Absence as Destructive Intent" .
-<https://globular.io/awareness#pattern/antipattern.absence_as_destructive_intent> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/antipattern.version_only_identity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/antipattern.version_only_identity> <http://www.w3.org/2000/01/rdf-schema#label> "Version String as Artifact Identity" .
-<https://globular.io/awareness#pattern/antipattern.version_only_identity> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/antipattern.unbounded_critical_query> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/antipattern.unbounded_critical_query> <http://www.w3.org/2000/01/rdf-schema#label> "Unbounded Critical Query" .
-<https://globular.io/awareness#pattern/antipattern.unbounded_critical_query> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
-<https://globular.io/awareness#pattern/antipattern.partial_truth_promoted_to_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Pattern> .
-<https://globular.io/awareness#pattern/antipattern.partial_truth_promoted_to_authority> <http://www.w3.org/2000/01/rdf-schema#label> "Partial Truth Promoted to Authority" .
-<https://globular.io/awareness#pattern/antipattern.partial_truth_promoted_to_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/design_patterns.yaml" .
 <https://globular.io/awareness#failureMode/fm.industry.partial_failure_hidden_by_global_green> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/fm.industry.partial_failure_hidden_by_global_green> <http://www.w3.org/2000/01/rdf-schema#label> "A global healthy/green status conceals a degraded or unknown subsystem" .
 <https://globular.io/awareness#failureMode/fm.industry.partial_failure_hidden_by_global_green> <https://globular.io/awareness#severity> "high" .
@@ -1599,7 +1306,6 @@
 <https://globular.io/awareness#failureMode/fm.industry.permission_denied_rendered_as_network_error> <http://www.w3.org/2000/01/rdf-schema#label> "Permission errors displayed as generic network or unknown errors" .
 <https://globular.io/awareness#failureMode/fm.industry.permission_denied_rendered_as_network_error> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#failureMode/fm.industry.permission_denied_rendered_as_network_error> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/industry_failure_modes.yaml" .
-<https://globular.io/awareness#failureMode/fm.industry.permission_denied_rendered_as_network_error> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/ui.action_requires_permission_contract> .
 <https://globular.io/awareness#test/TestPermissionDenied_RenderedDistinctlyFromNetworkError> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#failureMode/fm.industry.permission_denied_rendered_as_network_error> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestPermissionDenied_RenderedDistinctlyFromNetworkError> .
 <https://globular.io/awareness#test/TestRetryButton_NotShown_ForPermissionDenied> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
@@ -2047,12 +1753,6 @@
 <https://globular.io/awareness#invariant/state.runtime_not_desired> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/state.runtime_not_desired> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/state.runtime_not_desired> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/state.runtime_not_desired> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/state.runtime_not_desired> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fruntime_proof.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/state.runtime_not_desired> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fruntime_proof.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fruntime_proof.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/state.runtime_not_desired> .
 <https://globular.io/awareness#forbiddenFix/forbidden.runtime_from_desired> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/state.runtime_not_desired> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.runtime_from_desired> .
 <https://globular.io/awareness#forbiddenFix/marking_available_from_local_success_only> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
@@ -2070,11 +1770,6 @@
 <https://globular.io/awareness#invariant/state.installed_not_catalog> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/state.installed_not_catalog> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/state.installed_not_catalog> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/state.installed_not_catalog> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/state.installed_not_catalog> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finstalled_services.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/state.installed_not_catalog> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finstalled_services.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finstalled_services.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/state.installed_not_catalog> .
 <https://globular.io/awareness#invariant/state.installed_not_catalog> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/marking_available_from_local_success_only> .
 <https://globular.io/awareness#forbiddenFix/mark_release_available_from_local_success> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/state.installed_not_catalog> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/mark_release_available_from_local_success> .
@@ -2088,12 +1783,6 @@
 <https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fworkflow_server%2Fstep_receipts.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fworkflow_server%2Fstep_receipts.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fworkflow_server%2Fstep_receipts.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fworkflow_invariant.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fworkflow_invariant.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fworkflow_invariant.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> .
 <https://globular.io/awareness#forbiddenFix/forbidden.optimistic_destructive_success> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.optimistic_destructive_success> .
 <https://globular.io/awareness#invariant/workflow.success_requires_backend_confirmation> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/marking_available_from_local_success_only> .
@@ -2107,11 +1796,6 @@
 <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fobjectstore_physical_overlap.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fobjectstore_physical_overlap.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fobjectstore_physical_overlap.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> .
-<https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> .
 <https://globular.io/awareness#forbiddenFix/forbidden.partial_snapshot_false_quorum_loss> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.partial_snapshot_false_quorum_loss> .
 <https://globular.io/awareness#test/TestObjectstoreQuorum_AbsentNodeIsUnknownNotDown> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
@@ -2120,38 +1804,24 @@
 <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestObjectstoreQuorum_PartialSnapshot_EmitsCaveat> .
 <https://globular.io/awareness#test/TestObjectstoreQuorum_KnownDown_StillCountsForLoss> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestObjectstoreQuorum_KnownDown_StillCountsForLoss> .
-<https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
 <https://globular.io/awareness#invariant/objectstore.partial_snapshot_unknown_not_down> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <http://www.w3.org/2000/01/rdf-schema#label> "VIP ownership must be proven from runtime evidence, not assumed from topology or package expectations" .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fstate.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fstate.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fstate.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finternal%2Factions%2Fkeepalived.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finternal%2Factions%2Fkeepalived.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finternal%2Factions%2Fkeepalived.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> .
 <https://globular.io/awareness#forbiddenFix/forbidden.vip_without_runtime_proof> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.vip_without_runtime_proof> .
 <https://globular.io/awareness#test/TestVIPHolder_DerivedFromRuntimeStatus_NotProfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestVIPHolder_DerivedFromRuntimeStatus_NotProfile> .
 <https://globular.io/awareness#test/TestVIPHolder_ReflectsActualMaster> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestVIPHolder_ReflectsActualMaster> .
-<https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.vip_transition_cascade> .
 <https://globular.io/awareness#invariant/ops.vip_requires_observed_owner> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> .
 <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <http://www.w3.org/2000/01/rdf-schema#label> "Cluster identity, TLS SAN validation, and service routing must not be bypassed with localhost or 127.0.0.1" .
 <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fendpoint_resolver.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fendpoint_resolver.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fendpoint_resolver.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> .
-<https://globular.io/awareness#sourceFile/golang%2Fnetutil%2Fnode_identity.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnetutil%2Fnode_identity.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnetutil%2Fnode_identity.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> .
 <https://globular.io/awareness#forbiddenFix/forbidden.localhost_dns_bypass> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/network.no_loopback_escape_for_cluster_identity> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.localhost_dns_bypass> .
 <https://globular.io/awareness#test/TestInterServiceCall_UsesResolvedFQDN_NotLoopback> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
@@ -2164,11 +1834,6 @@
 <https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Finstalled_state_runtime_mismatch.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Finstalled_state_runtime_mismatch.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Finstalled_state_runtime_mismatch.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> .
 <https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.runtime_from_desired> .
 <https://globular.io/awareness#invariant/runtime.desired_enabled_not_alive> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/assume_installed_means_running> .
 <https://globular.io/awareness#forbiddenFix/skip_systemd_health_check_if_installed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
@@ -2190,8 +1855,6 @@
 <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.direct_store_write_for_repair> .
 <https://globular.io/awareness#forbiddenFix/forbidden.admin_bypass_ownership> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.admin_bypass_ownership> .
-<https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
-<https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.vip_transition_cascade> .
 <https://globular.io/awareness#invariant/meta.fallback_must_degrade_semantics> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.fallback_must_degrade_semantics> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.fallback_must_degrade_semantics> <http://www.w3.org/2000/01/rdf-schema#label> "Fallback must degrade semantics — a fallback that returns the same shape as truth will be mistaken for truth" .
@@ -2218,7 +1881,6 @@
 <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
 <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.partial_snapshot_false_quorum_loss> .
 <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.missing_inventory_as_down> .
-<https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
 <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.missing_inventory_misclassified_as_down> .
 <https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
@@ -2230,7 +1892,6 @@
 <https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.recompute_identity_at_verification> .
 <https://globular.io/awareness#forbiddenFix/forbidden.fabricate_identity_from_secondary_observation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.fabricate_identity_from_secondary_observation> .
-<https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.vip_transition_cascade> .
 <https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.floating_address_used_as_durable_identity> .
 <https://globular.io/awareness#invariant/meta.write_creates_completion_obligation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.write_creates_completion_obligation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
@@ -2242,7 +1903,6 @@
 <https://globular.io/awareness#invariant/meta.write_creates_completion_obligation> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.write_blocking_record_without_cleanup> .
 <https://globular.io/awareness#forbiddenFix/forbidden.edge_triggered_cleanup_only_for_blocking_records> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.write_creates_completion_obligation> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.edge_triggered_cleanup_only_for_blocking_records> .
-<https://globular.io/awareness#invariant/meta.write_creates_completion_obligation> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
 <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> <http://www.w3.org/2000/01/rdf-schema#label> "Half-done must never look done — intermediate state must not satisfy completeness predicates" .
@@ -2259,7 +1919,6 @@
 <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
 <https://globular.io/awareness#forbiddenFix/forbidden.silent_default_in_state_dispatch> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.silent_default_in_state_dispatch> .
-<https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
 <https://globular.io/awareness#invariant/meta.critical_path_no_non_critical_dependency> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.critical_path_no_non_critical_dependency> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.critical_path_no_non_critical_dependency> <http://www.w3.org/2000/01/rdf-schema#label> "The critical path must not depend on non-critical services — a dependency you don't need will kill you on the recovery path" .
@@ -2300,7 +1959,6 @@
 <https://globular.io/awareness#invariant/meta.circular_dependency_must_have_break_glass> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.hot_deploy_local_binary_as_break_glass> .
 <https://globular.io/awareness#forbiddenFix/forbidden.bypass_cycle_with_direct_storage_write> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.circular_dependency_must_have_break_glass> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.bypass_cycle_with_direct_storage_write> .
-<https://globular.io/awareness#invariant/meta.circular_dependency_must_have_break_glass> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.vip_transition_cascade> .
 <https://globular.io/awareness#invariant/meta.failure_response_must_contract_not_amplify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.failure_response_must_contract_not_amplify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.failure_response_must_contract_not_amplify> <http://www.w3.org/2000/01/rdf-schema#label> "Failure response must contract, not amplify — retry, re-enqueue, and re-emit must be bounded, or the response becomes the outage" .
@@ -2392,15 +2050,10 @@
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Frelease_runtime_convergence.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> .
-<https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Finstalled_state_runtime_mismatch.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Finstalled_state_runtime_mismatch.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.unknown_as_healthy> .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestStatusRollup_UnknownSubsystem_NotGreen> .
 <https://globular.io/awareness#test/TestCollectorGap_ProducesUnknown_NotHealthy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestCollectorGap_ProducesUnknown_NotHealthy> .
-<https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.partial_failure_hidden_by_global_green> .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.missing_inventory_misclassified_as_down> .
 <https://globular.io/awareness#invariant/state.unknown_must_not_default_to_healthy> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.authority_must_express_uncertainty> .
@@ -2413,7 +2066,6 @@
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.partial_snapshot_false_quorum_loss> .
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestAbsentRecord_ClassifiedAsUnknown_NotKnownBad> .
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestPartialSnapshot_NoCritical_WhenOnlyUnknown> .
-<https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.missing_inventory_misclassified_as_down> .
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -2421,8 +2073,6 @@
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fstate.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fstate.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> .
 <https://globular.io/awareness#forbiddenFix/forbidden.vip_as_node_identity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.vip_as_node_identity> .
 <https://globular.io/awareness#forbiddenFix/hardcode_node_to_pool_mapping_to_avoid_filter> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
@@ -2432,7 +2082,6 @@
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestStableIP_ExcludesVIP> .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestEtcdAdvertiseURL_UsesStableIP_NotVIP> .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestScyllaHosts_ExcludeVIP> .
-<https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.vip_transition_cascade> .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.floating_address_used_as_durable_identity> .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> .
 <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -2440,11 +2089,6 @@
 <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fworkflow_server%2Fexecutor.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fworkflow_server%2Fexecutor.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fworkflow_server%2Fexecutor.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> .
-<https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> .
 <https://globular.io/awareness#forbiddenFix/forbidden.dispatch_as_success> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.dispatch_as_success> .
 <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.optimistic_destructive_success> .
@@ -2496,7 +2140,6 @@
 <https://globular.io/awareness#invariant/meta.end_to_end_check_is_the_only_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> .
 <https://globular.io/awareness#invariant/meta.end_to_end_check_is_the_only_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.assertions_must_carry_their_scope> .
 <https://globular.io/awareness#invariant/meta.end_to_end_check_is_the_only_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> .
-<https://globular.io/awareness#invariant/meta.end_to_end_check_is_the_only_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/cluster_doctor.is_the_authority_for_health_state_queries> .
 <https://globular.io/awareness#invariant/meta.early_consolidation_ossifies_uncertainty> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.early_consolidation_ossifies_uncertainty> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.early_consolidation_ossifies_uncertainty> <http://www.w3.org/2000/01/rdf-schema#label> "Code that crystallizes before its true shape is understood becomes cement around its bug" .
@@ -2521,7 +2164,6 @@
 <https://globular.io/awareness#invariant/meta.bad_path_must_make_progress> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.circuit_breaker_without_escalation> .
 <https://globular.io/awareness#forbiddenFix/forbidden.pending_state_without_timeout_to_verdict> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.bad_path_must_make_progress> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.pending_state_without_timeout_to_verdict> .
-<https://globular.io/awareness#invariant/meta.bad_path_must_make_progress> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/workflow.abandoned_defer_never_retried> .
 <https://globular.io/awareness#invariant/meta.bad_path_must_make_progress> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.failure_response_must_contract_not_amplify> .
 <https://globular.io/awareness#invariant/meta.bad_path_must_make_progress> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.write_creates_completion_obligation> .
 <https://globular.io/awareness#invariant/meta.bad_path_must_make_progress> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> .
@@ -2538,7 +2180,6 @@
 <https://globular.io/awareness#forbiddenFix/forbidden.cluster_state_mutation_on_single_timeout> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.timeout_is_a_decision_not_a_truth> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.cluster_state_mutation_on_single_timeout> .
 <https://globular.io/awareness#invariant/meta.timeout_is_a_decision_not_a_truth> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.missing_inventory_misclassified_as_down> .
-<https://globular.io/awareness#invariant/meta.timeout_is_a_decision_not_a_truth> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.objectstore_partial_snapshot> .
 <https://globular.io/awareness#invariant/meta.timeout_is_a_decision_not_a_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> .
 <https://globular.io/awareness#invariant/meta.timeout_is_a_decision_not_a_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.authority_must_express_uncertainty> .
 <https://globular.io/awareness#invariant/meta.timeout_is_a_decision_not_a_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.connection_errors_must_not_be_absorbed> .
@@ -2572,7 +2213,6 @@
 <https://globular.io/awareness#invariant/meta.topology_change_is_a_first_class_event> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.treat_stable_topology_as_invariant> .
 <https://globular.io/awareness#forbiddenFix/forbidden.mutate_topology_without_emitting_event> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.topology_change_is_a_first_class_event> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.mutate_topology_without_emitting_event> .
-<https://globular.io/awareness#invariant/meta.topology_change_is_a_first_class_event> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.globular.vip_transition_cascade> .
 <https://globular.io/awareness#invariant/meta.topology_change_is_a_first_class_event> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.connection_errors_must_not_be_absorbed> .
 <https://globular.io/awareness#invariant/meta.topology_change_is_a_first_class_event> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.bounded_staleness_must_be_named_not_assumed> .
 <https://globular.io/awareness#invariant/meta.topology_change_is_a_first_class_event> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.binding_outlives_evidence_until_invalidated> .
@@ -2868,8 +2508,8 @@
 <https://globular.io/awareness#invariant/meta.adoption_requires_running_existing_systems_unchanged> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.adoption_requires_running_existing_systems_unchanged> <https://globular.io/awareness#status> "candidate" .
 <https://globular.io/awareness#invariant/meta.adoption_requires_running_existing_systems_unchanged> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#forbiddenFix/forbidden.feature_with_only_globular_native_mode> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
-<https://globular.io/awareness#invariant/meta.adoption_requires_running_existing_systems_unchanged> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.feature_with_only_globular_native_mode> .
+<https://globular.io/awareness#forbiddenFix/forbidden.feature_with_only_platform_native_mode> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#invariant/meta.adoption_requires_running_existing_systems_unchanged> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.feature_with_only_platform_native_mode> .
 <https://globular.io/awareness#forbiddenFix/forbidden.migration_path_deferred_to_documentation_phase> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#invariant/meta.adoption_requires_running_existing_systems_unchanged> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.migration_path_deferred_to_documentation_phase> .
 <https://globular.io/awareness#forbiddenFix/forbidden.architectural_superiority_justifies_rewrite_requirement> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
@@ -2977,9 +2617,6 @@
 <https://globular.io/awareness#invariant/meta.ui.screen_claim_must_bind_to_authority> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.screen_claim_must_bind_to_authority> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.screen_claim_must_bind_to_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.screen_claim_must_bind_to_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.visible_state_requires_authority> .
-<https://globular.io/awareness#invariant/meta.ui.screen_claim_must_bind_to_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.data_holder_is_cache_not_authority> .
-<https://globular.io/awareness#invariant/meta.ui.screen_claim_must_bind_to_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.success_requires_authoritative_confirmation> .
 <https://globular.io/awareness#invariant/meta.ui.screen_claim_must_bind_to_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> .
 <https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
@@ -2987,8 +2624,6 @@
 <https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.empty_loading_unknown_failed_are_distinct> .
-<https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.status_freshness_must_be_surfaced> .
 <https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.authority_must_express_uncertainty> .
 <https://globular.io/awareness#invariant/meta.ui.state_certainty_must_be_visually_distinct> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.fallback_must_degrade_semantics> .
 <https://globular.io/awareness#invariant/meta.ui.same_truth_same_language> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -3004,25 +2639,18 @@
 <https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.action_requires_permission_contract> .
-<https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.dangerous_warning_must_remain_visible> .
-<https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.form_submit_must_be_idempotent_or_singleflight> .
 <https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <http://www.w3.org/2000/01/rdf-schema#label> "Failure is when the screen matters most — errors must preserve context and offer a path, never blank the operator's world" .
 <https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.error_boundary_must_preserve_diagnostic_context> .
-<https://globular.io/awareness#invariant/meta.ui.failure_must_preserve_diagnostic_context> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.partial_update_preserves_screen_context> .
 <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <http://www.w3.org/2000/01/rdf-schema#label> "Operational claims carry their provenance — source, node, generation, and version are shown, not remembered" .
 <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.status_freshness_must_be_surfaced> .
-<https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.floating_identity_must_not_be_hidden> .
 <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.assertions_must_carry_their_scope> .
 <https://globular.io/awareness#invariant/meta.ui.meaning_must_survive_presentation_loss> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.meaning_must_survive_presentation_loss> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
@@ -3030,24 +2658,18 @@
 <https://globular.io/awareness#invariant/meta.ui.meaning_must_survive_presentation_loss> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.meaning_must_survive_presentation_loss> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.meaning_must_survive_presentation_loss> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.meaning_must_survive_presentation_loss> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.accessibility_must_preserve_operational_meaning> .
-<https://globular.io/awareness#invariant/meta.ui.meaning_must_survive_presentation_loss> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.dangerous_warning_must_remain_visible> .
 <https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <http://www.w3.org/2000/01/rdf-schema#label> "Decoration must not impersonate authority — cosmetic elements and generated prose stay visually subordinate to authoritative state" .
 <https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.ai_text_must_not_invent_state> .
-<https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.visible_state_requires_authority> .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <http://www.w3.org/2000/01/rdf-schema#label> "Simplicity must not hide operational truth — a clean lie is worse than a messy truth" .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.status_freshness_must_be_surfaced> .
-<https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.floating_identity_must_not_be_hidden> .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.ui.provenance_over_recall> .
 <https://globular.io/awareness#invariant/meta.ui.simplicity_must_not_hide_operational_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.structure_must_not_be_stripped_in_projection> .
 <https://globular.io/awareness#invariant/meta.ui.operator_must_remain_in_control> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -3056,7 +2678,6 @@
 <https://globular.io/awareness#invariant/meta.ui.operator_must_remain_in_control> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.operator_must_remain_in_control> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.operator_must_remain_in_control> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.operator_must_remain_in_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.partial_update_preserves_screen_context> .
 <https://globular.io/awareness#invariant/meta.ui.operator_must_remain_in_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> .
 <https://globular.io/awareness#invariant/meta.ui.operator_must_remain_in_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.state_mutations_must_be_durably_committed_before_side_effects> .
 <https://globular.io/awareness#invariant/meta.ui.control_must_be_reversible_or_guarded> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -3065,8 +2686,6 @@
 <https://globular.io/awareness#invariant/meta.ui.control_must_be_reversible_or_guarded> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.control_must_be_reversible_or_guarded> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.control_must_be_reversible_or_guarded> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.control_must_be_reversible_or_guarded> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.dangerous_warning_must_remain_visible> .
-<https://globular.io/awareness#invariant/meta.ui.control_must_be_reversible_or_guarded> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.form_submit_must_be_idempotent_or_singleflight> .
 <https://globular.io/awareness#invariant/meta.ui.control_must_be_reversible_or_guarded> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.ui.destructive_action_requires_confirmed_authority> .
 <https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
@@ -3074,7 +2693,6 @@
 <https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.success_requires_authoritative_confirmation> .
 <https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.write_creates_completion_obligation> .
 <https://globular.io/awareness#invariant/meta.ui.workflow_must_yield_closure> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> .
 <https://globular.io/awareness#invariant/meta.ui.ai_assistance_must_be_explainable_and_bounded> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -3083,7 +2701,6 @@
 <https://globular.io/awareness#invariant/meta.ui.ai_assistance_must_be_explainable_and_bounded> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.ui.ai_assistance_must_be_explainable_and_bounded> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.ai_assistance_must_be_explainable_and_bounded> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.ai_assistance_must_be_explainable_and_bounded> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.ai_text_must_not_invent_state> .
 <https://globular.io/awareness#invariant/meta.ui.ai_assistance_must_be_explainable_and_bounded> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.ui.decoration_must_not_impersonate_authority> .
 <https://globular.io/awareness#invariant/meta.ui.ai_assistance_must_be_explainable_and_bounded> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.authority_must_express_uncertainty> .
 <https://globular.io/awareness#invariant/meta.ui.task_path_must_match_operator_goal> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -3092,14 +2709,12 @@
 <https://globular.io/awareness#invariant/meta.ui.task_path_must_match_operator_goal> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.ui.task_path_must_match_operator_goal> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.task_path_must_match_operator_goal> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.task_path_must_match_operator_goal> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.navigation_state_must_be_shareable_when_operationally_relevant> .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <http://www.w3.org/2000/01/rdf-schema#label> "Notification volume must match operator capacity — an alarm flood is a perception outage" .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
-<https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/ui.dangerous_warning_must_remain_visible> .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.diagnostic_output_must_be_bounded> .
 <https://globular.io/awareness#invariant/meta.ui.notification_volume_must_match_operator_capacity> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.failure_response_must_contract_not_amplify> .
 <https://globular.io/awareness#invariant/meta.ui.interactive_element_must_have_stable_identity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
@@ -3576,7 +3191,6 @@
 <https://globular.io/awareness#invariant/meta.workflow.unknown_must_not_be_invented> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.workflow.unknown_must_not_be_invented> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
 <https://globular.io/awareness#invariant/meta.workflow.unknown_must_not_be_invented> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.fail_safe_defaults_when_authority_is_uncertain> .
-<https://globular.io/awareness#invariant/meta.workflow.unknown_must_not_be_invented> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> .
 <https://globular.io/awareness#invariant/meta.workflow.projection_must_not_drive_progression> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.workflow.projection_must_not_drive_progression> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.workflow.projection_must_not_drive_progression> <http://www.w3.org/2000/01/rdf-schema#label> "Projections must never drive progression — UI/queue/CLI/log views observe, they do not advance the workflow" .
@@ -4104,161 +3718,6 @@
 <https://globular.io/awareness#invariant/awareness.briefing.sections_honor_domain_scope> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Fserver%2Fbriefing_scope_test.go:TestInScopeIntents_NoForeignLeak> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fbriefing_scope_test.go:TestBriefingScope_Precedence> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#invariant/awareness.briefing.sections_honor_domain_scope> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Fserver%2Fbriefing_scope_test.go:TestBriefingScope_Precedence> .
-<https://globular.io/awareness#invariant/backup_manager.scylla_registration_excludes_synthetic_markers> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/backup_manager.scylla_registration_excludes_synthetic_markers> <http://www.w3.org/2000/01/rdf-schema#label> "backup_manager scylla auto-registration counts only prefix-free clusters as registered" .
-<https://globular.io/awareness#invariant/backup_manager.scylla_registration_excludes_synthetic_markers> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/backup_manager.scylla_registration_excludes_synthetic_markers> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#invariant/backup_manager.scylla_registration_excludes_synthetic_markers> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fbackup_manager%2Fbackup_manager_server%2Fpreflight.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fbackup_manager%2Fbackup_manager_server%2Fpreflight.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/backup_manager.scylla_registration_excludes_synthetic_markers> .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <http://www.w3.org/2000/01/rdf-schema#label> "Control plane must not depend on the data-plane mesh it manages" .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fserver.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fserver.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Fserver.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fservice_discovery.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fservice_discovery.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fservice_discovery.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> .
-<https://globular.io/awareness#sourceFile/golang%2Fglobular_client%2Fclients.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fglobular_client%2Fclients.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fglobular_client%2Fclients.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> .
-<https://globular.io/awareness#sourceFile/golang%2Fevent%2Fevent_client%2Fevent_client.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fevent%2Fevent_client%2Fevent_client.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fevent%2Fevent_client%2Fevent_client.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <http://www.w3.org/2000/01/rdf-schema#comment> "use the public :443 gateway for control-plane mutation" .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <http://www.w3.org/2000/01/rdf-schema#comment> "use an Envoy/service-mesh route for a controller or node-agent authority RPC" .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <http://www.w3.org/2000/01/rdf-schema#comment> "use a DNS name whose resolution depends on the managed mesh being healthy" .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <http://www.w3.org/2000/01/rdf-schema#comment> "use a load-balanced endpoint when the operation targets one known controller or one known node" .
-<https://globular.io/awareness#invariant/invariant.control_plane_must_not_depend_on_the_data_plane_mesh_it_mana> <http://www.w3.org/2000/01/rdf-schema#comment> "fall back from a direct control address to a mesh route without explicit degraded-mode evidence" .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <http://www.w3.org/2000/01/rdf-schema#label> "Control-plane truth must be read from the owner RPC, not projected service state" .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fservice_discovery.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fservice_discovery.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Freconciler.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Freconciler.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Freconciler.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <http://www.w3.org/2000/01/rdf-schema#comment> "infer admission from service config (\"config says running, therefore node is admitted\")" .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <http://www.w3.org/2000/01/rdf-schema#comment> "infer topology validity from DNS (\"DNS resolves, therefore cluster topology is valid\")" .
-<https://globular.io/awareness#invariant/invariant.control_plane_truth_from_owner_not_projection> <http://www.w3.org/2000/01/rdf-schema#comment> "infer desired state from Envoy (\"Envoy has the endpoint, therefore service desired state is correct\")" .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <http://www.w3.org/2000/01/rdf-schema#label> "Absence of desired state is not permission to destroy" .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Freconciler.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Freconciler.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fapply_package_release.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fapply_package_release.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fapply_package_release.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <http://www.w3.org/2000/01/rdf-schema#comment> "stop/uninstall/wipe/remove-peer/delete-DNS/kill because desired state is empty or unavailable" .
-<https://globular.io/awareness#invariant/invariant.absence_of_desired_state_is_not_permission_to_destroy> <http://www.w3.org/2000/01/rdf-schema#comment> "treat generation-zero or missing desired state as an explicit removal signal" .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <http://www.w3.org/2000/01/rdf-schema#label> "DNS and hosts files are reachability hints, not identity authority" .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fservice_discovery.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fconfig%2Fservice_discovery.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <http://www.w3.org/2000/01/rdf-schema#comment> "treat name resolution as admission (\"hostname resolves, therefore this is the admitted node\")" .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <http://www.w3.org/2000/01/rdf-schema#comment> "treat domain suffix as cluster membership (\"same domain suffix, therefore same cluster\")" .
-<https://globular.io/awareness#invariant/invariant.dns_and_hosts_are_reachability_not_identity> <http://www.w3.org/2000/01/rdf-schema#comment> "treat DNS challenge success as controller identity (\"DNS challenge passed, therefore controller identity is valid\")" .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <http://www.w3.org/2000/01/rdf-schema#label> "Health checks must distinguish unavailable, unhealthy, unauthorized, and unknown" .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fcertificate_health.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fcertificate_health.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fcertificate_health.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <http://www.w3.org/2000/01/rdf-schema#comment> "collapse a probe error to a destructive action (if err != nil { remove peer }) without classification" .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <http://www.w3.org/2000/01/rdf-schema#comment> "treat context-deadline-exceeded as membership deletion" .
-<https://globular.io/awareness#invariant/invariant.health_probe_must_classify_not_collapse_to_boolean> <http://www.w3.org/2000/01/rdf-schema#comment> "treat a failed probe as uninstall/stop" .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <http://www.w3.org/2000/01/rdf-schema#label> "Process state is observation, not desired truth" .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fapply_package_release.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fapply_package_release.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fheartbeat.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <http://www.w3.org/2000/01/rdf-schema#comment> "treat a running process as install correctness (\"process exists, so service is installed correctly\")" .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <http://www.w3.org/2000/01/rdf-schema#comment> "treat an absent process as a removal decision (\"process absent, so desired says removed\")" .
-<https://globular.io/awareness#invariant/invariant.process_state_is_observation_not_desired_truth> <http://www.w3.org/2000/01/rdf-schema#comment> "treat systemd active as topology health (\"systemd active, so topology is healthy\")" .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <http://www.w3.org/2000/01/rdf-schema#label> "Join must be a transaction, not a collection of side effects" .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Freconciler.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_controller%2Fcluster_controller_server%2Freconciler.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fapply_package_release.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Fapply_package_release.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <http://www.w3.org/2000/01/rdf-schema#comment> "leave a peer key saved but the node not admitted" .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <http://www.w3.org/2000/01/rdf-schema#comment> "admit a peer without bumping topology generation" .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <http://www.w3.org/2000/01/rdf-schema#comment> "report a service installed while the join transaction failed" .
-<https://globular.io/awareness#invariant/invariant.join_must_be_a_transaction_not_side_effects> <http://www.w3.org/2000/01/rdf-schema#comment> "update DNS for a node that was rejected" .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <http://www.w3.org/2000/01/rdf-schema#label> "Package identity fields have exactly one authority each; no parallel mints" .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <https://globular.io/awareness#severity> "critical" .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#sourceFile/scripts%2Fbuild-release.sh> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/scripts%2Fbuild-release.sh> .
-<https://globular.io/awareness#sourceFile/scripts%2Fbuild-release.sh> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> .
-<https://globular.io/awareness#sourceFile/golang%2Fbuild%2Fgen-version.sh> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fbuild%2Fgen-version.sh> .
-<https://globular.io/awareness#sourceFile/golang%2Fbuild%2Fgen-version.sh> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> .
-<https://globular.io/awareness#sourceFile/scripts%2Fgen-package-versions-from-source.sh> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/scripts%2Fgen-package-versions-from-source.sh> .
-<https://globular.io/awareness#sourceFile/scripts%2Fgen-package-versions-from-source.sh> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/package.identity_has_single_repository_authority> .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <http://www.w3.org/2000/01/rdf-schema#label> "build_id is allocated only by repository admission; empty before admission" .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <https://globular.io/awareness#severity> "critical" .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Frelease_index.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Frelease_index.go> .
-<https://globular.io/awareness#sourceFile/golang%2Frepository%2Frepository_server%2Frelease_index.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/scripts%2Fbuild-release.sh> .
-<https://globular.io/awareness#sourceFile/scripts%2Fbuild-release.sh> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <http://www.w3.org/2000/01/rdf-schema#comment> "minting build_id with uuid or any local generator in a build/release script" .
-<https://globular.io/awareness#invariant/package.build_id_allocated_only_by_repository_admission> <http://www.w3.org/2000/01/rdf-schema#comment> "pre-filling build_id in release-index.json or package.json before admission" .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <http://www.w3.org/2000/01/rdf-schema#label> "build_number is display-only; never a convergence or drift dimension" .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <https://globular.io/awareness#severity> "high" .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finternal%2Factions%2Fverify_integrity.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finternal%2Factions%2Fverify_integrity.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fnode_agent%2Fnode_agent_server%2Finternal%2Factions%2Fverify_integrity.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <http://www.w3.org/2000/01/rdf-schema#comment> "re-adding a doctor/convergence check that compares build_number as drift" .
-<https://globular.io/awareness#invariant/package.build_number_is_display_only_not_convergence_identity> <http://www.w3.org/2000/01/rdf-schema#comment> "using build_number as a tiebreaker in artifact resolution" .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <http://www.w3.org/2000/01/rdf-schema#label> "Join bundles are served from a stored release artifact, not reassembled per request" .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <https://globular.io/awareness#severity> "high" .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Fcluster%2Fjoin_bundle.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Fcluster%2Fjoin_bundle.go> .
-<https://globular.io/awareness#sourceFile/internal%2Fgateway%2Fhandlers%2Fcluster%2Fjoin_bundle.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <http://www.w3.org/2000/01/rdf-schema#comment> "reassembling the join bundle from live disk on each request" .
-<https://globular.io/awareness#invariant/release.bundle_serving_preserves_artifact_provenance> <http://www.w3.org/2000/01/rdf-schema#comment> "computing the served checksum from just-assembled bytes rather than the stored artifact" .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <http://www.w3.org/2000/01/rdf-schema#label> "Expected service/unit state follows assigned profile, not a hardcoded every-node assumption" .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <https://globular.io/awareness#severity> "high" .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <https://globular.io/awareness#status> "active" .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fnode_units_running.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fnode_units_running.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fcluster_doctor%2Fcluster_doctor_server%2Frules%2Fnode_units_running.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <http://www.w3.org/2000/01/rdf-schema#comment> "expecting a unit active on every node regardless of assigned profile" .
-<https://globular.io/awareness#invariant/doctor.expected_services_follow_profile_not_local_assumption> <http://www.w3.org/2000/01/rdf-schema#comment> "gating dns/needs_scylla services on a LOCAL scylla listener on non-storage nodes" .
 <https://globular.io/awareness#test/TestDestructiveTestGate_Fixtures> <http://www.w3.org/2000/01/rdf-schema#label> "Destructive tests must be double-gated — build tag AND explicit destructive opt-in env var" .
 <https://globular.io/awareness#test/TestDestructiveTestGate_Fixtures> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/TestDestructiveTestGate_Fixtures> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/ci.destructive_test_must_be_double_gated> .
@@ -4316,9 +3775,9 @@
 <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fimplementation_patterns.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#test/golang%2Fserver%2Fpreflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fpreflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fbriefing.go> .
 <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fbriefing.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#test/golang%2Fserver%2Fpreflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions> .
-<https://globular.io/awareness#seedBuild/sha256-144fc1249a62b43ba549c31eca4f09ad4013bc91bf0a9ba09631cd6c29b80132> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-144fc1249a62b43ba549c31eca4f09ad4013bc91bf0a9ba09631cd6c29b80132> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 144fc1249a62" .
-<https://globular.io/awareness#seedBuild/sha256-144fc1249a62b43ba549c31eca4f09ad4013bc91bf0a9ba09631cd6c29b80132> <https://globular.io/awareness#seedDigestSha256> "144fc1249a62b43ba549c31eca4f09ad4013bc91bf0a9ba09631cd6c29b80132" .
-<https://globular.io/awareness#seedBuild/sha256-144fc1249a62b43ba549c31eca4f09ad4013bc91bf0a9ba09631cd6c29b80132> <https://globular.io/awareness#seedTripleCount> "4324" .
-<https://globular.io/awareness#seedBuild/sha256-144fc1249a62b43ba549c31eca4f09ad4013bc91bf0a9ba09631cd6c29b80132> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-144fc1249a62b43ba549c31eca4f09ad4013bc91bf0a9ba09631cd6c29b80132> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 703f05169ff8" .
+<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#seedDigestSha256> "703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39" .
+<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#seedTripleCount> "3783" .
+<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .

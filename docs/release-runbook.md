@@ -113,7 +113,7 @@ trust from the published root itself:
 ./bin/sensei governance publish trust-root \
   --signing-key /secure/vendor/signing-key.json \
   --out /secure/vendor/trusted-publishers.json \
-  --display-name "Globular Core"
+  --display-name "Sensei Core"
 
 ./bin/sensei governance publish build \
   --input docs/awareness \
@@ -121,7 +121,7 @@ trust from the published root itself:
   --pack-id core.meta-principles \
   --pack-version 2026.06.25 \
   --publisher-id core@globular.io \
-  --publisher-name "Globular Core" \
+  --publisher-name "Sensei Core" \
   --issued-at 2026-06-25T12:00:00Z \
   --min-awg-version 0.0.0 \
   --key-id core-2026-q3 \
@@ -158,9 +158,9 @@ release-ready.
 
 ### 4. Deploy package
 
-The CI release tarball is NOT in Globular publisher-format — it
+The CI release tarball is NOT in publisher-format — it
 has `metadata/<name>/package.json` nested, the publisher needs
-`package.json` at the archive root. Repackage via `globular pkg
+`package.json` at the archive root. Repackage via `<pkg-tool>
 build` (see existing feedback note `ci_release_tgz_not_publish_format`):
 
 ```bash
@@ -171,7 +171,7 @@ gh release download v<X.Y.Z> --repo globulario/sensei \
 mkdir -p extracted
 tar -xzf awareness-graph_<X.Y.Z>_linux_amd64.tgz -C extracted
 
-globular pkg build \
+<pkg-tool> build \
   --spec extracted/specs/awareness_graph_service.yaml \
   --root extracted \
   --version <X.Y.Z> \
@@ -180,13 +180,13 @@ globular pkg build \
   --out /tmp/aw-pkg<XYZ>/pkgout \
   --skip-missing-config=true --skip-missing-systemd=true
 
-globular pkg publish \
+<pkg-tool> publish \
   --file /tmp/aw-pkg<XYZ>/pkgout/awareness-graph_<X.Y.Z>_linux_amd64.tgz \
   --repository repository.globular.internal \
-  --token "$(cat ~/.config/globular/token)"
+  --token "$(cat ~/.config/example/token)"
 
 globular services desired set awareness-graph <X.Y.Z> \
-  --token "$(cat ~/.config/globular/token)"
+  --token "$(cat ~/.config/example/token)"
 ```
 
 ### 5. Confirm binary / config version

@@ -48,13 +48,13 @@ or `./scripts/install.sh`, both repos cloned as siblings.
 ```
 ~/code/
   awareness-graph/   ← this repo
-  services/          ← globulario/services
+  services/          ← optional sibling repo (combined build)
 ```
 
 **Step 1 — Start Oxigraph:**
 
 ```bash
-cd awareness-graph
+cd sensei
 make oxigraph
 ```
 
@@ -131,7 +131,7 @@ go run ./cmd/loadnt \
 Use this when you have added annotations, updated YAML, or added new services
 to the scan list, and need to push a fresh graph to a running cluster node.
 
-Both `globular-oxigraph.service` and `globular-awareness-graph.service` are
+Both `sensei-oxigraph.service` and `sensei-awareness-graph.service` are
 already running on the target node.
 
 ### Step 1 — Regenerate the graph from source
@@ -182,11 +182,11 @@ redeploy so the embedded seed is also current (used on fresh-install auto-seed).
 go build -o ./bin/awareness-graph ./golang/server
 ```
 
-To deploy via the Globular package pipeline:
+To deploy via the package pipeline:
 ```bash
 make service-dist
 make service-package
-globular pkg publish ...
+<pkg-tool> publish ...
 ```
 
 ### Step 4 — Restart the service (optional)
@@ -197,7 +197,7 @@ also want to update the binary.
 
 If you do restart:
 ```bash
-systemctl restart globular-awareness-graph.service
+systemctl restart sensei-awareness-graph.service
 ```
 
 The service will detect that Oxigraph already has triples and skip the embedded
@@ -229,8 +229,8 @@ accepting gRPC connections.
 
 **Sequence on a fresh node:**
 
-1. Day-0 script starts `globular-oxigraph.service` (empty store).
-2. Day-0 script starts `globular-awareness-graph.service`.
+1. Day-0 script starts `sensei-oxigraph.service` (empty store).
+2. Day-0 script starts `sensei-awareness-graph.service`.
 3. The server checks the store → zero triples → loads `awareness.nt` from
    embedded bytes (up to 90-second timeout).
 4. The service logs `seed loaded successfully` and begins accepting RPCs.
@@ -256,7 +256,7 @@ Place annotations as the first lines of the file, before the `package`
 declaration:
 
 ```go
-// @awareness namespace=globular.platform
+// @awareness namespace=example.platform
 // @awareness component=platform_node_agent.install
 // @awareness file_role=package_install_and_convergence_evidence_emission
 // @awareness implements=globular.platform:intent.installed_state.owned_by_node_agent
@@ -471,7 +471,7 @@ degraded status means either:
 
 Check the service log:
 ```bash
-journalctl -u globular-awareness-graph.service -n 50
+journalctl -u sensei-awareness-graph.service -n 50
 ```
 
 Verify Oxigraph is healthy:

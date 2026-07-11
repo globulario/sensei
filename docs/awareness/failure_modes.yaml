@@ -191,20 +191,20 @@ failure_modes:
     required_tests:
       - golang/extractor/importgraph/golang_test.go:TestGoImportGraph_ModuleInSubdirEmitsEdges
     evidence:
-      - awg bootstrap --repo ../services (HEAD 0015c406) produced go_import_graph.yaml with 75 components and 0 depends_on edges; services has no root go.mod (module is golang/go.mod = github.com/globulario/services/golang)
+      - sensei bootstrap --repo <sibling-module> produced go_import_graph.yaml with components but 0 depends_on edges when the target repo has no root go.mod (its module lives in a subdir, e.g. golang/go.mod)
       - 'root cause: golang.go:24 readGoModule(root) reads only root/go.mod; golang.go:79 requires module!='''' to mark an import internal'
     contract: import-graph extraction must infer inter-component dependsOn edges from internal imports; the module path must be resolved even when go.mod lives in a subdirectory (e.g. golang/go.mod), not only at the repo root
   - id: failure.importgraph.go_dangling_dependson_edge_to_unscanned_package
     title: import-graph emits a dangling depends_on edge to a generated-only (unscanned) package
     severity: warning
-    description: 'classify() added an inferred internal dependsOn for any import resolving to a component dir, even when that dir had no scanned source files (all .pb.go/_generated.go, excluded). The target component node is never emitted, leaving a dangling edge (observed: component.golang.cluster_controller -> component.golang.authpb). Fix: pass the set of components that actually have scanned files into classify and add the inferred edge only when the target is one of them; classifier-rule edges are left untouched.'
+    description: 'classify() added an inferred internal dependsOn for any import resolving to a component dir, even when that dir had no scanned source files (all .pb.go/_generated.go, excluded). The target component node is never emitted, leaving a dangling edge (observed: an edge to a proto-only package whose sole files are generated *.pb.go). Fix: pass the set of components that actually have scanned files into classify and add the inferred edge only when the target is one of them; classifier-rule edges are left untouched.'
     protects:
       files:
         - golang/extractor/importgraph/importgraph.go
     required_tests:
       - golang/extractor/importgraph/golang_test.go:TestGoImportGraph_DropsDanglingEdgeToGeneratedOnlyPackage
     evidence:
-      - 'awg bootstrap --repo ../services: 1 dangling target component.golang.authpb among 387 edges; golang/authpb contains only globular_auth.pb.go'
+      - 'sensei bootstrap --repo <sibling-module>: a dangling target edge to a package that contains only generated *.pb.go stubs (no scannable source)'
     contract: an inferred component depends_on edge must target a component that exists in the emitted graph; a package whose only files are generated/excluded (e.g. .pb.go-only proto) rolls up to no component and must not be an edge target
   - id: failure.rebuild.authoredin_records_per_run_temp_path
     title: rebuild bakes a per-run temp path into authoredIn, so embeddata-freshness can never pass
@@ -218,34 +218,3 @@ failure_modes:
     evidence:
       - 'awg audit embeddata-freshness FAIL: component.scripts authoredIn /tmp/awg-services-generated-2297933849/components.yaml then .../492872674/... on the next run'
     contract: provenance (authoredIn) for staged/filtered generated inputs must be a stable repo-relative path; a per-run absolute temp path makes embeddata-freshness / 'awg rebuild --check' non-deterministic and permanently red
-  - id: backup_manager.scylla_registration_skipped_on_synthetic_marker
-    title: scylla cluster never registered because reachable-but-unregistered ScyllaDB is mistaken for registered
-    description: 'On day-0/day-1, backup_manager.ensureScyllaRegistered checks whether a scylla-manager cluster is registered. detectScyllaClusters returns synthetic ''native:<name>'' + ''scylla_host:<ip>'' markers when ScyllaDB is reachable but unregistered. The managed-count loop only excluded ''native:'', so ''scylla_host:'' was counted as a registered cluster: the path concluded registration was done, skipped ''sctool cluster add'', and returned. Result: cluster stays unregistered (cluster_count=0), backup/repair/restore unavailable, doctor raises scylla_manager.cluster_registered. Compounded by the registration being a one-shot at startup with no retry across the node-agent agent-token/port reconcile window.'
-    protects:
-      files:
-        - golang/backup_manager/backup_manager_server/preflight.go
-    related_invariants:
-      - backup_manager.scylla_registration_excludes_synthetic_markers
-    forbidden_fix:
-      - count detectScyllaClusters synthetic markers (native:/scylla_host:) as a registered cluster, or add the required profile / mark registered without running 'sctool cluster add'
-    evidence:
-      - 'live day-0 install 2026-07-02: ensureScyllaRegistered logged only auto-detect then went silent; sctool cluster list empty; doctor cluster_count=0'
-    contract: backup_manager must register an unregistered-but-reachable ScyllaDB via 'sctool cluster add'; synthetic detection markers are not a registration
-  - id: build.dual_systemd_unit_templates_drift
-    title: Two systemd-unit template generators drift; a fix lands in one and still ships broken via the other
-    severity: high
-    description: 'Scar 2026-07-08: the needs_scylla local-:9042 ExecStartPre deadlock (dns/rbac/workflow/ai_memory failing forever on core-only nodes) was fixed in specgen.go but the release bundle kept shipping the old gate from specgen.sh until both were aligned. needs_scylla membership also diverges (specgen.sh includes resource; service_catalog.yaml does not).'
-    protects:
-      files:
-        - golang/globularcli/tools/specgen/specgen.sh
-        - golang/deploy/specgen.go
-    required_tests:
-      - golang/deploy/deploy_test.go:TestGenerateSpec_MatchesExisting
-    forbidden_fix:
-      - fixing unit content in only one of the two template sources
-      - deleting TestGenerateSpec_MatchesExisting to silence the drift detector
-    evidence:
-      - golang/globularcli/tools/specgen/specgen.sh (scylla gate + Restart block aligned)
-      - golang/deploy/deploy_test.go TestGenerateSpec_MatchesExisting compares the two outputs
-      - 'regression (pending services-master): golang/deploy/specgen_unit_validator_test.go:TestGenerateSpec_ScyllaGateIsTopologyAware'
-    contract: There must be a single source of systemd unit content, or every unit-content change must be applied to BOTH generators and pinned by TestGenerateSpec_MatchesExisting. golang/deploy/specgen.go (deploy pipeline) and golang/globularcli/tools/specgen/specgen.sh (release-input regeneration, feeds shipped bundles) independently define the same unit content.

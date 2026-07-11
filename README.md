@@ -4,112 +4,165 @@
 
 <h1 align="center">Sensei</h1>
 
-<p align="center"><em>Architectural awareness for your AI coding agent.</em></p>
+<p align="center"><strong>Architectural memory for AI coding agents.</strong><br>
+<em>Give your agent the rules it must know before editing your code.</em></p>
 
 <p align="center">
   <a href="https://github.com/globulario/sensei/actions/workflows/ci.yml"><img src="https://github.com/globulario/sensei/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
-  <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.23+"></a>
+  <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.25+"></a>
+  <img src="https://img.shields.io/badge/runtime-standalone-success" alt="Standalone">
 </p>
 
-**Give your AI coding agent the project knowledge that currently lives only in your head.**
+Before your agent edits a file, Sensei tells it:
 
-AI agents write code well but lose the architecture. The rules that actually
-keep a large codebase alive — *this state comes from that authority, never
-infer it from the cache; this fix looks right but reintroduces last quarter's
-outage; this file is load-bearing, tread carefully* — are implicit. They live
-in senior engineers' heads and in commit archaeology. A fresh agent (or a new
-hire) can't see them, so it makes a reasonable-looking change that quietly
-violates one, and the codebase drifts a little further from its own design.
+- the **invariants** that govern it
+- the **failures** that happened there before
+- the **fixes it must not attempt**
+- the **tests** that prove the architecture still holds
 
-Sensei makes that knowledge **explicit and queryable**. You write your project's
-intent, invariants, failure modes, forbidden fixes, and architecture rules as
-small YAML files. Sensei compiles them into a graph and serves a simple question:
+Works with **Claude Code, Cursor, Codex, CI, and any MCP-compatible agent.**
+Local. Open source. Repository-owned.
 
-> *"What do I need to know before editing this file?"*
+---
 
-An agent asks that **before** it edits — and gets the rules that apply, in
-about two milliseconds.
+## See it in one command
+
+```bash
+git clone https://github.com/globulario/sensei.git
+cd sensei && ./scripts/install.sh && export PATH="$PWD/bin:$PATH"
+
+sensei demo
+```
 
 ```
-$ sensei briefing -file src/payment_processor.py -task "refactor mark_paid"
+Sensei demo — examples/payment-cold-start
 
-Direct invariants:
-- [critical] payments.paid_state_requires_processor_confirmation —
+  ✓ store started
+  ✓ awareness loaded (15 triples)
+  ✓ briefing server ready
+  ✓ briefing generated
+
+$ sensei briefing --file src/payment_processor.py
+
+Decision focus:
+- Respect: [critical] payments.paid_state_requires_processor_confirmation —
   An order records as paid only after processor confirmation, never from a local cache write
 ```
 
-### Three things that make it different
+`sensei demo` stands up the whole machine — the local store, the graph, the
+server — on throwaway ports, returns one real briefing, and cleans up. No config,
+no ports of yours touched. Run it on your own repo with `sensei demo --repo .`.
 
-- **You own the graph.** It's YAML in your repo. Not a SaaS, not a model's
-  hidden context — your knowledge, versioned with your code, yours to read and edit.
-- **It's tool-agnostic.** Sensei is a CLI + a local gRPC server. Use it from
-  Claude Code, Cursor, Codex, a CI step, or a plain shell. Nothing is locked
-  to one assistant.
-- **It runs standalone.** No cloud, no account, no Globular. One local store
-  (Oxigraph, fetched for you) and a binary you build. `-no-seed` keeps the
-  graph 100% yours.
+<p>
+✓&nbsp;Local &amp; repository-owned &nbsp;·&nbsp; ✓&nbsp;Apache&nbsp;2.0 &nbsp;·&nbsp; ✓&nbsp;No cloud account &nbsp;·&nbsp; ✓&nbsp;Runs standalone &nbsp;·&nbsp; ✓&nbsp;Tool-agnostic (CLI&nbsp;·&nbsp;gRPC&nbsp;·&nbsp;MCP) &nbsp;·&nbsp; ✓&nbsp;Cold-start smoke test in the box
+</p>
 
-> Sensei started inside [Globular](https://github.com/globulario), a distributed
-> platform, where these principles were validated against real production
-> incidents. It now runs on its own, for any codebase.
+## What changes when Sensei exists
 
-## Try it in 15 minutes
+**Without Sensei**
 
-Honest assumptions, Linux or macOS:
-- **Go 1.23+ is required** today for source builds. Linux `amd64` also has a prebuilt local runtime release bundle.
-- **Oxigraph** (the local store) is **fetched for you** by `./scripts/install.sh`. No Docker.
-- **Windows is not yet a validated path** (the enforcement hooks are bash). Coming next.
+> **Agent:** "I'll set `paid = true` when the callback arrives."
 
-```bash
-# 1. Install — builds sensei + server, fetches the oxigraph binary into bin/
-git clone https://github.com/globulario/sensei.git
-cd awareness-graph && ./scripts/install.sh
-export PATH="$PWD/bin:$PATH"
+A locally correct change. Also the exact shape of last quarter's incident.
 
-# Or on Linux amd64, download the prebuilt local runtime bundle:
-#   awg-local_<version>_linux_amd64.tgz
+**With Sensei** — the agent asks for a briefing first and gets back:
 
-# Recommended local runtime for actual use
-#   source-build checkout: bash ./scripts/install-awg-user-services.sh
-#   prebuilt bundle:       bash ./scripts/install-awg-user-services.sh --skip-build
-bash ./scripts/install-awg-user-services.sh
+```
+CRITICAL  payments.paid_state_requires_processor_confirmation
+  "paid" is money truth — it must come from the processor's confirmation,
+  never from a local cache or callback payload.
 
-# 2. Run the bundled demo (no setup — one rule, one file)
-cd examples/payment-cold-start
-sensei init                 # adds the 83-principle pack + hooks alongside the rule already here
-sensei serve -no-seed &     # local store + server; -no-seed = your rules only
-sensei build                # compile docs/awareness into the graph
-sensei briefing -file src/payment_processor.py -task "refactor mark_paid"
+Forbidden fix:
+  - trusting the local callback payload
+
+Required test:
+  - TestPaidStateRequiresVerifiedConfirmation
 ```
 
-You should see the `payments.paid_state_requires_processor_confirmation`
-invariant come back. That's the whole idea: the rule you wrote now reaches the
-agent before the edit. Full walkthrough of the demo: **[examples/payment-cold-start/](examples/payment-cold-start/)**.
+> **Agent:** "I need to verify the processor's confirmation before changing state."
 
-To do the same on **your** project: `cd` into it, `sensei init`, write your first
-rule in `docs/awareness/invariants.yaml`, then `sensei serve -no-seed & && sensei build`.
+That is the whole product: the rule that lived in a senior engineer's head now
+reaches the agent **before** the edit, in about two milliseconds.
 
-- **[QUICKSTART.md](QUICKSTART.md)** — the 15-minute guide, including the Claude Code hook wiring.
-- **[INSTALL.md](INSTALL.md)** — platforms, the Oxigraph dependency, and the supervised local runtime path.
-- **[docs/case-study-cold-start.md](docs/case-study-cold-start.md)** — the why, and the proof it runs on a clean machine.
-- **[docs/the-discipline.md](docs/the-discipline.md)** — the seven moves the tooling can't teach you. The practice, not the mechanics. Read this if you want Sensei to become *how you work*, not just a tool you run.
+## Why this exists
 
-## The problem
+Every codebase accumulates invisible rules — things that broke, got fixed, and
+now live only in someone's head or in commit archaeology: *this state comes from
+that authority, never the cache; this fix looks right but reintroduces last
+quarter's outage; this file is load-bearing.* AI agents write code well but
+can't see those rules, so they make reasonable-looking changes that quietly
+violate them, and the codebase drifts from its own design.
 
-Every codebase accumulates invisible rules — things that broke, got fixed, and now live only in someone's head. When an AI agent or a new developer makes a "simple fix" in that area, the rule gets violated. A release ships broken. A patch release follows.
+Sensei makes that knowledge **explicit and queryable**. You write your intent,
+invariants, failure modes, forbidden fixes, and architecture rules as small YAML
+files. Sensei compiles them into a graph and answers one question, before the
+edit: *"What do I need to know before editing this file?"*
 
-Sensei encodes these rules as a queryable graph and enforces consultation before edits.
+## Quick start (5 minutes)
 
-## What you write
+Linux or macOS. **Go 1.25+** for the source build; **Oxigraph** (the local store)
+is fetched for you — no Docker.
 
-Three YAML files encode your project's architectural knowledge:
+```bash
+# 1. Install — builds sensei + server, fetches oxigraph into bin/
+git clone https://github.com/globulario/sensei.git
+cd sensei
+./scripts/install.sh
+export PATH="$PWD/bin:$PATH"
 
-**invariants.yaml** — rules that must always hold:
+# 2. See a real briefing, end to end, in one command
+sensei demo
+
+# 3. Do it on your own project
+cd /path/to/your-repo
+sensei init                    # scaffold docs/awareness/ + agent hooks
+#   ... write one invariant (see "Protect your first file" below) ...
+sensei demo --repo .
+```
+
+More: **[QUICKSTART.md](QUICKSTART.md)** (the detailed walkthrough incl. Claude
+Code hooks) · **[INSTALL.md](INSTALL.md)** (platforms, the Oxigraph dependency,
+the supervised local runtime).
+
+## What Sensei returns before an edit
+
+One query, `sensei briefing --file <path>`, returns exactly what an agent needs
+to change a file safely:
+
+- **Invariants** — the rules that govern the file, with severity
+- **Forbidden fixes** — the tempting changes that reintroduce known bugs
+- **Failure modes** — what went wrong here before, and the real fix
+- **Required tests** — the proof the architecture still holds
+- **Authority** — whether the graph itself is current and trustworthy
+
+Other surfaces for other moments: `impact` (structured nodes), `preflight` (risk
+before a task), `edit-check` (does *this* proposed content violate a rule),
+`gate` (block a bad diff in CI), `propose` (record a new scar).
+
+## Works with your coding agent
+
+Sensei is a CLI + a local gRPC server + an MCP bridge. Nothing is locked to one
+assistant.
+
+| Agent / surface | How it connects |
+|---|---|
+| **Claude Code** | Generated pre-edit hooks (`sensei init`) enforce *consult-then-comply* |
+| **Cursor** | CLI or MCP integration |
+| **Codex** | Repository instructions + CLI / MCP |
+| **CI (GitHub Actions)** | Gate PR diffs before merge — [one `uses:` line](#ci-gate-github-actions) |
+| **Any agent** | gRPC, MCP, or a plain shell command |
+
+## Protect your first file
+
+The smallest useful thing Sensei can do — encode one rule and get one briefing:
+
+**1.** In your project, create `docs/awareness/invariants.yaml`:
+
 ```yaml
 invariants:
   - id: auth.session_token_must_be_httponly
-    title: Session tokens must use HttpOnly cookies
+    title: Session tokens must use HttpOnly cookies — never JS-readable
     severity: critical
     status: active
     protects:
@@ -120,301 +173,240 @@ invariants:
       - TestSessionCookieIsHttpOnly
 ```
 
-**failure_modes.yaml** — incidents that happened or could happen:
+**2.** Mark it high-risk in `docs/awareness/high_risk_files.yaml`:
+
 ```yaml
-failure_modes:
-  - id: auth.xss_steals_session_token
-    title: XSS attack steals session token from non-HttpOnly cookie
-    severity: critical
-    root_cause: |
-      A developer made the cookie JavaScript-readable for the SPA.
-      Any XSS vector on the page could now steal session tokens.
-    architecture_fix: |
-      Cookies MUST have HttpOnly. Use a separate CSRF token for SPA.
-    forbidden_fixes:
-      - add_csp_headers_instead_of_httponly
+files:
+  - src/auth/session.go
 ```
 
-**incident_patterns.yaml** — edit shapes that introduce bugs:
-```yaml
-incident_patterns:
-  - id: pat.cookie_made_js_readable
-    edit_shapes:
-      - "Removing HttpOnly from session cookie"
-      - "Adding JavaScript-readable token cookie for SPA"
-    failure_mode: auth.xss_steals_session_token
-    lesson: |
-      HttpOnly exists to prevent exactly this. The SPA should use
-      same-origin requests with the cookie, not read it via JS.
+**3.** See it reach the agent:
+
+```bash
+sensei demo --repo .
+# → CRITICAL auth.session_token_must_be_httponly, before any edit to session.go
 ```
 
-## CLI commands
+That's Level 1. You never have to do more than this to get value.
 
-The most common commands — the **[full CLI reference](docs/cli-reference.md)**
-documents all ~30 with every flag.
+## Adopt it as a staircase, not a cliff
 
-| Command | What it does |
-|---------|-------------|
-| `sensei init` | Scaffold a new project (YAML templates, hooks, CLAUDE.md) |
-| `sensei bootstrap` | Initialize Sensei for an existing repo (extraction + optional history) |
-| `sensei build` | Compile YAML → N-Triples, load into Oxigraph (`--output file.nt` for no-Oxigraph) |
-| `sensei serve` | Start Oxigraph + the gRPC awareness server |
-| `sensei briefing --file <path>` / `--task "desc"` | Prose context for a file or task |
-| `sensei impact --file <path>` | Structured knowledge nodes for a file |
-| `sensei preflight --task ... --file ...` | Risk classification before editing |
-| `sensei edit-check --file <path> --content-file -` | Advisory: does this edit violate a rule? |
-| `sensei resolve <class> <id>` | Fetch one node |
-| `sensei query --mode <mode>` | Typed graph browse (`by_file`/`by_id`/`by_class`/`related`) |
-| `sensei metadata` | Graph coverage, freshness, build provenance |
-| `sensei propose --kind ...` | Record a scar (typed feedback), rebuild, stage — never commits |
-| `sensei feedback-check` | Stop-hook: warn if a fix added no graph feedback |
-| `sensei check` / `validate` / `audit` | Validate YAML / deep structural check / self-audit drift |
-| `sensei gate --diff <range>` | Dry-run hard gate over a git diff |
-| `sensei version` | Print version |
+| Level | You do | You get |
+|---|---|---|
+| **1 — One invariant** | protect one dangerous file | briefings on that file |
+| **2 — One scar** | record an incident + its forbidden fixes | the bug can't come back the same way |
+| **3 — Pre-edit consultation** | enable the Claude Code hooks | agents must look before they edit |
+| **4 — CI governance** | add the [gate action](#ci-gate-github-actions) | dangerous diffs blocked before merge |
+| **5 — Architectural graph** | `sensei bootstrap` | inferred contracts, dependencies, symbols, coverage |
 
-## The meta-principles
+## Who is this for?
 
-Every Sensei project ships with **133 universal principles across 8 categories** — seven that predict where bugs hide, plus *evolution*: how a project may change safely over time. They apply to any software system.
+Sensei earns its place when:
+
+- senior engineers keep repeating the same architecture warnings
+- AI agents make locally correct but globally dangerous changes
+- important rules live in Slack, post-mortems, and memory
+- regressions repeat after team turnover
+- code review depends on one or two people who know the history
+- onboarding is months of repository archaeology
+
+## What Sensei is (and isn't)
+
+Sensei is **governed architectural memory for a software repository.**
+
+| Sensei is **not** | Sensei **is** |
+|---|---|
+| another code-generation model | repository-owned architectural knowledge |
+| a generic doc-search / RAG tool | queried *before* changes, at edit time |
+| a linter with hard-coded rules | connected to files, incidents, forbidden fixes, tests |
+| a hosted knowledge base | local, versioned with your code |
+| a replacement for tests or review | usable by any agent, enforceable in CI |
+
+## CI gate (GitHub Actions)
+
+Block architecture-violating pull requests before merge. The action fetches
+Oxigraph and runs the server for you, so your workflow is one `uses:` line:
+
+```yaml
+# .github/workflows/sensei-gate.yml  (see docs/ci/sensei-gate.yml)
+name: Sensei architecture gate
+on: [pull_request]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: globulario/sensei/.github/actions/sensei-gate@main
+        with:
+          enforce: 'true'      # 'false' = advisory report, never blocks
+```
+
+The gate evaluates the PR's added/changed lines with the same engine agents call.
+`--enforce` exits non-zero on a blocking finding and **fails closed** if it can't
+verify the diff. Per-repo policy (`.sensei/gate-policy.yaml`) can re-level or
+silence any rule without a code change.
+
+## The meta-principles: rules you haven't written yet
+
+Your project's invariants and scars tell Sensei **what must remain true here.**
+The meta-principles help Sensei discover **where architectural danger tends to
+hide** in the first place. Every project ships with **133 universal principles
+across 8 categories**, distilled from real production incidents and portable to
+any system:
 
 | Category | Count | Examples |
-|----------|-------|---------|
-| **Authority** | 20 | Wrong actor writes truth; same value means different things |
-| **Signal** | 19 | Fallback looks like truth; errors absorbed into timeouts |
-| **Lifecycle** | 38 | Write with no cleanup; intermediate state looks done |
-| **Dependency** | 7 | Critical path blocked by non-critical service |
-| **Perception** | 19 | A green badge lying about runtime state; warning visible only in color |
-| **Composition** | 7 | Decorative card louder than a drift warning; success color on unconfirmed state |
-| **Structure** | 12 | GenericMegaTable merged on resemblance; pass-through wrapper hiding nothing |
-| **Evolution** | 11 | Releasable trunk; reviewable slices; deterministic builds; intent before drift |
+|---|---|---|
+| **Authority** | 20 | wrong actor writes truth; one value, two meanings |
+| **Signal** | 19 | a fallback that looks like truth; errors absorbed into timeouts |
+| **Lifecycle** | 38 | a write with no cleanup; intermediate state that looks done |
+| **Dependency** | 7 | critical path blocked by a non-critical service |
+| **Perception** | 19 | a green badge lying about runtime state |
+| **Composition** | 7 | success color on unconfirmed state |
+| **Structure** | 12 | a "shared" component whose consumers import its internals |
+| **Evolution** | 11 | releasable trunk; reviewable slices; deterministic builds |
 
-See **[docs/meta-principles.md](docs/meta-principles.md)** for the framework reference. The authoritative list is the generated pack (`docs/awareness/meta_principles.yaml`) — query any principle with `sensei resolve invariant meta.<id>`.
+Reference: **[docs/meta-principles.md](docs/meta-principles.md)**. Query any one:
+`sensei resolve invariant meta.<id>`.
 
-## Claude Code integration
+## A real-world origin
 
-`sensei init` generates Claude Code hooks that enforce *consult-then-comply* before edits:
+Sensei was born in **[Globular](https://github.com/globulario)** — a 465K-line
+distributed platform with 33 services, built with AI agents doing significant
+implementation work. The agents were productive, but kept reintroducing the same
+class of architectural failure:
 
-- **enforce-briefing.sh** — blocks edits to high-risk files unless `sensei briefing` was called first (did you *look*?)
-- **edit-check-guard.sh** — runs the proposed edit content through `sensei edit-check` and blocks a forbidden-fix / high-severity shape (does what you're about to *write* violate a rule?). Advisory by default for low-severity; `AWG_EDIT_CHECK_ADVISORY=1` makes it warn-only.
-- **record-briefing.sh** — records that a briefing was obtained
+- authority confusion (the wrong component writing truth)
+- stale state presented as truth
+- recovery paths that depended on the systems they had to recover
+- fixes that solved a symptom while violating an ownership boundary
 
-Add to `.claude/settings.json`:
-```json
-{
-  "hooks": {
-    "PreToolUse": [{
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {"command": ".claude/hooks/enforce-briefing.sh", "timeout": 10},
-        {"command": ".claude/hooks/edit-check-guard.sh", "timeout": 10}
-      ]
-    }],
-    "PostToolUse": [{
-      "matcher": "awareness_briefing",
-      "hooks": [{"command": ".claude/hooks/record-briefing.sh", "timeout": 10}]
-    }]
-  }
-}
+Those 50+ incidents became queryable invariants, failure modes, forbidden fixes,
+and required tests — and the recurring shapes became the 133 portable
+meta-principles. What bit us is provenance; what we learned ships with every
+`sensei init`. Sensei now runs entirely on its own, for any codebase.
+
+---
+
+## Core concepts — what you write
+
+Three YAML files carry most of the value (`sensei init` scaffolds them):
+
+- **`invariants.yaml`** — rules that must always hold (with `protects`,
+  `forbidden_fixes`, `required_tests`).
+- **`failure_modes.yaml`** — incidents that happened or could, with `root_cause`
+  and the real `architecture_fix`.
+- **`incident_patterns.yaml`** — the edit *shapes* that introduce bugs.
+
+Full schema + examples: **[QUICKSTART.md](QUICKSTART.md)** and
+**[docs/cli-reference.md](docs/cli-reference.md)**.
+
+## Common commands
+
+The **[full CLI reference](docs/cli-reference.md)** documents every command and flag.
+
+| Command | What it does |
+|---|---|
+| `sensei demo` | Stand up a graph and return one real briefing — one command |
+| `sensei init` | Scaffold a project (YAML templates, hooks, CLAUDE.md) |
+| `sensei bootstrap` | Initialize Sensei for an existing repo (extraction + optional history) |
+| `sensei build` | Compile YAML → the store (`--output file.nt` for no-store) |
+| `sensei serve` | Start Oxigraph + the gRPC server |
+| `sensei briefing --file <p>` / `--task "…"` | Context for a file or task |
+| `sensei impact --file <p>` | Structured knowledge nodes for a file |
+| `sensei preflight --file <p> --task "…"` | Risk classification before editing |
+| `sensei edit-check --file <p> --content-file -` | Advisory: does this edit violate a rule? |
+| `sensei gate --diff <range> --enforce` | Hard gate over a git diff (CI) |
+| `sensei propose --kind …` | Record a scar (typed feedback); rebuild; stage — never commits |
+| `sensei check` / `validate` / `audit` | Validate YAML / structural check / self-audit |
+
+## Agent integration (hooks + MCP)
+
+`sensei init` generates Claude Code hooks that enforce *consult-then-comply*:
+`enforce-briefing.sh` (did you *look*?), `edit-check-guard.sh` (does what you're
+about to *write* violate a rule?), `record-briefing.sh`. Wire them in
+`.claude/settings.json` — see **[QUICKSTART.md](QUICKSTART.md)**.
+
+For MCP-based agents, the bridge exposes seven stdio tools
+(`awareness_briefing`, `awareness_impact`, `awareness_preflight`,
+`awareness_edit_check`, `awareness_resolve`, `awareness_query`,
+`awareness_metadata`):
+
+```bash
+go run ./cmd/awareness-mcp -awareness-addr localhost:10120
 ```
+
+See **[docs/api-reference.md](docs/api-reference.md)**.
 
 ## Architecture
 
 ```
-Your YAML files         sensei build           Oxigraph          sensei serve
-(docs/awareness/)  -->  (yaml2nt)    -->   (RDF store)   -->  (gRPC)
-                                                                 |
-                        sensei briefing  <--- gRPC client  <--------+
-                        sensei impact
-                        sensei preflight
+docs/awareness/*.yaml  ──sensei build──▶  Oxigraph (RDF store)  ──gRPC──▶  sensei serve
+       (you write)        (yaml2nt)                                            │
+                                                                              ▼
+                            sensei briefing / impact / preflight / edit-check / gate
 ```
 
-Sensei compiles YAML into RDF triples (N-Triples format), stores them in Oxigraph (a single-binary SPARQL store backed by RocksDB), and serves them via a gRPC API. The CLI commands are thin gRPC clients.
+Sensei compiles YAML into RDF triples, stores them in Oxigraph (a single-binary
+SPARQL store — no JVM, no cluster), and serves them over gRPC. The CLI commands
+are thin clients. **No arbitrary SPARQL is exposed** — every query mode is a
+closed whitelist. Seven RPCs: `Briefing`, `Impact`, `Preflight`, `EditCheck`,
+`Resolve`, `Query`, `Metadata` — see **[docs/api-reference.md](docs/api-reference.md)**.
 
-### gRPC RPCs
-
-Seven RPCs — see the **[API reference](docs/api-reference.md)** for full message
-shapes, enums, and status semantics.
-
-| RPC | Purpose |
-|-----|---------|
-| `Briefing(file, task)` | Prose context (~500 tokens) with invariants, forbidden fixes, required tests |
-| `Impact(file)` | Structured knowledge nodes grouped by type (direct + inferred) |
-| `Preflight(files, task)` | Risk classification with confidence and required actions |
-| `EditCheck(file, content)` | Advisory warnings if proposed content violates an in-scope rule (never blocks) |
-| `Resolve(class, id)` | Single node lookup with full metadata |
-| `Query(mode, ...)` | Constrained graph lookup (BY_FILE, BY_ID, BY_CLASS, RELATED) |
-| `Metadata()` | Graph coverage and freshness stats |
-
-No arbitrary SPARQL is exposed. All query modes are closed whitelists.
-
-## Repo layout
+<details>
+<summary><strong>Repo layout</strong></summary>
 
 ```
-cmd/
-  awg/                 standalone CLI (init, build, serve, briefing, ...)
-  yaml2nt/             YAML → N-Triples compiler
-  loadnt/              N-Triples → Oxigraph loader
-  awareness-mcp/       MCP bridge (optional, for Globular integration)
-  annotation-scanner/  Go AST @awareness annotation extractor
-  principle-check/     Meta-principle conformance scanners
-
-golang/
-  rdf/                 Triple emission + vocabulary constants
-  extractor/           YAML → RDF importers + validators
-  store/               Store interface + Oxigraph HTTP client
-  server/              gRPC service handlers (Briefing, Impact, Resolve, ...)
-  pb/                  Generated protobuf bindings
-  client/              Go client library
-
-proto/
-  awareness_graph.proto    gRPC service contract
-
-ontology/
-  awareness.ttl            RDF vocabulary (Turtle) — source of truth
-
-docs/
-  cli-reference.md         every sensei command + flag
-  api-reference.md         gRPC service + MCP bridge
-  agent-usage.md           how an agent should call Sensei before edits
-  meta-principles.md       the meta-principle framework reference
+cmd/awg/               standalone CLI (demo, init, build, serve, briefing, gate, …)
+cmd/yaml2nt/           YAML → N-Triples compiler
+cmd/awareness-mcp/     MCP bridge (stdio)
+cmd/annotation-scanner Go AST @awareness annotation extractor
+golang/rdf/            triple emission + vocabulary
+golang/extractor/      YAML → RDF importers + validators + structural scanners
+golang/server/         gRPC service handlers (embeds the self seed)
+golang/client/         Go client library
+proto/                 gRPC service contract
+ontology/awareness.ttl RDF vocabulary (source of truth)
+docs/                  cli-reference · api-reference · agent-usage · meta-principles
 ```
+</details>
 
 ## Building from source
 
 ```bash
-# Prerequisites: Go 1.23+, protoc (optional, for proto changes)
-
-# Build everything
-go build ./...
-
-# Build the standalone CLI and server together
-make sensei
-
-# Or build them separately if you need one artifact only
-make sensei-cli
-make service-build
-
-# Direct Go builds are still available
-go build -o bin/sensei ./cmd/awg
-go build -o bin/awareness-graph ./golang/server
-
-# Run tests
-go test ./...
-
-# Run Sensei smoke test
-make sensei-smoke
+go build ./...                 # everything
+make sensei                    # CLI + server together
+make sensei-smoke              # end-to-end smoke test (init → check → build)
+go test ./...                  # tests
 ```
 
-## Oxigraph
+Prerequisites: **Go 1.25+** (protoc optional, only for proto changes). Oxigraph
+is fetched by `scripts/fetch-oxigraph.sh` (called by `install.sh`) — a single
+static binary. Endpoints: query `http://localhost:7878/query`, store
+`http://localhost:7878/store?default`.
 
-Oxigraph is the RDF store that holds the compiled knowledge graph. It's a single static binary — no JVM, no cluster, no configuration.
+<details>
+<summary><strong>Source annotation, principle scanners, running inside Globular (optional)</strong></summary>
 
-```bash
-# Docker
-docker run -d --name oxigraph -p 7878:7878 ghcr.io/oxigraph/oxigraph
-
-# Or binary (download from https://github.com/oxigraph/oxigraph/releases)
-oxigraph serve --location .sensei/data --bind 0.0.0.0:7878
-
-# Verify
-curl -s -X POST -H "Content-Type: application/sparql-query" \
-  --data 'ASK {}' http://localhost:7878/query
-# → true
-```
-
-Endpoints:
-- Query: `http://localhost:7878/query` (SPARQL, used by the server)
-- Store: `http://localhost:7878/store?default` (Graph Store, used by `sensei build`)
-
-## Server flags
-
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `-addr` | `:10120` | gRPC listen address |
-| `-oxigraph-url` | `http://localhost:7878/query` | SPARQL query endpoint |
-| `-require-store` | `false` | Exit if backend is unhealthy at startup |
-| `-config` | (none) | Path to service config JSON |
-| `-preflight` | (none) | Run offline preflight and exit (no Oxigraph needed) |
-| `-version` | (none) | Print version and exit |
-| `-describe` | (none) | Print service metadata JSON and exit |
-| `-health` | (none) | Print health status JSON and exit |
-
-## Principle checking
-
-Sensei includes meta-principle conformance scanners that check your code against the architectural principles:
-
-```bash
-# Run all scanners
-make principle-check-all
-
-# Run a specific scanner
-make principle-check
-
-# Positive-control attestation (proves scanners are alive)
-make principle-check-positive
-```
-
-Scanners use ruleguard (AST-based pattern matching) and regex. Each scanner has a positive-control fixture that proves it fires on known-bad code, so a clean result means "attested clean" not "scanner is dead."
-
-## Source annotation
-
-Go source files can reference graph nodes with `@awareness` comments:
+**Source annotation** — Go files can link code to graph nodes:
 
 ```go
 // @awareness namespace=myproject
 // @awareness implements=myproject:invariant.auth.session_httponly
-// @awareness risk=high
-func SetSessionCookie(w http.ResponseWriter, token string) {
-    // ...
-}
+func SetSessionCookie(w http.ResponseWriter, token string) { /* … */ }
 ```
 
-The annotation scanner (`cmd/annotation-scanner`) walks the Go AST and emits triples linking code symbols to knowledge nodes.
+**Principle scanners** — `make principle-check-all` runs AST + regex conformance
+scanners; each has a positive-control fixture, so a clean result means *attested
+clean*, not *scanner dead*.
 
----
-
-## Globular integration
-
-Sensei was extracted from the [Globular](https://github.com/globulario/services) platform where it runs as a native gRPC service with etcd registration, cluster TLS, and MCP tool exposure. The Globular-specific integration includes:
-
-- **etcd service registration** — automatic discovery via the Globular service mesh
-- **Cluster mTLS** — uses Globular PKI paths (`/var/lib/globular/pki/`)
-- **MCP bridge** — exposes briefing/impact/resolve as MCP tools
-- **Globular packaging** — `make service-package` builds a Globular-native package
-
-For standalone use, none of this is needed — `sensei serve` works with just Oxigraph.
-
-### Globular packaging
-
-```bash
-make service-build     # Build server binary with ldflags
-make service-dist      # Stage payload for package build
-make service-package   # Build Globular package artifact
-```
-
-### MCP bridge
-
-```bash
-# Start the MCP bridge (connects to the gRPC server)
-go run ./cmd/awareness-mcp -awareness-addr localhost:10120
-```
-
-Exposes seven stdio tools — `awareness_briefing`, `awareness_impact`,
-`awareness_preflight`, `awareness_edit_check`, `awareness_resolve`,
-`awareness_query`, `awareness_metadata`. See
-[docs/api-reference.md](docs/api-reference.md#mcp-bridge-awareness-mcp).
-
----
-
-## Origin
-
-Sensei was born from a real problem: the [Globular](https://github.com/globulario/services) codebase (465K lines, 33 services) kept having the same class of bugs ship because architectural rules lived in people's heads, not in a queryable system. After encoding 50+ incidents as invariants and failure modes, the awareness graph prevented regressions that post-mortems alone could not.
-
-The meta-principles emerged from classifying those incidents. They turned out to be universal — they apply to any software system, not just distributed infrastructure. The set has grown to 133 across 8 categories as the GUI, code-structure, and safe-evolution categories were added.
+**Running inside Globular** — Sensei also runs as a native Globular gRPC service
+(etcd registration, cluster mTLS, MCP tool exposure, `make service-package`).
+None of it is required for standalone use.
+</details>
 
 ## License
 
-Sensei is licensed under the **Apache License, Version 2.0** — see [LICENSE](LICENSE)
-and [NOTICE](NOTICE). This covers the local runtime: the `sensei` CLI, the gRPC
-server, the MCP bridge, the extraction/scanner pipeline, the gate, and the VS Code
-extension. You may use, modify, and redistribute it, including commercially, under
-the terms of that license.
+Apache License, Version 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Covers
+the whole local runtime (CLI, server, MCP bridge, extractors, the gate, the VS
+Code extension). Use, modify, and redistribute — including commercially.

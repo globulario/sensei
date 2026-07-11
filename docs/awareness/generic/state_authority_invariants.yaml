@@ -13,11 +13,11 @@
 #
 # Origin classes used below:
 #   principle       — deducible from first principles before any incident
-#   globular_incident — observed in production; very high confidence
+#   production_incident — observed in production; very high confidence
 #
 # These invariants are intentionally project-agnostic. Any operator-grade distributed system
 # must respect them. The few protects.files anchors (golang/...) are PROVENANCE — the
-# Globular code where a principle was first validated; replace them with your own paths.
+# the origin codebase where a principle was first validated; replace them with your own paths.
 
 invariants:
 
@@ -39,8 +39,6 @@ invariants:
       workflow completions as a substitute for runtime evidence.
     protects:
       files:
-        - golang/cluster_controller/cluster_controller_server/release_runtime_convergence.go
-        - golang/node_agent/node_agent_server/runtime_proof.go
     forbidden_fixes:
       - forbidden.runtime_from_desired
       - marking_available_from_local_success_only
@@ -66,13 +64,11 @@ invariants:
       in the catalog is wrong. The node-agent must write the installed-state record
       after successful installation; the controller must read that record, not the catalog.
     enforcement: |
-      Install status must be read from /globular/nodes/{node_id}/packages/{kind}/{name}
+      Install status must be read from /example/nodes/{node_id}/packages/{kind}/{name}
       (installed-state in etcd). It must never be inferred from repository catalog
       availability, BOM membership, or workflow dispatch alone.
     protects:
       files:
-        - golang/cluster_controller/cluster_controller_server/release_runtime_convergence.go
-        - golang/node_agent/node_agent_server/installed_services.go
     forbidden_fixes:
       - marking_available_from_local_success_only
       - mark_release_available_from_local_success
@@ -101,8 +97,6 @@ invariants:
       explicitly forbidden.
     protects:
       files:
-        - golang/workflow/workflow_server/step_receipts.go
-        - golang/cluster_controller/cluster_controller_server/workflow_invariant.go
     forbidden_fixes:
       - forbidden.optimistic_destructive_success
       - marking_available_from_local_success_only
@@ -116,7 +110,7 @@ invariants:
     title: Missing inventory in a partial objectstore snapshot must be treated as unknown, not known-down
     severity: critical
     status: active
-    # origin: { type: globular_incident, confidence: very_high }
+    # origin: { type: production_incident, confidence: very_high }
     summary: |
       When the cluster-doctor or any diagnostic tool collects an objectstore health snapshot,
       the collector may have incomplete data: not all node inventory records may be present.
@@ -133,8 +127,6 @@ invariants:
       DataIncomplete snapshots must emit a caveat, not a quorum-loss finding.
     protects:
       files:
-        - golang/cluster_doctor/cluster_doctor_server/rules/objectstore_physical_overlap.go
-        - golang/cluster_controller/cluster_controller_server/release_runtime_convergence.go
     forbidden_fixes:
       - forbidden.partial_snapshot_false_quorum_loss
     required_tests:
@@ -142,7 +134,6 @@ invariants:
       - TestObjectstoreQuorum_PartialSnapshot_EmitsCaveat
       - TestObjectstoreQuorum_KnownDown_StillCountsForLoss
     related_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
 
     related_invariants:
       - meta.absence_scope_must_be_explicit
@@ -150,31 +141,28 @@ invariants:
     title: VIP ownership must be proven from runtime evidence, not assumed from topology or package expectations
     severity: high
     status: active
-    # origin: { type: globular_incident, confidence: very_high }
+    # origin: { type: production_incident, confidence: very_high }
     summary: |
       The cluster VIP (keepalived floating IP) is owned at runtime by exactly one node at any
       moment, determined by VRRP negotiation. No configuration record, desired-state entry, or
       package installation record proves that keepalived is active or that the VIP is held by
       any specific node. Treating a node as VIP-holder without runtime evidence leads to wrong
       routing, certificate SAN mismatches, and cascading failures when the VIP moves. The VIP
-      holder must be identified from etcd /globular/ingress/v1/status/{node_id} or from a live
+      holder must be identified from etcd /example/ingress/v1/status/{node_id} or from a live
       VRRP probe — never from package-installed records or node profiles alone.
     enforcement: |
       Any code that must know the current VIP holder must read
-      /globular/ingress/v1/status/{node_id} and look for the MASTER state.
+      /example/ingress/v1/status/{node_id} and look for the MASTER state.
       Never assume a node holds the VIP because its profile includes 'gateway'
-      or because globular-keepalived is installed on it.
+      or because example-keepalived is installed on it.
     protects:
       files:
-        - golang/cluster_controller/cluster_controller_server/state.go
-        - golang/node_agent/node_agent_server/internal/actions/keepalived.go
     forbidden_fixes:
       - forbidden.vip_without_runtime_proof
     required_tests:
       - TestVIPHolder_DerivedFromRuntimeStatus_NotProfile
       - TestVIPHolder_ReflectsActualMaster
     related_failure_modes:
-      - fm.globular.vip_transition_cascade
 
     related_invariants:
       - meta.storage_is_not_semantic_authority
@@ -182,7 +170,7 @@ invariants:
     title: Cluster identity, TLS SAN validation, and service routing must not be bypassed with localhost or 127.0.0.1
     severity: critical
     status: active
-    # origin: { type: globular_incident, confidence: very_high }
+    # origin: { type: production_incident, confidence: very_high }
     summary: |
       Replacing a cluster DNS name, node IP, or VIP with localhost or 127.0.0.1 to work
       around a TLS, DNS, SAN, or routing failure hides the root cause without fixing it.
@@ -198,8 +186,6 @@ invariants:
       never switch to loopback as a workaround.
     protects:
       files:
-        - golang/config/endpoint_resolver.go
-        - golang/netutil/node_identity.go
     forbidden_fixes:
       - forbidden.localhost_dns_bypass
     required_tests:
@@ -212,7 +198,7 @@ invariants:
     title: Desired-enabled state must not be used as proof that a service is alive
     severity: critical
     status: active
-    # origin: { type: globular_incident, confidence: very_high }
+    # origin: { type: production_incident, confidence: very_high }
     summary: |
       A DesiredService record with enabled=true means the operator wants the service to run.
       It says nothing about whether the service process is currently alive, healthy, or
@@ -226,8 +212,6 @@ invariants:
       the question is about current availability.
     protects:
       files:
-        - golang/cluster_controller/cluster_controller_server/release_runtime_convergence.go
-        - golang/cluster_doctor/cluster_doctor_server/rules/installed_state_runtime_mismatch.go
     forbidden_fixes:
       - forbidden.runtime_from_desired
       - assume_installed_means_running
@@ -296,8 +280,6 @@ invariants:
       - forbidden.direct_store_write_for_repair
       - forbidden.admin_bypass_ownership
     related_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
-      - fm.globular.vip_transition_cascade
 
   - id: meta.fallback_must_degrade_semantics
     title: "Fallback must degrade semantics — a fallback that returns the same shape as truth will be mistaken for truth"
@@ -374,7 +356,6 @@ invariants:
       - forbidden.partial_snapshot_false_quorum_loss
       - forbidden.missing_inventory_as_down
     related_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
       - fm.industry.missing_inventory_misclassified_as_down
 
   - id: meta.identity_computation_must_be_invariant
@@ -423,7 +404,6 @@ invariants:
       - forbidden.recompute_identity_at_verification
       - forbidden.fabricate_identity_from_secondary_observation
     related_failure_modes:
-      - fm.globular.vip_transition_cascade
       - fm.industry.floating_address_used_as_durable_identity
 
   - id: meta.write_creates_completion_obligation
@@ -462,7 +442,6 @@ invariants:
       - forbidden.write_blocking_record_without_cleanup
       - forbidden.edge_triggered_cleanup_only_for_blocking_records
     related_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
 
   - id: meta.half_done_must_not_look_done
     title: "Half-done must never look done — intermediate state must not satisfy completeness predicates"
@@ -534,7 +513,6 @@ invariants:
     forbidden_fixes:
       - forbidden.silent_default_in_state_dispatch
     related_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
 
   - id: meta.critical_path_no_non_critical_dependency
     title: "The critical path must not depend on non-critical services — a dependency you don't need will kill you on the recovery path"
@@ -680,7 +658,6 @@ invariants:
       - forbidden.hot_deploy_local_binary_as_break_glass
       - forbidden.bypass_cycle_with_direct_storage_write
     related_failure_modes:
-      - fm.globular.vip_transition_cascade
 
   - id: meta.failure_response_must_contract_not_amplify
     title: "Failure response must contract, not amplify — retry, re-enqueue, and re-emit must be bounded, or the response becomes the outage"
@@ -888,7 +865,7 @@ invariants:
         - install.desired_state.invisible_service
       Known violations (negative scope — previously covered):
         - critical_state.absent_key_interpreted_as_stop
-        - fm.globular.objectstore_partial_snapshot
+        - fm.example.objectstore_partial_snapshot
         - awareness.degraded_source_sentinel_collapsed_to_critical
         - dnsprovider.internal_topology_leak_via_public_dns_publish
       Known good:
@@ -1052,7 +1029,6 @@ invariants:
 
       Known violations:
         - controller.platform_upgrade_bypassed_workflow_authority
-        - mcp.governor_bypass_via_ad_hoc_execute_tool
         - mcp.etcd_remote_allowlist_expansion
       Known good:
         - WF-DEFER B3 durable counter — intent + retry-count survive
@@ -1087,7 +1063,7 @@ invariants:
 
   # ── Generalization principles (second pass) ───────────────────────────────────
   # These invariants encode the abstract reasoning layer. They generalize from
-  # specific Globular incidents to classes of distributed-system mistakes, so
+  # specific a production incidents to classes of distributed-system mistakes, so
   # AI agents can recognize not just the exact bug but the family it belongs to.
 
   - id: state.unknown_must_not_default_to_healthy
@@ -1108,15 +1084,12 @@ invariants:
       Doctor rules, health dashboards, and CLI output must all respect this.
     protects:
       files:
-        - golang/cluster_controller/cluster_controller_server/release_runtime_convergence.go
-        - golang/cluster_doctor/cluster_doctor_server/rules/installed_state_runtime_mismatch.go
     forbidden_fixes:
       - forbidden.unknown_as_healthy
     required_tests:
       - TestStatusRollup_UnknownSubsystem_NotGreen
       - TestCollectorGap_ProducesUnknown_NotHealthy
     related_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
       - fm.industry.partial_failure_hidden_by_global_green
       - fm.industry.missing_inventory_misclassified_as_down
 
@@ -1154,7 +1127,6 @@ invariants:
       - TestAbsentRecord_ClassifiedAsUnknown_NotKnownBad
       - TestPartialSnapshot_NoCritical_WhenOnlyUnknown
     related_failure_modes:
-      - fm.globular.objectstore_partial_snapshot
       - fm.industry.missing_inventory_misclassified_as_down
 
     related_invariants:
@@ -1176,11 +1148,10 @@ invariants:
       All code that needs a stable, durable node IP must use StableIP(clusterVIP),
       which explicitly excludes the floating VIP from the IP selection.
       Never use PrimaryIP(), Ips[0], or AdvertiseIp without first filtering the VIP.
-      The VIP must be read from /globular/ingress/v1/spec and excluded before any
+      The VIP must be read from /example/ingress/v1/spec and excluded before any
       identity-bearing operation.
     protects:
       files:
-        - golang/cluster_controller/cluster_controller_server/state.go
     forbidden_fixes:
       - forbidden.vip_as_node_identity
       - hardcode_node_to_pool_mapping_to_avoid_filter
@@ -1190,7 +1161,6 @@ invariants:
       - TestEtcdAdvertiseURL_UsesStableIP_NotVIP
       - TestScyllaHosts_ExcludeVIP
     related_failure_modes:
-      - fm.globular.vip_transition_cascade
       - fm.industry.floating_address_used_as_durable_identity
 
     related_invariants:
@@ -1216,8 +1186,6 @@ invariants:
       Destructive operations must require explicit operator confirmation before dispatch.
     protects:
       files:
-        - golang/workflow/workflow_server/executor.go
-        - golang/workflow/engine/engine.go
     forbidden_fixes:
       - forbidden.dispatch_as_success
       - forbidden.optimistic_destructive_success
@@ -1473,7 +1441,7 @@ invariants:
       knows the binary was installed. systemd knows the unit is
       loaded. Each of these is true within its layer's scope. None of
       them, alone or in aggregate, answers the cross-layer question
-      "is the service Globular promised the user actually serving
+      "is the service the platform promised the user actually serving
       requests with the binary the manifest names?" That answer
       belongs to cluster-doctor, which is the only actor whose
       verification spans all four layers simultaneously.
@@ -1556,7 +1524,6 @@ invariants:
       - meta.storage_is_not_semantic_authority
       - meta.assertions_must_carry_their_scope
       - workflow.dispatch_is_not_completion
-      - cluster_doctor.is_the_authority_for_health_state_queries
 
   - id: meta.early_consolidation_ossifies_uncertainty
     title: "Code that crystallizes before its true shape is understood becomes cement around its bug"
@@ -1771,7 +1738,6 @@ invariants:
       - meta.write_creates_completion_obligation
       - meta.half_done_must_not_look_done
     related_failure_modes:
-      - workflow.abandoned_defer_never_retried
 
   - id: meta.timeout_is_a_decision_not_a_truth
     title: "A timeout means 'I did not hear back in time' — never 'the other side failed'"
@@ -1863,7 +1829,6 @@ invariants:
       - meta.idempotence_is_a_requirement_not_a_quality
     related_failure_modes:
       - fm.industry.missing_inventory_misclassified_as_down
-      - fm.globular.objectstore_partial_snapshot
 
   - id: meta.idempotence_is_a_requirement_not_a_quality
     title: "Every operation that can be retried, replayed, or re-dispatched MUST be idempotent — there is no 'might be retried'"
@@ -2049,7 +2014,6 @@ invariants:
       - meta.binding_outlives_evidence_until_invalidated
       - meta.competing_writers_must_converge_or_be_fenced
     related_failure_modes:
-      - fm.globular.vip_transition_cascade
 
   - id: meta.bounded_staleness_must_be_named_not_assumed
     title: "Cached, replicated, or derived state must declare its staleness contract — 'eventually consistent' is a category, not a contract"
@@ -2711,7 +2675,6 @@ invariants:
         preserved, metric+WARN log emitted) and the structural fix is
         tracked as a follow-up.
       first_predicted_bug:
-        file: golang/interceptors/role_binding_check.go
         symbol: checkRoleBinding
         commit: pending
     summary: |
@@ -2746,7 +2709,7 @@ invariants:
           BOUNDED and EXPLICIT. The principle is not violated by a
           bootstrap window; it would be violated by "we appear to
           still be bootstrapping, so allow." The window is gated by
-          /var/lib/globular/bootstrap.enabled and a deadline.
+          /var/lib/example/bootstrap.enabled and a deadline.
         - Certificate chain validation timeout: a chain that cannot
           be validated must be rejected, not "trusted because the
           revocation server was slow."
@@ -2969,7 +2932,7 @@ invariants:
            grants any privilege must require the privilege to be
            NAMED.
         2. NAMED REASON — each grant carries a brief reason in the
-           role binding metadata. "Needs to read /globular/services"
+           role binding metadata. "Needs to read /example/services"
            is a reason; "for the X service" is not.
         3. BOUNDED SCOPE — privileges name resources, not
            wildcards, except where the wildcard is structurally
@@ -3854,8 +3817,8 @@ invariants:
           build_number. Each carries semantics; all four are
           needed to identify a unique artifact.
         - FILES are named by absolute path. Path semantics
-          differ between /var/lib/globular/, /etc/systemd/,
-          and /usr/lib/globular/bin/.
+          differ between /var/lib/example/, /etc/systemd/,
+          and /usr/lib/example/bin/.
         - CERTIFICATES are named by file path AND by subject
           AND by issuer fingerprint.
         - RBAC RESOURCES are named by type prefix (rbac:role,
@@ -3876,10 +3839,10 @@ invariants:
       resource. Eden's experience suggests the conceptual
       savings dwarf the implementation cost.
 
-      We have some uniformity already — the /globular/ etcd
+      We have some uniformity already — the /example/ etcd
       prefix is the closest thing to a unified namespace and
-      it works well within etcd. But /globular/services/
-      records are keyed by UUID while /globular/resources/
+      it works well within etcd. But /example/services/
+      records are keyed by UUID while /example/resources/
       records are keyed by kind+name, and the difference is not
       load-bearing. The opportunity exists.
 
@@ -3967,7 +3930,7 @@ invariants:
       than mobility for the less common case (state corruption
       requiring restoration from a copy). The two compose.
 
-      Globular today has REPLICATION via Scylla and MinIO but
+      the platform today has REPLICATION via Scylla and MinIO but
       no MOBILITY. Every service is pinned to a node. When a
       node fails, recovery means:
 
@@ -3996,7 +3959,7 @@ invariants:
           host AND the existing state from Scylla/MinIO. No
           reinstall. Seconds, not minutes.
 
-      The first candidates for this treatment in Globular are
+      The first candidates for this treatment in the platform are
       stateful services with cheap rebinding cost — ai-memory,
       repository, ai-executor. Stateless services (DNS, event)
       already have something close to this via xDS routing
@@ -4075,43 +4038,43 @@ invariants:
       user could keep their UNIX tooling AND use Eden objects;
       adoption was incremental and reversible.
 
-      Globular faces the same problem. The current adoption
-      story is approximately "install Globular, convert your
-      services to Globular packages, learn the new operational
+      the platform faces the same problem. The current adoption
+      story is approximately "install the platform, convert your
+      services to the platform packages, learn the new operational
       model." That is rebuild, not migrate. A user with
       existing systemd-managed services running production
-      workloads has no incremental path to Globular short of
+      workloads has no incremental path to the platform short of
       operational rewrite.
 
       We have hints of the right direction:
 
-        - Globular packages CAN wrap existing systemd units —
+        - the platform packages CAN wrap existing systemd units —
           a service that already has a working unit file can
           theoretically be packaged with that unit, sidestepping
           rewrite. This is not made first-class enough; spec
-          authoring still assumes Globular-native services.
-        - Globular's own CLI is similar enough to systemctl
+          authoring still assumes platform-native services.
+        - the platform's own CLI is similar enough to systemctl
           that some operational muscle memory transfers. This
           is incidental and undocumented.
         - The 4-layer state model is internally coherent but
-          requires the user to learn it before using Globular
+          requires the user to learn it before using the platform
           for anything serious. Users with deep systemd
           knowledge get no credit.
 
       What a strong migration path would look like:
 
         - A user can run their existing systemd-managed
-          service unchanged INSIDE a Globular package. The
+          service unchanged INSIDE a the platform package. The
           package wraps the existing unit, exposes it as a
-          Globular service, and adds no requirements the
+          the platform service, and adds no requirements the
           existing unit does not already satisfy.
         - Operational commands have backward-compatible
-          aliases: `globular systemctl restart foo` should work
+          aliases: `platform systemctl restart foo` should work
           like `systemctl restart foo` AND surface the
-          Globular-side state model only when the user asks
+          platform-side state model only when the user asks
           for it.
         - The user can keep one foot in systemd and one in
-          Globular indefinitely. There is no point where they
+          the platform indefinitely. There is no point where they
           must convert "everything" to "see the value."
 
       The principle is NOT "design for legacy at the expense
@@ -4120,10 +4083,10 @@ invariants:
       academic. Eden died — academically respected, operationally
       unused — because the migration path was a footnote.
 
-      For Globular this is now-a-decision territory. Each
-      design choice that creates a Globular-only path
-      (Globular-only packaging, Globular-only state model,
-      Globular-only RBAC) is a barrier; each design choice
+      For the platform this is now-a-decision territory. Each
+      design choice that creates a platform-only path
+      (platform-only packaging, platform-only state model,
+      platform-only RBAC) is a barrier; each design choice
       that wraps an existing thing unchanged (systemd unit
       wrapper, JWT compatibility with standard tools,
       Prometheus metrics on standard ports) is a bridge.
@@ -4132,22 +4095,22 @@ invariants:
       asks: for every new feature, what is the bridge form?
     enforcement: |
       For every new feature, capability, or design choice that
-      affects how users interact with Globular:
+      affects how users interact with the platform:
 
         1. Identify the EXISTING tool, format, or workflow the
            user has in production today (systemd, raw scripts,
            Prometheus, JWT, OAuth, kubernetes, docker compose).
         2. Default to a design that allows the existing tool
-           to keep working unchanged. The Globular-native form
+           to keep working unchanged. The platform-native form
            is additive, not replacing.
         3. Document the migration path explicitly. "User has
-           existing X; here is how X works inside Globular
+           existing X; here is how X works inside the platform
            with zero changes; here is how X can incrementally
-           gain Globular-native behavior."
+           gain platform-native behavior."
         4. The migration path is a first-class feature, not a
            post-hoc workaround.
 
-      For existing features that have only Globular-native
+      For existing features that have only platform-native
       paths, document the gap and prioritize adding a bridge
       form for the most common legacy integration.
 
@@ -4161,7 +4124,7 @@ invariants:
         - Architectural superiority used as justification for
           requiring rewrites.
     forbidden_fixes:
-      - forbidden.feature_with_only_globular_native_mode
+      - forbidden.feature_with_only_platform_native_mode
       - forbidden.migration_path_deferred_to_documentation_phase
       - forbidden.architectural_superiority_justifies_rewrite_requirement
     related_invariants:
@@ -4203,11 +4166,9 @@ invariants:
         every rule that consumes a snapshot field — system-wide, not
         site-specific.
       first_predicted_bug:
-        file: golang/mcp/tools_aggregator.go
         symbol: mcp.compare_nodes
         commit: pending
       second_predicted_bug:
-        file: golang/cluster_doctor/cluster_doctor_server/rules/
         symbol: all 62 rule files
         commit: pending (structural fix tracked)
     summary: |
@@ -4328,7 +4289,7 @@ invariants:
     title: "For systems that change frequently, repair time is much easier to improve than failure rate — and has equal impact on uptime"
     category: lifecycle
     antipattern: "We will get availability by making failures rarer"
-    wrong_instinct: Making failures rarer feels like the right answer to "the system fell over" — fix the bugs, harden the code, eliminate the failure modes. But MTBF is hard to measure (you need weeks of realistic load to validate one data point) and easy to confuse yourself about (you fixed the failures you noticed, not the ones you did not). MTTR is measurable in minutes, improvable through tooling, and stable across feature additions. For systems that change frequently — every Globular service ships releases regularly — MTBF stability is a fiction. MTTR is what actually moves availability.
+    wrong_instinct: Making failures rarer feels like the right answer to "the system fell over" — fix the bugs, harden the code, eliminate the failure modes. But MTBF is hard to measure (you need weeks of realistic load to validate one data point) and easy to confuse yourself about (you fixed the failures you noticed, not the ones you did not). MTTR is measurable in minutes, improvable through tooling, and stable across feature additions. For systems that change frequently — every the platform service ships releases regularly — MTBF stability is a fiction. MTTR is what actually moves availability.
     severity: critical
     status: candidate
     summary: |
@@ -4371,7 +4332,7 @@ invariants:
           which failures occur but rarely change how fast
           recovery runs once a failure is detected.
 
-      Applied to Globular:
+      Applied to the platform:
 
         - Our bootstrap-reliability investment is MTBF work.
           We have spent considerable effort making Day-0 reliable.
@@ -4475,7 +4436,7 @@ invariants:
       The DQ cost is the same; the user-visible degradation
       shape is different.
 
-      In Globular the choices have been made implicitly:
+      In the platform the choices have been made implicitly:
 
         - SCYLLADB is replicated (RF tunable, currently 3
           on production). Preserves harvest under fault;
@@ -4584,7 +4545,6 @@ invariants:
         follow-up — three options proposed (load-rank successors,
         warmup period, admission control at takeover).
       first_predicted_bug:
-        file: golang/cluster_controller/cluster_controller_server/leader_liveness.go
         symbol: findLivenessSafeSuccessor
         commit: pending
     summary: |
@@ -4630,7 +4590,7 @@ invariants:
           than letting survivors saturate and fail.
         - Plan for correlated failure modes explicitly.
 
-      For Globular, the principle bites at several layers:
+      For the platform, the principle bites at several layers:
 
         - Leader-only services (cluster_controller,
           authentication) have an implicit redirection
@@ -4758,7 +4718,7 @@ invariants:
         - HYBRID — combine the two; reduce some queries
           AND reduce per-query work.
 
-      For Globular today, most subsystems silently error or
+      For the platform today, most subsystems silently error or
       time out under saturation. There is no explicit
       degradation mode for:
 
@@ -5001,9 +4961,6 @@ invariants:
       displaying guesswork and must be changed to either bind correctly or
       visibly mark its uncertainty.
     related_invariants:
-      - ui.visible_state_requires_authority
-      - ui.data_holder_is_cache_not_authority
-      - ui.success_requires_authoritative_confirmation
       - meta.storage_is_not_semantic_authority
 
   - id: meta.ui.state_certainty_must_be_visually_distinct
@@ -5033,8 +4990,6 @@ invariants:
       rendering. A state the component can occupy but cannot display is a
       lie waiting for traffic.
     related_invariants:
-      - ui.empty_loading_unknown_failed_are_distinct
-      - ui.status_freshness_must_be_surfaced
       - meta.authority_must_express_uncertainty
       - meta.fallback_must_degrade_semantics
 
@@ -5088,9 +5043,6 @@ invariants:
       the action carries, expose the reason when disabled, and guard
       submission with idempotency or single-flight.
     related_invariants:
-      - ui.action_requires_permission_contract
-      - ui.dangerous_warning_must_remain_visible
-      - ui.form_submit_must_be_idempotent_or_singleflight
 
   - id: meta.ui.failure_must_preserve_diagnostic_context
     title: "Failure is when the screen matters most — errors must preserve context and offer a path, never blank the operator's world"
@@ -5116,8 +5068,6 @@ invariants:
       surfaces are acceptable only as the outermost last resort, never as
       the first response to a component failure.
     related_invariants:
-      - ui.error_boundary_must_preserve_diagnostic_context
-      - ui.partial_update_preserves_screen_context
 
   - id: meta.ui.provenance_over_recall
     title: "Operational claims carry their provenance — source, node, generation, and version are shown, not remembered"
@@ -5141,8 +5091,6 @@ invariants:
       which-node/which-version. If the layout cannot fit the provenance,
       make it one interaction away — never absent.
     related_invariants:
-      - ui.status_freshness_must_be_surfaced
-      - ui.floating_identity_must_not_be_hidden
       - meta.assertions_must_carry_their_scope
 
   - id: meta.ui.meaning_must_survive_presentation_loss
@@ -5168,8 +5116,6 @@ invariants:
       responsive collapse never drops warnings or risk indicators; and that
       theme changes cannot reduce a critical signal below visibility.
     related_invariants:
-      - ui.accessibility_must_preserve_operational_meaning
-      - ui.dangerous_warning_must_remain_visible
 
   - id: meta.ui.decoration_must_not_impersonate_authority
     title: "Decoration must not impersonate authority — cosmetic elements and generated prose stay visually subordinate to authoritative state"
@@ -5195,8 +5141,6 @@ invariants:
       weight ranks authoritative state above decoration — risk and failure
       must never sit below the fold of an ornament.
     related_invariants:
-      - ui.ai_text_must_not_invent_state
-      - ui.visible_state_requires_authority
 
   # ── Perception, second pass ─────────────────────────────────────────────────
   # Added lineages: ISO 9241-110 dialogue principles, Shneiderman's Eight
@@ -5231,8 +5175,6 @@ invariants:
       one interaction away at most — never disappear. Declutter decoration,
       never evidence.
     related_invariants:
-      - ui.status_freshness_must_be_surfaced
-      - ui.floating_identity_must_not_be_hidden
       - meta.ui.provenance_over_recall
       - meta.structure_must_not_be_stripped_in_projection
 
@@ -5261,7 +5203,6 @@ invariants:
       time), and keep a visible path to halt or reverse the automation.
       Suggestion and execution must be visually and mechanically distinct.
     related_invariants:
-      - ui.partial_update_preserves_screen_context
       - meta.ui.destructive_action_requires_confirmed_authority
       - meta.state_mutations_must_be_durably_committed_before_side_effects
 
@@ -5289,8 +5230,6 @@ invariants:
       shortcut, bulk operation, API-driven UI action — passes through the
       same guard. A guard with a bypass is not a guard.
     related_invariants:
-      - ui.dangerous_warning_must_remain_visible
-      - ui.form_submit_must_be_idempotent_or_singleflight
       - meta.ui.destructive_action_requires_confirmed_authority
 
   - id: meta.ui.workflow_must_yield_closure
@@ -5320,7 +5259,6 @@ invariants:
       bind to backend progress evidence or visually declare themselves
       indeterminate waits.
     related_invariants:
-      - ui.success_requires_authoritative_confirmation
       - meta.write_creates_completion_obligation
       - meta.half_done_must_not_look_done
 
@@ -5349,7 +5287,6 @@ invariants:
       "the evidence shows" from "the model suggests". Unsourced generated
       text may exist only in clearly decorative, non-status form.
     related_invariants:
-      - ui.ai_text_must_not_invent_state
       - meta.ui.decoration_must_not_impersonate_authority
       - meta.authority_must_express_uncertainty
 
@@ -5377,7 +5314,6 @@ invariants:
       — as explicitly secondary surfaces). Group what the task needs
       together, even when it crosses services.
     related_invariants:
-      - ui.navigation_state_must_be_shareable_when_operationally_relevant
 
   - id: meta.ui.notification_volume_must_match_operator_capacity
     title: "Notification volume must match operator capacity — an alarm flood is a perception outage"
@@ -5386,7 +5322,7 @@ invariants:
     wrong_instinct: More alerts means more safety — surface everything and let the operator filter
     severity: high
     status: active
-    # origin: { type: globular_incident, confidence: high } — EEMUA 191 / ISA-18.2 alarm management; UI twin of meta.diagnostic_output_must_be_bounded; backend precedent: doctor event amplification incident
+    # origin: { type: production_incident, confidence: high } — EEMUA 191 / ISA-18.2 alarm management; UI twin of meta.diagnostic_output_must_be_bounded; backend precedent: doctor event amplification incident
     summary: |
       Forty years of control-room engineering says alarm floods cause
       incidents: beyond a handful of notifications per unit time, operators
@@ -5405,7 +5341,6 @@ invariants:
       warning that has no pending action is alarm pollution to fix at the
       source or re-classify.
     related_invariants:
-      - ui.dangerous_warning_must_remain_visible
       - meta.diagnostic_output_must_be_bounded
       - meta.failure_response_must_contract_not_amplify
 
@@ -5416,7 +5351,7 @@ invariants:
     wrong_instinct: It renders correctly, so it's done — identity is for forms and inputs, not display elements
     severity: high
     status: active
-    # origin: { type: globular_incident, confidence: high } — discovered in the globular-admin incidents-page audit (meta_principle_findings.yaml mpf): filter pills used data-filter but their inner count spans had no identity. A real codebase created this class — the 16th perception principle.
+    # origin: { type: production_incident, confidence: high } — discovered in the example-admin incidents-page audit (meta_principle_findings.yaml mpf): filter pills used data-filter but their inner count spans had no identity. A real codebase created this class — the 16th perception principle.
     summary: |
       Every UI element that carries operational meaning — a status count, a
       health badge, a filter state, a node identifier — must be individually
@@ -5457,7 +5392,7 @@ invariants:
   # The classic AI-generated layout failure this category exists to stop:
   # pretty cards, wrong order.
   #
-  # Globular theme palette has ROLES, not preferences:
+  # the platform theme palette has ROLES, not preferences:
   #   brand, surface, info, success (confirmed runtime truth ONLY),
   #   warning (risk/degraded-but-running), danger (destructive/data-loss),
   #   unknown (missing evidence), stale (old evidence/generation mismatch).
@@ -5586,7 +5521,7 @@ invariants:
     # origin: { type: principle, confidence: high } — color theory + Material/Apple semantic color + WCAG; composition twin of same_truth_same_language
     summary: |
       Theme and status colors must hold stable meanings across the entire
-      interface. The Globular palette is role-based: brand, surface, info,
+      interface. The the platform palette is role-based: brand, surface, info,
       success, warning, danger, unknown, stale. The two load-bearing rules:
       success color marks CONFIRMED RUNTIME TRUTH ONLY — never desired
       state, never optimistic updates, never decoration; and unknown/stale
@@ -5696,7 +5631,7 @@ invariants:
       locally), inspectable runtime behavior, and extension points that do
       not require consumers to depend on private implementation details.
       Every other structure principle elaborates one clause of this one.
-      <globular-node-health> done right is the shape: the tag is a
+      <example-node-health> done right is the shape: the tag is a
       contract, the internals are nobody's business, the lifecycle ends at
       disconnectedCallback.
     enforcement: |
@@ -5742,7 +5677,7 @@ invariants:
     wrong_instinct: A clean API means fewer states and no error types — absorb the mess inside
     severity: high
     status: active
-    # origin: { type: principle, confidence: high } — encapsulation, corrected by the Globular truth model
+    # origin: { type: principle, confidence: high } — encapsulation, corrected by the platform truth model
     summary: |
       A component or module may hide internal complexity — that is its job —
       but its public boundary must honestly expose the states, failures,
@@ -6888,7 +6823,7 @@ invariants:
     enforcement: |
       transaction { append EventPackageVerified; update state VERIFYING -> COMMITTED }
       then publish. State update and history append in separate transactions is a
-      violation. Globular instance of
+      violation. the platform instance of
       meta.state_mutations_must_be_durably_committed_before_side_effects.
     related_invariants:
       - meta.state_mutations_must_be_durably_committed_before_side_effects
@@ -6923,7 +6858,7 @@ invariants:
     summary: |
       The durable event log is the source; current state is a cache/projection
       (history -> reducer -> current_state). Keep current state for performance,
-      but if you delete it the system MUST rebuild it from events. Globular
+      but if you delete it the system MUST rebuild it from events. the platform
       instance of meta.projection_must_be_rebuildable_from_owner.
     enforcement: |
       There must exist a reducer that rebuilds current state from history. If the
@@ -6965,7 +6900,7 @@ invariants:
       RPC timeout after success) can arrive twice. Every command/callback carries
       workflow_id, operation_id/transition_id, expected state/generation, and an
       idempotency key. A duplicate returns the previous result, it does not
-      re-apply the transition. Globular instance of
+      re-apply the transition. the platform instance of
       meta.idempotence_is_a_requirement_not_a_quality.
     enforcement: |
       Each transition is keyed by operation_id and applied at most once. Duplicate
@@ -6988,7 +6923,7 @@ invariants:
       number, not a feeling.
     enforcement: |
       A mutating command without an expected generation, or with a stale one, is
-      rejected. Globular instance of
+      rejected. the platform instance of
       meta.physical_clocks_disagree_use_logical_ordering.
     related_invariants:
       - meta.physical_clocks_disagree_use_logical_ordering
@@ -7008,7 +6943,7 @@ invariants:
       FAILED_TERMINAL -> RECOVERY_REQUESTED only via an operator recovery contract.
     enforcement: |
       No transition table entry leaves a terminal state except one gated by a
-      declared recovery contract. Globular instance of
+      declared recovery contract. the platform instance of
       meta.recovery_mode_must_be_explicit_and_narrower.
     related_invariants:
       - meta.recovery_mode_must_be_explicit_and_narrower
@@ -7028,7 +6963,7 @@ invariants:
       UNKNOWN_NEEDS_RECONCILE. Each failure state implies its allowed next actions.
     enforcement: |
       Failure states are a classified enum; each maps to permitted next
-      transitions. A bare boolean/failed collapse is a violation. Globular instance
+      transitions. A bare boolean/failed collapse is a violation. the platform instance
       of meta.authority_must_express_uncertainty.
     related_invariants:
       - meta.authority_must_express_uncertainty
@@ -7069,7 +7004,7 @@ invariants:
       lose or double-fire the timer.
     enforcement: |
       Deadlines/timeouts are recorded as durable timer events with due_at, not
-      driven by an in-process sleep whose expiry sets state. Globular instance of
+      driven by an in-process sleep whose expiry sets state. the platform instance of
       meta.timeout_is_a_decision_not_a_truth + meta.duration_versus_deadline_is_not_interchangeable.
     related_invariants:
       - meta.timeout_is_a_decision_not_a_truth
@@ -7110,7 +7045,7 @@ invariants:
       observations/callbacks; the controller accepts/rejects and advances.
     enforcement: |
       Concurrent transition writers to one instance is a violation. The single
-      writer is established by CAS/lease/ownership. Globular instance of
+      writer is established by CAS/lease/ownership. the platform instance of
       meta.competing_writers_must_converge_or_be_fenced.
     related_invariants:
       - meta.competing_writers_must_converge_or_be_fenced
@@ -7130,7 +7065,7 @@ invariants:
       SUSPECT or DEGRADED. Observation informs; the owner transitions.
     enforcement: |
       No observation handler sets terminal/membership state directly. It appends an
-      evidence event that a reconciler evaluates. Globular instance of
+      evidence event that a reconciler evaluates. the platform instance of
       meta.event_is_notification_not_authority + meta.reconciler_repairs_only_within_its_authority_lane.
     related_invariants:
       - meta.event_is_notification_not_authority
@@ -7169,7 +7104,7 @@ invariants:
       diagnosis and unbounded to the graph.
     enforcement: |
       Retry is expressed as declared states/events with an attempt counter and a
-      bounded schedule, not an opaque loop. Globular instance of
+      bounded schedule, not an opaque loop. the platform instance of
       meta.failure_response_must_contract_not_amplify.
     related_invariants:
       - meta.failure_response_must_contract_not_amplify
@@ -7190,11 +7125,10 @@ invariants:
     enforcement: |
       Unprovable state resolves to an explicit UNKNOWN/reconcile state that
       requests fresh owner truth — it must not default to a concrete state that
-      permits destructive next actions. Globular instance of
+      permits destructive next actions. the platform instance of
       meta.fail_safe_defaults_when_authority_is_uncertain.
     related_invariants:
       - meta.fail_safe_defaults_when_authority_is_uncertain
-      - invariant.absence_of_desired_state_is_not_permission_to_destroy
 
   - id: meta.workflow.projection_must_not_drive_progression
     title: "Projections must never drive progression — UI/queue/CLI/log views observe, they do not advance the workflow"
@@ -7211,7 +7145,7 @@ invariants:
       never backward.
     enforcement: |
       No workflow transition is triggered by the state of a projection. Projections
-      are read-only derivations of authoritative state. Globular instance of
+      are read-only derivations of authoritative state. the platform instance of
       meta.projection_must_be_rebuildable_from_owner + meta.storage_is_not_semantic_authority.
     related_invariants:
       - meta.projection_must_be_rebuildable_from_owner
@@ -7225,7 +7159,7 @@ invariants:
   # services. Their membership topology, quorum/replication/erasure model, and
   # recovery semantics are part of correctness. A substrate can be "running"
   # while unsafe, unavailable, under-replicated, split-brained, or one failure
-  # from data/control-plane loss. First validated by the Globular etcd
+  # from data/control-plane loss. First validated by the platform etcd
   # learner-first work: a full-voter 1->2 join breaks founder quorum on loss, and
   # etcd 3.5.14 caps learners at 1 so HA must be reached sequentially through a
   # transient (never final) 2-voter state.
