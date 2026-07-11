@@ -67,12 +67,15 @@ irm https://raw.githubusercontent.com/globulario/sensei/main/install.ps1 | iex
 It detects your platform (`linux-amd64/arm64`, `darwin-arm64`, `windows-amd64`),
 downloads and checksum-verifies the matching release, installs the binaries onto
 your PATH, and prints the MCP config to hand your agent. Pin a version with
-`SENSEI_VERSION=v1.1.0`, or change the target dir with `SENSEI_PREFIX=…`.
+`SENSEI_VERSION=v1.1.1`, or change the target dir with `SENSEI_PREFIX=…`.
 
-**Homebrew** (macOS Apple Silicon / Linux) — get `brew upgrade` for free:
+Or via a **package manager** (you get `upgrade` for free):
 
 ```bash
-brew install globulario/tap/sensei
+brew install globulario/tap/sensei     # Homebrew — macOS (Apple Silicon), Linux
+```
+```powershell
+winget install Globulario.Sensei       # winget — Windows
 ```
 
 <details>
