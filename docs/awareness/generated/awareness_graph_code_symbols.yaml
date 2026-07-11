@@ -2651,6 +2651,11 @@ test_symbols:
     symbol: SpecTitle_resolveRebuildPlan_stays_single_repo_outside_awareness_graph_checkout
     language: typescript
     doc: "title: resolveRebuildPlan stays single-repo outside awareness-graph checkout"
+  - id: editor/vscode/src/projectDomain.test.ts:SpecTitle_domainFromRemoteUrl_maps_git_remotes_to_host_owner_repo
+    file: editor/vscode/src/projectDomain.test.ts
+    symbol: SpecTitle_domainFromRemoteUrl_maps_git_remotes_to_host_owner_repo
+    language: typescript
+    doc: "title: domainFromRemoteUrl maps git remotes to host/owner/repo"
   - id: examples/orders-money-scar/pkg/orders/total_test.go:TestOrderTotal_DiscountStaysExactInteger
     file: examples/orders-money-scar/pkg/orders/total_test.go
     symbol: TestOrderTotal_DiscountStaysExactInteger

@@ -2,6 +2,11 @@
 
 ## 0.1.1
 
+- **Scope the file view to the current project.** On a graph that hosts more
+  than one repo/domain, the "This File" view and node detail now resolve against
+  *this* project's domain — derived automatically from the workspace's git remote
+  (`sensei.domain` overrides it) — instead of risking another repo's rules. (The
+  dashboard banner/lists remain graph-wide for now; per-domain totals are next.)
 - **Point users at the Sensei CLI.** The extension is a *client* of the `sensei`
   CLI — the dashboard now has a footer linking the project with one-line install
   commands (Homebrew / winget / curl), and the "server unreachable" message in

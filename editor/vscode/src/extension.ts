@@ -9,6 +9,7 @@ import * as path from 'path';
 import { AwarenessProvider } from './awarenessProvider';
 import { DashboardPanel } from './dashboardPanel';
 import { disposeClient } from './grpcClient';
+import { resetProjectDomainCache } from './projectDomain';
 
 const REFRESH_DEBOUNCE_MS = 250;
 
@@ -74,8 +75,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidSaveTextDocument(() => scheduleRefresh()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('sensei')) {
+        resetProjectDomainCache();
         scheduleRefresh();
       }
+    }),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      resetProjectDomainCache();
+      scheduleRefresh();
     }),
     vscode.commands.registerCommand('sensei.refresh', () => scheduleRefresh()),
     vscode.commands.registerCommand('sensei.openDashboard', () =>
