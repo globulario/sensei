@@ -5,6 +5,12 @@ All notable changes to Sensei are documented here. This project adheres to
 
 ## Unreleased
 
+- **Homebrew tap.** `brew install globulario/tap/sensei` installs the CLI,
+  server, MCP bridge, and bundled Oxigraph on macOS (Apple Silicon) and Linux
+  (amd64/arm64), with `brew upgrade` for updates. The tap
+  ([globulario/homebrew-tap](https://github.com/globulario/homebrew-tap)) pins
+  each release's per-platform tarball + SHA256 and CI-tests `brew install` on
+  macOS and Linux.
 - **One-line installers.** `install.sh` (Linux/macOS,
   `curl -fsSL …/install.sh | sh`) and `install.ps1` (Windows,
   `irm …/install.ps1 | iex`) detect the platform, download and checksum-verify
