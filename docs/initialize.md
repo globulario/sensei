@@ -54,7 +54,7 @@ or `./scripts/install.sh`, both repos cloned as siblings.
 **Step 1 — Start Oxigraph:**
 
 ```bash
-cd awareness-graph
+cd sensei
 make oxigraph
 ```
 

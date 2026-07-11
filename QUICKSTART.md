@@ -11,7 +11,7 @@ Source build:
 
 ```bash
 git clone https://github.com/globulario/sensei
-cd awareness-graph && ./scripts/install.sh      # builds sensei + server, fetches oxigraph → bin/
+cd sensei && ./scripts/install.sh      # builds sensei + server, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
 ```
 
@@ -24,7 +24,7 @@ export PATH="$PWD/bin:$PATH"
 bash ./scripts/fetch-oxigraph.sh
 ```
 
-Source build requires Go 1.23+, git, curl, python3. The prebuilt Linux bundle
+Source build requires Go1.25+, git, curl, python3. The prebuilt Linux bundle
 does not require Go. Full platform notes (macOS, the Oxigraph dependency, the
 Docker alternative): **[INSTALL.md](INSTALL.md)**.
 

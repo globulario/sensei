@@ -1,0 +1,101 @@
+# Sensei architecture gate — reusable composite action.
+#
+# Gates a pull request's diff against YOUR repo's Sensei awareness graph
+# (invariants, forbidden fixes, contracts). It resolves the two runtime blockers
+# for you — it fetches Oxigraph (no Docker) and starts the gRPC server as a
+# child of `sensei serve` — so your workflow is a single `uses:` line.
+#
+# Usage (in your repo's .github/workflows/sensei.yml):
+#
+#   jobs:
+#     architecture-gate:
+#       runs-on: ubuntu-latest
+#       steps:
+#         - uses: actions/checkout@v4
+#           with: { fetch-depth: 0 }          # full history so the diff resolves
+#         - uses: globulario/sensei/.github/actions/sensei-gate@main
+#           with:
+#             enforce: 'true'                  # block the check on a violation
+#
+# Your repo must be a Sensei project: a docs/awareness/ directory (run
+# `sensei init` once, commit it).
+name: Sensei architecture gate
+description: Gate a PR diff against your repo's Sensei awareness graph (invariants, forbidden fixes, contracts). Fetches Oxigraph and runs the server for you.
+
+inputs:
+  awareness-dir:
+    description: Directory holding the awareness YAML sources.
+    default: docs/awareness
+  diff:
+    description: "git diff range to gate. Default: the PR base...HEAD (or HEAD on a push)."
+    default: ''
+  enforce:
+    description: "'true' blocks the check on a blocking finding; 'false' posts an advisory report and always passes."
+    default: 'true'
+  domain:
+    description: "Domain/repo scope, e.g. github.com/you/yourrepo. Only needed if your graph hosts more than one domain."
+    default: ''
+  ref:
+    description: Git ref of globulario/sensei to build the gate from (tag/branch/SHA).
+    default: main
+  go-version:
+    description: Go toolchain version used to build Sensei.
+    default: '1.25'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Build Sensei + fetch Oxigraph
+      shell: bash
+      run: |
+        set -euo pipefail
+        SENSEI="$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)"   # the checked-out sensei repo
+        BIN="$SENSEI/bin"; mkdir -p "$BIN"
+        echo "::group::Build Sensei ($SENSEI)"
+        ( cd "$SENSEI" && go build -o "$BIN/sensei" ./cmd/awg && go build -o "$BIN/awareness-graph" ./golang/server )
+        cp "$BIN/sensei" "$BIN/awg" 2>/dev/null || true
+        bash "$SENSEI/scripts/fetch-oxigraph.sh"               # → $SENSEI/bin/oxigraph (no Docker)
+        echo "$BIN" >> "$GITHUB_PATH"
+        echo "::endgroup::"
+
+    - name: Start store + server
+      shell: bash
+      run: |
+        set -euo pipefail
+        # `sensei serve` runs Oxigraph (:7878) as a child and the gRPC server (:10120).
+        nohup sensei serve --no-seed --allow-stale-seed > "$RUNNER_TEMP/sensei-serve.log" 2>&1 &
+        echo "waiting for the server on :10120 …"
+        for i in $(seq 1 60); do
+          if (exec 3<>/dev/tcp/localhost/10120) 2>/dev/null; then exec 3>&- ; echo "  ✓ up"; break; fi
+          sleep 1
+          if [ "$i" = 60 ]; then echo "::error::server did not start"; cat "$RUNNER_TEMP/sensei-serve.log"; exit 1; fi
+        done
+
+    - name: Compile the awareness graph
+      shell: bash
+      run: |
+        set -euo pipefail
+        sensei build --input "${{ inputs.awareness-dir }}" --store-url "http://localhost:7878/store?default"
+
+    - name: Gate the diff
+      shell: bash
+      run: |
+        set -euo pipefail
+        RANGE="${{ inputs.diff }}"
+        if [ -z "$RANGE" ]; then
+          if [ -n "${GITHUB_BASE_REF:-}" ]; then
+            git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF" || true
+            RANGE="origin/${GITHUB_BASE_REF}...HEAD"
+          else
+            RANGE="HEAD~1...HEAD"
+          fi
+        fi
+        echo "gating diff: $RANGE"
+        MODE="--report-only"; [ "${{ inputs.enforce }}" = "true" ] && MODE="--enforce"
+        DOMAIN=""; [ -n "${{ inputs.domain }}" ] && DOMAIN="--domain ${{ inputs.domain }}"
+        sensei gate --diff "$RANGE" --repo-root . $DOMAIN $MODE

@@ -169,7 +169,7 @@ The cases where you are most confident a fix is "too simple to need awareness" a
 ```bash
 # Install (builds sensei + server, fetches oxigraph — no Docker needed)
 git clone https://github.com/globulario/sensei.git
-cd awareness-graph && ./scripts/install.sh
+cd sensei && ./scripts/install.sh
 export PATH="$PWD/bin:$PATH"
 
 # Scaffold your project
