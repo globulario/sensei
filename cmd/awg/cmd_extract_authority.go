@@ -59,13 +59,13 @@ type authorityFeatures struct {
 }
 
 func runExtractAuthority(args []string) int {
-	fs := flag.NewFlagSet("awg extract-authority", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei extract-authority", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to scan")
 	output := fs.String("output", "", "candidate YAML to write (default: <repo>/docs/awareness/candidates/authority_surface_candidates.yaml)")
 	check := fs.Bool("check", false, "compare committed candidate YAML to a fresh run; exit 1 if stale")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg extract-authority [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei extract-authority [flags]
 
 Extract conservative AuthoritySurface candidates from Go source. The command
 emits status:candidate YAML only; nothing is auto-promoted or imported as live
@@ -81,17 +81,17 @@ Flags:
 
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-authority: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-authority: resolve repo root: %v\n", err)
 		return 1
 	}
 	cands, err := extractAuthorityCandidates(root)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-authority: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-authority: %v\n", err)
 		return 1
 	}
 	out, err := renderAuthorityCandidates(root, cands)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-authority: render: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-authority: render: %v\n", err)
 		return 1
 	}
 
@@ -109,11 +109,11 @@ Flags:
 		return 0
 	}
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-authority: mkdir: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-authority: mkdir: %v\n", err)
 		return 1
 	}
 	if err := os.WriteFile(target, out, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg extract-authority: write: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei extract-authority: write: %v\n", err)
 		return 1
 	}
 
@@ -344,11 +344,11 @@ func authorityCandidateFromFeatures(f authorityFeatures) (authoritySurfaceCandid
 func renderAuthorityCandidates(root string, cands []authoritySurfaceCandidate) ([]byte, error) {
 	var doc authoritySurfaceCandidateDoc
 	doc.AuthoritySurfaceCandidates.RepoRoot = root
-	doc.AuthoritySurfaceCandidates.GeneratedBy = "awg extract-authority"
+	doc.AuthoritySurfaceCandidates.GeneratedBy = "sensei extract-authority"
 	doc.AuthoritySurfaceCandidates.Candidates = cands
 
 	var buf bytes.Buffer
-	buf.WriteString("# GENERATED candidate authority surfaces by `awg extract-authority`.\n")
+	buf.WriteString("# GENERATED candidate authority surfaces by `sensei extract-authority`.\n")
 	buf.WriteString("# status:candidate only. Review and promote explicitly before treating\n")
 	buf.WriteString("# any of these surfaces as authoritative governance facts.\n")
 	enc := yaml.NewEncoder(&buf)

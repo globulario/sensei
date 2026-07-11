@@ -25,13 +25,13 @@ import (
 // bundle binding: if the draft declares a bundle_id that doesn't match the
 // provided bundle's content hash, it fails as stale/drifted.
 func runValidateDraft(args []string) int {
-	fs := flag.NewFlagSet("awg validate-draft", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei validate-draft", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	bundleFile := fs.String("bundle", "", "exported bundle JSON (a single BundleExport object)")
 	draftFile := fs.String("draft", "", "candidate draft file (JSON or YAML)")
 	repo := fs.String("repo", ".", "repo working tree for citation resolution")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg validate-draft --bundle <bundle.json> --draft <candidate.{json,yaml}> [--repo <path>]
+		fmt.Fprint(os.Stderr, `Usage: sensei validate-draft --bundle <bundle.json> --draft <candidate.{json,yaml}> [--repo <path>]
 
 Validate one externally-drafted candidate against one exported bundle, through
 the same cage as the cold-bootstrap import path. Prints PASS or FAIL+reasons.

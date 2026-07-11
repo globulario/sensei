@@ -26,19 +26,19 @@ Oxigraph (the RDF store) is fetched for you by the installer — see
 ```bash
 git clone https://github.com/globulario/sensei.git
 cd awareness-graph
-./scripts/install.sh                 # builds awg + server, fetches oxigraph → bin/
+./scripts/install.sh                 # builds sensei + server, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
 ```
 
-This produces `bin/awg`, `bin/awareness-graph`, and `bin/oxigraph`. The
-standalone path (`awg serve -no-seed`) launches Oxigraph as a child process —
+This produces `bin/sensei`, `bin/awareness-graph`, and `bin/oxigraph`. The
+standalone path (`sensei serve -no-seed`) launches Oxigraph as a child process —
 no Docker, no separate store to administer. Full options: [../INSTALL.md](../INSTALL.md).
 
 ## Step 2: Scaffold your project
 
 ```bash
 cd /path/to/your-project
-awg init
+sensei init
 ```
 
 This creates:
@@ -50,7 +50,7 @@ docs/awareness/
   high_risk_files.yaml      # Files requiring briefing
   activation_rules.yaml     # When briefing is required
   meta_principles.yaml      # 133 portable principles, 8 categories (seed)
-.awg/config.yaml            # Sensei configuration
+.sensei/config.yaml            # Sensei configuration
 .claude/hooks/              # Claude Code enforcement hooks
 CLAUDE.md                   # Updated with Sensei section
 ```
@@ -137,39 +137,39 @@ failure_modes:
 
 ```bash
 # Validate your YAML
-awg check
+sensei check
 
 # Compile and load into Oxigraph
-awg build
+sensei build
 ```
 
 You should see:
 ```
   docs/awareness: 6 files, 42 triples (3 not imported)
   total: 42 triples, validated
-  transaction file: .awg/graph-authority.transaction.tsv
+  transaction file: .sensei/graph-authority.transaction.tsv
   loaded 7200 bytes into http://localhost:7878/store?default
-  marker file: .awg/graph-authority.json
+  marker file: .sensei/graph-authority.json
 Build complete.
 ```
 
 That output means Sensei published the local runtime authority pair for this
 graph:
 
-- `.awg/graph-authority.json`
-- `.awg/graph-authority.transaction.tsv`
+- `.sensei/graph-authority.json`
+- `.sensei/graph-authority.transaction.tsv`
 
 ## Step 7: Start the server
 
 ```bash
-awg serve -no-seed
+sensei serve -no-seed
 ```
 
 The server starts on `localhost:10120` (gRPC). **`-no-seed` matters for your
 own project:** without it, an empty store is seeded with Sensei's embedded
 *Globular reference graph* — useful as an example, but it would mix Globular's
 invariants into your briefings. With `-no-seed`, your graph contains exactly
-what `awg build` compiled from your `docs/awareness/`, and the runtime marker +
+what `sensei build` compiled from your `docs/awareness/`, and the runtime marker +
 transaction pair tell Sensei that this local graph is the authoritative one to
 judge against.
 
@@ -177,7 +177,7 @@ If you later reload a built `.nt` into a long-lived Oxigraph store, verify the
 store actually picked up the new graph:
 
 ```bash
-awg seed-status --seed ./graph.nt --oxigraph-url http://localhost:7878/query --require-current
+sensei seed-status --seed ./graph.nt --oxigraph-url http://localhost:7878/query --require-current
 ```
 
 That catches the common split-brain cases: new seed file with old live graph,
@@ -189,13 +189,13 @@ In a new terminal:
 
 ```bash
 # What do I need to know before editing session.go?
-awg briefing --file src/auth/session.go
+sensei briefing --file src/auth/session.go
 
 # What knowledge nodes touch this file?
-awg impact --file src/auth/session.go
+sensei impact --file src/auth/session.go
 
 # How risky is this edit?
-awg preflight --file src/auth/session.go --task "add token refresh"
+sensei preflight --file src/auth/session.go --task "add token refresh"
 ```
 
 The briefing will return:
@@ -220,7 +220,7 @@ Once the local graph is healthy, you can ask Sensei whether the repository is in
 state where controlled agent work is likely to be safe:
 
 ```bash
-awg repo-eval --repo .
+sensei repo-eval --repo .
 ```
 
 This report stays product-language-first. It tells you:
@@ -239,7 +239,7 @@ If you want help preparing the next review pass, generate non-authoritative
 candidate governance files:
 
 ```bash
-awg repo-eval draft-upgrade --repo .
+sensei repo-eval draft-upgrade --repo .
 ```
 
 That writes review-only drafts under
@@ -248,7 +248,7 @@ candidate-only and must be reviewed before anything becomes live authority.
 
 ## Step 9: Enable Claude Code hooks (optional)
 
-If you use Claude Code, the hooks created by `awg init` enforce briefing before edits. Add this to your `.claude/settings.json`:
+If you use Claude Code, the hooks created by `sensei init` enforce briefing before edits. Add this to your `.claude/settings.json`:
 
 ```json
 {
@@ -281,7 +281,7 @@ If you use Claude Code, the hooks created by `awg init` enforce briefing before 
 }
 ```
 
-Now Claude Code will be blocked from editing files in your high-risk directories until it calls `awg briefing` first.
+Now Claude Code will be blocked from editing files in your high-risk directories until it calls `sensei briefing` first.
 
 ---
 
@@ -308,7 +308,7 @@ Sensei becomes more valuable with every bug you encode. Here's the workflow:
    - What kind of edit introduced the bug?
    - What should the developer have known?
 
-5. **Rebuild**: `awg build`
+5. **Rebuild**: `sensei build`
 
 Now the same class of bug can never ship again — the briefing warns before the edit is made.
 
@@ -347,26 +347,26 @@ Add `related_invariants: [meta.<principle>]` to your failure mode. Then search y
 
 | Command | What it does |
 |---------|-------------|
-| `awg init` | Scaffold a new project |
-| `awg check` | Validate YAML sources |
-| `awg build` | Compile YAML → load into store |
-| `awg build --output file.nt` | Compile to file (no store needed) |
-| `awg serve` | Start the gRPC server |
-| `awg briefing --file <path>` | Context for editing a file |
-| `awg briefing --task "desc"` | Context for a task |
-| `awg impact --file <path>` | Structured knowledge nodes |
-| `awg preflight --file <path>` | Risk classification |
-| `awg version` | Print version |
+| `sensei init` | Scaffold a new project |
+| `sensei check` | Validate YAML sources |
+| `sensei build` | Compile YAML → load into store |
+| `sensei build --output file.nt` | Compile to file (no store needed) |
+| `sensei serve` | Start the gRPC server |
+| `sensei briefing --file <path>` | Context for editing a file |
+| `sensei briefing --task "desc"` | Context for a task |
+| `sensei impact --file <path>` | Structured knowledge nodes |
+| `sensei preflight --file <path>` | Risk classification |
+| `sensei version` | Print version |
 
 ## Architecture
 
 ```
-Your YAML files          awg build           Oxigraph         awg serve
+Your YAML files          sensei build           Oxigraph         sensei serve
 (docs/awareness/)   -->  (yaml2nt)    -->   (RDF store)  -->  (gRPC)
                                                                  |
-                         awg briefing  <----  gRPC client  <-----+
-                         awg impact
-                         awg preflight
+                         sensei briefing  <----  gRPC client  <-----+
+                         sensei impact
+                         sensei preflight
 ```
 
 Sensei compiles your YAML into RDF triples, stores them in Oxigraph, and serves them via gRPC. The CLI commands are thin gRPC clients that format the responses for humans. Claude Code hooks call the same API to enforce consultation before edits.
@@ -375,4 +375,4 @@ Sensei compiles your YAML into RDF triples, stores them in Oxigraph, and serves 
 
 - Read the [meta-principles reference](meta-principles.md) for the full classification system
 - Browse [Globular's awareness YAML](https://github.com/globulario/services/tree/master/docs/awareness) for a real-world example with 200+ entries
-- Set up CI to run `awg check --strict` on every PR
+- Set up CI to run `sensei check --strict` on every PR

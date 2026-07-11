@@ -14,14 +14,14 @@ import (
 )
 
 func runImpact(args []string) int {
-	fs := flag.NewFlagSet("awg impact", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei impact", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	file := fs.String("file", "", "repo-relative file path (required)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg impact --file <path> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei impact --file <path> [flags]
 
 Returns structured knowledge nodes (invariants, failure modes, etc.)
 that touch the given file. More detailed than briefing.
@@ -35,7 +35,7 @@ Flags:
 		return 2
 	}
 	if *file == "" {
-		fmt.Fprintln(os.Stderr, "awg impact: --file is required")
+		fmt.Fprintln(os.Stderr, "sensei impact: --file is required")
 		return 2
 	}
 
@@ -44,7 +44,7 @@ Flags:
 
 	conn, err := client.DialConn(*addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg impact: connect %s: %v\n", *addr, err)
+		fmt.Fprintf(os.Stderr, "sensei impact: connect %s: %v\n", *addr, err)
 		return 1
 	}
 	defer conn.Close()
@@ -55,7 +55,7 @@ Flags:
 		Domain: *domain,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg impact: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei impact: %v\n", err)
 		return 1
 	}
 
@@ -119,7 +119,7 @@ Flags:
 			// Honest: the file IS in the graph (structure/symbols), it just has
 			// no authored governing knowledge yet.
 			fmt.Printf("\nNo governing knowledge nodes anchored to this file yet — structure only.\n" +
-				"Author invariants / forbidden-fixes (or `awg propose`) to govern it.\n")
+				"Author invariants / forbidden-fixes (or `sensei propose`) to govern it.\n")
 		} else {
 			fmt.Println("No knowledge nodes found for this file.")
 		}

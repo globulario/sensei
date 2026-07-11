@@ -41,7 +41,7 @@ var promoteTargetToClass = map[string]string{
 }
 
 func runPromote(args []string) int {
-	fs := flag.NewFlagSet("awg promote", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei promote", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	target := fs.String("target", "", "target canonical YAML file (auto-detected from class)")
 	dryRun := fs.Bool("dry-run", false, "validate only, do not modify files")
@@ -54,7 +54,7 @@ func runPromote(args []string) int {
 	sourceSetFlag := fs.String("source-set", "", "PILOT: source-set namespace (default: pilot/<repo-slug>)")
 	oxigraphURLFlag := fs.String("oxigraph-url", "http://localhost:7878/store?default", "PILOT: Oxigraph endpoint to additively load the pilot graph into")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg promote <candidate-id> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei promote <candidate-id> [flags]
 
 Promotes a candidate into the matching canonical YAML file. Validates naming,
 status, confidence, evidence.
@@ -80,7 +80,7 @@ Flags:
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "awg promote: requires exactly 1 arg: <candidate-id>")
+		fmt.Fprintln(os.Stderr, "sensei promote: requires exactly 1 arg: <candidate-id>")
 		return 2
 	}
 	candidateID := fs.Arg(0)
@@ -102,7 +102,7 @@ Flags:
 	var candidatesDir, awarenessDir, baseRepo string
 	if pilot {
 		if agRepo == "" {
-			fmt.Fprintln(os.Stderr, "awg promote: --repo set but awareness-graph repo not found (use --ag-repo)")
+			fmt.Fprintln(os.Stderr, "sensei promote: --repo set but awareness-graph repo not found (use --ag-repo)")
 			return 1
 		}
 		pilotDir := filepath.Join(agRepo, "pilot", pilotSlug(pilotRepo))
@@ -118,7 +118,7 @@ Flags:
 	// Find candidate.
 	candidatePath, candidate, err := findCandidateEntry(candidatesDir, candidateID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote: %v\n", err)
 		return 1
 	}
 	fmt.Printf("candidate found: %s\n", relTo(baseRepo, candidatePath))
@@ -126,7 +126,7 @@ Flags:
 	// Resolve target.
 	targetFilename, err := resolvePromoteTarget(*target, candidate)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote: %v\n", err)
 		return 1
 	}
 	// Meta-principles belong in the awareness-graph-owned portable pack, not the
@@ -145,12 +145,12 @@ Flags:
 
 	// Validate.
 	if err := validateCandidateEntry(candidate, targetFilename, awarenessDir); err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote: validation failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote: validation failed: %v\n", err)
 		return 1
 	}
 	if pilot {
 		if err := validatePilotScope(candidate, pilotRepo); err != nil {
-			fmt.Fprintf(os.Stderr, "awg promote: pilot validation failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei promote: pilot validation failed: %v\n", err)
 			return 1
 		}
 	}
@@ -172,14 +172,14 @@ Flags:
 
 	// Append.
 	if err := appendToCanonicalFile(targetPath, listKey, canonical); err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote: %v\n", err)
 		return 1
 	}
 	fmt.Printf("appended to %s\n", relTo(baseRepo, targetPath))
 
 	// Remove from candidate file.
 	if err := removeCandidateEntry(candidatePath, candidateID); err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote: %v\n", err)
 		return 1
 	}
 	fmt.Printf("removed %s from %s\n", candidateID, relTo(baseRepo, candidatePath))
@@ -190,12 +190,12 @@ Flags:
 	// time; this keeps them isolated at build time.
 	if pilot {
 		if *noRebuild {
-			fmt.Printf("\nnext step: load pilot graph — awg build --input %s, then POST to Oxigraph\n", relTo(baseRepo, awarenessDir))
+			fmt.Printf("\nnext step: load pilot graph — sensei build --input %s, then POST to Oxigraph\n", relTo(baseRepo, awarenessDir))
 			return 0
 		}
 		fmt.Println("\nLoading pilot graph into Oxigraph (additive; embedded seed untouched)...")
 		if err := loadPilotGraph(awarenessDir, agRepo, svcRepo, *oxigraphURLFlag); err != nil {
-			fmt.Fprintf(os.Stderr, "awg promote: pilot graph load failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei promote: pilot graph load failed: %v\n", err)
 			fmt.Fprintf(os.Stderr, "  the YAML is promoted; re-run the load once Oxigraph is reachable.\n")
 			return 1
 		}
@@ -205,11 +205,11 @@ Flags:
 
 	// Rebuild (home domain).
 	if *noRebuild {
-		fmt.Println("\nnext step: awg rebuild")
+		fmt.Println("\nnext step: sensei rebuild")
 		return 0
 	}
 	if err := ensureCrossRepoRebuildPrereqs(agRepo, svcRepo); err != nil {
-		fmt.Fprintf(os.Stderr, "awg promote: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei promote: %v\n", err)
 		return 1
 	}
 	fmt.Println("\nTriggering rebuild...")
@@ -224,10 +224,10 @@ Flags:
 		return rc
 	}
 	// WB-1: promotion -> rebuild -> checks is one automatic action. Fire the
-	// coherence gate so the promoter gets the same verdict awg learn gives,
+	// coherence gate so the promoter gets the same verdict sensei learn gives,
 	// without having to remember to run validate/audit separately.
 	if *noCheck {
-		fmt.Println("\ncoherence checks skipped (--no-check); run `awg learn --check` before committing.")
+		fmt.Println("\ncoherence checks skipped (--no-check); run `sensei learn --check` before committing.")
 		return 0
 	}
 	return runPromotionChecks(svcRepo, agRepo)
@@ -236,7 +236,7 @@ Flags:
 // runPromotionChecks fires the coherence gate after a promotion's rebuild so
 // "promotion -> rebuild -> checks" is one automatic action (WB-1): validate
 // (dangling refs / dup ids / missing sources) then audit -check (freshness +
-// coherence, incl. the seed-orphans gate). Mirrors the awg learn harness so a
+// coherence, incl. the seed-orphans gate). Mirrors the sensei learn harness so a
 // promoter gets the same fail-closed verdict without remembering separate
 // commands. Returns the first non-zero check code, or 0 when coherent.
 func runPromotionChecks(svcRepo, agRepo string) int {
@@ -249,7 +249,7 @@ func runPromotionChecks(svcRepo, agRepo string) int {
 		valArgs = append(valArgs, "-ag-repo", agRepo)
 	}
 	if rc := runValidate(valArgs); rc != 0 {
-		fmt.Fprintln(os.Stderr, "awg promote: corpus validation failed — resolve references/ids before the rule is enforced.")
+		fmt.Fprintln(os.Stderr, "sensei promote: corpus validation failed — resolve references/ids before the rule is enforced.")
 		return rc
 	}
 
@@ -263,11 +263,11 @@ func runPromotionChecks(svcRepo, agRepo string) int {
 	}
 	auditArgs = append(auditArgs, "-check")
 	if rc := runAudit(auditArgs); rc != 0 {
-		fmt.Fprintln(os.Stderr, "awg promote: audit failed — seed stale or incoherent after rebuild.")
+		fmt.Fprintln(os.Stderr, "sensei promote: audit failed — seed stale or incoherent after rebuild.")
 		return rc
 	}
 
-	fmt.Println("\nawg promote: promoted, rebuilt, validated, audited — the rule is coherent and ready to commit.")
+	fmt.Println("\nsensei promote: promoted, rebuilt, validated, audited — the rule is coherent and ready to commit.")
 	return 0
 }
 

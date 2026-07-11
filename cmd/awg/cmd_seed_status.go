@@ -43,7 +43,7 @@ type seedStatusResult struct {
 }
 
 func runSeedStatus(args []string) int {
-	fs := flag.NewFlagSet("awg seed-status", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei seed-status", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	seedPathFlag := fs.String("seed", "", "path to awareness.nt (default: auto-detect embedded seed)")
 	oxigraphURL := fs.String("oxigraph-url", "http://localhost:7878/query", "Oxigraph query or store endpoint")
@@ -52,7 +52,7 @@ func runSeedStatus(args []string) int {
 	requireCurrent := fs.Bool("require-current", false, "exit 1 when the live store does not contain this seed marker")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg seed-status [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei seed-status [flags]
 
 Checks whether a live Oxigraph store contains the exact seed marker embedded in
 an awareness.nt file, and when repo context is available also compares the
@@ -68,17 +68,17 @@ Flags:
 
 	seedPath, err := resolveSeedPath(*seedPathFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg seed-status: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei seed-status: %v\n", err)
 		return 1
 	}
 	seedBytes, err := os.ReadFile(seedPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg seed-status: read seed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei seed-status: read seed: %v\n", err)
 		return 1
 	}
 	marker, ok := seedmeta.ParseMarker(seedBytes)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "awg seed-status: %s does not carry a seed marker; rebuild it with current AWG\n", seedPath)
+		fmt.Fprintf(os.Stderr, "sensei seed-status: %s does not carry a seed marker; rebuild it with current AWG\n", seedPath)
 		return 1
 	}
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
@@ -86,7 +86,7 @@ Flags:
 
 	queryURL, err := normalizeOxigraphQueryURL(*oxigraphURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg seed-status: invalid --oxigraph-url: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei seed-status: invalid --oxigraph-url: %v\n", err)
 		return 1
 	}
 	res := seedStatusResult{
@@ -156,7 +156,7 @@ func printSeedStatusResult(res seedStatusResult, asJSON bool) int {
 		return 0
 	}
 	fmt.Println("Status:              authority is not fully aligned across generated, committed, and live graph state")
-	fmt.Println("Next step:           run `awg rebuild` to regenerate, verify, and promote one certified graph state")
+	fmt.Println("Next step:           run `sensei rebuild` to regenerate, verify, and promote one certified graph state")
 	if res.RequireCurrent {
 		return 1
 	}

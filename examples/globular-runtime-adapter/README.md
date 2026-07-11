@@ -25,8 +25,8 @@ Globular services  →  this adapter  →  runtime-evidence/v1 snapshot  →  Se
 ## Validate (Phase 1 validators, available now)
 
 ```bash
-awg runtime-adapter validate  --manifest examples/globular-runtime-adapter/globular-runtime-adapter.yaml
-awg runtime-snapshot validate --in       examples/globular-runtime-adapter/sidekick-quorum-snapshot.example.yaml
+sensei runtime-adapter validate  --manifest examples/globular-runtime-adapter/globular-runtime-adapter.yaml
+sensei runtime-snapshot validate --in       examples/globular-runtime-adapter/sidekick-quorum-snapshot.example.yaml
 ```
 
 Both are kept valid in CI by `TestGlobularExampleAdapterValidates`.
@@ -43,8 +43,8 @@ side, where the clients and auth live), because importing Globular protobufs or 
 into Sensei core is a hard non-negotiable. It needs a live cluster + auth, so it is a
 separate lane.
 
-**Phases 3–6 (not built):** `awg cluster-diagnose` (typed verdicts like
-`blocked_by_quorum`), `awg repair-report` (before/action/after), `awg gate`
+**Phases 3–6 (not built):** `sensei cluster-diagnose` (typed verdicts like
+`blocked_by_quorum`), `sensei repair-report` (before/action/after), `sensei gate`
 (fail-closed on missing/stale/unauthorized evidence), and memory promotion. The
 verdict *rules* (stale-can-diagnose-not-validate-repair, unknown-must-not-green,
 missing-owner-blocks) live there — deliberately not in a schema validator.

@@ -41,7 +41,7 @@ service also depends on `awg-oxigraph.service`.
 ## Verify
 
 ```bash
-./bin/awg metadata
+./bin/sensei metadata
 ```
 
 Expected:

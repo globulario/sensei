@@ -80,7 +80,7 @@ type benchmarkScoreTask struct {
 }
 
 func runBenchmarkScore(args []string) int {
-	fs := flag.NewFlagSet("awg benchmark-score", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei benchmark-score", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
 	addr := fs.String("addr", "127.0.0.1:10120", "AWG gRPC server address for authoritative repair-plan resolution")
@@ -98,7 +98,7 @@ func runBenchmarkScore(args []string) int {
 	fs.Var(&files, "file", "changed or judged file path (repeatable)")
 	fs.Var(&testsRun, "test-run", "executed test id, function, or file path (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg benchmark-score [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei benchmark-score [flags]
 
 Run the standard local benchmark sequence:
   1. build a repair brief
@@ -120,12 +120,12 @@ Flags:
 
 	task, source, err := loadBenchmarkScoreTask(*taskFile, *issue, tests, files, testsRun, *repairSuccess)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-score: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 2
 	}
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-score: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-score: resolve repo root: %v\n", err)
 		return 1
 	}
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
@@ -133,7 +133,7 @@ Flags:
 	guardCtx, guardCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer guardCancel()
 	if err := benchmarkAuthorityGuard(guardCtx, *addr, agRepo, svcRepo); err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-score: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
 	briefTask := benchmarkBriefTask{
@@ -144,18 +144,18 @@ Flags:
 	}
 	brief, err := buildBenchmarkBrief(root, briefTask, source)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-score: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
 	repairPlan, err := buildAuthoritativeRepairPlan(root, *addr, strings.TrimSpace(task.Issue), brief.LikelyImplementationFiles)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-score: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
 	brief.RepairPlan = &repairPlan
 	judge, err := buildBenchmarkJudge(root, briefTask, task.TestsRun)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-score: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
 	breakdown := benchmarkCertificationLanes(task, judge)

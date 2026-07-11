@@ -16,20 +16,20 @@ import (
 	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
-// runReconcile implements `awg reconcile` (GC-3): the live-store ↔ authored-YAML
+// runReconcile implements `sensei reconcile` (GC-3): the live-store ↔ authored-YAML
 // reconciliation job. It diffs the running Oxigraph store's node set against the
 // committed seed (which GC-1 keeps coherent with the authored YAML), and names:
 //
 //   - store-only subjects → ORPHANS: nodes the live store carries that the
 //     authored corpus does not. These arise at runtime from additive loads
-//     (`awg promote`/`propose` POST-merge into the store) that were never
+//     (`sensei promote`/`propose` POST-merge into the store) that were never
 //     reconciled back into the seed/YAML — exactly the orphan subgraph that was
 //     previously only found by hand.
 //   - seed-only subjects → the live store is LAGGING the committed seed (it was
 //     not reloaded after a rebuild, or is stale/empty). Informational, not an
-//     orphan; `awg rebuild` / a store reload fixes it.
+//     orphan; `sensei rebuild` / a store reload fixes it.
 //
-// Where GC-1's `awg audit` seed-orphans check polices the COMMITTED artifact,
+// Where GC-1's `sensei audit` seed-orphans check polices the COMMITTED artifact,
 // this polices the LIVE runtime store, which the committed artifact cannot see.
 //
 // Exit codes:
@@ -38,7 +38,7 @@ import (
 //	1  store-only orphans found, or -require-clean and the store could not be proven clean
 //	2  usage / configuration error
 func runReconcile(args []string) int {
-	fs := flag.NewFlagSet("awg reconcile", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei reconcile", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	seedPathFlag := fs.String("seed", "", "path to awareness.nt (default: auto-detect embedded seed)")
 	oxigraphURL := fs.String("oxigraph-url", "http://localhost:7878/query", "Oxigraph query or store endpoint")
@@ -46,7 +46,7 @@ func runReconcile(args []string) int {
 	requireClean := fs.Bool("require-clean", false, "exit 1 unless the live store is proven free of store-only orphans")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg reconcile [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei reconcile [flags]
 
 Reconcile the live Oxigraph store against the authored corpus. Surfaces
 store-only orphans — nodes present in the running store but absent from the
@@ -78,13 +78,13 @@ Flags:
 	switch *baselineFlag {
 	case "auto", "yaml", "seed":
 	default:
-		fmt.Fprintf(os.Stderr, "awg reconcile: -baseline must be auto|yaml|seed, got %q\n", *baselineFlag)
+		fmt.Fprintf(os.Stderr, "sensei reconcile: -baseline must be auto|yaml|seed, got %q\n", *baselineFlag)
 		return 2
 	}
 
 	queryURL, err := normalizeOxigraphQueryURL(*oxigraphURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg reconcile: invalid --oxigraph-url: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei reconcile: invalid --oxigraph-url: %v\n", err)
 		return 1
 	}
 
@@ -166,19 +166,19 @@ func resolveAuthoredBaseline(baseline, seedPathFlag string, res *reconcileResult
 					return awarenessSubjectsFromNT(generated)
 				}
 				if baseline == "yaml" {
-					fmt.Fprintf(os.Stderr, "awg reconcile: generate from YAML: %v\n", gerr)
+					fmt.Fprintf(os.Stderr, "sensei reconcile: generate from YAML: %v\n", gerr)
 					return nil
 				}
 			} else if baseline == "yaml" {
 				if derr != nil {
-					fmt.Fprintf(os.Stderr, "awg reconcile: collect input dirs: %v\n", derr)
+					fmt.Fprintf(os.Stderr, "sensei reconcile: collect input dirs: %v\n", derr)
 				} else {
-					fmt.Fprintln(os.Stderr, "awg reconcile: no awareness input dirs found")
+					fmt.Fprintln(os.Stderr, "sensei reconcile: no awareness input dirs found")
 				}
 				return nil
 			}
 		} else if baseline == "yaml" {
-			fmt.Fprintln(os.Stderr, "awg reconcile: -baseline yaml requires the awareness-graph repo (not found)")
+			fmt.Fprintln(os.Stderr, "sensei reconcile: -baseline yaml requires the awareness-graph repo (not found)")
 			return nil
 		}
 		// auto + generation unavailable → fall through to the committed seed.
@@ -186,12 +186,12 @@ func resolveAuthoredBaseline(baseline, seedPathFlag string, res *reconcileResult
 
 	seedPath, err := resolveSeedPath(seedPathFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg reconcile: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei reconcile: %v\n", err)
 		return nil
 	}
 	seedBytes, err := os.ReadFile(seedPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg reconcile: read seed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei reconcile: read seed: %v\n", err)
 		return nil
 	}
 	res.Baseline = "committed-seed"
@@ -293,11 +293,11 @@ func printReconcileResult(res reconcileResult, asJSON bool) int {
 		fmt.Println("Status:              live store matches the authored corpus")
 	case "orphans":
 		fmt.Println("Status:              live store carries nodes absent from the authored corpus")
-		fmt.Println("Next step:           promote them into YAML (awg propose/learn) or reload the store (awg rebuild)")
+		fmt.Println("Next step:           promote them into YAML (sensei propose/learn) or reload the store (sensei rebuild)")
 	case "down", "degraded":
 		fmt.Println("Status:              live store could not be reconciled")
 	case "empty":
-		fmt.Println("Status:              live store is empty — reload it (awg rebuild)")
+		fmt.Println("Status:              live store is empty — reload it (sensei rebuild)")
 	}
 	return exit
 }

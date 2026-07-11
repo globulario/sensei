@@ -37,7 +37,7 @@ done
 
 [ -n "$REPO" ] && [ -d "$REPO" ] || { echo "error: --repo <existing path> required" >&2; exit 2; }
 [ -n "$DOMAIN" ] || { echo "error: --domain github.com/owner/name required" >&2; exit 2; }
-command -v "$AWG" >/dev/null 2>&1 || { echo "error: awg not found (set --awg or PATH)" >&2; exit 2; }
+command -v "$AWG" >/dev/null 2>&1 || { echo "error: sensei not found (set --awg or PATH)" >&2; exit 2; }
 REPO="$(cd "$REPO" && pwd)"
 AWDIR="$REPO/docs/awareness"
 NS="${DOMAIN##*/}"   # namespace id from the repo name

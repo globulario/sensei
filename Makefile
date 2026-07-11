@@ -21,7 +21,7 @@
 #   make clean    Remove generated proto code. Use sparingly — `make proto`
 #                 overwrites in place, so a clean step is rarely needed.
 
-.PHONY: proto proto-contracts proto-contracts-check import-graph import-graph-check test build tools clean server service-build service-smoke service-dist service-package mcp oxigraph oxigraph-health smoke-local graph-fixture graph-self load-fixture load-self load-release-seed principle-check principle-check-workflow-service principle-check-fallback principle-check-ruleguard-tree principle-check-positive principle-check-declarations principle-check-artifacts principle-check-coverage principle-check-all awg awg-cli awg-build awg-smoke scip
+.PHONY: proto proto-contracts proto-contracts-check import-graph import-graph-check test build tools clean server service-build service-smoke service-dist service-package mcp oxigraph oxigraph-health smoke-local graph-fixture graph-self load-fixture load-self load-release-seed principle-check principle-check-workflow-service principle-check-fallback principle-check-ruleguard-tree principle-check-positive principle-check-declarations principle-check-artifacts principle-check-coverage principle-check-all sensei sensei-cli sensei-smoke awg awg-cli awg-build awg-smoke scip
 
 PROTO_SRC   := proto/awareness_graph.proto
 PROTO_DIR   := proto
@@ -360,36 +360,46 @@ principle-check-artifacts:
 # See meta.negative_result_requires_coverage_attestation.
 principle-check-all: principle-check principle-check-workflow-service principle-check-fallback principle-check-ruleguard-tree principle-check-positive principle-check-declarations principle-check-artifacts principle-check-coverage
 
-# ── AWG standalone CLI ──────────────────────────────────────────────
+# ── Sensei standalone CLI ───────────────────────────────────────────
 
-# Build the standalone awg CLI binary.
-awg-cli:
-	go build -ldflags "-X main.Version=$(SERVICE_VERSION)" -o ./bin/awg ./cmd/awg
+# Build the standalone sensei CLI binary. Also installs the deprecated `awg`
+# alias (same binary; invoking it as awg prints a deprecation notice) so CI
+# scripts and muscle memory keep working for one release.
+sensei-cli:
+	go build -ldflags "-X main.Version=$(SERVICE_VERSION)" -o ./bin/sensei ./cmd/awg
+	cp ./bin/sensei ./bin/awg
 
-# Build the awg CLI and the awareness-graph server together.
+# Backwards-compatible alias for the CLI-only build.
+awg-cli: sensei-cli
+
+# Build the sensei CLI and the awareness-graph server together.
 # This is the canonical full build so the server binary always tracks the
 # embedded seed and other server-side runtime behavior.
-awg: awg-cli service-build
+sensei: sensei-cli service-build
 
-# Backwards-compatible alias for the full awg build.
-awg-build: awg
+# Backwards-compatible aliases for the full build.
+awg: sensei
+awg-build: sensei
 
 # Smoke test: init a temp project, check, build to file.
-awg-smoke: awg
-	@rm -rf /tmp/awg-smoke-test
-	@mkdir -p /tmp/awg-smoke-test
-	./bin/awg init --dir /tmp/awg-smoke-test --hooks=false --claude-md=false
-	cd /tmp/awg-smoke-test && $(CURDIR)/bin/awg check
-	cd /tmp/awg-smoke-test && $(CURDIR)/bin/awg build --output /tmp/awg-smoke-test/.awg/graph.nt
-	@echo "awg-smoke: PASS"
-	@rm -rf /tmp/awg-smoke-test
+sensei-smoke: sensei
+	@rm -rf /tmp/sensei-smoke-test
+	@mkdir -p /tmp/sensei-smoke-test
+	./bin/sensei init --dir /tmp/sensei-smoke-test --hooks=false --claude-md=false
+	cd /tmp/sensei-smoke-test && $(CURDIR)/bin/sensei check
+	cd /tmp/sensei-smoke-test && $(CURDIR)/bin/sensei build --output /tmp/sensei-smoke-test/.sensei/graph.nt
+	@echo "sensei-smoke: PASS"
+	@rm -rf /tmp/sensei-smoke-test
+
+# Backwards-compatible alias for the smoke target.
+awg-smoke: sensei-smoke
 
 # scip — index the Go source with scip-go and ingest symbol-level nodes
 # (functions, methods, types, and aw:references edges) into the curated
 # awareness corpus as awareness_graph_scip_{symbols,references}.yaml, following
 # the same generated-artifact convention as import-graph / proto-contracts.
 #
-# It uses the TARGETED `awg scip-ingest` (not `awg bootstrap`) so it only adds
+# It uses the TARGETED `sensei scip-ingest` (not `sensei bootstrap`) so it only adds
 # the symbol layer and leaves the hand-curated corpus — import graphs, proto
 # contracts, annotation-based code symbols, tests — untouched. --exclude-tests
 # drops *_test.go symbols, which are already modeled as Test nodes and would
@@ -400,11 +410,11 @@ awg-smoke: awg
 # (SKIP_INDEX=1 reuses an existing index).
 SCIP_REPO ?= .
 SCIP_GO ?= go run github.com/scip-code/scip-go/cmd/scip-go@latest
-scip: awg-cli
+scip: sensei-cli
 ifneq ($(SKIP_INDEX),1)
 	cd $(SCIP_REPO) && ( command -v scip-go >/dev/null 2>&1 && scip-go --output index.scip || $(SCIP_GO) --output index.scip )
 endif
-	./bin/awg scip-ingest --scip $(SCIP_REPO)/index.scip --exclude-tests --out $(SCIP_REPO)/docs/awareness/generated
+	./bin/sensei scip-ingest --scip $(SCIP_REPO)/index.scip --exclude-tests --out $(SCIP_REPO)/docs/awareness/generated
 	mv $(SCIP_REPO)/docs/awareness/generated/code_symbols.yaml $(SCIP_REPO)/docs/awareness/generated/awareness_graph_scip_symbols.yaml
 	mv $(SCIP_REPO)/docs/awareness/generated/code_references.yaml $(SCIP_REPO)/docs/awareness/generated/awareness_graph_scip_references.yaml
 	@echo "scip: symbol-level nodes ingested → docs/awareness/generated/awareness_graph_scip_{symbols,references}.yaml"

@@ -75,7 +75,7 @@ source_files:
 ## Command
 
 ```bash
-awg skill-ingest <skill-pack-root> \
+sensei skill-ingest <skill-pack-root> \
   --out docs/awareness/candidates/skills \
   --repo github.com/globulario/sensei \
   --source-set external/skills
@@ -92,7 +92,7 @@ Useful flags:
 Example:
 
 ```bash
-awg skill-ingest ../skills-main \
+sensei skill-ingest ../skills-main \
   --out docs/awareness/candidates/skills \
   --repo github.com/globulario/sensei
 ```
@@ -104,7 +104,7 @@ skill-ingest: discovered=28 imported=28 skipped=4 invalid=0
 output directory: docs/awareness/candidates/skills
 wrote docs/awareness/candidates/skills/imported_skill_engineering_tdd.yaml
 
-Candidates are review-only. Run awg promote after human review.
+Candidates are review-only. Run sensei promote after human review.
 ```
 
 ## Review workflow
@@ -112,11 +112,11 @@ Candidates are review-only. Run awg promote after human review.
 ```bash
 git diff docs/awareness/candidates/skills
 # human edits candidate
-awg promote imported.skill.engineering.tdd
-awg build -strict
+sensei promote imported.skill.engineering.tdd
+sensei build -strict
 ```
 
-If `awg promote` does not support this candidate path in your checkout, promotion is manual for now: move the reviewed candidate into an active awareness corpus path such as `docs/awareness/architecture/patterns/`, keep status according to the existing corpus convention, then run `awg build`.
+If `sensei promote` does not support this candidate path in your checkout, promotion is manual for now: move the reviewed candidate into an active awareness corpus path such as `docs/awareness/architecture/patterns/`, keep status according to the existing corpus convention, then run `sensei build`.
 
 ## Validation
 

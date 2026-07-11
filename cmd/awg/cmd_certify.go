@@ -105,7 +105,7 @@ type certifySlotResult struct {
 }
 
 func runCertify(args []string) int {
-	fs := flag.NewFlagSet("awg certify", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei certify", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	eventPath := fs.String("event", "", "learning event YAML/JSON file")
 	proofPath := fs.String("proof-obligations", "", "proof obligations YAML (default: docs/awareness/generated/proof_obligations.yaml)")
@@ -113,7 +113,7 @@ func runCertify(args []string) int {
 	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
 	field := fs.String("field", "", "print only one field: verdict | promotion | repair_claim_id | legacy_certification_status")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg certify [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei certify [flags]
 
 Evaluate repair-governance certification from an authored benchmark learning
 event. Score may be reported, but it is never allowed to decide promotion.
@@ -129,17 +129,17 @@ Flags:
 		*format = "json"
 	}
 	if strings.TrimSpace(*eventPath) == "" {
-		fmt.Fprintln(os.Stderr, "awg certify: --event is required")
+		fmt.Fprintln(os.Stderr, "sensei certify: --event is required")
 		return 2
 	}
 	doc, err := loadBenchmarkRetryDoc(*eventPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg certify: load event: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei certify: load event: %v\n", err)
 		return 1
 	}
 	proofDoc, err := loadProofObligationsForCertify(*proofPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg certify: load proof obligations: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei certify: load proof obligations: %v\n", err)
 		return 1
 	}
 	res := buildCertifyResult(benchmarkRetryUnwrapEvent(doc), proofDoc)
@@ -154,7 +154,7 @@ Flags:
 		case "legacy_certification_status":
 			fmt.Println(res.LegacyCertificationStatus)
 		default:
-			fmt.Fprintf(os.Stderr, "awg certify: unknown --field %q\n", *field)
+			fmt.Fprintf(os.Stderr, "sensei certify: unknown --field %q\n", *field)
 			return 2
 		}
 		return 0

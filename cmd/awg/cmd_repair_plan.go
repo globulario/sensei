@@ -34,7 +34,7 @@ type repairPlanResult struct {
 var repairPlanPreflight = fetchRepairPlanPreflight
 
 func runRepairPlan(args []string) int {
-	fs := flag.NewFlagSet("awg repair-plan", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei repair-plan", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
@@ -49,7 +49,7 @@ func runRepairPlan(args []string) int {
 	var files stringSlice
 	fs.Var(&files, "file", "repo-relative file (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg repair-plan [--file <path>]... [--task "description"] [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei repair-plan [--file <path>]... [--task "description"] [flags]
 
 Build a governed repair plan by combining authoritative preflight output from a
 current graph with repo-local proof obligations and forbidden moves.
@@ -71,29 +71,29 @@ Flags:
 		*format = "json"
 	}
 	if len(files) == 0 && strings.TrimSpace(*task) == "" {
-		fmt.Fprintln(os.Stderr, "awg repair-plan: provide --file and/or --task")
+		fmt.Fprintln(os.Stderr, "sensei repair-plan: provide --file and/or --task")
 		return 2
 	}
 
 	root, err := filepath.Abs(*repoRoot)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-plan: resolve repo root: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: resolve repo root: %v\n", err)
 		return 1
 	}
 	authPath, proofObPath, forbiddenFixPath := defaultProofPlanPaths(root, *authorityPath, *proofPath, *forbiddenPath)
 	authorities, err := loadAuthoritySurfaces(authPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-plan: load authority surfaces: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: load authority surfaces: %v\n", err)
 		return 1
 	}
 	proofDoc, err := loadProofObligationsForCertify(proofObPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-plan: load proof obligations: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: load proof obligations: %v\n", err)
 		return 1
 	}
 	forbiddenFixes, err := loadForbiddenFixes(forbiddenFixPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-plan: load forbidden fixes: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: load forbidden fixes: %v\n", err)
 		return 1
 	}
 
@@ -110,17 +110,17 @@ Flags:
 		Domain: *domain,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-plan: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: %v\n", err)
 		return 1
 	}
 	if err := requireAuthoritativeGraph(resp.GetAuthority(), "repair-plan"); err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-plan: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: %v\n", err)
 		return 1
 	}
 
 	proof, err := buildProofPlanForFiles(root, authorities, proofDoc, forbiddenFixes, files)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg repair-plan: build proof plan: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: build proof plan: %v\n", err)
 		return 1
 	}
 

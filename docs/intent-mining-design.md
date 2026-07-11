@@ -262,9 +262,9 @@ the reality stay tied, and the next divergence is detectable.
 3. **Output-class report** — a scoring sheet like coldsource's, grouped by class,
    with `stale`/`ambiguous`/`missing` surfaced first (the findings, not the
    confirmations).
-4. **`awg intent-mine`** *(design only here)*:
+4. **`sensei intent-mine`** *(design only here)*:
    ```
-   awg intent-mine --repo . \
+   sensei intent-mine --repo . \
      --sources docs,comments,tests,prs,commits,schemas --dry-run
    ```
 5. **Corpus links** — on human accept, persist the

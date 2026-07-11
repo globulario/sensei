@@ -205,7 +205,7 @@ func printGateFindings(findings []fileFinding, withProvenance bool) {
 // finding (and fails closed if AWG could not verify the diff). --report-only is
 // the fail-open advisory CI mode (always exit 0).
 func runGate(args []string) int {
-	fs := flag.NewFlagSet("awg gate", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei gate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	diff := fs.String("diff", "HEAD", "git diff range to gate, e.g. 'origin/main...HEAD' or 'HEAD' (working tree vs HEAD)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
@@ -216,11 +216,11 @@ func runGate(args []string) int {
 	contractsPath := fs.String("contracts", "", "path to a frozen contract-set YAML file or directory; enables frozen-contract gate mode (does not use the AWG server)")
 	enforce := fs.Bool("enforce", false, "REAL gate: exit non-zero on any enforcement:block finding (and fail closed if AWG cannot verify the diff). Works for both the EditCheck flow and --contracts mode. Default is dry-run.")
 	completeness := fs.Bool("completeness", false, "run the advisory sibling-site completeness check (SCIP aw:references based): flag reference families the diff touched incompletely. Opt-in: discovery is file-level so it over-fires on broad diffs — best on a focused 'update all callers of X' change.")
-	policyPath := fs.String("policy", "", "path to a per-repo enforcement-policy YAML (rule_id -> warn|block|off, plus optional default); overrides each rule's declared level. Default: <repo-root>/.awg/gate-policy.yaml when present.")
-	eventLog := fs.String("event-log", os.Getenv("AWG_EVENT_LOG"), "append a JSONL outcome event (block/warn/allow + rules) to this ledger for evidence; see `awg evidence`. Default: $AWG_EVENT_LOG (off when empty).")
+	policyPath := fs.String("policy", "", "path to a per-repo enforcement-policy YAML (rule_id -> warn|block|off, plus optional default); overrides each rule's declared level. Default: <repo-root>/.sensei/gate-policy.yaml when present.")
+	eventLog := fs.String("event-log", os.Getenv("AWG_EVENT_LOG"), "append a JSONL outcome event (block/warn/allow + rules) to this ledger for evidence; see `sensei evidence`. Default: $AWG_EVENT_LOG (off when empty).")
 	maxFanout := fs.Int("completeness-max-fanout", 12, "completeness: ignore reference families larger than this (likely shared types/utilities, not must-change-together conventions)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg gate [--diff <range>] [--domain <repo>] [--enforce] [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei gate [--diff <range>] [--domain <repo>] [--enforce] [flags]
 
 Evaluates a git diff's added/changed lines against the in-scope detect rules
 (the same EditCheck engine agents call). Three modes:
@@ -233,7 +233,7 @@ Evaluates a git diff's added/changed lines against the in-scope detect rules
 
 Enforcement is per-repo. A rule's declared level (warn|block) lives in the
 graph, but a repo can re-level or silence it via a policy YAML (--policy, or
-<repo-root>/.awg/gate-policy.yaml) with no code change:
+<repo-root>/.sensei/gate-policy.yaml) with no code change:
 
     default: inherit          # inherit | warn | block | off
     rules:
@@ -268,7 +268,7 @@ Flags:
 		if *reportOnly {
 			return reportDegraded(*domain, *diff, fmt.Sprintf("git diff failed: %v", err))
 		}
-		fmt.Fprintf(os.Stderr, "awg gate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei gate: %v\n", err)
 		return 1
 	}
 	if len(changes) == 0 {
@@ -277,7 +277,7 @@ Flags:
 			fmt.Println("  (no added/changed lines to evaluate)")
 			return finalReportLine(0, "")
 		}
-		fmt.Printf("awg gate (dry-run): no added/changed lines in %s — nothing to check.\n", *diff)
+		fmt.Printf("sensei gate (dry-run): no added/changed lines in %s — nothing to check.\n", *diff)
 		return 0
 	}
 
@@ -288,7 +288,7 @@ Flags:
 		if *reportOnly {
 			return reportDegraded(*domain, *diff, fmt.Sprintf("cannot reach AWG at %s: %v", *addr, err))
 		}
-		fmt.Fprintf(os.Stderr, "awg gate: connect %s: %v\n", *addr, err)
+		fmt.Fprintf(os.Stderr, "sensei gate: connect %s: %v\n", *addr, err)
 		return 1
 	}
 	defer conn.Close()
@@ -302,7 +302,7 @@ Flags:
 		if *reportOnly {
 			return reportDegraded(*domain, *diff, err.Error())
 		}
-		fmt.Fprintf(os.Stderr, "awg gate: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei gate: %v\n", err)
 		return 1
 	}
 
@@ -445,7 +445,7 @@ Flags:
 		return 0
 	}
 
-	fmt.Printf("awg gate (DRY-RUN) — diff %s, %d file(s) with changes\n", *diff, len(changes))
+	fmt.Printf("sensei gate (DRY-RUN) — diff %s, %d file(s) with changes\n", *diff, len(changes))
 	printPolicyLine(policy)
 	fmt.Println()
 	for _, fr := range findings {

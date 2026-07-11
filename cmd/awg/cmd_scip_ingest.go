@@ -21,7 +21,7 @@ import (
 // ingestScipFile reads a SCIP index file and renders the two awareness YAML
 // documents it maps to: code_symbols.yaml (function/method/type nodes) and
 // code_references.yaml (symbol→symbol reference edges). Shared by the
-// `awg scip-ingest` CLI and `awg bootstrap`. Returns the parsed Result and the
+// `sensei scip-ingest` CLI and `sensei bootstrap`. Returns the parsed Result and the
 // document count for reporting.
 func ingestScipFile(scipPath, langOverride string, excludeTests bool) (symbolsYAML, refsYAML []byte, res scipingest.Result, nDocs int, err error) {
 	data, err := os.ReadFile(scipPath)
@@ -66,13 +66,13 @@ func renderReferencesYAML(refs []scipingest.Ref) []byte {
 }
 
 // runScipIngest translates a SCIP index (index.scip) into the awareness YAML
-// that `awg build` already ingests: code_symbols.yaml (per-function/method
+// that `sensei build` already ingests: code_symbols.yaml (per-function/method
 // nodes) and code_references.yaml (symbol→symbol reference edges). This gives
 // the structural graph symbol-level granularity without AWG owning a
 // multi-language AST extractor — the SCIP index is produced by mature
 // per-language indexers (scip-go, scip-typescript, …).
 func runScipIngest(args []string) int {
-	fs := flag.NewFlagSet("awg scip-ingest", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei scip-ingest", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	scipPath := fs.String("scip", "index.scip", "path to a SCIP index file")
 	outDir := fs.String("out", ".", "directory to write code_symbols.yaml / code_references.yaml")
@@ -80,9 +80,9 @@ func runScipIngest(args []string) int {
 	excludeTests := fs.Bool("exclude-tests", false, "skip symbols/references defined in test files (*_test.go, *.test.ts, test_*.py, …)")
 	quiet := fs.Bool("quiet", false, "suppress the summary line")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg scip-ingest --scip <index.scip> [--out <dir>]
+		fmt.Fprint(os.Stderr, `Usage: sensei scip-ingest --scip <index.scip> [--out <dir>]
 
-Reads a SCIP index and emits awareness YAML consumed by `+"`awg build`"+`:
+Reads a SCIP index and emits awareness YAML consumed by `+"`sensei build`"+`:
   code_symbols.yaml     one aw:CodeSymbol per defined function/method/type
   code_references.yaml  symbol→symbol reference edges (for sibling-site queries)
 
@@ -100,22 +100,22 @@ Flags:
 
 	symbolsYAML, refsYAML, res, nDocs, err := ingestScipFile(*scipPath, *lang, *excludeTests)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg scip-ingest: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei scip-ingest: %v\n", err)
 		return 1
 	}
 
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "awg scip-ingest: mkdir %s: %v\n", *outDir, err)
+		fmt.Fprintf(os.Stderr, "sensei scip-ingest: mkdir %s: %v\n", *outDir, err)
 		return 1
 	}
 	symbolsPath := filepath.Join(*outDir, "code_symbols.yaml")
 	if err := os.WriteFile(symbolsPath, symbolsYAML, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg scip-ingest: write %s: %v\n", symbolsPath, err)
+		fmt.Fprintf(os.Stderr, "sensei scip-ingest: write %s: %v\n", symbolsPath, err)
 		return 1
 	}
 	refsPath := filepath.Join(*outDir, "code_references.yaml")
 	if err := os.WriteFile(refsPath, refsYAML, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "awg scip-ingest: write %s: %v\n", refsPath, err)
+		fmt.Fprintf(os.Stderr, "sensei scip-ingest: write %s: %v\n", refsPath, err)
 		return 1
 	}
 

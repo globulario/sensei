@@ -18,7 +18,7 @@ docs/awareness/*.yaml ──build──▶ Oxigraph (SPARQL store) ──serve�
                                                                           │
                                             ┌─────────────────────────────┤
                                             │                             │
-                                      awg CLI (gRPC client)        awareness-mcp (stdio↔gRPC)
+                                      sensei CLI (gRPC client)        awareness-mcp (stdio↔gRPC)
                                                                           │
                                                                     MCP-capable agent
 ```

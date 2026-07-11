@@ -106,10 +106,10 @@ The agent receives the same access as Mode B, plus Sensei context.
 
 Before editing, the agent must run or consume:
 
-- `awg briefing` for the issue/repo
-- `awg impact` for candidate files
-- `awg resolve` for relevant symbols/rules
-- `awg audit` or equivalent preflight if available
+- `sensei briefing` for the issue/repo
+- `sensei impact` for candidate files
+- `sensei resolve` for relevant symbols/rules
+- `sensei audit` or equivalent preflight if available
 
 The agent must explicitly state:
 

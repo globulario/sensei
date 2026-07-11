@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/client"
+	"github.com/globulario/sensei/golang/statedir"
 )
 
 // connectAWG dials the awareness-graph server at the given address.
@@ -16,8 +17,9 @@ func connectAWG(addr string) (*client.Client, error) {
 	return client.Dial(addr)
 }
 
-// resolveProjectRoot walks up from cwd looking for docs/awareness/ or
-// .awg/config.yaml. Returns cwd as fallback.
+// resolveProjectRoot walks up from cwd looking for docs/awareness/ or a state
+// dir config (.sensei/config.yaml, or legacy .awg/config.yaml). Returns cwd as
+// fallback.
 func resolveProjectRoot(explicit string) (string, error) {
 	if explicit != "" {
 		return filepath.Abs(explicit)
@@ -31,8 +33,11 @@ func resolveProjectRoot(explicit string) (string, error) {
 		if _, err := os.Stat(filepath.Join(dir, "docs", "awareness")); err == nil {
 			return dir, nil
 		}
-		if _, err := os.Stat(filepath.Join(dir, ".awg", "config.yaml")); err == nil {
-			return dir, nil
+		// Detect a project by its state dir marker (.sensei, or legacy .awg).
+		for _, name := range []string{statedir.DefaultName, statedir.LegacyName} {
+			if _, err := os.Stat(filepath.Join(dir, name, "config.yaml")); err == nil {
+				return dir, nil
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

@@ -16,7 +16,7 @@ import (
 // runEditCheck evaluates a proposed edit against the active repo-scoped advisory
 // rules for a file. Warning-only — it never blocks and never edits code.
 func runEditCheck(args []string) int {
-	fs := flag.NewFlagSet("awg edit-check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei edit-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	file := fs.String("file", "", "repo-relative file path being edited")
 	content := fs.String("content", "", "proposed new content (inline)")
@@ -25,7 +25,7 @@ func runEditCheck(args []string) int {
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg edit-check --file <path> [--content <text> | --content-file <path>|-] [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei edit-check --file <path> [--content <text> | --content-file <path>|-] [flags]
 
 Evaluates the proposed edit content against the repo-scoped advisory rules
 that apply to the file, in the resolved domain. WARNING-ONLY: it reports rules
@@ -40,7 +40,7 @@ Flags:
 		return 2
 	}
 	if *file == "" {
-		fmt.Fprintln(os.Stderr, "awg edit-check: --file is required")
+		fmt.Fprintln(os.Stderr, "sensei edit-check: --file is required")
 		return 2
 	}
 
@@ -48,7 +48,7 @@ Flags:
 	if *contentFile != "" {
 		data, err := readContentArg(*contentFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg edit-check: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei edit-check: %v\n", err)
 			return 1
 		}
 		proposed = data
@@ -59,7 +59,7 @@ Flags:
 
 	conn, err := client.DialConn(*addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg edit-check: connect %s: %v\n", *addr, err)
+		fmt.Fprintf(os.Stderr, "sensei edit-check: connect %s: %v\n", *addr, err)
 		return 1
 	}
 	defer conn.Close()
@@ -71,7 +71,7 @@ Flags:
 		Domain:          *domain,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg edit-check: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei edit-check: %v\n", err)
 		return 1
 	}
 

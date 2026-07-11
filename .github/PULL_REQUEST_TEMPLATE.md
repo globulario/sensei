@@ -8,7 +8,7 @@
 
 If this PR mutates governance corpus — `docs/awareness/**`, `docs/awareness-control/**`,
 or the embedded seed (`golang/server/embeddata/awareness.nt`) — **in response to a
-detector finding** (`awg lifecycle`, `awg audit`, a self-coherence / principle check),
+detector finding** (`sensei lifecycle`, `sensei audit`, a self-coherence / principle check),
 classify where the defect actually lives **before** the mutation. Do not relabel the
 thermometer: a detector can be wrong about its own truth source.
 
@@ -31,4 +31,4 @@ finding was a stale **reader**, not corpus rot — the fix was the tool, not the
 
 ## Verification
 
-<!-- tests / gates run; for governance changes: awg validate, awg audit -check, awg lifecycle, and `awg merge-check` before merge. -->
+<!-- tests / gates run; for governance changes: sensei validate, sensei audit -check, sensei lifecycle, and `sensei merge-check` before merge. -->

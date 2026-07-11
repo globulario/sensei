@@ -192,19 +192,19 @@ func generateAgOnlyNT(agRepo string) []byte {
 	return nt
 }
 
-// runSeedFreshness is the `awg seed-freshness` subcommand. It performs an
+// runSeedFreshness is the `sensei seed-freshness` subcommand. It performs an
 // ownership-aware comparison of a committed seed against a freshly generated
 // one, exiting non-zero only when this repo's OWNED triples drift. It is the
 // awareness-graph-side gate (called by build-awareness-graph.sh), the mirror of
 // the services-side embeddata-freshness audit check.
 func runSeedFreshness(args []string) int {
-	fs := flag.NewFlagSet("awg seed-freshness", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei seed-freshness", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	committedPath := fs.String("committed", "", "path to the committed seed (awareness.nt)")
 	generatedPath := fs.String("generated", "", "path to the freshly generated seed")
 	agRepo := fs.String("ag-repo", "", "awareness-graph repo root (provides the owned corpus); auto-detect cwd")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg seed-freshness -committed <path> -generated <path> [-ag-repo <path>]
+		fmt.Fprint(os.Stderr, `Usage: sensei seed-freshness -committed <path> -generated <path> [-ag-repo <path>]
 
 Ownership-aware seed freshness. Fails only when triples OWNED by the
 awareness-graph corpus drift; triples authored by the paired services repo are
@@ -215,7 +215,7 @@ reported as cross-repo context and never fail this repo's gate.
 		return 2
 	}
 	if *committedPath == "" || *generatedPath == "" {
-		fmt.Fprintln(os.Stderr, "awg seed-freshness: -committed and -generated are required")
+		fmt.Fprintln(os.Stderr, "sensei seed-freshness: -committed and -generated are required")
 		return 2
 	}
 
@@ -228,12 +228,12 @@ reported as cross-repo context and never fail this repo's gate.
 
 	committed, err := os.ReadFile(*committedPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg seed-freshness: read committed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei seed-freshness: read committed: %v\n", err)
 		return 1
 	}
 	generated, err := os.ReadFile(*generatedPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg seed-freshness: read generated: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei seed-freshness: read generated: %v\n", err)
 		return 1
 	}
 
@@ -241,7 +241,7 @@ reported as cross-repo context and never fail this repo's gate.
 	if agOnly == nil {
 		// Ownership unknown — fall back to strict whole-file comparison so a
 		// generation failure cannot hide drift.
-		fmt.Fprintln(os.Stderr, "awg seed-freshness: WARNING could not derive owned corpus; falling back to strict comparison")
+		fmt.Fprintln(os.Stderr, "sensei seed-freshness: WARNING could not derive owned corpus; falling back to strict comparison")
 		if string(committed) == string(generated) {
 			fmt.Println("seed-freshness: current (strict)")
 			return 0

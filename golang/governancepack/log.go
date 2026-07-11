@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-)
 
-const ActivationLogRelativePath = ".awg/governance/activation-log.jsonl"
+	"github.com/globulario/sensei/golang/statedir"
+)
 
 type ActivationLogEntry struct {
 	TimestampUTC         string        `json:"timestamp_utc"`
@@ -27,10 +27,7 @@ type ActivationLogEntry struct {
 }
 
 func ActivationLogPath(root string) string {
-	if root == "" {
-		return ActivationLogRelativePath
-	}
-	return filepath.Join(root, ActivationLogRelativePath)
+	return statedir.Path(root, "governance", "activation-log.jsonl")
 }
 
 func WriteActiveRecord(path string, rec ActiveRecord) error {

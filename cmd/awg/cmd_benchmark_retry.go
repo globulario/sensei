@@ -63,7 +63,7 @@ type benchmarkRetryPlan struct {
 }
 
 func runBenchmarkRetry(args []string) int {
-	fs := flag.NewFlagSet("awg benchmark-retry", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei benchmark-retry", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	mode := fs.String("mode", "", "retry controller mode: c | d")
 	recordPath := fs.String("record", "", "benchmark run record (.yaml or .json)")
@@ -73,7 +73,7 @@ func runBenchmarkRetry(args []string) int {
 	format := fs.String("format", "text", "output format: text | json")
 	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg benchmark-retry [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei benchmark-retry [flags]
 
 Build a reusable retry plan for benchmark runs from the recorded outcome and,
 for contract-first flows, the emitted learning event.
@@ -92,17 +92,17 @@ Flags:
 		*format = "json"
 	}
 	if strings.TrimSpace(*mode) == "" {
-		fmt.Fprintln(os.Stderr, "awg benchmark-retry: --mode is required")
+		fmt.Fprintln(os.Stderr, "sensei benchmark-retry: --mode is required")
 		return 2
 	}
 	if strings.TrimSpace(*recordPath) == "" {
-		fmt.Fprintln(os.Stderr, "awg benchmark-retry: --record is required")
+		fmt.Fprintln(os.Stderr, "sensei benchmark-retry: --record is required")
 		return 2
 	}
 	modeVal := strings.ToLower(strings.TrimSpace(*mode))
 	record, err := loadBenchmarkRetryDoc(*recordPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg benchmark-retry: load record: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-retry: load record: %v\n", err)
 		return 1
 	}
 
@@ -112,12 +112,12 @@ Flags:
 		out.RetryPlan = benchmarkModeCRetryPlan(record, *retryBudget)
 	case "d":
 		if strings.TrimSpace(*eventPath) == "" {
-			fmt.Fprintln(os.Stderr, "awg benchmark-retry: --event is required for mode d")
+			fmt.Fprintln(os.Stderr, "sensei benchmark-retry: --event is required for mode d")
 			return 2
 		}
 		eventDoc, err := loadBenchmarkRetryDoc(*eventPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg benchmark-retry: load event: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei benchmark-retry: load event: %v\n", err)
 			return 1
 		}
 		event := benchmarkRetryUnwrapEvent(eventDoc)
@@ -125,13 +125,13 @@ Flags:
 		if strings.TrimSpace(*retryEventPath) != "" {
 			retryEventDoc, err := loadBenchmarkRetryDoc(*retryEventPath)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "awg benchmark-retry: load retry event: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei benchmark-retry: load retry event: %v\n", err)
 				return 1
 			}
 			out.RetryResultClassification = benchmarkClassifyRetryResult(event, benchmarkRetryUnwrapEvent(retryEventDoc), out.RetryPlan)
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "awg benchmark-retry: unsupported mode %q (want c or d)\n", *mode)
+		fmt.Fprintf(os.Stderr, "sensei benchmark-retry: unsupported mode %q (want c or d)\n", *mode)
 		return 2
 	}
 
@@ -500,7 +500,7 @@ func renderBenchmarkRetryText(out benchmarkRetryOutput) string {
 
 func withAuthoritativeRepairPlanPreflight(items []string) []string {
 	return append([]string{
-		"run awg benchmark-brief and require its authoritative repair plan output",
-		"do not patch until awg repair-plan proves current graph authority for the scoped task/files",
+		"run sensei benchmark-brief and require its authoritative repair plan output",
+		"do not patch until sensei repair-plan proves current graph authority for the scoped task/files",
 	}, items...)
 }

@@ -72,7 +72,7 @@ func TestOnboardExport_ContainsSchemaAndTask(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Architecture", "Candidate schema", "contract-first", "invariant", "Your task", "awg onboard import"} {
+	for _, want := range []string{"Architecture", "Candidate schema", "contract-first", "invariant", "Your task", "sensei onboard import"} {
 		if !strings.Contains(string(body), want) {
 			t.Errorf("brief missing %q", want)
 		}

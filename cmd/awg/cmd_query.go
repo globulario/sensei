@@ -23,7 +23,7 @@ var queryRPC = func(ctx context.Context, addr string, req *awarenesspb.QueryRequ
 }
 
 func runQuery(args []string) int {
-	fs := flag.NewFlagSet("awg query", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei query", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
 	mode := fs.String("mode", "", "by_file | by_id | by_class | related (required)")
@@ -33,7 +33,7 @@ func runQuery(args []string) int {
 	limit := fs.Int("limit", 50, "maximum rows")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg query --mode <mode> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei query --mode <mode> [flags]
 
 Structured browse of the awareness graph.
 
@@ -57,13 +57,13 @@ Flags:
 		return 2
 	}
 	if *mode == "" {
-		fmt.Fprintln(os.Stderr, "awg query: --mode is required")
+		fmt.Fprintln(os.Stderr, "sensei query: --mode is required")
 		return 2
 	}
 
 	qm, ok := parseQueryMode(*mode)
 	if !ok {
-		fmt.Fprintln(os.Stderr, "awg query: --mode must be one of: by_file, by_id, by_class, related")
+		fmt.Fprintln(os.Stderr, "sensei query: --mode must be one of: by_file, by_id, by_class, related")
 		return 2
 	}
 	req := &awarenesspb.QueryRequest{
@@ -75,7 +75,7 @@ Flags:
 	if *class != "" {
 		qc, ok := parseQueryClass(*class)
 		if !ok {
-			fmt.Fprintln(os.Stderr, "awg query: --class must be one of: invariant, failure_mode, incident_pattern, intent, symbol, source_file")
+			fmt.Fprintln(os.Stderr, "sensei query: --class must be one of: invariant, failure_mode, incident_pattern, intent, symbol, source_file")
 			return 2
 		}
 		req.Class = qc
@@ -86,7 +86,7 @@ Flags:
 
 	resp, err := queryRPC(ctx, *addr, req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg query: %s\n", formatReadSurfaceError("query", err))
+		fmt.Fprintf(os.Stderr, "sensei query: %s\n", formatReadSurfaceError("query", err))
 		return 1
 	}
 

@@ -121,7 +121,7 @@ correctly-cited invariant.
 
 **Intent mining — the complement to coldsource.** Design
 ([`intent-mining-design.md`](intent-mining-design.md)), a mechanical grounding
-implementation, **and the LLM extraction (proposer) half** — so `awg intent-mine`
+implementation, **and the LLM extraction (proposer) half** — so `sensei intent-mine`
 now runs the full loop. Coldsource finds **what burned**; intent mining finds
 **what the system was meant to preserve** — it *gathers* rule-bearing excerpts
 from a repo's stated charter (docs, ADRs, comments, tests, commits, schemas), an
@@ -143,12 +143,12 @@ no stated source) and grounding classifies it as **hidden_intent** (code encodes
 a rule no doc explains) or **missing_invariant** (scars imply it, nothing encodes
 it) — giving a scar a candidate home and asking whether the charter ever named it.
 *intent → coldsource:* a `stale_intent`/`ambiguous_owner` finding emits a **finder
-hint** at the divergent file — the likely next-scar site. `awg intent-mine
+hint** at the divergent file — the likely next-scar site. `sensei intent-mine
 --from-coldsource` runs the bridge; dry-run, no LLM.
 
 **Corpus integration — the human-gated path to corpus truth.** Design
 ([`corpus-integration-design.md`](corpus-integration-design.md)) and an
-implementation: `awg corpus plan|materialize|validate`. This is where the trust
+implementation: `sensei corpus plan|materialize|validate`. This is where the trust
 boundary is made structural — **reports can be generated automatically; corpus
 truth cannot.** `plan` (read-only) classifies a findings report into
 `integrate | hold | never`; `materialize` writes **only `status: candidate`** YAML

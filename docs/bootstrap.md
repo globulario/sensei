@@ -1,24 +1,24 @@
-# `awg bootstrap` — production repo initialization
+# `sensei bootstrap` — production repo initialization
 
-`awg bootstrap` is the **production** path for initializing Sensei on an
+`sensei bootstrap` is the **production** path for initializing Sensei on an
 existing repository. It scaffolds Sensei if missing, runs deterministic architecture
 extraction, optionally mines history candidates, then validates and builds the
 graph — and prints a report.
 
 ```bash
-awg bootstrap --repo <path>
+sensei bootstrap --repo <path>
 ```
 
-It is **not** `awg cold-bootstrap`. `cold-bootstrap` is a *history-signal miner*
+It is **not** `sensei cold-bootstrap`. `cold-bootstrap` is a *history-signal miner*
 (it learns from a repo's scars — reverts, regression commits, PR review
-comments). `awg bootstrap` initializes architectural awareness for a repo and
+comments). `sensei bootstrap` initializes architectural awareness for a repo and
 may call the coldsource miner as **one optional candidate stage**. Keep those
 roles separate.
 
 ## What it does
 
 1. **Scaffold if missing** — if `docs/awareness/` does not exist, runs the same
-   scaffold as `awg init` (reusing `scaffoldProject`).
+   scaffold as `sensei init` (reusing `scaffoldProject`).
 2. **Deterministic extraction → `docs/awareness/generated/`** (every fact is
    `assertion: inferred` — derived from code, not hand-authored):
    - **proto/API** → `contracts.yaml` (one Contract per gRPC service
@@ -44,7 +44,7 @@ roles separate.
      suggest a `direct_storage_read` misuse — verify the access goes through the
      owner's port rather than stealing authority.
    - boundary candidates are honestly reported as *not implemented yet*.
-4. **Gates** — `awg validate` (read-only) and an in-process `awg build` (compiles
+4. **Gates** — `sensei validate` (read-only) and an in-process `sensei build` (compiles
    the graph; no running store required). Findings are reported, not fatal.
 5. **Report** — components / contracts / operations / tests / source anchors /
    candidate patterns / candidate misuses / history candidates / validation
@@ -62,7 +62,7 @@ roles separate.
 
 ## Safety
 
-`awg bootstrap` writes only under `docs/awareness/` (scaffold, `generated/`,
-`candidates/`) and `.awg/config.yaml`. It never auto-promotes candidates, never
+`sensei bootstrap` writes only under `docs/awareness/` (scaffold, `generated/`,
+`candidates/`) and `.sensei/config.yaml`. It never auto-promotes candidates, never
 mutates hand-authored canonical files (beyond the initial scaffold), and makes no
 edits outside the awareness/bootstrap paths.

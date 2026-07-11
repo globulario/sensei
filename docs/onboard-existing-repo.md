@@ -23,9 +23,9 @@ An awareness graph for a repo has three sources, in increasing cost:
 
 | Layer | How | Automated? |
 |---|---|---|
-| **Structural** — components, import edges, code symbols, tests | `awg bootstrap` | ✅ deterministic |
-| **History-mined** — forbidden-fixes/failure-modes from reverts + PR reviews | `awg cold-bootstrap` | ✅ deterministic (triangulated candidates) |
-| **Authored knowledge** — invariants, contracts, the rules judgment requires | `awg onboard` + human/agent | ⚠️ judgment |
+| **Structural** — components, import edges, code symbols, tests | `sensei bootstrap` | ✅ deterministic |
+| **History-mined** — forbidden-fixes/failure-modes from reverts + PR reviews | `sensei cold-bootstrap` | ✅ deterministic (triangulated candidates) |
+| **Authored knowledge** — invariants, contracts, the rules judgment requires | `sensei onboard` + human/agent | ⚠️ judgment |
 
 ## The deterministic passes (what the script does)
 
@@ -34,24 +34,24 @@ An awareness graph for a repo has three sources, in increasing cost:
    silently skips symbols. `owns` must list your source roots (the script infers
    them from where `.go` files live).
 
-2. **`awg bootstrap --repo <path> --skip-build`** — deterministic extraction of
+2. **`sensei bootstrap --repo <path> --skip-build`** — deterministic extraction of
    components, import dependencies, code symbols, tests, and source anchors into
    `docs/awareness/generated/`. `--skip-build` so it never loads a store.
 
-3. **`awg onboard export`** — writes a self-contained brief (architecture scan +
+3. **`sensei onboard export`** — writes a self-contained brief (architecture scan +
    candidate schema + drafting prompt) to `.awg-onboard-brief.md` for your agent.
 
-4. **`awg cold-bootstrap`** — mines revert/regression commits + PR-review comments,
+4. **`sensei cold-bootstrap`** — mines revert/regression commits + PR-review comments,
    **triangulates** (a candidate needs ≥2 distinct source types), and writes
    `status:candidate` YAML. Nothing is promoted.
 
-5. **`awg validate`** — over `docs/awareness` **and** `docs/awareness/generated`.
+5. **`sensei validate`** — over `docs/awareness` **and** `docs/awareness/generated`.
 
 ## The judgment passes (the script prints these; you do them)
 
 - **A. Author rules.** Hand `.awg-onboard-brief.md` to your agent; it drafts
   invariants/contracts/forbidden-fixes/failure-modes as JSON grounded in the code.
-  `awg onboard import --from drafts.json` validates (contract-first) and lands them
+  `sensei onboard import --from drafts.json` validates (contract-first) and lands them
   in the review queue. Promote the good ones into the canonical
   `docs/awareness/{invariants,contracts,forbidden_fixes,failure_modes}.yaml`.
 
@@ -74,11 +74,11 @@ An awareness graph for a repo has three sources, in increasing cost:
   `<repo>/.github/workflows/awg-gate.yml`; add `--domain github.com/owner/name`
   to the gate step for a foreign repo. Test locally:
   ```bash
-  awg serve -no-seed & ; awg build --repo <domain> --input docs/awareness --input docs/awareness/generated
-  awg gate --enforce --repo-root . --diff HEAD --domain <domain>
+  sensei serve -no-seed & ; sensei build --repo <domain> --input docs/awareness --input docs/awareness/generated
+  sensei gate --enforce --repo-root . --diff HEAD --domain <domain>
   ```
 
-- **E. Verify the payoff.** `awg briefing --file <path> --domain <domain>` — the
+- **E. Verify the payoff.** `sensei briefing --file <path> --domain <domain>` — the
   rules that govern the file appear before you'd edit it.
 
 ## Gotchas this recipe encodes (learned the hard way)

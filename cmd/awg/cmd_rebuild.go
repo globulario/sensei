@@ -22,17 +22,17 @@ import (
 )
 
 func runRebuild(args []string) int {
-	fs := flag.NewFlagSet("awg rebuild", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sensei rebuild", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	oxigraphURL := fs.String("oxigraph-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint")
-	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful reload (default: <project>/.awg/graph-authority.json)")
+	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful reload (default: <project>/.sensei/graph-authority.json)")
 	checkMode := fs.Bool("check", false, "compare only, exit 1 if stale (CI mode)")
 	noReload := fs.Bool("no-runtime-reload", false, "skip Oxigraph PUT")
 	strict := fs.Bool("strict", false, "deprecated: rebuild now fails on reload/verification errors unless --no-runtime-reload is set")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: awg rebuild [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei rebuild [flags]
 
 Rebuild awareness.nt from YAML sources and optionally reload Oxigraph.
 
@@ -56,7 +56,7 @@ Flags:
 	}
 	if root, err := resolveProjectRoot(""); err == nil && governancepack.ManagedModeEnabled(root) {
 		if _, _, err := verifyActiveGovernancePack(root); err != nil {
-			fmt.Fprintf(os.Stderr, "awg rebuild: managed governance requires a verified active pack: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei rebuild: managed governance requires a verified active pack: %v\n", err)
 			return 1
 		}
 	}
@@ -65,22 +65,22 @@ Flags:
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 
 	if svcRepo == "" && agRepo == "" {
-		fmt.Fprintln(os.Stderr, "awg rebuild: cannot find services or awareness-graph repo")
+		fmt.Fprintln(os.Stderr, "sensei rebuild: cannot find services or awareness-graph repo")
 		fmt.Fprintln(os.Stderr, "  run from inside a checkout, or set --services-repo / --ag-repo")
 		return 1
 	}
 	if err := ensureCrossRepoRebuildPrereqs(agRepo, svcRepo); err != nil {
-		fmt.Fprintf(os.Stderr, "awg rebuild: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
 		return 1
 	}
 
 	inputDirs, intentDir, err := collectInputDirs(svcRepo, agRepo)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg rebuild: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
 		return 1
 	}
 	if len(inputDirs) == 0 {
-		fmt.Fprintln(os.Stderr, "awg rebuild: no input directories found")
+		fmt.Fprintln(os.Stderr, "sensei rebuild: no input directories found")
 		return 1
 	}
 
@@ -95,7 +95,7 @@ Flags:
 	fmt.Println("Scanning YAML sources...")
 	ntBytes, totalTriples, yamlCount, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo)
 	if genErr != nil {
-		fmt.Fprintf(os.Stderr, "awg rebuild: %v\n", genErr)
+		fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", genErr)
 		return 1
 	}
 	fmt.Printf("  YAML files scanned: %d\n", yamlCount)
@@ -103,7 +103,7 @@ Flags:
 
 	txBytes, err := buildTransactionTSV(agRepo, svcRepo, ntBytes)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "awg rebuild: build transaction stamp: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei rebuild: build transaction stamp: %v\n", err)
 		return 1
 	}
 
@@ -116,7 +116,7 @@ Flags:
 			}
 			fmt.Fprintf(os.Stderr, "  validation: %s\n", e)
 		}
-		fmt.Fprintf(os.Stderr, "awg rebuild: %d validation errors\n", len(errs))
+		fmt.Fprintf(os.Stderr, "sensei rebuild: %d validation errors\n", len(errs))
 		return 1
 	}
 	fmt.Println("  validation:         ok")
@@ -124,18 +124,18 @@ Flags:
 	// Check mode.
 	if *checkMode {
 		if seedPath == "" {
-			fmt.Fprintln(os.Stderr, "awg rebuild --check: cannot find embeddata path")
+			fmt.Fprintln(os.Stderr, "sensei rebuild --check: cannot find embeddata path")
 			return 1
 		}
 		committed, err := os.ReadFile(seedPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg rebuild: read seed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei rebuild: read seed: %v\n", err)
 			return 1
 		}
 		c := evaluateSeedFreshness(committed, ntBytes, generateAgOnlyNT(agRepo))
 		txCommitted, err := os.ReadFile(transactionPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "awg rebuild: read transaction stamp: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei rebuild: read transaction stamp: %v\n", err)
 			return 1
 		}
 		tx := evaluateBuildTransactionFreshness(txCommitted, txBytes)
@@ -170,7 +170,7 @@ Flags:
 			}
 			fmt.Fprintf(os.Stderr, "    %s\n", detail)
 		}
-		fmt.Fprintf(os.Stderr, "\nRun 'awg rebuild' and commit the result.\n")
+		fmt.Fprintf(os.Stderr, "\nRun 'sensei rebuild' and commit the result.\n")
 		return 1
 	}
 
@@ -184,7 +184,7 @@ Flags:
 			var err error
 			seedUpdated, txUpdated, err = updateArtifactBundle(seedPath, ntBytes, transactionPath, txBytes)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "awg rebuild: persist local artifacts: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei rebuild: persist local artifacts: %v\n", err)
 				return 1
 			}
 		}
@@ -195,38 +195,38 @@ Flags:
 			fmt.Println("  Oxigraph reload:    strict mode is now implicit when reload is enabled")
 		}
 		if err := reloadOxigraphStore(ntBytes, *oxigraphURL); err != nil {
-			fmt.Fprintf(os.Stderr, "awg rebuild: Oxigraph reload failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei rebuild: Oxigraph reload failed: %v\n", err)
 			return 1
 		}
 		if err := verifyLoadedGraph(*oxigraphURL, ntBytes); err != nil {
-			fmt.Fprintf(os.Stderr, "awg rebuild: live-store verification failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei rebuild: live-store verification failed: %v\n", err)
 			return 1
 		}
 		if seedPath != "" {
 			var err error
 			seedUpdated, txUpdated, err = updateArtifactBundle(seedPath, ntBytes, transactionPath, txBytes)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "awg rebuild: local artifacts could not be promoted after live verification; runtime graph was refreshed but embeddata is unchanged: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei rebuild: local artifacts could not be promoted after live verification; runtime graph was refreshed but embeddata is unchanged: %v\n", err)
 				return 1
 			}
 		}
 		printArtifactUpdateStatus(seedPath, transactionPath, seedUpdated, txUpdated)
 		marker, ok := seedmeta.ParseMarker(ntBytes)
 		if !ok {
-			fmt.Fprintln(os.Stderr, "awg rebuild: rebuilt artifact carries no graph marker")
+			fmt.Fprintln(os.Stderr, "sensei rebuild: rebuilt artifact carries no graph marker")
 			return 1
 		}
 		markerPath := strings.TrimSpace(*graphMarkerFile)
 		if markerPath == "" {
 			resolved, err := defaultRuntimeMarkerFile()
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "awg rebuild: resolve graph marker file: %v\n", err)
+				fmt.Fprintf(os.Stderr, "sensei rebuild: resolve graph marker file: %v\n", err)
 				return 1
 			}
 			markerPath = resolved
 		}
 		if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-			fmt.Fprintf(os.Stderr, "awg rebuild: publish graph marker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "sensei rebuild: publish graph marker: %v\n", err)
 			return 1
 		}
 		fmt.Println("  Oxigraph reload:    ok")

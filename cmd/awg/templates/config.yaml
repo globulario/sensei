@@ -2,8 +2,8 @@
 #
 # This file configures Sensei for your project.
 # Edit the values below, then:
-#   awg serve -no-seed &   (start the local store + server)
-#   awg build              (compile docs/awareness into the store)
+#   sensei serve -no-seed &   (start the local store + server)
+#   sensei build              (compile docs/awareness into the store)
 
 # Where your awareness YAML sources live (relative to project root).
 sources:
@@ -12,12 +12,12 @@ sources:
 # Oxigraph RDF store configuration.
 store:
   # Directory for Oxigraph's RocksDB data.
-  data_dir: .awg/data
+  data_dir: .sensei/data
 
   # SPARQL query endpoint (used by the gRPC server).
   query_url: http://localhost:7878/query
 
-  # Graph Store endpoint (used by awg build to load triples).
+  # Graph Store endpoint (used by sensei build to load triples).
   store_url: http://localhost:7878/store?default
 
 # gRPC server configuration.
@@ -28,7 +28,7 @@ server:
 # authority/signal/lifecycle/dependency for backend truth, perception/
 # composition for screens, structure for code shape, evolution for safe
 # project change) is installed at
-# docs/awareness/meta_principles.yaml and compiled in by `awg build`.
+# docs/awareness/meta_principles.yaml and compiled in by `sensei build`.
 # Link your own invariants to it via related_invariants: [meta.*].
 seed:
   meta_principles: true

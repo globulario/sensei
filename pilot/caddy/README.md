@@ -16,7 +16,7 @@ cold-source candidate
 ## Why this is a *separate* graph
 
 Pilot knowledge is **not** compiled into the embedded `awareness.nt` shipped
-inside Globular. The embedded seed (`awg rebuild`) only scans
+inside Globular. The embedded seed (`sensei rebuild`) only scans
 `docs/awareness/` + `docs/intent/` in the two product repos. This `pilot/` tree
 lives outside those paths on purpose, so foreign-repo rules never ride inside
 Globular's binary. The pilot demo builds a **separate authoritative artifact**
@@ -66,6 +66,6 @@ authority, they only let any foreign rule be traced back to its evidence).
 
 - Promote only **1–2** reviewed candidates. No bulk promotion, no auto-promotion.
 - No new extractors. Candidates come from the existing cold-source fixtures.
-- No active-graph mutation outside the explicit `awg promote --repo` path.
+- No active-graph mutation outside the explicit `sensei promote --repo` path.
 - Caddy rules MUST NOT appear in Globular briefings; Globular rules MUST NOT
   appear in Caddy briefings — unless they are `shared` meta-principles.
