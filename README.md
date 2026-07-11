@@ -206,6 +206,32 @@ Other surfaces for other moments: `impact` (structured nodes), `preflight` (risk
 before a task), `edit-check` (does *this* proposed content violate a rule),
 `propose` (record a new scar the agent just learned).
 
+## See it in your editor (VS Code)
+
+Sensei has a companion VS Code extension — **[Sensei on the
+Marketplace](https://marketplace.visualstudio.com/items?itemName=globulario.sensei-awareness)**
+(`globulario.sensei-awareness`):
+
+```
+code --install-extension globulario.sensei-awareness
+```
+
+It's a **client of the Sensei CLI** — install `sensei` (see [Install](#install-one-line))
+and run `sensei serve`; the extension reads the graph that server hosts over gRPC.
+It gives you two surfaces:
+
+- **This File** (activity bar) — the invariants, forbidden fixes, failure modes,
+  risk class, and required tests that govern the file you're editing, with
+  explicit "visible absence" when nothing anchors to it.
+- **Project dashboard** (`Sensei: Open Project Dashboard`) — an architect's
+  cockpit: a control banner (per-class totals + a trust signal), aspect
+  navigation across invariants / failure modes / intents / patterns / files, and
+  a clickable focus-graph of any node's neighbourhood.
+
+<!-- TODO: add a dashboard screenshot captured on a public graph (Sensei's own
+     repo or `sensei demo`) — not a private project, to avoid publishing internal
+     architecture. -->
+
 ## Adopt it as a staircase, not a cliff
 
 | Level | You do | You get |
