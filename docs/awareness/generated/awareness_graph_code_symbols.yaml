@@ -1174,6 +1174,16 @@ test_symbols:
     symbol: TestLoadContractSets_StructuredRequiredPaths
     package: main
     language: go
+  - id: cmd/awg/cmd_gate_sarif_test.go:TestWriteGateSARIF
+    file: cmd/awg/cmd_gate_sarif_test.go
+    symbol: TestWriteGateSARIF
+    package: main
+    language: go
+  - id: cmd/awg/cmd_gate_sarif_test.go:TestWriteGateSARIF_EmptyClearsAlerts
+    file: cmd/awg/cmd_gate_sarif_test.go
+    symbol: TestWriteGateSARIF_EmptyClearsAlerts
+    package: main
+    language: go
   - id: cmd/awg/cmd_gate_test.go:TestGateVerdict
     file: cmd/awg/cmd_gate_test.go
     symbol: TestGateVerdict

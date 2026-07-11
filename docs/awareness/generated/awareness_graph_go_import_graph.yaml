@@ -69,6 +69,7 @@ components:
       - cmd/awg/cmd_gate.go
       - cmd/awg/cmd_gate_completeness.go
       - cmd/awg/cmd_gate_contracts.go
+      - cmd/awg/cmd_gate_sarif.go
       - cmd/awg/cmd_governance.go
       - cmd/awg/cmd_impact.go
       - cmd/awg/cmd_impact_gate.go
