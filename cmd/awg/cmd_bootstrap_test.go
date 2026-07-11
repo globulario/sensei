@@ -77,7 +77,7 @@ func TestBootstrapOwnedGenerated_CoversEmittedFiles(t *testing.T) {
 
 func TestRepairLegacyStarterTemplates_RefreshesUntouchedExamplesOnly(t *testing.T) {
 	root := t.TempDir()
-	if _, err := scaffoldProject(root, false, false); err != nil {
+	if _, err := scaffoldProject(root, initOptions{}); err != nil {
 		t.Fatalf("scaffoldProject: %v", err)
 	}
 

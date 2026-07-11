@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +13,7 @@ import (
 func TestScaffoldProject(t *testing.T) {
 	dir := t.TempDir()
 
-	created, err := scaffoldProject(dir, true, true)
+	created, err := scaffoldProject(dir, initOptions{hooks: true, claudeMD: true, agentsMD: true, cursor: true})
 	if err != nil {
 		t.Fatalf("scaffoldProject: %v", err)
 	}
@@ -33,6 +34,8 @@ func TestScaffoldProject(t *testing.T) {
 		".claude/hooks/record-briefing.sh",
 		".claude/hooks/edit-check-guard.sh",
 		"CLAUDE.md",
+		"AGENTS.md",
+		".cursor/rules/sensei.mdc",
 	}
 
 	for _, rel := range expectedFiles {
@@ -52,7 +55,7 @@ func TestScaffoldProject(t *testing.T) {
 	}
 
 	// Verify idempotent — second run should not overwrite.
-	created2, err := scaffoldProject(dir, true, true)
+	created2, err := scaffoldProject(dir, initOptions{hooks: true, claudeMD: true, agentsMD: true, cursor: true})
 	if err != nil {
 		t.Fatalf("scaffoldProject (2nd run): %v", err)
 	}
@@ -64,7 +67,7 @@ func TestScaffoldProject(t *testing.T) {
 func TestScaffoldProject_MetaPrinciples(t *testing.T) {
 	dir := t.TempDir()
 
-	if _, err := scaffoldProject(dir, false, false); err != nil {
+	if _, err := scaffoldProject(dir, initOptions{}); err != nil {
 		t.Fatalf("scaffoldProject: %v", err)
 	}
 
@@ -106,7 +109,7 @@ func TestScaffoldProject_MetaPrinciples(t *testing.T) {
 func TestScaffoldProject_HooksExecutable(t *testing.T) {
 	dir := t.TempDir()
 
-	if _, err := scaffoldProject(dir, true, false); err != nil {
+	if _, err := scaffoldProject(dir, initOptions{hooks: true}); err != nil {
 		t.Fatalf("scaffoldProject: %v", err)
 	}
 
@@ -127,9 +130,63 @@ func TestScaffoldProject_HooksExecutable(t *testing.T) {
 	}
 }
 
+func TestScaffoldProject_MCPMergeOptIn(t *testing.T) {
+	dir := t.TempDir()
+	mcpPath := filepath.Join(dir, ".mcp.json")
+
+	// Pre-existing config with another server — must be preserved, not clobbered.
+	seed := `{"mcpServers":{"other":{"command":"other-mcp"}}}`
+	if err := os.WriteFile(mcpPath, []byte(seed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// mcp: false must NOT touch .mcp.json.
+	if _, err := scaffoldProject(dir, initOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(mcpPath); strings.Contains(string(data), "sensei") {
+		t.Fatal("mcp defaulted on — .mcp.json got a sensei entry without --mcp")
+	}
+
+	// mcp: true merges the sensei server, keeping the existing one.
+	if _, err := scaffoldProject(dir, initOptions{mcp: true}); err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MCPServers map[string]struct {
+			Command string `json:"command"`
+		} `json:"mcpServers"`
+	}
+	data, _ := os.ReadFile(mcpPath)
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf(".mcp.json is not valid JSON after merge: %v\n%s", err, data)
+	}
+	if _, ok := cfg.MCPServers["other"]; !ok {
+		t.Error("merge clobbered the existing 'other' server")
+	}
+	if s, ok := cfg.MCPServers["sensei"]; !ok || s.Command == "" {
+		t.Errorf("sensei server not added: %+v", cfg.MCPServers)
+	}
+
+	// Idempotent: a second run doesn't duplicate or clobber the sensei entry.
+	before := data
+	if created, err := scaffoldProject(dir, initOptions{mcp: true}); err != nil {
+		t.Fatal(err)
+	} else {
+		for _, f := range created {
+			if strings.HasSuffix(f, ".mcp.json") {
+				t.Error("second --mcp run rewrote .mcp.json (not idempotent)")
+			}
+		}
+	}
+	if after, _ := os.ReadFile(mcpPath); string(after) != string(before) {
+		t.Error(".mcp.json changed on the second --mcp run")
+	}
+}
+
 func TestScaffoldProject_StarterCorpusValidatesCleanly(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := scaffoldProject(dir, false, false); err != nil {
+	if _, err := scaffoldProject(dir, initOptions{}); err != nil {
 		t.Fatalf("scaffoldProject: %v", err)
 	}
 

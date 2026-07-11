@@ -4,16 +4,27 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/globulario/sensei/golang/statedir"
 )
+
+// initOptions selects which agent surfaces `sensei init` wires up.
+type initOptions struct {
+	hooks    bool // .claude/hooks/*
+	claudeMD bool // CLAUDE.md
+	agentsMD bool // AGENTS.md (cross-tool convention)
+	cursor   bool // .cursor/rules/sensei.mdc
+	mcp      bool // .mcp.json (opt-in; write/merge the Sensei server)
+}
 
 //go:embed templates/*
 var templates embed.FS
@@ -24,6 +35,9 @@ func runInit(args []string) int {
 	dir := fs.String("dir", ".", "project root directory")
 	withHooks := fs.Bool("hooks", true, "generate Claude Code hook scripts")
 	withClaudeMD := fs.Bool("claude-md", true, "append Sensei snippet to CLAUDE.md")
+	withAgentsMD := fs.Bool("agents-md", true, "append Sensei snippet to AGENTS.md (Codex/Cursor/others)")
+	withCursor := fs.Bool("cursor", true, "write a Cursor rule (.cursor/rules/sensei.mdc)")
+	withMCP := fs.Bool("mcp", false, "write/merge the Sensei MCP server into .mcp.json (opt-in)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei init [flags]
 
@@ -34,6 +48,12 @@ Scaffolds awareness for a new project. Creates:
   docs/awareness/high_risk_files.yaml    Files requiring briefing
   docs/awareness/activation_rules.yaml   When briefing is required
   .sensei/config.yaml                    Sensei configuration
+
+And wires up your agent tools (each idempotent; toggle with the flags below):
+  CLAUDE.md, AGENTS.md                   Sensei instructions for the agent
+  .cursor/rules/sensei.mdc               Cursor rule
+  .claude/hooks/*                        Claude Code PreToolUse push/guard hooks
+  .mcp.json                              Sensei MCP server (with --mcp)
 
 Flags:
 `)
@@ -50,7 +70,13 @@ Flags:
 		return 1
 	}
 
-	created, err := scaffoldProject(root, *withHooks, *withClaudeMD)
+	created, err := scaffoldProject(root, initOptions{
+		hooks:    *withHooks,
+		claudeMD: *withClaudeMD,
+		agentsMD: *withAgentsMD,
+		cursor:   *withCursor,
+		mcp:      *withMCP,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei init: %v\n", err)
 		return 1
@@ -81,7 +107,7 @@ Next steps:
 	return 0
 }
 
-func scaffoldProject(root string, withHooks, withClaudeMD bool) ([]string, error) {
+func scaffoldProject(root string, opts initOptions) ([]string, error) {
 	var created []string
 
 	// Create docs/awareness/ files from templates.
@@ -130,7 +156,7 @@ func scaffoldProject(root string, withHooks, withClaudeMD bool) ([]string, error
 	}
 
 	// Create Claude Code hooks.
-	if withHooks {
+	if opts.hooks {
 		hookFiles, err := scaffoldHooks(root)
 		if err != nil {
 			return nil, fmt.Errorf("hooks: %w", err)
@@ -138,17 +164,107 @@ func scaffoldProject(root string, withHooks, withClaudeMD bool) ([]string, error
 		created = append(created, hookFiles...)
 	}
 
-	// Append to CLAUDE.md.
-	if withClaudeMD {
-		claudePath := filepath.Join(root, "CLAUDE.md")
-		if f, err := appendClaudeMD(claudePath); err != nil {
+	// Wire the agent-instruction surfaces. Each is idempotent (a marker check or
+	// a don't-overwrite guard), so re-running init never duplicates.
+	if opts.claudeMD {
+		if f, err := appendSnippet(filepath.Join(root, "CLAUDE.md"), "## Sensei", "templates/claude-md-snippet.md"); err != nil {
 			return nil, fmt.Errorf("CLAUDE.md: %w", err)
+		} else if f != "" {
+			created = append(created, f)
+		}
+	}
+	if opts.agentsMD {
+		if f, err := appendSnippet(filepath.Join(root, "AGENTS.md"), "## Sensei", "templates/agent-snippet.md"); err != nil {
+			return nil, fmt.Errorf("AGENTS.md: %w", err)
+		} else if f != "" {
+			created = append(created, f)
+		}
+	}
+	if opts.cursor {
+		if f, err := writeCursorRule(root); err != nil {
+			return nil, fmt.Errorf("cursor rule: %w", err)
+		} else if f != "" {
+			created = append(created, f)
+		}
+	}
+	if opts.mcp {
+		if f, err := writeMCPConfig(root); err != nil {
+			return nil, fmt.Errorf(".mcp.json: %w", err)
 		} else if f != "" {
 			created = append(created, f)
 		}
 	}
 
 	return created, nil
+}
+
+// writeCursorRule installs a Cursor rule at .cursor/rules/sensei.mdc. Skips an
+// existing file (never overwrites a user's edits).
+func writeCursorRule(root string) (string, error) {
+	dir := filepath.Join(root, ".cursor", "rules")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	dst := filepath.Join(dir, "sensei.mdc")
+	if _, err := os.Stat(dst); err == nil {
+		return "", nil
+	}
+	content, err := templates.ReadFile("templates/cursor-rule.mdc")
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(dst, content, 0o644); err != nil {
+		return "", err
+	}
+	return dst, nil
+}
+
+// writeMCPConfig writes or merges the Sensei MCP server into .mcp.json. It never
+// clobbers other servers or an existing "sensei" entry, and refuses to touch a
+// file that isn't valid JSON.
+func writeMCPConfig(root string) (string, error) {
+	path := filepath.Join(root, ".mcp.json")
+	cfg := map[string]any{}
+	if data, err := os.ReadFile(path); err == nil && len(strings.TrimSpace(string(data))) > 0 {
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return "", fmt.Errorf("existing .mcp.json is not valid JSON (left untouched): %w", err)
+		}
+	}
+	servers, _ := cfg["mcpServers"].(map[string]any)
+	if servers == nil {
+		servers = map[string]any{}
+	}
+	if _, exists := servers["sensei"]; exists {
+		return "", nil // never clobber an existing sensei entry
+	}
+	servers["sensei"] = map[string]any{
+		"command": resolveMCPBinary(),
+		"args":    []any{"--awareness-addr", "localhost:10120"},
+	}
+	cfg["mcpServers"] = servers
+	out, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// resolveMCPBinary finds the awareness-mcp bridge: next to this executable
+// first, then PATH, else the bare name (resolved at launch time).
+func resolveMCPBinary() string {
+	if exe, err := os.Executable(); err == nil {
+		cand := filepath.Join(filepath.Dir(exe), exeName("awareness-mcp"))
+		if _, err := os.Stat(cand); err == nil {
+			return cand
+		}
+	}
+	if p, err := exec.LookPath("awareness-mcp"); err == nil {
+		return p
+	}
+	return "awareness-mcp"
 }
 
 func scaffoldHooks(root string) ([]string, error) {
@@ -182,17 +298,17 @@ func scaffoldHooks(root string) ([]string, error) {
 	return created, nil
 }
 
-func appendClaudeMD(path string) (string, error) {
-	marker := "## Sensei"
-
-	// Check if already present.
+// appendSnippet appends a template to a markdown instructions file (CLAUDE.md,
+// AGENTS.md), unless the file already contains `marker` (idempotent). Returns
+// the path when it wrote, "" when it skipped.
+func appendSnippet(path, marker, templateName string) (string, error) {
 	if data, err := os.ReadFile(path); err == nil {
 		if strings.Contains(string(data), marker) {
-			return "", nil // already has Sensei section
+			return "", nil // already has the Sensei section
 		}
 	}
 
-	snippet, err := templates.ReadFile("templates/claude-md-snippet.md")
+	snippet, err := templates.ReadFile(templateName)
 	if err != nil {
 		return "", err
 	}
