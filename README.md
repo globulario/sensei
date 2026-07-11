@@ -139,7 +139,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-      - uses: globulario/sensei/.github/actions/sensei-gate@main
+      - uses: globulario/sensei-action@v1
         with:
           mode: advisory          # advisory (report, never blocks) | enforce (fail on a violation)
 ```
