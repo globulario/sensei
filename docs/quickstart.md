@@ -167,8 +167,9 @@ sensei serve -no-seed
 
 The server starts on `localhost:10120` (gRPC). **`-no-seed` matters for your
 own project:** without it, an empty store is seeded with Sensei's embedded
-*Globular reference graph* — useful as an example, but it would mix Globular's
-invariants into your briefings. With `-no-seed`, your graph contains exactly
+*self reference graph* (the awareness graph of Sensei itself) — useful as an
+example, but it would mix Sensei's own invariants into your briefings. With
+`-no-seed`, your graph contains exactly
 what `sensei build` compiled from your `docs/awareness/`, and the runtime marker +
 transaction pair tell Sensei that this local graph is the authoritative one to
 judge against.
@@ -374,5 +375,4 @@ Sensei compiles your YAML into RDF triples, stores them in Oxigraph, and serves 
 ## Next steps
 
 - Read the [meta-principles reference](meta-principles.md) for the full classification system
-- Browse [Globular's awareness YAML](https://github.com/globulario/services/tree/master/docs/awareness) for a real-world example with 200+ entries
 - Set up CI to run `sensei check --strict` on every PR
