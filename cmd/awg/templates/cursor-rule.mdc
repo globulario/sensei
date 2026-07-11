@@ -1,0 +1,18 @@
+---
+description: Sensei — consult the architectural awareness graph before editing
+alwaysApply: true
+---
+
+This project uses Sensei to prevent architectural drift. Before editing files,
+consult the awareness graph — the invariants, forbidden fixes, and required tests
+that no diff shows.
+
+- Run `sensei briefing --file <path>` before modifying a file listed in
+  `docs/awareness/high_risk_files.yaml`; it returns that file's invariants,
+  failure modes, forbidden fixes, and required tests.
+- Respect the briefing's **forbidden fixes** — patterns that look correct but are
+  known-broken. Revise rather than force one through.
+- Run the **required tests** the briefing lists before committing.
+
+Requires a running server: `sensei serve` (`localhost:10120`).
+See https://github.com/globulario/sensei

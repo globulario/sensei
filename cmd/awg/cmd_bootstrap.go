@@ -74,7 +74,7 @@ Flags:
 		if *dryRun || *check {
 			rep.notes = append(rep.notes, "scaffold: docs/awareness/ missing — would run `sensei init` scaffold (skipped in dry-run/check)")
 		} else {
-			created, serr := scaffoldProject(root, true, true)
+			created, serr := scaffoldProject(root, initOptions{hooks: true, claudeMD: true, agentsMD: true, cursor: true})
 			if serr != nil {
 				fmt.Fprintf(os.Stderr, "sensei bootstrap: scaffold: %v\n", serr)
 				return 1
