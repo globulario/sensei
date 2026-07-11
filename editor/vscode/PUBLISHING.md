@@ -47,5 +47,5 @@ npx @vscode/vsce publish -p <YOUR_PAT>     # or: vsce login globulario, then vsc
 Any packaged build installs directly:
 
 ```sh
-code --install-extension sensei-0.1.0.vsix
+code --install-extension sensei-awareness-0.1.0.vsix
 ```
