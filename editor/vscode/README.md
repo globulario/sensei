@@ -39,7 +39,7 @@ This is deliberate: a rule authored without a file anchor shows up as governing
 From the VS Code **Extensions** view, search **Sensei** — or from the command line:
 
 ```sh
-code --install-extension globulario.sensei
+code --install-extension davecourtois.sensei
 ```
 
 Or install a packaged build directly:
