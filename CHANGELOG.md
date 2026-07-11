@@ -11,19 +11,24 @@ interfaces going forward.
 
 ### Highlights
 
-- **Prebuilt binaries for every desktop platform.** Each release now ships
-  standalone `sensei`, `awareness-graph`, and `awareness-mcp` binaries for
-  `linux` and `darwin` × `amd64` and `arm64` — no Go toolchain required. The
-  release workflow builds each target on a **native runner** (the tree-sitter
-  parsers are cgo bindings and cannot be cross-compiled from one host).
-- **macOS + arm64 fast path in CI.** `globulario/sensei-action` downloads the
-  matching prebuilt binary for the runner's OS/arch (linux/darwin, amd64/arm64),
-  including a platform-aware Oxigraph fetch, and falls back to a source build for
-  any ref without prebuilt artifacts.
+- **Prebuilt binaries, Oxigraph included.** Each release now ships standalone
+  `sensei`, `awareness-graph`, `awareness-mcp`, **and `oxigraph`** binaries for
+  `linux-amd64`, `linux-arm64`, and `darwin-arm64` (Apple Silicon) — no Go
+  toolchain and no separate store download. Bundling Oxigraph makes the release
+  self-contained and immune to upstream rate-limits. The release workflow builds
+  each target on a **native runner** (the tree-sitter parsers are cgo bindings
+  and cannot be cross-compiled from one host).
+- **arm64 fast path in CI.** `globulario/sensei-action` downloads the matching
+  prebuilt binaries for the runner's OS/arch — including Oxigraph straight from
+  the Sensei release — and falls back to a source build for any ref/platform
+  without prebuilt artifacts.
+- **macOS is Apple Silicon (arm64) only.** The Intel (`macos-13`) runner pool has
+  long, unreliable queue times and current Mac dev machines are overwhelmingly
+  arm64; Intel-mac users get the Action's source-build fallback.
 - **Windows** binaries are intentionally deferred: the enforcement hooks are
   bash and the end-to-end workflow is not yet validated there. The supervised
-  Linux tarball bundles remain `linux-amd64`; the raw per-platform binaries cover
-  macOS and arm64.
+  Linux `awg-local` tarball bundle remains `linux-amd64` (now with Oxigraph
+  bundled in).
 
 Since `0.2.x`: `sensei gate --sarif` (findings surface in GitHub code scanning),
 the `--mode advisory|enforce|dry-run` alias, and `sensei demo`.
