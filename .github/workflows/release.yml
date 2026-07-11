@@ -11,21 +11,15 @@ on:
         required: true
 
 jobs:
-  release:
+  # ---------------------------------------------------------------------------
+  # Resolve the version/tag once, so the build matrix and the release job agree.
+  # ---------------------------------------------------------------------------
+  meta:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
-      - name: Checkout awareness-graph
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: go.sum
-
       - name: Extract version
         id: version
         run: |
@@ -55,53 +49,112 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VERSION}, Tag: ${TAG}"
 
+  # ---------------------------------------------------------------------------
+  # Build the three standalone binaries on a NATIVE runner per target. The
+  # parsers (tree-sitter) are cgo bindings, so CGO must be on and we cannot
+  # cross-compile from one host — each OS/arch builds on its own runner.
+  # ---------------------------------------------------------------------------
+  build:
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest,    goos: linux,  goarch: amd64 }
+          - { runner: ubuntu-24.04-arm, goos: linux,  goarch: arm64 }
+          - { runner: macos-13,         goos: darwin, goarch: amd64 }
+          - { runner: macos-14,         goos: darwin, goarch: arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Build standalone binaries (${{ matrix.goos }}-${{ matrix.goarch }})
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          SUFFIX="${GOOS}-${GOARCH}"
+          LDFLAGS="-s -w -X main.Version=${VERSION}"
+          OUT="$RUNNER_TEMP/dist"; mkdir -p "$OUT"
+
+          # Native build: GOOS/GOARCH match the host, CGO stays on for tree-sitter.
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/sensei-${SUFFIX}"           ./cmd/awg
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/awareness-graph-${SUFFIX}"  ./golang/server
+          CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/awareness-mcp-${SUFFIX}"    ./cmd/awareness-mcp
+
+          # Portable checksums (macOS ships shasum, not sha256sum).
+          sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi; }
+          ( cd "$OUT" && for f in *-"${SUFFIX}"; do sha "$f" > "$f.sha256"; done )
+
+          echo "Built for ${SUFFIX}:"
+          ls -lh "$OUT" | sed 's/^/  /'
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ runner.temp }}/dist/*
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Assemble the release: freshness gate, tests, the Linux tarball bundles, and
+  # a single GitHub Release carrying every platform's binaries.
+  # ---------------------------------------------------------------------------
+  release:
+    needs: [meta, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout awareness-graph
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
       - name: Check generated files and seed are fresh (self-only build)
         run: |
           scripts/build-awareness-graph-self.sh --check
 
-      - name: Build binaries
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          LDFLAGS="-s -w -X main.Version=${VERSION}"
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-            go build -trimpath -ldflags "${LDFLAGS}" \
-            -o bin/sensei \
-            ./cmd/awg
-          cp bin/sensei bin/awg   # deprecated alias, still shipped in the local bundle
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-            go build -trimpath -ldflags "${LDFLAGS}" \
-            -o bin/awareness-mcp \
-            ./cmd/awareness-mcp
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-            go build -trimpath -ldflags "${LDFLAGS}" \
-            -o bin/awareness-graph \
-            ./golang/server
-          echo "Built bin/sensei ($(du -sh bin/sensei | cut -f1))"
-          echo "Built bin/awareness-mcp ($(du -sh bin/awareness-mcp | cut -f1))"
-          echo "Built bin/awareness-graph ($(du -sh bin/awareness-graph | cut -f1))"
-
-      - name: Stage standalone binaries (fast path for the GitHub Action)
-        run: |
-          set -euo pipefail
-          cp bin/sensei          /tmp/sensei-linux-amd64
-          cp bin/awareness-graph /tmp/awareness-graph-linux-amd64
-          cp bin/awareness-mcp   /tmp/awareness-mcp-linux-amd64
-          cd /tmp
-          for f in sensei-linux-amd64 awareness-graph-linux-amd64 awareness-mcp-linux-amd64; do
-            sha256sum "$f" > "$f.sha256"
-          done
-          echo "Staged standalone binaries: sensei, awareness-graph, awareness-mcp (linux-amd64)"
-
       - name: Run tests
         run: go test ./... -count=1 -timeout 120s
 
-      - name: Stage release artifacts
+      - name: Download all platform binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/dist
+          pattern: binaries-*
+          merge-multiple: true
+
+      - name: List downloaded binaries
+        run: ls -lh /tmp/dist | sed 's/^/  /'
+
+      - name: Assemble Linux tarball bundles
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.meta.outputs.version }}
         run: |
           set -euo pipefail
+          # The supervised tarball bundles remain Linux amd64 only; the raw
+          # per-platform binaries above cover macOS and arm64.
+          mkdir -p bin
+          cp /tmp/dist/sensei-linux-amd64          bin/sensei
+          cp /tmp/dist/sensei-linux-amd64          bin/awg            # deprecated alias
+          cp /tmp/dist/awareness-graph-linux-amd64 bin/awareness-graph
+          cp /tmp/dist/awareness-mcp-linux-amd64   bin/awareness-mcp
+          chmod +x bin/sensei bin/awg bin/awareness-graph bin/awareness-mcp
+
           SERVICE_ROOT=/tmp/awareness-graph-service-root
           LOCAL_ROOT=/tmp/awareness-graph-local-root
           rm -rf "${SERVICE_ROOT}" "${LOCAL_ROOT}"
@@ -163,16 +216,16 @@ jobs:
             3. install supervised local services with:
                  bash scripts/install-awg-user-services.sh --skip-build
 
-          This bundle is Linux amd64 only.
+          This bundle is Linux amd64 only. For macOS and arm64, use the raw
+          sensei-<os>-<arch> / awareness-graph-<os>-<arch> binaries on the
+          release page.
           EOF
 
           SERVICE_TARBALL="awareness-graph_${VERSION}_linux_amd64.tgz"
           LOCAL_TARBALL="awg-local_${VERSION}_linux_amd64.tgz"
           tar czf "/tmp/${SERVICE_TARBALL}" -C "${SERVICE_ROOT}" .
           tar czf "/tmp/${LOCAL_TARBALL}" -C "${LOCAL_ROOT}" .
-          echo "SERVICE_TARBALL=/tmp/${SERVICE_TARBALL}" >> "$GITHUB_ENV"
           echo "SERVICE_TARBALL_NAME=${SERVICE_TARBALL}" >> "$GITHUB_ENV"
-          echo "LOCAL_TARBALL=/tmp/${LOCAL_TARBALL}" >> "$GITHUB_ENV"
           echo "LOCAL_TARBALL_NAME=${LOCAL_TARBALL}" >> "$GITHUB_ENV"
           echo "Staged: /tmp/${SERVICE_TARBALL} ($(du -sh /tmp/${SERVICE_TARBALL} | cut -f1))"
           echo "Staged: /tmp/${LOCAL_TARBALL} ($(du -sh /tmp/${LOCAL_TARBALL} | cut -f1))"
@@ -184,7 +237,7 @@ jobs:
             /tmp/awareness-graph-service-root \
             /tmp/awareness-graph-local-root
 
-      - name: Create SHA256 checksums
+      - name: Create SHA256 checksums for tarballs
         run: |
           set -euo pipefail
           cd /tmp
@@ -196,8 +249,7 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ needs.meta.outputs.tag }}
         run: |
           set -euo pipefail
           # Use this version's CHANGELOG.md section as the release body; fall back
@@ -212,13 +264,22 @@ jobs:
             echo "Release ${TAG} — built from commit ${GITHUB_SHA:0:8}" > "$NOTES_FILE"
           fi
           gh release create "${TAG}" \
-            --title "awareness-graph ${TAG}" \
+            --title "sensei ${TAG}" \
             --notes-file "$NOTES_FILE" \
             "/tmp/${SERVICE_TARBALL_NAME}" \
             "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
             "/tmp/${LOCAL_TARBALL_NAME}" \
             "/tmp/${LOCAL_TARBALL_NAME}.sha256" \
-            /tmp/sensei-linux-amd64 /tmp/sensei-linux-amd64.sha256 \
-            /tmp/awareness-graph-linux-amd64 /tmp/awareness-graph-linux-amd64.sha256 \
-            /tmp/awareness-mcp-linux-amd64 /tmp/awareness-mcp-linux-amd64.sha256
+            /tmp/dist/sensei-linux-amd64          /tmp/dist/sensei-linux-amd64.sha256 \
+            /tmp/dist/sensei-linux-arm64          /tmp/dist/sensei-linux-arm64.sha256 \
+            /tmp/dist/sensei-darwin-amd64         /tmp/dist/sensei-darwin-amd64.sha256 \
+            /tmp/dist/sensei-darwin-arm64         /tmp/dist/sensei-darwin-arm64.sha256 \
+            /tmp/dist/awareness-graph-linux-amd64  /tmp/dist/awareness-graph-linux-amd64.sha256 \
+            /tmp/dist/awareness-graph-linux-arm64  /tmp/dist/awareness-graph-linux-arm64.sha256 \
+            /tmp/dist/awareness-graph-darwin-amd64 /tmp/dist/awareness-graph-darwin-amd64.sha256 \
+            /tmp/dist/awareness-graph-darwin-arm64 /tmp/dist/awareness-graph-darwin-arm64.sha256 \
+            /tmp/dist/awareness-mcp-linux-amd64    /tmp/dist/awareness-mcp-linux-amd64.sha256 \
+            /tmp/dist/awareness-mcp-linux-arm64    /tmp/dist/awareness-mcp-linux-arm64.sha256 \
+            /tmp/dist/awareness-mcp-darwin-amd64   /tmp/dist/awareness-mcp-darwin-amd64.sha256 \
+            /tmp/dist/awareness-mcp-darwin-arm64   /tmp/dist/awareness-mcp-darwin-arm64.sha256
           echo "Release ${TAG} created."

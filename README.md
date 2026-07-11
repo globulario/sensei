@@ -63,6 +63,12 @@ export PATH="$PWD/bin:$PATH"
 The installer ends by printing the exact MCP config to hand your agent. Keep it —
 you'll paste it in the next step.
 
+> **Prefer a prebuilt binary?** Each [release](https://github.com/globulario/sensei/releases)
+> ships standalone `sensei`, `awareness-graph`, and `awareness-mcp` binaries for
+> `linux`/`darwin` × `amd64`/`arm64` — download the trio for your platform, drop
+> them on your `PATH`, then run `bash scripts/fetch-oxigraph.sh` for the store.
+> No Go toolchain required.
+
 > Kick the tires first (optional): `sensei demo` stands up the whole stack on
 > throwaway ports and returns one real briefing, then cleans up.
 
