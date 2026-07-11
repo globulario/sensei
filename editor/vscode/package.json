@@ -102,7 +102,7 @@
         "sensei.domain": {
           "type": "string",
           "default": "",
-          "description": "Domain/repo scope (e.g. github.com/owner/repo). Required when the graph hosts more than one domain; leave empty for a single-domain graph."
+          "description": "Domain/repo scope (e.g. github.com/owner/repo) for the file view and node detail. Leave empty to auto-derive it from the workspace's git remote (so a multi-domain graph answers with *this* project's rules); set it explicitly to override."
         },
         "sensei.mode": {
           "type": "string",
