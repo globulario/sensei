@@ -25,7 +25,7 @@ var resolveRPC = func(ctx context.Context, addr, class, id, domain string) (*awa
 func runResolve(args []string) int {
 	fs := flag.NewFlagSet("sensei resolve", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	domain := fs.String("domain", "", "optional domain/repo scope; a node outside this scope resolves to not-found")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {

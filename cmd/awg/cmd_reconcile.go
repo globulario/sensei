@@ -41,7 +41,7 @@ func runReconcile(args []string) int {
 	fs := flag.NewFlagSet("sensei reconcile", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	seedPathFlag := fs.String("seed", "", "path to awareness.nt (default: auto-detect embedded seed)")
-	oxigraphURL := fs.String("oxigraph-url", "http://localhost:7878/query", "Oxigraph query or store endpoint")
+	oxigraphURL := fs.String("oxigraph-url", defaultOxigraphQueryURL(), "Oxigraph query or store endpoint")
 	baselineFlag := fs.String("baseline", "auto", "authored baseline: auto | yaml | seed")
 	requireClean := fs.Bool("require-clean", false, "exit 1 unless the live store is proven free of store-only orphans")
 	asJSON := fs.Bool("json", false, "output as JSON")

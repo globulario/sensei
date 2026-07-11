@@ -39,8 +39,8 @@ var httpHealthClient = &http.Client{Timeout: 1 * time.Second}
 func runServe(args []string) int {
 	fs := flag.NewFlagSet("sensei serve", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", ":10120", "gRPC listen address")
-	oxigraphBind := fs.String("oxigraph-bind", "127.0.0.1:7878", "Oxigraph listen address")
+	addr := fs.String("addr", defaultServiceListen(), "gRPC listen address")
+	oxigraphBind := fs.String("oxigraph-bind", defaultOxigraphBind(), "Oxigraph listen address")
 	noSeed := fs.Bool("no-seed", false, "skip the embedded Globular seed (cold-start projects: build your own graph with `sensei build`)")
 	allowStaleSeed := fs.Bool("allow-stale-seed", false, "allow startup when the live store is missing the embedded seed marker")
 	graphMarkerFile := fs.String("graph-marker-file", "", "runtime graph marker file for --no-seed authority checks (default: <project>/.sensei/graph-authority.json)")

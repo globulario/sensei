@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/globulario/sensei/golang/netcfg"
 )
 
 const (
 	defaultServiceName  = "globular.awareness_graph.AwarenessGraph"
-	defaultServicePort  = 10120
-	defaultServiceProxy = 10121
+	defaultServicePort  = netcfg.DefaultServicePort
+	defaultServiceProxy = netcfg.DefaultProxyPort
 )
 
 // serviceConfig is the install/runtime metadata used for Globular-style service wiring.
@@ -52,7 +54,7 @@ func defaultServiceConfig() serviceConfig {
 		Dependencies:         []string{"oxigraph-backend"},
 		Permissions:          []string{},
 		TLS:                  true,
-		OxigraphQueryURL:     "http://localhost:7878/query",
+		OxigraphQueryURL:     netcfg.OxigraphQueryURL(),
 		RequireStore:         false,
 		StartupHealthTimeout: startupHealthTimeout.String(),
 	}

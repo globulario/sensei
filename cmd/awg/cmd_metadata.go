@@ -25,7 +25,7 @@ var metadataRPC = func(ctx context.Context, addr string) (*awarenesspb.MetadataR
 func runMetadata(args []string) int {
 	fs := flag.NewFlagSet("sensei metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei metadata [flags]

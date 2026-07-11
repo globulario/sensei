@@ -26,7 +26,7 @@ func runRebuild(args []string) int {
 	fs.SetOutput(os.Stderr)
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
-	oxigraphURL := fs.String("oxigraph-url", "http://localhost:7878/store?default", "Oxigraph Graph Store endpoint")
+	oxigraphURL := fs.String("oxigraph-url", defaultOxigraphStoreURL(), "Oxigraph Graph Store endpoint")
 	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful reload (default: <project>/.sensei/graph-authority.json)")
 	checkMode := fs.Bool("check", false, "compare only, exit 1 if stale (CI mode)")
 	noReload := fs.Bool("no-runtime-reload", false, "skip Oxigraph PUT")

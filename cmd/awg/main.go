@@ -115,6 +115,8 @@ func main() {
 		os.Exit(runEditCheck(args))
 	case "edit-guard":
 		os.Exit(runEditGuard(args))
+	case "edit-brief":
+		os.Exit(runEditBrief(args))
 	case "gate":
 		os.Exit(runGate(args))
 	case "evidence":
@@ -242,6 +244,7 @@ Query commands (require a running Sensei server):
   contract-assess Report-only contract synthesis assessment from explicit evidence
   contract-bootstrap Build a proposed repair-contract bootstrap from issue/tests/Sensei
   edit-check     Warn (advisory) if a proposed edit violates repo-scoped rules
+  edit-brief     Claude Code PreToolUse push: hand the agent a file's briefing as context before it edits
   gate           Hard gate over a git diff (--enforce to block; --event-log to record outcomes)
   evidence       Aggregate the gate/guard outcome ledger ("caught N incidents across M repos")
   resolve        Fetch a single awareness node by class + id

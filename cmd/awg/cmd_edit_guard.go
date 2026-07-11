@@ -35,7 +35,7 @@ import (
 func runEditGuard(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-guard", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", envOr("AWG_ADDR", "localhost:10120"), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	blockSeverity := fs.String("block-severity", envOr("AWG_EDIT_CHECK_BLOCK_SEVERITY", "critical,high"),
@@ -200,8 +200,18 @@ func emitGuardVerdict(format, rel string, d guardDecision, warnings []*awareness
 		return 0
 	default: // "claude" — the PreToolUse adapter
 		if d.block {
-			if out, err := json.Marshal(map[string]string{"decision": "block", "reason": d.reason}); err == nil {
-				fmt.Println(string(out))
+			// Current Claude Code hook shape: hookSpecificOutput.permissionDecision
+			// = "deny" with a reason. (The legacy top-level {"decision":"block"}
+			// is deprecated.)
+			out := map[string]any{
+				"hookSpecificOutput": map[string]any{
+					"hookEventName":            "PreToolUse",
+					"permissionDecision":       "deny",
+					"permissionDecisionReason": d.reason,
+				},
+			}
+			if b, err := json.Marshal(out); err == nil {
+				fmt.Println(string(b))
 			}
 			return 0
 		}

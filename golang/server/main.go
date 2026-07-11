@@ -30,7 +30,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -47,6 +46,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/globulario/sensei/golang/netcfg"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
@@ -213,17 +213,12 @@ func main() {
 		os.Exit(printHealthJSON(os.Stdout, cfg))
 	}
 
+	// Sensei runs as a standalone sidecar, not a Globular-registered service:
+	// the listen address comes from -addr, else $AWG_ADDR, else :10120. There is
+	// no etcd service-registry authority to consult.
 	finalAddr := *addr
 	if finalAddr == "" {
-		if authorityPort, err := resolveAuthoritativeServicePort(cfg.ID); err == nil {
-			if authorityPort != cfg.Port {
-				log.Printf("awareness-graph: etcd authority port override %d -> %d for service id %s", cfg.Port, authorityPort, cfg.ID)
-			}
-			cfg.Port = authorityPort
-		} else if !errors.Is(err, errServiceConfigNotFound) {
-			log.Printf("awareness-graph: etcd authority port lookup unavailable, using local config port=%d: %v", cfg.Port, err)
-		}
-		finalAddr = fmt.Sprintf(":%d", cfg.Port)
+		finalAddr = netcfg.ServiceListenAddr()
 	}
 	finalRequireStore := *requireStore || cfg.RequireStore
 
@@ -288,40 +283,16 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 		enforceCancel()
 	}
 
-	// 3. Bind, register, serve.
+	// 3. Bind and serve. Sensei is a local sidecar — there is no etcd
+	// registration or xDS/Envoy route to publish.
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", addr, err)
 	}
 
-	// 4. Register with etcd so the xDS watcher creates an Envoy route for
-	//    /awareness.AwarenessGraphService/* and service discovery returns
-	//    this node's address. Best-effort: the server starts regardless.
-	var reg *etcdRegistrar
-	if ip, mac := getRoutableIPAndMAC(); ip != "" {
-		r, regErr := newEtcdRegistrar()
-		if regErr != nil {
-			logger.Printf("awareness-graph: etcd registration unavailable: %v", regErr)
-		} else if regErr = r.register(cfg, ip, mac); regErr != nil {
-			logger.Printf("awareness-graph: etcd registration failed: %v", regErr)
-			r.deregister()
-		} else {
-			reg = r
-			logger.Printf("awareness-graph: registered with etcd as %s at %s:%d", cfg.Name, ip, cfg.Port)
-		}
-	} else {
-		logger.Printf("awareness-graph: no routable IP detected — skipping etcd registration")
-	}
-	defer func() {
-		if reg != nil {
-			reg.deregister()
-			logger.Printf("awareness-graph: deregistered from etcd")
-		}
-	}()
-
 	// Load cluster TLS credentials. If the cert files are absent (e.g. dev
 	// machine without a Globular install) fall back to plaintext and update
-	// cfg.TLS so the etcd registration reflects reality.
+	// cfg.TLS so runtime metadata reflects reality.
 	var grpcOpts []grpc.ServerOption
 	creds, tlsErr := buildServerTLS()
 	if tlsErr != nil {
@@ -395,6 +366,15 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 		return nil
 	}
 }
+
+// Standard Globular PKI paths. When present, the server serves TLS with these
+// cluster credentials; when absent it falls back to plaintext (see serve). This
+// is the only remaining Globular integration point — optional and fail-open.
+const (
+	clusterCAPath   = "/var/lib/globular/pki/ca.crt"
+	clusterCertPath = "/var/lib/globular/pki/issued/services/service.crt"
+	clusterKeyPath  = "/var/lib/globular/pki/issued/services/service.key"
+)
 
 // buildServerTLS loads the cluster service cert and CA from the standard
 // Globular PKI paths and returns TLS server credentials. Returns an error if

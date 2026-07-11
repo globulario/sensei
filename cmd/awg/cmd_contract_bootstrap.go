@@ -132,7 +132,7 @@ func runContractBootstrap(args []string) int {
 	taskFile := fs.String("task-file", "", "task JSON containing issue/domain/f2p_tests")
 	issue := fs.String("issue", "", "issue text when not using --task-file")
 	domain := fs.String("domain", "", "optional repo/domain scope for AWG cross-reference")
-	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	format := fs.String("format", "text", "output format: text | json | prompt | scaffold")
 	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
 	var tests stringSlice

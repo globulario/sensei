@@ -37,7 +37,7 @@ func runRepairPlan(args []string) int {
 	fs := flag.NewFlagSet("sensei repair-plan", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
-	addr := fs.String("addr", "localhost:10120", "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
