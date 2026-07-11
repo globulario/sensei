@@ -64,10 +64,11 @@ The installer ends by printing the exact MCP config to hand your agent. Keep it 
 you'll paste it in the next step.
 
 > **Prefer a prebuilt binary?** Each [release](https://github.com/globulario/sensei/releases)
-> ships standalone `sensei`, `awareness-graph`, and `awareness-mcp` binaries for
-> `linux`/`darwin` × `amd64`/`arm64` — download the trio for your platform, drop
-> them on your `PATH`, then run `bash scripts/fetch-oxigraph.sh` for the store.
-> No Go toolchain required.
+> ships standalone `sensei`, `awareness-graph`, `awareness-mcp`, and `oxigraph`
+> binaries for `linux-amd64`, `linux-arm64`, and `darwin-arm64` (Apple Silicon) —
+> download the four for your platform, drop them on your `PATH`, and you're done.
+> No Go toolchain, no separate store download. (The Linux `awg-local` tarball
+> bundles all four together.)
 
 > Kick the tires first (optional): `sensei demo` stands up the whole stack on
 > throwaway ports and returns one real briefing, then cleans up.

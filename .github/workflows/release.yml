@@ -50,9 +50,13 @@ jobs:
           echo "Version: ${VERSION}, Tag: ${TAG}"
 
   # ---------------------------------------------------------------------------
-  # Build the three standalone binaries on a NATIVE runner per target. The
-  # parsers (tree-sitter) are cgo bindings, so CGO must be on and we cannot
+  # Build the standalone binaries on a NATIVE runner per target. The parsers
+  # (tree-sitter) are cgo bindings, so CGO must be on and we cannot
   # cross-compile from one host — each OS/arch builds on its own runner.
+  #
+  # macOS is Apple Silicon (arm64) only: the Intel (macos-13) runner pool has
+  # long/unreliable queue times, and current Mac dev machines are overwhelmingly
+  # arm64. Intel-mac users fall back to the source build in the GitHub Action.
   # ---------------------------------------------------------------------------
   build:
     needs: meta
@@ -62,7 +66,6 @@ jobs:
         include:
           - { runner: ubuntu-latest,    goos: linux,  goarch: amd64 }
           - { runner: ubuntu-24.04-arm, goos: linux,  goarch: arm64 }
-          - { runner: macos-13,         goos: darwin, goarch: amd64 }
           - { runner: macos-14,         goos: darwin, goarch: arm64 }
     runs-on: ${{ matrix.runner }}
     steps:
@@ -75,11 +78,12 @@ jobs:
           go-version: '1.25'
           cache-dependency-path: go.sum
 
-      - name: Build standalone binaries (${{ matrix.goos }}-${{ matrix.goarch }})
+      - name: Build standalone binaries + bundle Oxigraph (${{ matrix.goos }}-${{ matrix.goarch }})
         env:
           VERSION: ${{ needs.meta.outputs.version }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          OXV: '0.5.9'   # pinned; direct download avoids the rate-limited "latest" API
         run: |
           set -euo pipefail
           SUFFIX="${GOOS}-${GOARCH}"
@@ -91,11 +95,23 @@ jobs:
           CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/awareness-graph-${SUFFIX}"  ./golang/server
           CGO_ENABLED=1 go build -trimpath -ldflags "${LDFLAGS}" -o "$OUT/awareness-mcp-${SUFFIX}"    ./cmd/awareness-mcp
 
+          # Oxigraph is one of the binaries `sensei serve` runs — ship it in the
+          # release so the download is self-contained (no upstream fetch needed).
+          case "${SUFFIX}" in
+            linux-amd64)  OXA="x86_64_linux_gnu";;
+            linux-arm64)  OXA="aarch64_linux_gnu";;
+            darwin-arm64) OXA="aarch64_apple";;
+            *) echo "::error::no Oxigraph asset mapping for ${SUFFIX}"; exit 1;;
+          esac
+          curl -fsSL -o "$OUT/oxigraph-${SUFFIX}" \
+            "https://github.com/oxigraph/oxigraph/releases/download/v${OXV}/oxigraph_v${OXV}_${OXA}"
+          chmod +x "$OUT/oxigraph-${SUFFIX}"
+
           # Portable checksums (macOS ships shasum, not sha256sum).
           sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi; }
-          ( cd "$OUT" && for f in *-"${SUFFIX}"; do sha "$f" > "$f.sha256"; done )
+          ( cd "$OUT" && for f in *-"${SUFFIX}"; do case "$f" in *.sha256) ;; *) sha "$f" > "$f.sha256";; esac; done )
 
-          echo "Built for ${SUFFIX}:"
+          echo "Built for ${SUFFIX} (incl. Oxigraph v${OXV}):"
           ls -lh "$OUT" | sed 's/^/  /'
 
       - name: Upload binaries
@@ -153,7 +169,8 @@ jobs:
           cp /tmp/dist/sensei-linux-amd64          bin/awg            # deprecated alias
           cp /tmp/dist/awareness-graph-linux-amd64 bin/awareness-graph
           cp /tmp/dist/awareness-mcp-linux-amd64   bin/awareness-mcp
-          chmod +x bin/sensei bin/awg bin/awareness-graph bin/awareness-mcp
+          cp /tmp/dist/oxigraph-linux-amd64        bin/oxigraph
+          chmod +x bin/sensei bin/awg bin/awareness-graph bin/awareness-mcp bin/oxigraph
 
           SERVICE_ROOT=/tmp/awareness-graph-service-root
           LOCAL_ROOT=/tmp/awareness-graph-local-root
@@ -169,6 +186,7 @@ jobs:
           cp bin/awg                    "${LOCAL_ROOT}/bin/awg"
           cp bin/awareness-mcp          "${LOCAL_ROOT}/bin/awareness-mcp"
           cp bin/awareness-graph        "${LOCAL_ROOT}/bin/awareness-graph"
+          cp bin/oxigraph               "${LOCAL_ROOT}/bin/oxigraph"
           cp scripts/fetch-oxigraph.sh  "${LOCAL_ROOT}/scripts/fetch-oxigraph.sh"
           cp scripts/install-awg-user-services.sh \
                                         "${LOCAL_ROOT}/scripts/install-awg-user-services.sh"
@@ -204,21 +222,22 @@ jobs:
           cat > "${LOCAL_ROOT}/README.txt" <<EOF
           awareness-graph local runtime bundle v${VERSION}
 
-          Included binaries:
+          Included binaries (fully self-contained — Oxigraph included):
             bin/awg
             bin/awareness-mcp
             bin/awareness-graph
+            bin/oxigraph
 
           Quick start:
             1. place these binaries on your PATH
-            2. fetch Oxigraph with:
-                 bash scripts/fetch-oxigraph.sh
-            3. install supervised local services with:
+            2. install supervised local services with:
                  bash scripts/install-awg-user-services.sh --skip-build
+            (scripts/fetch-oxigraph.sh is included only as a fallback; the
+             bundled bin/oxigraph is already this platform's binary.)
 
-          This bundle is Linux amd64 only. For macOS and arm64, use the raw
-          sensei-<os>-<arch> / awareness-graph-<os>-<arch> binaries on the
-          release page.
+          This bundle is Linux amd64 only. For macOS (Apple Silicon) and
+          linux-arm64, use the raw sensei-<os>-<arch> / awareness-graph-<os>-<arch>
+          / oxigraph-<os>-<arch> binaries on the release page.
           EOF
 
           SERVICE_TARBALL="awareness-graph_${VERSION}_linux_amd64.tgz"
@@ -270,16 +289,16 @@ jobs:
             "/tmp/${SERVICE_TARBALL_NAME}.sha256" \
             "/tmp/${LOCAL_TARBALL_NAME}" \
             "/tmp/${LOCAL_TARBALL_NAME}.sha256" \
-            /tmp/dist/sensei-linux-amd64          /tmp/dist/sensei-linux-amd64.sha256 \
-            /tmp/dist/sensei-linux-arm64          /tmp/dist/sensei-linux-arm64.sha256 \
-            /tmp/dist/sensei-darwin-amd64         /tmp/dist/sensei-darwin-amd64.sha256 \
-            /tmp/dist/sensei-darwin-arm64         /tmp/dist/sensei-darwin-arm64.sha256 \
+            /tmp/dist/sensei-linux-amd64           /tmp/dist/sensei-linux-amd64.sha256 \
+            /tmp/dist/sensei-linux-arm64           /tmp/dist/sensei-linux-arm64.sha256 \
+            /tmp/dist/sensei-darwin-arm64          /tmp/dist/sensei-darwin-arm64.sha256 \
             /tmp/dist/awareness-graph-linux-amd64  /tmp/dist/awareness-graph-linux-amd64.sha256 \
             /tmp/dist/awareness-graph-linux-arm64  /tmp/dist/awareness-graph-linux-arm64.sha256 \
-            /tmp/dist/awareness-graph-darwin-amd64 /tmp/dist/awareness-graph-darwin-amd64.sha256 \
             /tmp/dist/awareness-graph-darwin-arm64 /tmp/dist/awareness-graph-darwin-arm64.sha256 \
             /tmp/dist/awareness-mcp-linux-amd64    /tmp/dist/awareness-mcp-linux-amd64.sha256 \
             /tmp/dist/awareness-mcp-linux-arm64    /tmp/dist/awareness-mcp-linux-arm64.sha256 \
-            /tmp/dist/awareness-mcp-darwin-amd64   /tmp/dist/awareness-mcp-darwin-amd64.sha256 \
-            /tmp/dist/awareness-mcp-darwin-arm64   /tmp/dist/awareness-mcp-darwin-arm64.sha256
+            /tmp/dist/awareness-mcp-darwin-arm64   /tmp/dist/awareness-mcp-darwin-arm64.sha256 \
+            /tmp/dist/oxigraph-linux-amd64         /tmp/dist/oxigraph-linux-amd64.sha256 \
+            /tmp/dist/oxigraph-linux-arm64         /tmp/dist/oxigraph-linux-arm64.sha256 \
+            /tmp/dist/oxigraph-darwin-arm64        /tmp/dist/oxigraph-darwin-arm64.sha256
           echo "Release ${TAG} created."
