@@ -1,7 +1,7 @@
 # Publish the VS Code extension to the Marketplace.
 #
 # One-time setup (see editor/vscode/PUBLISHING.md):
-#   1. Create the `davecourtois` publisher at https://marketplace.visualstudio.com/manage
+#   1. Create the `globulario` publisher at https://marketplace.visualstudio.com/manage
 #   2. Generate an Azure DevOps PAT with the Marketplace > Manage scope
 #   3. Add it as the repo secret VSCE_PAT (Settings → Secrets and variables → Actions)
 #
@@ -56,7 +56,7 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
           if [ -z "${VSCE_PAT:-}" ]; then
-            echo "::error::VSCE_PAT secret is not set. Create the davecourtois publisher and a PAT (see editor/vscode/PUBLISHING.md), then add VSCE_PAT under repo Settings → Secrets → Actions."
+            echo "::error::VSCE_PAT secret is not set. Create the globulario publisher and a PAT (see editor/vscode/PUBLISHING.md), then add VSCE_PAT under repo Settings → Secrets → Actions."
             exit 1
           fi
           npx --yes @vscode/vsce publish --packagePath /tmp/sensei.vsix -p "$VSCE_PAT"
