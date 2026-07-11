@@ -919,6 +919,21 @@ test_symbols:
     symbol: TestRenderContractBootstrapPrompt_StatesBackendDownExplicitly
     package: main
     language: go
+  - id: cmd/awg/cmd_demo_test.go:TestCleanBriefing_DropsProvenanceKeepsKnowledge
+    file: cmd/awg/cmd_demo_test.go
+    symbol: TestCleanBriefing_DropsProvenanceKeepsKnowledge
+    package: main
+    language: go
+  - id: cmd/awg/cmd_demo_test.go:TestDescribeTriples
+    file: cmd/awg/cmd_demo_test.go
+    symbol: TestDescribeTriples
+    package: main
+    language: go
+  - id: cmd/awg/cmd_demo_test.go:TestFirstHighRiskFile
+    file: cmd/awg/cmd_demo_test.go
+    symbol: TestFirstHighRiskFile
+    package: main
+    language: go
   - id: cmd/awg/cmd_draft_candidate_test.go:TestDraftCandidateDoc_DeterministicAndClassMapping
     file: cmd/awg/cmd_draft_candidate_test.go
     symbol: TestDraftCandidateDoc_DeterministicAndClassMapping
