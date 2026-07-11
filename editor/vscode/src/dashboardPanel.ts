@@ -338,6 +338,18 @@ export class DashboardPanel {
     };
   }
 
+  // The domain the banner + lists are scoped to. `undefined` = not chosen, so
+  // default to the current project (setting or git remote); `''` = the user
+  // picked "All domains" (graph-wide).
+  private selectedDomain: string | undefined;
+
+  private async activeDomain(): Promise<string> {
+    if (this.selectedDomain !== undefined) {
+      return this.selectedDomain;
+    }
+    return (await effectiveDomain(this.cfg().domain)) ?? '';
+  }
+
   private post(msg: unknown): void {
     void this.panel.webview.postMessage(msg);
   }
@@ -346,6 +358,11 @@ export class DashboardPanel {
     try {
       switch (msg?.type) {
         case 'getMetadata':
+          return await this.handleMetadata();
+        case 'setDomain':
+          // '' = All domains (graph-wide); a key = scope to it. Re-pull the
+          // banner; the webview re-requests the active list under the new scope.
+          this.selectedDomain = typeof msg.domain === 'string' ? msg.domain : undefined;
           return await this.handleMetadata();
         case 'refresh':
           return msg.mode === 'rebuild'
@@ -429,8 +446,9 @@ export class DashboardPanel {
 
   private async handleMetadata(): Promise<void> {
     const { addr, timeout } = this.cfg();
-    const data = await metadata(addr, timeout);
-    this.post({ type: 'metadata', data, localOps: this.localOpsPayload() });
+    const domain = await this.activeDomain();
+    const data = await metadata(addr, timeout, domain || undefined);
+    this.post({ type: 'metadata', data, activeDomain: domain, localOps: this.localOpsPayload() });
   }
 
   // Reload: re-pull what the server already serves (Metadata). Cheap, no local
@@ -438,9 +456,10 @@ export class DashboardPanel {
   private async handleRefreshReload(): Promise<void> {
     try {
       const { addr, timeout } = this.cfg();
-      const data = await metadata(addr, timeout);
+      const domain = await this.activeDomain();
+      const data = await metadata(addr, timeout, domain || undefined);
       const authority = assessMetadataAuthority(data);
-      this.post({ type: 'metadata', data, localOps: this.localOpsPayload() });
+      this.post({ type: 'metadata', data, activeDomain: domain, localOps: this.localOpsPayload() });
       this.post({
         type: 'refreshResult',
         mode: 'reload',
@@ -609,7 +628,8 @@ export class DashboardPanel {
 
   private async handleList(cls: string): Promise<void> {
     const { addr, timeout } = this.cfg();
-    const resp = await queryByClass(addr, cls, 100, timeout);
+    const domain = await this.activeDomain();
+    const resp = await queryByClass(addr, cls, 100, timeout, domain || undefined);
     this.post({ type: 'list', cls, rows: resp.rows ?? [], authority: resp.authority ?? null });
   }
 

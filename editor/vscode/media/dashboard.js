@@ -76,6 +76,7 @@
   let lastScan = null; // { kind:'scan'|'apply', m } — scan result, survives re-render
   let lastRefresh = null; // last reload/rebuild result (shown in the banner)
   let viewFilter = null; // active UML view filter (null = All)
+  let activeDomain = ''; // the domain the banner/lists are scoped to ('' = all)
   const graph = { center: null, label: null, depth: 1, nodes: [], edges: [], authority: null, view: null };
 
   // ---- elements ----------------------------------------------------------
@@ -103,7 +104,7 @@
   window.addEventListener('message', (ev) => {
     const m = ev.data;
     switch (m.type) {
-      case 'metadata': meta = m.data; if (m.localOps) localOps = m.localOps; renderBanner(); renderNav(); if (active === 'review') renderReview(); break;
+      case 'metadata': meta = m.data; if (m.localOps) localOps = m.localOps; if (m.activeDomain !== undefined) activeDomain = m.activeDomain; renderBanner(); renderNav(); if (active === 'review') renderReview(); break;
       case 'refreshResult': lastRefresh = m; renderRefreshStatus(); break;
       case 'list':
         if (aspectByKey(active).cls === m.cls) {
@@ -289,10 +290,30 @@
     acts.innerHTML =
       `<button class="rfr" data-refresh="reload" title="Re-pull the served graph (Metadata)">↻ Reload</button>`
       + `<button class="rfr rfr--rebuild" data-refresh="rebuild" ${dis} title="${esc(hintText)}">⟳ Rebuild</button>`
+      + domainSelectHtml()
       + `<span class="rfr__status" id="refreshStatus"></span>`;
     acts.querySelectorAll('.rfr').forEach((btn) =>
       btn.addEventListener('click', () => { if (!btn.disabled) onRefresh(btn.dataset.refresh); }));
+    const sel = $('domainSelect');
+    if (sel) {
+      sel.addEventListener('change', () => {
+        activeDomain = sel.value;
+        vscode.postMessage({ type: 'setDomain', domain: sel.value }); // re-pulls the banner
+        vscode.postMessage({ type: 'listClass', cls: active });       // re-scope the open list
+      });
+    }
     renderRefreshStatus();
+  }
+
+  // A domain filter, shown only on a multi-domain graph. '' = All domains
+  // (graph-wide). Defaults to the current project (resolved host-side).
+  function domainSelectHtml() {
+    const domains = (meta && meta.available_domains) || [];
+    if (!domains.length) return '';
+    const opt = (val, label, sel) => `<option value="${esc(val)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
+    let opts = opt('', 'All domains', activeDomain === '');
+    for (const d of domains) opts += opt(d, d, activeDomain === d);
+    return `<select id="domainSelect" class="domain-select" title="Scope the banner and lists to a project/domain">${opts}</select>`;
   }
 
   function onRefresh(mode) {
