@@ -39,13 +39,13 @@ This is deliberate: a rule authored without a file anchor shows up as governing
 From the VS Code **Extensions** view, search **Sensei** — or from the command line:
 
 ```sh
-code --install-extension globulario.sensei
+code --install-extension globulario.sensei-awareness
 ```
 
 Or install a packaged build directly:
 
 ```sh
-code --install-extension sensei-0.1.0.vsix
+code --install-extension sensei-awareness-0.1.0.vsix
 ```
 
 You'll also need the `sensei` CLI itself — see the
