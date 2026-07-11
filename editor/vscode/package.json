@@ -3,7 +3,7 @@
   "displayName": "Sensei",
   "description": "See the invariants, failure modes, and intent that govern the file you are editing — straight from your project's awareness graph.",
   "version": "0.1.0",
-  "publisher": "davecourtois",
+  "publisher": "globulario",
   "license": "Apache-2.0",
   "icon": "media/icon.png",
   "repository": {
