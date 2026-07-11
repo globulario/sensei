@@ -214,6 +214,23 @@ func (s embeddedSeedStore) CountByClass(_ context.Context, classIRI string) (int
 	return int64(len(s.g.byClass[classIRI])), nil
 }
 
+// Domains returns the distinct aw:repo domain keys in the embedded graph — the
+// selectable domains, excluding shared meta-principles. Mirrors the Oxigraph
+// SELECT DISTINCT ?repo enumeration for the in-memory seed store.
+func (s embeddedSeedStore) Domains(_ context.Context) ([]string, error) {
+	seen := map[string]bool{}
+	var out []string
+	for _, triples := range s.g.bySubject {
+		for _, t := range triples {
+			if t.pred == rdf.PropRepo && t.obj != "" && !seen[t.obj] {
+				seen[t.obj] = true
+				out = append(out, t.obj)
+			}
+		}
+	}
+	return out, nil
+}
+
 func (s embeddedSeedStore) GraphFreshness(_ context.Context) seedmeta.Verification {
 	expected, ok := normalizedEmbeddedSeedMarker()
 	if !ok {

@@ -57,7 +57,7 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 	case awarenesspb.QueryMode_QUERY_MODE_BY_ID:
 		rows, err = s.queryByID(ctx, strings.TrimSpace(req.GetId()))
 	case awarenesspb.QueryMode_QUERY_MODE_BY_CLASS:
-		rows, err = s.queryByClass(ctx, req.GetClass(), limit)
+		rows, err = s.queryByClass(ctx, req.GetClass(), limit, strings.TrimSpace(req.GetDomain()))
 	case awarenesspb.QueryMode_QUERY_MODE_RELATED:
 		rows, err = s.queryRelated(ctx, strings.TrimSpace(req.GetId()), limit)
 	default:
@@ -114,19 +114,36 @@ func (s *server) queryByID(ctx context.Context, qualifiedID string) ([]*awarenes
 	return []*awarenesspb.QueryRow{rowFromNode(n, "")}, nil
 }
 
-func (s *server) queryByClass(ctx context.Context, queryClass awarenesspb.QueryClass, limit int) ([]*awarenesspb.QueryRow, error) {
+func (s *server) queryByClass(ctx context.Context, queryClass awarenesspb.QueryClass, limit int, domain string) ([]*awarenesspb.QueryRow, error) {
 	className, classIRI, ok := queryClassSpec(queryClass)
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "invalid class for by_class")
 	}
-	facts, err := s.store.ClassFacts(ctx, classIRI, limit)
+	// When scoping to a domain, fetch all nodes then filter then cap — applying
+	// the store limit before the domain filter could drop in-scope nodes.
+	fetchLimit := limit
+	if domain != "" {
+		fetchLimit = 0
+	}
+	facts, err := s.store.ClassFacts(ctx, classIRI, fetchLimit)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}
 	nodes := nodesFromFacts(facts, className)
+
+	var keep map[string]bool
+	if domain != "" {
+		keep = keepIRIsInScope(facts, s.homeDomain, domain) // reuses InScope
+	}
 	rows := make([]*awarenesspb.QueryRow, 0, len(nodes))
 	for _, n := range nodes {
+		if keep != nil && !keep[n.GetIri()] {
+			continue // node belongs to another domain
+		}
 		rows = append(rows, rowFromNode(n, ""))
+		if limit > 0 && len(rows) >= limit {
+			break
+		}
 	}
 	return rows, nil
 }
