@@ -200,8 +200,18 @@ func emitGuardVerdict(format, rel string, d guardDecision, warnings []*awareness
 		return 0
 	default: // "claude" — the PreToolUse adapter
 		if d.block {
-			if out, err := json.Marshal(map[string]string{"decision": "block", "reason": d.reason}); err == nil {
-				fmt.Println(string(out))
+			// Current Claude Code hook shape: hookSpecificOutput.permissionDecision
+			// = "deny" with a reason. (The legacy top-level {"decision":"block"}
+			// is deprecated.)
+			out := map[string]any{
+				"hookSpecificOutput": map[string]any{
+					"hookEventName":            "PreToolUse",
+					"permissionDecision":       "deny",
+					"permissionDecisionReason": d.reason,
+				},
+			}
+			if b, err := json.Marshal(out); err == nil {
+				fmt.Println(string(b))
 			}
 			return 0
 		}

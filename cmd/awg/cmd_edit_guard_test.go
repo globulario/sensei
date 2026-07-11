@@ -189,18 +189,28 @@ func TestRunEditGuard_EndToEnd(t *testing.T) {
 			}, nil
 		}
 		out := runGuardWithStdin(t, []string{"--root", root}, payload(absFile))
-		var decision map[string]string
+		var decision struct {
+			HookSpecificOutput struct {
+				HookEventName            string `json:"hookEventName"`
+				PermissionDecision       string `json:"permissionDecision"`
+				PermissionDecisionReason string `json:"permissionDecisionReason"`
+			} `json:"hookSpecificOutput"`
+		}
 		if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &decision); err != nil {
 			t.Fatalf("stdout not JSON: %q (%v)", out, err)
 		}
-		if decision["decision"] != "block" {
-			t.Errorf("decision = %q, want block", decision["decision"])
+		hso := decision.HookSpecificOutput
+		if hso.HookEventName != "PreToolUse" {
+			t.Errorf("hookEventName = %q, want PreToolUse", hso.HookEventName)
+		}
+		if hso.PermissionDecision != "deny" {
+			t.Errorf("permissionDecision = %q, want deny", hso.PermissionDecision)
 		}
 		if gotFile != filepath.Join("pkg", "x.go") {
 			t.Errorf("edit_check called with file %q, want repo-relative pkg/x.go", gotFile)
 		}
-		if !strings.Contains(decision["reason"], "pkg/x.go") {
-			t.Errorf("reason missing file: %q", decision["reason"])
+		if !strings.Contains(hso.PermissionDecisionReason, "pkg/x.go") {
+			t.Errorf("reason missing file: %q", hso.PermissionDecisionReason)
 		}
 	})
 
