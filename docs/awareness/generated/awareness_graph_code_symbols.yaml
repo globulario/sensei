@@ -6071,6 +6071,31 @@ test_symbols:
     symbol: TestStableIDGeneration
     package: skillimport
     language: go
+  - id: golang/statedir/statedir_test.go:TestName_FreshRepoDefaultsToSensei
+    file: golang/statedir/statedir_test.go
+    symbol: TestName_FreshRepoDefaultsToSensei
+    package: statedir
+    language: go
+  - id: golang/statedir/statedir_test.go:TestName_LegacyAwgIsHonored
+    file: golang/statedir/statedir_test.go
+    symbol: TestName_LegacyAwgIsHonored
+    package: statedir
+    language: go
+  - id: golang/statedir/statedir_test.go:TestName_SenseiWinsOverLegacy
+    file: golang/statedir/statedir_test.go
+    symbol: TestName_SenseiWinsOverLegacy
+    package: statedir
+    language: go
+  - id: golang/statedir/statedir_test.go:TestPath_EmptyRootIsRelativeDefault
+    file: golang/statedir/statedir_test.go
+    symbol: TestPath_EmptyRootIsRelativeDefault
+    package: statedir
+    language: go
+  - id: golang/statedir/statedir_test.go:TestPath_JoinsResolvedDir
+    file: golang/statedir/statedir_test.go
+    symbol: TestPath_JoinsResolvedDir
+    package: statedir
+    language: go
   - id: golang/store/oxigraph/oxigraph_integration_test.go:TestIntegration_Health_LiveOxigraph
     file: golang/store/oxigraph/oxigraph_integration_test.go
     symbol: TestIntegration_Health_LiveOxigraph
