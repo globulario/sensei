@@ -79,7 +79,9 @@ type sarifRegion struct {
 // writes a valid report — that clears any prior code-scanning alerts.
 func writeGateSARIF(path, diff string, findings []fileFinding) error {
 	rulesByID := map[string]sarifRule{}
-	var results []sarifResult
+	// Non-nil so an empty findings set marshals to "results": [] (SARIF requires
+	// an array; a nil slice would emit null and code scanning rejects it).
+	results := make([]sarifResult, 0)
 
 	for _, ff := range findings {
 		for _, w := range ff.Warnings {

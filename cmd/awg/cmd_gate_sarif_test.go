@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
@@ -68,5 +69,10 @@ func TestWriteGateSARIF_EmptyClearsAlerts(t *testing.T) {
 	}
 	if len(log.Runs) != 1 || len(log.Runs[0].Results) != 0 {
 		t.Errorf("empty findings should yield 0 results, got %d", len(log.Runs[0].Results))
+	}
+	// Must serialize as "results": [] — a nil slice would emit null, which
+	// GitHub code scanning rejects ("results is not of a type(s) array").
+	if !strings.Contains(string(raw), `"results": []`) {
+		t.Errorf("empty SARIF must contain \"results\": [] (not null):\n%s", raw)
 	}
 }
