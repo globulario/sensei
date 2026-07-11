@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write     # SARIF upload → Security tab
 
 jobs:
   review:
