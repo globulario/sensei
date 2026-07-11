@@ -1943,12 +1943,17 @@ func (x *CodeAnchor) GetLineEnd() int32 {
 }
 
 type QueryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mode          QueryMode              `protobuf:"varint,3,opt,name=mode,proto3,enum=globular.awareness_graph.QueryMode" json:"mode,omitempty"`
-	File          string                 `protobuf:"bytes,4,opt,name=file,proto3" json:"file,omitempty"`                                             // required for QUERY_MODE_BY_FILE
-	Id            string                 `protobuf:"bytes,5,opt,name=id,proto3" json:"id,omitempty"`                                                 // class-qualified ID; required for BY_ID and RELATED
-	Class         QueryClass             `protobuf:"varint,6,opt,name=class,proto3,enum=globular.awareness_graph.QueryClass" json:"class,omitempty"` // required for QUERY_MODE_BY_CLASS
-	Limit         int32                  `protobuf:"varint,7,opt,name=limit,proto3" json:"limit,omitempty"`                                          // optional; server enforces bounds
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Mode  QueryMode              `protobuf:"varint,3,opt,name=mode,proto3,enum=globular.awareness_graph.QueryMode" json:"mode,omitempty"`
+	File  string                 `protobuf:"bytes,4,opt,name=file,proto3" json:"file,omitempty"`                                             // required for QUERY_MODE_BY_FILE
+	Id    string                 `protobuf:"bytes,5,opt,name=id,proto3" json:"id,omitempty"`                                                 // class-qualified ID; required for BY_ID and RELATED
+	Class QueryClass             `protobuf:"varint,6,opt,name=class,proto3,enum=globular.awareness_graph.QueryClass" json:"class,omitempty"` // required for QUERY_MODE_BY_CLASS
+	Limit int32                  `protobuf:"varint,7,opt,name=limit,proto3" json:"limit,omitempty"`                                          // optional; server enforces bounds
+	// Optional domain/repo scope — same semantics as BriefingRequest.domain:
+	// by_class / by_file lists are restricted to that domain plus shared nodes.
+	// Empty resolves trivially on a single-domain graph and fails closed on a
+	// multi-domain graph. See golang/server/scope.go.
+	Domain        string `protobuf:"bytes,8,opt,name=domain,proto3" json:"domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2016,6 +2021,13 @@ func (x *QueryRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *QueryRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
 }
 
 type QueryRow struct {
@@ -2349,7 +2361,11 @@ func (x *ResolveResponse) GetAuthority() *GraphAuthority {
 }
 
 type MetadataRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional domain/repo scope. When set, the per-class counts reflect only that
+	// domain (plus shared meta-principles); empty returns graph-wide totals across
+	// all domains. See golang/server/scope.go.
+	Domain        string `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2382,6 +2398,13 @@ func (x *MetadataRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MetadataRequest.ProtoReflect.Descriptor instead.
 func (*MetadataRequest) Descriptor() ([]byte, []int) {
 	return file_awareness_graph_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *MetadataRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
 }
 
 // GraphAuthority is the current/provenance stamp every successful graph-backed
@@ -2688,8 +2711,12 @@ type MetadataResponse struct {
 	GovernancePackPublisher    string              `protobuf:"bytes,59,opt,name=governance_pack_publisher,json=governancePackPublisher,proto3" json:"governance_pack_publisher,omitempty"`
 	CombinedGraphDigestSha256  string              `protobuf:"bytes,60,opt,name=combined_graph_digest_sha256,json=combinedGraphDigestSha256,proto3" json:"combined_graph_digest_sha256,omitempty"`
 	CombinedGraphTripleCount   int64               `protobuf:"varint,61,opt,name=combined_graph_triple_count,json=combinedGraphTripleCount,proto3" json:"combined_graph_triple_count,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// The distinct selectable domain/repo keys present in the graph (sorted;
+	// excludes shared meta-principles). Lets a client offer a domain filter and
+	// scope subsequent Metadata/Query calls. Empty on a single-domain graph.
+	AvailableDomains []string `protobuf:"bytes,62,rep,name=available_domains,json=availableDomains,proto3" json:"available_domains,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MetadataResponse) Reset() {
@@ -3147,6 +3174,13 @@ func (x *MetadataResponse) GetCombinedGraphTripleCount() int64 {
 		return x.CombinedGraphTripleCount
 	}
 	return 0
+}
+
+func (x *MetadataResponse) GetAvailableDomains() []string {
+	if x != nil {
+		return x.AvailableDomains
+	}
+	return nil
 }
 
 type AuthoritySurface struct {
@@ -5045,13 +5079,14 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x06symbol\x18\x03 \x01(\tR\x06symbol\x12\x1d\n" +
 	"\n" +
 	"line_start\x18\x04 \x01(\x05R\tlineStart\x12\x19\n" +
-	"\bline_end\x18\x05 \x01(\x05R\alineEnd\"\xd9\x01\n" +
+	"\bline_end\x18\x05 \x01(\x05R\alineEnd\"\xf1\x01\n" +
 	"\fQueryRequest\x127\n" +
 	"\x04mode\x18\x03 \x01(\x0e2#.globular.awareness_graph.QueryModeR\x04mode\x12\x12\n" +
 	"\x04file\x18\x04 \x01(\tR\x04file\x12\x0e\n" +
 	"\x02id\x18\x05 \x01(\tR\x02id\x12:\n" +
 	"\x05class\x18\x06 \x01(\x0e2$.globular.awareness_graph.QueryClassR\x05class\x12\x14\n" +
-	"\x05limit\x18\a \x01(\x05R\x05limitJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x06sparqlR\x06accept\"\x94\x02\n" +
+	"\x05limit\x18\a \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06domain\x18\b \x01(\tR\x06domainJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x06sparqlR\x06accept\"\x94\x02\n" +
 	"\bQueryRow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05class\x18\x02 \x01(\tR\x05class\x12\x14\n" +
@@ -5076,8 +5111,9 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x0fResolveResponse\x12;\n" +
 	"\x04node\x18\x01 \x01(\v2'.globular.awareness_graph.KnowledgeNodeR\x04node\x12\x14\n" +
 	"\x05found\x18\x04 \x01(\bR\x05found\x12F\n" +
-	"\tauthority\x18\x05 \x01(\v2(.globular.awareness_graph.GraphAuthorityR\tauthorityJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\atriplesR\x0finverse_triples\"\x11\n" +
-	"\x0fMetadataRequest\"\xb3\b\n" +
+	"\tauthority\x18\x05 \x01(\v2(.globular.awareness_graph.GraphAuthorityR\tauthorityJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\atriplesR\x0finverse_triples\")\n" +
+	"\x0fMetadataRequest\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\"\xb3\b\n" +
 	"\x0eGraphAuthority\x12$\n" +
 	"\rauthoritative\x18\x01 \x01(\bR\rauthoritative\x12a\n" +
 	"\x15graph_freshness_state\x18\x02 \x01(\x0e2-.globular.awareness_graph.GraphFreshnessStateR\x13graphFreshnessState\x124\n" +
@@ -5096,7 +5132,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	" certified_awareness_graph_commit\x18\r \x01(\tR\x1dcertifiedAwarenessGraphCommit\x12C\n" +
 	"\x1ecertified_services_repo_commit\x18\x0e \x01(\tR\x1bcertifiedServicesRepoCommit\x12I\n" +
 	"!embedded_transaction_matches_seed\x18\x0f \x01(\bR\x1eembeddedTransactionMatchesSeed\x12>\n" +
-	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\"\x9e\x1c\n" +
+	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\"\xcb\x1c\n" +
 	"\x10MetadataResponse\x12,\n" +
 	"\x12graph_build_commit\x18\x01 \x01(\tR\x10graphBuildCommit\x121\n" +
 	"\x15graph_build_time_unix\x18\x02 \x01(\x03R\x12graphBuildTimeUnix\x12,\n" +
@@ -5160,7 +5196,8 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x1dgovernance_pack_digest_sha256\x18: \x01(\tR\x1agovernancePackDigestSha256\x12:\n" +
 	"\x19governance_pack_publisher\x18; \x01(\tR\x17governancePackPublisher\x12?\n" +
 	"\x1ccombined_graph_digest_sha256\x18< \x01(\tR\x19combinedGraphDigestSha256\x12=\n" +
-	"\x1bcombined_graph_triple_count\x18= \x01(\x03R\x18combinedGraphTripleCount\"\xcb\x02\n" +
+	"\x1bcombined_graph_triple_count\x18= \x01(\x03R\x18combinedGraphTripleCount\x12+\n" +
+	"\x11available_domains\x18> \x03(\tR\x10availableDomains\"\xcb\x02\n" +
 	"\x10AuthoritySurface\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +

@@ -357,6 +357,11 @@ message QueryRequest {
   string id = 5;     // class-qualified ID; required for BY_ID and RELATED
   QueryClass class = 6; // required for QUERY_MODE_BY_CLASS
   int32 limit = 7;   // optional; server enforces bounds
+  // Optional domain/repo scope — same semantics as BriefingRequest.domain:
+  // by_class / by_file lists are restricted to that domain plus shared nodes.
+  // Empty resolves trivially on a single-domain graph and fails closed on a
+  // multi-domain graph. See golang/server/scope.go.
+  string domain = 8;
 
   reserved 1, 2;
   reserved "sparql", "accept";
@@ -443,7 +448,12 @@ message ResolveResponse {
 // "low coverage" (this domain is unannotated). No long bodies, no per-file
 // dumps — just counts and provenance.
 
-message MetadataRequest {}
+message MetadataRequest {
+  // Optional domain/repo scope. When set, the per-class counts reflect only that
+  // domain (plus shared meta-principles); empty returns graph-wide totals across
+  // all domains. See golang/server/scope.go.
+  string domain = 1;
+}
 
 enum BuildProvenanceState {
   BUILD_PROVENANCE_STATE_UNSPECIFIED = 0;
@@ -685,6 +695,11 @@ message MetadataResponse {
   string governance_pack_publisher = 59;
   string combined_graph_digest_sha256 = 60;
   int64 combined_graph_triple_count = 61;
+
+  // The distinct selectable domain/repo keys present in the graph (sorted;
+  // excludes shared meta-principles). Lets a client offer a domain filter and
+  // scope subsequent Metadata/Query calls. Empty on a single-domain graph.
+  repeated string available_domains = 62;
 }
 
 // ─── Governance Graph Phase-1 schema ───────────────────────────────────────
