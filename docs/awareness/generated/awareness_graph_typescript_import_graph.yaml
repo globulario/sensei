@@ -16,6 +16,7 @@ components:
       - editor/vscode/src/graphAuthority.ts
       - editor/vscode/src/grpcClient.ts
       - editor/vscode/src/localOpsPlan.ts
+      - editor/vscode/src/projectDomain.ts
     external_imports:
       - '@grpc/grpc-js'
       - '@grpc/proto-loader'
