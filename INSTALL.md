@@ -17,11 +17,11 @@ Sensei has three pieces:
 
 ### Source build (Linux / macOS)
 
-Requires **Go 1.23+**, `git`, `curl`, `python3`.
+Requires **Go1.25+**, `git`, `curl`, `python3`.
 
 ```bash
 git clone https://github.com/globulario/sensei
-cd awareness-graph
+cd sensei
 ./scripts/install.sh            # builds sensei + awareness-graph, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
 ```

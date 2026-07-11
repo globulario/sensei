@@ -15,7 +15,7 @@ By the end of this guide you'll have:
 
 ## Prerequisites
 
-- **Go 1.23+, git, curl, python3** (to build Sensei)
+- **Go1.25+, git, curl, python3** (to build Sensei)
 - **Claude Code** (optional — for hook enforcement)
 
 Oxigraph (the RDF store) is fetched for you by the installer — see
@@ -25,7 +25,7 @@ Oxigraph (the RDF store) is fetched for you by the installer — see
 
 ```bash
 git clone https://github.com/globulario/sensei.git
-cd awareness-graph
+cd sensei
 ./scripts/install.sh                 # builds sensei + server, fetches oxigraph → bin/
 export PATH="$PWD/bin:$PATH"
 ```

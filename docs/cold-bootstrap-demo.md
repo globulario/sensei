@@ -37,7 +37,7 @@ comments) — gets:
 ## Prerequisites
 
 ```bash
-git clone https://github.com/globulario/sensei && cd awareness-graph
+git clone https://github.com/globulario/sensei && cd sensei
 
 # Build the CLI and the server binary (sensei serve execs ./bin/awareness-graph),
 go build -o /tmp/sensei ./cmd/awg

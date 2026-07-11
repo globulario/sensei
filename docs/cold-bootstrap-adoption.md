@@ -29,7 +29,7 @@ commands, reproducible, no key), then generalized to **your repo**.
 ## 0. Prerequisites
 
 ```bash
-git clone https://github.com/globulario/sensei && cd awareness-graph
+git clone https://github.com/globulario/sensei && cd sensei
 go build -o /tmp/sensei ./cmd/awg
 go build -o bin/awareness-graph ./golang/server   # sensei serve execs this
 # plus an `oxigraph` binary on PATH or in ./bin/

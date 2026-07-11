@@ -9,7 +9,7 @@
 #   ./scripts/install.sh --help
 #
 # Prerequisites:
-#   - Go 1.23+ on PATH
+#   - Go1.25+ on PATH
 #
 # After install:
 #   1. ./scripts/install-awg-user-services.sh   # supervised local runtime (recommended)
