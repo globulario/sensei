@@ -18,8 +18,6 @@ patterns:
       - memory and etcd diverge
     safe_fix_rule: "Every state mutation that matters to control flow must cross a persistence barrier or fail. Update state, persist, check error, then trigger side effects."
     related_invariants:
-      - install.result.atomic_commit
-      - critical_state.registry_ownership_required
 
   - id: pattern.error_swallowing
     title: Error Swallowing
@@ -35,8 +33,6 @@ patterns:
       - health appears good while logic is broken
     safe_fix_rule: Errors that affect control decisions must propagate into the loop that can react.
     related_invariants:
-      - convergence.no_infinite_retry
-      - critical_queries.must_be_bounded
 
   - id: pattern.stale_authority
     title: Stale Authority
@@ -52,8 +48,6 @@ patterns:
       - node stays connected to obsolete authority
     safe_fix_rule: Authority must be refreshed when unhealthy, not only when missing.
     related_invariants:
-      - desired.bootstrap_state_requires_promotion
-      - topology.reconciler_must_respect_safety_contract
 
   - id: pattern.partial_truth
     title: Partial Truth
@@ -69,7 +63,6 @@ patterns:
       - same-version hotfix not deployed
     safe_fix_rule: All control paths must use canonical identity (name+version+build_number+checksum), never partial identity.
     related_invariants:
-      - desired.build_id_immutable
 
   - id: pattern.unverified_runtime_truth
     title: Unverified Runtime Truth
@@ -85,7 +78,6 @@ patterns:
       - drift is hidden
     safe_fix_rule: "Desired state flows top-down: controller decides, node-agent executes. Runtime observation must never write to desired-state keys."
     related_invariants:
-      - desired.bootstrap_state_requires_promotion
 
   - id: pattern.unbounded_critical_query
     title: Unbounded Critical Query
@@ -101,7 +93,6 @@ patterns:
       - cluster stops converging
     safe_fix_rule: All critical-path queries must be bounded at 5-15s. Timeout must map to DEGRADED result, not hang.
     related_invariants:
-      - critical_queries.must_be_bounded
 
   - id: pattern.destructive_absence
     title: Destructive Absence
@@ -117,8 +108,6 @@ patterns:
       - LKG ignored in favor of empty config
     safe_fix_rule: Missing/timeout/invalid state => HOLD_LAST_KNOWN_GOOD. Only an explicit valid disable spec with reason+generation may stop a runtime.
     related_invariants:
-      - critical_state.absence_is_not_destructive_intent
-      - runtime.last_known_good_required_for_critical_consumers
 
   - id: pattern.missing_intent_marker
     title: Missing Intent Marker
@@ -134,8 +123,6 @@ patterns:
       - operator has no record of who authorized action
     safe_fix_rule: Every destructive action requires explicit_disabled=true + non-empty reason + matching generation. Controller verifies approval marker before acting.
     related_invariants:
-      - critical_state.deletion_requires_audited_intent
-      - destructive_actions.require_explicit_guard
 
   - id: pattern.version_only_identity
     title: Version-Only Identity
@@ -151,12 +138,11 @@ patterns:
       - audit trail broken
     safe_fix_rule: Use canonical identity struct (name+version+build_id+checksum). Never compare by version string alone in control paths.
     related_invariants:
-      - desired.build_id_immutable
 
   - id: pattern.runtime_observation_as_desired_authority
     title: Runtime Observation As Desired Authority
     definition: A component observes the running state and writes it back as the authoritative desired state, bypassing the controller's decision authority.
-    detect: Look for node-agent or heartbeat writing to /globular/resources/DesiredService/ or creating InfrastructureRelease records from local observations.
+    detect: Look for node-agent or heartbeat writing to /example/resources/DesiredService/ or creating InfrastructureRelease records from local observations.
     code_smells:
       - "heartbeat writes to DesiredService"
       - "ManagedInstalled creates InfrastructureRelease"
@@ -167,7 +153,6 @@ patterns:
       - drift detection breaks
     safe_fix_rule: Only the controller may write to desired-state keys. Node-agent writes to installed-state only. Runtime observation never becomes desired authority.
     related_invariants:
-      - desired.bootstrap_state_requires_promotion
 
   - id: pattern.ephemeral_state_contamination
     title: Ephemeral State Contamination
@@ -185,7 +170,6 @@ patterns:
       - reconciler installs services on wrong nodes
     safe_fix_rule: "Cluster re-creation requires explicit volume wipe. Treat etcd state as fully owned by a cluster lifetime: on wipe, destroy ALL etcd volumes. Never re-use volumes across cluster lifetimes."
     related_invariants:
-      - critical_state.registry_ownership_required
 
   - id: pattern.unit_type_shadowing
     title: Unit Type Shadowing
@@ -224,10 +208,6 @@ patterns:
       - data-plane state pollutes desired state after restart
     safe_fix_rule: Separate observation from authority. Runtime facts may create findings or incidents, but desired state must be created by an authoritative owner through a validated contract — never from heartbeat or data-plane discovery.
     related_invariants:
-      - infra.heartbeat_not_desired_authority
-      - critical_state.registry_ownership_required
-      - runtime.installed_state_not_liveness
-      - objectstore.desired_state_must_be_registry_governed
 
   - id: pattern.desired_state_reconciliation
     title: Desired State Reconciliation
@@ -247,11 +227,6 @@ patterns:
       - local success never promoted to global commit
     safe_fix_rule: Fix the proof chain, not the symptom. Desired, installed, and runtime are distinct layers. Convergence requires durable installed-state proof and bounded retry behaviour.
     related_invariants:
-      - convergence.no_infinite_retry
-      - install.result.atomic_commit
-      - infra.desired_hash_consistency
-      - runtime.installed_state_not_liveness
-      - reconcile.global_work_must_not_starve_completion
 
   - id: pattern.leased_leadership_single_writer
     title: Leased Leadership / Single Writer
@@ -269,10 +244,6 @@ patterns:
       - unowned critical key mutated without registry check
     safe_fix_rule: Every critical state mutation requires a single registered owner, current leadership or lease proof, and auditable writer identity. Leadership must be re-verified on each write, not cached across ticks.
     related_invariants:
-      - critical_state.registry_ownership_required
-      - critical_state.deletion_requires_audited_intent
-      - topology.reconciler_must_respect_safety_contract
-      - service.desired_state.direct_etcd_write
 
   - id: pattern.consensus_backed_authority
     title: Consensus-Backed Authority
@@ -290,10 +261,6 @@ patterns:
       - local runtime promoted to cluster-wide truth after restart
     safe_fix_rule: Use etcd as the source of truth. Local observation may inform diagnostics, but must not replace authoritative desired-state ownership stored in consensus.
     related_invariants:
-      - objectstore.desired_state_must_be_registry_governed
-      - topology.reconciler_must_respect_safety_contract
-      - derived_state.must_not_block_authority
-      - critical_state.registry_ownership_required
 
   - id: pattern.last_known_good
     title: Last-Known-Good Runtime Continuity
@@ -311,9 +278,6 @@ patterns:
       - service stopped without explicit delete intent — absence treated as stop
     safe_fix_rule: When authority is temporarily unavailable, hold the last validated safe configuration and surface DEGRADED status. Never overwrite LKG with invalid or incomplete state. Stop requires explicit intent, not absence.
     related_invariants:
-      - runtime.last_known_good_required_for_critical_consumers
-      - critical_state.absence_is_not_destructive_intent
-      - recovery.must_not_depend_on_dns_only
 
   - id: pattern.circuit_breaker_distributed
     title: Circuit Breaker (Distributed Control Path)
@@ -331,10 +295,6 @@ patterns:
       - backend unhealthy retry storm saturates dependency
     safe_fix_rule: Respect dependency health gates. Deterministic failures must become BLOCKED or DEGRADED, not infinite retry loops. Use singleflight and bounded backoff. Probe with a smaller budget before resuming.
     related_invariants:
-      - convergence.no_infinite_retry
-      - workflow.backend_health_gate
-      - critical_queries.must_be_bounded
-      - service.restart_singleflight
 
   - id: pattern.bulkhead
     title: Bulkhead / Failure Isolation
@@ -352,10 +312,6 @@ patterns:
       - unbounded query blocked entire control loop
     safe_fix_rule: Limit concurrency per service, isolate failure domains, and apply per-lane timeouts. Stuck work must age, block, or degrade — never starve unrelated critical progress.
     related_invariants:
-      - reconcile.global_work_must_not_starve_completion
-      - critical_queries.must_be_bounded
-      - service.restart_singleflight
-      - services.drift_must_age_and_escalate
 
   - id: pattern.saga_durable_workflow
     title: Saga / Durable Workflow
@@ -373,9 +329,6 @@ patterns:
       - workflow replay re-executes non-idempotent side effect
     safe_fix_rule: Each step must be idempotent, receipted, or durably committed. Result promotion, installed-state write, and action cleanup must be atomic or recoverable after crash and replay.
     related_invariants:
-      - install.result.atomic_commit
-      - convergence.no_infinite_retry
-      - workflow.backend_health_gate
 
   - id: pattern.idempotent_executor
     title: Idempotent Executor
@@ -393,10 +346,6 @@ patterns:
       - restart used as convergence proof masked real failure
     safe_fix_rule: Before executing, check durable desired/installed identity and idempotency guard. Repeated execution must either no-op safely or converge to the same proof without side effects.
     related_invariants:
-      - install.result.atomic_commit
-      - service.restart_singleflight
-      - infra.desired_hash_consistency
-      - convergence.no_infinite_retry
 
   - id: pattern.durable_event_outbox
     title: Durable Event / Outbox
@@ -414,9 +363,6 @@ patterns:
       - audit trail missing for a critical mutation
     safe_fix_rule: Critical state changes must be auditable and event publication must be recoverable, replayable, or explicitly best-effort with degraded visibility surfaced to doctor.
     related_invariants:
-      - install.result.atomic_commit
-      - critical_state.registry_ownership_required
-      - critical_state.deletion_requires_audited_intent
 
   - id: pattern.health_gate
     title: Health Gate
@@ -434,10 +380,6 @@ patterns:
       - liveness confused with readiness caused premature convergence claim
     safe_fix_rule: Gate work by dependency capability. Unknown or unhealthy dependencies must produce BLOCKED or DEGRADED state, not optimistic writes. Liveness and readiness are separate gates.
     related_invariants:
-      - workflow.backend_health_gate
-      - repository.metadata_first
-      - objectstore.desired_state_must_be_registry_governed
-      - convergence.no_infinite_retry
 
   - id: pattern.explicit_degraded_mode
     title: Explicit Degraded Mode
@@ -455,9 +397,6 @@ patterns:
       - doctor could not classify degraded state — finding silently lost
     safe_fix_rule: Expose capability-specific degraded state with a reason. Do not collapse partial availability into generic failure. Doctor must be able to classify and escalate every degraded mode.
     related_invariants:
-      - repository.metadata_first
-      - services.drift_must_age_and_escalate
-      - workflow.backend_health_gate
 
   - id: pattern.fencing_token_generation_guard
     title: Fencing Token / Generation Guard
@@ -475,9 +414,6 @@ patterns:
       - stale leader committed authoritative state after failover
     safe_fix_rule: Every critical mutation must compare the current generation, epoch, or lease before committing. Stale writers must fail closed. Approvals are single-use per generation.
     related_invariants:
-      - topology.reconciler_must_respect_safety_contract
-      - critical_state.deletion_requires_audited_intent
-      - critical_state.registry_ownership_required
 
   - id: pattern.intent_marker_tombstone
     title: Intent Marker / Tombstone
@@ -495,9 +431,6 @@ patterns:
       - timeout deleted runtime state without operator intent
     safe_fix_rule: Absence is unknown, not intent. Destructive transitions require explicit, audited, fresh intent markers with actor, reason, and generation. Absence must produce HOLD_LAST_KNOWN_GOOD, not stop.
     related_invariants:
-      - critical_state.absence_is_not_destructive_intent
-      - critical_state.deletion_requires_audited_intent
-      - destructive_actions.require_explicit_guard
 
   - id: pattern.read_repair_authority_repair
     title: Read Repair / Authority Repair
@@ -515,10 +448,6 @@ patterns:
       - read repair created wrong authority from derived absence
     safe_fix_rule: Only the authoritative owner may repair derived state, using its durable source and registered schema. Repair must not create new authority from derived absence. Derived absence must surface as DEGRADED, not FATAL.
     related_invariants:
-      - derived_state.must_not_block_authority
-      - pki.ca_metadata_must_be_published
-      - objectstore.desired_state_must_be_registry_governed
-      - repository.metadata_first
 
   - id: pattern.backpressure
     title: Backpressure
@@ -536,10 +465,6 @@ patterns:
       - retry budget exhausted but not recorded — failure invisible
     safe_fix_rule: Apply bounded concurrency, retry budgets, singleflight, and BLOCKED or DEGRADED states. Backpressure is safer than unbounded optimism. Exceeding budget must produce a durable finding, not a silent drop.
     related_invariants:
-      - reconcile.global_work_must_not_starve_completion
-      - convergence.no_infinite_retry
-      - service.restart_singleflight
-      - critical_queries.must_be_bounded
 
   - id: pattern.bootstrap_then_promote
     title: Bootstrap Then Promote
@@ -557,9 +482,6 @@ patterns:
       - seed state polluted desired state across cluster restart
     safe_fix_rule: Bootstrap data must carry a marker, owner, schema, and promotion path. Steady-state reconcilers must reject unpromoted bootstrap records. CONVERGED must not be claimed until all four layers agree.
     related_invariants:
-      - desired.bootstrap_state_requires_promotion
-      - critical_state.registry_ownership_required
-      - runtime.installed_state_must_match_package_kind
 
   - id: pattern.dns_independent_recovery
     title: DNS-Independent Recovery
@@ -577,9 +499,6 @@ patterns:
       - recovery path lacked bootstrap endpoint — operator manual intervention required
     safe_fix_rule: Provide direct endpoint, cached endpoint, or bootstrap authority fallback for recovery paths that may need to repair DNS, discovery, or gateway. Recovery must not depend on the service it is trying to repair.
     related_invariants:
-      - recovery.must_not_depend_on_dns_only
-      - runtime.last_known_good_required_for_critical_consumers
-      - pki.ca_metadata_must_be_published
 
   - id: pattern.split_brain_prevention
     title: Split-Brain Prevention
@@ -597,10 +516,6 @@ patterns:
       - stale writer overwrote authoritative state after failover
     safe_fix_rule: Use single-owner registry, cluster identity, generation checks, and fail-closed conflict handling. Never resolve authority conflicts with blind last-write-wins. Stale writers must fail closed.
     related_invariants:
-      - critical_state.registry_ownership_required
-      - topology.reconciler_must_respect_safety_contract
-      - repository.metadata_first
-      - service.desired_state.direct_etcd_write
 
   - id: pattern.bounded_critical_query
     title: Bounded Critical Query
@@ -618,6 +533,3 @@ patterns:
       - external query starved controller loop — convergence stopped
     safe_fix_rule: Critical queries must have context, timeout, bounded scope, and explicit DEGRADED or error behaviour. Timeout must map to a DEGRADED result, not a hang. Use withBounded() on all hot reconcile paths.
     related_invariants:
-      - critical_queries.must_be_bounded
-      - reconcile.global_work_must_not_starve_completion
-      - workflow.backend_health_gate

@@ -29,11 +29,11 @@ whose commits are not signed off cannot be merged.
 
 ## Getting set up
 
-Requires **Go 1.23+** (Linux or macOS; Windows is not yet a validated path).
+Requires **Go1.25+** (Linux or macOS; Windows is not yet a validated path).
 
 ```bash
 git clone https://github.com/globulario/sensei.git
-cd awareness-graph
+cd sensei
 ./scripts/install.sh          # builds sensei + server, fetches the oxigraph binary
 export PATH="$PWD/bin:$PATH"
 ```

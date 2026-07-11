@@ -11,6 +11,7 @@
 //
 // Usage:
 //
+//	sensei demo                             One command: stand up a graph and return a briefing
 //	sensei init                             Scaffold awareness for a new project
 //	sensei build                            Compile YAML sources and load into store
 //	sensei serve                            Start the gRPC awareness server
@@ -86,6 +87,8 @@ func main() {
 	args := os.Args[2:]
 
 	switch cmd {
+	case "demo":
+		os.Exit(runDemo(args))
 	case "init":
 		os.Exit(runInit(args))
 	case "bootstrap":
@@ -250,6 +253,7 @@ Query commands (require a running Sensei server):
   visual-audit   Screenshot routes and compare against golden images
 
 Local commands (no server required):
+  demo           One command: stand up a private graph and return one real briefing
   init           Scaffold awareness for a new project
   bootstrap      Initialize Sensei for an existing repo (deterministic extraction + optional history)
   build          Compile YAML sources and load into the store

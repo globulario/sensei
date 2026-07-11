@@ -392,7 +392,7 @@ Component / SourceFile
 ```
 
 Follow one real path end to end and the value stops being abstract. An agent is
-about to edit `internal/gateway/handlers/config/config.go`. It runs the briefing,
+about to edit `internal/http/handlers/config.go`. It runs the briefing,
 and the graph traverses:
 
 ```

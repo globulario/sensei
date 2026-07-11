@@ -1,0 +1,20 @@
+# Copy this to .github/workflows/sensei-gate.yml in YOUR repo.
+# It gates every pull request against your committed docs/awareness/ graph.
+name: Sensei architecture gate
+
+on:
+  pull_request:
+
+jobs:
+  architecture-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history so the PR diff resolves
+
+      - uses: globulario/sensei/.github/actions/sensei-gate@main
+        with:
+          enforce: 'true'           # 'false' = advisory report, never blocks
+          # awareness-dir: docs/awareness
+          # domain: github.com/you/yourrepo

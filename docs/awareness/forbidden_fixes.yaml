@@ -3,111 +3,53 @@ forbidden_fixes:
     title: add a second package-identity authority
     summary: Introduce a second surface that defines which packages exist or their identity (kind/version/build_id) — a generated manifest, installer mirror, or tarball name — alongside packages/registry.yaml.
     related_invariants:
-      - repo.package_identity_and_recipe_authority_split
     reason: packages/registry.yaml is the SOLE package-identity authority; all other surfaces are projections validated against it
     contract: packages/registry.yaml is the SOLE package-identity authority; all other surfaces are projections validated against it
   - id: infer_package_identity_from_binary_or_tarball
     title: infer package identity from a binary or tarball
     summary: Derive a package's name/kind/version/build_id by inspecting a built binary or .tgz filename instead of reading packages/registry.yaml.
     related_invariants:
-      - repo.package_identity_and_recipe_authority_split
     reason: resolve identity from registry.yaml; filenames/binaries are outputs, never authority (do not infer truth from filenames when a manifest exists)
     contract: resolve identity from registry.yaml; filenames/binaries are outputs, never authority (do not infer truth from filenames when a manifest exists)
   - id: keep_undeclared_binary_aliases_in_packages_bin
     title: keep undeclared binary aliases in packages/bin
     summary: Leave binaries in packages/bin that are not declared by a registry-backed canonical spec (stale or alias binaries).
     related_invariants:
-      - repo.package_identity_and_recipe_authority_split
     reason: packages/bin stages only registry-declared binaries; remove undeclared/stale aliases
     contract: packages/bin stages only registry-declared binaries; remove undeclared/stale aliases
   - id: treat_generated_specs_as_canonical_recipe
     title: treat generated specs as the canonical recipe
     summary: Treat services/generated/specs (or any generated spec copy) as the canonical install recipe.
     related_invariants:
-      - repo.package_identity_and_recipe_authority_split
     reason: the canonical recipe is packages/metadata/<name>/specs; generated specs are derived build inputs
     contract: the canonical recipe is packages/metadata/<name>/specs; generated specs are derived build inputs
   - id: revive_legacy_spec_forest_in_consumed_paths
     title: revive a legacy spec forest in consumed paths
     summary: Reintroduce legacy or duplicate spec trees in consumed paths as an active authority.
     related_invariants:
-      - repo.package_identity_and_recipe_authority_split
     reason: consume specs only from packages/metadata; do not revive legacy spec roots
     contract: consume specs only from packages/metadata; do not revive legacy spec roots
   - id: restore_dist_bin_as_long_lived_authority_path
     title: restore dist/bin as a long-lived authority path
     summary: Restore or depend on services/dist/bin as a long-lived authoritative binary path.
     related_invariants:
-      - repo.release_workspace_and_output_are_not_authority
     reason: dist/bin is transient staging; binaries are compiled fresh each build
     contract: dist/bin is transient staging; binaries are compiled fresh each build
   - id: delete_generated_mid_flow_without_regeneration
     title: delete generated/ mid-flow without regenerating
     summary: Delete services/generated mid-flow without regenerating it, leaving the build to consume stale or missing inputs.
     related_invariants:
-      - repo.release_workspace_and_output_are_not_authority
     reason: regenerate generated/ at the sanctioned boundary (regenerate-release-inputs.sh / --full-regenerate); never delete mid-flow
     contract: regenerate generated/ at the sanctioned boundary (regenerate-release-inputs.sh / --full-regenerate); never delete mid-flow
   - id: consume_generated_workspace_as_release_authority
     title: consume the generated workspace as release authority
     summary: Consume services/generated as the authoritative release source instead of a disposable derived workspace.
     related_invariants:
-      - repo.release_workspace_and_output_are_not_authority
     reason: generated/ is a derived workspace validated against registry/metadata; authority stays in packages
     contract: generated/ is a derived workspace validated against registry/metadata; authority stays in packages
-  - id: hand_edit_installer_packagecatalog_specs
-    title: hand-edit installer packagecatalog specs
-    summary: Hand-edit globular-installer/internal/packagecatalog/specs instead of regenerating them from packages metadata via make sync-specs.
-    related_invariants:
-      - repo.installer_embedded_assets_are_generated_mirrors_only
-    reason: regenerate the packagecatalog mirror with make sync-specs; it is a generated mirror bound to registry.yaml by digest
-    contract: regenerate the packagecatalog mirror with make sync-specs; it is a generated mirror bound to registry.yaml by digest
-  - id: hand_edit_installer_webroot_as_source
-    title: hand-edit installer webroot as source
-    summary: Hand-edit globular-installer/internal/assets/webroot as if it were authored source.
-    related_invariants:
-      - repo.installer_embedded_assets_are_generated_mirrors_only
-    reason: it is a generated mirror of services/webroot; edit services/webroot and re-sync
-    contract: it is a generated mirror of services/webroot; edit services/webroot and re-sync
-  - id: treat_installer_assets_bin_as_release_binary_store
-    title: treat installer assets/bin as a release binary store
-    summary: Place platform release binaries in globular-installer/internal/assets/bin.
-    related_invariants:
-      - repo.installer_embedded_assets_are_generated_mirrors_only
-    reason: that dir is for installer-private helper assets only; release binaries live in the release bundle
-    contract: that dir is for installer-private helper assets only; release binaries live in the release bundle
-  - id: bypass_registry_digest_binding_for_embedded_catalog
-    title: bypass registry digest binding for the embedded catalog
-    summary: Edit the installer embedded packagecatalog mirror without updating its manifest digest, bypassing the binding to packages/registry.yaml.
-    related_invariants:
-      - repo.installer_embedded_assets_are_generated_mirrors_only
-    reason: keep the packagecatalog manifest registry_sha256/package_count in sync via sync-specs; the digest binding is the integrity check
-    contract: keep the packagecatalog manifest registry_sha256/package_count in sync via sync-specs; the digest binding is the integrity check
-  - id: move_real_install_workflow_into_release_wrapper
-    title: move the real install workflow into the release wrapper
-    summary: Move day-0/day-1 install workflow logic out of globular-installer/scripts/install-day0.sh into the services release wrapper install.sh.
-    related_invariants:
-      - repo.release_wrapper_is_not_install_execution_authority
-    reason: install.sh is a thin release wrapper; install execution authority stays in install-day0.sh
-    contract: install.sh is a thin release wrapper; install execution authority stays in install-day0.sh
-  - id: make_services_repo_owner_of_installer_execution
-    title: make the services repo own installer execution
-    summary: Make the services repo the owner of installer execution authority, collapsing the release/install owner split.
-    related_invariants:
-      - repo.release_wrapper_is_not_install_execution_authority
-    reason: services owns release publication; globular-installer owns install execution — keep the split
-    contract: services owns release publication; globular-installer owns install execution — keep the split
-  - id: treat_installer_mirror_assets_as_release_source_of_truth
-    title: treat installer mirror assets as release source of truth
-    summary: Treat installer mirror assets (packagecatalog/webroot) as the release source of truth instead of generated mirrors.
-    related_invariants:
-      - repo.release_wrapper_is_not_install_execution_authority
-    reason: the source of truth is packages/registry.yaml + services/webroot; installer mirrors are generated projections
-    contract: the source of truth is packages/registry.yaml + services/webroot; installer mirrors are generated projections
   - id: treat_dist_as_persistent_source_tree
     title: treat services/dist as a persistent source tree
     summary: 'Edit services/dist in place, or depend on its contents surviving across builds, instead of treating it as disposable release output. Observed this session: running the installer against dist/ in-place created root-owned files that blocked the next build''s wipe.'
     related_invariants:
-      - repo.release_workspace_and_output_are_not_authority
     reason: services/dist is disposable release output — wiped and recreated each build; never authored source
     contract: services/dist is disposable release output — wiped and recreated each build; never authored source
