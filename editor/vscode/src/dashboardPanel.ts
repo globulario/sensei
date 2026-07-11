@@ -25,6 +25,7 @@ import {
   resolveNode,
 } from './grpcClient';
 import { assessMetadataAuthority } from './graphAuthority';
+import { effectiveDomain } from './projectDomain';
 import {
   AwgRunResult,
   LocalOpsDisabledError,
@@ -620,7 +621,9 @@ export class DashboardPanel {
       this.post({ type: 'detail', id: qid, found: false, unsupported: true, klass: token });
       return;
     }
-    const res = await resolveNode(addr, token, bare, domain, timeout);
+    // Scope node detail to the current project (setting, else git-remote domain).
+    const scoped = (await effectiveDomain(domain)) ?? domain;
+    const res = await resolveNode(addr, token, bare, scoped, timeout);
     this.post({ type: 'detail', id: qid, found: !!res.found, node: res.node ?? null, authority: res.authority ?? null });
   }
 

@@ -11,6 +11,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { effectiveDomain } from './projectDomain';
 import {
   AwgError,
   CodeAnchor,
@@ -66,7 +67,10 @@ export class AwarenessProvider implements vscode.TreeDataProvider<Element> {
     this.setState({ kind: 'loading', file: rel });
 
     const addr = cfg.get<string>('serverAddr', 'localhost:10120');
-    const domain = cfg.get<string>('domain', '') || undefined;
+    // Scope to the current project: the explicit setting, else the workspace's
+    // git-remote domain. Keeps a multi-domain graph from answering with another
+    // repo's rules for this file.
+    const domain = await effectiveDomain(cfg.get<string>('domain', ''));
     const mode = cfg.get<string>('mode', 'standard') === 'compact'
       ? 'PREFLIGHT_COMPACT'
       : 'PREFLIGHT_STANDARD';
