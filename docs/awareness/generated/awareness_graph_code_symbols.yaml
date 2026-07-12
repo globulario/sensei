@@ -2245,6 +2245,11 @@ test_symbols:
     symbol: TestCollectInputDirs_PrefersLocalGeneratedForAwarenessGraph
     package: main
     language: go
+  - id: cmd/awg/helpers_test.go:TestCollectInputDirs_SelfOnlyAwarenessGraphSkipsGeneratedArtifacts
+    file: cmd/awg/helpers_test.go
+    symbol: TestCollectInputDirs_SelfOnlyAwarenessGraphSkipsGeneratedArtifacts
+    package: main
+    language: go
   - id: cmd/awg/helpers_test.go:TestFilteredServicesGeneratedDir_ExcludesAwarenessGraphArtifacts
     file: cmd/awg/helpers_test.go
     symbol: TestFilteredServicesGeneratedDir_ExcludesAwarenessGraphArtifacts
@@ -4321,6 +4326,11 @@ test_symbols:
     package: extractor_test
     language: go
     doc: "TestImportDir_UnknownSchemaReported verifies that a YAML file with a\ntop-level key not in the schema table appears as StatusUnknownSchema and\ndoes NOT produce any triples."
+  - id: golang/extractor/yaml_import_phaseB_test.go:TestPhaseB_ActivationRules_EmitsGuardrailsAndPolicy
+    file: golang/extractor/yaml_import_phaseB_test.go
+    symbol: TestPhaseB_ActivationRules_EmitsGuardrailsAndPolicy
+    package: extractor_test
+    language: go
   - id: golang/extractor/yaml_import_phaseB_test.go:TestPhaseB_Contracts_EmitsTypedNodes
     file: golang/extractor/yaml_import_phaseB_test.go
     symbol: TestPhaseB_Contracts_EmitsTypedNodes
@@ -4354,6 +4364,11 @@ test_symbols:
   - id: golang/extractor/yaml_import_phaseB_test.go:TestPhaseB_Guardrails_EmitsTypedNodes
     file: golang/extractor/yaml_import_phaseB_test.go
     symbol: TestPhaseB_Guardrails_EmitsTypedNodes
+    package: extractor_test
+    language: go
+  - id: golang/extractor/yaml_import_phaseB_test.go:TestPhaseB_HighRiskFiles_EmitsGuardrailAndSourceFileEdges
+    file: golang/extractor/yaml_import_phaseB_test.go
+    symbol: TestPhaseB_HighRiskFiles_EmitsGuardrailAndSourceFileEdges
     package: extractor_test
     language: go
   - id: golang/extractor/yaml_import_phaseB_test.go:TestPhaseB_Incident_EmitsTypedNode

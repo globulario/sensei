@@ -95,7 +95,7 @@ Flags:
 Next steps:
   1. Edit docs/awareness/high_risk_files.yaml — add your critical paths
   2. Edit docs/awareness/invariants.yaml — add your first rule
-     (the 7-category meta-principle pack is already installed:
+     (the 8-category meta-principle pack is already installed:
       docs/awareness/meta_principles.yaml — link your rules to it
       via related_invariants)
   3. Start the server:  sensei serve -no-seed &

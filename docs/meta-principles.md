@@ -2,7 +2,8 @@
 
 Meta-principles are universal patterns that predict where bugs hide. They are not rules about your specific codebase — they are rules about how software systems fail. Use them to classify incidents and find sibling bugs before they ship.
 
-Every Sensei project ships with the full set as seed content in `docs/awareness/meta_principles.yaml` — **133 principles across 8 categories**:
+Every initialized Sensei project gets a generated cold-start pack at
+`docs/awareness/meta_principles.yaml` — **134 principles across 8 categories**:
 
 | Category | Question it answers | Count |
 |---|---|---|
@@ -15,7 +16,7 @@ Every Sensei project ships with the full set as seed content in `docs/awareness/
 | **Structure** | is this unit shaped to be reused, inspected, and outlive its implementation? | 12 |
 | **Evolution** | how is this project allowed to change safely over time? | 11 |
 
-This page explains the framework and walks the **Authority / Signal / Lifecycle / Dependency** backend categories in depth. The **Perception / Composition / Structure** categories were added later for GUI truth, visual composition, and code structure; **Evolution** is the newest — the engineering laws of safe project change (releasable trunk, reviewable slices, deterministic builds, observable change, intent-before-drift). The authoritative, always-current list of all 133 is the generated pack itself. Query any principle live:
+This page explains the framework and walks the **Authority / Signal / Lifecycle / Dependency** backend categories in depth. The **Perception / Composition / Structure** categories were added later for GUI truth, visual composition, and code structure; **Evolution** is the newest — the engineering laws of safe project change (releasable trunk, reviewable slices, deterministic builds, observable change, intent-before-drift). In this repository, the canonical authored source for the pack is `docs/awareness/generic/state_authority_invariants.yaml`; the generated pack is the queryable artifact installed into new projects. Query any principle live:
 
 ```bash
 sensei resolve invariant meta.ui.screen_claim_must_bind_to_authority

@@ -206,6 +206,18 @@ meta_principle_coverage:
       seed-freshness and cross-repo reference-validation gates.
     tests:
       - TestGraphTruth_ServedSurfaceHasNoFactWritingRPC
+  - principle: meta.quorum_is_quality_not_constraint
+    tier: behavioral
+    reason: >
+      Services owns the concrete runtime/control-plane behavior for this shared
+      meta-principle. The gate is behavioral: join authorization and topology
+      preflight tests prove the controller reports observed capacity without
+      coercing placement intent or blocking non-destructive rollout on a global
+      storage-count floor.
+    tests:
+      - TestJoinAuthorization_DefaultProfilesAreNotQuorumCoerced
+      - TestTopologyPreflightDoesNotEnforceStorageCountFloor
+      - TestDriftTopologyPreflight_DoesNotBlockTransitionalStorageCapacity
 
   # ── declaration: enforced by declaration completeness in another repo ─────
   - principle: meta.graceful_degradation_is_the_normal_mode_not_an_exception
@@ -785,6 +797,248 @@ meta_principle_coverage:
   # (cross-repo, not available without SERVICES_REPO). Until those links are
   # wired, this explicit behavioral entry satisfies the coverage ratchet —
   # the scanners are real and gate CI, so behavioral is the accurate tier.
+  - principle: meta.absence_scope_must_be_explicit
+    tier: behavioral
+    reason: >
+      Scanner-backed by the rbac.getitem_consumers_must_handle_empty_payload
+      instance in RULEGUARD_INSTANCES. The rule is positive-control attested and
+      make principle-check-ruleguard-tree runs it against the services tree.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle rbac.getitem_consumers_must_handle_empty_payload
+  - principle: meta.assertions_must_carry_their_scope
+    tier: behavioral
+    reason: >
+      Scanner-backed by the cluster_event_must_carry_node_or_cluster_scope
+      instance in RULEGUARD_INSTANCES. The gate rejects emitted cluster events
+      that omit node/cluster scope.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle cluster_event_must_carry_node_or_cluster_scope
+  - principle: meta.authority_must_express_uncertainty
+    tier: behavioral
+    reason: >
+      Scanner-backed by the netutil.identity_getter_must_express_vip_ambiguity
+      instance in RULEGUARD_INSTANCES. The gate catches identity-critical uses of
+      ambiguous VIP-derived primary IP authority.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle netutil.identity_getter_must_express_vip_ambiguity
+  - principle: meta.binding_outlives_evidence_until_invalidated
+    tier: behavioral
+    reason: >
+      Scanner-backed by the isbootstrap_consumer_must_check_window instance in
+      RULEGUARD_INSTANCES. The gate catches bootstrap bindings consumed without
+      re-checking the freshness window.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle isbootstrap_consumer_must_check_window
+  - principle: meta.circular_dependency_must_have_break_glass
+    tier: behavioral
+    reason: >
+      Scanner-backed by the deploy_self_install_must_not_be_break_glass instance
+      in RULEGUARD_INSTANCES. The gate catches production self-build deploy paths
+      that bypass the verified break-glass channel.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle deploy_self_install_must_not_be_break_glass
+  - principle: meta.code_must_not_mirror_external_enumerations
+    tier: behavioral
+    reason: >
+      Scanner-backed by the hardcoded_set_must_derive_from_source instance in
+      RULEGUARD_INSTANCES. The gate catches hand-authored sets that should derive
+      from an external enumeration source.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle hardcoded_set_must_derive_from_source
+  - principle: meta.competing_writers_must_converge_or_be_fenced
+    tier: behavioral
+    reason: >
+      Scanner-backed by the convergence.restart_must_go_through_singleflight_gate
+      instance in RULEGUARD_INSTANCES. The gate catches restart/convergence paths
+      that bypass the singleflight fence.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle convergence.restart_must_go_through_singleflight_gate
+  - principle: meta.connection_errors_must_not_be_absorbed
+    tier: behavioral
+    reason: >
+      Scanner-backed by the connection.dial_err_must_carry_class_through_return_path
+      and errorf_must_use_w_verb_to_preserve_err_chain instances in
+      RULEGUARD_INSTANCES. The gates preserve connection error class and wrapping
+      chains instead of absorbing them.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle connection.dial_err_must_carry_class_through_return_path
+      - principle-check -principle errorf_must_use_w_verb_to_preserve_err_chain
+  - principle: meta.critical_path_no_non_critical_dependency
+    tier: behavioral
+    reason: >
+      Scanner-backed by the heartbeat_must_not_take_non_critical_dependencies
+      instance in RULEGUARD_INSTANCES. The gate catches critical liveness paths
+      taking synchronous non-critical service dependencies.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle heartbeat_must_not_take_non_critical_dependencies
+  - principle: meta.diagnostic_output_must_be_bounded
+    tier: behavioral
+    reason: >
+      Scanner-backed by the retry_loop.repeated_error_log_must_be_deduplicated
+      instance in RULEGUARD_INSTANCES. The gate catches repeated retry-error
+      logging without deduplication.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle retry_loop.repeated_error_log_must_be_deduplicated
+  - principle: meta.duration_versus_deadline_is_not_interchangeable
+    tier: behavioral
+    reason: >
+      Scanner-backed by the ambiguous_int_typed_time_field_must_carry_unit_qualifier
+      instance in RULEGUARD_INSTANCES. The gate catches ambiguous int time fields
+      that omit unit/deadline semantics.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle ambiguous_int_typed_time_field_must_carry_unit_qualifier
+  - principle: meta.failure_response_must_contract_not_amplify
+    tier: behavioral
+    reason: >
+      Scanner-backed by the error_path.no_unbounded_fire_and_forget_goroutine
+      instance in RULEGUARD_INSTANCES. The gate catches error paths that amplify
+      failure by launching unbounded asynchronous work.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle error_path.no_unbounded_fire_and_forget_goroutine
+  - principle: meta.fallback_must_degrade_semantics
+    tier: behavioral
+    reason: >
+      Enforced by the dedicated fallback scanner target. make
+      principle-check-fallback runs fallback.must_emit_degraded_finding against
+      the services tree and fails if fallback emits authority-shaped truth
+      instead of a degraded finding.
+    tests:
+      - make principle-check-fallback
+      - principle-check -principle fallback.must_emit_degraded_finding
+  - principle: meta.half_done_must_not_look_done
+    tier: behavioral
+    reason: >
+      Scanner-backed by the canskip_predicates_must_check_multiple_fields
+      instance in RULEGUARD_INSTANCES. The gate catches completion predicates
+      that consult too little state and can mark partial work as done.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle canskip_predicates_must_check_multiple_fields
+  - principle: meta.idempotence_is_a_requirement_not_a_quality
+    tier: behavioral
+    reason: >
+      Scanner-backed by the ddl_statements_must_use_if_not_exists instance in
+      RULEGUARD_INSTANCES. The gate catches DDL that is not safe to replay.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle ddl_statements_must_use_if_not_exists
+  - principle: meta.identity_computation_must_be_invariant
+    tier: behavioral
+    reason: >
+      Scanner-backed by the installed_package.timestamp_writers_must_preserve_during_observe
+      instance in RULEGUARD_INSTANCES. The gate catches observation paths that
+      rewrite identity-shaping timestamps.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle installed_package.timestamp_writers_must_preserve_during_observe
+  - principle: meta.physical_clocks_disagree_use_logical_ordering
+    tier: behavioral
+    reason: >
+      Scanner-backed by the cross_node_staleness_must_use_server_clock instance
+      in RULEGUARD_INSTANCES. The gate catches cross-node freshness logic that
+      uses node-reported clocks instead of server/logical authority.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle cross_node_staleness_must_use_server_clock
+  - principle: meta.principal_must_survive_proxy_chains
+    tier: behavioral
+    reason: >
+      Scanner-backed by the backend_must_check_originating_principal_not_only_peer_cert
+      instance in RULEGUARD_INSTANCES. The gate catches backend authorization
+      checks that trust only the peer certificate and lose the originating
+      principal.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle backend_must_check_originating_principal_not_only_peer_cert
+  - principle: meta.silence_is_not_valid_for_unexpected
+    tier: behavioral
+    reason: >
+      Scanner-backed by the release_type_switch_must_have_default and
+      panic_recovery_must_not_be_silent instances in RULEGUARD_INSTANCES. The
+      gates catch unexpected cases and recovered panics being silently absorbed.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle release_type_switch_must_have_default
+      - principle-check -principle panic_recovery_must_not_be_silent
+  - principle: meta.storage_is_not_semantic_authority
+    tier: behavioral
+    reason: >
+      Enforced by make principle-check-workflow-service. The gate scans the
+      workflow service for direct storage writes and proves routing/projection
+      code does not become semantic state authority.
+    tests:
+      - make principle-check-workflow-service
+      - principle-check -principle workflow.workflow_service_writes_only_own_runtime_state
+  - principle: meta.structure_must_not_be_stripped_in_projection
+    tier: behavioral
+    reason: >
+      Scanner-backed by the expected_sha256_param_must_carry_subject_name
+      instance in RULEGUARD_INSTANCES. The gate catches projected digest fields
+      whose parameter name drops the subject being attested.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle expected_sha256_param_must_carry_subject_name
+  - principle: meta.timeout_is_a_decision_not_a_truth
+    tier: behavioral
+    reason: >
+      Scanner-backed by the deadline_exceeded_must_not_drive_definitive_node_state
+      instance in RULEGUARD_INSTANCES. The gate catches deadline exceeded paths
+      being promoted into definitive node state.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle deadline_exceeded_must_not_drive_definitive_node_state
+  - principle: meta.timestamp_is_an_observation_not_an_event_time
+    tier: behavioral
+    reason: >
+      Scanner-backed by the timestamp_field_must_carry_semantic_qualifier
+      instance in RULEGUARD_INSTANCES. The gate catches timestamp fields that
+      omit whether the time is observed, effective, committed, or event time.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle timestamp_field_must_carry_semantic_qualifier
+  - principle: meta.write_creates_completion_obligation
+    tier: behavioral
+    reason: >
+      Scanner-backed by the defer_in_for_loop_must_not_accumulate instance in
+      RULEGUARD_INSTANCES. The gate catches looped writes/opens whose completion
+      obligations accumulate until function exit instead of closing per item.
+    tests:
+      - TestRuleguardRulesHavePositiveControl
+      - make principle-check-ruleguard-tree
+      - principle-check -principle defer_in_for_loop_must_not_accumulate
   # ── review_only: irreducible design philosophy (terminal tier) ───────────
   - principle: meta.MTTR_focus_outperforms_MTBF_for_evolving_systems
     tier: review_only

@@ -63,6 +63,43 @@ func TestDowngradeFreshnessToAdvisory(t *testing.T) {
 	}
 }
 
+func TestAuditSeedGenerationInputs_SelfOnlyMatchesStandaloneSeedBuilder(t *testing.T) {
+	root := t.TempDir()
+	agRepo := filepath.Join(root, "awareness-graph")
+	if err := os.MkdirAll(filepath.Join(agRepo, "docs", "awareness"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	inputDirs := []string{
+		filepath.Join(agRepo, "docs", "awareness"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "contracts"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "notes", "learning_events"),
+		filepath.Join(agRepo, "docs", "intent"),
+	}
+	intentDir := filepath.Join(agRepo, "docs", "intent")
+
+	gotDirs, gotIntent := auditSeedGenerationInputs(inputDirs, intentDir, "", agRepo)
+	wantDirs := []string{filepath.Join(agRepo, "docs", "awareness")}
+	if strings.Join(gotDirs, "\n") != strings.Join(wantDirs, "\n") {
+		t.Fatalf("seed input dirs = %q, want %q", gotDirs, wantDirs)
+	}
+	if gotIntent != "" {
+		t.Fatalf("seed intent dir = %q, want empty self-only seed input", gotIntent)
+	}
+}
+
+func TestAuditSeedGenerationInputs_CombinedKeepsPairedInputs(t *testing.T) {
+	inputDirs := []string{"/ag/docs/awareness", "/svc/docs/awareness", "/svc/docs/awareness/generated"}
+	intentDir := "/svc/docs/intent"
+
+	gotDirs, gotIntent := auditSeedGenerationInputs(inputDirs, intentDir, "/svc", "/ag")
+	if strings.Join(gotDirs, "\n") != strings.Join(inputDirs, "\n") {
+		t.Fatalf("seed input dirs = %q, want %q", gotDirs, inputDirs)
+	}
+	if gotIntent != intentDir {
+		t.Fatalf("seed intent dir = %q, want %q", gotIntent, intentDir)
+	}
+}
+
 func TestEvaluateMetaPrincipleCoverage_FailsUnclassifiedPrinciples(t *testing.T) {
 	metas := map[string]bool{
 		"meta.covered":      true,

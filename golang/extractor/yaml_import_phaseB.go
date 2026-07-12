@@ -157,6 +157,40 @@ type servicesFile struct {
 	Services []yamlService `yaml:"services"`
 }
 
+type highRiskFilesFile struct {
+	Files []string `yaml:"files"`
+}
+
+type yamlActivationRulesFile struct {
+	ActivationRules yamlActivationRules `yaml:"activation_rules"`
+}
+
+type yamlActivationRules struct {
+	Version     string                    `yaml:"version"`
+	Rules       []yamlActivationRule      `yaml:"rules"`
+	EmptyPolicy yamlActivationEmptyPolicy `yaml:"empty_policy"`
+}
+
+type yamlActivationRule struct {
+	ID          string   `yaml:"id"`
+	Trigger     string   `yaml:"trigger"`
+	Enforcement string   `yaml:"enforcement"`
+	Paths       []string `yaml:"paths"`
+	Concepts    []string `yaml:"concepts"`
+	Tools       []string `yaml:"tools"`
+}
+
+type yamlActivationEmptyPolicy struct {
+	Tiers []yamlActivationPolicyTier `yaml:"tiers"`
+}
+
+type yamlActivationPolicyTier struct {
+	Tier        string `yaml:"tier"`
+	Description string `yaml:"description"`
+	Action      string `yaml:"action"`
+	Announce    bool   `yaml:"announce"`
+}
+
 // ── importForbiddenFixes ──────────────────────────────────────────────────────
 
 // importForbiddenFixes imports files with the forbidden_fixes: schema.
@@ -556,6 +590,138 @@ func importServices(e *rdf.Emitter, path string) error {
 		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 	}
 	return nil
+}
+
+// ── importHighRiskFiles ───────────────────────────────────────────────────────
+
+// importHighRiskFiles imports the briefing trigger's high-risk path registry.
+// The registry is authoritative operational policy, so even an empty list emits
+// a guardrail node carrying authoredIn provenance.
+func importHighRiskFiles(e *rdf.Emitter, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	var f highRiskFilesFile
+	if err := yaml.Unmarshal(data, &f); err != nil {
+		return fmt.Errorf("parse: %w", err)
+	}
+	subj := rdf.MintIRI(rdf.ClassGuardrail, "awareness.high_risk_files")
+	e.Typed(subj, rdf.ClassGuardrail)
+	e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit("High-risk files requiring awareness briefing"))
+	e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit("active"))
+	e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
+
+	for _, p := range f.Files {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		ensureNode(e, rdf.ClassSourceFile, p)
+		e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, p))
+		e.Triple(rdf.MintIRI(rdf.ClassSourceFile, p), rdf.IRI(rdf.PropImplements), subj)
+	}
+	return nil
+}
+
+// ── importActivationRules ────────────────────────────────────────────────────
+
+// importActivationRules imports the policy that decides when agents must ask
+// Sensei for context and how they treat EMPTY briefing results.
+func importActivationRules(e *rdf.Emitter, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	var f yamlActivationRulesFile
+	if err := yaml.Unmarshal(data, &f); err != nil {
+		return fmt.Errorf("parse: %w", err)
+	}
+
+	root := rdf.MintIRI(rdf.ClassGuardrail, "awareness.activation_rules")
+	e.Typed(root, rdf.ClassGuardrail)
+	e.Triple(root, rdf.IRI(rdf.PropLabel), rdf.Lit("Awareness activation rules"))
+	e.Triple(root, rdf.IRI(rdf.PropStatus), rdf.Lit("active"))
+	if version := strings.TrimSpace(f.ActivationRules.Version); version != "" {
+		e.Triple(root, rdf.IRI(rdf.PropComment), rdf.Lit("version="+version))
+	}
+	e.Triple(root, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
+
+	for _, r := range f.ActivationRules.Rules {
+		id := strings.TrimSpace(r.ID)
+		if id == "" {
+			continue
+		}
+		subj := rdf.MintIRI(rdf.ClassGuardrail, "activation_rule."+id)
+		e.Typed(subj, rdf.ClassGuardrail)
+		e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit("Activation rule: "+id))
+		if r.Enforcement != "" {
+			e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit(strings.TrimSpace(r.Enforcement)))
+		}
+		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
+		if detail := activationRuleComment(r); detail != "" {
+			e.Triple(subj, rdf.IRI(rdf.PropComment), rdf.Lit(detail))
+		}
+		e.Triple(root, rdf.IRI(rdf.PropAffects), subj)
+		for _, p := range r.Paths {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			ensureNode(e, rdf.ClassSourceFile, p)
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, p))
+			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, p), rdf.IRI(rdf.PropImplements), subj)
+		}
+	}
+
+	for _, tier := range f.ActivationRules.EmptyPolicy.Tiers {
+		name := strings.TrimSpace(tier.Tier)
+		if name == "" {
+			continue
+		}
+		subj := rdf.MintIRI(rdf.ClassGuardrail, "activation_empty_policy."+name)
+		e.Typed(subj, rdf.ClassGuardrail)
+		e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit("Empty briefing policy: "+name))
+		if tier.Action != "" {
+			e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit(strings.TrimSpace(tier.Action)))
+		}
+		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
+		if desc := strings.TrimSpace(tier.Description); desc != "" {
+			e.Triple(subj, rdf.IRI(rdf.PropComment), rdf.Lit(desc))
+		}
+		e.Triple(root, rdf.IRI(rdf.PropAffects), subj)
+	}
+	return nil
+}
+
+func activationRuleComment(r yamlActivationRule) string {
+	var parts []string
+	if trigger := strings.TrimSpace(r.Trigger); trigger != "" {
+		parts = append(parts, "trigger="+trigger)
+	}
+	if len(r.Concepts) > 0 {
+		parts = append(parts, "concepts="+strings.Join(trimNonEmpty(r.Concepts), ","))
+	}
+	if len(r.Tools) > 0 {
+		parts = append(parts, "tools="+strings.Join(trimNonEmpty(r.Tools), ","))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func trimNonEmpty(vals []string) []string {
+	out := make([]string, 0, len(vals))
+	for _, v := range vals {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
