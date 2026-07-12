@@ -54,7 +54,31 @@ Read these first. They are the reason this is a skill and not a loose script.
    before** `bootstrap`. If you must extract later, drop any intent whose
    `expressed_by` is `CLAUDE.md`/`AGENTS.md`/`docs/awareness/*`.
 
-## Core loop
+## Fast path: one command
+
+`sensei import` wraps the whole pipeline in the correct order (contracts on the
+pristine clone → structural → optional history → domain-scoped load), never
+promotes, and never touches a store unless you pass `--store-url`:
+
+```
+sensei import <git-url | path> --domain <domain> [--depth full|basic] \
+              [--store-url <url> --graph-marker-file <server-marker>] [--dry-run]
+```
+
+- `--dry-run` prints the exact plan and stops — use it first to confirm the
+  derived domain/slug and step order.
+- Full depth needs `ANTHROPIC_API_KEY` for the contract layer; it degrades to
+  structural-only (with a clear notice) without a key.
+- Pass `--graph-marker-file <the server's marker>` alongside `--store-url` so a
+  *served* store stays fresh for briefing. Do **not** pass a transaction file:
+  a foreign slice is uncertified by design, and the load still succeeds.
+- Omit `--store-url` to have it print the exact `sensei build` command instead
+  of touching any store.
+
+Prefer this command. Fall back to the manual core loop below only when you need
+to inspect or intervene between steps, or the wrapper is unavailable.
+
+## Core loop (manual)
 
 1. **Resolve target and domain.**
    - Get the clone URL (or an existing checkout path).
