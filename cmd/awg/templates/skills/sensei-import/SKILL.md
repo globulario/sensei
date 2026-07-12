@@ -101,6 +101,9 @@ to inspect or intervene between steps, or the wrapper is unavailable.
      - REST contracts (OpenAPI/Swagger specs → endpoint Contract nodes)
      - **code→contract authority surfaces** from Go source (HTTP handlers,
        guards, lifecycle control, state mutations → AuthoritySurface candidates)
+     - **boundaries inferred from the import graph** — Go `internal/` visibility
+       boundaries (compiler-enforced) and dependency-hub / contract-exposure
+       seams (a component many others depend on → a stability boundary)
      - web components + gRPC-web consumption edges (TS/JS)
      Coverage depends on how the repo is written: a repo with `.proto`/OpenAPI or
      `mux.HandleFunc`-style handlers yields contracts even in Basic; a pure
