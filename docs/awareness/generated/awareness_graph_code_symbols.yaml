@@ -767,6 +767,11 @@ test_symbols:
     symbol: TestRepairLegacyStarterTemplates_RefreshesUntouchedExamplesOnly
     package: main
     language: go
+  - id: cmd/awg/cmd_build_query_endpoint_test.go:TestQueryEndpointPath
+    file: cmd/awg/cmd_build_query_endpoint_test.go
+    symbol: TestQueryEndpointPath
+    package: main
+    language: go
   - id: cmd/awg/cmd_build_test.go:TestFinalizeBuildArtifact_DedupsBeforeMarker
     file: cmd/awg/cmd_build_test.go
     symbol: TestFinalizeBuildArtifact_DedupsBeforeMarker
