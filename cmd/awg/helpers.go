@@ -59,7 +59,9 @@ func resolveServicesRepo(explicit string) (string, error) {
 	}
 	for {
 		if _, sErr := os.Stat(filepath.Join(dir, "docs", "awareness", "namespaces.yaml")); sErr == nil {
-			return dir, nil
+			if _, agErr := os.Stat(filepath.Join(dir, "golang", "server", "embeddata")); agErr != nil {
+				return dir, nil
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -125,13 +127,15 @@ func collectInputDirs(svcRepo, agRepo string) (inputDirs []string, intentDir str
 	if agRepo != "" {
 		dirs = appendExistingDir(dirs,
 			filepath.Join(agRepo, "docs", "awareness"),
-			filepath.Join(agRepo, "docs", "awareness", "generated"),
 			filepath.Join(agRepo, "eval", "multi-swe-bench", "contracts"),
 			filepath.Join(agRepo, "eval", "multi-swe-bench", "notes", "learning_events"),
 			// Always include the ag-repo's own intent dir so awg.* intent refs
 			// resolve even when a services repo (with its own docs/intent) is present.
 			filepath.Join(agRepo, "docs", "intent"),
 		)
+		if svcRepo != "" {
+			dirs = appendExistingDir(dirs, filepath.Join(agRepo, "docs", "awareness", "generated"))
+		}
 	}
 	if svcRepo != "" {
 		dirs = appendExistingDir(dirs,

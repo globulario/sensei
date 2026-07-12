@@ -1,3 +1,38 @@
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Guardrail> .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <http://www.w3.org/2000/01/rdf-schema#label> "Awareness activation rules" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <http://www.w3.org/2000/01/rdf-schema#comment> "version=v1" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <https://globular.io/awareness#authoredIn> "docs/awareness/activation_rules.yaml" .
+<https://globular.io/awareness#guardrail/activation_rule.auto_briefing> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Guardrail> .
+<https://globular.io/awareness#guardrail/activation_rule.auto_briefing> <http://www.w3.org/2000/01/rdf-schema#label> "Activation rule: auto_briefing" .
+<https://globular.io/awareness#guardrail/activation_rule.auto_briefing> <https://globular.io/awareness#status> "hook" .
+<https://globular.io/awareness#guardrail/activation_rule.auto_briefing> <https://globular.io/awareness#authoredIn> "docs/awareness/activation_rules.yaml" .
+<https://globular.io/awareness#guardrail/activation_rule.auto_briefing> <http://www.w3.org/2000/01/rdf-schema#comment> "trigger=file_path; tools=sensei briefing --file <path>" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <https://globular.io/awareness#affects> <https://globular.io/awareness#guardrail/activation_rule.auto_briefing> .
+<https://globular.io/awareness#guardrail/activation_rule.manual_briefing> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Guardrail> .
+<https://globular.io/awareness#guardrail/activation_rule.manual_briefing> <http://www.w3.org/2000/01/rdf-schema#label> "Activation rule: manual_briefing" .
+<https://globular.io/awareness#guardrail/activation_rule.manual_briefing> <https://globular.io/awareness#status> "agent_judgment" .
+<https://globular.io/awareness#guardrail/activation_rule.manual_briefing> <https://globular.io/awareness#authoredIn> "docs/awareness/activation_rules.yaml" .
+<https://globular.io/awareness#guardrail/activation_rule.manual_briefing> <http://www.w3.org/2000/01/rdf-schema#comment> "trigger=task_concept; concepts=authentication,authorization,database migration,deployment,configuration; tools=sensei briefing --task <description>" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <https://globular.io/awareness#affects> <https://globular.io/awareness#guardrail/activation_rule.manual_briefing> .
+<https://globular.io/awareness#guardrail/activation_empty_policy.low_risk> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Guardrail> .
+<https://globular.io/awareness#guardrail/activation_empty_policy.low_risk> <http://www.w3.org/2000/01/rdf-schema#label> "Empty briefing policy: low_risk" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.low_risk> <https://globular.io/awareness#status> "proceed" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.low_risk> <https://globular.io/awareness#authoredIn> "docs/awareness/activation_rules.yaml" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.low_risk> <http://www.w3.org/2000/01/rdf-schema#comment> "Typo fix, formatting, comment, import reorder" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <https://globular.io/awareness#affects> <https://globular.io/awareness#guardrail/activation_empty_policy.low_risk> .
+<https://globular.io/awareness#guardrail/activation_empty_policy.high_risk_target> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Guardrail> .
+<https://globular.io/awareness#guardrail/activation_empty_policy.high_risk_target> <http://www.w3.org/2000/01/rdf-schema#label> "Empty briefing policy: high_risk_target" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.high_risk_target> <https://globular.io/awareness#status> "treat_as_degraded" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.high_risk_target> <https://globular.io/awareness#authoredIn> "docs/awareness/activation_rules.yaml" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.high_risk_target> <http://www.w3.org/2000/01/rdf-schema#comment> "Minor edit in a high-risk directory" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <https://globular.io/awareness#affects> <https://globular.io/awareness#guardrail/activation_empty_policy.high_risk_target> .
+<https://globular.io/awareness#guardrail/activation_empty_policy.behavior_change_in_high_risk> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Guardrail> .
+<https://globular.io/awareness#guardrail/activation_empty_policy.behavior_change_in_high_risk> <http://www.w3.org/2000/01/rdf-schema#label> "Empty briefing policy: behavior_change_in_high_risk" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.behavior_change_in_high_risk> <https://globular.io/awareness#status> "escalate" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.behavior_change_in_high_risk> <https://globular.io/awareness#authoredIn> "docs/awareness/activation_rules.yaml" .
+<https://globular.io/awareness#guardrail/activation_empty_policy.behavior_change_in_high_risk> <http://www.w3.org/2000/01/rdf-schema#comment> "Logic change in a high-risk directory" .
+<https://globular.io/awareness#guardrail/awareness.activation_rules> <https://globular.io/awareness#affects> <https://globular.io/awareness#guardrail/activation_empty_policy.behavior_change_in_high_risk> .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "gRPC service AwarenessGraph with 9 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites." .
@@ -3219,6 +3254,16 @@
 <https://globular.io/awareness#invariant/meta.ha_requires_failure_tolerance_not_member_count> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.limited_members_are_not_capacity> .
 <https://globular.io/awareness#invariant/meta.ha_requires_failure_tolerance_not_member_count> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.assertions_must_carry_their_scope> .
 <https://globular.io/awareness#invariant/meta.ha_requires_failure_tolerance_not_member_count> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.harvest_and_yield_are_distinct_availability_dimensions> .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <http://www.w3.org/2000/01/rdf-schema#label> "Quorum is an observed capacity posture, not a hidden admission or placement constraint" .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.distributed_data_topology_is_correctness> .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.ha_requires_failure_tolerance_not_member_count> .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.limited_members_are_not_capacity> .
+<https://globular.io/awareness#invariant/meta.quorum_is_quality_not_constraint> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.assertions_must_carry_their_scope> .
 <https://globular.io/awareness#invariant/meta.quorum_change_requires_pre_failure_safety> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.quorum_change_requires_pre_failure_safety> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.quorum_change_requires_pre_failure_safety> <http://www.w3.org/2000/01/rdf-schema#label> "A quorum/ownership-changing operation must be safe if the joining or leaving member fails halfway through" .
@@ -3276,6 +3321,10 @@
 <https://globular.io/awareness#invariant/meta.topology_policy_must_be_explicit_before_automation> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.topology_change_is_a_first_class_event> .
 <https://globular.io/awareness#invariant/meta.topology_policy_must_be_explicit_before_automation> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> .
 <https://globular.io/awareness#invariant/meta.topology_policy_must_be_explicit_before_automation> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.quorum_change_requires_pre_failure_safety> .
+<https://globular.io/awareness#guardrail/awareness.high_risk_files> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Guardrail> .
+<https://globular.io/awareness#guardrail/awareness.high_risk_files> <http://www.w3.org/2000/01/rdf-schema#label> "High-risk files requiring awareness briefing" .
+<https://globular.io/awareness#guardrail/awareness.high_risk_files> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#guardrail/awareness.high_risk_files> <https://globular.io/awareness#authoredIn> "docs/awareness/high_risk_files.yaml" .
 <https://globular.io/awareness#incidentPattern/pat.raw_sparql_query_passthrough> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#IncidentPattern> .
 <https://globular.io/awareness#incidentPattern/pat.raw_sparql_query_passthrough> <http://www.w3.org/2000/01/rdf-schema#label> "Raw SPARQL passthrough added back into Query" .
 <https://globular.io/awareness#incidentPattern/pat.raw_sparql_query_passthrough> <https://globular.io/awareness#severity> "critical" .
@@ -3401,9 +3450,6 @@
 <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fmain.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#invariant/awareness.standalone_must_not_require_globular> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fmain.go> .
 <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fmain.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/awareness.standalone_must_not_require_globular> .
-<https://globular.io/awareness#sourceFile/golang%2Fserver%2Fetcd_register.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
-<https://globular.io/awareness#invariant/awareness.standalone_must_not_require_globular> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fetcd_register.go> .
-<https://globular.io/awareness#sourceFile/golang%2Fserver%2Fetcd_register.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/awareness.standalone_must_not_require_globular> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawareness-mcp%2Fmain.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#invariant/awareness.standalone_must_not_require_globular> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/cmd%2Fawareness-mcp%2Fmain.go> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawareness-mcp%2Fmain.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/awareness.standalone_must_not_require_globular> .
@@ -3775,9 +3821,9 @@
 <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fimplementation_patterns.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#test/golang%2Fserver%2Fpreflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fpreflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fbriefing.go> .
 <https://globular.io/awareness#sourceFile/golang%2Fserver%2Fbriefing.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#test/golang%2Fserver%2Fpreflight_signal_quality_test.go:TestPreflightWeakPatternMatchDoesNotPolluteActions> .
-<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 703f05169ff8" .
-<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#seedDigestSha256> "703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39" .
-<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#seedTripleCount> "3783" .
-<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-75c29366b6926fdbf936906e967083a246986976407a087ee204fd8e0ca5f77b> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-75c29366b6926fdbf936906e967083a246986976407a087ee204fd8e0ca5f77b> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 75c29366b692" .
+<https://globular.io/awareness#seedBuild/sha256-75c29366b6926fdbf936906e967083a246986976407a087ee204fd8e0ca5f77b> <https://globular.io/awareness#seedDigestSha256> "75c29366b6926fdbf936906e967083a246986976407a087ee204fd8e0ca5f77b" .
+<https://globular.io/awareness#seedBuild/sha256-75c29366b6926fdbf936906e967083a246986976407a087ee204fd8e0ca5f77b> <https://globular.io/awareness#seedTripleCount> "3829" .
+<https://globular.io/awareness#seedBuild/sha256-75c29366b6926fdbf936906e967083a246986976407a087ee204fd8e0ca5f77b> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-75c29366b6926fdbf936906e967083a246986976407a087ee204fd8e0ca5f77b> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
