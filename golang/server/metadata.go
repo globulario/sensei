@@ -127,6 +127,11 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 			n, _ := c.CountByClass(ctx, classIRI)
 			return n
 		}
+		// Prefer the uncapped domain count; fall back to the (capped) facts path
+		// only if the store can't enumerate class node domains.
+		if n, ok := s.countClassInScopeUncapped(ctx, classIRI, s.homeDomain, domain); ok {
+			return n
+		}
 		facts, err := s.store.ClassFacts(ctx, classIRI, 0)
 		if err != nil {
 			return 0

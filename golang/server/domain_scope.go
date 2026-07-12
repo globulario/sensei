@@ -23,6 +23,71 @@ type domainLister interface {
 	Domains(ctx context.Context) ([]string, error)
 }
 
+// classFactsScoper is the optional store capability that returns a class's facts
+// restricted to a domain scope (LIMIT applied to in-scope nodes). Absent → the
+// server falls back to fetch-then-filter (capped).
+type classFactsScoper interface {
+	ClassFactsScoped(ctx context.Context, classIRI, domain, home string, limit int) ([]store.ImpactFact, error)
+}
+
+// classDomainLister is the optional store capability that returns, for a class,
+// each node's raw domain (aw:repo value, "shared", or "" for untagged) UNCAPPED.
+// This is what makes domain-scoped counts and lists accurate — ClassFacts caps
+// at 300, which silently truncates scoped results.
+type classDomainLister interface {
+	ClassNodeDomains(ctx context.Context, classIRI string) (map[string]string, error)
+}
+
+// resolvedDomain applies the home-domain default to a raw domain value from
+// ClassNodeDomains ("" untagged → home).
+func resolvedDomain(raw, home string) string {
+	if raw == "" {
+		return home
+	}
+	return raw
+}
+
+// countClassInScopeUncapped counts, without the ClassFacts cap, the nodes of a
+// class visible to scope — via ClassNodeDomains. Returns (count, true) when the
+// store supports it, else (0, false) so the caller can fall back.
+func (s *server) countClassInScopeUncapped(ctx context.Context, classIRI, home, scope string) (int64, bool) {
+	cdl, ok := s.store.(classDomainLister)
+	if !ok {
+		return 0, false
+	}
+	nodes, err := cdl.ClassNodeDomains(ctx, classIRI)
+	if err != nil {
+		return 0, false
+	}
+	var n int64
+	for _, raw := range nodes {
+		if InScope(resolvedDomain(raw, home), scope) {
+			n++
+		}
+	}
+	return n, true
+}
+
+// inScopeClassIRIs returns the set of a class's node IRIs visible to scope,
+// UNCAPPED, via ClassNodeDomains. (nil, false) when unsupported.
+func (s *server) inScopeClassIRIs(ctx context.Context, classIRI, home, scope string) (map[string]bool, bool) {
+	cdl, ok := s.store.(classDomainLister)
+	if !ok {
+		return nil, false
+	}
+	nodes, err := cdl.ClassNodeDomains(ctx, classIRI)
+	if err != nil {
+		return nil, false
+	}
+	keep := make(map[string]bool)
+	for iri, raw := range nodes {
+		if InScope(resolvedDomain(raw, home), scope) {
+			keep[iri] = true
+		}
+	}
+	return keep, true
+}
+
 // availableDomains returns the sorted, de-duplicated selectable domains: the
 // store's aw:repo keys plus the host's home domain (both are domains a caller
 // may scope to). Shared and empties are excluded (uniqueSorted). Returns nil
