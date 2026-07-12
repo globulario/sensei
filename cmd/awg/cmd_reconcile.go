@@ -160,7 +160,7 @@ func resolveAuthoredBaseline(baseline, seedPathFlag string, res *reconcileResult
 		if agRepo != "" {
 			inputDirs, intentDir, derr := collectInputDirs(svcRepo, agRepo)
 			if derr == nil && len(inputDirs) > 0 {
-				generated, _, _, gerr := generateNT(inputDirs, intentDir, svcRepo, agRepo)
+				generated, _, _, gerr := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
 				if gerr == nil {
 					res.Baseline = "generated-yaml"
 					return awarenessSubjectsFromNT(generated)

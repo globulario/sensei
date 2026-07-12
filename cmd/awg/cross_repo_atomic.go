@@ -70,7 +70,7 @@ func requireAtomicCrossRepoGraphState(agRepo, svcRepo string) error {
 	if err != nil {
 		return fmt.Errorf("cannot prove cross-repo atomicity: read committed seed: %w", err)
 	}
-	generated, _, _, err := generateNT(inputDirs, intentDir, svcRepo, agRepo)
+	generated, _, _, err := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
 	if err != nil {
 		return fmt.Errorf("cannot prove cross-repo atomicity: generate awareness graph: %w", err)
 	}

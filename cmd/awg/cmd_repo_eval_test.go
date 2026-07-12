@@ -209,7 +209,7 @@ code_symbols:
 		t.Fatal(err)
 	}
 
-	genericNT, _, _, err := generateNTWithOwnership([]string{generatedDir}, "", []string{root}, "")
+	genericNT, _, _, err := generateNTWithOwnership([]string{generatedDir}, "", []string{root}, "", nil, "")
 	if err != nil {
 		t.Fatalf("generate generic NT: %v", err)
 	}
@@ -217,7 +217,7 @@ code_symbols:
 		t.Fatalf("generic repo generation filtered target-owned generated file:\n%s", string(genericNT))
 	}
 
-	servicesNT, _, _, err := generateNTWithOwnership([]string{generatedDir}, "", []string{root}, root)
+	servicesNT, _, _, err := generateNTWithOwnership([]string{generatedDir}, "", []string{root}, root, nil, "")
 	if err != nil {
 		t.Fatalf("generate services NT: %v", err)
 	}

@@ -30,6 +30,7 @@ func runRebuild(args []string) int {
 	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful reload (default: <project>/.sensei/graph-authority.json)")
 	checkMode := fs.Bool("check", false, "compare only, exit 1 if stale (CI mode)")
 	noReload := fs.Bool("no-runtime-reload", false, "skip Oxigraph PUT")
+	tagByRepo := fs.Bool("tag-by-repo", false, "tag each input repo's nodes with its own domain (from its git remote), so a multi-repo graph stays filterable per repo instead of collapsing to one home domain")
 	strict := fs.Bool("strict", false, "deprecated: rebuild now fails on reload/verification errors unless --no-runtime-reload is set")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei rebuild [flags]
@@ -93,7 +94,7 @@ Flags:
 
 	// Generate N-Triples.
 	fmt.Println("Scanning YAML sources...")
-	ntBytes, totalTriples, yamlCount, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo)
+	ntBytes, totalTriples, yamlCount, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo, *tagByRepo)
 	if genErr != nil {
 		fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", genErr)
 		return 1
@@ -238,11 +239,41 @@ Flags:
 	return 0
 }
 
-func generateNT(inputDirs []string, intentDir, svcRepo, agRepo string) ([]byte, int, int, error) {
-	return generateNTWithOwnership(inputDirs, intentDir, []string{agRepo, svcRepo}, svcRepo)
+func generateNT(inputDirs []string, intentDir, svcRepo, agRepo string, tagByRepo bool) ([]byte, int, int, error) {
+	var dirDomains []string
+	var intentDomain string
+	if tagByRepo {
+		// Auto-derive each repo's domain from its git remote so a multi-repo graph
+		// stays filterable per repo. Cache per repo root (agRepo/svcRepo).
+		agDom := gitRemoteDomain(agRepo)
+		svcDom := gitRemoteDomain(svcRepo)
+		domainForDir := func(dir string) string {
+			cd := filepath.Clean(dir)
+			if svcRepo != "" && dirUnder(cd, svcRepo) {
+				return svcDom
+			}
+			if agRepo != "" && dirUnder(cd, agRepo) {
+				return agDom
+			}
+			return ""
+		}
+		dirDomains = make([]string, len(inputDirs))
+		for i, d := range inputDirs {
+			dirDomains[i] = domainForDir(d)
+		}
+		intentDomain = domainForDir(intentDir)
+	}
+	return generateNTWithOwnership(inputDirs, intentDir, []string{agRepo, svcRepo}, svcRepo, dirDomains, intentDomain)
 }
 
-func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPrefixes []string, servicesOwnershipRepo string) ([]byte, int, int, error) {
+// dirUnder reports whether dir is the same as or nested under root.
+func dirUnder(dir, root string) bool {
+	root = filepath.Clean(root)
+	dir = filepath.Clean(dir)
+	return dir == root || strings.HasPrefix(dir, root+string(filepath.Separator))
+}
+
+func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPrefixes []string, servicesOwnershipRepo string, dirDomains []string, intentDomain string) ([]byte, int, int, error) {
 	var buf bytes.Buffer
 	opts := extractor.ImportDirOptions{
 		StripPathPrefixes:   stripPathPrefixes,
@@ -255,6 +286,8 @@ func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPref
 		if err != nil {
 			return nil, 0, 0, err
 		}
+		// normalizeInputDirsForOwnership preserves order (swaps one dir in place),
+		// so dirDomains stays index-aligned with inputDirs.
 		inputDirs = normalized
 		cleanup = nextCleanup
 		// The staged services-generated files live under a per-run temp root;
@@ -267,8 +300,12 @@ func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPref
 	}
 
 	var totalTriples, yamlCount int
-	for _, dir := range inputDirs {
-		emitter, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, opts)
+	for i, dir := range inputDirs {
+		o := opts
+		if i < len(dirDomains) {
+			o.DefaultRepo = dirDomains[i] // "" → home domain (unchanged)
+		}
+		emitter, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, o)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("import %s: %w", dir, err)
 		}
@@ -276,7 +313,9 @@ func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPref
 		yamlCount += len(report.Files)
 	}
 	if intentDir != "" {
-		emitter, report, err := extractor.ImportAwarenessDirWithOpts(intentDir, &buf, opts)
+		o := opts
+		o.DefaultRepo = intentDomain
+		emitter, report, err := extractor.ImportAwarenessDirWithOpts(intentDir, &buf, o)
 		if err != nil {
 			return nil, 0, 0, fmt.Errorf("import intent %s: %w", intentDir, err)
 		}

@@ -122,7 +122,7 @@ func TestGenerateNT_FromAwarenessGraphRepo_RetainsPairedServicesAuthority(t *tes
 	if err != nil {
 		t.Fatalf("collectInputDirs: %v", err)
 	}
-	ntBytes, _, _, err := generateNT(inputDirs, intentDir, svcRepo, agRepo)
+	ntBytes, _, _, err := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
 	if err != nil {
 		t.Fatalf("generateNT: %v", err)
 	}

@@ -78,7 +78,7 @@ Flags:
 	var checks []auditResult
 
 	fmt.Println("  generating N-Triples...")
-	ntBytes, totalTriples, yamlCount, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo)
+	ntBytes, totalTriples, yamlCount, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
 
 	seedPath := ""
 	if agRepo != "" {

@@ -184,7 +184,7 @@ func populateRepoStatus(res *seedStatusResult, agRepo, svcRepo string, committed
 		}
 		return
 	}
-	generated, _, _, err := generateNT(inputDirs, intentDir, svcRepo, agRepo)
+	generated, _, _, err := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
 	if err != nil {
 		res.GeneratedVsCommitted.Detail = err.Error()
 		res.TransactionStamp.Detail = err.Error()
