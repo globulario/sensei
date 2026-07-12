@@ -24,10 +24,10 @@ store:
 server:
   addr: localhost:10120
 
-# The portable meta-principle pack (8 categories, 97 principles —
+# The portable meta-principle pack (8 categories, 134 principles —
 # authority/signal/lifecycle/dependency for backend truth, perception/
 # composition for screens, structure for code shape, evolution for safe
-# project change) is installed at
+# project change) is generated from the Sensei corpus source and installed at
 # docs/awareness/meta_principles.yaml and compiled in by `sensei build`.
 # Link your own invariants to it via related_invariants: [meta.*].
 seed:

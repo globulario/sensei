@@ -3,7 +3,7 @@
 Sensei gives AI agents (and humans) institutional memory with teeth: the
 architectural rules, known failure modes, and forbidden fixes of YOUR
 project, surfaced automatically before code gets edited — and a portable
-pack of 133 battle-validated meta-principles to start from on day one.
+pack of 134 battle-validated meta-principles to start from on day one.
 
 ## 1. Install (one time)
 
@@ -54,7 +54,7 @@ This scaffolds:
 |---|---|
 | `docs/awareness/invariants.yaml` | your architectural rules (one example included) |
 | `docs/awareness/failure_modes.yaml` | incidents and anticipated bug classes |
-| `docs/awareness/meta_principles.yaml` | the portable pack: 8 categories, 133 principles |
+| `docs/awareness/meta_principles.yaml` | the portable pack: 8 categories, 134 principles |
 | `docs/awareness/high_risk_files.yaml` | paths that require a briefing before edits |
 | `.claude/hooks/` | Claude Code hooks that ENFORCE briefing-before-edit |
 | `CLAUDE.md` (appended) | tells the agent how to use awareness |

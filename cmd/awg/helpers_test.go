@@ -18,6 +18,12 @@ func TestResolveServicesRepo_FindsSiblingFromAwarenessGraphRepo(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(agRepo, "golang", "server", "embeddata"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(agRepo, "docs", "awareness"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agRepo, "docs", "awareness", "namespaces.yaml"), []byte("namespaces: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(filepath.Join(servicesRepo, "docs", "awareness"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -70,9 +76,9 @@ func TestCollectInputDirs_PrefersLocalGeneratedForAwarenessGraph(t *testing.T) {
 	}
 	want := []string{
 		filepath.Join(agRepo, "docs", "awareness"),
-		filepath.Join(agRepo, "docs", "awareness", "generated"),
 		filepath.Join(agRepo, "eval", "multi-swe-bench", "contracts"),
 		filepath.Join(agRepo, "eval", "multi-swe-bench", "notes", "learning_events"),
+		filepath.Join(agRepo, "docs", "awareness", "generated"),
 		filepath.Join(svcRepo, "docs", "awareness"),
 		filepath.Join(svcRepo, "docs", "awareness", "generated"),
 	}
@@ -81,6 +87,40 @@ func TestCollectInputDirs_PrefersLocalGeneratedForAwarenessGraph(t *testing.T) {
 	}
 	if intentDir != filepath.Join(svcRepo, "docs", "intent") {
 		t.Fatalf("intentDir = %q, want %q", intentDir, filepath.Join(svcRepo, "docs", "intent"))
+	}
+}
+
+func TestCollectInputDirs_SelfOnlyAwarenessGraphSkipsGeneratedArtifacts(t *testing.T) {
+	root := t.TempDir()
+	agRepo := filepath.Join(root, "awareness-graph")
+
+	for _, dir := range []string{
+		filepath.Join(agRepo, "docs", "awareness"),
+		filepath.Join(agRepo, "docs", "awareness", "generated"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "contracts"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "notes", "learning_events"),
+		filepath.Join(agRepo, "docs", "intent"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, intentDir, err := collectInputDirs("", agRepo)
+	if err != nil {
+		t.Fatalf("collectInputDirs: %v", err)
+	}
+	want := []string{
+		filepath.Join(agRepo, "docs", "awareness"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "contracts"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "notes", "learning_events"),
+		filepath.Join(agRepo, "docs", "intent"),
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("collectInputDirs = %q, want %q", got, want)
+	}
+	if intentDir != filepath.Join(agRepo, "docs", "intent") {
+		t.Fatalf("intentDir = %q, want %q", intentDir, filepath.Join(agRepo, "docs", "intent"))
 	}
 }
 

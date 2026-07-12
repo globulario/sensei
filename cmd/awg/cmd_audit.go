@@ -78,7 +78,8 @@ Flags:
 	var checks []auditResult
 
 	fmt.Println("  generating N-Triples...")
-	ntBytes, totalTriples, yamlCount, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
+	seedInputDirs, seedIntentDir := auditSeedGenerationInputs(inputDirs, intentDir, svcRepo, agRepo)
+	ntBytes, totalTriples, yamlCount, genErr := generateNT(seedInputDirs, seedIntentDir, svcRepo, agRepo, false)
 
 	seedPath := ""
 	if agRepo != "" {
@@ -234,6 +235,17 @@ Flags:
 	return 0
 }
 
+func auditSeedGenerationInputs(inputDirs []string, intentDir, svcRepo, agRepo string) ([]string, string) {
+	if svcRepo != "" || agRepo == "" {
+		return inputDirs, intentDir
+	}
+	selfAwareness := filepath.Join(agRepo, "docs", "awareness")
+	if _, err := os.Stat(selfAwareness); err != nil {
+		return inputDirs, ""
+	}
+	return []string{selfAwareness}, ""
+}
+
 // downgradeFreshnessToAdvisory implements --warn-stale (GC-2): it turns ONLY an
 // embeddata-freshness FAIL into a WARN, leaving every other check untouched. A
 // services-side awareness addition lags the committed seed until the
@@ -362,13 +374,21 @@ func checkYAMLValidity(inputDirs []string, intentDir, svcRepo, agRepo string, to
 		StripPathPrefixes: []string{agRepo, svcRepo},
 	}
 	var invalidCount, unknownCount int
+	var scannedFiles int
+	seenDirs := map[string]bool{}
 	var details []string
 
 	scanDir := func(dir string) {
+		clean := filepath.Clean(dir)
+		if seenDirs[clean] {
+			return
+		}
+		seenDirs[clean] = true
 		_, report, err := extractor.ImportAwarenessDirWithOpts(dir, &bytes.Buffer{}, opts)
 		if err != nil {
 			return
 		}
+		scannedFiles += len(report.Files)
 		for _, f := range report.Skipped() {
 			switch f.Status {
 			case extractor.StatusInvalid:
@@ -386,6 +406,9 @@ func checkYAMLValidity(inputDirs []string, intentDir, svcRepo, agRepo string, to
 	}
 	if intentDir != "" {
 		scanDir(intentDir)
+	}
+	if scannedFiles > 0 {
+		totalFiles = scannedFiles
 	}
 
 	if invalidCount > 0 {
