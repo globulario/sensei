@@ -4962,6 +4962,12 @@ test_symbols:
     package: main
     language: go
     doc: "The leak test: filtering to one domain must never surface another domain's\nnodes — the invariant the whole design exists to protect."
+  - id: golang/server/domain_scope_test.go:TestMultiRepoNodeVisibleInBothScopes
+    file: golang/server/domain_scope_test.go
+    symbol: TestMultiRepoNodeVisibleInBothScopes
+    package: main
+    language: go
+    doc: "A node authored in TWO repos (two aw:repo tags) must be visible when scoped to\nEITHER repo — the forbidden-fix resolve/count bug."
   - id: golang/server/domain_scope_test.go:TestNodeDomainsFromFacts
     file: golang/server/domain_scope_test.go
     symbol: TestNodeDomainsFromFacts
