@@ -629,6 +629,10 @@ func ImportAwarenessDirWithOpts(docsDir string, w io.Writer, opts ImportDirOptio
 	if err != nil {
 		return e, report, fmt.Errorf("walk %s: %w", docsDir, err)
 	}
+	// Attribute the structural extractor output (SourceFile, CodeSymbol, Test, …)
+	// to DefaultRepo too — those nodes never call emitDomainScope, so without this
+	// they'd leak into the untagged home domain. No-op when DefaultRepo is empty.
+	e.FinalizeDefaultScope()
 	if err := e.Flush(); err != nil {
 		return e, report, fmt.Errorf("flush: %w", err)
 	}
