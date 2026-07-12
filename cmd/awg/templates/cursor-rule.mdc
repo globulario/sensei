@@ -7,6 +7,19 @@ This project uses Sensei to prevent architectural drift. Before editing files,
 consult the awareness graph — the invariants, forbidden fixes, and required tests
 that no diff shows.
 
+General discipline for every change (from Andrej Karpathy's observations on LLM
+coding failures):
+
+- **Think before coding** — state assumptions, ask when ambiguous, push back if
+  simpler, stop when confused.
+- **Simplicity first** — the minimum code that solves it; no speculative
+  abstractions.
+- **Surgical changes** — touch only what the task needs; don't refactor what
+  isn't broken.
+- **Goal-driven** — turn a vague ask into a verifiable target before writing.
+
+Then, for this repo specifically:
+
 - Run `sensei briefing --file <path>` before modifying a file listed in
   `docs/awareness/high_risk_files.yaml`; it returns that file's invariants,
   failure modes, forbidden fixes, and required tests.

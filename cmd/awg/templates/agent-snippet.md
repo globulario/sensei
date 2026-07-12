@@ -5,6 +5,25 @@ architectural drift. Before editing files, consult the awareness graph — it ho
 the invariants, failure modes, forbidden fixes, and required tests that no diff
 shows.
 
+### Behavioral guidelines
+
+General discipline for every change (paraphrased from Andrej Karpathy's
+observations on how LLMs fail at coding — the popular
+[`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills)
+file). Sensei adds the *repo-specific* rules below; these are the *general* ones:
+
+1. **Think before coding.** State assumptions out loud. If the request is
+   ambiguous, ask. If a simpler approach exists, push back. When confused, stop
+   and name what is unclear — do not just pick one interpretation and run.
+2. **Simplicity first.** Write the minimum code that solves the problem — no
+   speculative abstractions, no flexibility nobody asked for.
+3. **Surgical changes.** Touch only what the task requires. Do not improve
+   neighboring code or refactor what is not broken; every changed line traces
+   back to the request.
+4. **Goal-driven execution.** Turn a vague instruction into a verifiable target
+   first — "add validation" becomes "write tests for invalid inputs, then pass
+   them."
+
 ### Rules
 
 1. **Consult before editing high-risk files.** Run `sensei briefing --file <path>`

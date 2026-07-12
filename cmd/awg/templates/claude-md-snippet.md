@@ -3,6 +3,28 @@
 This project uses Sensei to prevent architectural drift. Before editing files
 in protected directories, consult the awareness graph.
 
+### Behavioral guidelines
+
+General discipline that applies to every change (paraphrased from Andrej
+Karpathy's observations on how LLMs fail at coding — the popular
+[`andrej-karpathy-skills`](https://github.com/forrestchang/andrej-karpathy-skills)
+CLAUDE.md). Sensei adds the *repo-specific* rules below; these are the *general*
+ones:
+
+1. **Think before coding.** State your assumptions out loud. If the request is
+   ambiguous, ask. If a simpler approach exists, push back. When you are
+   confused, stop and name what is unclear — do not pick one interpretation and
+   run with it.
+2. **Simplicity first.** Write the minimum code that solves the problem. No
+   speculative abstractions, no flexibility nobody asked for. Would a senior
+   engineer call this overcomplicated?
+3. **Surgical changes.** Touch only what the task requires. Do not improve
+   neighboring code or refactor what is not broken. Every changed line should
+   trace back to the request.
+4. **Goal-driven execution.** Turn a vague instruction into a verifiable target
+   before writing a line. "Add validation" becomes "write tests for invalid
+   inputs, then make them pass."
+
 ### Rules
 
 1. **Call briefing before editing high-risk files.** Run `sensei briefing --file <path>`
