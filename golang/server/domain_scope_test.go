@@ -101,12 +101,18 @@ func TestEmbeddedClassScoped(t *testing.T) {
 	}
 	st := embeddedSeedStore{g: g}
 
-	// ClassNodeDomains: raw domain per node.
+	// ClassNodeDomains: the SET of domains per node.
 	nd, err := st.ClassNodeDomains(t.Context(), inv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nd["i:a1"] != "repo/a" || nd["i:b1"] != "repo/b" || nd["i:home"] != "" || nd["i:sh"] != "shared" {
+	first := func(v []string) string {
+		if len(v) == 0 {
+			return ""
+		}
+		return v[0]
+	}
+	if first(nd["i:a1"]) != "repo/a" || first(nd["i:b1"]) != "repo/b" || len(nd["i:home"]) != 0 || first(nd["i:sh"]) != "shared" {
 		t.Errorf("ClassNodeDomains = %v", nd)
 	}
 
@@ -129,6 +135,41 @@ func TestEmbeddedClassScoped(t *testing.T) {
 	}
 	if got["i:home"] {
 		t.Error("LEAK: home node in repo/a scope")
+	}
+}
+
+// A node authored in TWO repos (two aw:repo tags) must be visible when scoped to
+// EITHER repo — the forbidden-fix resolve/count bug.
+func TestMultiRepoNodeVisibleInBothScopes(t *testing.T) {
+	// anyDomainInScope is the count/list predicate.
+	dual := []string{"repo/a", "repo/b"}
+	if !anyDomainInScope(dual, "home", "repo/a") {
+		t.Error("dual-repo node not in scope repo/a")
+	}
+	if !anyDomainInScope(dual, "home", "repo/b") {
+		t.Error("dual-repo node not in scope repo/b")
+	}
+	if anyDomainInScope(dual, "home", "repo/c") {
+		t.Error("LEAK: dual-repo node in unrelated scope repo/c")
+	}
+	if !anyDomainInScope(nil, "home", "home") {
+		t.Error("untagged node not in home scope")
+	}
+
+	// nodeInScopeFromTriples is the resolve predicate — same node, as triples.
+	triples := []store.Triple{
+		{Predicate: rdf.PropRepo, Object: "repo/a"},
+		{Predicate: rdf.PropRepo, Object: "repo/b"},
+		{Predicate: rdf.PropDomain, Object: rdf.DomainRepo},
+	}
+	if !nodeInScopeFromTriples(triples, "home", "repo/a") {
+		t.Error("resolve: dual-repo node not in scope repo/a")
+	}
+	if !nodeInScopeFromTriples(triples, "home", "repo/b") {
+		t.Error("resolve: dual-repo node not in scope repo/b")
+	}
+	if nodeInScopeFromTriples(triples, "home", "repo/c") {
+		t.Error("resolve LEAK: dual-repo node in unrelated scope repo/c")
 	}
 }
 
