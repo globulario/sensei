@@ -207,6 +207,7 @@ Flags:
 			importCfg = c
 		}
 	}
+	var igComponents []importgraph.Component // kept for boundary inference below
 	for _, lang := range importgraph.Languages() {
 		idoc, ierr := importgraph.Scan(root, lang, importCfg)
 		if ierr != nil {
@@ -217,6 +218,7 @@ Flags:
 			rep.importEdges += len(c.DependsOn)
 			rep.importEdgesClassified += len(c.ReadsFrom) + len(c.WritesTo) + len(c.ExposesContracts)
 		}
+		igComponents = append(igComponents, idoc.Components...)
 		comps = mergeImportGraphComponents(comps, idoc.Components)
 	}
 	rep.components = len(comps)
@@ -395,8 +397,21 @@ Flags:
 			}
 		}
 	}
-	// boundary candidates remain unimplemented (kept honest, per scope).
-	rep.notes = append(rep.notes, "boundary candidates: not implemented yet")
+	// Boundary candidates inferred from the import graph: Go internal/ visibility
+	// boundaries (compiler-enforced) and contract-exposure API seams. Conservative,
+	// status: candidate, never promoted.
+	if bnds := extractBoundaryCandidates(igComponents); len(bnds) > 0 {
+		rep.candidateBoundaries = len(bnds)
+		if writeCands {
+			if data, rerr := renderGenerated("Boundary candidates inferred from the import graph (assertion: inferred, status: candidate).", boundaryCandidateDoc{Boundaries: bnds}); rerr != nil {
+				rep.notes = append(rep.notes, "boundary candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "boundary candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "boundary_candidates.yaml"), data, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "boundary candidates: write: "+werr.Error())
+			}
+		}
+	}
 
 	// ── Stage 7: gates ──
 	if !*check {
@@ -666,6 +681,7 @@ type bootstrapReport struct {
 	candidatePatterns     int
 	candidateMisuses      int
 	candidateAuthority    int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
+	candidateBoundaries   int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
 	historyCandidates     int // -1 = skipped
 	validationFindings    int
 	validationByCheck     map[string]int
@@ -719,6 +735,7 @@ func (r *bootstrapReport) print(w *os.File) {
 	fmt.Fprintf(w, "  candidate patterns found:   %d\n", r.candidatePatterns)
 	fmt.Fprintf(w, "  candidate misuses found:    %d\n", r.candidateMisuses)
 	fmt.Fprintf(w, "  authority surfaces found:   %d\n", r.candidateAuthority)
+	fmt.Fprintf(w, "  boundary candidates found:  %d\n", r.candidateBoundaries)
 	fmt.Fprintf(w, "  history-derived candidates: %s\n", hist)
 	fmt.Fprintf(w, "  validation findings:        %d\n", r.validationFindings)
 	if len(r.validationByCheck) > 0 {
