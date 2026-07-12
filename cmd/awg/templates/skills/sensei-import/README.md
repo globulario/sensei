@@ -1,9 +1,9 @@
 # Sensei Import Skill
 
 A managed skill that teaches an agent to onboard a repository into Sensei in one
-guided run: clone, choose extraction depth, extract structure, mine day-0
-history/PR signals, build a domain-scoped graph slice, verify, and stop at human
-promotion.
+guided run: clone, choose extraction depth, extract the contract layer (LLM
+intent/contract grounding), extract structure, mine day-0 history/PR signals,
+build a domain-scoped graph slice, verify, and stop at human promotion.
 
 It exists so that "import gin" (or a bare git URL) becomes a safe, repeatable
 pipeline instead of a sequence of CLI commands the operator has to remember and
