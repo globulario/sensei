@@ -81,9 +81,10 @@ irm https://raw.githubusercontent.com/globulario/sensei/main/install.ps1 | iex
 ```
 
 It detects your platform (`linux-amd64/arm64`, `darwin-arm64`, `windows-amd64`),
-downloads and checksum-verifies the matching release, installs the binaries onto
-your PATH, and prints the MCP config to hand your agent. Pin a version with
-`SENSEI_VERSION=v1.1.1`, or change the target dir with `SENSEI_PREFIX=…`.
+downloads and checksum-verifies the matching release, and installs the binaries
+onto your PATH (then run `sensei init --mcp` in your repo to wire up your agent).
+Pin a version with `SENSEI_VERSION=v1.2.0`, or change the target dir with
+`SENSEI_PREFIX=…`.
 
 Or via a **package manager** (you get `upgrade` for free):
 
@@ -126,8 +127,25 @@ Git Bash or WSL.
 Everything below is something you say to your coding agent. Sensei does the work;
 the agent drives it and then benefits from it.
 
-**1. Give the agent the Sensei tools.** Add the MCP server the installer printed
-to your client config (Claude Code: `.mcp.json` at the repo root):
+**1. Wire your agent up — one command.** From your repo:
+
+```bash
+sensei init --mcp
+```
+
+This configures whatever agent tool you use — additively, and it never
+overwrites your existing rules (re-running is idempotent):
+
+- **CLAUDE.md** and **AGENTS.md** — appends a Sensei section (the cross-tool
+  `AGENTS.md` convention is read by Codex, Cursor, Amp, and others).
+- **`.cursor/rules/sensei.mdc`** — a Cursor rule.
+- **`.claude/hooks/`** — the PreToolUse push/guard hooks.
+- **`.mcp.json`** (with `--mcp`) — writes/merges the `sensei` MCP server,
+  resolving the `awareness-mcp` path for you; it never clobbers other servers.
+
+Toggle any surface with `--claude-md` / `--agents-md` / `--cursor` / `--hooks`
+(default on) and `--mcp` (opt-in). Prefer to add the MCP server by hand? Put this
+in `.mcp.json` at the repo root (Claude Code):
 
 ```json
 {
@@ -323,7 +341,7 @@ The **[full CLI reference](docs/cli-reference.md)** documents every command and 
 | Command | What it does |
 |---|---|
 | `sensei bootstrap --repo .` | Extract a repo's architecture into `docs/awareness/` |
-| `sensei init` | Scaffold a project (YAML templates, agent hooks, CLAUDE.md) |
+| `sensei init` | Scaffold a project (YAML templates) + wire agent tools (CLAUDE.md, AGENTS.md, Cursor, hooks; `--mcp` for `.mcp.json`) |
 | `sensei serve` | Start Oxigraph + the gRPC server |
 | `sensei build` | Compile `docs/awareness/` into the store |
 | `sensei repo-eval` | Evaluate architecture + awareness quality |
