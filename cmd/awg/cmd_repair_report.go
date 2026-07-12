@@ -329,7 +329,7 @@ func generateRepairReport(opts repairReportOptions) (governedRepairReport, error
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	metadataResp, metadataErr := repairReportMetadata(ctx, opts.Addr)
+	metadataResp, metadataErr := repairReportMetadata(ctx, opts.Addr, "")
 	if metadataErr != nil {
 		if isProjectPlaneUnavailable(metadataErr) {
 			report.Authority = repairAuthoritySummary{State: repairClassificationProjectPlaneUnavailable}

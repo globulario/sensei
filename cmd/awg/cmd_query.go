@@ -30,6 +30,7 @@ func runQuery(args []string) int {
 	file := fs.String("file", "", "repo-relative path (for mode=by_file)")
 	id := fs.String("id", "", "class-qualified id (for mode=by_id/related)")
 	class := fs.String("class", "", "class name (for mode=by_class)")
+	domain := fs.String("domain", "", "scope by_class/by_file results to a domain/repo (e.g. github.com/globulario/services)")
 	limit := fs.Int("limit", 50, "maximum rows")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
@@ -67,10 +68,11 @@ Flags:
 		return 2
 	}
 	req := &awarenesspb.QueryRequest{
-		Mode:  qm,
-		File:  *file,
-		Id:    *id,
-		Limit: int32(*limit),
+		Mode:   qm,
+		File:   *file,
+		Id:     *id,
+		Limit:  int32(*limit),
+		Domain: *domain,
 	}
 	if *class != "" {
 		qc, ok := parseQueryClass(*class)

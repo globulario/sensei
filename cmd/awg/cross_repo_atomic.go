@@ -25,7 +25,7 @@ func requireBenchmarkAuthority(ctx context.Context, addr, agRepo, svcRepo string
 			metaCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 		}
-		resp, err := metadataRPC(metaCtx, addr)
+		resp, err := metadataRPC(metaCtx, addr, "")
 		if err == nil {
 			return validateLiveBenchmarkAuthority(resp)
 		}

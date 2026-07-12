@@ -146,7 +146,7 @@ func TestRunRepairReport_WritesArtifact(t *testing.T) {
 		repairReportPreflight = prevPreflight
 		repairReportEditCheck = prevEdit
 	}()
-	repairReportMetadata = func(context.Context, string) (*awarenesspb.MetadataResponse, error) {
+	repairReportMetadata = func(context.Context, string, string) (*awarenesspb.MetadataResponse, error) {
 		return &awarenesspb.MetadataResponse{
 			GraphFreshnessState:        awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
 			BuildProvenanceState:       awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED,
@@ -233,7 +233,7 @@ func TestGenerateRepairReport_BackingStoreUnavailable(t *testing.T) {
 
 	prevMeta := repairReportMetadata
 	defer func() { repairReportMetadata = prevMeta }()
-	repairReportMetadata = func(context.Context, string) (*awarenesspb.MetadataResponse, error) {
+	repairReportMetadata = func(context.Context, string, string) (*awarenesspb.MetadataResponse, error) {
 		return nil, status.Error(codes.Unavailable, "store is unavailable")
 	}
 	report, err := generateRepairReport(repairReportOptions{
@@ -259,7 +259,7 @@ func TestGenerateRepairReport_StaleAuthorityArtifact(t *testing.T) {
 		repairReportMetadata = prevMeta
 		repairReportPreflight = prevPreflight
 	}()
-	repairReportMetadata = func(context.Context, string) (*awarenesspb.MetadataResponse, error) {
+	repairReportMetadata = func(context.Context, string, string) (*awarenesspb.MetadataResponse, error) {
 		return &awarenesspb.MetadataResponse{
 			GraphFreshnessState:        awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_STALE,
 			BuildProvenanceState:       awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED,

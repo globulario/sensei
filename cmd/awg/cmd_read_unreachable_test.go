@@ -64,7 +64,7 @@ func TestRunResolve_DistinguishesBackendUnreachableFromNoResults(t *testing.T) {
 
 func TestRunMetadata_DistinguishesBackendUnreachableFromNoResults(t *testing.T) {
 	prev := metadataRPC
-	metadataRPC = func(context.Context, string) (*awarenesspb.MetadataResponse, error) {
+	metadataRPC = func(context.Context, string, string) (*awarenesspb.MetadataResponse, error) {
 		return nil, status.Error(codes.Unavailable, "connection refused")
 	}
 	defer func() { metadataRPC = prev }()
