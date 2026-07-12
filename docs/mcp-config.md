@@ -20,9 +20,16 @@ Terminal 2:
 go run ./cmd/awareness-mcp -awareness-addr localhost:10120
 ```
 
+## Automated (recommended)
+
+`sensei init --mcp` writes or merges the `sensei` MCP server into `.mcp.json` at
+your repo root, resolving the `awareness-mcp` bridge path for you. It never
+clobbers other servers or an existing `sensei` entry, so it is safe to re-run.
+
 ## Generic MCP config snippet
 
-Use this as a template for any MCP-capable client that launches stdio servers:
+To configure it by hand, use this as a template for any MCP-capable client that
+launches stdio servers:
 
 ```json
 {

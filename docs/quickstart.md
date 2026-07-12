@@ -38,7 +38,7 @@ no Docker, no separate store to administer. Full options: [../INSTALL.md](../INS
 
 ```bash
 cd /path/to/your-project
-sensei init
+sensei init --mcp
 ```
 
 This creates:
@@ -50,10 +50,18 @@ docs/awareness/
   high_risk_files.yaml      # Files requiring briefing
   activation_rules.yaml     # When briefing is required
   meta_principles.yaml      # 133 portable principles, 8 categories (seed)
-.sensei/config.yaml            # Sensei configuration
-.claude/hooks/              # Claude Code enforcement hooks
-CLAUDE.md                   # Updated with Sensei section
+.sensei/config.yaml         # Sensei configuration
+.claude/hooks/              # Claude Code enforcement + push hooks
+CLAUDE.md                   # Sensei section appended (existing content kept)
+AGENTS.md                   # Sensei section appended (Codex/Cursor/others)
+.cursor/rules/sensei.mdc    # Cursor rule
+.mcp.json                   # Sensei MCP server merged in (only with --mcp)
 ```
+
+It's **additive and idempotent** — existing rules are preserved, re-running
+never duplicates, and other MCP servers are never clobbered. Toggle any surface
+with `--claude-md` / `--agents-md` / `--cursor` / `--hooks` (default on); `--mcp`
+is opt-in. Drop it to skip touching `.mcp.json`.
 
 ## Step 3: Define your high-risk files
 

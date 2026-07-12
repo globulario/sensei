@@ -41,18 +41,24 @@ sensei version              # print version and exit
 
 ### `sensei init` — Local
 
-Scaffold awareness for a new project.
+Scaffold awareness for a new project **and wire up your agent tools**.
 
 | Flag | Default | Purpose |
 |---|---|---|
 | `--dir` | `.` | project root |
 | `--hooks` | `true` | generate Claude Code hook scripts under `.claude/hooks/` |
 | `--claude-md` | `true` | append the Sensei section to `CLAUDE.md` (idempotent) |
+| `--agents-md` | `true` | append the Sensei section to `AGENTS.md` (Codex/Cursor/others; idempotent) |
+| `--cursor` | `true` | write a Cursor rule at `.cursor/rules/sensei.mdc` (skipped if it exists) |
+| `--mcp` | `false` | write/merge the `sensei` MCP server into `.mcp.json` (never clobbers other servers) |
 
 Creates `docs/awareness/` with templates (`invariants.yaml`,
 `failure_modes.yaml`, `incident_patterns.yaml`, `high_risk_files.yaml`,
-`activation_rules.yaml`, and the **98-principle** `meta_principles.yaml` pack),
-plus `.sensei/config.yaml`. Prints created files and next steps.
+`activation_rules.yaml`, and the `meta_principles.yaml` pack), plus
+`.sensei/config.yaml`. Then wires the agent surfaces above — **additively and
+idempotently**: existing rules are preserved, re-running never duplicates, and an
+existing `sensei` MCP entry is left untouched. Prints created files and next
+steps.
 
 ### `sensei bootstrap` — Local
 
