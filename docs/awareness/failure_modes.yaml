@@ -218,3 +218,32 @@ failure_modes:
     evidence:
       - 'awg audit embeddata-freshness FAIL: component.scripts authoredIn /tmp/awg-services-generated-2297933849/components.yaml then .../492872674/... on the next run'
     contract: provenance (authoredIn) for staged/filtered generated inputs must be a stable repo-relative path; a per-run absolute temp path makes embeddata-freshness / 'awg rebuild --check' non-deterministic and permanently red
+  - id: failure.repo_sends_a_foreign_import_to_the_wrong_place_it_is_a_check
+    title: '--repo sends a foreign import to the wrong place: it is a checkout PATH on bootstrap/cold-bootstrap/intent-mine but a DOMAIN on build'
+    severity: warning
+    description: The --repo flag is command-scoped. On the extractors (sensei bootstrap, cold-bootstrap, intent-mine) it names a filesystem checkout path; on sensei build it names the domain tag applied to untagged nodes. Passing a domain to an extractor makes it look for a directory named after the domain; passing a path to build tags every node with a filesystem path instead of the intended domain.
+    protects:
+      files:
+        - cmd/awg/cmd_bootstrap.go
+        - cmd/awg/cmd_build.go
+        - cmd/awg/cmd_import.go
+    forbidden_fix:
+      - Passing a domain string to `sensei bootstrap`/`cold-bootstrap`/`intent-mine --repo`, or a filesystem path to `sensei build --repo`.
+    evidence:
+      - 'gin import dogfooding: the first sensei-import skill draft used `sensei bootstrap --repo github.com/gin-gonic/gin`, which bootstrap resolves as a filesystem path (a dir named after the domain), not a domain tag.'
+      - 'The one-command `sensei import` wrapper now encodes the correct split: it forwards the checkout path to the extractors and the domain to build.'
+    contract: 'The --repo flag''s meaning is command-dependent: a checkout PATH for the extractors (bootstrap/cold-bootstrap/intent-mine), a DOMAIN tag for build. A caller must never pass a domain to an extractor or a path to build.'
+  - id: failure.forwarding_graph_transaction_file_when_loading_a_foreign_onl
+    title: Forwarding --graph-transaction-file when loading a foreign-only scoped slice turns the expected uncertified transaction into a hard build failure
+    severity: warning
+    description: A foreign-only domain slice (sensei build --repo <foreign-domain>) carries no seed marker, so its runtime transaction cannot be certified. The graph marker is written BEFORE the transaction publish, so a served store stays fresh for briefing regardless. But requesting a transaction file makes the missing-seed-marker a hard error (exit 1), even though the triples loaded and the briefing serves. Omitting the transaction file makes it a soft skip (transaction=uncertified) while the load succeeds and returns 0.
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+        - cmd/awg/cmd_import.go
+    forbidden_fix:
+      - Passing --graph-transaction-file to a foreign-only scoped `sensei build --repo` load, or otherwise treating a missing seed marker on a foreign slice as a hard failure.
+    evidence:
+      - 'gin import: passing --graph-transaction-file produced ''publish runtime transaction: validated graph artifact carries no seed marker'' and exit 1, even though triples loaded and the briefing served the real intents.'
+      - Omitting the transaction file (forwarding only --graph-marker-file) gave exit 0 with the same successful briefing on context.go.
+    contract: Loading a foreign-only scoped slice must succeed and keep a served store fresh for briefing; its runtime transaction is uncertified by design (no seed marker). Only the graph marker is required for freshness; a transaction file must not be requested for a foreign-only slice, or the expected uncertified state becomes a hard failure.
