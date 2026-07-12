@@ -4,6 +4,7 @@ package coldsource
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -147,5 +148,51 @@ func TestExtract_EndToEnd_Echo(t *testing.T) {
 	}
 	if !sawGrounded {
 		t.Error("expected at least one candidate to ground at >= landed_behavior (real code/proto/test anchors exist)")
+	}
+}
+
+// TestGatherExcludesSenseiScaffolding proves the intent gatherer never mines
+// Sensei's own scaffolded charter as if the target repo authored it: the
+// `## Sensei` section appended to CLAUDE.md/AGENTS.md, the awareness/intent
+// corpus, and the .sensei/.claude/.agents/.cursor skill trees are all excluded,
+// while the repo's own charter in those same files is still read.
+func TestGatherExcludesSenseiScaffolding(t *testing.T) {
+	dir := t.TempDir()
+
+	// A repo CLAUDE.md with the repo's OWN rule, then Sensei's appended section.
+	writeFile(t, dir, "CLAUDE.md",
+		"# Project\nThe scheduler must never run two jobs for one lease.\n\n"+
+			"## Sensei\n\nChanges must be surgical: touch only what the task requires.\n"+
+			"### Rules\nRequired tests must pass before commit.\n")
+	// AGENTS.md that is ONLY Sensei's section (as `sensei init` creates it fresh).
+	writeFile(t, dir, "AGENTS.md",
+		"## Sensei\nYou must consult the awareness graph. Never bypass authority.\n")
+	// Sensei's scaffolded corpus + a skill file, all rule-dense.
+	writeFile(t, dir, "docs/awareness/invariants.yaml",
+		"# invariants\n- title: must never drop the seed\n")
+	writeFile(t, dir, ".claude/skills/sensei-architect/SKILL.md",
+		"You must block on contract violations. Never treat EMPTY as safe.\n")
+
+	ex := GatherIntentExcerpts(dir, []string{"docs", "comments", "schemas", "tests"}, nil, 0)
+
+	var repoOwn bool
+	for _, e := range ex {
+		if strings.Contains(e.Text, "scheduler must never run two jobs") {
+			repoOwn = true
+		}
+		for _, leak := range []string{
+			"Changes must be surgical",
+			"Required tests must pass",
+			"consult the awareness graph",
+			"must never drop the seed",
+			"block on contract violations",
+		} {
+			if strings.Contains(e.Text, leak) {
+				t.Errorf("Sensei scaffolding leaked into intent excerpts via %s: %q", e.Citation, e.Text)
+			}
+		}
+	}
+	if !repoOwn {
+		t.Fatal("repo's own charter line (before the ## Sensei section) was not gathered")
 	}
 }
