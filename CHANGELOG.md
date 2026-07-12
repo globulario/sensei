@@ -3,6 +3,23 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v1.2.1 — init wires every agent tool
+
+- **`sensei init` sets up all your agent surfaces, not just Claude Code.** It now
+  writes **AGENTS.md** (the cross-tool convention Codex/Cursor/others read), a
+  **Cursor rule** (`.cursor/rules/sensei.mdc`), and — with `--mcp` — writes or
+  merges the `sensei` server into **`.mcp.json`** (resolving the `awareness-mcp`
+  path; never clobbering other servers). All additive and idempotent: existing
+  rules are preserved and re-running never duplicates. Flags `--agents-md` /
+  `--cursor` (default on), `--mcp` (opt-in).
+- **General behavioral guidelines in the init snippets.** The CLAUDE.md /
+  AGENTS.md / Cursor files also carry four general coding-discipline rules (Think
+  before coding · Simplicity first · Surgical changes · Goal-driven — paraphrased
+  and credited to Andrej Karpathy's observations), so `sensei init` gives you
+  general agent discipline *and* your repo's architectural memory in one command.
+- Domain-scoped `Metadata`/`Query` and the `edit-brief` push hook (from v1.2.0)
+  are included.
+
 ## v1.2.0 — edit-brief push hook + domain scoping
 
 - **`sensei edit-brief`** — a Claude Code PreToolUse *push* hook: it hands the
