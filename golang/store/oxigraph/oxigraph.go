@@ -290,6 +290,12 @@ func (c *Client) ClassFacts(ctx context.Context, classIRI string, limit int) ([]
 }`,
 		classIRI, limit,
 	)
+	return c.classFactsFromQuery(ctx, q, classIRI)
+}
+
+// classFactsFromQuery runs a SELECT ?node ?p ?o query and decodes it into
+// ImpactFacts (shared by ClassFacts and ClassFactsScoped).
+func (c *Client) classFactsFromQuery(ctx context.Context, q, classIRI string) ([]store.ImpactFact, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {
 		return nil, fmt.Errorf("oxigraph class facts: build request: %w", err)
@@ -577,6 +583,99 @@ func (c *Client) Domains(ctx context.Context) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// ClassNodeDomains returns every node of classIRI with its raw domain
+// attribution, UNCAPPED — for accurate domain-scoped counting and filtering
+// (unlike ClassFacts, which caps at 300). The value is the aw:repo literal when
+// present, "shared" when aw:domain is shared, else "" for an untagged node (the
+// caller applies the home-domain default). Nodes with no repo/domain still
+// appear (with "") via the OPTIONAL join.
+func (c *Client) ClassNodeDomains(ctx context.Context, classIRI string) (map[string]string, error) {
+	q := fmt.Sprintf(`SELECT ?node ?repo ?dom WHERE {
+    ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .
+    OPTIONAL { ?node <https://globular.io/awareness#repo> ?repo }
+    OPTIONAL { ?node <https://globular.io/awareness#domain> ?dom }
+  }`, classIRI)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph class-node-domains: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph class-node-domains: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("oxigraph class-node-domains: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var result struct {
+		Results struct {
+			Bindings []struct {
+				Node struct{ Value string } `json:"node"`
+				Repo struct{ Value string } `json:"repo"`
+				Dom  struct{ Value string } `json:"dom"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("oxigraph class-node-domains: decode: %w", err)
+	}
+	out := make(map[string]string, len(result.Results.Bindings))
+	for _, b := range result.Results.Bindings {
+		if b.Node.Value == "" {
+			continue
+		}
+		// repo wins; else shared marker; else leave "" (untagged → home).
+		if _, seen := out[b.Node.Value]; !seen {
+			out[b.Node.Value] = ""
+		}
+		if b.Repo.Value != "" && out[b.Node.Value] != "shared" {
+			out[b.Node.Value] = b.Repo.Value
+		}
+		if b.Dom.Value == "shared" {
+			out[b.Node.Value] = "shared"
+		}
+	}
+	return out, nil
+}
+
+// ClassFactsScoped is ClassFacts restricted to nodes visible to a domain scope:
+// its selection subquery applies the domain filter (shared always; a repo node
+// only when its aw:repo matches; an untagged node only when the scope is the
+// home domain) so the LIMIT lands on in-scope nodes, not an arbitrary page.
+// Mirrors the InScope core (golang/server/scope.go).
+func (c *Client) ClassFactsScoped(ctx context.Context, classIRI, domain, home string, limit int) ([]store.ImpactFact, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 300 {
+		limit = 300
+	}
+	q := fmt.Sprintf(
+		`SELECT ?node ?p ?o WHERE {
+  {
+    SELECT DISTINCT ?node WHERE {
+      ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .
+      OPTIONAL { ?node <https://globular.io/awareness#repo> ?repo }
+      OPTIONAL { ?node <https://globular.io/awareness#domain> ?dom }
+      FILTER(
+        (BOUND(?dom) && ?dom = "shared") ||
+        (BOUND(?repo) && ?repo = "%s") ||
+        (!BOUND(?repo) && (!BOUND(?dom) || ?dom != "shared") && "%s" = "%s")
+      )
+    }
+    ORDER BY ?node
+    LIMIT %d
+  }
+  OPTIONAL { ?node ?p ?o . }
+}`,
+		classIRI, domain, home, domain, limit,
+	)
+	return c.classFactsFromQuery(ctx, q, classIRI)
 }
 
 // Subjects returns every distinct subject IRI in the default graph. Blank-node

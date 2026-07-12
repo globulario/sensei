@@ -85,6 +85,53 @@ func TestKeepIRIsInScope_NoCrossDomainLeak(t *testing.T) {
 	}
 }
 
+func TestEmbeddedClassScoped(t *testing.T) {
+	// Two invariants tagged to repo A, one to repo B, one untagged (→ home),
+	// one shared. Class = Invariant.
+	inv := rdf.ClassInvariant
+	g := &seedGraph{
+		bySubject: map[string][]seedTriple{
+			"i:a1":   {{pred: rdf.PropType, obj: inv, isIRI: true}, {pred: rdf.PropRepo, obj: "repo/a"}},
+			"i:a2":   {{pred: rdf.PropType, obj: inv, isIRI: true}, {pred: rdf.PropRepo, obj: "repo/a"}},
+			"i:b1":   {{pred: rdf.PropType, obj: inv, isIRI: true}, {pred: rdf.PropRepo, obj: "repo/b"}},
+			"i:home": {{pred: rdf.PropType, obj: inv, isIRI: true}},
+			"i:sh":   {{pred: rdf.PropType, obj: inv, isIRI: true}, {pred: rdf.PropDomain, obj: rdf.DomainShared}},
+		},
+		byClass: map[string][]string{inv: {"i:a1", "i:a2", "i:b1", "i:home", "i:sh"}},
+	}
+	st := embeddedSeedStore{g: g}
+
+	// ClassNodeDomains: raw domain per node.
+	nd, err := st.ClassNodeDomains(t.Context(), inv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nd["i:a1"] != "repo/a" || nd["i:b1"] != "repo/b" || nd["i:home"] != "" || nd["i:sh"] != "shared" {
+		t.Errorf("ClassNodeDomains = %v", nd)
+	}
+
+	// ClassFactsScoped to repo/a → a1 + a2 + shared (not b1, not home).
+	facts, err := st.ClassFactsScoped(t.Context(), inv, "repo/a", "home", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, f := range facts {
+		got[f.NodeIRI] = true
+	}
+	for _, want := range []string{"i:a1", "i:a2", "i:sh"} {
+		if !got[want] {
+			t.Errorf("repo/a scope missing %s", want)
+		}
+	}
+	if got["i:b1"] {
+		t.Error("LEAK: repo/b node in repo/a scope")
+	}
+	if got["i:home"] {
+		t.Error("LEAK: home node in repo/a scope")
+	}
+}
+
 func TestEmbeddedSeedStoreDomains(t *testing.T) {
 	g := &seedGraph{
 		bySubject: map[string][]seedTriple{
