@@ -225,7 +225,12 @@ func verifyLoadedGraph(storeEndpoint string, ntBytes []byte) error {
 	if err != nil {
 		return fmt.Errorf("parse store endpoint: %w", err)
 	}
-	u.Path = strings.TrimSuffix(u.Path, "/store") + "/query"
+	// Build the SPARQL query endpoint from whatever endpoint shape we were given
+	// — the reload URL (.../store, .../store?default) OR an already-query URL
+	// (.../query). Strip a trailing /store or /query (and any trailing slash)
+	// before appending /query, so we never produce ".../query/query" (which
+	// Oxigraph rejects with 404). Mirrors reloadOxigraphStore's normalization.
+	u.Path = queryEndpointPath(u.Path)
 	u.RawQuery = ""
 	client, err := oxigraph.New(u.String())
 	if err != nil {
@@ -239,6 +244,16 @@ func verifyLoadedGraph(storeEndpoint string, ntBytes []byte) error {
 		return fmt.Errorf("%s", verification.Detail)
 	}
 	return nil
+}
+
+// queryEndpointPath returns the SPARQL query path for an Oxigraph endpoint path,
+// tolerating a /store, /query, or bare path (with or without a trailing slash).
+// It never doubles the suffix — queryEndpointPath("/query") == "/query".
+func queryEndpointPath(p string) string {
+	p = strings.TrimSuffix(p, "/")
+	p = strings.TrimSuffix(p, "/store")
+	p = strings.TrimSuffix(p, "/query")
+	return p + "/query"
 }
 
 // stringSlice implements flag.Value for repeatable string flags.
