@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+- **Dashboard defaults to the current project by default.** The banner counts,
+  triple count, aspect lists, and the architecture score now scope to *this*
+  repo's domain (derived from the git remote) whenever the graph carries it —
+  re-evaluated on every load, so it self-corrects after the graph is reseeded
+  (previously a one-time check could lock the view to the whole multi-repo
+  graph). Pick "All domains" in the filter for the graph-wide view.
+
 ## 0.1.2
 
 - **Robust domain default.** The dashboard no longer scopes the banner/lists to a
