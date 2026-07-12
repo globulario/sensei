@@ -23,6 +23,12 @@ type domainLister interface {
 	Domains(ctx context.Context) ([]string, error)
 }
 
+// tripleDomainCounter is the optional store capability that counts triples whose
+// subject is in a domain scope (per-repo triple_count).
+type tripleDomainCounter interface {
+	CountTriplesInDomain(ctx context.Context, domain, home string) (int64, error)
+}
+
 // classFactsScoper is the optional store capability that returns a class's facts
 // restricted to a domain scope (LIMIT applied to in-scope nodes). Absent → the
 // server falls back to fetch-then-filter (capped).

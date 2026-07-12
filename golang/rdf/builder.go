@@ -32,15 +32,26 @@ type Emitter struct {
 	DefaultRepo      string
 	DefaultDomain    string
 	DefaultSourceSet string
+
+	// typedSubjects/scopedSubjects support FinalizeDefaultScope: every node the
+	// emitter types is recorded; a node that emits its own aw:domain/aw:repo is
+	// marked scoped. At finalize, typed-but-unscoped nodes adopt DefaultRepo — so
+	// the *structural* extractor output (SourceFile, CodeSymbol, Test, …), which
+	// never calls emitDomainScope, is still attributed to the repo instead of
+	// leaking into the untagged home domain.
+	typedSubjects  map[string]bool
+	scopedSubjects map[string]bool
 }
 
 // NewEmitter wraps w in a buffered writer. Caller must call Flush before
 // closing w.
 func NewEmitter(w io.Writer) *Emitter {
 	return &Emitter{
-		bw:          bufio.NewWriter(w),
-		ByClass:     map[string]int{},
-		ByPredicate: map[string]int{},
+		bw:             bufio.NewWriter(w),
+		ByClass:        map[string]int{},
+		ByPredicate:    map[string]int{},
+		typedSubjects:  map[string]bool{},
+		scopedSubjects: map[string]bool{},
 	}
 }
 
@@ -70,6 +81,11 @@ func (e *Emitter) Triple(s, p, o string) {
 	fmt.Fprintf(e.bw, "%s %s %s .\n", s, p, o)
 	e.Triples++
 	e.ByPredicate[p]++
+	// A node that carries its own domain/repo scope must not be re-scoped by
+	// FinalizeDefaultScope.
+	if e.scopedSubjects != nil && (p == IRI(PropDomain) || p == IRI(PropRepo)) {
+		e.scopedSubjects[s] = true
+	}
 }
 
 // Typed emits the rdf:type triple for subj as cls and records the class
@@ -78,6 +94,26 @@ func (e *Emitter) Triple(s, p, o string) {
 func (e *Emitter) Typed(subj, cls string) {
 	e.Triple(subj, IRI(PropType), IRI(cls))
 	e.ByClass[cls]++
+	if e.typedSubjects != nil {
+		e.typedSubjects[subj] = true
+	}
+}
+
+// FinalizeDefaultScope tags every typed-but-unscoped node with DefaultRepo (as
+// aw:domain "repo" + aw:repo <DefaultRepo>). No-op when DefaultRepo is empty, so
+// home-domain / public self-builds are unchanged. Call once, before Flush, after
+// all nodes for a repo's input have been emitted.
+func (e *Emitter) FinalizeDefaultScope() {
+	if e.DefaultRepo == "" {
+		return
+	}
+	for subj := range e.typedSubjects {
+		if e.scopedSubjects[subj] {
+			continue
+		}
+		e.Triple(subj, IRI(PropDomain), Lit(DomainRepo))
+		e.Triple(subj, IRI(PropRepo), Lit(e.DefaultRepo))
+	}
 }
 
 // IRI renders s as an IRI reference token (<s>). Caller is responsible

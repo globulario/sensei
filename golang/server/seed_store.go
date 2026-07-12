@@ -259,6 +259,28 @@ func (s embeddedSeedStore) Domains(_ context.Context) ([]string, error) {
 	return out, nil
 }
 
+// CountTriplesInDomain counts triples whose subject is in the domain scope — the
+// in-memory analogue of the Oxigraph method.
+func (s embeddedSeedStore) CountTriplesInDomain(_ context.Context, domain, home string) (int64, error) {
+	var n int64
+	for subj, triples := range s.g.bySubject {
+		nd := "" // raw domain: repo value / "shared" / "" untagged
+		for _, t := range triples {
+			if t.pred == rdf.PropRepo && t.obj != "" && nd != rdf.DomainShared {
+				nd = t.obj
+			}
+			if t.pred == rdf.PropDomain && t.obj == rdf.DomainShared {
+				nd = rdf.DomainShared
+			}
+		}
+		_ = subj
+		if InScope(resolvedDomain(nd, home), domain) {
+			n += int64(len(triples))
+		}
+	}
+	return n, nil
+}
+
 // ClassNodeDomains returns every node of a class with its raw domain attribution
 // (aw:repo value, "shared", or "" for untagged), uncapped — the in-memory
 // analogue of the Oxigraph method used for accurate domain-scoped counting.

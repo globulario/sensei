@@ -585,6 +585,51 @@ func (c *Client) Domains(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
+// CountTriplesInDomain counts triples whose SUBJECT is visible to a domain scope
+// — the per-repo analogue of CountTriples. In scope: aw:repo == domain, or a
+// shared node, or (when domain is the home domain) any untagged subject.
+func (c *Client) CountTriplesInDomain(ctx context.Context, domain, home string) (int64, error) {
+	var where string
+	if domain == home {
+		// home: everything not attributed to some other repo (untagged + shared).
+		where = `?s ?p ?o . FILTER NOT EXISTS { ?s <https://globular.io/awareness#repo> ?r }`
+	} else {
+		where = fmt.Sprintf(`?s ?p ?o . { ?s <https://globular.io/awareness#repo> "%s" } UNION { ?s <https://globular.io/awareness#domain> "shared" }`, domain)
+	}
+	q := fmt.Sprintf(`SELECT (COUNT(*) AS ?n) WHERE { %s }`, where)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return 0, fmt.Errorf("oxigraph count-triples-in-domain: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("oxigraph count-triples-in-domain: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return 0, fmt.Errorf("oxigraph count-triples-in-domain: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var result struct {
+		Results struct {
+			Bindings []struct {
+				N struct{ Value string } `json:"n"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, fmt.Errorf("oxigraph count-triples-in-domain: decode: %w", err)
+	}
+	if len(result.Results.Bindings) == 0 {
+		return 0, nil
+	}
+	var n int64
+	fmt.Sscanf(result.Results.Bindings[0].N.Value, "%d", &n)
+	return n, nil
+}
+
 // ClassNodeDomains returns every node of classIRI with its raw domain
 // attribution, UNCAPPED — for accurate domain-scoped counting and filtering
 // (unlike ClassFacts, which caps at 300). The value is the aw:repo literal when

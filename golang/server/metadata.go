@@ -139,7 +139,18 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 		return countClassInScope(facts, s.homeDomain, domain)
 	}
 
-	if n, err := c.CountTriples(ctx); err == nil {
+	// triple_count: graph-wide by default; when a domain is requested and the
+	// store can attribute triples, count only that domain's (each triple by its
+	// subject's domain — repo/shared/home).
+	if domain != "" {
+		if tc, ok := s.store.(tripleDomainCounter); ok {
+			if n, err := tc.CountTriplesInDomain(ctx, domain, s.homeDomain); err == nil {
+				resp.TripleCount = n
+			}
+		} else if n, err := c.CountTriples(ctx); err == nil {
+			resp.TripleCount = n
+		}
+	} else if n, err := c.CountTriples(ctx); err == nil {
 		resp.TripleCount = n
 	}
 	resp.InvariantCount = countClass(rdf.ClassInvariant)
