@@ -397,6 +397,22 @@ Flags:
 			}
 		}
 	}
+	// Invariant candidates from rule-signaling tests: a test whose NAME encodes a
+	// rule (must/never/idempotent/isolation/roundtrip/regression/…) guards an
+	// invariant; the test is its built-in required_test. Example-only tests are
+	// skipped (they prove behavior, not a law). Conservative, status: candidate.
+	if invs := extractInvariantCandidates(tests); len(invs) > 0 {
+		rep.candidateInvariants = len(invs)
+		if writeCands {
+			if data, rerr := renderGenerated("Invariant candidates inferred from rule-signaling test names (assertion: inferred, status: candidate).", invariantCandidateDoc{Invariants: invs}); rerr != nil {
+				rep.notes = append(rep.notes, "invariant candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "invariant candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "invariant_candidates.yaml"), data, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "invariant candidates: write: "+werr.Error())
+			}
+		}
+	}
 	// Boundary candidates inferred from the import graph: Go internal/ visibility
 	// boundaries (compiler-enforced) and contract-exposure API seams. Conservative,
 	// status: candidate, never promoted.
@@ -682,6 +698,7 @@ type bootstrapReport struct {
 	candidateMisuses      int
 	candidateAuthority    int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
 	candidateBoundaries   int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
+	candidateInvariants   int // Invariant candidates inferred from rule-signaling test names
 	historyCandidates     int // -1 = skipped
 	validationFindings    int
 	validationByCheck     map[string]int
@@ -736,6 +753,7 @@ func (r *bootstrapReport) print(w *os.File) {
 	fmt.Fprintf(w, "  candidate misuses found:    %d\n", r.candidateMisuses)
 	fmt.Fprintf(w, "  authority surfaces found:   %d\n", r.candidateAuthority)
 	fmt.Fprintf(w, "  boundary candidates found:  %d\n", r.candidateBoundaries)
+	fmt.Fprintf(w, "  invariant candidates found: %d\n", r.candidateInvariants)
 	fmt.Fprintf(w, "  history-derived candidates: %s\n", hist)
 	fmt.Fprintf(w, "  validation findings:        %d\n", r.validationFindings)
 	if len(r.validationByCheck) > 0 {
