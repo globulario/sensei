@@ -1,6 +1,6 @@
 ---
 name: sensei-import
-description: Use to import, onboard, or bootstrap a repository into Sensei — especially when the user says "import <repo>", gives a git clone URL, or asks to learn/bootstrap a foreign codebase. Drives the full pipeline (clone, choose extraction depth, structural extraction, history/PR mining, domain-scoped graph build, verify) and stops at human promotion. Never auto-promotes candidates and never lets a foreign repo's rules leak into the home graph.
+description: Use to import, onboard, or bootstrap a repository into Sensei — especially when the user says "import <repo>", gives a git clone URL, or asks to learn/bootstrap a foreign codebase. Drives the full pipeline (clone, choose extraction depth, LLM contract/intent extraction, structural extraction, history/PR mining, domain-scoped graph build, verify) and stops at human promotion. Never auto-promotes candidates, never lets a foreign repo's rules leak into the home graph, and never mines Sensei's own scaffolded charter as the target repo's contracts.
 ---
 
 # Sensei Import
@@ -46,6 +46,13 @@ Read these first. They are the reason this is a skill and not a loose script.
 6. **Verify, don't assert.** Do not claim the import "learned the architecture."
    Prove it with `sensei metadata` and a real `sensei briefing`, and report what
    actually surfaced.
+7. **Never let Sensei read itself as the repo's charter.** `sensei bootstrap`
+   scaffolds Sensei's own `CLAUDE.md`/`AGENTS.md`/`docs/awareness/` into the
+   checkout. If contract/intent extraction runs *after* that, it mines Sensei's
+   meta-rules (`surgical changes`, `required tests must pass`, …) back as if the
+   target repo authored them. Always extract contracts on the **pristine clone,
+   before** `bootstrap`. If you must extract later, drop any intent whose
+   `expressed_by` is `CLAUDE.md`/`AGENTS.md`/`docs/awareness/*`.
 
 ## Core loop
 
@@ -63,30 +70,51 @@ Read these first. They are the reason this is a skill and not a loose script.
 
 3. **Choose extraction depth — ask the user unless already specified.**
    Present the two modes plainly:
-   - **Basic** — deterministic structural only. Fast, offline, no `gh`. Extracts
-     proto/contracts, components, code symbols, tests, and the import graph.
-   - **Full** — structural **plus** day-0 history mining: revert/regression
-     commits and PR review comments. Slower, needs full history and (for PR
-     comments) `gh` auth + the `owner/name` slug.
-   If the user's request already names a depth, honor it. If `gh` is
-   unavailable, offer Basic (or Full without PR comments) and explain the gap.
+   - **Basic** — deterministic structural only. Fast, offline, no key. Extracts
+     components, tests, and the import graph (and proto contracts *if* the repo
+     has `.proto` — most Go/TS repos do not, so expect zero). This is a
+     box-and-arrow map, not the contracts.
+   - **Full** — Basic **plus the contract layer**: LLM contract/intent extraction
+     grounded against the code, and (optionally) day-0 history mining
+     (revert/regression commits + PR review comments). This is the layer that
+     makes a briefing architecturally meaningful. Needs `ANTHROPIC_API_KEY`; PR
+     mining also needs full history and `gh` auth + the `owner/name` slug.
+   If the user's request already names a depth, honor it. Degrade honestly: no
+   key → say the contract layer is skipped; no `gh` → skip PR mining.
 
-   > **`--repo` means two different things.** On `sensei bootstrap` and
-   > `sensei cold-bootstrap` it is the **path to the checkout**. On `sensei build`
-   > it is the **domain string**. Do not pass a domain to `bootstrap`/`cold-bootstrap`
-   > or a path to `build`.
+   > **`--repo` means two different things.** On `sensei bootstrap`,
+   > `sensei cold-bootstrap`, and `sensei intent-mine` it is the **path to the
+   > checkout**. On `sensei build` it is the **domain string**. Do not pass a
+   > domain to the extractors or a path to `build`.
 
-4. **Structural extraction — writes YAML into the checkout.**
+4. **Extract the contract layer — Full only, on the PRISTINE clone (before step 5).**
+   Do this first, while the checkout still contains only the target repo's own
+   files (see guardrail 7). `intent-mine`'s `--repo` is the checkout path.
+   - Review first (writes nothing):
+     `sensei intent-mine --repo <checkout-path> --sources docs,comments,tests --drafter llm --max <N>`
+   - Then land it: add `--apply`. Grounded intents at certainty ≥0.80 become
+     `docs/awareness/intent_<id>.yaml`; weaker or divergent ones park under
+     `docs/awareness/candidates/`. Nothing becomes authority — a human still
+     promotes.
+   - Needs `ANTHROPIC_API_KEY` in the environment for `--drafter llm`. Without a
+     key, `--drafter echo` is deterministic but shallow; prefer to skip and say
+     the contract layer was not extracted rather than ship thin guesses.
+   - Sanity-check the output: drop any intent whose `expressed_by` points at
+     `CLAUDE.md`/`AGENTS.md`/`docs/awareness/*` — that is Sensei bleed, not a
+     repo contract.
+
+5. **Structural extraction — writes YAML into the checkout.**
    `bootstrap`'s `--repo` is the checkout path; it writes
    `docs/awareness/generated/*.yaml` inside the cloned repo (scaffolding the repo
-   first if it has no `docs/awareness/`).
+   first if it has no `docs/awareness/` — which is why contract extraction runs
+   *before* this step).
    - Basic: `sensei bootstrap --repo <checkout-path> --skip-history --skip-build`
    - Full (structural pass): `sensei bootstrap --repo <checkout-path> --skip-build`
    - Preview first with `--dry-run` when the repo is large or unfamiliar.
-   `--skip-build` here on purpose: the domain-tagged load happens in step 6
+   `--skip-build` here on purpose: the domain-tagged load happens in step 7
    against the target store, not inside the throwaway checkout.
 
-5. **Day-0 history / PR mining (Full only).**
+6. **Day-0 history / PR mining (Full only).**
    - Online: `sensei cold-bootstrap --repo <checkout-path> --repo-slug <owner/name> --auto-window`
    - Offline PR comments: `sensei cold-bootstrap --repo <checkout-path> --pr-comments <file.json> --auto-window`
    - `--auto-window` widens the commit-scan window (bounded — never full history)
@@ -95,7 +123,7 @@ Read these first. They are the reason this is a skill and not a loose script.
    - Narrow the window explicitly with `--since <ref>` when you already know the
      interesting range.
 
-6. **Load the slice, tagged to the domain, into the target store.**
+7. **Load the slice, tagged to the domain, into the target store.**
    Feed the checkout's awareness dirs as `--input` and tag them with the domain:
    ```
    sensei build --input <checkout>/docs/awareness \
@@ -114,26 +142,28 @@ Read these first. They are the reason this is a skill and not a loose script.
      The briefing still serves; the authority line just reports
      `transaction=uncertified` until a seed-bearing rebuild re-certifies.
 
-7. **Verify what landed.**
+8. **Verify what landed.**
    - `sensei metadata --domain <domain>` — confirm authority, freshness, and node
      counts for the imported domain.
    - `sensei briefing --file <a-real-file-in-the-repo> --domain <domain>` — prove
-     a structural fact or candidate-derived rule actually surfaces for a file the
-     repo owns.
+     a real fact surfaces for a file the repo owns. Pick a file an extracted node
+     actually anchors: a Full import shows contracts (e.g. `intent.*`), a Basic
+     one only components/tests.
 
-8. **Summarize and stop for promotion.**
-   - Report: structural nodes that landed, how many candidates sit in
-     `candidates/` awaiting review, and the honest signal count from mining.
+9. **Summarize and stop for promotion.**
+   - Report: contracts/intents extracted (Full), structural nodes that landed,
+     how many candidates sit in `candidates/` awaiting review, and the honest
+     signal count from mining.
    - Name the next human step: review the candidates and run `sensei promote` on
      the ones that earn authority. Do not promote for them.
 
 ## Refresh vs first import
 
 If the domain is already present (`sensei metadata --domain <domain>` shows
-nodes), this is a **refresh**: re-run structural extraction (step 4) and the
-step-6 `sensei build --input <checkout>/... --repo <domain>` to update the slice
-in place. The build is non-destructive to every other domain, so a refresh is
-safe to run repeatedly.
+nodes), this is a **refresh**: re-run extraction (steps 4–5) and the step-7
+`sensei build --input <checkout>/... --repo <domain>` to update the slice in
+place. The build is non-destructive to every other domain, so a refresh is safe
+to run repeatedly.
 
 ## What this skill does not do
 
