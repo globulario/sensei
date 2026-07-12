@@ -73,7 +73,7 @@ func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (
 	// that scope). The node's domain comes from its own aw:repo/aw:domain
 	// facts; untagged nodes default to the home domain.
 	if requested := strings.TrimSpace(req.GetDomain()); requested != "" {
-		if !InScope(nodeDomainFromTriples(triples, s.homeDomain), requested) {
+		if !nodeInScopeFromTriples(triples, s.homeDomain, requested) {
 			out := &awarenesspb.ResolveResponse{Found: false, Authority: s.graphAuthority(ctx)}
 			s.logResolveUsage(req, out)
 			return out, nil
@@ -102,6 +102,35 @@ func nodeDomainFromTriples(triples []store.Triple, homeDomain string) string {
 		}
 	}
 	return domain
+}
+
+// nodeInScopeFromTriples reports whether a node is visible to the requested
+// scope, considering ALL of its domain tags. A node may carry MORE THAN ONE
+// aw:repo (e.g. a forbidden fix authored in two repos) — it is in scope when it
+// is shared, when ANY of its aw:repo values matches the scope, or (untagged)
+// when the scope is the home domain. nodeDomainFromTriples collapses to a single
+// domain and so would wrongly exclude a multi-repo node from all-but-one repo.
+func nodeInScopeFromTriples(triples []store.Triple, homeDomain, scope string) bool {
+	tagged := false
+	for _, t := range triples {
+		switch t.Predicate {
+		case rdf.PropDomain:
+			if t.Object == rdf.DomainShared {
+				return true // shared → visible in every scope
+			}
+		case rdf.PropRepo:
+			if t.Object != "" {
+				tagged = true
+				if InScope(t.Object, scope) {
+					return true
+				}
+			}
+		}
+	}
+	if !tagged {
+		return InScope(homeDomain, scope) // untagged → home domain
+	}
+	return false
 }
 
 // resolveIRIForClassAndID maps a caller-supplied class name to its canonical IRI.

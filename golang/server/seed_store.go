@@ -281,19 +281,28 @@ func (s embeddedSeedStore) CountTriplesInDomain(_ context.Context, domain, home 
 	return n, nil
 }
 
-// ClassNodeDomains returns every node of a class with its raw domain attribution
-// (aw:repo value, "shared", or "" for untagged), uncapped — the in-memory
-// analogue of the Oxigraph method used for accurate domain-scoped counting.
-func (s embeddedSeedStore) ClassNodeDomains(_ context.Context, classIRI string) (map[string]string, error) {
-	out := map[string]string{}
+// ClassNodeDomains returns every node of a class with the SET of its domains
+// (each aw:repo value, plus "shared"; empty = untagged), uncapped — the
+// in-memory analogue of the Oxigraph method. A node may carry multiple aw:repo.
+func (s embeddedSeedStore) ClassNodeDomains(_ context.Context, classIRI string) (map[string][]string, error) {
+	out := map[string][]string{}
 	for _, node := range s.g.byClass[classIRI] {
-		out[node] = ""
+		if _, ok := out[node]; !ok {
+			out[node] = nil
+		}
+		seen := map[string]bool{}
+		add := func(d string) {
+			if d != "" && !seen[d] {
+				seen[d] = true
+				out[node] = append(out[node], d)
+			}
+		}
 		for _, t := range s.g.bySubject[node] {
-			if t.pred == rdf.PropRepo && t.obj != "" && out[node] != "shared" {
-				out[node] = t.obj
+			if t.pred == rdf.PropRepo {
+				add(t.obj)
 			}
 			if t.pred == rdf.PropDomain && t.obj == rdf.DomainShared {
-				out[node] = "shared"
+				add("shared")
 			}
 		}
 	}

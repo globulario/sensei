@@ -632,11 +632,12 @@ func (c *Client) CountTriplesInDomain(ctx context.Context, domain, home string) 
 
 // ClassNodeDomains returns every node of classIRI with its raw domain
 // attribution, UNCAPPED — for accurate domain-scoped counting and filtering
-// (unlike ClassFacts, which caps at 300). The value is the aw:repo literal when
-// present, "shared" when aw:domain is shared, else "" for an untagged node (the
-// caller applies the home-domain default). Nodes with no repo/domain still
-// appear (with "") via the OPTIONAL join.
-func (c *Client) ClassNodeDomains(ctx context.Context, classIRI string) (map[string]string, error) {
+// (unlike ClassFacts, which caps at 300). The value is the SET of a node's
+// domains: each aw:repo literal, plus "shared" when aw:domain is shared. A node
+// may carry more than one aw:repo (authored in multiple repos); an empty slice
+// means untagged (the caller applies the home-domain default). Nodes with no
+// repo/domain still appear (empty slice) via the OPTIONAL join.
+func (c *Client) ClassNodeDomains(ctx context.Context, classIRI string) (map[string][]string, error) {
 	q := fmt.Sprintf(`SELECT ?node ?repo ?dom WHERE {
     ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .
     OPTIONAL { ?node <https://globular.io/awareness#repo> ?repo }
@@ -669,20 +670,25 @@ func (c *Client) ClassNodeDomains(ctx context.Context, classIRI string) (map[str
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("oxigraph class-node-domains: decode: %w", err)
 	}
-	out := make(map[string]string, len(result.Results.Bindings))
+	out := make(map[string][]string, len(result.Results.Bindings))
+	seen := map[string]map[string]bool{} // node → set of domains already added
 	for _, b := range result.Results.Bindings {
 		if b.Node.Value == "" {
 			continue
 		}
-		// repo wins; else shared marker; else leave "" (untagged → home).
-		if _, seen := out[b.Node.Value]; !seen {
-			out[b.Node.Value] = ""
+		if _, ok := out[b.Node.Value]; !ok {
+			out[b.Node.Value] = nil // ensure untagged nodes appear (empty slice)
+			seen[b.Node.Value] = map[string]bool{}
 		}
-		if b.Repo.Value != "" && out[b.Node.Value] != "shared" {
-			out[b.Node.Value] = b.Repo.Value
+		add := func(d string) {
+			if d != "" && !seen[b.Node.Value][d] {
+				seen[b.Node.Value][d] = true
+				out[b.Node.Value] = append(out[b.Node.Value], d)
+			}
 		}
+		add(b.Repo.Value) // each aw:repo the node carries
 		if b.Dom.Value == "shared" {
-			out[b.Node.Value] = "shared"
+			add("shared")
 		}
 	}
 	return out, nil

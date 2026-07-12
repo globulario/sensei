@@ -37,20 +37,37 @@ type classFactsScoper interface {
 }
 
 // classDomainLister is the optional store capability that returns, for a class,
-// each node's raw domain (aw:repo value, "shared", or "" for untagged) UNCAPPED.
-// This is what makes domain-scoped counts and lists accurate — ClassFacts caps
-// at 300, which silently truncates scoped results.
+// each node's raw domains UNCAPPED. A node may have MORE THAN ONE domain (e.g. a
+// forbidden fix authored in two repos → two aw:repo tags), so the value is a
+// slice: each entry an aw:repo value or "shared"; an empty/absent slice means
+// untagged (home domain). This is what makes domain-scoped counts and lists both
+// accurate and correct for multi-repo nodes (ClassFacts also caps at 300).
 type classDomainLister interface {
-	ClassNodeDomains(ctx context.Context, classIRI string) (map[string]string, error)
+	ClassNodeDomains(ctx context.Context, classIRI string) (map[string][]string, error)
 }
 
-// resolvedDomain applies the home-domain default to a raw domain value from
-// ClassNodeDomains ("" untagged → home).
+// resolvedDomain applies the home-domain default to a single raw domain value
+// ("" untagged → home). Used where a subject collapses to one domain (triple
+// counting by subject).
 func resolvedDomain(raw, home string) string {
 	if raw == "" {
 		return home
 	}
 	return raw
+}
+
+// anyDomainInScope reports whether a node with the given raw domains is visible
+// to scope: shared or any repo match → yes; empty (untagged) → home matches.
+func anyDomainInScope(domains []string, home, scope string) bool {
+	if len(domains) == 0 {
+		return InScope(home, scope) // untagged → home
+	}
+	for _, d := range domains {
+		if InScope(d, scope) {
+			return true
+		}
+	}
+	return false
 }
 
 // countClassInScopeUncapped counts, without the ClassFacts cap, the nodes of a
@@ -66,8 +83,8 @@ func (s *server) countClassInScopeUncapped(ctx context.Context, classIRI, home, 
 		return 0, false
 	}
 	var n int64
-	for _, raw := range nodes {
-		if InScope(resolvedDomain(raw, home), scope) {
+	for _, domains := range nodes {
+		if anyDomainInScope(domains, home, scope) {
 			n++
 		}
 	}
@@ -86,8 +103,8 @@ func (s *server) inScopeClassIRIs(ctx context.Context, classIRI, home, scope str
 		return nil, false
 	}
 	keep := make(map[string]bool)
-	for iri, raw := range nodes {
-		if InScope(resolvedDomain(raw, home), scope) {
+	for iri, domains := range nodes {
+		if anyDomainInScope(domains, home, scope) {
 			keep[iri] = true
 		}
 	}
