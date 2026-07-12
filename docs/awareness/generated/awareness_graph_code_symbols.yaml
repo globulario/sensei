@@ -2209,6 +2209,11 @@ test_symbols:
     symbol: TestResolveGatePolicy_MissingDefaultIsNoOp_MissingExplicitErrors
     package: main
     language: go
+  - id: cmd/awg/git_domain_test.go:TestDomainFromRemoteURL
+    file: cmd/awg/git_domain_test.go
+    symbol: TestDomainFromRemoteURL
+    package: main
+    language: go
   - id: cmd/awg/governance_spine_test.go:TestGovernanceCertificationSpine_EndToEnd
     file: cmd/awg/governance_spine_test.go
     symbol: TestGovernanceCertificationSpine_EndToEnd

@@ -77,7 +77,7 @@ promoted. Review and promote with the authored contract_realizations schema.
 		fmt.Fprintf(os.Stderr, "sensei suggest-realizations: %v\n", err)
 		return 1
 	}
-	ntBytes, _, _, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo)
+	ntBytes, _, _, genErr := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
 	if genErr != nil {
 		fmt.Fprintf(os.Stderr, "sensei suggest-realizations: %v\n", genErr)
 		return 1

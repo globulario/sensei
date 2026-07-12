@@ -2,7 +2,7 @@
   "name": "sensei-awareness",
   "displayName": "Sensei — Architectural Memory",
   "description": "See the invariants, failure modes, and intent that govern the file you are editing — straight from your project's awareness graph.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "globulario",
   "license": "Apache-2.0",
   "icon": "media/icon.png",

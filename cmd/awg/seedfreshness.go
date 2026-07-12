@@ -185,7 +185,7 @@ func generateAgOnlyNT(agRepo string) []byte {
 	if _, err := os.Stat(dir); err != nil {
 		return nil
 	}
-	nt, _, _, err := generateNT([]string{dir}, "", "", agRepo)
+	nt, _, _, err := generateNT([]string{dir}, "", "", agRepo, false)
 	if err != nil {
 		return nil
 	}
