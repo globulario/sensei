@@ -104,6 +104,11 @@ to inspect or intervene between steps, or the wrapper is unavailable.
      - **boundaries inferred from the import graph** — Go `internal/` visibility
        boundaries (compiler-enforced) and dependency-hub / contract-exposure
        seams (a component many others depend on → a stability boundary)
+     - **invariants inferred from rule-signaling tests** — a test whose name
+       encodes a law (must/never/idempotent/isolation/race/roundtrip/panic/
+       regression, or a negated modal like *should not*) becomes a candidate
+       invariant with that test as its proof. Example-only tests stay plain
+       required_tests — Sensei does not manufacture invariants it can't justify.
      - web components + gRPC-web consumption edges (TS/JS)
      Coverage depends on how the repo is written: a repo with `.proto`/OpenAPI or
      `mux.HandleFunc`-style handlers yields contracts even in Basic; a pure
