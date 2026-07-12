@@ -93,6 +93,8 @@ func main() {
 		os.Exit(runInit(args))
 	case "bootstrap":
 		os.Exit(runBootstrap(args))
+	case "import":
+		os.Exit(runImport(args))
 	case "onboard":
 		os.Exit(runOnboard(args))
 	case "build":
@@ -259,6 +261,7 @@ Local commands (no server required):
   demo           One command: stand up a private graph and return one real briefing
   init           Scaffold awareness for a new project
   bootstrap      Initialize Sensei for an existing repo (deterministic extraction + optional history)
+  import         Onboard a foreign repo in one command (clone -> contracts -> structure -> domain-scoped load)
   build          Compile YAML sources and load into the store
   serve          Start the gRPC awareness server
   check          Validate YAML sources without building
