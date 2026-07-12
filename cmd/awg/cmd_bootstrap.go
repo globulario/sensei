@@ -34,14 +34,16 @@ import (
 func runBootstrap(args []string) int {
 	fs := flag.NewFlagSet("sensei bootstrap", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	repo := fs.String("repo", ".", "path to the repository to bootstrap")
+	repo := "."
+	fs.StringVar(&repo, "path", ".", "path to the repository to bootstrap")
+	fs.StringVar(&repo, "repo", ".", "deprecated alias for --path")
 	skipHistory := fs.Bool("skip-history", false, "do not run coldsource/history mining")
 	skipBuild := fs.Bool("skip-build", false, "run extraction + validate, but do not build the graph")
 	check := fs.Bool("check", false, "compare generated output to committed files; exit non-zero if stale")
 	dryRun := fs.Bool("dry-run", false, "print the report without writing generated/candidate files")
 	scipPath := fs.String("scip", "", "path to a SCIP index to ingest symbol-level nodes; defaults to <repo>/index.scip when present")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: sensei bootstrap --repo <path> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei bootstrap --path <checkout> [flags]
 
 Initialize AWG for an existing repository: scaffold if missing, run deterministic
 architecture extraction (proto contracts, components, code symbols, tests) into
@@ -59,7 +61,10 @@ Flags:
 		return 2
 	}
 
-	root, err := filepath.Abs(*repo)
+	warnDeprecatedRepoPathAlias(fs, "bootstrap")
+	warnIfDomainLikeExtractorPath("bootstrap", repo)
+
+	root, err := filepath.Abs(repo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei bootstrap: %v\n", err)
 		return 1
@@ -370,6 +375,26 @@ Flags:
 	} else {
 		rep.notes = append(rep.notes, "misuse candidates: "+cerr.Error())
 	}
+	// Authority surfaces from Go source — the code→contract layer: HTTP handlers,
+	// guards, lifecycle control, and state mutations, scanned from the AST.
+	// Deterministic (no key), status: candidate, never promoted. Reads Go source
+	// only (not the scaffolded charter), so it is safe regardless of extraction
+	// order. This is what makes onboarding surface a pure-Go repo's real contract
+	// surface, not just its module layout.
+	if authCands, aerr := extractAuthorityCandidates(root); aerr != nil {
+		rep.notes = append(rep.notes, "authority candidates: "+aerr.Error())
+	} else if len(authCands) > 0 {
+		rep.candidateAuthority = len(authCands)
+		if writeCands {
+			if out, rerr := renderAuthorityCandidates(root, authCands); rerr != nil {
+				rep.notes = append(rep.notes, "authority candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "authority candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "authority_surface_candidates.yaml"), out, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "authority candidates: write: "+werr.Error())
+			}
+		}
+	}
 	// boundary candidates remain unimplemented (kept honest, per scope).
 	rep.notes = append(rep.notes, "boundary candidates: not implemented yet")
 
@@ -640,6 +665,7 @@ type bootstrapReport struct {
 	sourceAnchors         int
 	candidatePatterns     int
 	candidateMisuses      int
+	candidateAuthority    int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
 	historyCandidates     int // -1 = skipped
 	validationFindings    int
 	validationByCheck     map[string]int
@@ -692,6 +718,7 @@ func (r *bootstrapReport) print(w *os.File) {
 	fmt.Fprintf(w, "  source anchors found:       %d\n", r.sourceAnchors)
 	fmt.Fprintf(w, "  candidate patterns found:   %d\n", r.candidatePatterns)
 	fmt.Fprintf(w, "  candidate misuses found:    %d\n", r.candidateMisuses)
+	fmt.Fprintf(w, "  authority surfaces found:   %d\n", r.candidateAuthority)
 	fmt.Fprintf(w, "  history-derived candidates: %s\n", hist)
 	fmt.Fprintf(w, "  validation findings:        %d\n", r.validationFindings)
 	if len(r.validationByCheck) > 0 {

@@ -95,14 +95,23 @@ to inspect or intervene between steps, or the wrapper is unavailable.
 3. **Choose extraction depth — ask the user unless already specified.**
    Present the two modes plainly:
    - **Basic** — deterministic structural only. Fast, offline, no key. Extracts
-     components, tests, and the import graph (and proto contracts *if* the repo
-     has `.proto` — most Go/TS repos do not, so expect zero). This is a
-     box-and-arrow map, not the contracts.
-   - **Full** — Basic **plus the contract layer**: LLM contract/intent extraction
-     grounded against the code, and (optionally) day-0 history mining
-     (revert/regression commits + PR review comments). This is the layer that
-     makes a briefing architecturally meaningful. Needs `ANTHROPIC_API_KEY`; PR
-     mining also needs full history and `gh` auth + the `owner/name` slug.
+     components, tests, the import graph (Go/TS/Python/Rust), and the
+     **deterministic contract layer** — no key needed:
+     - proto contracts (`.proto` → gRPC service/RPC Contract nodes)
+     - REST contracts (OpenAPI/Swagger specs → endpoint Contract nodes)
+     - **code→contract authority surfaces** from Go source (HTTP handlers,
+       guards, lifecycle control, state mutations → AuthoritySurface candidates)
+     - web components + gRPC-web consumption edges (TS/JS)
+     Coverage depends on how the repo is written: a repo with `.proto`/OpenAPI or
+     `mux.HandleFunc`-style handlers yields contracts even in Basic; a pure
+     router library (e.g. gin registers via its own DSL) may yield few — that is
+     a detector-breadth limit, not a missing capability.
+   - **Full** — Basic **plus the LLM contract/intent layer**: `intent-mine`
+     grounds a repo's stated intent (from docs/comments/tests) against the code,
+     and (optionally) day-0 history mining (revert/regression commits + PR review
+     comments). This deepens the deterministic layer with intent no AST can infer.
+     Needs `ANTHROPIC_API_KEY`; PR mining also needs full history and `gh` auth +
+     the `owner/name` slug.
    If the user's request already names a depth, honor it. Degrade honestly: no
    key → say the contract layer is skipped; no `gh` → skip PR mining.
 
