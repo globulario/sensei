@@ -4931,6 +4931,11 @@ test_symbols:
     symbol: TestCountClassInScope
     package: main
     language: go
+  - id: golang/server/domain_scope_test.go:TestEmbeddedClassScoped
+    file: golang/server/domain_scope_test.go
+    symbol: TestEmbeddedClassScoped
+    package: main
+    language: go
   - id: golang/server/domain_scope_test.go:TestEmbeddedSeedStoreDomains
     file: golang/server/domain_scope_test.go
     symbol: TestEmbeddedSeedStoreDomains
