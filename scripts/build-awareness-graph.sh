@@ -241,11 +241,17 @@ run_yaml2nt() {
     else
         svc_inputs=(-input "$SVC/docs/awareness" -input "$svc_generated_input")
     fi
+    # Intents come from the services repo; tag them to SVC_REPO_KEY when set so
+    # they are filterable per repo (else home-domain, as before).
+    local -a intent_args=(-intent "$SVC/docs/intent")
+    if [[ -n "${SVC_REPO_KEY:-}" ]]; then
+        intent_args+=(-intent-repo "$SVC_REPO_KEY")
+    fi
     local -a cmd=(
         /tmp/_aw_yaml2nt
         "${ag_inputs[@]}"
         "${svc_inputs[@]}"
-        -intent "$SVC/docs/intent"
+        "${intent_args[@]}"
         -path-prefix "$AG"
         -path-prefix "$SVC"
         -strict

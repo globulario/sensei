@@ -112,7 +112,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.Var(&inputs, "input", "path to awareness YAML directory (repeatable); nodes stay in the home domain")
 	var repoInputs multiFlag
 	fs.Var(&repoInputs, "input-repo", "DIR=REPO: import an awareness directory tagging its untagged nodes to REPO (e.g. github.com/globulario/services), so the graph is filterable per repo (repeatable)")
-	intent := fs.String("intent", "", "path to intent YAML directory (optional)")
+	intent := fs.String("intent", "", "path to intent YAML directory (optional); nodes stay in the home domain")
+	intentRepo := fs.String("intent-repo", "", "REPO to tag the -intent directory's nodes to (e.g. github.com/globulario/services), so intents are filterable per repo")
 	output := fs.String("output", "", "output file path; if empty, N-Triples go to stdout")
 	strict := fs.Bool("strict", false, "fail if any YAML file is not imported")
 	validateRefs := fs.Bool("validate-refs", false, "fail on dangling cite-without-define references for ForbiddenFix and Test anchors")
@@ -216,7 +217,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "yaml2nt: -intent: %s is not a directory\n", *intent)
 			return exitUserError
 		}
-		iEmitter, iReport, err := extractor.ImportAwarenessDirWithOpts(*intent, &buf, extractor.ImportDirOptions{StripPathPrefixes: pathPrefixes})
+		iEmitter, iReport, err := extractor.ImportAwarenessDirWithOpts(*intent, &buf, extractor.ImportDirOptions{StripPathPrefixes: pathPrefixes, DefaultRepo: *intentRepo})
 		if err != nil {
 			fmt.Fprintf(stderr, "yaml2nt: intent import: %v\n", err)
 			return exitRuntime
