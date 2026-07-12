@@ -120,7 +120,7 @@ func TestRun_MissingInput_ReturnsUserError(t *testing.T) {
 	if stdout.Len() != 0 {
 		t.Errorf("stdout must be empty on user error; got:\n%s", stdout.String())
 	}
-	if !strings.Contains(stderr.String(), "-input is required") {
+	if !strings.Contains(stderr.String(), "-input or -input-repo is required") {
 		t.Errorf("stderr should name the missing -input flag; got:\n%s", stderr.String())
 	}
 }

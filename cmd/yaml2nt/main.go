@@ -109,7 +109,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fs.PrintDefaults()
 	}
 	var inputs multiFlag
-	fs.Var(&inputs, "input", "path to awareness YAML directory (repeatable)")
+	fs.Var(&inputs, "input", "path to awareness YAML directory (repeatable); nodes stay in the home domain")
+	var repoInputs multiFlag
+	fs.Var(&repoInputs, "input-repo", "DIR=REPO: import an awareness directory tagging its untagged nodes to REPO (e.g. github.com/globulario/services), so the graph is filterable per repo (repeatable)")
 	intent := fs.String("intent", "", "path to intent YAML directory (optional)")
 	output := fs.String("output", "", "output file path; if empty, N-Triples go to stdout")
 	strict := fs.Bool("strict", false, "fail if any YAML file is not imported")
@@ -125,10 +127,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
-	if len(inputs) == 0 {
-		fmt.Fprintln(stderr, "yaml2nt: -input is required")
+	if len(inputs) == 0 && len(repoInputs) == 0 {
+		fmt.Fprintln(stderr, "yaml2nt: -input or -input-repo is required")
 		fs.Usage()
 		return exitUserError
+	}
+
+	// Parse -input-repo DIR=REPO entries. REPO (a domain key like
+	// github.com/globulario/services) never contains '=', so split on the LAST
+	// '=' to tolerate a '=' in the directory path.
+	type repoInput struct{ dir, repo string }
+	var taggedInputs []repoInput
+	for _, ri := range repoInputs {
+		eq := strings.LastIndex(ri, "=")
+		if eq <= 0 || eq == len(ri)-1 {
+			fmt.Fprintf(stderr, "yaml2nt: -input-repo must be DIR=REPO, got %q\n", ri)
+			return exitUserError
+		}
+		taggedInputs = append(taggedInputs, repoInput{dir: ri[:eq], repo: ri[eq+1:]})
 	}
 
 	var buf bytes.Buffer
@@ -151,6 +167,35 @@ func run(args []string, stdout, stderr io.Writer) int {
 		})
 		if err != nil {
 			fmt.Fprintf(stderr, "yaml2nt: import %s: %v\n", inputDir, err)
+			return exitRuntime
+		}
+		totalTriples += emitter.Triples
+		if combinedReport == nil {
+			combinedReport = report
+		} else {
+			combinedReport.Files = append(combinedReport.Files, report.Files...)
+		}
+	}
+
+	// Per-repo tagged inputs: untagged nodes are attributed to REPO (DefaultRepo),
+	// making the combined graph filterable by which repo a node came from.
+	for _, ti := range taggedInputs {
+		info, err := os.Stat(ti.dir)
+		if err != nil {
+			fmt.Fprintf(stderr, "yaml2nt: -input-repo: %v\n", err)
+			return exitUserError
+		}
+		if !info.IsDir() {
+			fmt.Fprintf(stderr, "yaml2nt: -input-repo: %s is not a directory\n", ti.dir)
+			return exitUserError
+		}
+		emitter, report, err := extractor.ImportAwarenessDirWithOpts(ti.dir, &buf, extractor.ImportDirOptions{
+			StripPathPrefixes:   pathPrefixes,
+			SkipNestedGenerated: true,
+			DefaultRepo:         ti.repo,
+		})
+		if err != nil {
+			fmt.Fprintf(stderr, "yaml2nt: import %s (repo %s): %v\n", ti.dir, ti.repo, err)
 			return exitRuntime
 		}
 		totalTriples += emitter.Triples

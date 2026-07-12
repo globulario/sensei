@@ -149,9 +149,15 @@ func (c *Client) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 	return c.stub.Query(ctx, req)
 }
 
-// Metadata returns graph-level coverage and freshness signals.
+// Metadata returns graph-level coverage and freshness signals (graph-wide).
 func (c *Client) Metadata(ctx context.Context) (*awarenesspb.MetadataResponse, error) {
 	return c.stub.Metadata(ctx, &awarenesspb.MetadataRequest{})
+}
+
+// MetadataScoped is Metadata scoped to a domain/repo: per-class counts reflect
+// only that domain (plus shared). Empty domain = graph-wide (same as Metadata).
+func (c *Client) MetadataScoped(ctx context.Context, domain string) (*awarenesspb.MetadataResponse, error) {
+	return c.stub.Metadata(ctx, &awarenesspb.MetadataRequest{Domain: domain})
 }
 
 // Preflight returns pre-edit decision support: risk class, required actions,
