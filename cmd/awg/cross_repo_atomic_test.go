@@ -41,7 +41,7 @@ func TestRequireAtomicCrossRepoGraphState_FailsWhenTransactionDrifts(t *testing.
 func TestRequireBenchmarkAuthority_UsesLiveCurrentCertifiedServer(t *testing.T) {
 	prevMeta := metadataRPC
 	prevAtomic := benchmarkAtomicGuard
-	metadataRPC = func(context.Context, string) (*awarenesspb.MetadataResponse, error) {
+	metadataRPC = func(context.Context, string, string) (*awarenesspb.MetadataResponse, error) {
 		return &awarenesspb.MetadataResponse{
 			GraphFreshnessState:            awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
 			GraphFreshnessDetail:           "live store matches expected validated graph artifact",
@@ -68,7 +68,7 @@ func TestRequireBenchmarkAuthority_UsesLiveCurrentCertifiedServer(t *testing.T) 
 func TestRequireBenchmarkAuthority_FailsClosedWhenLiveServerStale(t *testing.T) {
 	prevMeta := metadataRPC
 	prevAtomic := benchmarkAtomicGuard
-	metadataRPC = func(context.Context, string) (*awarenesspb.MetadataResponse, error) {
+	metadataRPC = func(context.Context, string, string) (*awarenesspb.MetadataResponse, error) {
 		return &awarenesspb.MetadataResponse{
 			GraphFreshnessState:  awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_STALE,
 			GraphFreshnessDetail: "live store missing expected graph marker demo",
@@ -95,7 +95,7 @@ func TestRequireBenchmarkAuthority_FailsClosedWhenLiveServerStale(t *testing.T) 
 func TestRequireBenchmarkAuthority_FallsBackToLocalAtomicityWhenMetadataUnavailable(t *testing.T) {
 	prevMeta := metadataRPC
 	prevAtomic := benchmarkAtomicGuard
-	metadataRPC = func(context.Context, string) (*awarenesspb.MetadataResponse, error) {
+	metadataRPC = func(context.Context, string, string) (*awarenesspb.MetadataResponse, error) {
 		return nil, context.DeadlineExceeded
 	}
 	called := false

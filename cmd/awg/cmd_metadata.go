@@ -13,19 +13,20 @@ import (
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
-var metadataRPC = func(ctx context.Context, addr string) (*awarenesspb.MetadataResponse, error) {
+var metadataRPC = func(ctx context.Context, addr, domain string) (*awarenesspb.MetadataResponse, error) {
 	c, err := connectAWG(addr)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Close()
-	return c.Metadata(ctx)
+	return c.MetadataScoped(ctx, domain)
 }
 
 func runMetadata(args []string) int {
 	fs := flag.NewFlagSet("sensei metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	domain := fs.String("domain", "", "scope per-class counts to a domain/repo (e.g. github.com/globulario/services); empty = graph-wide")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei metadata [flags]
@@ -46,7 +47,7 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp, err := metadataRPC(ctx, *addr)
+	resp, err := metadataRPC(ctx, *addr, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei metadata: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
