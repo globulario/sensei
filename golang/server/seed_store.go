@@ -198,6 +198,34 @@ func (s embeddedSeedStore) ClassFacts(_ context.Context, classIRI string, limit 
 	return out, nil
 }
 
+// ClassFactsScoped is ClassFacts restricted to nodes in the domain scope — the
+// in-memory analogue of the Oxigraph method. It resolves each member's domain
+// (aw:repo / shared / home default) and keeps only those InScope, then limits.
+func (s embeddedSeedStore) ClassFactsScoped(_ context.Context, classIRI, domain, home string, limit int) ([]store.ImpactFact, error) {
+	var out []store.ImpactFact
+	kept := 0
+	for _, node := range s.g.byClass[classIRI] {
+		nd := home
+		for _, t := range s.g.bySubject[node] {
+			if t.pred == rdf.PropRepo && t.obj != "" && nd != rdf.DomainShared {
+				nd = t.obj
+			}
+			if t.pred == rdf.PropDomain && t.obj == rdf.DomainShared {
+				nd = rdf.DomainShared
+			}
+		}
+		if !InScope(nd, domain) {
+			continue
+		}
+		out = append(out, s.nodeFacts(node)...)
+		kept++
+		if limit > 0 && kept >= limit {
+			break
+		}
+	}
+	return out, nil
+}
+
 func (s embeddedSeedStore) CodeSymbolFacts(_ context.Context, _ string) ([]store.ImpactFact, error) {
 	return nil, nil
 }
@@ -225,6 +253,25 @@ func (s embeddedSeedStore) Domains(_ context.Context) ([]string, error) {
 			if t.pred == rdf.PropRepo && t.obj != "" && !seen[t.obj] {
 				seen[t.obj] = true
 				out = append(out, t.obj)
+			}
+		}
+	}
+	return out, nil
+}
+
+// ClassNodeDomains returns every node of a class with its raw domain attribution
+// (aw:repo value, "shared", or "" for untagged), uncapped — the in-memory
+// analogue of the Oxigraph method used for accurate domain-scoped counting.
+func (s embeddedSeedStore) ClassNodeDomains(_ context.Context, classIRI string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, node := range s.g.byClass[classIRI] {
+		out[node] = ""
+		for _, t := range s.g.bySubject[node] {
+			if t.pred == rdf.PropRepo && t.obj != "" && out[node] != "shared" {
+				out[node] = t.obj
+			}
+			if t.pred == rdf.PropDomain && t.obj == rdf.DomainShared {
+				out[node] = "shared"
 			}
 		}
 	}

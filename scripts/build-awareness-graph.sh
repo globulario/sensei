@@ -226,12 +226,25 @@ run_scan_plan() {
 # ── yaml2nt invocation ───────────────────────────────────────────────────────
 run_yaml2nt() {
     local output_path="$1" svc_generated_input="$2" staged_prefix="${3:-}"
+    # Per-repo domain tagging (opt-in): when AG_REPO_KEY / SVC_REPO_KEY are set,
+    # each repo's awareness nodes are tagged to that repo (aw:repo) so the graph
+    # is filterable per repo. Unset → the default single home-domain behaviour
+    # (keeps the public self-build unchanged).
+    local -a ag_inputs svc_inputs
+    if [[ -n "${AG_REPO_KEY:-}" ]]; then
+        ag_inputs=(-input-repo "$AG/docs/awareness=$AG_REPO_KEY" -input-repo "$AG_GENERATED=$AG_REPO_KEY")
+    else
+        ag_inputs=(-input "$AG/docs/awareness" -input "$AG_GENERATED")
+    fi
+    if [[ -n "${SVC_REPO_KEY:-}" ]]; then
+        svc_inputs=(-input-repo "$SVC/docs/awareness=$SVC_REPO_KEY" -input-repo "$svc_generated_input=$SVC_REPO_KEY")
+    else
+        svc_inputs=(-input "$SVC/docs/awareness" -input "$svc_generated_input")
+    fi
     local -a cmd=(
         /tmp/_aw_yaml2nt
-        -input "$AG/docs/awareness"
-        -input "$AG_GENERATED"
-        -input "$SVC/docs/awareness"
-        -input "$svc_generated_input"
+        "${ag_inputs[@]}"
+        "${svc_inputs[@]}"
         -intent "$SVC/docs/intent"
         -path-prefix "$AG"
         -path-prefix "$SVC"

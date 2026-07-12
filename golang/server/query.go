@@ -114,31 +114,48 @@ func (s *server) queryByID(ctx context.Context, qualifiedID string) ([]*awarenes
 	return []*awarenesspb.QueryRow{rowFromNode(n, "")}, nil
 }
 
+// maxScopedListFetch is how many class facts to pull before domain-filtering a
+// by_class list — the store's ClassFacts cap. A scoped list is complete for
+// classes with up to this many nodes; larger classes render a (still in-scope)
+// prefix.
+const maxScopedListFetch = 300
+
 func (s *server) queryByClass(ctx context.Context, queryClass awarenesspb.QueryClass, limit int, domain string) ([]*awarenesspb.QueryRow, error) {
 	className, classIRI, ok := queryClassSpec(queryClass)
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "invalid class for by_class")
 	}
-	// When scoping to a domain, fetch all nodes then filter then cap — applying
-	// the store limit before the domain filter could drop in-scope nodes.
-	fetchLimit := limit
-	if domain != "" {
-		fetchLimit = 0
-	}
-	facts, err := s.store.ClassFacts(ctx, classIRI, fetchLimit)
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
-	}
-	nodes := nodesFromFacts(facts, className)
-
+	// Domain-scoped: prefer a store that applies the domain FILTER inside its
+	// selection LIMIT (ClassFactsScoped), so the LIMIT lands on in-scope nodes
+	// rather than an arbitrary page that may contain none. Fall back to
+	// fetch-then-filter (capped) only if the store lacks it.
+	var facts []store.ImpactFact
 	var keep map[string]bool
 	if domain != "" {
-		keep = keepIRIsInScope(facts, s.homeDomain, domain) // reuses InScope
+		if sc, ok := s.store.(classFactsScoper); ok {
+			var err error
+			if facts, err = sc.ClassFactsScoped(ctx, classIRI, domain, s.homeDomain, limit); err != nil {
+				return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+			}
+		} else {
+			var err error
+			if facts, err = s.store.ClassFacts(ctx, classIRI, maxScopedListFetch); err != nil {
+				return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+			}
+			keep = keepIRIsInScope(facts, s.homeDomain, domain)
+		}
+	} else {
+		var err error
+		if facts, err = s.store.ClassFacts(ctx, classIRI, limit); err != nil {
+			return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+		}
 	}
+
+	nodes := nodesFromFacts(facts, className)
 	rows := make([]*awarenesspb.QueryRow, 0, len(nodes))
 	for _, n := range nodes {
 		if keep != nil && !keep[n.GetIri()] {
-			continue // node belongs to another domain
+			continue // fallback path: node belongs to another domain
 		}
 		rows = append(rows, rowFromNode(n, ""))
 		if limit > 0 && len(rows) >= limit {
