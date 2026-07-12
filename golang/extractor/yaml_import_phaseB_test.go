@@ -451,6 +451,83 @@ services:
 	}
 }
 
+func TestPhaseB_HighRiskFiles_EmitsGuardrailAndSourceFileEdges(t *testing.T) {
+	root := makeDir(t, map[string]string{
+		"high_risk_files.yaml": `
+files:
+  - golang/server/main.go
+  - cmd/awareness-mcp/
+`,
+	})
+
+	out, report := importDirToString(t, root)
+	assertValidNT(t, out)
+
+	if len(report.Imported()) != 1 {
+		t.Fatalf("expected 1 imported file, got %d", len(report.Imported()))
+	}
+	if !strings.Contains(out, rdf.AwNS+"Guardrail") {
+		t.Error("expected aw:Guardrail class in output")
+	}
+	if !strings.Contains(out, "guardrail/awareness.high_risk_files") {
+		t.Error("expected guardrail node for high-risk file registry")
+	}
+	if !strings.Contains(out, "sourceFile/golang%2Fserver%2Fmain.go") {
+		t.Error("expected source-file node for high-risk path")
+	}
+	if !strings.Contains(out, rdf.PropProtects) {
+		t.Error("expected guardrail to protect source-file paths")
+	}
+}
+
+func TestPhaseB_ActivationRules_EmitsGuardrailsAndPolicy(t *testing.T) {
+	root := makeDir(t, map[string]string{
+		"activation_rules.yaml": `
+activation_rules:
+  version: v1
+  rules:
+    - id: auto_briefing
+      trigger: file_path
+      enforcement: hook
+      paths:
+        - golang/server/
+      tools:
+        - sensei briefing --file <path>
+    - id: manual_briefing
+      trigger: task_concept
+      enforcement: agent_judgment
+      concepts:
+        - authentication
+  empty_policy:
+    tiers:
+      - tier: high_risk_target
+        description: Minor edit in a high-risk directory
+        action: treat_as_degraded
+        announce: true
+`,
+	})
+
+	out, report := importDirToString(t, root)
+	assertValidNT(t, out)
+
+	if len(report.Imported()) != 1 {
+		t.Fatalf("expected 1 imported file, got %d", len(report.Imported()))
+	}
+	for _, want := range []string{
+		"guardrail/awareness.activation_rules",
+		"guardrail/activation_rule.auto_briefing",
+		"guardrail/activation_rule.manual_briefing",
+		"guardrail/activation_empty_policy.high_risk_target",
+		"sourceFile/golang%2Fserver%2F",
+		"agent_judgment",
+		"treat_as_degraded",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output", want)
+		}
+	}
+}
+
 // ── integration: full docs/awareness with Phase B ────────────────────────────
 
 func TestPhaseB_SelfAwareness_MoreTriplesAfterPhaseB(t *testing.T) {

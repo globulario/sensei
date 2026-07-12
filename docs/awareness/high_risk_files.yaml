@@ -1,0 +1,19 @@
+# High-Risk Files — directories and files that require awareness briefing.
+#
+# Any edit to a path matching these prefixes triggers an automatic
+# briefing lookup. This is where your most load-bearing code lives.
+#
+# Start with the directories where bugs are most expensive:
+# - Authentication / authorization
+# - Database migrations
+# - Core business logic
+# - Infrastructure / deployment
+# - API contracts
+
+files:
+  # Examples — replace with your actual critical paths:
+  # - src/auth/
+  # - src/database/migrations/
+  # - src/config/
+  # - src/api/middleware/
+  # - infrastructure/

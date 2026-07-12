@@ -188,8 +188,8 @@ var keySchemas = []struct {
 	{"suppressions", schemaEntry{"suppressions", false, false, "B", "audit suppression list"}},
 	{"aliases", schemaEntry{"aliases", false, false, "B", "context alias map"}},
 	{"last_updated", schemaEntry{"status_tracker", false, true, "B", "status tracker"}},
-	{"files", schemaEntry{"high_risk_files", false, false, "B", "high-risk file list"}},
-	{"activation_rules", schemaEntry{"activation_rules", false, false, "B", "awareness activation rule registry"}},
+	{"files", schemaEntry{"high_risk_files", true, false, "B", "high-risk file list"}},
+	{"activation_rules", schemaEntry{"activation_rules", true, false, "B", "awareness activation rule registry"}},
 	{"version", schemaEntry{"versioned_doc", true, false, "B", "versioned contract document"}},
 	{"incident_id", schemaEntry{"incident", true, false, "B", "individual incident record"}},
 
@@ -427,6 +427,10 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importProofObligations(e, path)
 	case "learning_event":
 		importErr = importLearningEvent(e, path)
+	case "high_risk_files":
+		importErr = importHighRiskFiles(e, path)
+	case "activation_rules":
+		importErr = importActivationRules(e, path)
 	// Architectural spine (Stage A)
 	case "components":
 		importErr = importComponents(e, path)

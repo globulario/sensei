@@ -102,7 +102,7 @@ Every bug you encode makes the graph more valuable. After 50 incidents, the grap
 
 While encoding 50+ incidents in Globular, we noticed they kept falling into the same patterns. A fallback that hides a failure. A write with no cleanup path. Two writers racing on the same state. An intermediate state that looks done.
 
-We distilled these into 133 meta-principles organized in eight categories:
+We distilled these into 134 meta-principles organized in eight categories:
 
 **Authority** (20 principles) — "Who owns this truth, and is this code that owner?"
 
@@ -148,7 +148,7 @@ We solve this three ways:
 
 **Start with your most painful recent bugs.** Don't try to encode everything. Take the last 3-5 bugs that required patch releases or caused outages. Each one becomes an invariant + failure mode + incident pattern. Five entries is enough to start getting value.
 
-**Ship the meta-principles as seed content.** `sensei init` creates `meta_principles.yaml` with all 133 principles. They're immediately queryable. When your first bug doesn't match any of your project-specific invariants, it probably matches a meta-principle — and that principle tells you what to search for.
+**Ship the meta-principles as seed content.** `sensei init` creates `meta_principles.yaml` with all 134 principles. They're immediately queryable. When your first bug doesn't match any of your project-specific invariants, it probably matches a meta-principle — and that principle tells you what to search for.
 
 **Make the incident-to-invariant workflow fast.** After fixing a bug, encoding it should take 5 minutes: add the invariant, add the failure mode, run `sensei build`. If it takes longer, people won't do it. The YAML schema is designed to be writable without reading documentation.
 
@@ -186,7 +186,7 @@ sensei briefing --file <your-critical-file>
 
 The [quickstart guide](https://github.com/globulario/sensei/blob/master/docs/quickstart.md) walks through the full setup in 10 minutes.
 
-The [meta-principles reference](https://github.com/globulario/sensei/blob/master/docs/meta-principles.md) documents all 133 principles with examples and search patterns.
+The [meta-principles reference](https://github.com/globulario/sensei/blob/master/docs/meta-principles.md) documents all 134 principles with examples and search patterns.
 
 ---
 

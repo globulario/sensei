@@ -36,7 +36,6 @@ invariants:
     protects:
       files:
         - golang/server/main.go
-        - golang/server/etcd_register.go
         - cmd/awareness-mcp/main.go
         - scripts/install.sh
         - Makefile

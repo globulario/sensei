@@ -303,7 +303,7 @@ Sensei is **governed architectural memory for a software repository.**
 
 Your project's invariants and scars tell Sensei **what must remain true here.**
 The meta-principles help Sensei discover **where architectural danger tends to
-hide.** Every project ships with **133 universal principles across 8 categories**,
+hide.** Every project ships with **134 universal principles across 8 categories**,
 distilled from real production incidents and portable to any system:
 
 | Category | Count | Examples |
@@ -328,7 +328,7 @@ implementation work. They were productive but kept reintroducing the same class
 of architectural failure (authority confusion, stale state presented as truth,
 recovery paths that depend on what they must recover, fixes that violate ownership
 boundaries). Those 50+ incidents became queryable invariants, failure modes,
-forbidden fixes, and required tests — and the recurring shapes became the 133
+forbidden fixes, and required tests — and the recurring shapes became the 134
 portable meta-principles that ship with every `sensei init`. Sensei now runs
 entirely on its own, for any codebase.
 

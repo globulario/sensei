@@ -4,7 +4,7 @@
 
 - [CLI Reference](./cli-reference.md) — every `sensei` command and flag
 - [API Reference](./api-reference.md) — the gRPC service + the MCP bridge tools
-- [Meta-Principles](./meta-principles.md) — the 133-principle framework
+- [Meta-Principles](./meta-principles.md) — the 134-principle framework
 
 ## Agent-facing docs
 

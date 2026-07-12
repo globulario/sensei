@@ -1,0 +1,47 @@
+# Activation Rules — when awareness briefing is required.
+#
+# These rules define when the briefing is triggered and how empty
+# results are handled.
+
+activation_rules:
+  version: v1
+
+  rules:
+    # AUTO: Hook-enforced before editing high-risk files.
+    - id: auto_briefing
+      trigger: file_path
+      enforcement: hook
+      paths: []  # Populated from high_risk_files.yaml
+      tools:
+        - sensei briefing --file <path>
+
+    # MANUAL: Agent judgment for task-level awareness.
+    - id: manual_briefing
+      trigger: task_concept
+      enforcement: agent_judgment
+      concepts:
+        - authentication
+        - authorization
+        - database migration
+        - deployment
+        - configuration
+      tools:
+        - sensei briefing --task <description>
+
+  # How to handle empty briefing results.
+  empty_policy:
+    tiers:
+      - tier: low_risk
+        description: Typo fix, formatting, comment, import reorder
+        action: proceed
+        announce: false
+
+      - tier: high_risk_target
+        description: Minor edit in a high-risk directory
+        action: treat_as_degraded
+        announce: true
+
+      - tier: behavior_change_in_high_risk
+        description: Logic change in a high-risk directory
+        action: escalate
+        announce: true
