@@ -444,23 +444,26 @@ export class DashboardPanel {
     };
   }
 
-  private domainDefaultResolved = false;
-
-  private async handleMetadata(): Promise<void> {
+  // Fetch metadata scoped to the effective domain. Defaults the dashboard to THIS
+  // project's domain (from the git remote) so the banner, lists, and score reflect
+  // the repo — not the whole multi-repo graph. Re-evaluated every call (not
+  // one-time), so it self-corrects after a reseed:
+  //   - user explicitly picked a domain (selectedDomain !== undefined) → honour it
+  //   - else the project domain, IF the graph actually carries it → scope to it
+  //   - else graph-wide (the project isn't a distinct domain in this graph)
+  private async scopedMetadata(): Promise<{ domain: string; data: MetadataResponse }> {
     const { addr, timeout } = this.cfg();
     let domain = await this.activeDomain();
     let data = await metadata(addr, timeout, domain || undefined);
-    // One-time self-heal: if we auto-defaulted to a project domain the graph
-    // doesn't actually key on (its git remote ≠ the graph's domain key), the
-    // scoped counts would be near-empty and look broken. Fall back to graph-wide.
-    if (!this.domainDefaultResolved && this.selectedDomain === undefined && domain) {
-      this.domainDefaultResolved = true;
-      if (!(data.available_domains ?? []).includes(domain)) {
-        this.selectedDomain = '';
-        domain = '';
-        data = await metadata(addr, timeout, undefined);
-      }
+    if (this.selectedDomain === undefined && domain && !(data.available_domains ?? []).includes(domain)) {
+      domain = '';
+      data = await metadata(addr, timeout, undefined);
     }
+    return { domain, data };
+  }
+
+  private async handleMetadata(): Promise<void> {
+    const { domain, data } = await this.scopedMetadata();
     this.post({ type: 'metadata', data, activeDomain: domain, localOps: this.localOpsPayload() });
   }
 
@@ -468,9 +471,7 @@ export class DashboardPanel {
   // op — just a fresh read, so the banner reflects a graph rebuilt out-of-band.
   private async handleRefreshReload(): Promise<void> {
     try {
-      const { addr, timeout } = this.cfg();
-      const domain = await this.activeDomain();
-      const data = await metadata(addr, timeout, domain || undefined);
+      const { domain, data } = await this.scopedMetadata();
       const authority = assessMetadataAuthority(data);
       this.post({ type: 'metadata', data, activeDomain: domain, localOps: this.localOpsPayload() });
       this.post({
