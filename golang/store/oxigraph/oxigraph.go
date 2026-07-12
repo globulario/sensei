@@ -803,6 +803,86 @@ func (c *Client) Load(ctx context.Context, r io.Reader) error {
 	return nil
 }
 
+// updateURL derives the SPARQL Update endpoint from queryURL by replacing the
+// trailing "/query" path segment with "/update". Oxigraph co-locates query,
+// update, and store endpoints on the same port.
+func (c *Client) updateURL() string {
+	base := strings.TrimSuffix(c.queryURL, "/query")
+	return base + "/update"
+}
+
+// Update executes a SPARQL Update (INSERT/DELETE) against the store. Unlike Load
+// (a whole-graph PUT replace), Update mutates in place — the primitive behind a
+// domain-scoped, non-destructive rebuild: it lets `sensei build --repo` remove
+// only one repo's slice (subjects tagged aw:repo == domain) without disturbing
+// other domains, shared nodes, or the home slice.
+func (c *Client) Update(ctx context.Context, update string) error {
+	updateClient := &http.Client{Timeout: 60 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.updateURL(), strings.NewReader(update))
+	if err != nil {
+		return fmt.Errorf("oxigraph update: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-update")
+	resp, err := updateClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("oxigraph update: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("oxigraph update: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+// Append merges N-Triples into the default graph via a Graph Store Protocol
+// POST (additive), in contrast to Load's PUT (replace). Used by the scoped
+// rebuild to add a freshly compiled domain slice — and its recomputed marker —
+// on top of the domains already present. Identical triples are idempotent (the
+// store deduplicates on merge).
+func (c *Client) Append(ctx context.Context, r io.Reader) error {
+	appendClient := &http.Client{Timeout: 60 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.storeURL(), r)
+	if err != nil {
+		return fmt.Errorf("oxigraph append: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/n-triples")
+	resp, err := appendClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("oxigraph append: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("oxigraph append: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+// DumpNTriples returns the entire default graph serialized as N-Triples via a
+// Graph Store Protocol GET. The scoped rebuild reads the whole graph back after
+// its DELETE/append so it can recompute the single whole-graph marker (digest +
+// total triple count) that the server verifies — the marker is global, so any
+// scoped change must restamp it over the post-update contents.
+func (c *Client) DumpNTriples(ctx context.Context) ([]byte, error) {
+	dumpClient := &http.Client{Timeout: 120 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.storeURL(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph dump: build request: %w", err)
+	}
+	req.Header.Set("Accept", "application/n-triples")
+	resp, err := dumpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph dump: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return nil, fmt.Errorf("oxigraph dump: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return io.ReadAll(resp.Body)
+}
+
 type sparqlSelectResult struct {
 	Results struct {
 		Bindings []struct {
