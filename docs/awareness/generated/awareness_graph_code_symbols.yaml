@@ -4549,6 +4549,16 @@ test_symbols:
     package: rdf
     language: go
     doc: "EncodeIRIPath/DecodeIRIPath must be inverses so a node id survives the\nround-trip id → IRI segment → id. The SourceFile/CodeSymbol double-encoding\nbug came from decoding being absent, so this pins the property."
+  - id: golang/rdf/finalize_scope_test.go:TestFinalizeDefaultScope
+    file: golang/rdf/finalize_scope_test.go
+    symbol: TestFinalizeDefaultScope
+    package: rdf
+    language: go
+  - id: golang/rdf/finalize_scope_test.go:TestFinalizeDefaultScope_NoopWhenEmpty
+    file: golang/rdf/finalize_scope_test.go
+    symbol: TestFinalizeDefaultScope_NoopWhenEmpty
+    package: rdf
+    language: go
   - id: golang/rdf/ontology_drift_test.go:TestOntologyVocabDriftForbidden
     file: golang/rdf/ontology_drift_test.go
     symbol: TestOntologyVocabDriftForbidden
