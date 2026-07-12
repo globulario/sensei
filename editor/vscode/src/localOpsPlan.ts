@@ -132,6 +132,9 @@ export function resolveRebuildPlan(
     };
   }
 
+  // --tag-by-repo: a combined build spans multiple repos, so tag each repo's
+  // nodes with its own domain (from its git remote) — otherwise Rebuild would
+  // collapse the whole graph into one home domain and lose per-repo filtering.
   return {
     mode: 'combined',
     senseiPath,
@@ -139,7 +142,7 @@ export function resolveRebuildPlan(
     seedPath,
     servicesRepoPath: svc,
     servicesDetected: detected,
-    args: ['rebuild', '--services-repo', svc],
-    command: `${senseiPath} rebuild --services-repo ${svc}`,
+    args: ['rebuild', '--services-repo', svc, '--tag-by-repo'],
+    command: `${senseiPath} rebuild --services-repo ${svc} --tag-by-repo`,
   };
 }

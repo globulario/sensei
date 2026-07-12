@@ -105,7 +105,7 @@ func evaluateRepoForDraft(repoFlag, svcRepoFlag, agRepoFlag string) (repoeval.Re
 	if err != nil {
 		return repoeval.Report{}, repoEvalTarget{}, err
 	}
-	ntBytes, _, _, err := generateNT(inputDirs, intentDir, graphSvcRepo, graphAGRepo)
+	ntBytes, _, _, err := generateNT(inputDirs, intentDir, graphSvcRepo, graphAGRepo, false)
 	if err != nil {
 		return repoeval.Report{}, repoEvalTarget{}, err
 	}

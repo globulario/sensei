@@ -116,6 +116,7 @@ components:
       - cmd/awg/cross_repo_guard.go
       - cmd/awg/defaults.go
       - cmd/awg/gate_policy.go
+      - cmd/awg/git_domain.go
       - cmd/awg/governance_helpers.go
       - cmd/awg/governance_publish_helpers.go
       - cmd/awg/graph_marker.go

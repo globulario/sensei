@@ -73,7 +73,7 @@ Flags:
 	if target.kind == "generic" {
 		servicesOwnershipRepo = ""
 	}
-	ntBytes, _, _, err := generateNTWithOwnership(inputDirs, intentDir, []string{graphAgRepo, graphSvcRepo}, servicesOwnershipRepo)
+	ntBytes, _, _, err := generateNTWithOwnership(inputDirs, intentDir, []string{graphAgRepo, graphSvcRepo}, servicesOwnershipRepo, nil, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei repo-eval: generate graph: %v\n", err)
 		return 1

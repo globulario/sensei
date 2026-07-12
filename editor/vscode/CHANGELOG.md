@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+- **Rebuild rebuilds THIS repo's view, not a flattened graph.** The dashboard's
+  Rebuild (combined mode) now passes `--tag-by-repo`, so a multi-repo rebuild
+  tags each repo's nodes with its own domain (from its git remote) and the graph
+  stays filterable per repo — previously a Rebuild collapsed everything into one
+  home domain and lost the per-repo view.
+
 ## 0.1.3
 
 - **Dashboard defaults to the current project by default.** The banner counts,
