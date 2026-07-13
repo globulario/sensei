@@ -103,15 +103,21 @@ to inspect or intervene between steps, or the wrapper is unavailable.
      - proto contracts (`.proto` → gRPC service/RPC Contract nodes)
      - REST contracts (OpenAPI/Swagger specs → endpoint Contract nodes)
      - **code→contract authority surfaces** from Go source (HTTP handlers,
-       guards, lifecycle control, state mutations → AuthoritySurface candidates)
+       guards, lifecycle control, state mutations → AuthoritySurface candidates),
+       kept at **medium+ confidence**: an external route/handler, a lifecycle
+       control, or a guarded mutation is kept; a bare unguarded mutation (a plain
+       setter) scores low and is dropped.
      - **boundaries inferred from the import graph** — Go `internal/` visibility
        boundaries (compiler-enforced) and dependency-hub / contract-exposure
        seams (a component many others depend on → a stability boundary)
-     - **invariants inferred from rule-signaling tests** — a test whose name
-       encodes a law (must/never/idempotent/isolation/race/roundtrip/panic/
-       regression, or a negated modal like *should not*) becomes a candidate
-       invariant with that test as its proof. Example-only tests stay plain
-       required_tests — Sensei does not manufacture invariants it can't justify.
+     - **invariants from the single `extract-invariants` substrate**, gated at
+       **medium confidence** (corroborated only). One Go-AST pass yields guard,
+       write, schema, and rule-signaling-test facts; a candidate is kept when it
+       has a second signal — a guard with a test, an owned write path, or a
+       rule-signaling test that attests a behavioral law (race/panic/idempotency).
+       An uncorroborated single guard scores low and is dropped, so Sensei never
+       manufactures invariants it can't justify. Authority surfaces and invariants
+       come from the SAME parse — no double scan.
      - web components + gRPC-web consumption edges (TS/JS)
      Coverage depends on how the repo is written: a repo with `.proto`/OpenAPI or
      `mux.HandleFunc`-style handlers yields contracts even in Basic; a pure
