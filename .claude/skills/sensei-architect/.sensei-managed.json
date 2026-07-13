@@ -1,0 +1,16 @@
+{
+  "managed_by": "sensei init",
+  "skill": "sensei-architect",
+  "version": "2026.07.12",
+  "source_dir": "templates/skills/sensei-architect",
+  "files": {
+    "README.md": "332eb5e96a2bec07bbce337575371edd21ca11be7feb6f5e01ced5b971846ab6",
+    "SKILL.md": "1290891774b0c97a1f6178994589afed26cea1c19444bedd9b500015703a3466",
+    "references/ARCHITECTURE-VIEW.md": "d1b0fdee0245789c29134143e62a6e30047252d3ad7e7f2b400c790d1b0f3259",
+    "references/DURABLE-FEEDBACK.md": "3b2d8c1eb4a9db0d663ebb23011b8b31a06299d7daaea535f83afc08f044e330",
+    "references/FINDING-RUBRIC.md": "bdd526094007d521121cab83a4f52adb7bdf61db490788e8ad2fa4f6d6662fa4",
+    "references/OPERATING-MODEL.md": "6c89de6aa89c4f9db469eb9ab9de84e920e754c7a80b7154bcc0b85cc4e38cca",
+    "references/TOOL-PLAYBOOK.md": "8dbd6b4ff9dabbcb3bf359bc8e6e6918308ceb25f8a258f69d3315b73a835525",
+    "references/WORKFLOW-BRANCHES.md": "e62da06a240af59e64d1cc9353e83092a38ed87fc21dfe65f51d6ac344434a49"
+  }
+}

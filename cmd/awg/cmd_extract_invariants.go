@@ -1,0 +1,1263 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/printer"
+	"go/token"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+type invariantExtractionReport struct {
+	GeneratedBy      string                         `json:"generated_by" yaml:"generated_by"`
+	GeneratedAt      string                         `json:"generated_at" yaml:"generated_at"`
+	RepoRoot         string                         `json:"repo_root" yaml:"repo_root"`
+	Facts            []normalizedInvariantFact      `json:"facts" yaml:"facts"`
+	Candidates       []extractedInvariantCandidate  `json:"candidates" yaml:"candidates"`
+	MutationAnalysis invariantMutationAnalysisState `json:"mutation_analysis,omitempty" yaml:"mutation_analysis,omitempty"`
+}
+
+type normalizedInvariantFact struct {
+	ID         string                `json:"id" yaml:"id"`
+	Kind       string                `json:"kind" yaml:"kind"`
+	Subject    string                `json:"subject" yaml:"subject"`
+	Predicate  string                `json:"predicate" yaml:"predicate"`
+	Object     string                `json:"object" yaml:"object"`
+	Scope      invariantFactScope    `json:"scope" yaml:"scope"`
+	Evidence   invariantFactEvidence `json:"evidence" yaml:"evidence"`
+	Confidence float64               `json:"confidence" yaml:"confidence"`
+	Extractor  string                `json:"extractor" yaml:"extractor"`
+	Meta       map[string]string     `json:"meta,omitempty" yaml:"meta,omitempty"`
+}
+
+type invariantFactScope struct {
+	Repository string   `json:"repository" yaml:"repository"`
+	Files      []string `json:"files" yaml:"files"`
+	Symbols    []string `json:"symbols" yaml:"symbols"`
+}
+
+type invariantFactEvidence struct {
+	SourceFile string `json:"source_file,omitempty" yaml:"source_file,omitempty"`
+	LineStart  int    `json:"line_start,omitempty" yaml:"line_start,omitempty"`
+	LineEnd    int    `json:"line_end,omitempty" yaml:"line_end,omitempty"`
+	TestName   string `json:"test_name,omitempty" yaml:"test_name,omitempty"`
+	Commit     string `json:"commit,omitempty" yaml:"commit,omitempty"`
+	Command    string `json:"command,omitempty" yaml:"command,omitempty"`
+}
+
+type extractedInvariantCandidate struct {
+	ID                      string                        `json:"id" yaml:"id"`
+	Statement               string                        `json:"statement" yaml:"statement"`
+	Kind                    string                        `json:"kind" yaml:"kind"`
+	Status                  string                        `json:"status" yaml:"status"`
+	Confidence              extractedInvariantConfidence  `json:"confidence" yaml:"confidence"`
+	Scope                   invariantCandidateScope       `json:"scope" yaml:"scope"`
+	Authority               invariantCandidateAuthority   `json:"authority" yaml:"authority"`
+	Evidence                invariantCandidateEvidence    `json:"evidence" yaml:"evidence"`
+	Contradictions          []string                      `json:"contradictions" yaml:"contradictions"`
+	AlternativeExplanations []string                      `json:"alternative_explanations" yaml:"alternative_explanations"`
+	Unknowns                []string                      `json:"unknowns" yaml:"unknowns"`
+	ProofObligations        []string                      `json:"proof_obligations" yaml:"proof_obligations"`
+	Promotion               invariantPromotionDisposition `json:"promotion" yaml:"promotion"`
+}
+
+type extractedInvariantConfidence struct {
+	Level       string   `json:"level" yaml:"level"`
+	Score       int      `json:"score" yaml:"score"`
+	Explanation []string `json:"explanation" yaml:"explanation"`
+}
+
+type invariantCandidateScope struct {
+	Repositories []string `json:"repositories" yaml:"repositories"`
+	Components   []string `json:"components" yaml:"components"`
+	Files        []string `json:"files" yaml:"files"`
+	Symbols      []string `json:"symbols" yaml:"symbols"`
+}
+
+type invariantCandidateAuthority struct {
+	Owner     string   `json:"owner" yaml:"owner"`
+	Writers   []string `json:"writers" yaml:"writers"`
+	Consumers []string `json:"consumers" yaml:"consumers"`
+}
+
+type invariantCandidateEvidence struct {
+	Facts         []string `json:"facts" yaml:"facts"`
+	Tests         []string `json:"tests" yaml:"tests"`
+	Guards        []string `json:"guards" yaml:"guards"`
+	Schemas       []string `json:"schemas" yaml:"schemas"`
+	Gates         []string `json:"gates" yaml:"gates"`
+	Commits       []string `json:"commits" yaml:"commits"`
+	Incidents     []string `json:"incidents" yaml:"incidents"`
+	Documentation []string `json:"documentation" yaml:"documentation"`
+}
+
+type invariantPromotionDisposition struct {
+	Eligible bool     `json:"eligible" yaml:"eligible"`
+	Missing  []string `json:"missing" yaml:"missing"`
+}
+
+type invariantMutationAnalysisState struct {
+	Enabled bool   `json:"enabled" yaml:"enabled"`
+	Status  string `json:"status" yaml:"status"`
+	WorkDir string `json:"work_dir,omitempty" yaml:"work_dir,omitempty"`
+}
+
+type invariantExtractOptions struct {
+	Repo                    string
+	Format                  string
+	Output                  string
+	IncludeHistory          bool
+	IncludeDocs             bool
+	IncludeTests            bool
+	IncludeMutationAnalysis bool
+	MinimumConfidence       string
+	Explain                 bool
+	Check                   bool
+}
+
+func runExtractInvariants(args []string) int {
+	fs := flag.NewFlagSet("sensei extract-invariants", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	opts := invariantExtractOptions{}
+	fs.StringVar(&opts.Repo, "repo", ".", "repository root to inspect")
+	fs.StringVar(&opts.Format, "format", "json", "output format: json | yaml")
+	fs.StringVar(&opts.Output, "output", "", "write extraction artifact to this path instead of stdout")
+	fs.BoolVar(&opts.IncludeHistory, "include-history", false, "inspect recent git history for historical-removal facts")
+	fs.BoolVar(&opts.IncludeDocs, "include-docs", true, "extract normative documentation/comment facts")
+	fs.BoolVar(&opts.IncludeTests, "include-tests", true, "extract architectural test facts")
+	fs.BoolVar(&opts.IncludeMutationAnalysis, "include-mutation-analysis", false, "prepare isolated mutation-analysis workspace (bounded mode placeholder)")
+	fs.StringVar(&opts.MinimumConfidence, "minimum-confidence", "low", "minimum candidate confidence: low | medium | high | proven")
+	fs.BoolVar(&opts.Explain, "explain", false, "include supporting facts and scoring explanations (always true for JSON/YAML)")
+	fs.BoolVar(&opts.Check, "check", false, "compare --output with a fresh deterministic extraction")
+	fs.Usage = func() {
+		fmt.Fprint(os.Stderr, `Usage: sensei extract-invariants --repo <checkout> [flags]
+
+Extract normalized facts and review-only invariant candidates from repository
+evidence. The command never promotes candidates into governed invariants.
+
+Flags:
+`)
+		fs.PrintDefaults()
+	}
+	if err := fs.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 2
+	}
+	if fs.NArg() != 0 {
+		fs.Usage()
+		return 2
+	}
+	if opts.Check && strings.TrimSpace(opts.Output) == "" {
+		fmt.Fprintln(os.Stderr, "sensei extract-invariants: --check requires --output")
+		return 2
+	}
+	root, err := filepath.Abs(opts.Repo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei extract-invariants: resolve repo: %v\n", err)
+		return 1
+	}
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		fmt.Fprintf(os.Stderr, "sensei extract-invariants: --repo must be an existing directory: %s\n", root)
+		return 2
+	}
+	report, err := buildInvariantExtractionReport(root, opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei extract-invariants: %v\n", err)
+		return 1
+	}
+	rendered, err := renderInvariantExtractionReport(report, opts.Format)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei extract-invariants: %v\n", err)
+		return 2
+	}
+	if opts.Check {
+		existing, err := os.ReadFile(opts.Output)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sensei extract-invariants: read --output: %v\n", err)
+			return 1
+		}
+		if !bytes.Equal(bytes.TrimSpace(existing), bytes.TrimSpace(rendered)) {
+			fmt.Fprintf(os.Stderr, "extract-invariants: STALE — %s differs from fresh extraction\n", opts.Output)
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "extract-invariants: fresh (%d facts, %d candidates)\n", len(report.Facts), len(report.Candidates))
+		return 0
+	}
+	if strings.TrimSpace(opts.Output) != "" {
+		if err := os.MkdirAll(filepath.Dir(opts.Output), 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei extract-invariants: mkdir: %v\n", err)
+			return 1
+		}
+		if err := os.WriteFile(opts.Output, rendered, 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei extract-invariants: write: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "extract-invariants: wrote %d fact(s), %d candidate(s) to %s\n", len(report.Facts), len(report.Candidates), opts.Output)
+		return 0
+	}
+	fmt.Print(string(rendered))
+	return 0
+}
+
+func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (invariantExtractionReport, error) {
+	var facts []normalizedInvariantFact
+	goFacts, err := extractGoInvariantFacts(root, opts)
+	if err != nil {
+		return invariantExtractionReport{}, err
+	}
+	facts = append(facts, goFacts...)
+	facts = append(facts, extractGeneratedAuthorityFacts(root)...)
+	facts = append(facts, extractCIGateFacts(root)...)
+	if opts.IncludeDocs {
+		facts = append(facts, extractAwarenessDocumentationFacts(root)...)
+	}
+	if opts.IncludeHistory {
+		facts = append(facts, extractHistoryInvariantFacts(root)...)
+	}
+	facts = normalizeInvariantFacts(root, facts)
+	candidates := synthesizeInvariantCandidates(root, facts)
+	candidates = filterInvariantCandidates(candidates, opts.MinimumConfidence)
+	sortInvariantCandidates(candidates)
+	report := invariantExtractionReport{
+		GeneratedBy: "sensei extract-invariants",
+		GeneratedAt: "deterministic",
+		RepoRoot:    root,
+		Facts:       facts,
+		Candidates:  candidates,
+	}
+	if opts.IncludeMutationAnalysis {
+		tmp, err := os.MkdirTemp("", "sensei-invariant-mutants-*")
+		if err != nil {
+			return invariantExtractionReport{}, err
+		}
+		report.MutationAnalysis = invariantMutationAnalysisState{
+			Enabled: true,
+			Status:  "prepared_isolated_workspace_no_mutants_run_in_increment_1",
+			WorkDir: tmp,
+		}
+	}
+	return report, nil
+}
+
+func extractGoInvariantFacts(root string, opts invariantExtractOptions) ([]normalizedInvariantFact, error) {
+	files, err := invariantGoFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	var facts []normalizedInvariantFact
+	for _, path := range files {
+		fileFacts, err := extractGoFileInvariantFacts(root, path, opts)
+		if err != nil {
+			return nil, err
+		}
+		facts = append(facts, fileFacts...)
+	}
+	return facts, nil
+}
+
+func invariantGoFiles(root string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if path != root && invariantSkipDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) == ".go" && !strings.HasSuffix(path, ".pb.go") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	sort.Strings(files)
+	return files, err
+}
+
+func invariantSkipDir(name string) bool {
+	switch name {
+	case ".git", "vendor", "node_modules", ".cache", "dist", "build":
+		return true
+	default:
+		return false
+	}
+}
+
+func extractGoFileInvariantFacts(root, path string, opts invariantExtractOptions) ([]normalizedInvariantFact, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	rel := invariantRel(root, path)
+	var facts []normalizedInvariantFact
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if ok && gen.Tok == token.TYPE {
+			facts = append(facts, extractSchemaFacts(root, rel, file.Name.Name, gen, fset)...)
+		}
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil || fn.Name == nil {
+			continue
+		}
+		symbol := file.Name.Name + "." + fn.Name.Name
+		if opts.IncludeTests && strings.HasPrefix(fn.Name.Name, "Test") {
+			facts = append(facts, testAssertionFact(root, rel, symbol, fn, fset))
+		}
+		readSeen := map[string]bool{}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			switch x := n.(type) {
+			case *ast.IfStmt:
+				if invariantBlockReturnsError(x.Body) {
+					cond := invariantExprString(fset, x.Cond)
+					kind := "guard"
+					predicate := "refuses_when"
+					if invariantLooksLikeGeneration(cond) {
+						kind = "generation_check"
+						predicate = "compares_generation"
+					} else if invariantLooksLikeTransition(cond) {
+						kind = "transition"
+						predicate = "rejects_transition_when"
+					}
+					facts = append(facts, invariantFact(root, kind, symbol, predicate, cond, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_guard_extractor", 0.65, nil))
+				}
+			case *ast.AssignStmt:
+				for i, lhs := range x.Lhs {
+					field := invariantWriteTarget(lhs)
+					if field == "" {
+						continue
+					}
+					object := ""
+					if i < len(x.Rhs) {
+						object = invariantExprString(fset, x.Rhs[i])
+					}
+					meta := map[string]string{}
+					kind := "write"
+					predicate := "writes"
+					if invariantLooksLikeGeneration(field) && (x.Tok == token.ADD_ASSIGN || strings.Contains(object, "+ 1") || strings.Contains(object, "+1")) {
+						kind = "generation_check"
+						predicate = "increments_generation"
+					}
+					facts = append(facts, invariantFact(root, kind, symbol, predicate, field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.55, meta))
+				}
+			case *ast.IncDecStmt:
+				field := invariantWriteTarget(x.X)
+				if field != "" {
+					predicate := "writes"
+					kind := "write"
+					if invariantLooksLikeGeneration(field) && x.Tok == token.INC {
+						predicate = "increments_generation"
+						kind = "generation_check"
+					}
+					facts = append(facts, invariantFact(root, kind, symbol, predicate, field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.55, nil))
+				}
+			case *ast.SelectorExpr:
+				field := invariantSelectorName(x)
+				if field != "" && !readSeen[field] {
+					readSeen[field] = true
+					facts = append(facts, invariantFact(root, "read", symbol, "reads", field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_read_extractor", 0.35, nil))
+				}
+			case *ast.CallExpr:
+				call := invariantCallName(x.Fun)
+				if call != "" && invariantLooksLikePersistenceCall(call) {
+					facts = append(facts, invariantFact(root, "write", symbol, "persists_via", call, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.5, nil))
+				}
+			}
+			return true
+		})
+	}
+	if opts.IncludeDocs {
+		for _, group := range file.Comments {
+			text := strings.TrimSpace(group.Text())
+			if invariantNormativeText(text) {
+				pos := fset.Position(group.Pos())
+				facts = append(facts, invariantFact(root, "documentation_claim", rel, "claims_normative_rule", invariantCompact(text), rel, "", pos.Line, fset.Position(group.End()).Line, "", "go_comment_extractor", 0.25, nil))
+			}
+		}
+	}
+	return facts, nil
+}
+
+func extractSchemaFacts(root, rel, pkg string, gen *ast.GenDecl, fset *token.FileSet) []normalizedInvariantFact {
+	var facts []normalizedInvariantFact
+	for _, spec := range gen.Specs {
+		ts, ok := spec.(*ast.TypeSpec)
+		if !ok || ts.Name == nil {
+			continue
+		}
+		st, ok := ts.Type.(*ast.StructType)
+		if !ok || st.Fields == nil {
+			continue
+		}
+		for _, field := range st.Fields.List {
+			if field.Tag == nil || len(field.Names) == 0 {
+				continue
+			}
+			tag := strings.Trim(field.Tag.Value, "`")
+			name := schemaFieldName(tag)
+			if name == "" || name == "-" {
+				continue
+			}
+			subject := pkg + "." + ts.Name.Name + "." + field.Names[0].Name
+			facts = append(facts, invariantFact(root, "schema_constraint", subject, "accepts_field", name, rel, subject, fset.Position(field.Pos()).Line, fset.Position(field.End()).Line, "", "go_schema_extractor", 0.45, nil))
+		}
+	}
+	return facts
+}
+
+func schemaFieldName(tag string) string {
+	for _, key := range []string{"json", "yaml"} {
+		prefix := key + ":\""
+		idx := strings.Index(tag, prefix)
+		if idx < 0 {
+			continue
+		}
+		rest := tag[idx+len(prefix):]
+		end := strings.Index(rest, "\"")
+		if end < 0 {
+			continue
+		}
+		name := strings.Split(rest[:end], ",")[0]
+		return strings.TrimSpace(name)
+	}
+	return ""
+}
+
+func extractGeneratedAuthorityFacts(root string) []normalizedInvariantFact {
+	var facts []normalizedInvariantFact
+	for _, rel := range []string{"docs/awareness/generated", "golang/server/embeddata/awareness.nt", "golang/server/embeddata/awareness.transaction.tsv"} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if _, err := os.Stat(path); err == nil {
+			facts = append(facts, invariantFact(root, "generation_check", rel, "generated_artifact_exists", rel, rel, "", 0, 0, "", "generated_artifact_extractor", 0.5, nil))
+		}
+	}
+	for _, rel := range []string{".github/workflows/seed-rebuild.yml", ".github/workflows/awg-gate.yml", "Makefile"} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		raw, err := os.ReadFile(path)
+		if err == nil && (bytes.Contains(raw, []byte("diff")) || bytes.Contains(raw, []byte("--check")) || bytes.Contains(raw, []byte("gate"))) {
+			facts = append(facts, invariantFact(root, "ci_gate", rel, "checks_generated_freshness_or_gate", rel, rel, "", 0, 0, invariantFirstLine(string(raw)), "ci_extractor", 0.65, nil))
+		}
+	}
+	return facts
+}
+
+func extractCIGateFacts(root string) []normalizedInvariantFact {
+	var facts []normalizedInvariantFact
+	base := filepath.Join(root, ".github", "workflows")
+	_ = filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yml" && ext != ".yaml" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		text := strings.ToLower(string(raw))
+		rel := invariantRel(root, path)
+		switch {
+		case strings.Contains(text, "gate --enforce") || strings.Contains(text, "sensei gate") || strings.Contains(text, "awg gate"):
+			facts = append(facts, invariantFact(root, "ci_gate", rel, "enforces_architectural_gate", rel, rel, "", 0, 0, "gate --enforce", "ci_extractor", 0.8, nil))
+		case strings.Contains(text, "grep") || strings.Contains(text, "forbidden") || strings.Contains(text, "source-check"):
+			facts = append(facts, invariantFact(root, "ci_gate", rel, "runs_scanner", rel, rel, "", 0, 0, firstScannerCommand(string(raw)), "ci_extractor", 0.6, nil))
+		}
+		return nil
+	})
+	return facts
+}
+
+func extractAwarenessDocumentationFacts(root string) []normalizedInvariantFact {
+	var facts []normalizedInvariantFact
+	base := filepath.Join(root, "docs", "awareness")
+	_ = filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if strings.Contains(filepath.ToSlash(path), "/candidates/") {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yaml" && ext != ".yml" && ext != ".md" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		rel := invariantRel(root, path)
+		for lineNo, line := range strings.Split(string(raw), "\n") {
+			if invariantNormativeText(line) {
+				facts = append(facts, invariantFact(root, "documentation_claim", rel, "claims_normative_rule", invariantCompact(line), rel, "", lineNo+1, lineNo+1, "", "awareness_doc_extractor", 0.35, nil))
+			}
+		}
+		return nil
+	})
+	return facts
+}
+
+func extractHistoryInvariantFacts(root string) []normalizedInvariantFact {
+	cmd := exec.Command("git", "-C", root, "log", "--oneline", "--name-status", "-n", "80")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	var facts []normalizedInvariantFact
+	var commit string
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if len(line) > 8 && !strings.Contains(line[:8], "\t") && !strings.Contains(line[:8], " ") {
+			commit = line
+			lower := strings.ToLower(line)
+			if strings.Contains(lower, "remove") || strings.Contains(lower, "forbid") || strings.Contains(lower, "bypass") || strings.Contains(lower, "direct") {
+				facts = append(facts, invariantFact(root, "historical_removal", "git_history", "records_removal_or_forbidden_pattern", line, "", "", 0, 0, "", "git_history_extractor", 0.45, map[string]string{"commit": strings.Fields(line)[0]}))
+			}
+			continue
+		}
+		if commit != "" && (strings.HasPrefix(line, "D") || strings.HasPrefix(line, "M")) {
+			lower := strings.ToLower(commit + " " + line)
+			if strings.Contains(lower, "direct") || strings.Contains(lower, "bypass") || strings.Contains(lower, "forbid") || strings.Contains(lower, "remove") {
+				facts = append(facts, invariantFact(root, "historical_removal", "git_history", "changed_file_after_removal_pressure", line, "", "", 0, 0, "", "git_history_extractor", 0.4, map[string]string{"commit": strings.Fields(commit)[0]}))
+			}
+		}
+	}
+	return facts
+}
+
+func synthesizeInvariantCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	var out []extractedInvariantCandidate
+	out = append(out, synthesizeGuardCandidates(root, facts)...)
+	out = append(out, synthesizeAuthorityCandidates(root, facts)...)
+	out = append(out, synthesizeFreshnessCandidates(root, facts)...)
+	out = append(out, synthesizeAcceptedButUnconsumedCandidates(root, facts)...)
+	out = append(out, synthesizeGeneratedAuthorityCandidates(root, facts)...)
+	out = append(out, synthesizeNegativeHistoryCandidates(root, facts)...)
+	out = append(out, synthesizeTestAttestedCandidates(root, facts)...)
+	return mergeInvariantCandidates(out)
+}
+
+// synthesizeTestAttestedCandidates promotes rule-signaling tests to candidate
+// invariants. A test whose name encodes a law (asserts_architectural_rule) is a
+// behavioral invariant the code's guard clauses may not express at all —
+// concurrency, race, panic, idempotency, isolation. The test itself is the
+// proof, so it scores like a guard corroborated by a test (20 + 25 = 45 =
+// medium). This is the single home for the "tests protect invariants" signal;
+// the earlier standalone test-name extractor is retired in favour of it.
+func synthesizeTestAttestedCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	var out []extractedInvariantCandidate
+	for _, f := range facts {
+		if f.Kind != "assertion" || f.Predicate != "asserts_architectural_rule" {
+			continue
+		}
+		out = append(out, invariantCandidateFromFacts(
+			"candidate.invariant.test_attested."+slugify(f.Subject),
+			fmt.Sprintf("%s — asserted as a rule by a dedicated test.", f.Object),
+			"behavioral",
+			45,
+			[]string{"a rule-signaling test names and exercises this behavior", "the test is the built-in proof"},
+			[]normalizedInvariantFact{f},
+			[]string{"Confirm the test covers the rule's full architectural scope.", "Promote only if the rule is load-bearing."},
+		))
+	}
+	return out
+}
+
+func synthesizeGuardCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	var out []extractedInvariantCandidate
+	testFacts := factsByKindPredicate(facts, "assertion", "asserts_architectural_rule")
+	for _, g := range facts {
+		if g.Kind != "guard" && g.Kind != "transition" {
+			continue
+		}
+		tests := relatedTests(g, testFacts)
+		score := 20
+		expl := []string{"runtime refusal or validation guard"}
+		if len(tests) > 0 {
+			score += 25
+			expl = append(expl, "architectural or regression test corroborates guard")
+		} else {
+			score -= 10
+			expl = append(expl, "single isolated guard; no corroborating test found")
+		}
+		kind := "state"
+		if g.Kind == "transition" {
+			kind = "transition"
+		}
+		out = append(out, invariantCandidateFromFacts(
+			"candidate.invariant."+kind+"."+slugify(g.Subject+" "+g.Object),
+			fmt.Sprintf("%s refuses operation when %s.", g.Subject, g.Object),
+			kind,
+			score,
+			expl,
+			append([]normalizedInvariantFact{g}, tests...),
+			[]string{"Confirm the guard applies to the intended architectural scope.", "Add or cite tests for bypass paths before promotion."},
+		))
+	}
+	return out
+}
+
+func synthesizeAuthorityCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	writes := map[string][]normalizedInvariantFact{}
+	for _, f := range facts {
+		if f.Kind == "write" && (f.Predicate == "writes" || f.Predicate == "persists_via") {
+			writes[f.Object] = append(writes[f.Object], f)
+		}
+	}
+	var out []extractedInvariantCandidate
+	resources := make([]string, 0, len(writes))
+	for resource := range writes {
+		resources = append(resources, resource)
+	}
+	sort.Strings(resources)
+	for _, resource := range resources {
+		wfacts := writes[resource]
+		writers := uniqueFactSubjects(wfacts)
+		if resource == "" || len(writers) == 0 {
+			continue
+		}
+		corroboration := authorityCorroborationFacts(resource, facts)
+		if len(writers) == 1 && len(corroboration) == 0 {
+			continue
+		}
+		score := 15
+		expl := []string{"canonical owner write path evidence"}
+		if len(corroboration) > 0 {
+			score += 25
+			expl = append(expl, "corroborating guard, test, gate, documentation, or history evidence")
+		}
+		var contradictions []string
+		if len(writers) > 1 {
+			score -= 25
+			contradictions = append(contradictions, "multiple observed writers: "+strings.Join(writers, ", "))
+		}
+		c := invariantCandidateFromFacts(
+			"candidate.invariant.authority."+slugify(resource),
+			fmt.Sprintf("%s appears to be mutated through a constrained writer set.", resource),
+			"authority",
+			score,
+			expl,
+			append(wfacts, corroboration...),
+			[]string{"Prove no bypass writer exists for the scoped state.", "Identify the owning component and allowed mutation API."},
+		)
+		c.Authority.Writers = writers
+		c.Contradictions = contradictions
+		out = append(out, c)
+	}
+	return out
+}
+
+func synthesizeFreshnessCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	var bumps, checks, tests []normalizedInvariantFact
+	for _, f := range facts {
+		if f.Kind == "generation_check" && f.Predicate == "increments_generation" {
+			bumps = append(bumps, f)
+		}
+		if f.Kind == "generation_check" && f.Predicate == "compares_generation" {
+			checks = append(checks, f)
+		}
+		if f.Kind == "assertion" && strings.Contains(strings.ToLower(f.Object), "generation") {
+			tests = append(tests, f)
+		}
+	}
+	if len(bumps) == 0 || len(checks) == 0 {
+		return nil
+	}
+	score := 20 + 20
+	expl := []string{"owner mutation appears to increment generation", "consumer or guard compares generation"}
+	var supporting []normalizedInvariantFact
+	supporting = append(supporting, bumps...)
+	supporting = append(supporting, checks...)
+	if len(tests) > 0 {
+		score += 25
+		expl = append(expl, "generation-related test exists")
+		supporting = append(supporting, tests...)
+	} else {
+		score -= 10
+		expl = append(expl, "no generation-specific regression test found")
+	}
+	return []extractedInvariantCandidate{invariantCandidateFromFacts(
+		"candidate.invariant.freshness.generation_fence",
+		"Generation-derived actions appear valid only when mutation bumps and consumers compare generation state.",
+		"freshness",
+		score,
+		expl,
+		supporting,
+		[]string{"Prove every semantic mutation increments the generation.", "Prove consumers compare against independently obtained state.", "Prove idempotent writes do not increment generation."},
+	)}
+}
+
+func synthesizeAcceptedButUnconsumedCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	reads := map[string]bool{}
+	writes := map[string]bool{}
+	for _, f := range facts {
+		if f.Kind == "read" {
+			reads[strings.ToLower(f.Object)] = true
+		}
+		if f.Kind == "write" {
+			writes[strings.ToLower(f.Object)] = true
+		}
+	}
+	var out []extractedInvariantCandidate
+	for _, f := range facts {
+		if f.Kind != "schema_constraint" || f.Predicate != "accepts_field" {
+			continue
+		}
+		fieldName := strings.ToLower(lastSegment(f.Subject))
+		if reads[fieldName] {
+			continue
+		}
+		score := 15
+		expl := []string{"typed schema or protocol accepts field", "no behavioral read observed"}
+		if writes[fieldName] {
+			score += 10
+			expl = append(expl, "field is written but not read")
+		}
+		c := invariantCandidateFromFacts(
+			"candidate.invariant.accepted_but_unconsumed."+slugify(f.Subject),
+			fmt.Sprintf("%s is accepted by schema tags but no behavioral consumer was observed; unsupported intent may need rejection or implementation.", f.Subject),
+			"safety",
+			score,
+			expl,
+			[]normalizedInvariantFact{f},
+			[]string{"Confirm all dynamic reads are accounted for.", "Either consume the field behaviorally or reject it before persistence."},
+		)
+		c.Unknowns = append(c.Unknowns, "Reflection, encoding, or external consumers may read this field outside static selector analysis.")
+		out = append(out, c)
+	}
+	return out
+}
+
+func synthesizeGeneratedAuthorityCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	var generated, gates []normalizedInvariantFact
+	for _, f := range facts {
+		if f.Kind == "generation_check" && f.Predicate == "generated_artifact_exists" {
+			generated = append(generated, f)
+		}
+		if f.Kind == "ci_gate" && (f.Predicate == "checks_generated_freshness_or_gate" || f.Predicate == "enforces_architectural_gate") {
+			gates = append(gates, f)
+		}
+	}
+	if len(generated) == 0 || len(gates) == 0 {
+		return nil
+	}
+	supporting := append(append([]normalizedInvariantFact{}, generated...), gates...)
+	return []extractedInvariantCandidate{invariantCandidateFromFacts(
+		"candidate.invariant.generated_authority.fresh_artifacts",
+		"Generated artifacts appear to be derived state that must remain fresh with their authored sources or configured gates.",
+		"generated_authority",
+		45,
+		[]string{"generated artifact exists", "CI or repository command checks freshness/gates"},
+		supporting,
+		[]string{"Identify canonical authored inputs.", "Run freshness check or configured gate before accepting changes."},
+	)}
+}
+
+func synthesizeNegativeHistoryCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
+	var hist, gates []normalizedInvariantFact
+	for _, f := range facts {
+		if f.Kind == "historical_removal" {
+			hist = append(hist, f)
+		}
+		if f.Kind == "ci_gate" && f.Predicate == "runs_scanner" {
+			gates = append(gates, f)
+		}
+	}
+	if len(hist) == 0 || len(gates) == 0 {
+		return nil
+	}
+	supporting := append(append([]normalizedInvariantFact{}, hist...), gates...)
+	return []extractedInvariantCandidate{invariantCandidateFromFacts(
+		"candidate.invariant.negative.repeated_removed_pattern",
+		"A historically removed or forbidden pattern appears to be protected by a scanner; reintroducing it is likely regressive.",
+		"negative",
+		70,
+		[]string{"historical removal evidence", "scanner or CI enforcement evidence"},
+		supporting,
+		[]string{"Inspect commit diffs, not only commit subjects.", "Confirm scanner covers the proposed scope."},
+	)}
+}
+
+func invariantCandidateFromFacts(id, statement, kind string, score int, explanation []string, facts []normalizedInvariantFact, proof []string) extractedInvariantCandidate {
+	score = invariantClamp(score, 0, 100)
+	files := map[string]bool{}
+	symbols := map[string]bool{}
+	tests := []string{}
+	guards := []string{}
+	schemas := []string{}
+	gates := []string{}
+	commits := []string{}
+	docs := []string{}
+	factIDs := []string{}
+	repos := map[string]bool{}
+	for _, f := range facts {
+		factIDs = append(factIDs, f.ID)
+		for _, file := range f.Scope.Files {
+			files[file] = true
+		}
+		for _, sym := range f.Scope.Symbols {
+			symbols[sym] = true
+		}
+		if f.Scope.Repository != "" {
+			repos[f.Scope.Repository] = true
+		}
+		switch f.Kind {
+		case "assertion":
+			if f.Evidence.TestName != "" {
+				tests = append(tests, f.Evidence.SourceFile+":"+f.Evidence.TestName)
+			}
+		case "guard", "transition", "generation_check":
+			guards = append(guards, f.ID)
+		case "schema_constraint":
+			schemas = append(schemas, f.ID)
+		case "ci_gate":
+			gates = append(gates, f.Evidence.SourceFile)
+		case "historical_removal":
+			commits = append(commits, firstNonEmpty(f.Evidence.Commit, f.Object))
+		case "documentation_claim":
+			docs = append(docs, f.Evidence.SourceFile)
+		}
+	}
+	return extractedInvariantCandidate{
+		ID:        id,
+		Statement: statement,
+		Kind:      kind,
+		Status:    "candidate",
+		Confidence: extractedInvariantConfidence{
+			Level:       invariantConfidenceLevel(score),
+			Score:       score,
+			Explanation: dedupeSorted(explanation),
+		},
+		Scope: invariantCandidateScope{
+			Repositories: sortedMapKeys(repos),
+			Files:        sortedMapKeys(files),
+			Symbols:      sortedMapKeys(symbols),
+		},
+		Authority: invariantCandidateAuthority{
+			Owner:     "",
+			Writers:   []string{},
+			Consumers: []string{},
+		},
+		Evidence: invariantCandidateEvidence{
+			Facts:         dedupeSorted(factIDs),
+			Tests:         dedupeSorted(tests),
+			Guards:        dedupeSorted(guards),
+			Schemas:       dedupeSorted(schemas),
+			Gates:         dedupeSorted(gates),
+			Commits:       dedupeSorted(commits),
+			Documentation: dedupeSorted(docs),
+		},
+		Contradictions:          []string{},
+		AlternativeExplanations: []string{"The evidence may describe local behavior rather than an architectural invariant."},
+		Unknowns:                []string{},
+		ProofObligations:        dedupeSorted(proof),
+		Promotion: invariantPromotionDisposition{
+			Eligible: false,
+			Missing:  []string{"architectural owner approval", "reviewed scope", "explicit promotion into governed awareness"},
+		},
+	}
+}
+
+func renderInvariantExtractionReport(report invariantExtractionReport, format string) ([]byte, error) {
+	report.GeneratedAt = "deterministic"
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "", "json":
+		var b bytes.Buffer
+		enc := json.NewEncoder(&b)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			return nil, err
+		}
+		return b.Bytes(), nil
+	case "yaml", "yml":
+		return yaml.Marshal(report)
+	default:
+		return nil, fmt.Errorf("--format must be json or yaml")
+	}
+}
+
+func normalizeInvariantFacts(root string, facts []normalizedInvariantFact) []normalizedInvariantFact {
+	for i := range facts {
+		f := &facts[i]
+		f.Scope.Files = dedupeSorted(f.Scope.Files)
+		f.Scope.Symbols = dedupeSorted(f.Scope.Symbols)
+		if f.ID == "" {
+			f.ID = "fact." + invariantShortHash(strings.Join([]string{f.Kind, f.Subject, f.Predicate, f.Object, f.Evidence.SourceFile, fmt.Sprint(f.Evidence.LineStart)}, "|"))
+		}
+	}
+	seen := map[string]bool{}
+	out := facts[:0]
+	sort.SliceStable(facts, func(i, j int) bool { return facts[i].ID < facts[j].ID })
+	for _, f := range facts {
+		if seen[f.ID] {
+			continue
+		}
+		seen[f.ID] = true
+		out = append(out, f)
+	}
+	return out
+}
+
+func invariantFact(root, kind, subject, predicate, object, file, symbol string, lineStart, lineEnd int, command, extractor string, confidence float64, meta map[string]string) normalizedInvariantFact {
+	repo := filepath.Base(root)
+	ev := invariantFactEvidence{SourceFile: file, LineStart: lineStart, LineEnd: lineEnd, Command: command}
+	if strings.HasPrefix(symbol, "Test") || strings.Contains(symbol, ".Test") {
+		ev.TestName = lastSegment(symbol)
+	}
+	if meta != nil {
+		ev.Commit = meta["commit"]
+	}
+	return normalizedInvariantFact{
+		ID:        "fact." + invariantShortHash(strings.Join([]string{kind, subject, predicate, object, file, fmt.Sprint(lineStart), extractor}, "|")),
+		Kind:      kind,
+		Subject:   subject,
+		Predicate: predicate,
+		Object:    strings.TrimSpace(object),
+		Scope: invariantFactScope{
+			Repository: repo,
+			Files:      nonEmptySlice(file),
+			Symbols:    nonEmptySlice(symbol),
+		},
+		Evidence:   ev,
+		Confidence: confidence,
+		Extractor:  extractor,
+		Meta:       meta,
+	}
+}
+
+func testAssertionFact(root, rel, symbol string, fn *ast.FuncDecl, fset *token.FileSet) normalizedInvariantFact {
+	words := splitCamel(strings.TrimPrefix(fn.Name.Name, "Test"))
+	predicate := "asserts_behavior_example"
+	conf := 0.35
+	if anyRuleToken(words) {
+		predicate = "asserts_architectural_rule"
+		conf = 0.75
+	}
+	return invariantFact(root, "assertion", symbol, predicate, humanizeWords(words), rel, symbol, fset.Position(fn.Pos()).Line, fset.Position(fn.End()).Line, "", "go_test_extractor", conf, nil)
+}
+
+func invariantBlockReturnsError(block *ast.BlockStmt) bool {
+	if block == nil {
+		return false
+	}
+	for _, stmt := range block.List {
+		switch s := stmt.(type) {
+		case *ast.ReturnStmt:
+			return true
+		case *ast.ExprStmt:
+			call, ok := s.X.(*ast.CallExpr)
+			if ok {
+				name := strings.ToLower(invariantCallName(call.Fun))
+				if strings.Contains(name, "fatal") || strings.Contains(name, "error") || strings.Contains(name, "fail") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func invariantExprString(fset *token.FileSet, n ast.Node) string {
+	if n == nil {
+		return ""
+	}
+	var b bytes.Buffer
+	_ = printer.Fprint(&b, fset, n)
+	return strings.TrimSpace(b.String())
+}
+
+func invariantRel(root, path string) string {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
+}
+
+func invariantSelectorName(x *ast.SelectorExpr) string {
+	if x == nil || x.Sel == nil {
+		return ""
+	}
+	return x.Sel.Name
+}
+
+func invariantWriteTarget(n ast.Node) string {
+	switch x := n.(type) {
+	case *ast.SelectorExpr:
+		return invariantSelectorName(x)
+	case *ast.Ident:
+		if x.Name == "_" {
+			return ""
+		}
+		return x.Name
+	default:
+		return ""
+	}
+}
+
+func invariantCallName(n ast.Node) string {
+	switch x := n.(type) {
+	case *ast.Ident:
+		return x.Name
+	case *ast.SelectorExpr:
+		if x.Sel != nil {
+			return x.Sel.Name
+		}
+	}
+	return ""
+}
+
+func invariantLooksLikePersistenceCall(name string) bool {
+	lower := strings.ToLower(name)
+	for _, token := range []string{"save", "store", "persist", "write", "update", "set", "put", "create", "delete", "commit"} {
+		if strings.Contains(lower, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func invariantLooksLikeGeneration(s string) bool {
+	lower := strings.ToLower(s)
+	return strings.Contains(lower, "generation") || strings.Contains(lower, "revision") || strings.Contains(lower, "epoch")
+}
+
+func invariantLooksLikeTransition(s string) bool {
+	lower := strings.ToLower(s)
+	return strings.Contains(lower, "state") || strings.Contains(lower, "status") || strings.Contains(lower, "transition")
+}
+
+func invariantNormativeText(s string) bool {
+	lower := strings.ToLower(strings.TrimSpace(s))
+	if lower == "" {
+		return false
+	}
+	for _, token := range []string{" must ", " never ", " only ", " required ", " forbidden ", "cannot ", " fails closed", " do not ", " should not "} {
+		if strings.Contains(" "+lower+" ", token) {
+			return true
+		}
+	}
+	return false
+}
+
+func invariantCompact(s string) string {
+	fields := strings.Fields(s)
+	if len(fields) > 40 {
+		fields = fields[:40]
+	}
+	return strings.Join(fields, " ")
+}
+
+func firstScannerCommand(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "grep") || strings.Contains(lower, "source-check") || strings.Contains(lower, "forbidden") {
+			return strings.TrimSpace(line)
+		}
+	}
+	return ""
+}
+
+func invariantFirstLine(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			return line
+		}
+	}
+	return ""
+}
+
+func factsByKindPredicate(facts []normalizedInvariantFact, kind, predicate string) []normalizedInvariantFact {
+	var out []normalizedInvariantFact
+	for _, f := range facts {
+		if f.Kind == kind && f.Predicate == predicate {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func relatedTests(f normalizedInvariantFact, tests []normalizedInvariantFact) []normalizedInvariantFact {
+	var out []normalizedInvariantFact
+	src := ""
+	if len(f.Scope.Files) > 0 {
+		src = f.Scope.Files[0]
+	}
+	testSibling := ""
+	if strings.HasSuffix(src, ".go") && !strings.HasSuffix(src, "_test.go") {
+		testSibling = strings.TrimSuffix(src, ".go") + "_test.go"
+	}
+	for _, t := range tests {
+		if len(t.Scope.Files) == 0 {
+			continue
+		}
+		tf := t.Scope.Files[0]
+		if tf == src || tf == testSibling || strings.TrimSuffix(tf, "_test.go") == strings.TrimSuffix(src, ".go") {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func uniqueFactSubjects(facts []normalizedInvariantFact) []string {
+	seen := map[string]bool{}
+	for _, f := range facts {
+		if f.Subject != "" {
+			seen[f.Subject] = true
+		}
+	}
+	return sortedMapKeys(seen)
+}
+
+func authorityCorroborationFacts(resource string, facts []normalizedInvariantFact) []normalizedInvariantFact {
+	var out []normalizedInvariantFact
+	lowerResource := strings.ToLower(resource)
+	for _, f := range facts {
+		switch f.Kind {
+		case "guard", "assertion", "ci_gate", "historical_removal", "documentation_claim":
+			haystack := strings.ToLower(strings.Join([]string{f.Subject, f.Predicate, f.Object}, " "))
+			if !strings.Contains(haystack, lowerResource) {
+				continue
+			}
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func mergeInvariantCandidates(in []extractedInvariantCandidate) []extractedInvariantCandidate {
+	sort.SliceStable(in, func(i, j int) bool {
+		if in[i].ID != in[j].ID {
+			return in[i].ID < in[j].ID
+		}
+		return in[i].Statement < in[j].Statement
+	})
+	byID := map[string]extractedInvariantCandidate{}
+	for _, c := range in {
+		if existing, ok := byID[c.ID]; ok {
+			existing.Evidence.Facts = dedupeSorted(append(existing.Evidence.Facts, c.Evidence.Facts...))
+			existing.Evidence.Tests = dedupeSorted(append(existing.Evidence.Tests, c.Evidence.Tests...))
+			existing.Evidence.Guards = dedupeSorted(append(existing.Evidence.Guards, c.Evidence.Guards...))
+			existing.Evidence.Schemas = dedupeSorted(append(existing.Evidence.Schemas, c.Evidence.Schemas...))
+			existing.Evidence.Gates = dedupeSorted(append(existing.Evidence.Gates, c.Evidence.Gates...))
+			existing.Evidence.Commits = dedupeSorted(append(existing.Evidence.Commits, c.Evidence.Commits...))
+			existing.Evidence.Documentation = dedupeSorted(append(existing.Evidence.Documentation, c.Evidence.Documentation...))
+			existing.Contradictions = dedupeSorted(append(existing.Contradictions, c.Contradictions...))
+			existing.ProofObligations = dedupeSorted(append(existing.ProofObligations, c.ProofObligations...))
+			if c.Confidence.Score > existing.Confidence.Score {
+				existing.Confidence = c.Confidence
+			}
+			byID[c.ID] = existing
+			continue
+		}
+		byID[c.ID] = c
+	}
+	out := make([]extractedInvariantCandidate, 0, len(byID))
+	for _, c := range byID {
+		out = append(out, c)
+	}
+	return out
+}
+
+func filterInvariantCandidates(candidates []extractedInvariantCandidate, min string) []extractedInvariantCandidate {
+	minRank := invariantConfidenceRank(min)
+	var out []extractedInvariantCandidate
+	for _, c := range candidates {
+		if invariantConfidenceRank(c.Confidence.Level) >= minRank {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func sortInvariantCandidates(candidates []extractedInvariantCandidate) {
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].Confidence.Score != candidates[j].Confidence.Score {
+			return candidates[i].Confidence.Score > candidates[j].Confidence.Score
+		}
+		return candidates[i].ID < candidates[j].ID
+	})
+}
+
+func invariantConfidenceLevel(score int) string {
+	switch {
+	case score >= 85:
+		return "proven"
+	case score >= 65:
+		return "high"
+	case score >= 35:
+		return "medium"
+	default:
+		return "low"
+	}
+}
+
+func invariantConfidenceRank(level string) int {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "proven":
+		return 4
+	case "high":
+		return 3
+	case "medium":
+		return 2
+	default:
+		return 1
+	}
+}
+
+func lastSegment(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.LastIndex(s, "."); i >= 0 {
+		return s[i+1:]
+	}
+	return s
+}
+
+func sortedMapKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		if strings.TrimSpace(k) != "" {
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func invariantShortHash(s string) string {
+	sum := sha1.Sum([]byte(s))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+func invariantClamp(v, min, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}

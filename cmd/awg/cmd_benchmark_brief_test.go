@@ -100,7 +100,7 @@ required_tests:
 		t.Fatalf("likely implementation files = %+v", res.LikelyImplementationFiles)
 	}
 	if len(res.AWGFiles) == 0 {
-		t.Fatalf("expected scoped AWG context, got none")
+		t.Fatalf("expected scoped Sensei context, got none")
 	}
 	entry := res.AWGFiles[0]
 	if entry.File != "golang/server/query.go" {

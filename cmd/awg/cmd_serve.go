@@ -124,7 +124,7 @@ Flags:
 		}
 	}
 
-	// ── Start AWG server ────────────────────────────────────────────────
+	// ── Start Sensei server ─────────────────────────────────────────────
 	srvBin, err := findServerBinary()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei serve: %v\n", err)

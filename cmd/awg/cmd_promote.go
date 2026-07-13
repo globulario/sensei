@@ -213,7 +213,7 @@ Flags:
 		return 1
 	}
 	fmt.Println("\nTriggering rebuild...")
-	var rebuildArgs []string
+	rebuildArgs := []string{"--combined"}
 	if svcRepo != "" {
 		rebuildArgs = append(rebuildArgs, "--services-repo", svcRepo)
 	}

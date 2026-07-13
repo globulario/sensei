@@ -18,7 +18,7 @@ func runPreflight(args []string) int {
 	fs := flag.NewFlagSet("sensei preflight", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to per-file impact queries")

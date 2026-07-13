@@ -96,7 +96,7 @@ func runBenchmarkBrief(args []string) int {
 	fs := flag.NewFlagSet("sensei benchmark-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address for authoritative repair-plan resolution")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address for authoritative repair-plan resolution")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo for cross-repo atomicity (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo for cross-repo atomicity (auto-detect)")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/f2p_tests/files")
@@ -112,7 +112,7 @@ func runBenchmarkBrief(args []string) int {
 
 Build a governed repair envelope for benchmark or PR fixing from issue text,
 fail-to-pass tests, changed files, authored awareness metadata, and an
-authoritative repair plan from the current AWG server.
+authoritative repair plan from the current Sensei server.
 
 This command fails closed if the server cannot prove current graph authority.
 
@@ -549,7 +549,7 @@ func renderBenchmarkBriefText(res benchmarkBriefResult) string {
 		}
 	}
 	if len(res.AWGFiles) > 0 {
-		fmt.Fprintf(&b, "\nAWG context by file:\n")
+		fmt.Fprintf(&b, "\nSensei context by file:\n")
 		for _, item := range res.AWGFiles {
 			fmt.Fprintf(&b, "  - %s\n", item.File)
 			if len(item.Invariants) > 0 {

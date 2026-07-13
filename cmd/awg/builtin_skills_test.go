@@ -351,7 +351,7 @@ func extractCLIFlags(t *testing.T) map[string]bool {
 		t.Fatal(err)
 	}
 	out := map[string]bool{"help": true}
-	re := regexp.MustCompile(`(?:fs|flag)\.(?:Bool|String|Int|Duration|Float64)\("([a-z0-9-]+)"|(?:fs|flag)\.Var\([^,\n]+,\s*"([a-z0-9-]+)"`)
+	re := regexp.MustCompile(`(?:fs|flag)\.(?:Bool|String|Int|Duration|Float64)\("([a-z0-9-]+)"|(?:fs|flag)\.(?:Bool|String|Int|Duration|Float64)Var\([^,\n]+,\s*"([a-z0-9-]+)"|(?:fs|flag)\.Var\([^,\n]+,\s*"([a-z0-9-]+)"`)
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {

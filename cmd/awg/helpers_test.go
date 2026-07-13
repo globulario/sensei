@@ -4,11 +4,49 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestWarnIfDomainLikeExtractorPath(t *testing.T) {
+	out := captureStderr(t, func() {
+		warnIfDomainLikeExtractorPath("bootstrap", "github.com/gin-gonic/gin")
+	})
+	if !strings.Contains(out, "looks like a domain") || !strings.Contains(out, "checkout path") {
+		t.Fatalf("warning missing domain/path guidance:\n%s", out)
+	}
+}
+
+func TestWarnIfPathLikeBuildDomain(t *testing.T) {
+	dir := t.TempDir()
+	out := captureStderr(t, func() {
+		warnIfPathLikeBuildDomain("build --repo", dir)
+	})
+	if !strings.Contains(out, "looks like a filesystem path") || !strings.Contains(out, "expects a repo domain") {
+		t.Fatalf("warning missing path/domain guidance:\n%s", out)
+	}
+}
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	fn()
+	_ = w.Close()
+	os.Stderr = old
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
+}
 
 func TestResolveServicesRepo_FindsSiblingFromAwarenessGraphRepo(t *testing.T) {
 	root := t.TempDir()

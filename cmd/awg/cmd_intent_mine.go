@@ -34,7 +34,9 @@ const applyBar = 0.80
 func runIntentMine(args []string) int {
 	fs := flag.NewFlagSet("sensei intent-mine", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	repo := fs.String("repo", ".", "repo working tree for grounding + extraction")
+	repo := "."
+	fs.StringVar(&repo, "path", ".", "repo working tree for grounding + extraction")
+	fs.StringVar(&repo, "repo", ".", "deprecated alias for --path")
 	candidates := fs.String("candidates", "", "YAML file of proposed candidates (skips extraction)")
 	fromColdsource := fs.String("from-coldsource", "", "YAML of coldsource candidates to lift as scar-derived intent (bridge)")
 	sources := fs.String("sources", "docs,comments,schemas,tests", "comma list: docs,comments,schemas,tests,commits,prs")
@@ -46,9 +48,9 @@ func runIntentMine(args []string) int {
 	_ = fs.Bool("dry-run", true, "report only (default); accepted for back-compat — use --apply to write")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage:
-  sensei intent-mine --repo . --sources docs,comments,schemas,tests [--drafter echo|llm] [--max N]
-  sensei intent-mine --repo . --sources ... --drafter llm --apply        # land passing intents in the graph
-  sensei intent-mine --candidates <file.yaml> --repo .
+  sensei intent-mine --path . --sources docs,comments,schemas,tests [--drafter echo|llm] [--max N]
+  sensei intent-mine --path . --sources ... --drafter llm --apply        # land passing intents in the graph
+  sensei intent-mine --candidates <file.yaml> --path .
 
 Extract architectural-intent candidates from a repo's stated charter (or read
 proposed candidates from YAML), ground them against the tree, and print output
@@ -68,8 +70,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	warnDeprecatedRepoPathAlias(fs, "intent-mine")
+	warnIfDomainLikeExtractorPath("intent-mine", repo)
 
-	git := coldsource.NewGitVerifier(*repo)
+	git := coldsource.NewGitVerifier(repo)
 	var cands []coldsource.IntentCandidate
 
 	if *candidates != "" {
@@ -79,7 +83,7 @@ Flags:
 		}
 		cands = loaded
 	} else if *fromColdsource == "" {
-		extracted, code := extractIntentCandidates(*repo, *sources, *drafter, *prComments, *model, *maxN)
+		extracted, code := extractIntentCandidates(repo, *sources, *drafter, *prComments, *model, *maxN)
 		if code != 0 {
 			return code
 		}
@@ -102,21 +106,21 @@ Flags:
 		return 1
 	}
 
-	rep := coldsource.IntentReport{Repo: *repo, Total: len(cands)}
+	rep := coldsource.IntentReport{Repo: repo, Total: len(cands)}
 	for _, c := range cands {
-		rep.Groundings = append(rep.Groundings, coldsource.GroundIntent(c, *repo, git))
+		rep.Groundings = append(rep.Groundings, coldsource.GroundIntent(c, repo, git))
 	}
 	coldsource.RenderIntentReport(os.Stdout, rep)
 	// Bridge (intent → coldsource): emit finder hints from divergence findings.
 	coldsource.RenderFinderHints(os.Stdout, coldsource.FinderHintsFromGroundings(rep.Groundings))
 
 	if *apply {
-		landed, parked, skipped, err := applyIntentGroundings(*repo, cands, rep.Groundings)
+		landed, parked, skipped, err := applyIntentGroundings(repo, cands, rep.Groundings)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "apply: %v\n", err)
 			return 1
 		}
-		fmt.Printf("\nApplied to %s\n", filepath.Join(*repo, "docs", "awareness"))
+		fmt.Printf("\nApplied to %s\n", filepath.Join(repo, "docs", "awareness"))
 		fmt.Printf("  %d intent(s) → graph corpus (intent_<id>.yaml, ≥%.2f strong)\n", landed, applyBar)
 		fmt.Printf("  %d parked as candidate(s) for review (candidates/intents.yaml)\n", parked)
 		if skipped > 0 {

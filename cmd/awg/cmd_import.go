@@ -34,13 +34,19 @@ func runImport(args []string) int {
 	drafter := fs.String("drafter", "llm", "contract drafter for full depth: llm (needs ANTHROPIC_API_KEY) | echo (deterministic, shallow)")
 	maxN := fs.Int("max", 12, "max contract candidates to propose (full depth)")
 	repoSlug := fs.String("repo-slug", "", "owner/name for PR-review history mining (full depth; needs gh auth + full history)")
+	refresh := fs.Bool("refresh", false, "re-extract and optionally reload an existing checkout; never clones")
 	dryRun := fs.Bool("dry-run", false, "print the plan and stop; run nothing")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: sensei import <git-url | path> --domain <domain> [flags]
+		fmt.Fprint(os.Stderr, `Usage:
+  sensei import <git-url | path> --domain <domain> [flags]
+  sensei import --refresh <checkout-path> --domain <domain> [flags]
 
 Onboard a foreign repository into Sensei in one command, in the correct order:
 clone -> contract extraction (on the pristine clone) -> structural extraction ->
 optional history mining -> (optionally) load the domain-scoped slice.
+
+With --refresh, re-extract an existing checkout and optionally reload its
+domain-scoped slice. Refresh never clones; it requires a checkout path.
 
 Never auto-promotes: extractors write candidates/intents for you to review and
 promote yourself. Never touches a store unless --store-url is given.
@@ -86,23 +92,28 @@ Flags:
 		return 2
 	}
 
-	dom := strings.TrimSpace(*domain)
-	if dom == "" {
-		dom = deriveDomain(target)
+	// Resolve the checkout: refresh only accepts an existing checkout; normal
+	// import uses an existing path in place or clones a URL.
+	var checkout string
+	var cloned bool
+	var code int
+	if *refresh {
+		checkout, code = resolveImportRefreshCheckout(target)
+	} else {
+		checkout, cloned, code = resolveImportCheckout(target, strings.TrimSpace(*dir), *dryRun)
 	}
+	if code != 0 {
+		return code
+	}
+
+	dom := resolveImportDomain(*domain, target, checkout)
 	if dom == "" {
-		fmt.Fprintln(os.Stderr, "sensei import: --domain is required (could not derive it from the target)")
+		fmt.Fprintln(os.Stderr, "sensei import: --domain is required (could not derive it from the target or checkout remote)")
 		return 2
 	}
 	slug := strings.TrimSpace(*repoSlug)
 	if slug == "" {
 		slug = deriveSlug(dom)
-	}
-
-	// Resolve the checkout: an existing path is used in place; a URL is cloned.
-	checkout, cloned, code := resolveImportCheckout(target, strings.TrimSpace(*dir), *dryRun)
-	if code != 0 {
-		return code
 	}
 
 	haveKey := strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")) != ""
@@ -112,18 +123,28 @@ Flags:
 		skipContractReason = "ANTHROPIC_API_KEY not set — contract layer skipped (run again with a key, or --drafter echo)"
 	}
 
-	fmt.Fprintf(os.Stderr, "sensei import: %s\n  domain:   %s\n  checkout: %s\n  depth:    %s\n",
-		target, dom, checkout, *depth)
+	mode := "import"
+	if *refresh {
+		mode = "refresh"
+	}
+	fmt.Fprintf(os.Stderr, "sensei import: %s\n  mode:     %s\n  domain:   %s\n  checkout: %s\n  depth:    %s\n",
+		target, mode, dom, checkout, *depth)
 	if *dryRun {
 		fmt.Fprintln(os.Stderr, "  (dry-run: nothing executed)")
-		printImportPlan(checkout, dom, slug, full, wantContracts, skipContractReason, *storeURL)
+		printImportPlan(checkout, dom, slug, full, wantContracts, skipContractReason, *storeURL, *refresh)
 		return 0
 	}
 
-	// 1) Contracts FIRST — on the pristine clone, before bootstrap scaffolds.
+	// 1) Contracts FIRST for fresh imports — on the pristine clone, before
+	// bootstrap scaffolds. Refresh reuses an existing checkout, so this stage is
+	// a re-grounding pass over current files rather than a pristine-clone pass.
 	if wantContracts {
-		fmt.Fprintln(os.Stderr, "\n== [1/4] contract extraction (pristine clone) ==")
-		ia := []string{"--repo", checkout, "--sources", "docs,comments,tests",
+		stage := "contract extraction (pristine clone)"
+		if *refresh {
+			stage = "contract refresh (existing checkout)"
+		}
+		fmt.Fprintf(os.Stderr, "\n== [1/4] %s ==\n", stage)
+		ia := []string{"--path", checkout, "--sources", "docs,comments,tests",
 			"--drafter", *drafter, "--max", strconv.Itoa(*maxN), "--apply"}
 		if rc := runIntentMine(ia); rc != 0 {
 			fmt.Fprintln(os.Stderr, "sensei import: contract extraction failed — continuing with structure only")
@@ -134,7 +155,7 @@ Flags:
 
 	// 2) Structural extraction — now safe to scaffold the checkout.
 	fmt.Fprintln(os.Stderr, "\n== [2/4] structural extraction ==")
-	if rc := runBootstrap([]string{"--repo", checkout, "--skip-history", "--skip-build"}); rc != 0 {
+	if rc := runBootstrap([]string{"--path", checkout, "--skip-history", "--skip-build"}); rc != 0 {
 		fmt.Fprintln(os.Stderr, "sensei import: structural extraction failed")
 		return 1
 	}
@@ -142,7 +163,7 @@ Flags:
 	// 3) History / PR mining — full depth only, best-effort.
 	if full && slug != "" {
 		fmt.Fprintln(os.Stderr, "\n== [3/4] day-0 history / PR mining ==")
-		if rc := runColdBootstrap([]string{"--repo", checkout, "--repo-slug", slug, "--auto-window"}); rc != 0 {
+		if rc := runColdBootstrap([]string{"--path", checkout, "--repo-slug", slug, "--auto-window"}); rc != 0 {
 			fmt.Fprintln(os.Stderr, "sensei import: history mining produced nothing usable (expected on quiet repos)")
 		}
 	} else if full {
@@ -160,12 +181,6 @@ Flags:
 	} else {
 		fmt.Fprintln(os.Stderr, "\n== [4/4] load domain-scoped slice ==")
 		ba := []string{"--input", awarenessDir, "--input", generatedDir, "--repo", dom, "--store-url", *storeURL}
-		// Forward ONLY the marker file, never a transaction file. The marker is
-		// written before the transaction publish, so it keeps a served store fresh
-		// for briefing. A foreign-only slice carries no seed marker, so its runtime
-		// transaction cannot be certified — passing --graph-transaction-file would
-		// turn that expected condition into a hard build failure; omitting it makes
-		// it a soft skip (transaction=uncertified) while the load still succeeds.
 		if m := strings.TrimSpace(*markerFile); m != "" {
 			ba = append(ba, "--graph-marker-file", m)
 		} else {
@@ -175,10 +190,9 @@ Flags:
 			fmt.Fprintln(os.Stderr, "sensei import: load failed — a scoped --repo update needs a non-empty store; seed with `sensei build --all` first")
 			return 1
 		}
-		fmt.Fprintln(os.Stderr, "  (foreign slice: runtime transaction is uncertified by design; the briefing still serves)")
 	}
 
-	printImportSummary(checkout, dom, cloned, wantContracts)
+	printImportSummary(checkout, dom, cloned, wantContracts, *refresh)
 	return 0
 }
 
@@ -216,6 +230,37 @@ func resolveImportCheckout(target, dir string, dryRun bool) (checkout string, cl
 	}
 	abs, _ := filepath.Abs(dest)
 	return abs, true, 0
+}
+
+func resolveImportRefreshCheckout(target string) (checkout string, code int) {
+	info, err := os.Stat(target)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei import --refresh: checkout path %s: %v\n", target, err)
+		return "", 2
+	}
+	if !info.IsDir() {
+		fmt.Fprintf(os.Stderr, "sensei import --refresh: %s is not a directory\n", target)
+		return "", 2
+	}
+	abs, err := filepath.Abs(target)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei import --refresh: %v\n", err)
+		return "", 1
+	}
+	return abs, 0
+}
+
+func resolveImportDomain(explicit, target, checkout string) string {
+	if dom := strings.TrimSpace(explicit); dom != "" {
+		return dom
+	}
+	if info, err := os.Stat(target); err == nil && info.IsDir() {
+		return gitRemoteDomain(checkout)
+	}
+	if dom := deriveDomain(target); dom != "" {
+		return dom
+	}
+	return gitRemoteDomain(checkout)
 }
 
 // deriveDomain turns a git URL into a domain tag, e.g.
@@ -268,18 +313,21 @@ func sanitizeName(s string) string {
 	return b.String()
 }
 
-func printImportPlan(checkout, domain, slug string, full, wantContracts bool, skipReason, storeURL string) {
+func printImportPlan(checkout, domain, slug string, full, wantContracts bool, skipReason, storeURL string, refresh bool) {
 	fmt.Fprintln(os.Stderr, "\nplan:")
+	if refresh {
+		fmt.Fprintf(os.Stderr, "  0. refresh existing checkout %s for domain %s\n", checkout, domain)
+	}
 	if full && wantContracts {
-		fmt.Fprintf(os.Stderr, "  1. sensei intent-mine --repo %s --sources docs,comments,tests --drafter llm --max N --apply\n", checkout)
+		fmt.Fprintf(os.Stderr, "  1. sensei intent-mine --path %s --sources docs,comments,tests --drafter llm --max N --apply\n", checkout)
 	} else if skipReason != "" {
 		fmt.Fprintf(os.Stderr, "  1. (contracts skipped: %s)\n", skipReason)
 	} else {
 		fmt.Fprintln(os.Stderr, "  1. (basic depth: no contract extraction)")
 	}
-	fmt.Fprintf(os.Stderr, "  2. sensei bootstrap --repo %s --skip-history --skip-build\n", checkout)
+	fmt.Fprintf(os.Stderr, "  2. sensei bootstrap --path %s --skip-history --skip-build\n", checkout)
 	if full && slug != "" {
-		fmt.Fprintf(os.Stderr, "  3. sensei cold-bootstrap --repo %s --repo-slug %s --auto-window\n", checkout, slug)
+		fmt.Fprintf(os.Stderr, "  3. sensei cold-bootstrap --path %s --repo-slug %s --auto-window\n", checkout, slug)
 	} else {
 		fmt.Fprintln(os.Stderr, "  3. (history mining skipped)")
 	}
@@ -291,8 +339,12 @@ func printImportPlan(checkout, domain, slug string, full, wantContracts bool, sk
 		checkout, checkout, domain, store)
 }
 
-func printImportSummary(checkout, domain string, cloned, wantContracts bool) {
-	fmt.Fprintln(os.Stderr, "\nsensei import: done — nothing was promoted.")
+func printImportSummary(checkout, domain string, cloned, wantContracts, refresh bool) {
+	if refresh {
+		fmt.Fprintln(os.Stderr, "\nsensei import --refresh: done — nothing was promoted.")
+	} else {
+		fmt.Fprintln(os.Stderr, "\nsensei import: done — nothing was promoted.")
+	}
 	if wantContracts {
 		fmt.Fprintf(os.Stderr, "  contracts/intents: %s/docs/awareness/intent_*.yaml (+ candidates/)\n", checkout)
 	}
