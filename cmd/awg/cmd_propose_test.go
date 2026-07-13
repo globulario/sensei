@@ -224,7 +224,7 @@ func TestApplyProposal_NoRebuildSkipsPipeline(t *testing.T) {
 
 func TestApplyProposal_FailsBeforeMutationWhenCombinedRebuildCannotBeProven(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	calls := stubRebuild(t)

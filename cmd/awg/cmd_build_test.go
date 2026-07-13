@@ -174,6 +174,7 @@ func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
 	}
 	initGitRepo(t, repo)
 	markerPath := filepath.Join(repo, ".awg", "graph-authority.json")
+	txPath := seedmeta.RuntimeTransactionPath(markerPath)
 
 	const domain = "github.com/test/scoped"
 
@@ -255,6 +256,8 @@ func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
 		"-repo", domain,
 		"-store-url", ts.URL + "/store?default",
 		"-graph-marker-file", markerPath,
+		"-graph-transaction-file", txPath,
+		"-ag-repo", repo,
 	})
 	if code != 0 {
 		t.Fatalf("scoped runBuild code=%d, want 0", code)
@@ -284,6 +287,13 @@ func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
 	}
 	if written.Digest != expected.Digest || written.TripleCount != expected.TripleCount {
 		t.Fatalf("marker file = %s/%d, want %s/%d", written.Digest, written.TripleCount, expected.Digest, expected.TripleCount)
+	}
+	txBytes, err := os.ReadFile(txPath)
+	if err != nil {
+		t.Fatalf("read transaction file: %v", err)
+	}
+	if !bytes.Contains(txBytes, []byte("seed\tdigest_sha256\t"+expected.Digest)) {
+		t.Fatalf("transaction file missing recomputed graph digest:\n%s", string(txBytes))
 	}
 }
 

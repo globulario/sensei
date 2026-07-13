@@ -159,6 +159,8 @@ func main() {
 		os.Exit(runReviewRealization(args))
 	case "repo-eval":
 		os.Exit(runRepoEval(args))
+	case "architecture-extract":
+		os.Exit(runArchitectureExtract(args))
 	case "benchmark-brief":
 		os.Exit(runBenchmarkBrief(args))
 	case "benchmark-judge":
@@ -175,6 +177,8 @@ func main() {
 		os.Exit(runExtractAuthority(args))
 	case "extract-proof-obligations":
 		os.Exit(runExtractProofObligations(args))
+	case "extract-invariants":
+		os.Exit(runExtractInvariants(args))
 	case "proof-plan":
 		os.Exit(runProofPlan(args))
 	case "repair-plan":
@@ -239,65 +243,78 @@ func printUsage() {
 
 Usage: sensei <command> [flags]
 
-Query commands (require a running Sensei server):
+Onboard or refresh a repo:
+  init           Scaffold awareness for a new project
+  import         Learn a repo in one command; --refresh re-extracts an existing checkout
+  bootstrap      Advanced extractor stage: deterministic structure + optional history
+  build          Compile YAML sources and load into the store
+  rebuild        Rebuild self-only awareness.nt (--combined includes paired repo)
+  serve          Start the gRPC awareness server
+  demo           Stand up a private graph and return one real briefing
+
+Query before editing:
+  preflight      Risk classification before editing a file or task
   briefing       Query the graph for a file or task
+  edit-brief     Claude Code PreToolUse push: hand the agent a file briefing
   impact         Get structured knowledge nodes for a file
-  preflight      Risk classification before editing a file
-  contract-assess Report-only contract synthesis assessment from explicit evidence
-  contract-bootstrap Build a proposed repair-contract bootstrap from issue/tests/Sensei
-  edit-check     Warn (advisory) if a proposed edit violates repo-scoped rules
-  edit-brief     Claude Code PreToolUse push: hand the agent a file's briefing as context before it edits
-  gate           Hard gate over a git diff (--enforce to block; --event-log to record outcomes)
-  evidence       Aggregate the gate/guard outcome ledger ("caught N incidents across M repos")
   resolve        Fetch a single awareness node by class + id
   query          Structured browse (by_file | by_id | by_class | related)
   metadata       Show graph-level coverage and freshness
-  governance     Verify/activate/status for local managed-governance packs
+
+Record or promote a lesson:
+  propose        Append one typed feedback entry, rebuild + reload, stage
+  feedback-check Warn when a durable fix added no graph feedback
+  promote        Promote a candidate into canonical awareness YAML
+  ingest         Feed new knowledge into the graph
+  skill-ingest   Generate review-only ImplementationPattern candidates from SKILL.md files
+  intent-mine    Mine and ground architectural-intent candidates
+  cold-bootstrap Advanced miner: history/review candidates
+  corpus         Review/hold/never classification for finding reports
+
+Gate or validate a change:
+  gate           Hard gate over a git diff (--enforce to block)
+  impact-gate    Changed files -> protecting invariants' required_tests
+  repair-gate    Fail-closed CI verdict from repair classification or artifact
+  runtime-gate   Fail-closed CI/operator gate over a runtime verdict
+  contract-assess Report-only contract synthesis assessment
+  contract-bootstrap Build a proposed repair-contract bootstrap
+  architecture-extract Layer repository evidence into observed/inferred/governed contracts
+  check          Validate YAML sources without building
+  validate       Deep structural check (dangling refs, missing files, dup IDs)
+  validate-draft Validate draft candidates before promotion
+  audit          Self-audit for drift, gaps, and inconsistencies
+  repo-eval      Evidence-based repository quality evaluation (fix | draft-upgrade)
+  merge-check    Verify a PR is merge-authorized; never merges
+  edit-check     Warn if a proposed edit violates repo-scoped rules
   pattern-check  Check files against ImplementationPattern recipes
   source-check   Scan source files for structural pattern violations
   visual-audit   Screenshot routes and compare against golden images
 
-Local commands (no server required):
-  demo           One command: stand up a private graph and return one real briefing
-  init           Scaffold awareness for a new project
-  bootstrap      Initialize Sensei for an existing repo (deterministic extraction + optional history)
-  import         Onboard a foreign repo in one command (clone -> contracts -> structure -> domain-scoped load)
-  build          Compile YAML sources and load into the store
-  serve          Start the gRPC awareness server
-  check          Validate YAML sources without building
-  validate       Deep structural check (dangling refs, missing files, dup IDs)
-  audit          Self-audit for drift, gaps, and inconsistencies
-  merge-check    Verify a PR is merge-authorized (per-check + mergeability; never merges)
-  runtime-adapter validate  Validate a runtime-adapter/v1 manifest (lanes->platform mapping)
-  runtime-snapshot validate Validate a runtime-evidence/v1 snapshot (schema only; Phase 1)
-  cluster-diagnose Typed runtime verdict from a snapshot (blocked_by_quorum, converged, ...)
-  runtime-repair-report Validate a runtime repair (before/action/after; valid_runtime_repair or honest block)
-  runtime-gate     Fail-closed CI/operator gate over a runtime verdict (no implicit green)
-  runtime-candidate Turn a recurring runtime verdict into a governance CANDIDATE (review-gated; never auto-enforced)
-  repo-eval      Evidence-based repository quality evaluation and safe metadata repair
-                 subcommands: fix | draft-upgrade
-  benchmark-brief Build a compact local repair envelope for benchmark/PR fixing
+Runtime, recovery, and provenance:
+  runtime-adapter validate   Validate a runtime-adapter/v1 manifest
+  runtime-snapshot validate  Validate a runtime-evidence/v1 snapshot
+  cluster-diagnose           Typed runtime verdict from a snapshot
+  runtime-repair-report      Validate a runtime repair claim
+  runtime-candidate          Turn a recurring runtime verdict into a candidate
+  reconcile                  Diff live store against committed seed
+  seed-status                Check generated/committed/live seed authority alignment
+  governance                 Verify/activate/status for managed-governance packs
+  evidence                   Aggregate the gate/guard outcome ledger
+
+Repair and evaluation helpers:
+  proof-plan     Show required proof/forbidden-move checklist before editing
+  repair-plan    Build an authoritative governed repair plan
+  repair-report  Emit the governed post-edit repair report artifact
+  draft-candidate Draft an incident/finding/scar into a review-queue candidate
+  benchmark-brief Build a compact repair envelope for benchmark/PR fixing
   benchmark-judge Judge a patch envelope for contract/test discipline
   benchmark-score Standard brief->judge benchmark workflow and combined score
   benchmark-retry Build a reusable benchmark retry plan from run evidence
-  benchmark-event-meta Read small orchestration metadata from benchmark learning events
-  certify        Evaluate a repair claim/promotion verdict from authored event metadata
+  benchmark-event-meta Read orchestration metadata from benchmark learning events
+  certify        Evaluate a repair claim/promotion verdict
+  extract-invariants Extract normalized facts and review-only invariant candidates
   extract-authority Extract candidate authority surfaces from Go code
   extract-proof-obligations Generate proof obligations from authority surfaces
-  proof-plan     Show the required proof/forbidden-move checklist before editing
-  repair-plan    Build an authoritative governed repair plan
-  seed-status    Check generated/committed/live seed authority alignment
-  reconcile      Diff the live store against the committed seed; name store-only orphans
-  draft-candidate Draft an incident/finding/scar into a review-queue candidate (WB-2)
-  impact-gate    Changed files -> protecting invariants' required_tests; fail-closed verify (CG-5)
-  repair-report  Emit the governed post-edit repair report artifact
-  repair-gate    Fail-closed CI verdict from repair classification or artifact
-  rebuild        Rebuild awareness.nt from YAML sources across repos
-  promote        Promote a candidate into canonical awareness YAML
-  propose        Append one typed feedback entry (failure_mode/invariant/required_test/forbidden_fix), rebuild + reload, stage (never commit)
-  feedback-check Warn when a session fixed a durable error class but added no graph feedback (Stop-hook backing)
-  ingest         Feed new knowledge into the graph
-  skill-ingest   Generate review-only ImplementationPattern candidates from external SKILL.md files
 
 Other:
   version        Print version and exit

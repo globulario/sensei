@@ -18,7 +18,7 @@ func runImpact(args []string) int {
 	fs.SetOutput(os.Stderr)
 	file := fs.String("file", "", "repo-relative file path (required)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei impact --file <path> [flags]

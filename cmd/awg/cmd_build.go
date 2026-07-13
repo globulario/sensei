@@ -69,6 +69,7 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	warnIfPathLikeBuildDomain("build --repo", *repo)
 
 	// Default to docs/awareness if no input dirs specified.
 	if len(inputDirs) == 0 {
@@ -377,7 +378,7 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 		fmt.Fprintf(os.Stderr, "sensei build: incomplete store dump (%d triples read vs %d live) — refusing to stamp a marker over a partial read.\n  The domain slice was updated but the graph marker was NOT refreshed; re-run when the store is stable.\n", got, liveAfter)
 		return 1
 	}
-	_, marker := seedmeta.AppendMarker(fullBase)
+	fullWithMarker, marker := seedmeta.AppendMarker(fullBase)
 	// 4. Insert the recomputed marker triples.
 	if err := client.Append(ctx, bytes.NewReader(seedmeta.MarkerTriples(marker))); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: insert recomputed marker: %v\n", err)
@@ -411,7 +412,7 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 		txPath = seedmeta.RuntimeTransactionPath(markerPath)
 	}
 	if txPath != "" {
-		if txBytes, err := buildTransactionTSV(agRepo, svcRepo, fullBase); err != nil {
+		if txBytes, err := buildTransactionTSV(agRepo, svcRepo, fullWithMarker); err != nil {
 			if txRequested {
 				fmt.Fprintf(os.Stderr, "sensei build: publish runtime transaction: %v\n", err)
 				return 1

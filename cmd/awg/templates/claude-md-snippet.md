@@ -3,6 +3,14 @@
 This project uses Sensei to prevent architectural drift. Before editing files
 in protected directories, consult the awareness graph.
 
+Sensei also installs the **Sensei Architect** skill. For architecture-sensitive
+planning, implementation, debugging, review, recovery, migration, security, or
+state/convergence work, load `.sensei/skills/sensei-architect/SKILL.md` before
+planning or editing. Claude Code can also discover the native project skill at
+`.claude/skills/sensei-architect/`. Use MCP tools when configured and CLI
+fallbacks otherwise. Stay proportional to the risk and preserve durable lessons
+with `sensei propose`.
+
 ### Behavioral guidelines
 
 General discipline that applies to every change (paraphrased from Andrej

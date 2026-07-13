@@ -47,7 +47,7 @@ func TestRunRebuildCheck_AllowsAdvisoryCrossRepoTransactionDrift(t *testing.T) {
 	initGitRepo(t, agRepo)
 	initGitRepo(t, svcRepo)
 
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("initial rebuild code=%d, want 0", code)
 	}
 
@@ -63,18 +63,18 @@ func TestRunRebuildCheck_AllowsAdvisoryCrossRepoTransactionDrift(t *testing.T) {
 	writeRepoFile(t, filepath.Join(svcRepo, "docs", "awareness", "namespaces.yaml"), "namespaces:\n  - id: globular.services\n    path: docs/awareness\n  - id: globular.services.extra\n    path: docs/awareness/generated\n")
 	commitAll(t, svcRepo, "change services namespace registry")
 
-	if code := runRebuild([]string{"--check", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--check", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("advisory transaction rebuild check code=%d, want 0", code)
 	}
 }
 
 func TestRunRebuild_FailsClosedWhenCombinedSeedLosesServicesRepo(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("initial rebuild code=%d, want 0", code)
 	}
 
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", filepath.Join(agRepo, "not-services"), "--no-runtime-reload"}); code != 1 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", filepath.Join(agRepo, "not-services"), "--no-runtime-reload"}); code != 1 {
 		t.Fatalf("rebuild without services repo code=%d, want 1", code)
 	}
 }

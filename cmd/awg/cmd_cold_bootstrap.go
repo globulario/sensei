@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -41,9 +42,11 @@ func shallowHistoryNote(repo string) string {
 func runColdBootstrap(args []string) int {
 	fs := flag.NewFlagSet("sensei cold-bootstrap", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	repo := fs.String("repo", ".", "path to the target git repo working tree")
+	repo := "."
+	fs.StringVar(&repo, "path", ".", "path to the target git repo working tree")
+	fs.StringVar(&repo, "repo", ".", "deprecated alias for --path")
 	since := fs.String("since", "", "git range to scan, e.g. v1.0.0..HEAD (default HEAD~200..HEAD)")
-	out := fs.String("out", "docs/awareness/candidates", "output dir for candidate YAML")
+	out := fs.String("out", "", "output dir for candidate YAML (default: <repo>/docs/awareness/candidates)")
 	dryRun := fs.Bool("dry-run", false, "print the scoring report without writing candidates")
 	maxN := fs.Int("max", 10, "bound: emit at most N top-ranked candidates")
 	prFile := fs.String("pr-comments", "", "offline JSON file of PR review comments (replaces gh)")
@@ -54,7 +57,7 @@ func runColdBootstrap(args []string) int {
 	autoWindow := fs.Bool("auto-window", false, "plan the revert-scan window automatically: widen (bounded) until enough revert/regression signals are found; overrides --since. Never scans full history.")
 	awTarget := fs.Int("auto-window-target", coldsource.DefaultWindowTargetReverts, "auto-window: stop widening once this many revert/regression commits are in the window")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: sensei cold-bootstrap --repo <path> [--since <range>] [--out <dir>] [--dry-run] [--max N]
+		fmt.Fprint(os.Stderr, `Usage: sensei cold-bootstrap --path <checkout> [--since <range>] [--out <dir>] [--dry-run] [--max N]
                         [--pr-comments <file.json> | --repo-slug owner/name]
 
 Drafts awareness candidates from cold day-0 signals (revert/regression commits +
@@ -68,6 +71,16 @@ Flags:
 	}
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	warnDeprecatedRepoPathAlias(fs, "cold-bootstrap")
+	warnIfDomainLikeExtractorPath("cold-bootstrap", repo)
+
+	// Default the candidate output UNDER the target repo, not the current working
+	// directory — otherwise running the miner from an unrelated checkout writes the
+	// scanned repo's candidates into the CWD repo. Every other extractor
+	// (extract-authority, bootstrap, intent-mine) anchors output to <repo>.
+	if strings.TrimSpace(*out) == "" {
+		*out = filepath.Join(repo, "docs", "awareness", "candidates")
 	}
 
 	// Bound guard: a non-positive cap would disable the top-N limit and could
@@ -83,7 +96,7 @@ Flags:
 	// — it never fetches PR comments and never scans full history.
 	var windowPlanNote string
 	if *autoWindow {
-		plan, perr := coldsource.PlanWindow(*repo, coldsource.DefaultWindowLadder, *awTarget)
+		plan, perr := coldsource.PlanWindow(repo, coldsource.DefaultWindowLadder, *awTarget)
 		if perr != nil {
 			fmt.Fprintf(os.Stderr, "warn: auto-window planning failed (%v); falling back to --since\n", perr)
 		} else if plan.Range == "" {
@@ -159,13 +172,13 @@ Flags:
 	// A shallow clone can't satisfy the commit range (HEAD~200), which surfaces
 	// as a cryptic "exit status 128" from each extractor. Detect it once and
 	// explain it, then skip the commit-channel extractors that would just fail.
-	shallowNote := shallowHistoryNote(*repo)
+	shallowNote := shallowHistoryNote(repo)
 	if shallowNote != "" {
 		fmt.Fprintf(os.Stderr, "note: %s\n", shallowNote)
 	}
 
 	if shallowNote == "" {
-		revertSignals, rerr := coldsource.LoadRevertSignals(*repo, *since)
+		revertSignals, rerr := coldsource.LoadRevertSignals(repo, *since)
 		if rerr != nil {
 			fmt.Fprintf(os.Stderr, "warn: revert extraction failed for range %s (continuing): %v\n", *since, rerr)
 		}
@@ -175,7 +188,7 @@ Flags:
 		// for repos where explicit reverts are sparse (e.g. TypeScript projects
 		// using conventional-commits + squash-merge). On their own they never
 		// triangulate; they only corroborate with a review-channel signal.
-		convSignals, cerr := coldsource.LoadConventionalSignals(*repo, *since)
+		convSignals, cerr := coldsource.LoadConventionalSignals(repo, *since)
 		if cerr != nil {
 			fmt.Fprintf(os.Stderr, "warn: conventional-commit extraction failed for range %s (continuing): %v\n", *since, cerr)
 		}
@@ -236,7 +249,7 @@ Flags:
 	}
 
 	// ── Draft + contract + citation check ──────────────────────────────────
-	git := coldsource.NewGitVerifier(*repo)
+	git := coldsource.NewGitVerifier(repo)
 	ctx := context.Background()
 
 	var admissible []*extractor.PromotionProposal
@@ -277,7 +290,7 @@ Flags:
 		// the candidate's overall tier (test_encoded > landed_commit >
 		// review_suggestion > unresolved). Accept only at >= landed_commit;
 		// review-only is segregated as a lead, unresolved is rejected.
-		g := coldsource.GroundCandidate(p, *repo, git)
+		g := coldsource.GroundCandidate(p, repo, git)
 		switch g.Overall {
 		case coldsource.TierUnresolved:
 			rep.RejectedUnresolved++

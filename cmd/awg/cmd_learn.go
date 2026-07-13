@@ -64,7 +64,7 @@ func runLearn(args []string) int {
 	// 1. Rebuild embeddata. -no-runtime-reload keeps it headless-safe (no Oxigraph
 	//    dependency); --check makes it compare-only (no write).
 	fmt.Println("\n[1/4] rebuild embeddata (deterministic)...")
-	rebuildArgs := append([]string{"-no-runtime-reload"}, pass(true, true)...)
+	rebuildArgs := append([]string{"-no-runtime-reload", "--combined"}, pass(true, true)...)
 	if *checkOnly {
 		rebuildArgs = append(rebuildArgs, "-check")
 	}

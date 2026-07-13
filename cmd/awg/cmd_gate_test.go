@@ -63,7 +63,7 @@ func TestGate_ReportOnly_FailsOpenOnError(t *testing.T) {
 	if !strings.Contains(out, "DEGRADED") {
 		t.Errorf("expected a DEGRADED report, got:\n%s", out)
 	}
-	if !strings.Contains(out, "AWG gate report-only: 0 hard failures,") {
+	if !strings.Contains(out, "Sensei gate report-only: 0 hard failures,") {
 		t.Errorf("expected the canonical summary line, got:\n%s", out)
 	}
 }

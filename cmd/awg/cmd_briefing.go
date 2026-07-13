@@ -20,7 +20,7 @@ func runBriefing(args []string) int {
 	task := fs.String("task", "", "task description")
 	depth := fs.String("depth", "standard", "briefing depth: agent_compact | compact | standard | deep")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei briefing [--file <path>] [--task "description"] [flags]

@@ -13,7 +13,7 @@ import (
 
 func TestRequireAtomicCrossRepoGraphState_Current(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	if err := requireAtomicCrossRepoGraphState(agRepo, svcRepo); err != nil {
@@ -23,7 +23,7 @@ func TestRequireAtomicCrossRepoGraphState_Current(t *testing.T) {
 
 func TestRequireAtomicCrossRepoGraphState_FailsWhenTransactionDrifts(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	writeRepoFile(t, filepath.Join(svcRepo, "docs", "awareness", "required_tests.yaml"), "required_tests:\n  - id: svc.test.one\n    title: Service test changed\n")
@@ -87,7 +87,7 @@ func TestRequireBenchmarkAuthority_FailsClosedWhenLiveServerStale(t *testing.T) 
 	if err == nil {
 		t.Fatal("expected stale live server to fail closed")
 	}
-	if !strings.Contains(err.Error(), "live AWG server is not authoritative") {
+	if !strings.Contains(err.Error(), "live Sensei server is not authoritative") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

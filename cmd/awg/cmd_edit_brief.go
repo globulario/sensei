@@ -35,7 +35,7 @@ import (
 func runEditBrief(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	depth := fs.String("depth", envOr("AWG_EDIT_BRIEF_DEPTH", "agent_compact"),

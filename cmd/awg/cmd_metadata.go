@@ -25,7 +25,7 @@ var metadataRPC = func(ctx context.Context, addr, domain string) (*awarenesspb.M
 func runMetadata(args []string) int {
 	fs := flag.NewFlagSet("sensei metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	domain := fs.String("domain", "", "scope per-class counts to a domain/repo (e.g. github.com/globulario/services); empty = graph-wide")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {

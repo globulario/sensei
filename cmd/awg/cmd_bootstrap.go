@@ -397,14 +397,24 @@ Flags:
 			}
 		}
 	}
-	// Invariant candidates from rule-signaling tests: a test whose NAME encodes a
-	// rule (must/never/idempotent/isolation/roundtrip/regression/…) guards an
-	// invariant; the test is its built-in required_test. Example-only tests are
-	// skipped (they prove behavior, not a law). Conservative, status: candidate.
-	if invs := extractInvariantCandidates(tests); len(invs) > 0 {
-		rep.candidateInvariants = len(invs)
+	// Invariant candidates — the single extractor (`extract-invariants`), gated at
+	// medium confidence. That floor keeps only corroborated candidates: a guard
+	// with a test, an owned write path, or a rule-signaling test that attests a
+	// behavioral law (race/panic/idempotency). Uncorroborated single guards score
+	// low and are dropped. status: candidate, never promoted.
+	if report, ierr := buildInvariantExtractionReport(root, invariantExtractOptions{
+		Repo:              root,
+		IncludeTests:      true,
+		MinimumConfidence: "medium",
+	}); ierr != nil {
+		rep.notes = append(rep.notes, "invariant candidates: "+ierr.Error())
+	} else if len(report.Candidates) > 0 {
+		rep.candidateInvariants = len(report.Candidates)
 		if writeCands {
-			if data, rerr := renderGenerated("Invariant candidates inferred from rule-signaling test names (assertion: inferred, status: candidate).", invariantCandidateDoc{Invariants: invs}); rerr != nil {
+			doc := struct {
+				Invariants []extractedInvariantCandidate `yaml:"invariants"`
+			}{report.Candidates}
+			if data, rerr := renderGenerated("Invariant candidates from `sensei extract-invariants` at medium confidence (corroborated only; status: candidate).", doc); rerr != nil {
 				rep.notes = append(rep.notes, "invariant candidates: render: "+rerr.Error())
 			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
 				rep.notes = append(rep.notes, "invariant candidates: mkdir: "+merr.Error())

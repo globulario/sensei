@@ -200,39 +200,39 @@ func benchmarkModeCRetryPlan(record map[string]any, retryBudget int) benchmarkRe
 	if exhausted {
 		result.RetryKind = "retry_budget_exhausted"
 		result.RetryReason = "Retry budget is exhausted for this Mode C run."
-		result.RecommendedNextStep = "Stop retrying and report the prior AWG-guided failure."
+		result.RecommendedNextStep = "Stop retrying and report the prior Sensei-guided failure."
 		return result
 	}
 	if modeCStatus == "INVALID" {
-		result.RetryReason = "Mode C structural bootstrap/validation failed; retrying without fixing the AWG context is unsafe."
-		result.RecommendedNextStep = "Stop and repair the AWG structural context pipeline before rerunning Mode C."
+		result.RetryReason = "Mode C structural bootstrap/validation failed; retrying without fixing the Sensei context is unsafe."
+		result.RecommendedNextStep = "Stop and repair the Sensei structural context pipeline before rerunning Mode C."
 		return result
 	}
 	if awgFocus == "" {
-		result.RetryReason = "No actionable AWG focus was produced from the previous run."
-		result.RecommendedNextStep = "Stop and inspect the prior run manually; there is no AWG direction to apply safely."
+		result.RetryReason = "No actionable Sensei focus was produced from the previous run."
+		result.RecommendedNextStep = "Stop and inspect the prior run manually; there is no Sensei direction to apply safely."
 		return result
 	}
 	if testResult == "pass" && testPass >= 40 && score >= 70 {
 		result.RetryReason = "The Mode C run already passed; do not auto-retry just to optimize score."
-		result.RecommendedNextStep = "Keep the passing result and inspect AWG diagnostics manually if needed."
+		result.RecommendedNextStep = "Keep the passing result and inspect Sensei diagnostics manually if needed."
 		return result
 	}
 	result.RetryAllowed = true
 	result.RetryKind = "awg_focus_retry"
-	result.RetryReason = "The run failed and AWG produced actionable focus that can guide a bounded retry."
+	result.RetryReason = "The run failed and Sensei produced actionable focus that can guide a bounded retry."
 	result.RetryPromptAdjustment = "awg_focus"
 	result.RequireAuthoritativeRepairPlan = true
 	result.RequiredPreflight = withAuthoritativeRepairPlanPreflight([]string{
-		"read the previous AWG focus before patching",
-		"use AWG context to narrow candidate files before broadening edits",
+		"read the previous Sensei focus before patching",
+		"use Sensei context to narrow candidate files before broadening edits",
 		"re-run the issue-driving tests after the focused patch",
 	})
 	result.ForbiddenChanges = []string{
-		"do not ignore AWG focus silently",
+		"do not ignore Sensei focus silently",
 		"do not broaden beyond issue-derived files without code evidence",
 	}
-	result.RecommendedNextStep = "Retry from a clean checkout and follow the previous AWG focus before exploring broader code paths."
+	result.RecommendedNextStep = "Retry from a clean checkout and follow the previous Sensei focus before exploring broader code paths."
 	return result
 }
 

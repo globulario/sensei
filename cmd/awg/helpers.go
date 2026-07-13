@@ -3,6 +3,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +17,55 @@ import (
 // All gRPC commands share this helper.
 func connectAWG(addr string) (*client.Client, error) {
 	return client.Dial(addr)
+}
+
+func flagPassed(fs *flag.FlagSet, name string) bool {
+	found := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func warnDeprecatedRepoPathAlias(fs *flag.FlagSet, command string) {
+	if flagPassed(fs, "repo") && !flagPassed(fs, "path") {
+		fmt.Fprintf(os.Stderr, "warn: sensei %s: --repo is deprecated for checkout paths; use --path instead\n", command)
+	}
+}
+
+func warnIfDomainLikeExtractorPath(command, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" || pathExists(value) || !looksLikeRepoDomain(value) {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "warn: sensei %s: %q looks like a domain; extractors take a checkout path. Use --path <checkout>.\n", command, value)
+}
+
+func warnIfPathLikeBuildDomain(command, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" || !pathExists(value) {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "warn: sensei %s: %q looks like a filesystem path; this flag expects a repo domain such as github.com/org/repo\n", command, value)
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func looksLikeRepoDomain(value string) bool {
+	value = strings.TrimSpace(strings.TrimSuffix(value, ".git"))
+	if value == "" || filepath.IsAbs(value) || strings.HasPrefix(value, ".") {
+		return false
+	}
+	if strings.Contains(value, "://") || strings.Contains(value, "@") {
+		value = deriveDomain(value)
+	}
+	parts := strings.Split(strings.Trim(value, "/"), "/")
+	return len(parts) >= 3 && strings.Contains(parts[0], ".")
 }
 
 // resolveProjectRoot walks up from cwd looking for docs/awareness/ or a state
