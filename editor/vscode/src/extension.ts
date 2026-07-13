@@ -10,6 +10,7 @@ import { AwarenessProvider } from './awarenessProvider';
 import { DashboardPanel } from './dashboardPanel';
 import { disposeClient } from './grpcClient';
 import { resetProjectDomainCache } from './projectDomain';
+import { resetAwgBinaryCache } from './awgRunner';
 
 const REFRESH_DEBOUNCE_MS = 250;
 
@@ -76,6 +77,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('sensei')) {
         resetProjectDomainCache();
+        resetAwgBinaryCache();
         scheduleRefresh();
       }
     }),

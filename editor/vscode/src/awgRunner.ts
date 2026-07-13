@@ -52,6 +52,37 @@ function senseiPath(): string {
   );
 }
 
+// Ordered binary candidates. After the awg→sensei rename, a bare `sensei` may not
+// be on PATH even though the project builds `./bin/sensei` (or a legacy `awg`
+// binary is still around). Try, in order: an explicit sensei.senseiPath setting,
+// the workspace-built bin/sensei, `sensei` on PATH, then the legacy bin/awg / awg.
+function candidateBins(cwd: string): string[] {
+  const configured = (
+    vscode.workspace.getConfiguration('sensei').get<string>('senseiPath', '') || ''
+  ).trim();
+  const cands: string[] = [];
+  if (configured && configured !== 'sensei') {
+    cands.push(configured);
+  }
+  cands.push(path.join(cwd, 'bin', 'sensei'));
+  cands.push('sensei');
+  cands.push(path.join(cwd, 'bin', 'awg'));
+  cands.push('awg');
+  return [...new Set(cands)];
+}
+
+// A path-shaped candidate (absolute or containing a separator) must exist on disk;
+// a bare command name is left for the OS PATH lookup at spawn time.
+function candidateUsable(bin: string): boolean {
+  if (path.isAbsolute(bin) || bin.includes(path.sep)) {
+    return fs.existsSync(bin);
+  }
+  return true;
+}
+
+// The last binary that spawned successfully, reused to avoid re-probing every call.
+let resolvedBin: string | undefined;
+
 // The workspace root to run sensei from. Prefer a folder that actually holds an
 // awareness candidate tree (so sensei auto-detects the right repos); otherwise the
 // first workspace folder.
@@ -91,7 +122,7 @@ function run(
 }
 
 /** Run `sensei <args>` in the workspace. Throws if local ops are disabled or there is no workspace. */
-export function runAwg(args: string[], timeoutMs: number): Promise<AwgRunResult> {
+export async function runAwg(args: string[], timeoutMs: number): Promise<AwgRunResult> {
   if (!localOpsEnabled()) {
     return Promise.reject(new LocalOpsDisabledError());
   }
@@ -99,7 +130,38 @@ export function runAwg(args: string[], timeoutMs: number): Promise<AwgRunResult>
   if (!cwd) {
     return Promise.reject(new Error('No workspace folder open to run sensei in.'));
   }
-  return run(senseiPath(), args, cwd, timeoutMs);
+
+  // Fast path: reuse the previously-resolved binary while it is still usable.
+  if (resolvedBin && candidateUsable(resolvedBin)) {
+    const res = await run(resolvedBin, args, cwd, timeoutMs);
+    if (!res.spawnError) {
+      return res;
+    }
+    resolvedBin = undefined; // it disappeared — fall through and re-resolve
+  }
+
+  const cands = candidateBins(cwd);
+  let lastErr: AwgRunResult | undefined;
+  for (const bin of cands) {
+    if (!candidateUsable(bin)) {
+      continue;
+    }
+    const res = await run(bin, args, cwd, timeoutMs);
+    if (!res.spawnError) {
+      resolvedBin = bin; // first binary that actually spawned wins
+      return res;
+    }
+    lastErr = res; // ENOENT — try the next candidate
+  }
+  return (
+    lastErr ?? {
+      ok: false,
+      code: null,
+      stdout: '',
+      stderr: '',
+      spawnError: `sensei binary not found (tried: ${cands.join(', ')}). Set "sensei.senseiPath" in settings.`,
+    }
+  );
 }
 
 /** `git diff --stat` over the awareness tree, so the user sees exactly what a promote changed. */
@@ -132,11 +194,28 @@ export async function awgAvailable(timeoutMs = 5000): Promise<boolean> {
   if (!cwd) {
     return false;
   }
-  // A non-zero exit (unknown flag) still means the binary spawned; only ENOENT
-  // (captured as spawnError) means "not found".
-  const res = await run(senseiPath(), ['--help'], cwd, timeoutMs);
-  awgAvailableCache = !res.spawnError;
-  return awgAvailableCache;
+  // Probe the same candidates runAwg would use; the first that spawns (a non-zero
+  // exit still means it spawned — only ENOENT means "not found") is available and
+  // is cached for reuse.
+  for (const bin of candidateBins(cwd)) {
+    if (!candidateUsable(bin)) {
+      continue;
+    }
+    const res = await run(bin, ['--help'], cwd, timeoutMs);
+    if (!res.spawnError) {
+      resolvedBin = bin;
+      awgAvailableCache = true;
+      return true;
+    }
+  }
+  awgAvailableCache = false;
+  return false;
+}
+
+/** Reset cached binary resolution — call when sensei.* settings change. */
+export function resetAwgBinaryCache(): void {
+  resolvedBin = undefined;
+  awgAvailableCache = undefined;
 }
 
 /** True when the workspace root looks like an Sensei-enabled project. */
