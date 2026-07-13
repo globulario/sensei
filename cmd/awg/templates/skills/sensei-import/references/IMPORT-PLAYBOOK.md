@@ -9,6 +9,10 @@ Target: `https://github.com/gin-gonic/gin`
 Domain: `github.com/gin-gonic/gin`
 Slug: `gin-gonic/gin`
 
+The one-command path (`sensei import https://github.com/gin-gonic/gin --domain
+github.com/gin-gonic/gin`) runs all of the below in order. This is the manual
+walkthrough so you can see what each step produces.
+
 1. **Clone + full history**
    - `git clone https://github.com/gin-gonic/gin /tmp/gin`
    - `git -C /tmp/gin rev-parse --is-shallow-repository` → if `true`,
@@ -17,27 +21,38 @@ Slug: `gin-gonic/gin`
 2. **Ask depth.** User picks **Full** (`ANTHROPIC_API_KEY` set; gin has heavy
    PR-review history too).
 
-   > `bootstrap`/`cold-bootstrap`/`intent-mine --repo` = checkout **path**.
-   > `build --repo` = **domain** string.
+   > Extractors take `--path <checkout>`. `sensei build --repo <domain>` is the
+   > domain-scoped load flag. (`--repo` is still accepted on the extractors as a
+   > deprecated alias for `--path`.)
 
-3. **Extract the contract layer — FIRST, on the pristine clone.**
+3. **Extract the LLM intent layer — FIRST, on the pristine clone.**
    Run this *before* step 4, or `bootstrap`'s scaffolded `CLAUDE.md`/`AGENTS.md`
    pollute it (see the contamination branch below).
-   - Review: `sensei intent-mine --repo /tmp/gin --sources docs,comments,tests --drafter llm --max 12`
-   - Land it: add `--apply`. On gin this produced **7 grounded contracts** —
+   - Review: `sensei intent-mine --path /tmp/gin --sources docs,comments,tests --drafter llm --max 12`
+   - Land it: add `--apply`. On gin this produced **7 grounded intents** —
      `context_copy_isolation` (a copied Context must not affect the original,
      grounded at `executable_truth`), `basic_auth_default_realm`,
      `upload_filename_untrusted`, `trust_unix_socket_xff`, `clientip_non_ip_guard`,
      `validatestruct_no_panic`, `method_not_allowed_empty_tree_no_panic` — as
      `docs/awareness/intent_<id>.yaml`, plus weaker ones under `candidates/`.
 
-4. **Structural pass — writes YAML into the checkout**
-   - `sensei bootstrap --repo /tmp/gin --skip-history --skip-build`
-   - Writes `/tmp/gin/docs/awareness/generated/{components,tests}.yaml`.
+4. **Structural + deterministic contract pass — writes YAML into the checkout.**
+   `sensei bootstrap --path /tmp/gin --skip-history --skip-build` runs the whole
+   deterministic layer (no key). On gin it produces:
+   - `generated/components.yaml` — **6 components**; `generated/tests.yaml` — **630 tests**
+   - `candidates/authority_surface_candidates.yaml` — **0** (gin registers routes
+     via its own DSL, not `mux.HandleFunc`; a detector-breadth limit, not a gap)
+   - `candidates/boundary_candidates.yaml` — **2** compiler-enforced `internal/`
+     visibility boundaries (`internal/bytesconv`, `internal/fs`)
+   - `candidates/invariant_candidates.yaml` — **7** invariants lifted from
+     rule-signaling tests: race/concurrency safety (`Race context copy`,
+     `Concurrent handle context`) and panic contracts (`Render html debug
+     panics`), each carrying its test as the required_test
+   - proto/OpenAPI contracts — 0 (gin has neither)
    - (Large/unfamiliar repo? Preview with `--dry-run` first.)
 
 5. **Day-0 mining** (Full, optional)
-   - `sensei cold-bootstrap --repo /tmp/gin --repo-slug gin-gonic/gin --auto-window`
+   - `sensei cold-bootstrap --path /tmp/gin --repo-slug gin-gonic/gin --auto-window`
    - Bound it with `--max <N>` or `--auto-window-target <N>` if the window keeps
      widening. Use `--since <ref>` when you already know the range of interest.
 
@@ -54,8 +69,9 @@ Slug: `gin-gonic/gin`
      not just `[component]` boxes. Brief a file an extracted node actually anchors.
 
 8. **Hand off**
-   - Report the contracts + node counts + candidate queue. Tell the user to
-     review and `sensei promote` the load-bearing ones. Stop.
+   - Report all four candidate layers (contracts/intents, authority, boundaries,
+     invariants) + node counts + the candidate queue. Tell the user to review and
+     `sensei promote` the load-bearing ones. Stop.
 
 ## Degradation branches
 
@@ -76,10 +92,11 @@ Unshallow first, or run Basic and state that history mining was skipped.
 (A shallow clone is fine for `intent-mine`, which reads the tree, not history.)
 
 **No `gh` / no slug.** PR-comment mining is unavailable. Two honest options:
-run **Basic** (`sensei bootstrap --repo <checkout-path> --skip-history --skip-build`,
+run **Basic** (`sensei bootstrap --path <checkout> --skip-history --skip-build`,
 then the step-6 `build`), or run `cold-bootstrap` with
 `--pr-comments <file.json>` if an offline export exists.
-Never invent PR signals.
+Never invent PR signals. (Basic still yields the full deterministic layer:
+components, tests, authority surfaces, boundaries, and invariants-from-tests.)
 
 **Quiet or solo repo.** The triangulation gate needs ≥2 distinct source types.
 A repo with few reverts and no review threads harvests little or nothing. Report
@@ -98,6 +115,9 @@ and is safe to repeat (the store is already non-empty).
 
 - Did the graph actually gain nodes for this domain? (metadata, not assumption)
 - Did a real file's briefing surface something? (verified, not asserted)
+- For each of the four layers — contracts/intents, authority surfaces,
+  boundaries, invariants-from-tests — report the real count, including the zeros
+  (a 0 is a fact about the repo, e.g. gin's DSL yields 0 authority surfaces).
 - How many candidates are queued, and are they candidates (not authority)?
 - What was skipped or degraded, and why?
 - What is the exact human next step to promote?
