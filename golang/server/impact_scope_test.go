@@ -122,6 +122,33 @@ func TestCollectImpact_CaddyScope_NoGlobularLeak(t *testing.T) {
 	}
 }
 
+func TestQueryByFile_HonorsDomainScope(t *testing.T) {
+	facts := scopeFacts(map[string]string{
+		"globular.rule.a":    "",
+		"caddy.rule.rewrite": "github.com/caddyserver/caddy",
+		"meta.absence_scope": rdf.DomainShared,
+	})
+	s := newScopeServer(facts, "globular")
+	resp, err := s.Query(context.Background(), &awarenesspb.QueryRequest{
+		Mode:   awarenesspb.QueryMode_QUERY_MODE_BY_FILE,
+		File:   "f.go",
+		Domain: "github.com/caddyserver/caddy",
+	})
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	var ids []string
+	for _, row := range resp.GetRows() {
+		ids = append(ids, row.GetId())
+	}
+	if hasID(ids, "invariant:globular.rule.a") {
+		t.Fatalf("globular rule leaked into caddy query scope: %v", ids)
+	}
+	if !hasID(ids, "invariant:caddy.rule.rewrite") || !hasID(ids, "invariant:meta.absence_scope") {
+		t.Fatalf("scoped query missing caddy/shared rows: %v", ids)
+	}
+}
+
 // Explicit globular scope over a mixed result → only globular + shared, NEVER
 // the caddy rule.
 func TestCollectImpact_GlobularScope_NoCaddyLeak(t *testing.T) {

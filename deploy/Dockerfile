@@ -13,7 +13,7 @@ FROM gcr.io/distroless/static-debian12
 COPY --from=build /out/awareness-graph /awareness-graph
 # The server connects to an external Oxigraph (see docker-compose.yml) and seeds
 # it from the embedded corpus on first start (seedIfEmpty). Bearer-token auth is
-# opt-in via $AWG_TOKEN.
+# opt-in via $SENSEI_TOKEN.
 EXPOSE 10120
 ENTRYPOINT ["/awareness-graph"]
 CMD ["-addr", ":10120", "-oxigraph-url", "http://oxigraph:7878/query", "-require-store"]

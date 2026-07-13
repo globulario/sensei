@@ -923,9 +923,11 @@ export class DashboardPanel {
     // Reload Metadata so the banner/score reflect the just-rebuilt graph.
     let meta: MetadataResponse | null = null;
     let reloadUnavailable = false
+    let promoteDomain = ''
     try {
       const { addr, timeout } = this.cfg();
-      meta = await metadata(addr, timeout);
+      promoteDomain = await this.activeDomain();
+      meta = await metadata(addr, timeout, promoteDomain || undefined);
     } catch {
       // The seed file is rebuilt on disk, but the authority backend is down or
       // unreachable — do not report clean authority.
@@ -933,7 +935,7 @@ export class DashboardPanel {
     }
     const authority = meta ? assessMetadataAuthority(meta) : undefined;
     if (meta) {
-      this.post({ type: 'metadata', data: meta, localOps: this.localOpsPayload() });
+      this.post({ type: 'metadata', data: meta, activeDomain: promoteDomain, localOps: this.localOpsPayload() });
     }
     const after = meta
       ? {
@@ -1160,7 +1162,8 @@ export class DashboardPanel {
   private async countsSafe(): Promise<{ meta: MetadataResponse; counts: Record<string, number> } | undefined> {
     try {
       const { addr, timeout } = this.cfg();
-      const m = await metadata(addr, timeout);
+      const domain = await this.activeDomain();
+      const m = await metadata(addr, timeout, domain || undefined);
       return {
         meta: m,
         counts: {

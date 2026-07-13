@@ -26,10 +26,10 @@ sensei version              # print version and exit
 
 | Group | Commands |
 |---|---|
-| [Setup & build](#setup--build) | `init` · `bootstrap` · `build` · `rebuild` · `serve` |
+| [Setup & build](#setup--build) | `init` · `import` · `bootstrap` · `build` · `rebuild` · `serve` |
 | [Query (agent-facing)](#query-agent-facing) | `briefing` · `impact` · `preflight` · `resolve` · `query` · `metadata` · `edit-check` |
 | [Authoring & feedback](#authoring--feedback) | `propose` · `feedback-check` · `promote` · `ingest` · `skill-ingest` |
-| [Validation & audit](#validation--audit) | `check` · `validate` · `validate-draft` · `audit` · `repo-eval` (+ `fix`, `draft-upgrade`) |
+| [Validation & audit](#validation--audit) | `check` · `validate` · `validate-draft` · `audit` · `repo-eval` (+ `fix`, `draft-upgrade`) · `architecture-extract` · `extract-invariants` |
 | [Gating](#gating) | `gate` · `contract-assess` · `contract-bootstrap` |
 | [Pattern & structural checks](#pattern--structural-checks) | `pattern-check` · `source-check` · `visual-audit` |
 | [Cold bootstrap & mining](#cold-bootstrap--mining) | `cold-bootstrap` · `intent-mine` · `corpus` |
@@ -50,15 +50,49 @@ Scaffold awareness for a new project **and wire up your agent tools**.
 | `--claude-md` | `true` | append the Sensei section to `CLAUDE.md` (idempotent) |
 | `--agents-md` | `true` | append the Sensei section to `AGENTS.md` (Codex/Cursor/others; idempotent) |
 | `--cursor` | `true` | write a Cursor rule at `.cursor/rules/sensei.mdc` (skipped if it exists) |
+| `--skills` | `true` | install bundled project skills under `.sensei/skills`, `.agents/skills`, and `.claude/skills` |
+| `--skills-force` | `false` | replace locally modified Sensei-managed skill copies |
 | `--mcp` | `false` | write/merge the `sensei` MCP server into `.mcp.json` (never clobbers other servers) |
 
 Creates `docs/awareness/` with templates (`invariants.yaml`,
 `failure_modes.yaml`, `incident_patterns.yaml`, `high_risk_files.yaml`,
 `activation_rules.yaml`, and the `meta_principles.yaml` pack), plus
-`.sensei/config.yaml`. Then wires the agent surfaces above — **additively and
-idempotently**: existing rules are preserved, re-running never duplicates, and an
-existing `sensei` MCP entry is left untouched. Prints created files and next
-steps.
+`.sensei/config.yaml`. Then installs the bundled `sensei-architect` skill and
+wires the agent surfaces above — **additively and idempotently**: existing rules
+are preserved, re-running never duplicates, and an existing `sensei` MCP entry
+is left untouched.
+
+Skill installation writes the canonical managed copy to
+`.sensei/skills/sensei-architect/`, plus native project skill copies to
+`.agents/skills/sensei-architect/` for Codex / Agent Skills and
+`.claude/skills/sensei-architect/` for Claude Code. Cursor uses
+`.cursor/rules/sensei.mdc` to point at the canonical skill package. Each managed
+copy has `.sensei-managed.json` with the bundled version and content digests.
+Untouched managed copies can update on a later Sensei version. Locally modified
+or manifest-less copies are preserved and reported; use `--skills-force` only
+when you intentionally want to replace them.
+
+### `sensei import` — Local (+ optional Oxigraph)
+
+Onboard or refresh a repository through the job-oriented facade. Fresh import
+accepts a git URL or path and runs the pipeline in order: clone or reuse checkout
+→ contract extraction → structural extraction → optional history mining →
+optional domain-scoped load.
+
+`--refresh` is for an existing checkout. It never clones; it re-extracts the
+checkout and optionally reloads the same domain-scoped slice.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--domain` | derived | repo domain, e.g. `github.com/gin-gonic/gin`; for paths, falls back to the git remote |
+| `--refresh` | `false` | re-extract an existing checkout; never clone |
+| `--depth` | `full` | `basic` for structure only; `full` also attempts contracts/history |
+| `--dir` | temp dir | checkout destination for URL imports; ignored for existing paths and refresh |
+| `--store-url` | — | load the domain-scoped slice into a store; empty prints the build command |
+| `--graph-marker-file` | — | runtime marker file to refresh when loading a served store |
+| `--drafter` | `llm` | contract drafter for full depth: `llm` or `echo` |
+| `--repo-slug` | derived | owner/name for PR-review history mining |
+| `--dry-run` | `false` | print the plan; run nothing |
 
 ### `sensei bootstrap` — Local
 
@@ -69,7 +103,8 @@ candidates, then validate and build.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--repo` | `.` | repository to bootstrap |
+| `--path` | `.` | repository checkout to bootstrap |
+| `--repo` | `.` | deprecated alias for `--path` |
 | `--skip-history` | `false` | skip history mining via coldsource |
 | `--skip-build` | `false` | extract + validate but don't build the graph |
 | `--check` | `false` | compare generated output to committed files; non-zero if stale (CI) |
@@ -113,9 +148,10 @@ to reuse the embedded Globular transaction stamp.
 
 ### `sensei rebuild` — Oxigraph (optional)
 
-Rebuild `awareness.nt` from YAML sources across repos and (optionally) reload
-Oxigraph. Steps: scan YAML → N-Triples → validate → update `embeddata/` → PUT to
-Oxigraph.
+Rebuild the self-only public `awareness.nt` from this repo's YAML sources and
+(optionally) reload Oxigraph. Pass `--combined` to include the paired services
+repo for an internal combined seed. Steps: scan YAML → N-Triples → validate →
+update `embeddata/` → PUT to Oxigraph.
 
 | Flag | Default | Purpose |
 |---|---|---|
@@ -124,6 +160,7 @@ Oxigraph.
 | `--oxigraph-url` | `http://localhost:7878/store?default` | Graph Store endpoint |
 | `--check` | `false` | compare only; exit 1 if stale (CI) |
 | `--no-runtime-reload` | `false` | skip the Oxigraph PUT |
+| `--combined` | `false` | include paired services awareness in the seed |
 | `--strict` | `false` | fail if Oxigraph is unavailable |
 
 > `propose`, `promote`, and `ingest` call this internally — you rarely run it by
@@ -514,6 +551,73 @@ sensei repo-eval draft-upgrade --repo . --json
 | `--repo` | auto | repository to evaluate and draft against |
 | `--dry-run` | `false` | print planned draft files without writing |
 | `--json` | `false` | JSON report of draft actions |
+
+### `sensei architecture-extract` — Local
+
+Build a read-only architectural contract extraction report from evidence already
+present in a checkout. It layers the repository into observed, inferred, and
+governed contract sets, then emits the required inventory, migration,
+authority-split, direction, unknowns, promotion-candidate, and proof-obligation
+sections.
+
+This command is intentionally conservative:
+
+- generated artifacts become observed evidence
+- active authored `docs/awareness` entries and enforcing workflows become
+  governed evidence within their explicit scope
+- `docs/awareness/candidates` entries and history hints become inferred,
+  review-only candidates
+- nothing is promoted, loaded, or treated as new authority
+
+Example:
+
+```bash
+sensei architecture-extract --repo /home/dave/Documents/github.com/caddyserver/caddy \
+  --domain github.com/caddyserver/caddy --format markdown
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | checkout whose existing evidence should be layered |
+| `--domain` | git origin | repository domain key for scope labels |
+| `--format` | `markdown` | `markdown` \| `json` \| `yaml` |
+| `--out` | stdout | write report to a file |
+| `--history-limit` | `40` | recent commits to inspect for migration hints; `0` disables history |
+
+### `sensei extract-invariants` — Local
+
+Deterministically extracts normalized facts and review-only invariant candidates
+from repository evidence. This is the invariant-specific pipeline:
+
+```text
+source extraction -> normalized facts -> candidate synthesis -> confidence and contradictions
+```
+
+Increment 1 supports Go guards, write paths, schema tags, architectural test
+names, generated-artifact evidence, CI/scanner evidence, documentation claims,
+and optional recent-history facts. Candidates stay under `status: candidate`;
+they are not governed invariants and are not imported by normal awareness builds
+unless a human promotes them.
+
+Example:
+
+```bash
+sensei extract-invariants --repo /home/dave/Documents/github.com/caddyserver/caddy \
+  --format json --output /tmp/caddy-invariants.json
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | checkout to inspect |
+| `--format` | `json` | `json` \| `yaml` |
+| `--output` | stdout | write extraction artifact to a file |
+| `--include-history` | `false` | inspect recent git history for removal/forbidden-pattern facts |
+| `--include-docs` | `true` | extract normative documentation/comment facts |
+| `--include-tests` | `true` | classify architectural test facts |
+| `--include-mutation-analysis` | `false` | allocate isolated mutation workspace; bounded mutant execution is a later increment |
+| `--minimum-confidence` | `low` | `low` \| `medium` \| `high` \| `proven` candidate filter |
+| `--explain` | `false` | retained for CLI symmetry; JSON/YAML always include explanations |
+| `--check` | `false` | compare `--output` with a fresh deterministic extraction |
 
 ---
 

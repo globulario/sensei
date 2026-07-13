@@ -136,16 +136,27 @@ sensei init --mcp
 This configures whatever agent tool you use — additively, and it never
 overwrites your existing rules (re-running is idempotent):
 
+- **`.sensei/skills/sensei-architect/`** — the canonical bundled Sensei
+  Architect skill, installed by default. It teaches agents to turn Sensei
+  memory into a proportional architectural reflex.
+- **`.agents/skills/sensei-architect/`** and
+  **`.claude/skills/sensei-architect/`** — native project skill copies for
+  Codex / Agent Skills and Claude Code.
 - **CLAUDE.md** and **AGENTS.md** — appends a Sensei section (the cross-tool
-  `AGENTS.md` convention is read by Codex, Cursor, Amp, and others).
-- **`.cursor/rules/sensei.mdc`** — a Cursor rule.
+  `AGENTS.md` convention is read by Cursor, Amp, and others).
+- **`.cursor/rules/sensei.mdc`** — a Cursor rule pointing to the canonical
+  skill package; Cursor does not rely on project `SKILL.md` discovery here.
 - **`.claude/hooks/`** — the PreToolUse push/guard hooks.
 - **`.mcp.json`** (with `--mcp`) — writes/merges the `sensei` MCP server,
-  resolving the `awareness-mcp` path for you; it never clobbers other servers.
+  resolving the `awareness-mcp` path for you; it never clobbers other servers
+  and removes stale legacy `awg` / `awareness-graph` MCP entries.
 
-Toggle any surface with `--claude-md` / `--agents-md` / `--cursor` / `--hooks`
-(default on) and `--mcp` (opt-in). Prefer to add the MCP server by hand? Put this
-in `.mcp.json` at the repo root (Claude Code):
+Toggle any surface with `--skills` / `--claude-md` / `--agents-md` / `--cursor`
+/ `--hooks` (default on) and `--mcp` (opt-in). Re-running the same Sensei
+version does not rewrite unchanged managed skills. A newer Sensei can update an
+untouched managed skill copy; a locally edited copy is preserved with a notice
+unless you explicitly pass `--skills-force`. Prefer to add the MCP server by
+hand? Put this in `.mcp.json` at the repo root (Claude Code):
 
 ```json
 {
@@ -162,8 +173,9 @@ Then, in your agent:
 
 > **You:** "Is the Sensei MCP available? List the `mcp__sensei__*` tools."
 
-The agent should see `awareness_briefing`, `awareness_impact`, `awareness_preflight`,
-`awareness_edit_check`, `awareness_resolve`, `awareness_query`, `awareness_metadata`.
+The agent should see `awareness_metadata`, `awareness_preflight`,
+`awareness_briefing`, `awareness_impact`, `awareness_resolve`,
+`awareness_query`, `awareness_edit_check`, and `awareness_propose`.
 
 **2. Bootstrap the repository's awareness graph.**
 
@@ -341,7 +353,7 @@ The **[full CLI reference](docs/cli-reference.md)** documents every command and 
 | Command | What it does |
 |---|---|
 | `sensei bootstrap --repo .` | Extract a repo's architecture into `docs/awareness/` |
-| `sensei init` | Scaffold a project (YAML templates) + wire agent tools (CLAUDE.md, AGENTS.md, Cursor, hooks; `--mcp` for `.mcp.json`) |
+| `sensei init` | Scaffold a project (YAML templates) + install the Sensei Architect skill + wire agent tools (CLAUDE.md, AGENTS.md, Cursor, hooks; `--mcp` for `.mcp.json`) |
 | `sensei serve` | Start Oxigraph + the gRPC server |
 | `sensei build` | Compile `docs/awareness/` into the store |
 | `sensei repo-eval` | Evaluate architecture + awareness quality |
@@ -355,9 +367,10 @@ The **[full CLI reference](docs/cli-reference.md)** documents every command and 
 
 ## Agent integration (MCP + hooks)
 
-The MCP bridge exposes seven stdio tools (`awareness_briefing`, `awareness_impact`,
-`awareness_preflight`, `awareness_edit_check`, `awareness_resolve`,
-`awareness_query`, `awareness_metadata`):
+The MCP bridge exposes eight stdio tools (`awareness_metadata`,
+`awareness_preflight`, `awareness_briefing`, `awareness_impact`,
+`awareness_resolve`, `awareness_query`, `awareness_edit_check`,
+`awareness_propose`):
 
 ```bash
 go run ./cmd/awareness-mcp -awareness-addr localhost:10120

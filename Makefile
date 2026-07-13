@@ -362,12 +362,9 @@ principle-check-all: principle-check principle-check-workflow-service principle-
 
 # ── Sensei standalone CLI ───────────────────────────────────────────
 
-# Build the standalone sensei CLI binary. Also installs the deprecated `awg`
-# alias (same binary; invoking it as awg prints a deprecation notice) so CI
-# scripts and muscle memory keep working for one release.
+# Build the standalone sensei CLI binary.
 sensei-cli:
 	go build -ldflags "-X main.Version=$(SERVICE_VERSION)" -o ./bin/sensei ./cmd/awg
-	cp ./bin/sensei ./bin/awg
 
 # Backwards-compatible alias for the CLI-only build.
 awg-cli: sensei-cli

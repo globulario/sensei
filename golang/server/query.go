@@ -53,7 +53,7 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 	var err error
 	switch req.GetMode() {
 	case awarenesspb.QueryMode_QUERY_MODE_BY_FILE:
-		rows, err = s.queryByFile(ctx, strings.TrimSpace(req.GetFile()))
+		rows, err = s.queryByFile(ctx, strings.TrimSpace(req.GetFile()), strings.TrimSpace(req.GetDomain()))
 	case awarenesspb.QueryMode_QUERY_MODE_BY_ID:
 		rows, err = s.queryByID(ctx, strings.TrimSpace(req.GetId()))
 	case awarenesspb.QueryMode_QUERY_MODE_BY_CLASS:
@@ -74,11 +74,11 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 	}, nil
 }
 
-func (s *server) queryByFile(ctx context.Context, file string) ([]*awarenesspb.QueryRow, error) {
+func (s *server) queryByFile(ctx context.Context, file, domain string) ([]*awarenesspb.QueryRow, error) {
 	if file == "" {
 		return nil, status.Error(codes.InvalidArgument, "file is required for by_file")
 	}
-	impact, _, _, err := s.collectImpact(ctx, file, "")
+	impact, _, _, err := s.collectImpact(ctx, file, domain)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}

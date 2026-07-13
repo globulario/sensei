@@ -288,14 +288,15 @@ func TestQueryTool_MapsRequestAndFormatsRows(t *testing.T) {
 		},
 	})
 	out, err := b.callText(context.Background(), "awareness_query", map[string]interface{}{
-		"mode": "by_class", "class": "invariant", "limit": float64(10),
+		"mode": "by_class", "class": "contract", "limit": float64(10), "domain": "github.com/globulario/sensei",
 	})
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
 	if got.GetMode() != awarenesspb.QueryMode_QUERY_MODE_BY_CLASS ||
-		got.GetClass() != awarenesspb.QueryClass_QUERY_CLASS_INVARIANT ||
-		got.GetLimit() != 10 {
+		got.GetClass() != awarenesspb.QueryClass_QUERY_CLASS_CONTRACT ||
+		got.GetLimit() != 10 ||
+		got.GetDomain() != "github.com/globulario/sensei" {
 		t.Fatalf("request=%v", got)
 	}
 	if !strings.Contains(out, "rows: 1") || !strings.Contains(out, "invariant:x") || !strings.Contains(out, "critical") {
@@ -306,9 +307,59 @@ func TestQueryTool_MapsRequestAndFormatsRows(t *testing.T) {
 	}
 }
 
+func TestQueryTool_ExposesAllTypedProtoClasses(t *testing.T) {
+	for _, class := range []string{
+		"invariant",
+		"failure_mode",
+		"incident_pattern",
+		"intent",
+		"symbol",
+		"source_file",
+		"code_symbol",
+		"forbidden_fix",
+		"test",
+		"meta_principle",
+		"component",
+		"boundary",
+		"contract",
+		"decision",
+		"evidence",
+		"design_pattern",
+		"implementation_pattern",
+		"pattern_misuse",
+	} {
+		if _, err := queryClassFromString(class); err != nil {
+			t.Fatalf("query class %s not accepted: %v", class, err)
+		}
+	}
+
+	b := testBridge(fakeClient{})
+	var enumValues []string
+	for _, tdef := range b.tools() {
+		if tdef.Name != "awareness_query" {
+			continue
+		}
+		props := tdef.InputSchema["properties"].(map[string]interface{})
+		classProp := props["class"].(map[string]interface{})
+		enumValues = classProp["enum"].([]string)
+		if _, ok := props["domain"]; !ok {
+			t.Fatal("awareness_query schema missing domain")
+		}
+		break
+	}
+	if len(enumValues) == 0 {
+		t.Fatal("awareness_query schema class enum missing")
+	}
+	if len(enumValues) != len(mcpQueryClasses) {
+		t.Fatalf("schema enum length=%d, want %d", len(enumValues), len(mcpQueryClasses))
+	}
+}
+
 func TestMetadataTool_FormatsCounts(t *testing.T) {
+	var got *awarenesspb.MetadataRequest
 	b := testBridge(fakeClient{
-		metadata: func(_ context.Context, _ *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+		metadata: func(_ context.Context, in *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+			got = in
 			return &awarenesspb.MetadataResponse{
 				ServerVersion:                       "1.2.3",
 				TripleCount:                         12062,
@@ -337,9 +388,12 @@ func TestMetadataTool_FormatsCounts(t *testing.T) {
 			}, nil
 		},
 	})
-	out, err := b.callText(context.Background(), "awareness_metadata", map[string]interface{}{})
+	out, err := b.callText(context.Background(), "awareness_metadata", map[string]interface{}{"domain": "github.com/globulario/sensei"})
 	if err != nil {
 		t.Fatalf("err=%v", err)
+	}
+	if got.GetDomain() != "github.com/globulario/sensei" {
+		t.Fatalf("metadata domain not mapped: %q", got.GetDomain())
 	}
 	if !strings.Contains(out, "server_version: 1.2.3") || !strings.Contains(out, "triple_count: 12062") || !strings.Contains(out, "invariant_count: 40") {
 		t.Fatalf("out=%q", out)
@@ -589,6 +643,9 @@ func TestServeStdio_InitializeRespondsWithProtocolVersionFramed(t *testing.T) {
 	parts := strings.SplitN(resp, "\r\n\r\n", 2)
 	if len(parts) != 2 || !strings.Contains(parts[1], `"protocolVersion":"2025-06-18"`) {
 		t.Fatalf("response = %q", resp)
+	}
+	if !strings.Contains(parts[1], `"serverInfo":{"name":"sensei","version":"0.1.0"}`) {
+		t.Fatalf("initialize serverInfo should identify Sensei, got %q", parts[1])
 	}
 }
 

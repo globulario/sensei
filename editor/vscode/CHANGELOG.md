@@ -2,6 +2,10 @@
 
 ## 0.1.4
 
+- **Counts stay scoped after Rebuild/Promote.** The post-operation banner refresh
+  (and the before/after count summary) now query the same project domain as the
+  main banner, so a Rebuild or candidate Promote no longer flashes the counts
+  back to the whole multi-repo graph — they stay scoped to this repo.
 - **Rebuild rebuilds THIS repo's view, not a flattened graph.** The dashboard's
   Rebuild (combined mode) now passes `--tag-by-repo`, so a multi-repo rebuild
   tags each repo's nodes with its own domain (from its git remote) and the graph
