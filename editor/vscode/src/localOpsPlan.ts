@@ -142,7 +142,10 @@ export function resolveRebuildPlan(
     seedPath,
     servicesRepoPath: svc,
     servicesDetected: detected,
-    args: ['rebuild', '--services-repo', svc, '--tag-by-repo'],
-    command: `${senseiPath} rebuild --services-repo ${svc} --tag-by-repo`,
+    // --combined: rebuild now defaults to the self-only public seed and IGNORES
+    // --services-repo unless --combined is set. Without it the combined plan
+    // would silently build a self-only graph and the store reload would mismatch.
+    args: ['rebuild', '--combined', '--services-repo', svc, '--tag-by-repo'],
+    command: `${senseiPath} rebuild --combined --services-repo ${svc} --tag-by-repo`,
   };
 }
