@@ -65,8 +65,7 @@ echo "Building binaries..."
 mkdir -p "$BIN_DIR"
 
 go build -o "$BIN_DIR/sensei" "$REPO_ROOT/cmd/awg"
-cp "$BIN_DIR/sensei" "$BIN_DIR/awg"   # deprecated alias (one release)
-echo "  ✓ bin/sensei (with deprecated bin/awg alias)"
+echo "  ✓ bin/sensei"
 
 go build -o "$BIN_DIR/awareness-mcp" "$REPO_ROOT/cmd/awareness-mcp"
 echo "  ✓ bin/awareness-mcp"

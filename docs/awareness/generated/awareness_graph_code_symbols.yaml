@@ -437,6 +437,11 @@ test_symbols:
     symbol: TestPreflightTool_ValidatesMissingTask
     package: main
     language: go
+  - id: cmd/awareness-mcp/main_test.go:TestQueryTool_ExposesAllTypedProtoClasses
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestQueryTool_ExposesAllTypedProtoClasses
+    package: main
+    language: go
   - id: cmd/awareness-mcp/main_test.go:TestQueryTool_MapsRequestAndFormatsRows
     file: cmd/awareness-mcp/main_test.go
     symbol: TestQueryTool_MapsRequestAndFormatsRows
@@ -582,6 +587,26 @@ test_symbols:
     symbol: TestRunRebuild_FailsClosedWhenCombinedSeedLosesServicesRepo
     package: main
     language: go
+  - id: cmd/awg/builtin_skills_test.go:TestBundledSenseiArchitectSkillPackage
+    file: cmd/awg/builtin_skills_test.go
+    symbol: TestBundledSenseiArchitectSkillPackage
+    package: main
+    language: go
+  - id: cmd/awg/builtin_skills_test.go:TestBundledSenseiImportSkillPackage
+    file: cmd/awg/builtin_skills_test.go
+    symbol: TestBundledSenseiImportSkillPackage
+    package: main
+    language: go
+  - id: cmd/awg/builtin_skills_test.go:TestInstalledSkillReferencesResolve
+    file: cmd/awg/builtin_skills_test.go
+    symbol: TestInstalledSkillReferencesResolve
+    package: main
+    language: go
+  - id: cmd/awg/builtin_skills_test.go:TestSenseiArchitectSkillSurfaceConsistency
+    file: cmd/awg/builtin_skills_test.go
+    symbol: TestSenseiArchitectSkillSurfaceConsistency
+    package: main
+    language: go
   - id: cmd/awg/cmd_audit_test.go:TestAssessmentInputForIntent_ContractFound
     file: cmd/awg/cmd_audit_test.go
     symbol: TestAssessmentInputForIntent_ContractFound
@@ -600,6 +625,16 @@ test_symbols:
   - id: cmd/awg/cmd_audit_test.go:TestAssessmentInputForIntent_UnknownWithoutOwnership
     file: cmd/awg/cmd_audit_test.go
     symbol: TestAssessmentInputForIntent_UnknownWithoutOwnership
+    package: main
+    language: go
+  - id: cmd/awg/cmd_audit_test.go:TestAuditSeedGenerationInputs_CombinedKeepsPairedInputs
+    file: cmd/awg/cmd_audit_test.go
+    symbol: TestAuditSeedGenerationInputs_CombinedKeepsPairedInputs
+    package: main
+    language: go
+  - id: cmd/awg/cmd_audit_test.go:TestAuditSeedGenerationInputs_SelfOnlyMatchesStandaloneSeedBuilder
+    file: cmd/awg/cmd_audit_test.go
+    symbol: TestAuditSeedGenerationInputs_SelfOnlyMatchesStandaloneSeedBuilder
     package: main
     language: go
   - id: cmd/awg/cmd_audit_test.go:TestCheckContractAssessment_Summary
@@ -772,14 +807,46 @@ test_symbols:
     symbol: TestQueryEndpointPath
     package: main
     language: go
+  - id: cmd/awg/cmd_build_test.go:TestCountNTriples
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestCountNTriples
+    package: main
+    language: go
   - id: cmd/awg/cmd_build_test.go:TestFinalizeBuildArtifact_DedupsBeforeMarker
     file: cmd/awg/cmd_build_test.go
     symbol: TestFinalizeBuildArtifact_DedupsBeforeMarker
     package: main
     language: go
+  - id: cmd/awg/cmd_build_test.go:TestQueryURLFromStore
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestQueryURLFromStore
+    package: main
+    language: go
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_FailsClosedWithoutScope
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestRunBuild_FailsClosedWithoutScope
+    package: main
+    language: go
+    doc: "TestRunBuild_FailsClosedWithoutScope locks the fail-closed contract: a bare\n`sensei build` (no --repo, no --all, no --output) must refuse to touch the\nstore rather than silently replace the whole graph — the exact accidental\nwipe the scope flags prevent."
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_NonDestructive
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestRunBuild_ScopedRepoUpdate_NonDestructive
+    package: main
+    language: go
+    doc: "TestRunBuild_ScopedRepoUpdate_NonDestructive exercises the --repo path end to\nend against a stateful fake store: it must issue a scoped SPARQL DELETE (not a\nwhole-graph PUT), append the compiled slice and then the recomputed marker,\nand publish a marker file that matches the marker recomputed over the\npost-update store contents."
   - id: cmd/awg/cmd_build_test.go:TestRunBuild_WritesGraphMarkerFileAfterVerifiedLoad
     file: cmd/awg/cmd_build_test.go
     symbol: TestRunBuild_WritesGraphMarkerFileAfterVerifiedLoad
+    package: main
+    language: go
+  - id: cmd/awg/cmd_build_test.go:TestScopedDeleteUpdate_TargetsDomainAndMarker
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestScopedDeleteUpdate_TargetsDomainAndMarker
+    package: main
+    language: go
+  - id: cmd/awg/cmd_build_test.go:TestSparqlEscapeLiteral
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestSparqlEscapeLiteral
     package: main
     language: go
   - id: cmd/awg/cmd_certify_test.go:TestBuildCertifyResult_ArtifactMappingMissing
@@ -1352,6 +1419,26 @@ test_symbols:
     symbol: TestRunRegex_SkipsNonTestGuardReferences
     package: main
     language: go
+  - id: cmd/awg/cmd_import_test.go:TestDeriveDomain
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestDeriveDomain
+    package: main
+    language: go
+  - id: cmd/awg/cmd_import_test.go:TestDeriveRepoBaseAndSanitize
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestDeriveRepoBaseAndSanitize
+    package: main
+    language: go
+  - id: cmd/awg/cmd_import_test.go:TestDeriveSlug
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestDeriveSlug
+    package: main
+    language: go
+  - id: cmd/awg/cmd_init_test.go:TestBuiltSenseiBinaryInitializesSkillsOutsideSourceTree
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestBuiltSenseiBinaryInitializesSkillsOutsideSourceTree
+    package: main
+    language: go
   - id: cmd/awg/cmd_init_test.go:TestScaffoldProject
     file: cmd/awg/cmd_init_test.go
     symbol: TestScaffoldProject
@@ -1362,9 +1449,24 @@ test_symbols:
     symbol: TestScaffoldProject_HooksExecutable
     package: main
     language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_InitMCPInstallsSkillsAndMCP
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_InitMCPInstallsSkillsAndMCP
+    package: main
+    language: go
   - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_MCPMergeOptIn
     file: cmd/awg/cmd_init_test.go
     symbol: TestScaffoldProject_MCPMergeOptIn
+    package: main
+    language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_MCPMigratesLegacyServerName
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_MCPMigratesLegacyServerName
+    package: main
+    language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_MCPRemovesLegacyServerWhenSenseiExists
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_MCPRemovesLegacyServerWhenSenseiExists
     package: main
     language: go
   - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_MetaPrinciples
@@ -1372,9 +1474,29 @@ test_symbols:
     symbol: TestScaffoldProject_MetaPrinciples
     package: main
     language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_SkillUpdateSafety
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_SkillUpdateSafety
+    package: main
+    language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_SkillsOptOut
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_SkillsOptOut
+    package: main
+    language: go
   - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_StarterCorpusValidatesCleanly
     file: cmd/awg/cmd_init_test.go
     symbol: TestScaffoldProject_StarterCorpusValidatesCleanly
+    package: main
+    language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_UnrelatedAgentSkillsUntouched
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_UnrelatedAgentSkillsUntouched
+    package: main
+    language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_UntouchedManagedSkillCanUpdate
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_UntouchedManagedSkillCanUpdate
     package: main
     language: go
   - id: cmd/awg/cmd_intent_mine_test.go:TestApplyIntentGroundings_Idempotent
@@ -2692,6 +2814,11 @@ test_symbols:
     symbol: TestTokenFromEnv
     package: client
     language: go
+  - id: golang/client/auth_test.go:TestTokenFromEnvLegacyFallback
+    file: golang/client/auth_test.go
+    symbol: TestTokenFromEnvLegacyFallback
+    package: client
+    language: go
   - id: golang/client/client_test.go:TestAllRPCs
     file: golang/client/client_test.go
     symbol: TestAllRPCs
@@ -3191,6 +3318,12 @@ test_symbols:
     package: coldsource
     language: go
     doc: "End to end: gather → echo draft → cage → materialize → ground produces an\noutput class with no fabricated citation surviving."
+  - id: golang/extractor/coldsource/intent_extract_test.go:TestGatherExcludesSenseiScaffolding
+    file: golang/extractor/coldsource/intent_extract_test.go
+    symbol: TestGatherExcludesSenseiScaffolding
+    package: coldsource
+    language: go
+    doc: "TestGatherExcludesSenseiScaffolding proves the intent gatherer never mines\nSensei's own scaffolded charter as if the target repo authored it: the\n`## Sensei` section appended to CLAUDE.md/AGENTS.md, the awareness/intent\ncorpus, and the .sensei/.claude/.agents/.cursor skill trees are all excluded,\nwhile the repo's own charter in those same files is still read."
   - id: golang/extractor/coldsource/intent_extract_test.go:TestGatherIntentExcerpts
     file: golang/extractor/coldsource/intent_extract_test.go
     symbol: TestGatherIntentExcerpts
@@ -4519,6 +4652,11 @@ test_symbols:
     symbol: TestServiceAddrDefaultAndEnv
     package: netcfg
     language: go
+  - id: golang/netcfg/netcfg_test.go:TestServiceAddrLegacyFallback
+    file: golang/netcfg/netcfg_test.go
+    symbol: TestServiceAddrLegacyFallback
+    package: netcfg
+    language: go
   - id: golang/pb/compile_test.go:TestBriefingStatusEnumValuesExist
     file: golang/pb/compile_test.go
     symbol: TestBriefingStatusEnumValuesExist
@@ -4806,6 +4944,12 @@ test_symbols:
     symbol: TestIsTestFile
     package: scipingest
     language: go
+  - id: golang/seedmeta/marker_triples_test.go:TestMarkerTriples_MatchesAppendMarker
+    file: golang/seedmeta/marker_triples_test.go
+    symbol: TestMarkerTriples_MatchesAppendMarker
+    package: seedmeta
+    language: go
+    doc: "TestMarkerTriples_MatchesAppendMarker locks the invariant that MarkerTriples\nemits exactly the marker lines AppendMarker appends — the scoped-update path\ninserts only these lines, so they must be byte-identical to the whole-artifact\nstamping, and the count must land on the marker's stated TripleCount."
   - id: golang/seedmeta/seedmeta_test.go:TestAppendMarker_IsIdempotent
     file: golang/seedmeta/seedmeta_test.go
     symbol: TestAppendMarker_IsIdempotent
@@ -5126,6 +5270,11 @@ test_symbols:
     package: main
     language: go
     doc: "A pure-caddy result (single repo domain, no home node) resolves trivially\neven unscoped — shared still visible."
+  - id: golang/server/impact_scope_test.go:TestQueryByFile_HonorsDomainScope
+    file: golang/server/impact_scope_test.go
+    symbol: TestQueryByFile_HonorsDomainScope
+    package: main
+    language: go
   - id: golang/server/impact_symbols_test.go:TestImpact_SurfacesSymbolsAndReferences
     file: golang/server/impact_symbols_test.go
     symbol: TestImpact_SurfacesSymbolsAndReferences

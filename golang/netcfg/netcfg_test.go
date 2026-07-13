@@ -6,6 +6,7 @@ import "testing"
 
 func TestServiceAddrDefaultAndEnv(t *testing.T) {
 	t.Setenv(EnvServiceAddr, "")
+	t.Setenv(EnvLegacyServiceAddr, "")
 	if got := ServiceAddr(); got != DefaultServiceHostPort {
 		t.Fatalf("ServiceAddr default = %q, want %q", got, DefaultServiceHostPort)
 	}
@@ -22,8 +23,22 @@ func TestServiceAddrDefaultAndEnv(t *testing.T) {
 	}
 }
 
+func TestServiceAddrLegacyFallback(t *testing.T) {
+	t.Setenv(EnvServiceAddr, "")
+	t.Setenv(EnvLegacyServiceAddr, "legacy:20120")
+	if got := ServiceAddr(); got != "legacy:20120" {
+		t.Fatalf("ServiceAddr legacy env = %q, want legacy:20120", got)
+	}
+
+	t.Setenv(EnvServiceAddr, "sensei:20120")
+	if got := ServiceAddr(); got != "sensei:20120" {
+		t.Fatalf("ServiceAddr should prefer %s over %s, got %q", EnvServiceAddr, EnvLegacyServiceAddr, got)
+	}
+}
+
 func TestOxigraphBind(t *testing.T) {
 	t.Setenv(EnvOxigraphBind, "")
+	t.Setenv(EnvLegacyOxigraphBind, "")
 	if got := OxigraphBind(); got != DefaultOxigraphBind {
 		t.Fatalf("OxigraphBind default = %q, want %q", got, DefaultOxigraphBind)
 	}
@@ -49,6 +64,7 @@ func TestOxigraphURLs(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Setenv(EnvOxigraphURL, c.env)
+			t.Setenv(EnvLegacyOxigraphURL, "")
 			if got := OxigraphQueryURL(); got != c.wantQuery {
 				t.Errorf("OxigraphQueryURL() = %q, want %q", got, c.wantQuery)
 			}

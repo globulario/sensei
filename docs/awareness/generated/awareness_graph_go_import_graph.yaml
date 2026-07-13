@@ -43,6 +43,7 @@ components:
       - cmd/awg/bootstrap_candidates.go
       - cmd/awg/bootstrap_extract.go
       - cmd/awg/build_transaction.go
+      - cmd/awg/builtin_skills.go
       - cmd/awg/cmd_audit.go
       - cmd/awg/cmd_benchmark_brief.go
       - cmd/awg/cmd_benchmark_event_meta.go

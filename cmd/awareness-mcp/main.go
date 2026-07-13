@@ -78,6 +78,27 @@ type tool struct {
 	InputSchema map[string]interface{} `json:"inputSchema"`
 }
 
+var mcpQueryClasses = []string{
+	"invariant",
+	"failure_mode",
+	"incident_pattern",
+	"intent",
+	"symbol",
+	"source_file",
+	"code_symbol",
+	"forbidden_fix",
+	"test",
+	"meta_principle",
+	"component",
+	"boundary",
+	"contract",
+	"decision",
+	"evidence",
+	"design_pattern",
+	"implementation_pattern",
+	"pattern_misuse",
+}
+
 func (b *bridge) tools() []tool {
 	return []tool{
 		{
@@ -133,10 +154,14 @@ func (b *bridge) tools() []tool {
 					"id":   map[string]interface{}{"type": "string", "description": "class-qualified id; required for mode=by_id and mode=related"},
 					"class": map[string]interface{}{
 						"type":        "string",
-						"enum":        []string{"invariant", "failure_mode", "incident_pattern", "intent", "symbol", "source_file", "code_symbol"},
+						"enum":        mcpQueryClasses,
 						"description": "required for mode=by_class",
 					},
 					"limit": map[string]interface{}{"type": "integer"},
+					"domain": map[string]interface{}{
+						"type":        "string",
+						"description": "optional repo/domain scope for by_class results; empty follows server scope rules",
+					},
 				},
 				"required": []string{"mode"},
 			},
@@ -145,8 +170,10 @@ func (b *bridge) tools() []tool {
 			Name:        "awareness_metadata",
 			Description: "Graph coverage and freshness: build provenance, triple/node counts, staleness signal",
 			InputSchema: map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
+				"type": "object",
+				"properties": map[string]interface{}{
+					"domain": map[string]interface{}{"type": "string", "description": "optional repo/domain scope for per-class counts; empty returns graph-wide totals"},
+				},
 			},
 		},
 		{
@@ -181,7 +208,7 @@ func (b *bridge) tools() []tool {
 		},
 		{
 			Name:        "awareness_propose",
-			Description: "Propose a typed awareness entry (failure_mode | invariant | required_test | forbidden_fix | contract_unknown) learned while working. SAFE write: validated with the same contract-first rules as `awg propose` and written to the review queue (candidates/), NOT the live graph — a human/CI step promotes it. Requires the server to be started with propose enabled; otherwise returns unavailable.",
+			Description: "Propose a typed awareness entry (failure_mode | invariant | required_test | forbidden_fix | contract_unknown) learned while working. SAFE write: validated with the same contract-first rules as `sensei propose` and written to the review queue (candidates/), NOT the live graph — a human/CI step promotes it. Requires the server to be started with propose enabled; otherwise returns unavailable.",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -296,6 +323,8 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		if limit, ok := args["limit"].(float64); ok {
 			req.Limit = int32(limit)
 		}
+		domain, _ := args["domain"].(string)
+		req.Domain = strings.TrimSpace(domain)
 		switch mode {
 		case awarenesspb.QueryMode_QUERY_MODE_BY_FILE:
 			file, _ := args["file"].(string)
@@ -324,7 +353,8 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		return &toolResult{Text: formatQuery(resp), Structured: structQuery(resp)}, nil
 
 	case "awareness_metadata":
-		resp, err := b.client.Metadata(ctx, &awarenesspb.MetadataRequest{})
+		domain, _ := args["domain"].(string)
+		resp, err := b.client.Metadata(ctx, &awarenesspb.MetadataRequest{Domain: strings.TrimSpace(domain)})
 		if err != nil {
 			return nil, toolRPCError("metadata", err)
 		}
@@ -641,8 +671,30 @@ func queryClassFromString(s string) (awarenesspb.QueryClass, error) {
 		return awarenesspb.QueryClass_QUERY_CLASS_SOURCE_FILE, nil
 	case "code_symbol":
 		return awarenesspb.QueryClass_QUERY_CLASS_CODE_SYMBOL, nil
+	case "forbidden_fix":
+		return awarenesspb.QueryClass_QUERY_CLASS_FORBIDDEN_FIX, nil
+	case "test":
+		return awarenesspb.QueryClass_QUERY_CLASS_TEST, nil
+	case "meta_principle":
+		return awarenesspb.QueryClass_QUERY_CLASS_META_PRINCIPLE, nil
+	case "component":
+		return awarenesspb.QueryClass_QUERY_CLASS_COMPONENT, nil
+	case "boundary":
+		return awarenesspb.QueryClass_QUERY_CLASS_BOUNDARY, nil
+	case "contract":
+		return awarenesspb.QueryClass_QUERY_CLASS_CONTRACT, nil
+	case "decision":
+		return awarenesspb.QueryClass_QUERY_CLASS_DECISION, nil
+	case "evidence":
+		return awarenesspb.QueryClass_QUERY_CLASS_EVIDENCE, nil
+	case "design_pattern":
+		return awarenesspb.QueryClass_QUERY_CLASS_DESIGN_PATTERN, nil
+	case "implementation_pattern":
+		return awarenesspb.QueryClass_QUERY_CLASS_IMPLEMENTATION_PATTERN, nil
+	case "pattern_misuse":
+		return awarenesspb.QueryClass_QUERY_CLASS_PATTERN_MISUSE, nil
 	default:
-		return awarenesspb.QueryClass_QUERY_CLASS_UNSPECIFIED, fmt.Errorf("class is required for mode=by_class: one of invariant|failure_mode|incident_pattern|intent|symbol|source_file|code_symbol, got %q", s)
+		return awarenesspb.QueryClass_QUERY_CLASS_UNSPECIFIED, fmt.Errorf("class is required for mode=by_class: one of %s, got %q", strings.Join(mcpQueryClasses, "|"), s)
 	}
 }
 
@@ -1326,7 +1378,7 @@ func serveStdio(br *bridge, r io.Reader, w io.Writer) error {
 			}
 			if err := session.writeResponse(id, map[string]interface{}{
 				"protocolVersion": protocolVersion,
-				"serverInfo":      map[string]string{"name": "awareness-mcp", "version": "0.1.0"},
+				"serverInfo":      map[string]string{"name": "sensei", "version": "0.1.0"},
 				"capabilities": map[string]interface{}{
 					"tools": map[string]interface{}{},
 				},
@@ -1391,7 +1443,7 @@ func serveStdio(br *bridge, r io.Reader, w io.Writer) error {
 // @awareness component=mcp.bridge
 // @awareness relates_to=globular.awareness_graph:intent.awareness.mcp_tools_use_gateway_client_pool
 func main() {
-	awarenessAddr := flag.String("awareness-addr", netcfg.ServiceAddr(), "awareness-graph gRPC address (or comma-separated fallback list; honors $AWG_ADDR)")
+	awarenessAddr := flag.String("awareness-addr", netcfg.ServiceAddr(), "awareness-graph gRPC address (or comma-separated fallback list; honors $SENSEI_ADDR, then legacy $AWG_ADDR)")
 	timeout := flag.Duration("timeout", 5*time.Second, "per-request gRPC timeout")
 	flag.Parse()
 

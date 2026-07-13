@@ -17,9 +17,10 @@ import (
 )
 
 // Opt-in bearer-token auth for the self-host service mode. When the server is
-// started with a token (--auth-token / $AWG_TOKEN), every AwarenessGraph RPC
-// must present "authorization: Bearer <token>". With no token the server is
-// open — the correct default for a trusted-network self-host or local dev.
+// started with a token (--auth-token / $SENSEI_TOKEN, with $AWG_TOKEN as a
+// legacy fallback), every AwarenessGraph RPC must present
+// "authorization: Bearer <token>". With no token the server is open — the
+// correct default for a trusted-network self-host or local dev.
 //
 // The gRPC health and reflection services are exempt so liveness probes and
 // tooling keep working without the secret.
