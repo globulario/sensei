@@ -31,10 +31,17 @@ cd sensei && ./scripts/install.sh && export PATH="$PWD/bin:$PATH"
 Full platform notes (tarballs, macOS/Windows, the Oxigraph dependency, the
 Docker alternative): **[INSTALL.md](INSTALL.md)**.
 
+VS Code users — install the dashboard extension (search "Sensei — Architectural
+Memory" in the Extensions view, or):
+
+```bash
+code --install-extension globulario.sensei-awareness
+```
+
 Recommended local runtime:
 
 ```bash
-bash ./scripts/install-awg-user-services.sh --skip-build
+bash ./scripts/install-sensei-user-services.sh --skip-build
 ```
 
 That gives you a supervised local Sensei stack and is the preferred path for real

@@ -157,7 +157,7 @@ Flags:
 
 	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
-		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-awg-user-services.sh`.\n")
+		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
 		return 1
 	}
 	if err := verifyLoadedGraph(endpoint, ntBytes); err != nil {
@@ -339,7 +339,7 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 
 	if err := client.Health(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: store not reachable: %v\n", err)
-		fmt.Fprintln(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve` or `bash ./scripts/install-awg-user-services.sh`.")
+		fmt.Fprintln(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve` or `bash ./scripts/install-sensei-user-services.sh`.")
 		return 1
 	}
 	before, err := client.CountTriples(ctx)
