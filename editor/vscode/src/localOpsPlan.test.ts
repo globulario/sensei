@@ -80,8 +80,8 @@ test('resolveRebuildPlan auto-detects sibling services for awareness-graph repo'
   assert.equal(plan.mode, 'combined');
   assert.equal(plan.servicesDetected, true);
   assert.equal(plan.servicesRepoPath, services);
-  assert.deepEqual(plan.args, ['rebuild', '--services-repo', services, '--tag-by-repo']);
-  assert.equal(plan.command, `sensei rebuild --services-repo ${services} --tag-by-repo`);
+  assert.deepEqual(plan.args, ['rebuild', '--combined', '--services-repo', services, '--tag-by-repo']);
+  assert.equal(plan.command, `sensei rebuild --combined --services-repo ${services} --tag-by-repo`);
   assert.equal(plan.seedPath, path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'));
 });
 
