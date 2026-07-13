@@ -30,7 +30,8 @@ type authoritySurfaceCandidate struct {
 	ID                string   `yaml:"id"`
 	Class             string   `yaml:"class"`
 	Status            string   `yaml:"status"`
-	Confidence        string   `yaml:"confidence"`
+	Confidence        string   `yaml:"confidence"`       // level: proven|high|medium|low
+	ConfidenceScore   int      `yaml:"confidence_score"` // 0-100; see authoritySurfaceScore
 	Kind              string   `yaml:"kind"`
 	Owner             string   `yaml:"owner,omitempty"`
 	SourceFiles       []string `yaml:"source_files"`
@@ -64,6 +65,7 @@ func runExtractAuthority(args []string) int {
 	repoRoot := fs.String("repo-root", ".", "repository root to scan")
 	output := fs.String("output", "", "candidate YAML to write (default: <repo>/docs/awareness/candidates/authority_surface_candidates.yaml)")
 	check := fs.Bool("check", false, "compare committed candidate YAML to a fresh run; exit 1 if stale")
+	minConf := fs.String("minimum-confidence", "", "drop surfaces below this level: low|medium|high|proven (default: keep all). medium keeps routes/lifecycle/guarded-mutations; drops bare mutations.")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei extract-authority [flags]
 
@@ -89,6 +91,7 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei extract-authority: %v\n", err)
 		return 1
 	}
+	cands = filterAuthorityByMinConfidence(cands, *minConf)
 	out, err := renderAuthorityCandidates(root, cands)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei extract-authority: render: %v\n", err)
@@ -174,8 +177,13 @@ func scanAuthorityFile(root, path string) ([]authoritySurfaceCandidate, error) {
 	if err != nil {
 		return nil, err
 	}
-	rel = filepath.ToSlash(rel)
+	return scanAuthorityDecls(filepath.ToSlash(rel), file), nil
+}
 
+// scanAuthorityDecls is the parse-free core of authority-surface extraction: it
+// works on an already-parsed file so the same *ast.File can feed both this and
+// the invariant fact extractor in a single Go-AST pass (see extractGoArchitecture).
+func scanAuthorityDecls(rel string, file *ast.File) []authoritySurfaceCandidate {
 	routes := map[string][]string{}
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
@@ -227,7 +235,7 @@ func scanAuthorityFile(root, path string) ([]authoritySurfaceCandidate, error) {
 			out = append(out, cand)
 		}
 	}
-	return out, nil
+	return out
 }
 
 func authorityApplyCall(features *authorityFeatures, call *ast.CallExpr) {
@@ -322,11 +330,13 @@ func authorityCandidateFromFeatures(f authorityFeatures) (authoritySurfaceCandid
 	notes = authorityDedupe(notes)
 
 	id := "candidate.authority." + authoritySlug(strings.TrimSuffix(f.relPath, ".go")) + "." + authoritySlug(f.symbol)
+	score := authoritySurfaceScore(kind, f)
 	return authoritySurfaceCandidate{
 		ID:                id,
 		Class:             "AuthoritySurface",
 		Status:            "candidate",
-		Confidence:        "candidate",
+		Confidence:        authoritySurfaceLevel(score),
+		ConfidenceScore:   score,
 		Kind:              kind,
 		Owner:             f.owner,
 		SourceFiles:       []string{f.relPath},
@@ -339,6 +349,75 @@ func authorityCandidateFromFeatures(f authorityFeatures) (authoritySurfaceCandid
 		Notes:             notes,
 		Evidence:          f.evidence,
 	}, true
+}
+
+// authoritySurfaceScore rates how load-bearing a surface is so the noise floor
+// can be dropped. Aligned with the invariant confidence bands
+// (proven>=85, high>=65, medium>=35, low<35). The threshold that governs
+// keep-vs-discard:
+//   - KEEP  (medium+): an external route/handler, a lifecycle control, or a
+//     guarded mutation — a real authority boundary someone must respect.
+//   - DROP  (low):     a bare state mutation with no route, guard, lifecycle, or
+//     named governance — a plain setter, not an architectural surface.
+func authoritySurfaceScore(kind string, f authorityFeatures) int {
+	base := 20
+	switch kind {
+	case "guarded_mutation_handler":
+		base = 78
+	case "lifecycle_control":
+		base = 70
+	case "mutation_handler":
+		base = 66
+	case "guard_surface":
+		base = 55
+	case "guarded_state_mutation":
+		base = 48
+	case "security_surface":
+		base = 40
+	case "state_mutation":
+		base = 30
+	}
+	if authorityHasNamedGovernance(f.authority) {
+		base += 10 // certificate/identity/network/config authority named explicitly
+	}
+	if len(f.routes) > 0 {
+		base += 5 // an explicit external route is a stronger surface
+	}
+	if base > 100 {
+		base = 100
+	}
+	return base
+}
+
+func authoritySurfaceLevel(score int) string {
+	switch {
+	case score >= 85:
+		return "proven"
+	case score >= 65:
+		return "high"
+	case score >= 35:
+		return "medium"
+	default:
+		return "low"
+	}
+}
+
+var authorityLevelRank = map[string]int{"low": 0, "medium": 1, "high": 2, "proven": 3}
+
+// filterAuthorityByMinConfidence drops candidates below the given level. An
+// empty/unknown min returns the input unfiltered (no threshold).
+func filterAuthorityByMinConfidence(cands []authoritySurfaceCandidate, min string) []authoritySurfaceCandidate {
+	floor, ok := authorityLevelRank[strings.ToLower(strings.TrimSpace(min))]
+	if !ok {
+		return cands
+	}
+	out := cands[:0:0]
+	for _, c := range cands {
+		if authorityLevelRank[c.Confidence] >= floor {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func renderAuthorityCandidates(root string, cands []authoritySurfaceCandidate) ([]byte, error) {

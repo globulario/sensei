@@ -377,40 +377,24 @@ Flags:
 	} else {
 		rep.notes = append(rep.notes, "misuse candidates: "+cerr.Error())
 	}
-	// Authority surfaces from Go source — the code→contract layer: HTTP handlers,
-	// guards, lifecycle control, and state mutations, scanned from the AST.
-	// Deterministic (no key), status: candidate, never promoted. Reads Go source
-	// only (not the scaffolded charter), so it is safe regardless of extraction
-	// order. This is what makes onboarding surface a pure-Go repo's real contract
-	// surface, not just its module layout.
-	if authCands, aerr := extractAuthorityCandidates(root); aerr != nil {
-		rep.notes = append(rep.notes, "authority candidates: "+aerr.Error())
-	} else if len(authCands) > 0 {
-		rep.candidateAuthority = len(authCands)
-		if writeCands {
-			if out, rerr := renderAuthorityCandidates(root, authCands); rerr != nil {
-				rep.notes = append(rep.notes, "authority candidates: render: "+rerr.Error())
-			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
-				rep.notes = append(rep.notes, "authority candidates: mkdir: "+merr.Error())
-			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "authority_surface_candidates.yaml"), out, 0o644); werr != nil {
-				rep.notes = append(rep.notes, "authority candidates: write: "+werr.Error())
-			}
-		}
-	}
-	// Invariant candidates — the single extractor (`extract-invariants`), gated at
-	// medium confidence. That floor keeps only corroborated candidates: a guard
-	// with a test, an owned write path, or a rule-signaling test that attests a
-	// behavioral law (race/panic/idempotency). Uncorroborated single guards score
-	// low and are dropped. status: candidate, never promoted.
+	// Invariants AND authority surfaces from ONE Go-AST pass, both gated at medium
+	// confidence. The single extractor (extractGoArchitecture behind
+	// buildInvariantExtractionReport) parses each .go file once and feeds both the
+	// invariant synthesizer and the authority-surface scanner — no double parse.
+	// medium floor keeps only corroborated results: for invariants, a guard with a
+	// test / owned write path / rule-signaling test; for authority, a route,
+	// lifecycle control, or guarded mutation (bare unguarded mutations score low
+	// and drop). status: candidate, never promoted.
 	if report, ierr := buildInvariantExtractionReport(root, invariantExtractOptions{
 		Repo:              root,
 		IncludeTests:      true,
 		MinimumConfidence: "medium",
 	}); ierr != nil {
-		rep.notes = append(rep.notes, "invariant candidates: "+ierr.Error())
-	} else if len(report.Candidates) > 0 {
+		rep.notes = append(rep.notes, "invariant/authority extraction: "+ierr.Error())
+	} else {
 		rep.candidateInvariants = len(report.Candidates)
-		if writeCands {
+		rep.candidateAuthority = len(report.AuthoritySurfaces)
+		if writeCands && len(report.Candidates) > 0 {
 			doc := struct {
 				Invariants []extractedInvariantCandidate `yaml:"invariants"`
 			}{report.Candidates}
@@ -420,6 +404,15 @@ Flags:
 				rep.notes = append(rep.notes, "invariant candidates: mkdir: "+merr.Error())
 			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "invariant_candidates.yaml"), data, 0o644); werr != nil {
 				rep.notes = append(rep.notes, "invariant candidates: write: "+werr.Error())
+			}
+		}
+		if writeCands && len(report.AuthoritySurfaces) > 0 {
+			if out, rerr := renderAuthorityCandidates(root, report.AuthoritySurfaces); rerr != nil {
+				rep.notes = append(rep.notes, "authority candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "authority candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "authority_surface_candidates.yaml"), out, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "authority candidates: write: "+werr.Error())
 			}
 		}
 	}

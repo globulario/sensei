@@ -26,9 +26,10 @@ type invariantExtractionReport struct {
 	GeneratedBy      string                         `json:"generated_by" yaml:"generated_by"`
 	GeneratedAt      string                         `json:"generated_at" yaml:"generated_at"`
 	RepoRoot         string                         `json:"repo_root" yaml:"repo_root"`
-	Facts            []normalizedInvariantFact      `json:"facts" yaml:"facts"`
-	Candidates       []extractedInvariantCandidate  `json:"candidates" yaml:"candidates"`
-	MutationAnalysis invariantMutationAnalysisState `json:"mutation_analysis,omitempty" yaml:"mutation_analysis,omitempty"`
+	Facts             []normalizedInvariantFact      `json:"facts" yaml:"facts"`
+	Candidates        []extractedInvariantCandidate  `json:"candidates" yaml:"candidates"`
+	AuthoritySurfaces []authoritySurfaceCandidate    `json:"authority_surfaces,omitempty" yaml:"authority_surfaces,omitempty"`
+	MutationAnalysis  invariantMutationAnalysisState `json:"mutation_analysis,omitempty" yaml:"mutation_analysis,omitempty"`
 }
 
 type normalizedInvariantFact struct {
@@ -217,11 +218,13 @@ Flags:
 
 func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (invariantExtractionReport, error) {
 	var facts []normalizedInvariantFact
-	goFacts, err := extractGoInvariantFacts(root, opts)
+	// One Go-AST pass produces both invariant facts and authority surfaces.
+	goFacts, authority, err := extractGoArchitecture(root, opts)
 	if err != nil {
 		return invariantExtractionReport{}, err
 	}
 	facts = append(facts, goFacts...)
+	authority = filterAuthorityByMinConfidence(authority, opts.MinimumConfidence)
 	facts = append(facts, extractGeneratedAuthorityFacts(root)...)
 	facts = append(facts, extractCIGateFacts(root)...)
 	if opts.IncludeDocs {
@@ -237,9 +240,10 @@ func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (
 	report := invariantExtractionReport{
 		GeneratedBy: "sensei extract-invariants",
 		GeneratedAt: "deterministic",
-		RepoRoot:    root,
-		Facts:       facts,
-		Candidates:  candidates,
+		RepoRoot:          root,
+		Facts:             facts,
+		Candidates:        candidates,
+		AuthoritySurfaces: authority,
 	}
 	if opts.IncludeMutationAnalysis {
 		tmp, err := os.MkdirTemp("", "sensei-invariant-mutants-*")
@@ -253,22 +257,6 @@ func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (
 		}
 	}
 	return report, nil
-}
-
-func extractGoInvariantFacts(root string, opts invariantExtractOptions) ([]normalizedInvariantFact, error) {
-	files, err := invariantGoFiles(root)
-	if err != nil {
-		return nil, err
-	}
-	var facts []normalizedInvariantFact
-	for _, path := range files {
-		fileFacts, err := extractGoFileInvariantFacts(root, path, opts)
-		if err != nil {
-			return nil, err
-		}
-		facts = append(facts, fileFacts...)
-	}
-	return facts, nil
 }
 
 func invariantGoFiles(root string) ([]string, error) {
@@ -301,13 +289,10 @@ func invariantSkipDir(name string) bool {
 	}
 }
 
-func extractGoFileInvariantFacts(root, path string, opts invariantExtractOptions) ([]normalizedInvariantFact, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-	rel := invariantRel(root, path)
+// extractGoFileFactsFromAST is the parse-free core: it derives invariant facts
+// from an already-parsed file so one Go-AST pass can feed both this and the
+// authority-surface extractor (see extractGoArchitecture).
+func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.FileSet, opts invariantExtractOptions) []normalizedInvariantFact {
 	var facts []normalizedInvariantFact
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -393,7 +378,35 @@ func extractGoFileInvariantFacts(root, path string, opts invariantExtractOptions
 			}
 		}
 	}
-	return facts, nil
+	return facts
+}
+
+// extractGoArchitecture is the single Go-AST pass: it walks the repo's .go files,
+// parses each ONCE, and feeds every file to the invariant fact extractor and
+// (for non-test files) to the authority-surface extractor. This is the union
+// substrate that retires the old double-parse — extract-authority and
+// extract-invariants no longer each walk the tree separately.
+func extractGoArchitecture(root string, opts invariantExtractOptions) ([]normalizedInvariantFact, []authoritySurfaceCandidate, error) {
+	files, err := invariantGoFiles(root)
+	if err != nil {
+		return nil, nil, err
+	}
+	var facts []normalizedInvariantFact
+	var authority []authoritySurfaceCandidate
+	for _, path := range files {
+		fset := token.NewFileSet()
+		file, perr := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if perr != nil {
+			return nil, nil, fmt.Errorf("parse %s: %w", path, perr)
+		}
+		rel := invariantRel(root, path)
+		facts = append(facts, extractGoFileFactsFromAST(root, rel, file, fset, opts)...)
+		if !isTestFile(filepath.Base(path)) && !strings.HasSuffix(path, ".pb.go") {
+			authority = append(authority, scanAuthorityDecls(rel, file)...)
+		}
+	}
+	sort.SliceStable(authority, func(i, j int) bool { return authority[i].ID < authority[j].ID })
+	return facts, authority, nil
 }
 
 func extractSchemaFacts(root, rel, pkg string, gen *ast.GenDecl, fset *token.FileSet) []normalizedInvariantFact {
