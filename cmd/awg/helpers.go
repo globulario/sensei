@@ -43,12 +43,23 @@ func warnIfDomainLikeExtractorPath(command, value string) {
 	fmt.Fprintf(os.Stderr, "warn: sensei %s: %q looks like a domain; extractors take a checkout path. Use --path <checkout>.\n", command, value)
 }
 
-func warnIfPathLikeBuildDomain(command, value string) {
+// rejectPathLikeBuildDomain fails the build when --repo is a real filesystem
+// path rather than a domain key. --repo names the domain a compiled slice is
+// tagged with AND writes that slice into the CONFIGURED store (--store-url,
+// which defaults to the live local store). A path here means the caller
+// confused --repo with a source path and would silently mutate whatever store
+// the config points at — the graph-authority-confusion incident. A real domain
+// key (github.com/org/repo) never exists as a local path, so this only fires on
+// the mistake, never on a legitimate scoped build.
+func rejectPathLikeBuildDomain(command, value string) error {
 	value = strings.TrimSpace(value)
 	if value == "" || !pathExists(value) {
-		return
+		return nil
 	}
-	fmt.Fprintf(os.Stderr, "warn: sensei %s: %q looks like a filesystem path; this flag expects a repo domain such as github.com/org/repo\n", command, value)
+	return fmt.Errorf("sensei %s: %q is a filesystem path, not a repo domain.\n"+
+		"  --repo names the domain to tag AND writes the compiled slice into the configured store (--store-url).\n"+
+		"  To compile a repo's awareness to a file WITHOUT touching any store: sensei build --output <file.nt> --input <path>/docs/awareness\n"+
+		"  To tag a scoped build by domain, pass a domain key such as github.com/org/repo.", command, value)
 }
 
 func pathExists(path string) bool {

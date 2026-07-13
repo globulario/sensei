@@ -20,13 +20,24 @@ func TestWarnIfDomainLikeExtractorPath(t *testing.T) {
 	}
 }
 
-func TestWarnIfPathLikeBuildDomain(t *testing.T) {
+func TestRejectPathLikeBuildDomain(t *testing.T) {
+	// A real filesystem path is refused (this is the graph-authority-confusion
+	// footgun: a path as --repo would write a slice into the configured store).
 	dir := t.TempDir()
-	out := captureStderr(t, func() {
-		warnIfPathLikeBuildDomain("build --repo", dir)
-	})
-	if !strings.Contains(out, "looks like a filesystem path") || !strings.Contains(out, "expects a repo domain") {
-		t.Fatalf("warning missing path/domain guidance:\n%s", out)
+	err := rejectPathLikeBuildDomain("build --repo", dir)
+	if err == nil {
+		t.Fatalf("expected a filesystem path %q to be rejected", dir)
+	}
+	if msg := err.Error(); !strings.Contains(msg, "filesystem path") || !strings.Contains(msg, "--output") {
+		t.Fatalf("error missing path/store-free guidance:\n%s", msg)
+	}
+	// A domain key that is not a local path must pass through unblocked.
+	if err := rejectPathLikeBuildDomain("build --repo", "github.com/org/repo"); err != nil {
+		t.Fatalf("domain key should be accepted, got: %v", err)
+	}
+	// Empty is a no-op (the --all / --output paths don't set --repo).
+	if err := rejectPathLikeBuildDomain("build --repo", ""); err != nil {
+		t.Fatalf("empty --repo should be accepted, got: %v", err)
 	}
 }
 

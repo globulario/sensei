@@ -69,7 +69,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	warnIfPathLikeBuildDomain("build --repo", *repo)
+	if err := rejectPathLikeBuildDomain("build --repo", *repo); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
 
 	// Default to docs/awareness if no input dirs specified.
 	if len(inputDirs) == 0 {
