@@ -83,7 +83,7 @@ irm https://raw.githubusercontent.com/globulario/sensei/main/install.ps1 | iex
 It detects your platform (`linux-amd64/arm64`, `darwin-arm64`, `windows-amd64`),
 downloads and checksum-verifies the matching release, and installs the binaries
 onto your PATH (then run `sensei init --mcp` in your repo to wire up your agent).
-Pin a version with `SENSEI_VERSION=v1.2.0`, or change the target dir with
+Pin a version with `SENSEI_VERSION=v1.2.1`, or change the target dir with
 `SENSEI_PREFIX=…`.
 
 Or via a **package manager** (you get `upgrade` for free):

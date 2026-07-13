@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# install-awg-user-services.sh — install supervised local AWG services under
+# install-sensei-user-services.sh — install supervised local Sensei services under
 # systemd --user.
 #
 # This creates one or two user units:
-#   - awg-awareness-graph.service
-#   - awg-oxigraph.service (only when not reusing an existing Oxigraph)
+#   - sensei-awareness-graph.service
+#   - sensei-oxigraph.service (only when not reusing an existing Oxigraph)
 #
-# The awareness-graph unit depends on Oxigraph when AWG owns the local store and
-# always starts with -require-store=true.
+# The awareness-graph unit depends on Oxigraph when Sensei owns the local store
+# and always starts with -require-store=true.
 
 set -euo pipefail
 
@@ -19,17 +19,17 @@ OXIGRAPH_DATA_DIR="${OXIGRAPH_DATA_DIR:-$HOME/.local/share/sensei/oxigraph}"
 OXIGRAPH_BIND="${OXIGRAPH_BIND:-127.0.0.1:7878}"
 OXIGRAPH_QUERY_URL="${OXIGRAPH_QUERY_URL:-http://127.0.0.1:7878/query}"
 AWARENESS_ADDR="${AWARENESS_ADDR:-:10120}"
-GOCACHE_DIR="${GOCACHE_DIR:-/tmp/awg-go-build}"
+GOCACHE_DIR="${GOCACHE_DIR:-/tmp/sensei-go-build}"
 STORE_WAIT_SECONDS="${STORE_WAIT_SECONDS:-15}"
 REUSE_EXISTING_OXIGRAPH="${REUSE_EXISTING_OXIGRAPH:-auto}"
 
 usage() {
   cat <<EOF
-Usage: ./scripts/install-awg-user-services.sh [--install-only] [--skip-build] [--reuse-existing-oxigraph|--no-reuse-existing-oxigraph]
+Usage: ./scripts/install-sensei-user-services.sh [--install-only] [--skip-build] [--reuse-existing-oxigraph|--no-reuse-existing-oxigraph]
 
 Installs one or two supervised local user services:
-  awg-awareness-graph.service
-  awg-oxigraph.service (only when not reusing an existing Oxigraph)
+  sensei-awareness-graph.service
+  sensei-oxigraph.service (only when not reusing an existing Oxigraph)
 
 Default behavior:
   1. rebuild ./bin/sensei and ./bin/awareness-graph
@@ -75,7 +75,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      echo "install-awg-user-services: unknown argument: $1" >&2
+      echo "install-sensei-user-services: unknown argument: $1" >&2
       exit 2
       ;;
   esac
@@ -83,7 +83,7 @@ done
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
-    echo "install-awg-user-services: missing required command: $1" >&2
+    echo "install-sensei-user-services: missing required command: $1" >&2
     exit 1
   }
 }
@@ -107,10 +107,14 @@ else
 fi
 
 if [[ ! -x "$BIN_DIR/oxigraph" ]]; then
-  echo "install-awg-user-services: missing $BIN_DIR/oxigraph" >&2
+  echo "install-sensei-user-services: missing $BIN_DIR/oxigraph" >&2
   echo "Run ./scripts/fetch-oxigraph.sh or ./scripts/install.sh first." >&2
   exit 1
 fi
+
+echo "==> remove legacy awg-* user units (migrating to sensei-*)"
+systemctl --user disable --now awg-awareness-graph.service awg-oxigraph.service 2>/dev/null || true
+rm -f "$SYSTEMD_USER_DIR/awg-awareness-graph.service" "$SYSTEMD_USER_DIR/awg-oxigraph.service"
 
 echo "==> write user units"
 if [[ "$REUSE_EXISTING_OXIGRAPH" == auto ]]; then
@@ -125,9 +129,9 @@ if [[ "$REUSE_EXISTING_OXIGRAPH" == auto ]]; then
 fi
 
 if [[ "$REUSE_EXISTING_OXIGRAPH" == false ]]; then
-  cat >"$SYSTEMD_USER_DIR/awg-oxigraph.service" <<EOF
+  cat >"$SYSTEMD_USER_DIR/sensei-oxigraph.service" <<EOF
 [Unit]
-Description=Local AWG Oxigraph backend
+Description=Local Sensei Oxigraph backend
 After=default.target
 
 [Service]
@@ -140,13 +144,13 @@ RestartSec=2
 WantedBy=default.target
 EOF
 else
-  rm -f "$SYSTEMD_USER_DIR/awg-oxigraph.service"
+  rm -f "$SYSTEMD_USER_DIR/sensei-oxigraph.service"
 fi
 
-cat >"$SYSTEMD_USER_DIR/awg-awareness-graph.service" <<EOF
+cat >"$SYSTEMD_USER_DIR/sensei-awareness-graph.service" <<EOF
 [Unit]
-Description=Local AWG awareness-graph
-$( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'After=default.target' || printf 'Requires=awg-oxigraph.service\nAfter=awg-oxigraph.service' )
+Description=Local Sensei awareness-graph
+$( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'After=default.target' || printf 'Requires=sensei-oxigraph.service\nAfter=sensei-oxigraph.service' )
 
 [Service]
 Type=simple
@@ -167,28 +171,28 @@ systemctl --user daemon-reload
 if [[ "$INSTALL_ONLY" == true ]]; then
   cat <<EOF
 Installed unit files:
-  $SYSTEMD_USER_DIR/awg-awareness-graph.service
-$( [[ "$REUSE_EXISTING_OXIGRAPH" == false ]] && printf '  %s/awg-oxigraph.service\n' "$SYSTEMD_USER_DIR" )
+  $SYSTEMD_USER_DIR/sensei-awareness-graph.service
+$( [[ "$REUSE_EXISTING_OXIGRAPH" == false ]] && printf '  %s/sensei-oxigraph.service\n' "$SYSTEMD_USER_DIR" )
 
 Start them with:
-  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'systemctl --user enable --now awg-awareness-graph.service' || printf 'systemctl --user enable --now awg-oxigraph.service awg-awareness-graph.service' )
+  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'systemctl --user enable --now sensei-awareness-graph.service' || printf 'systemctl --user enable --now sensei-oxigraph.service sensei-awareness-graph.service' )
 EOF
   exit 0
 fi
 
 echo "==> enable and start"
 if [[ "$REUSE_EXISTING_OXIGRAPH" == true ]]; then
-  systemctl --user enable --now awg-awareness-graph.service
+  systemctl --user enable --now sensei-awareness-graph.service
 else
-  systemctl --user enable --now awg-oxigraph.service awg-awareness-graph.service
+  systemctl --user enable --now sensei-oxigraph.service sensei-awareness-graph.service
 fi
 
 echo
 echo "==> status"
 if [[ "$REUSE_EXISTING_OXIGRAPH" == true ]]; then
-  systemctl --user --no-pager --full status awg-awareness-graph.service || true
+  systemctl --user --no-pager --full status sensei-awareness-graph.service || true
 else
-  systemctl --user --no-pager --full status awg-oxigraph.service awg-awareness-graph.service || true
+  systemctl --user --no-pager --full status sensei-oxigraph.service sensei-awareness-graph.service || true
 fi
 
 echo
@@ -202,7 +206,7 @@ Expected:
   Seed state:          current
 
 Useful commands:
-  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'systemctl --user restart awg-awareness-graph.service' || printf 'systemctl --user restart awg-oxigraph.service awg-awareness-graph.service' )
-  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'systemctl --user stop awg-awareness-graph.service' || printf 'systemctl --user stop awg-awareness-graph.service awg-oxigraph.service' )
-  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'journalctl --user -u awg-awareness-graph.service -n 100 --no-pager' || printf 'journalctl --user -u awg-oxigraph.service -u awg-awareness-graph.service -n 100 --no-pager' )
+  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'systemctl --user restart sensei-awareness-graph.service' || printf 'systemctl --user restart sensei-oxigraph.service sensei-awareness-graph.service' )
+  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'systemctl --user stop sensei-awareness-graph.service' || printf 'systemctl --user stop sensei-awareness-graph.service sensei-oxigraph.service' )
+  $( [[ "$REUSE_EXISTING_OXIGRAPH" == true ]] && printf 'journalctl --user -u sensei-awareness-graph.service -n 100 --no-pager' || printf 'journalctl --user -u sensei-oxigraph.service -u sensei-awareness-graph.service -n 100 --no-pager' )
 EOF
