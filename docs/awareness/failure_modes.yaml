@@ -303,3 +303,19 @@ failure_modes:
     evidence:
       - Gin pilot preserved 203 blockers and 102 questions while compact status selected one action; 99 static probes completed and identical replay executed zero probes.
     contract: Task-control compression may reduce presentation only; every blocker, question, and probe must remain auditable and mutation must continue to follow admission.
+  - id: behavioral.task_claim_scope_blocker_explosion
+    title: Repository-wide claim debt is promoted into a local task's blocker surface by proximity instead of explainable impact
+    severity: critical
+    description: Repository-wide claim debt is promoted into a local task's must-preserve and blocker surfaces because file proximity or retrieval relevance is mistaken for architectural impact. Core architecture files become practically immutable, unrelated questions dominate task convergence, exact admission never opens, repository debt masquerades as task-local safety risk, and agents are tempted to bypass governance because legitimate work cannot converge. Prevention requires discovered, binding, blocking, and background-debt classifications; an explainable impact receipt for every binding claim; an explicit blocking reason for every blocker; deterministic selection bound to revision, graph, task envelope, and policy; and visible background debt that remains non-blocking when no explainable task impact path exists.
+    protects:
+      files:
+        - golang/architecture/tasksession/session.go
+        - golang/architecture/tasksession/control.go
+        - golang/architecture/convergence/convergence.go
+        - golang/architecture/closure/model.go
+        - golang/architecture/tasksession/briefing.go
+    related_invariants:
+      - awareness.task_claim_scoping_is_task_local_and_explainable
+    evidence:
+      - Observed neural-candidate-awareness preparation inherited 1025 must_preserve claims, 359 active root blockers, and 360 unresolved questions from repository-wide claim debt.
+      - A later bounded task-local scoping prototype reduced the same surface to 853 discovered claims, 5 binding claims, 0 blocking claims, and 848 background-debt claims, leaving only genuine intended-direction and failure-mode governance gaps.
