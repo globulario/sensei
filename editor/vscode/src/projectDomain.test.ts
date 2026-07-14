@@ -2,7 +2,7 @@
 
 import assert from 'node:assert';
 import { test } from 'node:test';
-import { domainFromRemoteUrl } from './projectDomain';
+import { chooseAutomaticGraphDomain, domainFromRemoteUrl } from './projectDomain';
 
 test('domainFromRemoteUrl maps git remotes to host/owner/repo', () => {
   const cases: Array<[string, string | undefined]> = [
@@ -19,4 +19,34 @@ test('domainFromRemoteUrl maps git remotes to host/owner/repo', () => {
   for (const [input, want] of cases) {
     assert.equal(domainFromRemoteUrl(input), want, `for ${JSON.stringify(input)}`);
   }
+});
+
+test('chooseAutomaticGraphDomain keeps graph-wide after rejected workspace domain', () => {
+  assert.equal(
+    chooseAutomaticGraphDomain('github.com/globulario/sensei', ['globular'], true),
+    ''
+  );
+});
+
+test('chooseAutomaticGraphDomain uses requested domain only when graph advertises it', () => {
+  assert.equal(
+    chooseAutomaticGraphDomain(
+      'github.com/globulario/sensei',
+      ['github.com/caddyserver/caddy', 'github.com/globulario/sensei'],
+      false
+    ),
+    'github.com/globulario/sensei'
+  );
+  assert.equal(
+    chooseAutomaticGraphDomain('github.com/globulario/sensei', ['globular'], false),
+    ''
+  );
+});
+
+test('chooseAutomaticGraphDomain adopts sole domain only without a requested workspace domain', () => {
+  assert.equal(chooseAutomaticGraphDomain('', ['globular'], false), 'globular');
+  assert.equal(
+    chooseAutomaticGraphDomain('', ['github.com/caddyserver/caddy', 'github.com/gin-gonic/gin'], false),
+    ''
+  );
 });

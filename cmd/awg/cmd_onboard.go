@@ -25,15 +25,16 @@ import (
 // queue (docs/awareness/candidates/proposals/) after the same contract-first
 // validation the Propose RPC uses. Nothing lands live; a human promotes.
 //
-// It also supports an opt-in enrichment path: `--drafter llm` (or `claude-cli`)
+// It also supports an opt-in enrichment path: `--drafter llm`, `claude-cli`, or
+// `codex-cli`
 // runs the LLM against the very same brief `export` emits and lands the drafted
 // candidates through the identical validator + review queue that `import` uses —
 // so the model is a drop-in for the client's own agent, with AWG as validator.
 // The default (`--drafter none`) keeps export keyless and byte-for-byte the same.
 //
-//	sensei onboard export [--repo .] [--out brief.md]        # brief for your agent
-//	sensei onboard export [--repo .] --drafter llm [--max N] # draft candidates directly (needs ANTHROPIC_API_KEY)
-//	sensei onboard import [--repo .] [--from drafts.json|-]  # land drafts as candidates
+//	sensei onboard export [--repo .] [--out brief.md]         # brief for your agent
+//	sensei onboard export [--repo .] --drafter auto [--max N] # draft candidates directly
+//	sensei onboard import [--repo .] [--from drafts.json|-]   # land drafts as candidates
 func runOnboard(args []string) int {
 	mode := "export"
 	if len(args) > 0 && (args[0] == "export" || args[0] == "import") {
@@ -44,7 +45,7 @@ func runOnboard(args []string) int {
 	repo := fs.String("repo", ".", "repository to onboard")
 	out := fs.String("out", "", "export: write the brief here (default: stdout)")
 	from := fs.String("from", "-", "import: read the agent's drafted candidates (JSON) here ('-' = stdin)")
-	drafter := fs.String("drafter", "none", "export enrichment: none (brief only, no key) | llm (needs ANTHROPIC_API_KEY/AUTH_TOKEN) | claude-cli (authed Claude CLI, no key)")
+	drafter := fs.String("drafter", "none", "export enrichment: none (brief only, no key) | auto | llm (needs ANTHROPIC_API_KEY/AUTH_TOKEN) | claude-cli (authed Claude CLI, no key) | codex-cli (authed Codex CLI, no key)")
 	model := fs.String("model", "", "drafter LLM model override (default "+coldsource.DefaultModel+")")
 	maxN := fs.Int("max", 15, "drafter: max candidates to propose")
 	fs.Usage = func() {
@@ -56,9 +57,9 @@ choice; import validates the agent's drafted candidates and writes them to the
 docs/awareness/candidates/proposals/ review queue. Nothing goes live — promote
 the good ones with a human/CI step.
 
-Enrichment (opt-in): export --drafter llm runs the LLM against that same brief and
-lands the drafted candidates through the identical validator, skipping the manual
-hand-off. --drafter none (default) requires no API key.
+Enrichment (opt-in): export --drafter auto runs an authenticated drafter against
+that same brief and lands the drafted candidates through the identical validator,
+skipping the manual hand-off. --drafter none (default) requires no credential.
 
 Flags:
 `)
@@ -254,27 +255,20 @@ func onboardDraft(root, drafter, model string, maxN int) int {
 	return onboardDraftWith(root, client, maxN)
 }
 
-// selectOnboardClient mirrors intent-mine / cold-bootstrap: llm reads env creds
-// (fail-clear via ErrNoLLMConfig), claude-cli uses the authed CLI (no key). On
-// any construction error it prints and returns exit code 2 with a nil client.
+// selectOnboardClient mirrors intent-mine / cold-bootstrap through the shared
+// backend selector. Explicit backends fail clear; auto prefers Claude CLI, then
+// direct API, then fails clear.
 func selectOnboardClient(drafter, model string) (coldsource.LLMClient, int) {
 	switch drafter {
-	case "llm":
-		client, err := coldsource.NewAnthropicClientFromEnv(model)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "sensei onboard: %v\n", err)
-			return nil, 2
-		}
-		return client, 0
-	case "claude-cli":
-		client, err := coldsource.NewClaudeCLIClient(model)
+	case "llm", "claude-cli", "codex-cli", "auto":
+		client, _, err := coldsource.SelectLLMClient(coldsource.DrafterBackend(drafter), model)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "sensei onboard: %v\n", err)
 			return nil, 2
 		}
 		return client, 0
 	default:
-		fmt.Fprintf(os.Stderr, "sensei onboard: unknown --drafter %q (use none|llm|claude-cli)\n", drafter)
+		fmt.Fprintf(os.Stderr, "sensei onboard: unknown --drafter %q (use none|auto|llm|claude-cli|codex-cli)\n", drafter)
 		return nil, 2
 	}
 }

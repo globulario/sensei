@@ -53,10 +53,13 @@ const (
 	// invariant IRI, so a meta-principle node is resolved against
 	// ClassInvariant, not ClassMetaPrinciple. Component/Boundary/Evidence are
 	// new authorable classes; Contract and Decision reuse the Phase-B classes.
-	ClassMetaPrinciple = AwNS + "MetaPrinciple" // reusable architectural law (dual-typed meta.* invariant)
-	ClassComponent     = AwNS + "Component"     // architectural unit of ownership
-	ClassBoundary      = AwNS + "Boundary"      // place where architecture can be violated
-	ClassEvidence      = AwNS + "Evidence"      // proof a rule/contract/component state is alive
+	ClassMetaPrinciple     = AwNS + "MetaPrinciple"     // reusable architectural law (dual-typed meta.* invariant)
+	ClassComponent         = AwNS + "Component"         // architectural unit of ownership
+	ClassBoundary          = AwNS + "Boundary"          // place where architecture can be violated
+	ClassEvidence          = AwNS + "Evidence"          // proof a rule/contract/component state is alive
+	ClassArchitectureClaim = AwNS + "ArchitectureClaim" // non-authoritative derived proposition; explicit query only
+	ClassOpenQuestion      = AwNS + "OpenQuestion"      // non-authoritative closure-gap artifact; explicit query only
+	ClassArchitectAnswer   = AwNS + "ArchitectAnswer"   // typed architect statement; explicit query only
 
 	// Design-pattern awareness (the "how" layer). DesignPattern = general shape;
 	// ImplementationPattern (declared above) = project realisation; PatternMisuse
@@ -335,16 +338,108 @@ const (
 	PropRequired                     = AwNS + "required"
 
 	// Knowledge scoring properties (Phase 2D). Generic across node classes.
-	PropConfidence      = AwNS + "confidence"      // high | medium | low | unknown
-	PropFreshness       = AwNS + "freshness"       // current | stale | unknown | historical
-	PropSourceKind      = AwNS + "sourceKind"      // manual|incident|outcome|scanner|test|runtime|generated_candidate
-	PropSourcePath      = AwNS + "sourcePath"      // derivation source path
-	PropAcceptedBy      = AwNS + "acceptedBy"      // who promoted it
-	PropLastValidatedAt = AwNS + "lastValidatedAt" // ISO literal
-	PropStaleAfter      = AwNS + "staleAfter"      // re-validation window
-	PropPromotionStatus = AwNS + "promotionStatus" // candidate|proposed|accepted|active|deprecated|superseded
-	PropSupersededBy    = AwNS + "supersededBy"    // node -> replacement node IRI
-	PropConflictsWith   = AwNS + "conflictsWith"   // node -> conflicting node IRI
+	PropConfidence          = AwNS + "confidence"      // high | medium | low | unknown
+	PropFreshness           = AwNS + "freshness"       // current | stale | unknown | historical
+	PropSourceKind          = AwNS + "sourceKind"      // manual|incident|outcome|scanner|test|runtime|generated_candidate
+	PropSourcePath          = AwNS + "sourcePath"      // derivation source path
+	PropAcceptedBy          = AwNS + "acceptedBy"      // who promoted it
+	PropLastValidatedAt     = AwNS + "lastValidatedAt" // ISO literal
+	PropStaleAfter          = AwNS + "staleAfter"      // re-validation window
+	PropPromotionStatus     = AwNS + "promotionStatus" // candidate|machine_adopted|governed|rejected|superseded (+ compatible lifecycle values)
+	PropDecisionActor       = AwNS + "decisionActor"
+	PropDecisionContext     = AwNS + "decisionContext"
+	PropDecisionPolicy      = AwNS + "decisionPolicy"
+	PropDecisionTimestamp   = AwNS + "decisionTimestamp"
+	PropReviewStatus        = AwNS + "reviewStatus"
+	PropAdoptionBasis       = AwNS + "adoptionBasis"
+	PropCorroborationKind   = AwNS + "corroborationKind"
+	PropRevocationCondition = AwNS + "revocationCondition"
+	PropSupersededBy        = AwNS + "supersededBy"  // node -> replacement node IRI
+	PropConflictsWith       = AwNS + "conflictsWith" // node -> conflicting node IRI
+
+	// Non-authoritative architecture claim properties. Statement fields are
+	// literals, never RDF predicates minted from user data.
+	PropClaimSubject   = AwNS + "claimSubject"
+	PropClaimPredicate = AwNS + "claimPredicate"
+	PropClaimObject    = AwNS + "claimObject"
+	// ArchitectureClaim or governed proposition node -> observed | enforced |
+	// intended | historical | desired. Governed YAML may author intended,
+	// historical, or desired only; observed/enforced require evidence-derived claims.
+	PropArchitecturalPlane        = AwNS + "architecturalPlane"
+	PropAssertionOrigin           = AwNS + "assertionOrigin"
+	PropEpistemicStatus           = AwNS + "epistemicStatus"
+	PropDerivedFromFact           = AwNS + "derivedFromFact"
+	PropDependsOnClaim            = AwNS + "dependsOnClaim"
+	PropGeneratedByInferenceRule  = AwNS + "generatedByInferenceRule"
+	PropRefutedByEvidence         = AwNS + "refutedByEvidence"
+	PropHasAlternativeExplanation = AwNS + "hasAlternativeExplanation"
+	PropHasUnknown                = AwNS + "hasUnknown"
+	PropHasInvalidationCondition  = AwNS + "hasInvalidationCondition"
+	PropValidForCommit            = AwNS + "validForCommit"
+	PropValidForGraphDigest       = AwNS + "validForGraphDigest"
+	PropConfidenceScore           = AwNS + "confidenceScore"
+	PropAboutNode                 = AwNS + "aboutNode"
+
+	// Non-authoritative architecture dialogue properties. These are explicit
+	// query-only closure questions and typed answers; they never become active
+	// governed architecture by being present in the graph.
+	PropQuestionText                  = AwNS + "questionText"
+	PropBlocksClosureDimension        = AwNS + "blocksClosureDimension"
+	PropBlocksClaim                   = AwNS + "blocksClaim"
+	PropBlocksNode                    = AwNS + "blocksNode"
+	PropBlocksClosureBlocker          = AwNS + "blocksClosureBlocker"
+	PropQuestionTemplateID            = AwNS + "questionTemplateId"
+	PropQuestionTemplateVersion       = AwNS + "questionTemplateVersion"
+	PropSourceClosureAssessmentDigest = AwNS + "sourceClosureAssessmentDigest"
+	PropAcceptedAnswerType            = AwNS + "acceptedAnswerType"
+	PropReasonOpen                    = AwNS + "reasonOpen"
+	PropKnownFact                     = AwNS + "knownFact"
+	PropGroundedByEvidence            = AwNS + "groundedByEvidence"
+	PropCompetingHypothesis           = AwNS + "competingHypothesis"
+	PropQuestionPriority              = AwNS + "questionPriority"
+	PropRiskIfUnresolved              = AwNS + "riskIfUnresolved"
+	PropArchitectRequired             = AwNS + "architectRequired"
+	PropQuestionStatus                = AwNS + "questionStatus"
+	PropResolvedByAnswer              = AwNS + "resolvedByAnswer"
+	PropCreatedAt                     = AwNS + "createdAt"
+	PropLastReviewedAt                = AwNS + "lastReviewedAt"
+
+	PropAnswersQuestion        = AwNS + "answersQuestion"
+	PropAuthorRole             = AwNS + "authorRole"
+	PropAuthorID               = AwNS + "authorId"
+	PropAnswerStatement        = AwNS + "answerStatement"
+	PropAnswerClassification   = AwNS + "answerClassification"
+	PropAnswerCondition        = AwNS + "answerCondition"
+	PropCitesEvidence          = AwNS + "citesEvidence"
+	PropEvidencePointer        = AwNS + "evidencePointer"
+	PropSelectedHypothesis     = AwNS + "selectedHypothesis"
+	PropReframedQuestion       = AwNS + "reframedQuestion"
+	PropRecordedAt             = AwNS + "recordedAt"
+	PropAnswerGovernanceStatus = AwNS + "answerGovernanceStatus"
+
+	// Non-authoritative evidence probe properties. EvidenceProbe is an
+	// explicit-query-only plan, never proof by existence and never executable by
+	// the graph.
+	PropProbeForQuestion           = AwNS + "probeForQuestion"
+	PropAddressesClosureBlocker    = AwNS + "addressesClosureBlocker"
+	PropTargetsClaim               = AwNS + "targetsClaim"
+	PropTargetsNode                = AwNS + "targetsNode"
+	PropProbeTemplateID            = AwNS + "probeTemplateId"
+	PropProbeTemplateVersion       = AwNS + "probeTemplateVersion"
+	PropProbeKind                  = AwNS + "probeKind"
+	PropEvidenceRole               = AwNS + "evidenceRole"
+	PropProducesEvidence           = AwNS + "producesEvidence"
+	PropUsesRuntimeEvidenceProfile = AwNS + "usesRuntimeEvidenceProfile"
+	PropDischargesProofObligation  = AwNS + "dischargesProofObligation"
+	PropDischargesProofSlot        = AwNS + "dischargesProofSlot"
+	PropProbeForRepairPlan         = AwNS + "probeForRepairPlan"
+	PropProbeForTest               = AwNS + "probeForTest"
+	PropSafetyClass                = AwNS + "safetyClass"
+	PropAutomaticExecutionAllowed  = AwNS + "automaticExecutionAllowed"
+	PropHasProbeStep               = AwNS + "hasProbeStep"
+	PropExpectedArtifactKind       = AwNS + "expectedArtifactKind"
+	PropSourceDialogueDigest       = AwNS + "sourceDialogueDigest"
+	PropSourceClaimDocumentDigest  = AwNS + "sourceClaimDocumentDigest"
 
 	// Agent-accountability properties (Phase 2G).
 	PropAgentName                 = AwNS + "agentName"
@@ -382,12 +477,13 @@ const (
 	// that wire the spine. Edges reuse PropProtects/PropForbids/PropRequiresTest/
 	// PropAffects/PropSupersededBy where one already fits; linking never types
 	// the target.
-	PropKind            = AwNS + "kind"            // component/boundary/contract/evidence kind facet
-	PropAssertionMethod = AwNS + "assertionMethod" // declared | inferred
-	PropReadOrWrite     = AwNS + "readOrWrite"     // contract: read | write | read_write | unknown
-	PropStability       = AwNS + "stability"       // contract: stable | experimental | internal | deprecated
-	PropCommand         = AwNS + "command"         // evidence: CLI command/probe that produced it
-	PropAnchoredIn      = AwNS + "anchoredIn"      // spine node -> SourceFile | CodeSymbol
+	PropKind                   = AwNS + "kind"                   // component/boundary/contract/evidence kind facet
+	PropAssertionMethod        = AwNS + "assertionMethod"        // declared | inferred
+	PropReadOrWrite            = AwNS + "readOrWrite"            // contract: read | write | read_write | unknown
+	PropPublicConsumerCategory = AwNS + "publicConsumerCategory" // contract: explicit external library consumer category
+	PropStability              = AwNS + "stability"              // contract: stable | experimental | internal | deprecated
+	PropCommand                = AwNS + "command"                // evidence: CLI command/probe that produced it
+	PropAnchoredIn             = AwNS + "anchoredIn"             // spine node -> SourceFile | CodeSymbol
 
 	// MetaPrinciple edges (attached to the meta.* invariant IRI).
 	PropGenerates  = AwNS + "generates"  // MetaPrinciple -> Invariant

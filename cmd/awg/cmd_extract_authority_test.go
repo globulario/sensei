@@ -97,6 +97,102 @@ func TestRenderAuthorityCandidates_UsesCandidateHeader(t *testing.T) {
 	}
 }
 
+func TestAuthorityCandidateOutputRemainsEquivalent(t *testing.T) {
+	root := t.TempDir()
+	src := `package demo
+import "net/http"
+func registerRoutes() { http.HandleFunc("/save_config", saveConfigHandler) }
+func saveConfigHandler(w http.ResponseWriter, r *http.Request) {
+	if !security.ValidateToken("x") { return }
+	setConfig("domain", "example.org")
+}
+`
+	if err := os.WriteFile(filepath.Join(root, "server.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := extractAuthorityCandidates(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("candidate count=%d, want 1: %#v", len(got), got)
+	}
+	c := got[0]
+	if c.ID != "candidate.authority.server.saveconfighandler" ||
+		c.Status != "candidate" ||
+		c.Kind != "guarded_mutation_handler" ||
+		c.Confidence != "proven" ||
+		c.ConfidenceScore != 93 {
+		t.Fatalf("authority candidate drifted: %#v", c)
+	}
+}
+
+func TestAuthorityObservationEmitsMutatesStateFact(t *testing.T) {
+	report := authorityFactReport(t)
+	if !hasAuthorityFact(report, "mutates_state", "config_state") {
+		t.Fatalf("missing mutates_state fact: %#v", report.Facts)
+	}
+}
+
+func TestAuthorityObservationEmitsRouteFact(t *testing.T) {
+	report := authorityFactReport(t)
+	if !hasAuthorityFact(report, "exposes_route", "/save_config") {
+		t.Fatalf("missing exposes_route fact: %#v", report.Facts)
+	}
+}
+
+func TestAuthorityObservationDoesNotInferOwner(t *testing.T) {
+	report := authorityFactReport(t)
+	for _, f := range report.Facts {
+		if f.Predicate == "owns_state" || f.Predicate == "is_authoritative_for" || f.Predicate == "is_the_only_writer" {
+			t.Fatalf("authority observation inferred owner claim: %#v", f)
+		}
+	}
+}
+
+func TestBareSetterDoesNotBecomeAuthorityClaim(t *testing.T) {
+	root := t.TempDir()
+	src := `package demo
+type Config struct{ Value string }
+func Set(c *Config) { c.Value = "x" }
+`
+	if err := os.WriteFile(filepath.Join(root, "server.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report := buildInvariantReportForTest(t, root)
+	for _, c := range report.Candidates {
+		if c.Kind == "authority" {
+			t.Fatalf("bare setter became authority candidate: %#v", c)
+		}
+	}
+}
+
+func authorityFactReport(t *testing.T) invariantExtractionReport {
+	t.Helper()
+	root := t.TempDir()
+	src := `package demo
+import "net/http"
+func registerRoutes() { http.HandleFunc("/save_config", saveConfigHandler) }
+func saveConfigHandler(w http.ResponseWriter, r *http.Request) {
+	if !security.ValidateToken("x") { return }
+	setConfig("domain", "example.org")
+}
+`
+	if err := os.WriteFile(filepath.Join(root, "server.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return buildInvariantReportForTest(t, root)
+}
+
+func hasAuthorityFact(report invariantExtractionReport, predicate, object string) bool {
+	for _, f := range report.Facts {
+		if f.Kind == "authority_observation" && f.Predicate == predicate && f.Object == object {
+			return true
+		}
+	}
+	return false
+}
+
 func containsStringAuthority(items []string, want string) bool {
 	for _, item := range items {
 		if item == want {

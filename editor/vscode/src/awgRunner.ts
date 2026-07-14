@@ -18,7 +18,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { execFile } from 'child_process';
-import { resolveRebuildPlan, type RebuildPlan } from './localOpsPlan';
+import {
+  resolveRebuildPlan,
+  resolveSenseiBinaryCandidates,
+  validateReadOnlySenseiArgs,
+  type RebuildPlan,
+} from './localOpsPlan';
 
 export interface AwgRunResult {
   ok: boolean; // process exited 0
@@ -60,15 +65,7 @@ function candidateBins(cwd: string): string[] {
   const configured = (
     vscode.workspace.getConfiguration('sensei').get<string>('senseiPath', '') || ''
   ).trim();
-  const cands: string[] = [];
-  if (configured && configured !== 'sensei') {
-    cands.push(configured);
-  }
-  cands.push(path.join(cwd, 'bin', 'sensei'));
-  cands.push('sensei');
-  cands.push(path.join(cwd, 'bin', 'awg'));
-  cands.push('awg');
-  return [...new Set(cands)];
+  return resolveSenseiBinaryCandidates(cwd, configured);
 }
 
 // A path-shaped candidate (absolute or containing a separator) must exist on disk;
@@ -164,6 +161,50 @@ export async function runAwg(args: string[], timeoutMs: number): Promise<AwgRunR
   );
 }
 
+/** Run an allowlisted read-only `sensei` inspection command in the workspace.
+ * This remains available when local write operations are disabled. */
+export async function runAwgReadOnly(args: string[], timeoutMs: number): Promise<AwgRunResult> {
+  const invalid = validateReadOnlySenseiArgs(args);
+  if (invalid) {
+    return { ok: false, code: null, stdout: '', stderr: invalid };
+  }
+  const cwd = workspaceRoot();
+  if (!cwd) {
+    return Promise.reject(new Error('No workspace folder open to run sensei in.'));
+  }
+
+  if (resolvedBin && candidateUsable(resolvedBin)) {
+    const res = await run(resolvedBin, args, cwd, timeoutMs);
+    if (!res.spawnError) {
+      return res;
+    }
+    resolvedBin = undefined;
+  }
+
+  const cands = candidateBins(cwd);
+  let lastErr: AwgRunResult | undefined;
+  for (const bin of cands) {
+    if (!candidateUsable(bin)) {
+      continue;
+    }
+    const res = await run(bin, args, cwd, timeoutMs);
+    if (!res.spawnError) {
+      resolvedBin = bin;
+      return res;
+    }
+    lastErr = res;
+  }
+  return (
+    lastErr ?? {
+      ok: false,
+      code: null,
+      stdout: '',
+      stderr: '',
+      spawnError: `sensei binary not found (tried: ${cands.join(', ')}). Set "sensei.senseiPath" in settings.`,
+    }
+  );
+}
+
 /** `git diff --stat` over the awareness tree, so the user sees exactly what a promote changed. */
 export async function awarenessDiffStat(timeoutMs = 10000): Promise<string> {
   const cwd = workspaceRoot();
@@ -231,8 +272,11 @@ function servicesRepoSetting(): string {
 }
 
 /** Work out the correct rebuild command for the current workspace. */
-export function rebuildPlan(): RebuildPlan {
-  return resolveRebuildPlan(senseiPath(), workspaceRoot(), servicesRepoSetting());
+export function rebuildPlan(selectedDomain = '', workspaceDomain = ''): RebuildPlan {
+  return resolveRebuildPlan(senseiPath(), workspaceRoot(), servicesRepoSetting(), {
+    selectedDomain,
+    workspaceDomain,
+  });
 }
 
 /** Lines in the committed seed (0 if missing) — the cheap, deterministic metric

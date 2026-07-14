@@ -51,8 +51,8 @@ func runColdBootstrap(args []string) int {
 	maxN := fs.Int("max", 10, "bound: emit at most N top-ranked candidates")
 	prFile := fs.String("pr-comments", "", "offline JSON file of PR review comments (replaces gh)")
 	repoSlug := fs.String("repo-slug", "", "owner/name for gh PR review fetch (omit to skip PR extraction)")
-	drafterName := fs.String("drafter", "echo", "candidate drafter: echo (deterministic default, no LLM) | llm (ANTHROPIC_API_KEY) | claude-cli (uses the authed Claude Code CLI / subscription, no key)")
-	model := fs.String("model", coldsource.DefaultModel, "LLM model id (only with --drafter llm)")
+	drafterName := fs.String("drafter", "echo", "candidate drafter: echo (deterministic default, no LLM) | llm (ANTHROPIC_API_KEY) | claude-cli (authed Claude CLI, no key) | codex-cli (authed Codex CLI, no key) | auto")
+	model := fs.String("model", "", "LLM model override (default depends on selected backend)")
 	bundlesOut := fs.String("bundles-out", "", "with --drafter export: write the bundle envelope here (default: stdout)")
 	autoWindow := fs.Bool("auto-window", false, "plan the revert-scan window automatically: widen (bounded) until enough revert/regression signals are found; overrides --since. Never scans full history.")
 	awTarget := fs.Int("auto-window-target", coldsource.DefaultWindowTargetReverts, "auto-window: stop widening once this many revert/regression commits are in the window")
@@ -124,24 +124,13 @@ Flags:
 	switch *drafterName {
 	case "echo", "":
 		drafter, drafterLabel = coldsource.EchoDrafter{}, "echo"
-	case "llm":
-		client, cerr := coldsource.NewAnthropicClientFromEnv(*model)
+	case "llm", "claude-cli", "codex-cli", "auto":
+		client, receipt, cerr := coldsource.SelectLLMClient(coldsource.DrafterBackend(*drafterName), *model)
 		if cerr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", cerr)
 			return 2
 		}
-		drafter, drafterLabel = coldsource.LLMDrafter{Client: client}, "llm:"+*model
-	case "claude-cli":
-		// Uses the locally-installed, already-authed Claude Code CLI as the LLM
-		// backend (subscription login) — no ANTHROPIC_API_KEY required. Same
-		// strategy as the Globular ai-executor. The candidate flows through the
-		// identical cage/grounding as --drafter llm.
-		client, cerr := coldsource.NewClaudeCLIClient(*model)
-		if cerr != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", cerr)
-			return 2
-		}
-		drafter, drafterLabel = coldsource.LLMDrafter{Client: client}, "claude-cli:"+client.Model
+		drafter, drafterLabel = coldsource.LLMDrafter{Client: client}, receipt.Label()
 	case "export":
 		// Handled after triangulation: exports bundles, no drafting/validation/emit.
 		drafterLabel = "export"
@@ -156,7 +145,7 @@ Flags:
 		}
 		drafter, drafterLabel = coldsource.NewStdinDrafter(drafts), "stdin"
 	default:
-		fmt.Fprintf(os.Stderr, "error: unknown --drafter %q (use echo|llm|claude-cli|export|stdin)\n", *drafterName)
+		fmt.Fprintf(os.Stderr, "error: unknown --drafter %q (use echo|llm|claude-cli|codex-cli|auto|export|stdin)\n", *drafterName)
 		return 2
 	}
 

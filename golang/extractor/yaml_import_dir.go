@@ -150,6 +150,9 @@ var keySchemas = []struct {
 	{"invariants", schemaEntry{"invariants", true, false, "A", "invariant rules"}},
 	{"failure_modes", schemaEntry{"failure_modes", true, false, "A", "failure mode catalogue"}},
 	{"incident_patterns", schemaEntry{"incident_patterns", true, false, "A", "incident pattern library"}},
+	{"architecture_claims", schemaEntry{"architecture_claims", true, false, "A", "generated non-authoritative architecture claims"}},
+	{"architecture_dialogue", schemaEntry{"architecture_dialogue", true, false, "A", "generated non-authoritative architecture dialogue"}},
+	{"architecture_evidence_probes", schemaEntry{"architecture_evidence_probes", true, false, "A", "generated non-authoritative evidence probe plans"}},
 
 	// ── Phase B — importers now implemented ──────────────────────────────
 	{"forbidden_fixes", schemaEntry{"forbidden_fixes", true, false, "B", "forbidden fix registry"}},
@@ -191,6 +194,7 @@ var keySchemas = []struct {
 	{"files", schemaEntry{"high_risk_files", true, false, "B", "high-risk file list"}},
 	{"activation_rules", schemaEntry{"activation_rules", true, false, "B", "awareness activation rule registry"}},
 	{"version", schemaEntry{"versioned_doc", true, false, "B", "versioned contract document"}},
+	{"incidents", schemaEntry{"incidents", true, false, "B", "incident records"}},
 	{"incident_id", schemaEntry{"incident", true, false, "B", "individual incident record"}},
 
 	// ── Architectural spine (Stage A) — MUST be last among importable schemas ──
@@ -388,6 +392,12 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importFailureModes(e, path)
 	case "incident_patterns":
 		importErr = importIncidentPatterns(e, path)
+	case "architecture_claims":
+		importErr = importArchitectureClaims(e, path)
+	case "architecture_dialogue":
+		importErr = importArchitectureDialogue(e, path)
+	case "architecture_evidence_probes":
+		importErr = importArchitectureEvidenceProbes(e, path)
 	// Phase B
 	case "forbidden_fixes":
 		importErr = importForbiddenFixes(e, path)
@@ -397,6 +407,8 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importContracts(e, path)
 	case "incident":
 		importErr = importIncident(e, path)
+	case "incidents":
+		importErr = importIncidents(e, path)
 	case "decisions":
 		importErr = importDecisions(e, path)
 	case "guardrails":

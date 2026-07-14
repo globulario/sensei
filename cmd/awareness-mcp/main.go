@@ -13,11 +13,12 @@
 // Content-Length framing; a legacy one-JSON-object-per-line mode remains for
 // older local scripts.
 // Scope: exposes only safe tools (briefing/impact/resolve/query/metadata/
-// preflight/edit_check/propose). Query is the constrained typed API —
+// preflight/edit_check/propose/task control). Query is the constrained typed API —
 // mode/id/class enums only; the proto reserves the old sparql field, so raw
 // SPARQL cannot transit this bridge. propose is the sole write, and a SAFE one:
 // it only queues a validated review-queue candidate (never mutates the live
-// graph), so it does not breach the safe-tools-only contract.
+// graph). advance_task is the only task-state write: it is task-locked,
+// static-read-only, bounded, and atomically receipted.
 //
 // Responses carry BOTH a compact human `text` block (one-line authority) and a
 // machine-parseable `structuredContent` object, so any agent parses JSON
@@ -41,6 +42,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/probeexec"
+	"github.com/globulario/sensei/golang/architecture/taskcontrol"
+	"github.com/globulario/sensei/golang/architecture/tasksession"
 	awarenessclient "github.com/globulario/sensei/golang/client"
 	"github.com/globulario/sensei/golang/netcfg"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
@@ -97,6 +102,10 @@ var mcpQueryClasses = []string{
 	"design_pattern",
 	"implementation_pattern",
 	"pattern_misuse",
+	"architecture_claim",
+	"open_question",
+	"architect_answer",
+	"evidence_probe",
 }
 
 func (b *bridge) tools() []tool {
@@ -155,7 +164,7 @@ func (b *bridge) tools() []tool {
 					"class": map[string]interface{}{
 						"type":        "string",
 						"enum":        mcpQueryClasses,
-						"description": "required for mode=by_class",
+						"description": "required for mode=by_class; architecture_claim is a non-authoritative derived proposition, open_question is a non-authoritative closure gap, architect_answer is a typed architect statement, and evidence_probe is a non-executable evidence plan; all four are explicit-query-only",
 					},
 					"limit": map[string]interface{}{"type": "integer"},
 					"domain": map[string]interface{}{
@@ -230,6 +239,76 @@ func (b *bridge) tools() []tool {
 					"domain":             map[string]interface{}{"type": "string"},
 				},
 				"required": []string{"kind"},
+			},
+		},
+		{
+			Name:        "task_status",
+			Description: "Return the compact deterministic control state for one active or explicit task.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"repo":   map[string]interface{}{"type": "string"},
+					"task":   map[string]interface{}{"type": "string"},
+					"detail": map[string]interface{}{"type": "string", "enum": []string{"compact", "full"}},
+				},
+				"required": []string{"repo"},
+			},
+		},
+		{
+			Name:        "advance_task",
+			Description: "Execute only eligible bounded static_read probes and advance exactly one task convergence iteration. Never executes commands, tests, network, runtime reads, or mutation.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"repo":        map[string]interface{}{"type": "string"},
+					"task":        map[string]interface{}{"type": "string"},
+					"observed_at": map[string]interface{}{"type": "string"},
+					"max_probes":  map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 128},
+				},
+				"required": []string{"repo"},
+			},
+		},
+		{
+			Name:        "task_briefing",
+			Description: "Return bounded file architecture, permission, primary blocker, primary question, and one next action for a task.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"repo": map[string]interface{}{"type": "string"},
+					"task": map[string]interface{}{"type": "string"},
+					"file": map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"repo", "file"},
+			},
+		},
+		{
+			Name:        "admit_change",
+			Description: "Evaluate whether one exact bounded action is permitted by a verified convergence session. Admission is permission to attempt, not proof of correctness.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"bundle_dir":   map[string]interface{}{"type": "string"},
+					"request_path": map[string]interface{}{"type": "string"},
+					"graph_nt":     map[string]interface{}{"type": "string"},
+					"repo":         map[string]interface{}{"type": "string"},
+					"policy":       map[string]interface{}{"type": "string"},
+					"detail":       map[string]interface{}{"type": "string", "enum": []string{"compact", "full"}},
+				},
+				"required": []string{"bundle_dir", "request_path", "graph_nt", "repo"},
+			},
+		},
+		{
+			Name:        "verify_admission",
+			Description: "Verify that a working-tree diff stayed inside an existing admission envelope. Scope compliance is not correctness certification.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"decision_path": map[string]interface{}{"type": "string"},
+					"bundle_dir":    map[string]interface{}{"type": "string"},
+					"repo":          map[string]interface{}{"type": "string"},
+					"detail":        map[string]interface{}{"type": "string", "enum": []string{"compact", "full"}},
+				},
+				"required": []string{"decision_path", "bundle_dir", "repo"},
 			},
 		},
 	}
@@ -406,6 +485,83 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 
 	case "awareness_propose":
 		return b.callPropose(ctx, args)
+
+	case "task_status":
+		repo, _ := args["repo"].(string)
+		task, _ := args["task"].(string)
+		if strings.TrimSpace(repo) == "" {
+			return nil, fmt.Errorf("repo is required")
+		}
+		state, _, err := tasksession.ControlStatus(strings.TrimSpace(repo), strings.TrimSpace(task), strings.TrimSpace(task) == "")
+		if err != nil {
+			return nil, err
+		}
+		return &toolResult{Text: formatTaskControl(state), Structured: structFrom(state)}, nil
+
+	case "advance_task":
+		repo, _ := args["repo"].(string)
+		task, _ := args["task"].(string)
+		observedAt, _ := args["observed_at"].(string)
+		if strings.TrimSpace(repo) == "" {
+			return nil, fmt.Errorf("repo is required")
+		}
+		budget := probeexec.DefaultBudget()
+		if value, ok := args["max_probes"].(float64); ok && value > 0 && value <= 128 {
+			budget.MaxProbes = int(value)
+		}
+		res, err := tasksession.AdvanceTask(tasksession.AdvanceTaskOptions{RepoRoot: strings.TrimSpace(repo), TaskDir: strings.TrimSpace(task), Active: strings.TrimSpace(task) == "", ObservedAt: strings.TrimSpace(observedAt), Budget: budget, LockWait: 2 * time.Second})
+		if err != nil {
+			return nil, err
+		}
+		structured := structFrom(res)
+		return &toolResult{Text: "disposition: " + res.Disposition + "\n" + formatTaskControl(res.Control), Structured: structured}, nil
+
+	case "task_briefing":
+		repo, _ := args["repo"].(string)
+		task, _ := args["task"].(string)
+		file, _ := args["file"].(string)
+		if strings.TrimSpace(repo) == "" || strings.TrimSpace(file) == "" {
+			return nil, fmt.Errorf("repo and file are required")
+		}
+		brief, err := tasksession.BuildTaskBriefing(strings.TrimSpace(repo), strings.TrimSpace(task), strings.TrimSpace(file), strings.TrimSpace(task) == "")
+		if err != nil {
+			return nil, err
+		}
+		return &toolResult{Text: formatTaskBriefing(brief), Structured: structFrom(brief)}, nil
+
+	case "admit_change":
+		bundleDir, _ := args["bundle_dir"].(string)
+		requestPath, _ := args["request_path"].(string)
+		graphNT, _ := args["graph_nt"].(string)
+		repo, _ := args["repo"].(string)
+		policy, _ := args["policy"].(string)
+		detail, _ := args["detail"].(string)
+		if strings.TrimSpace(detail) == "" {
+			detail = "compact"
+		}
+		if strings.TrimSpace(bundleDir) == "" || strings.TrimSpace(requestPath) == "" || strings.TrimSpace(graphNT) == "" || strings.TrimSpace(repo) == "" {
+			return nil, fmt.Errorf("bundle_dir, request_path, graph_nt, and repo are required")
+		}
+		decision, err := admission.Evaluate(admission.EvaluateOptions{BundleDir: strings.TrimSpace(bundleDir), RequestPath: strings.TrimSpace(requestPath), GraphNT: strings.TrimSpace(graphNT), Repo: strings.TrimSpace(repo), PolicyID: strings.TrimSpace(policy)})
+		if err != nil {
+			return nil, err
+		}
+		return &toolResult{Text: admission.RenderText(decision, detail), Structured: structAdmissionDecision(decision, detail)}, nil
+
+	case "verify_admission":
+		decisionPath, _ := args["decision_path"].(string)
+		bundleDir, _ := args["bundle_dir"].(string)
+		repo, _ := args["repo"].(string)
+		detail, _ := args["detail"].(string)
+		_ = detail
+		if strings.TrimSpace(decisionPath) == "" || strings.TrimSpace(bundleDir) == "" || strings.TrimSpace(repo) == "" {
+			return nil, fmt.Errorf("decision_path, bundle_dir, and repo are required")
+		}
+		verification, err := admission.Verify(admission.VerifyOptions{DecisionPath: strings.TrimSpace(decisionPath), BundleDir: strings.TrimSpace(bundleDir), Repo: strings.TrimSpace(repo)})
+		if err != nil {
+			return nil, err
+		}
+		return &toolResult{Text: admission.RenderVerificationText(verification), Structured: structAdmissionVerification(verification)}, nil
 
 	default:
 		return nil, fmt.Errorf("unknown tool %q", name)
@@ -693,6 +849,14 @@ func queryClassFromString(s string) (awarenesspb.QueryClass, error) {
 		return awarenesspb.QueryClass_QUERY_CLASS_IMPLEMENTATION_PATTERN, nil
 	case "pattern_misuse":
 		return awarenesspb.QueryClass_QUERY_CLASS_PATTERN_MISUSE, nil
+	case "architecture_claim":
+		return awarenesspb.QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM, nil
+	case "open_question":
+		return awarenesspb.QueryClass_QUERY_CLASS_OPEN_QUESTION, nil
+	case "architect_answer":
+		return awarenesspb.QueryClass_QUERY_CLASS_ARCHITECT_ANSWER, nil
+	case "evidence_probe":
+		return awarenesspb.QueryClass_QUERY_CLASS_EVIDENCE_PROBE, nil
 	default:
 		return awarenesspb.QueryClass_QUERY_CLASS_UNSPECIFIED, fmt.Errorf("class is required for mode=by_class: one of %s, got %q", strings.Join(mcpQueryClasses, "|"), s)
 	}
@@ -777,6 +941,10 @@ func formatMetadata(resp *awarenesspb.MetadataResponse) string {
 	fmt.Fprintf(&b, "required_test_count: %d\n", resp.GetRequiredTestCount())
 	fmt.Fprintf(&b, "source_file_count: %d\n", resp.GetSourceFileCount())
 	fmt.Fprintf(&b, "code_symbol_count: %d\n", resp.GetCodeSymbolCount())
+	fmt.Fprintf(&b, "architecture_claim_count: %d\n", resp.GetArchitectureClaimCount())
+	fmt.Fprintf(&b, "open_question_count: %d\n", resp.GetOpenQuestionCount())
+	fmt.Fprintf(&b, "architect_answer_count: %d\n", resp.GetArchitectAnswerCount())
+	fmt.Fprintf(&b, "evidence_probe_count: %d\n", resp.GetEvidenceProbeCount())
 	fmt.Fprintf(&b, "briefing_call_count: %d\n", resp.GetBriefingCallCount())
 	fmt.Fprintf(&b, "briefing_agent_compact_count: %d\n", resp.GetBriefingAgentCompactCount())
 	fmt.Fprintf(&b, "resolve_call_count: %d\n", resp.GetResolveCallCount())
@@ -1049,6 +1217,48 @@ func structBriefing(resp *awarenesspb.BriefingResponse) map[string]interface{} {
 	}
 }
 
+func formatTaskControl(state taskcontrol.TaskControlState) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "task: %s\ninspect: %s\nmodify: %s\n", state.TaskID, state.Permission.Inspect, state.Permission.Modify)
+	if state.PrimaryBlocker != nil {
+		fmt.Fprintf(&b, "primary_blocker: %s [%s]\n", state.PrimaryBlocker.Statement, state.PrimaryBlocker.ID)
+	} else {
+		b.WriteString("primary_blocker: none\n")
+	}
+	fmt.Fprintf(&b, "automatic_evidence: completed=%d inconclusive=%d eligible=%d failed=%d rejected=%d\n", state.Evidence.Completed, state.Evidence.Inconclusive, state.Evidence.Eligible, state.Evidence.Failed, state.Evidence.Rejected)
+	if state.PrimaryQuestion != nil {
+		fmt.Fprintf(&b, "primary_question: %s [%s]\n", state.PrimaryQuestion.QuestionText, state.PrimaryQuestion.ID)
+	}
+	fmt.Fprintf(&b, "next_action: %s", state.NextAction.Kind)
+	if state.NextAction.TargetID != "" {
+		fmt.Fprintf(&b, " %s", state.NextAction.TargetID)
+	}
+	return b.String()
+}
+
+func formatTaskBriefing(brief tasksession.TaskBriefing) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "file: %s\ntask: %s\ninspect: %s\nmodify: %s\nrelevant_claims: %d\ntest_backed_claims: %d\n", brief.File, brief.TaskID, brief.Inspect, brief.Modify, brief.RelevantClaimCount, brief.TestBackedCount)
+	if brief.PrimaryBlocker != nil {
+		fmt.Fprintf(&b, "primary_blocker: %s [%s]\n", brief.PrimaryBlocker.Statement, brief.PrimaryBlocker.ID)
+	}
+	if brief.PrimaryQuestion != nil {
+		fmt.Fprintf(&b, "primary_question: %s [%s]\n", brief.PrimaryQuestion.QuestionText, brief.PrimaryQuestion.ID)
+	}
+	fmt.Fprintf(&b, "next_action: %s", brief.PrimaryNextAction.Kind)
+	if brief.PrimaryNextAction.TargetID != "" {
+		fmt.Fprintf(&b, " %s", brief.PrimaryNextAction.TargetID)
+	}
+	return b.String()
+}
+
+func structFrom(value interface{}) map[string]interface{} {
+	raw, _ := json.Marshal(value)
+	out := map[string]interface{}{}
+	_ = json.Unmarshal(raw, &out)
+	return out
+}
+
 // structResolve is the machine-parseable Resolve payload.
 func structResolve(resp *awarenesspb.ResolveResponse) map[string]interface{} {
 	obj := map[string]interface{}{
@@ -1096,24 +1306,28 @@ func structMetadata(resp *awarenesspb.MetadataResponse) map[string]interface{} {
 		auth["warning"] = mv.Warning
 	}
 	return map[string]interface{}{
-		"authority":              auth,
-		"graph_freshness_state":  awarenessclient.EffectiveMetadataFreshness(resp).String(),
-		"build_provenance_state": resp.GetBuildProvenanceState().String(),
-		"seed_state":             resp.GetSeedState().String(),
-		"coverage_state":         resp.GetCoverageState().String(),
-		"graph_build_commit":     resp.GetGraphBuildCommit(),
-		"source_repo_commit":     resp.GetSourceRepoCommit(),
-		"triple_count":           resp.GetTripleCount(),
-		"invariant_count":        resp.GetInvariantCount(),
-		"failure_mode_count":     resp.GetFailureModeCount(),
-		"incident_pattern_count": resp.GetIncidentPatternCount(),
-		"intent_count":           resp.GetIntentCount(),
-		"forbidden_fix_count":    resp.GetForbiddenFixCount(),
-		"required_test_count":    resp.GetRequiredTestCount(),
-		"source_file_count":      resp.GetSourceFileCount(),
-		"code_symbol_count":      resp.GetCodeSymbolCount(),
-		"server_version":         resp.GetServerVersion(),
-		"generated_in_ms":        resp.GetGeneratedInMs(),
+		"authority":                auth,
+		"graph_freshness_state":    awarenessclient.EffectiveMetadataFreshness(resp).String(),
+		"build_provenance_state":   resp.GetBuildProvenanceState().String(),
+		"seed_state":               resp.GetSeedState().String(),
+		"coverage_state":           resp.GetCoverageState().String(),
+		"graph_build_commit":       resp.GetGraphBuildCommit(),
+		"source_repo_commit":       resp.GetSourceRepoCommit(),
+		"triple_count":             resp.GetTripleCount(),
+		"invariant_count":          resp.GetInvariantCount(),
+		"failure_mode_count":       resp.GetFailureModeCount(),
+		"incident_pattern_count":   resp.GetIncidentPatternCount(),
+		"intent_count":             resp.GetIntentCount(),
+		"forbidden_fix_count":      resp.GetForbiddenFixCount(),
+		"required_test_count":      resp.GetRequiredTestCount(),
+		"source_file_count":        resp.GetSourceFileCount(),
+		"code_symbol_count":        resp.GetCodeSymbolCount(),
+		"architecture_claim_count": resp.GetArchitectureClaimCount(),
+		"open_question_count":      resp.GetOpenQuestionCount(),
+		"architect_answer_count":   resp.GetArchitectAnswerCount(),
+		"evidence_probe_count":     resp.GetEvidenceProbeCount(),
+		"server_version":           resp.GetServerVersion(),
+		"generated_in_ms":          resp.GetGeneratedInMs(),
 	}
 }
 
@@ -1163,6 +1377,46 @@ func structEditCheck(resp *awarenesspb.EditCheckResponse) map[string]interface{}
 	return map[string]interface{}{
 		"rules_evaluated": resp.GetRulesEvaluated(),
 		"warnings":        list,
+	}
+}
+
+func structAdmissionDecision(d admission.Decision, detail string) map[string]interface{} {
+	out := map[string]interface{}{
+		"admission_id":          d.AdmissionID,
+		"decision":              d.Decision,
+		"inspection_capability": d.InspectionCapability,
+		"mutation_capability":   d.MutationCapability,
+		"read_paths":            d.Envelope.ReadPaths,
+		"modify_paths":          d.Envelope.ModifyPaths,
+		"conditions":            d.Conditions,
+		"next_actions":          d.NextActions,
+		"reasons":               d.Reasons,
+		"scope_only":            d.ScopeOnly,
+		"correctness_certified": d.CorrectnessCertified,
+	}
+	if detail == "full" {
+		out["authority"] = d.Authority
+		out["must_preserve"] = d.MustPreserve
+		out["forbidden_moves"] = d.ForbiddenMoves
+		out["required_tests"] = d.RequiredTests
+		out["proof_obligations"] = d.ProofObligations
+		out["required_runtime_evidence"] = d.RequiredRuntimeEvidence
+		out["files_to_read"] = d.FilesToRead
+	}
+	return out
+}
+
+func structAdmissionVerification(v admission.Verification) map[string]interface{} {
+	return map[string]interface{}{
+		"admission_id":          v.AdmissionID,
+		"status":                v.Status,
+		"changes":               v.Changes,
+		"violations":            v.Violations,
+		"pending_conditions":    v.PendingConditions,
+		"pending_tests":         v.PendingTests,
+		"pending_proof":         v.PendingProofObligations,
+		"scope_only":            v.ScopeOnly,
+		"correctness_certified": v.CorrectnessCertified,
 	}
 }
 

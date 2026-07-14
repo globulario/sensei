@@ -70,3 +70,139 @@ required_tests:
         - golang/server/preflight.go
         - golang/server/implementation_patterns.go
         - golang/server/briefing.go
+
+  - id: golang/extractor/promotion_proposal_test.go:TestPromotionDoesNotAutoActivate
+    title: Generated promotion proposals stay candidates and never become active automatically
+    protects:
+      invariants:
+        - awareness.architecture_claims_non_authoritative_until_promoted
+      files:
+        - golang/extractor/promotion_proposal.go
+
+  - id: golang/server/realized_contracts_test.go:TestBriefingSpine_CandidateIsReviewOnlyNeverAuthority
+    title: Briefing spine reports candidates as review-only and never as authority
+    protects:
+      invariants:
+        - awareness.architecture_claims_non_authoritative_until_promoted
+      files:
+        - golang/server/realized_contracts.go
+
+  - id: golang/extractor/coldsource/draft_llm_test.go:TestLLMDrafter_FabricatedCitationRejected
+    title: LLM drafted candidates with fabricated citations are rejected
+    protects:
+      invariants:
+        - awareness.inference_requires_addressable_evidence
+      files:
+        - golang/extractor/coldsource/draft_llm.go
+
+  - id: golang/extractor/coldsource/intent_extract_test.go:TestIntentCage_RejectsFabricated
+    title: Intent extraction rejects fabricated evidence references
+    protects:
+      invariants:
+        - awareness.inference_requires_addressable_evidence
+      files:
+        - golang/extractor/coldsource/intent_grounding.go
+
+  - id: golang/extractor/coldsource/intent_grounding_test.go:TestIntent_UngroundedClaim
+    title: Ungrounded intent claims remain visible as ungrounded rather than becoming authority
+    protects:
+      invariants:
+        - awareness.inference_requires_addressable_evidence
+      files:
+        - golang/extractor/coldsource/intent_grounding.go
+
+  - id: golang/server/preflight_test.go:TestPreflight_StoreUnavailableReturnsDegradedUnknownImpact
+    title: Preflight reports store unavailability as degraded unknown impact
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      files:
+        - golang/server/preflight.go
+
+  - id: golang/server/risk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown
+    title: Insufficient coverage classifies risk as unknown instead of safe
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      files:
+        - golang/server/risk_classify.go
+
+  - id: golang/extractor/runtime_evidence_yaml_import_test.go:TestRuntimeEvidenceRequiresFreshness
+    title: Runtime evidence import requires freshness metadata
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      files:
+        - golang/extractor/runtime_evidence_yaml_import.go
+
+  - id: golang/server/metadata_domain_test.go:TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount
+    title: Domain-scoped metadata does not fall back to graph-wide counts
+    protects:
+      invariants:
+        - awareness.closure_is_revision_scope_and_task_bound
+      files:
+        - golang/server/metadata.go
+
+  - id: golang/server/main_test.go:TestGraphBackedRPCs_SuccessResponsesCarryCurrentAuthority
+    title: Graph-backed RPC success responses carry current graph authority
+    protects:
+      invariants:
+        - awareness.closure_is_revision_scope_and_task_bound
+      files:
+        - golang/server/main.go
+
+  - id: cmd/awg/graph_refresh_test.go:TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
+    title: Reloading the graph replaces stale triples rather than preserving them
+    protects:
+      invariants:
+        - awareness.closure_is_revision_scope_and_task_bound
+      files:
+        - cmd/awg/graph_refresh_test.go
+
+  - id: cmd/awg/cmd_propose_test.go:TestApplyProposal_ContractUnknownGoesToCandidatesNoRebuild
+    title: Contract unknown proposals go to candidates without rebuilding active awareness
+    protects:
+      invariants:
+        - awareness.architect_answers_are_typed_scoped_candidates
+      files:
+        - cmd/awg/cmd_propose.go
+
+  - id: golang/extractor/coldsource/harness_review_test.go:TestEmitCandidate_ForcesCandidateStatus
+    title: Cold-source candidate emission forces candidate status
+    protects:
+      invariants:
+        - awareness.architect_answers_are_typed_scoped_candidates
+      files:
+        - golang/extractor/coldsource/emit.go
+
+  - id: golang/extractor/runtime_evidence_yaml_import_test.go:TestRuntimeEvidenceDoesNotBecomeAuthority
+    title: Runtime evidence does not become active authority
+    protects:
+      invariants:
+        - awareness.architect_answers_are_typed_scoped_candidates
+      files:
+        - golang/extractor/runtime_evidence_yaml_import.go
+
+  - id: cmd/awg/cmd_propose_test.go:TestValidateProposal_ContractUnknownRequiresProposalOrRevision
+    title: Contract unknown proposals require proposed contract text or a revision
+    protects:
+      invariants:
+        - awareness.open_questions_remain_visible_until_resolved
+      files:
+        - cmd/awg/cmd_propose.go
+
+  - id: cmd/awg/cmd_feedback_check_test.go:TestEvaluateFeedbackGap_ContractUnknownCountsAsFeedback
+    title: Contract unknown proposals count as feedback for unresolved gaps
+    protects:
+      invariants:
+        - awareness.open_questions_remain_visible_until_resolved
+      files:
+        - cmd/awg/cmd_feedback_check.go
+
+  - id: golang/server/change_impact_test.go:TestImpactPlanningReportsUnknowns
+    title: Impact planning reports unresolved unknowns
+    protects:
+      invariants:
+        - awareness.open_questions_remain_visible_until_resolved
+      files:
+        - golang/server/change_impact.go

@@ -4,29 +4,33 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGateVerdict(t *testing.T) {
 	cases := []struct {
 		name                         string
 		wouldBlock, warns, evaluated int
+		scopeErrs                    int
 		unavailable                  bool
 		wantCode                     int
 	}{
-		{"clean pass", 0, 0, 5, false, 0},
-		{"advisory only passes", 0, 3, 5, false, 0},
-		{"one block fails", 1, 0, 5, false, 1},
-		{"blocks win over warns", 2, 4, 5, false, 1},
-		{"unavailable, nothing evaluated fails closed", 0, 0, 0, true, 2},
-		{"unavailable but some evaluated + block still blocks", 1, 0, 3, true, 1},
+		{"clean pass", 0, 0, 5, 0, false, 0},
+		{"advisory only passes", 0, 3, 5, 0, false, 0},
+		{"one block fails", 1, 0, 5, 0, false, 1},
+		{"blocks win over warns", 2, 4, 5, 0, false, 1},
+		{"unavailable, nothing evaluated fails closed", 0, 0, 0, 5, true, 2},
+		{"scope error, some evaluated fails closed", 0, 0, 3, 1, false, 2},
+		{"unavailable but some evaluated + block still blocks", 1, 0, 3, 1, true, 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			code, summary := gateVerdict(tc.wouldBlock, tc.warns, tc.evaluated, tc.unavailable)
+			code, summary := gateVerdict(tc.wouldBlock, tc.warns, tc.evaluated, tc.scopeErrs, tc.unavailable)
 			if code != tc.wantCode {
 				t.Errorf("gateVerdict = %d (%q), want %d", code, summary, tc.wantCode)
 			}
@@ -34,6 +38,38 @@ func TestGateVerdict(t *testing.T) {
 				t.Error("verdict summary must not be empty")
 			}
 		})
+	}
+}
+
+func TestGateFileContext_DoesNotConsumeTotalBudget(t *testing.T) {
+	totalCtx, totalCancel := gateTotalContext(context.Background(), time.Second)
+	defer totalCancel()
+	fileCtx, fileCancel := gateFileContext(totalCtx, time.Millisecond)
+	defer fileCancel()
+
+	select {
+	case <-fileCtx.Done():
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("file context did not expire")
+	}
+	select {
+	case <-totalCtx.Done():
+		t.Fatal("total context expired with per-file context")
+	default:
+	}
+}
+
+func TestGateSkipsEditCheckForGeneratedGraphArtifacts(t *testing.T) {
+	cases := map[string]bool{
+		"golang/server/embeddata/awareness.nt":                       true,
+		"golang/server/embeddata/awareness.transaction.tsv":          true,
+		"docs/awareness/generated/awareness_graph_scip_symbols.yaml": true,
+		"cmd/awg/cmd_gate.go":                                        false,
+	}
+	for file, want := range cases {
+		if got := gateSkipsEditCheck(file); got != want {
+			t.Fatalf("gateSkipsEditCheck(%q)=%v, want %v", file, got, want)
+		}
 	}
 }
 

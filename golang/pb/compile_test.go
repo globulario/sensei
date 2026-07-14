@@ -75,6 +75,33 @@ func TestQueryEnumsExist(t *testing.T) {
 	_ = awarenesspb.QueryClass_QUERY_CLASS_INTENT
 	_ = awarenesspb.QueryClass_QUERY_CLASS_SYMBOL
 	_ = awarenesspb.QueryClass_QUERY_CLASS_SOURCE_FILE
+	_ = awarenesspb.QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM
+	_ = awarenesspb.QueryClass_QUERY_CLASS_OPEN_QUESTION
+	_ = awarenesspb.QueryClass_QUERY_CLASS_ARCHITECT_ANSWER
+}
+
+func TestMetadataArchitectureClaimCountFieldExists(t *testing.T) {
+	_ = (&awarenesspb.MetadataResponse{}).ArchitectureClaimCount
+}
+
+func TestGeneratedQueryClassArchitectureClaimExists(t *testing.T) {
+	_ = awarenesspb.QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM
+}
+
+func TestGeneratedQueryClassOpenQuestionExists(t *testing.T) {
+	_ = awarenesspb.QueryClass_QUERY_CLASS_OPEN_QUESTION
+}
+
+func TestGeneratedQueryClassArchitectAnswerExists(t *testing.T) {
+	_ = awarenesspb.QueryClass_QUERY_CLASS_ARCHITECT_ANSWER
+}
+
+func TestMetadataOpenQuestionCountFieldExists(t *testing.T) {
+	_ = (&awarenesspb.MetadataResponse{}).OpenQuestionCount
+}
+
+func TestMetadataArchitectAnswerCountFieldExists(t *testing.T) {
+	_ = (&awarenesspb.MetadataResponse{}).ArchitectAnswerCount
 }
 
 // _ verifies at compile time that UnimplementedAwarenessGraphServer

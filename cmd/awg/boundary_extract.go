@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
 )
 
@@ -128,6 +129,56 @@ func extractBoundaryCandidates(comps []importgraph.Component) []boundaryCandidat
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func boundaryObservationFacts(repo string, comps []importgraph.Component) []architecture.Fact {
+	consumers := map[string][]string{}
+	for _, c := range comps {
+		for _, dep := range c.DependsOn {
+			consumers[dep] = append(consumers[dep], c.ID)
+		}
+	}
+	var facts []architecture.Fact
+	add := func(subject, predicate, object string, files []string) {
+		f, _ := architecture.NewFact(architecture.Fact{
+			Kind:      "structural_observation",
+			Subject:   subject,
+			Predicate: predicate,
+			Object:    object,
+			Scope: architecture.Scope{
+				Repository: repo,
+				Files:      files,
+				Symbols:    []string{subject},
+			},
+			Confidence: 0.6,
+			Extractor:  "boundary_observation_adapter",
+		}, architecture.Options{
+			RepositoryDomain:       repo,
+			RepositoryDomainStatus: architecture.RepositoryDomainResolved,
+			RevisionStatus:         architecture.RevisionNotRequested,
+			SourceKind:             "import_graph_component",
+		})
+		facts = append(facts, f)
+	}
+	for _, c := range comps {
+		if parent, ok := internalParent(c.SourceFiles); ok {
+			add(c.ID, "is_under_go_internal_boundary", parent, c.SourceFiles)
+		}
+		for _, contract := range c.ExposesContracts {
+			add(c.ID, "exposes_contract", contract, c.SourceFiles)
+		}
+		for _, dep := range c.DependsOn {
+			add(c.ID, "depends_on", dep, c.SourceFiles)
+		}
+		for _, consumer := range dedupSorted(consumers[c.ID]) {
+			add(c.ID, "has_observed_consumer", consumer, c.SourceFiles)
+		}
+	}
+	out, err := architecture.NormalizeFacts("", facts)
+	if err != nil {
+		return facts
+	}
 	return out
 }
 

@@ -16,3 +16,7 @@ runs the import the same safe way.
 
 Installed and managed by `sensei init` alongside `sensei-architect`. See
 `docs/sensei-architect-skill.md` for the shared install-safety and update model.
+
+After import, use `sensei-closure` to evaluate bounded closure for the first real
+task and `sensei-admission` before mutation. Use `sensei-benchmark` instead of
+this skill for explicit blind historical evaluation with a sealed future oracle.

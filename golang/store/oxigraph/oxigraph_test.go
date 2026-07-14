@@ -183,6 +183,41 @@ func TestHealth_RespectsContextCancellation(t *testing.T) {
 	}
 }
 
+func TestCountTriplesInDomain_HomeIncludesHomeRepo(t *testing.T) {
+	var sawBody string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		sawBody = string(body)
+		w.Header().Set("Content-Type", "application/sparql-results+json")
+		_, _ = w.Write([]byte(`{"results":{"bindings":[{"n":{"value":"42"}}]}}`))
+	}))
+	defer ts.Close()
+
+	c, _ := oxigraph.New(ts.URL)
+	got, err := c.CountTriplesInDomain(context.Background(), "github.com/o/home", "github.com/o/home")
+	if err != nil {
+		t.Fatalf("CountTriplesInDomain: %v", err)
+	}
+	if got != 42 {
+		t.Fatalf("CountTriplesInDomain=%d, want 42", got)
+	}
+	if !strings.Contains(sawBody, `<https://globular.io/awareness#repo> "github.com/o/home"`) {
+		t.Fatalf("home-domain query must include aw:repo == home; body:\n%s", sawBody)
+	}
+	if !strings.Contains(sawBody, `FILTER NOT EXISTS { ?s <https://globular.io/awareness#repo> ?r }`) {
+		t.Fatalf("home-domain query must still include untagged home subjects; body:\n%s", sawBody)
+	}
+	if !strings.Contains(sawBody, `SELECT DISTINCT ?s`) {
+		t.Fatalf("domain triple count must de-duplicate scoped subjects; body:\n%s", sawBody)
+	}
+	if !strings.Contains(sawBody, `?s ?scopeP ?scopeO .`) {
+		t.Fatalf("home-domain untagged branch must bind subjects before filtering; body:\n%s", sawBody)
+	}
+	if !strings.Contains(sawBody, `?s ?p ?o .`) {
+		t.Fatalf("domain triple count must count triples for scoped subjects; body:\n%s", sawBody)
+	}
+}
+
 func TestDescribe_OK(t *testing.T) {
 	var sawBody string
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

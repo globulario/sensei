@@ -100,6 +100,113 @@ func TestAuditSeedGenerationInputs_CombinedKeepsPairedInputs(t *testing.T) {
 	}
 }
 
+func TestFilterNTriplesToDomain_KeepsRepoAndSharedSubjects(t *testing.T) {
+	nt := strings.Join([]string{
+		`<https://globular.io/awareness#invariant/a> <` + rdf.PropRepo + `> "github.com/o/a" .`,
+		`<https://globular.io/awareness#invariant/a> <` + rdf.PropAuthoredIn + `> "docs/awareness/a.yaml" .`,
+		`<https://globular.io/awareness#invariant/b> <` + rdf.PropRepo + `> "github.com/o/b" .`,
+		`<https://globular.io/awareness#invariant/b> <` + rdf.PropAuthoredIn + `> "docs/awareness/b.yaml" .`,
+		`<https://globular.io/awareness#invariant/shared> <` + rdf.PropDomain + `> "shared" .`,
+		`<https://globular.io/awareness#invariant/shared> <` + rdf.PropAuthoredIn + `> "docs/awareness/shared.yaml" .`,
+	}, "\n") + "\n"
+
+	got, count := filterNTriplesToDomain([]byte(nt), "github.com/o/a")
+	out := string(got)
+	if count != 4 {
+		t.Fatalf("count=%d, want 4 scoped triples:\n%s", count, out)
+	}
+	if !strings.Contains(out, "invariant/a") {
+		t.Fatalf("repo subject missing:\n%s", out)
+	}
+	if !strings.Contains(out, "invariant/shared") {
+		t.Fatalf("shared subject missing:\n%s", out)
+	}
+	if strings.Contains(out, "invariant/b") {
+		t.Fatalf("foreign subject leaked:\n%s", out)
+	}
+}
+
+func TestCheckAuditDomainScope_FailsUnknownDomain(t *testing.T) {
+	nt := strings.Join([]string{
+		`<https://globular.io/awareness#invariant/a> <` + rdf.PropRepo + `> "github.com/o/a" .`,
+		`<https://globular.io/awareness#invariant/shared> <` + rdf.PropDomain + `> "shared" .`,
+	}, "\n") + "\n"
+	scoped := filterNTriplesToDomainResult([]byte(nt), "github.com/o/missing")
+
+	got := checkAuditDomainScope("github.com/o/missing", "", scoped)
+	if got.level != auditFAIL {
+		t.Fatalf("level=%v, want FAIL for unknown domain (summary=%q)", got.level, got.summary)
+	}
+	if !strings.Contains(got.summary, "0 repo-owned subjects") {
+		t.Fatalf("summary=%q, want zero repo-owned subject signal", got.summary)
+	}
+}
+
+func TestCheckAuditDomainScope_PassesKnownDomain(t *testing.T) {
+	nt := strings.Join([]string{
+		`<https://globular.io/awareness#invariant/a> <` + rdf.PropRepo + `> "github.com/o/a" .`,
+		`<https://globular.io/awareness#invariant/a> <` + rdf.PropAuthoredIn + `> "docs/awareness/a.yaml" .`,
+		`<https://globular.io/awareness#invariant/shared> <` + rdf.PropDomain + `> "shared" .`,
+	}, "\n") + "\n"
+	scoped := filterNTriplesToDomainResult([]byte(nt), "github.com/o/a")
+
+	got := checkAuditDomainScope("github.com/o/a", "/repo", scoped)
+	if got.level != auditPASS {
+		t.Fatalf("level=%v, want PASS for known domain (summary=%q)", got.level, got.summary)
+	}
+	if scoped.repoSubjects != 1 {
+		t.Fatalf("repoSubjects=%d, want 1", scoped.repoSubjects)
+	}
+}
+
+func TestAuditRepoForDomain_UsesMatchingRepoRoot(t *testing.T) {
+	old := gitRemoteDomain
+	defer func() { gitRemoteDomain = old }()
+	gitRemoteDomain = func(path string) string {
+		switch path {
+		case "/svc":
+			return "github.com/o/svc"
+		case "/ag":
+			return "github.com/o/ag"
+		default:
+			return ""
+		}
+	}
+
+	if got := auditRepoForDomain("github.com/o/svc", "/svc", "/ag"); got != "/svc" {
+		t.Fatalf("svc domain root = %q, want /svc", got)
+	}
+	if got := auditRepoForDomain("github.com/o/ag", "/svc", "/ag"); got != "/ag" {
+		t.Fatalf("ag domain root = %q, want /ag", got)
+	}
+	if got := auditRepoForDomain("github.com/o/other", "/svc", "/ag"); got != "" {
+		t.Fatalf("unknown domain root = %q, want empty", got)
+	}
+}
+
+func TestAuditInputsForRepo_FiltersDirsAndIntent(t *testing.T) {
+	inputs := []string{
+		"/ag/docs/awareness",
+		"/svc/docs/awareness",
+		"/svc/docs/awareness/generated",
+	}
+	dirs, intent := auditInputsForRepo(inputs, "/ag/docs/intent", "/svc")
+	if strings.Join(dirs, "\n") != strings.Join(inputs[1:], "\n") {
+		t.Fatalf("dirs=%q, want svc-only dirs", dirs)
+	}
+	if intent != "" {
+		t.Fatalf("intent=%q, want empty because AG intent is outside svc root", intent)
+	}
+
+	dirs, intent = auditInputsForRepo(inputs, "/svc/docs/intent", "/svc")
+	if strings.Join(dirs, "\n") != strings.Join(inputs[1:], "\n") {
+		t.Fatalf("dirs=%q, want svc-only dirs", dirs)
+	}
+	if intent != "/svc/docs/intent" {
+		t.Fatalf("intent=%q, want svc intent", intent)
+	}
+}
+
 func TestEvaluateMetaPrincipleCoverage_FailsUnclassifiedPrinciples(t *testing.T) {
 	metas := map[string]bool{
 		"meta.covered":      true,
@@ -174,6 +281,29 @@ func TestCheckSeedOrphans_FlagsGhostWhenBothRootsPresent(t *testing.T) {
 	}
 	if len(res.details) != 1 {
 		t.Errorf("expected exactly 1 orphan, got %d: %v", len(res.details), res.details)
+	}
+}
+
+func TestCheckSeedOrphansInDomain_ExcludesForeignDomain(t *testing.T) {
+	svc := t.TempDir()
+	ag := t.TempDir()
+	seed := writeSeed(t, t.TempDir(),
+		`<https://globular.io/awareness#invariant/a> <`+rdf.PropRepo+`> "github.com/o/a" .`,
+		authoredTriple("invariant/a", "docs/awareness/missing-a.yaml"),
+		`<https://globular.io/awareness#invariant/b> <`+rdf.PropRepo+`> "github.com/o/b" .`,
+		authoredTriple("invariant/b", "docs/awareness/missing-b.yaml"),
+	)
+
+	res := checkSeedOrphansInDomain(svc, ag, seed, "github.com/o/a")
+	if res.level != auditFAIL {
+		t.Fatalf("level = %v, want FAIL", res.level)
+	}
+	joined := strings.Join(res.details, " | ")
+	if !strings.Contains(joined, "invariant/a") {
+		t.Fatalf("expected domain orphan in details, got %q", joined)
+	}
+	if strings.Contains(joined, "invariant/b") {
+		t.Fatalf("foreign domain orphan leaked into scoped audit: %q", joined)
 	}
 }
 

@@ -78,16 +78,13 @@ Flags:
 	if _, statErr := os.Stat(awarenessDir); os.IsNotExist(statErr) {
 		if *dryRun || *check {
 			rep.notes = append(rep.notes, "scaffold: docs/awareness/ missing — would run `sensei init` scaffold (skipped in dry-run/check)")
-		} else {
-			created, serr := scaffoldProject(root, initOptions{hooks: true, claudeMD: true, agentsMD: true, cursor: true})
-			if serr != nil {
-				fmt.Fprintf(os.Stderr, "sensei bootstrap: scaffold: %v\n", serr)
-				return 1
-			}
-			rep.scaffolded = created
 		}
 	}
 	if !*dryRun && !*check {
+		if serr := syncBootstrapScaffold(root, rep); serr != nil {
+			fmt.Fprintf(os.Stderr, "sensei bootstrap: scaffold: %v\n", serr)
+			return 1
+		}
 		refreshed, rerr := repairLegacyStarterTemplates(root)
 		if rerr != nil {
 			fmt.Fprintf(os.Stderr, "sensei bootstrap: repair starter templates: %v\n", rerr)
@@ -226,7 +223,8 @@ Flags:
 		generated = append(generated, genFile{filepath.Join(generatedDir, "components.yaml"), data})
 	}
 
-	// Code symbols / annotations (only when a namespaces.yaml registry exists).
+	// Code symbols / annotations. A registry enriches identities and edges; when
+	// absent, retain ordinary Go declarations as structural symbol facts.
 	if reg := findRegistry(root); reg != "" {
 		syms, serr := extractCodeSymbols(root, reg)
 		if serr != nil {
@@ -237,7 +235,18 @@ Flags:
 			generated = append(generated, genFile{filepath.Join(generatedDir, "source_edges.yaml"), syms.edgesYAML})
 		}
 	} else {
-		rep.notes = append(rep.notes, "source_symbols: skipped — no docs/awareness/namespaces.yaml registry (code-symbol extraction needs one)")
+		syms, serr := extractGoCodeSymbols(root, comps)
+		if serr != nil {
+			rep.notes = append(rep.notes, "source_symbols: structural Go scan failed: "+serr.Error())
+		} else if len(syms) > 0 {
+			rep.sourceAnchors = len(syms)
+			if data, rerr := renderGenerated("Go declarations inferred from source structure; no annotation edges were inferred.", bootstrapCodeSymbolsDoc{CodeSymbols: syms}); rerr == nil {
+				generated = append(generated, genFile{filepath.Join(generatedDir, "source_symbols.yaml"), data})
+			}
+			rep.notes = append(rep.notes, "source_symbols: used structural Go fallback (no namespaces registry)")
+		} else {
+			rep.notes = append(rep.notes, "source_symbols: no registry and no Go declarations found")
+		}
 	}
 
 	// SCIP symbol ingestion: when a SCIP index is present, map its symbols and
@@ -678,6 +687,20 @@ func distinctSourceFiles(comps []bootstrapComponent) int {
 		}
 	}
 	return len(seen)
+}
+
+func syncBootstrapScaffold(root string, rep *bootstrapReport) error {
+	report, err := scaffoldProjectWithReport(root, initOptions{
+		hooks: true, claudeMD: true, agentsMD: true, cursor: true, skills: true,
+	})
+	if err != nil {
+		return err
+	}
+	rep.scaffolded = append(rep.scaffolded, report.created...)
+	for _, notice := range report.notices {
+		rep.notes = append(rep.notes, "scaffold: "+notice)
+	}
+	return nil
 }
 
 // ── report ──

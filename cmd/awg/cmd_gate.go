@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -66,15 +67,20 @@ type fileFinding struct {
 //
 //	0 — PASS: no enforcement:block finding tripped.
 //	1 — BLOCKED: at least one enforcement:block finding on the diff.
-//	2 — CANNOT VERIFY: Sensei was unavailable for the whole diff. A control gate
+//	2 — CANNOT VERIFY: Sensei could not evaluate the whole diff. A control gate
 //	    fails CLOSED here — it must not silently pass a change it couldn't check.
 //	    (Use --report-only for the fail-open advisory mode.)
-func gateVerdict(wouldBlock, warns, filesEvaluated int, unavailable bool) (int, string) {
+func gateVerdict(wouldBlock, warns, filesEvaluated, scopeErrs int, unavailable bool) (int, string) {
 	switch {
-	case unavailable && filesEvaluated == 0:
-		return 2, "CANNOT VERIFY: Sensei unavailable — gate failed closed (nothing evaluated); use --report-only to fail open"
 	case wouldBlock > 0:
 		return 1, fmt.Sprintf("BLOCKED: %d enforcement:block finding(s) on the diff — revise or waive", wouldBlock)
+	case scopeErrs > 0:
+		if unavailable {
+			return 2, "CANNOT VERIFY: Sensei unavailable or timed out — gate failed closed; use --report-only to fail open"
+		}
+		return 2, "CANNOT VERIFY: Sensei could not verify every changed file — gate failed closed; use --report-only to fail open"
+	case filesEvaluated == 0:
+		return 2, "CANNOT VERIFY: Sensei could not verify any changed file — gate failed closed; use --report-only to fail open"
 	default:
 		return 0, fmt.Sprintf("PASS: 0 blocking findings (%d advisory warning(s))", warns)
 	}
@@ -205,6 +211,20 @@ func envSenseiEventLog() string {
 	return strings.TrimSpace(os.Getenv("AWG_EVENT_LOG"))
 }
 
+func gateTotalContext(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return context.WithCancel(parent)
+	}
+	return context.WithTimeout(parent, timeout)
+}
+
+func gateFileContext(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return context.WithCancel(parent)
+	}
+	return context.WithTimeout(parent, timeout)
+}
+
 // runGate is the diff-gate entry point. By default it is a DRY-RUN report over a
 // git diff: it reuses the EditCheck engine per changed file (added/changed lines
 // only) and reports which findings WOULD block versus which are advisory. With
@@ -228,6 +248,8 @@ func runGate(args []string) int {
 	maxFanout := fs.Int("completeness-max-fanout", 12, "completeness: ignore reference families larger than this (likely shared types/utilities, not must-change-together conventions)")
 	mode := fs.String("mode", "", "shorthand for the enforcement mode: advisory (= --report-only), enforce (= --enforce), or dry-run (the default). Overrides --enforce/--report-only when set.")
 	sarifPath := fs.String("sarif", "", "write a SARIF v2.1.0 report of findings to this file (upload with github/codeql-action/upload-sarif so findings surface in GitHub code scanning).")
+	totalTimeout := fs.Duration("total-timeout", 5*time.Minute, "overall Sensei RPC budget for the diff; set <=0 to disable")
+	rpcTimeout := fs.Duration("rpc-timeout", 10*time.Second, "per-file Sensei RPC timeout; set <=0 to use only --total-timeout")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei gate [--diff <range>] [--domain <repo>] [--enforce] [flags]
 
@@ -305,7 +327,7 @@ Flags:
 		return 0
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := gateTotalContext(context.Background(), *totalTimeout)
 	defer cancel()
 	conn, err := client.DialConn(*addr)
 	if err != nil {
@@ -340,16 +362,21 @@ Flags:
 	wouldBlock, warns, scopeErrs := 0, 0, 0
 	unavailable := false
 	for _, f := range files {
-		resp, err := client.EditCheck(ctx, &awarenesspb.EditCheckRequest{
+		if gateSkipsEditCheck(f) {
+			continue
+		}
+		fileCtx, fileCancel := gateFileContext(ctx, *rpcTimeout)
+		resp, err := client.EditCheck(fileCtx, &awarenesspb.EditCheckRequest{
 			File:            f,
 			ProposedContent: changes[f],
 			Domain:          *domain,
 		})
+		fileCancel()
 		if err != nil {
 			// Fail-open posture for the dry-run: record the per-file scope/backend
 			// error and keep going. (A multi-domain graph with no --domain reports
 			// here instead of silently mixing.)
-			if status.Code(err) == codes.Unavailable {
+			if status.Code(err) == codes.Unavailable || status.Code(err) == codes.DeadlineExceeded {
 				unavailable = true
 			}
 			findings = append(findings, fileFinding{File: f, ScopeError: err.Error()})
@@ -401,7 +428,7 @@ Flags:
 		// filesEvaluated must exclude the files that errored, so an
 		// all-unreachable diff fails CLOSED (cannot_verify) instead of falsely
 		// passing when len(changes)>0.
-		code, verdict := gateVerdict(wouldBlock, warns, len(changes)-scopeErrs, unavailable)
+		code, verdict := gateVerdict(wouldBlock, warns, len(changes)-scopeErrs, scopeErrs, unavailable)
 		emitGateEvent(*eventLog, *domain, *diff, true, decisionFromCode(code, warns), findings, files)
 		if *asJSON {
 			out := map[string]interface{}{
@@ -509,6 +536,20 @@ Flags:
 		fmt.Println("Note: under a hard gate these would-block findings would fail the merge. This is a dry run; they did not.")
 	}
 	return 0
+}
+
+func gateSkipsEditCheck(file string) bool {
+	file = filepath.ToSlash(strings.TrimSpace(file))
+	switch {
+	case file == "golang/server/embeddata/awareness.nt":
+		return true
+	case file == "golang/server/embeddata/awareness.transaction.tsv":
+		return true
+	case strings.HasPrefix(file, "docs/awareness/generated/"):
+		return true
+	default:
+		return false
+	}
 }
 
 // gitAddedLinesByFile runs `git diff --unified=0` over the range and returns, per

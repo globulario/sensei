@@ -247,3 +247,59 @@ failure_modes:
       - 'gin import: passing --graph-transaction-file produced ''publish runtime transaction: validated graph artifact carries no seed marker'' and exit 1, even though triples loaded and the briefing served the real intents.'
       - Omitting the transaction file (forwarding only --graph-marker-file) gave exit 0 with the same successful briefing on context.go.
     contract: Loading a foreign-only scoped slice must succeed and keep a served store fresh for briefing; its runtime transaction is uncertified by design (no seed marker). Only the graph marker is required for freshness; a transaction file must not be requested for a foreign-only slice, or the expected uncertified state becomes a hard failure.
+  - id: failure.globular.dashboard_domain_list_only_shows_loaded_graph_domains
+    title: Dashboard domain list only shows loaded graph domains
+    description: The VS Code dashboard domain dropdown is populated from Metadata.available_domains. If the running Oxigraph store only contains the legacy home domain, the dropdown correctly shows only globular and All domains even when local Gin, Caddy, or Sensei checkouts exist. Load each repo with sensei build --repo <domain> so aw:repo triples exist before expecting the dashboard list to include that domain.
+    protects:
+      files:
+        - editor/vscode/src/dashboardPanel.ts
+        - cmd/awg/cmd_metadata.go
+    evidence:
+      - Observed VS Code dropdown showed only globular; ./bin/sensei domains --json returned only globular.
+      - After scoped loads for github.com/globulario/sensei, github.com/gin-gonic/gin, and github.com/caddyserver/caddy, ./bin/sensei domains --json returned all four domains and the dropdown populated.
+    contract: Dashboard domain selection must reflect the running graph's selectable domain scopes from Metadata; local checkout presence alone is not graph authority.
+  - id: failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+    title: Closure control query classes rejected by stale server binary
+    description: 'The VS Code Closure & Control panel and compiled extension can know about Phase 2 QueryClass values while the live sensei serve child still runs an older bin/awareness-graph. The dashboard then reports Request failed (listClass): INVALID_ARGUMENT for open_question, architect_answer, or evidence_probe even though the source, proto, and extension payload look correct. Rebuild bin/awareness-graph and restart the serving process, then verify by_class queries for all Phase 2 classes.'
+    protects:
+      files:
+        - editor/vscode/media/dashboard.js
+        - golang/server/query.go
+        - cmd/awg/cmd_serve.go
+    required_tests:
+      - golang/server/architecture_dialogue_server_test.go:TestQueryByClassOpenQuestion
+      - golang/server/architecture_dialogue_server_test.go:TestQueryByClassArchitectAnswer
+      - golang/server/architecture_evidence_probe_server_test.go:TestQueryByClassEvidenceProbe
+    evidence:
+      - 'Observed VS Code panel errors: Request failed (listClass): 3 INVALID_ARGUMENT: invalid class for by_class.'
+      - ./bin/sensei query --mode by_class --class open_question/architect_answer/evidence_probe failed before rebuilding bin/awareness-graph, then returned zero-row authoritative responses after rebuild and restart.
+    contract: Dashboard graph class queries must be served by the same protocol/runtime version as the installed VS Code extension and CLI; rebuilt proto/client code is not sufficient if bin/awareness-graph remains stale.
+  - id: failure.import.preexisting_awareness_skips_agent_scaffold
+    title: Pre-existing awareness directory suppresses agent scaffold
+    severity: high
+    description: Contract or intent extraction can create docs/awareness before bootstrap. If bootstrap treats directory existence as proof that initialization completed, it skips managed skills, AGENTS.md, CLAUDE.md, and hooks, leaving future agents unable to encounter task-bound architectural questions.
+    protects:
+      files:
+        - cmd/awg/cmd_bootstrap.go
+    required_tests:
+      - cmd/awg/cmd_bootstrap_test.go:TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository
+    evidence:
+      - Fresh Gin full import created docs/awareness during intent mining, so bootstrap skipped scaffold and the checkout had no AGENTS.md or managed skills.
+      - After unconditional idempotent scaffold synchronization, Gin refresh installed managed skill version 2026.07.14 and AGENTS.md while preserving its domain slice.
+    contract: Every writable import and refresh must idempotently install or update Sensei-managed skills and agent instruction surfaces, regardless of whether docs/awareness already exists.
+  - id: failure.sensei.flat_task_closure_output_hides_the_load_bearing_next_action
+    title: Flat task closure output hides the load-bearing next action
+    severity: high
+    description: A task can preserve hundreds of valid blockers, questions, and probes yet remain operationally unusable when every item is presented as a competing action. Preserve every item with a deterministic disposition, group explicit duplicates and dominance, execute only registered static reads, and expose one primary next action.
+    protects:
+      files:
+        - golang/architecture/taskcontrol/project.go
+        - golang/architecture/tasksession/control.go
+    related_invariants:
+      - awareness.open_questions_remain_visible_until_resolved
+    required_tests:
+      - golang/architecture/taskcontrol/project_test.go:TestCompressionAccountingBalances
+      - golang/architecture/tasksession/session_test.go:TestAdvanceTaskRunsOneAtomicGenerationAndReplays
+    evidence:
+      - Gin pilot preserved 203 blockers and 102 questions while compact status selected one action; 99 static probes completed and identical replay executed zero probes.
+    contract: Task-control compression may reduce presentation only; every blocker, question, and probe must remain auditable and mutation must continue to follow admission.

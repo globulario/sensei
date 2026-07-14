@@ -15,6 +15,7 @@ import (
 )
 
 const skillManifestName = ".sensei-managed.json"
+const builtinSkillVersion = "2026.07.14.1"
 
 type builtinSkill struct {
 	Name      string
@@ -34,7 +35,7 @@ type skillManifest struct {
 var builtinSkills = []builtinSkill{
 	{
 		Name:      "sensei-architect",
-		Version:   "2026.07.12",
+		Version:   builtinSkillVersion,
 		SourceDir: "templates/skills/sensei-architect",
 		Targets: []string{
 			filepath.Join(".sensei", "skills", "sensei-architect"),
@@ -44,12 +45,42 @@ var builtinSkills = []builtinSkill{
 	},
 	{
 		Name:      "sensei-import",
-		Version:   "2026.07.12",
+		Version:   builtinSkillVersion,
 		SourceDir: "templates/skills/sensei-import",
 		Targets: []string{
 			filepath.Join(".sensei", "skills", "sensei-import"),
 			filepath.Join(".agents", "skills", "sensei-import"),
 			filepath.Join(".claude", "skills", "sensei-import"),
+		},
+	},
+	{
+		Name:      "sensei-admission",
+		Version:   builtinSkillVersion,
+		SourceDir: "templates/skills/sensei-admission",
+		Targets: []string{
+			filepath.Join(".sensei", "skills", "sensei-admission"),
+			filepath.Join(".agents", "skills", "sensei-admission"),
+			filepath.Join(".claude", "skills", "sensei-admission"),
+		},
+	},
+	{
+		Name:      "sensei-closure",
+		Version:   builtinSkillVersion,
+		SourceDir: "templates/skills/sensei-closure",
+		Targets: []string{
+			filepath.Join(".sensei", "skills", "sensei-closure"),
+			filepath.Join(".agents", "skills", "sensei-closure"),
+			filepath.Join(".claude", "skills", "sensei-closure"),
+		},
+	},
+	{
+		Name:      "sensei-benchmark",
+		Version:   builtinSkillVersion,
+		SourceDir: "templates/skills/sensei-benchmark",
+		Targets: []string{
+			filepath.Join(".sensei", "skills", "sensei-benchmark"),
+			filepath.Join(".agents", "skills", "sensei-benchmark"),
+			filepath.Join(".claude", "skills", "sensei-benchmark"),
 		},
 	},
 }

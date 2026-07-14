@@ -25,6 +25,7 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
+	"github.com/globulario/sensei/golang/architecture/adoption"
 	"github.com/globulario/sensei/golang/rdf"
 )
 
@@ -35,6 +36,7 @@ type forbiddenFixProtects struct {
 }
 
 type yamlForbiddenFix struct {
+	adoption.Receipt  `yaml:",inline"`
 	ID                string               `yaml:"id"`
 	Title             string               `yaml:"title"`
 	Summary           string               `yaml:"summary"`
@@ -71,12 +73,13 @@ type requiredTestsFile struct {
 }
 
 type yamlContract struct {
-	ID          string `yaml:"id"`
-	Domain      string `yaml:"domain"`
-	Service     string `yaml:"service"`
-	Kind        string `yaml:"kind"`
-	Summary     string `yaml:"summary"`
-	Description string `yaml:"description"`
+	adoption.Receipt `yaml:",inline"`
+	ID               string `yaml:"id"`
+	Domain           string `yaml:"domain"`
+	Service          string `yaml:"service"`
+	Kind             string `yaml:"kind"`
+	Summary          string `yaml:"summary"`
+	Description      string `yaml:"description"`
 }
 type contractsFile struct {
 	Schema    string         `yaml:"schema"`
@@ -84,17 +87,26 @@ type contractsFile struct {
 }
 
 type yamlIncident struct {
-	IncidentID   string   `yaml:"incident_id"`
-	Title        string   `yaml:"title"`
-	Status       string   `yaml:"status"`
-	Severity     string   `yaml:"severity"`
-	RelatedFiles []string `yaml:"related_files"`
+	adoption.Receipt    `yaml:",inline"`
+	IncidentID          string   `yaml:"incident_id"`
+	Title               string   `yaml:"title"`
+	Severity            string   `yaml:"severity"`
+	EventTimeOrRange    string   `yaml:"event_time_or_revision_range"`
+	ObservedConsequence string   `yaml:"observed_consequence"`
+	LinkedFailureMode   string   `yaml:"linked_failure_mode"`
+	Resolution          string   `yaml:"resolution"`
+	RelatedFiles        []string `yaml:"related_files"`
+	domainScope         `yaml:",inline"`
+}
+
+type incidentsFile struct {
+	Incidents []yamlIncident `yaml:"incidents"`
 }
 
 type yamlDecision struct {
+	adoption.Receipt  `yaml:",inline"`
 	ID                string   `yaml:"id"`
 	Title             string   `yaml:"title"`
-	Status            string   `yaml:"status"`
 	Rationale         string   `yaml:"rationale"`
 	RelatedInvariants []string `yaml:"related_invariants"`
 	// Architectural-spine fields (Stage A) — all optional and additive.
@@ -112,6 +124,7 @@ type yamlDecision struct {
 	SourceFiles          []string   `yaml:"source_files"`
 	CodeSymbols          []string   `yaml:"code_symbols"`
 	Uml                  umlProfile `yaml:"uml"`
+	domainScope          `yaml:",inline"`
 }
 type decisionsFile struct {
 	Decisions []yamlDecision `yaml:"decisions"`
@@ -232,6 +245,9 @@ func importForbiddenFixes(e *rdf.Emitter, path string) error {
 		if label != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit(label))
 		}
+		if err := emitAdoptionReceipt(e, subj, rdf.ClassForbiddenFix, ff.ID, ff.Receipt); err != nil {
+			return fmt.Errorf("forbidden fix %s adoption receipt: %w", ff.ID, err)
+		}
 
 		// Long prose goes to rdfs:comment.
 		if sa := strings.TrimSpace(coalesce(ff.SafeAlternative, ff.SaferAlternative)); sa != "" {
@@ -345,8 +361,12 @@ func importContracts(e *rdf.Emitter, path string) error {
 		if label != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit(label))
 		}
-		if c.Kind != "" {
-			e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit(c.Kind))
+		receipt := c.Receipt
+		if receipt.Status == "" {
+			receipt.Status = c.Kind
+		}
+		if err := emitAdoptionReceipt(e, subj, rdf.ClassContract, c.ID, receipt); err != nil {
+			return fmt.Errorf("contract %s adoption receipt: %w", c.ID, err)
 		}
 		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 	}
@@ -374,6 +394,33 @@ func importIncident(e *rdf.Emitter, path string) error {
 	if inc.IncidentID == "" {
 		return nil
 	}
+	return emitIncident(e, path, inc)
+}
+
+func importIncidents(e *rdf.Emitter, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	var doc incidentsFile
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return fmt.Errorf("parse: %w", err)
+	}
+	for _, inc := range doc.Incidents {
+		if inc.IncidentID == "" {
+			continue
+		}
+		if err := emitIncident(e, path, inc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func emitIncident(e *rdf.Emitter, path string, inc yamlIncident) error {
 	subj := rdf.MintIRI(rdf.ClassIncident, inc.IncidentID)
 	e.Typed(subj, rdf.ClassIncident)
 	if inc.Title != "" {
@@ -382,10 +429,17 @@ func importIncident(e *rdf.Emitter, path string) error {
 	if inc.Severity != "" {
 		e.Triple(subj, rdf.IRI(rdf.PropSeverity), rdf.Lit(inc.Severity))
 	}
-	if inc.Status != "" {
-		e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit(inc.Status))
+	if err := emitAdoptionReceipt(e, subj, rdf.ClassIncident, inc.IncidentID, inc.Receipt); err != nil {
+		return fmt.Errorf("incident %s adoption receipt: %w", inc.IncidentID, err)
 	}
+	emitDomainScope(e, subj, inc.domainScope)
 	e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
+	if inc.EventTimeOrRange != "" {
+		emitOptLit(e, subj, rdf.PropObservedAt, inc.EventTimeOrRange)
+	}
+	if inc.LinkedFailureMode != "" {
+		e.Triple(subj, rdf.IRI(rdf.PropAffects), rdf.MintIRI(rdf.ClassFailureMode, inc.LinkedFailureMode))
+	}
 
 	for _, f := range inc.RelatedFiles {
 		ensureNode(e, rdf.ClassSourceFile, f)
@@ -418,9 +472,10 @@ func importDecisions(e *rdf.Emitter, path string) error {
 		if d.Title != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit(strings.TrimSpace(d.Title)))
 		}
-		if d.Status != "" {
-			e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit(d.Status))
+		if err := emitAdoptionReceipt(e, subj, rdf.ClassDecision, d.ID, d.Receipt, d.SupersededBy...); err != nil {
+			return fmt.Errorf("decision %s adoption receipt: %w", d.ID, err)
 		}
+		emitDomainScope(e, subj, d.domainScope)
 		if d.Rationale != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropComment), rdf.Lit(strings.TrimSpace(d.Rationale)))
 		}

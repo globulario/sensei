@@ -1,9 +1,23 @@
-# Sensei Architect Skill
+# Sensei Managed Skills
 
-Sensei ships a built-in `sensei-architect` skill. It teaches agents to use
-Sensei as an architectural reflex: establish awareness health, preflight the
-task, build a grounded architecture view, challenge plans and edits, guide the
-user proportionally, prove the implementation, and propose durable lessons.
+Sensei ships five managed skills. They teach agents how to use Sensei; they are
+not repository architectural authority.
+
+| Skill | Purpose | Example routing |
+|---|---|---|
+| `sensei-architect` | Broad architectural conscience and router. | Design, audit, incident, review, recovery, security, sparse coverage. |
+| `sensei-import` | Onboard or refresh a repository into a domain-scoped candidate slice. | "Import Gin into Sensei." |
+| `sensei-admission` | Decide whether one exact architecture-sensitive mutation may be attempted and verify the diff stayed inside the envelope. | "May I change this file?" |
+| `sensei-closure` | Close bounded architectural knowledge gaps when admission or review is waiting. | "Why is this blocked?" |
+| `sensei-benchmark` | Run explicit blind historical external proof with sealed oracle receipts. | "Run a blind Gin pilot." |
+
+Routing precedence:
+
+1. `sensei-benchmark` for blind external evaluation.
+2. `sensei-import` for onboarding or refresh.
+3. `sensei-admission` for exact proposed mutation or scope verification.
+4. `sensei-closure` when bounded architecture is incomplete.
+5. `sensei-architect` for general architecture work and fallback.
 
 The skill is enabled by default:
 
@@ -16,13 +30,13 @@ the skill can call typed Sensei tools directly.
 
 ## Installed Locations
 
-`sensei init` installs managed copies at:
+`sensei init` installs managed copies for every skill at:
 
 | Path | Purpose |
 |---|---|
-| `.sensei/skills/sensei-architect/` | canonical repository-local package |
-| `.agents/skills/sensei-architect/` | Codex / Agent Skills project discovery |
-| `.claude/skills/sensei-architect/` | Claude Code project skill discovery |
+| `.sensei/skills/<skill>/` | canonical repository-local package |
+| `.agents/skills/<skill>/` | Codex / Agent Skills project discovery |
+| `.claude/skills/<skill>/` | Claude Code project skill discovery |
 | `.cursor/rules/sensei.mdc` | Cursor rule that points to the canonical package |
 
 Cursor uses its rule surface here; Sensei does not claim native Cursor
@@ -55,9 +69,16 @@ content digests.
 Unrelated agent skills, existing instructions, and unrelated MCP servers are not
 managed by this mechanism.
 
+Inspect a managed manifest directly:
+
+```bash
+cat .sensei/skills/sensei-admission/.sensei-managed.json
+```
+
 ## Agent Behavior
 
-The skill should activate before architecture-sensitive work, including:
+`sensei-architect` should activate before architecture-sensitive work,
+including:
 
 - contracts, interfaces, and ownership
 - state layers and convergence
@@ -79,6 +100,14 @@ Agents should use MCP tools when available:
 - `awareness_propose`
 
 When MCP is unavailable, the skill uses equivalent `sensei` CLI commands.
+
+The specialized skills keep normal work simple:
+
+- Ordinary exact mutation should load `sensei-admission`, not the benchmark or
+  closure playbooks.
+- Blocked admission routes to `sensei-closure` only until explicit inputs change.
+- Import differs from benchmark: import learns a repository slice; benchmark
+  tests Sensei against a sealed historical oracle.
 
 ## What It Does Not Do
 

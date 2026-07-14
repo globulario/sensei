@@ -483,6 +483,38 @@ func TestBlockerIDsIgnoreSummaryWording(t *testing.T) {
 	}
 }
 
+func TestMachineAdoptedKnowledgeUsesRiskPolicy(t *testing.T) {
+	node := Node{ID: "invariant.route_state", Classes: []string{"invariant"}, Status: "machine_adopted"}
+	architectureRequest := validRequest()
+	architectureRequest.Scope.RiskClass = RiskArchitectureSensitive
+	policy, _ := PolicyForRisk(RiskArchitectureSensitive)
+	builder := assessmentBuilder{ctx: Context{Request: architectureRequest}, policy: policy, scope: resolvedScope{Nodes: []Node{node}}}
+	builder.applyMachineAdoptedRiskPolicy(DimensionBehavioral)
+	if len(builder.conditions) != 1 || len(builder.blockers) != 0 {
+		t.Fatalf("architecture-sensitive disposition conditions=%#v blockers=%#v", builder.conditions, builder.blockers)
+	}
+	if builder.conditions[0].RequiredNextAction != "review_machine_adopted_knowledge" {
+		t.Fatalf("condition=%#v", builder.conditions[0])
+	}
+
+	lowRequest := validRequest()
+	lowPolicy, _ := PolicyForRisk(RiskLowRisk)
+	low := assessmentBuilder{ctx: Context{Request: lowRequest}, policy: lowPolicy, scope: resolvedScope{Nodes: []Node{node}}}
+	low.applyMachineAdoptedRiskPolicy(DimensionBehavioral)
+	if len(low.conditions)+len(low.blockers) != 0 {
+		t.Fatalf("low-risk machine adoption was unnecessarily conditioned: %#v %#v", low.conditions, low.blockers)
+	}
+
+	securityRequest := validRequest()
+	securityRequest.Scope.RiskClass = RiskSecurity
+	securityPolicy, _ := PolicyForRisk(RiskSecurity)
+	security := assessmentBuilder{ctx: Context{Request: securityRequest}, policy: securityPolicy, scope: resolvedScope{Nodes: []Node{node}}}
+	security.applyMachineAdoptedRiskPolicy(DimensionBehavioral)
+	if len(security.blockers) != 1 || security.blockers[0].Code != "closure.machine_adopted.behavioral.stronger_basis_required" {
+		t.Fatalf("security disposition=%#v", security.blockers)
+	}
+}
+
 func validRequest() Request {
 	return Request{
 		SchemaVersion: SchemaVersion,

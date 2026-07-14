@@ -133,6 +133,140 @@ patterns:
 	}
 }
 
+func TestDoValidate_LocalScopeAllowsGenericMirrorIDs(t *testing.T) {
+	root := t.TempDir()
+	writeValidateFile(t, root, "docs/awareness/generic/state_authority_invariants.yaml", `
+invariants:
+  - id: meta.shared_rule
+    title: shared
+`)
+	writeValidateFile(t, root, "docs/awareness/meta_principles.yaml", `
+invariants:
+  - id: meta.shared_rule
+    title: active copy
+`)
+
+	report, err := doValidate(root, []string{filepath.Join(root, "docs/awareness")}, nil, []string{root}, validateScopeLocal)
+	if err != nil {
+		t.Fatalf("doValidate: %v", err)
+	}
+	if hasCheck(report.Findings, "duplicate_id") {
+		t.Fatalf("local generic mirror must not be a duplicate_id: %+v", report.Findings)
+	}
+}
+
+func TestDoValidate_FullScopeFlagsGenericMirrorIDs(t *testing.T) {
+	root := t.TempDir()
+	writeValidateFile(t, root, "docs/awareness/generic/state_authority_invariants.yaml", `
+invariants:
+  - id: meta.shared_rule
+    title: shared
+`)
+	writeValidateFile(t, root, "docs/awareness/meta_principles.yaml", `
+invariants:
+  - id: meta.shared_rule
+    title: active copy
+`)
+
+	report, err := doValidate(root, []string{filepath.Join(root, "docs/awareness")}, nil, []string{root}, validateScopeFull)
+	if err != nil {
+		t.Fatalf("doValidate: %v", err)
+	}
+	if !hasCheck(report.Findings, "duplicate_id") {
+		t.Fatalf("full scope should flag generic mirror duplicates, got %+v", report.Findings)
+	}
+}
+
+func TestDoValidate_RelatedInvariantsMayResolveToIntentContracts(t *testing.T) {
+	root := t.TempDir()
+	writeValidateFile(t, root, "docs/awareness/invariants.yaml", `
+invariants:
+  - id: meta.quorum_is_quality_not_constraint
+    title: quorum
+    related_invariants:
+      - profile.intent_is_controller_owned_placement_contract
+`)
+	writeValidateFile(t, root, "docs/intent/profile.intent_is_controller_owned_placement_contract.yaml", `
+id: profile.intent_is_controller_owned_placement_contract
+level: feature
+title: Profile intent is controller-owned placement contract
+intent: Profile placement remains controller owned.
+`)
+
+	report, err := doValidate(
+		root,
+		[]string{filepath.Join(root, "docs/awareness"), filepath.Join(root, "docs/intent")},
+		nil,
+		[]string{root},
+		validateScopeLocal,
+	)
+	if err != nil {
+		t.Fatalf("doValidate: %v", err)
+	}
+	if hasCheck(report.Findings, "dangling_invariant_ref") {
+		t.Fatalf("intent-backed governing ref must resolve, got %+v", report.Findings)
+	}
+}
+
+func TestDoValidate_RejectsMalformedIntentIDs(t *testing.T) {
+	for _, id := range []string{"intent.", "intent..router", "intent.-router", "intent.router."} {
+		t.Run(id, func(t *testing.T) {
+			root := t.TempDir()
+			writeValidateFile(t, root, "docs/awareness/intent_bad.yaml", `
+id: `+id+`
+level: constraint
+title: Route contract
+intent: Route contract must hold.
+`)
+			report, err := doValidate(root, []string{filepath.Join(root, "docs/awareness")}, nil, []string{root}, validateScopeLocal)
+			if err != nil {
+				t.Fatalf("doValidate: %v", err)
+			}
+			if !hasCheck(report.Findings, "invalid_intent_id") {
+				t.Fatalf("expected invalid_intent_id for %q, got %+v", id, report.Findings)
+			}
+		})
+	}
+}
+
+func TestDoValidate_RejectsEmptyIntentTitleAndStatement(t *testing.T) {
+	root := t.TempDir()
+	writeValidateFile(t, root, "docs/awareness/intent_empty.yaml", `
+id: intent.empty_fields.abc123def0
+level: constraint
+title: "   "
+intent: ""
+`)
+	report, err := doValidate(root, []string{filepath.Join(root, "docs/awareness")}, nil, []string{root}, validateScopeLocal)
+	if err != nil {
+		t.Fatalf("doValidate: %v", err)
+	}
+	if !hasCheck(report.Findings, "intent_title_empty") || !hasCheck(report.Findings, "intent_statement_empty") {
+		t.Fatalf("expected empty title and statement checks, got %+v", report.Findings)
+	}
+}
+
+func TestDoValidate_RejectsMalformedIntentCandidate(t *testing.T) {
+	root := t.TempDir()
+	writeValidateFile(t, root, "docs/awareness/candidates/intents.yaml", `
+candidates:
+  - id: intent.
+    class: intent
+    status: candidate
+    title: ""
+    statement: ""
+`)
+	report, err := doValidate(root, []string{filepath.Join(root, "docs/awareness")}, nil, []string{root}, validateScopeLocal)
+	if err != nil {
+		t.Fatalf("doValidate: %v", err)
+	}
+	for _, check := range []string{"invalid_intent_id", "intent_title_empty", "intent_statement_empty"} {
+		if !hasCheck(report.Findings, check) {
+			t.Fatalf("expected %s, got %+v", check, report.Findings)
+		}
+	}
+}
+
 func TestDoValidate_OffVocabSeverityIsHardError(t *testing.T) {
 	root := t.TempDir()
 	// One entry per off-vocab value CG-1 fixed by hand (medium/low/ERROR/HIGH/
@@ -285,6 +419,34 @@ required_tests:
 	}
 	if len(report.Findings) != 0 {
 		t.Fatalf("expected generated test alias to resolve, got %+v", report.Findings)
+	}
+}
+
+func TestDoValidate_ResolvesAwarenessGraphRelativeSourcePathThroughSourceRoot(t *testing.T) {
+	root := t.TempDir()
+	servicesRoot := filepath.Join(root, "services")
+	agRoot := filepath.Join(root, "sensei")
+
+	writeValidateFile(t, servicesRoot, "docs/intent/awareness.runtime_evidence_must_be_fresh.yaml", `
+id: awareness.runtime_evidence_must_be_fresh
+level: feature
+reference_files:
+  - path: ../awareness-graph/golang/server/graph_freshness.go
+`)
+	writeValidateFile(t, agRoot, "golang/server/graph_freshness.go", "package server\n")
+
+	report, err := doValidate(
+		servicesRoot,
+		[]string{filepath.Join(servicesRoot, "docs/intent")},
+		nil,
+		[]string{servicesRoot, agRoot},
+		validateScopeLocal,
+	)
+	if err != nil {
+		t.Fatalf("doValidate: %v", err)
+	}
+	if hasCheck(report.Findings, "missing_source_file") {
+		t.Fatalf("expected awareness-graph relative source path to resolve, got %+v", report.Findings)
 	}
 }
 

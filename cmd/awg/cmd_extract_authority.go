@@ -48,6 +48,8 @@ type authoritySurfaceCandidate struct {
 type authorityFeatures struct {
 	relPath    string
 	symbol     string
+	lineStart  int
+	lineEnd    int
 	owner      string
 	hasHandler bool
 	routes     []string
@@ -177,13 +179,19 @@ func scanAuthorityFile(root, path string) ([]authoritySurfaceCandidate, error) {
 	if err != nil {
 		return nil, err
 	}
-	return scanAuthorityDecls(filepath.ToSlash(rel), file), nil
+	cands, _ := scanAuthorityDeclsAndFacts(root, filepath.ToSlash(rel), file, fset)
+	return cands, nil
 }
 
 // scanAuthorityDecls is the parse-free core of authority-surface extraction: it
 // works on an already-parsed file so the same *ast.File can feed both this and
 // the invariant fact extractor in a single Go-AST pass (see extractGoArchitecture).
-func scanAuthorityDecls(rel string, file *ast.File) []authoritySurfaceCandidate {
+func scanAuthorityDecls(rel string, file *ast.File, fset *token.FileSet) []authoritySurfaceCandidate {
+	cands, _ := scanAuthorityDeclsAndFacts("", rel, file, fset)
+	return cands
+}
+
+func scanAuthorityDeclsAndFacts(root, rel string, file *ast.File, fset *token.FileSet) ([]authoritySurfaceCandidate, []normalizedInvariantFact) {
 	routes := map[string][]string{}
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
@@ -210,16 +218,19 @@ func scanAuthorityDecls(rel string, file *ast.File) []authoritySurfaceCandidate 
 	}
 
 	var out []authoritySurfaceCandidate
+	var facts []normalizedInvariantFact
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Body == nil || fn.Name == nil {
 			continue
 		}
 		features := authorityFeatures{
-			relPath: rel,
-			symbol:  fn.Name.Name,
-			owner:   authorityOwner(file.Name.Name, fn),
-			routes:  authorityDedupe(routes[fn.Name.Name]),
+			relPath:   rel,
+			symbol:    fn.Name.Name,
+			lineStart: fset.Position(fn.Pos()).Line,
+			lineEnd:   fset.Position(fn.End()).Line,
+			owner:     authorityOwner(file.Name.Name, fn),
+			routes:    authorityDedupe(routes[fn.Name.Name]),
 		}
 		features.hasHandler = authorityLooksLikeHandler(fn, features.routes)
 		ast.Inspect(fn.Body, func(n ast.Node) bool {
@@ -234,8 +245,30 @@ func scanAuthorityDecls(rel string, file *ast.File) []authoritySurfaceCandidate 
 		if ok {
 			out = append(out, cand)
 		}
+		facts = append(facts, authorityObservationFacts(root, features)...)
 	}
-	return out
+	return out, facts
+}
+
+func authorityObservationFacts(root string, f authorityFeatures) []normalizedInvariantFact {
+	subject := "symbol." + f.symbol
+	var facts []normalizedInvariantFact
+	for _, route := range f.routes {
+		facts = append(facts, invariantFact(root, "authority_observation", subject, "exposes_route", route, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+	}
+	for _, state := range f.mutates {
+		facts = append(facts, invariantFact(root, "authority_observation", subject, "mutates_state", state, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+	}
+	for _, item := range f.lifecycle {
+		facts = append(facts, invariantFact(root, "authority_observation", subject, "controls_lifecycle", item, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+	}
+	for _, guard := range f.guards {
+		facts = append(facts, invariantFact(root, "authority_observation", subject, "requires_guard", guard, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+	}
+	for _, authority := range f.authority {
+		facts = append(facts, invariantFact(root, "authority_observation", subject, "requires_authority", authority, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.45, nil))
+	}
+	return facts
 }
 
 func authorityApplyCall(features *authorityFeatures, call *ast.CallExpr) {

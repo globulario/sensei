@@ -1,11 +1,11 @@
 {
   "managed_by": "sensei init",
   "skill": "sensei-import",
-  "version": "2026.07.12",
+  "version": "2026.07.14.1",
   "source_dir": "templates/skills/sensei-import",
   "files": {
-    "README.md": "0831aa7d17799b47b67297b08ed043263b1618b1282fe8be440db99be69fe654",
-    "SKILL.md": "1fd5fa955bdc695315c79980ff72f1dcd7c64e995886ff633441a47781ffd066",
-    "references/IMPORT-PLAYBOOK.md": "a4200cb53be37962b1680bd8094d6161b348e57db9fb6eba0cd038cfd94fbb27"
+    "README.md": "a93dc22769dfe8791168ae0a370a021d52df25c14f5a700760a3a6fe449956b1",
+    "SKILL.md": "37212e92e21927e2197475c383a76d0d89dbc7e5e98129c4483e5bf31a613dd6",
+    "references/IMPORT-PLAYBOOK.md": "2b336a2624c2832c98e54a81aaa99920a9a2c100e449e801e85ea0eba801aaa8"
   }
 }

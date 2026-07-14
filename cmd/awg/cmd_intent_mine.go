@@ -5,32 +5,38 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/globulario/sensei/golang/architecture/adoption"
 	"github.com/globulario/sensei/golang/extractor/coldsource"
 	"gopkg.in/yaml.v3"
 )
 
-// applyBar is the certainty a strong_intent grounding must clear to be written
-// straight into the awareness corpus by --apply. Below it (or any finding) the
-// candidate is parked for human review instead.
+// applyBar is the certainty a valid strong_intent must clear for delegated
+// machine adoption. Adoption is not human governance: the emitted intent remains
+// explicitly model_inferred, machine_adopted, and not_human_reviewed.
 const applyBar = 0.80
 
 // runIntentMine grounds architectural-intent candidates against a repo tree and
 // prints a dry-run report grouped by output class. Two modes:
 //
 //   - --candidates <yaml>: ground externally-supplied candidates (debug/replay);
-//   - --sources <kinds> --drafter <echo|llm>: EXTRACT candidates from the repo's
+//   - --sources <kinds> --drafter <echo|llm|claude-cli|codex-cli>: EXTRACT candidates from the repo's
 //     own stated charter (docs/comments/tests/prs/commits/schemas), then ground.
 //
-// It never writes a graph, promotes nothing, and mints no principles. The
-// proposer (echo or LLM) PROPOSES; GroundIntent GROUNDS; a human APPROVES. The
-// LLM drafter is opt-in and reads ANTHROPIC_API_KEY from the environment only.
+// It never writes a graph, promotes nothing, and mints no governed principles.
+// The proposer (echo or LLM) drafts; GroundIntent grounds; an explicit adoption
+// policy decides whether valid strong intent may become machine_adopted
+// knowledge. The LLM drafter backends are opt-in unless the caller chooses auto.
 func runIntentMine(args []string) int {
 	fs := flag.NewFlagSet("sensei intent-mine", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -40,28 +46,31 @@ func runIntentMine(args []string) int {
 	candidates := fs.String("candidates", "", "YAML file of proposed candidates (skips extraction)")
 	fromColdsource := fs.String("from-coldsource", "", "YAML of coldsource candidates to lift as scar-derived intent (bridge)")
 	sources := fs.String("sources", "docs,comments,schemas,tests", "comma list: docs,comments,schemas,tests,commits,prs")
-	drafter := fs.String("drafter", "echo", "proposer: echo (deterministic, no key) | llm (ANTHROPIC_API_KEY)")
+	drafter := fs.String("drafter", "echo", "proposer: echo (deterministic, no key) | llm (ANTHROPIC_API_KEY/AUTH_TOKEN) | claude-cli (authed Claude CLI, no key) | codex-cli (authed Codex CLI, no key) | auto")
 	prComments := fs.String("pr-comments", "", "JSON file of PR review comments (for --sources prs)")
 	model := fs.String("model", "", "LLM model override (default "+coldsource.DefaultModel+")")
 	maxN := fs.Int("max", 12, "max candidates to propose")
-	apply := fs.Bool("apply", false, "write results into the repo's awareness corpus: each strong_intent grounding ≥0.80 → docs/awareness/intent_<id>.yaml (graph knowledge on the next build); every finding / sub-bar candidate → docs/awareness/candidates/intents.yaml for human review")
-	_ = fs.Bool("dry-run", true, "report only (default); accepted for back-compat — use --apply to write")
+	adopt := fs.Bool("adopt", false, "machine-adopt valid strong_intent groundings and stage the rest; never marks model output as governed")
+	stage := fs.Bool("stage", false, "stage every grounded intent candidate under docs/awareness/candidates/intents.yaml; no machine adoption")
+	apply := fs.Bool("apply", false, "deprecated alias for --adopt; writes machine_adopted, not governed active, intent files")
+	_ = fs.Bool("dry-run", true, "report only (default); accepted for back-compat — use --adopt or --stage to write")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage:
-  sensei intent-mine --path . --sources docs,comments,schemas,tests [--drafter echo|llm] [--max N]
-  sensei intent-mine --path . --sources ... --drafter llm --apply        # land passing intents in the graph
+  sensei intent-mine --path . --sources docs,comments,schemas,tests [--drafter echo|llm|claude-cli|codex-cli|auto] [--max N]
+  sensei intent-mine --path . --sources ... --drafter llm --adopt       # machine-adopt valid strong intents
+  sensei intent-mine --path . --sources ... --drafter llm --stage       # candidate-only staging
   sensei intent-mine --candidates <file.yaml> --path .
 
 Extract architectural-intent candidates from a repo's stated charter (or read
 proposed candidates from YAML), ground them against the tree, and print output
 classes (strong/stale/hidden/missing/ambiguous/ungrounded), trust tiers,
-certainty, and the >80% routing decision. The proposer proposes; AWG grounds.
+certainty, and the review routing decision. The proposer proposes; AWG grounds.
 
-Default is report-only. With --apply, the >80% rule is acted on: each grounded
-strong_intent at certainty ≥0.80 is written as an importable single-entity intent
-file (graph knowledge on the next build); everything below the bar — and every
-divergence finding — is parked under candidates/ for a human to review and
-promote. Nothing below the bar is ever auto-written into the graph.
+Default is report-only. With --adopt, valid strong_intent groundings at certainty
+≥0.80 are written as machine_adopted, model_inferred intents and every hidden,
+weak, contradictory, or invalid result is staged under candidates/ for review.
+With --stage, every result stays candidate-only. Neither mode writes governed
+human-authored architecture or promotes candidates.
 
 Flags:
 `)
@@ -114,135 +123,230 @@ Flags:
 	// Bridge (intent → coldsource): emit finder hints from divergence findings.
 	coldsource.RenderFinderHints(os.Stdout, coldsource.FinderHintsFromGroundings(rep.Groundings))
 
-	if *apply {
-		landed, parked, skipped, err := applyIntentGroundings(repo, cands, rep.Groundings)
+	if *adopt || *stage || *apply {
+		policy := intentAdoptionPolicy{AllowMachineAdoption: *adopt || *apply, Drafter: strings.TrimSpace(*drafter)}
+		res, err := applyIntentGroundings(repo, cands, rep.Groundings, policy)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "apply: %v\n", err)
+			fmt.Fprintf(os.Stderr, "intent write: %v\n", err)
 			return 1
 		}
-		fmt.Printf("\nApplied to %s\n", filepath.Join(repo, "docs", "awareness"))
-		fmt.Printf("  %d intent(s) → graph corpus (intent_<id>.yaml, ≥%.2f strong)\n", landed, applyBar)
-		fmt.Printf("  %d parked as candidate(s) for review (candidates/intents.yaml)\n", parked)
-		if skipped > 0 {
-			fmt.Printf("  %d already present (skipped)\n", skipped)
+		fmt.Printf("\nIntent adoption report for %s\n", filepath.Join(repo, "docs", "awareness"))
+		fmt.Printf("  Drafted: %d\n", res.Drafted)
+		fmt.Printf("  Grounded strong: %d\n", res.GroundedStrong)
+		fmt.Printf("  Grounded hidden: %d\n", res.GroundedHidden)
+		fmt.Printf("  Staged candidates: %d\n", res.Staged)
+		fmt.Printf("  Parked invalid: %d\n", res.ParkedInvalid)
+		fmt.Printf("  Machine adopted: %d\n", res.MachineAdopted)
+		fmt.Printf("  Governed: 0\n")
+		fmt.Printf("  Human-reviewed promotions: 0\n")
+		if res.Skipped > 0 {
+			fmt.Printf("  Already present: %d\n", res.Skipped)
 		}
-		if landed > 0 {
-			fmt.Printf("Run `sensei build` (or `sensei rebuild`) to emit the triples.\n")
+		if policy.AllowMachineAdoption {
+			fmt.Printf("Machine-adopted intents are model_inferred and not_human_reviewed; promote separately for governed authority.\n")
+		} else {
+			fmt.Printf("Candidate-only staging mode: no machine adoption was performed.\n")
 		}
 	}
 	return 0
 }
 
-// applyIntentGroundings acts on the >80% rule: each strong_intent grounding at
-// certainty ≥ applyBar is written as an importable single-entity intent file in
-// docs/awareness (graph knowledge on the next build); everything else — findings
-// and sub-bar candidates — is parked under candidates/ for human review. The
-// candidates/ subtree is skipped by the importer, so parked entries never reach
-// the graph until a human promotes them.
-func applyIntentGroundings(repo string, cands []coldsource.IntentCandidate, groundings []coldsource.IntentGrounding) (landed, parked, skipped int, err error) {
+type intentAdoptionPolicy struct {
+	AllowMachineAdoption bool
+	Drafter              string
+}
+
+type intentApplyResult struct {
+	Drafted        int
+	GroundedStrong int
+	GroundedHidden int
+	Staged         int
+	ParkedInvalid  int
+	MachineAdopted int
+	Skipped        int
+}
+
+// applyIntentGroundings routes grounded intent under the declared policy.
+// Valid strong_intent groundings may become machine_adopted knowledge. Every
+// other result remains candidate-only. No path writes human-governed authority.
+func applyIntentGroundings(repo string, cands []coldsource.IntentCandidate, groundings []coldsource.IntentGrounding, policy intentAdoptionPolicy) (intentApplyResult, error) {
+	var res intentApplyResult
 	awDir := filepath.Join(repo, "docs", "awareness")
 	if mkErr := os.MkdirAll(awDir, 0o755); mkErr != nil {
-		return 0, 0, 0, mkErr
+		return res, mkErr
 	}
-	var parkedEntries []map[string]any
+	var entries []map[string]any
+	seenIntentFingerprints := map[string]string{}
 	for i, g := range groundings {
 		if i >= len(cands) {
 			break
 		}
+		res.Drafted++
+		if g.OutputClass == coldsource.StrongIntent {
+			res.GroundedStrong++
+		}
+		if g.OutputClass == coldsource.HiddenIntent {
+			res.GroundedHidden++
+		}
 		c := cands[i]
-		if g.OutputClass == coldsource.StrongIntent && g.Certainty >= applyBar {
-			wrote, werr := writeAppliedIntent(awDir, c, g)
+		id := canonicalCandidateIntentID(c)
+		fp := coldsource.IntentSemanticFingerprint(intentCandidateTitle(c), c.Claim, intentCandidateScope(c))
+		violations := validateIntentWriteCandidate(c)
+		if prev, ok := seenIntentFingerprints[id]; ok && prev != fp {
+			violations = append(violations, "candidate.identity.collision")
+		}
+		if len(violations) == 0 {
+			seenIntentFingerprints[id] = fp
+		}
+		if len(violations) > 0 {
+			res.ParkedInvalid++
+			entries = append(entries, stagedIntentCandidate(c, g, policy, violations...))
+			continue
+		}
+		if policy.AllowMachineAdoption && g.OutputClass == coldsource.StrongIntent && g.Certainty >= applyBar {
+			wrote, werr := writeMachineAdoptedIntent(awDir, repo, c, g, policy)
 			if werr != nil {
-				return landed, parked, skipped, werr
+				return res, werr
 			}
 			if wrote {
-				landed++
+				res.MachineAdopted++
 			} else {
-				skipped++
+				res.Skipped++
 			}
 			continue
 		}
-		parkedEntries = append(parkedEntries, parkedIntentCandidate(c, g))
-		parked++
+		entries = append(entries, stagedIntentCandidate(c, g, policy, violations...))
+		res.Staged++
 	}
-	if len(parkedEntries) > 0 {
-		if werr := writeParkedCandidates(filepath.Join(awDir, "candidates", "intents.yaml"), parkedEntries); werr != nil {
-			return landed, parked, skipped, werr
+	if len(entries) > 0 {
+		_, skipped, werr := writeStagedCandidates(filepath.Join(awDir, "candidates", "intents.yaml"), entries)
+		if werr != nil {
+			return res, werr
 		}
+		res.Skipped = skipped
 	}
-	return landed, parked, skipped, nil
+	return res, nil
 }
 
-// appliedIntent is the single-entity canonical intent the importer reads
-// (detected by id + level). Field order is the YAML key order.
-type appliedIntent struct {
+// machineAdoptedIntent is importable as aw:Intent while preserving the
+// jurisdiction boundary: this is supported, model-inferred knowledge, not a
+// human-governed architectural law.
+type machineAdoptedIntent struct {
+	adoption.Receipt  `yaml:",inline"`
 	ID                string         `yaml:"id"`
 	Level             string         `yaml:"level"`
 	Title             string         `yaml:"title"`
 	Intent            string         `yaml:"intent"`
-	Status            string         `yaml:"status"`
+	RevisionStatus    string         `yaml:"revision_status,omitempty"`
 	ExpressedBy       []string       `yaml:"expressed_by,omitempty"`
 	RelatedInvariants []string       `yaml:"related_invariants,omitempty"`
 	Provenance        map[string]any `yaml:"provenance"`
 }
 
-// writeAppliedIntent writes one importable intent file. Returns wrote=false if a
-// file for that id already exists (idempotent re-apply).
-func writeAppliedIntent(awDir string, c coldsource.IntentCandidate, g coldsource.IntentGrounding) (bool, error) {
-	id := canonicalIntentID(c.IntentID)
+func writeMachineAdoptedIntent(awDir, repo string, c coldsource.IntentCandidate, g coldsource.IntentGrounding, policy intentAdoptionPolicy) (bool, error) {
+	id := canonicalCandidateIntentID(c)
 	path := filepath.Join(awDir, "intent_"+strings.TrimPrefix(intentSlug(id), "intent_")+".yaml")
 	if _, statErr := os.Stat(path); statErr == nil {
 		return false, nil
 	}
-	ai := appliedIntent{
+	rev, revStatus := gitHeadRevision(repo)
+	mi := machineAdoptedIntent{
+		Receipt: adoption.Receipt{
+			Status:             adoption.PromotionMachineAdopted,
+			PromotionStatus:    adoption.PromotionMachineAdopted,
+			AssertionOrigin:    "model_inferred",
+			EpistemicStatus:    "supported",
+			ArchitecturalPlane: "intended",
+			ReviewStatus:       adoption.ReviewNotHumanReviewed,
+			DecisionActor:      "sensei.intent_mine",
+			DecisionContext:    "delegated_machine_adoption",
+			DecisionPolicy:     "adoption.intent.strong_grounding.v1",
+			DecisionTimestamp:  time.Now().UTC().Format(time.RFC3339),
+			ValidForRevision:   rev,
+			AdoptionBasis:      []string{"valid strong intent grounded against current repository sources"},
+			SourceReceipts:     intentCandidateScope(c),
+			CorroborationKinds: []string{"model_draft", "source_file"},
+		},
 		ID:                id,
-		Level:             "constraint", // base aw:Intent + ConstraintIntent; a human may refine the level
-		Title:             humanizeIntentTitle(c.IntentID),
+		Level:             machineAdoptedIntentLevel(c.Category),
+		Title:             intentCandidateTitle(c),
 		Intent:            normalizeWS(c.Claim),
-		Status:            "active",
+		RevisionStatus:    revStatus,
 		ExpressedBy:       stripCitationPrefixes(c.Evidence.Code),
 		RelatedInvariants: c.RelatedInvariants,
 		Provenance: map[string]any{
-			"promoted_from":           "candidate",
-			"discovered_from":         "sensei intent-mine --drafter llm (coldsource); grounded against the live tree",
-			"confidence_at_promotion": confidenceFromCertainty(g.Certainty),
-			"grounding_tier":          g.GroundingTier.String(),
-			"category":                c.Category,
+			"adoption_policy":        "adoption.intent.strong_grounding.v1",
+			"decision_actor":         "sensei.intent_mine",
+			"decision_context":       "delegated_machine_adoption",
+			"discovered_from":        intentDiscoverySource(policy),
+			"confidence_at_adoption": confidenceFromCertainty(g.Certainty),
+			"grounding_class":        string(g.OutputClass),
+			"grounding_tier":         g.GroundingTier.String(),
+			"certainty":              g.Certainty,
+			"category":               c.Category,
 		},
 	}
 	var buf bytes.Buffer
-	buf.WriteString("# Applied by `sensei intent-mine --apply` — a grounded strong_intent (≥0.80).\n")
-	buf.WriteString("# Mined from the repo's charter, grounded against the live tree. Refine by hand as needed.\n")
+	buf.WriteString("# Machine-adopted by `sensei intent-mine --adopt`.\n")
+	buf.WriteString("# This is model_inferred, supported, and not_human_reviewed; promote separately for governed authority.\n")
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
-	if encErr := enc.Encode(ai); encErr != nil {
+	if encErr := enc.Encode(mi); encErr != nil {
 		return false, encErr
 	}
 	enc.Close()
 	return true, os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
-// parkedIntentCandidate is a promote-ready candidate entry for a sub-bar/finding
-// grounding, written under candidates/ (skipped by the importer).
-func parkedIntentCandidate(c coldsource.IntentCandidate, g coldsource.IntentGrounding) map[string]any {
-	return map[string]any{
-		"id":              canonicalIntentID(c.IntentID),
-		"class":           "intent",
-		"status":          "candidate",
-		"confidence":      confidenceFromCertainty(g.Certainty),
-		"level":           "constraint",
-		"label":           humanizeIntentTitle(c.IntentID),
-		"summary":         normalizeWS(c.Claim),
-		"evidence":        intentEvidenceString(c, g),
-		"discovered_from": "sensei intent-mine --drafter llm (coldsource); grounded against the live tree",
+func machineAdoptedIntentLevel(category string) string {
+	category = strings.ToLower(strings.TrimSpace(category))
+	category = strings.NewReplacer("-", "_", " ", "_").Replace(category)
+	if strings.Contains(category, "contract") {
+		return "contract"
 	}
+	return "constraint"
 }
 
-// writeParkedCandidates appends entries to a candidates/ file under the
+// stagedIntentCandidate is a reviewable candidate entry written under
+// candidates/ (skipped by the importer). Invalid entries carry rejection_reasons
+// and are parked for repair rather than promotion.
+func stagedIntentCandidate(c coldsource.IntentCandidate, g coldsource.IntentGrounding, policy intentAdoptionPolicy, reasons ...string) map[string]any {
+	id := canonicalCandidateIntentID(c)
+	out := map[string]any{
+		"id":               id,
+		"class":            "intent",
+		"status":           "candidate",
+		"promotion_status": "candidate",
+		"review_state":     "staged",
+		"confidence":       confidenceFromCertainty(g.Certainty),
+		"level":            "constraint",
+		"title":            intentCandidateTitle(c),
+		"label":            intentCandidateTitle(c),
+		"statement":        normalizeWS(c.Claim),
+		"summary":          normalizeWS(c.Claim),
+		"evidence":         intentEvidenceString(c, g),
+		"grounding_class":  string(g.OutputClass),
+		"grounding_tier":   g.GroundingTier.String(),
+		"certainty":        g.Certainty,
+		"discovered_from":  intentDiscoverySource(policy),
+	}
+	if len(reasons) > 0 {
+		sort.Strings(reasons)
+		out["review_state"] = "parked_invalid"
+		out["rejection_reasons"] = reasons
+		if stringSliceContains(reasons, "candidate.identity.collision") {
+			out["conflicting_id"] = id
+			out["id"] = id + ".collision_" + shortDigest(coldsource.IntentSemanticFingerprint(intentCandidateTitle(c), c.Claim, intentCandidateScope(c)))
+		}
+	}
+	return out
+}
+
+// writeStagedCandidates appends entries to a candidates/ file under the
 // `candidates:` key, deduped by id and sorted (deterministic).
-func writeParkedCandidates(path string, entries []map[string]any) error {
+func writeStagedCandidates(path string, entries []map[string]any) (added, skipped int, err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+		return 0, 0, err
 	}
 	doc := map[string]any{}
 	if raw, err := os.ReadFile(path); err == nil {
@@ -258,9 +362,12 @@ func writeParkedCandidates(path string, entries []map[string]any) error {
 		}
 	}
 	for _, e := range entries {
-		if id, _ := e["id"].(string); !seen[id] {
+		if id, _ := e["id"].(string); id != "" && !seen[id] {
 			existing = append(existing, e)
 			seen[id] = true
+			added++
+		} else {
+			skipped++
 		}
 	}
 	sort.SliceStable(existing, func(i, j int) bool {
@@ -273,11 +380,11 @@ func writeParkedCandidates(path string, entries []map[string]any) error {
 	doc["candidates"] = existing
 	out, err := yaml.Marshal(doc)
 	if err != nil {
-		return err
+		return added, skipped, err
 	}
-	header := "# Parked by `sensei intent-mine --apply` — sub-bar / divergence candidates.\n" +
-		"# The importer SKIPS candidates/. Review and `sensei promote` to make them graph knowledge.\n"
-	return os.WriteFile(path, append([]byte(header), out...), 0o644)
+	header := "# Staged by `sensei intent-mine --stage` — review-only intent candidates.\n" +
+		"# The importer SKIPS candidates/. Review and promote explicitly to make graph knowledge.\n"
+	return added, skipped, os.WriteFile(path, append([]byte(header), out...), 0o644)
 }
 
 // ── small pure helpers ───────────────────────────────────────────────────────
@@ -303,6 +410,114 @@ func intentSlug(s string) string {
 // to the canonical dotted form "intent.<slug>".
 func canonicalIntentID(id string) string {
 	return "intent." + strings.TrimPrefix(intentSlug(id), "intent_")
+}
+
+func canonicalCandidateIntentID(c coldsource.IntentCandidate) string {
+	if c.ExtractedByLLM {
+		return coldsource.MintIntentID(c.Title, c.Claim, intentCandidateScope(c))
+	}
+	if id := strings.TrimSpace(c.IntentID); strings.HasPrefix(id, "intent.") {
+		return id
+	}
+	return canonicalIntentID(c.IntentID)
+}
+
+func validateIntentWriteCandidate(c coldsource.IntentCandidate) []string {
+	var reasons []string
+	id := canonicalCandidateIntentID(c)
+	if !coldsource.ValidIntentID(id) {
+		reasons = append(reasons, "candidate.identity.invalid")
+	}
+	if strings.TrimSpace(intentCandidateTitle(c)) == "" || (c.ExtractedByLLM && strings.TrimSpace(c.Title) == "") {
+		reasons = append(reasons, "candidate.title.empty")
+	}
+	if strings.TrimSpace(c.Claim) == "" {
+		reasons = append(reasons, "candidate.statement.empty")
+	}
+	if strings.TrimSpace(c.Category) == "" {
+		reasons = append(reasons, "candidate.kind.empty")
+	}
+	if len(intentCandidateScope(c)) == 0 {
+		reasons = append(reasons, "candidate.scope.empty")
+	}
+	if len(intentCandidateCitations(c)) == 0 {
+		reasons = append(reasons, "candidate.citations.empty")
+	}
+	return reasons
+}
+
+func stringSliceContains(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
+}
+
+func shortDigest(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])[:10]
+}
+
+func intentDiscoverySource(policy intentAdoptionPolicy) string {
+	drafter := strings.TrimSpace(policy.Drafter)
+	if drafter == "" {
+		drafter = "unknown"
+	}
+	return fmt.Sprintf("sensei intent-mine --drafter %s (coldsource); grounded against the live tree", drafter)
+}
+
+func gitHeadRevision(repo string) (revision, status string) {
+	out, err := exec.Command("git", "-C", repo, "rev-parse", "HEAD").Output()
+	if err != nil {
+		return "", "unresolved"
+	}
+	rev := strings.TrimSpace(string(out))
+	if rev == "" {
+		return "", "unresolved"
+	}
+	return rev, "resolved"
+}
+
+func intentCandidateTitle(c coldsource.IntentCandidate) string {
+	if t := strings.TrimSpace(c.Title); t != "" {
+		return t
+	}
+	return humanizeIntentTitle(c.IntentID)
+}
+
+func intentCandidateScope(c coldsource.IntentCandidate) []string {
+	var scope []string
+	scope = append(scope, stripCitationPrefixes(c.Evidence.Code)...)
+	scope = append(scope, stripCitationPrefixes(c.Evidence.Tests)...)
+	scope = append(scope, stripCitationPrefixes(c.Sources.Docs)...)
+	scope = append(scope, stripCitationPrefixes(c.Sources.Comments)...)
+	scope = append(scope, stripCitationPrefixes(c.Sources.Hints)...)
+	scope = append(scope, c.Evidence.Commits...)
+	clean := make([]string, 0, len(scope))
+	seen := map[string]bool{}
+	for _, s := range scope {
+		t := strings.TrimSpace(s)
+		if t == "" || seen[t] {
+			continue
+		}
+		seen[t] = true
+		clean = append(clean, t)
+	}
+	sort.Strings(clean)
+	return clean
+}
+
+func intentCandidateCitations(c coldsource.IntentCandidate) []string {
+	var citations []string
+	citations = append(citations, c.Sources.Docs...)
+	citations = append(citations, c.Sources.Comments...)
+	citations = append(citations, c.Sources.Hints...)
+	citations = append(citations, c.Evidence.Code...)
+	citations = append(citations, c.Evidence.Tests...)
+	citations = append(citations, c.Evidence.Commits...)
+	return citations
 }
 
 func humanizeIntentTitle(id string) string {
@@ -401,15 +616,23 @@ func extractIntentCandidates(repo, sources, drafter, prCommentsPath, model strin
 	switch drafter {
 	case "echo":
 		dr = coldsource.EchoIntentDrafter{Max: maxN}
-	case "llm":
-		client, err := coldsource.NewAnthropicClientFromEnv(model)
+	case "llm", "claude-cli", "codex-cli", "auto":
+		client, receipt, err := coldsource.SelectLLMClient(coldsource.DrafterBackend(drafter), model)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return nil, 2
 		}
+		fmt.Fprintf(os.Stderr, "intent drafter: %s credential_source=%s", receipt.Drafter, receipt.CredentialSource)
+		if receipt.Model != "" {
+			fmt.Fprintf(os.Stderr, " model=%s", receipt.Model)
+		}
+		if receipt.DirectAPIEnvironmentIgnored {
+			fmt.Fprintf(os.Stderr, " direct_api_environment_ignored=true")
+		}
+		fmt.Fprintln(os.Stderr)
 		dr = coldsource.LLMIntentDrafter{Client: client, Max: maxN}
 	default:
-		fmt.Fprintf(os.Stderr, "error: unknown drafter %q (use echo|llm)\n", drafter)
+		fmt.Fprintf(os.Stderr, "error: unknown drafter %q (use echo|llm|claude-cli|codex-cli|auto)\n", drafter)
 		return nil, 2
 	}
 

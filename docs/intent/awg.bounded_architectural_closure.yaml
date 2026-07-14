@@ -1,0 +1,59 @@
+id: awg.bounded_architectural_closure
+level: mission
+title: Bounded architectural closure requires evidence-bound claims, visible unknowns, and candidate-only dialogue
+intent: |
+  Sensei should be able to tell an agent whether a declared repository revision,
+  graph digest, domain, scope, and class of work have enough justified
+  architectural knowledge for action without guessing.
+
+  The closure system must derive only inspectable, non-authoritative claims from
+  addressable facts and evidence. It must preserve contradictions, stale evidence,
+  missing premises, open questions, and architect answers as typed artifacts rather
+  than converting them into active architectural law.
+
+  Closure is bounded: it applies only to the declared revision, graph digest,
+  domain, scope, and task class. It reopens when source, graph authority,
+  evidence freshness, tests, runtime observations, decisions, exceptions, or
+  premises change.
+agent_guidance: |
+  Treat this mission as an honesty contract before it is an implementation plan.
+  Implement vertical slices only when every claim can cite its premises and every
+  unresolved architectural question remains visible to agents and reviewers.
+  Never let generated claims, candidate knowledge, LLM wording, or architect
+  answers satisfy governed proof obligations unless the existing promotion path
+  explicitly turns them into active awareness.
+bad_smells:
+  - inferred claim shown as an invariant, contract, decision, or proof obligation
+  - closure verdict not tied to repository revision, graph digest, domain, scope, and task class
+  - missing evidence hidden behind a confidence score
+  - architect answer treated as observed implementation or runtime truth
+  - open question removed because one hypothesis sounds plausible
+  - LLM prose recorded as evidence without cited source material
+activation_triggers:
+  - architecture closure
+  - architecture claim
+  - open question
+  - architect answer
+  - deterministic inference
+  - closure assessment
+expressed_by:
+  - docs/awareness/invariants.yaml
+  - docs/intent/awg.bounded_architectural_closure.yaml
+related_invariants:
+  - awareness.architecture_claims_non_authoritative_until_promoted
+  - awareness.inference_requires_addressable_evidence
+  - awareness.missing_evidence_produces_unknown
+  - awareness.closure_is_revision_scope_and_task_bound
+  - awareness.architect_answers_are_typed_scoped_candidates
+  - awareness.open_questions_remain_visible_until_resolved
+zooms_out_to:
+  - awg.mission
+  - awg.knowledge_earned_not_invented
+  - awg.graph_is_compiled_context_not_authority
+zooms_in_to: []
+related_to:
+  - awg.enforcement_at_every_layer
+status: active
+required_tests:
+  - golang/extractor/reference_validator_test.go:TestValidateReferences_DefinedAndReferenced
+  - golang/extractor/promotion_proposal_test.go:TestPromotionDoesNotAutoActivate

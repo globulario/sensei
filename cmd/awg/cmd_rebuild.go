@@ -236,7 +236,7 @@ Flags:
 		}
 		markerPath := strings.TrimSpace(*graphMarkerFile)
 		if markerPath == "" {
-			resolved, err := defaultRuntimeMarkerFile()
+			resolved, err := runtimeMarkerFileForRoot(agRepo)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "sensei rebuild: resolve graph marker file: %v\n", err)
 				return 1

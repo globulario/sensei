@@ -199,7 +199,7 @@ sensei repo-eval               # architecture + awareness quality: is this repo 
 **4. Ask it to audit the awareness graph itself** — drift, gaps, dangling rules:
 
 ```bash
-sensei audit                   # self-audit: what's stale, uncovered, or inconsistent
+sensei audit --domain github.com/org/repo   # self-audit this repo's graph slice
 ```
 
 **5. From now on, the agent consults before it edits.** With the MCP tools wired,
@@ -357,7 +357,7 @@ The **[full CLI reference](docs/cli-reference.md)** documents every command and 
 | `sensei serve` | Start Oxigraph + the gRPC server |
 | `sensei build` | Compile `docs/awareness/` into the store |
 | `sensei repo-eval` | Evaluate architecture + awareness quality |
-| `sensei audit` | Self-audit the graph for drift, gaps, inconsistencies |
+| `sensei audit --domain <repo>` | Self-audit one repo/domain slice for drift, gaps, inconsistencies |
 | `sensei briefing --file <p>` / `--task "…"` | Context for a file or task |
 | `sensei impact` / `preflight` / `edit-check` | Nodes / risk / advisory edit check |
 | `sensei gate --diff <range> --mode enforce` | Gate a git diff in CI |
