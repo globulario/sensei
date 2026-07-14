@@ -431,3 +431,17 @@ invariants:
       - cmd/awg/cmd_propose_test.go:TestValidateProposal_ContractUnknownRequiresProposalOrRevision
       - cmd/awg/cmd_feedback_check_test.go:TestEvaluateFeedbackGap_ContractUnknownCountsAsFeedback
       - golang/server/change_impact_test.go:TestImpactPlanningReportsUnknowns
+  - id: awareness.task_claim_scoping_is_task_local_and_explainable
+    title: Task preparation must discover broadly but bind narrowly through an explainable impact path
+    severity: critical
+    status: active
+    description: Task preparation discovers broadly but binds narrowly. A claim becomes task-binding only through an explainable, revision-bound impact path from an exact task operation. Relevant but non-binding repository debt remains visible as background debt and does not block local mutation. A binding claim becomes blocking only when its unresolved condition can make the requested operation unsafe. Selection must remain deterministic for the same revision, graph digest, task envelope, and policy, preserve cross-file and transitive architectural contracts, preserve authority and required-test obligations, handle indeterminate impact conservatively, and avoid arbitrary count limits.
+    protects:
+      files:
+        - golang/architecture/tasksession/session.go
+        - golang/architecture/tasksession/control.go
+        - golang/architecture/convergence/convergence.go
+        - golang/architecture/closure/model.go
+        - golang/architecture/tasksession/briefing.go
+    related_failure_modes:
+      - behavioral.task_claim_scope_blocker_explosion
