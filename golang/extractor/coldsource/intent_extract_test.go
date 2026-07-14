@@ -91,6 +91,7 @@ func TestMaterialize_RoutesByKind(t *testing.T) {
 		"pr:42:7":          "prs",
 	}
 	d := intentDraft{
+		Title:           "Preserve desired ownership",
 		Claim:           "x",
 		SourceCitations: []string{"file:docs/a.md:1", "file:b.go:2", "file:c_test.go:3", "commit:deadbeef", "pr:42:7"},
 		CodeAnchors:     []string{"file:impl.go", "file:impl_test.go"},
@@ -106,6 +107,76 @@ func TestMaterialize_RoutesByKind(t *testing.T) {
 	}
 	if c.Status != "candidate" || !c.ExtractedByLLM {
 		t.Errorf("materialized candidate must be status=candidate, extracted")
+	}
+}
+
+func TestMaterialize_MintsHostOwnedIntentID(t *testing.T) {
+	kind := map[string]string{"file:README.md:1": "docs"}
+	d := intentDraft{
+		IntentID:        "intent.",
+		Title:           "Preserve route tree consistency across serving paths",
+		Claim:           "The route tree must stay consistent across serving paths.",
+		Category:        "api-contract",
+		SourceCitations: []string{"file:README.md:1"},
+		CodeAnchors:     []string{"file:gin.go", "file:tree.go"},
+	}
+	c1 := materialize(d, kind)
+	c2 := materialize(d, kind)
+	if c1.IntentID == "intent." {
+		t.Fatalf("materialize reused model-provided id: %q", c1.IntentID)
+	}
+	if !ValidIntentID(c1.IntentID) {
+		t.Fatalf("minted id is invalid: %q", c1.IntentID)
+	}
+	if !strings.HasPrefix(c1.IntentID, "intent.preserve_route_tree_consistency_across_serving_paths.") {
+		t.Fatalf("minted id lost readable title slug: %q", c1.IntentID)
+	}
+	if c1.IntentID != c2.IntentID {
+		t.Fatalf("same candidate minted different ids: %q vs %q", c1.IntentID, c2.IntentID)
+	}
+
+	d.Claim = "A different semantic proposition must not reuse the old id."
+	c3 := materialize(d, kind)
+	if c3.IntentID == c1.IntentID {
+		t.Fatalf("changed semantic proposition reused id %q", c1.IntentID)
+	}
+}
+
+func TestLLMIntentDrafter_AcceptsTopLevelCandidateArray(t *testing.T) {
+	ex := []IntentExcerpt{{
+		Kind:     "docs",
+		Citation: "file:README.md:1",
+		Text:     "Router middleware order must be preserved.",
+	}}
+	reply := `[{"intent_id":"model-owned","title":"Router middleware order","claim":"Router middleware order must be preserved.","category":"api-contract","source_citations":["file:README.md:1"],"code_anchors":["file:README.md"]}]`
+
+	drafts, err := LLMIntentDrafter{Client: fakeLLM{reply: reply}, Max: 1}.DraftIntents(context.Background(), ex)
+	if err != nil {
+		t.Fatalf("DraftIntents: %v", err)
+	}
+	if len(drafts) != 1 {
+		t.Fatalf("drafts=%d, want 1", len(drafts))
+	}
+	cands, rejected, err := DraftAndCageIntents(context.Background(), LLMIntentDrafter{Client: fakeLLM{reply: reply}, Max: 1}, ex, 1)
+	if err != nil {
+		t.Fatalf("DraftAndCageIntents: %v", err)
+	}
+	if rejected != 0 || len(cands) != 1 {
+		t.Fatalf("rejected=%d cands=%d, want 0/1", rejected, len(cands))
+	}
+	if cands[0].IntentID == "model-owned" || !strings.HasPrefix(cands[0].IntentID, "intent.router_middleware_order.") {
+		t.Fatalf("candidate id was not host-owned: %q", cands[0].IntentID)
+	}
+}
+
+func TestValidIntentIDRejectsMalformedPrefixIDs(t *testing.T) {
+	for _, id := range []string{"intent.", "intent..router", "intent.-router", "intent.router.", "intent._router"} {
+		if ValidIntentID(id) {
+			t.Fatalf("ValidIntentID(%q) = true, want false", id)
+		}
+	}
+	if !ValidIntentID("intent.router_consistency.a1b2c3d4e5") {
+		t.Fatal("valid intent id was rejected")
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
 )
 
@@ -66,6 +67,24 @@ func TestExtractBoundaryCandidates(t *testing.T) {
 	}
 }
 
+func TestBoundaryObservationFactsFromComponents(t *testing.T) {
+	comps := []importgraph.Component{
+		{ID: "component.internal.bytesconv", Name: "bytesconv", SourceFiles: []string{"internal/bytesconv/bytesconv.go"}},
+		{ID: "component.api", Name: "api", ExposesContracts: []string{"contract.orders"}, SourceFiles: []string{"api/api.go"}},
+		{ID: "component.a", DependsOn: []string{"component.api"}, SourceFiles: []string{"a/a.go"}},
+	}
+	facts := boundaryObservationFacts("github.com/example/repo", comps)
+	assertBoundaryFact(t, facts, "component.internal.bytesconv", "is_under_go_internal_boundary", "")
+	assertBoundaryFact(t, facts, "component.api", "exposes_contract", "contract.orders")
+	assertBoundaryFact(t, facts, "component.a", "depends_on", "component.api")
+	assertBoundaryFact(t, facts, "component.api", "has_observed_consumer", "component.a")
+	for _, f := range facts {
+		if f.Kind != "structural_observation" {
+			t.Fatalf("boundary adapter emitted non-observation fact: %#v", f)
+		}
+	}
+}
+
 func TestInternalParent(t *testing.T) {
 	if p, ok := internalParent([]string{"internal/x/x.go"}); !ok || p != "" {
 		t.Errorf("root internal: got (%q,%v), want (\"\",true)", p, ok)
@@ -76,4 +95,14 @@ func TestInternalParent(t *testing.T) {
 	if _, ok := internalParent([]string{"pkg/x/x.go"}); ok {
 		t.Error("non-internal path reported as internal")
 	}
+}
+
+func assertBoundaryFact(t *testing.T, facts []architecture.Fact, subject, predicate, object string) {
+	t.Helper()
+	for _, f := range facts {
+		if f.Subject == subject && f.Predicate == predicate && f.Object == object {
+			return
+		}
+	}
+	t.Fatalf("missing boundary fact %s %s %s in %#v", subject, predicate, object, facts)
 }

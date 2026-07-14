@@ -33,8 +33,14 @@ func TestScaffoldProject(t *testing.T) {
 		".sensei/config.yaml",
 		".sensei/skills/sensei-architect/SKILL.md",
 		".sensei/skills/sensei-architect/.sensei-managed.json",
+		".sensei/skills/sensei-import/SKILL.md",
+		".sensei/skills/sensei-admission/SKILL.md",
+		".sensei/skills/sensei-closure/SKILL.md",
+		".sensei/skills/sensei-benchmark/SKILL.md",
 		".agents/skills/sensei-architect/SKILL.md",
+		".agents/skills/sensei-admission/SKILL.md",
 		".claude/skills/sensei-architect/SKILL.md",
+		".claude/skills/sensei-benchmark/SKILL.md",
 		".claude/hooks/enforce-briefing.sh",
 		".claude/hooks/record-briefing.sh",
 		".claude/hooks/edit-check-guard.sh",
@@ -104,8 +110,14 @@ func TestScaffoldProject_InitMCPInstallsSkillsAndMCP(t *testing.T) {
 	}
 	for _, rel := range []string{
 		".sensei/skills/sensei-architect/SKILL.md",
+		".sensei/skills/sensei-import/SKILL.md",
+		".sensei/skills/sensei-admission/SKILL.md",
+		".sensei/skills/sensei-closure/SKILL.md",
+		".sensei/skills/sensei-benchmark/SKILL.md",
 		".agents/skills/sensei-architect/SKILL.md",
+		".agents/skills/sensei-admission/SKILL.md",
 		".claude/skills/sensei-architect/SKILL.md",
+		".claude/skills/sensei-closure/SKILL.md",
 		".mcp.json",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
@@ -224,6 +236,221 @@ func TestBuiltSenseiBinaryInitializesSkillsOutsideSourceTree(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(external, ".sensei", "skills", "sensei-architect", "SKILL.md")); err != nil {
 		t.Fatalf("built binary did not install embedded skill: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(external, ".sensei", "skills", "sensei-benchmark", "SKILL.md")); err != nil {
+		t.Fatalf("built binary did not install benchmark skill: %v", err)
+	}
+}
+
+func TestSenseiInitInstallsAllManagedSkills(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	for _, skill := range builtinSkills {
+		for _, target := range skill.Targets {
+			if _, err := os.Stat(filepath.Join(dir, target, "SKILL.md")); err != nil {
+				t.Fatalf("expected %s in %s: %v", skill.Name, target, err)
+			}
+		}
+	}
+}
+
+func TestSenseiInitCreatesManagedManifestForNewSkills(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	for _, name := range []string{"sensei-admission", "sensei-closure", "sensei-benchmark"} {
+		manifest := readInstalledSkillManifestForTest(t, filepath.Join(dir, ".sensei", "skills", name, skillManifestName))
+		if manifest.ManagedBy != "sensei init" || manifest.Skill != name || manifest.Version != builtinSkillVersion {
+			t.Fatalf("%s manifest mismatch: %#v", name, manifest)
+		}
+		if len(manifest.Files) == 0 {
+			t.Fatalf("%s manifest has no files", name)
+		}
+	}
+}
+
+func TestManagedManifestHashesEveryInstalledFile(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	for _, skill := range builtinSkills {
+		base := filepath.Join(dir, ".sensei", "skills", skill.Name)
+		manifest := readInstalledSkillManifestForTest(t, filepath.Join(base, skillManifestName))
+		files, err := bundledSkillFiles(skill)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(manifest.Files) != len(files) {
+			t.Fatalf("%s manifest file count=%d want %d", skill.Name, len(manifest.Files), len(files))
+		}
+		for rel, digest := range manifest.Files {
+			data, err := os.ReadFile(filepath.Join(base, filepath.FromSlash(rel)))
+			if err != nil {
+				t.Fatalf("%s read %s: %v", skill.Name, rel, err)
+			}
+			if sha256Hex(data) != digest {
+				t.Fatalf("%s digest mismatch for %s", skill.Name, rel)
+			}
+		}
+	}
+}
+
+func TestManagedManifestOrderIsDeterministic(t *testing.T) {
+	first := t.TempDir()
+	second := t.TempDir()
+	if _, err := scaffoldProject(first, initOptions{skills: true}); err != nil {
+		t.Fatalf("first scaffoldProject: %v", err)
+	}
+	if _, err := scaffoldProject(second, initOptions{skills: true}); err != nil {
+		t.Fatalf("second scaffoldProject: %v", err)
+	}
+	for _, skill := range builtinSkills {
+		a, err := os.ReadFile(filepath.Join(first, ".sensei", "skills", skill.Name, skillManifestName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(filepath.Join(second, ".sensei", "skills", skill.Name, skillManifestName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(a) != string(b) {
+			t.Fatalf("%s manifest differs between installs", skill.Name)
+		}
+	}
+}
+
+func TestSecondInitIsIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	created, err := scaffoldProject(dir, initOptions{skills: true})
+	if err != nil {
+		t.Fatalf("second scaffoldProject: %v", err)
+	}
+	for _, path := range created {
+		if strings.Contains(path, string(filepath.Separator)+"skills"+string(filepath.Separator)) {
+			t.Fatalf("second init rewrote skill path %s", path)
+		}
+	}
+}
+
+func TestNewSkillsInstallWithoutForce(t *testing.T) {
+	dir := t.TempDir()
+	for _, skill := range builtinSkills[:2] {
+		files, err := bundledSkillFiles(skill)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, notice, err := syncBuiltinSkill(dir, skill, filepath.Join(".sensei", "skills", skill.Name), files, false); err != nil || notice != "" {
+			t.Fatalf("seed old skill %s notice=%q err=%v", skill.Name, notice, err)
+		}
+	}
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	for _, name := range []string{"sensei-admission", "sensei-closure", "sensei-benchmark"} {
+		if _, err := os.Stat(filepath.Join(dir, ".sensei", "skills", name, "SKILL.md")); err != nil {
+			t.Fatalf("new skill %s was not installed without force: %v", name, err)
+		}
+	}
+}
+
+func TestLocalManagedEditIsPreservedByDefault(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	skillPath := filepath.Join(dir, ".sensei", "skills", "sensei-admission", "SKILL.md")
+	if err := os.WriteFile(skillPath, []byte("local admission edit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := scaffoldProjectWithReport(dir, initOptions{skills: true})
+	if err != nil {
+		t.Fatalf("scaffoldProjectWithReport: %v", err)
+	}
+	if len(report.notices) == 0 || !strings.Contains(strings.Join(report.notices, "\n"), "modified locally") {
+		t.Fatalf("expected local modification notice, got %#v", report.notices)
+	}
+	data, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "local admission edit\n" {
+		t.Fatalf("local managed edit was overwritten: %q", data)
+	}
+}
+
+func TestSkillsForceReplacesLocalManagedEdit(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	skillPath := filepath.Join(dir, ".sensei", "skills", "sensei-closure", "SKILL.md")
+	if err := os.WriteFile(skillPath, []byte("local closure edit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := scaffoldProjectWithReport(dir, initOptions{skills: true, skillsForce: true}); err != nil {
+		t.Fatalf("force scaffoldProjectWithReport: %v", err)
+	}
+	data, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "local closure edit") || !strings.Contains(string(data), "name: sensei-closure") {
+		t.Fatalf("force did not replace local managed edit: %q", data)
+	}
+}
+
+func TestUnmanagedUserSkillIsUntouched(t *testing.T) {
+	dir := t.TempDir()
+	other := filepath.Join(dir, ".sensei", "skills", "user-skill")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	otherSkill := filepath.Join(other, "SKILL.md")
+	if err := os.WriteFile(otherSkill, []byte("---\nname: user-skill\ndescription: keep me\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	data, err := os.ReadFile(otherSkill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "keep me") {
+		t.Fatalf("unmanaged user skill changed: %q", data)
+	}
+}
+
+func TestExistingArchitectAndImportInstallBehaviorRemainsCompatible(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{skills: true}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	for _, name := range []string{"sensei-architect", "sensei-import"} {
+		manifest := readInstalledSkillManifestForTest(t, filepath.Join(dir, ".sensei", "skills", name, skillManifestName))
+		if manifest.Skill != name || manifest.Version != builtinSkillVersion {
+			t.Fatalf("%s manifest mismatch: %#v", name, manifest)
+		}
+	}
+}
+
+func readInstalledSkillManifestForTest(t *testing.T, path string) skillManifest {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest skillManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	return manifest
 }
 
 func TestScaffoldProject_MetaPrinciples(t *testing.T) {

@@ -78,6 +78,7 @@ func runScipIngest(args []string) int {
 	outDir := fs.String("out", ".", "directory to write code_symbols.yaml / code_references.yaml")
 	lang := fs.String("language", "", "override the language for every document (optional)")
 	excludeTests := fs.Bool("exclude-tests", false, "skip symbols/references defined in test files (*_test.go, *.test.ts, test_*.py, …)")
+	allowEmpty := fs.Bool("allow-empty", false, "write empty YAML when the SCIP index has no documents or symbols")
 	quiet := fs.Bool("quiet", false, "suppress the summary line")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei scip-ingest --scip <index.scip> [--out <dir>]
@@ -101,6 +102,10 @@ Flags:
 	symbolsYAML, refsYAML, res, nDocs, err := ingestScipFile(*scipPath, *lang, *excludeTests)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei scip-ingest: %v\n", err)
+		return 1
+	}
+	if !*allowEmpty && (nDocs == 0 || len(res.Symbols) == 0) {
+		fmt.Fprintf(os.Stderr, "sensei scip-ingest: empty SCIP index (%d document(s), %d symbol(s)); refusing to overwrite generated awareness files\n", nDocs, len(res.Symbols))
 		return 1
 	}
 

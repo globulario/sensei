@@ -89,6 +89,21 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('sensei.openDashboard', () =>
       DashboardPanel.show(context)
     ),
+    vscode.commands.registerCommand('sensei.selectClosureAssessment', () =>
+      DashboardPanel.selectControlArtifact(context, 'closure')
+    ),
+    vscode.commands.registerCommand('sensei.selectConvergenceSession', () =>
+      DashboardPanel.selectControlArtifact(context, 'convergence')
+    ),
+    vscode.commands.registerCommand('sensei.selectAdmissionDecision', () =>
+      DashboardPanel.selectControlArtifact(context, 'admission')
+    ),
+    vscode.commands.registerCommand('sensei.selectAdmissionVerification', () =>
+      DashboardPanel.selectControlArtifact(context, 'verification')
+    ),
+    vscode.commands.registerCommand('sensei.clearPhase2Selection', () =>
+      DashboardPanel.clearControlSelection(context)
+    ),
     vscode.commands.registerCommand(
       'sensei.revealAnchor',
       (anchor: { file: string; line: number }) => revealAnchor(anchor)

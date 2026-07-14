@@ -190,6 +190,11 @@ what `sensei build` compiled from your `docs/awareness/`, and the runtime marker
 transaction pair tell Sensei that this local graph is the authoritative one to
 judge against.
 
+For Sensei's own embedded seed, `sensei serve` ignores a stray
+`.sensei/graph-authority.json` unless you pass `--graph-marker-file` explicitly.
+That keeps an old local runtime marker from overriding the embedded graph and
+making decision-support calls look stale.
+
 If you later reload a built `.nt` into a long-lived Oxigraph store, verify the
 store actually picked up the new graph:
 

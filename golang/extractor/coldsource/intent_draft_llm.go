@@ -35,10 +35,14 @@ HARD RULES:
   "source_citations". NEVER invent a citation that is not in the provided list.
 - "code_anchors" are your BEST GUESS of the file(s) the rule lives in, as
   "file:<path>" — these will be verified against the tree; do not fabricate.
-- State the rule as a precise "claim". Pick one "category".
+- State a short human-readable "title" and the rule as a precise "claim". Pick
+  one "category".
+- Do NOT provide durable ids. Sensei mints candidate identity deterministically
+  after validation.
 - Do NOT propose new meta-principles. You MAY list existing ones you are
   confident about in "related_meta_principles".
-- You propose only; a human approves. Return ONLY the JSON.`
+- You propose only; Sensei validates, grounds, and routes under adoption policy.
+  Return ONLY the JSON.`
 
 const intentCandidateSchema = `{
   "type":"object",
@@ -48,7 +52,7 @@ const intentCandidateSchema = `{
       "type":"object",
       "additionalProperties":false,
       "properties":{
-        "intent_id":{"type":"string"},
+        "title":{"type":"string"},
         "claim":{"type":"string"},
         "category":{"type":"string"},
         "source_citations":{"type":"array","items":{"type":"string"}},
@@ -56,22 +60,25 @@ const intentCandidateSchema = `{
         "related_invariants":{"type":"array","items":{"type":"string"}},
         "related_meta_principles":{"type":"array","items":{"type":"string"}}
       },
-      "required":["intent_id","claim","category","source_citations"]
+      "required":["title","claim","category","source_citations"]
     }}
   },
   "required":["candidates"]
 }`
 
 type llmIntentResponse struct {
-	Candidates []struct {
-		IntentID              string   `json:"intent_id"`
-		Claim                 string   `json:"claim"`
-		Category              string   `json:"category"`
-		SourceCitations       []string `json:"source_citations"`
-		CodeAnchors           []string `json:"code_anchors"`
-		RelatedInvariants     []string `json:"related_invariants"`
-		RelatedMetaPrinciples []string `json:"related_meta_principles"`
-	} `json:"candidates"`
+	Candidates []llmIntentCandidate `json:"candidates"`
+}
+
+type llmIntentCandidate struct {
+	IntentID              string   `json:"intent_id"`
+	Title                 string   `json:"title"`
+	Claim                 string   `json:"claim"`
+	Category              string   `json:"category"`
+	SourceCitations       []string `json:"source_citations"`
+	CodeAnchors           []string `json:"code_anchors"`
+	RelatedInvariants     []string `json:"related_invariants"`
+	RelatedMetaPrinciples []string `json:"related_meta_principles"`
 }
 
 // DraftIntents implements IntentDrafter.
@@ -91,14 +98,15 @@ func (d LLMIntentDrafter) DraftIntents(ctx context.Context, excerpts []IntentExc
 	if err != nil {
 		return nil, err
 	}
-	var raw llmIntentResponse
-	if err := json.Unmarshal([]byte(stripCodeFence(text)), &raw); err != nil {
+	raw, err := parseLLMIntentResponse(stripCodeFence(text))
+	if err != nil {
 		return nil, fmt.Errorf("non-JSON intent output: %w", err)
 	}
 	out := make([]intentDraft, 0, len(raw.Candidates))
 	for _, c := range raw.Candidates {
 		out = append(out, intentDraft{
 			IntentID:              strings.TrimSpace(c.IntentID),
+			Title:                 strings.TrimSpace(c.Title),
 			Claim:                 strings.TrimSpace(c.Claim),
 			Category:              strings.TrimSpace(c.Category),
 			SourceCitations:       c.SourceCitations,
@@ -108,6 +116,18 @@ func (d LLMIntentDrafter) DraftIntents(ctx context.Context, excerpts []IntentExc
 		})
 	}
 	return out, nil
+}
+
+func parseLLMIntentResponse(text string) (llmIntentResponse, error) {
+	var raw llmIntentResponse
+	if err := json.Unmarshal([]byte(text), &raw); err == nil {
+		return raw, nil
+	}
+	var candidates []llmIntentCandidate
+	if err := json.Unmarshal([]byte(text), &candidates); err != nil {
+		return llmIntentResponse{}, err
+	}
+	return llmIntentResponse{Candidates: candidates}, nil
 }
 
 // buildIntentPrompt renders the excerpts as a numbered, cited list for the model.

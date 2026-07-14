@@ -16,5 +16,6 @@ Reference files:
 - `references/FINDING-RUBRIC.md`
 - `references/WORKFLOW-BRANCHES.md`
 - `references/DURABLE-FEEDBACK.md`
+- `references/SPECIALIZED-SKILLS.md`
 
 Installed managed copies include `.sensei-managed.json`. Local edits are preserved on future `sensei init` runs unless `--skills-force` is used.

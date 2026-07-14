@@ -1,0 +1,15 @@
+{
+  "managed_by": "sensei init",
+  "skill": "sensei-benchmark",
+  "version": "2026.07.14.1",
+  "source_dir": "templates/skills/sensei-benchmark",
+  "files": {
+    "README.md": "384551186453f75bc4ff12eaed7e606b18b47ddc0231df4f681b1efdda178217",
+    "SKILL.md": "e214e98372807e771ddf9f3a78a3df1a27b20cec7f4dd1a039212fb4b616cef3",
+    "references/BLIND-EVALUATION.md": "e09918594cd769cedca60bd470fd7e65dae91f3b1523ec0e86cf705e2f6b4a1d",
+    "references/FALSE-GREEN-RUBRIC.md": "7ead4e2f1c7f84c10d203278a9b3e8c63ba8cbe6d6c34b982fcf80bd7cc6ab6e",
+    "references/HUMAN-DIRECTION.md": "e94ec1bd932c2822af8e2f6c8d7d99c4f0ddb82f831305b8668c3d044ab33624",
+    "references/ORACLE-EVALUATION.md": "b41f17efa3160d0fe93f76fac8c6b82ca046e44f2d4f874ff86eae36ac98ded9",
+    "references/TASK-CURATION.md": "b0e28fcbeb5318327e2df388c2e59290e7e5ac1143a15d3c68e8f0cda63793cb"
+  }
+}

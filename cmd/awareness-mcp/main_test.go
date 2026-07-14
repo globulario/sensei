@@ -82,6 +82,19 @@ func testBridge(c awarenessClient) *bridge {
 	return &bridge{client: c, timeout: 5 * time.Second}
 }
 
+func TestTaskControlToolsAreExposedWithTypedContracts(t *testing.T) {
+	tools := testBridge(fakeClient{}).tools()
+	found := map[string]bool{}
+	for _, tool := range tools {
+		found[tool.Name] = true
+	}
+	for _, name := range []string{"task_status", "advance_task", "task_briefing"} {
+		if !found[name] {
+			t.Fatalf("missing MCP tool %s", name)
+		}
+	}
+}
+
 // callText runs a tool and returns just the human text block — the shape most
 // existing tests assert on. Structured-payload tests call callTool directly.
 func (b *bridge) callText(ctx context.Context, name string, args map[string]interface{}) (string, error) {
@@ -327,6 +340,10 @@ func TestQueryTool_ExposesAllTypedProtoClasses(t *testing.T) {
 		"design_pattern",
 		"implementation_pattern",
 		"pattern_misuse",
+		"architecture_claim",
+		"open_question",
+		"architect_answer",
+		"evidence_probe",
 	} {
 		if _, err := queryClassFromString(class); err != nil {
 			t.Fatalf("query class %s not accepted: %v", class, err)
@@ -355,6 +372,46 @@ func TestQueryTool_ExposesAllTypedProtoClasses(t *testing.T) {
 	}
 }
 
+func TestQueryClassFromStringArchitectureClaim(t *testing.T) {
+	got, err := queryClassFromString("architecture_claim")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM {
+		t.Fatalf("class=%s, want ARCHITECTURE_CLAIM", got)
+	}
+}
+
+func TestMCPQueryClassOpenQuestion(t *testing.T) {
+	got, err := queryClassFromString("open_question")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_OPEN_QUESTION {
+		t.Fatalf("class=%s, want OPEN_QUESTION", got)
+	}
+}
+
+func TestMCPQueryClassArchitectAnswer(t *testing.T) {
+	got, err := queryClassFromString("architect_answer")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_ARCHITECT_ANSWER {
+		t.Fatalf("class=%s, want ARCHITECT_ANSWER", got)
+	}
+}
+
+func TestMCPQueryClassEvidenceProbe(t *testing.T) {
+	got, err := queryClassFromString("evidence_probe")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_EVIDENCE_PROBE {
+		t.Fatalf("class=%s, want EVIDENCE_PROBE", got)
+	}
+}
+
 func TestMetadataTool_FormatsCounts(t *testing.T) {
 	var got *awarenesspb.MetadataRequest
 	b := testBridge(fakeClient{
@@ -364,6 +421,10 @@ func TestMetadataTool_FormatsCounts(t *testing.T) {
 				ServerVersion:                       "1.2.3",
 				TripleCount:                         12062,
 				InvariantCount:                      40,
+				ArchitectureClaimCount:              6,
+				OpenQuestionCount:                   2,
+				ArchitectAnswerCount:                3,
+				EvidenceProbeCount:                  4,
 				EmbeddedSeedDigestSha256:            "abc123",
 				EmbeddedSeedMarkerIri:               "https://globular.io/awareness#seedBuild/sha256-abc123",
 				LiveStoreContainsEmbeddedSeedMarker: true,
@@ -408,6 +469,10 @@ func TestMetadataTool_FormatsCounts(t *testing.T) {
 		"coverage_state: COVERAGE_STATE_SUFFICIENT",
 		"seed_state: SEED_STATE_CURRENT",
 		"graph_freshness_state: GRAPH_FRESHNESS_STATE_CURRENT",
+		"architecture_claim_count: 6",
+		"open_question_count: 2",
+		"architect_answer_count: 3",
+		"evidence_probe_count: 4",
 		"candidate_queue_state: CANDIDATE_QUEUE_STATE_PRESENT",
 		"local_candidate_file_count: 2",
 		"local_candidate_entry_count: 5",

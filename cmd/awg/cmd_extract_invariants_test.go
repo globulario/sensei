@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/globulario/sensei/golang/architecture"
 )
 
 func TestExtractInvariantsGuardAndRegressionTestProduceCandidate(t *testing.T) {
@@ -228,6 +230,144 @@ var errInvalid error
 	}
 }
 
+func TestExtractInvariantsFactIDsRemainStable(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), `package inv
+func Apply(state string) error {
+	if state == "bad" { return errInvalid }
+	return nil
+}
+var errInvalid error
+`)
+	report := buildInvariantReportForTest(t, root)
+	want := architecture.StableID("transition", "inv.Apply", "rejects_transition_when", `state == "bad"`, "state.go", 3, "go_guard_extractor")
+	if !hasFactID(report, want) {
+		t.Fatalf("missing stable fact id %s in %#v", want, report.Facts)
+	}
+}
+
+func TestExtractInvariantsCandidatesRemainEquivalentAfterFactMigration(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), `package inv
+type State struct{ Value string }
+func WriteA(s *State) {
+	if s == nil { return }
+	s.Value = "a"
+}
+func WriteB(s *State) { s.Value = "b" }
+`)
+	writeFile(t, filepath.Join(root, "state_test.go"), `package inv
+func TestValueMustOnlyChangeThroughWriter(t *testing.T) {}
+`)
+	report := buildInvariantReportForTest(t, root)
+	c := findInvariantCandidate(report, "authority")
+	if c == nil {
+		t.Fatalf("missing authority candidate: %#v", report.Candidates)
+	}
+	if c.ID != "candidate.invariant.authority.value" || c.Status != "candidate" || c.Promotion.Eligible {
+		t.Fatalf("authority candidate compatibility drift: %#v", c)
+	}
+	if len(c.Contradictions) == 0 {
+		t.Fatalf("contradiction visibility lost: %#v", c)
+	}
+}
+
+func TestExtractInvariantsJSONRemainsDeterministic(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), "package inv\nfunc Noop() {}\n")
+	a, err := renderInvariantExtractionReport(buildInvariantReportForTest(t, root), "json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := renderInvariantExtractionReport(buildInvariantReportForTest(t, root), "json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(a, b) {
+		t.Fatal("json output is not deterministic")
+	}
+}
+
+func TestExtractInvariantsYAMLRemainsDeterministic(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), "package inv\nfunc Noop() {}\n")
+	a, err := renderInvariantExtractionReport(buildInvariantReportForTest(t, root), "yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := renderInvariantExtractionReport(buildInvariantReportForTest(t, root), "yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(a, b) {
+		t.Fatal("yaml output is not deterministic")
+	}
+}
+
+func TestGoArchitectureStillUsesSingleASTPass(t *testing.T) {
+	raw, err := os.ReadFile("cmd_extract_invariants.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(string(raw), "parser.ParseFile"); got != 1 {
+		t.Fatalf("extractGoArchitecture should keep one parser.ParseFile call, got %d", got)
+	}
+	if !strings.Contains(string(raw), "scanAuthorityDeclsAndFacts") {
+		t.Fatal("single AST pass no longer feeds authority observation extraction")
+	}
+}
+
+func TestCandidateFactsRemainNonAuthoritative(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "server.go"), `package inv
+func SaveConfig() { setConfig("x", "y") }
+`)
+	report := buildInvariantReportForTest(t, root)
+	for _, f := range report.Facts {
+		if strings.Contains(f.Predicate, "owns_state") || strings.Contains(f.Predicate, "is_authoritative") || f.Kind == "contract" || f.Kind == "invariant" {
+			t.Fatalf("fact became authoritative: %#v", f)
+		}
+	}
+}
+
+func TestHistoryNotRequestedIsNotALimitation(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), "package inv\n")
+	report := buildInvariantReportForTest(t, root)
+	if len(report.Limitations) != 0 {
+		t.Fatalf("limitations = %#v, want none", report.Limitations)
+	}
+}
+
+func TestHistoryRequestedOutsideGitIsReported(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), "package inv\n")
+	opts := invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, IncludeHistory: true, MinimumConfidence: "low"}
+	report, err := buildInvariantExtractionReport(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Limitations) == 0 || report.Limitations[0].Scope != "git_history" {
+		t.Fatalf("missing git history limitation: %#v", report.Limitations)
+	}
+}
+
+func TestUnreadableRequestedSourceIsNotSilentlyIgnored(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "broken.go"), "package inv\nfunc Broken(\n")
+	if _, err := buildInvariantExtractionReport(root, invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, MinimumConfidence: "low"}); err == nil {
+		t.Fatal("expected parse error for requested unreadable/uninspectable source")
+	}
+}
+
 func TestExtractInvariantsMutationAnalysisUsesIsolatedTemp(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
@@ -253,6 +393,15 @@ func buildInvariantReportForTest(t *testing.T, root string) invariantExtractionR
 		t.Fatalf("buildInvariantExtractionReport: %v", err)
 	}
 	return report
+}
+
+func hasFactID(report invariantExtractionReport, id string) bool {
+	for _, f := range report.Facts {
+		if f.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func findInvariantCandidate(report invariantExtractionReport, kind string) *extractedInvariantCandidate {

@@ -11,3 +11,10 @@ func defaultRuntimeMarkerFile() (string, error) {
 	}
 	return seedmeta.RuntimeMarkerPath(root), nil
 }
+
+func runtimeMarkerFileForRoot(root string) (string, error) {
+	if root != "" {
+		return seedmeta.RuntimeMarkerPath(root), nil
+	}
+	return defaultRuntimeMarkerFile()
+}

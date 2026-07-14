@@ -108,11 +108,23 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	if err := s.requireCurrentGraphAuthority(ctx, "preflight"); err != nil {
 		return nil, err
 	}
+	requestedDomain := strings.TrimSpace(req.GetDomain())
 
 	resp := &awarenesspb.PreflightResponse{
 		Status:    awarenesspb.PreflightStatus_PREFLIGHT_STATUS_OK,
 		Coverage:  &awarenesspb.CoverageSummary{},
 		Authority: s.graphAuthority(ctx),
+	}
+	if err := s.requireDomainWhenAmbiguous(ctx, requestedDomain); err != nil {
+		return s.scopeDegradedPreflightResponse(task, files, start, err), nil
+	}
+	patternScope := requestedDomain
+	if patternScope == "" {
+		if domains := s.availableDomains(ctx); len(domains) == 1 {
+			patternScope = domains[0]
+		} else {
+			patternScope = s.homeDomain
+		}
 	}
 
 	var allInvariants []*awarenesspb.KnowledgeNode
@@ -125,7 +137,6 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Per-file impact queries. Single-file failures degrade just that
 	// branch; other files keep going.
 	indexed := 0
-	requestedDomain := strings.TrimSpace(req.GetDomain())
 	for _, file := range files {
 		impact, _, _, err := s.collectImpact(ctx, file, requestedDomain)
 		if err != nil {
@@ -151,7 +162,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		if len(files) > 0 {
 			narrowFile = files[0]
 		}
-		patterns = matchPatternsForBriefing(task, narrowFile, loaded)
+		patterns = matchPatternsForBriefing(task, narrowFile, inScopePatterns(loaded, patternScope))
 	}
 
 	// Intent activation-trigger matching — task phrases pull contract-level
@@ -163,7 +174,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		for _, n := range allIntents {
 			already[n.GetId()] = true
 		}
-		for _, in := range matchIntentsForTask(task, loaded) {
+		for _, in := range matchIntentsForTask(task, inScopeIntents(loaded, patternScope)) {
 			if already[in.GetId()] {
 				continue
 			}
@@ -354,6 +365,29 @@ func (s *server) degradedPreflightResponse(task string, files []string, start ti
 		RequiredActions: []string{
 			"Retry preflight after awareness-graph/store is healthy",
 			"In the meantime, read the file(s) directly and inspect CLAUDE.md for high-risk guidance",
+		},
+		GeneratedInMs: time.Since(start).Milliseconds(),
+	}
+}
+
+func (s *server) scopeDegradedPreflightResponse(task string, files []string, start time.Time, scopeErr error) *awarenesspb.PreflightResponse {
+	return &awarenesspb.PreflightResponse{
+		Status:     awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED,
+		RiskClass:  awarenesspb.RiskClass_UNKNOWN_IMPACT,
+		Confidence: awarenesspb.Confidence_CONFIDENCE_LOW,
+		Authority:  s.graphAuthority(context.Background()),
+		Coverage: &awarenesspb.CoverageSummary{
+			FileCount:  int32(len(files)),
+			Sufficient: false,
+			Note:       "domain scope could not be verified — response is not proof of safety",
+		},
+		BlindSpots: []string{
+			"domain_scope_unverified: " + scopeErr.Error(),
+			"risk_class is UNKNOWN_IMPACT until the requested repo/domain is corrected",
+		},
+		RequiredActions: []string{
+			"Correct --domain to one of the graph's selectable repository domains",
+			"Retry preflight with the corrected domain before editing",
 		},
 		GeneratedInMs: time.Since(start).Milliseconds(),
 	}

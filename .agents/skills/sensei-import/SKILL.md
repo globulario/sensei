@@ -1,6 +1,6 @@
 ---
 name: sensei-import
-description: Use to import, onboard, or bootstrap a repository into Sensei — especially when the user says "import <repo>", gives a git clone URL, or asks to learn/bootstrap a foreign codebase. Drives the full pipeline (clone, choose extraction depth, LLM contract/intent extraction, structural extraction, history/PR mining, domain-scoped graph build, verify) and stops at human promotion. Never auto-promotes candidates, never lets a foreign repo's rules leak into the home graph, and never mines Sensei's own scaffolded charter as the target repo's contracts.
+description: Use to import, onboard, bootstrap, or refresh a repository into Sensei, including project reconstruction, domain-scoped Oxigraph loading, and live verification. Trigger when the user says "import <repo>", gives a git clone URL, asks to learn/bootstrap a foreign codebase, or expects imported claims and knowledge in the live graph. Never auto-governs candidates, never lets a foreign repo's rules leak into the home graph, and never mines Sensei's own scaffolded charter as the target repo's contracts.
 ---
 
 # Sensei Import
@@ -18,15 +18,16 @@ imported only needs a refresh of its slice.
 
 This is an orchestration reflex, not a passive checklist. You run the steps, you
 pause at the two decisions only the user can make (how deep, and what to
-promote), and you report honestly what actually landed.
+govern), and you report honestly what actually landed.
 
 ## Non-negotiable guardrails
 
 Read these first. They are the reason this is a skill and not a loose script.
 
-1. **Never auto-promote.** Extraction and mining write *candidates*. Candidates
-   are not active authority. Only a human promotes, with `sensei promote`. You
-   present what was harvested and stop.
+1. **Never auto-govern.** Extraction and mining may stage candidates or create
+   traceable `machine_adopted` knowledge under an explicit delegated policy.
+   Neither outcome is governed human authority. Only a human promotion or
+   governance action may create governed knowledge.
 2. **Always scope by domain.** Every build and extraction for a foreign repo
    carries `--repo <domain>` (e.g. `github.com/gin-gonic/gin`). This tags the
    repo's nodes to its own domain so its rules never leak into the home graph,
@@ -53,6 +54,16 @@ Read these first. They are the reason this is a skill and not a loose script.
    target repo authored them. Always extract contracts on the **pristine clone,
    before** `bootstrap`. If you must extract later, drop any intent whose
    `expressed_by` is `CLAUDE.md`/`AGENTS.md`/`docs/awareness/*`.
+8. **A compiled handoff is not a live import.** Use these exact completion
+   states:
+   - `artifact_ready`: reconstruction artifacts exist, but no store was touched.
+   - `live_loaded`: the domain-scoped slice, including `.sensei/project`, was
+     loaded and verified through typed live queries.
+   Never report an artifact-only run as imported into Oxigraph.
+9. **Load the reconstruction bundle.** A foreign-domain build must include
+   `<checkout>/.sensei/project` in addition to the awareness directories. If a
+   non-empty claim document exists but the live `architecture_claim` query is
+   empty after loading, the import is incomplete and must fail verification.
 
 ## Fast path: one command
 
@@ -71,12 +82,16 @@ sensei import --refresh <checkout-path> --domain <domain> [--depth full|basic] \
   derived domain/slug and step order.
 - `--refresh` re-extracts an existing checkout and optionally reloads the same
   domain-scoped slice. It never clones.
-- Full depth needs `ANTHROPIC_API_KEY` for the contract layer; it degrades to
-  structural-only (with a clear notice) without a key.
+- Full depth uses `--drafter auto` for the contract layer; it degrades to
+  structural-only (with a clear notice) when no authenticated drafter is
+  available.
 - Pass `--graph-marker-file <the server's marker>` alongside `--store-url` so a
   *served* store stays fresh for briefing.
 - Omit `--store-url` to have it print the exact `sensei build` command instead
-  of touching any store.
+  of touching any store. This is `artifact_ready`, not `live_loaded`.
+- When the user asks to import into Sensei and a target store is configured,
+  include `--store-url` and the served graph marker. Use artifact-only mode only
+  when the user explicitly asks for offline reconstruction or no store exists.
 
 Prefer this command. Fall back to the manual core loop below only when you need
 to inspect or intervene between steps, or the wrapper is unavailable.
@@ -103,15 +118,21 @@ to inspect or intervene between steps, or the wrapper is unavailable.
      - proto contracts (`.proto` → gRPC service/RPC Contract nodes)
      - REST contracts (OpenAPI/Swagger specs → endpoint Contract nodes)
      - **code→contract authority surfaces** from Go source (HTTP handlers,
-       guards, lifecycle control, state mutations → AuthoritySurface candidates)
+       guards, lifecycle control, state mutations → AuthoritySurface candidates),
+       kept at **medium+ confidence**: an external route/handler, a lifecycle
+       control, or a guarded mutation is kept; a bare unguarded mutation (a plain
+       setter) scores low and is dropped.
      - **boundaries inferred from the import graph** — Go `internal/` visibility
        boundaries (compiler-enforced) and dependency-hub / contract-exposure
        seams (a component many others depend on → a stability boundary)
-     - **invariants inferred from rule-signaling tests** — a test whose name
-       encodes a law (must/never/idempotent/isolation/race/roundtrip/panic/
-       regression, or a negated modal like *should not*) becomes a candidate
-       invariant with that test as its proof. Example-only tests stay plain
-       required_tests — Sensei does not manufacture invariants it can't justify.
+     - **invariants from the single `extract-invariants` substrate**, gated at
+       **medium confidence** (corroborated only). One Go-AST pass yields guard,
+       write, schema, and rule-signaling-test facts; a candidate is kept when it
+       has a second signal — a guard with a test, an owned write path, or a
+       rule-signaling test that attests a behavioral law (race/panic/idempotency).
+       An uncorroborated single guard scores low and is dropped, so Sensei never
+       manufactures invariants it can't justify. Authority surfaces and invariants
+       come from the SAME parse — no double scan.
      - web components + gRPC-web consumption edges (TS/JS)
      Coverage depends on how the repo is written: a repo with `.proto`/OpenAPI or
      `mux.HandleFunc`-style handlers yields contracts even in Basic; a pure
@@ -121,10 +142,12 @@ to inspect or intervene between steps, or the wrapper is unavailable.
      grounds a repo's stated intent (from docs/comments/tests) against the code,
      and (optionally) day-0 history mining (revert/regression commits + PR review
      comments). This deepens the deterministic layer with intent no AST can infer.
-     Needs `ANTHROPIC_API_KEY`; PR mining also needs full history and `gh` auth +
-     the `owner/name` slug.
+     Use `--drafter auto` by default: it prefers an authenticated Claude CLI,
+     then an authenticated Codex CLI, then direct Anthropic API credentials. PR
+     mining also needs full history and `gh` auth + the `owner/name` slug.
    If the user's request already names a depth, honor it. Degrade honestly: no
-   key → say the contract layer is skipped; no `gh` → skip PR mining.
+   authenticated drafter → say the contract layer is skipped; no `gh` → skip PR
+   mining.
 
    > Extractors take `--path <checkout>`. `sensei build --repo <domain>` is the
    > domain-scoped load flag. Do not pass a domain to extractors or a path to
@@ -134,14 +157,19 @@ to inspect or intervene between steps, or the wrapper is unavailable.
    Do this first, while the checkout still contains only the target repo's own
    files (see guardrail 7). `intent-mine`'s `--path` is the checkout path.
    - Review first (writes nothing):
-     `sensei intent-mine --path <checkout-path> --sources docs,comments,tests --drafter llm --max <N>`
-   - Then land it: add `--apply`. Grounded intents at certainty ≥0.80 become
-     `docs/awareness/intent_<id>.yaml`; weaker or divergent ones park under
-     `docs/awareness/candidates/`. Nothing becomes authority — a human still
-     promotes.
-   - Needs `ANTHROPIC_API_KEY` in the environment for `--drafter llm`. Without a
-     key, `--drafter echo` is deterministic but shallow; prefer to skip and say
-     the contract layer was not extracted rather than ship thin guesses.
+     `sensei intent-mine --path <checkout-path> --sources docs,comments,tests --drafter auto --max <N>`
+   - Then adopt under policy: add `--adopt`. Valid strong intents at certainty
+     ≥0.80 become `machine_adopted`, `model_inferred`, `not_human_reviewed`
+     `docs/awareness/intent_<id>.yaml`; weaker, hidden, contradictory, or invalid
+     ones park under `docs/awareness/candidates/`.
+   - Machine-adopted is useful inferred architecture, not governed human
+     authority. Human governance still requires explicit promotion/review.
+   - `--drafter auto` uses CLI subscription auth when available
+     (`claude-cli`, then `codex-cli`) before direct API credentials. Explicit
+     `--drafter llm` requires `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`.
+     Without an authenticated drafter, `--drafter echo` is deterministic but
+     shallow; prefer to skip and say the contract layer was not extracted rather
+     than ship thin guesses.
    - Sanity-check the output: drop any intent whose `expressed_by` points at
      `CLAUDE.md`/`AGENTS.md`/`docs/awareness/*` — that is Sensei bleed, not a
      repo contract.
@@ -166,11 +194,17 @@ to inspect or intervene between steps, or the wrapper is unavailable.
    - Narrow the window explicitly with `--since <ref>` when you already know the
      interesting range.
 
-7. **Load the slice, tagged to the domain, into the target store.**
-   Feed the checkout's awareness dirs as `--input` and tag them with the domain:
+7. **Reconstruct and load the complete slice into the target store.**
+   `sensei import` writes `.sensei/project/graph.nt`, `claims.yaml`,
+   `claim-audit.yaml`, typed adopted/staged knowledge, readiness, and a
+   reconstruction receipt before loading. The manual build must feed all three
+   inputs and tag them with the domain:
    ```
    sensei build --input <checkout>/docs/awareness \
                 --input <checkout>/docs/awareness/generated \
+                --input <checkout>/.sensei/project \
+                --store-url <url> \
+                --graph-marker-file <server-marker> \
                 --repo <domain>
    ```
    `build`'s `--repo` tags every untagged node to `<domain>` and does a
@@ -184,20 +218,38 @@ to inspect or intervene between steps, or the wrapper is unavailable.
      `--graph-marker-file` when targeting a served store so briefing sees the
      refreshed runtime authority immediately.
 
-8. **Verify what landed.**
-   - `sensei metadata --domain <domain>` — confirm authority, freshness, and node
-     counts for the imported domain.
+8. **Verify what landed in the live store.**
+   - `sensei metadata --domain <domain>` — confirm authority, freshness, graph
+     digest, and scoped counts for the imported domain.
+   - Query `architecture_claim`, `failure_mode`, `boundary`, `intent`,
+     `contract`, and `decision` with `sensei query --mode by_class --class
+     <class> --domain <domain>`. Honest zeroes are allowed, but the live counts
+     must agree with readiness/adoption artifacts.
+   - When `.sensei/project/claims.yaml` is non-empty, an empty live
+     `architecture_claim` result is a failed import, not thin coverage.
    - `sensei briefing --file <a-real-file-in-the-repo> --domain <domain>` — prove
      a real fact surfaces for a file the repo owns. Pick a file an extracted node
      actually anchors: a Full import shows contracts (e.g. `intent.*`), a Basic
      one only components/tests.
+   - Record the completion state as `live_loaded` only after these checks pass.
 
-9. **Summarize and stop for promotion.**
+9. **Summarize and hand off to task awareness.**
    - Report: contracts/intents extracted (Full), structural nodes that landed,
      how many candidates sit in `candidates/` awaiting review, and the honest
      signal count from mining.
-   - Name the next human step: review the candidates and run `sensei promote` on
-     the ones that earn authority. Do not promote for them.
+   - State the post-import handoff:
+     ```text
+     Import establishes a reconstructed architectural awareness slice.
+     It does not establish bounded closure for a task.
+
+     For the first real change:
+       run sensei prepare-change with the exact files,
+       inspect the generated questions and probes,
+       and obey the resulting admission decision before mutation.
+     ```
+   - Name the next human step: answer task-bound questions when work reaches the
+     affected surface, and review candidates that may deserve governance. Do not
+     answer, promote, or govern for them.
 
 ## Refresh vs first import
 
@@ -218,6 +270,19 @@ non-destructive to every other domain, so a refresh is safe to run repeatedly.
 - It does not replace source inspection, tests, builds, or the user's judgment
   about what is worth keeping.
 - It does not import a repo's rules into any domain but its own.
+- It does not establish bounded task closure.
+- It does not freeze historical tasks, create oracle manifests, run external
+  benchmarks, or claim blind proof.
+
+## Import vs Benchmark
+
+```text
+sensei-import:
+  onboarding a repository into a domain slice
+
+sensei-benchmark:
+  blind historical evaluation with sealed future oracle
+```
 
 See [references/IMPORT-PLAYBOOK.md](references/IMPORT-PLAYBOOK.md) for a worked
 end-to-end example and the failure/degradation branches.

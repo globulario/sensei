@@ -175,6 +175,16 @@ const (
 	QueryClass_QUERY_CLASS_DESIGN_PATTERN         QueryClass = 16
 	QueryClass_QUERY_CLASS_IMPLEMENTATION_PATTERN QueryClass = 17
 	QueryClass_QUERY_CLASS_PATTERN_MISUSE         QueryClass = 18
+	// Non-authoritative generated propositions; explicit query only.
+	QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM QueryClass = 19
+	// Non-authoritative closure questions; explicit query only.
+	QueryClass_QUERY_CLASS_OPEN_QUESTION QueryClass = 20
+	// Typed architect statements; not observed truth or governed architecture.
+	// Explicit query only.
+	QueryClass_QUERY_CLASS_ARCHITECT_ANSWER QueryClass = 21
+	// Non-authoritative evidence-gathering plans; explicit query only.
+	// Presence is not proof and never authorizes execution.
+	QueryClass_QUERY_CLASS_EVIDENCE_PROBE QueryClass = 22
 )
 
 // Enum value maps for QueryClass.
@@ -199,6 +209,10 @@ var (
 		16: "QUERY_CLASS_DESIGN_PATTERN",
 		17: "QUERY_CLASS_IMPLEMENTATION_PATTERN",
 		18: "QUERY_CLASS_PATTERN_MISUSE",
+		19: "QUERY_CLASS_ARCHITECTURE_CLAIM",
+		20: "QUERY_CLASS_OPEN_QUESTION",
+		21: "QUERY_CLASS_ARCHITECT_ANSWER",
+		22: "QUERY_CLASS_EVIDENCE_PROBE",
 	}
 	QueryClass_value = map[string]int32{
 		"QUERY_CLASS_UNSPECIFIED":            0,
@@ -220,6 +234,10 @@ var (
 		"QUERY_CLASS_DESIGN_PATTERN":         16,
 		"QUERY_CLASS_IMPLEMENTATION_PATTERN": 17,
 		"QUERY_CLASS_PATTERN_MISUSE":         18,
+		"QUERY_CLASS_ARCHITECTURE_CLAIM":     19,
+		"QUERY_CLASS_OPEN_QUESTION":          20,
+		"QUERY_CLASS_ARCHITECT_ANSWER":       21,
+		"QUERY_CLASS_EVIDENCE_PROBE":         22,
 	}
 )
 
@@ -2715,8 +2733,24 @@ type MetadataResponse struct {
 	// excludes shared meta-principles). Lets a client offer a domain filter and
 	// scope subsequent Metadata/Query calls. Empty on a single-domain graph.
 	AvailableDomains []string `protobuf:"bytes,62,rep,name=available_domains,json=availableDomains,proto3" json:"available_domains,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Count of non-authoritative ArchitectureClaim propositions. This is a
+	// visibility count only; it is excluded from coverage, readiness, and
+	// governed-architecture verdicts.
+	ArchitectureClaimCount int64 `protobuf:"varint,63,opt,name=architecture_claim_count,json=architectureClaimCount,proto3" json:"architecture_claim_count,omitempty"`
+	// Count of non-authoritative OpenQuestion closure-gap artifacts. This is a
+	// visibility count only; it is excluded from coverage, readiness, freshness,
+	// and governed-architecture verdicts.
+	OpenQuestionCount int64 `protobuf:"varint,64,opt,name=open_question_count,json=openQuestionCount,proto3" json:"open_question_count,omitempty"`
+	// Count of ArchitectAnswer records. This is a visibility count only; answers
+	// are not observed truth and do not affect coverage, readiness, freshness, or
+	// governed-architecture verdicts.
+	ArchitectAnswerCount int64 `protobuf:"varint,65,opt,name=architect_answer_count,json=architectAnswerCount,proto3" json:"architect_answer_count,omitempty"`
+	// Count of EvidenceProbe plans. This is a visibility count only; probes are
+	// non-authoritative, explicit-query-only, and do not affect coverage,
+	// readiness, freshness, risk, or governed-architecture verdicts.
+	EvidenceProbeCount int64 `protobuf:"varint,66,opt,name=evidence_probe_count,json=evidenceProbeCount,proto3" json:"evidence_probe_count,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *MetadataResponse) Reset() {
@@ -3181,6 +3215,34 @@ func (x *MetadataResponse) GetAvailableDomains() []string {
 		return x.AvailableDomains
 	}
 	return nil
+}
+
+func (x *MetadataResponse) GetArchitectureClaimCount() int64 {
+	if x != nil {
+		return x.ArchitectureClaimCount
+	}
+	return 0
+}
+
+func (x *MetadataResponse) GetOpenQuestionCount() int64 {
+	if x != nil {
+		return x.OpenQuestionCount
+	}
+	return 0
+}
+
+func (x *MetadataResponse) GetArchitectAnswerCount() int64 {
+	if x != nil {
+		return x.ArchitectAnswerCount
+	}
+	return 0
+}
+
+func (x *MetadataResponse) GetEvidenceProbeCount() int64 {
+	if x != nil {
+		return x.EvidenceProbeCount
+	}
+	return 0
 }
 
 type AuthoritySurface struct {
@@ -5132,7 +5194,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	" certified_awareness_graph_commit\x18\r \x01(\tR\x1dcertifiedAwarenessGraphCommit\x12C\n" +
 	"\x1ecertified_services_repo_commit\x18\x0e \x01(\tR\x1bcertifiedServicesRepoCommit\x12I\n" +
 	"!embedded_transaction_matches_seed\x18\x0f \x01(\bR\x1eembeddedTransactionMatchesSeed\x12>\n" +
-	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\"\xcb\x1c\n" +
+	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\"\x9d\x1e\n" +
 	"\x10MetadataResponse\x12,\n" +
 	"\x12graph_build_commit\x18\x01 \x01(\tR\x10graphBuildCommit\x121\n" +
 	"\x15graph_build_time_unix\x18\x02 \x01(\x03R\x12graphBuildTimeUnix\x12,\n" +
@@ -5197,7 +5259,11 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x19governance_pack_publisher\x18; \x01(\tR\x17governancePackPublisher\x12?\n" +
 	"\x1ccombined_graph_digest_sha256\x18< \x01(\tR\x19combinedGraphDigestSha256\x12=\n" +
 	"\x1bcombined_graph_triple_count\x18= \x01(\x03R\x18combinedGraphTripleCount\x12+\n" +
-	"\x11available_domains\x18> \x03(\tR\x10availableDomains\"\xcb\x02\n" +
+	"\x11available_domains\x18> \x03(\tR\x10availableDomains\x128\n" +
+	"\x18architecture_claim_count\x18? \x01(\x03R\x16architectureClaimCount\x12.\n" +
+	"\x13open_question_count\x18@ \x01(\x03R\x11openQuestionCount\x124\n" +
+	"\x16architect_answer_count\x18A \x01(\x03R\x14architectAnswerCount\x120\n" +
+	"\x14evidence_probe_count\x18B \x01(\x03R\x12evidenceProbeCount\"\xcb\x02\n" +
 	"\x10AuthoritySurface\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
@@ -5371,7 +5437,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x12QUERY_MODE_BY_FILE\x10\x01\x12\x14\n" +
 	"\x10QUERY_MODE_BY_ID\x10\x02\x12\x17\n" +
 	"\x13QUERY_MODE_BY_CLASS\x10\x03\x12\x16\n" +
-	"\x12QUERY_MODE_RELATED\x10\x04*\xae\x04\n" +
+	"\x12QUERY_MODE_RELATED\x10\x04*\xb3\x05\n" +
 	"\n" +
 	"QueryClass\x12\x1b\n" +
 	"\x17QUERY_CLASS_UNSPECIFIED\x10\x00\x12\x19\n" +
@@ -5393,7 +5459,11 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x14QUERY_CLASS_EVIDENCE\x10\x0f\x12\x1e\n" +
 	"\x1aQUERY_CLASS_DESIGN_PATTERN\x10\x10\x12&\n" +
 	"\"QUERY_CLASS_IMPLEMENTATION_PATTERN\x10\x11\x12\x1e\n" +
-	"\x1aQUERY_CLASS_PATTERN_MISUSE\x10\x12*\xa9\x01\n" +
+	"\x1aQUERY_CLASS_PATTERN_MISUSE\x10\x12\x12\"\n" +
+	"\x1eQUERY_CLASS_ARCHITECTURE_CLAIM\x10\x13\x12\x1d\n" +
+	"\x19QUERY_CLASS_OPEN_QUESTION\x10\x14\x12 \n" +
+	"\x1cQUERY_CLASS_ARCHITECT_ANSWER\x10\x15\x12\x1e\n" +
+	"\x1aQUERY_CLASS_EVIDENCE_PROBE\x10\x16*\xa9\x01\n" +
 	"\x14BuildProvenanceState\x12&\n" +
 	"\"BUILD_PROVENANCE_STATE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eBUILD_PROVENANCE_STATE_STAMPED\x10\x01\x12\x1e\n" +

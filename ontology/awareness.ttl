@@ -117,6 +117,15 @@ aw:Boundary a owl:Class ; rdfs:label "Boundary" ;
 aw:Evidence a owl:Class ; rdfs:label "Evidence" ;
     rdfs:comment "Proof that an invariant, contract, decision, or component state is true — and whether it is still alive. kind: test_result | ci | audit | validation | incident | benchmark | review | metric | log | generated_report; status: pass | fail | warning | stale | unknown. Distinct from aw:RuntimeEvidence (the freshness CONTRACT for proof) — Evidence is a proof INSTANCE the dashboard uses to tell 'rule exists' from 'rule is proven alive'." .
 
+aw:ArchitectureClaim a owl:Class ; rdfs:label "Architecture Claim" ;
+    rdfs:comment "A non-authoritative architectural proposition. It may be derived from normalized facts and Evidence, but it never becomes active authority merely by being present in the graph. Normal Briefing, Impact, and Preflight must not treat ArchitectureClaim nodes as governed knowledge. Promotion requires a separate governed transformation into the appropriate canonical class, such as Invariant, Contract, Decision, Intent, or Evidence." .
+
+aw:OpenQuestion a owl:Class ; rdfs:label "Open Question" ;
+    rdfs:comment "A non-authoritative closure-gap artifact tied to ArchitectureClaim nodes. It records uncertainty and missing evidence only; it is explicit-query-only in Increment 3 and is not proof, closure, or a governed rule." .
+
+aw:ArchitectAnswer a owl:Class ; rdfs:label "Architect Answer" ;
+    rdfs:comment "A typed record of an architect's exact statement. It is not observed truth, not active Intent or Decision, not automatically trusted because of author role, not promotable in place, and explicit-query-only in Increment 3. accepted_for_question resolves only the dialogue artifact and does not promote architecture." .
+
 # ── Design-pattern awareness (the "how" layer) ─────────────────────────────
 # Helps agents recognise the correct architectural SHAPE and avoid misusing it.
 # Grounded only: a pattern earns its place by protecting a boundary, satisfying
@@ -241,7 +250,7 @@ aw:RuntimeEvidence a owl:Class ; rdfs:label "Runtime Evidence" ;
     rdfs:comment "A profile of the live proof required to verify a rule: owner service, observation path, freshness window, trust level, and the rule that stale/non-owner evidence must not become PASS. Describes the contract; never the authority." .
 
 aw:EvidenceProbe a owl:Class ; rdfs:label "Evidence Probe" ;
-    rdfs:comment "A concrete probe that gathers a piece of runtime evidence. v1 reserves the class; RuntimeEvidence carries probe paths as aw:observedViaPath literals." .
+    rdfs:comment "A non-authoritative, non-executable evidence-gathering plan. It may name exact source, test, runtime, artifact, reconciliation, experiment, or manual observation steps, but graph import never executes it and the node is explicit-query-only." .
 
 aw:EvidenceFreshnessWindow a owl:Class ; rdfs:label "Evidence Freshness Window" ;
     rdfs:comment "How fresh evidence must be to be trusted. v1 reserves the class; carried as aw:hasFreshnessWindow / aw:expiresAfter literals." .
@@ -629,11 +638,173 @@ aw:lastValidatedAt a owl:DatatypeProperty ; rdfs:label "last validated at" ;
 aw:staleAfter a owl:DatatypeProperty ; rdfs:label "stale after" ;
     rdfs:comment "Any node → string. After this window the knowledge should be re-validated." ; rdfs:range xsd:string .
 aw:promotionStatus a owl:DatatypeProperty ; rdfs:label "promotion status" ;
-    rdfs:comment "Any node → string. candidate | proposed | accepted | active | deprecated | superseded." ; rdfs:range xsd:string .
+    rdfs:comment "Any node → string. candidate | machine_adopted | governed | rejected | superseded, plus compatible governed lifecycle values." ; rdfs:range xsd:string .
+aw:decisionActor a owl:DatatypeProperty ; rdfs:label "decision actor" ;
+    rdfs:comment "Any adopted knowledge node → string. Stable identity of the actor or deterministic subsystem that made the adoption decision." ; rdfs:range xsd:string .
+aw:decisionContext a owl:DatatypeProperty ; rdfs:label "decision context" ;
+    rdfs:comment "Any adopted knowledge node → string. Bounded workflow context in which adoption was decided; not an architectural Decision node." ; rdfs:range xsd:string .
+aw:decisionPolicy a owl:DatatypeProperty ; rdfs:label "decision policy" ;
+    rdfs:comment "Any adopted knowledge node → string. Closed code-registered policy ID applied to the evidence." ; rdfs:range xsd:string .
+aw:decisionTimestamp a owl:DatatypeProperty ; rdfs:label "decision timestamp" ;
+    rdfs:comment "Any adopted knowledge node → string. Explicit RFC3339 adoption decision time." ; rdfs:range xsd:string .
+aw:reviewStatus a owl:DatatypeProperty ; rdfs:label "review status" ;
+    rdfs:comment "Any adopted knowledge node → string. not_human_reviewed | human_reviewed | review_required | rejected | superseded." ; rdfs:range xsd:string .
+aw:adoptionBasis a owl:DatatypeProperty ; rdfs:label "adoption basis" ;
+    rdfs:comment "Any adopted knowledge node → string. Compact reason the registered policy admitted the proposition." ; rdfs:range xsd:string .
+aw:corroborationKind a owl:DatatypeProperty ; rdfs:label "corroboration kind" ;
+    rdfs:comment "Any adopted knowledge node → string. Independent source-kind class supporting adoption." ; rdfs:range xsd:string .
+aw:revocationCondition a owl:DatatypeProperty ; rdfs:label "revocation condition" ;
+    rdfs:comment "Any adopted knowledge node → string. Explicit condition that invalidates or supersedes the adoption." ; rdfs:range xsd:string .
 aw:supersededBy a owl:ObjectProperty ; rdfs:label "superseded by" ;
     rdfs:comment "Any node → node. The replacement that supersedes this node." .
 aw:conflictsWith a owl:ObjectProperty ; rdfs:label "conflicts with" ;
     rdfs:comment "Any node → node. A node this one conflicts with and must be reconciled against." .
+
+# ── Non-authoritative architecture claims ─────────────────────────────────
+aw:claimSubject a owl:DatatypeProperty ; rdfs:label "claim subject" ;
+    rdfs:comment "ArchitectureClaim → string. Subject of the proposition, stored as data rather than minted as authority." ; rdfs:range xsd:string .
+aw:claimPredicate a owl:DatatypeProperty ; rdfs:label "claim predicate" ;
+    rdfs:comment "ArchitectureClaim → token string. The proposition predicate as data; never used to mint arbitrary RDF predicates." ; rdfs:range xsd:string .
+aw:claimObject a owl:DatatypeProperty ; rdfs:label "claim object" ;
+    rdfs:comment "ArchitectureClaim → string. Object of the proposition, stored as data rather than minted as authority." ; rdfs:range xsd:string .
+aw:architecturalPlane a owl:DatatypeProperty ; rdfs:label "architectural plane" ;
+    rdfs:comment "ArchitectureClaim or governed proposition node → string. observed | enforced | intended | historical | desired. Governed YAML authors may explicitly declare intended, historical, or desired only. Observation and enforcement require evidence-derived claims." ; rdfs:range xsd:string .
+aw:assertionOrigin a owl:DatatypeProperty ; rdfs:label "assertion origin" ;
+    rdfs:comment "ArchitectureClaim → string. observed | derived | authored | promoted; generated claim imports accept derived only." ; rdfs:range xsd:string .
+aw:epistemicStatus a owl:DatatypeProperty ; rdfs:label "epistemic status" ;
+    rdfs:comment "ArchitectureClaim → string. unknown | supported | contested | refuted | stale | superseded. This is evidence state, not authority." ; rdfs:range xsd:string .
+aw:derivedFromFact a owl:DatatypeProperty ; rdfs:label "derived from fact" ;
+    rdfs:comment "ArchitectureClaim → string. Normalized fact ID literal from the same generated claim document. Increment 2 does not create graph-native Fact nodes." ; rdfs:range xsd:string .
+aw:dependsOnClaim a owl:ObjectProperty ; rdfs:label "depends on claim" ;
+    rdfs:comment "ArchitectureClaim → ArchitectureClaim. Self-contained generated-document dependency; not governed authority." .
+aw:generatedByInferenceRule a owl:DatatypeProperty ; rdfs:label "generated by inference rule" ;
+    rdfs:comment "ArchitectureClaim → string. Identifier of the deterministic derivation rule that produced the proposition." ; rdfs:range xsd:string .
+aw:refutedByEvidence a owl:ObjectProperty ; rdfs:label "refuted by evidence" ;
+    rdfs:comment "ArchitectureClaim → Evidence. Evidence that refutes or contradicts the proposition." .
+aw:hasAlternativeExplanation a owl:DatatypeProperty ; rdfs:label "has alternative explanation" ;
+    rdfs:comment "ArchitectureClaim → string. Plausible explanation that keeps the claim uncertain." ; rdfs:range xsd:string .
+aw:hasUnknown a owl:DatatypeProperty ; rdfs:label "has unknown" ;
+    rdfs:comment "ArchitectureClaim → string. Unknown that must be resolved before governance or closure." ; rdfs:range xsd:string .
+aw:hasInvalidationCondition a owl:DatatypeProperty ; rdfs:label "has invalidation condition" ;
+    rdfs:comment "ArchitectureClaim → string. Condition that invalidates or stales the proposition." ; rdfs:range xsd:string .
+aw:validForCommit a owl:DatatypeProperty ; rdfs:label "valid for commit" ;
+    rdfs:comment "ArchitectureClaim → string. Repository revision that bounds the generated proposition." ; rdfs:range xsd:string .
+aw:validForGraphDigest a owl:DatatypeProperty ; rdfs:label "valid for graph digest" ;
+    rdfs:comment "ArchitectureClaim → string. Graph digest that bounds the generated proposition." ; rdfs:range xsd:string .
+aw:humanReviewRequired a owl:DatatypeProperty ; rdfs:label "human review required" ;
+    rdfs:comment "ArchitectureClaim → boolean string. Must be true for generated candidate claims." ; rdfs:range xsd:string .
+aw:confidenceScore a owl:DatatypeProperty ; rdfs:label "confidence score" ;
+    rdfs:comment "ArchitectureClaim → numeric string in [0,1]. Evidence strength, not authority." ; rdfs:range xsd:string .
+aw:aboutNode a owl:ObjectProperty ; rdfs:label "about node" ;
+    rdfs:comment "ArchitectureClaim → awareness node. The governed or structural node the proposition describes; linking is not authoring." .
+
+# ── Non-authoritative architecture dialogue ────────────────────────────────
+aw:questionText a owl:DatatypeProperty ; rdfs:label "question text" ;
+    rdfs:comment "OpenQuestion → string. Exact authored architectural uncertainty; not truth or closure." ; rdfs:range xsd:string .
+aw:blocksClosureDimension a owl:DatatypeProperty ; rdfs:label "blocks closure dimension" ;
+    rdfs:comment "OpenQuestion → string. structural | authority | contract | behavioral | evidence | contradiction | direction | agent." ; rdfs:range xsd:string .
+aw:blocksClaim a owl:ObjectProperty ; rdfs:label "blocks claim" ;
+    rdfs:comment "OpenQuestion → ArchitectureClaim. The non-authoritative claim that remains unresolved." .
+aw:blocksNode a owl:ObjectProperty ; rdfs:label "blocks node" ;
+    rdfs:comment "OpenQuestion → governed or architectural graph node. The target must already exist; linking is not authoring." .
+aw:blocksClosureBlocker a owl:DatatypeProperty ; rdfs:label "blocks closure blocker" ;
+    rdfs:comment "OpenQuestion → string. Offline closure blocker ID literal; no RDF blocker node is minted." ; rdfs:range xsd:string .
+aw:questionTemplateId a owl:DatatypeProperty ; rdfs:label "question template id" ;
+    rdfs:comment "OpenQuestion → string. Stable deterministic code template that generated the question; not authority." ; rdfs:range xsd:string .
+aw:questionTemplateVersion a owl:DatatypeProperty ; rdfs:label "question template version" ;
+    rdfs:comment "OpenQuestion → string. Version token for the deterministic question template." ; rdfs:range xsd:string .
+aw:sourceClosureAssessmentDigest a owl:DatatypeProperty ; rdfs:label "source closure assessment digest" ;
+    rdfs:comment "OpenQuestion → string. SHA-256 of the exact canonical closure assessment bytes consumed by the generator." ; rdfs:range xsd:string .
+aw:acceptedAnswerType a owl:DatatypeProperty ; rdfs:label "accepted answer type" ;
+    rdfs:comment "OpenQuestion → string. One of the closed ArchitectAnswer classifications accepted by this question." ; rdfs:range xsd:string .
+aw:reasonOpen a owl:DatatypeProperty ; rdfs:label "reason open" ;
+    rdfs:comment "OpenQuestion → string. Authored reason this question remains open." ; rdfs:range xsd:string .
+aw:knownFact a owl:DatatypeProperty ; rdfs:label "known fact" ;
+    rdfs:comment "OpenQuestion → string. Existing normalized fact ID known through blocked ArchitectureClaim premises; not a graph-native Fact node." ; rdfs:range xsd:string .
+aw:groundedByEvidence a owl:ObjectProperty ; rdfs:label "grounded by evidence" ;
+    rdfs:comment "OpenQuestion → Evidence. Existing Evidence grounding the question; linking is not authoring." .
+aw:competingHypothesis a owl:DatatypeProperty ; rdfs:label "competing hypothesis" ;
+    rdfs:comment "OpenQuestion → string. Literal display token '<id>: <statement>'; no hypothesis RDF nodes are minted in Increment 3." ; rdfs:range xsd:string .
+aw:questionPriority a owl:DatatypeProperty ; rdfs:label "question priority" ;
+    rdfs:comment "OpenQuestion → string. critical | high | medium | low." ; rdfs:range xsd:string .
+aw:riskIfUnresolved a owl:DatatypeProperty ; rdfs:label "risk if unresolved" ;
+    rdfs:comment "OpenQuestion → string. Authored consequence of leaving the question unresolved." ; rdfs:range xsd:string .
+aw:architectRequired a owl:DatatypeProperty ; rdfs:label "architect required" ;
+    rdfs:comment "OpenQuestion → boolean string. Whether an architect answer is required." ; rdfs:range xsd:string .
+aw:questionStatus a owl:DatatypeProperty ; rdfs:label "question status" ;
+    rdfs:comment "OpenQuestion → string. open | awaiting_architect | awaiting_evidence | answered | resolved | accepted_unknown | superseded. resolved and accepted_unknown require accepted_for_question answers but still do not promote architecture." ; rdfs:range xsd:string .
+aw:resolvedByAnswer a owl:ObjectProperty ; rdfs:label "resolved by answer" ;
+    rdfs:comment "OpenQuestion → ArchitectAnswer. The answer accepted for this question only; it is not governed proof or promotion." .
+aw:createdAt a owl:DatatypeProperty ; rdfs:label "created at" ;
+    rdfs:comment "OpenQuestion → string. Authored RFC3339 creation time." ; rdfs:range xsd:string .
+aw:lastReviewedAt a owl:DatatypeProperty ; rdfs:label "last reviewed at" ;
+    rdfs:comment "OpenQuestion → string. Authored RFC3339 review time." ; rdfs:range xsd:string .
+aw:answersQuestion a owl:ObjectProperty ; rdfs:label "answers question" ;
+    rdfs:comment "ArchitectAnswer → OpenQuestion. The dialogue question this exact statement answers." .
+aw:authorRole a owl:DatatypeProperty ; rdfs:label "author role" ;
+    rdfs:comment "ArchitectAnswer → string. Authored role token only; it does not prove authorization." ; rdfs:range xsd:string .
+aw:authorId a owl:DatatypeProperty ; rdfs:label "author id" ;
+    rdfs:comment "ArchitectAnswer → string. Authored author identifier, preserved after outer whitespace trimming." ; rdfs:range xsd:string .
+aw:answerStatement a owl:DatatypeProperty ; rdfs:label "answer statement" ;
+    rdfs:comment "ArchitectAnswer → string. Exact authored statement; not observed truth or active architecture." ; rdfs:range xsd:string .
+aw:answerClassification a owl:DatatypeProperty ; rdfs:label "answer classification" ;
+    rdfs:comment "ArchitectAnswer → string. Closed classification such as intent_statement, evidence_pointer, unknown_acknowledgement, or question_reframing." ; rdfs:range xsd:string .
+aw:answerCondition a owl:DatatypeProperty ; rdfs:label "answer condition" ;
+    rdfs:comment "ArchitectAnswer → string. Authored condition on the answer, required for exception_authorization." ; rdfs:range xsd:string .
+aw:citesEvidence a owl:ObjectProperty ; rdfs:label "cites evidence" ;
+    rdfs:comment "ArchitectAnswer → Evidence. Links to an existing Evidence node; unlike evidencePointer, this cites graph evidence." .
+aw:evidencePointer a owl:DatatypeProperty ; rdfs:label "evidence pointer" ;
+    rdfs:comment "ArchitectAnswer → string. Unresolved literal hint to evidence; it grants no evidentiary status until converted to Evidence." ; rdfs:range xsd:string .
+aw:selectedHypothesis a owl:DatatypeProperty ; rdfs:label "selected hypothesis" ;
+    rdfs:comment "ArchitectAnswer → string. Literal '<question_id>:<hypothesis_id>'; no hypothesis RDF nodes are minted." ; rdfs:range xsd:string .
+aw:reframedQuestion a owl:DatatypeProperty ; rdfs:label "reframed question" ;
+    rdfs:comment "ArchitectAnswer → string. Replacement question text proposed by a question_reframing answer; Increment 3 does not create the replacement question automatically." ; rdfs:range xsd:string .
+aw:recordedAt a owl:DatatypeProperty ; rdfs:label "recorded at" ;
+    rdfs:comment "ArchitectAnswer → string. Authored RFC3339 recording time." ; rdfs:range xsd:string .
+aw:answerGovernanceStatus a owl:DatatypeProperty ; rdfs:label "answer governance status" ;
+    rdfs:comment "ArchitectAnswer → string. recorded | awaiting_evidence | awaiting_governance | accepted_for_question | rejected | superseded. accepted_for_question resolves only the question and does not promote architecture." ; rdfs:range xsd:string .
+
+# ── Non-authoritative evidence probe planning ─────────────────────────────
+aw:probeForQuestion a owl:ObjectProperty ; rdfs:label "probe for question" ;
+    rdfs:comment "EvidenceProbe → OpenQuestion. The closure question this offline plan addresses; linking does not resolve the question." .
+aw:addressesClosureBlocker a owl:DatatypeProperty ; rdfs:label "addresses closure blocker" ;
+    rdfs:comment "EvidenceProbe → string. Offline closure blocker ID literal; no blocker node is minted." ; rdfs:range xsd:string .
+aw:targetsClaim a owl:ObjectProperty ; rdfs:label "targets claim" ;
+    rdfs:comment "EvidenceProbe → ArchitectureClaim. The claim this probe could support, refute, or diagnose without changing claim status." .
+aw:targetsNode a owl:ObjectProperty ; rdfs:label "targets node" ;
+    rdfs:comment "EvidenceProbe → existing awareness node. A governed or structural target already present in the graph; linking is not authoring." .
+aw:probeTemplateId a owl:DatatypeProperty ; rdfs:label "probe template id" ;
+    rdfs:comment "EvidenceProbe → string. Deterministic generator template identifier." ; rdfs:range xsd:string .
+aw:probeTemplateVersion a owl:DatatypeProperty ; rdfs:label "probe template version" ;
+    rdfs:comment "EvidenceProbe → string. Deterministic generator template version token." ; rdfs:range xsd:string .
+aw:probeKind a owl:DatatypeProperty ; rdfs:label "probe kind" ;
+    rdfs:comment "EvidenceProbe → string. source_receipt_verification | test_execution | owner_path_runtime_observation | artifact_collection | evidence_reconciliation | controlled_experiment | manual_observation." ; rdfs:range xsd:string .
+aw:evidenceRole a owl:DatatypeProperty ; rdfs:label "evidence role" ;
+    rdfs:comment "EvidenceProbe → string. supporting | refuting | diagnostic. This is a plan role, not a claim-status mutation." ; rdfs:range xsd:string .
+aw:producesEvidence a owl:ObjectProperty ; rdfs:label "produces evidence" ;
+    rdfs:comment "EvidenceProbe → Evidence. Existing Evidence node that a result may update only through an explicit result-recording step." .
+aw:usesRuntimeEvidenceProfile a owl:ObjectProperty ; rdfs:label "uses runtime evidence profile" ;
+    rdfs:comment "EvidenceProbe → RuntimeEvidence. The owner-path profile this plan must respect." .
+aw:dischargesProofObligation a owl:ObjectProperty ; rdfs:label "discharges proof obligation" ;
+    rdfs:comment "EvidenceProbe → ProofObligation. A proof obligation the planned evidence may address without marking it discharged." .
+aw:dischargesProofSlot a owl:ObjectProperty ; rdfs:label "discharges proof slot" ;
+    rdfs:comment "EvidenceProbe → ProofSlot. A proof slot the planned evidence may fill without creating evidence." .
+aw:probeForRepairPlan a owl:ObjectProperty ; rdfs:label "probe for repair plan" ;
+    rdfs:comment "EvidenceProbe → RepairPlan. A repair plan the planned observation concerns; the probe does not execute the repair." .
+aw:probeForTest a owl:ObjectProperty ; rdfs:label "probe for test" ;
+    rdfs:comment "EvidenceProbe → Test. Existing test named by the plan; import never runs it." .
+aw:safetyClass a owl:DatatypeProperty ; rdfs:label "safety class" ;
+    rdfs:comment "EvidenceProbe → string. static_read | local_test | runtime_read | isolated_mutation | live_mutation | failure_injection | destructive | external_side_effect." ; rdfs:range xsd:string .
+aw:automaticExecutionAllowed a owl:DatatypeProperty ; rdfs:label "automatic execution allowed" ;
+    rdfs:comment "EvidenceProbe → boolean string. Must remain false for plans requiring review, human approval, manual operation, or unsafe effects." ; rdfs:range xsd:string .
+aw:hasProbeStep a owl:DatatypeProperty ; rdfs:label "has probe step" ;
+    rdfs:comment "EvidenceProbe → string. One ordered planned step. The graph stores the text and never executes it." ; rdfs:range xsd:string .
+aw:expectedArtifactKind a owl:DatatypeProperty ; rdfs:label "expected artifact kind" ;
+    rdfs:comment "EvidenceProbe → string. Artifact receipt type a future ProbeResult may attach with SHA-256 content digest." ; rdfs:range xsd:string .
+aw:sourceDialogueDigest a owl:DatatypeProperty ; rdfs:label "source dialogue digest" ;
+    rdfs:comment "EvidenceProbe → string. SHA-256 of the canonical question/dialogue input used by generation." ; rdfs:range xsd:string .
+aw:sourceClaimDocumentDigest a owl:DatatypeProperty ; rdfs:label "source claim document digest" ;
+    rdfs:comment "EvidenceProbe → string. SHA-256 of the canonical claim input used by generation." ; rdfs:range xsd:string .
 
 # ── Agent-accountability properties (Phase 2G) ─────────────────────────────
 aw:agentName a owl:DatatypeProperty ; rdfs:label "agent name" ;
@@ -687,7 +858,7 @@ aw:currentScore a owl:DatatypeProperty ; rdfs:label "current score" ;
 aw:previousScore a owl:DatatypeProperty ; rdfs:label "previous score" ;
     rdfs:comment "LearningEvent → string. The previous score recorded for comparison." ; rdfs:range xsd:string .
 aw:missingEvidence a owl:DatatypeProperty ; rdfs:label "missing evidence" ;
-    rdfs:comment "LearningEvent → string. A missing evidence reason recorded by certification." ; rdfs:range xsd:string .
+    rdfs:comment "LearningEvent or OpenQuestion → string. A missing evidence reason recorded by certification or a non-authoritative closure question." ; rdfs:range xsd:string .
 aw:proofRequired a owl:DatatypeProperty ; rdfs:label "proof required" ;
     rdfs:comment "Contract or learning-related node → boolean string. Whether the contract requires explicit proof through tests or verification artifacts." ; rdfs:range xsd:string .
 aw:requiredTestPath a owl:DatatypeProperty ; rdfs:label "required test path" ;
@@ -754,6 +925,9 @@ aw:assertionMethod a owl:DatatypeProperty ; rdfs:label "assertion method" ;
     rdfs:range xsd:string .
 aw:readOrWrite a owl:DatatypeProperty ; rdfs:label "read or write" ;
     rdfs:comment "Contract → string. Whether the contract is consumed read-only, for writes, or both: read | write | read_write | unknown. Marks the read/mutation semantics agents must respect." ;
+    rdfs:range xsd:string .
+aw:publicConsumerCategory a owl:DatatypeProperty ; rdfs:label "public consumer category" ;
+    rdfs:comment "Contract → string. Explicit external library consumer category when no repository-internal consumer Component exists, such as external Go caller or net/http integration." ;
     rdfs:range xsd:string .
 aw:stability a owl:DatatypeProperty ; rdfs:label "stability" ;
     rdfs:comment "Contract → string. stable | experimental | internal | deprecated. A contract not grounded in proto/code/docs should be marked candidate/experimental, never presented as implemented." ;
@@ -837,7 +1011,7 @@ aw:mitigates a owl:ObjectProperty ; rdfs:label "mitigates" ;
 aw:rejects a owl:ObjectProperty ; rdfs:label "rejects" ;
     rdfs:comment "Decision → ForbiddenFix. The decision rejects this tempting-but-wrong fix shape. Distinct from aw:forbids: a Decision records the rejected alternative, not an active rule." .
 aw:supportedByEvidence a owl:ObjectProperty ; rdfs:label "supported by evidence" ;
-    rdfs:comment "Invariant | Decision | Contract | Component → Evidence. Proof that the node's claim holds. Inverse of aw:supports." .
+    rdfs:comment "Invariant | Decision | Contract | Component | ArchitectureClaim → Evidence. Proof or support for the node's assertion. For ArchitectureClaim this remains non-authoritative support; it does not promote the claim. Inverse of aw:supports." .
 
 # Evidence edges.
 aw:supports a owl:ObjectProperty ; rdfs:label "supports" ;

@@ -59,10 +59,20 @@ type SourceFile struct {
 	IsEntrypoint bool
 }
 
+// RootComponent identifies a language package that lives directly at the
+// repository root. Directory-only rollup cannot name that package honestly,
+// so the language parser supplies its canonical package/module identity.
+type RootComponent struct {
+	ID          string
+	Name        string
+	SourceFiles []SourceFile
+}
+
 // ParseResult is the full output of a language parser for one repo.
 type ParseResult struct {
-	Files   []SourceFile
-	Imports []ImportFact
+	Files         []SourceFile
+	Imports       []ImportFact
+	RootComponent *RootComponent
 }
 
 // Parser scans a repo root and returns its files + import facts for one language.
@@ -249,8 +259,15 @@ func ComponentForFile(relPath string) (id string, ok bool) {
 // canonical component directory. ok=false for paths that do not map to a
 // component (repo root, or a file directly in a source root).
 func componentForDir(dir string) (id, compDir string, ok bool) {
+	return componentForDirWithRoot(dir, nil)
+}
+
+func componentForDirWithRoot(dir string, root *RootComponent) (id, compDir string, ok bool) {
 	dir = filepath.ToSlash(dir)
 	if dir == "." || dir == "" {
+		if root != nil && root.ID != "" {
+			return root.ID, ".", true
+		}
 		return "", "", false
 	}
 	segs := strings.Split(dir, "/")
@@ -275,6 +292,7 @@ func componentForDir(dir string) (id, compDir string, ok bool) {
 
 type agg struct {
 	compDir   string
+	name      string
 	isService bool
 	sources   map[string]bool
 	dependsOn map[string]bool
@@ -284,9 +302,9 @@ type agg struct {
 	external  map[string]bool
 }
 
-func newAgg(compDir string) *agg {
+func newAgg(compDir, name string) *agg {
 	return &agg{
-		compDir: compDir, sources: map[string]bool{}, dependsOn: map[string]bool{},
+		compDir: compDir, name: name, sources: map[string]bool{}, dependsOn: map[string]bool{},
 		readsFrom: map[string]bool{}, writesTo: map[string]bool{},
 		exposes: map[string]bool{}, external: map[string]bool{},
 	}
@@ -313,7 +331,7 @@ func (a *agg) addEdge(edge, target string) {
 // .pb.go-only proto package) never yields a dangling dependsOn edge. Classifier
 // rule edges are NOT filtered — their targets may be hand-authored components
 // the importer merges in later.
-func (a *agg) classify(imp ImportFact, selfID string, rules []compiledRule, known map[string]bool) {
+func (a *agg) classify(imp ImportFact, selfID string, rules []compiledRule, known map[string]bool, root *RootComponent) {
 	switch imp.Resolved {
 	case "stdlib", "unresolved", "":
 		return
@@ -325,7 +343,7 @@ func (a *agg) classify(imp ImportFact, selfID string, rules []compiledRule, know
 		}
 	}
 	if imp.Resolved == "internal" {
-		if tid, _, ok := componentForDir(imp.TargetPath); ok && tid != selfID && known[tid] {
+		if tid, _, ok := componentForDirWithRoot(imp.TargetPath, root); ok && tid != selfID && known[tid] {
 			a.dependsOn[tid] = true
 		}
 		return
@@ -353,13 +371,17 @@ func Scan(root, language string, cfg Config) (Doc, error) {
 	ensure := func(id, compDir string) *agg {
 		a := comps[id]
 		if a == nil {
-			a = newAgg(compDir)
+			name := path.Base(compDir)
+			if res.RootComponent != nil && id == res.RootComponent.ID {
+				name = res.RootComponent.Name
+			}
+			a = newAgg(compDir, name)
 			comps[id] = a
 		}
 		return a
 	}
 	for _, f := range res.Files {
-		id, compDir, ok := componentForDir(path.Dir(f.Path))
+		id, compDir, ok := componentForDirWithRoot(path.Dir(f.Path), res.RootComponent)
 		if !ok {
 			continue
 		}
@@ -377,11 +399,11 @@ func Scan(root, language string, cfg Config) (Doc, error) {
 		known[id] = true
 	}
 	for _, imp := range res.Imports {
-		id, compDir, ok := componentForDir(path.Dir(imp.SourceFile))
+		id, compDir, ok := componentForDirWithRoot(path.Dir(imp.SourceFile), res.RootComponent)
 		if !ok {
 			continue
 		}
-		ensure(id, compDir).classify(imp, id, rules, known)
+		ensure(id, compDir).classify(imp, id, rules, known, res.RootComponent)
 	}
 	return buildDoc(comps), nil
 }
@@ -402,7 +424,7 @@ func buildDoc(comps map[string]*agg) Doc {
 		}
 		doc.Components = append(doc.Components, Component{
 			ID:               id,
-			Name:             path.Base(a.compDir),
+			Name:             a.name,
 			Kind:             kind,
 			Assertion:        "inferred",
 			SourceFiles:      sortedKeys(a.sources),

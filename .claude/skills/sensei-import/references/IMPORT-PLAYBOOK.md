@@ -18,8 +18,8 @@ walkthrough so you can see what each step produces.
    - `git -C /tmp/gin rev-parse --is-shallow-repository` → if `true`,
      `git -C /tmp/gin fetch --unshallow`.
 
-2. **Ask depth.** User picks **Full** (`ANTHROPIC_API_KEY` set; gin has heavy
-   PR-review history too).
+2. **Ask depth.** User picks **Full** (an authenticated CLI drafter or direct
+   API credential is available; gin has heavy PR-review history too).
 
    > Extractors take `--path <checkout>`. `sensei build --repo <domain>` is the
    > domain-scoped load flag. (`--repo` is still accepted on the extractors as a
@@ -28,18 +28,18 @@ walkthrough so you can see what each step produces.
 3. **Extract the LLM intent layer — FIRST, on the pristine clone.**
    Run this *before* step 4, or `bootstrap`'s scaffolded `CLAUDE.md`/`AGENTS.md`
    pollute it (see the contamination branch below).
-   - Review: `sensei intent-mine --path /tmp/gin --sources docs,comments,tests --drafter llm --max 12`
-   - Land it: add `--apply`. On gin this produced **7 grounded intents** —
-     `context_copy_isolation` (a copied Context must not affect the original,
-     grounded at `executable_truth`), `basic_auth_default_realm`,
-     `upload_filename_untrusted`, `trust_unix_socket_xff`, `clientip_non_ip_guard`,
-     `validatestruct_no_panic`, `method_not_allowed_empty_tree_no_panic` — as
-     `docs/awareness/intent_<id>.yaml`, plus weaker ones under `candidates/`.
+   - Review: `sensei intent-mine --path /tmp/gin --sources docs,comments,tests --drafter auto --max 12`
+   - Adopt: add `--adopt`. Valid strong intents become machine-adopted
+     `docs/awareness/intent_<id>.yaml` with `assertion_origin: model_inferred`,
+     `promotion_status: machine_adopted`, `review_status: not_human_reviewed`,
+     and a decision receipt naming the Sensei policy context. Weaker, hidden,
+     contradictory, or invalid results stay under `candidates/`.
 
 4. **Structural + deterministic contract pass — writes YAML into the checkout.**
    `sensei bootstrap --path /tmp/gin --skip-history --skip-build` runs the whole
    deterministic layer (no key). On gin it produces:
-   - `generated/components.yaml` — **6 components**; `generated/tests.yaml` — **630 tests**
+   - a canonical root component (`component.gin`) plus supporting components,
+     complete eligible production-file coverage, Tests, and root code symbols
    - `candidates/authority_surface_candidates.yaml` — **0** (gin registers routes
      via its own DSL, not `mux.HandleFunc`; a detector-breadth limit, not a gap)
    - `candidates/boundary_candidates.yaml` — **2** compiler-enforced `internal/`
@@ -57,22 +57,35 @@ walkthrough so you can see what each step produces.
    - Bound it with `--max <N>` or `--auto-window-target <N>` if the window keeps
      widening. Use `--since <ref>` when you already know the range of interest.
 
-6. **Load the slice, tagged to the domain**
+6. **Reconstruct and load the complete slice, tagged to the domain**
    - Fresh store only: `sensei build --all` once to seed a base graph.
-   - `sensei build --input /tmp/gin/docs/awareness --input /tmp/gin/docs/awareness/generated --repo github.com/gin-gonic/gin`
+   - Confirm `/tmp/gin/.sensei/project/` contains `graph.nt`, `claims.yaml`,
+     `claim-audit.yaml`, `readiness.yaml`, and `knowledge/adoption-report.yaml`.
+   - `sensei build --input /tmp/gin/docs/awareness --input /tmp/gin/docs/awareness/generated --input /tmp/gin/.sensei/project --repo github.com/gin-gonic/gin --store-url <url> --graph-marker-file <server-marker>`
    - Non-destructive, in place; needs a non-empty store (see step above).
+   - Do not pass `--graph-transaction-file` for a foreign-only scoped slice. Its
+     transaction is intentionally uncertified; the graph marker is the served
+     freshness handoff.
 
 7. **Verify**
    - `sensei metadata --domain github.com/gin-gonic/gin`
+   - `sensei query --mode by_class --class architecture_claim --domain github.com/gin-gonic/gin --limit 3 --json`
+   - Repeat for `failure_mode`, `boundary`, `intent`, `contract`, and `decision`.
+     Compare live counts with `readiness.yaml` and `adoption-report.yaml`.
+   - If `claims.yaml` is non-empty and the live claim query returns no rows, stop:
+     the reconstruction exists only on disk and the import is not complete.
    - `sensei briefing --file context.go --domain github.com/gin-gonic/gin` — with
      the contract layer, this surfaces the real intents (`context_copy_isolation`,
      `clientip_non_ip_guard`, `trust_unix_socket_xff`, `upload_filename_untrusted`),
      not just `[component]` boxes. Brief a file an extracted node actually anchors.
 
 8. **Hand off**
-   - Report all four candidate layers (contracts/intents, authority, boundaries,
-     invariants) + node counts + the candidate queue. Tell the user to review and
-     `sensei promote` the load-bearing ones. Stop.
+   - Report structural coverage, semantic Facts, claims and distinct
+     propositions, every adoption class, the candidate queue, live graph digest,
+     and `artifact_ready` or `live_loaded`.
+   - Explain that OpenQuestions and EvidenceProbes are task-bound. The first
+     architecture-sensitive change must run `sensei prepare-change` so the exact
+     affected claims generate visible questions before mutation.
 
 ## Degradation branches
 
@@ -84,9 +97,11 @@ all `expressed_by: AGENTS.md`). Fix: extract on the pristine clone first. If you
 can't, drop every intent whose `expressed_by` is `CLAUDE.md`/`AGENTS.md`/
 `docs/awareness/*` before building.
 
-**No `ANTHROPIC_API_KEY`.** The `--drafter llm` contract layer is unavailable.
-`--drafter echo` is deterministic but shallow; prefer to skip the contract layer
-and say so rather than ship thin guesses. Basic (structural) still runs.
+**No authenticated drafter.** `--drafter auto` prefers authenticated CLI
+brokers (`claude-cli`, then `codex-cli`) before direct Anthropic API
+credentials. If none are available, the contract layer is unavailable.
+`--drafter echo` is deterministic but shallow; prefer to skip the contract
+layer and say so rather than ship thin guesses. Basic (structural) still runs.
 
 **Shallow clone.** History mining silently yields nothing on `--depth 1`.
 Unshallow first, or run Basic and state that history mining was skipped.
@@ -106,7 +121,9 @@ history layer just has nothing to stand on.
 
 **Domain already present.** `sensei metadata --domain <domain>` shows existing
 nodes → treat as a refresh. Re-run extraction and the step-6
-`sensei build --input <checkout>/... --repo <domain>`; it updates only that slice
+`sensei build --input <checkout>/docs/awareness --input
+<checkout>/docs/awareness/generated --input <checkout>/.sensei/project --repo
+<domain>`; it updates only that slice
 and is safe to repeat (the store is already non-empty).
 
 **Large repo.** Preview with `--dry-run`, bound mining with `--max`, and consider
@@ -115,10 +132,13 @@ and is safe to repeat (the store is already non-empty).
 ## Honesty checklist before you report
 
 - Did the graph actually gain nodes for this domain? (metadata, not assumption)
+- Did the live graph gain `architecture_claim` rows when project claims exist?
+- Did the live Phase 2 class counts agree with readiness and adoption receipts?
 - Did a real file's briefing surface something? (verified, not asserted)
 - For each of the four layers — contracts/intents, authority surfaces,
   boundaries, invariants-from-tests — report the real count, including the zeros
   (a 0 is a fact about the repo, e.g. gin's DSL yields 0 authority surfaces).
 - How many candidates are queued, and are they candidates (not authority)?
 - What was skipped or degraded, and why?
-- What is the exact human next step to promote?
+- Is the completion state honestly `artifact_ready` or `live_loaded`?
+- What exact task should run `sensei prepare-change` next?

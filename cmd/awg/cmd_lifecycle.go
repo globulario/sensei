@@ -110,7 +110,7 @@ func runLifecycle(args []string) int {
 	fs := flag.NewFlagSet("sensei lifecycle", flag.ContinueOnError)
 	svcRepo := fs.String("services-repo", "", "path to services repo (default: ../services next to ag-repo)")
 	agRepo := fs.String("ag-repo", "", "path to awareness-graph repo (default: current dir)")
-	withAudit := fs.Bool("audit", false, "also run `sensei audit -check` for live artifact-coherence states")
+	withAudit := fs.Bool("audit", false, "also run `sensei audit --check` for live artifact-coherence states")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -202,9 +202,9 @@ func runLifecycle(args []string) int {
 	fmt.Println("    are enforced-in-CI but BYPASSABLE until protected. Treat that as an enforcement gap.")
 
 	if *withAudit {
-		fmt.Println("\nARTIFACT COHERENCE  (sensei audit -check)")
+		fmt.Println("\nARTIFACT COHERENCE  (sensei audit --check)")
 		fmt.Println("---------------------------------------")
-		auditArgs := []string{"-check"}
+		auditArgs := []string{"--check"}
 		if *svcRepo != "" {
 			auditArgs = append(auditArgs, "-services-repo", *svcRepo)
 		}

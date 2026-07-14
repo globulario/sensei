@@ -11,7 +11,7 @@ package main
 //
 //   rebuild embeddata (deterministic, no Oxigraph dependency)
 //     -> validate corpus (dangling refs / dup ids / missing sources)
-//       -> audit -check (freshness + coherence)
+//       -> audit --check (freshness + coherence)
 //         -> stage the regenerated artifact
 //
 // It refuses to report success if any step fails, and it reports the directive's
@@ -24,7 +24,7 @@ package main
 //
 // Idempotent: running it twice with no source changes produces no diff (rebuild only
 // writes the seed when its content hash changes). That is the property that lets the
-// freshness gate be authoritative — see `sensei audit -check`.
+// freshness gate be authoritative — see `sensei audit --check`.
 
 import (
 	"flag"

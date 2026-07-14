@@ -864,6 +864,7 @@ func (b *assessmentBuilder) evaluateDimension(dim string) {
 		case DimensionAgent:
 			b.evalAgent()
 		}
+		b.applyMachineAdoptedRiskPolicy(dim)
 	}
 	blockers := b.blockerIDsFor(dim)
 	conditions := b.conditionIDsFor(dim)
@@ -883,6 +884,60 @@ func (b *assessmentBuilder) evaluateDimension(dim string) {
 		Dimension: dim, Required: required, Applicable: applicable, State: state,
 		Reasons: reasons, BlockerIDs: blockers, ConditionIDs: conditions,
 	})
+}
+
+func (b *assessmentBuilder) applyMachineAdoptedRiskPolicy(dim string) {
+	nodeIDs := machineAdoptedNodeIDsForDimension(b.scope.Nodes, dim)
+	if len(nodeIDs) == 0 {
+		return
+	}
+	switch b.ctx.Request.Scope.RiskClass {
+	case RiskArchitectureSensitive:
+		if !b.policy.ConditionalAllowed || !contains(b.policy.ConditionalDimensions, dim) {
+			return
+		}
+		condition := Condition{
+			Dimension: dim, Code: "closure.machine_adopted." + dim + ".conditional",
+			Summary:            "task-relevant machine-adopted knowledge is usable under class-specific policy but remains not human-governed",
+			RequiredNextAction: "review_machine_adopted_knowledge",
+		}
+		condition.ID = conditionID(condition)
+		b.conditions = append(b.conditions, condition)
+	case RiskConvergence, RiskSecurity, RiskDataLoss:
+		b.addOpen(dim, "high", "closure.machine_adopted."+dim+".stronger_basis_required",
+			"high-risk scope requires stronger Evidence, governed knowledge, or explicit delegated policy",
+			"add_evidence_or_govern_knowledge", nil, nodeIDs, nil, nil)
+	}
+}
+
+func machineAdoptedNodeIDsForDimension(nodes []Node, dim string) []string {
+	var ids []string
+	for _, node := range nodes {
+		if node.Status == "machine_adopted" && machineAdoptedClassApplies(node, dim) {
+			ids = append(ids, node.ID)
+		}
+	}
+	return cleanList(ids)
+}
+
+func machineAdoptedClassApplies(node Node, dim string) bool {
+	switch dim {
+	case DimensionStructural:
+		return hasClass(node, "boundary") || hasClass(node, "contract")
+	case DimensionAuthority:
+		return hasClass(node, "boundary")
+	case DimensionContract:
+		return hasClass(node, "contract") || hasClass(node, "boundary")
+	case DimensionBehavioral:
+		return hasClass(node, "invariant") || hasClass(node, "failure_mode") || hasClass(node, "forbidden_fix") ||
+			hasClass(node, "contract") || hasClass(node, "decision") || hasClass(node, "incident")
+	case DimensionEvidence:
+		return hasClass(node, "incident")
+	case DimensionDirection:
+		return hasClass(node, "intent") || hasClass(node, "decision") || hasClass(node, "contract") || hasClass(node, "invariant")
+	default:
+		return false
+	}
 }
 
 func (b *assessmentBuilder) evalStructural() {

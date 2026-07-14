@@ -319,3 +319,115 @@ invariants:
       - golang/server/briefing_scope_test.go:TestInScopePatterns_NoForeignLeak
       - golang/server/briefing_scope_test.go:TestInScopeIntents_NoForeignLeak
       - golang/server/briefing_scope_test.go:TestBriefingScope_Precedence
+
+  # Bounded Architectural Closure mission contract, frozen before production
+  # inference behavior. These rules come from the July 2026 closure mission and
+  # intentionally constrain future implementation without creating claim,
+  # question, answer, or closure runtime behavior in this increment.
+  - id: awareness.architecture_claims_non_authoritative_until_promoted
+    title: Architecture claims are inspectable propositions only - they must never appear as invariants, contracts, decisions, authority, or proof obligations until an existing governed promotion path promotes them
+    severity: critical
+    status: active
+    related_invariants:
+      - awareness.graph.compiled_context_not_authority
+      - awareness.rdf.yaml_is_source_of_truth
+    protects:
+      files:
+        - docs/awareness/
+        - docs/intent/awg.bounded_architectural_closure.yaml
+        - golang/extractor/
+        - golang/server/
+        - cmd/awg/
+    required_tests:
+      - golang/extractor/promotion_proposal_test.go:TestPromotionDoesNotAutoActivate
+      - golang/server/realized_contracts_test.go:TestBriefingSpine_CandidateIsReviewOnlyNeverAuthority
+
+  - id: awareness.inference_requires_addressable_evidence
+    title: Every inferred architectural conclusion must cite addressable premises and evidence; LLM output may organize evidence but is never evidence or authority by itself
+    severity: critical
+    status: active
+    related_invariants:
+      - awareness.architecture_claims_non_authoritative_until_promoted
+      - awareness.cited_anchors_must_be_defined
+    protects:
+      files:
+        - docs/awareness/
+        - docs/intent/awg.bounded_architectural_closure.yaml
+        - golang/extractor/
+        - cmd/awg/
+    required_tests:
+      - golang/extractor/coldsource/draft_llm_test.go:TestLLMDrafter_FabricatedCitationRejected
+      - golang/extractor/coldsource/intent_extract_test.go:TestIntentCage_RejectsFabricated
+      - golang/extractor/coldsource/intent_grounding_test.go:TestIntent_UngroundedClaim
+
+  - id: awareness.missing_evidence_produces_unknown
+    title: Missing, stale, partial, fabricated, or unsupported evidence must produce explicit unknown, degraded, contested, stale, or refuted status rather than a supported claim
+    severity: critical
+    status: active
+    related_invariants:
+      - awareness.store_unavailable_explicit
+      - awareness.inference_requires_addressable_evidence
+    protects:
+      files:
+        - golang/server/
+        - golang/extractor/
+        - cmd/awg/
+    required_tests:
+      - golang/server/preflight_test.go:TestPreflight_StoreUnavailableReturnsDegradedUnknownImpact
+      - golang/server/risk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown
+      - golang/extractor/runtime_evidence_yaml_import_test.go:TestRuntimeEvidenceRequiresFreshness
+
+  - id: awareness.closure_is_revision_scope_and_task_bound
+    title: Architectural closure is valid only for the declared repository revision, graph digest, domain, scope, and task class, and must reopen when any supporting source, graph, evidence, decision, exception, test, or premise changes
+    severity: critical
+    status: active
+    related_invariants:
+      - awareness.briefing.sections_honor_domain_scope
+      - awareness.seed_is_generated_author_in_yaml
+    protects:
+      files:
+        - docs/awareness/
+        - docs/intent/awg.bounded_architectural_closure.yaml
+        - golang/server/
+        - cmd/awg/
+    required_tests:
+      - golang/server/metadata_domain_test.go:TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount
+      - golang/server/main_test.go:TestGraphBackedRPCs_SuccessResponsesCarryCurrentAuthority
+      - cmd/awg/graph_refresh_test.go:TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
+
+  - id: awareness.architect_answers_are_typed_scoped_candidates
+    title: Architect answers must preserve exact meaning, type, scope, conditions, and evidence pointers as candidate or evidence artifacts; they must not become observed truth or active law automatically
+    severity: critical
+    status: active
+    related_invariants:
+      - awareness.architecture_claims_non_authoritative_until_promoted
+      - awareness.inference_requires_addressable_evidence
+    protects:
+      files:
+        - docs/awareness/
+        - docs/intent/awg.bounded_architectural_closure.yaml
+        - golang/extractor/
+        - golang/server/
+        - cmd/awg/
+    required_tests:
+      - cmd/awg/cmd_propose_test.go:TestApplyProposal_ContractUnknownGoesToCandidatesNoRebuild
+      - golang/extractor/coldsource/harness_review_test.go:TestEmitCandidate_ForcesCandidateStatus
+      - golang/extractor/runtime_evidence_yaml_import_test.go:TestRuntimeEvidenceDoesNotBecomeAuthority
+
+  - id: awareness.open_questions_remain_visible_until_resolved
+    title: Open architectural questions must stay scoped, evidence-linked, queryable, and visible until resolved, superseded, or explicitly accepted as unknown; accepted unknown may still block high-risk closure
+    severity: critical
+    status: active
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+      - awareness.closure_is_revision_scope_and_task_bound
+    protects:
+      files:
+        - docs/awareness/
+        - docs/intent/awg.bounded_architectural_closure.yaml
+        - golang/server/
+        - cmd/awg/
+    required_tests:
+      - cmd/awg/cmd_propose_test.go:TestValidateProposal_ContractUnknownRequiresProposalOrRevision
+      - cmd/awg/cmd_feedback_check_test.go:TestEvaluateFeedbackGap_ContractUnknownCountsAsFeedback
+      - golang/server/change_impact_test.go:TestImpactPlanningReportsUnknowns

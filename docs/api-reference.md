@@ -282,7 +282,15 @@ the id points at).
 **`QueryClass`**: `INVARIANT`, `FAILURE_MODE`, `INCIDENT_PATTERN`, `INTENT`,
 `SYMBOL`, `SOURCE_FILE`, `CODE_SYMBOL`, `FORBIDDEN_FIX`, `TEST`,
 `META_PRINCIPLE`, `COMPONENT`, `BOUNDARY`, `CONTRACT`, `DECISION`, `EVIDENCE`,
-`DESIGN_PATTERN`, `IMPLEMENTATION_PATTERN`, `PATTERN_MISUSE`.
+`DESIGN_PATTERN`, `IMPLEMENTATION_PATTERN`, `PATTERN_MISUSE`,
+`ARCHITECTURE_CLAIM`, `OPEN_QUESTION`, `ARCHITECT_ANSWER`.
+
+`ARCHITECTURE_CLAIM`, `OPEN_QUESTION`, and `ARCHITECT_ANSWER` are
+non-authoritative and explicit-query-only. An OpenQuestion records uncertainty,
+not truth or closure. An ArchitectAnswer records exact human input, not observed
+behavior or governed architecture; `accepted_for_question` only resolves the
+question artifact and does not promote architecture. Evidence pointers are
+unverified literals until converted to Evidence.
 
 **`QueryResponse`**: `rows` (`QueryRow`[]) · `generated_in_ms`. Each `QueryRow`
 carries `id`, `class`, `label`, `severity`, `status`, `relation` (set in
@@ -422,6 +430,16 @@ JSON-RPC notifications (no `id`) are ignored per spec.
 | `awareness_query` | `Query` | `mode` | `file`/`id`/`class` (per mode), `limit`, `domain` |
 | `awareness_metadata` | `Metadata` | — | `domain` |
 | `awareness_propose` | `Propose` | `kind` | `title`, `contract`, `evidence[]`, `source_files[]`, related ids |
+| `task_status` | local task artifacts | `repo` | `task`, `detail` (`compact`/`full`) |
+| `advance_task` | local task artifacts | `repo` | `task`, `observed_at`, `max_probes` |
+| `task_briefing` | local task artifacts | `repo`, `file` | `task` |
+| `admit_change` | local convergence bundle | `bundle_dir`, `request_path`, `graph_nt`, `repo` | `policy`, `detail` |
+| `verify_admission` | local admission bundle | `decision_path`, `bundle_dir`, `repo` | `detail` |
+
+The task tools do not call the gRPC service. They use the same typed local
+packages as the CLI. `advance_task` is the only state-changing task tool and is
+restricted to the closed static-read probe registry plus one convergence
+iteration.
 
 The bridge enforces a **safe-tools-only whitelist** in `callTool()` and
 validates `awareness_query`'s `mode`/`class` against fixed enums — there is no

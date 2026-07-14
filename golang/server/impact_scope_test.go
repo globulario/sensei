@@ -83,6 +83,23 @@ func TestCollectImpact_SingleDomainUnscoped_ReturnsAll(t *testing.T) {
 	}
 }
 
+func TestCollectImpact_UnknownRequestedDomainFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return scopeFacts(map[string]string{"globular.rule.a": ""}), nil
+			},
+		},
+		domains: []string{"github.com/globulario/sensei"},
+	})
+	s.homeDomain = "github.com/globulario/sensei"
+
+	_, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/example/missing")
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("unknown requested domain must fail closed, got %v", err)
+	}
+}
+
 // Mixed-domain result with no scope → fail closed (FailedPrecondition), never
 // a mixed result set.
 func TestCollectImpact_MixedDomainUnscoped_FailsClosed(t *testing.T) {

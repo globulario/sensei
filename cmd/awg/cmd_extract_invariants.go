@@ -4,8 +4,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,46 +17,25 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"gopkg.in/yaml.v3"
 )
 
 type invariantExtractionReport struct {
-	GeneratedBy      string                         `json:"generated_by" yaml:"generated_by"`
-	GeneratedAt      string                         `json:"generated_at" yaml:"generated_at"`
-	RepoRoot         string                         `json:"repo_root" yaml:"repo_root"`
+	GeneratedBy       string                         `json:"generated_by" yaml:"generated_by"`
+	GeneratedAt       string                         `json:"generated_at" yaml:"generated_at"`
+	RepoRoot          string                         `json:"repo_root" yaml:"repo_root"`
 	Facts             []normalizedInvariantFact      `json:"facts" yaml:"facts"`
 	Candidates        []extractedInvariantCandidate  `json:"candidates" yaml:"candidates"`
 	AuthoritySurfaces []authoritySurfaceCandidate    `json:"authority_surfaces,omitempty" yaml:"authority_surfaces,omitempty"`
 	MutationAnalysis  invariantMutationAnalysisState `json:"mutation_analysis,omitempty" yaml:"mutation_analysis,omitempty"`
+	Limitations       []architecture.Limitation      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
-type normalizedInvariantFact struct {
-	ID         string                `json:"id" yaml:"id"`
-	Kind       string                `json:"kind" yaml:"kind"`
-	Subject    string                `json:"subject" yaml:"subject"`
-	Predicate  string                `json:"predicate" yaml:"predicate"`
-	Object     string                `json:"object" yaml:"object"`
-	Scope      invariantFactScope    `json:"scope" yaml:"scope"`
-	Evidence   invariantFactEvidence `json:"evidence" yaml:"evidence"`
-	Confidence float64               `json:"confidence" yaml:"confidence"`
-	Extractor  string                `json:"extractor" yaml:"extractor"`
-	Meta       map[string]string     `json:"meta,omitempty" yaml:"meta,omitempty"`
-}
-
-type invariantFactScope struct {
-	Repository string   `json:"repository" yaml:"repository"`
-	Files      []string `json:"files" yaml:"files"`
-	Symbols    []string `json:"symbols" yaml:"symbols"`
-}
-
-type invariantFactEvidence struct {
-	SourceFile string `json:"source_file,omitempty" yaml:"source_file,omitempty"`
-	LineStart  int    `json:"line_start,omitempty" yaml:"line_start,omitempty"`
-	LineEnd    int    `json:"line_end,omitempty" yaml:"line_end,omitempty"`
-	TestName   string `json:"test_name,omitempty" yaml:"test_name,omitempty"`
-	Commit     string `json:"commit,omitempty" yaml:"commit,omitempty"`
-	Command    string `json:"command,omitempty" yaml:"command,omitempty"`
-}
+type normalizedInvariantFact = architecture.Fact
+type invariantFactScope = architecture.Scope
+type invariantFactEvidence = architecture.Evidence
 
 type extractedInvariantCandidate struct {
 	ID                      string                        `json:"id" yaml:"id"`
@@ -218,6 +195,7 @@ Flags:
 
 func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (invariantExtractionReport, error) {
 	var facts []normalizedInvariantFact
+	var limitations []architecture.Limitation
 	// One Go-AST pass produces both invariant facts and authority surfaces.
 	goFacts, authority, err := extractGoArchitecture(root, opts)
 	if err != nil {
@@ -225,25 +203,51 @@ func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (
 	}
 	facts = append(facts, goFacts...)
 	authority = filterAuthorityByMinConfidence(authority, opts.MinimumConfidence)
+	semantic, semanticErr := gosemantics.Extract(root)
+	if semanticErr != nil {
+		limitations = append(limitations, architecture.Limitation{
+			Source: "go_semantic_extractor", Scope: "repository", Reason: semanticErr.Error(), Blocking: false,
+		})
+	} else {
+		for _, observation := range semantic.Observations {
+			if !opts.IncludeTests && observation.Predicate == gosemantics.PredicateTestCallsSymbol {
+				continue
+			}
+			facts = append(facts, invariantFact(root, observation.Kind, observation.Subject, observation.Predicate,
+				observation.Object, observation.File, observation.Symbol, observation.Line, observation.Line, "",
+				"go_semantic_extractor", observation.Confidence, observation.Meta))
+		}
+		for _, limitation := range semantic.Limitations {
+			limitations = append(limitations, architecture.Limitation{
+				Source: "go_semantic_extractor", Scope: limitation.Scope, Reason: limitation.Reason, Blocking: false,
+			})
+		}
+	}
 	facts = append(facts, extractGeneratedAuthorityFacts(root)...)
 	facts = append(facts, extractCIGateFacts(root)...)
 	if opts.IncludeDocs {
 		facts = append(facts, extractAwarenessDocumentationFacts(root)...)
 	}
 	if opts.IncludeHistory {
-		facts = append(facts, extractHistoryInvariantFacts(root)...)
+		historyFacts, historyLimitations := extractHistoryInvariantFacts(root)
+		facts = append(facts, historyFacts...)
+		limitations = append(limitations, historyLimitations...)
 	}
-	facts = normalizeInvariantFacts(root, facts)
+	facts, err = normalizeInvariantFacts(root, facts)
+	if err != nil {
+		return invariantExtractionReport{}, err
+	}
 	candidates := synthesizeInvariantCandidates(root, facts)
 	candidates = filterInvariantCandidates(candidates, opts.MinimumConfidence)
 	sortInvariantCandidates(candidates)
 	report := invariantExtractionReport{
-		GeneratedBy: "sensei extract-invariants",
-		GeneratedAt: "deterministic",
+		GeneratedBy:       "sensei extract-invariants",
+		GeneratedAt:       "deterministic",
 		RepoRoot:          root,
 		Facts:             facts,
 		Candidates:        candidates,
 		AuthoritySurfaces: authority,
+		Limitations:       limitations,
 	}
 	if opts.IncludeMutationAnalysis {
 		tmp, err := os.MkdirTemp("", "sensei-invariant-mutants-*")
@@ -402,7 +406,9 @@ func extractGoArchitecture(root string, opts invariantExtractOptions) ([]normali
 		rel := invariantRel(root, path)
 		facts = append(facts, extractGoFileFactsFromAST(root, rel, file, fset, opts)...)
 		if !isTestFile(filepath.Base(path)) && !strings.HasSuffix(path, ".pb.go") {
-			authority = append(authority, scanAuthorityDecls(rel, file)...)
+			authCandidates, authFacts := scanAuthorityDeclsAndFacts(root, rel, file, fset)
+			authority = append(authority, authCandidates...)
+			facts = append(facts, authFacts...)
 		}
 	}
 	sort.SliceStable(authority, func(i, j int) bool { return authority[i].ID < authority[j].ID })
@@ -529,11 +535,20 @@ func extractAwarenessDocumentationFacts(root string) []normalizedInvariantFact {
 	return facts
 }
 
-func extractHistoryInvariantFacts(root string) []normalizedInvariantFact {
+func extractHistoryInvariantFacts(root string) ([]normalizedInvariantFact, []architecture.Limitation) {
+	revision, status, lim := architecture.ResolveRevision(root, true)
+	if status != architecture.RevisionResolved {
+		return nil, lim
+	}
 	cmd := exec.Command("git", "-C", root, "log", "--oneline", "--name-status", "-n", "80")
 	out, err := cmd.Output()
 	if err != nil {
-		return nil
+		return nil, []architecture.Limitation{{
+			Source:   root,
+			Scope:    "git_history",
+			Reason:   err.Error(),
+			Blocking: false,
+		}}
 	}
 	var facts []normalizedInvariantFact
 	var commit string
@@ -546,18 +561,18 @@ func extractHistoryInvariantFacts(root string) []normalizedInvariantFact {
 			commit = line
 			lower := strings.ToLower(line)
 			if strings.Contains(lower, "remove") || strings.Contains(lower, "forbid") || strings.Contains(lower, "bypass") || strings.Contains(lower, "direct") {
-				facts = append(facts, invariantFact(root, "historical_removal", "git_history", "records_removal_or_forbidden_pattern", line, "", "", 0, 0, "", "git_history_extractor", 0.45, map[string]string{"commit": strings.Fields(line)[0]}))
+				facts = append(facts, invariantFactWithProvenance(root, "historical_removal", "git_history", "records_removal_or_forbidden_pattern", line, "", "", 0, 0, "", "git_history_extractor", 0.45, map[string]string{"commit": strings.Fields(line)[0]}, architecture.Options{Revision: revision, RevisionStatus: status}))
 			}
 			continue
 		}
 		if commit != "" && (strings.HasPrefix(line, "D") || strings.HasPrefix(line, "M")) {
 			lower := strings.ToLower(commit + " " + line)
 			if strings.Contains(lower, "direct") || strings.Contains(lower, "bypass") || strings.Contains(lower, "forbid") || strings.Contains(lower, "remove") {
-				facts = append(facts, invariantFact(root, "historical_removal", "git_history", "changed_file_after_removal_pressure", line, "", "", 0, 0, "", "git_history_extractor", 0.4, map[string]string{"commit": strings.Fields(commit)[0]}))
+				facts = append(facts, invariantFactWithProvenance(root, "historical_removal", "git_history", "changed_file_after_removal_pressure", line, "", "", 0, 0, "", "git_history_extractor", 0.4, map[string]string{"commit": strings.Fields(commit)[0]}, architecture.Options{Revision: revision, RevisionStatus: status}))
 			}
 		}
 	}
-	return facts
+	return facts, nil
 }
 
 func synthesizeInvariantCandidates(root string, facts []normalizedInvariantFact) []extractedInvariantCandidate {
@@ -911,30 +926,22 @@ func renderInvariantExtractionReport(report invariantExtractionReport, format st
 	}
 }
 
-func normalizeInvariantFacts(root string, facts []normalizedInvariantFact) []normalizedInvariantFact {
-	for i := range facts {
-		f := &facts[i]
-		f.Scope.Files = dedupeSorted(f.Scope.Files)
-		f.Scope.Symbols = dedupeSorted(f.Scope.Symbols)
-		if f.ID == "" {
-			f.ID = "fact." + invariantShortHash(strings.Join([]string{f.Kind, f.Subject, f.Predicate, f.Object, f.Evidence.SourceFile, fmt.Sprint(f.Evidence.LineStart)}, "|"))
-		}
-	}
-	seen := map[string]bool{}
-	out := facts[:0]
-	sort.SliceStable(facts, func(i, j int) bool { return facts[i].ID < facts[j].ID })
-	for _, f := range facts {
-		if seen[f.ID] {
-			continue
-		}
-		seen[f.ID] = true
-		out = append(out, f)
-	}
-	return out
+func normalizeInvariantFacts(root string, facts []normalizedInvariantFact) ([]normalizedInvariantFact, error) {
+	return architecture.NormalizeFacts(root, facts)
 }
 
 func invariantFact(root, kind, subject, predicate, object, file, symbol string, lineStart, lineEnd int, command, extractor string, confidence float64, meta map[string]string) normalizedInvariantFact {
+	return invariantFactWithProvenance(root, kind, subject, predicate, object, file, symbol, lineStart, lineEnd, command, extractor, confidence, meta, architecture.Options{RevisionStatus: architecture.RevisionNotRequested})
+}
+
+func invariantFactWithProvenance(root, kind, subject, predicate, object, file, symbol string, lineStart, lineEnd int, command, extractor string, confidence float64, meta map[string]string, provenance architecture.Options) normalizedInvariantFact {
 	repo := filepath.Base(root)
+	repoDomain := gitRemoteDomain(root)
+	repoDomainStatus := architecture.RepositoryDomainResolved
+	if repoDomain == "" {
+		repoDomain = repo
+		repoDomainStatus = architecture.RepositoryDomainFallback
+	}
 	ev := invariantFactEvidence{SourceFile: file, LineStart: lineStart, LineEnd: lineEnd, Command: command}
 	if strings.HasPrefix(symbol, "Test") || strings.Contains(symbol, ".Test") {
 		ev.TestName = lastSegment(symbol)
@@ -942,8 +949,14 @@ func invariantFact(root, kind, subject, predicate, object, file, symbol string, 
 	if meta != nil {
 		ev.Commit = meta["commit"]
 	}
-	return normalizedInvariantFact{
-		ID:        "fact." + invariantShortHash(strings.Join([]string{kind, subject, predicate, object, file, fmt.Sprint(lineStart), extractor}, "|")),
+	if provenance.RevisionStatus == "" {
+		provenance.RevisionStatus = architecture.RevisionNotRequested
+	}
+	provenance.Root = root
+	provenance.RepositoryDomain = repoDomain
+	provenance.RepositoryDomainStatus = repoDomainStatus
+	f, _ := architecture.NewFact(normalizedInvariantFact{
+		ID:        architecture.StableID(kind, subject, predicate, object, file, lineStart, extractor),
 		Kind:      kind,
 		Subject:   subject,
 		Predicate: predicate,
@@ -957,7 +970,8 @@ func invariantFact(root, kind, subject, predicate, object, file, symbol string, 
 		Confidence: confidence,
 		Extractor:  extractor,
 		Meta:       meta,
-	}
+	}, provenance)
+	return f
 }
 
 func testAssertionFact(root, rel, symbol string, fn *ast.FuncDecl, fset *token.FileSet) normalizedInvariantFact {
@@ -1261,8 +1275,7 @@ func sortedMapKeys(m map[string]bool) []string {
 }
 
 func invariantShortHash(s string) string {
-	sum := sha1.Sum([]byte(s))
-	return hex.EncodeToString(sum[:])[:12]
+	return architecture.ShortHash(s)
 }
 
 func invariantClamp(v, min, max int) int {

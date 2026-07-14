@@ -23,6 +23,7 @@
 //	sensei resolve <class> <id>             Fetch a single node by class + id
 //	sensei query --mode <mode>              Structured browse of the graph
 //	sensei metadata                         Graph-level coverage and freshness
+//	sensei domains                          List selectable graph domains
 //	sensei governance status                Show local managed-governance state
 //	sensei check                            Validate YAML sources without building
 //	sensei validate                         Deep structural check of YAML sources
@@ -33,9 +34,30 @@
 //	sensei benchmark-score                  Standard brief->judge benchmark workflow
 //	sensei benchmark-retry                  Benchmark retry-plan controller
 //	sensei benchmark-event-meta             Read orchestration metadata from learning events
+//	sensei benchmark-freeze                 Freeze external cold-start benchmark workspace
+//	sensei benchmark-reconstruct            Reconstruct bounded benchmark state
+//	sensei benchmark-evaluate               Evaluate external benchmark receipts
+//	sensei benchmark-status                 Inspect external benchmark state
 //	sensei certify                          Local governance certification over authored event metadata
 //	sensei extract-authority                Extract candidate authority surfaces from code
 //	sensei extract-proof-obligations        Generate proof obligations from authority surfaces
+//	sensei infer-claims                     Derive offline ArchitectureClaim candidates from facts
+//	sensei maintain-claims                  Recalculate offline ArchitectureClaim status
+//	sensei assess-planes                    Verify ArchitectureClaim architectural-plane basis offline
+//	sensei generate-questions               Generate offline OpenQuestion candidates from closure blockers
+//	sensei record-answer                    Record an exact architect answer offline
+//	sensei adjudicate-answer                Adjudicate a recorded architect answer offline
+//	sensei plan-probes                      Generate offline EvidenceProbe plans
+//	sensei record-probe-result              Record an externally executed probe result offline
+//	sensei advance-convergence              Advance one offline convergence session iteration
+//	sensei convergence-status               Inspect an offline convergence session
+//	sensei admit-change                     Evaluate bounded agent admission
+//	sensei verify-admission                 Verify a diff stayed inside admission scope
+//	sensei admission-status                 Inspect admission receipts
+//	sensei prepare-change                   Create or refresh one active task session
+//	sensei task-status                      Inspect an active task session
+//	sensei advance-task                     Run safe evidence and advance one task iteration
+//	sensei task-briefing                    Show bounded file context for an active task
 //	sensei proof-plan                       Show required proof before a repair can be promoted
 //	sensei repair-plan                      Build an authoritative governed repair plan
 //	sensei seed-status                      Check generated/committed/live seed authority alignment
@@ -129,6 +151,8 @@ func main() {
 		os.Exit(runQuery(args))
 	case "metadata":
 		os.Exit(runMetadata(args))
+	case "domains":
+		os.Exit(runDomains(args))
 	case "governance":
 		os.Exit(runGovernance(args))
 	case "check":
@@ -171,6 +195,14 @@ func main() {
 		os.Exit(runBenchmarkRetry(args))
 	case "benchmark-event-meta":
 		os.Exit(runBenchmarkEventMeta(args))
+	case "benchmark-freeze":
+		os.Exit(runBenchmarkFreezeExternal(args))
+	case "benchmark-reconstruct":
+		os.Exit(runBenchmarkReconstruct(args))
+	case "benchmark-evaluate":
+		os.Exit(runBenchmarkEvaluateExternal(args))
+	case "benchmark-status":
+		os.Exit(runBenchmarkStatusExternal(args))
 	case "certify":
 		os.Exit(runCertify(args))
 	case "extract-authority":
@@ -179,6 +211,42 @@ func main() {
 		os.Exit(runExtractProofObligations(args))
 	case "extract-invariants":
 		os.Exit(runExtractInvariants(args))
+	case "infer-claims":
+		os.Exit(runInferClaims(args))
+	case "maintain-claims":
+		os.Exit(runMaintainClaims(args))
+	case "assess-planes":
+		os.Exit(runAssessPlanes(args))
+	case "assess-closure":
+		os.Exit(runAssessClosure(args))
+	case "generate-questions":
+		os.Exit(runGenerateQuestions(args))
+	case "record-answer":
+		os.Exit(runRecordAnswer(args))
+	case "adjudicate-answer":
+		os.Exit(runAdjudicateAnswer(args))
+	case "plan-probes":
+		os.Exit(runPlanProbes(args))
+	case "record-probe-result":
+		os.Exit(runRecordProbeResult(args))
+	case "advance-convergence":
+		os.Exit(runAdvanceConvergence(args))
+	case "convergence-status":
+		os.Exit(runConvergenceStatus(args))
+	case "admit-change":
+		os.Exit(runAdmitChange(args))
+	case "verify-admission":
+		os.Exit(runVerifyAdmission(args))
+	case "admission-status":
+		os.Exit(runAdmissionStatus(args))
+	case "prepare-change":
+		os.Exit(runPrepareChange(args))
+	case "task-status":
+		os.Exit(runTaskStatus(args))
+	case "advance-task":
+		os.Exit(runAdvanceTask(args))
+	case "task-briefing":
+		os.Exit(runTaskBriefing(args))
 	case "proof-plan":
 		os.Exit(runProofPlan(args))
 	case "repair-plan":
@@ -260,6 +328,7 @@ Query before editing:
   resolve        Fetch a single awareness node by class + id
   query          Structured browse (by_file | by_id | by_class | related)
   metadata       Show graph-level coverage and freshness
+  domains        List selectable graph domains from Metadata
 
 Record or promote a lesson:
   propose        Append one typed feedback entry, rebuild + reload, stage
@@ -311,8 +380,30 @@ Repair and evaluation helpers:
   benchmark-score Standard brief->judge benchmark workflow and combined score
   benchmark-retry Build a reusable benchmark retry plan from run evidence
   benchmark-event-meta Read orchestration metadata from benchmark learning events
+  benchmark-freeze Freeze an external cold-start benchmark workspace
+  benchmark-reconstruct Reconstruct bounded benchmark state from a blind workspace
+  benchmark-evaluate Reveal oracle receipts and produce a categorical report
+  benchmark-status Print compact external benchmark state
   certify        Evaluate a repair claim/promotion verdict
   extract-invariants Extract normalized facts and review-only invariant candidates
+  infer-claims   Derive offline ArchitectureClaim candidates from normalized facts
+  maintain-claims Recalculate offline ArchitectureClaim status from explicit proof
+  assess-planes  Verify ArchitectureClaim architectural-plane basis offline
+  assess-closure Evaluate bounded architectural closure from explicit artifacts
+  generate-questions Generate offline OpenQuestion candidates from closure blockers
+  record-answer  Record an exact architect answer offline
+  adjudicate-answer Adjudicate a recorded architect answer offline
+  plan-probes    Generate offline EvidenceProbe plans from evidence questions
+  record-probe-result Record an externally executed probe result offline
+  advance-convergence Advance one offline convergence session iteration
+  convergence-status Inspect an offline convergence session bundle
+  admit-change   Evaluate bounded agent admission from a convergence bundle
+  verify-admission Verify a working-tree diff against an admission envelope
+  admission-status Inspect admission and scope-verification receipts
+  prepare-change Create or refresh one active architectural task session
+  task-status    Inspect an active architectural task session
+  advance-task   Execute safe static evidence and advance one task iteration
+  task-briefing  Show bounded file context for an active task
   extract-authority Extract candidate authority surfaces from Go code
   extract-proof-obligations Generate proof obligations from authority surfaces
 
