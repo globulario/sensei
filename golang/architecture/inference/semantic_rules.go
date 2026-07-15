@@ -169,11 +169,11 @@ func (TestedFailureBoundaryRule) Descriptor() RuleDescriptor {
 	return RuleDescriptor{
 		ID: "rule.tested_failure_boundary.v1", Version: "v1", Title: "Test-backed failure boundary",
 		Description:       "Relates a failure-signaling test expectation to the exact production symbol it directly calls.",
-		RequiredFactKinds: []string{"assertion", "test_call"}, RequiredPredicates: []string{"asserts_behavior_example", "asserts_architectural_rule", "test_calls_symbol"},
+		RequiredFactKinds: []string{"assertion", "test_call"}, RequiredPredicates: []string{"asserts_architectural_rule", "test_calls_symbol"},
 		OutputPlane: architecture.PlaneEnforced, OutputPredicate: "has_tested_failure_boundary",
 		ConfidencePolicy: confidencePolicy + "; cap 0.75", HumanReviewRequired: true,
 		KnownLimitations: []string{
-			"The test-name expectation may overstate the assertion body.",
+			"Example-style test descriptions do not establish enforced architectural behavior.",
 			"A tested failure path does not establish that the failure occurs in production.",
 		},
 	}
@@ -301,17 +301,17 @@ func sortedMapKeys[V any](values map[string]V) []string {
 }
 
 func failureAssertionsByTest(facts []architecture.Fact) map[string]architecture.Fact {
-	return assertionsByTest(facts, []string{"panic", "recover", "error", "fail", "reject", "invalid"})
+	return assertionsByTest(facts, []string{"asserts_architectural_rule"}, []string{"panic", "recover", "error", "fail", "reject", "invalid"})
 }
 
 func monotonicAssertionsByTest(facts []architecture.Fact) map[string]architecture.Fact {
-	return assertionsByTest(facts, []string{"monotonic", "never decrease", "only increase", "must increase", "cannot reset", "must not reset", "once written"})
+	return assertionsByTest(facts, []string{"asserts_architectural_rule"}, []string{"monotonic", "never decrease", "only increase", "must increase", "cannot reset", "must not reset", "once written"})
 }
 
-func assertionsByTest(facts []architecture.Fact, signals []string) map[string]architecture.Fact {
+func assertionsByTest(facts []architecture.Fact, allowedPredicates, signals []string) map[string]architecture.Fact {
 	out := map[string]architecture.Fact{}
 	for _, fact := range facts {
-		if fact.Kind != "assertion" || (fact.Predicate != "asserts_behavior_example" && fact.Predicate != "asserts_architectural_rule") {
+		if fact.Kind != "assertion" || !containsString(allowedPredicates, fact.Predicate) {
 			continue
 		}
 		text := strings.ToLower(fact.Object)
@@ -330,4 +330,13 @@ func assertionsByTest(facts []architecture.Fact, signals []string) map[string]ar
 		}
 	}
 	return out
+}
+
+func containsString(in []string, want string) bool {
+	for _, item := range in {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }

@@ -501,6 +501,18 @@ func TestFailureBoundaryRuleUsesExactTestExpectation(t *testing.T) {
 	}
 }
 
+func TestFailureBoundaryRuleRejectsBehaviorExampleAsEnforcement(t *testing.T) {
+	assertion := testFact("assertion", "assertion", "api.TestRecoverExample", "asserts_behavior_example", "Must recover panic", 0.75)
+	call := testFact("call", "test_call", "api.TestRecoverExample", "test_calls_symbol", "api.Serve", 0.96)
+	apps, err := NewEngine([]Rule{TestedFailureBoundaryRule{}}).Apply(supportedContext([]architecture.Fact{assertion, call}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 0 {
+		t.Fatalf("behavior example should not produce enforced failure boundary: %#v", apps)
+	}
+}
+
 func TestMonotonicRuleRequiresMultipleExplicitPremises(t *testing.T) {
 	increment := testFact("increment", "generation_check", "state.Advance", "increments_generation", "generation", 0.65)
 	call := testFact("call", "test_call", "state.TestGenerationMustIncrease", "test_calls_symbol", "state.Advance", 0.96)
