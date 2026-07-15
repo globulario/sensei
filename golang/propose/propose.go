@@ -25,11 +25,16 @@ import (
 // shape so a request can round-trip between the CLI, the wire, and a candidate
 // file unchanged.
 type Request struct {
-	Kind        string `json:"kind" yaml:"kind"`
-	ID          string `json:"id,omitempty" yaml:"id,omitempty"`
-	Title       string `json:"title" yaml:"title"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	Severity    string `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Kind         string `json:"kind" yaml:"kind"`
+	ID           string `json:"id,omitempty" yaml:"id,omitempty"`
+	Title        string `json:"title" yaml:"title"`
+	Description  string `json:"description,omitempty" yaml:"description,omitempty"`
+	Severity     string `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Status       string `json:"status,omitempty" yaml:"status,omitempty"`
+	Context      string `json:"context,omitempty" yaml:"context,omitempty"`
+	Consequences string `json:"consequences,omitempty" yaml:"consequences,omitempty"`
+
+	ArchitecturalPlane string `json:"architectural_plane,omitempty" yaml:"architectural_plane,omitempty"`
 
 	SourceFiles       []string `json:"source_files,omitempty" yaml:"source_files,omitempty"`
 	RelatedInvariants []string `json:"related_invariants,omitempty" yaml:"related_invariants,omitempty"`
@@ -37,6 +42,10 @@ type Request struct {
 	RequiredTests     []string `json:"required_tests,omitempty" yaml:"required_tests,omitempty"`
 	ForbiddenFixes    []string `json:"forbidden_fixes,omitempty" yaml:"forbidden_fixes,omitempty"`
 	Evidence          []string `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	DefinesBoundaries []string `json:"defines_boundaries,omitempty" yaml:"defines_boundaries,omitempty"`
+	DefinesContracts  []string `json:"defines_contracts,omitempty" yaml:"defines_contracts,omitempty"`
+	AffectsComponents []string `json:"affects_components,omitempty" yaml:"affects_components,omitempty"`
+	SupportedEvidence []string `json:"supported_by_evidence,omitempty" yaml:"supported_by_evidence,omitempty"`
 
 	Repo   string `json:"repo,omitempty" yaml:"repo,omitempty"`
 	Domain string `json:"domain,omitempty" yaml:"domain,omitempty"`
@@ -48,15 +57,16 @@ type Request struct {
 
 // Kinds returns the accepted entry kinds.
 func Kinds() []string {
-	return []string{"failure_mode", "invariant", "required_test", "forbidden_fix", "contract_unknown"}
+	return []string{"failure_mode", "invariant", "required_test", "forbidden_fix", "decision", "contract_unknown"}
 }
 
 var validKinds = map[string]bool{
 	"failure_mode": true, "invariant": true, "required_test": true,
-	"forbidden_fix": true, "contract_unknown": true,
+	"forbidden_fix": true, "decision": true, "contract_unknown": true,
 }
 
 var validSeverities = map[string]bool{"critical": true, "high": true, "warning": true}
+var validArchitecturalPlanes = map[string]bool{"desired": true, "intended": true, "historical": true}
 
 // Normalize trims whitespace and drops empty list entries in place.
 func Normalize(r *Request) {
@@ -65,6 +75,10 @@ func Normalize(r *Request) {
 	r.Title = strings.TrimSpace(r.Title)
 	r.Description = strings.TrimSpace(r.Description)
 	r.Severity = strings.ToLower(strings.TrimSpace(r.Severity))
+	r.Status = strings.ToLower(strings.TrimSpace(r.Status))
+	r.Context = strings.TrimSpace(r.Context)
+	r.Consequences = strings.TrimSpace(r.Consequences)
+	r.ArchitecturalPlane = strings.ToLower(strings.TrimSpace(r.ArchitecturalPlane))
 	r.Repo = strings.TrimSpace(r.Repo)
 	r.Domain = strings.TrimSpace(r.Domain)
 	r.Contract = strings.TrimSpace(r.Contract)
@@ -76,6 +90,10 @@ func Normalize(r *Request) {
 	r.RequiredTests = cleanList(r.RequiredTests)
 	r.ForbiddenFixes = cleanList(r.ForbiddenFixes)
 	r.Evidence = cleanList(r.Evidence)
+	r.DefinesBoundaries = cleanList(r.DefinesBoundaries)
+	r.DefinesContracts = cleanList(r.DefinesContracts)
+	r.AffectsComponents = cleanList(r.AffectsComponents)
+	r.SupportedEvidence = cleanList(r.SupportedEvidence)
 }
 
 // Validate enforces the contract-first rules. An empty slice means the request
@@ -85,7 +103,7 @@ func Validate(r Request) []string {
 
 	switch {
 	case r.Kind == "":
-		return []string{"kind is required (failure_mode | invariant | required_test | forbidden_fix | contract_unknown)"}
+		return []string{"kind is required (failure_mode | invariant | required_test | forbidden_fix | decision | contract_unknown)"}
 	case !validKinds[r.Kind]:
 		return []string{fmt.Sprintf("unknown kind %q", r.Kind)}
 	}
@@ -146,6 +164,28 @@ func Validate(r Request) []string {
 		if r.Description == "" {
 			errs = append(errs, "forbidden_fix: description must state why the fix is forbidden")
 		}
+	case "decision":
+		if r.Severity != "" {
+			errs = append(errs, "decision: severity is not supported")
+		}
+		if r.Contract != "" || r.ProposedContract != "" || r.RevisionRequest != "" {
+			errs = append(errs, "decision: contract and contract_unknown fields are not supported")
+		}
+		if len(r.RequiredTests) != 0 {
+			errs = append(errs, "decision: required_test links are not supported directly; define evidence or separate required_test records")
+		}
+		if r.Description == "" {
+			errs = append(errs, "decision: description is required and becomes rationale")
+		}
+		if r.ArchitecturalPlane != "" && !validArchitecturalPlanes[r.ArchitecturalPlane] {
+			errs = append(errs, fmt.Sprintf("decision: architectural_plane %q is not one of desired|intended|historical", r.ArchitecturalPlane))
+		}
+		if len(r.RelatedInvariants) == 0 && len(r.RelatedFailures) == 0 &&
+			len(r.ForbiddenFixes) == 0 && len(r.SourceFiles) == 0 &&
+			len(r.DefinesBoundaries) == 0 && len(r.DefinesContracts) == 0 &&
+			len(r.AffectsComponents) == 0 && len(r.SupportedEvidence) == 0 {
+			errs = append(errs, "decision: connect the record to at least one invariant, failure, forbidden fix, source file, boundary, contract, component, or supporting evidence")
+		}
 	}
 	return errs
 }
@@ -163,10 +203,37 @@ type candidateDoc struct {
 	Proposal candidateEntry `yaml:"proposal"`
 }
 
+type candidateRequest struct {
+	Kind               string   `yaml:"kind,omitempty"`
+	ID                 string   `yaml:"id,omitempty"`
+	Title              string   `yaml:"title,omitempty"`
+	Description        string   `yaml:"description,omitempty"`
+	Severity           string   `yaml:"severity,omitempty"`
+	RecordStatus       string   `yaml:"record_status,omitempty"`
+	Context            string   `yaml:"context,omitempty"`
+	Consequences       string   `yaml:"consequences,omitempty"`
+	ArchitecturalPlane string   `yaml:"architectural_plane,omitempty"`
+	SourceFiles        []string `yaml:"source_files,omitempty"`
+	RelatedInvariants  []string `yaml:"related_invariants,omitempty"`
+	RelatedFailures    []string `yaml:"related_failures,omitempty"`
+	RequiredTests      []string `yaml:"required_tests,omitempty"`
+	ForbiddenFixes     []string `yaml:"forbidden_fixes,omitempty"`
+	Evidence           []string `yaml:"evidence,omitempty"`
+	DefinesBoundaries  []string `yaml:"defines_boundaries,omitempty"`
+	DefinesContracts   []string `yaml:"defines_contracts,omitempty"`
+	AffectsComponents  []string `yaml:"affects_components,omitempty"`
+	SupportedEvidence  []string `yaml:"supported_by_evidence,omitempty"`
+	Repo               string   `yaml:"repo,omitempty"`
+	Domain             string   `yaml:"domain,omitempty"`
+	Contract           string   `yaml:"contract,omitempty"`
+	ProposedContract   string   `yaml:"proposed_contract,omitempty"`
+	RevisionRequest    string   `yaml:"revision_request,omitempty"`
+}
+
 type candidateEntry struct {
-	Status     string           `yaml:"status"`      // always "awaiting_review"
-	ProposedBy string           `yaml:"proposed_by"` // "agent"
-	Request    `yaml:",inline"` // kind, id, title, … at the same level
+	Status           string           `yaml:"status"`      // always "awaiting_review"
+	ProposedBy       string           `yaml:"proposed_by"` // "agent"
+	candidateRequest `yaml:",inline"` // kind, id, title, … at the same level
 }
 
 // RenderCandidate produces the review-queue file for a (validated) request. All
@@ -176,9 +243,9 @@ func RenderCandidate(r Request) (Candidate, error) {
 	id := DeriveID(r)
 	r.ID = id // stamp the resolved id so the entry is self-describing
 	doc := candidateDoc{Proposal: candidateEntry{
-		Status:     "awaiting_review",
-		ProposedBy: "agent",
-		Request:    r,
+		Status:           "awaiting_review",
+		ProposedBy:       "agent",
+		candidateRequest: candidateRequestFromRequest(r),
 	}}
 	body, err := yaml.Marshal(doc)
 	if err != nil {
@@ -190,6 +257,35 @@ func RenderCandidate(r Request) (Candidate, error) {
 		"# after verifying the contract.\n"
 	relPath := path.Join("candidates", "proposals", r.Kind+"."+slugify(id)+".yaml")
 	return Candidate{RelPath: relPath, Content: append([]byte(header), body...), NodeIDs: []string{id}}, nil
+}
+
+func candidateRequestFromRequest(r Request) candidateRequest {
+	return candidateRequest{
+		Kind:               r.Kind,
+		ID:                 r.ID,
+		Title:              r.Title,
+		Description:        r.Description,
+		Severity:           r.Severity,
+		RecordStatus:       r.Status,
+		Context:            r.Context,
+		Consequences:       r.Consequences,
+		ArchitecturalPlane: r.ArchitecturalPlane,
+		SourceFiles:        r.SourceFiles,
+		RelatedInvariants:  r.RelatedInvariants,
+		RelatedFailures:    r.RelatedFailures,
+		RequiredTests:      r.RequiredTests,
+		ForbiddenFixes:     r.ForbiddenFixes,
+		Evidence:           r.Evidence,
+		DefinesBoundaries:  r.DefinesBoundaries,
+		DefinesContracts:   r.DefinesContracts,
+		AffectsComponents:  r.AffectsComponents,
+		SupportedEvidence:  r.SupportedEvidence,
+		Repo:               r.Repo,
+		Domain:             r.Domain,
+		Contract:           r.Contract,
+		ProposedContract:   r.ProposedContract,
+		RevisionRequest:    r.RevisionRequest,
+	}
 }
 
 // DeriveID mirrors the CLI's id derivation so a proposal has a stable id.
@@ -211,6 +307,7 @@ var idPrefixByKind = map[string]string{
 	"failure_mode":     "failure",
 	"invariant":        "invariant",
 	"forbidden_fix":    "forbidden_fix",
+	"decision":         "decision",
 	"contract_unknown": "contract_unknown",
 }
 
