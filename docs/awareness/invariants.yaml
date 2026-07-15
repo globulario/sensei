@@ -445,3 +445,48 @@ invariants:
         - golang/architecture/tasksession/briefing.go
     related_failure_modes:
       - behavioral.task_claim_scope_blocker_explosion
+  - id: awareness.authored_knowledge_sources_are_governable_repository_files
+    title: Authored awareness sources remain governable repository files
+    severity: high
+    status: active
+    description: Existing authored awareness YAML is repository source and may be represented as an exact task anchor. Representing the file does not promote its contents, establish authority, satisfy correctness, or make task-local knowledge canonical. An absent planned create target must never be minted as SourceFile.
+    protects:
+      files:
+        - docs/awareness/architecture/components.yaml
+        - .sensei/project/knowledge/bounded_create_authority.yaml
+        - .sensei/project/knowledge/bounded_create_intent.yaml
+    related_failure_modes:
+      - failure.rebuild.authoredin_records_per_run_temp_path
+    related_invariants:
+      - awareness.rdf.yaml_is_source_of_truth
+      - awareness.architecture_claims_non_authoritative_until_promoted
+    required_tests:
+      - golang/architecture/closure/model_test.go:TestClosureRequestFileRepresentedByCanonicalSourceFileIRI
+      - golang/architecture/closure/model_test.go:TestUnrepresentedFileRemainsOpen
+    evidence:
+      - task.bind-bounded-create-authority-owner.95d0b9aad021 remained blocked by closure.structural.file_unrepresented for .sensei/project/knowledge/bounded_create_authority.yaml despite a canonical authoredIn anchor
+      - task.define-bounded-admission-owner-component.bbe4cffb3b33 remained blocked by closure.structural.file_unrepresented for docs/awareness/architecture/components.yaml while trying to define the canonical owner
+    contract: Existing authored awareness YAML files are governed repository sources that may anchor exact task scope. Representing such files must not by itself promote their contents to authority or truth, and absent planned create targets must remain unrepresented rather than minted as SourceFile nodes.
+  - id: awareness.governed_direction_records_must_be_claim_consumable
+    title: Governed desired and intended records must become claim-consumable closure input through a deterministic bridge
+    severity: high
+    status: active
+    description: Governed desired and intended architecture remains operationally inert until a deterministic, revision-bound bridge projects it into supported canonical claims for the exact anchored scope. Accepted dialogue, raw graph presence, and authored direction records are not interchangeable. Closure may consume the supported claims the bridge emits, but it must not bypass claims by treating governed graph nodes or dialogue as direct task authority.
+    protects:
+      files:
+        - cmd/awg/cmd_infer_claims.go
+        - golang/architecture/inference/governed_direction.go
+        - golang/architecture/inference/registry.go
+        - docs/awareness/architecture/decisions.yaml
+    related_invariants:
+      - awareness.architecture_claims_non_authoritative_until_promoted
+      - awareness.closure_is_revision_scope_and_task_bound
+    related_failure_modes:
+      - closure.governed_knowledge_present_but_non_consumable
+    required_tests:
+      - cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph
+      - cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords
+    evidence:
+      - A fresh structural graph cleared false file-absence blockers, yet evolve tasks still reported closure.direction.desired_missing and closure.direction.intended_missing until infer-claims synthesized supported directional claims from governed records.
+      - The bridge must remain provenance-preserving: governed record -> synthetic governed fact -> supported canonical claim -> evalDirection, never raw dialogue -> closure.
+    contract: Governed desired or intended records become task-consumable only through a deterministic claim-synthesis bridge bound to repository revision and graph digest. The bridge may clear directional closure when the governed record is current and correctly scoped, but it must never let dialogue or raw graph presence bypass canonical claim semantics.

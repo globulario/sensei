@@ -319,3 +319,65 @@ failure_modes:
     evidence:
       - Observed neural-candidate-awareness preparation inherited 1025 must_preserve claims, 359 active root blockers, and 360 unresolved questions from repository-wide claim debt.
       - A later bounded task-local scoping prototype reduced the same surface to 853 discovered claims, 5 binding claims, 0 blocking claims, and 848 background-debt claims, leaving only genuine intended-direction and failure-mode governance gaps.
+  - id: failure.components_owner_registry_launders_or_overclaims_authority
+    title: Canonical owner registry launders or overclaims authority
+    severity: high
+    description: 'A canonical owner entry in docs/awareness/architecture/components.yaml can fail in two directions: it may not resolve to the real subsystem that owns the bounded admission implementation surface, leaving task-local authority overlays unbound; or it may claim a broader surface than the real subsystem, causing unrelated files to inherit admission-control ownership. The reciprocal trap is to treat component ownership metadata as mutation authority, correctness proof, or task-local knowledge promotion. All three defects corrupt bounded admission governance even when the file is structurally represented.'
+    protects:
+      files:
+        - docs/awareness/architecture/components.yaml
+        - .sensei/project/knowledge/bounded_create_authority.yaml
+    related_invariants:
+      - awareness.authored_knowledge_sources_are_governable_repository_files
+      - awareness.graph.compiled_context_not_authority
+    evidence:
+      - task.define-bounded-admission-owner-component.b921967f0e4f remained blocked by closure.behavior.surface_empty until a governed failure surface for owner ambiguity and authority laundering exists
+      - validateAndProjectTaskKnowledgeOverlay rejects authority overlays unless owner_service resolves to exactly one canonical component node
+    contract: Canonical owner registry entries may represent exact governed subsystem boundaries for existing repository files, but ownership metadata must resolve to a canonical component, remain narrow to the real implementation surface, and never serve as mutation authority, correctness proof, or self-authorizing task-local knowledge by itself.
+  - id: closure.governed_knowledge_present_but_non_consumable
+    title: Governed architectural direction exists but closure cannot consume it
+    severity: high
+    description: Governed desired or intended architecture may exist in the canonical graph yet remain operationally inert when no deterministic bridge projects it into supported canonical claims, or when file-scoped failure relevance is not materialized from the governed corpus. Tasks then remain blocked on missing direction or missing failure surface even though the architecture has already been authored and governed, pressuring agents to treat dialogue or raw graph presence as authority.
+    protects:
+      files:
+        - cmd/awg/cmd_infer_claims.go
+        - golang/architecture/inference/governed_direction.go
+        - golang/architecture/inference/registry.go
+        - golang/extractor/yaml_import.go
+        - golang/architecture/closure/model.go
+        - docs/awareness/architecture/decisions.yaml
+        - docs/awareness/failure_modes.yaml
+    related_invariants:
+      - awareness.governed_direction_records_must_be_claim_consumable
+      - awareness.closure_is_revision_scope_and_task_bound
+    required_tests:
+      - cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph
+      - cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords
+      - golang/architecture/closure/model_test.go:TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode
+      - golang/extractor/yaml_import_test.go:TestImportFixture_KnownTriplesPresent
+    evidence:
+      - After stale structural extraction was repaired, the awareness-enforcement task still reported closure.direction.desired_missing, closure.direction.intended_missing, and closure.behavior.failure_mode_missing until the bridge emitted supported directional claims and SourceFile vulnerable_to FailureMode edges.
+      - The correct fix was governed record -> supported claim and failure_modes.protects.files -> vulnerable_to, not dialogue promotion or direct graph-node consumption inside closure.
+    contract: Governed architecture becomes operational closure input only through deterministic, provenance-preserving consumption paths already trusted by closure. Raw graph presence, authored YAML, and accepted dialogue must not silently substitute for supported claims or explicit failure relevance.
+  - id: behavioral.awareness_source_mutation_without_enforcement
+    title: Canonical awareness-source mutation lacks deterministic enforcement support
+    severity: high
+    description: An exact change to a canonical awareness source can be structurally scoped yet still lack a behavioral basis when no deterministic validation and graph-compilation path proves the mutation will be enforced. The dangerous repair is to treat the YAML declaration itself, or an invariant/failure mode added in the same change, as observed behavior or correctness proof.
+    protects:
+      files:
+        - golang/architecture/admission/admission.go
+        - golang/architecture/admission/admission_test.go
+        - golang/architecture/closure/model.go
+        - golang/architecture/closure/model_test.go
+        - golang/architecture/closure/util.go
+        - golang/architecture/tasksession/session.go
+        - golang/architecture/tasksession/session_test.go
+        - golang/extractor/yaml_import_dir.go
+        - golang/extractor/yaml_import_dir_test.go
+    related_invariants:
+      - awareness.authored_knowledge_sources_are_governable_repository_files
+      - awareness.governed_direction_records_must_be_claim_consumable
+    evidence:
+      - The awareness-enforcement port moved from false structural blockers to true desired, intended, and behavioral blockers once fresh source representation restored golang/architecture/closure/util.go.
+      - That progression showed the remaining gap was not missing files but the absence of a deterministic enforcement basis for governed awareness-source mutation.
+    contract: Canonical awareness-source mutation may receive only conditional behavioral support from a closed validation and graph-compilation path. Representation alone is insufficient, and enforcement support does not prove design correctness.
