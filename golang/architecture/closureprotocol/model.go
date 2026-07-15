@@ -10,10 +10,10 @@ type RepositorySnapshot struct {
 }
 
 type GraphSnapshot struct {
-	DigestSHA256 string `json:"digest_sha256,omitempty" yaml:"digest_sha256,omitempty"`
-	DigestStatus string `json:"digest_status" yaml:"digest_status"`
+	DigestSHA256  string `json:"digest_sha256,omitempty" yaml:"digest_sha256,omitempty"`
+	DigestStatus  string `json:"digest_status" yaml:"digest_status"`
 	SchemaVersion string `json:"schema_version,omitempty" yaml:"schema_version,omitempty"`
-	Path         string `json:"path,omitempty" yaml:"path,omitempty"`
+	Path          string `json:"path,omitempty" yaml:"path,omitempty"`
 }
 
 type TaskBinding struct {
@@ -23,11 +23,11 @@ type TaskBinding struct {
 }
 
 type PolicyBinding struct {
-	Admission       string `json:"admission" yaml:"admission"`
-	Certification   string `json:"certification" yaml:"certification"`
-	Completion      string `json:"completion" yaml:"completion"`
-	Revocation      string `json:"revocation" yaml:"revocation"`
-	Ledger          string `json:"ledger" yaml:"ledger"`
+	Admission        string `json:"admission" yaml:"admission"`
+	Certification    string `json:"certification" yaml:"certification"`
+	Completion       string `json:"completion" yaml:"completion"`
+	Revocation       string `json:"revocation" yaml:"revocation"`
+	Ledger           string `json:"ledger" yaml:"ledger"`
 	Canonicalization string `json:"canonicalization" yaml:"canonicalization"`
 }
 
@@ -44,22 +44,22 @@ type ResultArtifact struct {
 }
 
 type ResultBinding struct {
-	BaseRevision         string           `json:"base_revision" yaml:"base_revision"`
-	PatchDigestSHA256    string           `json:"patch_digest_sha256" yaml:"patch_digest_sha256"`
-	ResultTreeDigestSHA256 string         `json:"result_tree_digest_sha256" yaml:"result_tree_digest_sha256"`
-	ResultRevision       string           `json:"result_revision,omitempty" yaml:"result_revision,omitempty"`
-	GraphDigestSHA256    string           `json:"graph_digest_sha256" yaml:"graph_digest_sha256"`
-	GeneratedArtifacts   []ResultArtifact `json:"generated_artifacts,omitempty" yaml:"generated_artifacts,omitempty"`
+	BaseRevision           string           `json:"base_revision" yaml:"base_revision"`
+	PatchDigestSHA256      string           `json:"patch_digest_sha256" yaml:"patch_digest_sha256"`
+	ResultTreeDigestSHA256 string           `json:"result_tree_digest_sha256" yaml:"result_tree_digest_sha256"`
+	ResultRevision         string           `json:"result_revision,omitempty" yaml:"result_revision,omitempty"`
+	GraphDigestSHA256      string           `json:"graph_digest_sha256" yaml:"graph_digest_sha256"`
+	GeneratedArtifacts     []ResultArtifact `json:"generated_artifacts,omitempty" yaml:"generated_artifacts,omitempty"`
 }
 
 type RuntimeTarget struct {
-	Platform               string   `json:"platform" yaml:"platform"`
-	EnvironmentID          string   `json:"environment_id,omitempty" yaml:"environment_id,omitempty"`
-	DeploymentID           string   `json:"deployment_id,omitempty" yaml:"deployment_id,omitempty"`
-	NodeIDs                []string `json:"node_ids,omitempty" yaml:"node_ids,omitempty"`
-	ServiceInstances       []string `json:"service_instances,omitempty" yaml:"service_instances,omitempty"`
-	ReleaseRevision        string   `json:"release_revision,omitempty" yaml:"release_revision,omitempty"`
-	ConfigurationGeneration string  `json:"configuration_generation,omitempty" yaml:"configuration_generation,omitempty"`
+	Platform                string   `json:"platform" yaml:"platform"`
+	EnvironmentID           string   `json:"environment_id,omitempty" yaml:"environment_id,omitempty"`
+	DeploymentID            string   `json:"deployment_id,omitempty" yaml:"deployment_id,omitempty"`
+	NodeIDs                 []string `json:"node_ids,omitempty" yaml:"node_ids,omitempty"`
+	ServiceInstances        []string `json:"service_instances,omitempty" yaml:"service_instances,omitempty"`
+	ReleaseRevision         string   `json:"release_revision,omitempty" yaml:"release_revision,omitempty"`
+	ConfigurationGeneration string   `json:"configuration_generation,omitempty" yaml:"configuration_generation,omitempty"`
 }
 
 type ActorBinding struct {
@@ -88,15 +88,15 @@ type ChangePlan struct {
 }
 
 type AuthorityResolution struct {
-	OperationID        string        `json:"operation_id" yaml:"operation_id"`
-	Status             ReceiptStatus `json:"status" yaml:"status"`
-	AuthorityDomainIDs []string      `json:"authority_domain_ids,omitempty" yaml:"authority_domain_ids,omitempty"`
-	GrantIDs           []string      `json:"grant_ids,omitempty" yaml:"grant_ids,omitempty"`
-	DelegationChain    []string      `json:"delegation_chain,omitempty" yaml:"delegation_chain,omitempty"`
-	LegalMechanisms    []string      `json:"legal_mechanisms,omitempty" yaml:"legal_mechanisms,omitempty"`
-	SelectedMechanism  MechanismKind `json:"selected_mechanism" yaml:"selected_mechanism"`
-	Limitations        []string      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
-	ResolutionDigestSHA256 string    `json:"resolution_digest_sha256,omitempty" yaml:"resolution_digest_sha256,omitempty"`
+	OperationID            string        `json:"operation_id" yaml:"operation_id"`
+	Status                 ReceiptStatus `json:"status" yaml:"status"`
+	AuthorityDomainIDs     []string      `json:"authority_domain_ids,omitempty" yaml:"authority_domain_ids,omitempty"`
+	GrantIDs               []string      `json:"grant_ids,omitempty" yaml:"grant_ids,omitempty"`
+	DelegationChain        []string      `json:"delegation_chain,omitempty" yaml:"delegation_chain,omitempty"`
+	LegalMechanisms        []string      `json:"legal_mechanisms,omitempty" yaml:"legal_mechanisms,omitempty"`
+	SelectedMechanism      MechanismKind `json:"selected_mechanism" yaml:"selected_mechanism"`
+	Limitations            []string      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	ResolutionDigestSHA256 string        `json:"resolution_digest_sha256,omitempty" yaml:"resolution_digest_sha256,omitempty"`
 }
 
 type AdmissionRequest struct {
@@ -116,62 +116,62 @@ type OperationAdmissionVerdict struct {
 }
 
 type AdmissionDecision struct {
-	DecisionID              string                     `json:"decision_id,omitempty" yaml:"decision_id,omitempty"`
-	RequestDigestSHA256     string                     `json:"request_digest_sha256" yaml:"request_digest_sha256"`
-	PolicyID                string                     `json:"policy_id" yaml:"policy_id"`
-	OperationVerdicts       []OperationAdmissionVerdict `json:"operation_verdicts" yaml:"operation_verdicts"`
-	CapabilityID            string                     `json:"capability_id" yaml:"capability_id"`
-	CapabilityExpiry        string                     `json:"capability_expiry,omitempty" yaml:"capability_expiry,omitempty"`
-	RiskBudget              int                        `json:"risk_budget,omitempty" yaml:"risk_budget,omitempty"`
-	OperationBudget         int                        `json:"operation_budget,omitempty" yaml:"operation_budget,omitempty"`
-	RequiredProofSlots      []string                   `json:"required_proof_slots,omitempty" yaml:"required_proof_slots,omitempty"`
-	RequiredEvidenceProfiles []string                  `json:"required_evidence_profiles,omitempty" yaml:"required_evidence_profiles,omitempty"`
-	RequiredResultRebuilds  []string                   `json:"required_result_rebuilds,omitempty" yaml:"required_result_rebuilds,omitempty"`
-	CompletionPolicyID      string                     `json:"completion_policy_id" yaml:"completion_policy_id"`
+	DecisionID               string                      `json:"decision_id,omitempty" yaml:"decision_id,omitempty"`
+	RequestDigestSHA256      string                      `json:"request_digest_sha256" yaml:"request_digest_sha256"`
+	PolicyID                 string                      `json:"policy_id" yaml:"policy_id"`
+	OperationVerdicts        []OperationAdmissionVerdict `json:"operation_verdicts" yaml:"operation_verdicts"`
+	CapabilityID             string                      `json:"capability_id" yaml:"capability_id"`
+	CapabilityExpiry         string                      `json:"capability_expiry,omitempty" yaml:"capability_expiry,omitempty"`
+	RiskBudget               int                         `json:"risk_budget,omitempty" yaml:"risk_budget,omitempty"`
+	OperationBudget          int                         `json:"operation_budget,omitempty" yaml:"operation_budget,omitempty"`
+	RequiredProofSlots       []string                    `json:"required_proof_slots,omitempty" yaml:"required_proof_slots,omitempty"`
+	RequiredEvidenceProfiles []string                    `json:"required_evidence_profiles,omitempty" yaml:"required_evidence_profiles,omitempty"`
+	RequiredResultRebuilds   []string                    `json:"required_result_rebuilds,omitempty" yaml:"required_result_rebuilds,omitempty"`
+	CompletionPolicyID       string                      `json:"completion_policy_id" yaml:"completion_policy_id"`
 }
 
 type CapabilityConsumption struct {
-	CapabilityID         string      `json:"capability_id" yaml:"capability_id"`
-	Task                 TaskBinding `json:"task" yaml:"task"`
-	ConsumerActor        ActorBinding `json:"consumer_actor" yaml:"consumer_actor"`
-	ConsumedOperationIDs []string    `json:"consumed_operation_ids" yaml:"consumed_operation_ids"`
-	ConsumedAt           string      `json:"consumed_at" yaml:"consumed_at"`
-	DecisionDigestSHA256 string      `json:"decision_digest_sha256" yaml:"decision_digest_sha256"`
+	CapabilityID         string        `json:"capability_id" yaml:"capability_id"`
+	Task                 TaskBinding   `json:"task" yaml:"task"`
+	ConsumerActor        ActorBinding  `json:"consumer_actor" yaml:"consumer_actor"`
+	ConsumedOperationIDs []string      `json:"consumed_operation_ids" yaml:"consumed_operation_ids"`
+	ConsumedAt           string        `json:"consumed_at" yaml:"consumed_at"`
+	DecisionDigestSHA256 string        `json:"decision_digest_sha256" yaml:"decision_digest_sha256"`
 	OneUseStatus         ReceiptStatus `json:"one_use_status" yaml:"one_use_status"`
 }
 
 type EvidenceProfile struct {
-	ProfileID            string       `json:"profile_id" yaml:"profile_id"`
-	Owner                string       `json:"owner" yaml:"owner"`
-	LegalObservationPath string       `json:"legal_observation_path" yaml:"legal_observation_path"`
-	EvidenceKind         EvidenceKind `json:"evidence_kind" yaml:"evidence_kind"`
-	Freshness            string       `json:"freshness,omitempty" yaml:"freshness,omitempty"`
-	Trust                string       `json:"trust,omitempty" yaml:"trust,omitempty"`
-	RuntimeTargetKind    string       `json:"runtime_target_kind,omitempty" yaml:"runtime_target_kind,omitempty"`
-	GovernedTarget       string       `json:"governed_target,omitempty" yaml:"governed_target,omitempty"`
+	ProfileID            string        `json:"profile_id" yaml:"profile_id"`
+	Owner                string        `json:"owner" yaml:"owner"`
+	LegalObservationPath string        `json:"legal_observation_path" yaml:"legal_observation_path"`
+	EvidenceKind         EvidenceKind  `json:"evidence_kind" yaml:"evidence_kind"`
+	Freshness            string        `json:"freshness,omitempty" yaml:"freshness,omitempty"`
+	Trust                string        `json:"trust,omitempty" yaml:"trust,omitempty"`
+	RuntimeTargetKind    string        `json:"runtime_target_kind,omitempty" yaml:"runtime_target_kind,omitempty"`
+	GovernedTarget       string        `json:"governed_target,omitempty" yaml:"governed_target,omitempty"`
 	Status               ReceiptStatus `json:"status" yaml:"status"`
 }
 
 type EvidenceReceipt struct {
-	ReceiptID        string        `json:"receipt_id" yaml:"receipt_id"`
-	EvidenceKind     EvidenceKind  `json:"evidence_kind" yaml:"evidence_kind"`
-	ProfileID        string        `json:"profile_id" yaml:"profile_id"`
-	ResultBinding    ResultBinding `json:"result_binding" yaml:"result_binding"`
-	RuntimeTarget    *RuntimeTarget `json:"runtime_target,omitempty" yaml:"runtime_target,omitempty"`
-	Producer         string        `json:"producer" yaml:"producer"`
-	ObservationPath  string        `json:"observation_path" yaml:"observation_path"`
-	ObservedAt       string        `json:"observed_at" yaml:"observed_at"`
-	ExpiresAt        string        `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
-	Status           ReceiptStatus `json:"status" yaml:"status"`
-	Trust            string        `json:"trust,omitempty" yaml:"trust,omitempty"`
-	PayloadDigestSHA256 string     `json:"payload_digest_sha256" yaml:"payload_digest_sha256"`
-	Conflicts        []string      `json:"conflicts,omitempty" yaml:"conflicts,omitempty"`
+	ReceiptID           string         `json:"receipt_id" yaml:"receipt_id"`
+	EvidenceKind        EvidenceKind   `json:"evidence_kind" yaml:"evidence_kind"`
+	ProfileID           string         `json:"profile_id" yaml:"profile_id"`
+	ResultBinding       ResultBinding  `json:"result_binding" yaml:"result_binding"`
+	RuntimeTarget       *RuntimeTarget `json:"runtime_target,omitempty" yaml:"runtime_target,omitempty"`
+	Producer            string         `json:"producer" yaml:"producer"`
+	ObservationPath     string         `json:"observation_path" yaml:"observation_path"`
+	ObservedAt          string         `json:"observed_at" yaml:"observed_at"`
+	ExpiresAt           string         `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
+	Status              ReceiptStatus  `json:"status" yaml:"status"`
+	Trust               string         `json:"trust,omitempty" yaml:"trust,omitempty"`
+	PayloadDigestSHA256 string         `json:"payload_digest_sha256" yaml:"payload_digest_sha256"`
+	Conflicts           []string       `json:"conflicts,omitempty" yaml:"conflicts,omitempty"`
 }
 
 type ProofSlotResult struct {
-	SlotID  string          `json:"slot_id" yaml:"slot_id"`
-	Status  DimensionStatus `json:"status" yaml:"status"`
-	ReceiptIDs []string     `json:"receipt_ids,omitempty" yaml:"receipt_ids,omitempty"`
+	SlotID     string          `json:"slot_id" yaml:"slot_id"`
+	Status     DimensionStatus `json:"status" yaml:"status"`
+	ReceiptIDs []string        `json:"receipt_ids,omitempty" yaml:"receipt_ids,omitempty"`
 }
 
 type ProofDischarge struct {
@@ -199,71 +199,77 @@ type CertificationReceipt struct {
 }
 
 type WaiverReceipt struct {
-	WaiverID        string        `json:"waiver_id" yaml:"waiver_id"`
-	Dimension       Dimension     `json:"dimension" yaml:"dimension"`
-	PolicyID        string        `json:"policy_id" yaml:"policy_id"`
-	Justification   string        `json:"justification" yaml:"justification"`
-	ExpiresAt       string        `json:"expires_at" yaml:"expires_at"`
-	AppliesTo       []string      `json:"applies_to,omitempty" yaml:"applies_to,omitempty"`
-	Status          ReceiptStatus `json:"status" yaml:"status"`
-	DigestSHA256    string        `json:"digest_sha256,omitempty" yaml:"digest_sha256,omitempty"`
+	WaiverID      string        `json:"waiver_id" yaml:"waiver_id"`
+	Dimension     Dimension     `json:"dimension" yaml:"dimension"`
+	PolicyID      string        `json:"policy_id" yaml:"policy_id"`
+	Justification string        `json:"justification" yaml:"justification"`
+	ExpiresAt     string        `json:"expires_at" yaml:"expires_at"`
+	AppliesTo     []string      `json:"applies_to,omitempty" yaml:"applies_to,omitempty"`
+	Status        ReceiptStatus `json:"status" yaml:"status"`
+	DigestSHA256  string        `json:"digest_sha256,omitempty" yaml:"digest_sha256,omitempty"`
 }
 
 type CompletionReceipt struct {
-	Task                            TaskBinding   `json:"task" yaml:"task"`
-	TerminalStatus                  TaskTerminalStatus `json:"terminal_status" yaml:"terminal_status"`
-	BaseBinding                     BaseBinding   `json:"base_binding" yaml:"base_binding"`
-	ResultBinding                   ResultBinding `json:"result_binding" yaml:"result_binding"`
-	ClosureAssessmentDigestSHA256   string        `json:"closure_assessment_digest_sha256" yaml:"closure_assessment_digest_sha256"`
-	AuthorityResolutionDigestSHA256 string        `json:"authority_resolution_digest_sha256" yaml:"authority_resolution_digest_sha256"`
-	AdmissionDecisionDigestSHA256   string        `json:"admission_decision_digest_sha256" yaml:"admission_decision_digest_sha256"`
-	AdmissionVerificationDigestSHA256 string      `json:"admission_verification_digest_sha256" yaml:"admission_verification_digest_sha256"`
-	CertificationDigestSHA256       string        `json:"certification_digest_sha256" yaml:"certification_digest_sha256"`
-	ProofDischargeDigests           []string      `json:"proof_discharge_digests,omitempty" yaml:"proof_discharge_digests,omitempty"`
-	EvidenceReceiptDigests          []string      `json:"evidence_receipt_digests,omitempty" yaml:"evidence_receipt_digests,omitempty"`
-	ArtifactDigests                 []string      `json:"artifact_digests,omitempty" yaml:"artifact_digests,omitempty"`
-	WaiverDigests                   []string      `json:"waiver_digests,omitempty" yaml:"waiver_digests,omitempty"`
-	CompletionPolicy                string        `json:"completion_policy" yaml:"completion_policy"`
-	CompletedAt                     string        `json:"completed_at" yaml:"completed_at"`
-	CompletingActor                 string        `json:"completing_actor" yaml:"completing_actor"`
-	RevocationConditions            []string      `json:"revocation_conditions,omitempty" yaml:"revocation_conditions,omitempty"`
-	ReceiptDigestSHA256             string        `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+	Task                              TaskBinding        `json:"task" yaml:"task"`
+	TerminalStatus                    TaskTerminalStatus `json:"terminal_status" yaml:"terminal_status"`
+	BaseBinding                       BaseBinding        `json:"base_binding" yaml:"base_binding"`
+	ResultBinding                     ResultBinding      `json:"result_binding" yaml:"result_binding"`
+	ClosureAssessmentDigestSHA256     string             `json:"closure_assessment_digest_sha256" yaml:"closure_assessment_digest_sha256"`
+	AuthorityResolutionDigestSHA256   string             `json:"authority_resolution_digest_sha256" yaml:"authority_resolution_digest_sha256"`
+	AdmissionDecisionDigestSHA256     string             `json:"admission_decision_digest_sha256" yaml:"admission_decision_digest_sha256"`
+	AdmissionVerificationDigestSHA256 string             `json:"admission_verification_digest_sha256" yaml:"admission_verification_digest_sha256"`
+	CertificationDigestSHA256         string             `json:"certification_digest_sha256" yaml:"certification_digest_sha256"`
+	ProofDischargeDigests             []string           `json:"proof_discharge_digests,omitempty" yaml:"proof_discharge_digests,omitempty"`
+	EvidenceReceiptDigests            []string           `json:"evidence_receipt_digests,omitempty" yaml:"evidence_receipt_digests,omitempty"`
+	ArtifactDigests                   []string           `json:"artifact_digests,omitempty" yaml:"artifact_digests,omitempty"`
+	WaiverDigests                     []string           `json:"waiver_digests,omitempty" yaml:"waiver_digests,omitempty"`
+	CompletionPolicy                  string             `json:"completion_policy" yaml:"completion_policy"`
+	CompletedAt                       string             `json:"completed_at" yaml:"completed_at"`
+	CompletingActor                   string             `json:"completing_actor" yaml:"completing_actor"`
+	RevocationConditions              []string           `json:"revocation_conditions,omitempty" yaml:"revocation_conditions,omitempty"`
+	ReceiptDigestSHA256               string             `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+}
+
+type LedgerPayloadRef struct {
+	Path         string `json:"path" yaml:"path"`
+	MediaType    string `json:"media_type" yaml:"media_type"`
+	DigestSHA256 string `json:"digest_sha256" yaml:"digest_sha256"`
 }
 
 type RevocationReceipt struct {
-	RevocationID      string   `json:"revocation_id" yaml:"revocation_id"`
-	RevokedTargetID   string   `json:"revoked_target_id" yaml:"revoked_target_id"`
-	PriorDigestSHA256 string   `json:"prior_digest_sha256" yaml:"prior_digest_sha256"`
-	RevocationReason  string   `json:"revocation_reason" yaml:"revocation_reason"`
+	RevocationID       string   `json:"revocation_id" yaml:"revocation_id"`
+	RevokedTargetID    string   `json:"revoked_target_id" yaml:"revoked_target_id"`
+	PriorDigestSHA256  string   `json:"prior_digest_sha256" yaml:"prior_digest_sha256"`
+	RevocationReason   string   `json:"revocation_reason" yaml:"revocation_reason"`
 	TriggeringEvidence []string `json:"triggering_evidence,omitempty" yaml:"triggering_evidence,omitempty"`
-	PolicyID          string   `json:"policy_id" yaml:"policy_id"`
-	ActorID           string   `json:"actor_id" yaml:"actor_id"`
-	RevokedAt         string   `json:"revoked_at" yaml:"revoked_at"`
-	RemediationTaskID string   `json:"remediation_task_id,omitempty" yaml:"remediation_task_id,omitempty"`
+	PolicyID           string   `json:"policy_id" yaml:"policy_id"`
+	ActorID            string   `json:"actor_id" yaml:"actor_id"`
+	RevokedAt          string   `json:"revoked_at" yaml:"revoked_at"`
+	RemediationTaskID  string   `json:"remediation_task_id,omitempty" yaml:"remediation_task_id,omitempty"`
 }
 
 type MigrationExecutionReceipt struct {
-	MigrationPlanID            string        `json:"migration_plan_id" yaml:"migration_plan_id"`
-	StepID                     string        `json:"step_id" yaml:"step_id"`
-	SourceState                string        `json:"source_state" yaml:"source_state"`
-	TargetState                string        `json:"target_state" yaml:"target_state"`
-	Mechanism                  MechanismKind `json:"mechanism" yaml:"mechanism"`
-	ActorID                    string        `json:"actor_id" yaml:"actor_id"`
-	MutationReceiptDigestSHA256 string       `json:"mutation_receipt_digest_sha256" yaml:"mutation_receipt_digest_sha256"`
-	ProofDischargeDigestSHA256 string        `json:"proof_discharge_digest_sha256" yaml:"proof_discharge_digest_sha256"`
-	RollbackAvailable          bool          `json:"rollback_available" yaml:"rollback_available"`
-	Status                     ReceiptStatus `json:"status" yaml:"status"`
+	MigrationPlanID             string        `json:"migration_plan_id" yaml:"migration_plan_id"`
+	StepID                      string        `json:"step_id" yaml:"step_id"`
+	SourceState                 string        `json:"source_state" yaml:"source_state"`
+	TargetState                 string        `json:"target_state" yaml:"target_state"`
+	Mechanism                   MechanismKind `json:"mechanism" yaml:"mechanism"`
+	ActorID                     string        `json:"actor_id" yaml:"actor_id"`
+	MutationReceiptDigestSHA256 string        `json:"mutation_receipt_digest_sha256" yaml:"mutation_receipt_digest_sha256"`
+	ProofDischargeDigestSHA256  string        `json:"proof_discharge_digest_sha256" yaml:"proof_discharge_digest_sha256"`
+	RollbackAvailable           bool          `json:"rollback_available" yaml:"rollback_available"`
+	Status                      ReceiptStatus `json:"status" yaml:"status"`
 }
 
 type LedgerEntry struct {
-	Sequence                int        `json:"sequence" yaml:"sequence"`
-	PreviousEntryDigestSHA256 string   `json:"previous_entry_digest_sha256,omitempty" yaml:"previous_entry_digest_sha256,omitempty"`
-	EventType               string     `json:"event_type" yaml:"event_type"`
-	Task                    TaskBinding `json:"task" yaml:"task"`
-	PayloadDigestSHA256     string     `json:"payload_digest_sha256" yaml:"payload_digest_sha256"`
-	Producer                string     `json:"producer" yaml:"producer"`
-	ProducedAt              string     `json:"produced_at" yaml:"produced_at"`
-	EntryDigestSHA256       string     `json:"entry_digest_sha256,omitempty" yaml:"entry_digest_sha256,omitempty"`
+	Sequence                  int              `json:"sequence" yaml:"sequence"`
+	PreviousEntryDigestSHA256 string           `json:"previous_entry_digest_sha256,omitempty" yaml:"previous_entry_digest_sha256,omitempty"`
+	EventType                 LedgerEventType  `json:"event_type" yaml:"event_type"`
+	Task                      TaskBinding      `json:"task" yaml:"task"`
+	Payload                   LedgerPayloadRef `json:"payload" yaml:"payload"`
+	Producer                  string           `json:"producer" yaml:"producer"`
+	ProducedAt                string           `json:"produced_at" yaml:"produced_at"`
+	EntryDigestSHA256         string           `json:"entry_digest_sha256,omitempty" yaml:"entry_digest_sha256,omitempty"`
 }
 
 type DimensionResult struct {
@@ -279,16 +285,15 @@ type ClosureState struct {
 }
 
 type CompletionPolicy struct {
-	PolicyID                 string      `json:"policy_id" yaml:"policy_id"`
-	AllowedWaiverDimensions  []Dimension `json:"allowed_waiver_dimensions,omitempty" yaml:"allowed_waiver_dimensions,omitempty"`
-	PermittedNotApplicable   []Dimension `json:"permitted_not_applicable,omitempty" yaml:"permitted_not_applicable,omitempty"`
+	PolicyID                string      `json:"policy_id" yaml:"policy_id"`
+	AllowedWaiverDimensions []Dimension `json:"allowed_waiver_dimensions,omitempty" yaml:"allowed_waiver_dimensions,omitempty"`
+	PermittedNotApplicable  []Dimension `json:"permitted_not_applicable,omitempty" yaml:"permitted_not_applicable,omitempty"`
 }
 
 type ClosureEvaluation struct {
-	TerminallyClosed  bool              `json:"terminally_closed" yaml:"terminally_closed"`
+	TerminallyClosed   bool              `json:"terminally_closed" yaml:"terminally_closed"`
 	BlockingDimensions []DimensionResult `json:"blocking_dimensions,omitempty" yaml:"blocking_dimensions,omitempty"`
-	AppliedExceptions []string          `json:"applied_exceptions,omitempty" yaml:"applied_exceptions,omitempty"`
-	ReasonCodes       []string          `json:"reason_codes,omitempty" yaml:"reason_codes,omitempty"`
-	Limitations       []string          `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	AppliedExceptions  []string          `json:"applied_exceptions,omitempty" yaml:"applied_exceptions,omitempty"`
+	ReasonCodes        []string          `json:"reason_codes,omitempty" yaml:"reason_codes,omitempty"`
+	Limitations        []string          `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
-

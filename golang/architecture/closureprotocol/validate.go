@@ -5,6 +5,7 @@ package closureprotocol
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -58,6 +59,23 @@ func ValidateGraphSnapshot(in GraphSnapshot) error {
 	return nil
 }
 
+func ValidateLedgerPayloadRef(in LedgerPayloadRef) error {
+	path := filepath.ToSlash(strings.TrimSpace(in.Path))
+	if path == "" {
+		return errors.New("payload path is required")
+	}
+	if strings.HasPrefix(path, "/") || path == "." || path == ".." || strings.HasPrefix(path, "../") || strings.Contains(path, "/../") {
+		return errors.New("payload path must be confined and relative")
+	}
+	if strings.TrimSpace(in.MediaType) == "" {
+		return errors.New("payload media_type is required")
+	}
+	if strings.TrimSpace(in.DigestSHA256) == "" {
+		return errors.New("payload digest_sha256 is required")
+	}
+	return nil
+}
+
 func ValidateBaseBinding(in BaseBinding) error {
 	if err := ValidateRepositorySnapshot(in.Repository); err != nil {
 		return err
@@ -70,6 +88,28 @@ func ValidateBaseBinding(in BaseBinding) error {
 	}
 	if strings.TrimSpace(in.Policies.Canonicalization) == "" || strings.TrimSpace(in.Policies.Completion) == "" {
 		return errors.New("policy binding is incomplete")
+	}
+	return nil
+}
+
+func ValidateLedgerEntry(in LedgerEntry) error {
+	if in.Sequence < 1 {
+		return errors.New("sequence must be >= 1")
+	}
+	if !validLedgerEventType(in.EventType) {
+		return errors.New("event_type is invalid")
+	}
+	if strings.TrimSpace(in.Task.ID) == "" || strings.TrimSpace(in.Task.SessionID) == "" {
+		return errors.New("task binding requires id and session_id")
+	}
+	if err := ValidateLedgerPayloadRef(in.Payload); err != nil {
+		return err
+	}
+	if strings.TrimSpace(in.Producer) == "" {
+		return errors.New("producer is required")
+	}
+	if _, err := time.Parse(time.RFC3339, in.ProducedAt); err != nil {
+		return errors.New("produced_at must be RFC3339")
 	}
 	return nil
 }
@@ -319,16 +359,19 @@ func ValidateCompletionWaivers(receipt CompletionReceipt, waivers []WaiverReceip
 	return nil
 }
 
-func validActorKind(v ActorKind) bool               { return contains(ActorKinds, v) }
-func validOperationKind(v OperationKind) bool       { return contains(OperationKinds, v) }
-func validMechanismKind(v MechanismKind) bool       { return contains(MechanismKinds, v) }
-func validEvidenceKind(v EvidenceKind) bool         { return contains(EvidenceKinds, v) }
-func validReceiptStatus(v ReceiptStatus) bool       { return contains(ReceiptStatuses, v) }
-func validCertificationVerdict(v CertificationVerdict) bool { return contains(CertificationVerdicts, v) }
+func validActorKind(v ActorKind) bool         { return contains(ActorKinds, v) }
+func validOperationKind(v OperationKind) bool { return contains(OperationKinds, v) }
+func validMechanismKind(v MechanismKind) bool { return contains(MechanismKinds, v) }
+func validEvidenceKind(v EvidenceKind) bool   { return contains(EvidenceKinds, v) }
+func validReceiptStatus(v ReceiptStatus) bool { return contains(ReceiptStatuses, v) }
+func validCertificationVerdict(v CertificationVerdict) bool {
+	return contains(CertificationVerdicts, v)
+}
 func validDimension(v Dimension) bool               { return contains(Dimensions, v) }
 func validDimensionStatus(v DimensionStatus) bool   { return contains(DimensionStatuses, v) }
 func validTaskPhase(v TaskPhase) bool               { return contains(TaskPhases, v) }
 func validTerminalStatus(v TaskTerminalStatus) bool { return contains(TerminalStatuses, v) }
+func validLedgerEventType(v LedgerEventType) bool   { return contains(LedgerEventTypes, v) }
 
 func contains[T comparable](vals []T, v T) bool {
 	for _, item := range vals {

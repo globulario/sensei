@@ -13,6 +13,7 @@ type CertificationVerdict string
 type Dimension string
 type DimensionStatus string
 type TaskPhase string
+type LedgerEventType string
 
 const (
 	ProtocolVersion = "architectural-closure/v1"
@@ -23,11 +24,11 @@ const (
 	ReasoningUncertifiable ReasoningClosureVerdict = "uncertifiable"
 	ReasoningStale         ReasoningClosureVerdict = "stale"
 
-	TerminalCompleted             TaskTerminalStatus = "completed"
+	TerminalCompleted              TaskTerminalStatus = "completed"
 	TerminalCompletedWithException TaskTerminalStatus = "completed_with_exception"
-	TerminalRefused               TaskTerminalStatus = "refused"
-	TerminalAbandoned             TaskTerminalStatus = "abandoned"
-	TerminalRevoked               TaskTerminalStatus = "revoked"
+	TerminalRefused                TaskTerminalStatus = "refused"
+	TerminalAbandoned              TaskTerminalStatus = "abandoned"
+	TerminalRevoked                TaskTerminalStatus = "revoked"
 
 	ActorHuman   ActorKind = "human"
 	ActorAgent   ActorKind = "agent"
@@ -45,14 +46,14 @@ const (
 	OperationRebuild OperationKind = "rebuild"
 	OperationObserve OperationKind = "observe"
 
-	MechanismRepositoryEdit         MechanismKind = "repository_edit"
-	MechanismOwnerRPC               MechanismKind = "owner_rpc"
-	MechanismGovernedWorkflow       MechanismKind = "governed_workflow"
-	MechanismMigrationRunner        MechanismKind = "migration_runner"
+	MechanismRepositoryEdit           MechanismKind = "repository_edit"
+	MechanismOwnerRPC                 MechanismKind = "owner_rpc"
+	MechanismGovernedWorkflow         MechanismKind = "governed_workflow"
+	MechanismMigrationRunner          MechanismKind = "migration_runner"
 	MechanismGeneratedArtifactRebuild MechanismKind = "generated_artifact_rebuild"
-	MechanismTestRunner             MechanismKind = "test_runner"
-	MechanismRuntimeAdapter         MechanismKind = "runtime_adapter"
-	MechanismManualAuthorized       MechanismKind = "manual_authorized"
+	MechanismTestRunner               MechanismKind = "test_runner"
+	MechanismRuntimeAdapter           MechanismKind = "runtime_adapter"
+	MechanismManualAuthorized         MechanismKind = "manual_authorized"
 
 	EvidenceStatic    EvidenceKind = "static"
 	EvidenceTest      EvidenceKind = "test"
@@ -70,13 +71,13 @@ const (
 	ReceiptRevoked    ReceiptStatus = "revoked"
 	ReceiptUnknown    ReceiptStatus = "unknown"
 
-	Certified                CertificationVerdict = "certified"
-	CertifiedWithConditions  CertificationVerdict = "certified_with_conditions"
+	Certified                   CertificationVerdict = "certified"
+	CertifiedWithConditions     CertificationVerdict = "certified_with_conditions"
 	CertificationReviewRequired CertificationVerdict = "review_required"
-	CertificationBlocked     CertificationVerdict = "blocked"
-	CertificationUncertifiable CertificationVerdict = "uncertifiable"
-	CertificationStale       CertificationVerdict = "stale"
-	CertificationRevoked     CertificationVerdict = "revoked"
+	CertificationBlocked        CertificationVerdict = "blocked"
+	CertificationUncertifiable  CertificationVerdict = "uncertifiable"
+	CertificationStale          CertificationVerdict = "stale"
+	CertificationRevoked        CertificationVerdict = "revoked"
 
 	DimensionIdentity   Dimension = "identity"
 	DimensionScope      Dimension = "scope"
@@ -89,32 +90,50 @@ const (
 	DimensionFreshness  Dimension = "freshness"
 	DimensionCompletion Dimension = "completion"
 
-	DimensionPass             DimensionStatus = "pass"
+	DimensionPass              DimensionStatus = "pass"
 	DimensionPassWithException DimensionStatus = "pass_with_exception"
-	DimensionBlocked          DimensionStatus = "blocked"
-	DimensionUnknown          DimensionStatus = "unknown"
-	DimensionStale           DimensionStatus = "stale"
-	DimensionConflicted      DimensionStatus = "conflicted"
-	DimensionNotApplicable   DimensionStatus = "not_applicable"
+	DimensionBlocked           DimensionStatus = "blocked"
+	DimensionUnknown           DimensionStatus = "unknown"
+	DimensionStale             DimensionStatus = "stale"
+	DimensionConflicted        DimensionStatus = "conflicted"
+	DimensionNotApplicable     DimensionStatus = "not_applicable"
 
-	PhasePrepared               TaskPhase = "prepared"
-	PhaseConverging             TaskPhase = "converging"
-	PhaseReadyForAdmission      TaskPhase = "ready_for_admission"
-	PhaseAdmitted               TaskPhase = "admitted"
-	PhaseMutationObserved       TaskPhase = "mutation_observed"
-	PhaseScopeVerified          TaskPhase = "scope_verified"
-	PhaseProving                TaskPhase = "proving"
-	PhaseCertified              TaskPhase = "certified"
-	PhaseCompleted              TaskPhase = "completed"
-	PhaseWaitingArchitect       TaskPhase = "waiting_architect"
-	PhaseWaitingEvidence        TaskPhase = "waiting_evidence"
-	PhaseWaitingGovernance      TaskPhase = "waiting_governance"
+	PhasePrepared                TaskPhase = "prepared"
+	PhaseConverging              TaskPhase = "converging"
+	PhaseReadyForAdmission       TaskPhase = "ready_for_admission"
+	PhaseAdmitted                TaskPhase = "admitted"
+	PhaseMutationObserved        TaskPhase = "mutation_observed"
+	PhaseScopeVerified           TaskPhase = "scope_verified"
+	PhaseProving                 TaskPhase = "proving"
+	PhaseCertified               TaskPhase = "certified"
+	PhaseCompleted               TaskPhase = "completed"
+	PhaseWaitingArchitect        TaskPhase = "waiting_architect"
+	PhaseWaitingEvidence         TaskPhase = "waiting_evidence"
+	PhaseWaitingGovernance       TaskPhase = "waiting_governance"
 	PhaseWaitingMechanicalRepair TaskPhase = "waiting_mechanical_repair"
-	PhaseRefused                TaskPhase = "refused"
-	PhaseStale                  TaskPhase = "stale"
-	PhaseUncertifiable          TaskPhase = "uncertifiable"
-	PhaseAbandoned              TaskPhase = "abandoned"
-	PhaseRevoked                TaskPhase = "revoked"
+	PhaseRefused                 TaskPhase = "refused"
+	PhaseStale                   TaskPhase = "stale"
+	PhaseUncertifiable           TaskPhase = "uncertifiable"
+	PhaseAbandoned               TaskPhase = "abandoned"
+	PhaseRevoked                 TaskPhase = "revoked"
+
+	LedgerEventLegacyImport         LedgerEventType = "legacy_import"
+	LedgerEventTaskPrepared         LedgerEventType = "task_prepared"
+	LedgerEventConvergenceAdvanced  LedgerEventType = "convergence_advanced"
+	LedgerEventClosureAssessed      LedgerEventType = "closure_assessed"
+	LedgerEventAdmissionDecided     LedgerEventType = "admission_decided"
+	LedgerEventAuthorityResolved    LedgerEventType = "authority_resolved"
+	LedgerEventAdmissionConsumed    LedgerEventType = "admission_consumed"
+	LedgerEventChangeObserved       LedgerEventType = "change_observed"
+	LedgerEventScopeVerified        LedgerEventType = "scope_verified"
+	LedgerEventEvidenceRecorded     LedgerEventType = "evidence_recorded"
+	LedgerEventProofDischarged      LedgerEventType = "proof_discharged"
+	LedgerEventCertified            LedgerEventType = "certified"
+	LedgerEventCompleted            LedgerEventType = "completed"
+	LedgerEventRevoked              LedgerEventType = "revoked"
+	LedgerEventMigrationExecuted    LedgerEventType = "migration_executed"
+	LedgerEventTaskControlProjected LedgerEventType = "task_control_projected"
+	LedgerEventTaskMarkedStale      LedgerEventType = "task_marked_stale"
 )
 
 var (
@@ -124,7 +143,7 @@ var (
 	TerminalStatuses = []TaskTerminalStatus{
 		TerminalCompleted, TerminalCompletedWithException, TerminalRefused, TerminalAbandoned, TerminalRevoked,
 	}
-	ActorKinds = []ActorKind{ActorHuman, ActorAgent, ActorService, ActorCI, ActorSystem}
+	ActorKinds     = []ActorKind{ActorHuman, ActorAgent, ActorService, ActorCI, ActorSystem}
 	OperationKinds = []OperationKind{
 		OperationRead, OperationCreate, OperationModify, OperationDelete, OperationRename, OperationExecute,
 		OperationMigrate, OperationRebuild, OperationObserve,
@@ -157,26 +176,44 @@ var (
 		PhaseWaitingEvidence, PhaseWaitingGovernance, PhaseWaitingMechanicalRepair, PhaseRefused,
 		PhaseStale, PhaseUncertifiable, PhaseAbandoned, PhaseRevoked,
 	}
+	LedgerEventTypes = []LedgerEventType{
+		LedgerEventLegacyImport,
+		LedgerEventTaskPrepared,
+		LedgerEventConvergenceAdvanced,
+		LedgerEventClosureAssessed,
+		LedgerEventAdmissionDecided,
+		LedgerEventAuthorityResolved,
+		LedgerEventAdmissionConsumed,
+		LedgerEventChangeObserved,
+		LedgerEventScopeVerified,
+		LedgerEventEvidenceRecorded,
+		LedgerEventProofDischarged,
+		LedgerEventCertified,
+		LedgerEventCompleted,
+		LedgerEventRevoked,
+		LedgerEventMigrationExecuted,
+		LedgerEventTaskControlProjected,
+		LedgerEventTaskMarkedStale,
+	}
 )
 
 var AllowedTaskTransitions = map[TaskPhase][]TaskPhase{
-	PhasePrepared:          {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseConverging:        {PhaseReadyForAdmission, PhaseWaitingArchitect, PhaseWaitingEvidence, PhaseWaitingGovernance, PhaseWaitingMechanicalRepair, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseWaitingArchitect:  {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseWaitingEvidence:   {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseWaitingGovernance: {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhasePrepared:                {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseConverging:              {PhaseReadyForAdmission, PhaseWaitingArchitect, PhaseWaitingEvidence, PhaseWaitingGovernance, PhaseWaitingMechanicalRepair, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseWaitingArchitect:        {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseWaitingEvidence:         {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseWaitingGovernance:       {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
 	PhaseWaitingMechanicalRepair: {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseReadyForAdmission: {PhaseAdmitted, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseAdmitted:          {PhaseMutationObserved, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseMutationObserved:  {PhaseScopeVerified, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseScopeVerified:     {PhaseProving, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseProving:           {PhaseCertified, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
-	PhaseCertified:         {PhaseCompleted, PhaseRevoked},
-	PhaseCompleted:         {PhaseRevoked},
-	PhaseRefused:           {},
-	PhaseStale:             {},
-	PhaseUncertifiable:     {},
-	PhaseAbandoned:         {},
-	PhaseRevoked:           {},
+	PhaseReadyForAdmission:       {PhaseAdmitted, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseAdmitted:                {PhaseMutationObserved, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseMutationObserved:        {PhaseScopeVerified, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseScopeVerified:           {PhaseProving, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseProving:                 {PhaseCertified, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
+	PhaseCertified:               {PhaseCompleted, PhaseRevoked},
+	PhaseCompleted:               {PhaseRevoked},
+	PhaseRefused:                 {},
+	PhaseStale:                   {},
+	PhaseUncertifiable:           {},
+	PhaseAbandoned:               {},
+	PhaseRevoked:                 {},
 }
-
