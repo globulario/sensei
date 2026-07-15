@@ -20,3 +20,30 @@ func TestValidateActorBindingRejectsUnknownKind(t *testing.T) {
 	}
 }
 
+func TestValidateLedgerEntryRejectsUnknownEventType(t *testing.T) {
+	err := ValidateLedgerEntry(LedgerEntry{
+		Sequence:   1,
+		EventType:  LedgerEventType("bogus"),
+		Task:       TaskBinding{ID: "task.example", SessionID: "session.example"},
+		Payload:    LedgerPayloadRef{Path: "artifacts/sha256/abc.yaml", MediaType: "application/yaml", DigestSHA256: "abc"},
+		Producer:   "sensei",
+		ProducedAt: "2026-07-15T12:00:00Z",
+	})
+	if err == nil {
+		t.Fatal("expected unknown event type to fail")
+	}
+}
+
+func TestValidateLedgerEntryRejectsEscapingPayloadPath(t *testing.T) {
+	err := ValidateLedgerEntry(LedgerEntry{
+		Sequence:   1,
+		EventType:  LedgerEventTaskPrepared,
+		Task:       TaskBinding{ID: "task.example", SessionID: "session.example"},
+		Payload:    LedgerPayloadRef{Path: "../escape.yaml", MediaType: "application/yaml", DigestSHA256: "abc"},
+		Producer:   "sensei",
+		ProducedAt: "2026-07-15T12:00:00Z",
+	})
+	if err == nil {
+		t.Fatal("expected escaping payload path to fail")
+	}
+}

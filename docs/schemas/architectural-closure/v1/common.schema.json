@@ -45,7 +45,10 @@
     "task_phase": {
       "type": "string",
       "enum": ["prepared", "converging", "ready_for_admission", "admitted", "mutation_observed", "scope_verified", "proving", "certified", "completed", "waiting_architect", "waiting_evidence", "waiting_governance", "waiting_mechanical_repair", "refused", "stale", "uncertifiable", "abandoned", "revoked"]
+    },
+    "ledger_event_type": {
+      "type": "string",
+      "enum": ["legacy_import", "task_prepared", "convergence_advanced", "closure_assessed", "admission_decided", "authority_resolved", "admission_consumed", "change_observed", "scope_verified", "evidence_recorded", "proof_discharged", "certified", "completed", "revoked", "migration_executed", "task_control_projected", "task_marked_stale"]
     }
   }
 }
-

@@ -338,6 +338,26 @@ Unknown values are invalid in v1 operational records.
 - `abandoned`
 - `revoked`
 
+### Ledger event type
+
+- `legacy_import`
+- `task_prepared`
+- `convergence_advanced`
+- `closure_assessed`
+- `admission_decided`
+- `authority_resolved`
+- `admission_consumed`
+- `change_observed`
+- `scope_verified`
+- `evidence_recorded`
+- `proof_discharged`
+- `certified`
+- `completed`
+- `revoked`
+- `migration_executed`
+- `task_control_projected`
+- `task_marked_stale`
+
 ## Task state machine
 
 Primary path:
@@ -511,13 +531,28 @@ The future ledger integrity digest covers:
 - event type
 - task ID
 - session ID
-- payload digest
+- payload reference
 - producer
 - produced_at
 
 It excludes only the ledger entry digest field itself.
 
 This is tamper evidence, distinct from semantic payload identity.
+
+### Ledger payload reference
+
+A ledger entry does not embed mutable task state directly. It points to one
+content-addressed payload artifact with:
+
+- repository-confined relative path
+- media type
+- semantic payload digest
+
+The payload reference participates in the ledger integrity digest.
+
+The payload digest is the semantic payload digest of the typed canonical
+payload. It is not a display-path digest and it is not a substitute for the
+entry integrity digest.
 
 ## Operational records
 
