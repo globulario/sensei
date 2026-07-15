@@ -1,0 +1,23 @@
+closure_protocol_fixture:
+  name: blocked
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    terminally_closed: false
+    blocking_dimension: authority
+  dimensions:
+    - {dimension: identity, status: pass}
+    - {dimension: scope, status: pass}
+    - {dimension: direction, status: pass}
+    - {dimension: authority, status: blocked, reason_codes: [authority.grant.missing]}
+    - {dimension: mutation, status: pass}
+    - {dimension: protection, status: pass}
+    - {dimension: epistemic, status: pass}
+    - {dimension: proof, status: pass}
+    - {dimension: freshness, status: pass}
+    - {dimension: completion, status: pass}
+  records:
+    actor_binding:
+      principal_id: actor.dave
+      actor_kind: human
+

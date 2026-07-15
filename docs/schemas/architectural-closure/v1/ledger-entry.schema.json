@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/ledger-entry.schema.json",
+  "title": "Architectural Closure v1 Ledger Entry",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sequence": {"type": "integer"},
+    "previous_entry_digest_sha256": {"type": "string"},
+    "event_type": {"type": "string"},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "session_id": {"type": "string"},
+        "iteration_digest_sha256": {"type": "string"}
+      },
+      "required": ["id", "session_id"]
+    },
+    "payload_digest_sha256": {"type": "string"},
+    "producer": {"type": "string"},
+    "produced_at": {"type": "string"},
+    "entry_digest_sha256": {"type": "string"}
+  },
+  "required": ["sequence", "event_type", "task", "payload_digest_sha256", "producer", "produced_at"]
+}
+

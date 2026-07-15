@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/completion-receipt.schema.json",
+  "title": "Architectural Closure v1 Completion Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "task": {"type": "object"},
+    "terminal_status": {"type": "string", "enum": ["completed", "completed_with_exception", "refused", "abandoned", "revoked"]},
+    "base_binding": {"$ref": "binding.schema.json"},
+    "result_binding": {"type": "object"},
+    "closure_assessment_digest_sha256": {"type": "string"},
+    "authority_resolution_digest_sha256": {"type": "string"},
+    "admission_decision_digest_sha256": {"type": "string"},
+    "admission_verification_digest_sha256": {"type": "string"},
+    "certification_digest_sha256": {"type": "string"},
+    "proof_discharge_digests": {"type": "array", "items": {"type": "string"}},
+    "evidence_receipt_digests": {"type": "array", "items": {"type": "string"}},
+    "artifact_digests": {"type": "array", "items": {"type": "string"}},
+    "waiver_digests": {"type": "array", "items": {"type": "string"}},
+    "completion_policy": {"type": "string"},
+    "completed_at": {"type": "string"},
+    "completing_actor": {"type": "string"},
+    "revocation_conditions": {"type": "array", "items": {"type": "string"}},
+    "receipt_digest_sha256": {"type": "string"}
+  },
+  "required": ["task", "terminal_status", "base_binding", "result_binding", "closure_assessment_digest_sha256", "authority_resolution_digest_sha256", "admission_decision_digest_sha256", "admission_verification_digest_sha256", "certification_digest_sha256", "completion_policy", "completed_at", "completing_actor"]
+}
+

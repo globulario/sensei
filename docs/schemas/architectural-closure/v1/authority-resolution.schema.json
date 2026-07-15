@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/authority-resolution.schema.json",
+  "title": "Architectural Closure v1 Authority Resolution",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "operation_id": {"type": "string"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+    "authority_domain_ids": {"type": "array", "items": {"type": "string"}},
+    "grant_ids": {"type": "array", "items": {"type": "string"}},
+    "delegation_chain": {"type": "array", "items": {"type": "string"}},
+    "legal_mechanisms": {"type": "array", "items": {"type": "string"}},
+    "selected_mechanism": {"$ref": "common.schema.json#/$defs/mechanism_kind"},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "resolution_digest_sha256": {"type": "string"}
+  },
+  "required": ["operation_id", "status", "selected_mechanism"]
+}
+

@@ -1,0 +1,11 @@
+closure_protocol_fixture:
+  name: invalid
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: actor_kind is invalid
+  records:
+    actor_binding:
+      principal_id: actor.invalid
+      actor_kind: operator
+
