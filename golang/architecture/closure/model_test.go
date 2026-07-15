@@ -797,6 +797,89 @@ func TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode(t *test
 		t.Fatalf("Evaluate with failure mode: %v", err)
 	}
 	assertNoBlocker(t, withFM, "closure.behavior.failure_mode_missing")
+	assertNoBlocker(t, withFM, "closure.behavior.surface_empty")
+	assertNoBlocker(t, withFM, "closure.behavior.observed_or_enforced_missing")
+}
+
+func TestCandidateFailureModeDoesNotClearFailureSurface(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "x.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	req := validRequest()
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.DirectionRequirement = DirectionPreserve
+	report, err := Evaluate(validContext(t, root, req, sourceFileVulnerableToFailureModeWithStatus("x.go", "failure.test.scope", "candidate")))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertBlocker(t, report, "closure.behavior.failure_mode_missing")
+}
+
+func TestStructuralClaimDoesNotBecomeBehavioralPlaneBlocker(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "x.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	req := validRequest()
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.DirectionRequirement = DirectionPreserve
+	ctx := validContext(t, root, req, sourceFileGraphCanonical("x.go"))
+	claim := architecture.Claim{
+		ID:                     "claim.shared.path",
+		Label:                  "shared path",
+		Statement:              architecture.ClaimStatement{Subject: "api.resolve", Predicate: "is_shared_implementation_path_for", Object: "api.HandleContext, api.ServeHTTP"},
+		Scope:                  architecture.ClaimScope{Repository: req.Binding.RepositoryDomain, Repo: req.Binding.RepositoryDomain, Files: []string{"x.go"}},
+		ArchitecturalPlane:     architecture.PlaneObserved,
+		AssertionOrigin:        architecture.OriginDerived,
+		EpistemicStatus:        architecture.StatusSupported,
+		InferenceRule:          "rule.shared_entrypoint_behavior_path.v1",
+		PremiseFacts:           []string{"fact.reach"},
+		InvalidationConditions: []string{"premise fact changes"},
+		Confidence:             0.8,
+		HumanReviewRequired:    true,
+		PromotionStatus:        architecture.PromotionCandidate,
+	}
+	ctx.Claims = claimDoc(t, []architecture.Claim{claim}, []architecture.Fact{testFactReceipt("fact.reach", "reachability", "entrypoint_reaches_symbol", map[string]string{"target_file": "x.go"})})
+	report, err := Evaluate(ctx)
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoBlocker(t, report, "closure.behavior.plane_invalid")
+	assertBlocker(t, report, "closure.behavior.failure_mode_missing")
+}
+
+func TestDirectionClaimDoesNotBecomeBehavioralPlaneBlocker(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "x.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	req := validRequest()
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.DirectionRequirement = DirectionEvolve
+	ctx := validContext(t, root, req, sourceFileGraphCanonical("x.go"))
+	claim := architecture.Claim{
+		ID:                     "claim.direction",
+		Label:                  "desired direction",
+		Statement:              architecture.ClaimStatement{Subject: "decision.x", Predicate: "defines_desired_direction_for_scope", Object: "Enforced awareness mutation support"},
+		Scope:                  architecture.ClaimScope{Repository: req.Binding.RepositoryDomain, Repo: req.Binding.RepositoryDomain, Files: []string{"x.go"}},
+		ArchitecturalPlane:     architecture.PlaneDesired,
+		AssertionOrigin:        architecture.OriginDerived,
+		EpistemicStatus:        architecture.StatusSupported,
+		InferenceRule:          "rule.governed_direction_record.v1",
+		PremiseFacts:           []string{"fact.direction"},
+		InvalidationConditions: []string{"governed direction changes"},
+		AboutNodes:             []string{"decision:decision.x"},
+		Confidence:             1,
+		HumanReviewRequired:    true,
+		PromotionStatus:        architecture.PromotionCandidate,
+	}
+	ctx.Claims = claimDoc(t, []architecture.Claim{claim}, []architecture.Fact{testFactReceipt("fact.direction", "governed_direction", "defines_desired_direction_for_scope", map[string]string{"target_file": "x.go"})})
+	report, err := Evaluate(ctx)
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoBlocker(t, report, "closure.behavior.plane_invalid")
 }
 
 func TestUnrepresentedFileRemainsOpen(t *testing.T) {
@@ -1103,6 +1186,59 @@ func validContext(t *testing.T, root string, req Request, graph GraphIndex) Cont
 	}
 }
 
+func testFactReceipt(id, kind, predicate string, meta map[string]string) architecture.Fact {
+	files := []string{"x.go"}
+	if target := strings.TrimSpace(meta["target_file"]); target != "" {
+		files = []string{target}
+	}
+	return architecture.Fact{
+		ID:        id,
+		Kind:      kind,
+		Subject:   "S",
+		Predicate: predicate,
+		Object:    "O",
+		Meta:      meta,
+		Scope: architecture.Scope{
+			Repository: "example.test/repo",
+			Files:      files,
+			Symbols:    []string{"S"},
+		},
+		Confidence: 0.8,
+		Extractor:  "test",
+		Provenance: &architecture.Provenance{
+			RepositoryDomainStatus: architecture.RepositoryDomainResolved,
+			RepositoryDomain:       "example.test/repo",
+			RevisionStatus:         architecture.RevisionResolved,
+			Revision:               "rev",
+			SourceDigestStatus:     architecture.SourceDigestUnavailable,
+			SourceKind:             "test",
+		},
+	}
+}
+
+func claimDoc(t *testing.T, claims []architecture.Claim, facts []architecture.Fact) architecture.ClaimDocument {
+	t.Helper()
+	receipts := make([]architecture.ClaimFactReceipt, 0, len(facts))
+	for _, f := range facts {
+		prov := architecture.Provenance{}
+		if f.Provenance != nil {
+			prov = *f.Provenance
+		}
+		receipts = append(receipts, architecture.ClaimFactReceipt{Fact: f, Provenance: prov})
+	}
+	doc, err := architecture.NormalizeClaimDocument(architecture.ClaimDocument{
+		SchemaVersion: "1",
+		GeneratedBy:   "test",
+		Binding:       binding(),
+		FactReceipts:  receipts,
+		Claims:        claims,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
+
 func planeReportEmpty(binding architecture.ClaimDocumentBinding) plane.Report {
 	return plane.Report{
 		SchemaVersion: "1", GeneratedBy: "test",
@@ -1148,6 +1284,18 @@ func sourceFileVulnerableToGraph(path, failureID string) GraphIndex {
 		triple(fileIRI, rdf.PropType, rdf.ClassSourceFile, true),
 		triple(fileIRI, rdf.PropVulnerableTo, failureIRI, true),
 		triple(failureIRI, rdf.PropType, rdf.ClassFailureMode, true),
+		triple(failureIRI, rdf.PropLabel, "scope failure", false),
+	)))
+}
+
+func sourceFileVulnerableToFailureModeWithStatus(path, failureID, status string) GraphIndex {
+	fileIRI := classIRI("source_file", path)
+	failureIRI := classIRI("failure_mode", failureID)
+	return BuildGraphIndex(mustTriplesForPanic(nt(
+		triple(fileIRI, rdf.PropType, rdf.ClassSourceFile, true),
+		triple(fileIRI, rdf.PropVulnerableTo, failureIRI, true),
+		triple(failureIRI, rdf.PropType, rdf.ClassFailureMode, true),
+		triple(failureIRI, rdf.PropStatus, status, false),
 		triple(failureIRI, rdf.PropLabel, "scope failure", false),
 	)))
 }

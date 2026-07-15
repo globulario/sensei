@@ -24,6 +24,27 @@ func TestObservedWriterFactJustifiesObservedPlane(t *testing.T) {
 	requireState(t, report, StateJustified)
 }
 
+func TestReachabilityFactJustifiesObservedPlane(t *testing.T) {
+	report := assessOne(t, architecture.PlaneObserved, []architecture.Fact{fact("fact.reach", "reachability", "entrypoint_reaches_symbol")}, "")
+	requireState(t, report, StateJustified)
+	requireReason(t, report, "plane.observed.fact_basis")
+}
+
+func TestStaticTestTopologyJustifiesObservedButNotEnforced(t *testing.T) {
+	observed := assessOne(t, architecture.PlaneObserved, []architecture.Fact{
+		fact("fact.export", "export", "exports_symbol"),
+		fact("fact.call", "test_call", "test_calls_symbol"),
+	}, "")
+	requireState(t, observed, StateJustified)
+
+	enforced := assessOne(t, architecture.PlaneEnforced, []architecture.Fact{
+		fact("fact.export", "export", "exports_symbol"),
+		fact("fact.call", "test_call", "test_calls_symbol"),
+	}, "")
+	requireState(t, enforced, StateUnderSupported)
+	requireReason(t, enforced, "plane.enforced.missing_basis")
+}
+
 func TestObservedRuntimeEvidenceRequiresCurrentEvidence(t *testing.T) {
 	report := assessWithEvidence(t, architecture.PlaneObserved, []string{"evidence:runtime.ok"}, graphRuntimeEvidenceNT("runtime.ok"), evidenceDoc("runtime.ok", maintenance.EvidenceStatusPass, maintenance.EvidenceFreshnessCurrent))
 	requireState(t, report, StateJustified)

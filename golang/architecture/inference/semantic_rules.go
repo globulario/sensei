@@ -16,11 +16,11 @@ func (ExportedAPITestedBehaviorRule) Descriptor() RuleDescriptor {
 		ID: "rule.exported_api_tested_behavior.v1", Version: "v1", Title: "Exported API tested behavior",
 		Description:       "Relates an exported Go symbol to repository tests that directly call it.",
 		RequiredFactKinds: []string{"export", "test_call"}, RequiredPredicates: []string{"exports_symbol", "test_calls_symbol"},
-		OutputPlane: architecture.PlaneEnforced, OutputPredicate: "has_enforced_behavioral_surface",
+		OutputPlane: architecture.PlaneObserved, OutputPredicate: "has_observed_test_surface",
 		ConfidencePolicy: confidencePolicy + "; cap 0.90", HumanReviewRequired: true,
 		KnownLimitations: []string{
-			"A direct test call proves only the exercised setup, path, and assertions.",
-			"Export and test coverage do not establish a public compatibility commitment.",
+			"A direct test call proves only that repository tests reach the symbol through the exercised path.",
+			"Static test topology does not establish enforcement, compatibility, or a public stability promise.",
 		},
 	}
 }
@@ -37,10 +37,10 @@ func (ExportedAPITestedBehaviorRule) Apply(ctx Context) ([]Application, error) {
 		premises := append([]architecture.Fact{exported}, tests...)
 		testSymbols := factSubjects(tests)
 		status, unknowns := statusForPremises(ctx, premises)
-		claim := baseClaim("rule.exported_api_tested_behavior.v1", architecture.PlaneEnforced, architecture.ClaimStatement{
-			Subject: exported.Subject, Predicate: "has_enforced_behavioral_surface", Object: strings.Join(testSymbols, ", "),
+		claim := baseClaim("rule.exported_api_tested_behavior.v1", architecture.PlaneObserved, architecture.ClaimStatement{
+			Subject: exported.Subject, Predicate: "has_observed_test_surface", Object: strings.Join(testSymbols, ", "),
 		}, premises, status, append(unknowns,
-			"Whether this behavior is a public compatibility guarantee remains unknown.",
+			"Whether the test surface is required enforcement remains unknown.",
 			"The tests may cover only a subset of inputs and paths.",
 		), 0.90)
 		claim.AlternativeExplanations = []string{

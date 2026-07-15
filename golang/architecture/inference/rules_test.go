@@ -422,8 +422,11 @@ func TestPublicAPIRuleRequiresExportAndTest(t *testing.T) {
 	}
 	call := testFact("call", "test_call", "api.TestServe", "test_calls_symbol", "api.Serve", 0.96)
 	app := singleApp(t, ExportedAPITestedBehaviorRule{}, supportedContext([]architecture.Fact{call, exported}))
-	if len(app.Claim.PremiseFacts) != 2 || app.Claim.Statement.Predicate != "has_enforced_behavioral_surface" {
+	if len(app.Claim.PremiseFacts) != 2 || app.Claim.Statement.Predicate != "has_observed_test_surface" {
 		t.Fatalf("public API claim lacks exact premises: %#v", app.Claim)
+	}
+	if app.Claim.ArchitecturalPlane != architecture.PlaneObserved {
+		t.Fatalf("plane=%s", app.Claim.ArchitecturalPlane)
 	}
 }
 
@@ -436,8 +439,8 @@ func TestPublicAPIRuleDoesNotInferCompatibility(t *testing.T) {
 	if strings.Contains(strings.ToLower(statement), "compatib") {
 		t.Fatalf("compatibility commitment inferred: %#v", app.Claim.Statement)
 	}
-	if !containsText(app.Claim.Unknowns, "compatibility guarantee") {
-		t.Fatalf("compatibility uncertainty missing: %v", app.Claim.Unknowns)
+	if !containsText(app.Claim.Unknowns, "required enforcement") {
+		t.Fatalf("test-surface uncertainty missing: %v", app.Claim.Unknowns)
 	}
 }
 
