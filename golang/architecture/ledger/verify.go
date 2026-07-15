@@ -21,6 +21,11 @@ func verifyTaskLedger(taskDir string, validator PayloadValidator) (VerificationR
 		report.TaskID = chain.TaskID
 	}
 	report.EntryCount = len(chain.Entries)
+	if chain.TaskDir != "" && len(chain.Entries) > 0 && len(report.Errors) == 0 {
+		if set, err := Project(chain); err == nil {
+			report.ProjectionState = ProjectionState(chain.TaskDir, set)
+		}
+	}
 	report.Valid = len(report.Errors) == 0
 	return report, nil
 }
@@ -43,7 +48,7 @@ func verifyAndLoadChain(taskDir string, validator PayloadValidator) (VerifiedCha
 		return VerifiedChain{}, VerificationReport{}, err
 	}
 	var (
-		out       VerifiedChain
+		out       = VerifiedChain{TaskDir: taskDir}
 		report    VerificationReport
 		usedPaths = map[string]bool{}
 	)
