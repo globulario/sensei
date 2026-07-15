@@ -21,6 +21,58 @@ var (
 	hexLenRE = map[int]*regexp.Regexp{}
 )
 
+type authorityBindingStatus string
+
+const (
+	authorityApplicable    authorityBindingStatus = "applicable"
+	authorityBackground    authorityBindingStatus = "background"
+	authorityDominated     authorityBindingStatus = "dominated"
+	authorityContradictory authorityBindingStatus = "contradictory"
+	authorityUnmapped      authorityBindingStatus = "unmapped"
+	authorityStale         authorityBindingStatus = "stale"
+)
+
+type AuthoritySpecificity int
+
+const (
+	AuthorityRepository AuthoritySpecificity = iota
+	AuthorityComponent
+	AuthorityStateSurface
+	AuthoritySymbol
+	AuthorityOperation
+)
+
+type authorityBinding struct {
+	AuthorityNodeID string
+	TargetFile      string
+	TargetState     string
+	RelationPath    []string
+	Specificity     AuthoritySpecificity
+	Status          authorityBindingStatus
+}
+
+type authorityContradiction struct {
+	TargetFile       string
+	TargetState      string
+	AuthorityNodeIDs []string
+}
+
+type authorityGap struct {
+	TargetFile     string
+	TargetState    string
+	RelationPath   []string
+	SurfaceNodeIDs []string
+	Status         authorityBindingStatus
+}
+
+type authorityProjection struct {
+	Bindings       []authorityBinding
+	Background     []authorityBinding
+	Dominated      []authorityBinding
+	Contradictions []authorityContradiction
+	Unmapped       []authorityGap
+}
+
 func oneOf(v string, allowed ...string) bool {
 	for _, a := range allowed {
 		if v == a {
@@ -269,6 +321,430 @@ func normalizeFileRepresentations(in []FileRepresentationReceipt) []FileRepresen
 		out = append(out, item)
 	}
 	return out
+}
+
+func projectApplicableAuthority(req Scope, scope resolvedScope, graph GraphIndex) authorityProjection {
+	authNodes := allNodesByClass(graph, "authority_domain")
+	if len(authNodes) == 0 && len(req.Files) == 0 {
+		return authorityProjection{}
+	}
+
+	out := authorityProjection{}
+	direct := taskAnchorNodes(req, scope.Nodes)
+	fileGroups := map[string][]authorityBinding{}
+	stateGroups := map[string][]authorityBinding{}
+	stateGaps := map[string]authorityGap{}
+	used := map[string]bool{}
+
+	for _, file := range cleanPathList(req.Files) {
+		for _, auth := range authNodes {
+			if spec, ok := authorityMatchesFile(auth, file); ok {
+				fileGroups[file] = append(fileGroups[file], authorityBinding{
+					AuthorityNodeID: auth.ID,
+					TargetFile:      file,
+					RelationPath:    []string{"task_modifies_file", "authority_covers_path"},
+					Specificity:     spec,
+					Status:          authorityBindingStatusForNode(auth),
+				})
+			}
+		}
+	}
+
+	for _, surface := range taskStateSurfaces(req, direct) {
+		matched := false
+		for _, auth := range authNodes {
+			if contains(auth.OwnsStates, surface.TargetState) {
+				matched = true
+				stateGroups[surface.TargetState] = append(stateGroups[surface.TargetState], authorityBinding{
+					AuthorityNodeID: auth.ID,
+					TargetFile:      surface.TargetFile,
+					TargetState:     surface.TargetState,
+					RelationPath:    []string{"task_modifies_file", "surface_reaches_state", "authority_owns_state"},
+					Specificity:     AuthorityStateSurface,
+					Status:          authorityBindingStatusForNode(auth),
+				})
+			}
+		}
+		if !matched {
+			stateGaps[surface.TargetState] = authorityGap{
+				TargetFile:     surface.TargetFile,
+				TargetState:    surface.TargetState,
+				RelationPath:   []string{"task_modifies_file", "surface_reaches_state"},
+				SurfaceNodeIDs: surface.SurfaceNodeIDs,
+				Status:         authorityUnmapped,
+			}
+		}
+	}
+
+	for _, key := range sortedMapKeys(fileGroups) {
+		bindings, dominated, contradictions := resolveAuthorityBindings(fileGroups[key], authNodes)
+		out.Bindings = append(out.Bindings, bindings...)
+		out.Dominated = append(out.Dominated, dominated...)
+		out.Contradictions = append(out.Contradictions, contradictions...)
+		for _, binding := range bindings {
+			used[binding.AuthorityNodeID] = true
+		}
+		for _, binding := range dominated {
+			used[binding.AuthorityNodeID] = true
+		}
+	}
+
+	for _, key := range sortedMapKeys(stateGroups) {
+		bindings, dominated, contradictions := resolveAuthorityBindings(stateGroups[key], authNodes)
+		out.Bindings = append(out.Bindings, bindings...)
+		out.Dominated = append(out.Dominated, dominated...)
+		out.Contradictions = append(out.Contradictions, contradictions...)
+		for _, binding := range bindings {
+			used[binding.AuthorityNodeID] = true
+		}
+		for _, binding := range dominated {
+			used[binding.AuthorityNodeID] = true
+		}
+		delete(stateGaps, key)
+	}
+
+	for _, key := range sortedMapKeys(stateGaps) {
+		out.Unmapped = append(out.Unmapped, stateGaps[key])
+	}
+
+	for _, auth := range authNodes {
+		if used[auth.ID] {
+			continue
+		}
+		out.Background = append(out.Background, authorityBinding{
+			AuthorityNodeID: auth.ID,
+			Status:          authorityBackground,
+		})
+	}
+
+	out.Bindings = normalizeAuthorityBindings(out.Bindings)
+	out.Background = normalizeAuthorityBindings(out.Background)
+	out.Dominated = normalizeAuthorityBindings(out.Dominated)
+	out.Contradictions = normalizeAuthorityContradictions(out.Contradictions)
+	out.Unmapped = normalizeAuthorityGaps(out.Unmapped)
+	return out
+}
+
+type taskStateSurface struct {
+	TargetFile     string
+	TargetState    string
+	SurfaceNodeIDs []string
+}
+
+func taskAnchorNodes(req Scope, nodes []Node) []Node {
+	var out []Node
+	for _, node := range nodes {
+		if taskNodeTargetsScope(req, node) {
+			out = append(out, node)
+		}
+	}
+	return sortedNodeSlice(out)
+}
+
+func taskNodeTargetsScope(req Scope, node Node) bool {
+	if node.SourcePath != "" && contains(req.Files, node.SourcePath) {
+		return true
+	}
+	if intersects(node.AuthoredIn, req.Files) || intersects(node.AnchoredIn, req.Symbols) {
+		return true
+	}
+	if hasClass(node, "component") && contains(req.Components, node.ID) {
+		return true
+	}
+	for _, file := range req.Files {
+		for _, prefix := range node.CoversPath {
+			if authorityPathCoversFile(prefix, file) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func taskStateSurfaces(req Scope, nodes []Node) []taskStateSurface {
+	byState := map[string]taskStateSurface{}
+	for _, node := range nodes {
+		files := taskFilesForNode(req, node)
+		if len(files) == 0 {
+			files = []string{""}
+		}
+		stateIDs := cleanList(append(append([]string{}, node.WritesTo...), append(node.ReadsFrom, node.OwnsStates...)...))
+		if hasClass(node, "state_object") {
+			stateIDs = cleanList(append(stateIDs, node.ID))
+		}
+		for _, stateID := range stateIDs {
+			if strings.TrimSpace(stateID) == "" {
+				continue
+			}
+			for _, file := range files {
+				key := stateID + "\x00" + file
+				cur := byState[key]
+				cur.TargetFile = file
+				cur.TargetState = stateID
+				cur.SurfaceNodeIDs = append(cur.SurfaceNodeIDs, node.ID)
+				byState[key] = cur
+			}
+		}
+	}
+	keys := sortedMapKeys(byState)
+	out := make([]taskStateSurface, 0, len(keys))
+	for _, key := range keys {
+		item := byState[key]
+		item.SurfaceNodeIDs = cleanList(item.SurfaceNodeIDs)
+		out = append(out, item)
+	}
+	return out
+}
+
+func taskFilesForNode(req Scope, node Node) []string {
+	var out []string
+	if node.SourcePath != "" && contains(req.Files, node.SourcePath) {
+		out = append(out, node.SourcePath)
+	}
+	for _, path := range node.AuthoredIn {
+		if contains(req.Files, path) {
+			out = append(out, path)
+		}
+	}
+	for _, file := range req.Files {
+		for _, prefix := range node.CoversPath {
+			if authorityPathCoversFile(prefix, file) {
+				out = append(out, file)
+			}
+		}
+	}
+	return cleanPathList(out)
+}
+
+func authorityMatchesFile(node Node, file string) (AuthoritySpecificity, bool) {
+	if !hasClass(node, "authority_domain") {
+		return AuthorityRepository, false
+	}
+	best := -1
+	for _, prefix := range node.CoversPath {
+		if !authorityPathCoversFile(prefix, file) {
+			continue
+		}
+		norm := normalizePath(prefix)
+		if norm == file {
+			return AuthorityOperation, true
+		}
+		if l := len(norm); l > best {
+			best = l
+		}
+	}
+	if best >= 0 {
+		return AuthorityRepository, true
+	}
+	return AuthorityRepository, false
+}
+
+func authorityPathCoversFile(prefix, file string) bool {
+	prefix = normalizePath(prefix)
+	file = normalizePath(file)
+	if prefix == "" || file == "" {
+		return false
+	}
+	if file == prefix {
+		return true
+	}
+	return strings.HasPrefix(file, strings.TrimSuffix(prefix, "/")+"/")
+}
+
+func authorityBindingStatusForNode(node Node) authorityBindingStatus {
+	switch node.Status {
+	case "stale", "superseded", "historical", "deprecated", "retired":
+		return authorityStale
+	default:
+		return authorityApplicable
+	}
+}
+
+func resolveAuthorityBindings(in []authorityBinding, nodes []Node) ([]authorityBinding, []authorityBinding, []authorityContradiction) {
+	if len(in) == 0 {
+		return nil, nil, nil
+	}
+	index := map[string]Node{}
+	for _, node := range nodes {
+		index[node.ID] = node
+	}
+	sort.SliceStable(in, func(i, j int) bool {
+		return authorityBindingLess(in[i], in[j], index)
+	})
+	best := in[0]
+	bindings := []authorityBinding{best}
+	var dominated []authorityBinding
+	var contradictions []authorityContradiction
+	for _, item := range in[1:] {
+		if comparableAuthorityBinding(best, item) && authorityFactsEqual(index[best.AuthorityNodeID], index[item.AuthorityNodeID]) {
+			dominated = append(dominated, markAuthorityBindingStatus(item, authorityDominated))
+			continue
+		}
+		if comparableAuthorityBinding(best, item) {
+			contradictions = append(contradictions, authorityContradiction{
+				TargetFile:       best.TargetFile,
+				TargetState:      best.TargetState,
+				AuthorityNodeIDs: cleanList([]string{best.AuthorityNodeID, item.AuthorityNodeID}),
+			})
+			continue
+		}
+		dominated = append(dominated, markAuthorityBindingStatus(item, authorityDominated))
+	}
+	return normalizeAuthorityBindings(bindings), normalizeAuthorityBindings(dominated), normalizeAuthorityContradictions(contradictions)
+}
+
+func authorityBindingLess(a, b authorityBinding, nodes map[string]Node) bool {
+	// A stale precise record must not dominate a fresh broader record.
+	if authorityFreshnessRank(a, nodes) != authorityFreshnessRank(b, nodes) {
+		return authorityFreshnessRank(a, nodes) > authorityFreshnessRank(b, nodes)
+	}
+	if a.Specificity != b.Specificity {
+		return a.Specificity > b.Specificity
+	}
+	return a.AuthorityNodeID < b.AuthorityNodeID
+}
+
+func authorityFreshnessRank(binding authorityBinding, nodes map[string]Node) int {
+	if node, ok := nodes[binding.AuthorityNodeID]; ok && authorityBindingStatusForNode(node) == authorityApplicable {
+		return 1
+	}
+	return 0
+}
+
+func comparableAuthorityBinding(a, b authorityBinding) bool {
+	return a.TargetFile == b.TargetFile &&
+		a.TargetState == b.TargetState &&
+		a.Specificity == b.Specificity &&
+		a.Status == b.Status
+}
+
+func authorityFactsEqual(a, b Node) bool {
+	return strings.Join(a.OwnerServices, "\x00") == strings.Join(b.OwnerServices, "\x00") &&
+		strings.Join(a.MayWrite, "\x00") == strings.Join(b.MayWrite, "\x00") &&
+		strings.Join(a.MayRead, "\x00") == strings.Join(b.MayRead, "\x00") &&
+		strings.Join(a.MustMutateVia, "\x00") == strings.Join(b.MustMutateVia, "\x00") &&
+		strings.Join(a.MustReadVia, "\x00") == strings.Join(b.MustReadVia, "\x00") &&
+		strings.Join(a.ObservesVia, "\x00") == strings.Join(b.ObservesVia, "\x00") &&
+		strings.Join(a.TruthLayers, "\x00") == strings.Join(b.TruthLayers, "\x00")
+}
+
+func markAuthorityBindingStatus(binding authorityBinding, status authorityBindingStatus) authorityBinding {
+	binding.Status = status
+	return binding
+}
+
+func normalizeAuthorityBindings(in []authorityBinding) []authorityBinding {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]authorityBinding{}
+	var keys []string
+	for _, item := range in {
+		key := strings.Join([]string{
+			item.AuthorityNodeID,
+			item.TargetFile,
+			item.TargetState,
+			strconv.Itoa(int(item.Specificity)),
+			string(item.Status),
+		}, "\x00")
+		cur := seen[key]
+		cur.AuthorityNodeID = item.AuthorityNodeID
+		cur.TargetFile = normalizePath(item.TargetFile)
+		cur.TargetState = strings.TrimSpace(item.TargetState)
+		cur.RelationPath = append(cur.RelationPath, item.RelationPath...)
+		cur.Specificity = item.Specificity
+		cur.Status = item.Status
+		if _, ok := seen[key]; !ok {
+			keys = append(keys, key)
+		}
+		seen[key] = cur
+	}
+	sort.Strings(keys)
+	out := make([]authorityBinding, 0, len(keys))
+	for _, key := range keys {
+		item := seen[key]
+		item.RelationPath = cleanList(item.RelationPath)
+		out = append(out, item)
+	}
+	return out
+}
+
+func normalizeAuthorityContradictions(in []authorityContradiction) []authorityContradiction {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]authorityContradiction{}
+	var keys []string
+	for _, item := range in {
+		item.TargetFile = normalizePath(item.TargetFile)
+		item.TargetState = strings.TrimSpace(item.TargetState)
+		item.AuthorityNodeIDs = cleanList(item.AuthorityNodeIDs)
+		key := item.TargetFile + "\x00" + item.TargetState + "\x00" + strings.Join(item.AuthorityNodeIDs, "\x00")
+		if _, ok := seen[key]; !ok {
+			keys = append(keys, key)
+			seen[key] = item
+		}
+	}
+	sort.Strings(keys)
+	out := make([]authorityContradiction, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, seen[key])
+	}
+	return out
+}
+
+func normalizeAuthorityGaps(in []authorityGap) []authorityGap {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]authorityGap{}
+	var keys []string
+	for _, item := range in {
+		item.TargetFile = normalizePath(item.TargetFile)
+		item.TargetState = strings.TrimSpace(item.TargetState)
+		item.RelationPath = cleanList(item.RelationPath)
+		item.SurfaceNodeIDs = cleanList(item.SurfaceNodeIDs)
+		key := item.TargetFile + "\x00" + item.TargetState
+		cur := seen[key]
+		cur.TargetFile = item.TargetFile
+		cur.TargetState = item.TargetState
+		cur.RelationPath = append(cur.RelationPath, item.RelationPath...)
+		cur.SurfaceNodeIDs = append(cur.SurfaceNodeIDs, item.SurfaceNodeIDs...)
+		cur.Status = item.Status
+		if _, ok := seen[key]; !ok {
+			keys = append(keys, key)
+		}
+		seen[key] = cur
+	}
+	sort.Strings(keys)
+	out := make([]authorityGap, 0, len(keys))
+	for _, key := range keys {
+		item := seen[key]
+		item.RelationPath = cleanList(item.RelationPath)
+		item.SurfaceNodeIDs = cleanList(item.SurfaceNodeIDs)
+		out = append(out, item)
+	}
+	return out
+}
+
+func sortedNodeSlice(in []Node) []Node {
+	if len(in) == 0 {
+		return nil
+	}
+	byID := map[string]Node{}
+	for _, node := range in {
+		byID[node.ID] = node
+	}
+	return sortedNodeMap(byID)
+}
+
+func sortedMapKeys[T any](m map[string]T) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func indexedClass(iri string) string {
@@ -584,6 +1060,16 @@ func filterNodes(nodes []Node, class string) []Node {
 	return out
 }
 
+func allNodesByClass(graph GraphIndex, class string) []Node {
+	var out []Node
+	for _, node := range graph.Nodes {
+		if hasClass(node, class) {
+			out = append(out, node)
+		}
+	}
+	return sortedNodeSlice(out)
+}
+
 func crossingPresent(nodes []Node) bool {
 	for _, n := range nodes {
 		if hasClass(n, "component") && len(n.DependsOn)+len(n.ReadsFrom)+len(n.WritesTo) > 0 {
@@ -687,12 +1173,8 @@ func (b *assessmentBuilder) dimensionApplicable(dim string) bool {
 		if oneOf(b.ctx.Request.Scope.AccessMode, AccessWrite, AccessReadWrite) {
 			return true
 		}
-		for _, c := range b.scope.Claims {
-			if oneOf(c.Statement.Predicate, "writes", "mutates_state", "has_observed_writer_set", "owns_state", "reads") {
-				return true
-			}
-		}
-		return len(filterNodes(b.scope.Nodes, "authority_domain")) > 0
+		proj := b.authorityProjection()
+		return len(proj.Bindings) > 0 || len(proj.Contradictions) > 0 || len(proj.Unmapped) > 0
 	case DimensionContract:
 		return crossingPresent(b.scope.Nodes) || len(filterNodes(b.scope.Nodes, "boundary")) > 0 || len(filterNodes(b.scope.Nodes, "contract")) > 0
 	case DimensionBehavioral:

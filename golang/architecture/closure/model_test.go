@@ -584,6 +584,199 @@ func TestAuthoredInRepresentationDoesNotChangeProductionCoverage(t *testing.T) {
 	}
 }
 
+func TestAuthorityUnrelatedDomainDoesNotBindTask(t *testing.T) {
+	root, graph := closedFixture(t)
+	graph = mergeGraphs(graph, authorityDomainGraph("auth.other", authorityDomainOptions{
+		CoversPaths:   []string{"other.go"},
+		OwnerServices: []string{"service.other"},
+		MayWrite:      []string{"writer.other"},
+		MustMutateVia: []string{"rpc.Other"},
+		TruthLayers:   []string{"repository"},
+	}))
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoAuthorityBlocker(t, report, "closure.authority.owner_missing")
+	assertNoAuthorityBlocker(t, report, "closure.authority.state_unmapped")
+	assertNoAuthorityBlocker(t, report, "closure.authority.applicable_records_contradict")
+}
+
+func TestAuthorityExactCoveredFileRemainsBound(t *testing.T) {
+	root, graph := closedFixture(t)
+	graph = mergeGraphs(graph, authorityDomainGraph("auth.x", authorityDomainOptions{
+		CoversPaths: []string{"x.go"},
+		MayWrite:    []string{"writer.x"},
+		TruthLayers: []string{"repository"},
+	}))
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertAuthorityBlocker(t, report, "closure.authority.owner_missing")
+}
+
+func TestAuthorityMutationClaimWithoutPathDoesNotBind(t *testing.T) {
+	root, graph := closedFixture(t)
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	ctx := validContext(t, root, req, graph)
+	claim := architecture.Claim{
+		ID:                 "claim.write.scope",
+		Statement:          architecture.ClaimStatement{Subject: "closure.LoadRequest", Predicate: "writes", Object: "err"},
+		Scope:              architecture.ClaimScope{Repository: req.Binding.RepositoryDomain, Files: []string{"x.go"}},
+		ArchitecturalPlane: architecture.PlaneObserved,
+		AssertionOrigin:    architecture.OriginDerived,
+		EpistemicStatus:    architecture.StatusSupported,
+		Confidence:         0.6,
+	}
+	ctx.Claims.Claims = []architecture.Claim{claim}
+	ctx.Maintenance.ClaimEvaluations = []maintenance.ClaimEvaluation{{
+		ClaimID:         claim.ID,
+		InputStatus:     architecture.StatusSupported,
+		EvaluatedStatus: architecture.StatusSupported,
+		Disposition:     "kept",
+	}}
+	ctx.Plane.ClaimAssessments = []plane.ClaimAssessment{{
+		ClaimID:         claim.ID,
+		PropositionKey:  plane.PropositionKey(claim),
+		DeclaredPlane:   claim.ArchitecturalPlane,
+		AssertionOrigin: claim.AssertionOrigin,
+		EpistemicStatus: claim.EpistemicStatus,
+		PlaneState:      plane.StateJustified,
+	}}
+	report, err := Evaluate(ctx)
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoAuthorityBlocker(t, report, "closure.authority.state_unmapped")
+}
+
+func TestAuthorityGovernedStateWithoutDomainFailsClosed(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	graph := mergeGraphs(
+		sourceFileGraph("x.go"),
+		componentStateGraph("component.scope", "x.go", "state.alpha"),
+	)
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertAuthorityBlocker(t, report, "closure.authority.state_unmapped")
+}
+
+func TestAuthorityGovernedStateWithOwningDomainBinds(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	graph := mergeGraphs(
+		sourceFileGraph("x.go"),
+		componentStateGraph("component.scope", "x.go", "state.alpha"),
+		authorityDomainGraph("auth.alpha", authorityDomainOptions{
+			OwnsStates: []string{"state.alpha"},
+			MayWrite:   []string{"writer.alpha"},
+			TruthLayers: []string{
+				"repository",
+			},
+		}),
+	)
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoAuthorityBlocker(t, report, "closure.authority.state_unmapped")
+	assertAuthorityBlocker(t, report, "closure.authority.owner_missing")
+}
+
+func TestAuthorityFreshBroaderDomainBeatsStaleExactDomain(t *testing.T) {
+	root := authoredFileRoot(t, "pkg/x.go")
+	graph := mergeGraphs(
+		sourceFileGraph("pkg/x.go"),
+		authorityDomainGraph("auth.stale.exact", authorityDomainOptions{
+			Status:      "stale",
+			CoversPaths: []string{"pkg/x.go"},
+		}),
+		authorityDomainGraph("auth.active.broad", authorityDomainOptions{
+			CoversPaths:   []string{"pkg/"},
+			OwnerServices: []string{"service.pkg"},
+			MayWrite:      []string{"writer.pkg"},
+			MustMutateVia: []string{"rpc.Package"},
+			TruthLayers:   []string{"repository"},
+		}),
+	)
+	req := validRequest()
+	req.Scope.Files = []string{"pkg/x.go"}
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoAuthorityBlocker(t, report, "closure.authority.owner_missing")
+	assertNoAuthorityBlocker(t, report, "closure.authority.stale")
+}
+
+func TestAuthorityContradictoryApplicableDomainsBlock(t *testing.T) {
+	root, graph := closedFixture(t)
+	graph = mergeGraphs(
+		graph,
+		authorityDomainGraph("auth.one", authorityDomainOptions{
+			CoversPaths:   []string{"x.go"},
+			OwnerServices: []string{"service.one"},
+			MayWrite:      []string{"writer.one"},
+			MustMutateVia: []string{"rpc.One"},
+			TruthLayers:   []string{"repository"},
+		}),
+		authorityDomainGraph("auth.two", authorityDomainOptions{
+			CoversPaths:   []string{"x.go"},
+			OwnerServices: []string{"service.two"},
+			MayWrite:      []string{"writer.two"},
+			MustMutateVia: []string{"rpc.Two"},
+			TruthLayers:   []string{"repository"},
+		}),
+	)
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertAuthorityBlocker(t, report, "closure.authority.applicable_records_contradict")
+}
+
+func TestAuthorityUnrelatedConflictingDomainsDoNotBlock(t *testing.T) {
+	root, graph := closedFixture(t)
+	graph = mergeGraphs(
+		graph,
+		authorityDomainGraph("auth.other.one", authorityDomainOptions{
+			CoversPaths:   []string{"other.go"},
+			OwnerServices: []string{"service.one"},
+			MayWrite:      []string{"writer.one"},
+			MustMutateVia: []string{"rpc.One"},
+			TruthLayers:   []string{"repository"},
+		}),
+		authorityDomainGraph("auth.other.two", authorityDomainOptions{
+			CoversPaths:   []string{"other.go"},
+			OwnerServices: []string{"service.two"},
+			MayWrite:      []string{"writer.two"},
+			MustMutateVia: []string{"rpc.Two"},
+			TruthLayers:   []string{"repository"},
+		}),
+	)
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoAuthorityBlocker(t, report, "closure.authority.applicable_records_contradict")
+}
+
 func TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "x.go"), []byte("package x\n"), 0o644); err != nil {
@@ -959,6 +1152,91 @@ func sourceFileVulnerableToGraph(path, failureID string) GraphIndex {
 	)))
 }
 
+type authorityDomainOptions struct {
+	Status        string
+	CoversPaths   []string
+	OwnsStates    []string
+	OwnerServices []string
+	MayWrite      []string
+	MayRead       []string
+	MustMutateVia []string
+	MustReadVia   []string
+	ObservesVia   []string
+	TruthLayers   []string
+}
+
+func authorityDomainGraph(id string, opts authorityDomainOptions) GraphIndex {
+	iri := classIRI("authority_domain", id)
+	lines := []string{triple(iri, rdf.PropType, rdf.ClassAuthorityDomain, true)}
+	if opts.Status != "" {
+		lines = append(lines, triple(iri, rdf.PropStatus, opts.Status, false))
+	}
+	for _, path := range opts.CoversPaths {
+		lines = append(lines, triple(iri, rdf.PropCoversPath, path, false))
+	}
+	for _, state := range opts.OwnsStates {
+		lines = append(lines, triple(iri, rdf.PropOwnsState, state, false))
+	}
+	for _, owner := range opts.OwnerServices {
+		lines = append(lines, triple(iri, rdf.PropOwnerService, owner, false))
+	}
+	for _, writer := range opts.MayWrite {
+		lines = append(lines, triple(iri, rdf.PropMayWrite, writer, false))
+	}
+	for _, reader := range opts.MayRead {
+		lines = append(lines, triple(iri, rdf.PropMayRead, reader, false))
+	}
+	for _, path := range opts.MustMutateVia {
+		lines = append(lines, triple(iri, rdf.PropMustMutateVia, path, false))
+	}
+	for _, path := range opts.MustReadVia {
+		lines = append(lines, triple(iri, rdf.PropMustReadVia, path, false))
+	}
+	for _, path := range opts.ObservesVia {
+		lines = append(lines, triple(iri, rdf.PropObservesVia, path, false))
+	}
+	for _, layer := range opts.TruthLayers {
+		lines = append(lines, triple(iri, rdf.PropHasTruthLayer, layer, false))
+	}
+	return BuildGraphIndex(mustTriplesForPanic(nt(lines...)))
+}
+
+func componentStateGraph(id, authoredFile string, writesTo ...string) GraphIndex {
+	iri := classIRI("component", id)
+	lines := []string{
+		triple(iri, rdf.PropType, rdf.ClassComponent, true),
+		triple(iri, rdf.PropAuthoredIn, authoredFile, false),
+	}
+	for _, state := range writesTo {
+		lines = append(lines, triple(iri, rdf.PropWritesTo, state, false))
+	}
+	return BuildGraphIndex(mustTriplesForPanic(nt(lines...)))
+}
+
+func mergeGraphs(graphs ...GraphIndex) GraphIndex {
+	merged := GraphIndex{
+		Nodes:       map[string]Node{},
+		NodesByID:   map[string]string{},
+		FilesByPath: map[string]string{},
+		SymbolsByID: map[string]string{},
+	}
+	for _, graph := range graphs {
+		for iri, node := range graph.Nodes {
+			merged.Nodes[iri] = node
+		}
+		for id, iri := range graph.NodesByID {
+			merged.NodesByID[id] = iri
+		}
+		for path, iri := range graph.FilesByPath {
+			merged.FilesByPath[path] = iri
+		}
+		for id, iri := range graph.SymbolsByID {
+			merged.SymbolsByID[id] = iri
+		}
+	}
+	return merged
+}
+
 type authoredNodeOptions struct {
 	Status          string
 	PromotionStatus string
@@ -1071,6 +1349,25 @@ func assertNoBlocker(t *testing.T, report Report, code string) {
 	for _, b := range report.Blockers {
 		if b.Code == code {
 			t.Fatalf("unexpected blocker %s in %#v", code, report.Blockers)
+		}
+	}
+}
+
+func assertAuthorityBlocker(t *testing.T, report Report, code string) {
+	t.Helper()
+	for _, b := range report.Blockers {
+		if b.Dimension == DimensionAuthority && b.Code == code {
+			return
+		}
+	}
+	t.Fatalf("missing authority blocker %s in %#v", code, report.Blockers)
+}
+
+func assertNoAuthorityBlocker(t *testing.T, report Report, code string) {
+	t.Helper()
+	for _, b := range report.Blockers {
+		if b.Dimension == DimensionAuthority && b.Code == code {
+			t.Fatalf("unexpected authority blocker %s in %#v", code, report.Blockers)
 		}
 	}
 }
