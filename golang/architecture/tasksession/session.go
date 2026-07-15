@@ -22,6 +22,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/convergence"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
+	"github.com/globulario/sensei/golang/extractor"
 	"gopkg.in/yaml.v3"
 )
 
@@ -84,22 +85,23 @@ type TaskScope struct {
 }
 
 type ArtifactRefs struct {
-	TaskRequest           string `json:"task_request" yaml:"task_request"`
-	ClosureRequest        string `json:"closure_request" yaml:"closure_request"`
-	DirectionBootstrap    string `json:"direction_bootstrap,omitempty" yaml:"direction_bootstrap,omitempty"`
-	Claims                string `json:"claims" yaml:"claims"`
-	Dialogue              string `json:"dialogue" yaml:"dialogue"`
-	EvidenceState         string `json:"evidence_state" yaml:"evidence_state"`
-	KnowledgeBundle       string `json:"knowledge_bundle" yaml:"knowledge_bundle"`
-	GraphSnapshot         string `json:"graph_snapshot" yaml:"graph_snapshot"`
-	GraphReceipt          string `json:"graph_receipt" yaml:"graph_receipt"`
-	ConvergenceBundle     string `json:"convergence_bundle" yaml:"convergence_bundle"`
-	ConvergenceSession    string `json:"convergence_session" yaml:"convergence_session"`
-	AdmissionRequest      string `json:"admission_request" yaml:"admission_request"`
-	AdmissionDecision     string `json:"admission_decision" yaml:"admission_decision"`
-	AdmissionVerification string `json:"admission_verification,omitempty" yaml:"admission_verification,omitempty"`
-	PrepareReceipt        string `json:"prepare_receipt" yaml:"prepare_receipt"`
-	StatusReceipt         string `json:"status_receipt" yaml:"status_receipt"`
+	TaskRequest                  string `json:"task_request" yaml:"task_request"`
+	ClosureRequest               string `json:"closure_request" yaml:"closure_request"`
+	DirectionBootstrap           string `json:"direction_bootstrap,omitempty" yaml:"direction_bootstrap,omitempty"`
+	AwarenessMutationEnforcement string `json:"awareness_mutation_enforcement,omitempty" yaml:"awareness_mutation_enforcement,omitempty"`
+	Claims                       string `json:"claims" yaml:"claims"`
+	Dialogue                     string `json:"dialogue" yaml:"dialogue"`
+	EvidenceState                string `json:"evidence_state" yaml:"evidence_state"`
+	KnowledgeBundle              string `json:"knowledge_bundle" yaml:"knowledge_bundle"`
+	GraphSnapshot                string `json:"graph_snapshot" yaml:"graph_snapshot"`
+	GraphReceipt                 string `json:"graph_receipt" yaml:"graph_receipt"`
+	ConvergenceBundle            string `json:"convergence_bundle" yaml:"convergence_bundle"`
+	ConvergenceSession           string `json:"convergence_session" yaml:"convergence_session"`
+	AdmissionRequest             string `json:"admission_request" yaml:"admission_request"`
+	AdmissionDecision            string `json:"admission_decision" yaml:"admission_decision"`
+	AdmissionVerification        string `json:"admission_verification,omitempty" yaml:"admission_verification,omitempty"`
+	PrepareReceipt               string `json:"prepare_receipt" yaml:"prepare_receipt"`
+	StatusReceipt                string `json:"status_receipt" yaml:"status_receipt"`
 }
 
 type NextAction struct {
@@ -290,7 +292,11 @@ func Prepare(opts PrepareOptions) (PrepareResult, error) {
 	if err != nil {
 		return PrepareResult{}, err
 	}
-	closureReq := closureRequestFromTask(taskReq)
+	awarenessMutation, err := snapshotAwarenessMutationEnforcement(repoRoot, taskRoot, taskReq)
+	if err != nil {
+		return PrepareResult{}, err
+	}
+	closureReq := closureRequestFromTask(taskReq, awarenessMutation)
 	closureReq.DirectionBootstrap = directionBootstrap
 	closureBytes, err := closure.MarshalCanonicalRequestYAML(closureReq)
 	if err != nil {
@@ -746,26 +752,27 @@ func validateTaskRequest(req TaskRequest) error {
 
 func defaultArtifactRefs() ArtifactRefs {
 	return ArtifactRefs{
-		TaskRequest:           "task-request.yaml",
-		ClosureRequest:        "closure-request.yaml",
-		DirectionBootstrap:    "governance/bootstrap-direction-authorization.yaml",
-		Claims:                "source/claims.yaml",
-		Dialogue:              "source/dialogue.yaml",
-		EvidenceState:         "source/evidence-state.yaml",
-		KnowledgeBundle:       "source/knowledge",
-		GraphSnapshot:         "source/graph.nt",
-		GraphReceipt:          "source/graph-receipt.yaml",
-		ConvergenceBundle:     "convergence",
-		ConvergenceSession:    "convergence/session.yaml",
-		AdmissionRequest:      "admission/request.yaml",
-		AdmissionDecision:     "admission/decision.yaml",
-		AdmissionVerification: "admission/verification.yaml",
-		PrepareReceipt:        "receipts/prepare-change.yaml",
-		StatusReceipt:         "receipts/task-status.yaml",
+		TaskRequest:                  "task-request.yaml",
+		ClosureRequest:               "closure-request.yaml",
+		DirectionBootstrap:           "governance/bootstrap-direction-authorization.yaml",
+		AwarenessMutationEnforcement: "source/awareness-mutation-enforcement.yaml",
+		Claims:                       "source/claims.yaml",
+		Dialogue:                     "source/dialogue.yaml",
+		EvidenceState:                "source/evidence-state.yaml",
+		KnowledgeBundle:              "source/knowledge",
+		GraphSnapshot:                "source/graph.nt",
+		GraphReceipt:                 "source/graph-receipt.yaml",
+		ConvergenceBundle:            "convergence",
+		ConvergenceSession:           "convergence/session.yaml",
+		AdmissionRequest:             "admission/request.yaml",
+		AdmissionDecision:            "admission/decision.yaml",
+		AdmissionVerification:        "admission/verification.yaml",
+		PrepareReceipt:               "receipts/prepare-change.yaml",
+		StatusReceipt:                "receipts/task-status.yaml",
 	}
 }
 
-func closureRequestFromTask(req TaskRequest) closure.Request {
+func closureRequestFromTask(req TaskRequest, awarenessMutation *closure.AwarenessMutationBinding) closure.Request {
 	files := make([]string, 0, len(req.Scope.Files))
 	for _, f := range req.Scope.Files {
 		files = append(files, f.Path)
@@ -786,8 +793,9 @@ func closureRequestFromTask(req TaskRequest) closure.Request {
 			DirectionRequirement: req.DirectionRequirement,
 			Files:                files,
 		},
-		RequestedBy: req.RequestedBy,
-		Note:        req.Description,
+		AwarenessMutation: awarenessMutation,
+		RequestedBy:       req.RequestedBy,
+		Note:              req.Description,
 	}
 }
 
@@ -1039,6 +1047,79 @@ func snapshotProjectKnowledge(repoRoot, taskRoot, riskClass string) error {
 		return err
 	}
 	return writeFileAtomic(filepath.Join(targetRoot, "manifest.yaml"), manifestData)
+}
+
+func snapshotAwarenessMutationEnforcement(repoRoot, taskRoot string, req TaskRequest) (*closure.AwarenessMutationBinding, error) {
+	var plans []closure.AwarenessMutationEnforcementPlan
+	for _, file := range req.Scope.Files {
+		if file.Operation != admission.OperationModify {
+			continue
+		}
+		full := filepath.Join(repoRoot, filepath.FromSlash(file.Path))
+		info, err := os.Lstat(full)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			continue
+		}
+		desc, ok, err := extractor.DescribeAwarenessSource(full)
+		if err != nil {
+			return nil, err
+		}
+		if !ok || !desc.CanonicalMutationEligible {
+			continue
+		}
+		plans = append(plans, closure.AwarenessMutationEnforcementPlan{
+			SourcePath:  file.Path,
+			SourceClass: desc.SourceClass,
+			ImporterID:  desc.ImporterID,
+			RequiredPreconditions: []string{
+				"existing regular repository file",
+				"canonical governed awareness surface",
+				"registered closed-schema importer",
+				"exact modify operation",
+				"no task-local knowledge imported as canonical truth",
+			},
+			RequiredVerification: []string{
+				"sensei_check",
+				"sensei_validate",
+				"strict_build",
+				"canonical_graph_purity",
+				"owner_resolution",
+				"authority_scope_validation",
+			},
+			Limitations: []string{
+				"enforcement proves valid governed structure and graph compilation coverage, not architectural optimality or correctness",
+			},
+		})
+	}
+	if len(plans) == 0 {
+		return nil, nil
+	}
+	doc := closure.AwarenessMutationEnforcementDocument{
+		SchemaVersion:      "1",
+		PolicyID:           closure.AwarenessMutationEnforcementPolicyV1,
+		TaskID:             req.TaskID,
+		RepositoryRevision: req.Binding.Revision,
+		GraphDigestSHA256:  req.Binding.GraphDigestSHA256,
+		Plans:              plans,
+	}
+	data, err := closure.MarshalCanonicalAwarenessMutationEnforcementYAML(doc)
+	if err != nil {
+		return nil, err
+	}
+	target := filepath.Join(taskRoot, "source", "awareness-mutation-enforcement.yaml")
+	if err := writeFileAtomic(target, data); err != nil {
+		return nil, err
+	}
+	digest, err := closure.AwarenessMutationEnforcementDigest(doc)
+	if err != nil {
+		return nil, err
+	}
+	return &closure.AwarenessMutationBinding{
+		TaskID:           req.TaskID,
+		Path:             filepath.ToSlash(filepath.Join(".sensei", "tasks", req.TaskID, "source", "awareness-mutation-enforcement.yaml")),
+		PlanDigestSHA256: digest,
+		PolicyID:         closure.AwarenessMutationEnforcementPolicyV1,
+	}, nil
 }
 
 func buildSession(req TaskRequest, refs ArtifactRefs, conv convergence.StatusReport, decision admission.Decision, limitations []architecture.Limitation) Session {

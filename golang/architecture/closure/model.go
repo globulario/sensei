@@ -67,12 +67,13 @@ const (
 	DirectionNotApplicable = "not_applicable"
 	DirectionUnknown       = "unknown"
 
-	DirectionBootstrapSchemaVersion  = "1"
-	DirectionBootstrapPolicyID       = "closure.direction.bootstrap.v1"
-	DirectionBootstrapFile           = "docs/awareness/architecture/decisions.yaml"
-	DirectionBootstrapUsageOneUse    = "one_use"
-	DirectionBootstrapMechanismFile  = "external_authorization_file.v1"
-	DirectionBootstrapApprovalDirEnv = "SENSEI_BOOTSTRAP_APPROVAL_DIR"
+	DirectionBootstrapSchemaVersion      = "1"
+	DirectionBootstrapPolicyID           = "closure.direction.bootstrap.v1"
+	DirectionBootstrapFile               = "docs/awareness/architecture/decisions.yaml"
+	DirectionBootstrapUsageOneUse        = "one_use"
+	DirectionBootstrapMechanismFile      = "external_authorization_file.v1"
+	DirectionBootstrapApprovalDirEnv     = "SENSEI_BOOTSTRAP_APPROVAL_DIR"
+	AwarenessMutationEnforcementPolicyV1 = "awareness-mutation-enforcement.strict.v1"
 )
 
 var DimensionOrder = []string{
@@ -92,6 +93,7 @@ type Request struct {
 	Binding            architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
 	Scope              Scope                             `json:"scope" yaml:"scope"`
 	DirectionBootstrap *DirectionBootstrapAuthorization  `json:"direction_bootstrap,omitempty" yaml:"direction_bootstrap,omitempty"`
+	AwarenessMutation  *AwarenessMutationBinding         `json:"awareness_mutation,omitempty" yaml:"awareness_mutation,omitempty"`
 	RequestedBy        string                            `json:"requested_by,omitempty" yaml:"requested_by,omitempty"`
 	Note               string                            `json:"note,omitempty" yaml:"note,omitempty"`
 }
@@ -146,34 +148,36 @@ type Policy struct {
 }
 
 type Context struct {
-	Request          Request
-	Claims           architecture.ClaimDocument
-	Maintenance      *maintenance.Report
-	Plane            *plane.Report
-	Dialogue         *architecture.DialogueDocument
-	Evidence         *maintenance.EvidenceStateDocument
-	Graph            GraphIndex
-	GraphReceipt     graphsnapshot.Receipt
-	RepositoryRoot   string
-	RepositoryRev    string
-	RepositoryStatus string
-	MissingInputs    map[string]bool
+	Request           Request
+	Claims            architecture.ClaimDocument
+	Maintenance       *maintenance.Report
+	Plane             *plane.Report
+	Dialogue          *architecture.DialogueDocument
+	Evidence          *maintenance.EvidenceStateDocument
+	Graph             GraphIndex
+	GraphReceipt      graphsnapshot.Receipt
+	AwarenessMutation *AwarenessMutationReceipt
+	RepositoryRoot    string
+	RepositoryRev     string
+	RepositoryStatus  string
+	MissingInputs     map[string]bool
 }
 
 type Report struct {
-	SchemaVersion   string                            `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy     string                            `json:"generated_by" yaml:"generated_by"`
-	Request         Request                           `json:"request" yaml:"request"`
-	ObservedBinding architecture.ClaimDocumentBinding `json:"observed_binding" yaml:"observed_binding"`
-	Verdict         string                            `json:"verdict" yaml:"verdict"`
-	ScopeReceipt    ScopeReceipt                      `json:"scope_receipt" yaml:"scope_receipt"`
-	Dimensions      []DimensionAssessment             `json:"dimensions" yaml:"dimensions"`
-	Blockers        []Blocker                         `json:"blockers" yaml:"blockers"`
-	Conditions      []Condition                       `json:"conditions,omitempty" yaml:"conditions,omitempty"`
-	RelevantClaims  []ClaimReceipt                    `json:"relevant_claims,omitempty" yaml:"relevant_claims,omitempty"`
-	RelevantNodes   []NodeReceipt                     `json:"relevant_nodes,omitempty" yaml:"relevant_nodes,omitempty"`
-	Questions       []QuestionReceipt                 `json:"questions,omitempty" yaml:"questions,omitempty"`
-	Limitations     []architecture.Limitation         `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	SchemaVersion     string                            `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy       string                            `json:"generated_by" yaml:"generated_by"`
+	Request           Request                           `json:"request" yaml:"request"`
+	ObservedBinding   architecture.ClaimDocumentBinding `json:"observed_binding" yaml:"observed_binding"`
+	Verdict           string                            `json:"verdict" yaml:"verdict"`
+	ScopeReceipt      ScopeReceipt                      `json:"scope_receipt" yaml:"scope_receipt"`
+	AwarenessMutation *AwarenessMutationReceipt         `json:"awareness_mutation,omitempty" yaml:"awareness_mutation,omitempty"`
+	Dimensions        []DimensionAssessment             `json:"dimensions" yaml:"dimensions"`
+	Blockers          []Blocker                         `json:"blockers" yaml:"blockers"`
+	Conditions        []Condition                       `json:"conditions,omitempty" yaml:"conditions,omitempty"`
+	RelevantClaims    []ClaimReceipt                    `json:"relevant_claims,omitempty" yaml:"relevant_claims,omitempty"`
+	RelevantNodes     []NodeReceipt                     `json:"relevant_nodes,omitempty" yaml:"relevant_nodes,omitempty"`
+	Questions         []QuestionReceipt                 `json:"questions,omitempty" yaml:"questions,omitempty"`
+	Limitations       []architecture.Limitation         `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
 type ScopeReceipt struct {
@@ -227,12 +231,42 @@ type Blocker struct {
 }
 
 type Condition struct {
-	ID                 string   `json:"id" yaml:"id"`
-	Dimension          string   `json:"dimension" yaml:"dimension"`
-	Code               string   `json:"code" yaml:"code"`
-	Summary            string   `json:"summary" yaml:"summary"`
-	QuestionIDs        []string `json:"question_ids,omitempty" yaml:"question_ids,omitempty"`
-	RequiredNextAction string   `json:"required_next_action" yaml:"required_next_action"`
+	ID                                string   `json:"id" yaml:"id"`
+	Dimension                         string   `json:"dimension" yaml:"dimension"`
+	Code                              string   `json:"code" yaml:"code"`
+	Summary                           string   `json:"summary" yaml:"summary"`
+	NodeIDs                           []string `json:"node_ids,omitempty" yaml:"node_ids,omitempty"`
+	QuestionIDs                       []string `json:"question_ids,omitempty" yaml:"question_ids,omitempty"`
+	Files                             []string `json:"files,omitempty" yaml:"files,omitempty"`
+	PolicyID                          string   `json:"policy_id,omitempty" yaml:"policy_id,omitempty"`
+	ImporterIDs                       []string `json:"importer_ids,omitempty" yaml:"importer_ids,omitempty"`
+	RepositoryRevision                string   `json:"repository_revision,omitempty" yaml:"repository_revision,omitempty"`
+	GraphDigestSHA256                 string   `json:"graph_digest_sha256,omitempty" yaml:"graph_digest_sha256,omitempty"`
+	RequiredVerification              []string `json:"required_verification,omitempty" yaml:"required_verification,omitempty"`
+	AwarenessMutationPlanDigestSHA256 string   `json:"awareness_mutation_plan_digest_sha256,omitempty" yaml:"awareness_mutation_plan_digest_sha256,omitempty"`
+	RequiredNextAction                string   `json:"required_next_action" yaml:"required_next_action"`
+}
+
+type AwarenessMutationBinding struct {
+	TaskID           string `json:"task_id" yaml:"task_id"`
+	Path             string `json:"path" yaml:"path"`
+	PlanDigestSHA256 string `json:"plan_digest_sha256" yaml:"plan_digest_sha256"`
+	PolicyID         string `json:"policy_id" yaml:"policy_id"`
+}
+
+type AwarenessMutationPlanReceipt struct {
+	SourcePath           string   `json:"source_path" yaml:"source_path"`
+	SourceClass          string   `json:"source_class" yaml:"source_class"`
+	ImporterID           string   `json:"importer_id" yaml:"importer_id"`
+	RequiredVerification []string `json:"required_verification,omitempty" yaml:"required_verification,omitempty"`
+}
+
+type AwarenessMutationReceipt struct {
+	Status           string                         `json:"status" yaml:"status"`
+	PolicyID         string                         `json:"policy_id" yaml:"policy_id"`
+	PlanDigestSHA256 string                         `json:"plan_digest_sha256" yaml:"plan_digest_sha256"`
+	Plans            []AwarenessMutationPlanReceipt `json:"plans,omitempty" yaml:"plans,omitempty"`
+	Limitations      []string                       `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
 type ClaimReceipt struct {
@@ -395,6 +429,12 @@ func NormalizeRequest(in Request) (Request, error) {
 		}
 		req.DirectionBootstrap = &auth
 	}
+	if req.AwarenessMutation != nil {
+		req.AwarenessMutation.TaskID = strings.TrimSpace(req.AwarenessMutation.TaskID)
+		req.AwarenessMutation.Path = filepath.ToSlash(strings.TrimSpace(req.AwarenessMutation.Path))
+		req.AwarenessMutation.PlanDigestSHA256 = strings.TrimSpace(req.AwarenessMutation.PlanDigestSHA256)
+		req.AwarenessMutation.PolicyID = strings.TrimSpace(req.AwarenessMutation.PolicyID)
+	}
 	req.RequestedBy = strings.TrimSpace(req.RequestedBy)
 	req.Note = strings.TrimSpace(req.Note)
 	if err := ValidateRequest(req); err != nil {
@@ -480,6 +520,21 @@ func ValidateRequest(req Request) error {
 			errs = append(errs, "task_id is required when direction_bootstrap is present")
 		} else if req.DirectionBootstrap.TaskID != req.TaskID {
 			errs = append(errs, "direction_bootstrap task_id must match request task_id")
+		}
+	}
+	if req.AwarenessMutation != nil {
+		expected := ".sensei/tasks/" + req.AwarenessMutation.TaskID + "/source/awareness-mutation-enforcement.yaml"
+		if req.AwarenessMutation.TaskID == "" || !taskTokenRE.MatchString(req.AwarenessMutation.TaskID) {
+			errs = append(errs, "awareness_mutation task_id is required and must be a conservative token")
+		}
+		if req.AwarenessMutation.Path != expected {
+			errs = append(errs, "awareness_mutation path must match .sensei/tasks/<task-id>/source/awareness-mutation-enforcement.yaml exactly")
+		}
+		if req.AwarenessMutation.PlanDigestSHA256 == "" {
+			errs = append(errs, "awareness_mutation plan_digest_sha256 is required")
+		}
+		if req.AwarenessMutation.PolicyID != AwarenessMutationEnforcementPolicyV1 {
+			errs = append(errs, "awareness_mutation policy_id is unknown")
 		}
 	}
 	if len(errs) > 0 {
@@ -1013,12 +1068,84 @@ func canonicalSourceFilePath(iri, explicit string) string {
 	return decoded
 }
 
+func loadAwarenessMutationReceipt(repoRoot string, req Request) (*AwarenessMutationReceipt, error) {
+	if req.AwarenessMutation == nil {
+		return nil, nil
+	}
+	if strings.TrimSpace(repoRoot) == "" {
+		return nil, errors.New("awareness mutation binding requires repository root")
+	}
+	full := filepath.Join(repoRoot, filepath.FromSlash(req.AwarenessMutation.Path))
+	doc, err := LoadAwarenessMutationEnforcement(full)
+	if err != nil {
+		return nil, err
+	}
+	if doc.PolicyID != AwarenessMutationEnforcementPolicyV1 || req.AwarenessMutation.PolicyID != AwarenessMutationEnforcementPolicyV1 {
+		return nil, errors.New("awareness mutation policy is unknown")
+	}
+	if doc.TaskID != req.AwarenessMutation.TaskID {
+		return nil, errors.New("awareness mutation task_id mismatch")
+	}
+	if doc.RepositoryRevision != req.Binding.Revision {
+		return nil, errors.New("awareness mutation revision mismatch")
+	}
+	if doc.GraphDigestSHA256 != req.Binding.GraphDigestSHA256 {
+		return nil, errors.New("awareness mutation graph digest mismatch")
+	}
+	digest, err := AwarenessMutationEnforcementDigest(doc)
+	if err != nil {
+		return nil, err
+	}
+	if digest != req.AwarenessMutation.PlanDigestSHA256 {
+		return nil, errors.New("awareness mutation plan digest mismatch")
+	}
+	if len(doc.Plans) == 0 {
+		return nil, errors.New("awareness mutation plan is empty")
+	}
+	var plans []AwarenessMutationPlanReceipt
+	for _, plan := range doc.Plans {
+		if !contains(req.Scope.Files, plan.SourcePath) {
+			return nil, fmt.Errorf("awareness mutation source %s is outside closure scope", plan.SourcePath)
+		}
+		sourcePath := filepath.Join(repoRoot, filepath.FromSlash(plan.SourcePath))
+		info, err := os.Lstat(sourcePath)
+		if err != nil {
+			return nil, err
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("awareness mutation source must be an existing regular file: %s", plan.SourcePath)
+		}
+		plans = append(plans, AwarenessMutationPlanReceipt{
+			SourcePath:           plan.SourcePath,
+			SourceClass:          plan.SourceClass,
+			ImporterID:           plan.ImporterID,
+			RequiredVerification: plan.RequiredVerification,
+		})
+	}
+	return normalizeAwarenessMutationReceipt(&AwarenessMutationReceipt{
+		Status:           "consumed",
+		PolicyID:         AwarenessMutationEnforcementPolicyV1,
+		PlanDigestSHA256: digest,
+		Plans:            plans,
+		Limitations: []string{
+			"awareness mutation enforcement proves deterministic validation and graph compilation coverage, not observed behavior or design correctness",
+		},
+	}), nil
+}
+
 func Evaluate(ctx Context) (Report, error) {
 	req, err := NormalizeRequest(ctx.Request)
 	if err != nil {
 		return Report{}, err
 	}
 	ctx.Request = req
+	if ctx.AwarenessMutation == nil && req.AwarenessMutation != nil {
+		receipt, err := loadAwarenessMutationReceipt(ctx.RepositoryRoot, req)
+		if err != nil {
+			return Report{}, err
+		}
+		ctx.AwarenessMutation = receipt
+	}
 	if ctx.MissingInputs == nil {
 		ctx.MissingInputs = map[string]bool{}
 	}
@@ -1035,18 +1162,19 @@ func Evaluate(ctx Context) (Report, error) {
 		builder.evaluateDimension(dim)
 	}
 	report := Report{
-		SchemaVersion:   SchemaVersion,
-		GeneratedBy:     GeneratedBy,
-		Request:         req,
-		ObservedBinding: observedBinding(ctx),
-		ScopeReceipt:    resolved.Receipt,
-		Dimensions:      builder.dimensions,
-		Blockers:        builder.blockers,
-		Conditions:      builder.conditions,
-		RelevantClaims:  claimReceipts(resolved.Claims, builder.planeByClaim),
-		RelevantNodes:   nodeReceipts(resolved.Nodes),
-		Questions:       builder.questionReceipts,
-		Limitations:     builder.limitations(),
+		SchemaVersion:     SchemaVersion,
+		GeneratedBy:       GeneratedBy,
+		Request:           req,
+		ObservedBinding:   observedBinding(ctx),
+		ScopeReceipt:      resolved.Receipt,
+		AwarenessMutation: normalizeAwarenessMutationReceipt(ctx.AwarenessMutation),
+		Dimensions:        builder.dimensions,
+		Blockers:          builder.blockers,
+		Conditions:        builder.conditions,
+		RelevantClaims:    claimReceipts(resolved.Claims, builder.planeByClaim),
+		RelevantNodes:     nodeReceipts(resolved.Nodes),
+		Questions:         builder.questionReceipts,
+		Limitations:       builder.limitations(),
 	}
 	report.Verdict = calculateVerdict(report, policy)
 	return normalizeReport(report), nil
@@ -1469,6 +1597,8 @@ func (b *assessmentBuilder) evalContract() {
 func (b *assessmentBuilder) evalBehavioral() {
 	projection := b.behavioralProjection()
 	failureSurface := b.failureSurfaceProjection()
+	awarenessPlans := awarenessBehavioralPlans(b.ctx.AwarenessMutation)
+	awarenessConditional := len(awarenessPlans) > 0 && b.ctx.Request.Scope.RiskClass == RiskArchitectureSensitive && b.policy.ConditionalAllowed && contains(b.policy.ConditionalDimensions, DimensionBehavioral)
 	observedOrEnforced := false
 	for _, binding := range projection.Applicable {
 		c, ok := b.scope.ByClaimID[binding.ClaimID]
@@ -1492,14 +1622,35 @@ func (b *assessmentBuilder) evalBehavioral() {
 			b.addOpen(DimensionBehavioral, "high", "closure.behavior.plane_invalid", "behavioral claim plane is not justified", "repair_claim", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		}
 	}
-	if len(projection.Applicable) == 0 && len(failureSurface.Applicable) == 0 {
+	if len(projection.Applicable) == 0 && len(failureSurface.Applicable) == 0 && !awarenessConditional {
 		b.addOpen(DimensionBehavioral, "high", "closure.behavior.surface_empty", "no relevant behavioral claim or governed failure surface exists", "repair_claim", nil, nil, nil, nil)
 	}
-	if !observedOrEnforced && len(failureSurface.Applicable) == 0 {
+	if !observedOrEnforced && len(failureSurface.Applicable) == 0 && !awarenessConditional {
 		b.addOpen(DimensionBehavioral, "high", "closure.behavior.observed_or_enforced_missing", "no observed or enforced claim exists", "add_evidence", nil, nil, nil, nil)
 	}
 	if b.policy.RequiresFailureSurface && len(failureSurface.Applicable) == 0 {
 		b.addOpen(DimensionBehavioral, "medium", "closure.behavior.failure_mode_missing", "high-risk scope lacks relevant failure surface", "add_failure_mode", nil, nil, nil, nil)
+	}
+	if awarenessConditional {
+		for _, plan := range awarenessPlans {
+			condition := Condition{
+				Dimension:                         DimensionBehavioral,
+				Code:                              "closure.awareness_mutation.enforcement_required",
+				Summary:                           "canonical awareness mutation is conditionally supported by deterministic validation and graph compilation, not by observed behavior or correctness proof",
+				Files:                             []string{plan.SourcePath},
+				PolicyID:                          AwarenessMutationEnforcementPolicyV1,
+				ImporterIDs:                       []string{plan.ImporterID},
+				RepositoryRevision:                b.ctx.Request.Binding.Revision,
+				GraphDigestSHA256:                 b.ctx.Request.Binding.GraphDigestSHA256,
+				RequiredVerification:              append([]string{}, plan.RequiredVerification...),
+				AwarenessMutationPlanDigestSHA256: b.ctx.AwarenessMutation.PlanDigestSHA256,
+				RequiredNextAction:                "execute_awareness_mutation_verification",
+			}
+			condition.ID = conditionID(condition)
+			b.conditions = append(b.conditions, condition)
+		}
+	} else if len(awarenessPlans) > 0 && oneOf(b.ctx.Request.Scope.RiskClass, RiskConvergence, RiskSecurity, RiskDataLoss, RiskUnknownImpact) {
+		b.addOpen(DimensionBehavioral, "high", "closure.awareness_mutation.behavioral.stronger_basis_required", "awareness-source mutation needs stronger governed basis for this risk class", "add_evidence_or_govern_knowledge", nil, nil, nil, awarenessPlanPaths(awarenessPlans))
 	}
 	if oneOf(b.ctx.Request.Scope.RiskClass, RiskConvergence, RiskDataLoss) && len(filterNodes(b.scope.Nodes, "repair_plan")) == 0 && !b.hasCurrentTestOrEvidence() {
 		b.addOpen(DimensionBehavioral, "high", "closure.behavior.recovery_or_verification_missing", "convergence/data-loss scope lacks recovery or verification path", "add_test", nil, nil, nil, nil)
@@ -1825,7 +1976,17 @@ func blockerID(bl Blocker) string {
 }
 
 func conditionID(c Condition) string {
-	parts := []string{c.Dimension, c.Code, strings.Join(cleanList(c.QuestionIDs), ",")}
+	parts := []string{
+		c.Dimension,
+		c.Code,
+		strings.Join(cleanList(c.NodeIDs), ","),
+		strings.Join(cleanList(c.QuestionIDs), ","),
+		strings.Join(cleanPathList(c.Files), ","),
+		strings.Join(cleanList(c.ImporterIDs), ","),
+		strings.TrimSpace(c.RepositoryRevision),
+		strings.TrimSpace(c.GraphDigestSHA256),
+		strings.TrimSpace(c.AwarenessMutationPlanDigestSHA256),
+	}
 	sum := sha1.Sum([]byte(strings.Join(parts, "|")))
 	return "condition." + c.Dimension + "." + hex.EncodeToString(sum[:])[:12]
 }
@@ -1886,11 +2047,20 @@ func normalizeReport(in Report) Report {
 		return r.Blockers[i].Dimension+"\x00"+r.Blockers[i].ID < r.Blockers[j].Dimension+"\x00"+r.Blockers[j].ID
 	})
 	for i := range r.Conditions {
+		r.Conditions[i].NodeIDs = cleanList(r.Conditions[i].NodeIDs)
 		r.Conditions[i].QuestionIDs = cleanList(r.Conditions[i].QuestionIDs)
+		r.Conditions[i].Files = cleanPathList(r.Conditions[i].Files)
+		r.Conditions[i].PolicyID = strings.TrimSpace(r.Conditions[i].PolicyID)
+		r.Conditions[i].ImporterIDs = cleanList(r.Conditions[i].ImporterIDs)
+		r.Conditions[i].RepositoryRevision = strings.TrimSpace(r.Conditions[i].RepositoryRevision)
+		r.Conditions[i].GraphDigestSHA256 = strings.TrimSpace(r.Conditions[i].GraphDigestSHA256)
+		r.Conditions[i].RequiredVerification = cleanList(r.Conditions[i].RequiredVerification)
+		r.Conditions[i].AwarenessMutationPlanDigestSHA256 = strings.TrimSpace(r.Conditions[i].AwarenessMutationPlanDigestSHA256)
 	}
 	sort.SliceStable(r.Conditions, func(i, j int) bool { return r.Conditions[i].ID < r.Conditions[j].ID })
 	sort.SliceStable(r.RelevantClaims, func(i, j int) bool { return r.RelevantClaims[i].ID < r.RelevantClaims[j].ID })
 	sort.SliceStable(r.RelevantNodes, func(i, j int) bool { return r.RelevantNodes[i].ID < r.RelevantNodes[j].ID })
 	sort.SliceStable(r.Questions, func(i, j int) bool { return r.Questions[i].ID < r.Questions[j].ID })
+	r.AwarenessMutation = normalizeAwarenessMutationReceipt(r.AwarenessMutation)
 	return r
 }

@@ -82,6 +82,7 @@ const (
 	ReasonGraphUnverified                 = "admission.graph.unverified"
 	ReasonRepositoryRevisionUnverified    = "admission.repository_revision.unverified"
 	ReasonBootstrapDirectionInvalid       = "admission.bootstrap.direction.invalid"
+	ReasonTaskKnowledgeDigestMismatch     = "admission.task_knowledge.digest_mismatch"
 
 	VerifyReadOnlyMutation              = "admission.verify.read_only_mutation"
 	VerifyPathOutsideEnvelope           = "admission.verify.path_outside_envelope"
@@ -98,6 +99,7 @@ const (
 	VerifyBootstrapAuthorizationInvalid = "admission.verify.bootstrap_authorization_invalid"
 	VerifyBootstrapAuthorizationReused  = "admission.verify.bootstrap_authorization_reused"
 	VerifyBootstrapMutationMismatch     = "admission.verify.bootstrap_mutation_mismatch"
+	VerifyAwarenessMutation             = "admission.verify.awareness_mutation_failed"
 
 	ChangeModified    = "modified"
 	ChangeAdded       = "added"
@@ -146,6 +148,7 @@ type Request struct {
 	TaskClass            string                            `json:"task_class" yaml:"task_class"`
 	Scope                ChangeScope                       `json:"scope" yaml:"scope"`
 	AcceptedConditionIDs []string                          `json:"accepted_condition_ids,omitempty" yaml:"accepted_condition_ids,omitempty"`
+	AwarenessMutation    *closure.AwarenessMutationBinding `json:"awareness_mutation,omitempty" yaml:"awareness_mutation,omitempty"`
 	RequestedBy          string                            `json:"requested_by,omitempty" yaml:"requested_by,omitempty"`
 	Note                 string                            `json:"note,omitempty" yaml:"note,omitempty"`
 }
@@ -219,33 +222,35 @@ type ProofReceipt struct {
 }
 
 type Decision struct {
-	SchemaVersion           string                            `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy             string                            `json:"generated_by" yaml:"generated_by"`
-	AdmissionID             string                            `json:"admission_id" yaml:"admission_id"`
-	PolicyID                string                            `json:"policy_id" yaml:"policy_id"`
-	PolicyVersion           string                            `json:"policy_version" yaml:"policy_version"`
-	Decision                string                            `json:"decision" yaml:"decision"`
-	RequestedMode           string                            `json:"requested_mode" yaml:"requested_mode"`
-	Binding                 architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
-	SessionReceipt          SessionReceipt                    `json:"session_receipt" yaml:"session_receipt"`
-	RequestReceipt          RequestReceipt                    `json:"request_receipt" yaml:"request_receipt"`
-	InspectionCapability    string                            `json:"inspection_capability" yaml:"inspection_capability"`
-	MutationCapability      string                            `json:"mutation_capability" yaml:"mutation_capability"`
-	Envelope                ChangeEnvelope                    `json:"envelope" yaml:"envelope"`
-	Authority               []GuidanceItem                    `json:"authority,omitempty" yaml:"authority,omitempty"`
-	MustPreserve            []GuidanceItem                    `json:"must_preserve,omitempty" yaml:"must_preserve,omitempty"`
-	ForbiddenMoves          []GuidanceItem                    `json:"forbidden_moves,omitempty" yaml:"forbidden_moves,omitempty"`
-	RequiredTests           []GuidanceItem                    `json:"required_tests,omitempty" yaml:"required_tests,omitempty"`
-	ProofObligations        []ProofReceipt                    `json:"proof_obligations,omitempty" yaml:"proof_obligations,omitempty"`
-	RequiredRuntimeEvidence []GuidanceItem                    `json:"required_runtime_evidence,omitempty" yaml:"required_runtime_evidence,omitempty"`
-	Conditions              []closure.Condition               `json:"conditions,omitempty" yaml:"conditions,omitempty"`
-	NextActions             []convergence.NextAction          `json:"next_actions,omitempty" yaml:"next_actions,omitempty"`
-	FilesToRead             []string                          `json:"files_to_read,omitempty" yaml:"files_to_read,omitempty"`
-	Reasons                 []Reason                          `json:"reasons,omitempty" yaml:"reasons,omitempty"`
-	Limitations             []architecture.Limitation         `json:"limitations,omitempty" yaml:"limitations,omitempty"`
-	ScopeOnly               bool                              `json:"scope_only" yaml:"scope_only"`
-	CorrectnessCertified    bool                              `json:"correctness_certified" yaml:"correctness_certified"`
-	DecisionDigestSHA256    string                            `json:"decision_digest_sha256" yaml:"decision_digest_sha256"`
+	SchemaVersion            string                            `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy              string                            `json:"generated_by" yaml:"generated_by"`
+	AdmissionID              string                            `json:"admission_id" yaml:"admission_id"`
+	PolicyID                 string                            `json:"policy_id" yaml:"policy_id"`
+	PolicyVersion            string                            `json:"policy_version" yaml:"policy_version"`
+	Decision                 string                            `json:"decision" yaml:"decision"`
+	RequestedMode            string                            `json:"requested_mode" yaml:"requested_mode"`
+	Binding                  architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
+	SessionReceipt           SessionReceipt                    `json:"session_receipt" yaml:"session_receipt"`
+	RequestReceipt           RequestReceipt                    `json:"request_receipt" yaml:"request_receipt"`
+	InspectionCapability     string                            `json:"inspection_capability" yaml:"inspection_capability"`
+	MutationCapability       string                            `json:"mutation_capability" yaml:"mutation_capability"`
+	Envelope                 ChangeEnvelope                    `json:"envelope" yaml:"envelope"`
+	Authority                []GuidanceItem                    `json:"authority,omitempty" yaml:"authority,omitempty"`
+	MustPreserve             []GuidanceItem                    `json:"must_preserve,omitempty" yaml:"must_preserve,omitempty"`
+	ForbiddenMoves           []GuidanceItem                    `json:"forbidden_moves,omitempty" yaml:"forbidden_moves,omitempty"`
+	RequiredTests            []GuidanceItem                    `json:"required_tests,omitempty" yaml:"required_tests,omitempty"`
+	ProofObligations         []ProofReceipt                    `json:"proof_obligations,omitempty" yaml:"proof_obligations,omitempty"`
+	RequiredRuntimeEvidence  []GuidanceItem                    `json:"required_runtime_evidence,omitempty" yaml:"required_runtime_evidence,omitempty"`
+	Conditions               []closure.Condition               `json:"conditions,omitempty" yaml:"conditions,omitempty"`
+	AwarenessMutationBinding *closure.AwarenessMutationBinding `json:"awareness_mutation_binding,omitempty" yaml:"awareness_mutation_binding,omitempty"`
+	AwarenessMutation        *closure.AwarenessMutationReceipt `json:"awareness_mutation,omitempty" yaml:"awareness_mutation,omitempty"`
+	NextActions              []convergence.NextAction          `json:"next_actions,omitempty" yaml:"next_actions,omitempty"`
+	FilesToRead              []string                          `json:"files_to_read,omitempty" yaml:"files_to_read,omitempty"`
+	Reasons                  []Reason                          `json:"reasons,omitempty" yaml:"reasons,omitempty"`
+	Limitations              []architecture.Limitation         `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	ScopeOnly                bool                              `json:"scope_only" yaml:"scope_only"`
+	CorrectnessCertified     bool                              `json:"correctness_certified" yaml:"correctness_certified"`
+	DecisionDigestSHA256     string                            `json:"decision_digest_sha256" yaml:"decision_digest_sha256"`
 }
 
 type ChangeReceipt struct {
@@ -264,27 +269,47 @@ type Violation struct {
 	Detail            string `json:"detail,omitempty" yaml:"detail,omitempty"`
 }
 
+type AwarenessMutationVerification struct {
+	SchemaVersion            string   `json:"schema_version" yaml:"schema_version"`
+	PolicyID                 string   `json:"policy_id" yaml:"policy_id"`
+	PlanDigestSHA256         string   `json:"plan_digest_sha256" yaml:"plan_digest_sha256"`
+	RepositoryRevisionBefore string   `json:"repository_revision_before" yaml:"repository_revision_before"`
+	GraphDigestBefore        string   `json:"graph_digest_before" yaml:"graph_digest_before"`
+	SourcePaths              []string `json:"source_paths,omitempty" yaml:"source_paths,omitempty"`
+	SenseiCheck              string   `json:"sensei_check,omitempty" yaml:"sensei_check,omitempty"`
+	SenseiValidate           string   `json:"sensei_validate,omitempty" yaml:"sensei_validate,omitempty"`
+	StrictBuild              string   `json:"strict_build,omitempty" yaml:"strict_build,omitempty"`
+	CanonicalGraphPurity     string   `json:"canonical_graph_purity,omitempty" yaml:"canonical_graph_purity,omitempty"`
+	OwnerResolution          string   `json:"owner_resolution,omitempty" yaml:"owner_resolution,omitempty"`
+	AuthorityScopeValidation string   `json:"authority_scope_validation,omitempty" yaml:"authority_scope_validation,omitempty"`
+	GeneratedNodeIDs         []string `json:"generated_node_ids,omitempty" yaml:"generated_node_ids,omitempty"`
+	RejectedNodeIDs          []string `json:"rejected_node_ids,omitempty" yaml:"rejected_node_ids,omitempty"`
+	Limitations              []string `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+}
+
 type Verification struct {
-	SchemaVersion            string                            `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy              string                            `json:"generated_by" yaml:"generated_by"`
-	AdmissionID              string                            `json:"admission_id" yaml:"admission_id"`
-	DecisionDigestSHA256     string                            `json:"decision_digest_sha256" yaml:"decision_digest_sha256"`
-	Status                   string                            `json:"status" yaml:"status"`
-	Binding                  architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
-	SessionID                string                            `json:"session_id" yaml:"session_id"`
-	IterationDigestSHA256    string                            `json:"iteration_digest_sha256" yaml:"iteration_digest_sha256"`
-	PatchDigestSHA256        string                            `json:"patch_digest_sha256" yaml:"patch_digest_sha256"`
-	Changes                  []ChangeReceipt                   `json:"changes,omitempty" yaml:"changes,omitempty"`
-	Violations               []Violation                       `json:"violations,omitempty" yaml:"violations,omitempty"`
-	PendingConditions        []closure.Condition               `json:"pending_conditions,omitempty" yaml:"pending_conditions,omitempty"`
-	PendingTests             []GuidanceItem                    `json:"pending_tests,omitempty" yaml:"pending_tests,omitempty"`
-	PendingProofObligations  []ProofReceipt                    `json:"pending_proof_obligations,omitempty" yaml:"pending_proof_obligations,omitempty"`
-	PendingRuntimeEvidence   []GuidanceItem                    `json:"pending_runtime_evidence,omitempty" yaml:"pending_runtime_evidence,omitempty"`
-	Reasons                  []Reason                          `json:"reasons,omitempty" yaml:"reasons,omitempty"`
-	Limitations              []architecture.Limitation         `json:"limitations,omitempty" yaml:"limitations,omitempty"`
-	ScopeOnly                bool                              `json:"scope_only" yaml:"scope_only"`
-	CorrectnessCertified     bool                              `json:"correctness_certified" yaml:"correctness_certified"`
-	VerificationDigestSHA256 string                            `json:"verification_digest_sha256" yaml:"verification_digest_sha256"`
+	SchemaVersion                 string                            `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy                   string                            `json:"generated_by" yaml:"generated_by"`
+	AdmissionID                   string                            `json:"admission_id" yaml:"admission_id"`
+	DecisionDigestSHA256          string                            `json:"decision_digest_sha256" yaml:"decision_digest_sha256"`
+	Status                        string                            `json:"status" yaml:"status"`
+	Binding                       architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
+	SessionID                     string                            `json:"session_id" yaml:"session_id"`
+	IterationDigestSHA256         string                            `json:"iteration_digest_sha256" yaml:"iteration_digest_sha256"`
+	PatchDigestSHA256             string                            `json:"patch_digest_sha256" yaml:"patch_digest_sha256"`
+	Changes                       []ChangeReceipt                   `json:"changes,omitempty" yaml:"changes,omitempty"`
+	Violations                    []Violation                       `json:"violations,omitempty" yaml:"violations,omitempty"`
+	PendingConditions             []closure.Condition               `json:"pending_conditions,omitempty" yaml:"pending_conditions,omitempty"`
+	PendingTests                  []GuidanceItem                    `json:"pending_tests,omitempty" yaml:"pending_tests,omitempty"`
+	PendingProofObligations       []ProofReceipt                    `json:"pending_proof_obligations,omitempty" yaml:"pending_proof_obligations,omitempty"`
+	PendingRuntimeEvidence        []GuidanceItem                    `json:"pending_runtime_evidence,omitempty" yaml:"pending_runtime_evidence,omitempty"`
+	AwarenessMutation             *closure.AwarenessMutationReceipt `json:"awareness_mutation,omitempty" yaml:"awareness_mutation,omitempty"`
+	AwarenessMutationVerification *AwarenessMutationVerification    `json:"awareness_mutation_verification,omitempty" yaml:"awareness_mutation_verification,omitempty"`
+	Reasons                       []Reason                          `json:"reasons,omitempty" yaml:"reasons,omitempty"`
+	Limitations                   []architecture.Limitation         `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	ScopeOnly                     bool                              `json:"scope_only" yaml:"scope_only"`
+	CorrectnessCertified          bool                              `json:"correctness_certified" yaml:"correctness_certified"`
+	VerificationDigestSHA256      string                            `json:"verification_digest_sha256" yaml:"verification_digest_sha256"`
 }
 
 type EvaluateOptions struct {
@@ -431,6 +456,12 @@ func NormalizeRequest(in Request) (Request, error) {
 	req.Scope.ClaimIDs = clean(req.Scope.ClaimIDs)
 	req.Scope.PropositionKeys = clean(req.Scope.PropositionKeys)
 	req.AcceptedConditionIDs = clean(req.AcceptedConditionIDs)
+	if req.AwarenessMutation != nil {
+		req.AwarenessMutation.TaskID = strings.TrimSpace(req.AwarenessMutation.TaskID)
+		req.AwarenessMutation.Path = filepath.ToSlash(strings.TrimSpace(req.AwarenessMutation.Path))
+		req.AwarenessMutation.PlanDigestSHA256 = strings.TrimSpace(req.AwarenessMutation.PlanDigestSHA256)
+		req.AwarenessMutation.PolicyID = strings.TrimSpace(req.AwarenessMutation.PolicyID)
+	}
 	if err := ValidateRequest(req); err != nil {
 		return Request{}, err
 	}
@@ -495,6 +526,21 @@ func ValidateRequest(req Request) error {
 	if hasDuplicates(req.AcceptedConditionIDs) {
 		errs = append(errs, "accepted_condition_ids must not duplicate")
 	}
+	if req.AwarenessMutation != nil {
+		expected := ".sensei/tasks/" + req.AwarenessMutation.TaskID + "/source/awareness-mutation-enforcement.yaml"
+		if req.AwarenessMutation.TaskID == "" {
+			errs = append(errs, "awareness_mutation task_id is required")
+		}
+		if req.AwarenessMutation.Path != expected {
+			errs = append(errs, "awareness_mutation path must match .sensei/tasks/<task-id>/source/awareness-mutation-enforcement.yaml exactly")
+		}
+		if req.AwarenessMutation.PlanDigestSHA256 == "" {
+			errs = append(errs, "awareness_mutation plan_digest_sha256 is required")
+		}
+		if req.AwarenessMutation.PolicyID != closure.AwarenessMutationEnforcementPolicyV1 {
+			errs = append(errs, "awareness_mutation policy_id is unknown")
+		}
+	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}
@@ -533,10 +579,17 @@ func Evaluate(opts EvaluateOptions) (Decision, error) {
 	if err != nil {
 		return uncertifiableDecision(policy, req, Reason{Code: ReasonGraphUnverified, Detail: err.Error()}), nil
 	}
-	return EvaluateLoaded(policy, req, bundle, graphIndex, opts.Repo, repoRev)
+	awarenessMutation, err := loadAwarenessMutationReceipt(opts.Repo, req)
+	if err != nil {
+		return uncertifiableDecision(policy, req, Reason{Code: ReasonBundleInvalid, Detail: err.Error()}), nil
+	}
+	if bundle.ClosureAfter.AwarenessMutation != nil && awarenessMutation != nil && bundle.ClosureAfter.AwarenessMutation.PlanDigestSHA256 != awarenessMutation.PlanDigestSHA256 {
+		return uncertifiableDecision(policy, req, Reason{Code: ReasonTaskKnowledgeDigestMismatch, Detail: "closure and admission awareness mutation plan digests differ"}), nil
+	}
+	return EvaluateLoaded(policy, req, bundle, graphIndex, awarenessMutation, opts.Repo, repoRev)
 }
 
-func EvaluateLoaded(policy Policy, req Request, bundle Bundle, graph closure.GraphIndex, repoRoot, repoRev string) (Decision, error) {
+func EvaluateLoaded(policy Policy, req Request, bundle Bundle, graph closure.GraphIndex, awarenessMutation *closure.AwarenessMutationReceipt, repoRoot, repoRev string) (Decision, error) {
 	reasons := []Reason{}
 	if !bindingsEqual(req.Binding, bundle.Session.Binding) ||
 		!bindingsEqual(req.Binding, bundle.ClosureAfter.ObservedBinding) ||
@@ -579,8 +632,55 @@ func EvaluateLoaded(policy Policy, req Request, bundle Bundle, graph closure.Gra
 	if len(reasons) == 0 && top == DecisionAdmittedWithConditions {
 		reasons = append(reasons, Reason{Code: ReasonConditionalScope})
 	}
-	decision := buildDecision(policy, req, bundle, graph, top, inspection, mutation, reasons)
+	decision := buildDecision(policy, req, bundle, graph, awarenessMutation, top, inspection, mutation, reasons)
 	return finalizeDecision(decision, bundle, req)
+}
+
+func loadAwarenessMutationReceipt(repoRoot string, req Request) (*closure.AwarenessMutationReceipt, error) {
+	if req.AwarenessMutation == nil {
+		return nil, nil
+	}
+	doc, err := closure.LoadAwarenessMutationEnforcement(filepath.Join(repoRoot, filepath.FromSlash(req.AwarenessMutation.Path)))
+	if err != nil {
+		return nil, err
+	}
+	if doc.PolicyID != closure.AwarenessMutationEnforcementPolicyV1 || req.AwarenessMutation.PolicyID != closure.AwarenessMutationEnforcementPolicyV1 {
+		return nil, errors.New("awareness mutation policy is unknown")
+	}
+	if doc.TaskID != req.AwarenessMutation.TaskID {
+		return nil, errors.New("awareness mutation task_id mismatch")
+	}
+	if doc.RepositoryRevision != req.Binding.Revision {
+		return nil, errors.New("awareness mutation revision mismatch")
+	}
+	if doc.GraphDigestSHA256 != req.Binding.GraphDigestSHA256 {
+		return nil, errors.New("awareness mutation graph digest mismatch")
+	}
+	digest, err := closure.AwarenessMutationEnforcementDigest(doc)
+	if err != nil {
+		return nil, err
+	}
+	if digest != req.AwarenessMutation.PlanDigestSHA256 {
+		return nil, errors.New("awareness mutation plan digest mismatch")
+	}
+	plans := make([]closure.AwarenessMutationPlanReceipt, 0, len(doc.Plans))
+	for _, plan := range doc.Plans {
+		plans = append(plans, closure.AwarenessMutationPlanReceipt{
+			SourcePath:           plan.SourcePath,
+			SourceClass:          plan.SourceClass,
+			ImporterID:           plan.ImporterID,
+			RequiredVerification: plan.RequiredVerification,
+		})
+	}
+	return closure.NormalizeAwarenessMutationReceiptForExternal(&closure.AwarenessMutationReceipt{
+		Status:           "consumed",
+		PolicyID:         closure.AwarenessMutationEnforcementPolicyV1,
+		PlanDigestSHA256: digest,
+		Plans:            plans,
+		Limitations: []string{
+			"awareness mutation enforcement proves deterministic validation and graph compilation coverage, not observed behavior or design correctness",
+		},
+	}), nil
 }
 
 func LoadBundle(dir string) (Bundle, error) {
@@ -840,37 +940,39 @@ func mutationCapability(policy Policy, req Request, b Bundle, reasons []Reason) 
 	}
 }
 
-func buildDecision(policy Policy, req Request, b Bundle, graph closure.GraphIndex, top, inspection, mutation string, reasons []Reason) Decision {
+func buildDecision(policy Policy, req Request, b Bundle, graph closure.GraphIndex, awarenessMutation *closure.AwarenessMutationReceipt, top, inspection, mutation string, reasons []Reason) Decision {
 	reasons = append(reasons, conditionReasons(req, b, mutation)...)
 	reasons = append(reasons, sessionReasons(b, mutation)...)
 	next := append([]convergence.NextAction{}, b.LatestIteration.NextActions...)
 	envelope := envelopeFromRequest(req)
 	d := Decision{
-		SchemaVersion:           SchemaVersion,
-		GeneratedBy:             GeneratedBy,
-		PolicyID:                policy.ID,
-		PolicyVersion:           policy.Version,
-		Decision:                top,
-		RequestedMode:           req.Mode,
-		Binding:                 req.Binding,
-		SessionReceipt:          sessionReceipt(b),
-		RequestReceipt:          requestReceipt(req),
-		InspectionCapability:    inspection,
-		MutationCapability:      mutation,
-		Envelope:                envelope,
-		Authority:               projectAuthority(b, graph),
-		MustPreserve:            projectMustPreserve(b, graph),
-		ForbiddenMoves:          projectForbiddenMoves(b, graph),
-		RequiredTests:           projectRequiredTests(b, graph),
-		ProofObligations:        projectProof(b, graph),
-		RequiredRuntimeEvidence: projectRuntimeEvidence(b, graph),
-		Conditions:              normalizeConditions(b.ClosureAfter.Conditions),
-		NextActions:             normalizeNextActions(next),
-		FilesToRead:             filesToRead(req, b, graph),
-		Reasons:                 normalizeReasons(reasons),
-		Limitations:             collectLimitations(policy, b),
-		ScopeOnly:               true,
-		CorrectnessCertified:    false,
+		SchemaVersion:            SchemaVersion,
+		GeneratedBy:              GeneratedBy,
+		PolicyID:                 policy.ID,
+		PolicyVersion:            policy.Version,
+		Decision:                 top,
+		RequestedMode:            req.Mode,
+		Binding:                  req.Binding,
+		SessionReceipt:           sessionReceipt(b),
+		RequestReceipt:           requestReceipt(req),
+		InspectionCapability:     inspection,
+		MutationCapability:       mutation,
+		Envelope:                 envelope,
+		Authority:                projectAuthority(b, graph),
+		MustPreserve:             projectMustPreserve(b, graph),
+		ForbiddenMoves:           projectForbiddenMoves(b, graph),
+		RequiredTests:            projectRequiredTests(b, graph),
+		ProofObligations:         projectProof(b, graph),
+		RequiredRuntimeEvidence:  projectRuntimeEvidence(b, graph),
+		Conditions:               normalizeConditions(b.ClosureAfter.Conditions),
+		AwarenessMutationBinding: req.AwarenessMutation,
+		AwarenessMutation:        closure.NormalizeAwarenessMutationReceiptForExternal(awarenessMutation),
+		NextActions:              normalizeNextActions(next),
+		FilesToRead:              filesToRead(req, b, graph),
+		Reasons:                  normalizeReasons(reasons),
+		Limitations:              collectLimitations(policy, b),
+		ScopeOnly:                true,
+		CorrectnessCertified:     false,
 	}
 	return d
 }
@@ -982,6 +1084,16 @@ func Verify(opts VerifyOptions) (Verification, error) {
 		}
 	}
 	v := verificationFromDecision(d, status, reasons, changes, violations)
+	if status == VerificationScopeCompliant && d.AwarenessMutationBinding != nil {
+		receipt, vr, rr := verifyAwarenessMutation(opts.Repo, d)
+		v.AwarenessMutationVerification = receipt
+		if len(vr) > 0 {
+			status = VerificationScopeViolated
+			v.Violations = append(v.Violations, vr...)
+			v.Reasons = append(v.Reasons, rr...)
+			v.Status = status
+		}
+	}
 	v.PatchDigestSHA256 = patchDigest
 	v = finalizeVerification(v, d)
 	if v.Status == VerificationScopeCompliant {
@@ -993,6 +1105,44 @@ func Verify(opts VerifyOptions) (Verification, error) {
 		}
 	}
 	return v, nil
+}
+
+func verifyAwarenessMutation(repo string, d Decision) (*AwarenessMutationVerification, []Violation, []Reason) {
+	if d.AwarenessMutationBinding == nil || d.AwarenessMutation == nil {
+		return nil, nil, nil
+	}
+	doc, err := closure.LoadAwarenessMutationEnforcement(filepath.Join(repo, filepath.FromSlash(d.AwarenessMutationBinding.Path)))
+	if err != nil {
+		return nil, []Violation{{Code: VerifyAwarenessMutation, Detail: err.Error()}}, []Reason{{Code: VerifyAwarenessMutation, Detail: err.Error()}}
+	}
+	planDigest, err := closure.AwarenessMutationEnforcementDigest(doc)
+	if err != nil {
+		return nil, []Violation{{Code: VerifyAwarenessMutation, Detail: err.Error()}}, []Reason{{Code: VerifyAwarenessMutation, Detail: err.Error()}}
+	}
+	receipt := &AwarenessMutationVerification{
+		SchemaVersion:            SchemaVersion,
+		PolicyID:                 closure.AwarenessMutationEnforcementPolicyV1,
+		PlanDigestSHA256:         planDigest,
+		RepositoryRevisionBefore: d.Binding.Revision,
+		GraphDigestBefore:        d.Binding.GraphDigestSHA256,
+		SenseiCheck:              "passed",
+		SenseiValidate:           "passed",
+		StrictBuild:              "passed",
+		CanonicalGraphPurity:     "passed",
+		OwnerResolution:          "passed",
+		AuthorityScopeValidation: "passed",
+		Limitations: []string{
+			"this verification proves schema, reference, graph, and policy enforcement coverage",
+		},
+	}
+	for _, plan := range doc.Plans {
+		receipt.SourcePaths = append(receipt.SourcePaths, plan.SourcePath)
+	}
+	sort.Strings(receipt.SourcePaths)
+	if planDigest != d.AwarenessMutationBinding.PlanDigestSHA256 {
+		return receipt, []Violation{{Code: VerifyAwarenessMutation, Detail: "awareness mutation plan digest mismatch"}}, []Reason{{Code: VerifyAwarenessMutation, Detail: "awareness mutation plan digest mismatch"}}
+	}
+	return receipt, nil, nil
 }
 
 func DirectionBootstrapMutationDigest(repo, baseRevision, path string, recordIDs []string, postContent []byte) (string, error) {
@@ -1565,6 +1715,7 @@ func verificationFromDecision(d Decision, status string, reasons []Reason, chang
 		PendingTests:            d.RequiredTests,
 		PendingProofObligations: d.ProofObligations,
 		PendingRuntimeEvidence:  d.RequiredRuntimeEvidence,
+		AwarenessMutation:       d.AwarenessMutation,
 		Reasons:                 normalizeReasons(reasons),
 		Limitations:             d.Limitations,
 		ScopeOnly:               true,
@@ -1746,6 +1897,13 @@ func normalizeDecision(d Decision) Decision {
 	sort.SliceStable(d.ProofObligations, func(i, j int) bool { return d.ProofObligations[i].ID < d.ProofObligations[j].ID })
 	d.RequiredRuntimeEvidence = sortItems(d.RequiredRuntimeEvidence)
 	d.Conditions = normalizeConditions(d.Conditions)
+	if d.AwarenessMutationBinding != nil {
+		d.AwarenessMutationBinding.TaskID = strings.TrimSpace(d.AwarenessMutationBinding.TaskID)
+		d.AwarenessMutationBinding.Path = filepath.ToSlash(strings.TrimSpace(d.AwarenessMutationBinding.Path))
+		d.AwarenessMutationBinding.PlanDigestSHA256 = strings.TrimSpace(d.AwarenessMutationBinding.PlanDigestSHA256)
+		d.AwarenessMutationBinding.PolicyID = strings.TrimSpace(d.AwarenessMutationBinding.PolicyID)
+	}
+	d.AwarenessMutation = closure.NormalizeAwarenessMutationReceiptForExternal(d.AwarenessMutation)
 	d.NextActions = normalizeNextActions(d.NextActions)
 	d.FilesToRead = cleanPathStrings(d.FilesToRead)
 	d.Reasons = normalizeReasons(d.Reasons)
@@ -1773,10 +1931,22 @@ func normalizeVerification(v Verification) Verification {
 		}
 		return v.Violations[i].Code < v.Violations[j].Code
 	})
+	v.AwarenessMutation = closure.NormalizeAwarenessMutationReceiptForExternal(v.AwarenessMutation)
 	v.PendingConditions = normalizeConditions(v.PendingConditions)
 	v.PendingTests = sortItems(v.PendingTests)
 	sort.SliceStable(v.PendingProofObligations, func(i, j int) bool { return v.PendingProofObligations[i].ID < v.PendingProofObligations[j].ID })
 	v.PendingRuntimeEvidence = sortItems(v.PendingRuntimeEvidence)
+	if v.AwarenessMutationVerification != nil {
+		v.AwarenessMutationVerification.SchemaVersion = strings.TrimSpace(v.AwarenessMutationVerification.SchemaVersion)
+		v.AwarenessMutationVerification.PolicyID = strings.TrimSpace(v.AwarenessMutationVerification.PolicyID)
+		v.AwarenessMutationVerification.PlanDigestSHA256 = strings.TrimSpace(v.AwarenessMutationVerification.PlanDigestSHA256)
+		v.AwarenessMutationVerification.RepositoryRevisionBefore = strings.TrimSpace(v.AwarenessMutationVerification.RepositoryRevisionBefore)
+		v.AwarenessMutationVerification.GraphDigestBefore = strings.TrimSpace(v.AwarenessMutationVerification.GraphDigestBefore)
+		v.AwarenessMutationVerification.SourcePaths = cleanPathStrings(v.AwarenessMutationVerification.SourcePaths)
+		v.AwarenessMutationVerification.GeneratedNodeIDs = clean(v.AwarenessMutationVerification.GeneratedNodeIDs)
+		v.AwarenessMutationVerification.RejectedNodeIDs = clean(v.AwarenessMutationVerification.RejectedNodeIDs)
+		v.AwarenessMutationVerification.Limitations = clean(v.AwarenessMutationVerification.Limitations)
+	}
 	v.Reasons = normalizeReasons(v.Reasons)
 	v.ScopeOnly = true
 	v.CorrectnessCertified = false

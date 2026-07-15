@@ -1120,6 +1120,72 @@ func TestMachineAdoptedKnowledgeUsesRiskPolicy(t *testing.T) {
 	}
 }
 
+func TestAwarenessMutationConditionallySupportsBehaviorPlane(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".sensei", "tasks", "task.demo", "source"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "docs", "awareness", "architecture"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "awareness", "architecture", "components.yaml"), []byte("components:\n  - id: component.demo\n    name: Demo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	doc := AwarenessMutationEnforcementDocument{
+		SchemaVersion:      "1",
+		PolicyID:           AwarenessMutationEnforcementPolicyV1,
+		TaskID:             "task.demo",
+		RepositoryRevision: "rev",
+		GraphDigestSHA256:  "graph",
+		Plans: []AwarenessMutationEnforcementPlan{{
+			SourcePath:           "docs/awareness/architecture/components.yaml",
+			SourceClass:          "canonical_awareness_component_registry",
+			ImporterID:           "awareness.component_yaml_import.v1",
+			RequiredVerification: []string{"sensei_check", "sensei_validate", "strict_build"},
+		}},
+	}
+	data, err := MarshalCanonicalAwarenessMutationEnforcementYAML(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".sensei", "tasks", "task.demo", "source", "awareness-mutation-enforcement.yaml"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	req := validRequest()
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.AccessMode = AccessReadWrite
+	req.Scope.DirectionRequirement = DirectionPreserve
+	req.Scope.Files = []string{"docs/awareness/architecture/components.yaml"}
+	req.AwarenessMutation = &AwarenessMutationBinding{
+		TaskID:           "task.demo",
+		Path:             ".sensei/tasks/task.demo/source/awareness-mutation-enforcement.yaml",
+		PlanDigestSHA256: mustAwarenessMutationDigest(t, doc),
+		PolicyID:         AwarenessMutationEnforcementPolicyV1,
+	}
+	graph := sourceFileGraph("docs/awareness/architecture/components.yaml")
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, blocker := range report.Blockers {
+		if blocker.Code == "closure.behavior.surface_empty" || blocker.Code == "closure.behavior.observed_or_enforced_missing" {
+			t.Fatalf("unexpected blocker %#v", blocker)
+		}
+	}
+	found := false
+	for _, condition := range report.Conditions {
+		if condition.Code == "closure.awareness_mutation.enforcement_required" {
+			found = true
+			if len(condition.Files) != 1 || condition.Files[0] != "docs/awareness/architecture/components.yaml" {
+				t.Fatalf("condition=%#v", condition)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("conditions=%#v", report.Conditions)
+	}
+}
+
 func validRequest() Request {
 	return Request{
 		SchemaVersion: SchemaVersion,
@@ -1129,6 +1195,15 @@ func validRequest() Request {
 			AccessMode: AccessRead, DirectionRequirement: DirectionNotApplicable, Files: []string{"x.go"},
 		},
 	}
+}
+
+func mustAwarenessMutationDigest(t *testing.T, doc AwarenessMutationEnforcementDocument) string {
+	t.Helper()
+	digest, err := AwarenessMutationEnforcementDigest(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return digest
 }
 
 func binding() architecture.ClaimDocumentBinding {
