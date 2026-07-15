@@ -4,6 +4,10 @@ package inference
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -19,6 +23,7 @@ func TestDefaultRegistryHasStableSortedRuleIDs(t *testing.T) {
 	want := strings.Join([]string{
 		"rule.component_dependency_crossing.v1",
 		"rule.exported_api_tested_behavior.v1",
+		"rule.governed_direction_record.v1",
 		"rule.interface_implementation_surface.v1",
 		"rule.observed_guard_behavior.v1",
 		"rule.observed_writer_set.v1",
@@ -524,6 +529,194 @@ func TestNewRulesProduceStableIDs(t *testing.T) {
 	}
 }
 
+func TestGovernedDirectionRuleEmitsIntendedClaim(t *testing.T) {
+	fact := testFact("dir", "governed_direction", "decision.x", "defines_intended_direction_for_scope", "Current intended architecture", 1.0)
+	fact.Extractor = governedDirectionExtractor
+	fact.Meta = map[string]string{
+		"about_node":  "decision:decision.x",
+		"authored_in": "docs/awareness/architecture/decisions.yaml",
+	}
+	app := singleApp(t, GovernedDirectionRecordRule{}, supportedContext([]architecture.Fact{fact}))
+	if app.Claim.ArchitecturalPlane != architecture.PlaneIntended {
+		t.Fatalf("plane=%s", app.Claim.ArchitecturalPlane)
+	}
+	if app.Claim.InferenceRule != governedDirectionRuleID {
+		t.Fatalf("rule=%s", app.Claim.InferenceRule)
+	}
+}
+
+func TestGovernedDirectionRuleEmitsDesiredClaim(t *testing.T) {
+	fact := testFact("dir", "governed_direction", "decision.x", "defines_desired_direction_for_scope", "Desired target", 1.0)
+	fact.Extractor = governedDirectionExtractor
+	fact.Meta = map[string]string{
+		"about_node":  "decision:decision.x",
+		"authored_in": "docs/awareness/architecture/decisions.yaml",
+	}
+	app := singleApp(t, GovernedDirectionRecordRule{}, supportedContext([]architecture.Fact{fact}))
+	if app.Claim.ArchitecturalPlane != architecture.PlaneDesired {
+		t.Fatalf("plane=%s", app.Claim.ArchitecturalPlane)
+	}
+}
+
+func TestGovernedDirectionRulePreservesGovernedProvenance(t *testing.T) {
+	fact := testFact("dir", "governed_direction", "decision.x", "defines_intended_direction_for_scope", "Current intended architecture", 1.0)
+	fact.Extractor = governedDirectionExtractor
+	fact.Meta = map[string]string{
+		"about_node":  "decision:decision.x",
+		"authored_in": "docs/awareness/architecture/decisions.yaml",
+	}
+	app := singleApp(t, GovernedDirectionRecordRule{}, supportedContext([]architecture.Fact{fact}))
+	if len(app.Claim.AboutNodes) != 1 || app.Claim.AboutNodes[0] != "decision:decision.x" {
+		t.Fatalf("about nodes=%v", app.Claim.AboutNodes)
+	}
+	if len(app.Claim.SupportingEvidence) != 0 {
+		t.Fatalf("supporting evidence should remain evidence-only, got %v", app.Claim.SupportingEvidence)
+	}
+}
+
+func TestGovernedDirectionConflictsRemainDistinctAndContested(t *testing.T) {
+	a := architecture.Claim{
+		ID:                  "claim.a",
+		Statement:           architecture.ClaimStatement{Subject: "decision.a", Predicate: "defines_desired_direction_for_scope", Object: "A"},
+		Scope:               architecture.ClaimScope{Repository: "github.com/example/project", Files: []string{"state.go"}},
+		ArchitecturalPlane:  architecture.PlaneDesired,
+		AssertionOrigin:     architecture.OriginDerived,
+		EpistemicStatus:     architecture.StatusSupported,
+		InferenceRule:       governedDirectionRuleID,
+		PremiseFacts:        []string{"fact.a"},
+		Confidence:          1,
+		HumanReviewRequired: true,
+		PromotionStatus:     architecture.PromotionCandidate,
+	}
+	b := a
+	b.ID = "claim.b"
+	b.Statement.Subject = "decision.b"
+	b.Statement.Object = "B"
+	out := MarkGovernedDirectionConflicts([]architecture.Claim{a, b})
+	for _, claim := range out {
+		if claim.EpistemicStatus != architecture.StatusContested || len(claim.ConflictsWith) != 1 {
+			t.Fatalf("claim=%+v", claim)
+		}
+	}
+}
+
+func TestGovernedDirectionLoaderRejectsUnresolvedRevisionBinding(t *testing.T) {
+	root := t.TempDir()
+	path, digest := writeGovernedDirectionNT(t, root, []string{
+		"<https://globular.io/awareness#intent/awareness.test.intended> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Intent> .",
+	})
+	_, _, err := LoadGovernedDirectionFacts(GovernedDirectionOptions{
+		Root:      root,
+		GraphPath: path,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			RevisionStatus:    architecture.RevisionNotGit,
+			GraphDigestSHA256: digest,
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "resolved repository revision binding") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestGovernedDirectionLoaderEmitsMalformedRecordDiagnostic(t *testing.T) {
+	root := t.TempDir()
+	path, digest := writeGovernedDirectionNT(t, root, []string{
+		"<https://globular.io/awareness#decision/decision.bad> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Decision> .",
+		"<https://globular.io/awareness#decision/decision.bad> <https://globular.io/awareness#status> \"accepted\" .",
+		"<https://globular.io/awareness#decision/decision.bad> <https://globular.io/awareness#architecturalPlane> \"desired\" .",
+		"<https://globular.io/awareness#decision/decision.bad> <https://globular.io/awareness#label> \"Bad decision\" .",
+		"<https://globular.io/awareness#decision/decision.bad> <https://globular.io/awareness#authoredIn> \"docs/awareness/architecture/decisions.yaml\" .",
+	})
+	facts, limitations, err := LoadGovernedDirectionFacts(GovernedDirectionOptions{
+		Root:      root,
+		GraphPath: path,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          "abc123",
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: digest,
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts) != 0 {
+		t.Fatalf("facts=%v want none", facts)
+	}
+	if !containsLimitation(limitations, "lacks represented source_file or code_symbol anchors") {
+		t.Fatalf("limitations=%+v", limitations)
+	}
+}
+
+func TestGovernedDirectionLoaderIgnoresHistoricalDirection(t *testing.T) {
+	root := t.TempDir()
+	path, digest := writeGovernedDirectionNT(t, root, []string{
+		"<https://globular.io/awareness#decision/decision.hist> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Decision> .",
+		"<https://globular.io/awareness#decision/decision.hist> <https://globular.io/awareness#status> \"accepted\" .",
+		"<https://globular.io/awareness#decision/decision.hist> <https://globular.io/awareness#architecturalPlane> \"historical\" .",
+		"<https://globular.io/awareness#decision/decision.hist> <https://globular.io/awareness#label> \"Historical record\" .",
+		"<https://globular.io/awareness#decision/decision.hist> <https://globular.io/awareness#authoredIn> \"docs/awareness/architecture/decisions.yaml\" .",
+		"<https://globular.io/awareness#decision/decision.hist> <https://globular.io/awareness#expressedBy> <https://globular.io/awareness#sourceFile/state.go> .",
+		"<https://globular.io/awareness#sourceFile/state.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .",
+	})
+	facts, _, err := LoadGovernedDirectionFacts(GovernedDirectionOptions{
+		Root:      root,
+		GraphPath: path,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          "abc123",
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: digest,
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts) != 0 {
+		t.Fatalf("historical direction became current: %+v", facts)
+	}
+}
+
+func TestGovernedDirectionLoaderDeterministicAcrossTripleOrder(t *testing.T) {
+	root := t.TempDir()
+	lines := []string{
+		"<https://globular.io/awareness#intent/awareness.test.intended> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Intent> .",
+		"<https://globular.io/awareness#intent/awareness.test.intended> <https://globular.io/awareness#status> \"active\" .",
+		"<https://globular.io/awareness#intent/awareness.test.intended> <https://globular.io/awareness#architecturalPlane> \"intended\" .",
+		"<https://globular.io/awareness#intent/awareness.test.intended> <https://globular.io/awareness#label> \"Current intended awareness mutation architecture\" .",
+		"<https://globular.io/awareness#intent/awareness.test.intended> <https://globular.io/awareness#authoredIn> \"docs/awareness/architecture/decisions.yaml\" .",
+		"<https://globular.io/awareness#intent/awareness.test.intended> <https://globular.io/awareness#expressedBy> <https://globular.io/awareness#sourceFile/state.go> .",
+		"<https://globular.io/awareness#sourceFile/state.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .",
+	}
+	pathA, digestA := writeGovernedDirectionNT(t, root, lines)
+	reversed := append([]string{}, lines...)
+	for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
+		reversed[i], reversed[j] = reversed[j], reversed[i]
+	}
+	pathB, digestB := writeGovernedDirectionNT(t, root, reversed)
+	binding := architecture.ClaimDocumentBinding{
+		RepositoryDomain:  "github.com/example/project",
+		Revision:          "abc123",
+		RevisionStatus:    architecture.RevisionResolved,
+		GraphDigestStatus: architecture.GraphDigestResolved,
+	}
+	factsA, _, err := LoadGovernedDirectionFacts(GovernedDirectionOptions{Root: root, GraphPath: pathA, Binding: withDigest(binding, digestA)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	factsB, _, err := LoadGovernedDirectionFacts(GovernedDirectionOptions{Root: root, GraphPath: pathB, Binding: withDigest(binding, digestB)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(factsA) != len(factsB) || factsA[0].ID != factsB[0].ID {
+		t.Fatalf("facts changed across triple order:\nA=%+v\nB=%+v", factsA, factsB)
+	}
+}
+
 type stubRule struct {
 	id      string
 	version string
@@ -619,6 +812,31 @@ func renderApps(t *testing.T, apps []Application) []byte {
 func containsText(items []string, sub string) bool {
 	for _, item := range items {
 		if strings.Contains(item, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func writeGovernedDirectionNT(t *testing.T, root string, lines []string) (string, string) {
+	t.Helper()
+	path := filepath.Join(root, architecture.ShortHash(strings.Join(lines, "\n"))+".nt")
+	raw := strings.Join(lines, "\n") + "\n"
+	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(raw))
+	return path, hex.EncodeToString(sum[:])
+}
+
+func withDigest(binding architecture.ClaimDocumentBinding, digest string) architecture.ClaimDocumentBinding {
+	binding.GraphDigestSHA256 = digest
+	return binding
+}
+
+func containsLimitation(limitations []architecture.Limitation, sub string) bool {
+	for _, lim := range limitations {
+		if strings.Contains(lim.Reason, sub) {
 			return true
 		}
 	}

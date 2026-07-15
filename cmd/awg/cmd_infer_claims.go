@@ -25,6 +25,7 @@ type inferClaimsOptions struct {
 	IncludeDocs       bool
 	IncludeTests      bool
 	IncludeHistory    bool
+	GraphNT           string
 	GraphDigest       string
 	GraphDigestStatus string
 	ListRules         bool
@@ -51,6 +52,7 @@ func runInferClaims(args []string) int {
 	fs.BoolVar(&opts.IncludeDocs, "include-docs", true, "include documentation facts in extraction")
 	fs.BoolVar(&opts.IncludeTests, "include-tests", true, "include test facts in extraction")
 	fs.BoolVar(&opts.IncludeHistory, "include-history", false, "include optional git-history facts")
+	fs.StringVar(&opts.GraphNT, "graph-nt", "", "optional canonical graph snapshot used for governed directional claim synthesis")
 	fs.StringVar(&opts.GraphDigest, "graph-digest", "", "explicit verified graph digest for claim binding")
 	fs.StringVar(&opts.GraphDigestStatus, "graph-digest-status", architecture.GraphDigestNotRequested, "graph digest status: resolved | unavailable | not_requested")
 	fs.BoolVar(&opts.ListRules, "list-rules", false, "list deterministic inference rules without scanning the repository")
@@ -190,6 +192,20 @@ func buildInferClaimsResult(root string, opts inferClaimsOptions, reg *inference
 		GraphDigestSHA256: strings.TrimSpace(opts.GraphDigest),
 		GraphDigestStatus: strings.TrimSpace(opts.GraphDigestStatus),
 	}
+	graphPath := strings.TrimSpace(opts.GraphNT)
+	if graphPath != "" {
+		graphPath = filepath.Clean(graphPath)
+	}
+	governedFacts, governedLimitations, err := inference.LoadGovernedDirectionFacts(inference.GovernedDirectionOptions{
+		Root:      root,
+		GraphPath: graphPath,
+		Binding:   binding,
+	})
+	if err != nil {
+		return inferClaimsBuildResult{}, err
+	}
+	facts = append(facts, governedFacts...)
+	limitations = append(limitations, governedLimitations...)
 	rules, err := reg.Select(opts.Rules)
 	if err != nil {
 		return inferClaimsBuildResult{}, err
@@ -202,6 +218,7 @@ func buildInferClaimsResult(root string, opts inferClaimsOptions, reg *inference
 	if err != nil {
 		return inferClaimsBuildResult{}, err
 	}
+	doc.Claims = inference.MarkGovernedDirectionConflicts(doc.Claims)
 	doc.Claims, err = architecture.CompactClaims(doc.Claims)
 	if err != nil {
 		return inferClaimsBuildResult{}, err
