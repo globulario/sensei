@@ -4,6 +4,7 @@ package admission
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -169,6 +170,37 @@ func TestConditionalSessionRefusesUnknownConditionID(t *testing.T) {
 	}
 }
 
+func TestInvalidBootstrapDirectionMakesAdmissionUncertifiable(t *testing.T) {
+	req := testRequest()
+	b := testBundle(closure.VerdictConditionallyClosed, convergence.StatusConditionallyClosed, []closure.Condition{{
+		ID: "condition.direction.bootstrap", Dimension: closure.DimensionDirection, Code: "closure.direction.desired.bootstrap", Summary: "bootstrap", RequiredNextAction: "acknowledge_bootstrap_direction_authorization",
+	}})
+	b.ClosureAfter.Request.TaskID = "task.bootstrap.direction"
+	b.ClosureAfter.Request.DirectionBootstrap = &closure.DirectionBootstrapAuthorization{
+		SchemaVersion:                closure.DirectionBootstrapSchemaVersion,
+		PolicyID:                     closure.DirectionBootstrapPolicyID,
+		TaskID:                       "task.bootstrap.direction",
+		BaseRevision:                 testRevision,
+		GraphDigestSHA256:            testGraph,
+		File:                         "wrong.yaml",
+		GovernedRecordIDs:            []string{"decision.desired"},
+		ExpectedMutationDigestSHA256: strings.Repeat("e", 64),
+		ApprovedBy:                   "architect",
+		ApprovalMechanism:            closure.DirectionBootstrapMechanismFile,
+		ApprovalStatement:            "bootstrap once",
+		UsagePolicy:                  closure.DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+		ApprovalSourcePath:           "/approved/bootstrap-direction.yaml",
+		ApprovalSourceDigestSHA256:   strings.Repeat("d", 64),
+	}
+	b.ClosureAfter.Request.DirectionBootstrap.AuthorizationDigestSHA256 = closure.DirectionBootstrapAuthorizationDigest(*b.ClosureAfter.Request.DirectionBootstrap)
+	d := evaluateFixture(t, req, b)
+	if d.Decision != DecisionUncertifiable || !hasReason(d.Reasons, ReasonBootstrapDirectionInvalid) {
+		t.Fatalf("expected uncertifiable bootstrap refusal, got %s reasons=%+v", d.Decision, d.Reasons)
+	}
+}
+
 func TestWaitingSessionMayAdmitInspection(t *testing.T) {
 	req := testRequest()
 	req.Mode = ModeInspect
@@ -260,6 +292,116 @@ func TestOutOfEnvelopeFileIsViolation(t *testing.T) {
 	}
 }
 
+func TestBootstrapPatchMismatchIsVerificationViolation(t *testing.T) {
+	b := testBundle(closure.VerdictConditionallyClosed, convergence.StatusConditionallyClosed, []closure.Condition{{
+		ID: "condition.direction.bootstrap", Dimension: closure.DimensionDirection, Code: "closure.direction.desired.bootstrap", Summary: "bootstrap", RequiredNextAction: "acknowledge_bootstrap_direction_authorization",
+	}})
+	b.ClosureAfter.Request.TaskID = "task.bootstrap.direction"
+	b.ClosureAfter.Request.Scope.Files = []string{closure.DirectionBootstrapFile}
+	repo := tempRepoFile(t, closure.DirectionBootstrapFile)
+	b.ClosureAfter.Request.Binding.Revision = repoHead(t, repo)
+	auth := validBootstrapDirectionAuthorization(t, repo, []byte("package p\n"), []string{"decision.desired", "decision.intended"})
+	auth.ExpectedMutationDigestSHA256 = strings.Repeat("e", 64)
+	auth.AuthorizationDigestSHA256 = closure.DirectionBootstrapAuthorizationDigest(auth)
+	b.ClosureAfter.Request.DirectionBootstrap = &auth
+	violations := bootstrapMutationViolations(repo, b)
+	if len(violations) != 1 || violations[0].Code != VerifyBootstrapMutationMismatch {
+		t.Fatalf("expected bootstrap patch mismatch, got %+v", violations)
+	}
+}
+
+func TestBootstrapRecordIDMismatchIsVerificationViolation(t *testing.T) {
+	b := testBundle(closure.VerdictConditionallyClosed, convergence.StatusConditionallyClosed, []closure.Condition{{
+		ID: "condition.direction.bootstrap", Dimension: closure.DimensionDirection, Code: "closure.direction.desired.bootstrap", Summary: "bootstrap", RequiredNextAction: "acknowledge_bootstrap_direction_authorization",
+	}})
+	b.ClosureAfter.Request.TaskID = "task.bootstrap.direction"
+	b.ClosureAfter.Request.Scope.Files = []string{closure.DirectionBootstrapFile}
+	repo := tempRepoFile(t, closure.DirectionBootstrapFile)
+	b.ClosureAfter.Request.Binding.Revision = repoHead(t, repo)
+	auth := validBootstrapDirectionAuthorization(t, repo, []byte("package p\n"), []string{"decision.desired"})
+	auth.GovernedRecordIDs = []string{"decision.intended"}
+	auth.AuthorizationDigestSHA256 = closure.DirectionBootstrapAuthorizationDigest(auth)
+	b.ClosureAfter.Request.DirectionBootstrap = &auth
+	violations := bootstrapMutationViolations(repo, b)
+	if len(violations) != 1 || violations[0].Code != VerifyBootstrapMutationMismatch {
+		t.Fatalf("expected bootstrap record id mismatch, got %+v", violations)
+	}
+}
+
+func TestBootstrapDirectionConsumptionReceiptIsIdempotentForSameTask(t *testing.T) {
+	repoRoot := t.TempDir()
+	taskRoot := filepath.Join(repoRoot, ".sensei", "tasks", "task.one")
+	auth := closure.DirectionBootstrapAuthorization{
+		TaskID:                     "task.bootstrap.direction",
+		ApprovalSourcePath:         "/approved/bootstrap-direction.yaml",
+		ApprovalSourceDigestSHA256: strings.Repeat("d", 64),
+		AuthorizationDigestSHA256:  strings.Repeat("e", 64),
+	}
+	decision := Decision{AdmissionID: "admission.one"}
+	verification := Verification{VerificationDigestSHA256: strings.Repeat("f", 64)}
+	if err := recordBootstrapDirectionConsumption(repoRoot, taskRoot, decision, &auth, verification); err != nil {
+		t.Fatalf("first recordBootstrapDirectionConsumption: %v", err)
+	}
+	if err := recordBootstrapDirectionConsumption(repoRoot, taskRoot, decision, &auth, verification); err != nil {
+		t.Fatalf("second recordBootstrapDirectionConsumption: %v", err)
+	}
+	receipt, err := LoadBootstrapDirectionConsumption(filepath.Join(taskRoot, "receipts", "bootstrap-direction-consumption.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.AuthorizationDigestSHA256 != auth.AuthorizationDigestSHA256 {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+}
+
+func TestBootstrapDirectionConsumptionIsAtomicAcrossTasks(t *testing.T) {
+	repoRoot := t.TempDir()
+	auth := closure.DirectionBootstrapAuthorization{
+		TaskID:                     "task.bootstrap.direction",
+		ApprovalSourcePath:         "/approved/bootstrap-direction.yaml",
+		ApprovalSourceDigestSHA256: strings.Repeat("d", 64),
+		AuthorizationDigestSHA256:  strings.Repeat("e", 64),
+	}
+	verification := Verification{VerificationDigestSHA256: strings.Repeat("f", 64)}
+	if err := recordBootstrapDirectionConsumption(repoRoot, filepath.Join(repoRoot, ".sensei", "tasks", "task.one"), Decision{AdmissionID: "admission.one"}, &auth, verification); err != nil {
+		t.Fatalf("first recordBootstrapDirectionConsumption: %v", err)
+	}
+	err := recordBootstrapDirectionConsumption(repoRoot, filepath.Join(repoRoot, ".sensei", "tasks", "task.two"), Decision{AdmissionID: "admission.two"}, &auth, verification)
+	if err == nil || !strings.Contains(err.Error(), "already consumed by task") {
+		t.Fatalf("expected atomic cross-task rejection, got %v", err)
+	}
+}
+
+func TestBootstrapDirectionAuthorizationRejectsRepoLocalApprovalSource(t *testing.T) {
+	repo := tempRepoFile(t, closure.DirectionBootstrapFile)
+	localPath := filepath.Join(repo, "bootstrap-direction-authorization.yaml")
+	if err := os.WriteFile(localPath, []byte("approved"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	auth := closure.DirectionBootstrapAuthorization{
+		SchemaVersion:                closure.DirectionBootstrapSchemaVersion,
+		PolicyID:                     closure.DirectionBootstrapPolicyID,
+		TaskID:                       "task.bootstrap.direction",
+		BaseRevision:                 testRevision,
+		GraphDigestSHA256:            testGraph,
+		File:                         closure.DirectionBootstrapFile,
+		GovernedRecordIDs:            []string{"decision.desired"},
+		ExpectedMutationDigestSHA256: strings.Repeat("e", 64),
+		ApprovedBy:                   "Dave",
+		ApprovalMechanism:            closure.DirectionBootstrapMechanismFile,
+		ApprovalStatement:            "bootstrap once",
+		UsagePolicy:                  closure.DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+		ApprovalSourcePath:           localPath,
+		ApprovalSourceDigestSHA256:   digest([]byte("approved")),
+	}
+	auth.AuthorizationDigestSHA256 = closure.DirectionBootstrapAuthorizationDigest(auth)
+	if err := closure.ValidateDirectionBootstrapApproval(auth, repo); err == nil || !strings.Contains(err.Error(), "outside the repository root") {
+		t.Fatalf("expected repo-local approval source rejection, got %v", err)
+	}
+}
+
 func TestScopeComplianceDoesNotCertifyCorrectness(t *testing.T) {
 	d := evaluateFixture(t, testRequest(), testBundle(closure.VerdictClosed, convergence.StatusClosed, nil))
 	v := verificationFromDecision(d, VerificationScopeCompliant, nil, nil, nil)
@@ -304,11 +446,15 @@ func testBundle(verdict, status string, conditions []closure.Condition) Bundle {
 		ClosureAfter: closure.Report{
 			ObservedBinding: binding,
 			Verdict:         verdict,
-			Request: closure.Request{Scope: closure.Scope{
-				TaskClass:  "modify_repository_admission",
-				AccessMode: closure.AccessReadWrite,
-				Files:      []string{"a.go"},
-			}},
+			Request: closure.Request{
+				TaskID:  "task.modify_repository_admission",
+				Binding: binding,
+				Scope: closure.Scope{
+					TaskClass:  "modify_repository_admission",
+					AccessMode: closure.AccessReadWrite,
+					Files:      []string{"a.go"},
+				},
+			},
 			ScopeReceipt: closure.ScopeReceipt{Files: []string{"a.go"}, ClaimIDs: []string{"claim.a"}, PropositionKeys: []string{"a:is:bounded"}},
 			Conditions:   conditions,
 		},
@@ -344,7 +490,85 @@ func tempRepoFile(t *testing.T, path string) string {
 	if err := os.WriteFile(full, []byte("package p\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	cmds := [][]string{
+		{"init"},
+		{"config", "user.email", "sensei@example.test"},
+		{"config", "user.name", "Sensei Test"},
+		{"add", "."},
+		{"commit", "-m", "initial"},
+	}
+	for _, args := range cmds {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
 	return dir
+}
+
+func validBootstrapDirectionAuthorization(t *testing.T, repo string, postContent []byte, recordIDs []string) closure.DirectionBootstrapAuthorization {
+	t.Helper()
+	sourcePath := writeExternalApprovalArtifact(t, []byte("approved by human"))
+	revision := repoHead(t, repo)
+	auth := closure.DirectionBootstrapAuthorization{
+		SchemaVersion:              closure.DirectionBootstrapSchemaVersion,
+		PolicyID:                   closure.DirectionBootstrapPolicyID,
+		TaskID:                     "task.bootstrap.direction",
+		BaseRevision:               revision,
+		GraphDigestSHA256:          testGraph,
+		File:                       closure.DirectionBootstrapFile,
+		GovernedRecordIDs:          recordIDs,
+		ApprovedBy:                 "architect",
+		ApprovalMechanism:          closure.DirectionBootstrapMechanismFile,
+		ApprovalStatement:          "bootstrap once",
+		UsagePolicy:                closure.DirectionBootstrapUsageOneUse,
+		IssuedAt:                   "2026-07-15T00:00:00Z",
+		ExpiresAt:                  "2026-07-16T00:00:00Z",
+		ApprovalSourcePath:         sourcePath,
+		ApprovalSourceDigestSHA256: digest([]byte("approved by human")),
+	}
+	d, err := DirectionBootstrapMutationDigest(repo, revision, closure.DirectionBootstrapFile, recordIDs, postContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth.ExpectedMutationDigestSHA256 = d
+	auth.AuthorizationDigestSHA256 = closure.DirectionBootstrapAuthorizationDigest(auth)
+	return auth
+}
+
+func repoHead(t *testing.T, repo string) string {
+	t.Helper()
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = repo
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func writeExternalApprovalArtifact(t *testing.T, data []byte) string {
+	t.Helper()
+	base, err := os.UserCacheDir()
+	if err != nil || strings.TrimSpace(base) == "" {
+		home, homeErr := os.UserHomeDir()
+		if homeErr != nil {
+			t.Fatalf("resolve home for approval artifact: %v / %v", err, homeErr)
+		}
+		base = filepath.Join(home, ".cache")
+	}
+	dir := filepath.Join(base, "sensei-bootstrap-tests", strings.ReplaceAll(t.Name(), "/", "_"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(closure.DirectionBootstrapApprovalDirEnv, dir)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	path := filepath.Join(dir, "bootstrap-direction-authorization.yaml")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func mustPolicy(t *testing.T) Policy {

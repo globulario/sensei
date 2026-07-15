@@ -57,6 +57,7 @@ func runPrepareChange(args []string) int {
 	fs.StringVar(&opts.Claims, "claims", "", "architecture_claims YAML override (default: <repo>/.sensei/project/claims.yaml)")
 	fs.StringVar(&opts.Dialogue, "dialogue", "", "optional architecture_dialogue YAML")
 	fs.StringVar(&opts.EvidenceState, "evidence-state", "", "optional architecture_evidence_state YAML")
+	fs.StringVar(&opts.DirectionBootstrapAuthorization, "bootstrap-direction-authorization", "", "path to an independently created bootstrap direction authorization YAML")
 	fs.StringVar(&opts.QuestionCreatedAt, "question-created-at", "", "RFC3339 timestamp for deterministic generated questions")
 	fs.StringVar(&opts.RequestedBy, "requested-by", "coding_agent", "requester recorded in task artifacts")
 	fs.Var(&files, "file", "exact scope file as operation:path; operation is read or modify (repeatable)")

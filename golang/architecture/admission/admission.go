@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
@@ -80,19 +81,23 @@ const (
 	ReasonBindingMismatch                 = "admission.binding.mismatch"
 	ReasonGraphUnverified                 = "admission.graph.unverified"
 	ReasonRepositoryRevisionUnverified    = "admission.repository_revision.unverified"
+	ReasonBootstrapDirectionInvalid       = "admission.bootstrap.direction.invalid"
 
-	VerifyReadOnlyMutation      = "admission.verify.read_only_mutation"
-	VerifyPathOutsideEnvelope   = "admission.verify.path_outside_envelope"
-	VerifyOperationNotAdmitted  = "admission.verify.operation_not_admitted"
-	VerifyUntrackedFile         = "admission.verify.untracked_file"
-	VerifyDeletedFile           = "admission.verify.deleted_file"
-	VerifyRenamedFile           = "admission.verify.renamed_file"
-	VerifyCopiedFile            = "admission.verify.copied_file"
-	VerifyTypeChanged           = "admission.verify.type_changed"
-	VerifyUnmergedFile          = "admission.verify.unmerged_file"
-	VerifyBaseRevisionChanged   = "admission.verify.base_revision_changed"
-	VerifySessionAdvanced       = "admission.verify.session_advanced"
-	VerifyDecisionDigestInvalid = "admission.verify.decision_digest_invalid"
+	VerifyReadOnlyMutation              = "admission.verify.read_only_mutation"
+	VerifyPathOutsideEnvelope           = "admission.verify.path_outside_envelope"
+	VerifyOperationNotAdmitted          = "admission.verify.operation_not_admitted"
+	VerifyUntrackedFile                 = "admission.verify.untracked_file"
+	VerifyDeletedFile                   = "admission.verify.deleted_file"
+	VerifyRenamedFile                   = "admission.verify.renamed_file"
+	VerifyCopiedFile                    = "admission.verify.copied_file"
+	VerifyTypeChanged                   = "admission.verify.type_changed"
+	VerifyUnmergedFile                  = "admission.verify.unmerged_file"
+	VerifyBaseRevisionChanged           = "admission.verify.base_revision_changed"
+	VerifySessionAdvanced               = "admission.verify.session_advanced"
+	VerifyDecisionDigestInvalid         = "admission.verify.decision_digest_invalid"
+	VerifyBootstrapAuthorizationInvalid = "admission.verify.bootstrap_authorization_invalid"
+	VerifyBootstrapAuthorizationReused  = "admission.verify.bootstrap_authorization_reused"
+	VerifyBootstrapMutationMismatch     = "admission.verify.bootstrap_mutation_mismatch"
 
 	ChangeModified    = "modified"
 	ChangeAdded       = "added"
@@ -296,6 +301,30 @@ type VerifyOptions struct {
 	Repo         string
 }
 
+type DirectionBootstrapMutation struct {
+	SchemaVersion           string   `json:"schema_version" yaml:"schema_version"`
+	TaskID                  string   `json:"task_id" yaml:"task_id"`
+	BaseRevision            string   `json:"base_revision" yaml:"base_revision"`
+	File                    string   `json:"file" yaml:"file"`
+	Operation               string   `json:"operation" yaml:"operation"`
+	GovernedRecordIDs       []string `json:"governed_record_ids" yaml:"governed_record_ids"`
+	BaseContentDigestSHA256 string   `json:"base_content_digest_sha256" yaml:"base_content_digest_sha256"`
+	PostContentDigestSHA256 string   `json:"post_content_digest_sha256" yaml:"post_content_digest_sha256"`
+}
+
+type BootstrapDirectionConsumption struct {
+	SchemaVersion              string `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy                string `json:"generated_by" yaml:"generated_by"`
+	TaskID                     string `json:"task_id" yaml:"task_id"`
+	AdmissionID                string `json:"admission_id" yaml:"admission_id"`
+	VerificationDigestSHA256   string `json:"verification_digest_sha256" yaml:"verification_digest_sha256"`
+	AuthorizationDigestSHA256  string `json:"authorization_digest_sha256" yaml:"authorization_digest_sha256"`
+	ApprovalSourcePath         string `json:"approval_source_path" yaml:"approval_source_path"`
+	ApprovalSourceDigestSHA256 string `json:"approval_source_digest_sha256" yaml:"approval_source_digest_sha256"`
+	ConsumedAt                 string `json:"consumed_at" yaml:"consumed_at"`
+	ReceiptDigestSHA256        string `json:"receipt_digest_sha256" yaml:"receipt_digest_sha256"`
+}
+
 type requestEnvelope struct {
 	ArchitectureChangeRequest Request `json:"architecture_change_request" yaml:"architecture_change_request"`
 }
@@ -306,6 +335,10 @@ type decisionEnvelope struct {
 
 type verificationEnvelope struct {
 	ArchitectureAdmissionVerification Verification `json:"architecture_admission_verification" yaml:"architecture_admission_verification"`
+}
+
+type bootstrapDirectionConsumptionEnvelope struct {
+	ArchitectureBootstrapDirectionConsumption BootstrapDirectionConsumption `json:"architecture_bootstrap_direction_consumption" yaml:"architecture_bootstrap_direction_consumption"`
 }
 
 func DefaultPolicies() ([]Policy, error) {
@@ -522,6 +555,13 @@ func EvaluateLoaded(policy Policy, req Request, bundle Bundle, graph closure.Gra
 	}
 	if bundle.ClosureAfter.Request.Scope.TaskClass != "" && req.TaskClass != bundle.ClosureAfter.Request.Scope.TaskClass {
 		reasons = append(reasons, Reason{Code: ReasonTaskClassMismatch, Detail: "request task class differs from closure request task class"})
+	}
+	if _, err := closure.DirectionBootstrapForRequest(bundle.ClosureAfter.Request, time.Now().UTC()); err != nil && bundle.ClosureAfter.Request.DirectionBootstrap != nil {
+		reasons = append(reasons, Reason{Code: ReasonBootstrapDirectionInvalid, Detail: err.Error()})
+	} else if bundle.ClosureAfter.Request.DirectionBootstrap != nil {
+		if err := closure.ValidateDirectionBootstrapApproval(*bundle.ClosureAfter.Request.DirectionBootstrap, repoRoot); err != nil {
+			reasons = append(reasons, Reason{Code: ReasonBootstrapDirectionInvalid, Detail: err.Error()})
+		}
 	}
 	if len(reasons) == 0 {
 		reasons = append(reasons, scopeContainment(req, bundle, graph, repoRoot)...)
@@ -933,6 +973,7 @@ func Verify(opts VerifyOptions) (Verification, error) {
 	}
 	if status == VerificationScopeCompliant {
 		violations = envelopeViolations(d, changes)
+		violations = append(violations, bootstrapMutationViolations(opts.Repo, b)...)
 		if len(violations) > 0 {
 			status = VerificationScopeViolated
 			for _, v := range violations {
@@ -942,7 +983,122 @@ func Verify(opts VerifyOptions) (Verification, error) {
 	}
 	v := verificationFromDecision(d, status, reasons, changes, violations)
 	v.PatchDigestSHA256 = patchDigest
-	return finalizeVerification(v, d), nil
+	v = finalizeVerification(v, d)
+	if v.Status == VerificationScopeCompliant {
+		if err := recordBootstrapDirectionConsumption(opts.Repo, filepath.Dir(filepath.Clean(opts.BundleDir)), d, b.ClosureAfter.Request.DirectionBootstrap, v); err != nil {
+			v.Status = VerificationScopeViolated
+			v.Violations = append(v.Violations, Violation{Code: VerifyBootstrapAuthorizationReused, Path: closure.DirectionBootstrapFile, Detail: err.Error()})
+			v.Reasons = append(v.Reasons, Reason{Code: VerifyBootstrapAuthorizationReused, Detail: closure.DirectionBootstrapFile})
+			v = finalizeVerification(v, d)
+		}
+	}
+	return v, nil
+}
+
+func DirectionBootstrapMutationDigest(repo, baseRevision, path string, recordIDs []string, postContent []byte) (string, error) {
+	baseDigest, err := gitBlobDigest(repo, baseRevision, path)
+	if err != nil {
+		return "", err
+	}
+	m := DirectionBootstrapMutation{
+		SchemaVersion:           "1",
+		TaskID:                  "",
+		BaseRevision:            strings.TrimSpace(baseRevision),
+		File:                    normalizePath(path),
+		Operation:               OperationModify,
+		GovernedRecordIDs:       clean(recordIDs),
+		BaseContentDigestSHA256: baseDigest,
+		PostContentDigestSHA256: digest(postContent),
+	}
+	return digest(canonicalJSON(m)), nil
+}
+
+func DirectionBootstrapMutationDigestFromFile(repo, baseRevision, path, proposedPath string, recordIDs []string) (string, error) {
+	data, err := os.ReadFile(proposedPath)
+	if err != nil {
+		return "", err
+	}
+	return DirectionBootstrapMutationDigest(repo, baseRevision, path, recordIDs, data)
+}
+
+func bootstrapMutationViolations(repo string, b Bundle) []Violation {
+	auth, err := closure.DirectionBootstrapForRequest(b.ClosureAfter.Request, time.Now().UTC())
+	if err != nil {
+		return []Violation{{
+			Code:   VerifyBootstrapAuthorizationInvalid,
+			Path:   closure.DirectionBootstrapFile,
+			Detail: err.Error(),
+		}}
+	}
+	if auth == nil {
+		return nil
+	}
+	if err := closure.ValidateDirectionBootstrapApproval(*auth, repo); err != nil {
+		return []Violation{{
+			Code:   VerifyBootstrapAuthorizationInvalid,
+			Path:   auth.File,
+			Detail: err.Error(),
+		}}
+	}
+	path := filepath.Join(repo, filepath.FromSlash(auth.File))
+	data, readErr := os.ReadFile(path)
+	if readErr != nil {
+		return []Violation{{
+			Code:   VerifyBootstrapMutationMismatch,
+			Path:   auth.File,
+			Detail: "authorized bootstrap file is unreadable in the working tree",
+		}}
+	}
+	got, digestErr := DirectionBootstrapMutationDigest(repo, auth.BaseRevision, auth.File, auth.GovernedRecordIDs, data)
+	if digestErr != nil {
+		return []Violation{{
+			Code:   VerifyBootstrapMutationMismatch,
+			Path:   auth.File,
+			Detail: digestErr.Error(),
+		}}
+	}
+	if auth.ExpectedMutationDigestSHA256 == got {
+		return nil
+	}
+	return []Violation{{
+		Code:   VerifyBootstrapMutationMismatch,
+		Path:   auth.File,
+		Detail: "canonical mutation digest does not match bootstrap direction authorization",
+	}}
+}
+
+func LoadBootstrapDirectionConsumption(path string) (BootstrapDirectionConsumption, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return BootstrapDirectionConsumption{}, err
+	}
+	var env bootstrapDirectionConsumptionEnvelope
+	if err := yaml.Unmarshal(data, &env); err != nil {
+		return BootstrapDirectionConsumption{}, err
+	}
+	receipt := normalizeBootstrapDirectionConsumption(env.ArchitectureBootstrapDirectionConsumption)
+	if receipt.SchemaVersion == "" {
+		return BootstrapDirectionConsumption{}, errors.New("missing architecture_bootstrap_direction_consumption document")
+	}
+	if bootstrapDirectionConsumptionDigest(receipt) != receipt.ReceiptDigestSHA256 {
+		return BootstrapDirectionConsumption{}, errors.New("bootstrap direction consumption receipt digest invalid")
+	}
+	return receipt, nil
+}
+
+func MarshalCanonicalBootstrapDirectionConsumptionYAML(receipt BootstrapDirectionConsumption) ([]byte, error) {
+	receipt = normalizeBootstrapDirectionConsumption(receipt)
+	receipt.ReceiptDigestSHA256 = bootstrapDirectionConsumptionDigest(receipt)
+	return yaml.Marshal(bootstrapDirectionConsumptionEnvelope{ArchitectureBootstrapDirectionConsumption: receipt})
+}
+
+func gitBlobDigest(repo, revision, path string) (string, error) {
+	spec := strings.TrimSpace(revision) + ":" + normalizePath(path)
+	data, err := git(repo, "show", spec)
+	if err != nil {
+		return "", err
+	}
+	return digest(data), nil
 }
 
 func CaptureChanges(repo, baseRevision string) ([]ChangeReceipt, string, error) {
@@ -1627,6 +1783,26 @@ func normalizeVerification(v Verification) Verification {
 	return v
 }
 
+func normalizeBootstrapDirectionConsumption(receipt BootstrapDirectionConsumption) BootstrapDirectionConsumption {
+	receipt.SchemaVersion = strings.TrimSpace(receipt.SchemaVersion)
+	if receipt.SchemaVersion == "" {
+		receipt.SchemaVersion = SchemaVersion
+	}
+	receipt.GeneratedBy = strings.TrimSpace(receipt.GeneratedBy)
+	if receipt.GeneratedBy == "" {
+		receipt.GeneratedBy = GeneratedBy
+	}
+	receipt.TaskID = strings.TrimSpace(receipt.TaskID)
+	receipt.AdmissionID = strings.TrimSpace(receipt.AdmissionID)
+	receipt.VerificationDigestSHA256 = strings.TrimSpace(strings.ToLower(receipt.VerificationDigestSHA256))
+	receipt.AuthorizationDigestSHA256 = strings.TrimSpace(strings.ToLower(receipt.AuthorizationDigestSHA256))
+	receipt.ApprovalSourcePath = filepath.Clean(strings.TrimSpace(receipt.ApprovalSourcePath))
+	receipt.ApprovalSourceDigestSHA256 = strings.TrimSpace(strings.ToLower(receipt.ApprovalSourceDigestSHA256))
+	receipt.ConsumedAt = strings.TrimSpace(receipt.ConsumedAt)
+	receipt.ReceiptDigestSHA256 = strings.TrimSpace(strings.ToLower(receipt.ReceiptDigestSHA256))
+	return receipt
+}
+
 func normalizeScopeNoValidate(scope ChangeScope) ChangeScope {
 	scope.Files = dedupeFileOps(scope.Files)
 	scope.Symbols = clean(scope.Symbols)
@@ -1644,6 +1820,100 @@ func decisionDigest(d Decision) string {
 func verificationDigest(v Verification) string {
 	v.VerificationDigestSHA256 = ""
 	return digest(canonicalJSON(v))
+}
+
+func bootstrapDirectionConsumptionDigest(receipt BootstrapDirectionConsumption) string {
+	receipt = normalizeBootstrapDirectionConsumption(receipt)
+	receipt.ReceiptDigestSHA256 = ""
+	return digest(canonicalJSON(receipt))
+}
+
+func recordBootstrapDirectionConsumption(repoRoot, taskRoot string, d Decision, auth *closure.DirectionBootstrapAuthorization, v Verification) error {
+	if auth == nil {
+		return nil
+	}
+	receipt := BootstrapDirectionConsumption{
+		SchemaVersion:              SchemaVersion,
+		GeneratedBy:                GeneratedBy,
+		TaskID:                     auth.TaskID,
+		AdmissionID:                d.AdmissionID,
+		VerificationDigestSHA256:   v.VerificationDigestSHA256,
+		AuthorizationDigestSHA256:  auth.AuthorizationDigestSHA256,
+		ApprovalSourcePath:         auth.ApprovalSourcePath,
+		ApprovalSourceDigestSHA256: auth.ApprovalSourceDigestSHA256,
+		ConsumedAt:                 time.Now().UTC().Format(time.RFC3339),
+	}
+	globalPath := bootstrapDirectionConsumptionLedgerPath(repoRoot, auth.AuthorizationDigestSHA256)
+	if err := writeBootstrapDirectionConsumptionIfAbsent(globalPath, receipt); err != nil {
+		return err
+	}
+	path := filepath.Join(taskRoot, "receipts", "bootstrap-direction-consumption.yaml")
+	if existing, err := LoadBootstrapDirectionConsumption(path); err == nil {
+		if existing.AuthorizationDigestSHA256 != receipt.AuthorizationDigestSHA256 {
+			return errors.New("different bootstrap authorization already consumed for this task")
+		}
+		if existing.TaskID != receipt.TaskID || existing.AdmissionID != receipt.AdmissionID {
+			return errors.New("bootstrap authorization already consumed by another task or admission")
+		}
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	data, err := MarshalCanonicalBootstrapDirectionConsumptionYAML(receipt)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func bootstrapDirectionConsumptionLedgerPath(repoRoot, authDigest string) string {
+	return filepath.Join(repoRoot, ".sensei", "bootstrap-direction-consumption", authDigest+".yaml")
+}
+
+func writeBootstrapDirectionConsumptionIfAbsent(path string, receipt BootstrapDirectionConsumption) error {
+	if existing, err := LoadBootstrapDirectionConsumption(path); err == nil {
+		if existing.AuthorizationDigestSHA256 != receipt.AuthorizationDigestSHA256 {
+			return errors.New("different bootstrap authorization already consumed")
+		}
+		if existing.TaskID != receipt.TaskID || existing.AdmissionID != receipt.AdmissionID {
+			return fmt.Errorf("bootstrap authorization already consumed by task %s", existing.TaskID)
+		}
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	data, err := MarshalCanonicalBootstrapDirectionConsumptionYAML(receipt)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		if os.IsExist(err) {
+			existing, loadErr := LoadBootstrapDirectionConsumption(path)
+			if loadErr != nil {
+				return loadErr
+			}
+			if existing.AuthorizationDigestSHA256 != receipt.AuthorizationDigestSHA256 {
+				return errors.New("different bootstrap authorization already consumed")
+			}
+			if existing.TaskID != receipt.TaskID || existing.AdmissionID != receipt.AdmissionID {
+				return fmt.Errorf("bootstrap authorization already consumed by task %s", existing.TaskID)
+			}
+			return nil
+		}
+		return err
+	}
+	defer file.Close()
+	if _, err := file.Write(data); err != nil {
+		return err
+	}
+	return file.Close()
 }
 
 func collectLimitations(policy Policy, b Bundle) []architecture.Limitation {
@@ -1938,7 +2208,7 @@ func modifyPaths(files []FileOperation) []string {
 func hasUncertifiableReason(reasons []Reason) bool {
 	for _, r := range reasons {
 		switch r.Code {
-		case ReasonBundleInvalid, ReasonGraphUnverified, ReasonRepositoryRevisionUnverified, ReasonSessionStaleIteration, ReasonBindingMismatch:
+		case ReasonBundleInvalid, ReasonGraphUnverified, ReasonRepositoryRevisionUnverified, ReasonSessionStaleIteration, ReasonBindingMismatch, ReasonBootstrapDirectionInvalid:
 			return true
 		}
 	}

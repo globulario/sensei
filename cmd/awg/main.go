@@ -51,6 +51,7 @@
 //	sensei record-probe-result              Record an externally executed probe result offline
 //	sensei advance-convergence              Advance one offline convergence session iteration
 //	sensei convergence-status               Inspect an offline convergence session
+//	sensei bootstrap-direction-digest       Compute canonical digest for a bootstrap direction authorization
 //	sensei admit-change                     Evaluate bounded agent admission
 //	sensei verify-admission                 Verify a diff stayed inside admission scope
 //	sensei admission-status                 Inspect admission receipts
@@ -233,6 +234,8 @@ func main() {
 		os.Exit(runAdvanceConvergence(args))
 	case "convergence-status":
 		os.Exit(runConvergenceStatus(args))
+	case "bootstrap-direction-digest":
+		os.Exit(runBootstrapDirectionDigest(args))
 	case "admit-change":
 		os.Exit(runAdmitChange(args))
 	case "verify-admission":
@@ -397,6 +400,7 @@ Repair and evaluation helpers:
   record-probe-result Record an externally executed probe result offline
   advance-convergence Advance one offline convergence session iteration
   convergence-status Inspect an offline convergence session bundle
+  bootstrap-direction-digest Compute canonical digest for a bootstrap direction authorization
   admit-change   Evaluate bounded agent admission from a convergence bundle
   verify-admission Verify a working-tree diff against an admission envelope
   admission-status Inspect admission and scope-verification receipts
