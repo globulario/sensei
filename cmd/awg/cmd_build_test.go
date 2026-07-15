@@ -37,6 +37,28 @@ func TestFinalizeBuildArtifact_DedupsBeforeMarker(t *testing.T) {
 	}
 }
 
+func TestFinalizeBuildArtifact_CanonicalizesTripleOrder(t *testing.T) {
+	first := []byte(
+		"<https://example.test/s2> <https://example.test/p> \"two\" .\n" +
+			"<https://example.test/s1> <https://example.test/p> \"one\" .\n")
+	second := []byte(
+		"<https://example.test/s1> <https://example.test/p> \"one\" .\n" +
+			"<https://example.test/s2> <https://example.test/p> \"two\" .\n")
+
+	firstNT, firstMarker, firstUnique, firstDup := finalizeBuildArtifact(first)
+	secondNT, secondMarker, secondUnique, secondDup := finalizeBuildArtifact(second)
+
+	if firstUnique != secondUnique || firstDup != secondDup {
+		t.Fatalf("dedup counts differ: first=(%d,%d) second=(%d,%d)", firstUnique, firstDup, secondUnique, secondDup)
+	}
+	if string(firstNT) != string(secondNT) {
+		t.Fatalf("final graph bytes differ across input order:\nfirst:\n%s\nsecond:\n%s", firstNT, secondNT)
+	}
+	if firstMarker != secondMarker {
+		t.Fatalf("marker differs across input order: %#v vs %#v", firstMarker, secondMarker)
+	}
+}
+
 func TestRunBuild_WritesGraphMarkerFileAfterVerifiedLoad(t *testing.T) {
 	repo := t.TempDir()
 	awarenessDir := filepath.Join(repo, "docs", "awareness")
