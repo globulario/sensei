@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -291,6 +292,157 @@ func TestExtractInvariantsJSONRemainsDeterministic(t *testing.T) {
 	}
 }
 
+func TestBuildInvariantExtractionReportResolvesRepositoryIdentityOnce(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), `package inv
+type State struct{ Value string }
+func Apply(s *State) error {
+	if s == nil { return errInvalid }
+	s.Value = "x"
+	return nil
+}
+var errInvalid error
+`)
+	writeFile(t, filepath.Join(root, "state_test.go"), `package inv
+func TestApplyRejectsNilState(t *testing.T) {
+	if Apply(nil) == nil { t.Fatal("must reject") }
+}
+`)
+
+	orig := gitRemoteDomain
+	defer func() { gitRemoteDomain = orig }()
+	var calls int
+	gitRemoteDomain = func(repoPath string) string {
+		calls++
+		return "github.com/example/inv"
+	}
+
+	report := buildInvariantReportForTest(t, root)
+	if calls != 1 {
+		t.Fatalf("gitRemoteDomain calls=%d want 1", calls)
+	}
+	if len(report.Facts) < 5 {
+		t.Fatalf("expected multiple facts, got %d", len(report.Facts))
+	}
+	for _, fact := range report.Facts {
+		if fact.Provenance == nil {
+			t.Fatalf("fact missing provenance: %#v", fact)
+		}
+		if got := fact.Provenance.RepositoryDomain; got != "github.com/example/inv" {
+			t.Fatalf("repository domain=%q want github.com/example/inv", got)
+		}
+		if got := fact.Provenance.RepositoryDomainStatus; got != architecture.RepositoryDomainResolved {
+			t.Fatalf("repository domain status=%q want %q", got, architecture.RepositoryDomainResolved)
+		}
+	}
+}
+
+func TestBuildInvariantExtractionReportRepositoryDomainFallbackUnchanged(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
+	writeFile(t, filepath.Join(root, "state.go"), "package inv\nfunc Apply() {}\n")
+
+	orig := gitRemoteDomain
+	defer func() { gitRemoteDomain = orig }()
+	var calls int
+	gitRemoteDomain = func(repoPath string) string {
+		calls++
+		return ""
+	}
+
+	report := buildInvariantReportForTest(t, root)
+	if calls != 1 {
+		t.Fatalf("gitRemoteDomain calls=%d want 1", calls)
+	}
+	wantRepo := filepath.Base(root)
+	for _, fact := range report.Facts {
+		if fact.Provenance == nil {
+			t.Fatalf("fact missing provenance: %#v", fact)
+		}
+		if got := fact.Scope.Repository; got != wantRepo {
+			t.Fatalf("scope repository=%q want %q", got, wantRepo)
+		}
+		if got := fact.Provenance.RepositoryDomain; got != wantRepo {
+			t.Fatalf("repository domain=%q want fallback %q", got, wantRepo)
+		}
+		if got := fact.Provenance.RepositoryDomainStatus; got != architecture.RepositoryDomainFallback {
+			t.Fatalf("repository domain status=%q want %q", got, architecture.RepositoryDomainFallback)
+		}
+	}
+}
+
+func TestBuildInvariantExtractionReportRepositoryIdentityIsScopedPerRepository(t *testing.T) {
+	rootA := t.TempDir()
+	rootB := t.TempDir()
+	writeFile(t, filepath.Join(rootA, "go.mod"), "module example.com/a\n")
+	writeFile(t, filepath.Join(rootA, "a.go"), "package a\nfunc Apply() {}\n")
+	writeFile(t, filepath.Join(rootB, "go.mod"), "module example.com/b\n")
+	writeFile(t, filepath.Join(rootB, "b.go"), "package b\nfunc Apply() {}\n")
+
+	orig := gitRemoteDomain
+	defer func() { gitRemoteDomain = orig }()
+	var mu sync.Mutex
+	calls := map[string]int{}
+	gitRemoteDomain = func(repoPath string) string {
+		mu.Lock()
+		defer mu.Unlock()
+		calls[repoPath]++
+		return "github.com/example/" + filepath.Base(repoPath)
+	}
+
+	reportA := buildInvariantReportForTest(t, rootA)
+	reportB := buildInvariantReportForTest(t, rootB)
+	if calls[rootA] != 1 || calls[rootB] != 1 {
+		t.Fatalf("gitRemoteDomain calls=%v want one per repo", calls)
+	}
+	assertAllFactDomains(t, reportA, "github.com/example/"+filepath.Base(rootA))
+	assertAllFactDomains(t, reportB, "github.com/example/"+filepath.Base(rootB))
+}
+
+func TestBuildInvariantExtractionReportConcurrentExtractionDoesNotShareIdentity(t *testing.T) {
+	rootA := t.TempDir()
+	rootB := t.TempDir()
+	writeFile(t, filepath.Join(rootA, "go.mod"), "module example.com/a\n")
+	writeFile(t, filepath.Join(rootA, "a.go"), "package a\nfunc Apply() {}\n")
+	writeFile(t, filepath.Join(rootB, "go.mod"), "module example.com/b\n")
+	writeFile(t, filepath.Join(rootB, "b.go"), "package b\nfunc Apply() {}\n")
+
+	orig := gitRemoteDomain
+	defer func() { gitRemoteDomain = orig }()
+	var mu sync.Mutex
+	calls := map[string]int{}
+	gitRemoteDomain = func(repoPath string) string {
+		mu.Lock()
+		defer mu.Unlock()
+		calls[repoPath]++
+		return "github.com/example/" + filepath.Base(repoPath)
+	}
+
+	type result struct {
+		report invariantExtractionReport
+		err    error
+	}
+	results := make(chan result, 2)
+	run := func(root string) {
+		report, err := buildInvariantExtractionReport(root, invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, MinimumConfidence: "low"})
+		results <- result{report: report, err: err}
+	}
+
+	go run(rootA)
+	go run(rootB)
+	resA := <-results
+	resB := <-results
+	if resA.err != nil || resB.err != nil {
+		t.Fatalf("concurrent extraction errors: %v / %v", resA.err, resB.err)
+	}
+	if calls[rootA] != 1 || calls[rootB] != 1 {
+		t.Fatalf("gitRemoteDomain calls=%v want one per repo", calls)
+	}
+	assertReportHasDomain(t, resA.report, "github.com/example/"+filepath.Base(rootA), "github.com/example/"+filepath.Base(rootB))
+	assertReportHasDomain(t, resB.report, "github.com/example/"+filepath.Base(rootA), "github.com/example/"+filepath.Base(rootB))
+}
+
 func TestExtractInvariantsYAMLRemainsDeterministic(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
@@ -453,4 +605,35 @@ func equalStringMaps(a, b map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func assertAllFactDomains(t *testing.T, report invariantExtractionReport, want string) {
+	t.Helper()
+	for _, fact := range report.Facts {
+		if fact.Provenance == nil {
+			t.Fatalf("fact missing provenance: %#v", fact)
+		}
+		if got := fact.Provenance.RepositoryDomain; got != want {
+			t.Fatalf("repository domain=%q want %q", got, want)
+		}
+	}
+}
+
+func assertReportHasDomain(t *testing.T, report invariantExtractionReport, wantA, wantB string) {
+	t.Helper()
+	if len(report.Facts) == 0 {
+		t.Fatal("expected facts")
+	}
+	got := report.Facts[0].Provenance.RepositoryDomain
+	if got != wantA && got != wantB {
+		t.Fatalf("unexpected repository domain %q", got)
+	}
+	for _, fact := range report.Facts {
+		if fact.Provenance == nil {
+			t.Fatalf("fact missing provenance: %#v", fact)
+		}
+		if fact.Provenance.RepositoryDomain != got {
+			t.Fatalf("mixed repository domains in one report: %q and %q", got, fact.Provenance.RepositoryDomain)
+		}
+	}
 }

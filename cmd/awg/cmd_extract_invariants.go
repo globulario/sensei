@@ -107,6 +107,13 @@ type invariantExtractOptions struct {
 	Check                   bool
 }
 
+type invariantRepositoryIdentity struct {
+	Root         string
+	Repository   string
+	Domain       string
+	DomainStatus string
+}
+
 func runExtractInvariants(args []string) int {
 	fs := flag.NewFlagSet("sensei extract-invariants", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -194,10 +201,11 @@ Flags:
 }
 
 func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (invariantExtractionReport, error) {
+	identity := resolveInvariantRepositoryIdentity(root)
 	var facts []normalizedInvariantFact
 	var limitations []architecture.Limitation
 	// One Go-AST pass produces both invariant facts and authority surfaces.
-	goFacts, authority, err := extractGoArchitecture(root, opts)
+	goFacts, authority, err := extractGoArchitecture(identity, opts)
 	if err != nil {
 		return invariantExtractionReport{}, err
 	}
@@ -213,7 +221,7 @@ func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (
 			if !opts.IncludeTests && observation.Predicate == gosemantics.PredicateTestCallsSymbol {
 				continue
 			}
-			facts = append(facts, invariantFact(root, observation.Kind, observation.Subject, observation.Predicate,
+			facts = append(facts, invariantFact(identity, observation.Kind, observation.Subject, observation.Predicate,
 				observation.Object, observation.File, observation.Symbol, observation.Line, observation.Line, "",
 				"go_semantic_extractor", observation.Confidence, observation.Meta))
 		}
@@ -223,13 +231,13 @@ func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (
 			})
 		}
 	}
-	facts = append(facts, extractGeneratedAuthorityFacts(root)...)
-	facts = append(facts, extractCIGateFacts(root)...)
+	facts = append(facts, extractGeneratedAuthorityFacts(identity)...)
+	facts = append(facts, extractCIGateFacts(identity)...)
 	if opts.IncludeDocs {
-		facts = append(facts, extractAwarenessDocumentationFacts(root)...)
+		facts = append(facts, extractAwarenessDocumentationFacts(identity)...)
 	}
 	if opts.IncludeHistory {
-		historyFacts, historyLimitations := extractHistoryInvariantFacts(root)
+		historyFacts, historyLimitations := extractHistoryInvariantFacts(identity)
 		facts = append(facts, historyFacts...)
 		limitations = append(limitations, historyLimitations...)
 	}
@@ -261,6 +269,30 @@ func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (
 		}
 	}
 	return report, nil
+}
+
+func resolveInvariantRepositoryIdentity(root string) invariantRepositoryIdentity {
+	if strings.TrimSpace(root) == "" {
+		return invariantRepositoryIdentity{
+			Root:         "",
+			Repository:   "",
+			Domain:       "",
+			DomainStatus: architecture.RepositoryDomainFallback,
+		}
+	}
+	identity := invariantRepositoryIdentity{
+		Root:       root,
+		Repository: filepath.Base(root),
+	}
+	domain := gitRemoteDomain(root)
+	if strings.TrimSpace(domain) == "" {
+		identity.Domain = identity.Repository
+		identity.DomainStatus = architecture.RepositoryDomainFallback
+		return identity
+	}
+	identity.Domain = domain
+	identity.DomainStatus = architecture.RepositoryDomainResolved
+	return identity
 }
 
 func invariantGoFiles(root string) ([]string, error) {
@@ -296,12 +328,12 @@ func invariantSkipDir(name string) bool {
 // extractGoFileFactsFromAST is the parse-free core: it derives invariant facts
 // from an already-parsed file so one Go-AST pass can feed both this and the
 // authority-surface extractor (see extractGoArchitecture).
-func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.FileSet, opts invariantExtractOptions) []normalizedInvariantFact {
+func extractGoFileFactsFromAST(identity invariantRepositoryIdentity, rel string, file *ast.File, fset *token.FileSet, opts invariantExtractOptions) []normalizedInvariantFact {
 	var facts []normalizedInvariantFact
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 		if ok && gen.Tok == token.TYPE {
-			facts = append(facts, extractSchemaFacts(root, rel, file.Name.Name, gen, fset)...)
+			facts = append(facts, extractSchemaFacts(identity, rel, file.Name.Name, gen, fset)...)
 		}
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Body == nil || fn.Name == nil {
@@ -309,7 +341,7 @@ func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.Fil
 		}
 		symbol := file.Name.Name + "." + fn.Name.Name
 		if opts.IncludeTests && strings.HasPrefix(fn.Name.Name, "Test") {
-			facts = append(facts, testAssertionFact(root, rel, symbol, fn, fset))
+			facts = append(facts, testAssertionFact(identity, rel, symbol, fn, fset))
 		}
 		readSeen := map[string]bool{}
 		ast.Inspect(fn.Body, func(n ast.Node) bool {
@@ -326,7 +358,7 @@ func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.Fil
 						kind = "transition"
 						predicate = "rejects_transition_when"
 					}
-					facts = append(facts, invariantFact(root, kind, symbol, predicate, cond, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_guard_extractor", 0.65, nil))
+					facts = append(facts, invariantFact(identity, kind, symbol, predicate, cond, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_guard_extractor", 0.65, nil))
 				}
 			case *ast.AssignStmt:
 				for i, lhs := range x.Lhs {
@@ -345,7 +377,7 @@ func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.Fil
 						kind = "generation_check"
 						predicate = "increments_generation"
 					}
-					facts = append(facts, invariantFact(root, kind, symbol, predicate, field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.55, meta))
+					facts = append(facts, invariantFact(identity, kind, symbol, predicate, field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.55, meta))
 				}
 			case *ast.IncDecStmt:
 				field := invariantWriteTarget(x.X)
@@ -356,18 +388,18 @@ func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.Fil
 						predicate = "increments_generation"
 						kind = "generation_check"
 					}
-					facts = append(facts, invariantFact(root, kind, symbol, predicate, field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.55, nil))
+					facts = append(facts, invariantFact(identity, kind, symbol, predicate, field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.55, nil))
 				}
 			case *ast.SelectorExpr:
 				field := invariantSelectorName(x)
 				if field != "" && !readSeen[field] {
 					readSeen[field] = true
-					facts = append(facts, invariantFact(root, "read", symbol, "reads", field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_read_extractor", 0.35, nil))
+					facts = append(facts, invariantFact(identity, "read", symbol, "reads", field, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_read_extractor", 0.35, nil))
 				}
 			case *ast.CallExpr:
 				call := invariantCallName(x.Fun)
 				if call != "" && invariantLooksLikePersistenceCall(call) {
-					facts = append(facts, invariantFact(root, "write", symbol, "persists_via", call, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.5, nil))
+					facts = append(facts, invariantFact(identity, "write", symbol, "persists_via", call, rel, symbol, fset.Position(x.Pos()).Line, fset.Position(x.End()).Line, "", "go_write_extractor", 0.5, nil))
 				}
 			}
 			return true
@@ -378,7 +410,7 @@ func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.Fil
 			text := strings.TrimSpace(group.Text())
 			if invariantNormativeText(text) {
 				pos := fset.Position(group.Pos())
-				facts = append(facts, invariantFact(root, "documentation_claim", rel, "claims_normative_rule", invariantCompact(text), rel, "", pos.Line, fset.Position(group.End()).Line, "", "go_comment_extractor", 0.25, nil))
+				facts = append(facts, invariantFact(identity, "documentation_claim", rel, "claims_normative_rule", invariantCompact(text), rel, "", pos.Line, fset.Position(group.End()).Line, "", "go_comment_extractor", 0.25, nil))
 			}
 		}
 	}
@@ -390,8 +422,8 @@ func extractGoFileFactsFromAST(root, rel string, file *ast.File, fset *token.Fil
 // (for non-test files) to the authority-surface extractor. This is the union
 // substrate that retires the old double-parse — extract-authority and
 // extract-invariants no longer each walk the tree separately.
-func extractGoArchitecture(root string, opts invariantExtractOptions) ([]normalizedInvariantFact, []authoritySurfaceCandidate, error) {
-	files, err := invariantGoFiles(root)
+func extractGoArchitecture(identity invariantRepositoryIdentity, opts invariantExtractOptions) ([]normalizedInvariantFact, []authoritySurfaceCandidate, error) {
+	files, err := invariantGoFiles(identity.Root)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -403,10 +435,10 @@ func extractGoArchitecture(root string, opts invariantExtractOptions) ([]normali
 		if perr != nil {
 			return nil, nil, fmt.Errorf("parse %s: %w", path, perr)
 		}
-		rel := invariantRel(root, path)
-		facts = append(facts, extractGoFileFactsFromAST(root, rel, file, fset, opts)...)
+		rel := invariantRel(identity.Root, path)
+		facts = append(facts, extractGoFileFactsFromAST(identity, rel, file, fset, opts)...)
 		if !isTestFile(filepath.Base(path)) && !strings.HasSuffix(path, ".pb.go") {
-			authCandidates, authFacts := scanAuthorityDeclsAndFacts(root, rel, file, fset)
+			authCandidates, authFacts := scanAuthorityDeclsAndFacts(identity, rel, file, fset)
 			authority = append(authority, authCandidates...)
 			facts = append(facts, authFacts...)
 		}
@@ -415,7 +447,7 @@ func extractGoArchitecture(root string, opts invariantExtractOptions) ([]normali
 	return facts, authority, nil
 }
 
-func extractSchemaFacts(root, rel, pkg string, gen *ast.GenDecl, fset *token.FileSet) []normalizedInvariantFact {
+func extractSchemaFacts(identity invariantRepositoryIdentity, rel, pkg string, gen *ast.GenDecl, fset *token.FileSet) []normalizedInvariantFact {
 	var facts []normalizedInvariantFact
 	for _, spec := range gen.Specs {
 		ts, ok := spec.(*ast.TypeSpec)
@@ -436,7 +468,7 @@ func extractSchemaFacts(root, rel, pkg string, gen *ast.GenDecl, fset *token.Fil
 				continue
 			}
 			subject := pkg + "." + ts.Name.Name + "." + field.Names[0].Name
-			facts = append(facts, invariantFact(root, "schema_constraint", subject, "accepts_field", name, rel, subject, fset.Position(field.Pos()).Line, fset.Position(field.End()).Line, "", "go_schema_extractor", 0.45, nil))
+			facts = append(facts, invariantFact(identity, "schema_constraint", subject, "accepts_field", name, rel, subject, fset.Position(field.Pos()).Line, fset.Position(field.End()).Line, "", "go_schema_extractor", 0.45, nil))
 		}
 	}
 	return facts
@@ -460,27 +492,27 @@ func schemaFieldName(tag string) string {
 	return ""
 }
 
-func extractGeneratedAuthorityFacts(root string) []normalizedInvariantFact {
+func extractGeneratedAuthorityFacts(identity invariantRepositoryIdentity) []normalizedInvariantFact {
 	var facts []normalizedInvariantFact
 	for _, rel := range []string{"docs/awareness/generated", "golang/server/embeddata/awareness.nt", "golang/server/embeddata/awareness.transaction.tsv"} {
-		path := filepath.Join(root, filepath.FromSlash(rel))
+		path := filepath.Join(identity.Root, filepath.FromSlash(rel))
 		if _, err := os.Stat(path); err == nil {
-			facts = append(facts, invariantFact(root, "generation_check", rel, "generated_artifact_exists", rel, rel, "", 0, 0, "", "generated_artifact_extractor", 0.5, nil))
+			facts = append(facts, invariantFact(identity, "generation_check", rel, "generated_artifact_exists", rel, rel, "", 0, 0, "", "generated_artifact_extractor", 0.5, nil))
 		}
 	}
 	for _, rel := range []string{".github/workflows/seed-rebuild.yml", ".github/workflows/awg-gate.yml", "Makefile"} {
-		path := filepath.Join(root, filepath.FromSlash(rel))
+		path := filepath.Join(identity.Root, filepath.FromSlash(rel))
 		raw, err := os.ReadFile(path)
 		if err == nil && (bytes.Contains(raw, []byte("diff")) || bytes.Contains(raw, []byte("--check")) || bytes.Contains(raw, []byte("gate"))) {
-			facts = append(facts, invariantFact(root, "ci_gate", rel, "checks_generated_freshness_or_gate", rel, rel, "", 0, 0, invariantFirstLine(string(raw)), "ci_extractor", 0.65, nil))
+			facts = append(facts, invariantFact(identity, "ci_gate", rel, "checks_generated_freshness_or_gate", rel, rel, "", 0, 0, invariantFirstLine(string(raw)), "ci_extractor", 0.65, nil))
 		}
 	}
 	return facts
 }
 
-func extractCIGateFacts(root string) []normalizedInvariantFact {
+func extractCIGateFacts(identity invariantRepositoryIdentity) []normalizedInvariantFact {
 	var facts []normalizedInvariantFact
-	base := filepath.Join(root, ".github", "workflows")
+	base := filepath.Join(identity.Root, ".github", "workflows")
 	_ = filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
@@ -494,21 +526,21 @@ func extractCIGateFacts(root string) []normalizedInvariantFact {
 			return nil
 		}
 		text := strings.ToLower(string(raw))
-		rel := invariantRel(root, path)
+		rel := invariantRel(identity.Root, path)
 		switch {
 		case strings.Contains(text, "gate --enforce") || strings.Contains(text, "sensei gate") || strings.Contains(text, "awg gate"):
-			facts = append(facts, invariantFact(root, "ci_gate", rel, "enforces_architectural_gate", rel, rel, "", 0, 0, "gate --enforce", "ci_extractor", 0.8, nil))
+			facts = append(facts, invariantFact(identity, "ci_gate", rel, "enforces_architectural_gate", rel, rel, "", 0, 0, "gate --enforce", "ci_extractor", 0.8, nil))
 		case strings.Contains(text, "grep") || strings.Contains(text, "forbidden") || strings.Contains(text, "source-check"):
-			facts = append(facts, invariantFact(root, "ci_gate", rel, "runs_scanner", rel, rel, "", 0, 0, firstScannerCommand(string(raw)), "ci_extractor", 0.6, nil))
+			facts = append(facts, invariantFact(identity, "ci_gate", rel, "runs_scanner", rel, rel, "", 0, 0, firstScannerCommand(string(raw)), "ci_extractor", 0.6, nil))
 		}
 		return nil
 	})
 	return facts
 }
 
-func extractAwarenessDocumentationFacts(root string) []normalizedInvariantFact {
+func extractAwarenessDocumentationFacts(identity invariantRepositoryIdentity) []normalizedInvariantFact {
 	var facts []normalizedInvariantFact
-	base := filepath.Join(root, "docs", "awareness")
+	base := filepath.Join(identity.Root, "docs", "awareness")
 	_ = filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
@@ -524,10 +556,10 @@ func extractAwarenessDocumentationFacts(root string) []normalizedInvariantFact {
 		if err != nil {
 			return nil
 		}
-		rel := invariantRel(root, path)
+		rel := invariantRel(identity.Root, path)
 		for lineNo, line := range strings.Split(string(raw), "\n") {
 			if invariantNormativeText(line) {
-				facts = append(facts, invariantFact(root, "documentation_claim", rel, "claims_normative_rule", invariantCompact(line), rel, "", lineNo+1, lineNo+1, "", "awareness_doc_extractor", 0.35, nil))
+				facts = append(facts, invariantFact(identity, "documentation_claim", rel, "claims_normative_rule", invariantCompact(line), rel, "", lineNo+1, lineNo+1, "", "awareness_doc_extractor", 0.35, nil))
 			}
 		}
 		return nil
@@ -535,16 +567,16 @@ func extractAwarenessDocumentationFacts(root string) []normalizedInvariantFact {
 	return facts
 }
 
-func extractHistoryInvariantFacts(root string) ([]normalizedInvariantFact, []architecture.Limitation) {
-	revision, status, lim := architecture.ResolveRevision(root, true)
+func extractHistoryInvariantFacts(identity invariantRepositoryIdentity) ([]normalizedInvariantFact, []architecture.Limitation) {
+	revision, status, lim := architecture.ResolveRevision(identity.Root, true)
 	if status != architecture.RevisionResolved {
 		return nil, lim
 	}
-	cmd := exec.Command("git", "-C", root, "log", "--oneline", "--name-status", "-n", "80")
+	cmd := exec.Command("git", "-C", identity.Root, "log", "--oneline", "--name-status", "-n", "80")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, []architecture.Limitation{{
-			Source:   root,
+			Source:   identity.Root,
 			Scope:    "git_history",
 			Reason:   err.Error(),
 			Blocking: false,
@@ -561,14 +593,14 @@ func extractHistoryInvariantFacts(root string) ([]normalizedInvariantFact, []arc
 			commit = line
 			lower := strings.ToLower(line)
 			if strings.Contains(lower, "remove") || strings.Contains(lower, "forbid") || strings.Contains(lower, "bypass") || strings.Contains(lower, "direct") {
-				facts = append(facts, invariantFactWithProvenance(root, "historical_removal", "git_history", "records_removal_or_forbidden_pattern", line, "", "", 0, 0, "", "git_history_extractor", 0.45, map[string]string{"commit": strings.Fields(line)[0]}, architecture.Options{Revision: revision, RevisionStatus: status}))
+				facts = append(facts, invariantFactWithProvenance(identity, "historical_removal", "git_history", "records_removal_or_forbidden_pattern", line, "", "", 0, 0, "", "git_history_extractor", 0.45, map[string]string{"commit": strings.Fields(line)[0]}, architecture.Options{Revision: revision, RevisionStatus: status}))
 			}
 			continue
 		}
 		if commit != "" && (strings.HasPrefix(line, "D") || strings.HasPrefix(line, "M")) {
 			lower := strings.ToLower(commit + " " + line)
 			if strings.Contains(lower, "direct") || strings.Contains(lower, "bypass") || strings.Contains(lower, "forbid") || strings.Contains(lower, "remove") {
-				facts = append(facts, invariantFactWithProvenance(root, "historical_removal", "git_history", "changed_file_after_removal_pressure", line, "", "", 0, 0, "", "git_history_extractor", 0.4, map[string]string{"commit": strings.Fields(commit)[0]}, architecture.Options{Revision: revision, RevisionStatus: status}))
+				facts = append(facts, invariantFactWithProvenance(identity, "historical_removal", "git_history", "changed_file_after_removal_pressure", line, "", "", 0, 0, "", "git_history_extractor", 0.4, map[string]string{"commit": strings.Fields(commit)[0]}, architecture.Options{Revision: revision, RevisionStatus: status}))
 			}
 		}
 	}
@@ -930,18 +962,11 @@ func normalizeInvariantFacts(root string, facts []normalizedInvariantFact) ([]no
 	return architecture.NormalizeFacts(root, facts)
 }
 
-func invariantFact(root, kind, subject, predicate, object, file, symbol string, lineStart, lineEnd int, command, extractor string, confidence float64, meta map[string]string) normalizedInvariantFact {
-	return invariantFactWithProvenance(root, kind, subject, predicate, object, file, symbol, lineStart, lineEnd, command, extractor, confidence, meta, architecture.Options{RevisionStatus: architecture.RevisionNotRequested})
+func invariantFact(identity invariantRepositoryIdentity, kind, subject, predicate, object, file, symbol string, lineStart, lineEnd int, command, extractor string, confidence float64, meta map[string]string) normalizedInvariantFact {
+	return invariantFactWithProvenance(identity, kind, subject, predicate, object, file, symbol, lineStart, lineEnd, command, extractor, confidence, meta, architecture.Options{RevisionStatus: architecture.RevisionNotRequested})
 }
 
-func invariantFactWithProvenance(root, kind, subject, predicate, object, file, symbol string, lineStart, lineEnd int, command, extractor string, confidence float64, meta map[string]string, provenance architecture.Options) normalizedInvariantFact {
-	repo := filepath.Base(root)
-	repoDomain := gitRemoteDomain(root)
-	repoDomainStatus := architecture.RepositoryDomainResolved
-	if repoDomain == "" {
-		repoDomain = repo
-		repoDomainStatus = architecture.RepositoryDomainFallback
-	}
+func invariantFactWithProvenance(identity invariantRepositoryIdentity, kind, subject, predicate, object, file, symbol string, lineStart, lineEnd int, command, extractor string, confidence float64, meta map[string]string, provenance architecture.Options) normalizedInvariantFact {
 	ev := invariantFactEvidence{SourceFile: file, LineStart: lineStart, LineEnd: lineEnd, Command: command}
 	if strings.HasPrefix(symbol, "Test") || strings.Contains(symbol, ".Test") {
 		ev.TestName = lastSegment(symbol)
@@ -952,9 +977,9 @@ func invariantFactWithProvenance(root, kind, subject, predicate, object, file, s
 	if provenance.RevisionStatus == "" {
 		provenance.RevisionStatus = architecture.RevisionNotRequested
 	}
-	provenance.Root = root
-	provenance.RepositoryDomain = repoDomain
-	provenance.RepositoryDomainStatus = repoDomainStatus
+	provenance.Root = identity.Root
+	provenance.RepositoryDomain = identity.Domain
+	provenance.RepositoryDomainStatus = identity.DomainStatus
 	f, _ := architecture.NewFact(normalizedInvariantFact{
 		ID:        architecture.StableID(kind, subject, predicate, object, file, lineStart, extractor),
 		Kind:      kind,
@@ -962,7 +987,7 @@ func invariantFactWithProvenance(root, kind, subject, predicate, object, file, s
 		Predicate: predicate,
 		Object:    strings.TrimSpace(object),
 		Scope: invariantFactScope{
-			Repository: repo,
+			Repository: identity.Repository,
 			Files:      nonEmptySlice(file),
 			Symbols:    nonEmptySlice(symbol),
 		},
@@ -974,7 +999,7 @@ func invariantFactWithProvenance(root, kind, subject, predicate, object, file, s
 	return f
 }
 
-func testAssertionFact(root, rel, symbol string, fn *ast.FuncDecl, fset *token.FileSet) normalizedInvariantFact {
+func testAssertionFact(identity invariantRepositoryIdentity, rel, symbol string, fn *ast.FuncDecl, fset *token.FileSet) normalizedInvariantFact {
 	words := splitCamel(strings.TrimPrefix(fn.Name.Name, "Test"))
 	predicate := "asserts_behavior_example"
 	conf := 0.35
@@ -982,7 +1007,7 @@ func testAssertionFact(root, rel, symbol string, fn *ast.FuncDecl, fset *token.F
 		predicate = "asserts_architectural_rule"
 		conf = 0.75
 	}
-	return invariantFact(root, "assertion", symbol, predicate, humanizeWords(words), rel, symbol, fset.Position(fn.Pos()).Line, fset.Position(fn.End()).Line, "", "go_test_extractor", conf, nil)
+	return invariantFact(identity, "assertion", symbol, predicate, humanizeWords(words), rel, symbol, fset.Position(fn.Pos()).Line, fset.Position(fn.End()).Line, "", "go_test_extractor", conf, nil)
 }
 
 func invariantBlockReturnsError(block *ast.BlockStmt) bool {

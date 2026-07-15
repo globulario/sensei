@@ -179,7 +179,7 @@ func scanAuthorityFile(root, path string) ([]authoritySurfaceCandidate, error) {
 	if err != nil {
 		return nil, err
 	}
-	cands, _ := scanAuthorityDeclsAndFacts(root, filepath.ToSlash(rel), file, fset)
+	cands, _ := scanAuthorityDeclsAndFacts(resolveInvariantRepositoryIdentity(root), filepath.ToSlash(rel), file, fset)
 	return cands, nil
 }
 
@@ -187,11 +187,11 @@ func scanAuthorityFile(root, path string) ([]authoritySurfaceCandidate, error) {
 // works on an already-parsed file so the same *ast.File can feed both this and
 // the invariant fact extractor in a single Go-AST pass (see extractGoArchitecture).
 func scanAuthorityDecls(rel string, file *ast.File, fset *token.FileSet) []authoritySurfaceCandidate {
-	cands, _ := scanAuthorityDeclsAndFacts("", rel, file, fset)
+	cands, _ := scanAuthorityDeclsAndFacts(resolveInvariantRepositoryIdentity(""), rel, file, fset)
 	return cands
 }
 
-func scanAuthorityDeclsAndFacts(root, rel string, file *ast.File, fset *token.FileSet) ([]authoritySurfaceCandidate, []normalizedInvariantFact) {
+func scanAuthorityDeclsAndFacts(identity invariantRepositoryIdentity, rel string, file *ast.File, fset *token.FileSet) ([]authoritySurfaceCandidate, []normalizedInvariantFact) {
 	routes := map[string][]string{}
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
@@ -245,28 +245,28 @@ func scanAuthorityDeclsAndFacts(root, rel string, file *ast.File, fset *token.Fi
 		if ok {
 			out = append(out, cand)
 		}
-		facts = append(facts, authorityObservationFacts(root, features)...)
+		facts = append(facts, authorityObservationFacts(identity, features)...)
 	}
 	return out, facts
 }
 
-func authorityObservationFacts(root string, f authorityFeatures) []normalizedInvariantFact {
+func authorityObservationFacts(identity invariantRepositoryIdentity, f authorityFeatures) []normalizedInvariantFact {
 	subject := "symbol." + f.symbol
 	var facts []normalizedInvariantFact
 	for _, route := range f.routes {
-		facts = append(facts, invariantFact(root, "authority_observation", subject, "exposes_route", route, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+		facts = append(facts, invariantFact(identity, "authority_observation", subject, "exposes_route", route, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
 	}
 	for _, state := range f.mutates {
-		facts = append(facts, invariantFact(root, "authority_observation", subject, "mutates_state", state, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+		facts = append(facts, invariantFact(identity, "authority_observation", subject, "mutates_state", state, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
 	}
 	for _, item := range f.lifecycle {
-		facts = append(facts, invariantFact(root, "authority_observation", subject, "controls_lifecycle", item, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+		facts = append(facts, invariantFact(identity, "authority_observation", subject, "controls_lifecycle", item, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
 	}
 	for _, guard := range f.guards {
-		facts = append(facts, invariantFact(root, "authority_observation", subject, "requires_guard", guard, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
+		facts = append(facts, invariantFact(identity, "authority_observation", subject, "requires_guard", guard, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.55, nil))
 	}
 	for _, authority := range f.authority {
-		facts = append(facts, invariantFact(root, "authority_observation", subject, "requires_authority", authority, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.45, nil))
+		facts = append(facts, invariantFact(identity, "authority_observation", subject, "requires_authority", authority, f.relPath, f.symbol, f.lineStart, f.lineEnd, "", "go_authority_extractor", 0.45, nil))
 	}
 	return facts
 }
