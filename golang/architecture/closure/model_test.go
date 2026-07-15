@@ -5,7 +5,9 @@ package closure
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -909,6 +911,240 @@ func TestCanonicalSourceFileIRIResolutionDeterministic(t *testing.T) {
 	}
 }
 
+func TestResolveScopeDeterministicallyExpandsRequiredTests(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	req := validRequest()
+	req.Scope.Files = []string{"x.go"}
+	graph := BuildGraphIndex(mustTriples(t, nt(
+		triple(classIRI("source_file", "x.go"), rdf.PropType, rdf.ClassSourceFile, true),
+		triple(classIRI("source_file", "x.go"), rdf.PropConstrainedByInvariant, classIRI("invariant", "invariant.x"), true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropType, rdf.ClassInvariant, true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropRequiresTest, classIRI("test", "closure.TestDeterministicExpansion"), true),
+		triple(classIRI("test", "closure.TestDeterministicExpansion"), rdf.PropType, rdf.ClassTest, true),
+	)))
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if !containsNodeReceipt(report.RelevantNodes, "closure.TestDeterministicExpansion") {
+		t.Fatalf("required test missing from relevant nodes: %#v", report.RelevantNodes)
+	}
+}
+
+func TestResolveScopeRepeatedEvaluationIsDeterministic(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	req := validRequest()
+	req.Scope.Files = []string{"x.go"}
+	graph := deterministicExpansionGraph()
+	ctx := validContext(t, root, req, graph)
+	var first []byte
+	for i := 0; i < 100; i++ {
+		report, err := Evaluate(ctx)
+		if err != nil {
+			t.Fatalf("Evaluate run %d: %v", i+1, err)
+		}
+		got, err := MarshalCanonicalReportYAML(report)
+		if err != nil {
+			t.Fatalf("MarshalCanonicalReportYAML run %d: %v", i+1, err)
+		}
+		if i == 0 {
+			first = append([]byte(nil), got...)
+			continue
+		}
+		if !bytes.Equal(first, got) {
+			t.Fatalf("run %d differed from run 1", i+1)
+		}
+	}
+}
+
+func TestResolveScopeGraphInsertionOrderDoesNotMatter(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	req := validRequest()
+	req.Scope.Files = []string{"x.go"}
+	triplesA := nt(
+		triple(classIRI("source_file", "x.go"), rdf.PropType, rdf.ClassSourceFile, true),
+		triple(classIRI("source_file", "x.go"), rdf.PropDependsOn, classIRI("component", "component.x"), true),
+		triple(classIRI("component", "component.x"), rdf.PropType, rdf.ClassComponent, true),
+		triple(classIRI("component", "component.x"), rdf.PropExposesContract, classIRI("contract", "contract.x"), true),
+		triple(classIRI("contract", "contract.x"), rdf.PropType, rdf.ClassContract, true),
+		triple(classIRI("contract", "contract.x"), rdf.PropConstrainedByInvariant, classIRI("invariant", "invariant.x"), true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropType, rdf.ClassInvariant, true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropRequiresTest, classIRI("test", "closure.TestGraphOrder"), true),
+		triple(classIRI("test", "closure.TestGraphOrder"), rdf.PropType, rdf.ClassTest, true),
+	)
+	triplesB := nt(
+		triple(classIRI("test", "closure.TestGraphOrder"), rdf.PropType, rdf.ClassTest, true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropRequiresTest, classIRI("test", "closure.TestGraphOrder"), true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropType, rdf.ClassInvariant, true),
+		triple(classIRI("contract", "contract.x"), rdf.PropConstrainedByInvariant, classIRI("invariant", "invariant.x"), true),
+		triple(classIRI("contract", "contract.x"), rdf.PropType, rdf.ClassContract, true),
+		triple(classIRI("component", "component.x"), rdf.PropExposesContract, classIRI("contract", "contract.x"), true),
+		triple(classIRI("component", "component.x"), rdf.PropType, rdf.ClassComponent, true),
+		triple(classIRI("source_file", "x.go"), rdf.PropDependsOn, classIRI("component", "component.x"), true),
+		triple(classIRI("source_file", "x.go"), rdf.PropType, rdf.ClassSourceFile, true),
+	)
+	reportA, err := Evaluate(validContext(t, root, req, BuildGraphIndex(mustTriples(t, triplesA))))
+	if err != nil {
+		t.Fatalf("Evaluate A: %v", err)
+	}
+	reportB, err := Evaluate(validContext(t, root, req, BuildGraphIndex(mustTriples(t, triplesB))))
+	if err != nil {
+		t.Fatalf("Evaluate B: %v", err)
+	}
+	aBytes, err := MarshalCanonicalReportYAML(reportA)
+	if err != nil {
+		t.Fatalf("Marshal A: %v", err)
+	}
+	bBytes, err := MarshalCanonicalReportYAML(reportB)
+	if err != nil {
+		t.Fatalf("Marshal B: %v", err)
+	}
+	if !bytes.Equal(aBytes, bBytes) {
+		t.Fatal("graph insertion order changed closure output")
+	}
+}
+
+func TestResolveScopeExpansionTerminatesOnCycles(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	req := validRequest()
+	req.Scope.Files = []string{"x.go"}
+	graph := BuildGraphIndex(mustTriples(t, nt(
+		triple(classIRI("source_file", "x.go"), rdf.PropType, rdf.ClassSourceFile, true),
+		triple(classIRI("source_file", "x.go"), rdf.PropDependsOn, classIRI("component", "A"), true),
+		triple(classIRI("component", "A"), rdf.PropType, rdf.ClassComponent, true),
+		triple(classIRI("component", "A"), rdf.PropDependsOn, classIRI("component", "B"), true),
+		triple(classIRI("component", "B"), rdf.PropType, rdf.ClassComponent, true),
+		triple(classIRI("component", "B"), rdf.PropDependsOn, classIRI("component", "C"), true),
+		triple(classIRI("component", "C"), rdf.PropType, rdf.ClassComponent, true),
+		triple(classIRI("component", "C"), rdf.PropDependsOn, classIRI("component", "A"), true),
+	)))
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if countNodeReceipt(report.RelevantNodes, "A") != 1 || countNodeReceipt(report.RelevantNodes, "B") != 1 || countNodeReceipt(report.RelevantNodes, "C") != 1 {
+		t.Fatalf("cycle nodes not represented exactly once: %#v", report.RelevantNodes)
+	}
+}
+
+func TestResolveScopeExcludesUnrelatedNodesWithoutSeedPath(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	req := validRequest()
+	req.Scope.Files = []string{"x.go"}
+	graph := mergeGraphs(
+		deterministicExpansionGraph(),
+		BuildGraphIndex(mustTriples(t, nt(
+			triple(classIRI("test", "closure.TestUnrelated"), rdf.PropType, rdf.ClassTest, true),
+			triple(classIRI("failure_mode", "failure.unrelated"), rdf.PropType, rdf.ClassFailureMode, true),
+			triple(classIRI("contract", "contract.unrelated"), rdf.PropType, rdf.ClassContract, true),
+		))),
+	)
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if containsNodeReceipt(report.RelevantNodes, "closure.TestUnrelated") || containsNodeReceipt(report.RelevantNodes, "failure.unrelated") || containsNodeReceipt(report.RelevantNodes, "contract.unrelated") {
+		t.Fatalf("unrelated nodes entered relevant set: %#v", report.RelevantNodes)
+	}
+}
+
+func TestResolveScopeSelectsTransitiveRequiredTests(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	req := validRequest()
+	req.Scope.Files = []string{"x.go"}
+	report, err := Evaluate(validContext(t, root, req, deterministicExpansionGraph()))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if !containsNodeReceipt(report.RelevantNodes, "closure.TestTransitiveRequired") {
+		t.Fatalf("transitive required test missing: %#v", report.RelevantNodes)
+	}
+}
+
+func TestResolveScopeDoesNotMutateGraphIndex(t *testing.T) {
+	root := authoredFileRoot(t, "x.go")
+	req := validRequest()
+	req.Scope.Files = []string{"x.go"}
+	graph := deterministicExpansionGraph()
+	before := cloneGraphIndex(graph)
+	if _, err := Evaluate(validContext(t, root, req, graph)); err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if !reflect.DeepEqual(before, graph) {
+		t.Fatal("Evaluate mutated graph index")
+	}
+}
+
+func TestResolveScopeAwarenessEnforcementShapeIncludesAllRelevantTestsOnFirstRun(t *testing.T) {
+	root := authoredFileRoot(t, "golang/architecture/closure/model.go")
+	req := validRequest()
+	req.Scope.Files = []string{"golang/architecture/closure/model.go"}
+	graph := BuildGraphIndex(mustTriples(t, nt(
+		triple(classIRI("source_file", "golang/architecture/closure/model.go"), rdf.PropType, rdf.ClassSourceFile, true),
+		triple(classIRI("source_file", "golang/architecture/closure/model.go"), rdf.PropConstrainedByInvariant, classIRI("invariant", "awareness.enforcement"), true),
+		triple(classIRI("invariant", "awareness.enforcement"), rdf.PropType, rdf.ClassInvariant, true),
+		triple(classIRI("invariant", "awareness.enforcement"), rdf.PropRequiresTest, classIRI("test", "cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords"), true),
+		triple(classIRI("invariant", "awareness.enforcement"), rdf.PropRequiresTest, classIRI("test", "cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph"), true),
+		triple(classIRI("invariant", "awareness.enforcement"), rdf.PropRequiresTest, classIRI("test", "golang/architecture/closure/model_test.go:TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode"), true),
+		triple(classIRI("invariant", "awareness.enforcement"), rdf.PropRequiresTest, classIRI("test", "golang/extractor/yaml_import_test.go:TestImportFixture_KnownTriplesPresent"), true),
+		triple(classIRI("test", "cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords"), rdf.PropType, rdf.ClassTest, true),
+		triple(classIRI("test", "cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph"), rdf.PropType, rdf.ClassTest, true),
+		triple(classIRI("test", "golang/architecture/closure/model_test.go:TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode"), rdf.PropType, rdf.ClassTest, true),
+		triple(classIRI("test", "golang/extractor/yaml_import_test.go:TestImportFixture_KnownTriplesPresent"), rdf.PropType, rdf.ClassTest, true),
+	)))
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	want := []string{
+		"cmd%2Fawg%2Fcmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords",
+		"cmd%2Fawg%2Fcmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph",
+		"golang%2Farchitecture%2Fclosure%2Fmodel_test.go:TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode",
+		"golang%2Fextractor%2Fyaml_import_test.go:TestImportFixture_KnownTriplesPresent",
+	}
+	for _, id := range want {
+		if !containsNodeReceipt(report.RelevantNodes, id) {
+			t.Fatalf("expected relevant test %q missing from first run: %#v", id, report.RelevantNodes)
+		}
+	}
+}
+
+func TestClosureDeterministicAcrossFreshSubprocesses(t *testing.T) {
+	if os.Getenv("SENSEI_CLOSURE_SUBPROCESS") == "1" {
+		root := authoredFileRoot(t, "x.go")
+		req := validRequest()
+		req.Scope.Files = []string{"x.go"}
+		report, err := Evaluate(validContext(t, root, req, deterministicExpansionGraph()))
+		if err != nil {
+			t.Fatalf("Evaluate: %v", err)
+		}
+		data, err := MarshalCanonicalReportYAML(report)
+		if err != nil {
+			t.Fatalf("MarshalCanonicalReportYAML: %v", err)
+		}
+		if _, err := os.Stdout.Write(data); err != nil {
+			t.Fatalf("stdout: %v", err)
+		}
+		return
+	}
+	var first []byte
+	for i := 0; i < 10; i++ {
+		cmd := exec.Command(os.Args[0], "-test.run=TestClosureDeterministicAcrossFreshSubprocesses")
+		cmd.Env = append(os.Environ(), "SENSEI_CLOSURE_SUBPROCESS=1")
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("subprocess run %d: %v", i+1, err)
+		}
+		if i == 0 {
+			first = out
+			continue
+		}
+		if !bytes.Equal(first, out) {
+			t.Fatalf("subprocess run %d differed from run 1", i+1)
+		}
+	}
+}
+
 func TestGraphSnapshotDigestMismatchIsUncertifiable(t *testing.T) {
 	root, graph := closedFixture(t)
 	req := validRequest()
@@ -1534,6 +1770,61 @@ func testCanonicalAuthoredInRepresentsExactFile(t *testing.T, class, classIRIVal
 	if !contains(got.AnchorNodeIDs, class+".scope") {
 		t.Fatalf("anchor ids = %#v", got.AnchorNodeIDs)
 	}
+}
+
+func deterministicExpansionGraph() GraphIndex {
+	return BuildGraphIndex(mustTriplesForPanic(nt(
+		triple(classIRI("source_file", "x.go"), rdf.PropType, rdf.ClassSourceFile, true),
+		triple(classIRI("source_file", "x.go"), rdf.PropDependsOn, classIRI("component", "component.x"), true),
+		triple(classIRI("component", "component.x"), rdf.PropType, rdf.ClassComponent, true),
+		triple(classIRI("component", "component.x"), rdf.PropExposesContract, classIRI("contract", "contract.x"), true),
+		triple(classIRI("contract", "contract.x"), rdf.PropType, rdf.ClassContract, true),
+		triple(classIRI("contract", "contract.x"), rdf.PropConstrainedByInvariant, classIRI("invariant", "invariant.x"), true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropType, rdf.ClassInvariant, true),
+		triple(classIRI("invariant", "invariant.x"), rdf.PropRequiresTest, classIRI("test", "closure.TestTransitiveRequired"), true),
+		triple(classIRI("test", "closure.TestTransitiveRequired"), rdf.PropType, rdf.ClassTest, true),
+	)))
+}
+
+func cloneGraphIndex(in GraphIndex) GraphIndex {
+	out := GraphIndex{
+		Nodes:       make(map[string]Node, len(in.Nodes)),
+		NodesByID:   make(map[string]string, len(in.NodesByID)),
+		FilesByPath: make(map[string]string, len(in.FilesByPath)),
+		SymbolsByID: make(map[string]string, len(in.SymbolsByID)),
+	}
+	for k, v := range in.Nodes {
+		out.Nodes[k] = v
+	}
+	for k, v := range in.NodesByID {
+		out.NodesByID[k] = v
+	}
+	for k, v := range in.FilesByPath {
+		out.FilesByPath[k] = v
+	}
+	for k, v := range in.SymbolsByID {
+		out.SymbolsByID[k] = v
+	}
+	return out
+}
+
+func containsNodeReceipt(nodes []NodeReceipt, id string) bool {
+	for _, node := range nodes {
+		if node.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func countNodeReceipt(nodes []NodeReceipt, id string) int {
+	count := 0
+	for _, node := range nodes {
+		if node.ID == id {
+			count++
+		}
+	}
+	return count
 }
 
 func testIneligibleAuthoredInRepresentation(t *testing.T, opts authoredNodeOptions) {

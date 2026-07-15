@@ -1866,13 +1866,7 @@ func resolveScope(ctx Context) resolvedScope {
 			out.ByNodeID[n.ID] = n
 		}
 	}
-	for _, n := range out.ByNodeID {
-		for _, id := range oneEdgeIDs(n) {
-			if next, ok := findNode(ctx.Graph, id); ok {
-				out.ByNodeID[next.ID] = next
-			}
-		}
-	}
+	out.ByNodeID = expandRelevantNodes(ctx.Graph, out.ByNodeID)
 	for _, c := range out.ByClaimID {
 		for _, f := range c.Scope.Files {
 			if contains(req.Scope.Files, f) {
