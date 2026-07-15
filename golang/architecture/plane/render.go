@@ -16,12 +16,12 @@ type reportEnvelope struct {
 }
 
 func MarshalCanonicalReportYAML(report Report) ([]byte, error) {
-	report = normalizeReport(report)
+	report = canonicalReport(report)
 	return yaml.Marshal(reportEnvelope{ArchitecturalPlaneAssessment: report})
 }
 
 func MarshalCanonicalReportJSON(report Report) ([]byte, error) {
-	report = normalizeReport(report)
+	report = canonicalReport(report)
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetIndent("", "  ")

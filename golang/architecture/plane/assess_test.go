@@ -4,6 +4,8 @@ package plane
 
 import (
 	"bytes"
+	"os"
+	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
@@ -205,6 +207,118 @@ func TestPlaneAssessmentIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestCanonicalYAMLStripsGraphSnapshotPath(t *testing.T) {
+	a := reportWithGraphPath(t, "/tmp/graph-a.nt")
+	b := reportWithGraphPath(t, "/tmp/graph-b.nt")
+	ay, err := MarshalCanonicalReportYAML(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	by, err := MarshalCanonicalReportYAML(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(ay, by) {
+		t.Fatal("canonical YAML changed with graph path")
+	}
+	if bytes.Contains(ay, []byte("/tmp/graph-a.nt")) || bytes.Contains(ay, []byte("/tmp/graph-b.nt")) {
+		t.Fatalf("canonical YAML leaked graph path:\n%s", string(ay))
+	}
+	if !bytes.Contains(ay, []byte("graph_digest_sha256")) || !bytes.Contains(ay, []byte("graph_digest_status")) {
+		t.Fatalf("canonical YAML lost graph digest fields:\n%s", string(ay))
+	}
+}
+
+func TestCanonicalJSONStripsGraphSnapshotPath(t *testing.T) {
+	a := reportWithGraphPath(t, "/tmp/graph-a.nt")
+	b := reportWithGraphPath(t, "/tmp/graph-b.nt")
+	aj, err := MarshalCanonicalReportJSON(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bj, err := MarshalCanonicalReportJSON(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(aj, bj) {
+		t.Fatal("canonical JSON changed with graph path")
+	}
+	if bytes.Contains(aj, []byte("/tmp/graph-a.nt")) || bytes.Contains(aj, []byte("/tmp/graph-b.nt")) {
+		t.Fatalf("canonical JSON leaked graph path:\n%s", string(aj))
+	}
+	if !bytes.Contains(aj, []byte("graph_digest_sha256")) || !bytes.Contains(aj, []byte("graph_digest_status")) {
+		t.Fatalf("canonical JSON lost graph digest fields:\n%s", string(aj))
+	}
+}
+
+func TestLoadOlderReportPreservesPathInMemoryAndCanonicalRenderStripsIt(t *testing.T) {
+	const older = `architectural_plane_assessment:
+  schema_version: "1"
+  generated_by: sensei assess-planes
+  claim_binding:
+    repository_domain: github.com/globulario/sensei
+    revision: rev
+    revision_status: resolved
+    graph_digest_sha256: abcdef
+    graph_digest_status: resolved
+  graph_snapshot:
+    path: /tmp/graph-a.nt
+    digest_sha256: abcdef
+    digest_status: resolved
+  claim_assessments: []
+  proposition_groups: []
+  summary:
+    justified: 0
+    under_supported: 0
+    invalid: 0
+    unknown: 0
+    stale: 0
+`
+	report, err := UnmarshalReportYAML([]byte(older))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.GraphSnapshot.Path != "/tmp/graph-a.nt" {
+		t.Fatalf("loaded path = %q", report.GraphSnapshot.Path)
+	}
+	out, err := MarshalCanonicalReportYAML(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(out, []byte("/tmp/graph-a.nt")) {
+		t.Fatalf("canonical render retained path:\n%s", string(out))
+	}
+}
+
+func TestAssessPlanesSubprocessCanonicalOutputIgnoresGraphFilename(t *testing.T) {
+	if os.Getenv("SENSEI_PLANE_GRAPH_PATH") != "" {
+		report := reportWithGraphPath(t, os.Getenv("SENSEI_PLANE_GRAPH_PATH"))
+		out, err := MarshalCanonicalReportYAML(report)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stdout.Write(out); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	run := func(path string) []byte {
+		t.Helper()
+		cmd := exec.Command(os.Args[0], "-test.run=TestAssessPlanesSubprocessCanonicalOutputIgnoresGraphFilename")
+		cmd.Env = append(os.Environ(), "SENSEI_PLANE_GRAPH_PATH="+path)
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("subprocess %q: %v", path, err)
+		}
+		return out
+	}
+	a := run("/tmp/graph-a.nt")
+	b := run("/tmp/graph-b.nt")
+	if !bytes.Equal(a, b) {
+		t.Fatal("subprocess canonical output changed with graph filename")
+	}
+}
+
 func TestPlaneAssessmentDoesNotMutateClaim(t *testing.T) {
 	doc := claimDoc(t, []architecture.Claim{claim("claim.one", architecture.PlaneObserved, []string{"fact.guard"}, nil, nil)}, []architecture.Fact{fact("fact.guard", "guard", "refuses_when")})
 	before := doc.Claims[0]
@@ -326,6 +440,21 @@ func assessDoc(t *testing.T, doc architecture.ClaimDocument, graph string) Repor
 		}
 	}
 	report, err := Assess(Context{Claims: doc, Graph: idx, GraphDigestStatus: architecture.GraphDigestNotRequested})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return report
+}
+
+func reportWithGraphPath(t *testing.T, path string) Report {
+	t.Helper()
+	doc := claimDoc(t, []architecture.Claim{claim("claim.one", architecture.PlaneObserved, []string{"fact.guard"}, nil, nil)}, []architecture.Fact{fact("fact.guard", "guard", "refuses_when")})
+	report, err := Assess(Context{
+		Claims:            doc,
+		GraphDigest:       "abcdef",
+		GraphDigestStatus: architecture.GraphDigestResolved,
+		GraphSnapshotPath: path,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
