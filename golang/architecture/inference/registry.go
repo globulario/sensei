@@ -16,6 +16,7 @@ func DefaultRegistry() (*Registry, error) {
 	return NewRegistry([]Rule{
 		ComponentDependencyCrossingRule{},
 		ExportedAPITestedBehaviorRule{},
+		GovernedDirectionRecordRule{},
 		InterfaceImplementationSurfaceRule{},
 		ObservedGuardRule{},
 		RuleSignalingTestExpectationRule{},
