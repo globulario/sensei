@@ -4,13 +4,20 @@ package closure
 
 import (
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
 	"github.com/globulario/sensei/golang/rdf"
+)
+
+var (
+	sha256RE = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	hexLenRE = map[int]*regexp.Regexp{}
 )
 
 func oneOf(v string, allowed ...string) bool {
@@ -64,6 +71,32 @@ func normalizePath(s string) string {
 		return ""
 	}
 	return filepath.ToSlash(filepath.Clean(filepath.FromSlash(s)))
+}
+
+func safeRelPath(path string) bool {
+	path = normalizePath(path)
+	return path != "" && !filepath.IsAbs(path) && path != ".." && !strings.HasPrefix(path, "../") && !strings.Contains(path, "/../")
+}
+
+func normalizeSinglePath(s string) string {
+	out := cleanPathList([]string{s})
+	if len(out) == 0 {
+		return ""
+	}
+	return out[0]
+}
+
+func isSHA256(v string) bool {
+	return sha256RE.MatchString(strings.TrimSpace(v))
+}
+
+func isHexLen(v string, n int) bool {
+	re, ok := hexLenRE[n]
+	if !ok {
+		re = regexp.MustCompile(`^[a-f0-9]{` + strconv.Itoa(n) + `}$`)
+		hexLenRE[n] = re
+	}
+	return re.MatchString(strings.TrimSpace(v))
 }
 
 func hasDuplicates(in []string) bool {

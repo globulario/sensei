@@ -115,6 +115,48 @@ func TestClosureRequestRejectsDuplicateAfterNormalization(t *testing.T) {
 	}
 }
 
+func TestNormalizeSinglePathCanonicalizesOnePath(t *testing.T) {
+	if got := normalizeSinglePath("./docs/awareness/../awareness/invariants.yaml"); got != "docs/awareness/invariants.yaml" {
+		t.Fatalf("normalizeSinglePath = %q", got)
+	}
+	if got := normalizeSinglePath("   "); got != "" {
+		t.Fatalf("normalizeSinglePath empty = %q", got)
+	}
+}
+
+func TestSafeRelPathRejectsEscapesAndAbsolutePaths(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{path: "docs/awareness/architecture/decisions.yaml", want: true},
+		{path: "./docs/awareness/architecture/decisions.yaml", want: true},
+		{path: "../docs/awareness/architecture/decisions.yaml", want: false},
+		{path: "/tmp/decisions.yaml", want: false},
+		{path: "", want: false},
+	}
+	for _, tc := range cases {
+		if got := safeRelPath(tc.path); got != tc.want {
+			t.Fatalf("safeRelPath(%q) = %t, want %t", tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestBootstrapDigestHelpersValidateExpectedHexLengths(t *testing.T) {
+	if !isSHA256(strings.Repeat("a", 64)) {
+		t.Fatal("expected lowercase sha256 to validate")
+	}
+	if isSHA256(strings.Repeat("A", 64)) {
+		t.Fatal("uppercase sha256 must not validate")
+	}
+	if !isHexLen(strings.Repeat("b", 40), 40) {
+		t.Fatal("expected 40-char lowercase hex to validate")
+	}
+	if isHexLen(strings.Repeat("b", 39), 40) {
+		t.Fatal("wrong-length hex must not validate")
+	}
+}
+
 func TestDirectionBootstrapRequiresTaskID(t *testing.T) {
 	req := validRequest()
 	req.DirectionBootstrap = &DirectionBootstrapAuthorization{
