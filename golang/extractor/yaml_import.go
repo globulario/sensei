@@ -322,6 +322,8 @@ func importFailureModes(e *rdf.Emitter, path string) error {
 			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
 			// Reverse edge — lets briefing-by-file surface failure modes as Direct anchors.
 			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			// Closure consumes file-scoped failure surface via SourceFile -> vulnerableTo -> FailureMode.
+			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropVulnerableTo), subj)
 		}
 	}
 	return nil
