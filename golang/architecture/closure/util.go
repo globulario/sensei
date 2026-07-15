@@ -3,6 +3,9 @@
 package closure
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,12 +17,35 @@ import (
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
 	"github.com/globulario/sensei/golang/rdf"
+	"gopkg.in/yaml.v3"
 )
 
 var (
 	sha256RE = regexp.MustCompile(`^[a-f0-9]{64}$`)
 	hexLenRE = map[int]*regexp.Regexp{}
 )
+
+type AwarenessMutationEnforcementPlan struct {
+	SourcePath            string   `json:"source_path" yaml:"source_path"`
+	SourceClass           string   `json:"source_class" yaml:"source_class"`
+	ImporterID            string   `json:"importer_id" yaml:"importer_id"`
+	RequiredPreconditions []string `json:"required_preconditions,omitempty" yaml:"required_preconditions,omitempty"`
+	RequiredVerification  []string `json:"required_verification,omitempty" yaml:"required_verification,omitempty"`
+	Limitations           []string `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+}
+
+type AwarenessMutationEnforcementDocument struct {
+	SchemaVersion      string                             `json:"schema_version" yaml:"schema_version"`
+	PolicyID           string                             `json:"policy_id" yaml:"policy_id"`
+	TaskID             string                             `json:"task_id" yaml:"task_id"`
+	RepositoryRevision string                             `json:"repository_revision" yaml:"repository_revision"`
+	GraphDigestSHA256  string                             `json:"graph_digest_sha256" yaml:"graph_digest_sha256"`
+	Plans              []AwarenessMutationEnforcementPlan `json:"plans" yaml:"plans"`
+}
+
+type awarenessMutationEnforcementEnvelope struct {
+	AwarenessMutationEnforcement AwarenessMutationEnforcementDocument `json:"awareness_mutation_enforcement" yaml:"awareness_mutation_enforcement"`
+}
 
 type authorityBindingStatus string
 
@@ -1624,6 +1650,21 @@ func hasNodePlane(nodes []Node, plane string) bool {
 	return false
 }
 
+func awarenessBehavioralPlans(in *AwarenessMutationReceipt) []AwarenessMutationPlanReceipt {
+	if in == nil || in.Status != "consumed" {
+		return nil
+	}
+	return append([]AwarenessMutationPlanReceipt{}, in.Plans...)
+}
+
+func awarenessPlanPaths(in []AwarenessMutationPlanReceipt) []string {
+	var out []string
+	for _, plan := range in {
+		out = append(out, plan.SourcePath)
+	}
+	return cleanPathList(out)
+}
+
 func claimIDs(claims []architecture.Claim) []string {
 	var ids []string
 	for _, c := range claims {
@@ -1650,6 +1691,83 @@ func nodeReceipts(nodes []Node) []NodeReceipt {
 		out = append(out, NodeReceipt{ID: n.ID, IRI: n.IRI, Classes: cleanList(n.Classes)})
 	}
 	return out
+}
+
+func normalizeAwarenessMutationReceipt(in *AwarenessMutationReceipt) *AwarenessMutationReceipt {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	out.Status = strings.TrimSpace(out.Status)
+	out.PolicyID = strings.TrimSpace(out.PolicyID)
+	out.PlanDigestSHA256 = strings.TrimSpace(out.PlanDigestSHA256)
+	out.Limitations = cleanList(out.Limitations)
+	out.Plans = append([]AwarenessMutationPlanReceipt{}, out.Plans...)
+	for i := range out.Plans {
+		out.Plans[i].SourcePath = normalizePath(out.Plans[i].SourcePath)
+		out.Plans[i].SourceClass = strings.TrimSpace(out.Plans[i].SourceClass)
+		out.Plans[i].ImporterID = strings.TrimSpace(out.Plans[i].ImporterID)
+		out.Plans[i].RequiredVerification = cleanList(out.Plans[i].RequiredVerification)
+	}
+	sort.SliceStable(out.Plans, func(i, j int) bool { return out.Plans[i].SourcePath < out.Plans[j].SourcePath })
+	return &out
+}
+
+func NormalizeAwarenessMutationReceiptForExternal(in *AwarenessMutationReceipt) *AwarenessMutationReceipt {
+	return normalizeAwarenessMutationReceipt(in)
+}
+
+func normalizeAwarenessMutationDocument(in AwarenessMutationEnforcementDocument) AwarenessMutationEnforcementDocument {
+	out := in
+	out.SchemaVersion = strings.TrimSpace(out.SchemaVersion)
+	out.PolicyID = strings.TrimSpace(out.PolicyID)
+	out.TaskID = strings.TrimSpace(out.TaskID)
+	out.RepositoryRevision = strings.TrimSpace(out.RepositoryRevision)
+	out.GraphDigestSHA256 = strings.TrimSpace(out.GraphDigestSHA256)
+	out.Plans = append([]AwarenessMutationEnforcementPlan{}, out.Plans...)
+	for i := range out.Plans {
+		out.Plans[i].SourcePath = normalizePath(out.Plans[i].SourcePath)
+		out.Plans[i].SourceClass = strings.TrimSpace(out.Plans[i].SourceClass)
+		out.Plans[i].ImporterID = strings.TrimSpace(out.Plans[i].ImporterID)
+		out.Plans[i].RequiredPreconditions = cleanList(out.Plans[i].RequiredPreconditions)
+		out.Plans[i].RequiredVerification = cleanList(out.Plans[i].RequiredVerification)
+		out.Plans[i].Limitations = cleanList(out.Plans[i].Limitations)
+	}
+	sort.SliceStable(out.Plans, func(i, j int) bool { return out.Plans[i].SourcePath < out.Plans[j].SourcePath })
+	return out
+}
+
+func MarshalCanonicalAwarenessMutationEnforcementYAML(in AwarenessMutationEnforcementDocument) ([]byte, error) {
+	doc := normalizeAwarenessMutationDocument(in)
+	return yaml.Marshal(awarenessMutationEnforcementEnvelope{AwarenessMutationEnforcement: doc})
+}
+
+func LoadAwarenessMutationEnforcement(path string) (AwarenessMutationEnforcementDocument, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return AwarenessMutationEnforcementDocument{}, err
+	}
+	var env awarenessMutationEnforcementEnvelope
+	if err := yaml.Unmarshal(data, &env); err != nil {
+		return AwarenessMutationEnforcementDocument{}, err
+	}
+	if env.AwarenessMutationEnforcement.SchemaVersion == "" {
+		return AwarenessMutationEnforcementDocument{}, errors.New("missing awareness_mutation_enforcement document")
+	}
+	return normalizeAwarenessMutationDocument(env.AwarenessMutationEnforcement), nil
+}
+
+func AwarenessMutationEnforcementDigest(doc AwarenessMutationEnforcementDocument) (string, error) {
+	data, err := MarshalCanonicalAwarenessMutationEnforcementYAML(doc)
+	if err != nil {
+		return "", err
+	}
+	return sha256Hex(data), nil
+}
+
+func sha256Hex(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 func (b *assessmentBuilder) limitations() []architecture.Limitation {

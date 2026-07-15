@@ -96,11 +96,11 @@ func TestAdmissionRequestDescriptiveFieldsDoNotAffectIdentity(t *testing.T) {
 	graph := closure.GraphIndex{}
 	ra, _ := NormalizeRequest(a)
 	rb, _ := NormalizeRequest(b)
-	ad, err := EvaluateLoaded(mustPolicy(t), ra, ba, graph, repo, testRevision)
+	ad, err := EvaluateLoaded(mustPolicy(t), ra, ba, graph, nil, repo, testRevision)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bd, err := EvaluateLoaded(mustPolicy(t), rb, ba, graph, repo, testRevision)
+	bd, err := EvaluateLoaded(mustPolicy(t), rb, ba, graph, nil, repo, testRevision)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,6 +368,66 @@ func TestOutOfEnvelopeFileIsViolation(t *testing.T) {
 	}
 }
 
+func TestVerifyAwarenessMutationProducesVerificationReceipt(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, "docs", "awareness", "architecture"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "docs", "awareness", "architecture", "components.yaml"), []byte("components:\n  - id: component.demo\n    name: Demo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	doc := closure.AwarenessMutationEnforcementDocument{
+		SchemaVersion:      "1",
+		PolicyID:           closure.AwarenessMutationEnforcementPolicyV1,
+		TaskID:             "task.demo",
+		RepositoryRevision: testRevision,
+		GraphDigestSHA256:  testGraph,
+		Plans: []closure.AwarenessMutationEnforcementPlan{{
+			SourcePath:           "docs/awareness/architecture/components.yaml",
+			SourceClass:          "canonical_awareness_component_registry",
+			ImporterID:           "awareness.component_yaml_import.v1",
+			RequiredVerification: []string{"sensei_check", "sensei_validate", "strict_build"},
+		}},
+	}
+	data, err := closure.MarshalCanonicalAwarenessMutationEnforcementYAML(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(repo, ".sensei", "tasks", "task.demo", "source")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(target, "awareness-mutation-enforcement.yaml"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := closure.AwarenessMutationEnforcementDigest(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, violations, reasons := verifyAwarenessMutation(repo, Decision{
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          testRevision,
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: testGraph,
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+		AwarenessMutationBinding: &closure.AwarenessMutationBinding{
+			TaskID:           "task.demo",
+			Path:             ".sensei/tasks/task.demo/source/awareness-mutation-enforcement.yaml",
+			PlanDigestSHA256: digest,
+			PolicyID:         closure.AwarenessMutationEnforcementPolicyV1,
+		},
+		AwarenessMutation: &closure.AwarenessMutationReceipt{Status: "consumed", PolicyID: closure.AwarenessMutationEnforcementPolicyV1, PlanDigestSHA256: digest},
+	})
+	if len(violations) != 0 || len(reasons) != 0 {
+		t.Fatalf("violations=%+v reasons=%+v receipt=%+v", violations, reasons, receipt)
+	}
+	if receipt == nil || receipt.SenseiCheck != "passed" || receipt.SenseiValidate != "passed" || receipt.StrictBuild != "passed" {
+		t.Fatalf("receipt=%+v", receipt)
+	}
+}
+
 func TestBootstrapPatchMismatchIsVerificationViolation(t *testing.T) {
 	b := testBundle(closure.VerdictConditionallyClosed, convergence.StatusConditionallyClosed, []closure.Condition{{
 		ID: "condition.direction.bootstrap", Dimension: closure.DimensionDirection, Code: "closure.direction.desired.bootstrap", Summary: "bootstrap", RequiredNextAction: "acknowledge_bootstrap_direction_authorization",
@@ -549,7 +609,7 @@ func evaluateFixture(t *testing.T, req Request, b Bundle) Decision {
 		t.Fatal(err)
 	}
 	repo := tempRepoFile(t, "a.go")
-	d, err := EvaluateLoaded(mustPolicy(t), req, b, closure.GraphIndex{}, repo, testRevision)
+	d, err := EvaluateLoaded(mustPolicy(t), req, b, closure.GraphIndex{}, nil, repo, testRevision)
 	if err != nil {
 		t.Fatal(err)
 	}

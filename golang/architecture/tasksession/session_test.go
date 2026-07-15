@@ -405,6 +405,55 @@ func TestPrepareChangeRejectsBootstrapDirectionAuthorizationGraphMismatch(t *tes
 	}
 }
 
+func TestPrepareChangeWritesAwarenessMutationEnforcementForCanonicalSource(t *testing.T) {
+	repo, graph := testRepo(t)
+	writeFile(t, repo, "docs/awareness/architecture/components.yaml", "components:\n  - id: component.demo\n    name: Demo\n")
+	graphData := strings.Join([]string{
+		triple("https://globular.io/awareness#sourceFile/gin.go", rdf.PropType, rdf.ClassSourceFile, true),
+		triple("https://globular.io/awareness#sourceFile/gin.go", rdf.PropSourcePath, "gin.go", false),
+		triple("https://globular.io/awareness#sourceFile/gin_test.go", rdf.PropType, rdf.ClassSourceFile, true),
+		triple("https://globular.io/awareness#sourceFile/gin_test.go", rdf.PropSourcePath, "gin_test.go", false),
+		triple("https://globular.io/awareness#sourceFile/docs%2Fawareness%2Farchitecture%2Fcomponents.yaml", rdf.PropType, rdf.ClassSourceFile, true),
+		triple("https://globular.io/awareness#sourceFile/docs%2Fawareness%2Farchitecture%2Fcomponents.yaml", rdf.PropSourcePath, "docs/awareness/architecture/components.yaml", false),
+		"",
+	}, "\n")
+	if err := os.WriteFile(graph, []byte(graphData), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeTestProjectClaims(t, repo, graph)
+	res, err := Prepare(PrepareOptions{
+		RepoRoot:             repo,
+		RepositoryDomain:     "github.com/example/project",
+		Description:          "Update canonical component ownership.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "update_component_owner",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionPreserve,
+		Files:                []FileOperation{{Path: "docs/awareness/architecture/components.yaml", Operation: admission.OperationModify}},
+		GraphNT:              graph,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	taskDir := filepath.Join(repo, filepath.FromSlash(res.TaskDir))
+	if _, err := os.Stat(filepath.Join(taskDir, "source", "awareness-mutation-enforcement.yaml")); err != nil {
+		t.Fatalf("missing awareness mutation plan: %v", err)
+	}
+	requestData, err := os.ReadFile(filepath.Join(taskDir, "closure-request.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env struct {
+		ArchitectureClosureRequest closure.Request `yaml:"architecture_closure_request"`
+	}
+	if err := yaml.Unmarshal(requestData, &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.ArchitectureClosureRequest.AwarenessMutation == nil {
+		t.Fatal("awareness mutation binding missing from closure request")
+	}
+}
+
 func TestLegacyActivePointerProjectsAsStaleInsteadOfFailingToLoad(t *testing.T) {
 	repo, graph := testRepo(t)
 	_, err := Prepare(PrepareOptions{
