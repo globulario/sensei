@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/admission-decision.schema.json",
+  "title": "Architectural Closure v1 Admission Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "decision_id": {"type": "string"},
+    "request_digest_sha256": {"type": "string"},
+    "policy_id": {"type": "string"},
+    "operation_verdicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operation_id": {"type": "string"},
+          "verdict": {"type": "string"},
+          "reason_codes": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["operation_id", "verdict"]
+      }
+    },
+    "capability_id": {"type": "string"},
+    "capability_expiry": {"type": "string"},
+    "risk_budget": {"type": "integer"},
+    "operation_budget": {"type": "integer"},
+    "required_proof_slots": {"type": "array", "items": {"type": "string"}},
+    "required_evidence_profiles": {"type": "array", "items": {"type": "string"}},
+    "required_result_rebuilds": {"type": "array", "items": {"type": "string"}},
+    "completion_policy_id": {"type": "string"}
+  },
+  "required": ["request_digest_sha256", "policy_id", "operation_verdicts", "capability_id", "completion_policy_id"]
+}
+

@@ -1,0 +1,193 @@
+closure_protocol_fixture:
+  name: completed
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+    allowed_waiver_dimensions:
+      - proof
+  expected:
+    terminally_closed: true
+    terminal_status: completed
+  dimensions:
+    - dimension: identity
+      status: pass
+    - dimension: scope
+      status: pass
+    - dimension: direction
+      status: pass
+    - dimension: authority
+      status: pass
+    - dimension: mutation
+      status: pass
+    - dimension: protection
+      status: pass
+    - dimension: epistemic
+      status: pass
+    - dimension: proof
+      status: pass
+    - dimension: freshness
+      status: pass
+    - dimension: completion
+      status: pass
+  records:
+    actor_binding:
+      principal_id: actor.dave
+      actor_kind: human
+      roles: [owner, reviewer]
+      issuer: local-review
+    change_plan:
+      plan_id: plan.completed
+      operations:
+        - operation_id: op.modify.closure
+          kind: modify
+          target_kind: file
+          target: golang/architecture/closure/model.go
+          authority_domain_ids: [authority.closure]
+          selected_mechanism: repository_edit
+          intended_effect: close architectural behavior gap
+          risk_class: architecture_sensitive
+    authority_resolution:
+      operation_id: op.modify.closure
+      status: valid
+      authority_domain_ids: [authority.closure]
+      grant_ids: [grant.closure.owner]
+      legal_mechanisms: [repository_edit]
+      selected_mechanism: repository_edit
+    admission_request:
+      actor_binding:
+        principal_id: actor.dave
+        actor_kind: human
+      base_binding:
+        repository:
+          domain: github.com/globulario/sensei
+          revision: abcdef1234
+          revision_status: resolved
+        graph:
+          digest_sha256: graph123
+          digest_status: resolved
+        task:
+          id: task.completed
+          session_id: session.completed
+        policies:
+          admission: admission.strict.v2
+          certification: certification.architectural_closure.v1
+          completion: completion.architectural_closure.v1
+          revocation: revocation.architectural_closure.v1
+          ledger: ledger.task.v1
+          canonicalization: canonicalization.architectural_closure.v1
+      change_plan:
+        plan_id: plan.completed
+        operations:
+          - operation_id: op.modify.closure
+            kind: modify
+            target_kind: file
+            target: golang/architecture/closure/model.go
+            selected_mechanism: repository_edit
+      authority_resolution_digest_sha256: authority123
+      policy_id: admission.strict.v2
+    admission_decision:
+      request_digest_sha256: request123
+      policy_id: admission.strict.v2
+      operation_verdicts:
+        - operation_id: op.modify.closure
+          verdict: admitted
+      capability_id: cap.1
+      completion_policy_id: completion.architectural_closure.v1
+    capability_consumption:
+      capability_id: cap.1
+      task:
+        id: task.completed
+        session_id: session.completed
+      consumer_actor:
+        principal_id: actor.dave
+        actor_kind: human
+      consumed_operation_ids: [op.modify.closure]
+      consumed_at: "2026-07-15T19:00:00Z"
+      decision_digest_sha256: decision123
+      one_use_status: valid
+    evidence_profile:
+      profile_id: profile.test.closure
+      owner: component.closure
+      legal_observation_path: test_runner.go_test
+      evidence_kind: test
+      freshness: per-result
+      trust: high
+      status: valid
+    evidence_receipt:
+      receipt_id: receipt.test.closure
+      evidence_kind: test
+      profile_id: profile.test.closure
+      result_binding:
+        base_revision: abcdef1234
+        patch_digest_sha256: patch123
+        result_tree_digest_sha256: tree123
+        result_revision: fedcba4321
+        graph_digest_sha256: resultgraph123
+      producer: ci.local
+      observation_path: go_test
+      observed_at: "2026-07-15T19:05:00Z"
+      expires_at: "2026-07-16T19:05:00Z"
+      status: valid
+      trust: high
+      payload_digest_sha256: payload123
+    proof_discharge:
+      obligation_id: proof.closure
+      status: valid
+      slot_results:
+        - slot_id: slot.tests
+          status: pass
+          receipt_ids: [receipt.test.closure]
+      mapped_evidence: [receipt.test.closure]
+    certification_receipt:
+      result_binding:
+        base_revision: abcdef1234
+        patch_digest_sha256: patch123
+        result_tree_digest_sha256: tree123
+        result_revision: fedcba4321
+        graph_digest_sha256: resultgraph123
+      certification_policy: certification.architectural_closure.v1
+      scope_lane: pass
+      authority_lane: pass
+      proof_lane: pass
+      evidence_lane: pass
+      certification_verdict: certified
+    completion_receipt:
+      task:
+        id: task.completed
+        session_id: session.completed
+      terminal_status: completed
+      base_binding:
+        repository:
+          domain: github.com/globulario/sensei
+          revision: abcdef1234
+          revision_status: resolved
+        graph:
+          digest_sha256: graph123
+          digest_status: resolved
+        task:
+          id: task.completed
+          session_id: session.completed
+        policies:
+          admission: admission.strict.v2
+          certification: certification.architectural_closure.v1
+          completion: completion.architectural_closure.v1
+          revocation: revocation.architectural_closure.v1
+          ledger: ledger.task.v1
+          canonicalization: canonicalization.architectural_closure.v1
+      result_binding:
+        base_revision: abcdef1234
+        patch_digest_sha256: patch123
+        result_tree_digest_sha256: tree123
+        result_revision: fedcba4321
+        graph_digest_sha256: resultgraph123
+      closure_assessment_digest_sha256: closure123
+      authority_resolution_digest_sha256: authority123
+      admission_decision_digest_sha256: decision123
+      admission_verification_digest_sha256: verify123
+      certification_digest_sha256: cert123
+      proof_discharge_digests: [proof123]
+      evidence_receipt_digests: [receipt123]
+      artifact_digests: [artifact123]
+      completion_policy: completion.architectural_closure.v1
+      completed_at: "2026-07-15T19:10:00Z"
+      completing_actor: actor.dave
+

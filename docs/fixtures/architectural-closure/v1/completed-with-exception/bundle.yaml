@@ -1,0 +1,28 @@
+closure_protocol_fixture:
+  name: completed-with-exception
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+    allowed_waiver_dimensions: [proof]
+  expected:
+    terminally_closed: true
+    terminal_status: completed_with_exception
+  dimensions:
+    - {dimension: identity, status: pass}
+    - {dimension: scope, status: pass}
+    - {dimension: direction, status: pass}
+    - {dimension: authority, status: pass}
+    - {dimension: mutation, status: pass}
+    - {dimension: protection, status: pass}
+    - {dimension: epistemic, status: pass}
+    - {dimension: proof, status: pass_with_exception, exception_id: waiver.proof.slot-1}
+    - {dimension: freshness, status: pass}
+    - {dimension: completion, status: pass}
+  records:
+    waiver_receipt:
+      waiver_id: waiver.proof.slot-1
+      dimension: proof
+      policy_id: completion.architectural_closure.v1
+      justification: compensating control approved
+      expires_at: "2026-08-01T00:00:00Z"
+      status: valid
+

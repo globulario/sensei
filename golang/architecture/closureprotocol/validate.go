@@ -1,0 +1,293 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package closureprotocol
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+)
+
+func ValidateTaskTransition(from, to TaskPhase) error {
+	if !validTaskPhase(from) || !validTaskPhase(to) {
+		return errors.New("unknown task phase")
+	}
+	for _, allowed := range AllowedTaskTransitions[from] {
+		if allowed == to {
+			return nil
+		}
+	}
+	return fmt.Errorf("illegal task transition %s -> %s", from, to)
+}
+
+func ValidateActorBinding(in ActorBinding) error {
+	var errs []string
+	if strings.TrimSpace(in.PrincipalID) == "" {
+		errs = append(errs, "principal_id is required")
+	}
+	if !validActorKind(in.ActorKind) {
+		errs = append(errs, "actor_kind is invalid")
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func ValidateRepositorySnapshot(in RepositorySnapshot) error {
+	if strings.TrimSpace(in.Domain) == "" {
+		return errors.New("repository domain is required")
+	}
+	if strings.TrimSpace(in.RevisionStatus) == "" {
+		return errors.New("repository revision_status is required")
+	}
+	return nil
+}
+
+func ValidateGraphSnapshot(in GraphSnapshot) error {
+	if strings.TrimSpace(in.DigestStatus) == "" {
+		return errors.New("graph digest_status is required")
+	}
+	return nil
+}
+
+func ValidateBaseBinding(in BaseBinding) error {
+	if err := ValidateRepositorySnapshot(in.Repository); err != nil {
+		return err
+	}
+	if err := ValidateGraphSnapshot(in.Graph); err != nil {
+		return err
+	}
+	if strings.TrimSpace(in.Task.ID) == "" || strings.TrimSpace(in.Task.SessionID) == "" {
+		return errors.New("task binding requires id and session_id")
+	}
+	if strings.TrimSpace(in.Policies.Canonicalization) == "" || strings.TrimSpace(in.Policies.Completion) == "" {
+		return errors.New("policy binding is incomplete")
+	}
+	return nil
+}
+
+func ValidateChangePlan(in ChangePlan) error {
+	if strings.TrimSpace(in.PlanID) == "" {
+		return errors.New("plan_id is required")
+	}
+	if len(in.Operations) == 0 {
+		return errors.New("operations are required")
+	}
+	for _, op := range in.Operations {
+		if strings.TrimSpace(op.OperationID) == "" {
+			return errors.New("operation_id is required")
+		}
+		if !validOperationKind(op.Kind) {
+			return fmt.Errorf("invalid operation kind for %s", op.OperationID)
+		}
+		if !validMechanismKind(op.SelectedMechanism) {
+			return fmt.Errorf("invalid mechanism kind for %s", op.OperationID)
+		}
+		if strings.TrimSpace(op.TargetKind) == "" || strings.TrimSpace(op.Target) == "" {
+			return fmt.Errorf("operation %s target is incomplete", op.OperationID)
+		}
+	}
+	return nil
+}
+
+func ValidateAuthorityResolution(in AuthorityResolution) error {
+	if strings.TrimSpace(in.OperationID) == "" {
+		return errors.New("operation_id is required")
+	}
+	if !validReceiptStatus(in.Status) {
+		return errors.New("status is invalid")
+	}
+	if !validMechanismKind(in.SelectedMechanism) {
+		return errors.New("selected_mechanism is invalid")
+	}
+	return nil
+}
+
+func ValidateAdmissionRequest(in AdmissionRequest) error {
+	if err := ValidateActorBinding(in.ActorBinding); err != nil {
+		return err
+	}
+	if err := ValidateBaseBinding(in.BaseBinding); err != nil {
+		return err
+	}
+	if err := ValidateChangePlan(in.ChangePlan); err != nil {
+		return err
+	}
+	if strings.TrimSpace(in.AuthorityResolutionDigestSHA256) == "" {
+		return errors.New("authority_resolution_digest_sha256 is required")
+	}
+	if strings.TrimSpace(in.PolicyID) == "" {
+		return errors.New("policy_id is required")
+	}
+	return nil
+}
+
+func ValidateAdmissionDecision(in AdmissionDecision) error {
+	if strings.TrimSpace(in.RequestDigestSHA256) == "" {
+		return errors.New("request_digest_sha256 is required")
+	}
+	if strings.TrimSpace(in.PolicyID) == "" {
+		return errors.New("policy_id is required")
+	}
+	if len(in.OperationVerdicts) == 0 {
+		return errors.New("operation_verdicts are required")
+	}
+	if strings.TrimSpace(in.CapabilityID) == "" || strings.TrimSpace(in.CompletionPolicyID) == "" {
+		return errors.New("capability_id and completion_policy_id are required")
+	}
+	return nil
+}
+
+func ValidateCapabilityConsumption(in CapabilityConsumption) error {
+	if strings.TrimSpace(in.CapabilityID) == "" {
+		return errors.New("capability_id is required")
+	}
+	if err := ValidateActorBinding(in.ConsumerActor); err != nil {
+		return err
+	}
+	if !validReceiptStatus(in.OneUseStatus) {
+		return errors.New("one_use_status is invalid")
+	}
+	if _, err := time.Parse(time.RFC3339, in.ConsumedAt); err != nil {
+		return errors.New("consumed_at must be RFC3339")
+	}
+	return nil
+}
+
+func ValidateEvidenceProfile(in EvidenceProfile) error {
+	if strings.TrimSpace(in.ProfileID) == "" || strings.TrimSpace(in.Owner) == "" || strings.TrimSpace(in.LegalObservationPath) == "" {
+		return errors.New("profile_id, owner, and legal_observation_path are required")
+	}
+	if !validEvidenceKind(in.EvidenceKind) || !validReceiptStatus(in.Status) {
+		return errors.New("evidence profile kind or status is invalid")
+	}
+	return nil
+}
+
+func ValidateEvidenceReceipt(in EvidenceReceipt) error {
+	if strings.TrimSpace(in.ReceiptID) == "" || strings.TrimSpace(in.ProfileID) == "" {
+		return errors.New("receipt_id and profile_id are required")
+	}
+	if !validEvidenceKind(in.EvidenceKind) || !validReceiptStatus(in.Status) {
+		return errors.New("evidence receipt kind or status is invalid")
+	}
+	if _, err := time.Parse(time.RFC3339, in.ObservedAt); err != nil {
+		return errors.New("observed_at must be RFC3339")
+	}
+	if in.ExpiresAt != "" {
+		if _, err := time.Parse(time.RFC3339, in.ExpiresAt); err != nil {
+			return errors.New("expires_at must be RFC3339")
+		}
+	}
+	if strings.TrimSpace(in.PayloadDigestSHA256) == "" {
+		return errors.New("payload_digest_sha256 is required")
+	}
+	return nil
+}
+
+func ValidateProofDischarge(in ProofDischarge) error {
+	if strings.TrimSpace(in.ObligationID) == "" {
+		return errors.New("obligation_id is required")
+	}
+	if !validReceiptStatus(in.Status) {
+		return errors.New("status is invalid")
+	}
+	if len(in.SlotResults) == 0 {
+		return errors.New("slot_results are required")
+	}
+	for _, slot := range in.SlotResults {
+		if slot.SlotID == "" || !validDimensionStatus(slot.Status) {
+			return errors.New("slot result is invalid")
+		}
+	}
+	return nil
+}
+
+func ValidateCertificationReceipt(in CertificationReceipt) error {
+	if strings.TrimSpace(in.CertificationPolicy) == "" {
+		return errors.New("certification_policy is required")
+	}
+	if !validDimensionStatus(in.ScopeLane) || !validDimensionStatus(in.AuthorityLane) ||
+		!validDimensionStatus(in.ProofLane) || !validDimensionStatus(in.EvidenceLane) {
+		return errors.New("lane status is invalid")
+	}
+	if !validCertificationVerdict(in.CertificationVerdict) {
+		return errors.New("certification verdict is invalid")
+	}
+	return nil
+}
+
+func ValidateWaiverReceipt(in WaiverReceipt) error {
+	if strings.TrimSpace(in.WaiverID) == "" || strings.TrimSpace(in.PolicyID) == "" || strings.TrimSpace(in.Justification) == "" {
+		return errors.New("waiver_id, policy_id, and justification are required")
+	}
+	if !validDimension(in.Dimension) || !validReceiptStatus(in.Status) {
+		return errors.New("waiver dimension or status is invalid")
+	}
+	if _, err := time.Parse(time.RFC3339, in.ExpiresAt); err != nil {
+		return errors.New("waiver expires_at must be RFC3339")
+	}
+	return nil
+}
+
+func ValidateCompletionReceipt(in CompletionReceipt) error {
+	if !validTerminalStatus(in.TerminalStatus) {
+		return errors.New("terminal_status is invalid")
+	}
+	if err := ValidateBaseBinding(in.BaseBinding); err != nil {
+		return err
+	}
+	if strings.TrimSpace(in.ResultBinding.BaseRevision) == "" || strings.TrimSpace(in.ResultBinding.GraphDigestSHA256) == "" {
+		return errors.New("result binding is incomplete")
+	}
+	if strings.TrimSpace(in.CompletionPolicy) == "" || strings.TrimSpace(in.CompletingActor) == "" {
+		return errors.New("completion policy and completing actor are required")
+	}
+	if _, err := time.Parse(time.RFC3339, in.CompletedAt); err != nil {
+		return errors.New("completed_at must be RFC3339")
+	}
+	return nil
+}
+
+func ValidateRevocationReceipt(in RevocationReceipt) error {
+	if in.RevocationID == "" || in.RevokedTargetID == "" || in.PriorDigestSHA256 == "" || in.PolicyID == "" || in.ActorID == "" {
+		return errors.New("revocation receipt is incomplete")
+	}
+	if _, err := time.Parse(time.RFC3339, in.RevokedAt); err != nil {
+		return errors.New("revoked_at must be RFC3339")
+	}
+	return nil
+}
+
+func ValidateMigrationExecutionReceipt(in MigrationExecutionReceipt) error {
+	if in.MigrationPlanID == "" || in.StepID == "" || in.SourceState == "" || in.TargetState == "" {
+		return errors.New("migration execution receipt is incomplete")
+	}
+	if !validMechanismKind(in.Mechanism) || !validReceiptStatus(in.Status) {
+		return errors.New("migration execution mechanism or status is invalid")
+	}
+	return nil
+}
+
+func validActorKind(v ActorKind) bool               { return contains(ActorKinds, v) }
+func validOperationKind(v OperationKind) bool       { return contains(OperationKinds, v) }
+func validMechanismKind(v MechanismKind) bool       { return contains(MechanismKinds, v) }
+func validEvidenceKind(v EvidenceKind) bool         { return contains(EvidenceKinds, v) }
+func validReceiptStatus(v ReceiptStatus) bool       { return contains(ReceiptStatuses, v) }
+func validCertificationVerdict(v CertificationVerdict) bool { return contains(CertificationVerdicts, v) }
+func validDimension(v Dimension) bool               { return contains(Dimensions, v) }
+func validDimensionStatus(v DimensionStatus) bool   { return contains(DimensionStatuses, v) }
+func validTaskPhase(v TaskPhase) bool               { return contains(TaskPhases, v) }
+func validTerminalStatus(v TaskTerminalStatus) bool { return contains(TerminalStatuses, v) }
+
+func contains[T comparable](vals []T, v T) bool {
+	for _, item := range vals {
+		if item == v {
+			return true
+		}
+	}
+	return false
+}
+
