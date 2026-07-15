@@ -42,12 +42,18 @@ func ValidateRepositorySnapshot(in RepositorySnapshot) error {
 	if strings.TrimSpace(in.RevisionStatus) == "" {
 		return errors.New("repository revision_status is required")
 	}
+	if strings.TrimSpace(in.RevisionStatus) == "resolved" && strings.TrimSpace(in.Revision) == "" {
+		return errors.New("repository revision is required when revision_status is resolved")
+	}
 	return nil
 }
 
 func ValidateGraphSnapshot(in GraphSnapshot) error {
 	if strings.TrimSpace(in.DigestStatus) == "" {
 		return errors.New("graph digest_status is required")
+	}
+	if strings.TrimSpace(in.DigestStatus) == "resolved" && strings.TrimSpace(in.DigestSHA256) == "" {
+		return errors.New("graph digest is required when digest_status is resolved")
 	}
 	return nil
 }
@@ -147,8 +153,8 @@ func ValidateCapabilityConsumption(in CapabilityConsumption) error {
 	if err := ValidateActorBinding(in.ConsumerActor); err != nil {
 		return err
 	}
-	if !validReceiptStatus(in.OneUseStatus) {
-		return errors.New("one_use_status is invalid")
+	if in.OneUseStatus != ReceiptValid {
+		return errors.New("one_use_status must be valid for first use")
 	}
 	if _, err := time.Parse(time.RFC3339, in.ConsumedAt); err != nil {
 		return errors.New("consumed_at must be RFC3339")
@@ -201,6 +207,9 @@ func ValidateProofDischarge(in ProofDischarge) error {
 		if slot.SlotID == "" || !validDimensionStatus(slot.Status) {
 			return errors.New("slot result is invalid")
 		}
+		if (slot.Status == DimensionPass || slot.Status == DimensionPassWithException) && len(slot.ReceiptIDs) == 0 {
+			return errors.New("pass proof slot must map at least one receipt")
+		}
 	}
 	return nil
 }
@@ -242,6 +251,12 @@ func ValidateCompletionReceipt(in CompletionReceipt) error {
 	if strings.TrimSpace(in.ResultBinding.BaseRevision) == "" || strings.TrimSpace(in.ResultBinding.GraphDigestSHA256) == "" {
 		return errors.New("result binding is incomplete")
 	}
+	if in.BaseBinding.Repository.Revision != "" && in.ResultBinding.BaseRevision != "" && in.BaseBinding.Repository.Revision != in.ResultBinding.BaseRevision {
+		return errors.New("result base revision must match base binding revision")
+	}
+	if strings.TrimSpace(in.CertificationDigestSHA256) == "" {
+		return errors.New("certification_digest_sha256 is required")
+	}
 	if strings.TrimSpace(in.CompletionPolicy) == "" || strings.TrimSpace(in.CompletingActor) == "" {
 		return errors.New("completion policy and completing actor are required")
 	}
@@ -271,6 +286,39 @@ func ValidateMigrationExecutionReceipt(in MigrationExecutionReceipt) error {
 	return nil
 }
 
+func ValidateEvidenceReceiptAgainstProfile(profile EvidenceProfile, receipt EvidenceReceipt) error {
+	if profile.ProfileID != receipt.ProfileID {
+		return errors.New("evidence receipt profile_id does not match profile")
+	}
+	if profile.RuntimeTargetKind != "" && receipt.RuntimeTarget == nil {
+		return errors.New("evidence receipt missing required runtime target")
+	}
+	return nil
+}
+
+func ValidateCompletionWaivers(receipt CompletionReceipt, waivers []WaiverReceipt) error {
+	if len(waivers) == 0 {
+		return nil
+	}
+	completedAt, err := time.Parse(time.RFC3339, receipt.CompletedAt)
+	if err != nil {
+		return err
+	}
+	for _, waiver := range waivers {
+		if waiver.Status != ReceiptValid {
+			return errors.New("waiver must be valid")
+		}
+		expiresAt, err := time.Parse(time.RFC3339, waiver.ExpiresAt)
+		if err != nil {
+			return err
+		}
+		if !expiresAt.After(completedAt) {
+			return errors.New("waiver expired before completion")
+		}
+	}
+	return nil
+}
+
 func validActorKind(v ActorKind) bool               { return contains(ActorKinds, v) }
 func validOperationKind(v OperationKind) bool       { return contains(OperationKinds, v) }
 func validMechanismKind(v MechanismKind) bool       { return contains(MechanismKinds, v) }
@@ -290,4 +338,3 @@ func contains[T comparable](vals []T, v T) bool {
 	}
 	return false
 }
-

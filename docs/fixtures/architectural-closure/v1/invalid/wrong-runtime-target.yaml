@@ -1,0 +1,29 @@
+closure_protocol_fixture:
+  name: wrong-runtime-target
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: evidence receipt missing required runtime target
+  records:
+    evidence_profile:
+      profile_id: profile.runtime
+      owner: component.cluster
+      legal_observation_path: owner_rpc
+      evidence_kind: runtime
+      runtime_target_kind: cluster
+      status: valid
+    evidence_receipt:
+      receipt_id: receipt.runtime
+      evidence_kind: runtime
+      profile_id: profile.runtime
+      result_binding:
+        base_revision: base123
+        patch_digest_sha256: patch123
+        result_tree_digest_sha256: tree123
+        graph_digest_sha256: graph123
+      producer: runtime.adapter
+      observation_path: owner_rpc
+      observed_at: "2026-07-15T20:00:00Z"
+      status: valid
+      payload_digest_sha256: payload123
+

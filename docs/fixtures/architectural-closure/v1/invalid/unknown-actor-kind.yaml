@@ -1,5 +1,5 @@
 closure_protocol_fixture:
-  name: invalid
+  name: unknown-actor-kind
   completion_policy:
     policy_id: completion.architectural_closure.v1
   expected:

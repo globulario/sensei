@@ -71,13 +71,19 @@ func TestFixtures(t *testing.T) {
 			}
 		})
 	}
-	t.Run("invalid", func(t *testing.T) {
-		fix := loadFixture(t, filepath.Join(root, "invalid", "bundle.yaml"))
-		err := ValidateActorBinding(*fix.Records.ActorBinding)
-		if err == nil || !strings.Contains(err.Error(), fix.Expected.ValidationErrorContains) {
-			t.Fatalf("expected error containing %q, got %v", fix.Expected.ValidationErrorContains, err)
-		}
-	})
+	invalids, err := filepath.Glob(filepath.Join(root, "invalid", "*.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range invalids {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			fix := loadFixture(t, path)
+			err := validateFixtureError(fix)
+			if err == nil || !strings.Contains(err.Error(), fix.Expected.ValidationErrorContains) {
+				t.Fatalf("expected error containing %q, got %v", fix.Expected.ValidationErrorContains, err)
+			}
+		})
+	}
 }
 
 func loadFixture(t *testing.T, path string) fixtureBundle {
@@ -134,6 +140,11 @@ func validateFixtureRecords(t *testing.T, fix fixtureBundle) {
 		if err := ValidateEvidenceReceipt(*fix.Records.EvidenceReceipt); err != nil {
 			t.Fatal(err)
 		}
+		if fix.Records.EvidenceProfile != nil {
+			if err := ValidateEvidenceReceiptAgainstProfile(*fix.Records.EvidenceProfile, *fix.Records.EvidenceReceipt); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	if fix.Records.ProofDischarge != nil {
 		if err := ValidateProofDischarge(*fix.Records.ProofDischarge); err != nil {
@@ -148,6 +159,11 @@ func validateFixtureRecords(t *testing.T, fix fixtureBundle) {
 	if fix.Records.CompletionReceipt != nil {
 		if err := ValidateCompletionReceipt(*fix.Records.CompletionReceipt); err != nil {
 			t.Fatal(err)
+		}
+		if fix.Records.WaiverReceipt != nil {
+			if err := ValidateCompletionWaivers(*fix.Records.CompletionReceipt, []WaiverReceipt{*fix.Records.WaiverReceipt}); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	if fix.Records.WaiverReceipt != nil {
@@ -165,4 +181,66 @@ func validateFixtureRecords(t *testing.T, fix fixtureBundle) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func validateFixtureError(fix fixtureBundle) error {
+	if fix.Records.ActorBinding != nil {
+		if err := ValidateActorBinding(*fix.Records.ActorBinding); err != nil {
+			return err
+		}
+	}
+	if fix.Records.ChangePlan != nil {
+		if err := ValidateChangePlan(*fix.Records.ChangePlan); err != nil {
+			return err
+		}
+	}
+	if fix.Records.AdmissionRequest != nil {
+		if err := ValidateAdmissionRequest(*fix.Records.AdmissionRequest); err != nil {
+			return err
+		}
+	}
+	if fix.Records.CapabilityConsumption != nil {
+		if err := ValidateCapabilityConsumption(*fix.Records.CapabilityConsumption); err != nil {
+			return err
+		}
+	}
+	if fix.Records.EvidenceProfile != nil {
+		if err := ValidateEvidenceProfile(*fix.Records.EvidenceProfile); err != nil {
+			return err
+		}
+	}
+	if fix.Records.EvidenceReceipt != nil {
+		if err := ValidateEvidenceReceipt(*fix.Records.EvidenceReceipt); err != nil {
+			return err
+		}
+		if fix.Records.EvidenceProfile != nil {
+			if err := ValidateEvidenceReceiptAgainstProfile(*fix.Records.EvidenceProfile, *fix.Records.EvidenceReceipt); err != nil {
+				return err
+			}
+		}
+	}
+	if fix.Records.ProofDischarge != nil {
+		if err := ValidateProofDischarge(*fix.Records.ProofDischarge); err != nil {
+			return err
+		}
+	}
+	if fix.Records.CompletionReceipt != nil {
+		if err := ValidateCompletionReceipt(*fix.Records.CompletionReceipt); err != nil {
+			return err
+		}
+		if fix.Records.WaiverReceipt != nil {
+			if err := ValidateWaiverReceipt(*fix.Records.WaiverReceipt); err != nil {
+				return err
+			}
+			if err := ValidateCompletionWaivers(*fix.Records.CompletionReceipt, []WaiverReceipt{*fix.Records.WaiverReceipt}); err != nil {
+				return err
+			}
+		}
+	}
+	if fix.Records.RevocationReceipt != nil {
+		if err := ValidateRevocationReceipt(*fix.Records.RevocationReceipt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
