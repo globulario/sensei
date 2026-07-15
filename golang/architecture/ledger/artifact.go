@@ -105,3 +105,26 @@ func storePayloadArtifacts(taskDir string, payload renderedPayload) error {
 	}
 	return writeFileAtomic(target, payload.data)
 }
+
+func (s *Store) StoreArtifactBytes(data []byte, mediaType string) (closureprotocol.LedgerPayloadRef, error) {
+	rendered, err := renderPayload(data, mediaType)
+	if err != nil {
+		return closureprotocol.LedgerPayloadRef{}, err
+	}
+	if err := storePayloadArtifacts(s.taskDir, rendered); err != nil {
+		return closureprotocol.LedgerPayloadRef{}, err
+	}
+	return closureprotocol.LedgerPayloadRef{
+		Path:         rendered.path,
+		MediaType:    rendered.mediaType,
+		DigestSHA256: rendered.semanticDigest,
+	}, nil
+}
+
+func (s *Store) StoreArtifactFile(path, mediaType string) (closureprotocol.LedgerPayloadRef, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return closureprotocol.LedgerPayloadRef{}, err
+	}
+	return s.StoreArtifactBytes(data, mediaType)
+}

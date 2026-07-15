@@ -3,6 +3,7 @@
 package tasksession
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -17,8 +18,11 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/admission"
+	bindingpkg "github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/convergence"
+	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/probe"
 	"github.com/globulario/sensei/golang/architecture/probeexec"
@@ -239,7 +243,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	convDuration := now().Sub(convStarted)
 	if conv.Disposition == convergence.DispositionReplay {
 		if existing, loadErr := LoadTaskControl(filepath.Join(taskDir, "control", "latest.yaml")); loadErr == nil {
-			if err := updateActiveControlPointer(repoRoot, ptr, existing.ReceiptDigestSHA256); err != nil {
+			if err := updateActiveControlPointer(repoRoot, ptr, existing.ReceiptDigestSHA256, nil); err != nil {
 				return AdvanceTaskResult{}, err
 			}
 			return AdvanceTaskResult{Disposition: AdvanceReplay, TaskDir: taskDir, Generation: previousDigest, Control: existing, Probe: batch.Metrics, Convergence: conv.Report}, nil
@@ -366,7 +370,29 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	if err := writeFileAtomic(filepath.Join(controlRoot, "latest-generation.yaml"), pointerBytes); err != nil {
 		return AdvanceTaskResult{}, err
 	}
-	if err := updateActiveControlPointer(repoRoot, ptr, controlState.ReceiptDigestSHA256); err != nil {
+	status := StatusResult{
+		TaskID:      baseSession.TaskID,
+		Phase:       baseSession.WorkflowPhase,
+		Status:      baseSession.OperationalStatus,
+		Closure:     baseSession.ClosureVerdict,
+		Convergence: baseSession.ConvergenceStatus,
+		Admission:   baseSession.AdmissionDecision,
+		WaitingOn:   baseSession.WaitingOn,
+		Next:        firstNext(baseSession),
+		Session:     baseSession,
+	}
+	statusBytes, err := yaml.Marshal(map[string]StatusResult{"architecture_task_status": status})
+	if err != nil {
+		return AdvanceTaskResult{}, err
+	}
+	if err := writeFileAtomic(filepath.Join(taskDir, "receipts", "task-status.yaml"), statusBytes); err != nil {
+		return AdvanceTaskResult{}, err
+	}
+	ledgerHead, err := appendLedgerControlState(repoRoot, taskDir, baseSession, controlBytes, statusBytes)
+	if err != nil {
+		return AdvanceTaskResult{}, err
+	}
+	if err := updateActiveControlPointer(repoRoot, ptr, controlState.ReceiptDigestSHA256, &ledgerHead); err != nil {
 		return AdvanceTaskResult{}, err
 	}
 	return AdvanceTaskResult{Disposition: AdvanceCompleted, TaskDir: taskDir, Generation: generationDigest, Control: controlState, Probe: batch.Metrics, Convergence: conv.Report}, nil
@@ -571,12 +597,102 @@ func singleNonCompletedTask(repoRoot string) (string, error) {
 	return "", errors.New("multiple non-completed tasks; specify --task")
 }
 
-func updateActiveControlPointer(repoRoot string, ptr *ActivePointer, controlDigest string) error {
+func updateActiveControlPointer(repoRoot string, ptr *ActivePointer, controlDigest string, head *ledger.Head) error {
 	if ptr == nil {
 		return nil
 	}
 	ptr.LastTaskControlDigestSHA256 = strings.TrimSpace(controlDigest)
+	if head != nil {
+		ptr.LedgerHeadDigestSHA256 = head.EntryDigestSHA256
+		ptr.LedgerSequence = head.Sequence
+	}
 	return WriteActivePointer(repoRoot, *ptr)
+}
+
+func appendLedgerControlState(repoRoot, taskDir string, session Session, controlBytes, statusBytes []byte) (ledger.Head, error) {
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(func(eventType closureprotocol.LedgerEventType, mediaType string, data []byte) error {
+		return ledger.ValidateTaskEventPayload(eventType, data)
+	}))
+	report, err := store.Verify()
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	if !report.Valid {
+		return ledger.Head{}, errors.New("task ledger invalid")
+	}
+	base, err := bindingpkg.ResolveBase(bindingpkg.ResolveBaseOptions{
+		RepoRoot:         repoRoot,
+		RepositoryDomain: session.Binding.RepositoryDomain,
+		GraphPath:        filepath.Join(taskDir, "source", "graph.nt"),
+		TaskID:           session.TaskID,
+		SessionID:        stableTaskSessionID(session.TaskID),
+		Policies:         closurePolicyBinding(),
+	})
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	sessionBytes, err := os.ReadFile(filepath.Join(taskDir, "session.yaml"))
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	sessionRef, err := store.StoreArtifactBytes(sessionBytes, "application/yaml")
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	controlRef, err := store.StoreArtifactBytes(controlBytes, "application/yaml")
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	statusRef, err := store.StoreArtifactBytes(statusBytes, "application/yaml")
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	appendPayload := func(expected string, eventType closureprotocol.LedgerEventType) (ledger.AppendResult, error) {
+		return store.Append(context.Background(), ledger.AppendRequest{
+			TaskID: session.TaskID, SessionID: stableTaskSessionID(session.TaskID), ExpectedHeadDigestSHA256: expected,
+			EventType: eventType,
+			Payload: ledger.TaskEventPayload{
+				SchemaVersion: ledger.EventPayloadSchemaVersion,
+				EventType:     eventType,
+				TaskID:        session.TaskID,
+				SessionID:     stableTaskSessionID(session.TaskID),
+				Status:        session.OperationalStatus,
+				BaseBinding:   &base,
+				Artifacts: map[string]closureprotocol.LedgerPayloadRef{
+					"session":      sessionRef,
+					"task_control": controlRef,
+					"status":       statusRef,
+				},
+				Limitations: []string{
+					"legacy_scope_admission",
+					"typed_actor_authority_not_yet_resolved",
+					"single_use_capability_not_available",
+					"correctness_not_certified",
+				},
+			},
+			PayloadMediaType: "application/yaml",
+			ProducerID:       AdvanceGeneratedBy,
+			ProducedAt:       time.Unix(0, 0).UTC(),
+		})
+	}
+	first, err := appendPayload(report.HeadDigestSHA256, closureprotocol.LedgerEventConvergenceAdvanced)
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	second, err := appendPayload(first.Head.EntryDigestSHA256, closureprotocol.LedgerEventClosureAssessed)
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	final, err := appendPayload(second.Head.EntryDigestSHA256, closureprotocol.LedgerEventTaskControlProjected)
+	if err != nil {
+		return ledger.Head{}, err
+	}
+	if _, err := ledger.RebuildProjections(taskDir, func(eventType closureprotocol.LedgerEventType, mediaType string, data []byte) error {
+		return ledger.ValidateTaskEventPayload(eventType, data)
+	}); err != nil {
+		return ledger.Head{}, err
+	}
+	return final.Head, nil
 }
 
 func currentControlPaths(taskDir string) (controlPaths, string, error) {
