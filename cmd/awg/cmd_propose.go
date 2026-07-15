@@ -7,7 +7,7 @@
 //
 // sensei propose is the typed write path for the awareness graph. It turns a
 // structured feedback payload (a failure_mode, invariant, required_test,
-// forbidden_fix, or a contract_unknown queue entry) into an appended YAML
+// forbidden_fix, decision, or a contract_unknown queue entry) into an appended YAML
 // source entry, rebuilds the seed, reloads the local Oxigraph store, and
 // stages the touched files — but it NEVER commits. The durable authority stays
 // the YAML sources + generated artifacts + a human-reviewed git commit.
@@ -81,6 +81,7 @@ var proposeKindToFile = map[string]proposeKind{
 	"invariant":     {"invariants.yaml", "invariants"},
 	"required_test": {"required_tests.yaml", "required_tests"},
 	"forbidden_fix": {"forbidden_fixes.yaml", "forbidden_fixes"},
+	"decision":      {filepath.Join("architecture", "decisions.yaml"), "decisions"},
 }
 
 func runPropose(args []string) int {
@@ -88,11 +89,15 @@ func runPropose(args []string) int {
 	fs.SetOutput(os.Stderr)
 
 	jsonPath := fs.String("json", "", "read the ProposeRequest from this JSON file (use '-' for stdin)")
-	kind := fs.String("kind", "", "entry kind: failure_mode | invariant | required_test | forbidden_fix | contract_unknown")
+	kind := fs.String("kind", "", "entry kind: failure_mode | invariant | required_test | forbidden_fix | decision | contract_unknown")
 	id := fs.String("id", "", "stable id (derived from kind+title when omitted; required for required_test)")
 	title := fs.String("title", "", "short title")
 	description := fs.String("description", "", "what happened / what the entry documents")
 	severity := fs.String("severity", "", "critical | high | warning (where applicable)")
+	status := fs.String("status", "", "record status override (used by decision proposals; default: accepted)")
+	context := fs.String("context", "", "decision: context for the architectural record")
+	consequences := fs.String("consequences", "", "decision: consequences of the architectural record")
+	architecturalPlane := fs.String("architectural-plane", "", "governed architectural plane for decision proposals: desired | intended | historical")
 	repo := fs.String("repo", "", "repo the feedback belongs to")
 	domain := fs.String("domain", "", "domain scope, e.g. github.com/globulario/sensei")
 	contract := fs.String("contract", "", "the contract that was violated or clarified")
@@ -101,12 +106,17 @@ func runPropose(args []string) int {
 
 	var sourceFiles, relatedInvariants, relatedFailures multiString
 	var requiredTests, forbiddenFixes, evidence multiString
+	var definesBoundaries, definesContracts, affectsComponents, supportedEvidence multiString
 	fs.Var(&sourceFiles, "source-file", "source file the entry anchors to (repeatable)")
 	fs.Var(&relatedInvariants, "related-invariant", "related invariant id (repeatable)")
 	fs.Var(&relatedFailures, "related-failure", "related failure_mode id (repeatable)")
 	fs.Var(&requiredTests, "required-test", "required test ref, file.go:TestName (repeatable)")
 	fs.Var(&forbiddenFixes, "forbidden-fix", "forbidden fix id or note (repeatable)")
 	fs.Var(&evidence, "evidence", "evidence line (repeatable)")
+	fs.Var(&definesBoundaries, "defines-boundary", "decision: boundary id defined by the decision (repeatable)")
+	fs.Var(&definesContracts, "defines-contract", "decision: contract id defined by the decision (repeatable)")
+	fs.Var(&affectsComponents, "affects-component", "decision: component id affected by the decision (repeatable)")
+	fs.Var(&supportedEvidence, "supported-evidence", "decision: evidence id supporting the decision (repeatable)")
 
 	dryRun := fs.Bool("dry-run", false, "validate and render only; do not modify files")
 	noRebuild := fs.Bool("no-rebuild", false, "append YAML but skip rebuild/reload")
@@ -129,6 +139,7 @@ Kinds:
   invariant         a rule that must hold (anchors source files; names tests)
   required_test     a test that proves behavior (protects invariants/failures)
   forbidden_fix     a repair that must never be applied again
+  decision          an architectural decision record on the canonical decisions surface
   contract_unknown  queued feedback whose contract is not yet known
                     (requires --proposed-contract or --revision-request)
 
@@ -158,22 +169,30 @@ Flags:
 		}
 	}
 	applyProposeFlags(&req, fs, map[string]func(){
-		"kind":              func() { req.Kind = *kind },
-		"id":                func() { req.ID = *id },
-		"title":             func() { req.Title = *title },
-		"description":       func() { req.Description = *description },
-		"severity":          func() { req.Severity = *severity },
-		"repo":              func() { req.Repo = *repo },
-		"domain":            func() { req.Domain = *domain },
-		"contract":          func() { req.Contract = *contract },
-		"proposed-contract": func() { req.ProposedContract = *proposedContract },
-		"revision-request":  func() { req.RevisionRequest = *revisionRequest },
-		"source-file":       func() { req.SourceFiles = append(req.SourceFiles, sourceFiles...) },
-		"related-invariant": func() { req.RelatedInvariants = append(req.RelatedInvariants, relatedInvariants...) },
-		"related-failure":   func() { req.RelatedFailures = append(req.RelatedFailures, relatedFailures...) },
-		"required-test":     func() { req.RequiredTests = append(req.RequiredTests, requiredTests...) },
-		"forbidden-fix":     func() { req.ForbiddenFixes = append(req.ForbiddenFixes, forbiddenFixes...) },
-		"evidence":          func() { req.Evidence = append(req.Evidence, evidence...) },
+		"kind":                func() { req.Kind = *kind },
+		"id":                  func() { req.ID = *id },
+		"title":               func() { req.Title = *title },
+		"description":         func() { req.Description = *description },
+		"severity":            func() { req.Severity = *severity },
+		"status":              func() { req.Status = *status },
+		"context":             func() { req.Context = *context },
+		"consequences":        func() { req.Consequences = *consequences },
+		"architectural-plane": func() { req.ArchitecturalPlane = *architecturalPlane },
+		"repo":                func() { req.Repo = *repo },
+		"domain":              func() { req.Domain = *domain },
+		"contract":            func() { req.Contract = *contract },
+		"proposed-contract":   func() { req.ProposedContract = *proposedContract },
+		"revision-request":    func() { req.RevisionRequest = *revisionRequest },
+		"source-file":         func() { req.SourceFiles = append(req.SourceFiles, sourceFiles...) },
+		"related-invariant":   func() { req.RelatedInvariants = append(req.RelatedInvariants, relatedInvariants...) },
+		"related-failure":     func() { req.RelatedFailures = append(req.RelatedFailures, relatedFailures...) },
+		"required-test":       func() { req.RequiredTests = append(req.RequiredTests, requiredTests...) },
+		"forbidden-fix":       func() { req.ForbiddenFixes = append(req.ForbiddenFixes, forbiddenFixes...) },
+		"evidence":            func() { req.Evidence = append(req.Evidence, evidence...) },
+		"defines-boundary":    func() { req.DefinesBoundaries = append(req.DefinesBoundaries, definesBoundaries...) },
+		"defines-contract":    func() { req.DefinesContracts = append(req.DefinesContracts, definesContracts...) },
+		"affects-component":   func() { req.AffectsComponents = append(req.AffectsComponents, affectsComponents...) },
+		"supported-evidence":  func() { req.SupportedEvidence = append(req.SupportedEvidence, supportedEvidence...) },
 	})
 
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
@@ -497,6 +516,24 @@ type proposeContractUnknown struct {
 	Domain           string   `yaml:"domain,omitempty"`
 }
 
+type proposeDecision struct {
+	ID                 string   `yaml:"id"`
+	Title              string   `yaml:"title"`
+	Status             string   `yaml:"status"`
+	ArchitecturalPlane string   `yaml:"architectural_plane,omitempty"`
+	Rationale          string   `yaml:"rationale,omitempty"`
+	Context            string   `yaml:"context,omitempty"`
+	Consequences       string   `yaml:"consequences,omitempty"`
+	RelatedInvariants  []string `yaml:"related_invariants,omitempty"`
+	DefinesBoundaries  []string `yaml:"defines_boundaries,omitempty"`
+	DefinesContracts   []string `yaml:"defines_contracts,omitempty"`
+	AffectsComponents  []string `yaml:"affects_components,omitempty"`
+	Mitigates          []string `yaml:"mitigates,omitempty"`
+	Rejects            []string `yaml:"rejects,omitempty"`
+	SupportedEvidence  []string `yaml:"supported_by_evidence,omitempty"`
+	SourceFiles        []string `yaml:"source_files,omitempty"`
+}
+
 func buildCanonicalItem(req *ProposeRequest, id string) interface{} {
 	files := protectsOrNil(req.SourceFiles)
 	switch req.Kind {
@@ -549,6 +586,28 @@ func buildCanonicalItem(req *ProposeRequest, id string) interface{} {
 			Evidence:          req.Evidence,
 			Contract:          req.Contract,
 		}
+	case "decision":
+		status := req.Status
+		if strings.TrimSpace(status) == "" {
+			status = "accepted"
+		}
+		return proposeDecision{
+			ID:                 id,
+			Title:              req.Title,
+			Status:             status,
+			ArchitecturalPlane: req.ArchitecturalPlane,
+			Rationale:          req.Description,
+			Context:            req.Context,
+			Consequences:       req.Consequences,
+			RelatedInvariants:  req.RelatedInvariants,
+			DefinesBoundaries:  req.DefinesBoundaries,
+			DefinesContracts:   req.DefinesContracts,
+			AffectsComponents:  req.AffectsComponents,
+			Mitigates:          req.RelatedFailures,
+			Rejects:            req.ForbiddenFixes,
+			SupportedEvidence:  req.SupportedEvidence,
+			SourceFiles:        req.SourceFiles,
+		}
 	}
 	return nil
 }
@@ -590,6 +649,7 @@ var idPrefixByKind = map[string]string{
 	"failure_mode":     "failure",
 	"invariant":        "invariant",
 	"forbidden_fix":    "forbidden_fix",
+	"decision":         "decision",
 	"contract_unknown": "contract_unknown",
 }
 
