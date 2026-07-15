@@ -1,0 +1,39 @@
+closure_protocol_fixture:
+  name: missing-graph-digest
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: graph digest is required when digest_status is resolved
+  records:
+    admission_request:
+      actor_binding:
+        principal_id: actor.dave
+        actor_kind: human
+      base_binding:
+        repository:
+          domain: github.com/globulario/sensei
+          revision: abc123
+          revision_status: resolved
+        graph:
+          digest_status: resolved
+        task:
+          id: task.invalid
+          session_id: session.invalid
+        policies:
+          admission: admission.strict.v2
+          certification: certification.architectural_closure.v1
+          completion: completion.architectural_closure.v1
+          revocation: revocation.architectural_closure.v1
+          ledger: ledger.task.v1
+          canonicalization: canonicalization.architectural_closure.v1
+      change_plan:
+        plan_id: plan.invalid
+        operations:
+          - operation_id: op.invalid
+            kind: modify
+            target_kind: file
+            target: docs/design/architectural-closure-v1.md
+            selected_mechanism: repository_edit
+      authority_resolution_digest_sha256: authority123
+      policy_id: admission.strict.v2
+

@@ -1,0 +1,16 @@
+closure_protocol_fixture:
+  name: revocation-without-target
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: revocation receipt is incomplete
+  records:
+    revocation_receipt:
+      revocation_id: revocation.invalid
+      revoked_target_id: ""
+      prior_digest_sha256: prior123
+      revocation_reason: missing target
+      policy_id: revocation.architectural_closure.v1
+      actor_id: actor.dave
+      revoked_at: "2026-07-16T00:00:00Z"
+
