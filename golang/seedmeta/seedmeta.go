@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -28,7 +29,7 @@ type Marker struct {
 }
 
 func AppendMarker(nt []byte) ([]byte, Marker) {
-	base := normalize(stripMarkerLines(nt))
+	base := canonicalize(stripMarkerLines(nt))
 	sum := sha256.Sum256(base)
 	digest := hex.EncodeToString(sum[:])
 	tripleCount := countTriples(base) + 6
@@ -68,7 +69,7 @@ func ParseMarker(nt []byte) (Marker, bool) {
 		return Marker{}, false
 	}
 	if marker.TripleCount == 0 {
-		marker.TripleCount = countTriples(normalize(nt))
+		marker.TripleCount = countTriples(canonicalize(nt))
 	}
 	return marker, true
 }
@@ -100,15 +101,26 @@ func parseMarker(nt []byte) (Marker, bool) {
 	return marker, true
 }
 
-func normalize(nt []byte) []byte {
-	b := bytes.TrimSpace(nt)
-	if len(b) == 0 {
+func canonicalize(nt []byte) []byte {
+	lines := strings.Split(string(nt), "\n")
+	kept := make([]string, 0, len(lines))
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if len(kept) == 0 {
 		return []byte{}
 	}
-	out := make([]byte, 0, len(b)+1)
-	out = append(out, b...)
-	out = append(out, '\n')
-	return out
+	sort.Strings(kept)
+	var out bytes.Buffer
+	for _, line := range kept {
+		out.WriteString(line)
+		out.WriteByte('\n')
+	}
+	return out.Bytes()
 }
 
 func stripMarkerLines(nt []byte) []byte {
