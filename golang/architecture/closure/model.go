@@ -1065,6 +1065,8 @@ type assessmentBuilder struct {
 	ctx              Context
 	policy           Policy
 	scope            resolvedScope
+	authority        authorityProjection
+	authorityReady   bool
 	blockers         []Blocker
 	conditions       []Condition
 	dimensions       []DimensionAssessment
@@ -1075,6 +1077,14 @@ type assessmentBuilder struct {
 	questionsByClaim map[string][]architecture.OpenQuestion
 	dimQuestionIDs   map[string][]string
 	uncertifiable    map[string]bool
+}
+
+func (b *assessmentBuilder) authorityProjection() authorityProjection {
+	if !b.authorityReady {
+		b.authority = projectApplicableAuthority(b.ctx.Request.Scope, b.scope, b.ctx.Graph)
+		b.authorityReady = true
+	}
+	return b.authority
 }
 
 func (b *assessmentBuilder) verifyBindings() {
@@ -1357,20 +1367,28 @@ func (b *assessmentBuilder) evalAuthority() {
 	if !b.dimensionApplicable(DimensionAuthority) && b.ctx.Request.Scope.RiskClass == RiskLowRisk {
 		return
 	}
-	authNodes := filterNodes(b.scope.Nodes, "authority_domain")
-	mutationClaim := false
-	for _, c := range b.scope.Claims {
-		if oneOf(c.Statement.Predicate, "writes", "mutates_state", "has_observed_writer_set", "owns_state") {
-			mutationClaim = true
-		}
-		if c.EpistemicStatus != architecture.StatusSupported {
-			b.addOpen(DimensionAuthority, "high", "closure.authority.claim_not_supported", "authority claim is not supported", "repair_claim", []string{c.ID}, nil, nil, nil)
-		}
-		if a, ok := b.planeByClaim[c.ID]; ok && c.ArchitecturalPlane == architecture.PlaneIntended && a.PlaneState != plane.StateJustified {
-			b.addOpen(DimensionAuthority, "high", "closure.authority.claim_not_supported", "authority claim plane basis is not justified", "repair_claim", []string{c.ID}, nil, nil, nil)
+	proj := b.authorityProjection()
+	authNodeIDs := map[string]bool{}
+	for _, binding := range proj.Bindings {
+		authNodeIDs[binding.AuthorityNodeID] = true
+	}
+	for _, contradiction := range proj.Contradictions {
+		b.addOpen(DimensionAuthority, "critical", "closure.authority.applicable_records_contradict", "applicable authority records disagree", "define_authority", nil, contradiction.AuthorityNodeIDs, nil, cleanPathList([]string{contradiction.TargetFile}))
+		for _, id := range contradiction.AuthorityNodeIDs {
+			authNodeIDs[id] = true
 		}
 	}
-	for _, n := range authNodes {
+	for _, gap := range proj.Unmapped {
+		b.addOpen(DimensionAuthority, "critical", "closure.authority.state_unmapped", "task reaches governed state but no applicable authority domain was found", "define_authority", nil, gap.SurfaceNodeIDs, nil, cleanPathList([]string{gap.TargetFile}))
+	}
+	for id := range authNodeIDs {
+		n, ok := findNode(b.ctx.Graph, id)
+		if !ok {
+			continue
+		}
+		if authorityBindingStatusForNode(n) == authorityStale {
+			b.addOpen(DimensionAuthority, "high", "closure.authority.stale", "applicable authority record is stale", "define_authority", nil, []string{n.ID}, nil, nil)
+		}
 		if len(n.OwnerServices) == 0 {
 			b.addOpen(DimensionAuthority, "critical", "closure.authority.owner_missing", "authority domain has no owner service", "define_authority", nil, []string{n.ID}, nil, nil)
 		}
@@ -1396,9 +1414,6 @@ func (b *assessmentBuilder) evalAuthority() {
 				b.addOpen(DimensionAuthority, "high", "closure.authority.read_path_missing", "read scope has no legal read or observation path", "define_authority", nil, []string{n.ID}, nil, nil)
 			}
 		}
-	}
-	if mutationClaim && len(authNodes) == 0 {
-		b.addOpen(DimensionAuthority, "critical", "closure.authority.state_unmapped", "state mutation claim has no relevant authority domain", "define_authority", claimIDs(b.scope.Claims), nil, nil, nil)
 	}
 }
 
