@@ -15,6 +15,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/rdf"
@@ -83,6 +84,11 @@ func TestPrepareChangeCreatesCanonicalLayoutAndActivePointer(t *testing.T) {
 	}
 	taskDir := filepath.Join(repo, filepath.FromSlash(res.TaskDir))
 	for _, rel := range []string{
+		"ledger/HEAD.yaml",
+		"projections/session.yaml",
+		"projections/task-control.yaml",
+		"projections/status.yaml",
+		"projections/manifest.yaml",
 		"session.yaml",
 		"task-request.yaml",
 		"closure-request.yaml",
@@ -112,6 +118,9 @@ func TestPrepareChangeCreatesCanonicalLayoutAndActivePointer(t *testing.T) {
 	if ptr.RepositoryDomain != "github.com/example/project" || ptr.Revision == "" || ptr.GraphDigestSHA256 == "" || ptr.LastTaskControlDigestSHA256 == "" {
 		t.Fatalf("active pointer is not fully bound: %+v", ptr)
 	}
+	if ptr.LedgerPath == "" || ptr.LedgerHeadDigestSHA256 == "" || ptr.LedgerSequence == 0 {
+		t.Fatalf("active pointer missing ledger binding: %+v", ptr)
+	}
 	if filepath.IsAbs(ptr.SessionPath) || !strings.HasPrefix(ptr.SessionPath, ".sensei/tasks/") {
 		t.Fatalf("active pointer path is not repo-relative task path: %s", ptr.SessionPath)
 	}
@@ -121,6 +130,32 @@ func TestPrepareChangeCreatesCanonicalLayoutAndActivePointer(t *testing.T) {
 	}
 	if !st.Verified {
 		t.Fatalf("status did not verify: %+v", st.VerifyErrors)
+	}
+}
+
+func TestPrepareChangeCreatesVerifiedLedger(t *testing.T) {
+	repo, graph := testRepo(t)
+	res, err := Prepare(PrepareOptions{
+		RepoRoot:             repo,
+		RepositoryDomain:     "github.com/example/project",
+		Description:          "Inspect route ownership.",
+		Mode:                 admission.ModeInspect,
+		TaskClass:            "route_ownership",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionPreserve,
+		Files:                []FileOperation{{Path: "gin.go", Operation: admission.OperationRead}},
+		GraphNT:              graph,
+		SetActive:            true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := ledger.VerifyTaskLedger(filepath.Join(repo, filepath.FromSlash(res.TaskDir)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Valid || report.EntryCount != 5 || report.ProjectionState != "current" {
+		t.Fatalf("unexpected ledger report: %+v", report)
 	}
 }
 

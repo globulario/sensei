@@ -105,6 +105,10 @@ func (s *Store) Verify() (VerificationReport, error) {
 	return verifyTaskLedger(s.taskDir, s.payloadValidator)
 }
 
+func (s *Store) VerifyChain() (VerifiedChain, error) {
+	return loadVerifiedChain(s.taskDir, s.payloadValidator)
+}
+
 func VerifyTaskLedger(taskDir string) (VerificationReport, error) {
 	return verifyTaskLedger(taskDir, nil)
 }
