@@ -250,6 +250,8 @@ func main() {
 		os.Exit(runAdvanceTask(args))
 	case "task-briefing":
 		os.Exit(runTaskBriefing(args))
+	case "task-ledger":
+		os.Exit(runTaskLedger(args))
 	case "proof-plan":
 		os.Exit(runProofPlan(args))
 	case "repair-plan":
@@ -408,6 +410,7 @@ Repair and evaluation helpers:
   task-status    Inspect an active architectural task session
   advance-task   Execute safe static evidence and advance one task iteration
   task-briefing  Show bounded file context for an active task
+  task-ledger    Verify, import, and rebuild append-only task ledgers
   extract-authority Extract candidate authority surfaces from Go code
   extract-proof-obligations Generate proof obligations from authority surfaces
 
