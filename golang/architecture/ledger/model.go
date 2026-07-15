@@ -76,6 +76,7 @@ type VerifiedEntry struct {
 }
 
 type VerifiedChain struct {
+	TaskDir         string
 	TaskID          string
 	Entries         []VerifiedEntry
 	Head            Head
