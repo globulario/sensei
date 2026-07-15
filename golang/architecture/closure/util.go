@@ -3,6 +3,7 @@
 package closure
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -212,6 +213,7 @@ func dedupeReasons(in []Reason) []Reason {
 func normalizeScopeReceipt(in ScopeReceipt) ScopeReceipt {
 	r := in
 	r.Files = cleanPathList(r.Files)
+	r.RepresentedFiles = normalizeFileRepresentations(r.RepresentedFiles)
 	r.Symbols = cleanList(r.Symbols)
 	r.Components = cleanList(r.Components)
 	r.ClaimIDs = cleanList(r.ClaimIDs)
@@ -223,6 +225,50 @@ func normalizeScopeReceipt(in ScopeReceipt) ScopeReceipt {
 	r.MissingClaims = cleanList(r.MissingClaims)
 	r.MissingPropositions = cleanList(r.MissingPropositions)
 	return r
+}
+
+func normalizeFileRepresentations(in []FileRepresentationReceipt) []FileRepresentationReceipt {
+	if len(in) == 0 {
+		return nil
+	}
+	type key struct {
+		path string
+		kind string
+	}
+	merged := map[key]FileRepresentationReceipt{}
+	for _, item := range in {
+		path := normalizePath(item.Path)
+		kind := strings.TrimSpace(item.RepresentationKind)
+		if path == "" || kind == "" {
+			continue
+		}
+		k := key{path: path, kind: kind}
+		cur := merged[k]
+		cur.Path = path
+		cur.RepresentationKind = kind
+		cur.AnchorNodeIDs = append(cur.AnchorNodeIDs, item.AnchorNodeIDs...)
+		merged[k] = cur
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	keys := make([]key, 0, len(merged))
+	for k := range merged {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].path != keys[j].path {
+			return keys[i].path < keys[j].path
+		}
+		return keys[i].kind < keys[j].kind
+	})
+	out := make([]FileRepresentationReceipt, 0, len(keys))
+	for _, k := range keys {
+		item := merged[k]
+		item.AnchorNodeIDs = cleanList(item.AnchorNodeIDs)
+		out = append(out, item)
+	}
+	return out
 }
 
 func indexedClass(iri string) string {
@@ -343,6 +389,10 @@ func classPrefix(class string) string {
 
 func normalizeNode(n Node) Node {
 	n.Classes = cleanList(n.Classes)
+	n.Status = strings.TrimSpace(strings.ToLower(n.Status))
+	n.PromotionStatus = strings.TrimSpace(strings.ToLower(n.PromotionStatus))
+	n.ReviewStatus = strings.TrimSpace(strings.ToLower(n.ReviewStatus))
+	n.SourceKind = strings.TrimSpace(strings.ToLower(n.SourceKind))
 	n.AuthoredIn = cleanPathList(n.AuthoredIn)
 	n.AnchoredIn = cleanList(n.AnchoredIn)
 	n.CoversPath = cleanPathList(n.CoversPath)
@@ -372,6 +422,78 @@ func normalizeNode(n Node) Node {
 }
 
 func hasClass(n Node, class string) bool { return contains(n.Classes, class) }
+
+func CanonicallyRepresentsFile(graph GraphIndex, node Node, requestedPath, repoRoot string) bool {
+	_, ok := CanonicalFileRepresentation(graph, node, requestedPath, repoRoot)
+	return ok
+}
+
+func CanonicalFileRepresentation(graph GraphIndex, node Node, requestedPath, repoRoot string) (FileRepresentationReceipt, bool) {
+	_ = graph
+	path := normalizePath(requestedPath)
+	if path == "" {
+		return FileRepresentationReceipt{}, false
+	}
+	if hasClass(node, "source_file") && node.SourcePath == path {
+		return FileRepresentationReceipt{
+			Path:               path,
+			RepresentationKind: "source_file",
+			AnchorNodeIDs:      []string{node.ID},
+		}, true
+	}
+	if !eligibleGovernedAuthoredSource(node) || !contains(node.AuthoredIn, path) || !repoHasRegularFile(repoRoot, path) {
+		return FileRepresentationReceipt{}, false
+	}
+	return FileRepresentationReceipt{
+		Path:               path,
+		RepresentationKind: "governed_authored_source",
+		AnchorNodeIDs:      []string{node.ID},
+	}, true
+}
+
+func eligibleGovernedAuthoredSource(node Node) bool {
+	if len(node.AuthoredIn) == 0 || !hasAnyClass(node, "decision", "intent", "invariant", "failure_mode", "authority_domain", "component", "contract", "boundary") {
+		return false
+	}
+	switch node.Status {
+	case "candidate", "machine_adopted", "contested", "rejected", "stale", "superseded", "deprecated", "retired", "historical":
+		return false
+	}
+	switch node.PromotionStatus {
+	case "candidate", "machine_adopted", "rejected", "superseded":
+		return false
+	}
+	switch node.ReviewStatus {
+	case "review_required", "rejected", "superseded", "not_human_reviewed":
+		return false
+	}
+	switch node.SourceKind {
+	case "generated_candidate", "neural_candidate", "neural_prediction":
+		return false
+	}
+	return true
+}
+
+func hasAnyClass(n Node, classes ...string) bool {
+	for _, class := range classes {
+		if hasClass(n, class) {
+			return true
+		}
+	}
+	return false
+}
+
+func repoHasRegularFile(repoRoot, requestedPath string) bool {
+	if strings.TrimSpace(repoRoot) == "" {
+		return false
+	}
+	full := filepath.Join(repoRoot, filepath.FromSlash(requestedPath))
+	info, err := os.Stat(full)
+	if err != nil {
+		return false
+	}
+	return info.Mode().IsRegular()
+}
 
 func objectIDFromObject(object string, isIRI bool) string {
 	object = strings.TrimSpace(object)

@@ -177,17 +177,24 @@ type Report struct {
 }
 
 type ScopeReceipt struct {
-	Files               []string `json:"files,omitempty" yaml:"files,omitempty"`
-	Symbols             []string `json:"symbols,omitempty" yaml:"symbols,omitempty"`
-	Components          []string `json:"components,omitempty" yaml:"components,omitempty"`
-	ClaimIDs            []string `json:"claim_ids,omitempty" yaml:"claim_ids,omitempty"`
-	PropositionKeys     []string `json:"proposition_keys,omitempty" yaml:"proposition_keys,omitempty"`
-	NodeIDs             []string `json:"node_ids,omitempty" yaml:"node_ids,omitempty"`
-	MissingFiles        []string `json:"missing_files,omitempty" yaml:"missing_files,omitempty"`
-	MissingSymbols      []string `json:"missing_symbols,omitempty" yaml:"missing_symbols,omitempty"`
-	MissingComponents   []string `json:"missing_components,omitempty" yaml:"missing_components,omitempty"`
-	MissingClaims       []string `json:"missing_claims,omitempty" yaml:"missing_claims,omitempty"`
-	MissingPropositions []string `json:"missing_propositions,omitempty" yaml:"missing_propositions,omitempty"`
+	Files               []string                    `json:"files,omitempty" yaml:"files,omitempty"`
+	RepresentedFiles    []FileRepresentationReceipt `json:"represented_files,omitempty" yaml:"represented_files,omitempty"`
+	Symbols             []string                    `json:"symbols,omitempty" yaml:"symbols,omitempty"`
+	Components          []string                    `json:"components,omitempty" yaml:"components,omitempty"`
+	ClaimIDs            []string                    `json:"claim_ids,omitempty" yaml:"claim_ids,omitempty"`
+	PropositionKeys     []string                    `json:"proposition_keys,omitempty" yaml:"proposition_keys,omitempty"`
+	NodeIDs             []string                    `json:"node_ids,omitempty" yaml:"node_ids,omitempty"`
+	MissingFiles        []string                    `json:"missing_files,omitempty" yaml:"missing_files,omitempty"`
+	MissingSymbols      []string                    `json:"missing_symbols,omitempty" yaml:"missing_symbols,omitempty"`
+	MissingComponents   []string                    `json:"missing_components,omitempty" yaml:"missing_components,omitempty"`
+	MissingClaims       []string                    `json:"missing_claims,omitempty" yaml:"missing_claims,omitempty"`
+	MissingPropositions []string                    `json:"missing_propositions,omitempty" yaml:"missing_propositions,omitempty"`
+}
+
+type FileRepresentationReceipt struct {
+	Path               string   `json:"path" yaml:"path"`
+	RepresentationKind string   `json:"representation_kind" yaml:"representation_kind"`
+	AnchorNodeIDs      []string `json:"anchor_node_ids,omitempty" yaml:"anchor_node_ids,omitempty"`
 }
 
 type DimensionAssessment struct {
@@ -781,6 +788,9 @@ type Node struct {
 	Label                   string
 	Comment                 string
 	Status                  string
+	PromotionStatus         string
+	ReviewStatus            string
+	SourceKind              string
 	Severity                string
 	Kind                    string
 	SourcePath              string
@@ -872,6 +882,18 @@ func BuildGraphIndex(triples []graphsnapshot.Triple) GraphIndex {
 		case rdf.PropStatus:
 			if !t.ObjectIsIRI {
 				n.Status = strings.ToLower(lit)
+			}
+		case rdf.PropPromotionStatus:
+			if !t.ObjectIsIRI {
+				n.PromotionStatus = strings.ToLower(lit)
+			}
+		case rdf.PropReviewStatus:
+			if !t.ObjectIsIRI {
+				n.ReviewStatus = strings.ToLower(lit)
+			}
+		case rdf.PropSourceKind:
+			if !t.ObjectIsIRI {
+				n.SourceKind = strings.ToLower(lit)
 			}
 		case rdf.PropSeverity:
 			if !t.ObjectIsIRI {
@@ -1680,8 +1702,13 @@ func resolveScope(ctx Context) resolvedScope {
 	}
 	for _, n := range out.ByNodeID {
 		out.Receipt.NodeIDs = append(out.Receipt.NodeIDs, n.ID)
-		if n.SourcePath != "" && contains(req.Scope.Files, n.SourcePath) {
-			out.Receipt.Files = append(out.Receipt.Files, n.SourcePath)
+		for _, path := range req.Scope.Files {
+			rep, ok := CanonicalFileRepresentation(ctx.Graph, n, path, ctx.RepositoryRoot)
+			if !ok {
+				continue
+			}
+			out.Receipt.Files = append(out.Receipt.Files, rep.Path)
+			out.Receipt.RepresentedFiles = append(out.Receipt.RepresentedFiles, rep)
 		}
 		if hasClass(n, "component") && contains(req.Scope.Components, n.ID) {
 			out.Receipt.Components = append(out.Receipt.Components, n.ID)

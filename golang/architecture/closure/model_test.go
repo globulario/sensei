@@ -452,6 +452,138 @@ func TestClosureRequestFileRepresentedByCanonicalSourceFileIRI(t *testing.T) {
 	}
 }
 
+func TestCanonicalDecisionAuthoredInRepresentsExactFile(t *testing.T) {
+	testCanonicalAuthoredInRepresentsExactFile(t, "decision", rdf.ClassDecision, "accepted")
+}
+
+func TestCanonicalInvariantAuthoredInRepresentsExactFile(t *testing.T) {
+	testCanonicalAuthoredInRepresentsExactFile(t, "invariant", rdf.ClassInvariant, "active")
+}
+
+func TestCanonicalFailureModeAuthoredInRepresentsExactFile(t *testing.T) {
+	testCanonicalAuthoredInRepresentsExactFile(t, "failure_mode", rdf.ClassFailureMode, "active")
+}
+
+func TestCanonicalAuthorityDomainAuthoredInRepresentsExactFile(t *testing.T) {
+	testCanonicalAuthoredInRepresentsExactFile(t, "authority_domain", rdf.ClassAuthorityDomain, "active")
+}
+
+func TestAuthoredInRepresentationUsesExactPath(t *testing.T) {
+	root := authoredFileRoot(t, "docs/awareness/architecture/decisions.yaml")
+	req := validRequest()
+	req.Scope.Files = []string{"docs/awareness/architecture/decisions.yaml"}
+	report, err := Evaluate(validContext(t, root, req, authoredInGraph("decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:     "accepted",
+		AuthoredIn: []string{"docs/awareness/architecture/decisions.yaml.extra"},
+	})))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertBlocker(t, report, "closure.structural.file_unrepresented")
+}
+
+func TestUnrelatedAuthoredInDoesNotRepresentFile(t *testing.T) {
+	root := authoredFileRoot(t, "docs/awareness/architecture/decisions.yaml")
+	req := validRequest()
+	req.Scope.Files = []string{"docs/awareness/architecture/decisions.yaml"}
+	report, err := Evaluate(validContext(t, root, req, authoredInGraph("decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:     "accepted",
+		AuthoredIn: []string{"docs/awareness/invariants.yaml"},
+	})))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertBlocker(t, report, "closure.structural.file_unrepresented")
+}
+
+func TestDirectoryPrefixDoesNotRepresentFile(t *testing.T) {
+	root := authoredFileRoot(t, "docs/awareness/architecture/decisions.yaml")
+	req := validRequest()
+	req.Scope.Files = []string{"docs/awareness/architecture/decisions.yaml"}
+	report, err := Evaluate(validContext(t, root, req, authoredInGraph("decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:     "accepted",
+		AuthoredIn: []string{"docs/awareness/architecture"},
+	})))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertBlocker(t, report, "closure.structural.file_unrepresented")
+}
+
+func TestAbsentAuthoredFileRemainsUnrepresented(t *testing.T) {
+	root := t.TempDir()
+	req := validRequest()
+	req.Scope.Files = []string{"docs/awareness/architecture/decisions.yaml"}
+	report, err := Evaluate(validContext(t, root, req, authoredInGraph("decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:     "accepted",
+		AuthoredIn: []string{"docs/awareness/architecture/decisions.yaml"},
+	})))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertBlocker(t, report, "closure.structural.file_unrepresented")
+}
+
+func TestCandidateAuthoredInDoesNotRepresentFile(t *testing.T) {
+	testIneligibleAuthoredInRepresentation(t, authoredNodeOptions{Status: "candidate"})
+}
+
+func TestContestedAuthoredInDoesNotRepresentFile(t *testing.T) {
+	testIneligibleAuthoredInRepresentation(t, authoredNodeOptions{Status: "contested"})
+}
+
+func TestRejectedAuthoredInDoesNotRepresentFile(t *testing.T) {
+	testIneligibleAuthoredInRepresentation(t, authoredNodeOptions{Status: "rejected"})
+}
+
+func TestTaskLocalMachineAdoptedAuthoredInDoesNotRepresentFile(t *testing.T) {
+	testIneligibleAuthoredInRepresentation(t, authoredNodeOptions{
+		Status:          "machine_adopted",
+		PromotionStatus: "machine_adopted",
+		ReviewStatus:    "not_human_reviewed",
+	})
+}
+
+func TestNeuralCandidateAuthoredInDoesNotRepresentFile(t *testing.T) {
+	testIneligibleAuthoredInRepresentation(t, authoredNodeOptions{
+		Status:          "candidate",
+		PromotionStatus: "candidate",
+		SourceKind:      "neural_candidate",
+	})
+}
+
+func TestAuthoredInRepresentationDoesNotMintSourceFile(t *testing.T) {
+	root := authoredFileRoot(t, "docs/awareness/architecture/decisions.yaml")
+	graph := authoredInGraph("decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:     "accepted",
+		AuthoredIn: []string{"docs/awareness/architecture/decisions.yaml"},
+	})
+	req := validRequest()
+	req.Scope.Files = []string{"docs/awareness/architecture/decisions.yaml"}
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if graph.FilesByPath["docs/awareness/architecture/decisions.yaml"] != "" {
+		t.Fatalf("graph minted SourceFile coverage: %#v", graph.FilesByPath)
+	}
+	for _, rep := range report.ScopeReceipt.RepresentedFiles {
+		if rep.Path == "docs/awareness/architecture/decisions.yaml" && rep.RepresentationKind != "governed_authored_source" {
+			t.Fatalf("representation kind = %q, want governed_authored_source", rep.RepresentationKind)
+		}
+	}
+}
+
+func TestAuthoredInRepresentationDoesNotChangeProductionCoverage(t *testing.T) {
+	graph := authoredInGraph("decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:     "accepted",
+		AuthoredIn: []string{"docs/awareness/architecture/decisions.yaml"},
+	})
+	if got := len(graph.FilesByPath); got != 0 {
+		t.Fatalf("FilesByPath=%d, want 0", got)
+	}
+}
+
 func TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "x.go"), []byte("package x\n"), 0o644); err != nil {
@@ -827,6 +959,95 @@ func sourceFileVulnerableToGraph(path, failureID string) GraphIndex {
 	)))
 }
 
+type authoredNodeOptions struct {
+	Status          string
+	PromotionStatus string
+	ReviewStatus    string
+	SourceKind      string
+	AuthoredIn      []string
+}
+
+func authoredInGraph(class, classIRIValue, id string, opts authoredNodeOptions) GraphIndex {
+	iri := classIRI(class, id)
+	lines := []string{triple(iri, rdf.PropType, classIRIValue, true)}
+	if opts.Status != "" {
+		lines = append(lines, triple(iri, rdf.PropStatus, opts.Status, false))
+	}
+	if opts.PromotionStatus != "" {
+		lines = append(lines, triple(iri, rdf.PropPromotionStatus, opts.PromotionStatus, false))
+	}
+	if opts.ReviewStatus != "" {
+		lines = append(lines, triple(iri, rdf.PropReviewStatus, opts.ReviewStatus, false))
+	}
+	if opts.SourceKind != "" {
+		lines = append(lines, triple(iri, rdf.PropSourceKind, opts.SourceKind, false))
+	}
+	for _, path := range opts.AuthoredIn {
+		lines = append(lines, triple(iri, rdf.PropAuthoredIn, path, false))
+	}
+	return BuildGraphIndex(mustTriplesForPanic(nt(lines...)))
+}
+
+func authoredFileRoot(t *testing.T, rel string) string {
+	t.Helper()
+	root := t.TempDir()
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("kind: test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func testCanonicalAuthoredInRepresentsExactFile(t *testing.T, class, classIRIValue, status string) {
+	t.Helper()
+	root := authoredFileRoot(t, "docs/awareness/architecture/decisions.yaml")
+	req := validRequest()
+	req.Scope.Files = []string{"docs/awareness/architecture/decisions.yaml"}
+	report, err := Evaluate(validContext(t, root, req, authoredInGraph(class, classIRIValue, class+".scope", authoredNodeOptions{
+		Status:     status,
+		AuthoredIn: []string{"docs/awareness/architecture/decisions.yaml"},
+	})))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoBlocker(t, report, "closure.structural.file_unrepresented")
+	if !contains(report.ScopeReceipt.Files, "docs/awareness/architecture/decisions.yaml") {
+		t.Fatalf("file not represented: %#v", report.ScopeReceipt)
+	}
+	var got *FileRepresentationReceipt
+	for i := range report.ScopeReceipt.RepresentedFiles {
+		if report.ScopeReceipt.RepresentedFiles[i].Path == "docs/awareness/architecture/decisions.yaml" {
+			got = &report.ScopeReceipt.RepresentedFiles[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("represented file receipt missing: %#v", report.ScopeReceipt.RepresentedFiles)
+	}
+	if got.RepresentationKind != "governed_authored_source" {
+		t.Fatalf("representation kind = %q", got.RepresentationKind)
+	}
+	if !contains(got.AnchorNodeIDs, class+".scope") {
+		t.Fatalf("anchor ids = %#v", got.AnchorNodeIDs)
+	}
+}
+
+func testIneligibleAuthoredInRepresentation(t *testing.T, opts authoredNodeOptions) {
+	t.Helper()
+	root := authoredFileRoot(t, "docs/awareness/architecture/decisions.yaml")
+	req := validRequest()
+	req.Scope.Files = []string{"docs/awareness/architecture/decisions.yaml"}
+	opts.AuthoredIn = []string{"docs/awareness/architecture/decisions.yaml"}
+	report, err := Evaluate(validContext(t, root, req, authoredInGraph("decision", rdf.ClassDecision, "decision.scope", opts)))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertBlocker(t, report, "closure.structural.file_unrepresented")
+}
+
 func acceptedUnknownQuestion(id, dim, priority string) architecture.OpenQuestion {
 	return architecture.OpenQuestion{
 		ID: id, QuestionText: "fixture", Scope: architecture.ClaimScope{Files: []string{"x.go"}},
@@ -885,7 +1106,12 @@ func classIRI(class, id string) string {
 		"source_file":      rdf.ClassSourceFile,
 		"component":        rdf.ClassComponent,
 		"authority_domain": rdf.ClassAuthorityDomain,
+		"decision":         rdf.ClassDecision,
+		"invariant":        rdf.ClassInvariant,
 		"failure_mode":     rdf.ClassFailureMode,
+		"contract":         rdf.ClassContract,
+		"boundary":         rdf.ClassBoundary,
+		"intent":           rdf.ClassIntent,
 	}[class]
 	return strings.Trim(strings.TrimSuffix(rdf.MintIRI(classIRI, id), ">"), "<")
 }

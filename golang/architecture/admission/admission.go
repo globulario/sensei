@@ -719,7 +719,7 @@ func scopeContainment(req Request, b Bundle, graph closure.GraphIndex, repoRoot 
 			reasons = append(reasons, Reason{Code: ReasonScopeMissingFile, Detail: f.Path})
 			continue
 		}
-		if graph.FilesByPath[f.Path] == "" && !fileRepresentedByClaim(f.Path, b.MaintainedClaims.Claims) && !fileRepresentedByClosureNode(f.Path, b.ClosureAfter, graph) {
+		if graph.FilesByPath[f.Path] == "" && !fileRepresentedByClaim(f.Path, b.MaintainedClaims.Claims) && !fileRepresentedByClosureNode(f.Path, b.ClosureAfter, graph, repoRoot) {
 			reasons = append(reasons, Reason{Code: ReasonScopeUnrepresented, Detail: f.Path})
 		}
 	}
@@ -1985,13 +1985,13 @@ func fileRepresentedByClaim(path string, claims []architecture.Claim) bool {
 	return false
 }
 
-func fileRepresentedByClosureNode(path string, report closure.Report, graph closure.GraphIndex) bool {
+func fileRepresentedByClosureNode(path string, report closure.Report, graph closure.GraphIndex, repoRoot string) bool {
 	for _, nr := range report.RelevantNodes {
 		n, ok := nodeByReceipt(graph, nr)
 		if !ok {
 			continue
 		}
-		if n.SourcePath == path || contains(n.AuthoredIn, path) || contains(n.CoversPath, path) {
+		if closure.CanonicallyRepresentsFile(graph, n, path, repoRoot) {
 			return true
 		}
 	}

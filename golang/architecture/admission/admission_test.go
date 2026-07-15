@@ -12,7 +12,11 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/convergence"
+	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
+	"github.com/globulario/sensei/golang/architecture/maintenance"
+	"github.com/globulario/sensei/golang/architecture/plane"
 	"github.com/globulario/sensei/golang/architecture/probe"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 const (
@@ -115,6 +119,78 @@ func TestStrictAdmissionPolicyIsStable(t *testing.T) {
 	}
 	if !p.AllowInspectionWhenClosureOpen || !p.RequireConditionAcknowledgement || !p.AllowConditionalMutation {
 		t.Fatalf("strict policy flags changed: %+v", p)
+	}
+}
+
+func TestClosureAndAdmissionAgreeOnAuthoredInRepresentation(t *testing.T) {
+	repo, rel := tempAuthoredRepoFile(t, "docs/awareness/architecture/decisions.yaml")
+	graph := authoredInGraph(t, "decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:     "accepted",
+		AuthoredIn: []string{rel},
+	})
+	req := testRequest()
+	req.Scope.Files = []FileOperation{{Path: rel, Operation: OperationModify}}
+	closureReq := closure.Request{
+		SchemaVersion: closure.SchemaVersion,
+		Binding:       req.Binding,
+		Scope: closure.Scope{
+			Domain:               req.Binding.RepositoryDomain,
+			TaskClass:            req.TaskClass,
+			RiskClass:            closure.RiskArchitectureSensitive,
+			AccessMode:           closure.AccessReadWrite,
+			DirectionRequirement: closure.DirectionEvolve,
+			Files:                []string{rel},
+		},
+	}
+	planeReport := plane.Report{
+		SchemaVersion: "1",
+		GeneratedBy:   "test",
+		ClaimBinding: plane.ClaimBindingReport{
+			RepositoryDomain:  req.Binding.RepositoryDomain,
+			Revision:          req.Binding.Revision,
+			RevisionStatus:    req.Binding.RevisionStatus,
+			GraphDigestSHA256: req.Binding.GraphDigestSHA256,
+			GraphDigestStatus: req.Binding.GraphDigestStatus,
+		},
+		GraphSnapshot: plane.GraphSnapshotReport{DigestSHA256: req.Binding.GraphDigestSHA256, DigestStatus: req.Binding.GraphDigestStatus},
+	}
+	report, err := closure.Evaluate(closure.Context{
+		Request:          closureReq,
+		Claims:           architecture.ClaimDocument{SchemaVersion: "1", GeneratedBy: "test", Binding: req.Binding},
+		Maintenance:      &maintenance.Report{SchemaVersion: "1", GeneratedBy: "test", CurrentBinding: req.Binding, ObservedBinding: req.Binding},
+		Plane:            &planeReport,
+		Dialogue:         &architecture.DialogueDocument{SchemaVersion: "1", CompiledBy: "test", Binding: req.Binding},
+		Evidence:         &maintenance.EvidenceStateDocument{SchemaVersion: "1", GeneratedBy: "test", Binding: req.Binding},
+		Graph:            graph,
+		GraphReceipt:     graphsnapshot.Receipt{Status: architecture.GraphDigestResolved, DigestSHA256: req.Binding.GraphDigestSHA256, Verified: true},
+		RepositoryRoot:   repo,
+		RepositoryRev:    req.Binding.Revision,
+		RepositoryStatus: architecture.RevisionResolved,
+	})
+	if err != nil {
+		t.Fatalf("closure Evaluate: %v", err)
+	}
+	if !containsPath(report.ScopeReceipt.Files, rel) {
+		t.Fatalf("closure did not represent %s: %#v", rel, report.ScopeReceipt)
+	}
+	if len(scopeContainment(req, Bundle{ClosureAfter: report}, graph, repo)) != 0 {
+		t.Fatalf("admission rejected authoredIn-represented file")
+	}
+}
+
+func TestCandidateAuthoredInDoesNotRepresentFileForAdmission(t *testing.T) {
+	repo, rel := tempAuthoredRepoFile(t, "docs/awareness/architecture/decisions.yaml")
+	graph := authoredInGraph(t, "decision", rdf.ClassDecision, "decision.scope", authoredNodeOptions{
+		Status:          "candidate",
+		PromotionStatus: "candidate",
+		AuthoredIn:      []string{rel},
+	})
+	report := closure.Report{
+		ScopeReceipt:  closure.ScopeReceipt{Files: []string{rel}},
+		RelevantNodes: []closure.NodeReceipt{{ID: "decision.scope"}},
+	}
+	if fileRepresentedByClosureNode(rel, report, graph, repo) {
+		t.Fatal("candidate authoredIn unexpectedly represented file")
 	}
 }
 
@@ -569,6 +645,79 @@ func writeExternalApprovalArtifact(t *testing.T, data []byte) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+type authoredNodeOptions struct {
+	Status          string
+	PromotionStatus string
+	ReviewStatus    string
+	SourceKind      string
+	AuthoredIn      []string
+}
+
+func tempAuthoredRepoFile(t *testing.T, rel string) (string, string) {
+	t.Helper()
+	repo := tempRepoFile(t, "placeholder.go")
+	full := filepath.Join(repo, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte("kind: test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return repo, rel
+}
+
+func authoredInGraph(t *testing.T, class, classIRIValue, id string, opts authoredNodeOptions) closure.GraphIndex {
+	t.Helper()
+	iri := authoredClassIRI(class, id)
+	lines := []string{ntTriple(iri, rdf.PropType, classIRIValue, true)}
+	if opts.Status != "" {
+		lines = append(lines, ntTriple(iri, rdf.PropStatus, opts.Status, false))
+	}
+	if opts.PromotionStatus != "" {
+		lines = append(lines, ntTriple(iri, rdf.PropPromotionStatus, opts.PromotionStatus, false))
+	}
+	if opts.ReviewStatus != "" {
+		lines = append(lines, ntTriple(iri, rdf.PropReviewStatus, opts.ReviewStatus, false))
+	}
+	if opts.SourceKind != "" {
+		lines = append(lines, ntTriple(iri, rdf.PropSourceKind, opts.SourceKind, false))
+	}
+	for _, path := range opts.AuthoredIn {
+		lines = append(lines, ntTriple(iri, rdf.PropAuthoredIn, path, false))
+	}
+	triples, err := graphsnapshot.Read(strings.NewReader(strings.Join(lines, "\n") + "\n"))
+	if err != nil {
+		t.Fatalf("graphsnapshot.Read: %v", err)
+	}
+	return closure.BuildGraphIndex(triples)
+}
+
+func authoredClassIRI(class, id string) string {
+	classIRI := map[string]string{
+		"decision":         rdf.ClassDecision,
+		"invariant":        rdf.ClassInvariant,
+		"failure_mode":     rdf.ClassFailureMode,
+		"authority_domain": rdf.ClassAuthorityDomain,
+	}[class]
+	return strings.Trim(strings.TrimSuffix(rdf.MintIRI(classIRI, id), ">"), "<")
+}
+
+func ntTriple(subject, predicate, object string, objectIRI bool) string {
+	if objectIRI {
+		return "<" + subject + "> <" + predicate + "> <" + object + "> ."
+	}
+	return "<" + subject + "> <" + predicate + "> \"" + strings.ReplaceAll(object, "\"", "\\\"") + "\" ."
+}
+
+func containsPath(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }
 
 func mustPolicy(t *testing.T) Policy {
