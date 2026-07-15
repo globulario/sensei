@@ -73,6 +73,61 @@ type authorityProjection struct {
 	Unmapped       []authorityGap
 }
 
+type behavioralBindingStatus string
+
+const (
+	behavioralApplicable    behavioralBindingStatus = "applicable"
+	behavioralBackground    behavioralBindingStatus = "background"
+	behavioralDominated     behavioralBindingStatus = "dominated"
+	behavioralContradictory behavioralBindingStatus = "contradictory"
+	behavioralUnsupported   behavioralBindingStatus = "unsupported"
+)
+
+type behavioralBinding struct {
+	ClaimID        string
+	OperationKind  string
+	TargetFile     string
+	TargetSymbol   string
+	ComponentID    string
+	BehavioralKind string
+	RelationPath   []string
+	Plane          string
+	PlaneState     string
+	Status         behavioralBindingStatus
+	SourceClaimIDs []string
+	SourceNodeIDs  []string
+	Explanation    string
+}
+
+type behavioralProjection struct {
+	Applicable     []behavioralBinding
+	Background     []behavioralBinding
+	Dominated      []behavioralBinding
+	Contradictions []behavioralBinding
+}
+
+type failureSurfaceBindingStatus string
+
+const (
+	failureSurfaceApplicable failureSurfaceBindingStatus = "applicable"
+	failureSurfaceBackground failureSurfaceBindingStatus = "background"
+	failureSurfaceIneligible failureSurfaceBindingStatus = "ineligible"
+)
+
+type failureSurfaceBinding struct {
+	FailureModeID string
+	TargetFile    string
+	RelationPath  []string
+	Status        failureSurfaceBindingStatus
+	Explanation   string
+}
+
+type failureSurfaceProjection struct {
+	Applicable []failureSurfaceBinding
+	Background []failureSurfaceBinding
+	Ineligible []failureSurfaceBinding
+}
+
 func oneOf(v string, allowed ...string) bool {
 	for _, a := range allowed {
 		if v == a {
@@ -213,6 +268,19 @@ func intersects(a, b []string) bool {
 		}
 	}
 	return false
+}
+
+func firstIntersect(a, b []string) string {
+	seen := map[string]bool{}
+	for _, x := range cleanList(b) {
+		seen[x] = true
+	}
+	for _, x := range cleanList(a) {
+		if seen[x] {
+			return x
+		}
+	}
+	return ""
 }
 
 func dimensionRank(dim string) int {
@@ -745,6 +813,273 @@ func sortedMapKeys[T any](m map[string]T) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func factReceiptsByID(doc architecture.ClaimDocument) map[string]architecture.ClaimFactReceipt {
+	if len(doc.FactReceipts) == 0 {
+		return map[string]architecture.ClaimFactReceipt{}
+	}
+	out := make(map[string]architecture.ClaimFactReceipt, len(doc.FactReceipts))
+	for _, receipt := range doc.FactReceipts {
+		if strings.TrimSpace(receipt.Fact.ID) == "" {
+			continue
+		}
+		out[receipt.Fact.ID] = receipt
+	}
+	return out
+}
+
+func projectApplicableBehavioral(req Scope, scope resolvedScope, facts map[string]architecture.ClaimFactReceipt, planes map[string]plane.ClaimAssessment) behavioralProjection {
+	out := behavioralProjection{}
+	for _, claim := range scope.Claims {
+		binding := behavioralBinding{
+			ClaimID:        claim.ID,
+			OperationKind:  req.AccessMode,
+			Plane:          claim.ArchitecturalPlane,
+			Status:         behavioralBackground,
+			SourceClaimIDs: []string{claim.ID},
+		}
+		if assessment, ok := planes[claim.ID]; ok {
+			binding.PlaneState = assessment.PlaneState
+		}
+		kind, ok := behavioralClaimKind(claim)
+		if !ok {
+			binding.Status = behavioralUnsupported
+			binding.Explanation = "claim predicate does not denote current behavioral proof"
+			out.Background = append(out.Background, binding)
+			continue
+		}
+		binding.BehavioralKind = kind
+		if !oneOf(claim.ArchitecturalPlane, architecture.PlaneObserved, architecture.PlaneEnforced) {
+			binding.Explanation = "directional or historical claim does not satisfy current behavioral closure"
+			out.Background = append(out.Background, binding)
+			continue
+		}
+		if file := firstIntersect(cleanPathList(claim.Scope.Files), req.Files); file != "" {
+			binding.TargetFile = file
+			binding.RelationPath = []string{"task_modifies_file", "claim_scoped_to_file", "claim_asserts_behavioral_predicate"}
+			binding.Status = behavioralApplicable
+			binding.Explanation = "behavioral predicate is scoped directly to an exact task file"
+			out.Applicable = append(out.Applicable, binding)
+			continue
+		}
+		if target := firstIntersect(claimPremiseTargetFiles(claim, facts), req.Files); target != "" {
+			binding.TargetFile = target
+			binding.RelationPath = []string{"task_modifies_file", "premise_targets_file", "claim_asserts_behavioral_predicate"}
+			binding.Status = behavioralApplicable
+			binding.Explanation = "behavioral premise targets an exact task file"
+			out.Applicable = append(out.Applicable, binding)
+			continue
+		}
+		if symbol := firstIntersect(cleanList(claim.Scope.Symbols), req.Symbols); symbol != "" {
+			binding.TargetSymbol = symbol
+			binding.RelationPath = []string{"task_targets_symbol", "claim_scoped_to_symbol", "claim_asserts_behavioral_predicate"}
+			binding.Status = behavioralApplicable
+			binding.Explanation = "behavioral predicate is scoped directly to an exact task symbol"
+			out.Applicable = append(out.Applicable, binding)
+			continue
+		}
+		if component := firstIntersect(cleanList(claim.Scope.Components), req.Components); component != "" {
+			binding.ComponentID = component
+			binding.RelationPath = []string{"task_targets_component", "claim_scoped_to_component", "claim_asserts_behavioral_predicate"}
+			binding.Status = behavioralApplicable
+			binding.Explanation = "behavioral predicate is scoped directly to an exact task component"
+			out.Applicable = append(out.Applicable, binding)
+			continue
+		}
+		binding.Explanation = "claim lacks an explainable task-to-behavior anchor"
+		out.Background = append(out.Background, binding)
+	}
+	out.Applicable = normalizeBehavioralBindings(out.Applicable)
+	out.Background = normalizeBehavioralBindings(out.Background)
+	out.Dominated = normalizeBehavioralBindings(out.Dominated)
+	out.Contradictions = normalizeBehavioralBindings(out.Contradictions)
+	return out
+}
+
+func behavioralClaimKind(claim architecture.Claim) (string, bool) {
+	switch strings.TrimSpace(claim.Statement.Predicate) {
+	case "refuses_when":
+		return "guard", true
+	case "rejects_transition_when":
+		return "transition", true
+	case "asserts_rule":
+		return "asserted_rule", true
+	case "has_tested_failure_boundary":
+		return "failure_boundary", true
+	case "has_tested_monotonic_transition":
+		return "monotonic_transition", true
+	case "controls_lifecycle":
+		return "lifecycle_control", true
+	default:
+		return "", false
+	}
+}
+
+func claimPremiseTargetFiles(claim architecture.Claim, facts map[string]architecture.ClaimFactReceipt) []string {
+	var out []string
+	for _, id := range claim.PremiseFacts {
+		receipt, ok := facts[id]
+		if !ok {
+			continue
+		}
+		if target := normalizeSinglePath(receipt.Fact.Meta["target_file"]); target != "" {
+			out = append(out, target)
+		}
+	}
+	return cleanPathList(out)
+}
+
+func normalizeBehavioralBindings(in []behavioralBinding) []behavioralBinding {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]behavioralBinding{}
+	var keys []string
+	for _, item := range in {
+		key := strings.Join([]string{
+			item.ClaimID,
+			item.OperationKind,
+			item.TargetFile,
+			item.TargetSymbol,
+			item.ComponentID,
+			item.BehavioralKind,
+			item.Plane,
+			item.PlaneState,
+			string(item.Status),
+		}, "\x00")
+		cur := seen[key]
+		cur.ClaimID = item.ClaimID
+		cur.OperationKind = item.OperationKind
+		cur.TargetFile = normalizePath(item.TargetFile)
+		cur.TargetSymbol = strings.TrimSpace(item.TargetSymbol)
+		cur.ComponentID = strings.TrimSpace(item.ComponentID)
+		cur.BehavioralKind = strings.TrimSpace(item.BehavioralKind)
+		cur.RelationPath = append(cur.RelationPath, item.RelationPath...)
+		cur.Plane = item.Plane
+		cur.PlaneState = item.PlaneState
+		cur.Status = item.Status
+		cur.SourceClaimIDs = append(cur.SourceClaimIDs, item.SourceClaimIDs...)
+		cur.SourceNodeIDs = append(cur.SourceNodeIDs, item.SourceNodeIDs...)
+		if cur.Explanation == "" {
+			cur.Explanation = item.Explanation
+		}
+		if _, ok := seen[key]; !ok {
+			keys = append(keys, key)
+		}
+		seen[key] = cur
+	}
+	sort.Strings(keys)
+	out := make([]behavioralBinding, 0, len(keys))
+	for _, key := range keys {
+		item := seen[key]
+		item.RelationPath = cleanList(item.RelationPath)
+		item.SourceClaimIDs = cleanList(item.SourceClaimIDs)
+		item.SourceNodeIDs = cleanList(item.SourceNodeIDs)
+		out = append(out, item)
+	}
+	return out
+}
+
+func projectApplicableFailureModes(req Scope, scope resolvedScope, graph GraphIndex) failureSurfaceProjection {
+	out := failureSurfaceProjection{}
+	used := map[string]bool{}
+	for _, file := range cleanPathList(req.Files) {
+		iri, ok := graph.FilesByPath[file]
+		if !ok {
+			continue
+		}
+		sourceNode := graph.Nodes[iri]
+		for _, failureID := range sourceNode.VulnerableTo {
+			node, ok := findNode(graph, failureID)
+			if !ok || !hasClass(node, "failure_mode") {
+				continue
+			}
+			binding := failureSurfaceBinding{
+				FailureModeID: node.ID,
+				TargetFile:    file,
+				RelationPath:  []string{"task_modifies_file", "source_file_vulnerable_to_failure_mode"},
+			}
+			if eligibleFailureSurfaceNode(node) {
+				binding.Status = failureSurfaceApplicable
+				binding.Explanation = "current governed failure mode binds to the exact task file"
+				out.Applicable = append(out.Applicable, binding)
+			} else {
+				binding.Status = failureSurfaceIneligible
+				binding.Explanation = "failure mode is not current governed failure-surface authority for this task"
+				out.Ineligible = append(out.Ineligible, binding)
+			}
+			used[node.ID] = true
+		}
+	}
+	for _, node := range scope.Nodes {
+		if !hasClass(node, "failure_mode") || used[node.ID] {
+			continue
+		}
+		out.Background = append(out.Background, failureSurfaceBinding{
+			FailureModeID: node.ID,
+			Status:        failureSurfaceBackground,
+			Explanation:   "failure mode is relevant context but does not bind to an exact task file through vulnerableTo",
+		})
+	}
+	out.Applicable = normalizeFailureSurfaceBindings(out.Applicable)
+	out.Background = normalizeFailureSurfaceBindings(out.Background)
+	out.Ineligible = normalizeFailureSurfaceBindings(out.Ineligible)
+	return out
+}
+
+func eligibleFailureSurfaceNode(node Node) bool {
+	if !hasClass(node, "failure_mode") {
+		return false
+	}
+	switch node.Status {
+	case "candidate", "contested", "rejected", "stale", "superseded", "deprecated", "retired", "historical":
+		return false
+	}
+	switch node.PromotionStatus {
+	case "candidate", "rejected", "superseded":
+		return false
+	}
+	switch node.ReviewStatus {
+	case "review_required", "rejected", "superseded":
+		return false
+	}
+	switch node.SourceKind {
+	case "generated_candidate", "neural_candidate", "neural_prediction":
+		return false
+	}
+	return true
+}
+
+func normalizeFailureSurfaceBindings(in []failureSurfaceBinding) []failureSurfaceBinding {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]failureSurfaceBinding{}
+	var keys []string
+	for _, item := range in {
+		key := strings.Join([]string{item.FailureModeID, item.TargetFile, string(item.Status)}, "\x00")
+		cur := seen[key]
+		cur.FailureModeID = item.FailureModeID
+		cur.TargetFile = normalizePath(item.TargetFile)
+		cur.RelationPath = append(cur.RelationPath, item.RelationPath...)
+		cur.Status = item.Status
+		if cur.Explanation == "" {
+			cur.Explanation = item.Explanation
+		}
+		if _, ok := seen[key]; !ok {
+			keys = append(keys, key)
+		}
+		seen[key] = cur
+	}
+	sort.Strings(keys)
+	out := make([]failureSurfaceBinding, 0, len(keys))
+	for _, key := range keys {
+		item := seen[key]
+		item.RelationPath = cleanList(item.RelationPath)
+		out = append(out, item)
+	}
+	return out
 }
 
 func indexedClass(iri string) string {

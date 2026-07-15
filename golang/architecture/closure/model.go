@@ -1067,6 +1067,10 @@ type assessmentBuilder struct {
 	scope            resolvedScope
 	authority        authorityProjection
 	authorityReady   bool
+	behavioral       behavioralProjection
+	behavioralReady  bool
+	failureSurface   failureSurfaceProjection
+	failureReady     bool
 	blockers         []Blocker
 	conditions       []Condition
 	dimensions       []DimensionAssessment
@@ -1085,6 +1089,22 @@ func (b *assessmentBuilder) authorityProjection() authorityProjection {
 		b.authorityReady = true
 	}
 	return b.authority
+}
+
+func (b *assessmentBuilder) behavioralProjection() behavioralProjection {
+	if !b.behavioralReady {
+		b.behavioral = projectApplicableBehavioral(b.ctx.Request.Scope, b.scope, factReceiptsByID(b.ctx.Claims), b.planeByClaim)
+		b.behavioralReady = true
+	}
+	return b.behavioral
+}
+
+func (b *assessmentBuilder) failureSurfaceProjection() failureSurfaceProjection {
+	if !b.failureReady {
+		b.failureSurface = projectApplicableFailureModes(b.ctx.Request.Scope, b.scope, b.ctx.Graph)
+		b.failureReady = true
+	}
+	return b.failureSurface
 }
 
 func (b *assessmentBuilder) verifyBindings() {
@@ -1447,32 +1467,38 @@ func (b *assessmentBuilder) evalContract() {
 }
 
 func (b *assessmentBuilder) evalBehavioral() {
-	if len(b.scope.Claims) == 0 {
-		b.addOpen(DimensionBehavioral, "high", "closure.behavior.surface_empty", "no relevant behavioral claim exists", "repair_claim", nil, nil, nil, nil)
-	}
+	projection := b.behavioralProjection()
+	failureSurface := b.failureSurfaceProjection()
 	observedOrEnforced := false
-	for _, c := range b.scope.Claims {
+	for _, binding := range projection.Applicable {
+		c, ok := b.scope.ByClaimID[binding.ClaimID]
+		if !ok {
+			continue
+		}
 		if c.ArchitecturalPlane == architecture.PlaneObserved || c.ArchitecturalPlane == architecture.PlaneEnforced {
 			observedOrEnforced = true
 		}
 		switch c.EpistemicStatus {
 		case architecture.StatusUnknown:
-			b.addOpen(DimensionBehavioral, "high", "closure.behavior.claim_unknown", "behavioral claim is unknown", "create_open_question", []string{c.ID}, nil, nil, nil)
+			b.addOpen(DimensionBehavioral, "high", "closure.behavior.claim_unknown", "behavioral claim is unknown", "create_open_question", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		case architecture.StatusStale:
-			b.addOpen(DimensionBehavioral, "high", "closure.behavior.claim_stale", "behavioral claim is stale", "create_open_question", []string{c.ID}, nil, nil, nil)
+			b.addOpen(DimensionBehavioral, "high", "closure.behavior.claim_stale", "behavioral claim is stale", "create_open_question", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		case architecture.StatusContested:
-			b.addOpen(DimensionBehavioral, "critical", "closure.behavior.claim_contested", "behavioral claim is contested", "resolve_contradiction", []string{c.ID}, nil, nil, nil)
+			b.addOpen(DimensionBehavioral, "critical", "closure.behavior.claim_contested", "behavioral claim is contested", "resolve_contradiction", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		case architecture.StatusRefuted:
-			b.addOpen(DimensionBehavioral, "critical", "closure.behavior.claim_refuted", "behavioral claim is refuted", "repair_claim", []string{c.ID}, nil, nil, nil)
+			b.addOpen(DimensionBehavioral, "critical", "closure.behavior.claim_refuted", "behavioral claim is refuted", "repair_claim", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		}
 		if a, ok := b.planeByClaim[c.ID]; ok && a.PlaneState != plane.StateJustified {
-			b.addOpen(DimensionBehavioral, "high", "closure.behavior.plane_invalid", "behavioral claim plane is not justified", "repair_claim", []string{c.ID}, nil, nil, nil)
+			b.addOpen(DimensionBehavioral, "high", "closure.behavior.plane_invalid", "behavioral claim plane is not justified", "repair_claim", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		}
 	}
-	if !observedOrEnforced {
+	if len(projection.Applicable) == 0 && len(failureSurface.Applicable) == 0 {
+		b.addOpen(DimensionBehavioral, "high", "closure.behavior.surface_empty", "no relevant behavioral claim or governed failure surface exists", "repair_claim", nil, nil, nil, nil)
+	}
+	if !observedOrEnforced && len(failureSurface.Applicable) == 0 {
 		b.addOpen(DimensionBehavioral, "high", "closure.behavior.observed_or_enforced_missing", "no observed or enforced claim exists", "add_evidence", nil, nil, nil, nil)
 	}
-	if b.policy.RequiresFailureSurface && len(filterNodes(b.scope.Nodes, "failure_mode")) == 0 {
+	if b.policy.RequiresFailureSurface && len(failureSurface.Applicable) == 0 {
 		b.addOpen(DimensionBehavioral, "medium", "closure.behavior.failure_mode_missing", "high-risk scope lacks relevant failure surface", "add_failure_mode", nil, nil, nil, nil)
 	}
 	if oneOf(b.ctx.Request.Scope.RiskClass, RiskConvergence, RiskDataLoss) && len(filterNodes(b.scope.Nodes, "repair_plan")) == 0 && !b.hasCurrentTestOrEvidence() {

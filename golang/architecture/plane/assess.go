@@ -171,7 +171,7 @@ func assessEnforced(ctx Context, claim architecture.Claim, facts map[string]arch
 			accepted = true
 			bases = append(bases, acceptedBasis(BasisGate, id, r.Fact.Kind, "CI gate fact basis"))
 			reasons = append(reasons, Reason{Code: "plane.enforced.ci_gate_basis", Detail: id})
-		case observedFactBasis(r.Fact):
+		case sourceObservationFactBasis(r.Fact):
 			rejected = true
 			bases = append(bases, rejectedBasis(BasisFact, id, r.Fact.Kind, "source observation alone cannot justify enforced plane"))
 			reasons = append(reasons, Reason{Code: "plane.enforced.missing_basis", Detail: "source guard alone is not enforcement"})
@@ -335,6 +335,35 @@ func assessDesired(ctx Context, claim architecture.Claim, facts map[string]archi
 }
 
 func observedFactBasis(f architecture.Fact) bool {
+	switch f.Kind {
+	case "guard":
+		return f.Predicate == "refuses_when"
+	case "transition":
+		return f.Predicate == "rejects_transition_when"
+	case "write":
+		return f.Predicate == "writes"
+	case "read":
+		return f.Predicate == "reads"
+	case "authority_observation":
+		return f.Predicate == "mutates_state" || f.Predicate == "exposes_route" || f.Predicate == "controls_lifecycle"
+	case "schema_constraint", "persistence":
+		return true
+	case "export":
+		return f.Predicate == "exports_symbol"
+	case "test_call":
+		return f.Predicate == "test_calls_symbol"
+	case "reachability":
+		return f.Predicate == "entrypoint_reaches_symbol"
+	case "interface":
+		return f.Predicate == "implements_interface"
+	case "component_dependency":
+		return f.Predicate == "component_depends_on_component"
+	default:
+		return false
+	}
+}
+
+func sourceObservationFactBasis(f architecture.Fact) bool {
 	switch f.Kind {
 	case "guard":
 		return f.Predicate == "refuses_when"
