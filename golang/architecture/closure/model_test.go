@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
@@ -111,6 +112,138 @@ func TestClosureRequestRejectsDuplicateAfterNormalization(t *testing.T) {
 	req.Scope.Files = []string{"a.go", "./a.go"}
 	if _, err := NormalizeRequest(req); err == nil {
 		t.Fatal("expected duplicate normalized path to be rejected")
+	}
+}
+
+func TestDirectionBootstrapRequiresTaskID(t *testing.T) {
+	req := validRequest()
+	req.DirectionBootstrap = &DirectionBootstrapAuthorization{
+		SchemaVersion:                DirectionBootstrapSchemaVersion,
+		PolicyID:                     DirectionBootstrapPolicyID,
+		TaskID:                       "task.bootstrap.direction",
+		BaseRevision:                 strings.Repeat("a", 40),
+		GraphDigestSHA256:            strings.Repeat("b", 64),
+		File:                         DirectionBootstrapFile,
+		GovernedRecordIDs:            []string{"decision.one"},
+		ExpectedMutationDigestSHA256: strings.Repeat("c", 64),
+		ApprovedBy:                   "architect",
+		ApprovalMechanism:            DirectionBootstrapMechanismFile,
+		ApprovalStatement:            "bootstrap once",
+		UsagePolicy:                  DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+		ApprovalSourcePath:           "/approved/bootstrap-direction.yaml",
+		ApprovalSourceDigestSHA256:   strings.Repeat("d", 64),
+	}
+	req.DirectionBootstrap.AuthorizationDigestSHA256 = DirectionBootstrapAuthorizationDigest(*req.DirectionBootstrap)
+	if _, err := NormalizeRequest(req); err == nil {
+		t.Fatal("expected task-less request to reject direction bootstrap")
+	}
+}
+
+func TestDirectionBootstrapForRequestRequiresExactDecisionsTask(t *testing.T) {
+	req := validRequest()
+	req.TaskID = "task.bootstrap.direction"
+	req.Binding = bootstrapBinding()
+	req.Scope.Files = []string{"other.yaml"}
+	req.Scope.DirectionRequirement = DirectionEvolve
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.DirectionBootstrap = validDirectionBootstrap()
+	if _, err := DirectionBootstrapForRequest(req, time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)); err == nil {
+		t.Fatal("expected non-decisions task to reject bootstrap")
+	}
+}
+
+func TestDirectionBootstrapForRequestRejectsUnknownMechanism(t *testing.T) {
+	req := validRequest()
+	req.TaskID = "task.bootstrap.direction"
+	req.Binding = bootstrapBinding()
+	req.Scope.Domain = req.Binding.RepositoryDomain
+	req.Scope.TaskClass = "activate_direction_records"
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.AccessMode = AccessReadWrite
+	req.Scope.DirectionRequirement = DirectionEvolve
+	req.Scope.Files = []string{DirectionBootstrapFile}
+	req.DirectionBootstrap = validDirectionBootstrap()
+	req.DirectionBootstrap.ApprovalMechanism = "human_review"
+	req.DirectionBootstrap.AuthorizationDigestSHA256 = DirectionBootstrapAuthorizationDigest(*req.DirectionBootstrap)
+	if _, err := DirectionBootstrapForRequest(req, time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)); err == nil || !strings.Contains(err.Error(), "approval_mechanism is unknown") {
+		t.Fatalf("expected unknown mechanism rejection, got %v", err)
+	}
+}
+
+func TestDirectionBootstrapForRequestRejectsExpiredAuthorization(t *testing.T) {
+	req := validRequest()
+	req.TaskID = "task.bootstrap.direction"
+	req.Binding = bootstrapBinding()
+	req.Scope.Domain = req.Binding.RepositoryDomain
+	req.Scope.TaskClass = "activate_direction_records"
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.AccessMode = AccessReadWrite
+	req.Scope.DirectionRequirement = DirectionEvolve
+	req.Scope.Files = []string{DirectionBootstrapFile}
+	req.DirectionBootstrap = validDirectionBootstrap()
+	if _, err := DirectionBootstrapForRequest(req, time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC)); err == nil || !strings.Contains(err.Error(), "authorization expired") {
+		t.Fatalf("expected expiry rejection, got %v", err)
+	}
+}
+
+func TestValidateDirectionBootstrapApprovalRequiresTrustedApprovalRoot(t *testing.T) {
+	trusted := filepath.Join(t.TempDir(), "trusted")
+	if err := os.MkdirAll(trusted, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(DirectionBootstrapApprovalDirEnv, trusted)
+	outsideDir := t.TempDir()
+	sourcePath := filepath.Join(outsideDir, "bootstrap.yaml")
+	data := []byte("approved")
+	if err := os.WriteFile(sourcePath, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	repoRoot := filepath.Join(t.TempDir(), "repo")
+	if err := os.MkdirAll(repoRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	auth := *validDirectionBootstrap()
+	auth.ApprovalSourcePath = sourcePath
+	auth.ApprovalSourceDigestSHA256 = digest(data)
+	auth.AuthorizationDigestSHA256 = DirectionBootstrapAuthorizationDigest(auth)
+	if err := ValidateDirectionBootstrapApproval(auth, repoRoot); err == nil || !strings.Contains(err.Error(), "trusted approval root") {
+		t.Fatalf("expected trusted approval root rejection, got %v", err)
+	}
+}
+
+func TestDirectionBootstrapConditionsOnlyDirection(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs", "awareness", "architecture"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "awareness", "architecture", "decisions.yaml"), []byte("decisions:\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	req := validRequest()
+	req.TaskID = "task.bootstrap.direction"
+	req.Binding = bootstrapBinding()
+	req.Scope.Domain = req.Binding.RepositoryDomain
+	req.Scope.TaskClass = "activate_direction_records"
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.AccessMode = AccessReadWrite
+	req.Scope.DirectionRequirement = DirectionEvolve
+	req.Scope.Files = []string{DirectionBootstrapFile}
+	req.DirectionBootstrap = validDirectionBootstrap()
+	report, err := Evaluate(validContext(t, root, req, sourceFileGraph(DirectionBootstrapFile)))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoBlocker(t, report, "closure.direction.intended_missing")
+	assertNoBlocker(t, report, "closure.direction.desired_missing")
+	assertBlocker(t, report, "closure.behavior.surface_empty")
+	found := map[string]bool{}
+	for _, c := range report.Conditions {
+		found[c.Code] = true
+	}
+	if !found["closure.direction.intended.bootstrap"] || !found["closure.direction.desired.bootstrap"] {
+		t.Fatalf("missing bootstrap direction conditions: %+v", report.Conditions)
 	}
 }
 
@@ -275,6 +408,28 @@ func TestClosureRequestFileRepresentedByCanonicalSourceFileIRI(t *testing.T) {
 			t.Fatalf("canonical source file remained unrepresented: %#v", b)
 		}
 	}
+}
+
+func TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "x.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	req := validRequest()
+	req.Scope.RiskClass = RiskArchitectureSensitive
+	req.Scope.DirectionRequirement = DirectionPreserve
+
+	withoutFM, err := Evaluate(validContext(t, root, req, sourceFileGraphCanonical("x.go")))
+	if err != nil {
+		t.Fatalf("Evaluate without failure mode: %v", err)
+	}
+	assertBlocker(t, withoutFM, "closure.behavior.failure_mode_missing")
+
+	withFM, err := Evaluate(validContext(t, root, req, sourceFileVulnerableToGraph("x.go", "failure.test.scope")))
+	if err != nil {
+		t.Fatalf("Evaluate with failure mode: %v", err)
+	}
+	assertNoBlocker(t, withFM, "closure.behavior.failure_mode_missing")
 }
 
 func TestUnrepresentedFileRemainsOpen(t *testing.T) {
@@ -533,26 +688,65 @@ func binding() architecture.ClaimDocumentBinding {
 	}
 }
 
-func validContext(t *testing.T, root string, req Request, graph GraphIndex) Context {
-	t.Helper()
-	planeReport := planeReportEmpty()
-	return Context{
-		Request:     req,
-		Claims:      architecture.ClaimDocument{SchemaVersion: "1", GeneratedBy: "test", Binding: binding()},
-		Maintenance: &maintenance.Report{SchemaVersion: "1", GeneratedBy: "test", CurrentBinding: binding(), ObservedBinding: binding()},
-		Plane:       &planeReport,
-		Dialogue:    &architecture.DialogueDocument{SchemaVersion: "1", CompiledBy: "test", Binding: binding(), OpenQuestions: []architecture.OpenQuestion{}},
-		Evidence:    &maintenance.EvidenceStateDocument{SchemaVersion: "1", GeneratedBy: "test", Binding: binding(), Evidence: []maintenance.EvidenceState{}},
-		Graph:       graph, GraphReceipt: graphsnapshot.Receipt{Status: architecture.GraphDigestResolved, DigestSHA256: "graph", Verified: true},
-		RepositoryRoot: root, RepositoryRev: "rev", RepositoryStatus: architecture.RevisionResolved,
+func bootstrapBinding() architecture.ClaimDocumentBinding {
+	return architecture.ClaimDocumentBinding{
+		RepositoryDomain:  "example.test/repo",
+		Revision:          strings.Repeat("a", 40),
+		RevisionStatus:    architecture.RevisionResolved,
+		GraphDigestSHA256: strings.Repeat("b", 64),
+		GraphDigestStatus: architecture.GraphDigestResolved,
 	}
 }
 
-func planeReportEmpty() plane.Report {
+func validDirectionBootstrap() *DirectionBootstrapAuthorization {
+	auth := &DirectionBootstrapAuthorization{
+		SchemaVersion:                DirectionBootstrapSchemaVersion,
+		PolicyID:                     DirectionBootstrapPolicyID,
+		TaskID:                       "task.bootstrap.direction",
+		BaseRevision:                 strings.Repeat("a", 40),
+		GraphDigestSHA256:            strings.Repeat("b", 64),
+		File:                         DirectionBootstrapFile,
+		GovernedRecordIDs:            []string{"decision.desired", "decision.intended"},
+		ExpectedMutationDigestSHA256: strings.Repeat("c", 64),
+		ApprovedBy:                   "architect",
+		ApprovalMechanism:            DirectionBootstrapMechanismFile,
+		ApprovalStatement:            "bootstrap exactly once",
+		UsagePolicy:                  DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+		ApprovalSourcePath:           "/approved/bootstrap-direction.yaml",
+		ApprovalSourceDigestSHA256:   strings.Repeat("d", 64),
+	}
+	auth.AuthorizationDigestSHA256 = DirectionBootstrapAuthorizationDigest(*auth)
+	return auth
+}
+
+func validContext(t *testing.T, root string, req Request, graph GraphIndex) Context {
+	t.Helper()
+	planeReport := planeReportEmpty(req.Binding)
+	return Context{
+		Request:     req,
+		Claims:      architecture.ClaimDocument{SchemaVersion: "1", GeneratedBy: "test", Binding: req.Binding},
+		Maintenance: &maintenance.Report{SchemaVersion: "1", GeneratedBy: "test", CurrentBinding: req.Binding, ObservedBinding: req.Binding},
+		Plane:       &planeReport,
+		Dialogue:    &architecture.DialogueDocument{SchemaVersion: "1", CompiledBy: "test", Binding: req.Binding, OpenQuestions: []architecture.OpenQuestion{}},
+		Evidence:    &maintenance.EvidenceStateDocument{SchemaVersion: "1", GeneratedBy: "test", Binding: req.Binding, Evidence: []maintenance.EvidenceState{}},
+		Graph:       graph, GraphReceipt: graphsnapshot.Receipt{Status: architecture.GraphDigestResolved, DigestSHA256: req.Binding.GraphDigestSHA256, Verified: true},
+		RepositoryRoot: root, RepositoryRev: req.Binding.Revision, RepositoryStatus: architecture.RevisionResolved,
+	}
+}
+
+func planeReportEmpty(binding architecture.ClaimDocumentBinding) plane.Report {
 	return plane.Report{
 		SchemaVersion: "1", GeneratedBy: "test",
-		ClaimBinding:  plane.ClaimBindingReport{RepositoryDomain: "example.test/repo", Revision: "rev", RevisionStatus: architecture.RevisionResolved, GraphDigestSHA256: "graph", GraphDigestStatus: architecture.GraphDigestResolved},
-		GraphSnapshot: plane.GraphSnapshotReport{DigestSHA256: "graph", DigestStatus: architecture.GraphDigestResolved},
+		ClaimBinding: plane.ClaimBindingReport{
+			RepositoryDomain:  binding.RepositoryDomain,
+			Revision:          binding.Revision,
+			RevisionStatus:    binding.RevisionStatus,
+			GraphDigestSHA256: binding.GraphDigestSHA256,
+			GraphDigestStatus: binding.GraphDigestStatus,
+		},
+		GraphSnapshot: plane.GraphSnapshotReport{DigestSHA256: binding.GraphDigestSHA256, DigestStatus: binding.GraphDigestStatus},
 	}
 }
 
@@ -580,6 +774,17 @@ func sourceFileGraphCanonical(path string) GraphIndex {
 	)))
 }
 
+func sourceFileVulnerableToGraph(path, failureID string) GraphIndex {
+	fileIRI := classIRI("source_file", path)
+	failureIRI := classIRI("failure_mode", failureID)
+	return BuildGraphIndex(mustTriplesForPanic(nt(
+		triple(fileIRI, rdf.PropType, rdf.ClassSourceFile, true),
+		triple(fileIRI, rdf.PropVulnerableTo, failureIRI, true),
+		triple(failureIRI, rdf.PropType, rdf.ClassFailureMode, true),
+		triple(failureIRI, rdf.PropLabel, "scope failure", false),
+	)))
+}
+
 func acceptedUnknownQuestion(id, dim, priority string) architecture.OpenQuestion {
 	return architecture.OpenQuestion{
 		ID: id, QuestionText: "fixture", Scope: architecture.ClaimScope{Files: []string{"x.go"}},
@@ -596,6 +801,15 @@ func assertBlocker(t *testing.T, report Report, code string) {
 		}
 	}
 	t.Fatalf("missing blocker %s in %#v", code, report.Blockers)
+}
+
+func assertNoBlocker(t *testing.T, report Report, code string) {
+	t.Helper()
+	for _, b := range report.Blockers {
+		if b.Code == code {
+			t.Fatalf("unexpected blocker %s in %#v", code, report.Blockers)
+		}
+	}
 }
 
 func mustTriples(t *testing.T, data string) []graphsnapshot.Triple {
@@ -629,6 +843,7 @@ func classIRI(class, id string) string {
 		"source_file":      rdf.ClassSourceFile,
 		"component":        rdf.ClassComponent,
 		"authority_domain": rdf.ClassAuthorityDomain,
+		"failure_mode":     rdf.ClassFailureMode,
 	}[class]
 	return strings.Trim(strings.TrimSuffix(rdf.MintIRI(classIRI, id), ">"), "<")
 }

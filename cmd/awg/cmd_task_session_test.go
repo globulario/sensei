@@ -14,6 +14,9 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/tasksession"
 	"github.com/globulario/sensei/golang/rdf"
 )
 
@@ -113,6 +116,111 @@ func TestPrepareChangeCLIRejectsMissingProjectInference(t *testing.T) {
 	if code == 0 || !strings.Contains(stderr, "task input incomplete: inference not run") {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
+}
+
+func TestPrepareChangeCLIAcceptsBootstrapDirectionFlags(t *testing.T) {
+	repo, graph := taskSessionTestRepo(t)
+	taskSessionWrite(t, repo, "docs/awareness/architecture/decisions.yaml", "decisions:\n")
+	authPath := writeCLIBootstrapDirectionAuthorization(t, repo, graph)
+	code, stdout, stderr := captureTaskSessionCommand(t, func() int {
+		return runPrepareChange([]string{
+			"--repo", repo,
+			"--repo-domain", "github.com/example/project",
+			"--description", "Bootstrap direction records.",
+			"--mode", "modify",
+			"--task-class", "bootstrap_direction_records",
+			"--risk-class", "architecture_sensitive",
+			"--direction", "evolve",
+			"--graph-nt", graph,
+			"--file", "modify:docs/awareness/architecture/decisions.yaml",
+			"--bootstrap-direction-authorization", authPath,
+		})
+	})
+	if code != 0 {
+		t.Fatalf("prepare-change bootstrap exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	if !strings.Contains(stdout, "Task: task.bootstrap-direction-records.") {
+		t.Fatalf("unexpected bootstrap prepare output:\n%s", stdout)
+	}
+}
+
+func writeCLIBootstrapDirectionAuthorization(t *testing.T, repo, graph string) string {
+	t.Helper()
+	revision := taskSessionGitHead(t, repo)
+	graphDigest := taskSessionDigest(t, graph)
+	req := tasksession.TaskRequest{
+		SchemaVersion: "1",
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          revision,
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: graphDigest,
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+		Description:          "Bootstrap direction records.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "bootstrap_direction_records",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionEvolve,
+		Scope:                tasksession.TaskScope{Files: []tasksession.FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}}},
+		RequestedBy:          "coding_agent",
+	}
+	req.TaskID = tasksession.StableTaskID(req)
+	auth := closure.DirectionBootstrapAuthorization{
+		SchemaVersion:                closure.DirectionBootstrapSchemaVersion,
+		PolicyID:                     closure.DirectionBootstrapPolicyID,
+		TaskID:                       req.TaskID,
+		BaseRevision:                 revision,
+		GraphDigestSHA256:            graphDigest,
+		File:                         closure.DirectionBootstrapFile,
+		GovernedRecordIDs:            []string{"decision.desired", "decision.intended"},
+		ExpectedMutationDigestSHA256: strings.Repeat("c", 64),
+		ApprovedBy:                   "architect",
+		ApprovalMechanism:            closure.DirectionBootstrapMechanismFile,
+		ApprovalStatement:            "bootstrap once",
+		UsagePolicy:                  closure.DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+	}
+	data, err := closure.MarshalCanonicalDirectionBootstrapYAML(auth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(taskSessionExternalApprovalDir(t), "bootstrap-direction-authorization.yaml")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func taskSessionExternalApprovalDir(t *testing.T) string {
+	t.Helper()
+	base, err := os.UserCacheDir()
+	if err != nil || strings.TrimSpace(base) == "" {
+		home, homeErr := os.UserHomeDir()
+		if homeErr != nil {
+			t.Fatalf("resolve home for external approval dir: %v / %v", err, homeErr)
+		}
+		base = filepath.Join(home, ".cache")
+	}
+	dir := filepath.Join(base, "sensei-bootstrap-tests", strings.ReplaceAll(t.Name(), "/", "_"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(closure.DirectionBootstrapApprovalDirEnv, dir)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
+
+func taskSessionGitHead(t *testing.T, root string) string {
+	t.Helper()
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func captureTaskSessionCommand(t *testing.T, fn func() int) (int, string, string) {

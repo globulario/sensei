@@ -124,6 +124,287 @@ func TestPrepareChangeCreatesCanonicalLayoutAndActivePointer(t *testing.T) {
 	}
 }
 
+func TestPrepareChangeSnapshotsBootstrapDirectionAuthorization(t *testing.T) {
+	repo, graph := testRepo(t)
+	authPath := writeBootstrapDirectionAuthorization(t, repo, graph, TaskRequest{
+		SchemaVersion: SchemaVersion,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          gitHeadForTest(t, repo),
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: fileDigest(t, graph),
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+		Description:          "Bootstrap governed direction records.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "bootstrap_direction_records",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionEvolve,
+		Scope:                TaskScope{Files: []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}}},
+		RequestedBy:          "coding_agent",
+	})
+	res, err := Prepare(PrepareOptions{
+		RepoRoot:             repo,
+		RepositoryDomain:     "github.com/example/project",
+		Description:          "Bootstrap governed direction records.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "bootstrap_direction_records",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionEvolve,
+		Files: []FileOperation{
+			{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify},
+		},
+		GraphNT:                         graph,
+		DirectionBootstrapAuthorization: authPath,
+	})
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	taskDir := filepath.Join(repo, filepath.FromSlash(res.TaskDir))
+	if _, err := os.Stat(filepath.Join(taskDir, "governance", "bootstrap-direction-authorization.yaml")); err != nil {
+		t.Fatalf("missing bootstrap direction authorization: %v", err)
+	}
+	req, err := closure.LoadRequest(filepath.Join(taskDir, "closure-request.yaml"))
+	if err != nil {
+		t.Fatalf("LoadRequest: %v", err)
+	}
+	if req.TaskID != res.TaskID || req.DirectionBootstrap == nil {
+		t.Fatalf("bootstrap receipt not bound into closure request: %+v", req)
+	}
+	if req.DirectionBootstrap.File != closure.DirectionBootstrapFile {
+		t.Fatalf("bootstrap file = %s", req.DirectionBootstrap.File)
+	}
+}
+
+func TestPrepareChangeRejectsUnknownBootstrapApprovalMechanism(t *testing.T) {
+	repo, graph := testRepo(t)
+	req := TaskRequest{
+		SchemaVersion: SchemaVersion,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          gitHeadForTest(t, repo),
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: fileDigest(t, graph),
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+		Description:          "Bootstrap governed direction records.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "bootstrap_direction_records",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionEvolve,
+		Scope:                TaskScope{Files: []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}}},
+		RequestedBy:          "coding_agent",
+	}
+	req.TaskID = StableTaskID(req)
+	auth := closure.DirectionBootstrapAuthorization{
+		SchemaVersion:                closure.DirectionBootstrapSchemaVersion,
+		PolicyID:                     closure.DirectionBootstrapPolicyID,
+		TaskID:                       req.TaskID,
+		BaseRevision:                 req.Binding.Revision,
+		GraphDigestSHA256:            req.Binding.GraphDigestSHA256,
+		File:                         closure.DirectionBootstrapFile,
+		GovernedRecordIDs:            []string{"decision.desired"},
+		ExpectedMutationDigestSHA256: strings.Repeat("c", 64),
+		ApprovedBy:                   "Dave",
+		ApprovalMechanism:            "human_review",
+		ApprovalStatement:            "bootstrap once",
+		UsagePolicy:                  closure.DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+	}
+	auth.ApprovalMechanism = closure.DirectionBootstrapMechanismFile
+	data, err := closure.MarshalCanonicalDirectionBootstrapYAML(auth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = []byte(strings.Replace(string(data), closure.DirectionBootstrapMechanismFile, "human_review", 1))
+	authPath := writeExternalBootstrapDirectionAuthorizationFile(t, data)
+	_, err = Prepare(PrepareOptions{
+		RepoRoot:                        repo,
+		RepositoryDomain:                "github.com/example/project",
+		Description:                     "Bootstrap governed direction records.",
+		Mode:                            admission.ModeModify,
+		TaskClass:                       "bootstrap_direction_records",
+		RiskClass:                       closure.RiskArchitectureSensitive,
+		DirectionRequirement:            closure.DirectionEvolve,
+		Files:                           []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}},
+		GraphNT:                         graph,
+		DirectionBootstrapAuthorization: authPath,
+	})
+	if err == nil || !strings.Contains(err.Error(), "approval_mechanism is unknown") {
+		t.Fatalf("expected approval mechanism rejection, got %v", err)
+	}
+}
+
+func TestPrepareChangeRejectsConsumedBootstrapDirectionAuthorization(t *testing.T) {
+	repo, graph := testRepo(t)
+	authPath := writeBootstrapDirectionAuthorization(t, repo, graph, TaskRequest{
+		SchemaVersion: SchemaVersion,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          gitHeadForTest(t, repo),
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: fileDigest(t, graph),
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+		Description:          "Bootstrap governed direction records.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "bootstrap_direction_records",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionEvolve,
+		Scope:                TaskScope{Files: []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}}},
+		RequestedBy:          "coding_agent",
+	})
+	first, err := Prepare(PrepareOptions{
+		RepoRoot:                        repo,
+		RepositoryDomain:                "github.com/example/project",
+		Description:                     "Bootstrap governed direction records.",
+		Mode:                            admission.ModeModify,
+		TaskClass:                       "bootstrap_direction_records",
+		RiskClass:                       closure.RiskArchitectureSensitive,
+		DirectionRequirement:            closure.DirectionEvolve,
+		Files:                           []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}},
+		GraphNT:                         graph,
+		DirectionBootstrapAuthorization: authPath,
+	})
+	if err != nil {
+		t.Fatalf("first Prepare: %v", err)
+	}
+	taskDir := filepath.Join(repo, filepath.FromSlash(first.TaskDir))
+	req, err := closure.LoadRequest(filepath.Join(taskDir, "closure-request.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := admission.BootstrapDirectionConsumption{
+		TaskID:                     req.TaskID,
+		AdmissionID:                "admission.one",
+		VerificationDigestSHA256:   strings.Repeat("d", 64),
+		AuthorizationDigestSHA256:  req.DirectionBootstrap.AuthorizationDigestSHA256,
+		ApprovalSourcePath:         req.DirectionBootstrap.ApprovalSourcePath,
+		ApprovalSourceDigestSHA256: req.DirectionBootstrap.ApprovalSourceDigestSHA256,
+		ConsumedAt:                 "2026-07-15T12:00:00Z",
+	}
+	data, err := admission.MarshalCanonicalBootstrapDirectionConsumptionYAML(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(taskDir, "receipts", "bootstrap-direction-consumption.yaml"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = Prepare(PrepareOptions{
+		RepoRoot:                        repo,
+		RepositoryDomain:                "github.com/example/project",
+		Description:                     "Bootstrap governed direction records.",
+		Mode:                            admission.ModeModify,
+		TaskClass:                       "bootstrap_direction_records",
+		RiskClass:                       closure.RiskArchitectureSensitive,
+		DirectionRequirement:            closure.DirectionEvolve,
+		Files:                           []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}},
+		GraphNT:                         graph,
+		DirectionBootstrapAuthorization: authPath,
+	})
+	if err == nil || !strings.Contains(err.Error(), "already consumed") {
+		t.Fatalf("expected reuse rejection, got %v", err)
+	}
+}
+
+func TestPrepareChangeRejectsBootstrapDirectionAuthorizationTaskMismatch(t *testing.T) {
+	repo, graph := testRepo(t)
+	req := TaskRequest{
+		SchemaVersion: SchemaVersion,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain:  "github.com/example/project",
+			Revision:          gitHeadForTest(t, repo),
+			RevisionStatus:    architecture.RevisionResolved,
+			GraphDigestSHA256: fileDigest(t, graph),
+			GraphDigestStatus: architecture.GraphDigestResolved,
+		},
+		Description:          "Bootstrap governed direction records.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "bootstrap_direction_records",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionEvolve,
+		Scope:                TaskScope{Files: []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}}},
+		RequestedBy:          "coding_agent",
+	}
+	req.Description = "Different bootstrap task."
+	authPath := writeBootstrapDirectionAuthorization(t, repo, graph, req)
+	_, err := Prepare(PrepareOptions{
+		RepoRoot:                        repo,
+		RepositoryDomain:                "github.com/example/project",
+		Description:                     "Bootstrap governed direction records.",
+		Mode:                            admission.ModeModify,
+		TaskClass:                       "bootstrap_direction_records",
+		RiskClass:                       closure.RiskArchitectureSensitive,
+		DirectionRequirement:            closure.DirectionEvolve,
+		Files:                           []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}},
+		GraphNT:                         graph,
+		DirectionBootstrapAuthorization: authPath,
+	})
+	if err == nil || !strings.Contains(err.Error(), "task_id") {
+		t.Fatalf("expected task mismatch rejection, got %v", err)
+	}
+}
+
+func TestPrepareChangeRejectsBootstrapDirectionAuthorizationGraphMismatch(t *testing.T) {
+	repo, graph := testRepo(t)
+	binding := architecture.ClaimDocumentBinding{
+		RepositoryDomain:  "github.com/example/project",
+		Revision:          gitHeadForTest(t, repo),
+		RevisionStatus:    architecture.RevisionResolved,
+		GraphDigestSHA256: fileDigest(t, graph),
+		GraphDigestStatus: architecture.GraphDigestResolved,
+	}
+	req := TaskRequest{
+		SchemaVersion:        SchemaVersion,
+		Binding:              binding,
+		Description:          "Bootstrap governed direction records.",
+		Mode:                 admission.ModeModify,
+		TaskClass:            "bootstrap_direction_records",
+		RiskClass:            closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionEvolve,
+		Scope:                TaskScope{Files: []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}}},
+		RequestedBy:          "coding_agent",
+	}
+	req.TaskID = StableTaskID(req)
+	auth := closure.DirectionBootstrapAuthorization{
+		SchemaVersion:                closure.DirectionBootstrapSchemaVersion,
+		PolicyID:                     closure.DirectionBootstrapPolicyID,
+		TaskID:                       req.TaskID,
+		BaseRevision:                 req.Binding.Revision,
+		GraphDigestSHA256:            strings.Repeat("a", 64),
+		File:                         closure.DirectionBootstrapFile,
+		GovernedRecordIDs:            []string{"decision.desired"},
+		ExpectedMutationDigestSHA256: strings.Repeat("c", 64),
+		ApprovedBy:                   "architect",
+		ApprovalMechanism:            closure.DirectionBootstrapMechanismFile,
+		ApprovalStatement:            "bootstrap once",
+		UsagePolicy:                  closure.DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+	}
+	data, err := closure.MarshalCanonicalDirectionBootstrapYAML(auth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authPath := writeExternalBootstrapDirectionAuthorizationFile(t, data)
+	_, err = Prepare(PrepareOptions{
+		RepoRoot:                        repo,
+		RepositoryDomain:                "github.com/example/project",
+		Description:                     "Bootstrap governed direction records.",
+		Mode:                            admission.ModeModify,
+		TaskClass:                       "bootstrap_direction_records",
+		RiskClass:                       closure.RiskArchitectureSensitive,
+		DirectionRequirement:            closure.DirectionEvolve,
+		Files:                           []FileOperation{{Path: closure.DirectionBootstrapFile, Operation: admission.OperationModify}},
+		GraphNT:                         graph,
+		DirectionBootstrapAuthorization: authPath,
+	})
+	if err == nil || !strings.Contains(err.Error(), "graph_digest_sha256 does not match") {
+		t.Fatalf("expected graph mismatch rejection, got %v", err)
+	}
+}
+
 func TestLegacyActivePointerProjectsAsStaleInsteadOfFailingToLoad(t *testing.T) {
 	repo, graph := testRepo(t)
 	_, err := Prepare(PrepareOptions{
@@ -602,6 +883,72 @@ func sampleTaskRequest() TaskRequest {
 		Scope:                TaskScope{Files: []FileOperation{{Path: "gin.go", Operation: admission.OperationModify}}},
 		RequestedBy:          "coding_agent",
 	}
+}
+
+func writeBootstrapDirectionAuthorization(t *testing.T, repo, graph string, req TaskRequest) string {
+	t.Helper()
+	req.TaskID = StableTaskID(req)
+	auth := closure.DirectionBootstrapAuthorization{
+		SchemaVersion:                closure.DirectionBootstrapSchemaVersion,
+		PolicyID:                     closure.DirectionBootstrapPolicyID,
+		TaskID:                       req.TaskID,
+		BaseRevision:                 req.Binding.Revision,
+		GraphDigestSHA256:            req.Binding.GraphDigestSHA256,
+		File:                         closure.DirectionBootstrapFile,
+		GovernedRecordIDs:            []string{"decision.desired", "decision.intended"},
+		ExpectedMutationDigestSHA256: strings.Repeat("c", 64),
+		ApprovedBy:                   "architect",
+		ApprovalMechanism:            closure.DirectionBootstrapMechanismFile,
+		ApprovalStatement:            "one-use bootstrap",
+		UsagePolicy:                  closure.DirectionBootstrapUsageOneUse,
+		IssuedAt:                     "2026-07-15T00:00:00Z",
+		ExpiresAt:                    "2026-07-16T00:00:00Z",
+	}
+	data, err := closure.MarshalCanonicalDirectionBootstrapYAML(auth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return writeExternalBootstrapDirectionAuthorizationFile(t, data)
+}
+
+func writeExternalBootstrapDirectionAuthorizationFile(t *testing.T, data []byte) string {
+	t.Helper()
+	dir := externalApprovalDir(t)
+	path := filepath.Join(dir, "bootstrap-direction-authorization.yaml")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func externalApprovalDir(t *testing.T) string {
+	t.Helper()
+	base, err := os.UserCacheDir()
+	if err != nil || strings.TrimSpace(base) == "" {
+		home, homeErr := os.UserHomeDir()
+		if homeErr != nil {
+			t.Fatalf("resolve home for external approval dir: %v / %v", err, homeErr)
+		}
+		base = filepath.Join(home, ".cache")
+	}
+	dir := filepath.Join(base, "sensei-bootstrap-tests", strings.ReplaceAll(t.Name(), "/", "_"), strings.ReplaceAll(time.Now().UTC().Format("20060102150405.000000000"), ".", ""))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(closure.DirectionBootstrapApprovalDirEnv, dir)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
+
+func gitHeadForTest(t *testing.T, root string) string {
+	t.Helper()
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func testRepo(t *testing.T) (string, string) {

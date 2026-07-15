@@ -86,6 +86,7 @@ type TaskScope struct {
 type ArtifactRefs struct {
 	TaskRequest           string `json:"task_request" yaml:"task_request"`
 	ClosureRequest        string `json:"closure_request" yaml:"closure_request"`
+	DirectionBootstrap    string `json:"direction_bootstrap,omitempty" yaml:"direction_bootstrap,omitempty"`
 	Claims                string `json:"claims" yaml:"claims"`
 	Dialogue              string `json:"dialogue" yaml:"dialogue"`
 	EvidenceState         string `json:"evidence_state" yaml:"evidence_state"`
@@ -141,21 +142,22 @@ type ActivePointer struct {
 }
 
 type PrepareOptions struct {
-	RepoRoot             string
-	RepositoryDomain     string
-	Description          string
-	Mode                 string
-	TaskClass            string
-	RiskClass            string
-	DirectionRequirement string
-	Files                []FileOperation
-	GraphNT              string
-	Claims               string
-	Dialogue             string
-	EvidenceState        string
-	QuestionCreatedAt    string
-	RequestedBy          string
-	SetActive            bool
+	RepoRoot                        string
+	RepositoryDomain                string
+	Description                     string
+	Mode                            string
+	TaskClass                       string
+	RiskClass                       string
+	DirectionRequirement            string
+	Files                           []FileOperation
+	GraphNT                         string
+	Claims                          string
+	Dialogue                        string
+	EvidenceState                   string
+	DirectionBootstrapAuthorization string
+	QuestionCreatedAt               string
+	RequestedBy                     string
+	SetActive                       bool
 }
 
 type PrepareResult struct {
@@ -284,13 +286,23 @@ func Prepare(opts PrepareOptions) (PrepareResult, error) {
 	if err := writeFileAtomic(filepath.Join(taskRoot, "task-request.yaml"), taskBytes); err != nil {
 		return PrepareResult{}, err
 	}
+	directionBootstrap, directionBootstrapBytes, err := loadDirectionBootstrapAuthorization(repoRoot, taskReq, opts.DirectionBootstrapAuthorization)
+	if err != nil {
+		return PrepareResult{}, err
+	}
 	closureReq := closureRequestFromTask(taskReq)
+	closureReq.DirectionBootstrap = directionBootstrap
 	closureBytes, err := closure.MarshalCanonicalRequestYAML(closureReq)
 	if err != nil {
 		return PrepareResult{}, err
 	}
 	if err := writeFileAtomic(filepath.Join(taskRoot, "closure-request.yaml"), closureBytes); err != nil {
 		return PrepareResult{}, err
+	}
+	if directionBootstrap != nil {
+		if err := writeFileAtomic(filepath.Join(taskRoot, "governance", "bootstrap-direction-authorization.yaml"), directionBootstrapBytes); err != nil {
+			return PrepareResult{}, err
+		}
 	}
 	if err := writeFileAtomic(filepath.Join(taskRoot, "source", "graph.nt"), graphData); err != nil {
 		return PrepareResult{}, err
@@ -606,6 +618,7 @@ func normalizePrepareOptions(opts PrepareOptions) PrepareOptions {
 	opts.Claims = strings.TrimSpace(opts.Claims)
 	opts.Dialogue = strings.TrimSpace(opts.Dialogue)
 	opts.EvidenceState = strings.TrimSpace(opts.EvidenceState)
+	opts.DirectionBootstrapAuthorization = strings.TrimSpace(opts.DirectionBootstrapAuthorization)
 	opts.QuestionCreatedAt = strings.TrimSpace(opts.QuestionCreatedAt)
 	if opts.QuestionCreatedAt == "" {
 		opts.QuestionCreatedAt = "1970-01-01T00:00:00Z"
@@ -735,6 +748,7 @@ func defaultArtifactRefs() ArtifactRefs {
 	return ArtifactRefs{
 		TaskRequest:           "task-request.yaml",
 		ClosureRequest:        "closure-request.yaml",
+		DirectionBootstrap:    "governance/bootstrap-direction-authorization.yaml",
 		Claims:                "source/claims.yaml",
 		Dialogue:              "source/dialogue.yaml",
 		EvidenceState:         "source/evidence-state.yaml",
@@ -762,6 +776,7 @@ func closureRequestFromTask(req TaskRequest) closure.Request {
 	}
 	return closure.Request{
 		SchemaVersion: closure.SchemaVersion,
+		TaskID:        req.TaskID,
 		Binding:       req.Binding,
 		Scope: closure.Scope{
 			Domain:               req.Binding.RepositoryDomain,
@@ -774,6 +789,85 @@ func closureRequestFromTask(req TaskRequest) closure.Request {
 		RequestedBy: req.RequestedBy,
 		Note:        req.Description,
 	}
+}
+
+func loadDirectionBootstrapAuthorization(repoRoot string, req TaskRequest, path string) (*closure.DirectionBootstrapAuthorization, []byte, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil, nil, nil
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve bootstrap direction authorization: %w", err)
+	}
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read bootstrap direction authorization: %w", err)
+	}
+	auth, err := closure.UnmarshalDirectionBootstrapYAML(data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load bootstrap direction authorization: %w", err)
+	}
+	if auth.TaskID != req.TaskID {
+		return nil, nil, fmt.Errorf("invalid bootstrap direction authorization: task_id %s does not match %s", auth.TaskID, req.TaskID)
+	}
+	if auth.BaseRevision != req.Binding.Revision {
+		return nil, nil, fmt.Errorf("invalid bootstrap direction authorization: base_revision does not match task binding")
+	}
+	if auth.GraphDigestSHA256 != req.Binding.GraphDigestSHA256 {
+		return nil, nil, fmt.Errorf("invalid bootstrap direction authorization: graph_digest_sha256 does not match task binding")
+	}
+	auth.ApprovalSourcePath = absPath
+	auth.ApprovalSourceDigestSHA256 = digest(data)
+	auth.AuthorizationDigestSHA256 = closure.DirectionBootstrapAuthorizationDigest(auth)
+	if err := closure.ValidateDirectionBootstrapApproval(auth, repoRoot); err != nil {
+		return nil, nil, fmt.Errorf("invalid bootstrap direction authorization: %w", err)
+	}
+	if err := rejectConsumedDirectionBootstrapAuthorization(repoRoot, auth.AuthorizationDigestSHA256); err != nil {
+		return nil, nil, err
+	}
+	snapshot, err := closure.MarshalCanonicalDirectionBootstrapYAML(auth)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal bootstrap direction authorization: %w", err)
+	}
+	return &auth, snapshot, nil
+}
+
+func rejectConsumedDirectionBootstrapAuthorization(repoRoot, authDigest string) error {
+	if !isSHA256(authDigest) {
+		return errors.New("invalid bootstrap direction authorization digest")
+	}
+	globalReceiptPath := filepath.Join(repoRoot, ".sensei", "bootstrap-direction-consumption", authDigest+".yaml")
+	if receipt, err := admission.LoadBootstrapDirectionConsumption(globalReceiptPath); err == nil {
+		return fmt.Errorf("bootstrap direction authorization already consumed by task %s", receipt.TaskID)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("load bootstrap direction consumption receipt %s: %w", globalReceiptPath, err)
+	}
+	taskRoot := filepath.Join(repoRoot, ".sensei", "tasks")
+	entries, err := os.ReadDir(taskRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read bootstrap direction consumption receipts: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		receiptPath := filepath.Join(taskRoot, entry.Name(), "receipts", "bootstrap-direction-consumption.yaml")
+		receipt, err := admission.LoadBootstrapDirectionConsumption(receiptPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("load bootstrap direction consumption receipt %s: %w", receiptPath, err)
+		}
+		if receipt.AuthorizationDigestSHA256 == authDigest {
+			return fmt.Errorf("bootstrap direction authorization already consumed by task %s", receipt.TaskID)
+		}
+	}
+	return nil
 }
 
 func loadPrepareClaims(repoRoot string, binding architecture.ClaimDocumentBinding, override string) (architecture.ClaimDocument, error) {
@@ -1246,6 +1340,21 @@ func stableToken(v string) string {
 func digest(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+func isSHA256(v string) bool {
+	if len(v) != 64 {
+		return false
+	}
+	for _, r := range v {
+		switch {
+		case r >= '0' && r <= '9':
+		case r >= 'a' && r <= 'f':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func canonicalJSON(v any) []byte {

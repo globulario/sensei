@@ -5,14 +5,17 @@ package closure
 import (
 	"bytes"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
@@ -63,6 +66,13 @@ const (
 	DirectionMigrate       = "migrate"
 	DirectionNotApplicable = "not_applicable"
 	DirectionUnknown       = "unknown"
+
+	DirectionBootstrapSchemaVersion  = "1"
+	DirectionBootstrapPolicyID       = "closure.direction.bootstrap.v1"
+	DirectionBootstrapFile           = "docs/awareness/architecture/decisions.yaml"
+	DirectionBootstrapUsageOneUse    = "one_use"
+	DirectionBootstrapMechanismFile  = "external_authorization_file.v1"
+	DirectionBootstrapApprovalDirEnv = "SENSEI_BOOTSTRAP_APPROVAL_DIR"
 )
 
 var DimensionOrder = []string{
@@ -77,11 +87,33 @@ var DimensionOrder = []string{
 }
 
 type Request struct {
-	SchemaVersion string                            `json:"schema_version" yaml:"schema_version"`
-	Binding       architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
-	Scope         Scope                             `json:"scope" yaml:"scope"`
-	RequestedBy   string                            `json:"requested_by,omitempty" yaml:"requested_by,omitempty"`
-	Note          string                            `json:"note,omitempty" yaml:"note,omitempty"`
+	SchemaVersion      string                            `json:"schema_version" yaml:"schema_version"`
+	TaskID             string                            `json:"task_id,omitempty" yaml:"task_id,omitempty"`
+	Binding            architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
+	Scope              Scope                             `json:"scope" yaml:"scope"`
+	DirectionBootstrap *DirectionBootstrapAuthorization  `json:"direction_bootstrap,omitempty" yaml:"direction_bootstrap,omitempty"`
+	RequestedBy        string                            `json:"requested_by,omitempty" yaml:"requested_by,omitempty"`
+	Note               string                            `json:"note,omitempty" yaml:"note,omitempty"`
+}
+
+type DirectionBootstrapAuthorization struct {
+	SchemaVersion                string   `json:"schema_version" yaml:"schema_version"`
+	PolicyID                     string   `json:"policy_id" yaml:"policy_id"`
+	TaskID                       string   `json:"task_id" yaml:"task_id"`
+	BaseRevision                 string   `json:"base_revision" yaml:"base_revision"`
+	GraphDigestSHA256            string   `json:"graph_digest_sha256" yaml:"graph_digest_sha256"`
+	File                         string   `json:"file" yaml:"file"`
+	GovernedRecordIDs            []string `json:"governed_record_ids" yaml:"governed_record_ids"`
+	ExpectedMutationDigestSHA256 string   `json:"expected_mutation_digest_sha256" yaml:"expected_mutation_digest_sha256"`
+	ApprovedBy                   string   `json:"approved_by" yaml:"approved_by"`
+	ApprovalMechanism            string   `json:"approval_mechanism" yaml:"approval_mechanism"`
+	ApprovalStatement            string   `json:"approval_statement" yaml:"approval_statement"`
+	UsagePolicy                  string   `json:"usage_policy" yaml:"usage_policy"`
+	IssuedAt                     string   `json:"issued_at" yaml:"issued_at"`
+	ExpiresAt                    string   `json:"expires_at" yaml:"expires_at"`
+	ApprovalSourcePath           string   `json:"approval_source_path,omitempty" yaml:"approval_source_path,omitempty"`
+	ApprovalSourceDigestSHA256   string   `json:"approval_source_digest_sha256,omitempty" yaml:"approval_source_digest_sha256,omitempty"`
+	AuthorizationDigestSHA256    string   `json:"authorization_digest_sha256,omitempty" yaml:"authorization_digest_sha256,omitempty"`
 }
 
 type Scope struct {
@@ -225,6 +257,10 @@ type requestEnvelope struct {
 	ArchitectureClosureRequest Request `json:"architecture_closure_request" yaml:"architecture_closure_request"`
 }
 
+type directionBootstrapEnvelope struct {
+	ArchitectureDirectionBootstrapAuthorization DirectionBootstrapAuthorization `json:"architecture_direction_bootstrap_authorization" yaml:"architecture_direction_bootstrap_authorization"`
+}
+
 type reportEnvelope struct {
 	ArchitectureClosureAssessment Report `json:"architecture_closure_assessment" yaml:"architecture_closure_assessment"`
 }
@@ -235,6 +271,14 @@ func LoadRequest(path string) (Request, error) {
 		return Request{}, err
 	}
 	return UnmarshalRequestYAML(data)
+}
+
+func LoadDirectionBootstrapAuthorization(path string) (DirectionBootstrapAuthorization, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return DirectionBootstrapAuthorization{}, err
+	}
+	return UnmarshalDirectionBootstrapYAML(data)
 }
 
 func UnmarshalRequestYAML(data []byte) (Request, error) {
@@ -248,12 +292,31 @@ func UnmarshalRequestYAML(data []byte) (Request, error) {
 	return NormalizeRequest(env.ArchitectureClosureRequest)
 }
 
+func UnmarshalDirectionBootstrapYAML(data []byte) (DirectionBootstrapAuthorization, error) {
+	var env directionBootstrapEnvelope
+	if err := yaml.Unmarshal(data, &env); err != nil {
+		return DirectionBootstrapAuthorization{}, err
+	}
+	if env.ArchitectureDirectionBootstrapAuthorization.SchemaVersion == "" {
+		return DirectionBootstrapAuthorization{}, errors.New("missing architecture_direction_bootstrap_authorization document")
+	}
+	return NormalizeDirectionBootstrap(env.ArchitectureDirectionBootstrapAuthorization)
+}
+
 func MarshalCanonicalRequestYAML(req Request) ([]byte, error) {
 	req, err := NormalizeRequest(req)
 	if err != nil {
 		return nil, err
 	}
 	return yaml.Marshal(requestEnvelope{ArchitectureClosureRequest: req})
+}
+
+func MarshalCanonicalDirectionBootstrapYAML(auth DirectionBootstrapAuthorization) ([]byte, error) {
+	auth, err := NormalizeDirectionBootstrap(auth)
+	if err != nil {
+		return nil, err
+	}
+	return yaml.Marshal(directionBootstrapEnvelope{ArchitectureDirectionBootstrapAuthorization: auth})
 }
 
 func MarshalCanonicalReportYAML(report Report) ([]byte, error) {
@@ -292,6 +355,7 @@ var taskTokenRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 func NormalizeRequest(in Request) (Request, error) {
 	req := in
 	req.SchemaVersion = strings.TrimSpace(req.SchemaVersion)
+	req.TaskID = strings.TrimSpace(req.TaskID)
 	req.Binding.RepositoryDomain = strings.TrimSpace(req.Binding.RepositoryDomain)
 	req.Binding.Revision = strings.TrimSpace(req.Binding.Revision)
 	req.Binding.RevisionStatus = strings.TrimSpace(req.Binding.RevisionStatus)
@@ -317,6 +381,13 @@ func NormalizeRequest(in Request) (Request, error) {
 	req.Scope.ClaimIDs = cleanList(req.Scope.ClaimIDs)
 	req.Scope.PropositionKeys = cleanList(req.Scope.PropositionKeys)
 	req.Scope.AdditionalDimensions = cleanList(req.Scope.AdditionalDimensions)
+	if req.DirectionBootstrap != nil {
+		auth, err := NormalizeDirectionBootstrap(*req.DirectionBootstrap)
+		if err != nil {
+			return Request{}, fmt.Errorf("direction_bootstrap: %w", err)
+		}
+		req.DirectionBootstrap = &auth
+	}
 	req.RequestedBy = strings.TrimSpace(req.RequestedBy)
 	req.Note = strings.TrimSpace(req.Note)
 	if err := ValidateRequest(req); err != nil {
@@ -341,6 +412,9 @@ func ValidateRequest(req Request) error {
 	}
 	if req.Scope.Domain == "" {
 		errs = append(errs, "scope domain is required")
+	}
+	if req.TaskID != "" && !strings.HasPrefix(req.TaskID, "task.") {
+		errs = append(errs, "task_id must use task.* identity")
 	}
 	if req.Scope.TaskClass == "" {
 		errs = append(errs, "scope task_class is required")
@@ -394,10 +468,281 @@ func ValidateRequest(req Request) error {
 	if req.Binding.RepositoryDomain != "" && req.Scope.Domain != "" && req.Scope.Domain != "repository" && req.Scope.Domain != req.Binding.RepositoryDomain {
 		errs = append(errs, "binding repository domain conflicts with scope domain")
 	}
+	if req.DirectionBootstrap != nil {
+		if req.TaskID == "" {
+			errs = append(errs, "task_id is required when direction_bootstrap is present")
+		} else if req.DirectionBootstrap.TaskID != req.TaskID {
+			errs = append(errs, "direction_bootstrap task_id must match request task_id")
+		}
+	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+func NormalizeDirectionBootstrap(in DirectionBootstrapAuthorization) (DirectionBootstrapAuthorization, error) {
+	auth := in
+	auth.SchemaVersion = strings.TrimSpace(auth.SchemaVersion)
+	if auth.SchemaVersion == "" {
+		auth.SchemaVersion = DirectionBootstrapSchemaVersion
+	}
+	auth.PolicyID = strings.TrimSpace(auth.PolicyID)
+	if auth.PolicyID == "" {
+		auth.PolicyID = DirectionBootstrapPolicyID
+	}
+	auth.TaskID = strings.TrimSpace(auth.TaskID)
+	auth.BaseRevision = strings.TrimSpace(strings.ToLower(auth.BaseRevision))
+	auth.GraphDigestSHA256 = strings.TrimSpace(strings.ToLower(auth.GraphDigestSHA256))
+	auth.File = normalizeSinglePath(auth.File)
+	auth.GovernedRecordIDs = cleanList(auth.GovernedRecordIDs)
+	auth.ExpectedMutationDigestSHA256 = strings.TrimSpace(strings.ToLower(auth.ExpectedMutationDigestSHA256))
+	auth.ApprovedBy = strings.TrimSpace(auth.ApprovedBy)
+	auth.ApprovalMechanism = strings.TrimSpace(auth.ApprovalMechanism)
+	auth.ApprovalStatement = strings.TrimSpace(auth.ApprovalStatement)
+	auth.UsagePolicy = strings.TrimSpace(auth.UsagePolicy)
+	if auth.UsagePolicy == "" {
+		auth.UsagePolicy = DirectionBootstrapUsageOneUse
+	}
+	auth.IssuedAt = strings.TrimSpace(auth.IssuedAt)
+	auth.ExpiresAt = strings.TrimSpace(auth.ExpiresAt)
+	auth.ApprovalSourcePath = strings.TrimSpace(auth.ApprovalSourcePath)
+	if auth.ApprovalSourcePath != "" {
+		auth.ApprovalSourcePath = filepath.Clean(auth.ApprovalSourcePath)
+	}
+	auth.ApprovalSourceDigestSHA256 = strings.TrimSpace(strings.ToLower(auth.ApprovalSourceDigestSHA256))
+	auth.AuthorizationDigestSHA256 = strings.TrimSpace(strings.ToLower(auth.AuthorizationDigestSHA256))
+	if err := ValidateDirectionBootstrap(auth); err != nil {
+		return DirectionBootstrapAuthorization{}, err
+	}
+	return auth, nil
+}
+
+func ValidateDirectionBootstrap(auth DirectionBootstrapAuthorization) error {
+	var errs []string
+	if auth.SchemaVersion != DirectionBootstrapSchemaVersion {
+		errs = append(errs, "unsupported schema_version")
+	}
+	if auth.PolicyID != DirectionBootstrapPolicyID {
+		errs = append(errs, "policy_id is unknown")
+	}
+	if auth.TaskID == "" {
+		errs = append(errs, "task_id is required")
+	}
+	if !isHexLen(auth.BaseRevision, 40) {
+		errs = append(errs, "base_revision must be lowercase git sha")
+	}
+	if !isSHA256(auth.GraphDigestSHA256) {
+		errs = append(errs, "graph_digest_sha256 must be lowercase SHA-256")
+	}
+	if auth.File == "" || !safeRelPath(auth.File) {
+		errs = append(errs, "file must be repository-relative and non-escaping")
+	}
+	if len(auth.GovernedRecordIDs) == 0 {
+		errs = append(errs, "governed_record_ids is required")
+	}
+	if !isSHA256(auth.ExpectedMutationDigestSHA256) {
+		errs = append(errs, "expected_mutation_digest_sha256 must be lowercase SHA-256")
+	}
+	if auth.ApprovedBy == "" {
+		errs = append(errs, "approved_by is required")
+	}
+	if auth.ApprovalMechanism == "" {
+		errs = append(errs, "approval_mechanism is required")
+	}
+	if auth.ApprovalStatement == "" {
+		errs = append(errs, "approval_statement is required")
+	}
+	if auth.UsagePolicy != DirectionBootstrapUsageOneUse {
+		errs = append(errs, "usage_policy must be one_use")
+	}
+	if auth.ApprovalMechanism != DirectionBootstrapMechanismFile {
+		errs = append(errs, "approval_mechanism is unknown")
+	}
+	if auth.ApprovalSourceDigestSHA256 != "" && !isSHA256(auth.ApprovalSourceDigestSHA256) {
+		errs = append(errs, "approval_source_digest_sha256 must be lowercase SHA-256")
+	}
+	if auth.AuthorizationDigestSHA256 != "" && !isSHA256(auth.AuthorizationDigestSHA256) {
+		errs = append(errs, "authorization_digest_sha256 must be lowercase SHA-256")
+	}
+	issued, issuedErr := time.Parse(time.RFC3339, auth.IssuedAt)
+	expires, expiresErr := time.Parse(time.RFC3339, auth.ExpiresAt)
+	if issuedErr != nil {
+		errs = append(errs, "issued_at must be RFC3339")
+	}
+	if expiresErr != nil {
+		errs = append(errs, "expires_at must be RFC3339")
+	}
+	if issuedErr == nil && expiresErr == nil && !expires.After(issued) {
+		errs = append(errs, "expires_at must be after issued_at")
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func DirectionBootstrapAuthorizationDigest(auth DirectionBootstrapAuthorization) string {
+	auth, _ = NormalizeDirectionBootstrap(auth)
+	auth.AuthorizationDigestSHA256 = ""
+	return digest(canonicalJSON(auth))
+}
+
+func ValidateDirectionBootstrapApproval(auth DirectionBootstrapAuthorization, repoRoot string) error {
+	auth, err := NormalizeDirectionBootstrap(auth)
+	if err != nil {
+		return err
+	}
+	if auth.ApprovalSourcePath == "" {
+		return errors.New("approval_source_path is required")
+	}
+	if !filepath.IsAbs(auth.ApprovalSourcePath) {
+		return errors.New("approval_source_path must be absolute")
+	}
+	if !isSHA256(auth.ApprovalSourceDigestSHA256) {
+		return errors.New("approval_source_digest_sha256 must be lowercase SHA-256")
+	}
+	if !isSHA256(auth.AuthorizationDigestSHA256) {
+		return errors.New("authorization_digest_sha256 must be lowercase SHA-256")
+	}
+	sourcePath, err := filepath.EvalSymlinks(auth.ApprovalSourcePath)
+	if err != nil {
+		return fmt.Errorf("approval_source_path: %w", err)
+	}
+	repoPath, err := filepath.EvalSymlinks(repoRoot)
+	if err != nil {
+		return fmt.Errorf("repository root: %w", err)
+	}
+	if pathWithinRoot(repoPath, sourcePath) {
+		return errors.New("approval_source_path must be outside the repository root")
+	}
+	trustedRoot, err := trustedBootstrapApprovalRoot()
+	if err != nil {
+		return err
+	}
+	if !pathWithinRoot(trustedRoot, sourcePath) {
+		return fmt.Errorf("approval_source_path must be inside trusted approval root %s", trustedRoot)
+	}
+	info, err := os.Lstat(sourcePath)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("approval_source_path must not be a symlink")
+	}
+	if !info.Mode().IsRegular() {
+		return errors.New("approval_source_path must be a regular file")
+	}
+	if info.Mode().Perm()&0o022 != 0 {
+		return errors.New("approval_source_path must not be group/world writable")
+	}
+	data, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return err
+	}
+	if digest(data) != auth.ApprovalSourceDigestSHA256 {
+		return errors.New("approval source digest mismatch")
+	}
+	if DirectionBootstrapAuthorizationDigest(auth) != auth.AuthorizationDigestSHA256 {
+		return errors.New("authorization digest mismatch")
+	}
+	return nil
+}
+
+func DirectionBootstrapForRequest(req Request, now time.Time) (*DirectionBootstrapAuthorization, error) {
+	if req.DirectionBootstrap == nil {
+		return nil, nil
+	}
+	auth, err := NormalizeDirectionBootstrap(*req.DirectionBootstrap)
+	if err != nil {
+		return nil, err
+	}
+	if req.TaskID == "" {
+		return nil, errors.New("request task_id is required")
+	}
+	if auth.TaskID != req.TaskID {
+		return nil, errors.New("task_id mismatch")
+	}
+	if auth.BaseRevision != req.Binding.Revision {
+		return nil, errors.New("base_revision mismatch")
+	}
+	if auth.GraphDigestSHA256 != req.Binding.GraphDigestSHA256 {
+		return nil, errors.New("graph_digest_sha256 mismatch")
+	}
+	if auth.File != DirectionBootstrapFile {
+		return nil, fmt.Errorf("file must be %s", DirectionBootstrapFile)
+	}
+	if auth.ApprovalSourcePath == "" || !filepath.IsAbs(auth.ApprovalSourcePath) {
+		return nil, errors.New("approval_source_path is required")
+	}
+	if !isSHA256(auth.ApprovalSourceDigestSHA256) {
+		return nil, errors.New("approval_source_digest_sha256 is required")
+	}
+	if !isSHA256(auth.AuthorizationDigestSHA256) {
+		return nil, errors.New("authorization_digest_sha256 is required")
+	}
+	if DirectionBootstrapAuthorizationDigest(auth) != auth.AuthorizationDigestSHA256 {
+		return nil, errors.New("authorization_digest_sha256 mismatch")
+	}
+	if len(req.Scope.Files) != 1 || !contains(req.Scope.Files, auth.File) {
+		return nil, errors.New("request scope must contain only the authorized file")
+	}
+	expiresAt, _ := time.Parse(time.RFC3339, auth.ExpiresAt)
+	if !now.IsZero() && !now.Before(expiresAt) {
+		return nil, errors.New("authorization expired")
+	}
+	return &auth, nil
+}
+
+func pathWithinRoot(root, target string) bool {
+	root = filepath.Clean(root)
+	target = filepath.Clean(target)
+	if root == "" || target == "" {
+		return false
+	}
+	if root == target {
+		return true
+	}
+	return strings.HasPrefix(target, root+string(os.PathSeparator))
+}
+
+func trustedBootstrapApprovalRoot() (string, error) {
+	root := strings.TrimSpace(os.Getenv(DirectionBootstrapApprovalDirEnv))
+	if root == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve trusted bootstrap approval root: %w", err)
+		}
+		root = filepath.Join(home, ".sensei", "approvals")
+	}
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve trusted bootstrap approval root: %w", err)
+	}
+	info, err := os.Lstat(resolved)
+	if err != nil {
+		return "", err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", errors.New("trusted bootstrap approval root must not be a symlink")
+	}
+	if !info.IsDir() {
+		return "", errors.New("trusted bootstrap approval root must be a directory")
+	}
+	return filepath.Clean(resolved), nil
+}
+
+func digest(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+func canonicalJSON(v any) []byte {
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func DefaultPolicies() ([]Policy, error) {
@@ -1150,20 +1495,37 @@ func (b *assessmentBuilder) evalDirection() {
 		b.addUncertifiable(DimensionDirection, "closure.agent.direction_unknown", "direction requirement is unknown", "provide_input")
 		return
 	}
+	bootstrap, bootstrapErr := DirectionBootstrapForRequest(b.ctx.Request, time.Now().UTC())
+	if bootstrapErr != nil {
+		b.addUncertifiable(DimensionDirection, "closure.direction.bootstrap_invalid", "direction bootstrap authorization is invalid or stale", "repair_binding")
+		return
+	}
 	intended := b.hasPlane(architecture.PlaneIntended)
 	desired := b.hasPlane(architecture.PlaneDesired)
 	historical := b.hasPlane(architecture.PlaneHistorical)
 	switch req {
 	case DirectionPreserve:
 		if !intended && !hasNodePlane(b.scope.Nodes, architecture.PlaneIntended) {
-			b.addOpen(DimensionDirection, "high", "closure.direction.intended_missing", "preserve requires current intended basis", "promote_architectural_knowledge", nil, nil, nil, nil)
+			if bootstrap != nil {
+				b.addBootstrapDirectionCondition("closure.direction.intended.bootstrap", "bootstrap direction authorization conditionally waives missing intended basis while introducing governed direction records")
+			} else {
+				b.addOpen(DimensionDirection, "high", "closure.direction.intended_missing", "preserve requires current intended basis", "promote_architectural_knowledge", nil, nil, nil, nil)
+			}
 		}
 	case DirectionEvolve:
 		if !intended {
-			b.addOpen(DimensionDirection, "high", "closure.direction.intended_missing", "evolve requires current intended basis", "promote_architectural_knowledge", nil, nil, nil, nil)
+			if bootstrap != nil {
+				b.addBootstrapDirectionCondition("closure.direction.intended.bootstrap", "bootstrap direction authorization conditionally waives missing intended basis while introducing governed direction records")
+			} else {
+				b.addOpen(DimensionDirection, "high", "closure.direction.intended_missing", "evolve requires current intended basis", "promote_architectural_knowledge", nil, nil, nil, nil)
+			}
 		}
 		if !desired {
-			b.addOpen(DimensionDirection, "high", "closure.direction.desired_missing", "evolve requires explicit desired basis", "promote_architectural_knowledge", nil, nil, nil, nil)
+			if bootstrap != nil {
+				b.addBootstrapDirectionCondition("closure.direction.desired.bootstrap", "bootstrap direction authorization conditionally waives missing desired basis while introducing governed direction records")
+			} else {
+				b.addOpen(DimensionDirection, "high", "closure.direction.desired_missing", "evolve requires explicit desired basis", "promote_architectural_knowledge", nil, nil, nil, nil)
+			}
 		}
 	case DirectionMigrate:
 		if !historical {
@@ -1373,6 +1735,17 @@ func (b *assessmentBuilder) addBlocker(bl Blocker) {
 
 func (b *assessmentBuilder) addCondition(dim, code, summary, questionID string) {
 	c := Condition{Dimension: dim, Code: code, Summary: summary, QuestionIDs: cleanList([]string{questionID}), RequiredNextAction: "answer_open_question"}
+	c.ID = conditionID(c)
+	b.conditions = append(b.conditions, c)
+}
+
+func (b *assessmentBuilder) addBootstrapDirectionCondition(code, summary string) {
+	c := Condition{
+		Dimension:          DimensionDirection,
+		Code:               code,
+		Summary:            summary,
+		RequiredNextAction: "acknowledge_bootstrap_direction_authorization",
+	}
 	c.ID = conditionID(c)
 	b.conditions = append(b.conditions, c)
 }
