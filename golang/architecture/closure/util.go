@@ -1382,6 +1382,39 @@ func sortedNodeMap(m map[string]Node) []Node {
 	return out
 }
 
+func expandRelevantNodes(graph GraphIndex, seeds map[string]Node) map[string]Node {
+	if len(seeds) == 0 {
+		return map[string]Node{}
+	}
+	result := make(map[string]Node, len(seeds))
+	for id, node := range seeds {
+		result[id] = node
+	}
+	frontier := sortedMapKeys(result)
+	for len(frontier) > 0 {
+		nextFrontier := map[string]Node{}
+		for _, nodeID := range frontier {
+			node, ok := result[nodeID]
+			if !ok {
+				continue
+			}
+			for _, targetID := range oneEdgeIDs(node) {
+				next, ok := findNode(graph, targetID)
+				if !ok {
+					continue
+				}
+				if _, seen := result[next.ID]; seen {
+					continue
+				}
+				result[next.ID] = next
+				nextFrontier[next.ID] = next
+			}
+		}
+		frontier = sortedMapKeys(nextFrontier)
+	}
+	return result
+}
+
 func oneEdgeIDs(n Node) []string {
 	var out []string
 	out = append(out, n.DependsOn...)
