@@ -52,6 +52,12 @@ func normalizeReport(in Report) Report {
 	return r
 }
 
+func canonicalReport(in Report) Report {
+	r := normalizeReport(in)
+	r.GraphSnapshot.Path = ""
+	return r
+}
+
 func normalizeBases(in []BasisAssessment) []BasisAssessment {
 	out := append([]BasisAssessment{}, in...)
 	sort.SliceStable(out, func(i, j int) bool {
