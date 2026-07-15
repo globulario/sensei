@@ -290,6 +290,83 @@ aw:PatchOutcome a owl:Class ; rdfs:label "Patch Outcome" ;
 aw:LearningEvent a owl:Class ; rdfs:label "Learning Event" ;
     rdfs:comment "A Mode D learning/certification event imported from offline evaluation records. Dual-typed as OutcomeFeedback when imported so audit/build can query both the outcome and its certification metadata." .
 
+# Phase 0 — architectural closure protocol classes.
+aw:ActorRole a owl:Class ; rdfs:label "Actor Role" ;
+    rdfs:comment "A governed role an actor may act under during architectural closure." .
+aw:AuthorityGrant a owl:Class ; rdfs:label "Authority Grant" ;
+    rdfs:comment "A governed grant that permits a bounded actor or mechanism to operate within an authority domain." .
+aw:DelegationPolicy a owl:Class ; rdfs:label "Delegation Policy" ;
+    rdfs:comment "A governed policy that constrains how an actor may delegate authority during closure." .
+aw:RuntimeTargetKind a owl:Class ; rdfs:label "Runtime Target Kind" ;
+    rdfs:comment "A governed classification of runtime target used by evidence and certification policies." .
+aw:EvidenceProfile a owl:Class ; rdfs:label "Evidence Profile" ;
+    rdfs:comment "A governed evidence contract describing required observation path, freshness, trust, and target binding." .
+aw:GovernanceException a owl:Class ; rdfs:label "Governance Exception" ;
+    rdfs:comment "A governed exception or waiver policy that may permit a bounded pass_with_exception outcome." .
+aw:MigrationPlan a owl:Class ; rdfs:label "Migration Plan" ;
+    rdfs:comment "A governed migration plan whose execution is tracked operationally." .
+aw:CertificationPolicy a owl:Class ; rdfs:label "Certification Policy" ;
+    rdfs:comment "A governed policy defining when a result may be certified." .
+aw:CompletionPolicy a owl:Class ; rdfs:label "Completion Policy" ;
+    rdfs:comment "A governed policy defining when a certified task may become terminally complete." .
+aw:RevocationPolicy a owl:Class ; rdfs:label "Revocation Policy" ;
+    rdfs:comment "A governed policy defining when prior completion or certification must be revoked." .
+
+aw:Task a owl:Class ; rdfs:label "Task" ;
+    rdfs:comment "An operational task identity in the architectural closure protocol." .
+aw:TaskSession a owl:Class ; rdfs:label "Task Session" ;
+    rdfs:comment "One operational session of a task." .
+aw:RepositorySnapshot a owl:Class ; rdfs:label "Repository Snapshot" ;
+    rdfs:comment "An operational binding to one repository revision and tree digest." .
+aw:GraphSnapshot a owl:Class ; rdfs:label "Graph Snapshot" ;
+    rdfs:comment "An operational binding to one compiled graph digest and schema version." .
+aw:RuntimeTarget a owl:Class ; rdfs:label "Runtime Target" ;
+    rdfs:comment "An operational runtime deployment target bound to evidence and result assessment." .
+aw:ActorBinding a owl:Class ; rdfs:label "Actor Binding" ;
+    rdfs:comment "An operational record binding one principal, role set, and delegation chain to a task action." .
+aw:ClosureAssessment a owl:Class ; rdfs:label "Closure Assessment" ;
+    rdfs:comment "An operational record of dimension-by-dimension architectural closure assessment." .
+aw:ClosureBlocker a owl:Class ; rdfs:label "Closure Blocker" ;
+    rdfs:comment "An operational blocker attached to a closure assessment." .
+aw:Abstention a owl:Class ; rdfs:label "Abstention" ;
+    rdfs:comment "An operational record that one lane could not decide with current bound evidence." .
+aw:ChangePlan a owl:Class ; rdfs:label "Change Plan" ;
+    rdfs:comment "An operational plan containing exact change operations for an admission request." .
+aw:ChangeOperation a owl:Class ; rdfs:label "Change Operation" ;
+    rdfs:comment "One bounded operation inside a change plan." .
+aw:AuthorityResolution a owl:Class ; rdfs:label "Authority Resolution" ;
+    rdfs:comment "An operational resolution of the authority basis and mechanism for one change operation." .
+aw:AdmissionRequest a owl:Class ; rdfs:label "Admission Request" ;
+    rdfs:comment "An operational request to admit an exact change plan under bound authority." .
+aw:AdmissionDecision a owl:Class ; rdfs:label "Admission Decision" ;
+    rdfs:comment "An operational decision that grants or refuses bounded change capability." .
+aw:CapabilityConsumption a owl:Class ; rdfs:label "Capability Consumption" ;
+    rdfs:comment "An operational receipt proving bounded use of an admission capability." .
+aw:MutationReceipt a owl:Class ; rdfs:label "Mutation Receipt" ;
+    rdfs:comment "An operational receipt of the observed mutation performed under admission." .
+aw:ProbeResult a owl:Class ; rdfs:label "Probe Result" ;
+    rdfs:comment "An operational result of an evidence probe. Distinct from the authored or planned EvidenceProbe." .
+aw:EvidenceReceipt a owl:Class ; rdfs:label "Evidence Receipt" ;
+    rdfs:comment "An operational receipt proving one concrete evidence observation or execution." .
+aw:TestReceipt a owl:Class ; rdfs:label "Test Receipt" ;
+    rdfs:comment "An operational receipt proving one test execution." .
+aw:RuntimeObservationReceipt a owl:Class ; rdfs:label "Runtime Observation Receipt" ;
+    rdfs:comment "An operational receipt proving one runtime observation at a bound target." .
+aw:ArtifactReceipt a owl:Class ; rdfs:label "Artifact Receipt" ;
+    rdfs:comment "An operational receipt proving one built or observed artifact digest." .
+aw:ProofDischarge a owl:Class ; rdfs:label "Proof Discharge" ;
+    rdfs:comment "An operational record that maps receipts to proof slots and states whether the obligation is discharged." .
+aw:CertificationReceipt a owl:Class ; rdfs:label "Certification Receipt" ;
+    rdfs:comment "An operational receipt that binds a result to a certification verdict under policy." .
+aw:CompletionReceipt a owl:Class ; rdfs:label "Completion Receipt" ;
+    rdfs:comment "An operational terminal receipt proving task completion under the full closure predicate." .
+aw:WaiverReceipt a owl:Class ; rdfs:label "Waiver Receipt" ;
+    rdfs:comment "An operational waiver or exception receipt used by pass_with_exception policy." .
+aw:RevocationReceipt a owl:Class ; rdfs:label "Revocation Receipt" ;
+    rdfs:comment "An operational receipt revoking a previously valid certification or completion result." .
+aw:MigrationExecutionReceipt a owl:Class ; rdfs:label "Migration Execution Receipt" ;
+    rdfs:comment "An operational receipt for one executed migration step." .
+
 # ── Datatype properties ───────────────────────────────────────────────────
 # Short literals only. Long-form text stays in YAML; the graph is an index.
 
@@ -1123,3 +1200,61 @@ aw:slotKind a owl:DatatypeProperty ; rdfs:label "slot kind" ;
     rdfs:comment "ProofSlot literal: the kind of evidence the slot expects (e.g. test, authority_check)." .
 aw:required a owl:DatatypeProperty ; rdfs:label "required" ;
     rdfs:comment "ProofSlot literal: whether the slot is required (\"true\") for the obligation to be discharged." .
+
+# Phase 0 — architectural closure protocol operational relationships.
+aw:bindsToRepositorySnapshot a owl:ObjectProperty ; rdfs:label "binds to repository snapshot" ;
+    rdfs:comment "Operational record → RepositorySnapshot. Binds the record to one repository revision and tree digest. Does not grant authority." .
+aw:bindsToGraphSnapshot a owl:ObjectProperty ; rdfs:label "binds to graph snapshot" ;
+    rdfs:comment "Operational record → GraphSnapshot. Binds the record to one compiled graph snapshot. Does not grant authority." .
+aw:bindsToRuntimeTarget a owl:ObjectProperty ; rdfs:label "binds to runtime target" ;
+    rdfs:comment "Operational record → RuntimeTarget. Binds an observation or certification to the exact runtime target." .
+aw:performedBy a owl:ObjectProperty ; rdfs:label "performed by" ;
+    rdfs:comment "Operational record → ActorBinding or actor node. Identifies who performed the action; it does not itself grant authority." .
+aw:actsUnderRole a owl:ObjectProperty ; rdfs:label "acts under role" ;
+    rdfs:comment "ActorBinding → ActorRole. Records the governed role used during this action." .
+aw:usesDelegation a owl:ObjectProperty ; rdfs:label "uses delegation" ;
+    rdfs:comment "Operational record → DelegationPolicy or delegation receipt. Records the delegation path used for the action." .
+aw:resolvesAuthorityDomain a owl:ObjectProperty ; rdfs:label "resolves authority domain" ;
+    rdfs:comment "AuthorityResolution → AuthorityDomain. Records which domain the resolution applies to." .
+aw:permitsAction a owl:ObjectProperty ; rdfs:label "permits action" ;
+    rdfs:comment "AuthorityGrant or AdmissionDecision → ChangeOperation. Records the exact action permitted under policy." .
+aw:requiresMutationPath a owl:ObjectProperty ; rdfs:label "requires mutation path" ;
+    rdfs:comment "AuthorityResolution or CompletionPolicy → MutationPath. Records the legal mutation path required for compliance." .
+aw:requiresObservationPath a owl:ObjectProperty ; rdfs:label "requires observation path" ;
+    rdfs:comment "EvidenceProfile or AuthorityResolution → ObservationPath. Records the legal observation path required for compliance." .
+aw:plansOperation a owl:ObjectProperty ; rdfs:label "plans operation" ;
+    rdfs:comment "ChangePlan → ChangeOperation. Records the exact operations in a plan." .
+aw:admitsOperation a owl:ObjectProperty ; rdfs:label "admits operation" ;
+    rdfs:comment "AdmissionDecision → ChangeOperation. Records which operations were admitted." .
+aw:consumesAdmission a owl:ObjectProperty ; rdfs:label "consumes admission" ;
+    rdfs:comment "CapabilityConsumption → AdmissionDecision. Records which admission capability was consumed." .
+aw:observesChangeSet a owl:ObjectProperty ; rdfs:label "observes change set" ;
+    rdfs:comment "MutationReceipt or ArtifactReceipt → ChangeSet. Records the observed change set." .
+aw:performedVia a owl:ObjectProperty ; rdfs:label "performed via" ;
+    rdfs:comment "Operational record → MutationPath | ObservationPath | workflow node. Records the concrete mechanism used without granting authority." .
+aw:producesArtifact a owl:ObjectProperty ; rdfs:label "produces artifact" ;
+    rdfs:comment "MutationReceipt or build record → ArtifactReceipt. Records a produced result artifact." .
+aw:producesEvidenceReceipt a owl:ObjectProperty ; rdfs:label "produces evidence receipt" ;
+    rdfs:comment "ProbeResult or test/run record → EvidenceReceipt. Records concrete evidence generated by the action." .
+aw:satisfiesEvidenceProfile a owl:ObjectProperty ; rdfs:label "satisfies evidence profile" ;
+    rdfs:comment "EvidenceReceipt → EvidenceProfile. Records which governed evidence profile the receipt satisfies." .
+aw:supportsClaim a owl:ObjectProperty ; rdfs:label "supports claim" ;
+    rdfs:comment "EvidenceReceipt or ProofDischarge → ArchitectureClaim. Operational support relation that does not promote the claim to authority." .
+aw:refutesClaim a owl:ObjectProperty ; rdfs:label "refutes claim" ;
+    rdfs:comment "EvidenceReceipt or ProofDischarge → ArchitectureClaim. Operational refutation relation that preserves epistemic honesty." .
+aw:conflictsWithReceipt a owl:ObjectProperty ; rdfs:label "conflicts with receipt" ;
+    rdfs:comment "EvidenceReceipt or CertificationReceipt → another receipt. Records an explicit operational conflict." .
+aw:certifiesChangeSet a owl:ObjectProperty ; rdfs:label "certifies change set" ;
+    rdfs:comment "CertificationReceipt → ChangeSet. Records which change set was certified." .
+aw:certifiedUnderPolicy a owl:ObjectProperty ; rdfs:label "certified under policy" ;
+    rdfs:comment "CertificationReceipt → CertificationPolicy. Records the policy governing the certification verdict." .
+aw:completesTask a owl:ObjectProperty ; rdfs:label "completes task" ;
+    rdfs:comment "CompletionReceipt → Task. Records which task became terminally complete." .
+aw:revokesReceipt a owl:ObjectProperty ; rdfs:label "revokes receipt" ;
+    rdfs:comment "RevocationReceipt → prior receipt. Records the revoked operational record." .
+aw:supersedesReceipt a owl:ObjectProperty ; rdfs:label "supersedes receipt" ;
+    rdfs:comment "Operational receipt → prior receipt. Records supersession without silent overwrite." .
+aw:executesMigrationPlan a owl:ObjectProperty ; rdfs:label "executes migration plan" ;
+    rdfs:comment "MigrationExecutionReceipt → MigrationPlan. Records the migration plan being executed." .
+aw:reopensBecause a owl:ObjectProperty ; rdfs:label "reopens because" ;
+    rdfs:comment "TaskSession or RevocationReceipt → trigger node or receipt. Records the cause of reopening or remediation." .
