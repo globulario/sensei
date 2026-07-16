@@ -453,7 +453,7 @@ func Prepare(opts PrepareOptions) (PrepareResult, error) {
 		return PrepareResult{}, err
 	}
 	sessionID := stableTaskSessionID(taskReq.TaskID)
-	ledgerHead, err := initializeLedgerState(repoRoot, opts.RepositoryDomain, taskRoot, taskReq.TaskID, sessionID, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes, session.OperationalStatus)
+	ledgerHead, err := initializeLedgerState(repoRoot, opts.RepositoryDomain, taskRoot, taskReq.TaskID, sessionID, taskReq, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes, session.OperationalStatus)
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -655,7 +655,7 @@ func closurePolicyBinding() closureprotocol.PolicyBinding {
 	}
 }
 
-func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, sessionID string, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes []byte, status string) (ledger.Head, error) {
+func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, sessionID string, taskReq TaskRequest, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes []byte, status string) (ledger.Head, error) {
 	store := ledger.NewStore(taskRoot, ledger.WithPayloadValidator(func(eventType closureprotocol.LedgerEventType, mediaType string, data []byte) error {
 		return ledger.ValidateTaskEventPayload(eventType, data)
 	}))
@@ -703,7 +703,7 @@ func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, session
 			ProducerID: GeneratedBy, ProducedAt: time.Unix(0, 0).UTC(),
 		})
 	}
-	payload := func(eventType closureprotocol.LedgerEventType) ledger.TaskEventPayload {
+	payload := func(eventType closureprotocol.LedgerEventType, limitations []string) ledger.TaskEventPayload {
 		return ledger.TaskEventPayload{
 			SchemaVersion: ledger.EventPayloadSchemaVersion,
 			EventType:     eventType,
@@ -718,31 +718,63 @@ func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, session
 				"task_control":    controlRef,
 				"status":          statusRef,
 			},
-			Limitations: []string{
-				"legacy_scope_admission",
-				"typed_actor_authority_not_yet_resolved",
-				"single_use_capability_not_available",
-				"correctness_not_certified",
-			},
+			Limitations: append([]string(nil), limitations...),
 		}
 	}
-	first, err := appendPayload("", closureprotocol.LedgerEventTaskPrepared, payload(closureprotocol.LedgerEventTaskPrepared))
+
+	// Attempt typed authority resolution. The authentication receipts have no
+	// expiry, but the repository-repair grant is time-bounded, so evaluate at
+	// wall-clock time (re-runs on the same task short-circuit above, preserving
+	// idempotency). resolved==nil keeps the legacy admission limitations.
+	resolved, resolveLimitation := resolveTaskAuthority(repoRoot, taskRoot, taskReq, base, time.Now().UTC())
+	preResolution := []string{
+		"legacy_scope_admission",
+		"typed_actor_authority_not_yet_resolved",
+		"single_use_capability_not_available",
+		"correctness_not_certified",
+	}
+	if resolveLimitation != "" {
+		preResolution = append(preResolution, resolveLimitation)
+	}
+	headLimitations := preResolution
+	if resolved != nil {
+		// Typed authority was resolved and now drives the task: the "not yet
+		// resolved" and "legacy admission" limitations are no longer true. The
+		// single-use capability is consumed later, and correctness is never
+		// certified here (Phase 6 owns it).
+		headLimitations = []string{
+			"single_use_capability_not_available",
+			"correctness_not_certified",
+		}
+	}
+
+	first, err := appendPayload("", closureprotocol.LedgerEventTaskPrepared, payload(closureprotocol.LedgerEventTaskPrepared, preResolution))
 	if err != nil {
 		return ledger.Head{}, err
 	}
-	second, err := appendPayload(first.Head.EntryDigestSHA256, closureprotocol.LedgerEventConvergenceAdvanced, payload(closureprotocol.LedgerEventConvergenceAdvanced))
+	second, err := appendPayload(first.Head.EntryDigestSHA256, closureprotocol.LedgerEventConvergenceAdvanced, payload(closureprotocol.LedgerEventConvergenceAdvanced, preResolution))
 	if err != nil {
 		return ledger.Head{}, err
 	}
-	third, err := appendPayload(second.Head.EntryDigestSHA256, closureprotocol.LedgerEventClosureAssessed, payload(closureprotocol.LedgerEventClosureAssessed))
+	third, err := appendPayload(second.Head.EntryDigestSHA256, closureprotocol.LedgerEventClosureAssessed, payload(closureprotocol.LedgerEventClosureAssessed, preResolution))
 	if err != nil {
 		return ledger.Head{}, err
 	}
-	fourth, err := appendPayload(third.Head.EntryDigestSHA256, closureprotocol.LedgerEventAdmissionDecided, payload(closureprotocol.LedgerEventAdmissionDecided))
+	fourth, err := appendPayload(third.Head.EntryDigestSHA256, closureprotocol.LedgerEventAdmissionDecided, payload(closureprotocol.LedgerEventAdmissionDecided, preResolution))
 	if err != nil {
 		return ledger.Head{}, err
 	}
-	final, err := appendPayload(fourth.Head.EntryDigestSHA256, closureprotocol.LedgerEventTaskControlProjected, payload(closureprotocol.LedgerEventTaskControlProjected))
+	// Between admission_decided and task_control_projected, record the typed
+	// authority resolution when one was produced — the canonical event order.
+	resolvedHead := fourth.Head.EntryDigestSHA256
+	if resolved != nil {
+		res, err := admission.RecordAuthorityResolved(store, resolvedHead, base.Task, resolved.Resolution, resolved.Actor, resolved.ChangePlan, base, time.Unix(0, 0).UTC())
+		if err != nil {
+			return ledger.Head{}, err
+		}
+		resolvedHead = res.Head.EntryDigestSHA256
+	}
+	final, err := appendPayload(resolvedHead, closureprotocol.LedgerEventTaskControlProjected, payload(closureprotocol.LedgerEventTaskControlProjected, headLimitations))
 	if err != nil {
 		return ledger.Head{}, err
 	}
