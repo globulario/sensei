@@ -135,16 +135,32 @@ type ChangePlan struct {
 	Operations []ChangeOperation `json:"operations" yaml:"operations"`
 }
 
+type AuthorityResolutionOperation struct {
+	OperationID                 string        `json:"operation_id" yaml:"operation_id"`
+	Status                      ReceiptStatus `json:"status" yaml:"status"`
+	AuthorityDomainIDs          []string      `json:"authority_domain_ids,omitempty" yaml:"authority_domain_ids,omitempty"`
+	GrantIDs                    []string      `json:"grant_ids,omitempty" yaml:"grant_ids,omitempty"`
+	DelegationChain             []string      `json:"delegation_chain,omitempty" yaml:"delegation_chain,omitempty"`
+	LegalMechanisms             []string      `json:"legal_mechanisms,omitempty" yaml:"legal_mechanisms,omitempty"`
+	SelectedMechanism           MechanismKind `json:"selected_mechanism" yaml:"selected_mechanism"`
+	RequiredRuntimeMechanismIDs []string      `json:"required_runtime_mechanism_ids,omitempty" yaml:"required_runtime_mechanism_ids,omitempty"`
+	Limitations                 []string      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+}
+
 type AuthorityResolution struct {
-	OperationID            string        `json:"operation_id" yaml:"operation_id"`
-	Status                 ReceiptStatus `json:"status" yaml:"status"`
-	AuthorityDomainIDs     []string      `json:"authority_domain_ids,omitempty" yaml:"authority_domain_ids,omitempty"`
-	GrantIDs               []string      `json:"grant_ids,omitempty" yaml:"grant_ids,omitempty"`
-	DelegationChain        []string      `json:"delegation_chain,omitempty" yaml:"delegation_chain,omitempty"`
-	LegalMechanisms        []string      `json:"legal_mechanisms,omitempty" yaml:"legal_mechanisms,omitempty"`
-	SelectedMechanism      MechanismKind `json:"selected_mechanism" yaml:"selected_mechanism"`
-	Limitations            []string      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
-	ResolutionDigestSHA256 string        `json:"resolution_digest_sha256,omitempty" yaml:"resolution_digest_sha256,omitempty"`
+	ResolutionID                      string                         `json:"resolution_id,omitempty" yaml:"resolution_id,omitempty"`
+	ActorBindingDigestSHA256          string                         `json:"actor_binding_digest_sha256" yaml:"actor_binding_digest_sha256"`
+	AuthenticationReceiptDigestSHA256 string                         `json:"authentication_receipt_digest_sha256,omitempty" yaml:"authentication_receipt_digest_sha256,omitempty"`
+	BaseBindingDigestSHA256           string                         `json:"base_binding_digest_sha256" yaml:"base_binding_digest_sha256"`
+	ClosureAssessmentDigestSHA256     string                         `json:"closure_assessment_digest_sha256" yaml:"closure_assessment_digest_sha256"`
+	OperationSetDigestSHA256          string                         `json:"operation_set_digest_sha256" yaml:"operation_set_digest_sha256"`
+	AuthorityPolicyGraphDigestSHA256  string                         `json:"authority_policy_graph_digest_sha256" yaml:"authority_policy_graph_digest_sha256"`
+	PolicyID                          string                         `json:"policy_id" yaml:"policy_id"`
+	EvaluatedAt                       string                         `json:"evaluated_at" yaml:"evaluated_at"`
+	Status                            ReceiptStatus                  `json:"status" yaml:"status"`
+	OperationResults                  []AuthorityResolutionOperation `json:"operation_results" yaml:"operation_results"`
+	Limitations                       []string                       `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	AuthorityResolutionDigestSHA256   string                         `json:"authority_resolution_digest_sha256,omitempty" yaml:"authority_resolution_digest_sha256,omitempty"`
 }
 
 type AdmissionRequest struct {

@@ -325,6 +325,41 @@ It must bind:
 
 The delegation chain is ordered operational history, not a set.
 
+### Authority resolution
+
+`AuthorityResolution` is the deterministic operational record that answers:
+
+> Is this concrete actor authorized to perform this exact operation on this
+> governed target through this selected mechanism under this exact task and
+> base binding?
+
+The resolution is bound to:
+
+- one actor binding digest
+- the authentication receipt digest used to verify the actor
+- one base binding digest
+- one closure-assessment digest
+- one operation-set digest
+- one authority-policy graph digest
+- one authority-resolution policy ID
+- one evaluation time
+
+It contains one or more per-operation results. Each operation result binds:
+
+- operation ID
+- receipt status
+- applicable authority-domain IDs
+- selected grant IDs
+- ordered delegation chain
+- legal mechanisms
+- selected repository-edit or runtime mechanism
+- preserved runtime mechanisms that remain behavioral or proof obligations
+- limitations
+
+The top-level resolution does not become valid merely because one operation is
+authorized. Every mutation-capable operation must have a valid per-operation
+result within the same bound resolution.
+
 ## Closed operational vocabularies
 
 Unknown values are invalid in v1 operational records.

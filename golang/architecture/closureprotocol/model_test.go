@@ -63,6 +63,36 @@ func TestValidateDelegationReceiptRequiresParent(t *testing.T) {
 	}
 }
 
+func TestValidateAuthorityResolutionRequiresBoundMetadata(t *testing.T) {
+	err := ValidateAuthorityResolution(AuthorityResolution{
+		Status: ReceiptValid,
+		OperationResults: []AuthorityResolutionOperation{{
+			OperationID:       "op.modify.closure",
+			Status:            ReceiptValid,
+			SelectedMechanism: MechanismRepositoryEdit,
+		}},
+	})
+	if err == nil {
+		t.Fatal("expected missing bound metadata to fail")
+	}
+}
+
+func TestValidateAuthorityResolutionRequiresOperationResults(t *testing.T) {
+	err := ValidateAuthorityResolution(AuthorityResolution{
+		ActorBindingDigestSHA256:         "actor123",
+		BaseBindingDigestSHA256:          "base123",
+		ClosureAssessmentDigestSHA256:    "closure123",
+		OperationSetDigestSHA256:         "ops123",
+		AuthorityPolicyGraphDigestSHA256: "graph123",
+		PolicyID:                         "authority.strict.v1",
+		EvaluatedAt:                      "2026-07-15T20:00:00Z",
+		Status:                           ReceiptValid,
+	})
+	if err == nil {
+		t.Fatal("expected missing operation results to fail")
+	}
+}
+
 func TestValidateLedgerEntryRejectsUnknownEventType(t *testing.T) {
 	err := ValidateLedgerEntry(LedgerEntry{
 		Sequence:   1,

@@ -4,17 +4,48 @@
   "title": "Architectural Closure v1 Authority Resolution",
   "type": "object",
   "additionalProperties": false,
-  "properties": {
-    "operation_id": {"type": "string"},
-    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
-    "authority_domain_ids": {"type": "array", "items": {"type": "string"}},
-    "grant_ids": {"type": "array", "items": {"type": "string"}},
-    "delegation_chain": {"type": "array", "items": {"type": "string"}},
-    "legal_mechanisms": {"type": "array", "items": {"type": "string"}},
-    "selected_mechanism": {"$ref": "common.schema.json#/$defs/mechanism_kind"},
-    "limitations": {"type": "array", "items": {"type": "string"}},
-    "resolution_digest_sha256": {"type": "string"}
+  "$defs": {
+    "operation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {"type": "string"},
+        "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+        "authority_domain_ids": {"type": "array", "items": {"type": "string"}},
+        "grant_ids": {"type": "array", "items": {"type": "string"}},
+        "delegation_chain": {"type": "array", "items": {"type": "string"}},
+        "legal_mechanisms": {"type": "array", "items": {"type": "string"}},
+        "selected_mechanism": {"$ref": "common.schema.json#/$defs/mechanism_kind"},
+        "required_runtime_mechanism_ids": {"type": "array", "items": {"type": "string"}},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["operation_id", "status", "selected_mechanism"]
+    }
   },
-  "required": ["operation_id", "status", "selected_mechanism"]
+  "properties": {
+    "resolution_id": {"type": "string"},
+    "actor_binding_digest_sha256": {"type": "string"},
+    "authentication_receipt_digest_sha256": {"type": "string"},
+    "base_binding_digest_sha256": {"type": "string"},
+    "closure_assessment_digest_sha256": {"type": "string"},
+    "operation_set_digest_sha256": {"type": "string"},
+    "authority_policy_graph_digest_sha256": {"type": "string"},
+    "policy_id": {"type": "string"},
+    "evaluated_at": {"type": "string"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+    "operation_results": {"type": "array", "items": {"$ref": "#/$defs/operation_result"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "authority_resolution_digest_sha256": {"type": "string"}
+  },
+  "required": [
+    "actor_binding_digest_sha256",
+    "base_binding_digest_sha256",
+    "closure_assessment_digest_sha256",
+    "operation_set_digest_sha256",
+    "authority_policy_graph_digest_sha256",
+    "policy_id",
+    "evaluated_at",
+    "status",
+    "operation_results"
+  ]
 }
-

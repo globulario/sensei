@@ -46,12 +46,24 @@ closure_protocol_fixture:
           intended_effect: close architectural behavior gap
           risk_class: architecture_sensitive
     authority_resolution:
-      operation_id: op.modify.closure
+      resolution_id: authority_resolution.completed
+      actor_binding_digest_sha256: actor123
+      authentication_receipt_digest_sha256: authn123
+      base_binding_digest_sha256: base123
+      closure_assessment_digest_sha256: closure123
+      operation_set_digest_sha256: ops123
+      authority_policy_graph_digest_sha256: policygraph123
+      policy_id: authority.strict.v1
+      evaluated_at: "2026-07-15T18:55:00Z"
       status: valid
-      authority_domain_ids: [authority.closure]
-      grant_ids: [grant.closure.owner]
-      legal_mechanisms: [repository_edit]
-      selected_mechanism: repository_edit
+      operation_results:
+        - operation_id: op.modify.closure
+          status: valid
+          authority_domain_ids: [authority.closure]
+          grant_ids: [grant.closure.owner]
+          legal_mechanisms: [repository_edit]
+          selected_mechanism: repository_edit
+      authority_resolution_digest_sha256: authority123
     admission_request:
       actor_binding:
         principal_id: actor.dave
@@ -190,4 +202,3 @@ closure_protocol_fixture:
       completion_policy: completion.architectural_closure.v1
       completed_at: "2026-07-15T19:10:00Z"
       completing_actor: actor.dave
-
