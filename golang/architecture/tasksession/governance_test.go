@@ -4,6 +4,7 @@ package tasksession
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,11 +24,136 @@ func enrolledPreparedTask(t *testing.T) (string, string) {
 	return repo, filepath.Join(repo, filepath.FromSlash(res.TaskDir))
 }
 
-func TestGovernanceReadyForMutationWhenEnrolled(t *testing.T) {
+// taskLedgerStore opens a task ledger with the standard payload validator.
+func taskLedgerStore(taskDir string) *ledger.Store {
+	return ledger.NewStore(taskDir, ledger.WithPayloadValidator(func(et closureprotocol.LedgerEventType, mt string, data []byte) error {
+		return ledger.ValidateTaskEventPayload(et, data)
+	}))
+}
+
+func rebuildProjections(t *testing.T, taskDir string) {
+	t.Helper()
+	if _, err := ledger.RebuildProjections(taskDir, func(et closureprotocol.LedgerEventType, mt string, data []byte) error {
+		return ledger.ValidateTaskEventPayload(et, data)
+	}); err != nil {
+		t.Fatalf("rebuild projections: %v", err)
+	}
+}
+
+// rebindActivePointer refreshes the active task pointer to the current ledger
+// head, standing in for the re-bind the CLI performs after appending admission
+// events, so binding verification stays fresh across manual appends.
+func rebindActivePointer(t *testing.T, repo, taskDir string) {
+	t.Helper()
+	report, err := taskLedgerStore(taskDir).Verify()
+	if err != nil {
+		t.Fatalf("verify ledger: %v", err)
+	}
+	ptr, err := LoadActivePointer(repo)
+	if err != nil {
+		t.Fatalf("load active pointer: %v", err)
+	}
+	ptr.LedgerHeadDigestSHA256 = report.HeadDigestSHA256
+	ptr.LedgerSequence = report.EntryCount
+	if err := WriteActivePointer(repo, ptr); err != nil {
+		t.Fatalf("write active pointer: %v", err)
+	}
+}
+
+// recordAdmissionDecision appends a real typed admission_decided event exactly as
+// the admit-change writer does: it rebuilds the request from the recorded
+// authority, decides admission, records it, and rebuilds projections. It is the
+// sole way a task reaches the admitted state — no reader mints one.
+func recordAdmissionDecision(t *testing.T, taskDir string, decidedAt time.Time) closureprotocol.AdmissionDecision {
+	t.Helper()
+	rec, err := admission.LoadRecordedAuthority(taskDir)
+	if err != nil {
+		t.Fatalf("load recorded authority: %v", err)
+	}
+	req := closureprotocol.AdmissionRequest{
+		ActorBinding:                    rec.Actor,
+		BaseBinding:                     rec.Base,
+		ChangePlan:                      rec.ChangePlan,
+		AuthorityResolutionDigestSHA256: rec.Resolution.AuthorityResolutionDigestSHA256,
+		PolicyID:                        strings.TrimSpace(rec.Base.Policies.Admission),
+	}
+	policy := admission.AdmissionV2Policy{
+		PolicyID:           strings.TrimSpace(rec.Base.Policies.Admission),
+		CompletionPolicyID: strings.TrimSpace(rec.Base.Policies.Completion),
+		ValidityWindow:     24 * time.Hour,
+	}
+	decision, err := admission.DecideAdmission(req, rec.Resolution, policy, decidedAt.UTC().Format(time.RFC3339))
+	if err != nil {
+		t.Fatalf("decide admission: %v", err)
+	}
+	head, err := admission.TaskLedgerHead(taskDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	if _, err := admission.RecordAdmissionDecided(taskLedgerStore(taskDir), head, decision, rec.Base.Task, decidedAt.UTC()); err != nil {
+		t.Fatalf("record admission_decided: %v", err)
+	}
+	rebuildProjections(t, taskDir)
+	return decision
+}
+
+// recordCapabilityConsumption spends the single-use capability of a recorded
+// decision, standing in for the consume step of verify-admission.
+func recordCapabilityConsumption(t *testing.T, taskDir string, decision closureprotocol.AdmissionDecision, at time.Time) {
+	t.Helper()
+	rec, err := admission.LoadRecordedAuthority(taskDir)
+	if err != nil {
+		t.Fatalf("load recorded authority: %v", err)
+	}
+	ops := make([]string, 0, len(decision.OperationVerdicts))
+	for _, v := range decision.OperationVerdicts {
+		ops = append(ops, v.OperationID)
+	}
+	consumption, err := admission.ConsumeCapability(decision, rec.Base.Task, rec.Actor, ops, at.UTC().Format(time.RFC3339))
+	if err != nil {
+		t.Fatalf("consume capability: %v", err)
+	}
+	head, err := admission.TaskLedgerHead(taskDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	if _, err := admission.RecordAdmissionConsumed(taskLedgerStore(taskDir), head, consumption, at.UTC()); err != nil {
+		t.Fatalf("record admission_consumed: %v", err)
+	}
+	rebuildProjections(t, taskDir)
+}
+
+// TestGovernanceReadyForAdmissionBeforeDecision proves the reducer grants no
+// mutation while only authority is resolved: a prepared task carries an
+// authority_resolved receipt but no typed decision, so it stops at
+// ready_for_admission (regression #3). Reading it repeatedly never mints a
+// decision or a grant (regression #1).
+func TestGovernanceReadyForAdmissionBeforeDecision(t *testing.T) {
+	_, taskDir := enrolledPreparedTask(t)
+	for i := 0; i < 3; i++ {
+		disp := governanceDisposition(taskDir, time.Now().UTC())
+		if !disp.Resolved || disp.Status != StatusReadyForAdmission {
+			t.Fatalf("read %d disposition = %+v, want resolved ready_for_admission", i, disp)
+		}
+		if disp.GrantModify || len(disp.ModifyPaths) != 0 {
+			t.Fatalf("read %d granted mutation without a decision: %+v", i, disp)
+		}
+	}
+	if hasEventType(t, taskDir, closureprotocol.LedgerEventAdmissionDecided) {
+		t.Fatal("reading a task minted an admission_decided event")
+	}
+}
+
+// TestGovernanceReadyForMutationAfterDecision proves a recorded typed decision —
+// and only a recorded decision — grants the single-use mutation.
+func TestGovernanceReadyForMutationAfterDecision(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
+	recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	rebindActivePointer(t, repo, taskDir)
+
 	disp := governanceDisposition(taskDir, time.Now().UTC())
-	if !disp.Resolved || disp.Status != StatusReadyForMutation {
-		t.Fatalf("disposition = %+v, want resolved ready_for_mutation", disp)
+	if !disp.Resolved || disp.Status != StatusReadyForMutation || !disp.GrantModify {
+		t.Fatalf("disposition = %+v, want resolved ready_for_mutation with grant", disp)
 	}
 	if !hasLimitation(disp.ModifyPaths, "gin.go") {
 		t.Fatalf("modify envelope = %v, want gin.go", disp.ModifyPaths)
@@ -38,6 +164,55 @@ func TestGovernanceReadyForMutationWhenEnrolled(t *testing.T) {
 	}
 	if st.Status != StatusReadyForMutation {
 		t.Fatalf("reported status = %q, want ready_for_mutation", st.Status)
+	}
+}
+
+// TestGovernanceRecordedDecisionExpires proves a recorded capability expires
+// against its own CapabilityExpiry and that reading it — before or after expiry —
+// never moves that expiry forward (regression #2).
+func TestGovernanceRecordedDecisionExpires(t *testing.T) {
+	_, taskDir := enrolledPreparedTask(t)
+	decidedAt := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	decision := recordAdmissionDecision(t, taskDir, decidedAt)
+	wantExpiry := decision.CapabilityExpiry
+	if wantExpiry == "" {
+		t.Fatal("decision has no capability expiry")
+	}
+
+	// Within validity: grants, and does not extend the recorded expiry.
+	if disp := governanceDisposition(taskDir, decidedAt.Add(time.Hour)); disp.Status != StatusReadyForMutation {
+		t.Fatalf("within-window disposition = %q, want ready_for_mutation", disp.Status)
+	}
+	if got, _ := admission.LoadRecordedDecision(taskDir); got.CapabilityExpiry != wantExpiry {
+		t.Fatalf("read extended expiry: %q -> %q", wantExpiry, got.CapabilityExpiry)
+	}
+
+	// Past validity: refused, and still does not rewrite the recorded expiry.
+	if disp := governanceDisposition(taskDir, decidedAt.Add(25*time.Hour)); disp.Status != StatusRefused {
+		t.Fatalf("expired disposition = %q, want refused", disp.Status)
+	}
+	if got, _ := admission.LoadRecordedDecision(taskDir); got.CapabilityExpiry != wantExpiry {
+		t.Fatalf("expired read rewrote expiry: %q -> %q", wantExpiry, got.CapabilityExpiry)
+	}
+}
+
+// TestGovernanceConsumedCapabilityStaysSpent proves a consumed single-use
+// capability never reappears as an available mutation grant through a read
+// (regression #4). The task remains admitted awaiting its observed change, but no
+// modify permission is projected.
+func TestGovernanceConsumedCapabilityStaysSpent(t *testing.T) {
+	_, taskDir := enrolledPreparedTask(t)
+	decision := recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	recordCapabilityConsumption(t, taskDir, decision, time.Now().UTC())
+
+	for i := 0; i < 3; i++ {
+		disp := governanceDisposition(taskDir, time.Now().UTC())
+		if disp.Status != StatusAdmitted {
+			t.Fatalf("read %d disposition = %q, want admitted", i, disp.Status)
+		}
+		if disp.GrantModify || len(disp.ModifyPaths) != 0 {
+			t.Fatalf("read %d re-granted a consumed capability: %+v", i, disp)
+		}
 	}
 }
 
@@ -71,9 +246,7 @@ func recordScopeVerification(t *testing.T, taskDir string, verified bool) {
 	if err != nil {
 		t.Fatalf("head: %v", err)
 	}
-	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(func(et closureprotocol.LedgerEventType, mt string, data []byte) error {
-		return ledger.ValidateTaskEventPayload(et, data)
-	}))
+	store := taskLedgerStore(taskDir)
 	v := admission.ScopeVerification{
 		CapabilityID:                  "capability.test",
 		DecisionDigestSHA256:          "decision",
@@ -95,19 +268,12 @@ func recordScopeVerification(t *testing.T, taskDir string, verified bool) {
 	if _, err := admission.RecordScopeVerified(store, head, rec.Base.Task, v, time.Unix(0, 0).UTC()); err != nil {
 		t.Fatalf("record scope_verified: %v", err)
 	}
-	if _, err := ledger.RebuildProjections(taskDir, func(et closureprotocol.LedgerEventType, mt string, data []byte) error {
-		return ledger.ValidateTaskEventPayload(et, data)
-	}); err != nil {
-		t.Fatalf("rebuild projections: %v", err)
-	}
+	rebuildProjections(t, taskDir)
 }
 
 func hasEventType(t *testing.T, taskDir string, want closureprotocol.LedgerEventType) bool {
 	t.Helper()
-	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(func(et closureprotocol.LedgerEventType, mt string, data []byte) error {
-		return ledger.ValidateTaskEventPayload(et, data)
-	}))
-	chain, err := store.VerifyChain()
+	chain, err := taskLedgerStore(taskDir).VerifyChain()
 	if err != nil {
 		t.Fatalf("verify chain: %v", err)
 	}
@@ -119,18 +285,42 @@ func hasEventType(t *testing.T, taskDir string, want closureprotocol.LedgerEvent
 	return false
 }
 
+// TestGovernanceScopeVerifiedStaysUncertified proves the reducer projects
+// scope_verified from a recorded verification (regression #5), never
+// ready_for_mutation (regression #6), grants no mutation, and never certifies or
+// completes the task. Repeated reads never reopen the grant.
 func TestGovernanceScopeVerifiedStaysUncertified(t *testing.T) {
-	_, taskDir := enrolledPreparedTask(t)
+	repo, taskDir := enrolledPreparedTask(t)
+	decision := recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	recordCapabilityConsumption(t, taskDir, decision, time.Now().UTC())
 	recordScopeVerification(t, taskDir, true)
+	rebindActivePointer(t, repo, taskDir)
 
 	disp := governanceDisposition(taskDir, time.Now().UTC())
-	if disp.Status != StatusReadyForMutation {
-		t.Fatalf("scope-verified disposition = %q, want ready_for_mutation", disp.Status)
+	if disp.Status != StatusScopeVerified {
+		t.Fatalf("disposition = %+v, want scope_verified", disp)
 	}
-	// Closure invariant: advancing through scope verification never certifies
-	// correctness or completes the task — Phase 6 remains the sole certifier.
+	if disp.Status == StatusReadyForMutation || disp.GrantModify || len(disp.ModifyPaths) != 0 {
+		t.Fatal("scope verification reopened a mutation grant")
+	}
+
+	st, err := Status(StatusOptions{RepoRoot: repo, Active: true, Verify: true})
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if st.Status != StatusScopeVerified {
+		t.Fatalf("reported status = %q, want scope_verified", st.Status)
+	}
+	// Closure invariant: scope verification never certifies correctness or
+	// completes the task — Phase 6 remains the sole certifier.
 	if hasEventType(t, taskDir, closureprotocol.LedgerEventCertified) || hasEventType(t, taskDir, closureprotocol.LedgerEventCompleted) {
 		t.Fatal("admission v2 emitted a certified/completed event")
+	}
+
+	for i := 0; i < 3; i++ {
+		if d := governanceDisposition(taskDir, time.Now().UTC()); d.Status != StatusScopeVerified || d.GrantModify {
+			t.Fatalf("re-read %d reopened grant: %+v", i, d)
+		}
 	}
 }
 

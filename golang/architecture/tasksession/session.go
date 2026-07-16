@@ -42,7 +42,11 @@ const (
 	PhaseUncertifiable = "uncertifiable"
 
 	StatusReadyForInspection = "ready_for_inspection"
+	StatusReadyForAdmission  = "ready_for_admission"
 	StatusReadyForMutation   = "ready_for_mutation"
+	StatusAdmitted           = "admitted"
+	StatusMutationObserved   = "mutation_observed"
+	StatusScopeVerified      = "scope_verified"
 	StatusWaitingArchitect   = "waiting_architect"
 	StatusWaitingEvidence    = "waiting_evidence"
 	StatusWaitingGovernance  = "waiting_governance"
@@ -522,24 +526,10 @@ func Status(opts StatusOptions) (StatusResult, error) {
 		}
 	}
 	if res.Status != StatusStale {
-		res.Status = governedStatus(taskDir, res.Status)
+		disp := governanceDisposition(taskDir, time.Now().UTC())
+		res.Status = reconcileGovernedStatus(disp, res.Status)
 	}
 	return res, nil
-}
-
-// governedStatus derives the reported disposition from the typed admission-v2
-// ledger. When typed governance is resolved it is authoritative; a task that has
-// not resolved governance must not report a mutation grant, so a legacy
-// ready_for_mutation is gated down to waiting_governance.
-func governedStatus(taskDir, legacyStatus string) string {
-	disp := governanceDisposition(taskDir, time.Now().UTC())
-	if disp.Resolved {
-		return disp.Status
-	}
-	if legacyStatus == StatusReadyForMutation {
-		return StatusWaitingGovernance
-	}
-	return legacyStatus
 }
 
 func StableTaskID(req TaskRequest) string {

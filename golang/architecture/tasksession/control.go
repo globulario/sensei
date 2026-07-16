@@ -306,7 +306,11 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	modifyCapability := decision.MutationCapability
 	modifyScope := decision.Envelope.ModifyPaths
 	if gov.Resolved {
-		if gov.Status == StatusReadyForMutation {
+		// A single-use mutation grant is projected only while the typed decision
+		// binds and its capability is unconsumed. After consumption or scope
+		// verification the ledger reducer withholds the grant, and no read can
+		// reopen it.
+		if gov.GrantModify {
 			modifyCapability = admission.CapabilityAdmitted
 			modifyScope = gov.ModifyPaths
 		} else {
@@ -388,9 +392,11 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 		return AdvanceTaskResult{}, err
 	}
 	status := StatusResult{
-		TaskID:      baseSession.TaskID,
-		Phase:       baseSession.WorkflowPhase,
-		Status:      governedStatus(taskDir, baseSession.OperationalStatus),
+		TaskID: baseSession.TaskID,
+		Phase:  baseSession.WorkflowPhase,
+		// The typed ledger reducer is authoritative for the projected status;
+		// reuse the disposition already folded for the mutation-grant decision.
+		Status:      reconcileGovernedStatus(gov, baseSession.OperationalStatus),
 		Closure:     baseSession.ClosureVerdict,
 		Convergence: baseSession.ConvergenceStatus,
 		Admission:   baseSession.AdmissionDecision,
