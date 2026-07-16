@@ -392,11 +392,9 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 		return AdvanceTaskResult{}, err
 	}
 	status := StatusResult{
-		TaskID: baseSession.TaskID,
-		Phase:  baseSession.WorkflowPhase,
-		// The typed ledger reducer is authoritative for the projected status;
-		// reuse the disposition already folded for the mutation-grant decision.
-		Status:      reconcileGovernedStatus(gov, baseSession.OperationalStatus),
+		TaskID:      baseSession.TaskID,
+		Phase:       baseSession.WorkflowPhase,
+		Status:      baseSession.OperationalStatus,
 		Closure:     baseSession.ClosureVerdict,
 		Convergence: baseSession.ConvergenceStatus,
 		Admission:   baseSession.AdmissionDecision,
@@ -404,6 +402,10 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 		Next:        firstNext(baseSession),
 		Session:     baseSession,
 	}
+	// The typed ledger reducer is authoritative for the projected disposition;
+	// reuse the disposition already folded for the mutation-grant decision. At
+	// the scope-verified terminal this points the next action at result rebuild.
+	applyGovernedDisposition(&status, gov, baseSession.OperationalStatus)
 	statusBytes, err := yaml.Marshal(map[string]StatusResult{"architecture_task_status": status})
 	if err != nil {
 		return AdvanceTaskResult{}, err

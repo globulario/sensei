@@ -285,11 +285,12 @@ func hasEventType(t *testing.T, taskDir string, want closureprotocol.LedgerEvent
 	return false
 }
 
-// TestGovernanceScopeVerifiedStaysUncertified proves the reducer projects
-// scope_verified from a recorded verification (regression #5), never
-// ready_for_mutation (regression #6), grants no mutation, and never certifies or
-// completes the task. Repeated reads never reopen the grant.
-func TestGovernanceScopeVerifiedStaysUncertified(t *testing.T) {
+// TestGovernanceScopeVerifiedIsNonMutableTerminal proves scope verification is a
+// terminal Phase-3 state: it projects scope_verified (regression #5), never
+// ready_for_mutation (regression #6), grants no mutation, points the next action
+// at result rebuild, and never certifies or completes the task. Repeated reads
+// never reopen the terminal.
+func TestGovernanceScopeVerifiedIsNonMutableTerminal(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
 	decision := recordAdmissionDecision(t, taskDir, time.Now().UTC())
 	recordCapabilityConsumption(t, taskDir, decision, time.Now().UTC())
@@ -297,8 +298,8 @@ func TestGovernanceScopeVerifiedStaysUncertified(t *testing.T) {
 	rebindActivePointer(t, repo, taskDir)
 
 	disp := governanceDisposition(taskDir, time.Now().UTC())
-	if disp.Status != StatusScopeVerified {
-		t.Fatalf("disposition = %+v, want scope_verified", disp)
+	if disp.Status != StatusScopeVerified || !disp.Terminal {
+		t.Fatalf("disposition = %+v, want scope_verified terminal", disp)
 	}
 	if disp.Status == StatusReadyForMutation || disp.GrantModify || len(disp.ModifyPaths) != 0 {
 		t.Fatal("scope verification reopened a mutation grant")
@@ -311,16 +312,53 @@ func TestGovernanceScopeVerifiedStaysUncertified(t *testing.T) {
 	if st.Status != StatusScopeVerified {
 		t.Fatalf("reported status = %q, want scope_verified", st.Status)
 	}
-	// Closure invariant: scope verification never certifies correctness or
-	// completes the task — Phase 6 remains the sole certifier.
+	if st.Phase != string(closureprotocol.PhaseScopeVerified) {
+		t.Fatalf("reported phase = %q, want scope_verified", st.Phase)
+	}
+	// The only legal next action is the deterministic result rebuild a later
+	// phase owns — never a new admission, mutation, certification, or completion.
+	if st.Next.Action != NextRebuildResult {
+		t.Fatalf("next action = %q, want %q", st.Next.Action, NextRebuildResult)
+	}
 	if hasEventType(t, taskDir, closureprotocol.LedgerEventCertified) || hasEventType(t, taskDir, closureprotocol.LedgerEventCompleted) {
 		t.Fatal("admission v2 emitted a certified/completed event")
 	}
 
 	for i := 0; i < 3; i++ {
 		if d := governanceDisposition(taskDir, time.Now().UTC()); d.Status != StatusScopeVerified || d.GrantModify {
-			t.Fatalf("re-read %d reopened grant: %+v", i, d)
+			t.Fatalf("re-read %d reopened terminal: %+v", i, d)
 		}
+	}
+}
+
+// TestAdvanceTaskAfterScopeVerificationIsStable proves repeated advance-task
+// after scope verification keeps reporting the non-mutable terminal — same
+// status and rebuild-and-bind next action — and never re-grants mutation or
+// emits certification/completion (regression #7).
+func TestAdvanceTaskAfterScopeVerificationIsStable(t *testing.T) {
+	repo, taskDir := enrolledPreparedTask(t)
+	decision := recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	recordCapabilityConsumption(t, taskDir, decision, time.Now().UTC())
+	recordScopeVerification(t, taskDir, true)
+	rebindActivePointer(t, repo, taskDir)
+
+	for i := 0; i < 2; i++ {
+		if _, err := AdvanceTask(AdvanceTaskOptions{RepoRoot: repo, Active: true, ObservedAt: "2026-07-14T18:31:00Z"}); err != nil {
+			t.Fatalf("advance %d: %v", i, err)
+		}
+		st, err := Status(StatusOptions{RepoRoot: repo, Active: true, Verify: true})
+		if err != nil {
+			t.Fatalf("status %d: %v", i, err)
+		}
+		if st.Status != StatusScopeVerified {
+			t.Fatalf("advance %d status = %q, want scope_verified", i, st.Status)
+		}
+		if st.Next.Action != NextRebuildResult {
+			t.Fatalf("advance %d next = %q, want %q", i, st.Next.Action, NextRebuildResult)
+		}
+	}
+	if hasEventType(t, taskDir, closureprotocol.LedgerEventCertified) || hasEventType(t, taskDir, closureprotocol.LedgerEventCompleted) {
+		t.Fatal("advance-task after scope verification emitted certified/completed")
 	}
 }
 
