@@ -275,6 +275,12 @@ func TestDirectionBootstrapConditionsOnlyDirection(t *testing.T) {
 	req.Scope.DirectionRequirement = DirectionEvolve
 	req.Scope.Files = []string{DirectionBootstrapFile}
 	req.DirectionBootstrap = validDirectionBootstrap()
+	// This test exercises the wall-clock Evaluate path, so the authorization
+	// window must be valid relative to time.Now(); the shared helper keeps its
+	// fixed window for the deterministic tests that pass an explicit clock.
+	req.DirectionBootstrap.IssuedAt = time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	req.DirectionBootstrap.ExpiresAt = time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)
+	req.DirectionBootstrap.AuthorizationDigestSHA256 = DirectionBootstrapAuthorizationDigest(*req.DirectionBootstrap)
 	report, err := Evaluate(validContext(t, root, req, sourceFileGraph(DirectionBootstrapFile)))
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)

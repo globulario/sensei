@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
@@ -659,8 +660,8 @@ func validBootstrapDirectionAuthorization(t *testing.T, repo string, postContent
 		ApprovalMechanism:          closure.DirectionBootstrapMechanismFile,
 		ApprovalStatement:          "bootstrap once",
 		UsagePolicy:                closure.DirectionBootstrapUsageOneUse,
-		IssuedAt:                   "2026-07-15T00:00:00Z",
-		ExpiresAt:                  "2026-07-16T00:00:00Z",
+		IssuedAt:                   time.Now().UTC().Add(-time.Hour).Format(time.RFC3339),
+		ExpiresAt:                  time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339),
 		ApprovalSourcePath:         sourcePath,
 		ApprovalSourceDigestSHA256: digest([]byte("approved by human")),
 	}
