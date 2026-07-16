@@ -3,20 +3,17 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/authority"
-	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
+	"github.com/globulario/sensei/golang/architecture/resulttransition"
 
 	"gopkg.in/yaml.v3"
 )
@@ -483,131 +480,13 @@ func runVerifyAdmissionV2(dir, repoRoot, expectedHead, resultRevision, format st
 	return 0
 }
 
-// observeChange computes the actual change from repository state via git. The
-// actor and authority digests are taken from the admission context; they are
-// not caller-authoritative scope input.
-//
-// Two result modes. With no result revision (the default), the worktree is
-// observed: the current tree — staged and unstaged, tracked and untracked
-// relative to the admitted base — is written to a temporary tree through an
-// isolated index, so ordinary uncommitted agent edits are seen without a commit.
-// With an explicit result revision, that exact committed revision is observed.
-// The user's real Git index is never modified.
+// observeChange computes the actual change from repository state via git,
+// delegating to the resulttransition package. That package owns the single
+// canonical committed/worktree observation — isolated-index worktree
+// materialization, canonical tree identity, and name-status change derivation —
+// so the admission command path and the Phase 7 result binding observe exactly
+// the same change and cannot drift. The actor and authority digests are taken
+// from the admission context; they are not caller-authoritative scope input.
 func observeChange(repoRoot, baseRev, resultRev, actorDigest, authorityDigest string) (admission.ObservedChangeSet, error) {
-	if baseRev == "" {
-		return admission.ObservedChangeSet{}, fmt.Errorf("recorded base binding has no revision")
-	}
-	resultTreeish := strings.TrimSpace(resultRev)
-	if resultTreeish == "" {
-		treeish, cleanup, err := worktreeResultTree(repoRoot, baseRev)
-		if err != nil {
-			return admission.ObservedChangeSet{}, err
-		}
-		defer cleanup()
-		resultTreeish = treeish
-	}
-	baseTree, err := binding.ResolveTreeIdentity(context.Background(), repoRoot, baseRev)
-	if err != nil {
-		return admission.ObservedChangeSet{}, err
-	}
-	resultTree, err := binding.ResolveTreeIdentity(context.Background(), repoRoot, resultTreeish)
-	if err != nil {
-		return admission.ObservedChangeSet{}, err
-	}
-	files, err := admissionGitChangedFiles(repoRoot, baseRev, resultTreeish)
-	if err != nil {
-		return admission.ObservedChangeSet{}, err
-	}
-	return admission.ObservedChangeSet{
-		BaseTreeDigestSHA256:            baseTree.DigestSHA256,
-		ResultTreeDigestSHA256:          resultTree.DigestSHA256,
-		ActorBindingDigestSHA256:        actorDigest,
-		AuthorityResolutionDigestSHA256: authorityDigest,
-		Files:                           files,
-	}, nil
-}
-
-// worktreeResultTree writes the current worktree (all tracked changes and
-// untracked files relative to the admitted base) to a Git tree object through an
-// isolated temporary index, and returns the tree object id plus a cleanup. The
-// user's real index (.git/index) is never touched: all staging happens against a
-// throwaway GIT_INDEX_FILE seeded from the admitted base tree.
-func worktreeResultTree(repoRoot, baseRev string) (string, func(), error) {
-	tmpDir, err := os.MkdirTemp("", "sensei-verify-index-")
-	if err != nil {
-		return "", func() {}, err
-	}
-	cleanup := func() { os.RemoveAll(tmpDir) }
-	env := append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(tmpDir, "index"))
-	// Seed the isolated index with the admitted base tree, then stage every
-	// worktree difference (modifications, deletions, and untracked additions).
-	if _, err := gitEnv(repoRoot, env, "read-tree", baseRev); err != nil {
-		cleanup()
-		return "", func() {}, err
-	}
-	if _, err := gitEnv(repoRoot, env, "add", "-A"); err != nil {
-		cleanup()
-		return "", func() {}, err
-	}
-	out, err := gitEnv(repoRoot, env, "write-tree")
-	if err != nil {
-		cleanup()
-		return "", func() {}, err
-	}
-	return strings.TrimSpace(out), cleanup, nil
-}
-
-// gitEnv runs a git command in repoRoot with an augmented environment (used to
-// point GIT_INDEX_FILE at an isolated index) and returns its stdout.
-func gitEnv(repoRoot string, env []string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
-	cmd.Env = env
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
-	}
-	return string(out), nil
-}
-
-func admissionGitChangedFiles(repoRoot, baseRev, resultRev string) ([]admission.ObservedFile, error) {
-	out, err := exec.Command("git", "-C", repoRoot, "diff", "--name-status", baseRev, resultRev).Output()
-	if err != nil {
-		return nil, fmt.Errorf("git diff: %w", err)
-	}
-	var files []admission.ObservedFile
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		changeType := gitChangeType(fields[0])
-		// A rename/copy status carries two paths: `R<score>\told\tnew`. Preserve
-		// both endpoints so scope verification refuses the rename honestly instead
-		// of silently treating the destination as an ordinary modification.
-		if (changeType == "rename") && len(fields) >= 3 {
-			from := filepath.ToSlash(fields[1])
-			to := filepath.ToSlash(fields[2])
-			files = append(files, admission.ObservedFile{ChangeType: changeType, Path: to, FromPath: from, ToPath: to})
-			continue
-		}
-		files = append(files, admission.ObservedFile{ChangeType: changeType, Path: filepath.ToSlash(fields[len(fields)-1])})
-	}
-	return files, nil
-}
-
-func gitChangeType(code string) string {
-	switch {
-	case strings.HasPrefix(code, "A"):
-		return "create"
-	case strings.HasPrefix(code, "D"):
-		return "delete"
-	case strings.HasPrefix(code, "R"):
-		return "rename"
-	default:
-		return "modify"
-	}
+	return resulttransition.ObserveChange(repoRoot, baseRev, resultRev, actorDigest, authorityDigest)
 }
