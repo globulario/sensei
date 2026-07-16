@@ -154,7 +154,10 @@ func TestPrepareChangeCreatesVerifiedLedger(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Valid || report.EntryCount != 5 || report.ProjectionState != "current" {
+	// task_prepared, convergence_advanced, closure_assessed, task_control_projected.
+	// No admission_decided: preparation records no typed decision (authority
+	// precedes admission; the decision is produced later by admit-change).
+	if !report.Valid || report.EntryCount != 4 || report.ProjectionState != "current" {
 		t.Fatalf("unexpected ledger report: %+v", report)
 	}
 }
