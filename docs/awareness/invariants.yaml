@@ -537,3 +537,17 @@ invariants:
       not_applicable merely because static_test was selected. The absence of a
       runtime target alone must never make certification uncertifiable when no
       governed obligation requires runtime evidence.
+  - id: closure.only_certification_engine_establishes_correctness
+    title: Only the certification engine may establish correctness
+    severity: critical
+    status: active
+    description: 'Phase 6: the four-lane engine is the sole correctness writer. A repo-scan test pins that no code assigns CorrectnessCertified true; a seam test pins that the legacy CLI cannot import ledger/certification.'
+    protects:
+      files:
+        - golang/architecture/certification/evaluate.go
+        - golang/architecture/certification/lanes.go
+        - golang/architecture/certification/ledger.go
+        - cmd/awg/cmd_certify.go
+    required_tests:
+      - adversarial_test.go:TestEvaluate_ForgedRecordIsRefusedNotScored
+    contract: CorrectnessCertified true (a certifying verdict) may be established only by a CertificationReceipt produced by golang/architecture/certification, which recomputes the scope, authority, proof, and evidence lanes from typed, digest-verified records. Caller-supplied booleans, scores, clean diffs, passing test subsets, and legacy benchmark events can never certify. The legacy certify --event adapter is display-only and cannot append a certified ledger event.
