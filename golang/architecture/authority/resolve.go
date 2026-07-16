@@ -257,79 +257,12 @@ func grantAllowsDelegatedOperation(index PolicyIndex, grant AuthorityGrant, op c
 	return true
 }
 
+// delegationAllowsOperation gates authority resolution on the same monotonicity
+// verdict the certification engine re-runs independently. It is a thin wrapper
+// over CheckDelegationForOperation so the resolver and the certifier never drift
+// apart on what a legitimate one-level delegation is.
 func delegationAllowsOperation(index PolicyIndex, grant AuthorityGrant, receipt closureprotocol.DelegationReceipt, op closureprotocol.ChangeOperation, domainID string, evaluatedAt time.Time) bool {
-	if receipt.ParentGrantID != grant.ID {
-		return false
-	}
-	if receipt.Status != closureprotocol.ReceiptValid {
-		return false
-	}
-	if receipt.ParentDelegationID != "" {
-		return false
-	}
-	if !subsetStrings(receipt.RoleIDs, grant.ActorRoleIDs) {
-		return false
-	}
-	if len(receipt.RoleIDs) > 0 && !intersectsString(receipt.RoleIDs, grant.ActorRoleIDs) {
-		return false
-	}
-	if !subsetStrings(receipt.AuthorityDomainIDs, grant.AuthorityDomainIDs) || !containsString(receipt.AuthorityDomainIDs, domainID) {
-		return false
-	}
-	if !subsetOperations(receipt.Actions, grant.Actions) || !containsOperation(receipt.Actions, op.Kind) {
-		return false
-	}
-	if !subsetTargetKinds(receipt.TargetKinds, grant.TargetKinds) || !containsString(receipt.TargetKinds, op.TargetKind) {
-		return false
-	}
-	if !subsetMechanismKinds(index, receipt.MechanismKinds, grant.RequiredMechanismIDs) || !delegationMechanismMatches(receipt.MechanismKinds, op.SelectedMechanism) {
-		return false
-	}
-	if len(receipt.TargetSelectors) > 0 && !containsString(receipt.TargetSelectors, op.Target) {
-		return false
-	}
-	if riskRank(op.RiskClass) > riskRank(grant.MaximumRiskClass) || riskRank(op.RiskClass) > riskRank(receipt.MaximumRiskClass) {
-		return false
-	}
-	if !grant.Delegable || strings.TrimSpace(grant.DelegationPolicyID) == "" || grant.DelegationPolicyID != receipt.PolicyID {
-		return false
-	}
-	policy, ok := index.DelegationPolicies[receipt.PolicyID]
-	if !ok || policy.Status != "active" {
-		return false
-	}
-	if len(policy.AllowedActions) > 0 && !subsetOperations(receipt.Actions, policy.AllowedActions) {
-		return false
-	}
-	if len(policy.AllowedMechanismIDs) > 0 && !subsetMechanismIDs(index, receipt.MechanismKinds, policy.AllowedMechanismIDs) {
-		return false
-	}
-	if !policy.AllowSubdelegation && receipt.AllowSubdelegation {
-		return false
-	}
-	validFrom, err := time.Parse(time.RFC3339, receipt.ValidFrom)
-	if err != nil || evaluatedAt.Before(validFrom) {
-		return false
-	}
-	if receipt.ValidUntil != "" {
-		validUntil, err := time.Parse(time.RFC3339, receipt.ValidUntil)
-		if err != nil || !evaluatedAt.Before(validUntil) {
-			return false
-		}
-		if grant.ValidUntil != "" {
-			parentValidUntil, err := time.Parse(time.RFC3339, grant.ValidUntil)
-			if err != nil || validUntil.After(parentValidUntil) {
-				return false
-			}
-		}
-	}
-	if grant.ValidFrom != "" {
-		parentValidFrom, err := time.Parse(time.RFC3339, grant.ValidFrom)
-		if err != nil || validFrom.Before(parentValidFrom) {
-			return false
-		}
-	}
-	return true
+	return CheckDelegationForOperation(index, grant, receipt, op, domainID, evaluatedAt) == DelegationOK
 }
 
 func grantMechanismMatches(index PolicyIndex, ids []string, selected closureprotocol.MechanismKind) bool {
