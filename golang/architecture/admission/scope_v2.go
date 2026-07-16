@@ -72,11 +72,20 @@ type ScopeVerification struct {
 	AuthorityResolutionDigestSHA256 string
 	BaseTreeDigestSHA256            string
 	ResultTreeDigestSHA256          string
+	ObservedChangeSetDigestSHA256   string
 	VerifiedOperationIDs            []string
 	Status                          closureprotocol.ReceiptStatus
 	Violations                      []ScopeViolation
 	VerifiedAt                      string
 	ScopeVerificationDigestSHA256   string
+}
+
+// ObservedChangeSetDigest is the canonical digest of an observed change set. The
+// change_observed ledger event and the scope verification both bind it, so the
+// exact observed mutation — not merely a result-tree digest — is carried forward
+// for the result-transition phase.
+func ObservedChangeSetDigest(change ObservedChangeSet) (string, error) {
+	return closureprotocol.SemanticDigest(change)
 }
 
 // ScopeVerificationDigest is the self-excluding digest of a scope verification.
@@ -103,6 +112,10 @@ func VerifyScope(exp ScopeExpectation, observed ObservedChangeSet, verifiedAt st
 		return ScopeVerification{}, errors.New("verified_at must be RFC3339")
 	}
 	decisionDigest, err := closureprotocol.SemanticDigest(exp.Decision)
+	if err != nil {
+		return ScopeVerification{}, err
+	}
+	observedDigest, err := ObservedChangeSetDigest(observed)
 	if err != nil {
 		return ScopeVerification{}, err
 	}
@@ -204,6 +217,7 @@ func VerifyScope(exp ScopeExpectation, observed ObservedChangeSet, verifiedAt st
 		AuthorityResolutionDigestSHA256: exp.AuthorityResolutionDigestSHA256,
 		BaseTreeDigestSHA256:            exp.BaseTreeDigestSHA256,
 		ResultTreeDigestSHA256:          observed.ResultTreeDigestSHA256,
+		ObservedChangeSetDigestSHA256:   observedDigest,
 		VerifiedOperationIDs:            verifiedOps,
 		Violations:                      violations,
 		VerifiedAt:                      verifiedAt,

@@ -133,6 +133,14 @@ func LoadRecordedConsumption(taskDir string) (closureprotocol.CapabilityConsumpt
 	return c, err
 }
 
+// LoadRecordedObservedChange loads the latest change_observed observed change
+// set. It fails closed when no change_observed event has been recorded.
+func LoadRecordedObservedChange(taskDir string) (ObservedChangeSet, error) {
+	var c ObservedChangeSet
+	err := LoadLatestArtifact(taskDir, closureprotocol.LedgerEventChangeObserved, "observed_change_set", &c)
+	return c, err
+}
+
 // LoadRecordedScopeVerification loads the latest scope_verified verification.
 func LoadRecordedScopeVerification(taskDir string) (ScopeVerification, error) {
 	var v ScopeVerification

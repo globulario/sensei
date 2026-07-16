@@ -75,6 +75,15 @@ func RecordAdmissionConsumed(store *ledger.Store, expectedHead string, consumpti
 	return recordAdmissionEvent(store, expectedHead, consumption.Task.ID, consumption.Task.SessionID, closureprotocol.LedgerEventAdmissionConsumed, map[string]any{"capability_consumption": consumption}, producedAt)
 }
 
+// RecordChangeObserved appends a change_observed event carrying the exact
+// observed change set as a bound artifact, between admission_consumed and
+// scope_verified. It records the observed mutation itself (not merely a result
+// tree digest) so scope verification and the later result transition bind the
+// same observed change.
+func RecordChangeObserved(store *ledger.Store, expectedHead string, task closureprotocol.TaskBinding, observed ObservedChangeSet, producedAt time.Time) (ledger.AppendResult, error) {
+	return recordAdmissionEvent(store, expectedHead, task.ID, task.SessionID, closureprotocol.LedgerEventChangeObserved, map[string]any{"observed_change_set": observed}, producedAt)
+}
+
 // RecordScopeVerified appends a scope_verified event carrying the typed scope
 // verification receipt.
 func RecordScopeVerified(store *ledger.Store, expectedHead string, task closureprotocol.TaskBinding, verification ScopeVerification, producedAt time.Time) (ledger.AppendResult, error) {
