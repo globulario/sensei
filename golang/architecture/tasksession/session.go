@@ -63,6 +63,7 @@ const (
 	NextPerformEdit      = "perform admitted edit"
 	NextVerifyAdmission  = "verify admission envelope"
 	NextCompleteProof    = "complete required proof"
+	NextRebuildResult    = "rebuild and bind result architecture"
 	NextPrepareNewTask   = "prepare a new task"
 )
 
@@ -527,7 +528,7 @@ func Status(opts StatusOptions) (StatusResult, error) {
 	}
 	if res.Status != StatusStale {
 		disp := governanceDisposition(taskDir, time.Now().UTC())
-		res.Status = reconcileGovernedStatus(disp, res.Status)
+		applyGovernedDisposition(&res, disp, res.Status)
 	}
 	return res, nil
 }

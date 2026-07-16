@@ -30,6 +30,10 @@ type governanceState struct {
 	// authority_resolved receipt exists). Un-engaged legacy tasks keep their
 	// legacy disposition rather than being forced to waiting_governance.
 	Resolved bool
+	// Terminal reports the Phase-3 terminal state (scope_verified): mutation is
+	// closed and the next legal action is result rebuild, owned by a later phase.
+	// It is never re-entered as a mutation grant.
+	Terminal bool
 }
 
 // governanceDisposition folds the recorded admission-v2 receipts into the
@@ -56,6 +60,7 @@ func governanceDisposition(taskDir string, now time.Time) governanceState {
 				Phase:    closureprotocol.PhaseScopeVerified,
 				Status:   StatusScopeVerified,
 				Resolved: true,
+				Terminal: true,
 			}
 		}
 		return governanceState{
@@ -157,6 +162,18 @@ func reconcileGovernedStatus(disp governanceState, legacyStatus string) string {
 		return StatusWaitingGovernance
 	}
 	return legacyStatus
+}
+
+// applyGovernedDisposition overlays the ledger-derived disposition onto a status
+// result. At the scope-verified terminal it marks the phase terminal and points
+// the next action at the deterministic result rebuild that a later phase owns;
+// mutation is never reopened, and no certification or completion is projected.
+func applyGovernedDisposition(res *StatusResult, disp governanceState, legacyStatus string) {
+	res.Status = reconcileGovernedStatus(disp, legacyStatus)
+	if disp.Terminal {
+		res.Phase = string(closureprotocol.PhaseScopeVerified)
+		res.Next = NextAction{Action: NextRebuildResult, Summary: "scope verified; rebuild and bind the result architecture"}
+	}
 }
 
 // hasLedgerEvent reports whether the task ledger contains at least one event of
