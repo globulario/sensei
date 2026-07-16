@@ -85,3 +85,38 @@ required_tests:
         - prereview.report_is_projection_not_authority
       files:
         - golang/architecture/prereview/finalize.go
+  - id: golang/architecture/prereview/advisory_cannot_certify_test.go:TestGenerateAdvisoryCannotClaimCertification
+    title: Advisory generation never emits a certified or terminally_closed disposition, verdict, or completion receipt
+    protects:
+      invariants:
+        - prereview.report_is_projection_not_authority
+      files:
+        - golang/architecture/prereview/assemble.go
+  - id: golang/architecture/prereview/advisory_cannot_certify_test.go:TestGenerateAdvisoryMissingContextStaysUnavailable
+    title: Missing graph context stays visibly unavailable/degraded (non-strict) or fails (strict), never a clean result
+    protects:
+      invariants:
+        - prereview.missing_context_stays_unavailable
+      files:
+        - golang/architecture/prereview/assemble.go
+  - id: cmd/awg/prereview_tree_identity_test.go:TestGitDiffCanonicalTreeIdentity
+    title: The pre-review diff binds the canonical SHA-256 tree digest, preserving the native Git object id separately
+    protects:
+      invariants:
+        - prereview.diff_identity_uses_canonical_binding
+      files:
+        - cmd/awg/prereview_git.go
+  - id: cmd/awg/prereview_governance_laws_test.go:TestPreReviewSARIFOnlyFileAnchoredFindings
+    title: Pre-review SARIF emits only file-anchored findings
+    protects:
+      invariants:
+        - prereview.sarif_only_file_anchored_findings
+      files:
+        - cmd/awg/cmd_pre_review.go
+  - id: cmd/awg/prereview_governance_laws_test.go:TestLocalGraphSourceReportsServerSurfacesUnavailable
+    title: The local graph source reports gRPC-only surfaces unavailable rather than fabricating them
+    protects:
+      invariants:
+        - prereview.local_graph_must_not_impersonate_server_surfaces
+      files:
+        - cmd/awg/prereview_graph.go

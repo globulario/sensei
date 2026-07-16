@@ -335,3 +335,47 @@ invariants:
     required_tests:
       - golang/architecture/prereview/disposition_test.go:TestDispositionCannotClaimCertifiedWithoutReceipt
       - golang/architecture/prereview/adversarial_test.go:TestCallerBooleanCannotForgeVerdict
+      - golang/architecture/prereview/advisory_cannot_certify_test.go:TestGenerateAdvisoryCannotClaimCertification
+
+  - id: prereview.missing_context_stays_unavailable
+    title: Missing architectural context must remain visibly unavailable, degraded, or cannot_verify — never silently converted into a clean or certified advisory result
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/architecture/prereview/assemble.go
+        - golang/architecture/prereview/validate.go
+        - cmd/awg/prereview_graph.go
+    required_tests:
+      - golang/architecture/prereview/advisory_cannot_certify_test.go:TestGenerateAdvisoryMissingContextStaysUnavailable
+
+  - id: prereview.diff_identity_uses_canonical_binding
+    title: The pre-review diff identity uses the canonical SHA-256 repository tree digest (SHA-256 over deterministic Git tree material), never a native Git tree object id in a *_sha256 field
+    severity: high
+    status: active
+    protects:
+      files:
+        - cmd/awg/prereview_git.go
+        - golang/architecture/prereview/identity.go
+    required_tests:
+      - cmd/awg/prereview_tree_identity_test.go:TestGitDiffCanonicalTreeIdentity
+
+  - id: prereview.sarif_only_file_anchored_findings
+    title: Pre-review SARIF contains only genuinely file-anchored findings — a reviewer-attention item with no related files produces no SARIF result
+    severity: medium
+    status: active
+    protects:
+      files:
+        - cmd/awg/cmd_pre_review.go
+    required_tests:
+      - cmd/awg/prereview_governance_laws_test.go:TestPreReviewSARIFOnlyFileAnchoredFindings
+
+  - id: prereview.local_graph_must_not_impersonate_server_surfaces
+    title: The local graph approximation must report gRPC-only surfaces (briefing, impact-graph traversal) as unavailable and must never fabricate them from local YAML
+    severity: high
+    status: active
+    protects:
+      files:
+        - cmd/awg/prereview_graph.go
+    required_tests:
+      - cmd/awg/prereview_governance_laws_test.go:TestLocalGraphSourceReportsServerSurfacesUnavailable
