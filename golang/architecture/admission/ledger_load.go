@@ -132,3 +132,10 @@ func LoadRecordedConsumption(taskDir string) (closureprotocol.CapabilityConsumpt
 	err := LoadLatestArtifact(taskDir, closureprotocol.LedgerEventAdmissionConsumed, "capability_consumption", &c)
 	return c, err
 }
+
+// LoadRecordedScopeVerification loads the latest scope_verified verification.
+func LoadRecordedScopeVerification(taskDir string) (ScopeVerification, error) {
+	var v ScopeVerification
+	err := LoadLatestArtifact(taskDir, closureprotocol.LedgerEventScopeVerified, "scope_verification", &v)
+	return v, err
+}
