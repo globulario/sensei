@@ -164,8 +164,8 @@ func TestAuthority_ActorMismatchBlocks(t *testing.T) {
 
 func TestAuthority_WrongMechanismBlocks(t *testing.T) {
 	req, rec := greenBundle(t)
-	rec.AuthorityResolutions[0].SelectedMechanism = closureprotocol.MechanismOwnerRPC
-	rec.AuthorityResolutions[0].LegalMechanisms = []string{string(closureprotocol.MechanismOwnerRPC)}
+	rec.AuthorityResolutions[0].OperationResults[0].SelectedMechanism = closureprotocol.MechanismOwnerRPC
+	rec.AuthorityResolutions[0].OperationResults[0].LegalMechanisms = []string{string(closureprotocol.MechanismOwnerRPC)}
 	req = rebindGreen(t, rec)
 	result := mustEvaluate(t, req, rec, DefaultPolicy())
 	authority := laneByName(t, result, LaneAuthority)
@@ -176,7 +176,7 @@ func TestAuthority_WrongMechanismBlocks(t *testing.T) {
 
 func TestAuthority_IllegalMechanismBlocks(t *testing.T) {
 	req, rec := greenBundle(t)
-	rec.AuthorityResolutions[0].LegalMechanisms = []string{string(closureprotocol.MechanismOwnerRPC)}
+	rec.AuthorityResolutions[0].OperationResults[0].LegalMechanisms = []string{string(closureprotocol.MechanismOwnerRPC)}
 	req = rebindGreen(t, rec)
 	result := mustEvaluate(t, req, rec, DefaultPolicy())
 	authority := laneByName(t, result, LaneAuthority)
@@ -187,7 +187,7 @@ func TestAuthority_IllegalMechanismBlocks(t *testing.T) {
 
 func TestAuthority_GrantMissingBlocks(t *testing.T) {
 	req, rec := greenBundle(t)
-	rec.AuthorityResolutions[0].GrantIDs = nil
+	rec.AuthorityResolutions[0].OperationResults[0].GrantIDs = nil
 	req = rebindGreen(t, rec)
 	result := mustEvaluate(t, req, rec, DefaultPolicy())
 	authority := laneByName(t, result, LaneAuthority)
@@ -198,7 +198,7 @@ func TestAuthority_GrantMissingBlocks(t *testing.T) {
 
 func TestAuthority_WrongDomainBlocks(t *testing.T) {
 	req, rec := greenBundle(t)
-	rec.AuthorityResolutions[0].AuthorityDomainIDs = []string{"authority.other"}
+	rec.AuthorityResolutions[0].OperationResults[0].AuthorityDomainIDs = []string{"authority.other"}
 	req = rebindGreen(t, rec)
 	result := mustEvaluate(t, req, rec, DefaultPolicy())
 	authority := laneByName(t, result, LaneAuthority)
@@ -211,7 +211,7 @@ func TestAuthority_StaleResolutionNeverCertifies(t *testing.T) {
 	// An expired grant or delegation surfaces on the frozen record as a stale
 	// resolution status; it must never certify.
 	req, rec := greenBundle(t)
-	rec.AuthorityResolutions[0].Status = closureprotocol.ReceiptStale
+	rec.AuthorityResolutions[0].OperationResults[0].Status = closureprotocol.ReceiptStale
 	req = rebindGreen(t, rec)
 	result := mustEvaluate(t, req, rec, DefaultPolicy())
 	authority := laneByName(t, result, LaneAuthority)
@@ -226,9 +226,10 @@ func TestAuthority_StaleResolutionNeverCertifies(t *testing.T) {
 func TestAuthority_UnresolvedDelegationBlocks(t *testing.T) {
 	req, rec := greenBundle(t)
 	rec.AdmissionRequest.ActorBinding.ActorKind = closureprotocol.ActorAgent
-	rec.AdmissionRequest.ActorBinding.DelegationIDs = []string{"delegation.architect"}
+	rec.AdmissionRequest.ActorBinding.DelegationReceiptDigests = []string{"delegation-receipt-architect"}
 	rec.CapabilityConsumption.ConsumerActor = rec.AdmissionRequest.ActorBinding
-	// resolution carries no matching delegation chain entry
+	// resolution carries no delegation chain entry, so a delegated actor does
+	// not resolve through delegation
 	requestDigest := mustDigest(t, rec.AdmissionRequest)
 	rec.AdmissionDecision.RequestDigestSHA256 = requestDigest
 	decisionDigest := mustDigest(t, rec.AdmissionDecision)

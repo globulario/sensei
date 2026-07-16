@@ -169,12 +169,22 @@ func greenBundle(t *testing.T) (Request, Records) {
 		VerifiedAt:           "2026-07-15T11:50:00Z",
 	}
 	rec.AuthorityResolutions = []closureprotocol.AuthorityResolution{{
-		OperationID:        "op.modify.core",
-		Status:             closureprotocol.ReceiptValid,
-		AuthorityDomainIDs: []string{"authority.core"},
-		GrantIDs:           []string{"grant.core.owner"},
-		LegalMechanisms:    []string{string(closureprotocol.MechanismRepositoryEdit)},
-		SelectedMechanism:  closureprotocol.MechanismRepositoryEdit,
+		ActorBindingDigestSHA256:         "actorbinding-core",
+		BaseBindingDigestSHA256:          "basebinding-core",
+		ClosureAssessmentDigestSHA256:    "closure-core",
+		OperationSetDigestSHA256:         "operationset-core",
+		AuthorityPolicyGraphDigestSHA256: "authoritypolicygraph-core",
+		PolicyID:                         PolicyDefaultID,
+		EvaluatedAt:                      greenEvaluatedAt,
+		Status:                           closureprotocol.ReceiptValid,
+		OperationResults: []closureprotocol.AuthorityResolutionOperation{{
+			OperationID:        "op.modify.core",
+			Status:             closureprotocol.ReceiptValid,
+			AuthorityDomainIDs: []string{"authority.core"},
+			GrantIDs:           []string{"grant.core.owner"},
+			LegalMechanisms:    []string{string(closureprotocol.MechanismRepositoryEdit)},
+			SelectedMechanism:  closureprotocol.MechanismRepositoryEdit,
+		}},
 	}}
 	rec.ProofDischarges = []closureprotocol.ProofDischarge{{
 		ObligationID: "proof.core",
