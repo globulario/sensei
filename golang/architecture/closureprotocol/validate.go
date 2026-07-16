@@ -225,6 +225,12 @@ func ValidateChangePlan(in ChangePlan) error {
 		if !validOperationKind(op.Kind) {
 			return fmt.Errorf("invalid operation kind for %s", op.OperationID)
 		}
+		// rename is a reserved but unsupported operation kind in v1: ChangeOperation
+		// carries a single Target and cannot encode distinct source and destination
+		// endpoints, so it must fail closed rather than be approximated.
+		if op.Kind == OperationRename {
+			return errors.New("protocol.rename_requires_explicit_source_and_destination")
+		}
 		if !validMechanismKind(op.SelectedMechanism) {
 			return fmt.Errorf("invalid mechanism kind for %s", op.OperationID)
 		}

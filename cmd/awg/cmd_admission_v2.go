@@ -485,7 +485,17 @@ func admissionGitChangedFiles(repoRoot, baseRev, resultRev string) ([]admission.
 		if len(fields) < 2 {
 			continue
 		}
-		files = append(files, admission.ObservedFile{ChangeType: gitChangeType(fields[0]), Path: filepath.ToSlash(fields[len(fields)-1])})
+		changeType := gitChangeType(fields[0])
+		// A rename/copy status carries two paths: `R<score>\told\tnew`. Preserve
+		// both endpoints so scope verification refuses the rename honestly instead
+		// of silently treating the destination as an ordinary modification.
+		if (changeType == "rename") && len(fields) >= 3 {
+			from := filepath.ToSlash(fields[1])
+			to := filepath.ToSlash(fields[2])
+			files = append(files, admission.ObservedFile{ChangeType: changeType, Path: to, FromPath: from, ToPath: to})
+			continue
+		}
+		files = append(files, admission.ObservedFile{ChangeType: changeType, Path: filepath.ToSlash(fields[len(fields)-1])})
 	}
 	return files, nil
 }

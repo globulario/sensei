@@ -21,10 +21,15 @@ import (
 // (referenced by CompletionReceipt / ResultTransitionReceipt), so Phase 3 owns
 // these record shapes.
 
-// ObservedFile is one path touched by the applied mutation.
+// ObservedFile is one path touched by the applied mutation. When Git reports a
+// rename, both endpoints are preserved diagnostically (FromPath/ToPath) so scope
+// verification can refuse it honestly without dropping the source path; v1 does
+// not admit or verify renames (see architectural-closure-v1.md).
 type ObservedFile struct {
 	Path       string
 	ChangeType string
+	FromPath   string
+	ToPath     string
 }
 
 // ObservedChangeSet is what actually changed, as observed from the repository
@@ -148,6 +153,19 @@ func VerifyScope(exp ScopeExpectation, observed ObservedChangeSet, verifiedAt st
 		allowed[g] = true
 	}
 	for _, f := range observed.Files {
+		// v1 cannot represent or verify a rename (ChangeOperation has one Target).
+		// A Git-detected rename fails closed here, naming both endpoints, rather
+		// than being treated as a normal modification of the destination path.
+		if strings.TrimSpace(string(f.ChangeType)) == string(closureprotocol.OperationRename) {
+			from := strings.TrimSpace(f.FromPath)
+			to := strings.TrimSpace(f.ToPath)
+			if to == "" {
+				to = f.Path
+			}
+			add("scope.operation.rename_unsupported", to,
+				"repository rename is unsupported in protocol v1: "+from+" -> "+to)
+			continue
+		}
 		if prefix, ok := prohibited(f.Path, exp.ProhibitedPathPrefixes); ok {
 			add("scope.file.prohibited", f.Path, "path is in a prohibited class: "+prefix)
 			continue
