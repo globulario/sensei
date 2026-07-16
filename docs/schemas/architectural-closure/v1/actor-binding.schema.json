@@ -10,8 +10,8 @@
     "roles": {"type": "array", "items": {"type": "string"}},
     "issuer": {"type": "string"},
     "authentication_receipt_digest_sha256": {"type": "string"},
-    "delegation_ids": {"type": "array", "items": {"type": "string"}}
+    "role_attestation_receipt_digests_sha256": {"type": "array", "items": {"type": "string"}},
+    "delegation_receipt_digests_sha256": {"type": "array", "items": {"type": "string"}}
   },
   "required": ["principal_id", "actor_kind"]
 }
-

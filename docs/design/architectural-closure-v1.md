@@ -242,6 +242,89 @@ runtime_target:
 
 Runtime evidence from another target cannot discharge a proof obligation.
 
+### Actor binding and attestation
+
+`ActorBinding` identifies the principal attempting the operation and the role
+claims it is asking the system to consider.
+
+`ActorBinding` alone does not prove authorization.
+
+The claimed roles in `ActorBinding.roles` are request-time role claims only.
+They become usable authority inputs only when all of the following are present
+and valid:
+
+- a bound authentication receipt
+- one or more bound role-attestation receipts
+- a trusted issuer or governed principal assignment
+- any required concrete delegation receipts
+
+The binding therefore distinguishes:
+
+- principal identity
+- requested or claimed role IDs
+- authentication proof
+- role attestation proof
+- concrete delegation references
+
+### Authentication receipt
+
+Authentication is represented by a concrete operational receipt that binds:
+
+- principal identity
+- issuer
+- one exact authentication artifact reference
+- authenticated time
+- expiry when applicable
+- receipt status
+
+The authentication artifact reference participates in verification and semantic
+identity. Absolute host paths never do.
+
+### Role attestation receipt
+
+Role ownership is represented by a concrete operational receipt that binds:
+
+- principal identity
+- actor kind
+- issuer
+- exact attested role IDs
+- the authentication receipt it depends on when required
+- issuance and validity bounds
+- receipt status
+
+This prevents a caller from becoming authorized merely by listing role strings
+inside `ActorBinding`.
+
+### Delegation policy, delegation receipt, and delegation chain
+
+The protocol distinguishes three separate concepts:
+
+- `DelegationPolicy`: reusable governed policy that constrains delegation
+- `DelegationReceipt`: one concrete delegated authority instance
+- `AuthorityResolution.delegation_chain`: the ordered chain of concrete
+  delegation receipts used for one operation
+
+A `DelegationReceipt` narrows authority from either:
+
+- a parent governed grant, or
+- a parent delegation receipt
+
+It must bind:
+
+- delegator principal
+- delegated principal
+- narrowed role IDs
+- narrowed authority domains
+- narrowed actions
+- narrowed mechanisms
+- narrowed target scope
+- risk ceiling
+- validity interval
+- delegation policy ID
+- receipt status
+
+The delegation chain is ordered operational history, not a set.
+
 ## Closed operational vocabularies
 
 Unknown values are invalid in v1 operational records.
@@ -562,6 +645,9 @@ Every v1 operational record has a closed schema with
 The record set includes:
 
 - ActorBinding
+- AuthenticationReceipt
+- RoleAttestationReceipt
+- DelegationReceipt
 - ChangePlan
 - ChangeOperation
 - AuthorityResolution
@@ -601,6 +687,9 @@ Phase 0 also adds operational projection classes:
 - `GraphSnapshot`
 - `RuntimeTarget`
 - `ActorBinding`
+- `AuthenticationReceipt`
+- `RoleAttestationReceipt`
+- `DelegationReceipt`
 - `ClosureAssessment`
 - `ClosureBlocker`
 - `Abstention`
@@ -647,6 +736,8 @@ Phase 0 documents, but does not fully implement, legacy interpretation:
 - Legacy imports must carry limitations.
 - v1 readers never treat incomplete legacy records as v1-complete closure
   records.
+- Legacy raw role strings remain guidance only until validated through a typed
+  attestation path.
 
 Historical labels allowed by v1 interpretation:
 

@@ -14,7 +14,10 @@ import (
 
 var setLikeKeys = map[string]bool{
 	"roles": true, "authority_domain_ids": true, "grant_ids": true, "delegation_ids": true,
-	"evidence_receipt_ids": true, "artifact_digests": true, "reason_codes": true, "limitations": true,
+	"role_ids": true, "actions": true, "mechanism_kinds": true, "target_kinds": true,
+	"target_selectors": true, "role_attestation_receipt_digests_sha256": true,
+	"delegation_receipt_digests_sha256": true,
+	"evidence_receipt_ids":              true, "artifact_digests": true, "reason_codes": true, "limitations": true,
 	"conflicts_with": true, "waiver_digests": true, "proof_discharge_digests": true,
 	"required_proof_slots": true, "required_evidence_profiles": true, "required_result_rebuilds": true,
 	"consumed_operation_ids": true, "triggering_evidence": true, "applies_to": true,
@@ -132,6 +135,24 @@ func CertificationReceiptDigest(in CertificationReceipt) (string, error) {
 func AuthorityResolutionDigest(in AuthorityResolution) (string, error) {
 	copy := in
 	copy.ResolutionDigestSHA256 = ""
+	return SemanticDigest(copy)
+}
+
+func AuthenticationReceiptDigest(in AuthenticationReceipt) (string, error) {
+	copy := in
+	copy.ReceiptDigestSHA256 = ""
+	return SemanticDigest(copy)
+}
+
+func RoleAttestationReceiptDigest(in RoleAttestationReceipt) (string, error) {
+	copy := in
+	copy.ReceiptDigestSHA256 = ""
+	return SemanticDigest(copy)
+}
+
+func DelegationReceiptDigest(in DelegationReceipt) (string, error) {
+	copy := in
+	copy.ReceiptDigestSHA256 = ""
 	return SemanticDigest(copy)
 }
 

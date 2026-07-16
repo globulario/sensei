@@ -20,6 +20,49 @@ func TestValidateActorBindingRejectsUnknownKind(t *testing.T) {
 	}
 }
 
+func TestValidateAuthenticationReceiptRequiresArtifact(t *testing.T) {
+	err := ValidateAuthenticationReceipt(AuthenticationReceipt{
+		ReceiptID:       "auth.example",
+		PrincipalID:     "actor.dave",
+		Issuer:          "issuer.local",
+		AuthenticatedAt: "2026-07-15T20:00:00Z",
+		Status:          ReceiptValid,
+	})
+	if err == nil {
+		t.Fatal("expected missing authentication artifact to fail")
+	}
+}
+
+func TestValidateRoleAttestationReceiptRequiresRoles(t *testing.T) {
+	err := ValidateRoleAttestationReceipt(RoleAttestationReceipt{
+		ReceiptID:   "attestation.example",
+		PrincipalID: "actor.dave",
+		ActorKind:   ActorHuman,
+		Issuer:      "issuer.local",
+		IssuedAt:    "2026-07-15T20:00:00Z",
+		Status:      ReceiptValid,
+	})
+	if err == nil {
+		t.Fatal("expected missing roles to fail")
+	}
+}
+
+func TestValidateDelegationReceiptRequiresParent(t *testing.T) {
+	err := ValidateDelegationReceipt(DelegationReceipt{
+		DelegationID:         "delegation.example",
+		DelegatorPrincipalID: "actor.owner",
+		DelegatedPrincipalID: "actor.agent",
+		PolicyID:             "delegation_policy.example",
+		Issuer:               "issuer.local",
+		IssuedAt:             "2026-07-15T20:00:00Z",
+		ValidFrom:            "2026-07-15T20:00:00Z",
+		Status:               ReceiptValid,
+	})
+	if err == nil {
+		t.Fatal("expected missing parent grant/delegation to fail")
+	}
+}
+
 func TestValidateLedgerEntryRejectsUnknownEventType(t *testing.T) {
 	err := ValidateLedgerEntry(LedgerEntry{
 		Sequence:   1,

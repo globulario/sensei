@@ -68,7 +68,55 @@ type ActorBinding struct {
 	Roles                             []string  `json:"roles,omitempty" yaml:"roles,omitempty"`
 	Issuer                            string    `json:"issuer,omitempty" yaml:"issuer,omitempty"`
 	AuthenticationReceiptDigestSHA256 string    `json:"authentication_receipt_digest_sha256,omitempty" yaml:"authentication_receipt_digest_sha256,omitempty"`
-	DelegationIDs                     []string  `json:"delegation_ids,omitempty" yaml:"delegation_ids,omitempty"`
+	RoleAttestationReceiptDigests     []string  `json:"role_attestation_receipt_digests_sha256,omitempty" yaml:"role_attestation_receipt_digests_sha256,omitempty"`
+	DelegationReceiptDigests          []string  `json:"delegation_receipt_digests_sha256,omitempty" yaml:"delegation_receipt_digests_sha256,omitempty"`
+}
+
+type AuthenticationReceipt struct {
+	ReceiptID              string           `json:"receipt_id" yaml:"receipt_id"`
+	PrincipalID            string           `json:"principal_id" yaml:"principal_id"`
+	Issuer                 string           `json:"issuer" yaml:"issuer"`
+	AuthenticationArtifact LedgerPayloadRef `json:"authentication_artifact" yaml:"authentication_artifact"`
+	AuthenticatedAt        string           `json:"authenticated_at" yaml:"authenticated_at"`
+	ExpiresAt              string           `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
+	Status                 ReceiptStatus    `json:"status" yaml:"status"`
+	ReceiptDigestSHA256    string           `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+}
+
+type RoleAttestationReceipt struct {
+	ReceiptID                         string        `json:"receipt_id" yaml:"receipt_id"`
+	PrincipalID                       string        `json:"principal_id" yaml:"principal_id"`
+	ActorKind                         ActorKind     `json:"actor_kind" yaml:"actor_kind"`
+	Issuer                            string        `json:"issuer" yaml:"issuer"`
+	RoleIDs                           []string      `json:"role_ids" yaml:"role_ids"`
+	AuthenticationReceiptDigestSHA256 string        `json:"authentication_receipt_digest_sha256,omitempty" yaml:"authentication_receipt_digest_sha256,omitempty"`
+	IssuedAt                          string        `json:"issued_at" yaml:"issued_at"`
+	ValidUntil                        string        `json:"valid_until,omitempty" yaml:"valid_until,omitempty"`
+	Status                            ReceiptStatus `json:"status" yaml:"status"`
+	ReceiptDigestSHA256               string        `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+}
+
+type DelegationReceipt struct {
+	DelegationID         string          `json:"delegation_id" yaml:"delegation_id"`
+	ParentGrantID        string          `json:"parent_grant_id,omitempty" yaml:"parent_grant_id,omitempty"`
+	ParentDelegationID   string          `json:"parent_delegation_id,omitempty" yaml:"parent_delegation_id,omitempty"`
+	DelegatorPrincipalID string          `json:"delegator_principal_id" yaml:"delegator_principal_id"`
+	DelegatedPrincipalID string          `json:"delegated_principal_id" yaml:"delegated_principal_id"`
+	RoleIDs              []string        `json:"role_ids,omitempty" yaml:"role_ids,omitempty"`
+	AuthorityDomainIDs   []string        `json:"authority_domain_ids,omitempty" yaml:"authority_domain_ids,omitempty"`
+	Actions              []OperationKind `json:"actions,omitempty" yaml:"actions,omitempty"`
+	MechanismKinds       []MechanismKind `json:"mechanism_kinds,omitempty" yaml:"mechanism_kinds,omitempty"`
+	TargetKinds          []string        `json:"target_kinds,omitempty" yaml:"target_kinds,omitempty"`
+	TargetSelectors      []string        `json:"target_selectors,omitempty" yaml:"target_selectors,omitempty"`
+	MaximumRiskClass     string          `json:"maximum_risk_class,omitempty" yaml:"maximum_risk_class,omitempty"`
+	PolicyID             string          `json:"policy_id" yaml:"policy_id"`
+	Issuer               string          `json:"issuer" yaml:"issuer"`
+	IssuedAt             string          `json:"issued_at" yaml:"issued_at"`
+	ValidFrom            string          `json:"valid_from" yaml:"valid_from"`
+	ValidUntil           string          `json:"valid_until,omitempty" yaml:"valid_until,omitempty"`
+	AllowSubdelegation   bool            `json:"allow_subdelegation,omitempty" yaml:"allow_subdelegation,omitempty"`
+	Status               ReceiptStatus   `json:"status" yaml:"status"`
+	ReceiptDigestSHA256  string          `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
 }
 
 type ChangeOperation struct {
