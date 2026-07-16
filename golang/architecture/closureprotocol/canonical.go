@@ -23,7 +23,7 @@ var setLikeKeys = map[string]bool{
 	"consumed_operation_ids": true, "triggering_evidence": true, "applies_to": true,
 	"legal_mechanisms": true, "mapped_evidence": true, "missing_slots": true,
 	"incompatible_receipts": true, "forbidden_moves": true, "unresolved_contradictions": true,
-	"revocation_conditions": true,
+	"revocation_conditions": true, "required_runtime_mechanism_ids": true,
 }
 
 var omitIfEmptyKeys = map[string]bool{
@@ -134,7 +134,7 @@ func CertificationReceiptDigest(in CertificationReceipt) (string, error) {
 
 func AuthorityResolutionDigest(in AuthorityResolution) (string, error) {
 	copy := in
-	copy.ResolutionDigestSHA256 = ""
+	copy.AuthorityResolutionDigestSHA256 = ""
 	return SemanticDigest(copy)
 }
 

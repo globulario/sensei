@@ -236,14 +236,43 @@ func ValidateChangePlan(in ChangePlan) error {
 }
 
 func ValidateAuthorityResolution(in AuthorityResolution) error {
-	if strings.TrimSpace(in.OperationID) == "" {
-		return errors.New("operation_id is required")
+	if strings.TrimSpace(in.ActorBindingDigestSHA256) == "" {
+		return errors.New("actor_binding_digest_sha256 is required")
+	}
+	if strings.TrimSpace(in.BaseBindingDigestSHA256) == "" {
+		return errors.New("base_binding_digest_sha256 is required")
+	}
+	if strings.TrimSpace(in.ClosureAssessmentDigestSHA256) == "" {
+		return errors.New("closure_assessment_digest_sha256 is required")
+	}
+	if strings.TrimSpace(in.OperationSetDigestSHA256) == "" {
+		return errors.New("operation_set_digest_sha256 is required")
+	}
+	if strings.TrimSpace(in.AuthorityPolicyGraphDigestSHA256) == "" {
+		return errors.New("authority_policy_graph_digest_sha256 is required")
+	}
+	if strings.TrimSpace(in.PolicyID) == "" {
+		return errors.New("policy_id is required")
+	}
+	if _, err := time.Parse(time.RFC3339, in.EvaluatedAt); err != nil {
+		return errors.New("evaluated_at must be RFC3339")
 	}
 	if !validReceiptStatus(in.Status) {
 		return errors.New("status is invalid")
 	}
-	if !validMechanismKind(in.SelectedMechanism) {
-		return errors.New("selected_mechanism is invalid")
+	if len(in.OperationResults) == 0 {
+		return errors.New("operation_results are required")
+	}
+	for _, result := range in.OperationResults {
+		if strings.TrimSpace(result.OperationID) == "" {
+			return errors.New("operation_result operation_id is required")
+		}
+		if !validReceiptStatus(result.Status) {
+			return fmt.Errorf("operation_result %s has invalid status", result.OperationID)
+		}
+		if !validMechanismKind(result.SelectedMechanism) {
+			return fmt.Errorf("operation_result %s has invalid selected_mechanism", result.OperationID)
+		}
 	}
 	return nil
 }
