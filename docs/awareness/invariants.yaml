@@ -502,15 +502,38 @@ invariants:
     required_tests:
       - validate_test.go:TestValidate
     contract: An evidence receipt's effective freshness, trust, and applicability are computed by the validator against the proof request and result/runtime binding. A receipt cannot declare itself fresh or authoritative; missing, stale, conflicting, or non-owner-path evidence yields UNKNOWN/STALE/CONFLICTED/INVALID, never PASS.
-  - id: invariant.sensei.absent_runtime_evidence_is_not_applicable_under_static_test
-    title: Absent runtime evidence is not_applicable under static_test
-    severity: high
+  - id: closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+    title: Runtime evidence may be not applicable only when no governed obligation requires it
+    severity: critical
     status: active
-    description: 'Phase 4 coverage profiles: keeps open-core Sensei certifiable on repos with no runtime owner. Runtime validation is cleanly separated so core stays platform-neutral.'
+    description: >
+      Obligation-driven coverage (replaces the retracted branch-local invariant
+      invariant.sensei.absent_runtime_evidence_is_not_applicable_under_static_test,
+      whose blanket static_test relaxation could falsely certify runtime-dependent
+      behavior such as leader election, durability, or failover). The coverage
+      profile sets the default only for runtime slots that no governed obligation
+      mandates; a governed mandate always overrides the profile.
     protects:
       files:
         - golang/architecture/evidencereceipt/coverage.go
         - golang/architecture/evidencereceipt/runtime.go
+        - golang/architecture/proofdischarge/coverage.go
+        - golang/architecture/proofdischarge/discharge.go
+        - golang/architecture/proofdischarge/compatibility.go
     required_tests:
       - coverage_test.go:TestEvaluateCoverage
-    contract: Under the static_test coverage profile (the default), the absence of runtime evidence yields a not_applicable runtime lane and does not block a valid evidence state. Only the static_test_runtime profile makes owner-path runtime evidence a required lane. A repository with no runtime target must reach a valid evidence state, never uncertifiable merely for lacking runtime.
+      - discharge_test.go:TestRow9a_MandatedRuntimeStaticTestNoReceipt
+      - discharge_test.go:TestRow9b_MandatedRuntimeStaticTestWithReceipt
+      - discharge_test.go:TestRow9c_NonMandatedRuntimeStaticTestNotApplicable
+    contract: >
+      A certification profile may mark runtime evidence not_applicable only when
+      no applicable governed proof obligation requires runtime evidence. When an
+      applicable obligation requires runtime evidence
+      (ProofObligation.RequiresRuntimeEvidence), the obligation overrides the
+      profile, including static_test. Missing, stale, conflicted, wrong-target,
+      untrusted, or otherwise incompatible runtime evidence leaves the slot
+      required and unresolved; the task remains waiting_evidence, blocked, or
+      uncertifiable according to policy. It must never pass or become
+      not_applicable merely because static_test was selected. The absence of a
+      runtime target alone must never make certification uncertifiable when no
+      governed obligation requires runtime evidence.
