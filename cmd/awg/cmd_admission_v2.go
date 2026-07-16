@@ -402,6 +402,38 @@ func runVerifyAdmissionV2(dir, repoRoot, expectedHead, resultRevision, format st
 		fmt.Fprintln(os.Stderr, "verify-admission: observe change:", err)
 		return 1
 	}
+
+	// Record the exact observed change before verifying scope, so the ledger
+	// sequence is admission_consumed -> change_observed -> scope_verified. On a
+	// re-run after a crash, reconcile with any change_observed already recorded:
+	// an identical observation resumes from it; a different observation is stale
+	// or divergent and fails closed rather than silently replacing the first.
+	observedDigest, err := admission.ObservedChangeSetDigest(observed)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "verify-admission: digest observed change:", err)
+		return 1
+	}
+	scopeHead := head
+	if prior, err := admission.LoadRecordedObservedChange(dir); err == nil {
+		priorDigest, derr := admission.ObservedChangeSetDigest(prior)
+		if derr != nil {
+			fmt.Fprintln(os.Stderr, "verify-admission:", derr)
+			return 1
+		}
+		if priorDigest != observedDigest {
+			fmt.Fprintln(os.Stderr, "verify-admission: observed change conflicts with the recorded change_observed (result stale or divergent); not replacing it")
+			return 3
+		}
+		observed = prior // identical: resume from the recorded observation
+	} else {
+		res, rerr := admission.RecordChangeObserved(newAdmissionStore(dir), head, rec.Base.Task, observed, nowUTC())
+		if rerr != nil {
+			fmt.Fprintln(os.Stderr, "verify-admission: record change_observed:", rerr)
+			return 1
+		}
+		scopeHead = res.Head.EntryDigestSHA256
+	}
+
 	exp := admission.ScopeExpectation{
 		Decision:                        decision,
 		Operations:                      rec.ChangePlan.Operations,
@@ -416,7 +448,7 @@ func runVerifyAdmissionV2(dir, repoRoot, expectedHead, resultRevision, format st
 		fmt.Fprintln(os.Stderr, "verify-admission:", err)
 		return 1
 	}
-	if _, err := admission.RecordScopeVerified(newAdmissionStore(dir), head, rec.Base.Task, verification, nowUTC()); err != nil {
+	if _, err := admission.RecordScopeVerified(newAdmissionStore(dir), scopeHead, rec.Base.Task, verification, nowUTC()); err != nil {
 		fmt.Fprintln(os.Stderr, "verify-admission: record:", err)
 		return 1
 	}
