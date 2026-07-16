@@ -778,13 +778,12 @@ func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, session
 	if err != nil {
 		return ledger.Head{}, err
 	}
-	fourth, err := appendPayload(third.Head.EntryDigestSHA256, closureprotocol.LedgerEventAdmissionDecided, payload(closureprotocol.LedgerEventAdmissionDecided, preResolution))
-	if err != nil {
-		return ledger.Head{}, err
-	}
-	// Between admission_decided and task_control_projected, record the typed
-	// authority resolution when one was produced — the canonical event order.
-	resolvedHead := fourth.Head.EntryDigestSHA256
+	// Record the typed authority resolution right after closure_assessed, when
+	// one was produced — authority precedes admission. Preparation does NOT
+	// append an admission_decided event: no typed AdmissionDecision or its
+	// artifact exists yet, so emitting one here would be a semantically false v2
+	// decision. The typed decision is produced later by admit-change.
+	resolvedHead := third.Head.EntryDigestSHA256
 	if resolved != nil {
 		res, err := admission.RecordAuthorityResolved(store, resolvedHead, base.Task, resolved.Resolution, resolved.Actor, resolved.ChangePlan, base, time.Unix(0, 0).UTC())
 		if err != nil {
