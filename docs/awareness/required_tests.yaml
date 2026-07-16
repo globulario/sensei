@@ -70,3 +70,18 @@ required_tests:
         - golang/server/preflight.go
         - golang/server/implementation_patterns.go
         - golang/server/briefing.go
+  - id: golang/architecture/prereview/disposition_test.go:TestDispositionCannotClaimCertifiedWithoutReceipt
+    title: Pre-review cannot display a certified disposition without a certification receipt
+    protects:
+      invariants:
+        - prereview.report_is_projection_not_authority
+      files:
+        - golang/architecture/prereview/disposition.go
+        - golang/architecture/prereview/validate.go
+  - id: golang/architecture/prereview/adversarial_test.go:TestCallerBooleanCannotForgeVerdict
+    title: Pre-review caller booleans and pre-set dispositions cannot forge a verdict
+    protects:
+      invariants:
+        - prereview.report_is_projection_not_authority
+      files:
+        - golang/architecture/prereview/finalize.go

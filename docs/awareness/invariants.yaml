@@ -319,3 +319,19 @@ invariants:
       - golang/server/briefing_scope_test.go:TestInScopePatterns_NoForeignLeak
       - golang/server/briefing_scope_test.go:TestInScopeIntents_NoForeignLeak
       - golang/server/briefing_scope_test.go:TestBriefingScope_Precedence
+
+  - id: prereview.report_is_projection_not_authority
+    title: The architectural pre-review report is a projection, never a source of authority — it may display verdicts sourced from receipts but must never create or upgrade admission, certification, or completion
+    severity: high
+    status: active
+    protects:
+      files:
+        - golang/architecture/prereview/
+        - cmd/awg/cmd_pre_review.go
+        - cmd/awg/prereview_git.go
+        - cmd/awg/prereview_graph.go
+    forbidden_fixes:
+      - establish_a_verdict_from_within_the_pre_review_report
+    required_tests:
+      - golang/architecture/prereview/disposition_test.go:TestDispositionCannotClaimCertifiedWithoutReceipt
+      - golang/architecture/prereview/adversarial_test.go:TestCallerBooleanCannotForgeVerdict

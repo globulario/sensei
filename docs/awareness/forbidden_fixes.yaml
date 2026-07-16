@@ -53,3 +53,10 @@ forbidden_fixes:
     related_invariants:
     reason: services/dist is disposable release output — wiped and recreated each build; never authored source
     contract: services/dist is disposable release output — wiped and recreated each build; never authored source
+  - id: establish_a_verdict_from_within_the_pre_review_report
+    title: establish a verdict from within the pre-review report
+    summary: Make the pre-review report create or upgrade an admission, certification, or completion verdict — for example deriving certified from a caller boolean or a pre-set disposition, or displaying a certification without a receipt digest.
+    related_invariants:
+      - prereview.report_is_projection_not_authority
+    reason: the pre-review report is a projection; verdicts come only from receipts, and Finalize always re-derives the disposition and summary from evidence so a caller cannot forge one
+    contract: the pre-review report may display verdicts sourced from receipts but must never create or upgrade an admission, certification, or completion

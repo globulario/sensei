@@ -104,12 +104,14 @@ func (localGraphSource) collect(root string, req prereview.GraphRequest) (prerev
 		available = append(available, "invariants")
 	}
 	applicableInv := map[string]bool{}
+	invMatched := map[string][]string{}
 	for _, inv := range invFile.Invariants {
 		if strings.EqualFold(inv.Status, "deprecated") || strings.EqualFold(inv.Status, "retired") {
 			continue
 		}
-		if pathsMatch(inv.Protects.allFiles(), changed) {
+		if m := matchedPaths(inv.Protects.allFiles(), changed); len(m) > 0 {
 			applicableInv[inv.ID] = true
+			invMatched[inv.ID] = m
 			gc.Invariants = append(gc.Invariants, protectionItem(inv.ID, inv.Title, inv.Severity, "invariants.yaml"))
 		}
 	}
@@ -155,9 +157,15 @@ func (localGraphSource) collect(root string, req prereview.GraphRequest) (prerev
 			Applicability: "covers a changed path", Status: "applicable",
 			Epistemic: prereview.EpistemicGoverned, EvidenceRefs: []string{"awareness:forbidden_fixes.yaml#" + ff.ID},
 		})
+		// Anchor the concern to the files that made it applicable: the fix's own
+		// covered paths, or — when it applies only through a related invariant —
+		// that invariant's matched files, never the whole changeset.
 		related := matchedPaths(ff.paths(), changed)
 		if len(related) == 0 {
-			related = changed
+			for _, ri := range ff.RelatedInvariants {
+				related = append(related, invMatched[strings.TrimSpace(ri)]...)
+			}
+			related = dedupeSortedStrings(related)
 		}
 		gc.ReviewerConcerns = append(gc.ReviewerConcerns, prereview.ReviewerAttentionItem{
 			ID:                 "concern.forbidden_fix." + ff.ID,
