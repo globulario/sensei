@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/authority"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 )
@@ -21,6 +22,11 @@ type TaskCertifyOptions struct {
 	ExpectedHeadDigestSHA256 string
 	// RequestPath overrides the default <TaskDir>/certification-request.yaml.
 	RequestPath string
+	// RepoRoot points at the repository whose governed authority sources
+	// (docs/awareness/*) are loaded independently to re-verify delegated
+	// authority. When empty, no governed grants are available and any
+	// delegated operation fails closed in the authority lane.
+	RepoRoot string
 	// ProducerID defaults to GeneratedBy.
 	ProducerID string
 	// ProducedAt stamps the appended ledger event. Required (the engine never
@@ -103,6 +109,17 @@ func CertifyTask(opts TaskCertifyOptions) (TaskCertifyResult, error) {
 	records, err := ResolveRecords(DirSource{Dir: taskDir}, req)
 	if err != nil {
 		return TaskCertifyResult{}, err
+	}
+	// Load the governed authority sources independently so the authority lane
+	// re-verifies any delegated authority against the repository's grants and
+	// policies, never against the request bundle. A missing repo root leaves the
+	// governed index empty, and delegated operations fail closed.
+	if root := strings.TrimSpace(opts.RepoRoot); root != "" {
+		index, err := authority.LoadPolicyIndex(root)
+		if err != nil {
+			return TaskCertifyResult{}, err
+		}
+		records.GovernedAuthority = index
 	}
 	result, err := Evaluate(req, records, policy)
 	if err != nil {

@@ -139,6 +139,15 @@ func ResolveRecords(src DirSource, req Request) (Records, error) {
 		}
 		rec.AuthorityResolutions = append(rec.AuthorityResolutions, record)
 	}
+	for _, d := range closureprotocol.NormalizeSet(req.DelegationReceiptDigests) {
+		var record closureprotocol.DelegationReceipt
+		if err := src.resolveInto(d, &record, func() (string, error) {
+			return closureprotocol.DelegationReceiptDigest(record)
+		}); err != nil {
+			return Records{}, err
+		}
+		rec.DelegationReceipts = append(rec.DelegationReceipts, record)
+	}
 	for _, d := range closureprotocol.NormalizeSet(req.ProofDischargeDigests) {
 		var record closureprotocol.ProofDischarge
 		if err := src.resolveInto(d, &record, func() (string, error) {
@@ -251,6 +260,8 @@ func recordDigest(record any) (string, error) {
 	switch v := record.(type) {
 	case closureprotocol.AuthorityResolution:
 		return closureprotocol.AuthorityResolutionDigest(v)
+	case closureprotocol.DelegationReceipt:
+		return closureprotocol.DelegationReceiptDigest(v)
 	case closureprotocol.ProofDischarge:
 		return closureprotocol.ProofDischargeDigest(v)
 	case closureprotocol.WaiverReceipt:

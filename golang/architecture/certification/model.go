@@ -27,6 +27,14 @@
 //     runtime evidence is not_applicable only when no applicable governed proof
 //     obligation requires runtime evidence AND the policy permits relaxation.
 //     ProofObligation.RequiresRuntimeEvidence overrides every coverage profile.
+//   - Delegated authority is re-verified, never trusted. When the actor asserts
+//     delegation, the authority lane resolves the resolution's delegation_chain
+//     to concrete recorded DelegationReceipts, binds each to a digest the actor
+//     committed to, and re-runs the shared monotonicity verdict
+//     (authority.CheckDelegationForOperation) against the independently loaded
+//     governed grants and delegation policy. A resolution can neither certify a
+//     delegation the governed grants do not permit, nor invent one whose record
+//     was never preserved; with no governed grants loaded it fails closed.
 //
 // The engine is a pure function of its inputs: it never reads the wall clock
 // (Request.EvaluatedAt is the single evaluation time) and never depends on
@@ -34,6 +42,7 @@
 package certification
 
 import (
+	"github.com/globulario/sensei/golang/architecture/authority"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/proofdischarge"
 )
@@ -64,6 +73,7 @@ type Request struct {
 	CapabilityConsumptionDigestSHA256 string   `json:"capability_consumption_digest_sha256" yaml:"capability_consumption_digest_sha256"`
 	ScopeVerificationDigestSHA256     string   `json:"scope_verification_digest_sha256" yaml:"scope_verification_digest_sha256"`
 	AuthorityResolutionDigests        []string `json:"authority_resolution_digests" yaml:"authority_resolution_digests"`
+	DelegationReceiptDigests          []string `json:"delegation_receipt_digests,omitempty" yaml:"delegation_receipt_digests,omitempty"`
 	ProofDischargeDigests             []string `json:"proof_discharge_digests,omitempty" yaml:"proof_discharge_digests,omitempty"`
 	ProofObligationDigests            []string `json:"proof_obligation_digests,omitempty" yaml:"proof_obligation_digests,omitempty"`
 	EvidenceProfileDigests            []string `json:"evidence_profile_digests,omitempty" yaml:"evidence_profile_digests,omitempty"`
@@ -86,15 +96,27 @@ type Records struct {
 	CapabilityConsumption closureprotocol.CapabilityConsumption `json:"capability_consumption" yaml:"capability_consumption"`
 	ScopeVerification     ScopeVerification                     `json:"scope_verification" yaml:"scope_verification"`
 	AuthorityResolutions  []closureprotocol.AuthorityResolution `json:"authority_resolutions,omitempty" yaml:"authority_resolutions,omitempty"`
-	ProofDischarges       []closureprotocol.ProofDischarge      `json:"proof_discharges,omitempty" yaml:"proof_discharges,omitempty"`
-	Obligations           []proofdischarge.ProofObligation      `json:"proof_obligations,omitempty" yaml:"proof_obligations,omitempty"`
-	EvidenceProfiles      []closureprotocol.EvidenceProfile     `json:"evidence_profiles,omitempty" yaml:"evidence_profiles,omitempty"`
-	EvidenceReceipts      []closureprotocol.EvidenceReceipt     `json:"evidence_receipts,omitempty" yaml:"evidence_receipts,omitempty"`
-	ArtifactReceipts      []ArtifactReceipt                     `json:"artifact_receipts,omitempty" yaml:"artifact_receipts,omitempty"`
-	Waivers               []closureprotocol.WaiverReceipt       `json:"waivers,omitempty" yaml:"waivers,omitempty"`
-	Revocations           []closureprotocol.RevocationReceipt   `json:"revocations,omitempty" yaml:"revocations,omitempty"`
-	ForbiddenMoveFindings []ForbiddenMoveFinding                `json:"forbidden_move_findings,omitempty" yaml:"forbidden_move_findings,omitempty"`
-	RuntimeTarget         *closureprotocol.RuntimeTarget        `json:"runtime_target,omitempty" yaml:"runtime_target,omitempty"`
+	// DelegationReceipts holds the concrete delegation records the authority
+	// resolution consumed, resolved by digest from the authority_resolved event.
+	// The authority lane binds each to the actor's committed digest and re-runs
+	// the governed monotonicity verdict — it never trusts the resolution's
+	// claimed delegation_chain.
+	DelegationReceipts []closureprotocol.DelegationReceipt `json:"delegation_receipts,omitempty" yaml:"delegation_receipts,omitempty"`
+	// GovernedAuthority is the authority policy index loaded independently from
+	// the repository's governed sources (never the request bundle). The authority
+	// lane re-derives delegated authority against these grants and policies, so a
+	// resolution can never certify a delegation the governed grants do not
+	// actually permit. It is an in-memory governed input, not a persisted record.
+	GovernedAuthority     authority.PolicyIndex               `json:"-" yaml:"-"`
+	ProofDischarges       []closureprotocol.ProofDischarge    `json:"proof_discharges,omitempty" yaml:"proof_discharges,omitempty"`
+	Obligations           []proofdischarge.ProofObligation    `json:"proof_obligations,omitempty" yaml:"proof_obligations,omitempty"`
+	EvidenceProfiles      []closureprotocol.EvidenceProfile   `json:"evidence_profiles,omitempty" yaml:"evidence_profiles,omitempty"`
+	EvidenceReceipts      []closureprotocol.EvidenceReceipt   `json:"evidence_receipts,omitempty" yaml:"evidence_receipts,omitempty"`
+	ArtifactReceipts      []ArtifactReceipt                   `json:"artifact_receipts,omitempty" yaml:"artifact_receipts,omitempty"`
+	Waivers               []closureprotocol.WaiverReceipt     `json:"waivers,omitempty" yaml:"waivers,omitempty"`
+	Revocations           []closureprotocol.RevocationReceipt `json:"revocations,omitempty" yaml:"revocations,omitempty"`
+	ForbiddenMoveFindings []ForbiddenMoveFinding              `json:"forbidden_move_findings,omitempty" yaml:"forbidden_move_findings,omitempty"`
+	RuntimeTarget         *closureprotocol.RuntimeTarget      `json:"runtime_target,omitempty" yaml:"runtime_target,omitempty"`
 }
 
 // ScopeVerification is the engine-owned typed projection of a
