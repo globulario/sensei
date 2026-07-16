@@ -201,6 +201,20 @@ func ValidateResult(in closureprotocol.ResultBinding) error {
 	return nil
 }
 
+// ResultBindingEqual reports whether two result bindings identify the same
+// proved result (same base revision, patch, result tree, and graph digest).
+// It is the result-vs-result counterpart to CompareBaseAndResult (which is
+// base-vs-result). Phase 5 (proofdischarge) uses it to enforce that an
+// evidence receipt was produced for the same result/shared proof context as
+// the obligation under discharge. Auxiliary fields (ResultRevision,
+// GeneratedArtifacts) are not part of the identity.
+func ResultBindingEqual(a, b closureprotocol.ResultBinding) bool {
+	return strings.TrimSpace(a.BaseRevision) == strings.TrimSpace(b.BaseRevision) &&
+		strings.TrimSpace(a.PatchDigestSHA256) == strings.TrimSpace(b.PatchDigestSHA256) &&
+		strings.TrimSpace(a.ResultTreeDigestSHA256) == strings.TrimSpace(b.ResultTreeDigestSHA256) &&
+		strings.TrimSpace(a.GraphDigestSHA256) == strings.TrimSpace(b.GraphDigestSHA256)
+}
+
 func CompareBaseAndResult(base closureprotocol.BaseBinding, result closureprotocol.ResultBinding) error {
 	if err := ValidateBase(base); err != nil {
 		return err
