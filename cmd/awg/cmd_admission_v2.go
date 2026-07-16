@@ -242,7 +242,7 @@ func runVerifyAdmissionV2Args(args []string) int {
 	fs.StringVar(&repoRoot, "repo", ".", "repository root")
 	fs.StringVar(&taskDir, "task-dir", "", "task directory")
 	fs.StringVar(&expectedHead, "expected-head", "", "expected current ledger head digest")
-	fs.StringVar(&resultRevision, "result-revision", "", "result revision (default HEAD)")
+	fs.StringVar(&resultRevision, "result-revision", "", "result revision to observe; default observes the working tree (staged + unstaged) against the admitted base")
 	fs.StringVar(&format, "format", "text", "output format")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -473,23 +473,35 @@ func runVerifyAdmissionV2(dir, repoRoot, expectedHead, resultRevision, format st
 // observeChange computes the actual change from repository state via git. The
 // actor and authority digests are taken from the admission context; they are
 // not caller-authoritative scope input.
+//
+// Two result modes. With no result revision (the default), the worktree is
+// observed: the current tree — staged and unstaged, tracked and untracked
+// relative to the admitted base — is written to a temporary tree through an
+// isolated index, so ordinary uncommitted agent edits are seen without a commit.
+// With an explicit result revision, that exact committed revision is observed.
+// The user's real Git index is never modified.
 func observeChange(repoRoot, baseRev, resultRev, actorDigest, authorityDigest string) (admission.ObservedChangeSet, error) {
 	if baseRev == "" {
 		return admission.ObservedChangeSet{}, fmt.Errorf("recorded base binding has no revision")
 	}
-	result := strings.TrimSpace(resultRev)
-	if result == "" {
-		result = "HEAD"
+	resultTreeish := strings.TrimSpace(resultRev)
+	if resultTreeish == "" {
+		treeish, cleanup, err := worktreeResultTree(repoRoot, baseRev)
+		if err != nil {
+			return admission.ObservedChangeSet{}, err
+		}
+		defer cleanup()
+		resultTreeish = treeish
 	}
 	baseTree, err := binding.ResolveTreeIdentity(context.Background(), repoRoot, baseRev)
 	if err != nil {
 		return admission.ObservedChangeSet{}, err
 	}
-	resultTree, err := binding.ResolveTreeIdentity(context.Background(), repoRoot, result)
+	resultTree, err := binding.ResolveTreeIdentity(context.Background(), repoRoot, resultTreeish)
 	if err != nil {
 		return admission.ObservedChangeSet{}, err
 	}
-	files, err := admissionGitChangedFiles(repoRoot, baseRev, result)
+	files, err := admissionGitChangedFiles(repoRoot, baseRev, resultTreeish)
 	if err != nil {
 		return admission.ObservedChangeSet{}, err
 	}
@@ -500,6 +512,48 @@ func observeChange(repoRoot, baseRev, resultRev, actorDigest, authorityDigest st
 		AuthorityResolutionDigestSHA256: authorityDigest,
 		Files:                           files,
 	}, nil
+}
+
+// worktreeResultTree writes the current worktree (all tracked changes and
+// untracked files relative to the admitted base) to a Git tree object through an
+// isolated temporary index, and returns the tree object id plus a cleanup. The
+// user's real index (.git/index) is never touched: all staging happens against a
+// throwaway GIT_INDEX_FILE seeded from the admitted base tree.
+func worktreeResultTree(repoRoot, baseRev string) (string, func(), error) {
+	tmpDir, err := os.MkdirTemp("", "sensei-verify-index-")
+	if err != nil {
+		return "", func() {}, err
+	}
+	cleanup := func() { os.RemoveAll(tmpDir) }
+	env := append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(tmpDir, "index"))
+	// Seed the isolated index with the admitted base tree, then stage every
+	// worktree difference (modifications, deletions, and untracked additions).
+	if _, err := gitEnv(repoRoot, env, "read-tree", baseRev); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	if _, err := gitEnv(repoRoot, env, "add", "-A"); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	out, err := gitEnv(repoRoot, env, "write-tree")
+	if err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	return strings.TrimSpace(out), cleanup, nil
+}
+
+// gitEnv runs a git command in repoRoot with an augmented environment (used to
+// point GIT_INDEX_FILE at an isolated index) and returns its stdout.
+func gitEnv(repoRoot string, env []string, args ...string) (string, error) {
+	cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+	cmd.Env = env
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	return string(out), nil
 }
 
 func admissionGitChangedFiles(repoRoot, baseRev, resultRev string) ([]admission.ObservedFile, error) {
