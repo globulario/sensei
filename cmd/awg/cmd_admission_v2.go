@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/authority"
+	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 
@@ -447,11 +449,11 @@ func observeChange(repoRoot, baseRev, resultRev, actorDigest, authorityDigest st
 	if result == "" {
 		result = "HEAD"
 	}
-	baseTree, err := gitTree(repoRoot, baseRev)
+	baseTree, err := binding.ResolveTreeIdentity(context.Background(), repoRoot, baseRev)
 	if err != nil {
 		return admission.ObservedChangeSet{}, err
 	}
-	resultTree, err := gitTree(repoRoot, result)
+	resultTree, err := binding.ResolveTreeIdentity(context.Background(), repoRoot, result)
 	if err != nil {
 		return admission.ObservedChangeSet{}, err
 	}
@@ -460,20 +462,12 @@ func observeChange(repoRoot, baseRev, resultRev, actorDigest, authorityDigest st
 		return admission.ObservedChangeSet{}, err
 	}
 	return admission.ObservedChangeSet{
-		BaseTreeDigestSHA256:            baseTree,
-		ResultTreeDigestSHA256:          resultTree,
+		BaseTreeDigestSHA256:            baseTree.DigestSHA256,
+		ResultTreeDigestSHA256:          resultTree.DigestSHA256,
 		ActorBindingDigestSHA256:        actorDigest,
 		AuthorityResolutionDigestSHA256: authorityDigest,
 		Files:                           files,
 	}, nil
-}
-
-func gitTree(repoRoot, rev string) (string, error) {
-	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", rev+"^{tree}").Output()
-	if err != nil {
-		return "", fmt.Errorf("git rev-parse %s: %w", rev, err)
-	}
-	return strings.TrimSpace(string(out)), nil
 }
 
 func admissionGitChangedFiles(repoRoot, baseRev, resultRev string) ([]admission.ObservedFile, error) {

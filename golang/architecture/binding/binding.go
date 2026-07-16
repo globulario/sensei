@@ -4,6 +4,7 @@ package binding
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -96,6 +97,45 @@ func RepositoryTreeDigestSHA256(root, revision string) (string, error) {
 	}
 	sum := sha256.Sum256(out)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// TreeIdentity is the dual identity of a repository tree at a revision: the
+// native Git object ID (SHA-1 in ordinary repositories) and Sensei's canonical
+// SHA-256 digest over deterministic Git tree material. The two are DISTINCT
+// identities; only DigestSHA256 belongs in a *_sha256 field. The native object
+// ID is retained for diagnostics under an explicitly Git-named field.
+type TreeIdentity struct {
+	Revision        string
+	GitTreeObjectID string
+	DigestSHA256    string
+}
+
+// ResolveTreeIdentity resolves both identities of the tree at revision. The
+// canonical digest uses exactly the algorithm RepositoryTreeDigestSHA256 (and
+// therefore Phase 1 repository snapshots) apply: SHA-256 over
+// `git ls-tree -r -z --full-tree`. This is the single tree-resolution API for
+// admission, pre-review, and closure binding; command packages must not
+// duplicate the algorithm.
+func ResolveTreeIdentity(ctx context.Context, repoRoot, revision string) (TreeIdentity, error) {
+	root := strings.TrimSpace(repoRoot)
+	rev := strings.TrimSpace(revision)
+	if root == "" || rev == "" {
+		return TreeIdentity{}, fmt.Errorf("repository root and revision are required")
+	}
+	lsTree, err := exec.CommandContext(ctx, "git", "-C", root, "ls-tree", "-r", "-z", "--full-tree", rev).Output()
+	if err != nil {
+		return TreeIdentity{}, fmt.Errorf("git ls-tree %s: %w", rev, err)
+	}
+	sum := sha256.Sum256(lsTree)
+	oid, err := exec.CommandContext(ctx, "git", "-C", root, "rev-parse", "--verify", rev+"^{tree}").Output()
+	if err != nil {
+		return TreeIdentity{}, fmt.Errorf("git rev-parse %s^{tree}: %w", rev, err)
+	}
+	return TreeIdentity{
+		Revision:        rev,
+		GitTreeObjectID: strings.TrimSpace(string(oid)),
+		DigestSHA256:    hex.EncodeToString(sum[:]),
+	}, nil
 }
 
 func GraphDigestSHA256(path string) (string, error) {
