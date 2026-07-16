@@ -9,6 +9,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/resulttransition"
 )
 
 // A Git-detected rename must be observed with both endpoints preserved and never
@@ -31,10 +32,11 @@ func TestObserveChangePreservesRenameEndpoints(t *testing.T) {
 	gitRun(t, repo, "commit", "-q", "-m", "rename")
 	resultRev := gitRev(t, repo)
 
-	files, err := admissionGitChangedFiles(repo, baseRev, resultRev)
+	observed, err := resulttransition.ObserveChange(repo, baseRev, resultRev, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	files := observed.Files
 	// Exactly one entry, a rename — NOT a delete plus a create (no translation).
 	if len(files) != 1 {
 		t.Fatalf("rename must yield exactly one observed file, got %+v", files)
