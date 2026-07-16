@@ -733,6 +733,31 @@ The record set includes:
 - RevocationReceipt
 - MigrationExecutionReceipt
 
+## Capability consumption workflow
+
+The single-use mutation capability is consumed **before** the mutation, never
+retroactively during verification. The operational sequence for an
+architecture-sensitive repository change is:
+
+```text
+sensei advance-task       -> ready_for_mutation
+sensei consume-admission  -> spends the single-use capability for this exact
+                             operation set (admission_consumed)
+<agent applies the mutation in the working tree>
+sensei verify-admission   -> records the exact observed change (change_observed)
+                             then verifies scope (scope_verified)
+```
+
+`consume-admission` is a distinct, explicit protocol action. `verify-admission`
+does **not** consume the capability: it requires an existing `admission_consumed`
+receipt and fails closed when none is present. At `ready_for_mutation`,
+`advance-task` reports the single next legal command — `consume-admission` — so
+the consumption step is never hidden. verify-admission observes the working tree
+by default (staged and unstaged changes against the admitted base); an explicit
+`--result-revision` observes that exact committed revision instead. A later
+protocol version may let a hook call consumption automatically at the actual
+edit boundary, but consumption remains an explicit, visible transition in v1.
+
 ## Ontology classes and relationships
 
 Phase 0 adds stable governed classes for reusable protocol vocabulary:
