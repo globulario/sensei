@@ -38,7 +38,8 @@
 //	sensei benchmark-reconstruct            Reconstruct bounded benchmark state
 //	sensei benchmark-evaluate               Evaluate external benchmark receipts
 //	sensei benchmark-status                 Inspect external benchmark state
-//	sensei certify                          Local governance certification over authored event metadata
+//	sensei certify                          Legacy benchmark certification adapter (not architectural closure)
+//	sensei certify-change                   Architectural-closure certification over a verified task ledger
 //	sensei extract-authority                Extract candidate authority surfaces from code
 //	sensei extract-proof-obligations        Generate proof obligations from authority surfaces
 //	sensei infer-claims                     Derive offline ArchitectureClaim candidates from facts
@@ -206,6 +207,8 @@ func main() {
 		os.Exit(runBenchmarkStatusExternal(args))
 	case "certify":
 		os.Exit(runCertify(args))
+	case "certify-change":
+		os.Exit(runCertifyChange(args))
 	case "extract-authority":
 		os.Exit(runExtractAuthority(args))
 	case "extract-proof-obligations":
@@ -395,7 +398,8 @@ Repair and evaluation helpers:
   benchmark-reconstruct Reconstruct bounded benchmark state from a blind workspace
   benchmark-evaluate Reveal oracle receipts and produce a categorical report
   benchmark-status Print compact external benchmark state
-  certify        Evaluate a repair claim/promotion verdict
+  certify        Legacy benchmark repair-claim verdict (not architectural closure)
+  certify-change Architectural-closure certification over a verified task ledger
   extract-invariants Extract normalized facts and review-only invariant candidates
   infer-claims   Derive offline ArchitectureClaim candidates from normalized facts
   maintain-claims Recalculate offline ArchitectureClaim status from explicit proof
