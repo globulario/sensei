@@ -170,6 +170,7 @@ type Report struct {
 	ObservedBinding   architecture.ClaimDocumentBinding `json:"observed_binding" yaml:"observed_binding"`
 	Verdict           string                            `json:"verdict" yaml:"verdict"`
 	ScopeReceipt      ScopeReceipt                      `json:"scope_receipt" yaml:"scope_receipt"`
+	AuthorityBindings []AuthorityApplicabilityReceipt   `json:"authority_bindings,omitempty" yaml:"authority_bindings,omitempty"`
 	AwarenessMutation *AwarenessMutationReceipt         `json:"awareness_mutation,omitempty" yaml:"awareness_mutation,omitempty"`
 	Dimensions        []DimensionAssessment             `json:"dimensions" yaml:"dimensions"`
 	Blockers          []Blocker                         `json:"blockers" yaml:"blockers"`
@@ -199,6 +200,15 @@ type FileRepresentationReceipt struct {
 	Path               string   `json:"path" yaml:"path"`
 	RepresentationKind string   `json:"representation_kind" yaml:"representation_kind"`
 	AnchorNodeIDs      []string `json:"anchor_node_ids,omitempty" yaml:"anchor_node_ids,omitempty"`
+}
+
+type AuthorityApplicabilityReceipt struct {
+	TargetFile                  string   `json:"target_file,omitempty" yaml:"target_file,omitempty"`
+	TargetState                 string   `json:"target_state,omitempty" yaml:"target_state,omitempty"`
+	AuthorityDomainID           string   `json:"authority_domain_id" yaml:"authority_domain_id"`
+	RequiredRuntimeMechanismIDs []string `json:"required_runtime_mechanism_ids,omitempty" yaml:"required_runtime_mechanism_ids,omitempty"`
+	RelationPath                []string `json:"relation_path,omitempty" yaml:"relation_path,omitempty"`
+	Status                      string   `json:"status" yaml:"status"`
 }
 
 type DimensionAssessment struct {
@@ -1167,6 +1177,7 @@ func Evaluate(ctx Context) (Report, error) {
 		Request:           req,
 		ObservedBinding:   observedBinding(ctx),
 		ScopeReceipt:      resolved.Receipt,
+		AuthorityBindings: authorityApplicabilityReceipts(builder.authorityProjection(), ctx.Graph),
 		AwarenessMutation: normalizeAwarenessMutationReceipt(ctx.AwarenessMutation),
 		Dimensions:        builder.dimensions,
 		Blockers:          builder.blockers,
@@ -2017,6 +2028,7 @@ func normalizeReport(in Report) Report {
 		r.GeneratedBy = GeneratedBy
 	}
 	r.ScopeReceipt = normalizeScopeReceipt(r.ScopeReceipt)
+	r.AuthorityBindings = normalizeAuthorityApplicabilityReceipts(r.AuthorityBindings)
 	sort.SliceStable(r.Dimensions, func(i, j int) bool {
 		return dimensionRank(r.Dimensions[i].Dimension) < dimensionRank(r.Dimensions[j].Dimension)
 	})
