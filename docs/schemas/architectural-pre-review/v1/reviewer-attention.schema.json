@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sensei.globular.io/schemas/architectural-pre-review/v1/reviewer-attention.schema.json",
+  "title": "Sensei Pre-Review Reviewer Attention Item v1",
+  "description": "One human decision surfaced by an architectural pre-review report. Names a question only a human may legitimately answer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "category", "question", "blocking", "severity", "epistemic", "rank_score"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "category": {
+      "type": "string",
+      "enum": [
+        "closure_blocker",
+        "contradiction",
+        "unknown_direction",
+        "authority_conflict",
+        "scope_violation",
+        "missing_proof",
+        "architect_question",
+        "waiver_expiring",
+        "result_graph_change",
+        "model_candidate"
+      ]
+    },
+    "question": { "type": "string", "minLength": 1 },
+    "why_it_matters": { "type": "string" },
+    "blocking": { "type": "boolean" },
+    "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical"] },
+    "epistemic": {
+      "type": "string",
+      "enum": [
+        "observed",
+        "governed",
+        "deterministically_inferred",
+        "model_candidate",
+        "contradicted",
+        "unknown",
+        "stale",
+        "not_applicable",
+        "uncertifiable"
+      ]
+    },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } },
+    "related_files": { "type": "array", "items": { "type": "string" } },
+    "allowed_answers": { "type": "array", "items": { "type": "string" } },
+    "resolution_path": { "type": "string" },
+    "task_relevance": { "type": "integer", "minimum": 0, "maximum": 3 },
+    "architectural_reach": { "type": "integer", "minimum": 0, "maximum": 3 },
+    "rank_score": { "type": "integer" }
+  },
+  "allOf": [
+    {
+      "description": "A model candidate never blocks and carries model_candidate epistemic.",
+      "if": { "properties": { "category": { "const": "model_candidate" } } },
+      "then": {
+        "properties": {
+          "blocking": { "const": false },
+          "epistemic": { "const": "model_candidate" }
+        }
+      }
+    },
+    {
+      "description": "A model-candidate epistemic never blocks.",
+      "if": { "properties": { "epistemic": { "const": "model_candidate" } } },
+      "then": { "properties": { "blocking": { "const": false } } }
+    }
+  ]
+}

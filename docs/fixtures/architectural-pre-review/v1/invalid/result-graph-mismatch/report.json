@@ -1,0 +1,57 @@
+{
+  "schema_version": "architectural-pre-review.v1",
+  "report_id": "prereview.587dd498112c972373c96c77",
+  "binding": {
+    "repository_domain": "github.com/example/project",
+    "base_revision": "0000000000000000000000000000000000000001",
+    "base_tree_digest_sha256": "basetree0000000000000000000000000000000000000000000000000000aaaa",
+    "head_revision": "0000000000000000000000000000000000000002",
+    "head_tree_digest_sha256": "headtree0000000000000000000000000000000000000000000000000000bbbb",
+    "diff_digest_sha256": "diff00000000000000000000000000000000000000000000000000000000cccc",
+    "policy_ids": [
+      "gate.default.v1"
+    ]
+  },
+  "coverage": {
+    "level": "advisory",
+    "available": [
+      "diff",
+      "graph_briefing"
+    ]
+  },
+  "summary": {
+    "purpose": "Add a new HTTP route to the gateway.",
+    "architectural_risk": "architecture_sensitive",
+    "current_disposition": "ready_for_human_review",
+    "reviewer_attention_count": 0
+  },
+  "change": {
+    "files_modified": [
+      "gin.go"
+    ]
+  },
+  "impact": {
+    "risk_class": "architecture_sensitive",
+    "affected_components": [
+      {
+        "id": "component.gateway",
+        "title": "HTTP gateway",
+        "epistemic": "governed",
+        "evidence_refs": [
+          "graph:component.gateway"
+        ]
+      }
+    ]
+  },
+  "governance": {},
+  "protection": {},
+  "history": {},
+  "proof": {},
+  "result": {
+    "available": true
+  },
+  "epistemic": {},
+  "reviewer_attention": null,
+  "disposition": "ready_for_human_review",
+  "report_digest_sha256": "2677ea2688695c38ecb210a9ee32baeb32e4236b9d1431182c54b15129d35de9"
+}

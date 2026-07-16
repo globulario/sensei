@@ -1,0 +1,82 @@
+{
+  "schema_version": "architectural-pre-review.v1",
+  "report_id": "prereview.1109a1ad73935410868ca0bd",
+  "binding": {
+    "repository_domain": "github.com/example/project",
+    "base_revision": "0000000000000000000000000000000000000001",
+    "base_tree_digest_sha256": "basetree0000000000000000000000000000000000000000000000000000aaaa",
+    "head_revision": "0000000000000000000000000000000000000002",
+    "head_tree_digest_sha256": "headtree0000000000000000000000000000000000000000000000000000bbbb",
+    "diff_digest_sha256": "diff00000000000000000000000000000000000000000000000000000000cccc",
+    "task_id": "task.example",
+    "ledger_head_digest_sha256": "ledger000000000000000000000000000000000000000000000000000000dddd",
+    "policy_ids": [
+      "gate.default.v1"
+    ]
+  },
+  "coverage": {
+    "level": "terminal",
+    "available": [
+      "certification",
+      "completion",
+      "evidence",
+      "proof"
+    ]
+  },
+  "summary": {
+    "purpose": "Add a new HTTP route to the gateway.",
+    "architectural_risk": "architecture_sensitive",
+    "current_disposition": "terminally_closed",
+    "reviewer_attention_count": 0
+  },
+  "change": {
+    "files_modified": [
+      "gin.go"
+    ]
+  },
+  "impact": {
+    "risk_class": "architecture_sensitive",
+    "affected_components": [
+      {
+        "id": "component.gateway",
+        "title": "HTTP gateway",
+        "epistemic": "governed",
+        "evidence_refs": [
+          "graph:component.gateway"
+        ]
+      }
+    ]
+  },
+  "governance": {
+    "actor": "agent.sensei.local",
+    "verified_roles": [
+      "role.repository_repair_agent"
+    ],
+    "authority_status": "resolved",
+    "admission_status": "admitted",
+    "capability_status": "consumed",
+    "scope_status": "scope_verified"
+  },
+  "protection": {},
+  "history": {},
+  "proof": {
+    "certification": {
+      "verdict": "certified",
+      "receipt_digest_sha256": "cert0000000000000000000000000000000000000000000000000000000eeee",
+      "verified_at": "2026-07-16T00:00:00Z"
+    }
+  },
+  "result": {
+    "available": true,
+    "base_graph_digest_sha256": "basegraph00000000000000000000000000000000000000000000000000ffff",
+    "result_graph_digest_sha256": "resgraph000000000000000000000000000000000000000000000000000f1f1",
+    "completion": {
+      "receipt_digest_sha256": "done00000000000000000000000000000000000000000000000000000000f2f2",
+      "completed_at": "2026-07-16T01:00:00Z"
+    }
+  },
+  "epistemic": {},
+  "reviewer_attention": null,
+  "disposition": "terminally_closed",
+  "report_digest_sha256": "04a31c13a497a311d0a5219b47b411455db6d53fb76e8fca95d7a7c01fee8279"
+}

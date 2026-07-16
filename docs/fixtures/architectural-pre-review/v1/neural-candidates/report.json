@@ -1,0 +1,77 @@
+{
+  "schema_version": "architectural-pre-review.v1",
+  "report_id": "prereview.587dd498112c972373c96c77",
+  "binding": {
+    "repository_domain": "github.com/example/project",
+    "base_revision": "0000000000000000000000000000000000000001",
+    "base_tree_digest_sha256": "basetree0000000000000000000000000000000000000000000000000000aaaa",
+    "head_revision": "0000000000000000000000000000000000000002",
+    "head_tree_digest_sha256": "headtree0000000000000000000000000000000000000000000000000000bbbb",
+    "diff_digest_sha256": "diff00000000000000000000000000000000000000000000000000000000cccc",
+    "policy_ids": [
+      "gate.default.v1"
+    ]
+  },
+  "coverage": {
+    "level": "advisory",
+    "available": [
+      "diff",
+      "graph_briefing"
+    ]
+  },
+  "summary": {
+    "purpose": "Add a new HTTP route to the gateway.",
+    "architectural_risk": "architecture_sensitive",
+    "current_disposition": "ready_for_human_review",
+    "reviewer_attention_count": 1
+  },
+  "change": {
+    "files_modified": [
+      "gin.go"
+    ]
+  },
+  "impact": {
+    "risk_class": "architecture_sensitive",
+    "affected_components": [
+      {
+        "id": "component.gateway",
+        "title": "HTTP gateway",
+        "epistemic": "governed",
+        "evidence_refs": [
+          "graph:component.gateway"
+        ]
+      }
+    ]
+  },
+  "governance": {},
+  "protection": {},
+  "history": {},
+  "proof": {},
+  "result": {
+    "available": false
+  },
+  "epistemic": {
+    "model_candidates": [
+      {
+        "id": "cand.boundary",
+        "claim": "Likely boundary change near the gateway."
+      }
+    ]
+  },
+  "reviewer_attention": [
+    {
+      "id": "attn.candidate",
+      "category": "model_candidate",
+      "question": "Possible ownership shift near the gateway — worth an architect glance?",
+      "blocking": false,
+      "severity": "low",
+      "epistemic": "model_candidate",
+      "resolution_path": "architect glance",
+      "task_relevance": 1,
+      "architectural_reach": 2,
+      "rank_score": 10
+    }
+  ],
+  "disposition": "ready_for_human_review",
+  "report_digest_sha256": "ac2d18f8f365957ccbe6073a3af19bd4d8c6d4aa49fc7e7de543e71980f763ff"
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sensei.globular.io/schemas/architectural-pre-review/v1/report.schema.json",
+  "title": "Sensei Architectural Pre-Review Report v1",
+  "description": "A deterministic, evidence-linked projection generated for a proposed repository change before human review. A projection, never a source of authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "binding",
+    "coverage",
+    "summary",
+    "disposition",
+    "report_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "architectural-pre-review.v1" },
+    "report_id": { "type": "string", "pattern": "^prereview\\.[0-9a-f]{24}$" },
+    "binding": { "$ref": "#/definitions/binding" },
+    "coverage": { "$ref": "#/definitions/coverage" },
+    "summary": { "$ref": "#/definitions/summary" },
+    "change": { "type": "object" },
+    "impact": { "type": "object" },
+    "governance": { "type": "object" },
+    "protection": { "type": "object" },
+    "history": { "type": "object" },
+    "proof": { "$ref": "#/definitions/proof" },
+    "result": { "$ref": "#/definitions/result" },
+    "epistemic": { "type": "object" },
+    "reviewer_attention": {
+      "type": "array",
+      "items": { "$ref": "reviewer-attention.schema.json" }
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "ready_for_human_review",
+        "mechanical_repair_required",
+        "governance_required",
+        "architect_decision_required",
+        "evidence_required",
+        "scope_violation",
+        "cannot_verify",
+        "certified",
+        "terminally_closed"
+      ]
+    },
+    "limitations": { "type": "array", "items": { "type": "string" } },
+    "narrative": { "$ref": "#/definitions/narrative" },
+    "display": { "type": "object" },
+    "report_digest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "definitions": {
+    "binding": {
+      "type": "object",
+      "required": [
+        "repository_domain",
+        "base_tree_digest_sha256",
+        "head_tree_digest_sha256",
+        "diff_digest_sha256"
+      ],
+      "properties": {
+        "repository_domain": { "type": "string", "minLength": 1 },
+        "base_revision": { "type": "string" },
+        "base_tree_digest_sha256": { "type": "string", "minLength": 1 },
+        "head_revision": { "type": "string" },
+        "head_tree_digest_sha256": { "type": "string", "minLength": 1 },
+        "merge_base_revision": { "type": "string" },
+        "diff_digest_sha256": { "type": "string", "minLength": 1 },
+        "task_id": { "type": "string" },
+        "session_id": { "type": "string" },
+        "ledger_head_digest_sha256": { "type": "string" },
+        "base_graph_digest_sha256": { "type": "string" },
+        "result_graph_digest_sha256": { "type": "string" },
+        "policy_ids": { "type": "array", "items": { "type": "string" } }
+      },
+      "dependencies": {
+        "task_id": { "required": ["ledger_head_digest_sha256"] }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["level"],
+      "properties": {
+        "level": { "type": "string", "enum": ["advisory", "governed", "proof_bound", "terminal"] },
+        "available": { "type": "array", "items": { "type": "string" } },
+        "unavailable": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["reviewer_attention_count"],
+      "properties": {
+        "purpose": { "type": "string" },
+        "architectural_risk": { "type": "string" },
+        "current_disposition": { "type": "string" },
+        "highest_priority_blocker": { "type": "string" },
+        "reviewer_attention_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "properties": {
+        "certification": {
+          "type": "object",
+          "properties": {
+            "verdict": { "type": "string" },
+            "receipt_digest_sha256": { "type": "string" },
+            "verified_at": { "type": "string" }
+          },
+          "allOf": [
+            {
+              "description": "A certified verdict requires a receipt digest.",
+              "if": { "properties": { "verdict": { "const": "certified" } }, "required": ["verdict"] },
+              "then": { "required": ["receipt_digest_sha256"], "properties": { "receipt_digest_sha256": { "type": "string", "minLength": 1 } } }
+            }
+          ]
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["available"],
+      "properties": {
+        "available": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "description": "An available result architecture requires base and result graph digests.",
+          "if": { "properties": { "available": { "const": true } } },
+          "then": {
+            "required": ["base_graph_digest_sha256", "result_graph_digest_sha256"],
+            "properties": {
+              "base_graph_digest_sha256": { "type": "string", "minLength": 1 },
+              "result_graph_digest_sha256": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "narrative": {
+      "type": "object",
+      "properties": {
+        "generated_by": { "type": "string" },
+        "model": { "type": "string" },
+        "input_report_digest_sha256": { "type": "string" },
+        "text": { "type": "string" },
+        "authoritative": { "const": false }
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "schema_version": "architectural-pre-review.v1",
+  "report_id": "prereview.587dd498112c972373c96c77",
+  "binding": {
+    "repository_domain": "github.com/example/project",
+    "base_revision": "0000000000000000000000000000000000000001",
+    "base_tree_digest_sha256": "basetree0000000000000000000000000000000000000000000000000000aaaa",
+    "head_revision": "0000000000000000000000000000000000000002",
+    "head_tree_digest_sha256": "headtree0000000000000000000000000000000000000000000000000000bbbb",
+    "diff_digest_sha256": "diff00000000000000000000000000000000000000000000000000000000cccc",
+    "policy_ids": [
+      "gate.default.v1"
+    ]
+  },
+  "coverage": {
+    "level": "advisory",
+    "available": [
+      "diff",
+      "graph_briefing"
+    ]
+  },
+  "summary": {
+    "purpose": "Add a new HTTP route to the gateway.",
+    "architectural_risk": "architecture_sensitive",
+    "current_disposition": "architect_decision_required",
+    "highest_priority_blocker": "Is this new writer a permanent ownership path or a temporary migration exception?",
+    "reviewer_attention_count": 1
+  },
+  "change": {
+    "files_modified": [
+      "gin.go"
+    ]
+  },
+  "impact": {
+    "risk_class": "architecture_sensitive",
+    "affected_components": [
+      {
+        "id": "component.gateway",
+        "title": "HTTP gateway",
+        "epistemic": "governed",
+        "evidence_refs": [
+          "graph:component.gateway"
+        ]
+      }
+    ]
+  },
+  "governance": {},
+  "protection": {},
+  "history": {},
+  "proof": {},
+  "result": {
+    "available": false
+  },
+  "epistemic": {},
+  "reviewer_attention": [
+    {
+      "id": "attn.direction",
+      "category": "unknown_direction",
+      "question": "Is this new writer a permanent ownership path or a temporary migration exception?",
+      "why_it_matters": "It determines whether a new authority domain is introduced.",
+      "blocking": true,
+      "severity": "high",
+      "epistemic": "unknown",
+      "related_files": [
+        "gin.go"
+      ],
+      "allowed_answers": [
+        "permanent",
+        "temporary"
+      ],
+      "resolution_path": "record architect decision",
+      "task_relevance": 3,
+      "architectural_reach": 3,
+      "rank_score": 180
+    }
+  ],
+  "disposition": "architect_decision_required",
+  "report_digest_sha256": "27e51a560c621f5cc097fdc6132cd8fd83ed02005b8741083a3081c9924db32f"
+}

@@ -1,0 +1,69 @@
+{
+  "schema_version": "architectural-pre-review.v1",
+  "report_id": "prereview.1109a1ad73935410868ca0bd",
+  "binding": {
+    "repository_domain": "github.com/example/project",
+    "base_revision": "0000000000000000000000000000000000000001",
+    "base_tree_digest_sha256": "basetree0000000000000000000000000000000000000000000000000000aaaa",
+    "head_revision": "0000000000000000000000000000000000000002",
+    "head_tree_digest_sha256": "headtree0000000000000000000000000000000000000000000000000000bbbb",
+    "diff_digest_sha256": "diff00000000000000000000000000000000000000000000000000000000cccc",
+    "task_id": "task.example",
+    "policy_ids": [
+      "gate.default.v1"
+    ]
+  },
+  "coverage": {
+    "level": "governed",
+    "available": [
+      "admission",
+      "authority",
+      "diff",
+      "scope"
+    ]
+  },
+  "summary": {
+    "purpose": "Add a new HTTP route to the gateway.",
+    "architectural_risk": "architecture_sensitive",
+    "current_disposition": "ready_for_human_review",
+    "reviewer_attention_count": 0
+  },
+  "change": {
+    "files_modified": [
+      "gin.go"
+    ]
+  },
+  "impact": {
+    "risk_class": "architecture_sensitive",
+    "affected_components": [
+      {
+        "id": "component.gateway",
+        "title": "HTTP gateway",
+        "epistemic": "governed",
+        "evidence_refs": [
+          "graph:component.gateway"
+        ]
+      }
+    ]
+  },
+  "governance": {
+    "actor": "agent.sensei.local",
+    "verified_roles": [
+      "role.repository_repair_agent"
+    ],
+    "authority_status": "resolved",
+    "admission_status": "admitted",
+    "capability_status": "consumed",
+    "scope_status": "scope_verified"
+  },
+  "protection": {},
+  "history": {},
+  "proof": {},
+  "result": {
+    "available": false
+  },
+  "epistemic": {},
+  "reviewer_attention": null,
+  "disposition": "ready_for_human_review",
+  "report_digest_sha256": "7a99497a31ebefa392aab1787b79bc82a3db7dfe46af3ed4b06b94ef2b08d5ba"
+}

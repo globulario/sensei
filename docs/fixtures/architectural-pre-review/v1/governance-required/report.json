@@ -1,0 +1,68 @@
+{
+  "schema_version": "architectural-pre-review.v1",
+  "report_id": "prereview.1109a1ad73935410868ca0bd",
+  "binding": {
+    "repository_domain": "github.com/example/project",
+    "base_revision": "0000000000000000000000000000000000000001",
+    "base_tree_digest_sha256": "basetree0000000000000000000000000000000000000000000000000000aaaa",
+    "head_revision": "0000000000000000000000000000000000000002",
+    "head_tree_digest_sha256": "headtree0000000000000000000000000000000000000000000000000000bbbb",
+    "diff_digest_sha256": "diff00000000000000000000000000000000000000000000000000000000cccc",
+    "task_id": "task.example",
+    "ledger_head_digest_sha256": "ledger000000000000000000000000000000000000000000000000000000dddd",
+    "policy_ids": [
+      "gate.default.v1"
+    ]
+  },
+  "coverage": {
+    "level": "governed",
+    "available": [
+      "admission",
+      "authority",
+      "diff",
+      "scope"
+    ]
+  },
+  "summary": {
+    "purpose": "Add a new HTTP route to the gateway.",
+    "architectural_risk": "architecture_sensitive",
+    "current_disposition": "governance_required",
+    "reviewer_attention_count": 0
+  },
+  "change": {
+    "files_modified": [
+      "gin.go"
+    ]
+  },
+  "impact": {
+    "risk_class": "architecture_sensitive",
+    "affected_components": [
+      {
+        "id": "component.gateway",
+        "title": "HTTP gateway",
+        "epistemic": "governed",
+        "evidence_refs": [
+          "graph:component.gateway"
+        ]
+      }
+    ]
+  },
+  "governance": {
+    "actor": "agent.sensei.local",
+    "verified_roles": [
+      "role.repository_repair_agent"
+    ],
+    "authority_status": "unresolved",
+    "admission_status": "waiting_governance"
+  },
+  "protection": {},
+  "history": {},
+  "proof": {},
+  "result": {
+    "available": false
+  },
+  "epistemic": {},
+  "reviewer_attention": null,
+  "disposition": "governance_required",
+  "report_digest_sha256": "d1d0da1053be000ea37da17cad9931d6ac787d78f422d8412338434652a244eb"
+}
