@@ -12,6 +12,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/authority"
+	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 )
@@ -188,7 +189,7 @@ func verifyRepo(t *testing.T, extraFile bool) (string, string, string, string) {
 	gitRun(t, repo, "add", "-A")
 	gitRun(t, repo, "commit", "-q", "-m", "base")
 	baseRev := gitRev(t, repo)
-	baseTree := gitTreeOf(t, repo, baseRev)
+	baseTree := canonicalTreeOf(t, repo, baseRev)
 	if err := os.WriteFile(filepath.Join(repo, cliTarget), []byte("changed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -202,13 +203,17 @@ func verifyRepo(t *testing.T, extraFile bool) (string, string, string, string) {
 	return repo, baseRev, baseTree, gitRev(t, repo)
 }
 
-func gitTreeOf(t *testing.T, repo, rev string) string {
+// canonicalTreeOf returns the Sensei canonical SHA-256 tree digest (not the
+// native Git object id) for a revision, matching what a Phase 1 base binding
+// records and what verify-admission observes. Seeding the base binding with the
+// native object id would spuriously trip scope.base_tree.changed.
+func canonicalTreeOf(t *testing.T, repo, rev string) string {
 	t.Helper()
-	out, err := exec.Command("git", "-C", repo, "rev-parse", rev+"^{tree}").Output()
+	id, err := binding.ResolveTreeIdentity(context.Background(), repo, rev)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return string(out[:len(out)-1])
+	return id.DigestSHA256
 }
 
 func TestVerifyAdmissionV2ExactMutationVerifies(t *testing.T) {
