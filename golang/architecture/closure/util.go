@@ -763,6 +763,61 @@ func normalizeAuthorityBindings(in []authorityBinding) []authorityBinding {
 	return out
 }
 
+func authorityApplicabilityReceipts(proj authorityProjection, graph GraphIndex) []AuthorityApplicabilityReceipt {
+	if len(proj.Bindings) == 0 {
+		return nil
+	}
+	var out []AuthorityApplicabilityReceipt
+	for _, binding := range proj.Bindings {
+		receipt := AuthorityApplicabilityReceipt{
+			TargetFile:        normalizePath(binding.TargetFile),
+			TargetState:       strings.TrimSpace(binding.TargetState),
+			AuthorityDomainID: binding.AuthorityNodeID,
+			RelationPath:      cleanList(binding.RelationPath),
+			Status:            string(binding.Status),
+		}
+		if node, ok := findNode(graph, binding.AuthorityNodeID); ok {
+			receipt.RequiredRuntimeMechanismIDs = cleanList(append([]string{}, node.MustMutateVia...))
+		}
+		out = append(out, receipt)
+	}
+	return normalizeAuthorityApplicabilityReceipts(out)
+}
+
+func normalizeAuthorityApplicabilityReceipts(in []AuthorityApplicabilityReceipt) []AuthorityApplicabilityReceipt {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]AuthorityApplicabilityReceipt{}
+	var keys []string
+	for _, item := range in {
+		item.TargetFile = normalizePath(item.TargetFile)
+		item.TargetState = strings.TrimSpace(item.TargetState)
+		item.AuthorityDomainID = strings.TrimSpace(item.AuthorityDomainID)
+		item.RequiredRuntimeMechanismIDs = cleanList(item.RequiredRuntimeMechanismIDs)
+		item.RelationPath = cleanList(item.RelationPath)
+		item.Status = strings.TrimSpace(item.Status)
+		key := strings.Join([]string{
+			item.TargetFile,
+			item.TargetState,
+			item.AuthorityDomainID,
+			strings.Join(item.RequiredRuntimeMechanismIDs, "\x00"),
+			strings.Join(item.RelationPath, "\x00"),
+			item.Status,
+		}, "\x00")
+		if _, ok := seen[key]; !ok {
+			keys = append(keys, key)
+		}
+		seen[key] = item
+	}
+	sort.Strings(keys)
+	out := make([]AuthorityApplicabilityReceipt, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, seen[key])
+	}
+	return out
+}
+
 func normalizeAuthorityContradictions(in []authorityContradiction) []authorityContradiction {
 	if len(in) == 0 {
 		return nil

@@ -628,6 +628,41 @@ func TestAuthorityExactCoveredFileRemainsBound(t *testing.T) {
 	assertAuthorityBlocker(t, report, "closure.authority.owner_missing")
 }
 
+func TestAuthorityApplicabilityReceiptsExposeTaskBoundDomain(t *testing.T) {
+	root, graph := closedFixture(t)
+	graph = mergeGraphs(graph, authorityDomainGraph("auth.x", authorityDomainOptions{
+		CoversPaths:   []string{"x.go"},
+		OwnerServices: []string{"service.x"},
+		MayWrite:      []string{"writer.x"},
+		MustMutateVia: []string{"mutation_path.owner_rpc"},
+		TruthLayers:   []string{"repository"},
+	}))
+	req := validRequest()
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if len(report.AuthorityBindings) == 0 {
+		t.Fatalf("authority bindings missing from report")
+	}
+	found := false
+	for _, item := range report.AuthorityBindings {
+		if item.TargetFile == "x.go" && item.AuthorityDomainID == "auth.x" {
+			found = true
+			if item.Status != string(authorityApplicable) {
+				t.Fatalf("status = %q, want %q", item.Status, authorityApplicable)
+			}
+			if !contains(item.RequiredRuntimeMechanismIDs, "mutation_path.owner_rpc") {
+				t.Fatalf("required runtime mechanisms = %v", item.RequiredRuntimeMechanismIDs)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected task-bound authority receipt missing: %#v", report.AuthorityBindings)
+	}
+}
+
 func TestAuthorityMutationClaimWithoutPathDoesNotBind(t *testing.T) {
 	root, graph := closedFixture(t)
 	req := validRequest()
