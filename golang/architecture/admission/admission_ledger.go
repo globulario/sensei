@@ -54,13 +54,26 @@ func recordAdmissionEvent(store *ledger.Store, expectedHead, taskID, sessionID s
 // resolution together with the exact actor binding, typed change plan, and base
 // binding it was computed for, so downstream admission can load them as verified
 // task records rather than reconstructing them from caller flags.
-func RecordAuthorityResolved(store *ledger.Store, expectedHead string, task closureprotocol.TaskBinding, resolution closureprotocol.AuthorityResolution, actor closureprotocol.ActorBinding, changePlan closureprotocol.ChangePlan, base closureprotocol.BaseBinding, producedAt time.Time) (ledger.AppendResult, error) {
-	return recordAdmissionEvent(store, expectedHead, task.ID, task.SessionID, closureprotocol.LedgerEventAuthorityResolved, map[string]any{
+//
+// When the resolution consumed delegated authority, the concrete delegation
+// receipts the resolver verified are stored alongside as their own artifact, so
+// the event is self-verifiable: certification can resolve the resolution's
+// delegation_chain ids to these records, bind them to the actor's committed
+// digests, and re-run the monotonicity verdict against the governed grants
+// rather than trusting the resolution's claimed chain. Non-delegated
+// resolutions omit the artifact entirely, keeping their event byte-identical to
+// before.
+func RecordAuthorityResolved(store *ledger.Store, expectedHead string, task closureprotocol.TaskBinding, resolution closureprotocol.AuthorityResolution, actor closureprotocol.ActorBinding, changePlan closureprotocol.ChangePlan, base closureprotocol.BaseBinding, delegationReceipts []closureprotocol.DelegationReceipt, producedAt time.Time) (ledger.AppendResult, error) {
+	records := map[string]any{
 		"authority_resolution": resolution,
 		"actor_binding":        actor,
 		"change_plan":          changePlan,
 		"base_binding":         base,
-	}, producedAt)
+	}
+	if len(delegationReceipts) > 0 {
+		records["delegation_receipts"] = delegationReceipts
+	}
+	return recordAdmissionEvent(store, expectedHead, task.ID, task.SessionID, closureprotocol.LedgerEventAuthorityResolved, records, producedAt)
 }
 
 // RecordAdmissionDecided appends an admission_decided event carrying the typed

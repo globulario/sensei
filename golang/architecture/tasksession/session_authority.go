@@ -26,10 +26,14 @@ const (
 )
 
 // resolvedAuthority bundles the artifacts an authority_resolved event carries.
+// DelegationReceipts holds the concrete delegation records the resolver verified
+// when the resolution consumed delegated authority, so the authority_resolved
+// event they are recorded on is self-verifiable.
 type resolvedAuthority struct {
-	Resolution closureprotocol.AuthorityResolution
-	Actor      closureprotocol.ActorBinding
-	ChangePlan closureprotocol.ChangePlan
+	Resolution         closureprotocol.AuthorityResolution
+	Actor              closureprotocol.ActorBinding
+	ChangePlan         closureprotocol.ChangePlan
+	DelegationReceipts []closureprotocol.DelegationReceipt
 }
 
 // resolveTaskAuthority attempts to resolve typed mutation authority for a task
@@ -76,7 +80,7 @@ func resolveTaskAuthority(repoRoot, taskRoot string, taskReq TaskRequest, base c
 	if err != nil {
 		return nil, limitationAuthorityUnresolved
 	}
-	return &resolvedAuthority{Resolution: resolution, Actor: id.ActorBinding(), ChangePlan: plan}, ""
+	return &resolvedAuthority{Resolution: resolution, Actor: id.ActorBinding(), ChangePlan: plan, DelegationReceipts: verified.DelegationReceipts}, ""
 }
 
 // changePlanFromScope synthesizes a typed change plan from the task scope. Only

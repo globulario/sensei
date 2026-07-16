@@ -777,7 +777,7 @@ func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, session
 	// decision. The typed decision is produced later by admit-change.
 	resolvedHead := third.Head.EntryDigestSHA256
 	if resolved != nil {
-		res, err := admission.RecordAuthorityResolved(store, resolvedHead, base.Task, resolved.Resolution, resolved.Actor, resolved.ChangePlan, base, time.Unix(0, 0).UTC())
+		res, err := admission.RecordAuthorityResolved(store, resolvedHead, base.Task, resolved.Resolution, resolved.Actor, resolved.ChangePlan, base, resolved.DelegationReceipts, time.Unix(0, 0).UTC())
 		if err != nil {
 			return ledger.Head{}, err
 		}

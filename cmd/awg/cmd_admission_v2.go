@@ -179,7 +179,7 @@ func runAuthorityResolve(args []string) int {
 		return 1
 	}
 	task := base.Task
-	if _, err := admission.RecordAuthorityResolved(newAdmissionStore(dir), head, task, resolution, actor, changePlan, base, nowUTC()); err != nil {
+	if _, err := admission.RecordAuthorityResolved(newAdmissionStore(dir), head, task, resolution, actor, changePlan, base, verified.DelegationReceipts, nowUTC()); err != nil {
 		fmt.Fprintln(os.Stderr, "authority-resolve: record:", err)
 		return 1
 	}

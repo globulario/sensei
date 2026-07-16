@@ -99,7 +99,7 @@ func seedLedger(t *testing.T, rev, treeDigest string, withAuthority bool) string
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	if _, err := admission.RecordAuthorityResolved(store, genesis.Entry.EntryDigestSHA256, base.Task, resolution, cliActor(), cliChangePlan(), base, time.Unix(0, 0).UTC()); err != nil {
+	if _, err := admission.RecordAuthorityResolved(store, genesis.Entry.EntryDigestSHA256, base.Task, resolution, cliActor(), cliChangePlan(), base, nil, time.Unix(0, 0).UTC()); err != nil {
 		t.Fatalf("record authority: %v", err)
 	}
 	return dir
