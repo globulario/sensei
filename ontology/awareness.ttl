@@ -1214,6 +1214,52 @@ aw:bindsToGraphSnapshot a owl:ObjectProperty ; rdfs:label "binds to graph snapsh
     rdfs:comment "Operational record → GraphSnapshot. Binds the record to one compiled graph snapshot. Does not grant authority." .
 aw:bindsToRuntimeTarget a owl:ObjectProperty ; rdfs:label "binds to runtime target" ;
     rdfs:comment "Operational record → RuntimeTarget. Binds an observation or certification to the exact runtime target." .
+aw:alias a owl:DatatypeProperty ; rdfs:label "alias" ;
+    rdfs:comment "Stable governed alias for an identifier-like authority policy term." .
+aw:allowedActorKind a owl:DatatypeProperty ; rdfs:label "allowed actor kind" ;
+    rdfs:comment "ActorRole → actor kind literal. Enumerates which actor kinds may legitimately hold this role." .
+aw:trustedIssuer a owl:DatatypeProperty ; rdfs:label "trusted issuer" ;
+    rdfs:comment "Governed authority policy → issuer literal trusted to attest a role or receipt." .
+aw:mechanismKind a owl:DatatypeProperty ; rdfs:label "mechanism kind" ;
+    rdfs:comment "MutationPath or ObservationPath → mechanism kind literal." .
+aw:targetKind a owl:DatatypeProperty ; rdfs:label "target kind" ;
+    rdfs:comment "Governed authority policy → target kind literal for the path or grant." .
+aw:actorRoleId a owl:DatatypeProperty ; rdfs:label "actor role id" ;
+    rdfs:comment "AuthorityGrant → stable actor-role ID literal consumed by the typed authority engine." .
+aw:authorityDomainId a owl:DatatypeProperty ; rdfs:label "authority domain id" ;
+    rdfs:comment "AuthorityGrant or DelegationReceipt → stable authority-domain ID literal." .
+aw:allowedAction a owl:DatatypeProperty ; rdfs:label "allowed action" ;
+    rdfs:comment "DelegationPolicy or AuthorityGrant → operation kind literal allowed by policy." .
+aw:allowedMechanismId a owl:DatatypeProperty ; rdfs:label "allowed mechanism id" ;
+    rdfs:comment "DelegationPolicy → stable MutationPath ID literal that remains legal under delegation." .
+aw:requiredMechanismId a owl:DatatypeProperty ; rdfs:label "required mechanism id" ;
+    rdfs:comment "AuthorityGrant → stable MutationPath ID literal required for the grant." .
+aw:maximumRiskClass a owl:DatatypeProperty ; rdfs:label "maximum risk class" ;
+    rdfs:comment "AuthorityGrant or DelegationReceipt → highest risk class still authorized." .
+aw:validFrom a owl:DatatypeProperty ; rdfs:label "valid from" ;
+    rdfs:comment "Governed authority policy validity start time." .
+aw:validUntil a owl:DatatypeProperty ; rdfs:label "valid until" ;
+    rdfs:comment "Governed authority policy validity end time." .
+aw:delegable a owl:DatatypeProperty ; rdfs:label "delegable" ;
+    rdfs:comment "AuthorityGrant → boolean indicating whether the grant may be delegated." .
+aw:delegationPolicyId a owl:DatatypeProperty ; rdfs:label "delegation policy id" ;
+    rdfs:comment "AuthorityGrant or DelegationReceipt → stable delegation-policy ID literal." .
+aw:maximumDepth a owl:DatatypeProperty ; rdfs:label "maximum depth" ;
+    rdfs:comment "DelegationPolicy → maximum delegation depth literal." .
+aw:maximumDuration a owl:DatatypeProperty ; rdfs:label "maximum duration" ;
+    rdfs:comment "DelegationPolicy → maximum validity duration literal." .
+aw:allowSubdelegation a owl:DatatypeProperty ; rdfs:label "allow subdelegation" ;
+    rdfs:comment "DelegationPolicy or DelegationReceipt → boolean indicating whether subdelegation is permitted." .
+aw:mayWriteRoleId a owl:DatatypeProperty ; rdfs:label "may write role id" ;
+    rdfs:comment "AuthorityDomain → stable actor-role ID literal allowed to write the governed surface." .
+aw:mayReadRoleId a owl:DatatypeProperty ; rdfs:label "may read role id" ;
+    rdfs:comment "AuthorityDomain → stable actor-role ID literal allowed to read the governed surface." .
+aw:mustMutateViaId a owl:DatatypeProperty ; rdfs:label "must mutate via id" ;
+    rdfs:comment "AuthorityDomain → stable MutationPath ID literal required for mutation." .
+aw:mustReadViaId a owl:DatatypeProperty ; rdfs:label "must read via id" ;
+    rdfs:comment "AuthorityDomain → stable ObservationPath ID literal required for reads." .
+aw:observesViaId a owl:DatatypeProperty ; rdfs:label "observes via id" ;
+    rdfs:comment "AuthorityDomain → stable ObservationPath ID literal required for observation." .
 aw:performedBy a owl:ObjectProperty ; rdfs:label "performed by" ;
     rdfs:comment "Operational record → ActorBinding or actor node. Identifies who performed the action; it does not itself grant authority." .
 aw:actsUnderRole a owl:ObjectProperty ; rdfs:label "acts under role" ;
