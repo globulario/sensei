@@ -1,0 +1,8 @@
+observation_paths:
+  - id: observation_path.repository_read
+    label: Bound repository read
+    status: active
+    mechanism_kind: repository_edit
+    target_kinds:
+      - source_file
+      - governed_source

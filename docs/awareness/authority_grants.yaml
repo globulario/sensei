@@ -1,0 +1,22 @@
+authority_grants:
+  - id: grant.sensei.repository_repair
+    label: Sensei repository repair grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_repository_mutation
+    actions:
+      - read
+      - modify
+      - create
+    target_kinds:
+      - source_file
+      - governed_source
+    required_mechanism_ids:
+      - mutation_path.repository_edit
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: true
+    delegation_policy_id: delegation_policy.repository_repair

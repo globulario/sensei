@@ -1,0 +1,30 @@
+authority_domains:
+  - id: authority.sensei_repository_mutation
+    label: Sensei repository mutation
+    status: active
+    truth_layer: repository
+    owner_service: service.sensei.repository_governance
+    evidence_freshness: repository revision must remain bound to the active task snapshot
+    covers_paths:
+      - cmd/awg/
+      - docs/awareness/
+      - golang/architecture/
+      - golang/extractor/
+      - golang/rdf/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed repository edit
+    must_mutate_via_ids:
+      - mutation_path.repository_edit
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read
