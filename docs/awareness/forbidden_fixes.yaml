@@ -53,3 +53,9 @@ forbidden_fixes:
     related_invariants:
     reason: services/dist is disposable release output — wiped and recreated each build; never authored source
     contract: services/dist is disposable release output — wiped and recreated each build; never authored source
+  - id: forbidden_fix.sensei.trust_producer_declared_freshness_or_trust_on_an_evidence_re
+    title: Trust producer-declared freshness or trust on an evidence receipt
+    summary: Never accept a receipt's self-declared freshness/trust/status as authoritative to reach PASS. The validator must recompute effective status against the proof request and binding. Producer-supplied freshness with no observed time is UNKNOWN, not PASS.
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    reason: Never accept a receipt's self-declared freshness/trust/status as authoritative to reach PASS. The validator must recompute effective status against the proof request and binding. Producer-supplied freshness with no observed time is UNKNOWN, not PASS.
