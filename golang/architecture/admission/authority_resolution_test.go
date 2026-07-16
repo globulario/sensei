@@ -143,7 +143,7 @@ func TestResolveAuthorityRefusesWrongMechanism(t *testing.T) {
 // all on one hash-chained ledger.
 func TestWriterSubstrateEndToEnd(t *testing.T) {
 	task := closureprotocol.TaskBinding{ID: "task.writer", SessionID: "session.writer"}
-	store, head := admissionLedgerStore(t, task)
+	store, _, head := admissionLedgerStore(t, task)
 
 	in := writerInput(closureprotocol.MechanismRepositoryEdit)
 	resolution, err := ResolveAuthority(authorizingIndex(), in)

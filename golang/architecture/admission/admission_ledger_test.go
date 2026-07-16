@@ -14,10 +14,12 @@ import (
 func ledgerProducedAt() time.Time { return time.Unix(0, 0).UTC() }
 
 // admissionLedgerStore builds a fresh task ledger with the real payload
-// validator and a task_prepared genesis event, returning the store and its head.
-func admissionLedgerStore(t *testing.T, task closureprotocol.TaskBinding) (*ledger.Store, string) {
+// validator and a task_prepared genesis event, returning the store, its task
+// directory, and its head digest.
+func admissionLedgerStore(t *testing.T, task closureprotocol.TaskBinding) (*ledger.Store, string, string) {
 	t.Helper()
-	store := ledger.NewStore(t.TempDir(), ledger.WithPayloadValidator(func(et closureprotocol.LedgerEventType, mediaType string, data []byte) error {
+	dir := t.TempDir()
+	store := ledger.NewStore(dir, ledger.WithPayloadValidator(func(et closureprotocol.LedgerEventType, mediaType string, data []byte) error {
 		return ledger.ValidateTaskEventPayload(et, data)
 	}))
 	genesis, err := store.Append(context.Background(), ledger.AppendRequest{
@@ -38,12 +40,12 @@ func admissionLedgerStore(t *testing.T, task closureprotocol.TaskBinding) (*ledg
 	if err != nil {
 		t.Fatalf("genesis append: %v", err)
 	}
-	return store, genesis.Entry.EntryDigestSHA256
+	return store, dir, genesis.Entry.EntryDigestSHA256
 }
 
 func TestAdmissionLedgerRecordsChain(t *testing.T) {
 	task := v2Task()
-	store, head := admissionLedgerStore(t, task)
+	store, _, head := admissionLedgerStore(t, task)
 
 	exp, observed := scopeFixture(t)
 	decision := exp.Decision
@@ -89,7 +91,7 @@ func TestAdmissionLedgerRecordsChain(t *testing.T) {
 
 func TestAdmissionLedgerRejectsStaleHead(t *testing.T) {
 	task := v2Task()
-	store, head := admissionLedgerStore(t, task)
+	store, _, head := admissionLedgerStore(t, task)
 	exp, _ := scopeFixture(t)
 	if _, err := RecordAdmissionDecided(store, head, exp.Decision, task, ledgerProducedAt()); err != nil {
 		t.Fatalf("first record: %v", err)
