@@ -14,8 +14,17 @@ import (
 )
 
 // gitDiffSource resolves a proposed change from a local git repository into a
-// digest-bound diff. It is deterministic: tree digests are git's own tree object
-// hashes and the diff digest is a content hash of the textual diff.
+// digest-bound diff. It is deterministic: tree digests are the canonical Sensei
+// SHA-256 over deterministic Git tree material (matching architecture/binding's
+// RepositoryTreeDigestSHA256 algorithm), and the diff digest is a content hash of
+// the textual diff. The native Git tree object id is retained separately for
+// diagnostics, never as a *_sha256 value.
+//
+// The canonical algorithm is replicated here rather than imported because this
+// advisory PR is based off main, where golang/architecture/binding does not
+// exist; the cross-package equality with architecture/binding is proven at PR-2,
+// when both live on one integrated base. treeIdentityTest pins the equivalence
+// locally in the meantime.
 type gitDiffSource struct{}
 
 func (gitDiffSource) ResolveReviewDiff(ctx context.Context, req prereview.DiffRequest) (prereview.BoundDiff, error) {
@@ -43,11 +52,11 @@ func (gitDiffSource) ResolveReviewDiff(ctx context.Context, req prereview.DiffRe
 	if err != nil {
 		return prereview.BoundDiff{}, fmt.Errorf("resolve head %q: %w", head, err)
 	}
-	baseTree, err := gitOut(ctx, root, "rev-parse", base+"^{tree}")
+	baseTreeDigest, baseTreeOID, err := canonicalTreeIdentity(ctx, root, base)
 	if err != nil {
 		return prereview.BoundDiff{}, fmt.Errorf("resolve base tree: %w", err)
 	}
-	headTree, err := gitOut(ctx, root, "rev-parse", head+"^{tree}")
+	headTreeDigest, headTreeOID, err := canonicalTreeIdentity(ctx, root, head)
 	if err != nil {
 		return prereview.BoundDiff{}, fmt.Errorf("resolve head tree: %w", err)
 	}
@@ -66,9 +75,11 @@ func (gitDiffSource) ResolveReviewDiff(ctx context.Context, req prereview.DiffRe
 	return prereview.BoundDiff{
 		RepositoryDomain:     gitRemoteDomain(root),
 		BaseRevision:         baseRev,
-		BaseTreeDigestSHA256: baseTree,
+		BaseTreeDigestSHA256: baseTreeDigest,
 		HeadRevision:         headRev,
-		HeadTreeDigestSHA256: headTree,
+		HeadTreeDigestSHA256: headTreeDigest,
+		BaseTreeObjectID:     baseTreeOID,
+		HeadTreeObjectID:     headTreeOID,
 		MergeBaseRevision:    strings.TrimSpace(mergeBase),
 		DiffDigestSHA256:     sha256Hex(diffBytes),
 		FilesCreated:         created,
@@ -76,6 +87,23 @@ func (gitDiffSource) ResolveReviewDiff(ctx context.Context, req prereview.DiffRe
 		FilesDeleted:         deleted,
 		FilesRenamed:         renamed,
 	}, nil
+}
+
+// canonicalTreeIdentity returns the canonical Sensei SHA-256 tree digest and the
+// native Git tree object id for a revision. The digest is SHA-256 over
+// `git ls-tree -r -z --full-tree <rev>` — the exact algorithm Phase 1 snapshots
+// and architecture/binding.RepositoryTreeDigestSHA256 use. A native object id is
+// SHA-1 in ordinary repositories and is a different identity from this digest.
+func canonicalTreeIdentity(ctx context.Context, root, rev string) (digest, objectID string, err error) {
+	lsTree, err := gitRaw(ctx, root, "ls-tree", "-r", "-z", "--full-tree", rev)
+	if err != nil {
+		return "", "", err
+	}
+	oid, err := gitOut(ctx, root, "rev-parse", "--verify", rev+"^{tree}")
+	if err != nil {
+		return "", "", err
+	}
+	return sha256Hex(lsTree), oid, nil
 }
 
 // parseNameStatus parses `git diff --name-status -M` output into typed file

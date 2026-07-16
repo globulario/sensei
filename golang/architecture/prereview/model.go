@@ -50,6 +50,13 @@ type ReviewBinding struct {
 	MergeBaseRevision    string `json:"merge_base_revision,omitempty" yaml:"merge_base_revision,omitempty"`
 	DiffDigestSHA256     string `json:"diff_digest_sha256" yaml:"diff_digest_sha256"`
 
+	// Native Git tree object ids (SHA-1 in ordinary repositories), retained for
+	// diagnostics only. They are a distinct identity from the canonical
+	// *_digest_sha256 fields above and are deliberately excluded from the report
+	// identity (bindingIdentity), so they never affect a report's ID or digest.
+	BaseTreeObjectID string `json:"base_tree_object_id,omitempty" yaml:"base_tree_object_id,omitempty"`
+	HeadTreeObjectID string `json:"head_tree_object_id,omitempty" yaml:"head_tree_object_id,omitempty"`
+
 	TaskID                 string `json:"task_id,omitempty" yaml:"task_id,omitempty"`
 	SessionID              string `json:"session_id,omitempty" yaml:"session_id,omitempty"`
 	LedgerHeadDigestSHA256 string `json:"ledger_head_digest_sha256,omitempty" yaml:"ledger_head_digest_sha256,omitempty"`

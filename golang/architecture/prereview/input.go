@@ -28,6 +28,11 @@ type BoundDiff struct {
 	MergeBaseRevision    string
 	DiffDigestSHA256     string
 
+	// Native Git tree object ids, diagnostic only (distinct from the canonical
+	// *_digest_sha256 fields; never used as identity).
+	BaseTreeObjectID string
+	HeadTreeObjectID string
+
 	FilesCreated  []string
 	FilesModified []string
 	FilesDeleted  []string

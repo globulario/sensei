@@ -46,6 +46,8 @@ func AssembleAdvisory(in AdvisoryInputs) (PreReviewReport, error) {
 			BaseTreeDigestSHA256: in.Diff.BaseTreeDigestSHA256,
 			HeadRevision:         in.Diff.HeadRevision,
 			HeadTreeDigestSHA256: in.Diff.HeadTreeDigestSHA256,
+			BaseTreeObjectID:     in.Diff.BaseTreeObjectID,
+			HeadTreeObjectID:     in.Diff.HeadTreeObjectID,
 			MergeBaseRevision:    in.Diff.MergeBaseRevision,
 			DiffDigestSHA256:     in.Diff.DiffDigestSHA256,
 			PolicyIDs:            in.PolicyIDs,

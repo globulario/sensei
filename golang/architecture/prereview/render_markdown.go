@@ -193,8 +193,11 @@ func writeHistorySection(b *strings.Builder, title string, items []HistoryItem) 
 func writeBindingDetails(b *strings.Builder, bind ReviewBinding) {
 	b.WriteString("<details>\n<summary>Bindings and receipt digests</summary>\n\n")
 	fmt.Fprintf(b, "- Repository: %s\n", orNone(bind.RepositoryDomain))
-	fmt.Fprintf(b, "- Base: %s (%s)\n", orNone(bind.BaseRevision), shortDigest(bind.BaseTreeDigestSHA256))
-	fmt.Fprintf(b, "- Head: %s (%s)\n", orNone(bind.HeadRevision), shortDigest(bind.HeadTreeDigestSHA256))
+	fmt.Fprintf(b, "- Base: %s (tree %s)\n", orNone(bind.BaseRevision), shortDigest(bind.BaseTreeDigestSHA256))
+	fmt.Fprintf(b, "- Head: %s (tree %s)\n", orNone(bind.HeadRevision), shortDigest(bind.HeadTreeDigestSHA256))
+	if bind.BaseTreeObjectID != "" || bind.HeadTreeObjectID != "" {
+		fmt.Fprintf(b, "- Git tree object ids (diagnostic): base %s, head %s\n", orNone(bind.BaseTreeObjectID), orNone(bind.HeadTreeObjectID))
+	}
 	fmt.Fprintf(b, "- Diff digest: %s\n", shortDigest(bind.DiffDigestSHA256))
 	if bind.TaskID != "" {
 		fmt.Fprintf(b, "- Task: %s @ ledger %s\n", bind.TaskID, shortDigest(bind.LedgerHeadDigestSHA256))
