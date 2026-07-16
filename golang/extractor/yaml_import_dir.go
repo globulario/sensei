@@ -172,6 +172,11 @@ var keySchemas = []struct {
 	{"design_patterns", schemaEntry{"design_patterns", true, false, "B", "design patterns (verbose)"}},
 	{"services", schemaEntry{"services", true, false, "B", "service catalogue"}},
 	{"authority_domains", schemaEntry{"authority_domains", true, false, "B", "state-ownership authority domains"}},
+	{"actor_roles", schemaEntry{"actor_roles", true, false, "B", "typed actor role policy"}},
+	{"authority_grants", schemaEntry{"authority_grants", true, false, "B", "typed authority grants"}},
+	{"delegation_policies", schemaEntry{"delegation_policies", true, false, "B", "typed delegation policies"}},
+	{"mutation_paths", schemaEntry{"mutation_paths", true, false, "B", "typed mutation path policy"}},
+	{"observation_paths", schemaEntry{"observation_paths", true, false, "B", "typed observation path policy"}},
 	{"runtime_evidence", schemaEntry{"runtime_evidence", true, false, "B", "runtime evidence profiles"}},
 	{"proof_obligations", schemaEntry{"proof_obligations", true, false, "B", "proof obligations derived from authority surfaces"}},
 	{"learning_event", schemaEntry{"learning_event", true, false, "B", "mode-d learning and certification event"}},
@@ -552,6 +557,16 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importOutcomeFeedback(e, path)
 	case "authority_domains":
 		importErr = importAuthorityDomains(e, path)
+	case "actor_roles":
+		importErr = importActorRoles(e, path)
+	case "authority_grants":
+		importErr = importAuthorityGrants(e, path)
+	case "delegation_policies":
+		importErr = importDelegationPolicies(e, path)
+	case "mutation_paths":
+		importErr = importMutationPaths(e, path)
+	case "observation_paths":
+		importErr = importObservationPaths(e, path)
 	case "repair_plan":
 		importErr = importRepairPlan(e, path)
 	case "runtime_evidence":
