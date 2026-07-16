@@ -80,5 +80,14 @@ func ValidateTaskEventPayload(eventType closureprotocol.LedgerEventType, data []
 			return err
 		}
 	}
+	// A result_transition_recorded event must reference the content-addressed
+	// ResultTransitionReceipt it records. The receipt's fields are validated where
+	// it is loaded (closureprotocol.ValidateResultTransitionReceipt); here the
+	// event contract only requires the artifact to be present.
+	if eventType == closureprotocol.LedgerEventResultTransitionRecorded {
+		if _, ok := payload.Artifacts["result_transition_receipt"]; !ok {
+			return fmt.Errorf("result_transition_recorded event requires a result_transition_receipt artifact")
+		}
+	}
 	return nil
 }
