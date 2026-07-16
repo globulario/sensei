@@ -360,6 +360,32 @@ The top-level resolution does not become valid merely because one operation is
 authorized. Every mutation-capable operation must have a valid per-operation
 result within the same bound resolution.
 
+#### Concrete delegation evidence is bound to the resolution
+
+An operation result's `delegation_chain` is a list of delegation *ids* — it
+asserts which delegations were relied on, but does not itself carry the evidence
+to prove them. To keep the resolution independently verifiable, when a
+resolution consumes delegated authority the `authority_resolved` ledger event
+records the concrete `DelegationReceipt`s the resolver verified as their own
+content-addressed artifact alongside the resolution, actor binding, change plan,
+and base binding. Non-delegated resolutions record no such artifact and stay
+byte-identical to a direct-grant event.
+
+This makes the event self-verifiable rather than self-asserting. A later
+consumer — in particular the Phase 6 certification authority lane — does not
+trust the claimed chain. It resolves each `delegation_chain` id to a recorded
+receipt, binds that receipt to a digest the actor committed to (in
+`ActorBinding.delegation_receipt_digests_sha256`), and re-runs the single shared
+monotonicity verdict against the *governed* grants and delegation policy loaded
+independently from `docs/awareness/`. A resolution therefore cannot certify a
+delegation the governed grants do not actually permit (any broadening of role,
+domain, action, target, mechanism, risk ceiling, or validity window, or an
+expired or revoked receipt, refuses), and cannot invent a delegation whose
+concrete record was never preserved. Absent governed grants, delegated
+authority fails closed. The monotonicity check is one function
+(`authority.CheckDelegationForOperation`) so the resolver's admission gate and
+the certifier's independent re-derivation can never drift apart.
+
 ## Closed operational vocabularies
 
 Unknown values are invalid in v1 operational records.

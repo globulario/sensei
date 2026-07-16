@@ -31,14 +31,16 @@ func TaskLedgerHead(taskDir string) (string, error) {
 	return chain.Head.EntryDigestSHA256, nil
 }
 
-// LoadLatestArtifact loads the JSON artifact named artifactKey from the most
-// recent ledger event of eventType into out. It fails closed when the event is
-// absent or the artifact is missing.
-func LoadLatestArtifact(taskDir string, eventType closureprotocol.LedgerEventType, artifactKey string, out any) error {
+// LoadLatestArtifactOptional loads the JSON artifact named artifactKey from the
+// most recent ledger event of eventType into out, reporting whether it was
+// present. It fails closed on real read/parse errors and when no event of
+// eventType exists, but a latest event that simply omits artifactKey yields
+// (false, nil) — for artifacts that are only written on some code paths.
+func LoadLatestArtifactOptional(taskDir string, eventType closureprotocol.LedgerEventType, artifactKey string, out any) (bool, error) {
 	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
 	chain, err := store.VerifyChain()
 	if err != nil {
-		return err
+		return false, err
 	}
 	for i := len(chain.Entries) - 1; i >= 0; i-- {
 		ve := chain.Entries[i]
@@ -47,23 +49,40 @@ func LoadLatestArtifact(taskDir string, eventType closureprotocol.LedgerEventTyp
 		}
 		data, err := os.ReadFile(ve.PayloadPath)
 		if err != nil {
-			return err
+			return false, err
 		}
 		payload, err := ledger.ParseTaskEventPayload(data)
 		if err != nil {
-			return err
+			return false, err
 		}
 		ref, ok := payload.Artifacts[artifactKey]
 		if !ok {
-			return fmt.Errorf("ledger event %s has no artifact %q", eventType, artifactKey)
+			return false, nil
 		}
 		artifactData, err := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
 		if err != nil {
-			return err
+			return false, err
 		}
-		return json.Unmarshal(artifactData, out)
+		if err := json.Unmarshal(artifactData, out); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
-	return fmt.Errorf("no %s event found in task ledger", eventType)
+	return false, fmt.Errorf("no %s event found in task ledger", eventType)
+}
+
+// LoadLatestArtifact loads the JSON artifact named artifactKey from the most
+// recent ledger event of eventType into out. It fails closed when the event is
+// absent or the artifact is missing.
+func LoadLatestArtifact(taskDir string, eventType closureprotocol.LedgerEventType, artifactKey string, out any) error {
+	found, err := LoadLatestArtifactOptional(taskDir, eventType, artifactKey, out)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("ledger event %s has no artifact %q", eventType, artifactKey)
+	}
+	return nil
 }
 
 // LoadTaskBaseBinding returns the base binding recorded on the task_prepared
@@ -95,15 +114,21 @@ func LoadTaskBaseBinding(taskDir string) (closureprotocol.BaseBinding, error) {
 	return closureprotocol.BaseBinding{}, fmt.Errorf("no task_prepared event found in task ledger")
 }
 
-// RecordedAuthority is the bundle an authority_resolved event carries.
+// RecordedAuthority is the bundle an authority_resolved event carries. When the
+// resolution consumed delegated authority, DelegationReceipts holds the concrete
+// delegation records the resolver verified, so consumers can independently
+// re-verify the chain rather than trust the resolution's claimed delegation_chain.
 type RecordedAuthority struct {
-	Resolution closureprotocol.AuthorityResolution
-	Actor      closureprotocol.ActorBinding
-	ChangePlan closureprotocol.ChangePlan
-	Base       closureprotocol.BaseBinding
+	Resolution         closureprotocol.AuthorityResolution
+	Actor              closureprotocol.ActorBinding
+	ChangePlan         closureprotocol.ChangePlan
+	Base               closureprotocol.BaseBinding
+	DelegationReceipts []closureprotocol.DelegationReceipt
 }
 
-// LoadRecordedAuthority loads the latest authority_resolved bundle.
+// LoadRecordedAuthority loads the latest authority_resolved bundle. The
+// delegation receipts are loaded only when the event recorded them (delegated
+// resolutions); a non-delegated resolution leaves DelegationReceipts nil.
 func LoadRecordedAuthority(taskDir string) (RecordedAuthority, error) {
 	var out RecordedAuthority
 	for key, dst := range map[string]any{
@@ -115,6 +140,9 @@ func LoadRecordedAuthority(taskDir string) (RecordedAuthority, error) {
 		if err := LoadLatestArtifact(taskDir, closureprotocol.LedgerEventAuthorityResolved, key, dst); err != nil {
 			return RecordedAuthority{}, err
 		}
+	}
+	if _, err := LoadLatestArtifactOptional(taskDir, closureprotocol.LedgerEventAuthorityResolved, "delegation_receipts", &out.DelegationReceipts); err != nil {
+		return RecordedAuthority{}, err
 	}
 	return out, nil
 }

@@ -151,7 +151,7 @@ func TestWriterSubstrateEndToEnd(t *testing.T) {
 		t.Fatalf("ResolveAuthority: %v", err)
 	}
 
-	resolved, err := RecordAuthorityResolved(store, head, task, resolution, in.Actor, in.ChangePlan, in.Base, ledgerProducedAt())
+	resolved, err := RecordAuthorityResolved(store, head, task, resolution, in.Actor, in.ChangePlan, in.Base, nil, ledgerProducedAt())
 	if err != nil {
 		t.Fatalf("RecordAuthorityResolved: %v", err)
 	}
