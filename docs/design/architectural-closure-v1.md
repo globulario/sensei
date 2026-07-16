@@ -386,6 +386,64 @@ authority fails closed. The monotonicity check is one function
 (`authority.CheckDelegationForOperation`) so the resolver's admission gate and
 the certifier's independent re-derivation can never drift apart.
 
+### Result transition and freshness
+
+`ResultTransitionReceipt` freezes the point after `scope_verified` at which a
+task result becomes the current base of record: the result tree, the compiled
+result graph, and the operational pipeline artifacts subsequent proving and
+certification are recomputed against. It is recorded on the ledger as the
+`result_transition_recorded` event; the task then enters the `proving` phase.
+The transition establishes **no** certification and **no** completion — there is
+no field a caller can set to assert either, and its status vocabulary has no
+terminal `completed`.
+
+The receipt binds the exact upstream Phase 3 truth by 64-hex digest — base
+binding, actor binding, authority resolution, admission decision, capability
+consumption, the **observed** change set, and scope verification — never a
+generic or reconstructed change concept. The result is one canonical
+representation: the embedded frozen `ResultBinding`, with
+`result_binding_digest_sha256` recomputed from it and required to match, so base
+and result can never be conflated and the result cannot be re-declared in a
+second, disagreeing shape. Native Git object identity never occupies a
+`*_sha256` field: every such field must be exactly 64 lowercase hex characters,
+so a 40-character SHA-1 object id is refused.
+
+Repository-tree artifacts (embedded graph, generated vocabularies, marker
+records) live inside `ResultBinding.GeneratedArtifacts`; operational artifacts
+(compiled result graph, inferred/maintained claims, plane/closure assessment,
+proof requirements, artifact manifest) are recorded as first-class
+`ArtifactReceipt`s with a semantic digest, a serialized-bytes digest when they
+have a path, a mandatory per-artifact producer, a relative (never absolute or
+`..`-traversing) path, and the exact current result binding they belong to — so
+operational artifacts never pollute the repository result tree and an artifact
+produced against another result cannot be reused.
+
+Freshness is proven **structurally**, not by naming convention and not by a
+caller boolean. A closed, ordered set of derivation stages — governed source
+manifest → generated repository artifacts → architecture graph → inferred claims
+→ maintained claims → plane assessment → closure assessment → proof requirements
+→ artifact manifest — is recorded as `ArtifactDerivation` edges, each naming its
+output artifact and its actual input artifacts and bindings. Validation requires
+every referenced artifact to exist, every output to be produced once, every
+mandatory stage to be present, every input binding to be the current result, and
+the graph to be acyclic. Governed-knowledge change is a typed
+`GovernedKnowledgeImpact` per category whose *changed* fact is **derived** as a
+difference of base-vs-result governed manifest digests, never a stored boolean;
+when exact record ids are unknown the changed-id set is empty with unequal
+digests — uncertainty is never converted into "unchanged".
+
+Prior evidence, proof discharge, and certification remain immutable history. A
+receipt is applicable to the current result only when its result-binding digest
+equals this transition's `result_binding_digest_sha256`
+(`ReceiptAppliesToCurrentResult`); one bound to a different result stays
+historically valid but inapplicable, and no projection can make it current. The
+transition never enumerates, deletes, or rewrites those receipts. The five
+load-bearing result-side identities (base binding, observed change, patch,
+result tree, result graph, artifact manifest) must be pairwise distinct so a
+single reused digest cannot masquerade as several facts, while unrelated
+operational artifacts may legitimately share bytes. The receipt is ledger-only;
+it is never projected into RDF.
+
 ## Closed operational vocabularies
 
 Unknown values are invalid in v1 operational records.
@@ -527,6 +585,7 @@ guess them.
 - `admission_consumed`
 - `change_observed`
 - `scope_verified`
+- `result_transition_recorded`
 - `evidence_recorded`
 - `proof_discharged`
 - `certified`
@@ -547,10 +606,15 @@ prepared
   → admitted
   → mutation_observed
   → scope_verified
+  → (event: result_transition_recorded)
   → proving
   → certified
   → completed
 ```
+
+`result_transition_recorded` is a ledger event, not a task phase: after
+`scope_verified` the transition is recorded and the task advances to the
+existing `proving` phase. No intermediate phase is introduced.
 
 Legal side transitions:
 

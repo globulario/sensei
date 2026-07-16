@@ -24,6 +24,10 @@ var setLikeKeys = map[string]bool{
 	"legal_mechanisms": true, "mapped_evidence": true, "missing_slots": true,
 	"incompatible_receipts": true, "forbidden_moves": true, "unresolved_contradictions": true,
 	"revocation_conditions": true, "required_runtime_mechanism_ids": true,
+	"operational_artifact_receipts": true, "pipeline_producer_versions": true,
+	"derivations": true, "governed_knowledge_impacts": true,
+	"input_artifact_receipt_digests_sha256": true, "input_binding_digests_sha256": true,
+	"changed_record_ids": true,
 }
 
 var omitIfEmptyKeys = map[string]bool{
@@ -121,6 +125,26 @@ func dedupeAndSortAny(items []any) []any {
 }
 
 func CompletionReceiptDigest(in CompletionReceipt) (string, error) {
+	copy := in
+	copy.ReceiptDigestSHA256 = ""
+	return SemanticDigest(copy)
+}
+
+func ResultTransitionReceiptDigest(in ResultTransitionReceipt) (string, error) {
+	copy := in
+	copy.ReceiptDigestSHA256 = ""
+	return SemanticDigest(copy)
+}
+
+// ResultBindingDigest is the semantic identity of a result binding. ResultBinding
+// carries no self-excluding digest field, so it is the plain semantic digest.
+func ResultBindingDigest(in ResultBinding) (string, error) {
+	return SemanticDigest(in)
+}
+
+// ArtifactReceiptDigest is the self-excluding identity of an artifact receipt.
+// Derivations reference an artifact receipt by this digest.
+func ArtifactReceiptDigest(in ArtifactReceipt) (string, error) {
 	copy := in
 	copy.ReceiptDigestSHA256 = ""
 	return SemanticDigest(copy)

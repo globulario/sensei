@@ -300,6 +300,133 @@ type LedgerPayloadRef struct {
 	DigestSHA256 string `json:"digest_sha256" yaml:"digest_sha256"`
 }
 
+// ArtifactReceipt is the first-class receipt for a single produced artifact
+// (a generated repository artifact or an operational task artifact). Its
+// identity IS its content digest, so it carries no self-excluding digest.
+// ArtifactProducer pins the exact producer of an artifact so a later freshness
+// assessment can detect producer drift. Both fields are identity-bearing.
+type ArtifactProducer struct {
+	ID      string `json:"id" yaml:"id"`
+	Version string `json:"version" yaml:"version"`
+}
+
+// ArtifactReceipt is the first-class receipt for a single operational pipeline
+// artifact (compiled result graph, inferred/maintained claims, plane/closure
+// assessment, proof requirements, artifact manifest). Repository-tree artifacts
+// are NOT recorded here — they live in ResultBinding.GeneratedArtifacts as part
+// of the exact result tree.
+//
+// SemanticDigestSHA256 is the artifact's content identity. ByteDigestSHA256 is
+// its serialized-bytes identity, mandatory whenever the artifact has a Path (a
+// serialized file); the two may hold the same value when they coincide. Every
+// artifact binds the exact current result via ResultBindingDigestSHA256, so an
+// artifact produced against another result cannot be reused. ReceiptDigestSHA256
+// is the receipt's self-excluding identity; derivations reference an artifact by
+// this digest.
+type ArtifactReceipt struct {
+	ID                        string           `json:"id,omitempty" yaml:"id,omitempty"`
+	Kind                      string           `json:"kind" yaml:"kind"`
+	Path                      string           `json:"path,omitempty" yaml:"path,omitempty"`
+	MediaType                 string           `json:"media_type,omitempty" yaml:"media_type,omitempty"`
+	SemanticDigestSHA256      string           `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
+	ByteDigestSHA256          string           `json:"byte_digest_sha256,omitempty" yaml:"byte_digest_sha256,omitempty"`
+	Producer                  ArtifactProducer `json:"producer" yaml:"producer"`
+	ResultBindingDigestSHA256 string           `json:"result_binding_digest_sha256" yaml:"result_binding_digest_sha256"`
+	ReceiptDigestSHA256       string           `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+}
+
+// ProducerVersion is the receipt-level summary of pipeline producer versions.
+// It is a convenience summary and does NOT replace the mandatory per-artifact
+// ArtifactReceipt.Producer.
+type ProducerVersion struct {
+	Producer string `json:"producer" yaml:"producer"`
+	Version  string `json:"version" yaml:"version"`
+}
+
+// ResultPipelineStage names a stage in the result-derivation graph. The
+// vocabulary is closed: an unknown stage fails validation.
+type ResultPipelineStage string
+
+const (
+	StageGovernedSourceManifest       ResultPipelineStage = "governed_source_manifest"
+	StageGeneratedRepositoryArtifacts ResultPipelineStage = "generated_repository_artifacts"
+	StageArchitectureGraph            ResultPipelineStage = "architecture_graph"
+	StageInferredClaims               ResultPipelineStage = "inferred_claims"
+	StageMaintainedClaims             ResultPipelineStage = "maintained_claims"
+	StagePlaneAssessment              ResultPipelineStage = "plane_assessment"
+	StageClosureAssessment            ResultPipelineStage = "closure_assessment"
+	StageProofRequirements            ResultPipelineStage = "proof_requirements"
+	StageArtifactManifest             ResultPipelineStage = "artifact_manifest"
+)
+
+// ResultPipelineStages is the closed, ordered set of derivation stages. Every
+// stage is mandatory in a complete result transition.
+var ResultPipelineStages = []ResultPipelineStage{
+	StageGovernedSourceManifest, StageGeneratedRepositoryArtifacts, StageArchitectureGraph,
+	StageInferredClaims, StageMaintainedClaims, StagePlaneAssessment, StageClosureAssessment,
+	StageProofRequirements, StageArtifactManifest,
+}
+
+// ArtifactDerivation is one edge of the freshness derivation graph: it records
+// that the stage's output artifact was derived from the named input artifacts
+// and bindings. Freshness is proven structurally from these edges, not inferred
+// from artifact naming conventions. Ledger-only; never projected into RDF.
+type ArtifactDerivation struct {
+	Stage                             ResultPipelineStage `json:"stage" yaml:"stage"`
+	OutputArtifactReceiptDigestSHA256 string              `json:"output_artifact_receipt_digest_sha256" yaml:"output_artifact_receipt_digest_sha256"`
+	InputArtifactReceiptDigestsSHA256 []string            `json:"input_artifact_receipt_digests_sha256,omitempty" yaml:"input_artifact_receipt_digests_sha256,omitempty"`
+	InputBindingDigestsSHA256         []string            `json:"input_binding_digests_sha256,omitempty" yaml:"input_binding_digests_sha256,omitempty"`
+}
+
+// GovernedKnowledgeImpact is a typed, digest-derived change fact for one
+// governed-knowledge category. Whether the category changed is DERIVED as
+// BaseManifestDigestSHA256 != ResultManifestDigestSHA256 — never a separately
+// trusted boolean. When the exact changed record ids cannot be determined,
+// ChangedRecordIDs is empty with unequal manifest digests; uncertainty is never
+// converted into "unchanged".
+type GovernedKnowledgeImpact struct {
+	Category                   string   `json:"category" yaml:"category"`
+	BaseManifestDigestSHA256   string   `json:"base_manifest_digest_sha256" yaml:"base_manifest_digest_sha256"`
+	ResultManifestDigestSHA256 string   `json:"result_manifest_digest_sha256" yaml:"result_manifest_digest_sha256"`
+	ChangedRecordIDs           []string `json:"changed_record_ids,omitempty" yaml:"changed_record_ids,omitempty"`
+}
+
+// ResultTransitionReceipt records the frozen, digest-bound transition of a task
+// result into the current base of record: the point at which the result tree,
+// the compiled result graph, and every generated artifact become the ground
+// truth subsequent proving and certification are recomputed against. It is
+// recorded on the ledger after scope_verified and before the proving phase; it
+// establishes NO certification and NO completion.
+//
+// The result is one canonical representation — the embedded frozen ResultBinding
+// (with ResultBindingDigestSHA256 recomputed from it). Operational pipeline
+// artifacts and their derivation graph make freshness structurally verifiable;
+// governed-knowledge impacts are derived from manifest-digest comparison, so a
+// downstream freshness engine invalidates prior proof, evidence, and
+// certification bound to a different result.
+type ResultTransitionReceipt struct {
+	TransitionID                      string                    `json:"transition_id,omitempty" yaml:"transition_id,omitempty"`
+	Task                              TaskBinding               `json:"task" yaml:"task"`
+	BaseBindingDigestSHA256           string                    `json:"base_binding_digest_sha256" yaml:"base_binding_digest_sha256"`
+	ActorBindingDigestSHA256          string                    `json:"actor_binding_digest_sha256" yaml:"actor_binding_digest_sha256"`
+	AuthorityResolutionDigestSHA256   string                    `json:"authority_resolution_digest_sha256" yaml:"authority_resolution_digest_sha256"`
+	AdmissionDecisionDigestSHA256     string                    `json:"admission_decision_digest_sha256" yaml:"admission_decision_digest_sha256"`
+	CapabilityConsumptionDigestSHA256 string                    `json:"capability_consumption_digest_sha256" yaml:"capability_consumption_digest_sha256"`
+	ObservedChangeSetDigestSHA256     string                    `json:"observed_change_set_digest_sha256" yaml:"observed_change_set_digest_sha256"`
+	ScopeVerificationDigestSHA256     string                    `json:"scope_verification_digest_sha256" yaml:"scope_verification_digest_sha256"`
+	ResultBinding                     ResultBinding             `json:"result_binding" yaml:"result_binding"`
+	ResultBindingDigestSHA256         string                    `json:"result_binding_digest_sha256" yaml:"result_binding_digest_sha256"`
+	OperationalArtifactReceipts       []ArtifactReceipt         `json:"operational_artifact_receipts,omitempty" yaml:"operational_artifact_receipts,omitempty"`
+	Derivations                       []ArtifactDerivation      `json:"derivations,omitempty" yaml:"derivations,omitempty"`
+	GovernedKnowledgeImpacts          []GovernedKnowledgeImpact `json:"governed_knowledge_impacts,omitempty" yaml:"governed_knowledge_impacts,omitempty"`
+	PipelineProducerVersions          []ProducerVersion         `json:"pipeline_producer_versions,omitempty" yaml:"pipeline_producer_versions,omitempty"`
+	PipelinePolicyID                  string                    `json:"pipeline_policy_id" yaml:"pipeline_policy_id"`
+	Limitations                       []string                  `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	RecordedAt                        string                    `json:"recorded_at" yaml:"recorded_at"`
+	Status                            ReceiptStatus             `json:"status" yaml:"status"`
+	ReceiptDigestSHA256               string                    `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+}
+
 type RevocationReceipt struct {
 	RevocationID       string   `json:"revocation_id" yaml:"revocation_id"`
 	RevokedTargetID    string   `json:"revoked_target_id" yaml:"revoked_target_id"`

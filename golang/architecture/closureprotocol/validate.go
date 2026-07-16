@@ -458,6 +458,321 @@ func ValidateMigrationExecutionReceipt(in MigrationExecutionReceipt) error {
 	return nil
 }
 
+// governedKnowledgeCategories is the closed set of governed-knowledge categories
+// whose change a result transition may record.
+var governedKnowledgeCategories = []string{
+	"authority", "invariants", "contracts", "failure_modes", "forbidden_fixes",
+	"required_tests", "proof_obligations", "evidence_profiles", "certification_policy",
+	"completion_policy",
+}
+
+// isHexSHA256 reports whether v is exactly 64 lowercase hexadecimal characters —
+// the canonical SHA-256 encoding. It rejects 40-char native Git SHA-1 object ids,
+// uppercase, empty, and non-hex values, so a native object id can never occupy a
+// *_sha256 field.
+func isHexSHA256(v string) bool {
+	if len(v) != 64 {
+		return false
+	}
+	for _, c := range v {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+// validArtifactPath requires a repository-relative or operational-store-relative
+// path: never absolute, never containing a ".." traversal, so no absolute
+// temporary path can participate in semantic identity.
+func validArtifactPath(p string) error {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return errors.New("artifact path is required")
+	}
+	if strings.HasPrefix(p, "/") || strings.HasPrefix(p, "\\") || strings.Contains(p, ":\\") {
+		return errors.New("artifact path must be relative, not absolute")
+	}
+	for _, seg := range strings.Split(strings.ReplaceAll(p, "\\", "/"), "/") {
+		if seg == ".." {
+			return errors.New("artifact path must not contain a .. traversal")
+		}
+	}
+	return nil
+}
+
+// GovernedKnowledgeImpactChanged derives whether a category changed. It is the
+// only sanctioned way to read "changed": a difference of governed manifest
+// digests, never a stored flag.
+func GovernedKnowledgeImpactChanged(in GovernedKnowledgeImpact) bool {
+	return strings.TrimSpace(in.BaseManifestDigestSHA256) != strings.TrimSpace(in.ResultManifestDigestSHA256)
+}
+
+// ValidateArtifactReceipt validates one operational artifact receipt: a closed
+// content identity (semantic digest), a mandatory per-artifact producer, a
+// serialized-bytes identity when the artifact has a path, a repository/operational
+// relative path, and the exact current result binding it belongs to.
+func ValidateArtifactReceipt(in ArtifactReceipt) error {
+	if strings.TrimSpace(in.Kind) == "" {
+		return errors.New("artifact receipt requires kind")
+	}
+	if !isHexSHA256(in.SemanticDigestSHA256) {
+		return errors.New("artifact receipt semantic_digest_sha256 must be a 64-hex sha256")
+	}
+	if strings.TrimSpace(in.Path) != "" {
+		if err := validArtifactPath(in.Path); err != nil {
+			return err
+		}
+		if !isHexSHA256(in.ByteDigestSHA256) {
+			return errors.New("artifact receipt with a path requires a 64-hex byte_digest_sha256")
+		}
+	} else if strings.TrimSpace(in.ByteDigestSHA256) != "" && !isHexSHA256(in.ByteDigestSHA256) {
+		return errors.New("artifact receipt byte_digest_sha256 must be a 64-hex sha256")
+	}
+	if strings.TrimSpace(in.Producer.ID) == "" || strings.TrimSpace(in.Producer.Version) == "" {
+		return errors.New("artifact receipt requires a producer id and version")
+	}
+	if !isHexSHA256(in.ResultBindingDigestSHA256) {
+		return errors.New("artifact receipt result_binding_digest_sha256 must be a 64-hex sha256")
+	}
+	return nil
+}
+
+// validateResultBindingShape validates the embedded result binding: a base
+// revision and 64-hex patch/result-tree/result-graph digests, and relative
+// generated-artifact paths with 64-hex digests.
+func validateResultBindingShape(in ResultBinding) error {
+	if strings.TrimSpace(in.BaseRevision) == "" {
+		return errors.New("result_binding requires base_revision")
+	}
+	for _, f := range []struct{ name, value string }{
+		{"patch_digest_sha256", in.PatchDigestSHA256},
+		{"result_tree_digest_sha256", in.ResultTreeDigestSHA256},
+		{"graph_digest_sha256", in.GraphDigestSHA256},
+	} {
+		if !isHexSHA256(f.value) {
+			return fmt.Errorf("result_binding %s must be a 64-hex sha256", f.name)
+		}
+	}
+	for _, a := range in.GeneratedArtifacts {
+		if err := validArtifactPath(a.Path); err != nil {
+			return err
+		}
+		if !isHexSHA256(a.DigestSHA256) {
+			return errors.New("result_binding generated artifact digest must be a 64-hex sha256")
+		}
+	}
+	return nil
+}
+
+func validGovernedKnowledgeCategory(c string) bool { return contains(governedKnowledgeCategories, c) }
+func validResultPipelineStage(s ResultPipelineStage) bool {
+	return contains(ResultPipelineStages, s)
+}
+
+// ValidateResultTransitionReceipt freezes the Phase 7 result-transition contract.
+// It binds the exact upstream Phase 3 truth by digest, embeds one canonical
+// result binding (verified against its recomputed digest), and requires the
+// operational artifacts and their derivation graph to make freshness structurally
+// verifiable against the current result. It establishes no certification and no
+// completion.
+func ValidateResultTransitionReceipt(in ResultTransitionReceipt) error {
+	if strings.TrimSpace(in.Task.ID) == "" || strings.TrimSpace(in.Task.SessionID) == "" {
+		return errors.New("result transition receipt requires task id and session id")
+	}
+	// Exact upstream truth, bound by 64-hex digest — never reconstructed.
+	for _, f := range []struct{ name, value string }{
+		{"base_binding_digest_sha256", in.BaseBindingDigestSHA256},
+		{"actor_binding_digest_sha256", in.ActorBindingDigestSHA256},
+		{"authority_resolution_digest_sha256", in.AuthorityResolutionDigestSHA256},
+		{"admission_decision_digest_sha256", in.AdmissionDecisionDigestSHA256},
+		{"capability_consumption_digest_sha256", in.CapabilityConsumptionDigestSHA256},
+		{"observed_change_set_digest_sha256", in.ObservedChangeSetDigestSHA256},
+		{"scope_verification_digest_sha256", in.ScopeVerificationDigestSHA256},
+	} {
+		if !isHexSHA256(f.value) {
+			return fmt.Errorf("result transition receipt %s must be a 64-hex sha256", f.name)
+		}
+	}
+	// One canonical result representation: the embedded binding, verified against
+	// its own recomputed digest.
+	if err := validateResultBindingShape(in.ResultBinding); err != nil {
+		return err
+	}
+	rbDigest, err := ResultBindingDigest(in.ResultBinding)
+	if err != nil {
+		return err
+	}
+	if in.ResultBindingDigestSHA256 != rbDigest {
+		return errors.New("result_binding_digest_sha256 does not match the embedded result_binding")
+	}
+	if strings.TrimSpace(in.PipelinePolicyID) == "" {
+		return errors.New("result transition receipt requires a pipeline policy id")
+	}
+	if !validReceiptStatus(in.Status) {
+		return errors.New("result transition status is invalid")
+	}
+	if _, err := time.Parse(time.RFC3339, in.RecordedAt); err != nil {
+		return errors.New("recorded_at must be RFC3339")
+	}
+
+	// Operational artifacts: each valid, each bound to THIS result binding, indexed
+	// by its receipt digest so derivations can reference it.
+	opReceipts := map[string]bool{}
+	for _, artifact := range in.OperationalArtifactReceipts {
+		if err := ValidateArtifactReceipt(artifact); err != nil {
+			return err
+		}
+		if artifact.ResultBindingDigestSHA256 != in.ResultBindingDigestSHA256 {
+			return errors.New("operational artifact is bound to a different result binding")
+		}
+		d, err := ArtifactReceiptDigest(artifact)
+		if err != nil {
+			return err
+		}
+		opReceipts[d] = true
+	}
+
+	// Derivation graph: closed stages, every mandatory stage present exactly once,
+	// every referenced artifact exists, inputs bind the current result, no cycle.
+	outputs := map[string]bool{}
+	stageSeen := map[ResultPipelineStage]bool{}
+	edges := map[string][]string{}
+	for _, d := range in.Derivations {
+		if !validResultPipelineStage(d.Stage) {
+			return fmt.Errorf("unknown derivation stage %q", d.Stage)
+		}
+		if stageSeen[d.Stage] {
+			return fmt.Errorf("derivation stage %q appears more than once", d.Stage)
+		}
+		stageSeen[d.Stage] = true
+		if !isHexSHA256(d.OutputArtifactReceiptDigestSHA256) {
+			return errors.New("derivation output_artifact_receipt_digest_sha256 must be a 64-hex sha256")
+		}
+		if !opReceipts[d.OutputArtifactReceiptDigestSHA256] {
+			return errors.New("derivation output references a missing artifact receipt")
+		}
+		if outputs[d.OutputArtifactReceiptDigestSHA256] {
+			return errors.New("derivation output is produced more than once")
+		}
+		outputs[d.OutputArtifactReceiptDigestSHA256] = true
+		for _, inp := range d.InputArtifactReceiptDigestsSHA256 {
+			if !isHexSHA256(inp) {
+				return errors.New("derivation input artifact digest must be a 64-hex sha256")
+			}
+			if !opReceipts[inp] {
+				return errors.New("derivation references a missing input artifact receipt")
+			}
+			if inp == d.OutputArtifactReceiptDigestSHA256 {
+				return errors.New("derivation cycle: output is its own input")
+			}
+			edges[d.OutputArtifactReceiptDigestSHA256] = append(edges[d.OutputArtifactReceiptDigestSHA256], inp)
+		}
+		for _, b := range d.InputBindingDigestsSHA256 {
+			if b != in.ResultBindingDigestSHA256 {
+				return errors.New("derivation input binding is not the current result binding")
+			}
+		}
+	}
+	if len(in.Derivations) > 0 {
+		for _, st := range ResultPipelineStages {
+			if !stageSeen[st] {
+				return fmt.Errorf("missing mandatory derivation stage %q", st)
+			}
+		}
+		if cyclic(edges) {
+			return errors.New("derivation graph contains a cycle")
+		}
+	}
+
+	// Governed-knowledge impacts: closed categories, digest-derived change.
+	for _, impact := range in.GovernedKnowledgeImpacts {
+		if !validGovernedKnowledgeCategory(impact.Category) {
+			return fmt.Errorf("unknown governed knowledge category %q", impact.Category)
+		}
+		if !isHexSHA256(impact.BaseManifestDigestSHA256) || !isHexSHA256(impact.ResultManifestDigestSHA256) {
+			return errors.New("governed knowledge impact manifest digests must be 64-hex sha256")
+		}
+	}
+
+	// Collapse guard: the six load-bearing identities must be pairwise distinct so
+	// a single reused "result digest" cannot masquerade as several facts. Unrelated
+	// operational artifacts may legitimately share bytes and are not checked here.
+	var manifestDigest string
+	for _, d := range in.Derivations {
+		if d.Stage == StageArtifactManifest {
+			manifestDigest = d.OutputArtifactReceiptDigestSHA256
+		}
+	}
+	loadBearing := []struct{ name, value string }{
+		{"base_binding", in.BaseBindingDigestSHA256},
+		{"observed_change", in.ObservedChangeSetDigestSHA256},
+		{"patch", in.ResultBinding.PatchDigestSHA256},
+		{"result_tree", in.ResultBinding.ResultTreeDigestSHA256},
+		{"result_graph", in.ResultBinding.GraphDigestSHA256},
+		{"artifact_manifest", manifestDigest},
+	}
+	seenDigest := map[string]string{}
+	for _, e := range loadBearing {
+		if e.value == "" {
+			continue
+		}
+		if other, dup := seenDigest[e.value]; dup {
+			return fmt.Errorf("collapsed digest: %s and %s share one identity", other, e.name)
+		}
+		seenDigest[e.value] = e.name
+	}
+	return nil
+}
+
+// ReceiptAppliesToCurrentResult reports whether a receipt bound to
+// receiptResultBindingDigest is applicable to the current result identified by
+// currentResultBindingDigest. Evidence, proof discharge, and certification apply
+// to a task result only when their result-binding digest exactly equals the
+// current result-transition's result-binding digest. A receipt bound to another
+// result remains historically valid and byte-identical, but is inapplicable to
+// the current result; nothing about a projection can make it current. History is
+// never rewritten.
+func ReceiptAppliesToCurrentResult(receiptResultBindingDigest, currentResultBindingDigest string) bool {
+	a := strings.TrimSpace(receiptResultBindingDigest)
+	b := strings.TrimSpace(currentResultBindingDigest)
+	return a != "" && a == b
+}
+
+// cyclic reports whether the output->inputs edge map contains a directed cycle.
+func cyclic(edges map[string][]string) bool {
+	const (
+		white = 0
+		gray  = 1
+		black = 2
+	)
+	color := map[string]int{}
+	var visit func(n string) bool
+	visit = func(n string) bool {
+		color[n] = gray
+		for _, m := range edges[n] {
+			switch color[m] {
+			case gray:
+				return true
+			case white:
+				if visit(m) {
+					return true
+				}
+			}
+		}
+		color[n] = black
+		return false
+	}
+	for n := range edges {
+		if color[n] == white {
+			if visit(n) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func ValidateEvidenceReceiptAgainstProfile(profile EvidenceProfile, receipt EvidenceReceipt) error {
 	if profile.ProfileID != receipt.ProfileID {
 		return errors.New("evidence receipt profile_id does not match profile")

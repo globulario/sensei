@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/result-transition-receipt.schema.json",
+  "title": "Architectural Closure v1 Result Transition Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "transition_id": {"type": "string"},
+    "task": {"type": "object"},
+    "base_binding_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "actor_binding_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authority_resolution_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "admission_decision_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "capability_consumption_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "observed_change_set_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "scope_verification_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result_binding": {"$ref": "result-binding.schema.json"},
+    "result_binding_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "operational_artifact_receipts": {"type": "array", "items": {"$ref": "artifact-receipt.schema.json"}},
+    "derivations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "governed_source_manifest", "generated_repository_artifacts", "architecture_graph",
+              "inferred_claims", "maintained_claims", "plane_assessment", "closure_assessment",
+              "proof_requirements", "artifact_manifest"
+            ]
+          },
+          "output_artifact_receipt_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "input_artifact_receipt_digests_sha256": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+          "input_binding_digests_sha256": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+        },
+        "required": ["stage", "output_artifact_receipt_digest_sha256"]
+      }
+    },
+    "governed_knowledge_impacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "authority", "invariants", "contracts", "failure_modes", "forbidden_fixes",
+              "required_tests", "proof_obligations", "evidence_profiles", "certification_policy",
+              "completion_policy"
+            ]
+          },
+          "base_manifest_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "result_manifest_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "changed_record_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["category", "base_manifest_digest_sha256", "result_manifest_digest_sha256"]
+      }
+    },
+    "pipeline_producer_versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "producer": {"type": "string"},
+          "version": {"type": "string"}
+        },
+        "required": ["producer", "version"]
+      }
+    },
+    "pipeline_policy_id": {"type": "string"},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "recorded_at": {"type": "string"},
+    "status": {"type": "string", "enum": ["valid", "invalid", "stale", "conflicted", "superseded", "revoked", "unknown"]},
+    "receipt_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "required": [
+    "task", "base_binding_digest_sha256", "actor_binding_digest_sha256", "authority_resolution_digest_sha256",
+    "admission_decision_digest_sha256", "capability_consumption_digest_sha256", "observed_change_set_digest_sha256",
+    "scope_verification_digest_sha256", "result_binding", "result_binding_digest_sha256", "pipeline_policy_id",
+    "recorded_at", "status"
+  ]
+}
