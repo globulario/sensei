@@ -66,6 +66,35 @@ func LoadLatestArtifact(taskDir string, eventType closureprotocol.LedgerEventTyp
 	return fmt.Errorf("no %s event found in task ledger", eventType)
 }
 
+// LoadTaskBaseBinding returns the base binding recorded on the task_prepared
+// event (stored inline in the payload, not as an artifact).
+func LoadTaskBaseBinding(taskDir string) (closureprotocol.BaseBinding, error) {
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
+	chain, err := store.VerifyChain()
+	if err != nil {
+		return closureprotocol.BaseBinding{}, err
+	}
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		ve := chain.Entries[i]
+		if ve.Entry.EventType != closureprotocol.LedgerEventTaskPrepared {
+			continue
+		}
+		data, err := os.ReadFile(ve.PayloadPath)
+		if err != nil {
+			return closureprotocol.BaseBinding{}, err
+		}
+		payload, err := ledger.ParseTaskEventPayload(data)
+		if err != nil {
+			return closureprotocol.BaseBinding{}, err
+		}
+		if payload.BaseBinding == nil {
+			return closureprotocol.BaseBinding{}, fmt.Errorf("task_prepared event carries no base binding")
+		}
+		return *payload.BaseBinding, nil
+	}
+	return closureprotocol.BaseBinding{}, fmt.Errorf("no task_prepared event found in task ledger")
+}
+
 // RecordedAuthority is the bundle an authority_resolved event carries.
 type RecordedAuthority struct {
 	Resolution closureprotocol.AuthorityResolution

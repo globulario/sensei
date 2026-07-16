@@ -236,10 +236,14 @@ func main() {
 		os.Exit(runConvergenceStatus(args))
 	case "bootstrap-direction-digest":
 		os.Exit(runBootstrapDirectionDigest(args))
+	case "authority-resolve":
+		os.Exit(runAuthorityResolve(args))
+	case "consume-admission":
+		os.Exit(runConsumeAdmission(args))
 	case "admit-change":
-		os.Exit(runAdmitChange(args))
+		os.Exit(dispatchAdmitChange(args))
 	case "verify-admission":
-		os.Exit(runVerifyAdmission(args))
+		os.Exit(dispatchVerifyAdmission(args))
 	case "admission-status":
 		os.Exit(runAdmissionStatus(args))
 	case "prepare-change":
