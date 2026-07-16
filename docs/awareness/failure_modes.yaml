@@ -381,3 +381,37 @@ failure_modes:
       - The awareness-enforcement port moved from false structural blockers to true desired, intended, and behavioral blockers once fresh source representation restored golang/architecture/closure/util.go.
       - That progression showed the remaining gap was not missing files but the absence of a deterministic enforcement basis for governed awareness-source mutation.
     contract: Canonical awareness-source mutation may receive only conditional behavioral support from a closed validation and graph-compilation path. Representation alone is insufficient, and enforcement support does not prove design correctness.
+  - id: closure.certification_profile_erases_governed_runtime_mandate
+    title: Certification profile erases a governed runtime proof requirement
+    category: closure
+    severity: critical
+    summary: >
+      A broad certification profile default converts a mandatory runtime slot to
+      not_applicable before considering the applicable proof obligation. The
+      result can falsely certify behavior that static analysis and tests cannot
+      establish.
+    description: >
+      The initial Phase 5 slot-disposition rule relaxed every required
+      runtime-owner-path slot to not_applicable whenever the static_test profile
+      was selected, without consulting the governed obligation. A repository
+      implementing leader election, storage durability, failover, or distributed
+      membership truth has behavioral claims that static and test evidence cannot
+      honestly establish; the blanket relaxation would have certified them
+      anyway. Caught in design review before merge; the resolver was corrected to
+      consult ProofObligation.RequiresRuntimeEvidence before the profile default.
+    protects:
+      files:
+        - golang/architecture/proofdischarge/coverage.go
+        - golang/architecture/proofdischarge/discharge.go
+        - golang/architecture/evidencereceipt/coverage.go
+    related_invariants:
+      - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+    forbidden_fixes:
+      - 'Blanket rule: profile static_test means every runtime slot is not_applicable.'
+    evidence:
+      - ResolveSlotDisposition initially returned SlotNotApplicableUnderProfile for every required runtime-owner-path slot under static_test, regardless of the obligation.
+      - Regression tests discharge_test.go:TestRow9a/9b/9c now pin the obligation-driven behavior.
+    contract: >
+      Resolve applicability per proof obligation. A governed runtime mandate
+      takes precedence over the profile default; a mandated runtime slot without
+      compatible evidence remains required and unresolved, never not_applicable.
