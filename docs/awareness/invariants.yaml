@@ -490,3 +490,27 @@ invariants:
       - A fresh structural graph cleared false file-absence blockers, yet evolve tasks still reported closure.direction.desired_missing and closure.direction.intended_missing until infer-claims synthesized supported directional claims from governed records.
       - The bridge must remain provenance-preserving: governed record -> synthetic governed fact -> supported canonical claim -> evalDirection, never raw dialogue -> closure.
     contract: Governed desired or intended records become task-consumable only through a deterministic claim-synthesis bridge bound to repository revision and graph digest. The bridge may clear directional closure when the governed record is current and correctly scoped, but it must never let dialogue or raw graph presence bypass canonical claim semantics.
+  - id: invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    title: Evidence receipts are validated, not self-certified
+    severity: high
+    status: active
+    description: 'Phase 4 evidence layer: the validator (not the producer) decides receipt status. Freshness prose is parsed to a canonical window and evaluated against the request; self-declared freshness with no observed time is UNKNOWN.'
+    protects:
+      files:
+        - golang/architecture/evidencereceipt/validate.go
+        - golang/architecture/evidencereceipt/model.go
+    required_tests:
+      - validate_test.go:TestValidate
+    contract: An evidence receipt's effective freshness, trust, and applicability are computed by the validator against the proof request and result/runtime binding. A receipt cannot declare itself fresh or authoritative; missing, stale, conflicting, or non-owner-path evidence yields UNKNOWN/STALE/CONFLICTED/INVALID, never PASS.
+  - id: invariant.sensei.absent_runtime_evidence_is_not_applicable_under_static_test
+    title: Absent runtime evidence is not_applicable under static_test
+    severity: high
+    status: active
+    description: 'Phase 4 coverage profiles: keeps open-core Sensei certifiable on repos with no runtime owner. Runtime validation is cleanly separated so core stays platform-neutral.'
+    protects:
+      files:
+        - golang/architecture/evidencereceipt/coverage.go
+        - golang/architecture/evidencereceipt/runtime.go
+    required_tests:
+      - coverage_test.go:TestEvaluateCoverage
+    contract: Under the static_test coverage profile (the default), the absence of runtime evidence yields a not_applicable runtime lane and does not block a valid evidence state. Only the static_test_runtime profile makes owner-path runtime evidence a required lane. A repository with no runtime target must reach a valid evidence state, never uncertifiable merely for lacking runtime.
