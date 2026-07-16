@@ -73,10 +73,21 @@ func certifyChangeGreenBundle(t *testing.T) (certification.Request, []any) {
 		Status: certification.ScopeCompliant,
 	}
 	resolution := closureprotocol.AuthorityResolution{
-		OperationID: "op.modify.cli", Status: closureprotocol.ReceiptValid,
-		GrantIDs:          []string{"grant.cli"},
-		LegalMechanisms:   []string{string(closureprotocol.MechanismRepositoryEdit)},
-		SelectedMechanism: closureprotocol.MechanismRepositoryEdit,
+		ActorBindingDigestSHA256:         "actorbinding-cli",
+		BaseBindingDigestSHA256:          "basebinding-cli",
+		ClosureAssessmentDigestSHA256:    "closure-cli",
+		OperationSetDigestSHA256:         "operationset-cli",
+		AuthorityPolicyGraphDigestSHA256: "authoritypolicygraph-cli",
+		PolicyID:                         "admission.strict.v2",
+		EvaluatedAt:                      "2026-07-15T11:45:00Z",
+		Status:                           closureprotocol.ReceiptValid,
+		OperationResults: []closureprotocol.AuthorityResolutionOperation{{
+			OperationID:       "op.modify.cli",
+			Status:            closureprotocol.ReceiptValid,
+			GrantIDs:          []string{"grant.cli"},
+			LegalMechanisms:   []string{string(closureprotocol.MechanismRepositoryEdit)},
+			SelectedMechanism: closureprotocol.MechanismRepositoryEdit,
+		}},
 	}
 	obligation := proofdischarge.ProofObligation{
 		ID: "proof.cli", Status: "approved",

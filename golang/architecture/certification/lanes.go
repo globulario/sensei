@@ -232,23 +232,46 @@ func authorityLane(req Request, rec Records) LaneResult {
 		}
 	}
 
-	resolutions := map[string]closureprotocol.AuthorityResolution{}
-	for _, res := range rec.AuthorityResolutions {
-		id := strings.TrimSpace(res.OperationID)
-		if prior, dup := resolutions[id]; dup {
-			priorDigest, _ := closureprotocol.AuthorityResolutionDigest(prior)
-			thisDigest, _ := closureprotocol.AuthorityResolutionDigest(res)
-			if priorDigest != thisDigest {
-				lane.finding(closureprotocol.DimensionConflicted, ReasonAuthorityResolutionDuplicate+":"+id)
-			}
-			continue
-		}
-		resolutions[id] = res
-	}
-
 	claimed := map[string]bool{}
 	for _, d := range closureprotocol.NormalizeSet(req.AuthorityResolutionDigests) {
 		claimed[d] = true
+	}
+
+	// Typed-authority model: a single AuthorityResolution per change plan carries
+	// per-operation results in OperationResults (the earlier flat, one-resolution-
+	// per-operation shape is gone). Fold operation results only from resolutions
+	// whose shape is valid, whose self-digest verifies, and whose digest this
+	// request actually referenced. Two resolutions that disagree about the same
+	// operation are a conflict.
+	opResults := map[string]closureprotocol.AuthorityResolutionOperation{}
+	foldedDigest := map[string]bool{}
+	for _, res := range rec.AuthorityResolutions {
+		if closureprotocol.ValidateAuthorityResolution(res) != nil {
+			lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityShapeInvalid)
+			continue
+		}
+		digest, err := closureprotocol.AuthorityResolutionDigest(res)
+		if err != nil || !claimed[digest] ||
+			(strings.TrimSpace(res.AuthorityResolutionDigestSHA256) != "" && res.AuthorityResolutionDigestSHA256 != digest) {
+			lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityDigestMismatch)
+			continue
+		}
+		if foldedDigest[digest] {
+			continue // identical resolution already folded
+		}
+		foldedDigest[digest] = true
+		for _, opres := range res.OperationResults {
+			id := strings.TrimSpace(opres.OperationID)
+			if prior, dup := opResults[id]; dup {
+				priorDigest, _ := closureprotocol.SemanticDigest(prior)
+				thisDigest, _ := closureprotocol.SemanticDigest(opres)
+				if priorDigest != thisDigest {
+					lane.finding(closureprotocol.DimensionConflicted, ReasonAuthorityResolutionDuplicate+":"+id)
+				}
+				continue
+			}
+			opResults[id] = opres
+		}
 	}
 
 	operations := append([]closureprotocol.ChangeOperation(nil), rec.AdmissionRequest.ChangePlan.Operations...)
@@ -258,21 +281,9 @@ func authorityLane(req Request, rec Records) LaneResult {
 		if !isMutationKind(op.Kind) {
 			continue
 		}
-		res, ok := resolutions[op.OperationID]
+		res, ok := opResults[op.OperationID]
 		if !ok {
 			lane.finding(closureprotocol.DimensionUnknown, ReasonAuthorityOperationUnresolved+":"+op.OperationID)
-			continue
-		}
-		if closureprotocol.ValidateAuthorityResolution(res) != nil {
-			lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityShapeInvalid+":"+op.OperationID)
-			continue
-		}
-		// The resolution content must reproduce a digest this request actually
-		// referenced, and any self-digest must be honest.
-		digest, err := closureprotocol.AuthorityResolutionDigest(res)
-		if err != nil || !claimed[digest] ||
-			(strings.TrimSpace(res.ResolutionDigestSHA256) != "" && res.ResolutionDigestSHA256 != digest) {
-			lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityDigestMismatch+":"+op.OperationID)
 			continue
 		}
 		switch res.Status {
@@ -305,15 +316,17 @@ func authorityLane(req Request, rec Records) LaneResult {
 				lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityDomainMismatch+":"+op.OperationID)
 			}
 		}
-		// Delegated actors must resolve through the resolution's delegation
-		// chain. (Delegation/grant expiry has no field on the frozen
-		// AuthorityResolution; an expired grant or delegation must surface as
-		// resolution status stale/invalid, handled above.)
-		for _, delegation := range actor.DelegationIDs {
-			if !containsString(res.DelegationChain, delegation) {
-				lane.finding(closureprotocol.DimensionBlocked,
-					ReasonAuthorityDelegationUnresolved+":"+op.OperationID+":"+strings.TrimSpace(delegation))
-			}
+		// A delegated actor must resolve through the operation's delegation chain.
+		// In typed authority the actor references delegation *receipts* by digest,
+		// while the resolution records the verified delegation *ids*; the digest->id
+		// mapping needs the delegation receipts, which certification records do not
+		// carry (the resolver already verified them, and this lane binds the
+		// resolution's honest digest). So certification preserves the intent as a
+		// consistency check: an actor asserting delegations against a valid
+		// operation whose delegation chain is empty did not resolve through
+		// delegation.
+		if len(actor.DelegationReceiptDigests) > 0 && len(res.DelegationChain) == 0 {
+			lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityDelegationUnresolved+":"+op.OperationID)
 		}
 	}
 
