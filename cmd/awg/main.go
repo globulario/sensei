@@ -236,6 +236,8 @@ func main() {
 		os.Exit(runConvergenceStatus(args))
 	case "bootstrap-direction-digest":
 		os.Exit(runBootstrapDirectionDigest(args))
+	case "enroll-agent":
+		os.Exit(runEnrollAgent(args))
 	case "authority-resolve":
 		os.Exit(runAuthorityResolve(args))
 	case "consume-admission":
