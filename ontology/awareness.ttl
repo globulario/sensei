@@ -324,6 +324,12 @@ aw:RuntimeTarget a owl:Class ; rdfs:label "Runtime Target" ;
     rdfs:comment "An operational runtime deployment target bound to evidence and result assessment." .
 aw:ActorBinding a owl:Class ; rdfs:label "Actor Binding" ;
     rdfs:comment "An operational record binding one principal, role set, and delegation chain to a task action." .
+aw:AuthenticationReceipt a owl:Class ; rdfs:label "Authentication Receipt" ;
+    rdfs:comment "An operational receipt proving one principal authenticated through one exact artifact and issuer at one bounded time." .
+aw:RoleAttestationReceipt a owl:Class ; rdfs:label "Role Attestation Receipt" ;
+    rdfs:comment "An operational receipt attesting that one principal holds one or more governed roles under one issuer and validity window." .
+aw:DelegationReceipt a owl:Class ; rdfs:label "Delegation Receipt" ;
+    rdfs:comment "An operational receipt recording one concrete delegated authority instance narrowed from a parent grant or parent delegation." .
 aw:ClosureAssessment a owl:Class ; rdfs:label "Closure Assessment" ;
     rdfs:comment "An operational record of dimension-by-dimension architectural closure assessment." .
 aw:ClosureBlocker a owl:Class ; rdfs:label "Closure Blocker" ;

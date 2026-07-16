@@ -36,6 +36,103 @@ func ValidateActorBinding(in ActorBinding) error {
 	return nil
 }
 
+func ValidateAuthenticationReceipt(in AuthenticationReceipt) error {
+	if strings.TrimSpace(in.ReceiptID) == "" {
+		return errors.New("receipt_id is required")
+	}
+	if strings.TrimSpace(in.PrincipalID) == "" {
+		return errors.New("principal_id is required")
+	}
+	if strings.TrimSpace(in.Issuer) == "" {
+		return errors.New("issuer is required")
+	}
+	if err := ValidateLedgerPayloadRef(in.AuthenticationArtifact); err != nil {
+		return fmt.Errorf("authentication_artifact: %w", err)
+	}
+	if _, err := time.Parse(time.RFC3339, in.AuthenticatedAt); err != nil {
+		return errors.New("authenticated_at must be RFC3339")
+	}
+	if strings.TrimSpace(in.ExpiresAt) != "" {
+		if _, err := time.Parse(time.RFC3339, in.ExpiresAt); err != nil {
+			return errors.New("expires_at must be RFC3339")
+		}
+	}
+	if !validReceiptStatus(in.Status) {
+		return errors.New("status is invalid")
+	}
+	return nil
+}
+
+func ValidateRoleAttestationReceipt(in RoleAttestationReceipt) error {
+	if strings.TrimSpace(in.ReceiptID) == "" {
+		return errors.New("receipt_id is required")
+	}
+	if strings.TrimSpace(in.PrincipalID) == "" {
+		return errors.New("principal_id is required")
+	}
+	if !validActorKind(in.ActorKind) {
+		return errors.New("actor_kind is invalid")
+	}
+	if strings.TrimSpace(in.Issuer) == "" {
+		return errors.New("issuer is required")
+	}
+	if len(NormalizeSet(in.RoleIDs)) == 0 {
+		return errors.New("role_ids are required")
+	}
+	if _, err := time.Parse(time.RFC3339, in.IssuedAt); err != nil {
+		return errors.New("issued_at must be RFC3339")
+	}
+	if strings.TrimSpace(in.ValidUntil) != "" {
+		if _, err := time.Parse(time.RFC3339, in.ValidUntil); err != nil {
+			return errors.New("valid_until must be RFC3339")
+		}
+	}
+	if !validReceiptStatus(in.Status) {
+		return errors.New("status is invalid")
+	}
+	return nil
+}
+
+func ValidateDelegationReceipt(in DelegationReceipt) error {
+	if strings.TrimSpace(in.DelegationID) == "" {
+		return errors.New("delegation_id is required")
+	}
+	if strings.TrimSpace(in.DelegatorPrincipalID) == "" || strings.TrimSpace(in.DelegatedPrincipalID) == "" {
+		return errors.New("delegator_principal_id and delegated_principal_id are required")
+	}
+	if strings.TrimSpace(in.ParentGrantID) == "" && strings.TrimSpace(in.ParentDelegationID) == "" {
+		return errors.New("parent_grant_id or parent_delegation_id is required")
+	}
+	if strings.TrimSpace(in.PolicyID) == "" || strings.TrimSpace(in.Issuer) == "" {
+		return errors.New("policy_id and issuer are required")
+	}
+	if _, err := time.Parse(time.RFC3339, in.IssuedAt); err != nil {
+		return errors.New("issued_at must be RFC3339")
+	}
+	if _, err := time.Parse(time.RFC3339, in.ValidFrom); err != nil {
+		return errors.New("valid_from must be RFC3339")
+	}
+	if strings.TrimSpace(in.ValidUntil) != "" {
+		if _, err := time.Parse(time.RFC3339, in.ValidUntil); err != nil {
+			return errors.New("valid_until must be RFC3339")
+		}
+	}
+	for _, action := range in.Actions {
+		if !validOperationKind(action) {
+			return errors.New("actions contains invalid operation kind")
+		}
+	}
+	for _, mechanism := range in.MechanismKinds {
+		if !validMechanismKind(mechanism) {
+			return errors.New("mechanism_kinds contains invalid mechanism kind")
+		}
+	}
+	if !validReceiptStatus(in.Status) {
+		return errors.New("status is invalid")
+	}
+	return nil
+}
+
 func ValidateRepositorySnapshot(in RepositorySnapshot) error {
 	if strings.TrimSpace(in.Domain) == "" {
 		return errors.New("repository domain is required")

@@ -49,6 +49,16 @@
     "ledger_event_type": {
       "type": "string",
       "enum": ["legacy_import", "task_prepared", "convergence_advanced", "closure_assessed", "admission_decided", "authority_resolved", "admission_consumed", "change_observed", "scope_verified", "evidence_recorded", "proof_discharged", "certified", "completed", "revoked", "migration_executed", "task_control_projected", "task_marked_stale"]
+    },
+    "artifact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "media_type": {"type": "string"},
+        "digest_sha256": {"type": "string"}
+      },
+      "required": ["path", "media_type", "digest_sha256"]
     }
   }
 }

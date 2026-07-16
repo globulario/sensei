@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/delegation-receipt.schema.json",
+  "title": "Architectural Closure v1 Delegation Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "delegation_id": {"type": "string"},
+    "parent_grant_id": {"type": "string"},
+    "parent_delegation_id": {"type": "string"},
+    "delegator_principal_id": {"type": "string"},
+    "delegated_principal_id": {"type": "string"},
+    "role_ids": {"type": "array", "items": {"type": "string"}},
+    "authority_domain_ids": {"type": "array", "items": {"type": "string"}},
+    "actions": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/operation_kind"}},
+    "mechanism_kinds": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/mechanism_kind"}},
+    "target_kinds": {"type": "array", "items": {"type": "string"}},
+    "target_selectors": {"type": "array", "items": {"type": "string"}},
+    "maximum_risk_class": {"type": "string"},
+    "policy_id": {"type": "string"},
+    "issuer": {"type": "string"},
+    "issued_at": {"type": "string"},
+    "valid_from": {"type": "string"},
+    "valid_until": {"type": "string"},
+    "allow_subdelegation": {"type": "boolean"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+    "receipt_digest_sha256": {"type": "string"}
+  },
+  "required": [
+    "delegation_id",
+    "delegator_principal_id",
+    "delegated_principal_id",
+    "policy_id",
+    "issuer",
+    "issued_at",
+    "valid_from",
+    "status"
+  ]
+}
