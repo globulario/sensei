@@ -150,16 +150,42 @@ func VerifyScope(exp ScopeExpectation, observed ObservedChangeSet, verifiedAt st
 		add("scope.base_tree.changed", "", "observed base tree differs from the admitted base")
 	}
 
-	// Envelope: every changed file must be an admitted operation target or a
-	// required generated artifact, and no changed file may hit a prohibited path.
+	// Index the observed change by path, flagging any path observed more than
+	// once (renames are handled separately and excluded here).
 	admitted := admittedOperationSet(exp.Decision)
+	observedByPath := map[string]ObservedFile{}
+	for _, f := range observed.Files {
+		if strings.TrimSpace(string(f.ChangeType)) == string(closureprotocol.OperationRename) {
+			continue
+		}
+		if _, dup := observedByPath[f.Path]; dup {
+			add("scope.operation.duplicate_observation", f.Path, "path appears more than once in the observed change")
+			continue
+		}
+		observedByPath[f.Path] = f
+	}
+
+	// Coverage: every admitted mutation operation must have a matching observed
+	// change. An operation is only marked verified once a compatible observation
+	// exists — never before comparing it to the change set. Non-mutation kinds
+	// (read/observe/execute) touch no repository file and require no observation.
 	allowed := map[string]bool{}
 	verifiedOps := make([]string, 0, len(exp.Operations))
 	for _, op := range exp.Operations {
-		if admitted[op.OperationID] {
-			allowed[op.Target] = true
-			verifiedOps = append(verifiedOps, op.OperationID)
+		if !admitted[op.OperationID] {
+			continue
 		}
+		allowed[op.Target] = true
+		if !isMutationKind(op.Kind) {
+			verifiedOps = append(verifiedOps, op.OperationID)
+			continue
+		}
+		if _, ok := observedByPath[op.Target]; !ok {
+			add("scope.operation.not_observed", op.Target,
+				"admitted "+string(op.Kind)+" operation has no matching observed change")
+			continue
+		}
+		verifiedOps = append(verifiedOps, op.OperationID)
 	}
 	generated := closureprotocol.NormalizeSet(exp.RequiredGeneratedArtifacts)
 	for _, g := range generated {
@@ -233,6 +259,17 @@ func VerifyScope(exp ScopeExpectation, observed ObservedChangeSet, verifiedAt st
 	}
 	verification.ScopeVerificationDigestSHA256 = digest
 	return verification, nil
+}
+
+// isMutationKind reports whether an operation kind mutates the repository and
+// therefore must appear in the observed change set. read/observe/execute do not.
+func isMutationKind(k closureprotocol.OperationKind) bool {
+	switch k {
+	case closureprotocol.OperationCreate, closureprotocol.OperationModify, closureprotocol.OperationDelete,
+		closureprotocol.OperationRename, closureprotocol.OperationMigrate, closureprotocol.OperationRebuild:
+		return true
+	}
+	return false
 }
 
 func prohibited(path string, prefixes []string) (string, bool) {
