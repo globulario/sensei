@@ -384,6 +384,40 @@ Unknown values are invalid in v1 operational records.
 - `rebuild`
 - `observe`
 
+#### Reserved but unsupported: repository rename
+
+`rename` is a reserved operation kind in architectural-closure/v1. It is not
+currently admissible for repository mutations because `ChangeOperation` does not
+encode distinct source and destination targets. A rename must fail closed until
+a later protocol version introduces exact endpoint representation and
+verification. Implementations must not approximate rename as a single-target
+operation or silently rewrite it as delete plus create.
+
+A known vocabulary value is not the same as a supported operation in this schema
+version: `rename` remains in the closed vocabulary (reserved for a later
+protocol version), but the v1 change-plan schema rejects any `ChangeOperation`
+whose `kind` is `rename`, and every v1 validation surface — change-plan,
+admission-request, admission-v2 decision, and legacy scope-to-operation
+synthesis — refuses it with `protocol.rename_requires_explicit_source_and_destination`.
+
+Explicit user-authored `delete` and `create` operations remain legal when the
+intended architecture truly is deletion followed by creation. They must not be
+used as a compatibility encoding for rename. Automatic translation is forbidden
+because rename can differ from delete-plus-create in architectural identity,
+ownership, authority domain, operation budget, risk classification, historical
+continuity, required tests, generated-artifact rules, and review interpretation.
+
+When Git reports a rename in an observed change set, Phase 3 preserves both
+endpoints diagnostically (`ObservedFile.FromPath` / `ToPath`) and scope
+verification returns an invalid receipt with `scope.operation.rename_unsupported`
+naming both paths; no `scope_verified` event is appended. A future compatible
+protocol version may define rename as a typed operation carrying distinct
+`source_target` and `destination_target` endpoints, with authority over both
+endpoints, source-existence and destination-absence rules, cross-domain
+ownership, overwrite policy, lineage continuity, exact observed-rename matching,
+rollback, and proof requirements. Those semantics are deferred; v1 must not
+guess them.
+
 ### Mechanism kind
 
 - `repository_edit`
