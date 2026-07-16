@@ -27,6 +27,19 @@ import (
 // No admission, authority, capability, or scope business rule lives here. They
 // require expected-head protection and never fabricate certification or
 // completion. Slice 4c composes them; here each is explicit.
+//
+// The capability is consumed BEFORE the mutation, never retroactively during
+// verification. The operator sequence is:
+//
+//	sensei advance-task      -> ready_for_mutation
+//	sensei consume-admission -> spends the single-use capability for this
+//	                            exact operation set
+//	<agent applies the mutation in the worktree>
+//	sensei verify-admission  -> records the observed change, verifies scope
+//
+// consume-admission is a distinct, explicit step. verify-admission does NOT
+// consume the capability: it requires an existing admission_consumed receipt and
+// fails closed (exit 3) when none is present.
 
 const admissionV2Window = 24 * time.Hour
 

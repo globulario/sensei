@@ -173,6 +173,20 @@ func applyGovernedDisposition(res *StatusResult, disp governanceState, legacySta
 	if disp.Terminal {
 		res.Phase = string(closureprotocol.PhaseScopeVerified)
 		res.Next = NextAction{Action: NextRebuildResult, Summary: "scope verified; rebuild and bind the result architecture"}
+		return
+	}
+	if !disp.Resolved {
+		return
+	}
+	// Surface the single next legal command in the explicit admission-v2
+	// workflow: at ready_for_mutation the capability is consumed BEFORE the
+	// mutation, then the mutation is applied and verified. Consumption is never
+	// hidden inside verification.
+	switch disp.Status {
+	case StatusReadyForMutation:
+		res.Next = NextAction{Action: NextConsumeCapability, Summary: "run consume-admission to spend the single-use capability for this exact operation set before applying the mutation"}
+	case StatusAdmitted:
+		res.Next = NextAction{Action: NextVerifyAdmission, Summary: "apply the admitted mutation, then run verify-admission to record the observed change and verify scope"}
 	}
 }
 

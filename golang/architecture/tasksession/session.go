@@ -55,16 +55,17 @@ const (
 	StatusStale              = "stale"
 	StatusUncertifiable      = "uncertifiable"
 
-	NextProvideInput     = "provide missing task input"
-	NextAnswerQuestion   = "record architect answer"
-	NextProvideEvidence  = "record external evidence"
-	NextProposeKnowledge = "propose governed knowledge"
-	NextAdvanceConverge  = "advance one convergence iteration"
-	NextPerformEdit      = "perform admitted edit"
-	NextVerifyAdmission  = "verify admission envelope"
-	NextCompleteProof    = "complete required proof"
-	NextRebuildResult    = "rebuild and bind result architecture"
-	NextPrepareNewTask   = "prepare a new task"
+	NextProvideInput      = "provide missing task input"
+	NextAnswerQuestion    = "record architect answer"
+	NextProvideEvidence   = "record external evidence"
+	NextProposeKnowledge  = "propose governed knowledge"
+	NextAdvanceConverge   = "advance one convergence iteration"
+	NextPerformEdit       = "perform admitted edit"
+	NextConsumeCapability = "consume the admitted capability"
+	NextVerifyAdmission   = "verify admission envelope"
+	NextCompleteProof     = "complete required proof"
+	NextRebuildResult     = "rebuild and bind result architecture"
+	NextPrepareNewTask    = "prepare a new task"
 )
 
 type FileOperation struct {
