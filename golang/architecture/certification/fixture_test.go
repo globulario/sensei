@@ -228,6 +228,9 @@ func rebindGreen(t *testing.T, rec Records) Request {
 	for _, record := range rec.AuthorityResolutions {
 		req.AuthorityResolutionDigests = append(req.AuthorityResolutionDigests, mustDigest(t, record))
 	}
+	for _, record := range rec.DelegationReceipts {
+		req.DelegationReceiptDigests = append(req.DelegationReceiptDigests, mustDigest(t, record))
+	}
 	for _, record := range rec.ProofDischarges {
 		req.ProofDischargeDigests = append(req.ProofDischargeDigests, mustDigest(t, record))
 	}

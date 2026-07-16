@@ -105,6 +105,11 @@ func VerifyRecords(req Request, rec Records) error {
 	}); err != nil {
 		return err
 	}
+	if err := verifySet("delegation_receipt", req.DelegationReceiptDigests, len(rec.DelegationReceipts), func(i int) (string, error) {
+		return closureprotocol.DelegationReceiptDigest(rec.DelegationReceipts[i])
+	}); err != nil {
+		return err
+	}
 	if err := verifySet("proof_discharge", req.ProofDischargeDigests, len(rec.ProofDischarges), func(i int) (string, error) {
 		return closureprotocol.ProofDischargeDigest(rec.ProofDischarges[i])
 	}); err != nil {

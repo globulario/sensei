@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/authority"
 	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/evidencereceipt"
@@ -245,6 +246,10 @@ func authorityLane(req Request, rec Records) LaneResult {
 	// operation are a conflict.
 	opResults := map[string]closureprotocol.AuthorityResolutionOperation{}
 	foldedDigest := map[string]bool{}
+	// The resolution's evaluation time is recorded per operation so the
+	// delegation re-verification below reproduces the resolver's decision at the
+	// exact instant authority was resolved.
+	opEvaluatedAt := map[string]string{}
 	for _, res := range rec.AuthorityResolutions {
 		if closureprotocol.ValidateAuthorityResolution(res) != nil {
 			lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityShapeInvalid)
@@ -271,7 +276,15 @@ func authorityLane(req Request, rec Records) LaneResult {
 				continue
 			}
 			opResults[id] = opres
+			opEvaluatedAt[id] = res.EvaluatedAt
 		}
+	}
+
+	// The delegation receipts the actor committed to, indexed so the lane can
+	// bind each recorded receipt back to a digest the actor actually asserted.
+	committedDelegation := map[string]bool{}
+	for _, d := range closureprotocol.NormalizeSet(actor.DelegationReceiptDigests) {
+		committedDelegation[d] = true
 	}
 
 	operations := append([]closureprotocol.ChangeOperation(nil), rec.AdmissionRequest.ChangePlan.Operations...)
@@ -316,21 +329,91 @@ func authorityLane(req Request, rec Records) LaneResult {
 				lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityDomainMismatch+":"+op.OperationID)
 			}
 		}
-		// A delegated actor must resolve through the operation's delegation chain.
-		// In typed authority the actor references delegation *receipts* by digest,
-		// while the resolution records the verified delegation *ids*; the digest->id
-		// mapping needs the delegation receipts, which certification records do not
-		// carry (the resolver already verified them, and this lane binds the
-		// resolution's honest digest). So certification preserves the intent as a
-		// consistency check: an actor asserting delegations against a valid
-		// operation whose delegation chain is empty did not resolve through
-		// delegation.
-		if len(actor.DelegationReceiptDigests) > 0 && len(res.DelegationChain) == 0 {
-			lane.finding(closureprotocol.DimensionBlocked, ReasonAuthorityDelegationUnresolved+":"+op.OperationID)
+		// A delegated actor must resolve through the operation's delegation chain,
+		// and certification re-verifies that chain independently rather than
+		// trusting the resolution's claim. It resolves each delegation id to a
+		// concrete recorded receipt bound to a digest the actor committed to, then
+		// re-runs the governed monotonicity verdict against the governed grants —
+		// so a resolution can never certify a delegation the governed grants do
+		// not actually permit, and cannot invent a delegation whose record was
+		// never preserved.
+		if len(actor.DelegationReceiptDigests) > 0 {
+			for _, reason := range certifyDelegatedOperation(rec.GovernedAuthority, rec.DelegationReceipts, committedDelegation, op, res, opEvaluatedAt[op.OperationID]) {
+				lane.finding(closureprotocol.DimensionBlocked, reason)
+			}
 		}
 	}
 
 	return lane.done()
+}
+
+// certifyDelegatedOperation independently re-verifies that a delegated operation
+// resolved through a legitimate delegation chain. It returns one reason per
+// violation (nil when the delegation is sound) and never trusts the resolution's
+// claimed chain: it resolves each delegation id to a concrete recorded receipt
+// bound to a digest the actor committed to, requires governed grants to be
+// present, and re-runs the shared monotonicity verdict for every resolved
+// authority domain against those governed grants — so certification reproduces
+// the resolver's delegation decision from first principles.
+func certifyDelegatedOperation(index authority.PolicyIndex, recorded []closureprotocol.DelegationReceipt, committed map[string]bool, op closureprotocol.ChangeOperation, res closureprotocol.AuthorityResolutionOperation, evaluatedAt string) []string {
+	if len(res.DelegationChain) == 0 {
+		// The actor asserted delegations but the resolution resolved through none:
+		// it did not legitimately reach this operation.
+		return []string{ReasonAuthorityDelegationUnresolved + ":" + op.OperationID}
+	}
+	// Index the recorded receipts by delegation id, admitting only receipts whose
+	// digest the actor actually committed to (binding + tamper check).
+	byID := map[string]closureprotocol.DelegationReceipt{}
+	for _, r := range recorded {
+		digest, err := closureprotocol.DelegationReceiptDigest(r)
+		if err != nil || !committed[digest] {
+			continue
+		}
+		byID[r.DelegationID] = r
+	}
+	chain := make([]closureprotocol.DelegationReceipt, 0, len(res.DelegationChain))
+	for _, id := range res.DelegationChain {
+		r, ok := byID[strings.TrimSpace(id)]
+		if !ok {
+			// Missing, unrecorded, or uncommitted delegation: never reconstructed.
+			return []string{ReasonAuthorityDelegationUnresolved + ":" + op.OperationID + ":" + strings.TrimSpace(id)}
+		}
+		chain = append(chain, r)
+	}
+	if len(index.AuthorityGrants) == 0 {
+		// No governed grants to verify against: fail closed rather than trust.
+		return []string{ReasonAuthorityDelegationUnresolved + ":" + op.OperationID + ":no_governed_grants"}
+	}
+	at, err := time.Parse(time.RFC3339, strings.TrimSpace(evaluatedAt))
+	if err != nil {
+		return []string{ReasonAuthorityDelegationUnresolved + ":" + op.OperationID + ":unresolvable_evaluation_time"}
+	}
+	domains := res.AuthorityDomainIDs
+	if len(domains) == 0 {
+		domains = op.AuthorityDomainIDs
+	}
+	var reasons []string
+	for _, domain := range domains {
+		covered := false
+		lastVerdict := authority.DelegationParentUnresolved
+		for _, r := range chain {
+			grant, ok := index.AuthorityGrants[r.ParentGrantID]
+			if !ok {
+				lastVerdict = authority.DelegationParentMismatch
+				continue
+			}
+			if v := authority.CheckDelegationForOperation(index, grant, r, op, domain, at); v == authority.DelegationOK {
+				covered = true
+				break
+			} else {
+				lastVerdict = v
+			}
+		}
+		if !covered {
+			reasons = append(reasons, ReasonAuthorityDelegationUnresolved+":"+op.OperationID+":"+domain+":"+string(lastVerdict))
+		}
+	}
+	return reasons
 }
 
 // proofLane consumes Phase 5 ProofDischarge receipts. It never remaps evidence
