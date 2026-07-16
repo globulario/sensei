@@ -1,0 +1,30 @@
+closure_protocol_fixture:
+  name: result-transition-collapsed-digest
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    terminally_closed: false
+    validation_error_contains: collapsed result digest
+  dimensions:
+    - dimension: completion
+      status: blocked
+  records:
+    result_transition_receipt:
+      task:
+        id: task.collapsed
+        session_id: session.collapsed
+      base_binding_digest_sha256: base123
+      admission_decision_digest_sha256: decision123
+      capability_consumption_digest_sha256: capability123
+      change_set_digest_sha256: changeset123
+      scope_verification_digest_sha256: scope123
+      patch_digest_sha256: patch123
+      result_tree_digest_sha256: sameresult123
+      result_graph_digest_sha256: sameresult123
+      pipeline_policy_id: pipeline.result_transition.v1
+      authority_relevant_knowledge_changed: false
+      proof_requirements_changed: false
+      certification_policy_changed: false
+      evidence_profiles_changed: false
+      recorded_at: "2026-07-16T00:15:00Z"
+      status: valid

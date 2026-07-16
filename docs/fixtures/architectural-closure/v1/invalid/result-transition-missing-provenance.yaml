@@ -1,0 +1,30 @@
+closure_protocol_fixture:
+  name: result-transition-missing-provenance
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    terminally_closed: false
+    validation_error_contains: missing a provenance digest
+  dimensions:
+    - dimension: completion
+      status: blocked
+  records:
+    result_transition_receipt:
+      task:
+        id: task.missing
+        session_id: session.missing
+      base_binding_digest_sha256: base123
+      admission_decision_digest_sha256: decision123
+      capability_consumption_digest_sha256: capability123
+      change_set_digest_sha256: changeset123
+      scope_verification_digest_sha256: ""
+      patch_digest_sha256: patch123
+      result_tree_digest_sha256: tree123
+      result_graph_digest_sha256: resultgraph123
+      pipeline_policy_id: pipeline.result_transition.v1
+      authority_relevant_knowledge_changed: false
+      proof_requirements_changed: false
+      certification_policy_changed: false
+      evidence_profiles_changed: false
+      recorded_at: "2026-07-16T00:15:00Z"
+      status: valid

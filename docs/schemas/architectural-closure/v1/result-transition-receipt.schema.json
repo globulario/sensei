@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/result-transition-receipt.schema.json",
+  "title": "Architectural Closure v1 Result Transition Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "transition_id": {"type": "string"},
+    "task": {"type": "object"},
+    "base_binding_digest_sha256": {"type": "string"},
+    "admission_decision_digest_sha256": {"type": "string"},
+    "capability_consumption_digest_sha256": {"type": "string"},
+    "change_set_digest_sha256": {"type": "string"},
+    "scope_verification_digest_sha256": {"type": "string"},
+    "patch_digest_sha256": {"type": "string"},
+    "result_tree_digest_sha256": {"type": "string"},
+    "result_revision": {"type": "string"},
+    "result_graph_digest_sha256": {"type": "string"},
+    "generated_artifact_receipts": {"type": "array", "items": {"$ref": "artifact-receipt.schema.json"}},
+    "operational_artifact_receipts": {"type": "array", "items": {"$ref": "artifact-receipt.schema.json"}},
+    "pipeline_producer_versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "producer": {"type": "string"},
+          "version": {"type": "string"}
+        },
+        "required": ["producer", "version"]
+      }
+    },
+    "pipeline_policy_id": {"type": "string"},
+    "authority_relevant_knowledge_changed": {"type": "boolean"},
+    "proof_requirements_changed": {"type": "boolean"},
+    "certification_policy_changed": {"type": "boolean"},
+    "evidence_profiles_changed": {"type": "boolean"},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "recorded_at": {"type": "string"},
+    "status": {"type": "string", "enum": ["valid", "invalid", "stale", "conflicted", "superseded", "revoked", "unknown"]},
+    "receipt_digest_sha256": {"type": "string"}
+  },
+  "required": ["task", "base_binding_digest_sha256", "admission_decision_digest_sha256", "capability_consumption_digest_sha256", "change_set_digest_sha256", "scope_verification_digest_sha256", "patch_digest_sha256", "result_tree_digest_sha256", "result_graph_digest_sha256", "pipeline_policy_id", "authority_relevant_knowledge_changed", "proof_requirements_changed", "certification_policy_changed", "evidence_profiles_changed", "recorded_at", "status"]
+}

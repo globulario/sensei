@@ -21,6 +21,8 @@ var setLikeKeys = map[string]bool{
 	"legal_mechanisms": true, "mapped_evidence": true, "missing_slots": true,
 	"incompatible_receipts": true, "forbidden_moves": true, "unresolved_contradictions": true,
 	"revocation_conditions": true,
+	"generated_artifact_receipts": true, "operational_artifact_receipts": true,
+	"pipeline_producer_versions": true,
 }
 
 var omitIfEmptyKeys = map[string]bool{
@@ -118,6 +120,12 @@ func dedupeAndSortAny(items []any) []any {
 }
 
 func CompletionReceiptDigest(in CompletionReceipt) (string, error) {
+	copy := in
+	copy.ReceiptDigestSHA256 = ""
+	return SemanticDigest(copy)
+}
+
+func ResultTransitionReceiptDigest(in ResultTransitionReceipt) (string, error) {
 	copy := in
 	copy.ReceiptDigestSHA256 = ""
 	return SemanticDigest(copy)

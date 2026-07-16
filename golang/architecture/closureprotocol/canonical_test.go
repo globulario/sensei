@@ -64,3 +64,50 @@ func TestCompletionReceiptDigestOmitsSelfDigest(t *testing.T) {
 	}
 }
 
+func TestResultTransitionReceiptDigestOmitsSelfDigest(t *testing.T) {
+	base := ResultTransitionReceipt{
+		Task:                              TaskBinding{ID: "task.x", SessionID: "session.x"},
+		BaseBindingDigestSHA256:           "base",
+		AdmissionDecisionDigestSHA256:     "decision",
+		CapabilityConsumptionDigestSHA256: "capability",
+		ChangeSetDigestSHA256:             "changeset",
+		ScopeVerificationDigestSHA256:     "scope",
+		PatchDigestSHA256:                 "patch",
+		ResultTreeDigestSHA256:            "tree",
+		ResultGraphDigestSHA256:           "graph",
+		PipelinePolicyID:                  "pipeline.result_transition.v1",
+		RecordedAt:                        "2026-07-16T00:15:00Z",
+		Status:                            ReceiptValid,
+	}
+	d1, err := ResultTransitionReceiptDigest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.ReceiptDigestSHA256 = "different"
+	d2, err := ResultTransitionReceiptDigest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d1 != d2 {
+		t.Fatal("self digest field changed semantic digest")
+	}
+}
+
+func TestResultTransitionArtifactSetOrderIgnored(t *testing.T) {
+	a := ResultTransitionReceipt{
+		GeneratedArtifactReceipts: []ArtifactReceipt{
+			{Path: "a", DigestSHA256: "1"},
+			{Path: "b", DigestSHA256: "2"},
+		},
+	}
+	b := ResultTransitionReceipt{
+		GeneratedArtifactReceipts: []ArtifactReceipt{
+			{Path: "b", DigestSHA256: "2"},
+			{Path: "a", DigestSHA256: "1"},
+		},
+	}
+	if MustSemanticDigest(a) != MustSemanticDigest(b) {
+		t.Fatal("generated artifact receipts must canonicalize as an unordered set")
+	}
+}
+

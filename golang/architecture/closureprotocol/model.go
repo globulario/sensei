@@ -230,6 +230,64 @@ type CompletionReceipt struct {
 	ReceiptDigestSHA256             string        `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
 }
 
+// ArtifactReceipt is the first-class receipt for a single produced artifact
+// (a generated repository artifact or an operational task artifact). Its
+// identity IS its content digest, so it carries no self-excluding digest.
+type ArtifactReceipt struct {
+	ArtifactID   string `json:"artifact_id,omitempty" yaml:"artifact_id,omitempty"`
+	Path         string `json:"path" yaml:"path"`
+	DigestSHA256 string `json:"digest_sha256" yaml:"digest_sha256"`
+	Kind         string `json:"kind,omitempty" yaml:"kind,omitempty"`
+	ProducedBy   string `json:"produced_by,omitempty" yaml:"produced_by,omitempty"`
+}
+
+// ProducerVersion pins the version of a pipeline producer that generated part
+// of the result, so a later freshness assessment can detect producer drift.
+type ProducerVersion struct {
+	Producer string `json:"producer" yaml:"producer"`
+	Version  string `json:"version" yaml:"version"`
+}
+
+// ResultTransitionReceipt records the frozen, digest-bound transition of a
+// certified task result into the new base of record: the point at which the
+// result tree, the compiled result graph, and every generated artifact become
+// the ground truth subsequent tasks build on.
+//
+// Five digests are kept SEPARATE by contract and must not be collapsed into a
+// single "result digest": (1) ResultTreeDigestSHA256, (2) ResultGraphDigestSHA256,
+// (3) the generated repository artifact digests, (4) the operational task
+// artifact digests, and (5) ReceiptDigestSHA256 (the receipt's own).
+//
+// The four *_Changed booleans are computed freshness facts asserting whether
+// this transition altered authority-relevant knowledge, proof requirements, the
+// certification policy, or evidence profiles — the inputs a downstream freshness
+// engine uses to decide what prior conclusions this result invalidates.
+type ResultTransitionReceipt struct {
+	TransitionID                      string            `json:"transition_id,omitempty" yaml:"transition_id,omitempty"`
+	Task                              TaskBinding       `json:"task" yaml:"task"`
+	BaseBindingDigestSHA256           string            `json:"base_binding_digest_sha256" yaml:"base_binding_digest_sha256"`
+	AdmissionDecisionDigestSHA256     string            `json:"admission_decision_digest_sha256" yaml:"admission_decision_digest_sha256"`
+	CapabilityConsumptionDigestSHA256 string            `json:"capability_consumption_digest_sha256" yaml:"capability_consumption_digest_sha256"`
+	ChangeSetDigestSHA256             string            `json:"change_set_digest_sha256" yaml:"change_set_digest_sha256"`
+	ScopeVerificationDigestSHA256     string            `json:"scope_verification_digest_sha256" yaml:"scope_verification_digest_sha256"`
+	PatchDigestSHA256                 string            `json:"patch_digest_sha256" yaml:"patch_digest_sha256"`
+	ResultTreeDigestSHA256            string            `json:"result_tree_digest_sha256" yaml:"result_tree_digest_sha256"`
+	ResultRevision                    string            `json:"result_revision,omitempty" yaml:"result_revision,omitempty"`
+	ResultGraphDigestSHA256           string            `json:"result_graph_digest_sha256" yaml:"result_graph_digest_sha256"`
+	GeneratedArtifactReceipts         []ArtifactReceipt `json:"generated_artifact_receipts,omitempty" yaml:"generated_artifact_receipts,omitempty"`
+	OperationalArtifactReceipts       []ArtifactReceipt `json:"operational_artifact_receipts,omitempty" yaml:"operational_artifact_receipts,omitempty"`
+	PipelineProducerVersions          []ProducerVersion `json:"pipeline_producer_versions,omitempty" yaml:"pipeline_producer_versions,omitempty"`
+	PipelinePolicyID                  string            `json:"pipeline_policy_id" yaml:"pipeline_policy_id"`
+	AuthorityRelevantKnowledgeChanged bool              `json:"authority_relevant_knowledge_changed" yaml:"authority_relevant_knowledge_changed"`
+	ProofRequirementsChanged          bool              `json:"proof_requirements_changed" yaml:"proof_requirements_changed"`
+	CertificationPolicyChanged        bool              `json:"certification_policy_changed" yaml:"certification_policy_changed"`
+	EvidenceProfilesChanged           bool              `json:"evidence_profiles_changed" yaml:"evidence_profiles_changed"`
+	Limitations                       []string          `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	RecordedAt                        string            `json:"recorded_at" yaml:"recorded_at"`
+	Status                            ReceiptStatus     `json:"status" yaml:"status"`
+	ReceiptDigestSHA256               string            `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+}
+
 type RevocationReceipt struct {
 	RevocationID      string   `json:"revocation_id" yaml:"revocation_id"`
 	RevokedTargetID   string   `json:"revoked_target_id" yaml:"revoked_target_id"`

@@ -45,6 +45,7 @@ type fixtureRecords struct {
 	WaiverReceipt        *WaiverReceipt        `yaml:"waiver_receipt,omitempty"`
 	RevocationReceipt    *RevocationReceipt    `yaml:"revocation_receipt,omitempty"`
 	MigrationExecutionReceipt *MigrationExecutionReceipt `yaml:"migration_execution_receipt,omitempty"`
+	ResultTransitionReceipt *ResultTransitionReceipt `yaml:"result_transition_receipt,omitempty"`
 }
 
 func TestFixtures(t *testing.T) {
@@ -57,6 +58,7 @@ func TestFixtures(t *testing.T) {
 		"completed-with-exception/bundle.yaml",
 		"revoked/bundle.yaml",
 		"migration-in-progress/bundle.yaml",
+		"result-transition/bundle.yaml",
 	}
 	for _, rel := range paths {
 		t.Run(rel, func(t *testing.T) {
@@ -181,6 +183,11 @@ func validateFixtureRecords(t *testing.T, fix fixtureBundle) {
 			t.Fatal(err)
 		}
 	}
+	if fix.Records.ResultTransitionReceipt != nil {
+		if err := ValidateResultTransitionReceipt(*fix.Records.ResultTransitionReceipt); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func validateFixtureError(fix fixtureBundle) error {
@@ -239,6 +246,11 @@ func validateFixtureError(fix fixtureBundle) error {
 	}
 	if fix.Records.RevocationReceipt != nil {
 		if err := ValidateRevocationReceipt(*fix.Records.RevocationReceipt); err != nil {
+			return err
+		}
+	}
+	if fix.Records.ResultTransitionReceipt != nil {
+		if err := ValidateResultTransitionReceipt(*fix.Records.ResultTransitionReceipt); err != nil {
 			return err
 		}
 	}

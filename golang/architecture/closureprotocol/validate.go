@@ -286,6 +286,62 @@ func ValidateMigrationExecutionReceipt(in MigrationExecutionReceipt) error {
 	return nil
 }
 
+func ValidateArtifactReceipt(in ArtifactReceipt) error {
+	if strings.TrimSpace(in.Path) == "" || strings.TrimSpace(in.DigestSHA256) == "" {
+		return errors.New("artifact receipt requires path and digest_sha256")
+	}
+	return nil
+}
+
+func ValidateResultTransitionReceipt(in ResultTransitionReceipt) error {
+	if strings.TrimSpace(in.Task.ID) == "" || strings.TrimSpace(in.Task.SessionID) == "" {
+		return errors.New("result transition receipt requires task id and session id")
+	}
+	// Full provenance chain from base of record through certified result.
+	if strings.TrimSpace(in.BaseBindingDigestSHA256) == "" ||
+		strings.TrimSpace(in.AdmissionDecisionDigestSHA256) == "" ||
+		strings.TrimSpace(in.CapabilityConsumptionDigestSHA256) == "" ||
+		strings.TrimSpace(in.ChangeSetDigestSHA256) == "" ||
+		strings.TrimSpace(in.ScopeVerificationDigestSHA256) == "" ||
+		strings.TrimSpace(in.PatchDigestSHA256) == "" {
+		return errors.New("result transition receipt is missing a provenance digest")
+	}
+	if strings.TrimSpace(in.ResultTreeDigestSHA256) == "" || strings.TrimSpace(in.ResultGraphDigestSHA256) == "" {
+		return errors.New("result transition receipt requires result tree and result graph digests")
+	}
+	// The five result-side digests are separate by contract and must not be
+	// collapsed. Equal scalar values signal a single "result digest" reused
+	// where distinct facts were required.
+	if in.ResultTreeDigestSHA256 == in.ResultGraphDigestSHA256 {
+		return errors.New("result tree and result graph digests must be distinct (collapsed result digest)")
+	}
+	if in.ReceiptDigestSHA256 != "" {
+		if in.ReceiptDigestSHA256 == in.ResultTreeDigestSHA256 || in.ReceiptDigestSHA256 == in.ResultGraphDigestSHA256 {
+			return errors.New("receipt digest must be distinct from result tree and result graph digests (collapsed result digest)")
+		}
+	}
+	for _, artifact := range in.GeneratedArtifactReceipts {
+		if err := ValidateArtifactReceipt(artifact); err != nil {
+			return err
+		}
+	}
+	for _, artifact := range in.OperationalArtifactReceipts {
+		if err := ValidateArtifactReceipt(artifact); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(in.PipelinePolicyID) == "" {
+		return errors.New("result transition receipt requires a pipeline policy id")
+	}
+	if !validReceiptStatus(in.Status) {
+		return errors.New("result transition status is invalid")
+	}
+	if _, err := time.Parse(time.RFC3339, in.RecordedAt); err != nil {
+		return errors.New("recorded_at must be RFC3339")
+	}
+	return nil
+}
+
 func ValidateEvidenceReceiptAgainstProfile(profile EvidenceProfile, receipt EvidenceReceipt) error {
 	if profile.ProfileID != receipt.ProfileID {
 		return errors.New("evidence receipt profile_id does not match profile")
