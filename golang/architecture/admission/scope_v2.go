@@ -176,13 +176,27 @@ func VerifyScope(exp ScopeExpectation, observed ObservedChangeSet, verifiedAt st
 			continue
 		}
 		allowed[op.Target] = true
+		if op.Kind == closureprotocol.OperationRename {
+			// Unreachable via admission (DecideAdmission refuses rename), but fail
+			// closed defensively rather than mis-verify a rename by path alone.
+			add("scope.operation.rename_mismatch", op.Target, "rename operations are unsupported in protocol v1")
+			continue
+		}
 		if !isMutationKind(op.Kind) {
 			verifiedOps = append(verifiedOps, op.OperationID)
 			continue
 		}
-		if _, ok := observedByPath[op.Target]; !ok {
+		obs, ok := observedByPath[op.Target]
+		if !ok {
 			add("scope.operation.not_observed", op.Target,
 				"admitted "+string(op.Kind)+" operation has no matching observed change")
+			continue
+		}
+		// A legal path with the wrong operation type (admitted modify, observed
+		// delete; admitted create, observed modify; ...) must not pass on path alone.
+		if !operationKindMatches(op.Kind, obs.ChangeType) {
+			add("scope.operation.kind_mismatch", op.Target,
+				"admitted "+string(op.Kind)+" but observed "+strings.TrimSpace(obs.ChangeType))
 			continue
 		}
 		verifiedOps = append(verifiedOps, op.OperationID)
@@ -270,6 +284,26 @@ func isMutationKind(k closureprotocol.OperationKind) bool {
 		return true
 	}
 	return false
+}
+
+// operationKindMatches reports whether an observed Git change type is a valid
+// realization of an admitted mutation kind. A rebuild materializes as a created
+// or modified generated artifact; migrate may create, modify, or delete.
+func operationKindMatches(k closureprotocol.OperationKind, changeType string) bool {
+	ct := strings.TrimSpace(changeType)
+	switch k {
+	case closureprotocol.OperationCreate:
+		return ct == "create"
+	case closureprotocol.OperationModify:
+		return ct == "modify"
+	case closureprotocol.OperationDelete:
+		return ct == "delete"
+	case closureprotocol.OperationRebuild:
+		return ct == "create" || ct == "modify"
+	case closureprotocol.OperationMigrate:
+		return ct == "create" || ct == "modify" || ct == "delete"
+	}
+	return true
 }
 
 func prohibited(path string, prefixes []string) (string, bool) {
