@@ -300,10 +300,27 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	if err != nil {
 		return AdvanceTaskResult{}, err
 	}
+	// Typed admission-v2 governance is authoritative for the mutation grant:
+	// legacy admission no longer hands out modify permission on its own.
+	gov := governanceDisposition(taskDir, now().UTC())
+	modifyCapability := decision.MutationCapability
+	modifyScope := decision.Envelope.ModifyPaths
+	if gov.Resolved {
+		if gov.Status == StatusReadyForMutation {
+			modifyCapability = admission.CapabilityAdmitted
+			modifyScope = gov.ModifyPaths
+		} else {
+			modifyCapability = admission.CapabilityWaiting
+		}
+	} else if modifyCapability == admission.CapabilityAdmitted || modifyCapability == admission.CapabilityAdmittedWithConditions {
+		// A task that has not resolved typed governance must not be granted a
+		// mutation capability through the legacy path.
+		modifyCapability = admission.CapabilityWaiting
+	}
 	classStarted := now()
 	controlState, err := taskcontrol.Project(taskcontrol.Inputs{
 		TaskID: baseSession.TaskID, Iteration: latestIter.Index, Binding: baseSession.Binding,
-		Permission: taskcontrol.PermissionSummary{Inspect: decision.InspectionCapability, Modify: decision.MutationCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), decision.Envelope.ModifyPaths...)},
+		Permission: taskcontrol.PermissionSummary{Inspect: decision.InspectionCapability, Modify: modifyCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), modifyScope...)},
 		Closure:    closureReport, Dialogue: latestDialogue, Claims: latestClaims, Probes: latestProbes,
 		Results: &batch.Results, BindingHealthy: true, GeneratedAt: observedAt, Receipts: iterationReceiptIDs(latestIter),
 	})
@@ -373,7 +390,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	status := StatusResult{
 		TaskID:      baseSession.TaskID,
 		Phase:       baseSession.WorkflowPhase,
-		Status:      baseSession.OperationalStatus,
+		Status:      governedStatus(taskDir, baseSession.OperationalStatus),
 		Closure:     baseSession.ClosureVerdict,
 		Convergence: baseSession.ConvergenceStatus,
 		Admission:   baseSession.AdmissionDecision,

@@ -521,7 +521,25 @@ func Status(opts StatusOptions) (StatusResult, error) {
 			res.Next = NextAction{Action: NextPrepareNewTask, Summary: "active task binding is stale or unverifiable"}
 		}
 	}
+	if res.Status != StatusStale {
+		res.Status = governedStatus(taskDir, res.Status)
+	}
 	return res, nil
+}
+
+// governedStatus derives the reported disposition from the typed admission-v2
+// ledger. When typed governance is resolved it is authoritative; a task that has
+// not resolved governance must not report a mutation grant, so a legacy
+// ready_for_mutation is gated down to waiting_governance.
+func governedStatus(taskDir, legacyStatus string) string {
+	disp := governanceDisposition(taskDir, time.Now().UTC())
+	if disp.Resolved {
+		return disp.Status
+	}
+	if legacyStatus == StatusReadyForMutation {
+		return StatusWaitingGovernance
+	}
+	return legacyStatus
 }
 
 func StableTaskID(req TaskRequest) string {
