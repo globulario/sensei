@@ -273,16 +273,48 @@ func recordScopeVerification(t *testing.T, taskDir string, verified bool) {
 
 func hasEventType(t *testing.T, taskDir string, want closureprotocol.LedgerEventType) bool {
 	t.Helper()
+	return ledgerEventIndex(t, taskDir, want) >= 0
+}
+
+// ledgerEventIndex returns the chain position of the first event of the given
+// type, or -1 if absent. Chain order is append order, so it doubles as the
+// event-ordering oracle.
+func ledgerEventIndex(t *testing.T, taskDir string, want closureprotocol.LedgerEventType) int {
+	t.Helper()
 	chain, err := taskLedgerStore(taskDir).VerifyChain()
 	if err != nil {
 		t.Fatalf("verify chain: %v", err)
 	}
-	for _, e := range chain.Entries {
+	for i, e := range chain.Entries {
 		if e.Entry.EventType == want {
-			return true
+			return i
 		}
 	}
-	return false
+	return -1
+}
+
+// TestLedgerOrdersAuthorityBeforeAdmission proves the typed authority resolution
+// is ledgered before any admission decision and that preparation records no
+// placeholder admission_decided event — the decision is produced later, by
+// admit-change (regression #8, #9).
+func TestLedgerOrdersAuthorityBeforeAdmission(t *testing.T) {
+	repo, taskDir := enrolledPreparedTask(t)
+	authIdx := ledgerEventIndex(t, taskDir, closureprotocol.LedgerEventAuthorityResolved)
+	if authIdx < 0 {
+		t.Fatal("preparation recorded no authority_resolved event")
+	}
+	if ledgerEventIndex(t, taskDir, closureprotocol.LedgerEventAdmissionDecided) >= 0 {
+		t.Fatal("preparation recorded a placeholder admission_decided event")
+	}
+	recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	rebindActivePointer(t, repo, taskDir)
+	decIdx := ledgerEventIndex(t, taskDir, closureprotocol.LedgerEventAdmissionDecided)
+	if decIdx < 0 {
+		t.Fatal("admit-change recorded no admission_decided event")
+	}
+	if authIdx >= decIdx {
+		t.Fatalf("authority_resolved (%d) is not ordered before admission_decided (%d)", authIdx, decIdx)
+	}
 }
 
 // TestGovernanceScopeVerifiedIsNonMutableTerminal proves scope verification is a
