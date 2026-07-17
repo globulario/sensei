@@ -64,6 +64,25 @@ func LoadGovernedDirectionFacts(opts GovernedDirectionOptions) ([]architecture.F
 	if err != nil {
 		return nil, nil, err
 	}
+	return governedDirectionFactsFromTriples(triples, opts.Root, opts.Binding)
+}
+
+// GovernedDirectionFactsFromTriples derives governed-direction facts from an
+// already-compiled in-memory graph, for callers (e.g. the result pipeline) that
+// hold the verified graph in memory and must not write a temporary graph file.
+// The binding must carry a resolved revision or tree digest and a resolved graph
+// digest.
+func GovernedDirectionFactsFromTriples(triples []graphsnapshot.Triple, root string, binding architecture.ClaimDocumentBinding) ([]architecture.Fact, []architecture.Limitation, error) {
+	if !architecture.RepositoryRevisionResolved(binding) && !architecture.RepositoryTreeResolved(binding) {
+		return nil, nil, fmt.Errorf("governed direction graph input requires resolved repository revision or tree binding")
+	}
+	if binding.GraphDigestStatus != architecture.GraphDigestResolved || binding.GraphDigestSHA256 == "" {
+		return nil, nil, fmt.Errorf("governed direction graph input requires resolved graph digest binding")
+	}
+	return governedDirectionFactsFromTriples(triples, root, binding)
+}
+
+func governedDirectionFactsFromTriples(triples []graphsnapshot.Triple, root string, binding architecture.ClaimDocumentBinding) ([]architecture.Fact, []architecture.Limitation, error) {
 	nodes := parseGovernedDirectionNodes(triples)
 	var facts []architecture.Fact
 	var limitations []architecture.Limitation
@@ -87,7 +106,7 @@ func LoadGovernedDirectionFacts(opts GovernedDirectionOptions) ([]architecture.F
 			Predicate: statement.Predicate,
 			Object:    statement.Object,
 			Scope: architecture.Scope{
-				Repository: opts.Binding.RepositoryDomain,
+				Repository: binding.RepositoryDomain,
 				Files:      append([]string{}, n.Files...),
 				Symbols:    append([]string{}, n.Symbols...),
 			},
@@ -101,16 +120,16 @@ func LoadGovernedDirectionFacts(opts GovernedDirectionOptions) ([]architecture.F
 				"governed_node_id":  n.ID,
 				"governed_node_iri": n.IRI,
 				"governed_class":    n.Class,
-				"graph_digest":      opts.Binding.GraphDigestSHA256,
+				"graph_digest":      binding.GraphDigestSHA256,
 				"authored_in":       strings.Join(n.AuthoredIn, ","),
 				"target_scope":      governedDirectionScopeKey(n.Files, n.Symbols),
 			},
 		}, architecture.Options{
-			Root:                   strings.TrimSpace(opts.Root),
-			RepositoryDomain:       opts.Binding.RepositoryDomain,
+			Root:                   strings.TrimSpace(root),
+			RepositoryDomain:       binding.RepositoryDomain,
 			RepositoryDomainStatus: architecture.RepositoryDomainResolved,
-			Revision:               opts.Binding.Revision,
-			RevisionStatus:         opts.Binding.RevisionStatus,
+			Revision:               binding.Revision,
+			RevisionStatus:         binding.RevisionStatus,
 			SourceKind:             "governed_authored_awareness",
 		})
 		facts = append(facts, fact)
