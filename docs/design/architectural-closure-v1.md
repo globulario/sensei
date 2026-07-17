@@ -421,12 +421,39 @@ produced against another result cannot be reused.
 Freshness is proven **structurally**, not by naming convention and not by a
 caller boolean. A closed, ordered set of derivation stages — governed source
 manifest → generated repository artifacts → architecture graph → inferred claims
-→ maintained claims → plane assessment → closure assessment → proof requirements
-→ artifact manifest — is recorded as `ArtifactDerivation` edges, each naming its
-output artifact and its actual input artifacts and bindings. Validation requires
-every referenced artifact to exist, every output to be produced once, every
-mandatory stage to be present, every input binding to be the current result, and
-the graph to be acyclic. Governed-knowledge change is a typed
+→ maintained claims → plane assessment → closure assessment → architect questions
+→ proof requirements → artifact manifest — is recorded as `ArtifactDerivation`
+edges, each naming its output artifact and its actual input artifacts and
+bindings. Validation requires every referenced artifact to exist, every output to
+be produced once, every mandatory stage to be present, every input binding to be
+the current result, and the graph to be acyclic.
+
+### The omission law
+
+`architect_questions` is a mandatory stage, not an optional one, and it is placed
+deliberately between closure assessment and proof requirements. Question
+generation is a distinct deterministic product: given the compiled result graph
+and the closure assessment, it produces an architecture-dialogue / OpenQuestion
+document and a question-generation report. When a load-bearing architect
+ambiguity exists it must surface as a grounded, closure-blocking question, so a
+task carrying unresolved architectural ambiguity cannot proceed to certification.
+When no architect question is warranted, the stage still runs and still emits its
+artifact — a question-generation report with a zero count — so the *absence* of
+questions is itself a produced, verifiable fact rather than an inference from a
+missing computation.
+
+This encodes a general principle the result pipeline now enforces structurally:
+
+> **No verdict may improve because a computation capable of weakening it was
+> omitted.** A missing assessment is not a passing assessment.
+
+Because every mandatory stage must be present exactly once, a result cannot look
+stronger by silently skipping the stage most able to expose an open question.
+Selective recomputation — running only the stages that can confirm a verdict
+while dropping the ones that could refute it — is refused at validation, not left
+to caller discipline. `architect_questions` is the first stage whose sole purpose
+is to be capable of weakening the verdict; making it mandatory closes the
+omission loophole for the whole pipeline. Governed-knowledge change is a typed
 `GovernedKnowledgeImpact` per category whose *changed* fact is **derived** as a
 difference of base-vs-result governed manifest digests, never a stored boolean;
 when exact record ids are unknown the changed-id set is empty with unequal

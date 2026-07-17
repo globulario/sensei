@@ -29,6 +29,17 @@ closure_protocol_fixture:
                       digest_sha256: 8f6f0e15dd7f999b520824553f6d8ec9d5a1df4dd4451c69ba064ba4d9f6433a
             result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
             operational_artifact_receipts:
+                - id: artifact.architect_questions
+                  kind: architect_questions
+                  path: artifacts/architect_questions.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: a15653fefb2c78a738f78864086afc414df2fa2b5969520a0f83299c56bf3517
+                  byte_digest_sha256: 4e8a601014cc658567cc37a2ccb33e412ed0776c1e1ad759e96d4b46811125be
+                  producer:
+                    id: sensei.architect_questions
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: b3e5ed4ca1d1972d45676e4c229a82337ffabcf3a804c5b00fea68f4f84f6126
                 - id: artifact.governed_source_manifest
                   kind: governed_source_manifest
                   path: artifacts/governed_source_manifest.bin
@@ -129,6 +140,12 @@ closure_protocol_fixture:
                   result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
                   receipt_digest_sha256: 8bd7fe1a53f2aa5b3aaf92707617b41195a624d5353efbe245cfcb5d5f602208
             derivations:
+                - stage: architect_questions
+                  output_artifact_receipt_digest_sha256: b3e5ed4ca1d1972d45676e4c229a82337ffabcf3a804c5b00fea68f4f84f6126
+                  input_artifact_receipt_digests_sha256:
+                    - 058a7e33b0edf458e6a2806694ead77efcd19991ab7ffee11eab766647ccf438
+                  input_binding_digests_sha256:
+                    - efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
                 - stage: governed_source_manifest
                   output_artifact_receipt_digest_sha256: d5f93ae0d33ff9e0d6160536ea508e3793f03e122e8ecd02799ce78a934fc9fc
                   input_binding_digests_sha256:

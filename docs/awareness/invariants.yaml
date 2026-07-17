@@ -551,3 +551,35 @@ invariants:
     required_tests:
       - adversarial_test.go:TestEvaluate_ForgedRecordIsRefusedNotScored
     contract: CorrectnessCertified true (a certifying verdict) may be established only by a CertificationReceipt produced by golang/architecture/certification, which recomputes the scope, authority, proof, and evidence lanes from typed, digest-verified records. Caller-supplied booleans, scores, clean diffs, passing test subsets, and legacy benchmark events can never certify. The legacy certify --event adapter is display-only and cannot append a certified ledger event.
+  - id: closure.no_verdict_improves_by_omitting_a_weakening_computation
+    title: No verdict may improve because a computation capable of weakening it was omitted
+    severity: critical
+    status: active
+    description: >
+      Phase 7 result pipeline. The derivation stage vocabulary is closed and
+      ordered, and every mandatory stage — including architect_questions,
+      inserted between closure_assessment and proof_requirements — must be
+      present exactly once. architect_questions is the first stage whose sole
+      purpose is to be capable of weakening the verdict: it deterministically
+      generates grounded, closure-blocking architect questions from the compiled
+      result graph and closure assessment, or, when none are warranted, still
+      emits a question-generation artifact with a zero count. A missing
+      assessment is therefore never a passing assessment, and selective
+      recomputation cannot make a result look stronger by dropping the stage most
+      able to refute it.
+    protects:
+      files:
+        - golang/architecture/closureprotocol/model.go
+        - golang/architecture/closureprotocol/validate.go
+        - docs/schemas/architectural-closure/v1/result-transition-receipt.schema.json
+    required_tests:
+      - golang/architecture/closureprotocol/fixtures_test.go:TestFixtures
+    contract: >
+      A ResultTransitionReceipt is valid only when its derivation graph contains
+      every stage in the frozen ResultPipelineStages vocabulary exactly once,
+      references only existing artifacts, binds every input to the current
+      result, and is acyclic. architect_questions is a mandatory stage: a receipt
+      that omits it is refused. The absence of open architect questions must be
+      expressed as a produced, verifiable question-generation artifact with a
+      zero count — never inferred from a missing computation. No verdict may
+      improve because a stage capable of weakening it was omitted.

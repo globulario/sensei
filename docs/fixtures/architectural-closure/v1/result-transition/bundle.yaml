@@ -49,6 +49,17 @@ closure_protocol_fixture:
                       digest_sha256: 8f6f0e15dd7f999b520824553f6d8ec9d5a1df4dd4451c69ba064ba4d9f6433a
             result_binding_digest_sha256: 58b42fecf9428ba05af3010b4fad755e69a71229fa1b68002a18663cd0e514b0
             operational_artifact_receipts:
+                - id: artifact.architect_questions
+                  kind: architect_questions
+                  path: artifacts/architect_questions.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: 8d6f6dae140e653c014cc069229f8d37c2b3b73df6bde7e154c17cef8d2d4591
+                  byte_digest_sha256: 74b9172a2a45425723529acb6c5d24ff46cb251ea6125b8aa3c9814472a926b8
+                  producer:
+                    id: sensei.architect_questions
+                    version: v1
+                  result_binding_digest_sha256: 58b42fecf9428ba05af3010b4fad755e69a71229fa1b68002a18663cd0e514b0
+                  receipt_digest_sha256: a4e4c16df03e16daf8960b1690ee2eda61cc13bf4f2b3682bbd65072e7953fb0
                 - id: artifact.governed_source_manifest
                   kind: governed_source_manifest
                   path: artifacts/governed_source_manifest.bin
@@ -149,6 +160,12 @@ closure_protocol_fixture:
                   result_binding_digest_sha256: 58b42fecf9428ba05af3010b4fad755e69a71229fa1b68002a18663cd0e514b0
                   receipt_digest_sha256: 96aa4bd8e368be388b26f812a725eede5637f9ebe04b91ececc661b4ecb9e357
             derivations:
+                - stage: architect_questions
+                  output_artifact_receipt_digest_sha256: a4e4c16df03e16daf8960b1690ee2eda61cc13bf4f2b3682bbd65072e7953fb0
+                  input_artifact_receipt_digests_sha256:
+                    - 77978952c8b429d11ff01dc6d6ca532bba75e45afa8c5238b681cfcc7b79bf1f
+                  input_binding_digests_sha256:
+                    - 58b42fecf9428ba05af3010b4fad755e69a71229fa1b68002a18663cd0e514b0
                 - stage: governed_source_manifest
                   output_artifact_receipt_digest_sha256: 5a5d5dd9d37e5f9699c0e2c64b972450c59e14fb1b1be9d2b814c15880a90ee1
                   input_binding_digests_sha256:
@@ -181,7 +198,7 @@ closure_protocol_fixture:
                 - stage: proof_requirements
                   output_artifact_receipt_digest_sha256: 49f432c150dbbc2865008bdfd56fa547f780b778c0703e81ce15926d2ddd8f69
                   input_artifact_receipt_digests_sha256:
-                    - 77978952c8b429d11ff01dc6d6ca532bba75e45afa8c5238b681cfcc7b79bf1f
+                    - a4e4c16df03e16daf8960b1690ee2eda61cc13bf4f2b3682bbd65072e7953fb0
                 - stage: artifact_manifest
                   output_artifact_receipt_digest_sha256: 96aa4bd8e368be388b26f812a725eede5637f9ebe04b91ececc661b4ecb9e357
                   input_artifact_receipt_digests_sha256:
