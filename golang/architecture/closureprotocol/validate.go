@@ -572,6 +572,14 @@ func validateResultBindingShape(in ResultBinding) error {
 func ValidateResultBinding(in ResultBinding) error { return validateResultBindingShape(in) }
 
 func validGovernedKnowledgeCategory(c string) bool { return contains(governedKnowledgeCategories, c) }
+
+// GovernedKnowledgeCategories returns a copy of the closed, ordered governed-
+// knowledge category vocabulary. It is the single definition both the transition
+// receipt validator and the impact engine consume, so no second literal list can
+// drift from it.
+func GovernedKnowledgeCategories() []string {
+	return append([]string(nil), governedKnowledgeCategories...)
+}
 func validResultPipelineStage(s ResultPipelineStage) bool {
 	return contains(ResultPipelineStages, s)
 }
