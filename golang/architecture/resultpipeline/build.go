@@ -498,23 +498,33 @@ func proofRequirements(resultRoot, rbDigest, graphDigest, closureDigest string, 
 		}
 	}
 
-	// Completeness is honest, not optimistic. This composition consults authority
-	// surfaces, closure, and architect questions, but does NOT yet compose the
-	// recorded admission-decision proof slots, required runtime-evidence profiles,
-	// or graph-declared proof obligations and required tests, so it cannot claim
-	// "complete". The absence of obligations here therefore means "not fully
-	// consulted", never "consulted and none applied".
+	// Extraction completeness is honest, not optimistic. This composition consults
+	// authority surfaces, closure, and architect questions, but does NOT yet
+	// compose the recorded admission-decision proof slots, required
+	// runtime-evidence profiles, or graph-declared proof obligations and required
+	// tests, so a required requirement source was not consulted: extraction is
+	// INCOMPLETE (never a "complete" empty set from unconsulted inputs).
 	doc.Limitations = append(doc.Limitations, "result-side admission proof slots, runtime-evidence profiles, graph obligations, required tests, and forbidden moves are not yet composed")
+	if rep.Verdict == closure.VerdictUncertifiable {
+		doc.ExtractionCompleteness = ExtractionUncertifiable
+	} else {
+		doc.ExtractionCompleteness = ExtractionIncomplete
+	}
+
+	// Proving disposition is a separate axis. Unresolved / non-actionable architect
+	// questions block proving; an uncertifiable closure makes proving
+	// uncertifiable. (Once extraction is complete this stays a distinct signal:
+	// complete extraction can still be blocked.)
 	switch {
 	case rep.Verdict == closure.VerdictUncertifiable:
-		doc.Completeness = ProofUncertifiable
+		doc.ProvingDisposition = ProvingUncertifiable
+	case !questions.ArchitectQuestionsActionable:
+		doc.ProvingDisposition = ProvingBlocked
+		doc.Limitations = append(doc.Limitations, "architect questions are not actionable; proving stays blocked until resolved")
 	default:
-		// Blocked: required inputs remain unconsulted, or an architect decision is
-		// unresolved / non-actionable.
-		doc.Completeness = ProofBlocked
-	}
-	if !questions.ArchitectQuestionsActionable {
-		doc.Limitations = append(doc.Limitations, "architect questions are not actionable; proof stays blocked until resolved")
+		// Requirements are not yet fully composed, so proving cannot be declared
+		// ready; it stays blocked pending the admission/graph composition.
+		doc.ProvingDisposition = ProvingBlocked
 	}
 	return doc
 }
