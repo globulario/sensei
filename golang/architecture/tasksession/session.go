@@ -24,6 +24,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/convergence"
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
@@ -174,6 +175,19 @@ type PrepareOptions struct {
 	QuestionCreatedAt               string
 	RequestedBy                     string
 	SetActive                       bool
+
+	// GraphInputSnapshot, when supplied by the caller that built GraphNT, is the
+	// immutable record of exactly which governed graph inputs produced the base
+	// graph — the source-root policy, logical roots, and supplemental graphs. It
+	// is recorded as a content-addressed graph_input_snapshot artifact on
+	// task_prepared, together with each supplemental graph's exact bytes, so a
+	// later result pipeline can reproduce the exact architecture graph rather than
+	// reload current mutable state. When absent, task preparation records a
+	// graph_input_snapshot_unavailable limitation instead of inventing one.
+	GraphInputSnapshot *graphbuild.GraphInputSnapshot
+	// SupplementalGraphBytes maps each supplemental graph's artifact key (from the
+	// snapshot) to its exact bytes, stored as content-addressed task artifacts.
+	SupplementalGraphBytes map[string][]byte
 }
 
 type PrepareResult struct {
@@ -459,7 +473,11 @@ func Prepare(opts PrepareOptions) (PrepareResult, error) {
 		return PrepareResult{}, err
 	}
 	sessionID := stableTaskSessionID(taskReq.TaskID)
-	ledgerHead, err := initializeLedgerState(repoRoot, opts.RepositoryDomain, taskRoot, taskReq.TaskID, sessionID, taskReq, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes, session.OperationalStatus)
+	graphSnapshotBytes, supplementalGraphBytes, err := marshalGraphInputSnapshot(opts)
+	if err != nil {
+		return PrepareResult{}, err
+	}
+	ledgerHead, err := initializeLedgerState(repoRoot, opts.RepositoryDomain, taskRoot, taskReq.TaskID, sessionID, taskReq, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes, graphSnapshotBytes, supplementalGraphBytes, session.OperationalStatus)
 	if err != nil {
 		return PrepareResult{}, err
 	}
@@ -665,7 +683,7 @@ func closurePolicyBinding() closureprotocol.PolicyBinding {
 	}
 }
 
-func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, sessionID string, taskReq TaskRequest, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes []byte, status string) (ledger.Head, error) {
+func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, sessionID string, taskReq TaskRequest, taskBytes, closureBytes, sessionBytes, controlBytes, statusBytes, graphSnapshotBytes []byte, supplementalGraphBytes map[string][]byte, status string) (ledger.Head, error) {
 	store := ledger.NewStore(taskRoot, ledger.WithPayloadValidator(func(eventType closureprotocol.LedgerEventType, mediaType string, data []byte) error {
 		return ledger.ValidateTaskEventPayload(eventType, data)
 	}))
@@ -706,6 +724,35 @@ func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, session
 	if err != nil {
 		return ledger.Head{}, err
 	}
+	artifacts := map[string]closureprotocol.LedgerPayloadRef{
+		"task_request":    taskReqRef,
+		"closure_request": closureReqRef,
+		"session":         sessionRef,
+		"task_control":    controlRef,
+		"status":          statusRef,
+	}
+	graphSnapshotUnavailable := len(graphSnapshotBytes) == 0
+	if !graphSnapshotUnavailable {
+		snapshotRef, err := store.StoreArtifactBytes(graphSnapshotBytes, "application/yaml")
+		if err != nil {
+			return ledger.Head{}, err
+		}
+		artifacts["graph_input_snapshot"] = snapshotRef
+		for key, data := range supplementalGraphBytes {
+			supRef, err := store.StoreArtifactBytes(data, graphbuild.NTriplesMediaType)
+			if err != nil {
+				return ledger.Head{}, err
+			}
+			artifacts[key] = supRef
+		}
+	}
+	cloneArtifacts := func() map[string]closureprotocol.LedgerPayloadRef {
+		out := make(map[string]closureprotocol.LedgerPayloadRef, len(artifacts))
+		for k, v := range artifacts {
+			out[k] = v
+		}
+		return out
+	}
 	appendPayload := func(expected string, eventType closureprotocol.LedgerEventType, payload ledger.TaskEventPayload) (ledger.AppendResult, error) {
 		return store.Append(context.Background(), ledger.AppendRequest{
 			TaskID: taskID, SessionID: sessionID, ExpectedHeadDigestSHA256: expected,
@@ -721,14 +768,8 @@ func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, session
 			SessionID:     sessionID,
 			Status:        status,
 			BaseBinding:   &base,
-			Artifacts: map[string]closureprotocol.LedgerPayloadRef{
-				"task_request":    taskReqRef,
-				"closure_request": closureReqRef,
-				"session":         sessionRef,
-				"task_control":    controlRef,
-				"status":          statusRef,
-			},
-			Limitations: append([]string(nil), limitations...),
+			Artifacts:     cloneArtifacts(),
+			Limitations:   append([]string(nil), limitations...),
 		}
 	}
 
@@ -745,6 +786,9 @@ func initializeLedgerState(repoRoot, repositoryDomain, taskRoot, taskID, session
 	}
 	if resolveLimitation != "" {
 		preResolution = append(preResolution, resolveLimitation)
+	}
+	if graphSnapshotUnavailable {
+		preResolution = append(preResolution, "graph_input_snapshot_unavailable")
 	}
 	headLimitations := preResolution
 	if resolved != nil {
@@ -955,6 +999,49 @@ func defaultArtifactRefs() ArtifactRefs {
 		PrepareReceipt:               "receipts/prepare-change.yaml",
 		StatusReceipt:                "receipts/task-status.yaml",
 	}
+}
+
+// marshalGraphInputSnapshot canonicalizes, stamps, and validates the caller-
+// supplied graph-input snapshot and returns its canonical YAML bytes and the
+// supplemental graph bytes keyed by artifact key. It returns (nil, nil, nil) when
+// no snapshot was supplied, so task preparation records a
+// graph_input_snapshot_unavailable limitation rather than inventing one.
+func marshalGraphInputSnapshot(opts PrepareOptions) ([]byte, map[string][]byte, error) {
+	if opts.GraphInputSnapshot == nil {
+		return nil, nil, nil
+	}
+	snap := *opts.GraphInputSnapshot
+	if strings.TrimSpace(snap.RepositoryDomain) == "" {
+		snap.RepositoryDomain = strings.TrimSpace(opts.RepositoryDomain)
+	}
+	if strings.TrimSpace(snap.SchemaVersion) == "" {
+		snap.SchemaVersion = graphbuild.GraphInputSnapshotSchemaVersion
+	}
+	canon, err := graphbuild.CanonicalizeGraphInputSnapshot(snap)
+	if err != nil {
+		return nil, nil, err
+	}
+	digest, err := graphbuild.GraphInputSnapshotDigest(canon)
+	if err != nil {
+		return nil, nil, err
+	}
+	canon.SnapshotDigestSHA256 = digest
+	if err := graphbuild.ValidateGraphInputSnapshot(canon); err != nil {
+		return nil, nil, err
+	}
+	supplemental := map[string][]byte{}
+	for _, s := range canon.SupplementalGraphs {
+		data, ok := opts.SupplementalGraphBytes[s.ArtifactKey]
+		if !ok || len(data) == 0 {
+			return nil, nil, fmt.Errorf("tasksession: supplemental graph %q has no bytes for artifact key %q", s.ID, s.ArtifactKey)
+		}
+		supplemental[s.ArtifactKey] = data
+	}
+	body, err := yaml.Marshal(canon)
+	if err != nil {
+		return nil, nil, err
+	}
+	return body, supplemental, nil
 }
 
 func closureRequestFromTask(req TaskRequest, awarenessMutation *closure.AwarenessMutationBinding) closure.Request {
