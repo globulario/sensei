@@ -106,6 +106,7 @@ func assembleStages(
 	if err != nil {
 		return nil, err
 	}
+	d2 := a2.Receipt.ReceiptDigestSHA256
 
 	arts = append(arts, a1, a2, a3)
 
@@ -150,8 +151,12 @@ func assembleStages(
 	arts = append(arts, a8)
 	d8 := a8.Receipt.ReceiptDigestSHA256
 
+	// Stage 9 now genuinely derives from the generated repository artifacts (d2,
+	// whose verified proof-obligations output it reuses) and the architecture
+	// graph (d3, the scoped result graph it projects), in addition to closure (d7)
+	// and the architect questions (d8).
 	a9, err := jsonArtifact(closureprotocol.StageProofRequirements, "proof_requirements",
-		"result-pipeline/proof-requirements.json", proofDoc, rbDigest, producer(ProducerProofRequirements), []string{d7, d8, d3})
+		"result-pipeline/proof-requirements.json", proofDoc, rbDigest, producer(ProducerProofRequirements), []string{d2, d3, d7, d8})
 	if err != nil {
 		return nil, err
 	}

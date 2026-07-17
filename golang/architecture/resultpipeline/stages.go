@@ -50,54 +50,23 @@ func emptyResultDialogue(binding architecture.ClaimDocumentBinding) *architectur
 	}
 }
 
-// ProofRequirementDocument is the stage-9 canonical output: the current task
-// proof requirements derived from the result graph, closure, admission, and
-// architect questions. An empty requirement set is an explicit computed result,
-// never an omitted artifact.
-type ProofRequirementDocument struct {
-	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
+// ProofRequirementDocument is the stage-9 canonical output. Its single
+// definition lives in the proofrequirements package (proofrequirements.Compose
+// builds it from the seven authoritative sources); the pipeline consumes it under
+// this local name so there is exactly one document shape and one composer.
+type ProofRequirementDocument = proofrequirements.Document
 
-	// ExtractionCompleteness and ProvingDisposition are DISTINCT: knowing exactly
-	// why proving is blocked is not the same as failing to extract the
-	// requirements. ExtractionCompleteness is "complete" only when every required
-	// requirement source (admission, graph, closure, questions) was successfully
-	// consulted; "incomplete" when a required source could not be loaded or
-	// interpreted; "uncertifiable" when no legitimate requirement set can be
-	// established. ProvingDisposition is "ready" when requirements are complete and
-	// nothing blocks; "blocked" when complete but an architect decision, closure
-	// requirement, or evidence requirement is unresolved; "uncertifiable" when
-	// proving cannot be defined honestly. An unresolved architect question is
-	// normally (complete, blocked), never (incomplete, ...).
-	ExtractionCompleteness string `json:"extraction_completeness" yaml:"extraction_completeness"`
-	ProvingDisposition     string `json:"proving_disposition" yaml:"proving_disposition"`
-
-	ResultBindingDigestSHA256             string `json:"result_binding_digest_sha256" yaml:"result_binding_digest_sha256"`
-	SourceAdmissionDecisionDigestSHA256   string `json:"source_admission_decision_digest_sha256,omitempty" yaml:"source_admission_decision_digest_sha256,omitempty"`
-	SourceAuthorityResolutionDigestSHA256 string `json:"source_authority_resolution_digest_sha256,omitempty" yaml:"source_authority_resolution_digest_sha256,omitempty"`
-	SourceGraphDigestSHA256               string `json:"source_graph_digest_sha256" yaml:"source_graph_digest_sha256"`
-	SourceClosureDigestSHA256             string `json:"source_closure_digest_sha256" yaml:"source_closure_digest_sha256"`
-	SourceQuestionsDigestSHA256           string `json:"source_questions_digest_sha256" yaml:"source_questions_digest_sha256"`
-
-	Obligations                 []proofrequirements.Obligation `json:"obligations" yaml:"obligations"`
-	RequiredTests               []string                       `json:"required_tests" yaml:"required_tests"`
-	ForbiddenMoves              []string                       `json:"forbidden_moves" yaml:"forbidden_moves"`
-	UnresolvedArchitectQuestion []string                       `json:"unresolved_architect_questions" yaml:"unresolved_architect_questions"`
-	Limitations                 []string                       `json:"limitations" yaml:"limitations"`
-}
-
-// Extraction-completeness vocabulary.
+// Extraction-completeness and proving-disposition vocabularies are re-exported
+// from the composer package so existing pipeline references keep working against
+// one source of truth.
 const (
-	ExtractionComplete      = "complete"
-	ExtractionIncomplete    = "incomplete"
-	ExtractionUncertifiable = "uncertifiable"
-)
+	ExtractionComplete      = proofrequirements.ExtractionComplete
+	ExtractionIncomplete    = proofrequirements.ExtractionIncomplete
+	ExtractionUncertifiable = proofrequirements.ExtractionUncertifiable
 
-// Proving-disposition vocabulary.
-const (
-	ProvingReady         = "ready"
-	ProvingBlocked       = "blocked"
-	ProvingUncertifiable = "uncertifiable"
+	ProvingReady         = proofrequirements.ProvingReady
+	ProvingBlocked       = proofrequirements.ProvingBlocked
+	ProvingUncertifiable = proofrequirements.ProvingUncertifiable
 )
 
 // ArchitectQuestionsBundle is the stage-8 canonical output: the result-bound
