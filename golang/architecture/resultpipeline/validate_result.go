@@ -343,8 +343,10 @@ func validateEnvelope(result BuildResult, art PipelineArtifact) error {
 
 // validateDerivation implements the §7 derivation-identity law for a first-nine
 // stage: the edge names this stage, outputs this receipt, has exactly one input
-// binding (the current result), and its input receipt digests exactly match the
-// contract's input stages in order.
+// binding (the current result), and its input receipt digests are exactly the SET
+// of the contract's input stages. The frozen contract canonicalizes derivation
+// input digests as a set (order-independent), so this compares sets — matching the
+// protocol, and surviving a canonical serialize/reload round-trip.
 func validateDerivation(art PipelineArtifact, receiptDigest map[closureprotocol.ResultPipelineStage]string) error {
 	c := stageContracts[art.Stage]
 	d := art.Derivation
@@ -361,15 +363,28 @@ func validateDerivation(art PipelineArtifact, receiptDigest map[closureprotocol.
 	for _, in := range c.Inputs {
 		want = append(want, receiptDigest[in])
 	}
-	if len(d.InputArtifactReceiptDigestsSHA256) != len(want) {
-		return verr(CodeStageDerivationMismatch, art.Stage, "derivation has %d inputs, want %d", len(d.InputArtifactReceiptDigestsSHA256), len(want))
-	}
-	for i := range want {
-		if d.InputArtifactReceiptDigestsSHA256[i] != want[i] {
-			return verr(CodeStageDerivationMismatch, art.Stage, "derivation input %d does not match contract stage %q", i, c.Inputs[i])
-		}
+	if !equalDigestSet(d.InputArtifactReceiptDigestsSHA256, want) {
+		return verr(CodeStageDerivationMismatch, art.Stage, "derivation inputs are not the exact set of contract stages")
 	}
 	return nil
+}
+
+// equalDigestSet reports whether a and b are the same set of digests.
+func equalDigestSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := map[string]int{}
+	for _, v := range a {
+		seen[v]++
+	}
+	for _, v := range b {
+		seen[v]--
+		if seen[v] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // decodeContext threads cross-stage values discovered while decoding.
