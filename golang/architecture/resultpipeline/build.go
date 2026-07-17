@@ -95,8 +95,38 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 	}
 	defer cleanupBase()
 
-	// Stage 1 + Stage 3: governed source manifest and architecture graph.
-	cg, err := compileGovernedGraph(ctx, resultRoot, domain, nil)
+	// 3. Load the immutable graph-input snapshot admission recorded on
+	// task_prepared, plus its content-addressed supplemental graph bytes. This is
+	// the exact world admission observed — never a hardcoded root set and never a
+	// current active governance-pack pointer.
+	recorded, err := loadRecordedGraphInputs(taskDir, domain)
+	if err != nil {
+		return BuildResult{}, err
+	}
+
+	// 5 + 6. Reproduce the admitted base graph from the snapshot resolved against
+	// the base root, and prove it equals the base binding's graph digest. Until
+	// this equality holds, the snapshot is an immutable declaration, not a proven
+	// derivation.
+	baseInputs, err := resolveGraphInputs(baseRoot, recorded.Snapshot, recorded.SupplementalBytes)
+	if err != nil {
+		return BuildResult{}, fmt.Errorf("resultpipeline: base_graph_inputs_unresolved: %w", err)
+	}
+	baseGraph, err := compileGovernedGraph(ctx, baseRoot, baseInputs)
+	if err != nil {
+		return BuildResult{}, fmt.Errorf("resultpipeline: base_graph_inputs_unresolved: %w", err)
+	}
+	if want := strings.TrimSpace(base.Graph.DigestSHA256); want != "" && baseGraph.artifact.GraphSemanticDigestSHA256 != want {
+		return BuildResult{}, fmt.Errorf("resultpipeline: base_graph_binding_stale: recomputed base graph digest %s does not match admitted %s", baseGraph.artifact.GraphSemanticDigestSHA256, want)
+	}
+
+	// 7 + 8. Build the result graph from the EXACT same snapshot and policy against
+	// the result root — only repository-tree contents may differ from the base.
+	resultInputs, err := resolveGraphInputs(resultRoot, recorded.Snapshot, recorded.SupplementalBytes)
+	if err != nil {
+		return BuildResult{}, fmt.Errorf("resultpipeline: graph_input_snapshot_unavailable: %w", err)
+	}
+	cg, err := compileGovernedGraph(ctx, resultRoot, resultInputs)
 	if err != nil {
 		return BuildResult{}, err
 	}
@@ -132,7 +162,7 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 	// Base-claim reference (spec §11): rebuild claims over the admitted base and
 	// prove the base graph binding is not stale. Never published as a result
 	// artifact; used only as maintenance's Previous input.
-	baseClaims, err := baseClaimReference(ctx, baseRoot, domain, base)
+	baseClaims, err := baseClaimReference(baseRoot, domain, base, baseGraph)
 	if err != nil {
 		return BuildResult{}, err
 	}
@@ -362,21 +392,16 @@ func rebindFactsToResult(facts []architecture.Fact, b architecture.ClaimDocument
 	return out
 }
 
-// baseClaimReference rebuilds claims over the admitted base tree and proves the
-// base graph binding is not stale (spec §11).
-func baseClaimReference(ctx context.Context, baseRoot, domain string, base closureprotocol.BaseBinding) (architecture.ClaimDocument, error) {
-	cg, err := compileGovernedGraph(ctx, baseRoot, domain, nil)
-	if err != nil {
-		return architecture.ClaimDocument{}, fmt.Errorf("resultpipeline: compile base graph: %w", err)
-	}
-	if strings.TrimSpace(base.Graph.DigestSHA256) != "" && cg.artifact.GraphSemanticDigestSHA256 != strings.TrimSpace(base.Graph.DigestSHA256) {
-		return architecture.ClaimDocument{}, fmt.Errorf("resultpipeline: base_graph_binding_stale: recomputed base graph digest differs from the admitted base binding")
-	}
+// baseClaimReference rebuilds claims over the admitted base tree using the SAME
+// already-verified base graph — no second, independent graph build that could
+// quietly observe different inputs (spec §9/§11). Never published as a result
+// artifact; used only as maintenance's Previous input.
+func baseClaimReference(baseRoot, domain string, base closureprotocol.BaseBinding, baseGraph compiledGraph) (architecture.ClaimDocument, error) {
 	baseBinding := binding.ToClaimDocumentBinding(base)
 	baseBinding.RepositoryDomain = domain
-	baseBinding.GraphDigestSHA256 = cg.artifact.GraphSemanticDigestSHA256
+	baseBinding.GraphDigestSHA256 = baseGraph.artifact.GraphSemanticDigestSHA256
 	baseBinding.GraphDigestStatus = architecture.GraphDigestResolved
-	inferred, err := inferredClaims(baseRoot, baseBinding, cg.triples)
+	inferred, err := inferredClaims(baseRoot, baseBinding, baseGraph.triples)
 	if err != nil {
 		return architecture.ClaimDocument{}, fmt.Errorf("resultpipeline: base claims: %w", err)
 	}

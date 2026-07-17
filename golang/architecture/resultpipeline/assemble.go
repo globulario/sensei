@@ -9,9 +9,38 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
 )
+
+// GovernedSourceManifestBundle is the stage-1 canonical output. Its semantic
+// identity includes the graph-input policy, the immutable snapshot digest, the
+// logical source roots, and the supplemental graph identities — so graph-input
+// parity is inspectable from the stage artifact — plus the graphbuild source
+// manifest. It never contains an absolute path, supplemental bytes, an
+// active-pointer location, or a temporary path.
+type GovernedSourceManifestBundle struct {
+	SchemaVersion                  string                                `json:"schema_version" yaml:"schema_version"`
+	GraphInputPolicyID             string                                `json:"graph_input_policy_id" yaml:"graph_input_policy_id"`
+	GraphInputSnapshotDigestSHA256 string                                `json:"graph_input_snapshot_digest_sha256" yaml:"graph_input_snapshot_digest_sha256"`
+	RepositoryDomain               string                                `json:"repository_domain" yaml:"repository_domain"`
+	LogicalSourceRoots             []graphbuild.LogicalSourceRoot        `json:"logical_source_roots" yaml:"logical_source_roots"`
+	SupplementalGraphs             []graphbuild.SupplementalGraphBinding `json:"supplemental_graphs" yaml:"supplemental_graphs"`
+	SourceManifest                 graphbuild.SourceManifest             `json:"source_manifest" yaml:"source_manifest"`
+}
+
+func governedSourceManifestBundle(cg compiledGraph) GovernedSourceManifestBundle {
+	return GovernedSourceManifestBundle{
+		SchemaVersion:                  "resultpipeline.governed-source-manifest/v1",
+		GraphInputPolicyID:             cg.snapshot.PolicyID,
+		GraphInputSnapshotDigestSHA256: cg.snapshot.SnapshotDigestSHA256,
+		RepositoryDomain:               cg.snapshot.RepositoryDomain,
+		LogicalSourceRoots:             cg.snapshot.SourceRoots,
+		SupplementalGraphs:             cg.snapshot.SupplementalGraphs,
+		SourceManifest:                 cg.compilation.SourceManifest,
+	}
+}
 
 // governedGeneratedPaths is the closed, versioned set of repository-generated
 // artifacts a Phase 7 result may carry. Stage 2 verifies them by presence and
@@ -109,7 +138,7 @@ func assembleStages(
 	var arts []PipelineArtifact
 
 	a1, err := jsonArtifact(closureprotocol.StageGovernedSourceManifest, "governed_source_manifest",
-		"result-pipeline/governed-source-manifest.json", cg.compilation.SourceManifest, rbDigest, producer(ProducerGraphbuild), nil)
+		"result-pipeline/governed-source-manifest.json", governedSourceManifestBundle(cg), rbDigest, producer(ProducerGraphbuild), nil)
 	if err != nil {
 		return nil, err
 	}
