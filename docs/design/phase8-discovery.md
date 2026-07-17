@@ -179,14 +179,24 @@ events/receipts; nothing shows them atomic).
   (preflight/briefings EMPTY). Should Slice 8.1 also author governed knowledge
   (invariants/failure modes/required tests) for completion, and if so, does that block
   implementation or follow it? (No awareness mutation was made during discovery.)
-- **Q2 — evidence/proof operational producers.** No operational producer was found that
-  appends `evidence_recorded` or `proof_discharged`. Does `certification.CertifyTask`
-  obtain evidence and proof-discharge records from those **ledger events**, or from a
-  `certification-request.yaml` / graph / YAML source? If the ledger events have no
-  producer, there is a **gap between `proving` and `certified`** that precedes Phase 8 —
-  is that gap in Phase 8's scope, a separate phase, or already satisfied by
-  certification's record sources? *(Pending the reference sweep; stated as a question,
-  not assumed.)*
+- **Q2 — the unused `evidence_recorded`/`proof_discharged` events (resolved by an
+  exhaustive reference sweep; one residual question).** These two events have **zero
+  operational producers**: a whole-tree grep for `EventType: closureprotocol.LedgerEvent…`
+  finds exactly two post-scope-verified appends — `result_transition_recorded`
+  (`resultrecording/record.go:130,151`) and `certified` (`certification/ledger.go:155,158`);
+  `evidence_recorded`, `proof_discharged`, `completed`, `revoked`, `migration_executed`
+  are declared constants only, with no append site and no payload-validator branch
+  (`ledger/event.go` special-cases only `result_transition_recorded`). Certification does
+  **not** consume evidence/proof as ledger events: `certification.CertifyTask` resolves
+  evidence-receipt and proof-discharge records as **content-addressed artifacts**
+  referenced by digest in `certification-request.yaml` (`certification/source.go:43-224`),
+  each independently digest-verified. So Phase 8 completion consumes the **certification
+  receipt** (via `certification.VerifyReceipt`), not any evidence/proof event, and there is
+  **no** `proving → certified` ledger-event gap that Phase 8 must fill. Residual architect
+  question: are `evidence_recorded`/`proof_discharged` **dead reserved vocabulary**, or
+  intended for a future phase that records evidence/proof *as ledger events* rather than
+  artifacts? Completion does not need them; their status only determines whether
+  completion's boundary test should also forbid them.
 - **Q3 — completion inputs.** Does completion require a `completion-request.yaml`
   (analogous to `certification-request.yaml`), or does it derive the policy + completing
   actor entirely from the certified event + base binding? Where does `CompletingActor`
