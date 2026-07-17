@@ -175,3 +175,26 @@ func LoadRecordedScopeVerification(taskDir string) (ScopeVerification, error) {
 	err := LoadLatestArtifact(taskDir, closureprotocol.LedgerEventScopeVerified, "scope_verification", &v)
 	return v, err
 }
+
+// LoadEventProducedAt returns the RFC3339 produced-at timestamp recorded on the
+// latest ledger event of eventType. It is the stable, ledger-anchored clock a
+// deterministic downstream computation (e.g. the result pipeline) uses instead of
+// time.Now, so two executions for the same task result derive the same time. It
+// fails closed when no such event exists.
+func LoadEventProducedAt(taskDir string, eventType closureprotocol.LedgerEventType) (string, error) {
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
+	chain, err := store.VerifyChain()
+	if err != nil {
+		return "", err
+	}
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		ve := chain.Entries[i]
+		if ve.Entry.EventType == eventType {
+			if ve.Entry.ProducedAt == "" {
+				return "", fmt.Errorf("ledger event %s has no produced_at", eventType)
+			}
+			return ve.Entry.ProducedAt, nil
+		}
+	}
+	return "", fmt.Errorf("no %s event found in task ledger", eventType)
+}

@@ -565,6 +565,12 @@ func validateResultBindingShape(in ResultBinding) error {
 	return nil
 }
 
+// ValidateResultBinding exposes the frozen result-binding shape check so a
+// producer (e.g. the result pipeline) can validate a completed ResultBinding
+// before it binds operational artifacts. It is the same check the result
+// transition receipt applies to its embedded binding.
+func ValidateResultBinding(in ResultBinding) error { return validateResultBindingShape(in) }
+
 func validGovernedKnowledgeCategory(c string) bool { return contains(governedKnowledgeCategories, c) }
 func validResultPipelineStage(s ResultPipelineStage) bool {
 	return contains(ResultPipelineStages, s)
