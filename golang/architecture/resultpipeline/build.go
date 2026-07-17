@@ -421,7 +421,7 @@ func architectQuestionsBundle(res questiongen.Result, rep closure.Report) Archit
 	current(res.Report.Skipped)
 
 	var accounted, unaccounted, duplicate, unsupportedCritical []string
-	for id := range currentIDs {
+	for _, id := range sortedKeys(currentIDs) {
 		switch n := len(dispositions[id]); {
 		case n == 1:
 			accounted = append(accounted, id)
