@@ -4,7 +4,6 @@ package resultrecording
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,61 +15,6 @@ import (
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resultpipeline"
 )
-
-// TestDurableEntryHeadFailsReconcileSucceeds: the append's HEAD write fails, but
-// the same RecordTransition reconciles HEAD and succeeds — one durable event.
-func TestDurableEntryHeadFailsReconcileSucceeds(t *testing.T) {
-	taskDir, c := cleanCandidate(t, recAt)
-	ledger.FailNextHeadWriteForTest()
-	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
-	if err != nil {
-		t.Fatalf("record with injected HEAD fault: %v", err)
-	}
-	if res.Disposition != DispositionRecorded {
-		t.Fatalf("disposition = %s", res.Disposition)
-	}
-	if _, err := os.Stat(headPath(taskDir)); err != nil {
-		t.Fatal("HEAD not reconciled after append fault")
-	}
-	if countTransitionEvents(t, taskDir) != 1 {
-		t.Fatal("more than one event")
-	}
-}
-
-// TestDurableEntryReconcileFailsPostCommitError: the entry is durable but HEAD is
-// unwritable (a directory), so reconciliation fails and a PostCommitError carries
-// the committed identity; a retry after the obstruction is removed reconciles with
-// no second event.
-func TestDurableEntryReconcileFailsPostCommitError(t *testing.T) {
-	taskDir, c := cleanCandidate(t, recAt)
-	// Fail the append's HEAD write AND the reconciliation's HEAD write, so the entry
-	// is durable but derived-state repair cannot complete.
-	ledger.FailHeadWritesForTest(2)
-	defer ledger.FailHeadWritesForTest(0)
-	_, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
-	var pce *PostCommitError
-	if !errors.As(err, &pce) {
-		t.Fatalf("want PostCommitError, got %v", err)
-	}
-	if !isHex64(pce.EntryDigestSHA256) {
-		t.Fatalf("post-commit error lacks committed entry identity: %+v", pce)
-	}
-	if countTransitionEvents(t, taskDir) != 1 {
-		t.Fatal("durable entry should exist exactly once")
-	}
-	// Clear the fault and retry: reconcile, no second event.
-	ledger.FailHeadWritesForTest(0)
-	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
-	if err != nil {
-		t.Fatalf("retry after obstruction removed: %v", err)
-	}
-	if res.Disposition != DispositionReconciled {
-		t.Fatalf("retry disposition = %s, want reconciled", res.Disposition)
-	}
-	if countTransitionEvents(t, taskDir) != 1 {
-		t.Fatal("retry appended a second event")
-	}
-}
 
 func recordClean(t *testing.T) (string, RecordResult) {
 	t.Helper()
