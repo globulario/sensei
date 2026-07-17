@@ -136,6 +136,17 @@ func ResultTransitionReceiptDigest(in ResultTransitionReceipt) (string, error) {
 	return SemanticDigest(copy)
 }
 
+// MarshalCanonicalResultTransitionReceipt renders a result transition receipt to
+// deterministic canonical JSON. The same receipt always produces identical bytes,
+// and the bytes include receipt_digest_sha256 when set.
+func MarshalCanonicalResultTransitionReceipt(in ResultTransitionReceipt) ([]byte, error) {
+	return CanonicalJSON(in)
+}
+
+// ResultTransitionReceiptMediaType is the one deterministic media type of the
+// canonical receipt bytes.
+const ResultTransitionReceiptMediaType = "application/json"
+
 // ResultBindingDigest is the semantic identity of a result binding. ResultBinding
 // carries no self-excluding digest field, so it is the plain semantic digest.
 func ResultBindingDigest(in ResultBinding) (string, error) {
