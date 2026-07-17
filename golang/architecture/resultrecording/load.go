@@ -88,8 +88,11 @@ func findRecordedTransition(taskDir string, chain ledger.VerifiedChain, transiti
 	return recordedRef{}, false, nil
 }
 
+// loadEventPayload reads a verified entry's payload and revalidates its bytes
+// against the entry's recorded digest, so a payload mutated after chain
+// verification cannot cross the reconstruction boundary.
 func loadEventPayload(ve ledger.VerifiedEntry) (ledger.TaskEventPayload, error) {
-	data, err := readFileAbs(ve.PayloadPath)
+	data, err := ledger.ReadVerifiedPayload(ve)
 	if err != nil {
 		return ledger.TaskEventPayload{}, recErr(CodeReloadFailed, "read payload: %v", err)
 	}

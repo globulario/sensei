@@ -293,7 +293,15 @@ func reconcileAndReport(taskDir string, store *ledger.Store, c resultpipeline.Tr
 	if err := ValidateRecordedTransition(recorded); err != nil {
 		return RecordResult{}, recErr(CodeRecordedTransitionInvalid, "%v", err)
 	}
-	next, err := ClassifyNextState(c.BuildResult.ProofRequirements)
+	// The TRUE current ledger head after reconciliation (not the transition entry,
+	// which may no longer be the head after later events).
+	chain, err := store.VerifyChain()
+	if err != nil {
+		return RecordResult{}, recErr(CodeReloadFailed, "%v", err)
+	}
+	// The ACTUAL current projected task state, read from the rebuilt projection —
+	// never re-derived from the replayed input candidate.
+	cur, err := currentProjectedState(taskDir)
 	if err != nil {
 		return RecordResult{}, err
 	}
@@ -305,17 +313,31 @@ func reconcileAndReport(taskDir string, store *ledger.Store, c resultpipeline.Tr
 		Disposition:             DispositionReconciled,
 		TransitionID:            c.Receipt.TransitionID,
 		ReceiptDigestSHA256:     c.Receipt.ReceiptDigestSHA256,
-		EntryDigestSHA256:       recorded.Entry.EntryDigestSHA256,
-		CurrentLedgerHeadSHA256: recorded.Entry.EntryDigestSHA256,
-		LedgerSequence:          recorded.Entry.Sequence,
+		EntryDigestSHA256:       recorded.Entry.EntryDigestSHA256, // the transition entry
+		CurrentLedgerHeadSHA256: chain.Head.EntryDigestSHA256,     // the actual current head
+		LedgerSequence:          chain.Head.Sequence,              // the actual current sequence
 		ReceiptRef:              recorded.ReceiptRef,
 		ImpactReportRef:         recorded.ImpactReportRef,
 		StageRefs:               stageRefs,
-		TaskPhase:               next.TaskPhase,
-		OperationalStatus:       next.OperationalStatus,
-		NextAction:              next.NextAction,
+		TaskPhase:               cur.TaskPhase,         // from the current projection
+		OperationalStatus:       cur.OperationalStatus, // from the current projection
+		NextAction:              cur.NextAction,        // from the current projection
 		ProjectionState:         rec.ProjectionState,
 	}, nil
+}
+
+// currentProjectedState reads the current status projection rebuilt from the
+// verified chain and returns the projected task state.
+func currentProjectedState(taskDir string) (projectionDoc, error) {
+	data, err := readFileAbs(filepath.Join(taskDir, "projections", "status.yaml"))
+	if err != nil {
+		return projectionDoc{}, recErr(CodeReloadFailed, "read current status projection: %v", err)
+	}
+	doc, err := parseProjection(data)
+	if err != nil {
+		return projectionDoc{}, recErr(CodeProjectionDrift, "current status projection: %v", err)
+	}
+	return doc, nil
 }
 
 // verifyChainIdentity requires one task id and one session id across the whole
