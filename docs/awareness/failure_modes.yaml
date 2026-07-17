@@ -415,3 +415,141 @@ failure_modes:
       Resolve applicability per proof obligation. A governed runtime mandate
       takes precedence over the profile default; a mandated runtime slot without
       compatible evidence remains required and unresolved, never not_applicable.
+  # ── Phase 8: terminal architectural closure — failure modes (Slice 8.0) ──
+  - id: closure.accepted_answer_stranded_outside_governed_promotion
+    title: An accepted reusable answer is stranded outside governed promotion
+    severity: critical
+    description: >
+      An architect answer is adjudicated accepted_for_question in the offline dialogue
+      but never flows through the governed-knowledge promotion owner, so the reusable
+      truth never becomes a governed record and never reaches future briefings. The task
+      appears answered while the knowledge stays trapped in one task's dialogue.
+    protects:
+      files:
+        - golang/architecture/questiongen/dialogue_ops.go
+        - cmd/awg/cmd_propose.go
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+  - id: closure.dialogue_answer_mistaken_for_governed_truth
+    title: A dialogue or ledger answer is mistaken for governed truth
+    severity: critical
+    description: >
+      Code treats an ArchitectAnswer's existence or GovernanceStatus (or a raw ledger
+      payload) as authoritative reusable truth without a verified disposition or a
+      completed governed promotion bound to the current graph.
+    protects:
+      files:
+        - golang/architecture/dialogue.go
+    related_invariants:
+      - closure.dialogue_answer_is_not_authoritative_by_existence
+  - id: closure.unauthorized_stale_or_contradictory_promotion
+    title: Unauthorized, stale, or contradictory governed promotion
+    severity: critical
+    description: >
+      A promotion is accepted without a verified promotion actor, or its
+      QuestionPromotionReceipt binds a stale graph digest, or it asserts a claim that
+      contradicts an existing contested governed record. Reusable truth is corrupted.
+    protects:
+      files:
+        - golang/architecture/adoption/receipt.go
+        - golang/architecture/knowledgeadoption/engine.go
+    related_invariants:
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+      - closure.only_promotion_owner_establishes_reusable_truth
+  - id: closure.task_local_answer_leaks_into_global_briefing
+    title: A task-local answer leaks into a repository-wide or foreign-domain briefing
+    severity: critical
+    description: >
+      A disposition recorded as task_local is surfaced beyond its exact task/session/result
+      and effective scope, entering a repository-wide or unrelated-domain briefing and
+      masquerading as reusable governed truth.
+    protects:
+      files:
+        - golang/server/briefing.go
+        - golang/server/scope.go
+    related_invariants:
+      - closure.task_local_answers_never_enter_repository_briefings
+  - id: closure.graph_rebuilt_without_question_answer_provenance
+    title: The graph is rebuilt without question/answer provenance
+    severity: high
+    description: >
+      A promotion mutates governed sources and rebuilds the graph but the promoted node
+      carries no provenance back to the QuestionPromotionReceipt, originating question,
+      or accepted answer, so future briefings cannot explain why the knowledge exists.
+    protects:
+      files:
+        - golang/server/briefing.go
+        - cmd/awg/cmd_rebuild.go
+    related_invariants:
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+  - id: closure.status_blind_unresolved_question_computation
+    title: A status-blind unresolved-question computation satisfies a blocking question by omission
+    severity: critical
+    description: >
+      Resolution is computed only from whether a backing closure blocker still exists, so
+      answering a question appears to unblock proving merely because a rebuild removed the
+      blocker — without preserving evidence that the question was authorized and correctly
+      disposed. The originating question's authorized answer is not required.
+    protects:
+      files:
+        - golang/architecture/resultpipeline/build.go
+        - golang/architecture/proofrequirements/compose.go
+    related_invariants:
+      - closure.no_blocking_question_satisfied_by_omission
+  - id: closure.certification_or_completion_over_unresolved_or_stale_promotion
+    title: Certification or completion proceeds over an unresolved or stale promotion
+    severity: critical
+    description: >
+      A certifying or completing verdict is reached while a blocking architect question
+      is unresolved, or while an accepted reusable answer's promotion is incomplete or
+      bound to a stale graph digest, or while a contradictory promotion is contested.
+    protects:
+      files:
+        - golang/architecture/certification/evaluate.go
+        - docs/design/phase8-discovery.md
+    related_invariants:
+      - closure.certification_requires_verified_question_resolution_summary
+      - closure.completion_requires_closed_current_question_loop
+  - id: closure.duplicate_promotion_or_duplicate_completion
+    title: Duplicate promotion or duplicate completion
+    severity: high
+    description: >
+      An exact re-run of a promotion mints a second governed node or a second promotion
+      receipt, or an exact re-completion appends a second completed event, instead of
+      being idempotent and reporting the current state.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+    related_invariants:
+      - closure.completed_tasks_are_terminal_and_replay_idempotent
+      - closure.only_promotion_owner_establishes_reusable_truth
+  - id: closure.partial_governed_source_or_graph_commit
+    title: A partial governed-source or graph commit leaves an inconsistent world
+    severity: critical
+    description: >
+      A promotion mutates the governed source but the deterministic rebuild fails (or vice
+      versa), leaving governed sources, the seed/graph, the promotion receipt, and the
+      ledger inconsistent — a partially-promoted world rather than an atomic, retryable
+      transaction.
+    protects:
+      files:
+        - cmd/awg/cmd_rebuild.go
+        - cmd/awg/cmd_propose.go
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+  - id: closure.caller_supplied_disposition_terminal_status_or_correctness
+    title: Caller-supplied disposition, terminal status, or correctness truth
+    severity: critical
+    description: >
+      A caller supplies the question disposition, the terminal status, or a correctness
+      claim directly (a boolean, string, or verdict), bypassing the authority-verified
+      disposition owner, the completion engine's evaluation, and the sole certification
+      writer.
+    protects:
+      files:
+        - golang/architecture/tasksession/advance_result.go
+        - docs/design/phase8-discovery.md
+    related_invariants:
+      - closure.only_question_disposition_owner_records_question_outcomes
+      - closure.completion_never_mutates_governed_or_certification_truth

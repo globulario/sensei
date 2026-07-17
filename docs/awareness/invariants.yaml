@@ -583,3 +583,225 @@ invariants:
       expressed as a produced, verifiable question-generation artifact with a
       zero count — never inferred from a missing computation. No verdict may
       improve because a stage capable of weakening it was omitted.
+  # ── Phase 8: terminal architectural closure — governed contract (Slice 8.0) ──
+  - id: closure.only_question_disposition_owner_records_question_outcomes
+    title: Only the question-disposition owner records authoritative task question outcomes
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1a. A task architect-question outcome is authoritative only when the
+      question-disposition owner appends a question_disposition_recorded ledger event
+      binding the stable question ID, the disposition, and an authority-verified
+      answering actor. A dialogue artifact, a raw ledger payload, or a caller string
+      is not an authoritative outcome.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+        - golang/architecture/questiongen/dialogue_ops.go
+        - golang/architecture/ledger/event.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      An authoritative task question outcome is established only by a
+      question_disposition_recorded ledger event appended by the question-disposition
+      owner, binding task/session/result-transition identity, the stable question ID
+      from the Phase-7 architect_questions bundle, the disposition (answer, dismiss,
+      defer, or task_local), and an answering actor verified via
+      authority.VerifyActorBinding. No dialogue answer, ledger payload, caller string,
+      or graph node alone is authoritative.
+  - id: closure.only_promotion_owner_establishes_reusable_truth
+    title: Only the governed-knowledge promotion owner establishes reusable architectural truth
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. Reusable architectural truth is established only through the
+      governed-knowledge promotion owner that sits beneath sensei propose and mutates
+      the canonical governed source through its schema/owner, then rebuilds the graph
+      through the deterministic owner path. Answer authority and promotion authority
+      are separate typed operations.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+        - cmd/awg/cmd_propose.go
+        - golang/architecture/knowledgeadoption/engine.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      Reusable governed truth is established only by the governed-knowledge promotion
+      owner mutating the exact canonical governed record through its schema/owner and
+      rebuilding the graph via the deterministic owner path (graphbuild). A production
+      package must reuse a promotion owner beneath sensei propose, never call the CLI
+      handler and never write the graph or projections directly. Promotion authority
+      is a separate typed operation from answer authority.
+  - id: closure.dialogue_answer_is_not_authoritative_by_existence
+    title: An answer is not authoritative merely because it exists in dialogue or a ledger payload
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1. An ArchitectAnswer's existence, GovernanceStatus, or presence in a
+      ledger payload does not by itself make it authoritative truth. Authority requires
+      a verified answering actor and, for reusable claims, a completed governed
+      promotion bound to the current graph.
+    protects:
+      files:
+        - golang/architecture/dialogue.go
+        - golang/architecture/questiongen/dialogue_ops.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      An architect answer becomes authoritative only through an authorized disposition
+      (verified actor) recorded by the question-disposition owner; a reusable answer
+      becomes governed truth only through a completed QuestionPromotionReceipt-bound
+      promotion. Raw dialogue answers and ledger payloads are evidence, never authority.
+  - id: closure.reusable_promotion_binds_full_question_answer_lineage
+    title: Reusable promotion binds question, answer, authority, result, governed mutation, and rebuilt graph
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. A reusable governed promotion is authoritative only when a dedicated
+      QuestionPromotionReceipt binds the full lineage: task/session/result identity,
+      question bundle digest and stable question ID, disposition/answer identity,
+      answering and promotion actor authority, the target governed record, the exact
+      canonical governed-source mutation digest, pre/post governed manifest digests,
+      the graphbuild producer, and the resulting governed record identity. An
+      adoption.Receipt or a graph node alone is insufficient.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+        - golang/architecture/adoption/receipt.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      Reusable promotion is authoritative only via a QuestionPromotionReceipt binding
+      the complete question -> answer -> authority -> result -> governed mutation ->
+      rebuilt graph lineage. adoption.Receipt is upstream candidate evidence only; node
+      existence or a disappeared blocker is not proof the originating question was
+      authorized and correctly disposed.
+  - id: closure.task_local_answers_never_enter_repository_briefings
+    title: Task-local answers never enter repository-wide or unrelated-domain briefings
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1c. A task-local disposition satisfies only the exact task/session/result
+      and effective scope recorded in its disposition. It stays ledger-scoped and may
+      appear only in an explicitly task-scoped surface; it never becomes reusable truth
+      and never enters a repository-wide or unrelated-domain briefing. Repository
+      briefings surface promoted governed knowledge, not raw dialogue.
+    protects:
+      files:
+        - golang/server/briefing.go
+        - golang/server/scope.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      Task-local answers are confined to their exact task/session/result and effective
+      scope and are surfaced only in a task-scoped status/briefing surface, never in
+      repository-wide or foreign-domain briefings (InScope fail-closed). Repository
+      briefings render promoted governed knowledge carrying provenance back to the
+      QuestionPromotionReceipt, question, and answer.
+  - id: closure.no_blocking_question_satisfied_by_omission
+    title: No blocking question is silently satisfied by omission, rebuild, missing status, or missing evidence
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1d. A closure-blocking architect-required question is never treated as
+      resolved because a blocker disappeared after a rebuild, a status was absent, or
+      evidence was missing. Resolution requires an explicit, verified disposition (and,
+      for reusable answers, a completed promotion) preserved as lineage.
+    protects:
+      files:
+        - golang/architecture/proofrequirements/compose.go
+        - golang/architecture/resultpipeline/build.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      Every closure-blocking architect-required question must resolve to exactly one
+      effective state in a canonical QuestionResolutionSummary (resolved_reusable_promoted,
+      resolved_task_local, unresolved, rejected, contested, deferred, superseded). A
+      status-blind computation, a rebuilt-away blocker, a missing status, or missing
+      evidence never satisfies a blocking question.
+  - id: closure.certification_requires_verified_question_resolution_summary
+    title: Certification requires a complete, verified question-resolution summary
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1d. Certification must fail closed unless every proof/closure-blocking
+      architect question is effectively resolved for the exact result, verified through
+      a bounded Phase-6 integration point that independently consumes and re-verifies a
+      canonical QuestionResolutionSummary. Certification does not own answer or
+      promotion authority.
+    protects:
+      files:
+        - golang/architecture/certification/evaluate.go
+        - golang/architecture/certification/ledger.go
+        - golang/architecture/proofrequirements/compose.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      A certifying verdict requires a complete, content-addressed QuestionResolutionSummary
+      for the exact result in which every blocking architect-required question is
+      effectively resolved (reusable-promoted or task-local). Certification consumes and
+      independently verifies the summary; it never records dispositions, promotes
+      answers, or moves answer/promotion ownership into the certification engine.
+  - id: closure.completion_requires_closed_current_question_loop
+    title: Completion requires certification plus a closed, current question/promotion loop
+    severity: critical
+    status: active
+    description: >
+      Phase 8.2. Terminal completion of a certified task requires that the
+      QuestionResolutionSummary is closed and current: every blocking question is
+      effectively resolved, every reusable answer's promotion is governed and bound to
+      the current graph digest, no contradictory promotion is contested, and question
+      provenance binds the exact certified result. Completion fails closed otherwise.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+        - golang/architecture/certification/ledger.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      Completion appends completed only when a re-verified certification receipt AND a
+      closed, current question/promotion loop both hold. Completion fails closed on an
+      unresolved blocking question, an accepted-but-unpromoted or stale-graph promotion,
+      a contested contradictory promotion, or question provenance that does not bind the
+      certified result.
+  - id: closure.completion_never_mutates_governed_or_certification_truth
+    title: Completion never mutates dialogue, governed sources, graph, briefing, proof, or certification truth
+    severity: critical
+    status: active
+    description: >
+      Phase 8.2. The completion owner only verifies that the separate question/promotion
+      owner completed its work. It never answers questions, records dispositions, mutates
+      governed sources, rebuilds the graph, writes briefing projections, discharges proof,
+      or writes CorrectnessCertified.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      The completion transaction is verify-only over the feedback loop and certification:
+      it appends exactly one completed event with a validated CompletionReceipt and never
+      mutates dialogue, governed sources, the graph, briefing projections, proof, or
+      certification truth, and never sets CorrectnessCertified (Phase 6 remains its sole
+      writer). Completion cannot repair the loop it verifies.
+  - id: closure.completed_tasks_are_terminal_and_replay_idempotent
+    title: Completed tasks are terminal and replay-idempotent
+    severity: critical
+    status: active
+    description: >
+      Phase 8.2. completed is terminal for one session and is never silently reopened;
+      an exact re-completion appends no second event and reports the current terminal
+      state. A new mutation after certification creates a new result binding, not a
+      reopening.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+        - golang/architecture/closureprotocol/vocabulary.go
+    required_tests:
+      - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    contract: >
+      completed is a terminal task state for one session; a completed task is never
+      reopened. An exact replay of a completed task appends no second completed event and
+      returns the current terminal state. Rework after certification proceeds as a new
+      result binding under a new iteration/session, never as an in-place reopen.
