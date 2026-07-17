@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/globulario/sensei/golang/architecture/resulttestkit"
+	"github.com/globulario/sensei/internal/resulttestkit"
 )
 
 // captureAdvance runs runAdvanceResult with args, returning its stdout and exit
@@ -109,8 +109,43 @@ func TestCLIAdvanceResultRefusedOnBadResult(t *testing.T) {
 	if o.RefusalCode == "" {
 		t.Fatal("a refusal must carry the underlying code")
 	}
+	// The non-happy output contract: a refusal still reports the actual current
+	// verified head, never a silent empty "current" field.
+	if !o.CurrentStateAvailable || o.CurrentLedgerHeadDigestSHA256 == "" {
+		t.Fatal("a refusal must report the current verified head")
+	}
 	if o.CorrectnessCertified {
 		t.Fatal("correctness_certified must be false")
+	}
+}
+
+// TestCLIAdvanceResultReplayAcrossInvocations: two separate CLI invocations over
+// the same scope-verified task (wall clock advancing between them) record exactly
+// one transition — the second reconciles/replays and reports the same entry, never
+// a transition_id_conflict.
+func TestCLIAdvanceResultReplayAcrossInvocations(t *testing.T) {
+	r, err := resulttestkit.Seed(t.TempDir(), resulttestkit.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"-repo", r.Repo, "-task-dir", r.TaskDir, "-result-revision", r.ResultRev, "-format", "json"}
+	out1, c1 := captureAdvance(t, args)
+	out2, c2 := captureAdvance(t, args) // a later invocation, wall clock advanced
+	if c1 != 0 || c2 != 0 {
+		t.Fatalf("exit %d/%d: %s", c1, c2, out2)
+	}
+	var o1, o2 advanceResultOutput
+	if err := json.Unmarshal([]byte(out1), &o1); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(out2), &o2); err != nil {
+		t.Fatal(err)
+	}
+	if o2.TransitionDisposition != "replayed" && o2.TransitionDisposition != "reconciled" {
+		t.Fatalf("second invocation disposition = %s, want replayed/reconciled", o2.TransitionDisposition)
+	}
+	if o2.TransitionEntryDigestSHA256 != o1.TransitionEntryDigestSHA256 {
+		t.Fatal("second invocation reported a different transition entry")
 	}
 }
 
