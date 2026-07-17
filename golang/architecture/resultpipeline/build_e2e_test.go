@@ -16,8 +16,10 @@ import (
 	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resulttransition"
+	"gopkg.in/yaml.v3"
 )
 
 var e0 = time.Unix(0, 0).UTC()
@@ -91,10 +93,10 @@ func e2eResolution(actorDigest, baseDigest string) closureprotocol.AuthorityReso
 // worktree before observation so the observed change matches. It returns the repo
 // root and task directory.
 func e2eSeed(t *testing.T) (repo, taskDir string) {
-	return e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n")
+	return e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n", nil)
 }
 
-func e2eSeedVariant(t *testing.T, resultSrc string) (repo, taskDir string) {
+func e2eSeedVariant(t *testing.T, resultSrc string, supplemental []graphbuild.SupplementalGraph) (repo, taskDir string) {
 	t.Helper()
 	repo = t.TempDir()
 	e2eGit(t, repo, "init", "-q")
@@ -108,12 +110,27 @@ func e2eSeedVariant(t *testing.T, resultSrc string) (repo, taskDir string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The true base graph digest, recomputed exactly as the pipeline will.
-	cg, err := compileGovernedGraph(context.Background(), repo, e2eDomain, nil)
+	// Build the immutable graph-input snapshot from the exact inputs, exactly as a
+	// production caller would (via the shared graphbuild helper).
+	snapshot, supplementalBytes, err := graphbuild.SnapshotFromBuildInputs(
+		GraphInputPolicyV1, repo, e2eDomain,
+		[]graphbuild.SourceRoot{{FilesystemPath: filepath.Join(repo, "docs", "awareness"), SkipNestedGenerated: true}},
+		supplemental,
+	)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	// The true base graph digest, recomputed exactly as the pipeline will: the same
+	// snapshot and policy resolved against the base repository.
+	baseInputs, err := resolveGraphInputs(repo, snapshot, supplementalBytes)
+	if err != nil {
+		t.Fatalf("resolve base inputs: %v", err)
+	}
+	baseCG, err := compileGovernedGraph(context.Background(), repo, baseInputs)
 	if err != nil {
 		t.Fatalf("compile base graph: %v", err)
 	}
-	baseGraphDigest := cg.artifact.GraphSemanticDigestSHA256
+	baseGraphDigest := baseCG.artifact.GraphSemanticDigestSHA256
 
 	base := closureprotocol.BaseBinding{
 		Repository: closureprotocol.RepositorySnapshot{Domain: e2eDomain, Revision: baseRev, RevisionStatus: "resolved", TreeDigestSHA256: baseTree.DigestSHA256},
@@ -159,13 +176,31 @@ func e2eSeedVariant(t *testing.T, resultSrc string) (repo, taskDir string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// task_prepared also carries the immutable graph-input snapshot and every
+	// supplemental graph's exact bytes, exactly as tasksession.Prepare records them.
+	snapshotBytes, err := yaml.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshotRef, err := store.StoreArtifactBytes(snapshotBytes, "application/yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifacts := map[string]closureprotocol.LedgerPayloadRef{"closure_request": ref, "graph_input_snapshot": snapshotRef}
+	for key, data := range supplementalBytes {
+		supRef, err := store.StoreArtifactBytes(data, graphbuild.NTriplesMediaType)
+		if err != nil {
+			t.Fatal(err)
+		}
+		artifacts[key] = supRef
+	}
 	if _, err := store.Append(context.Background(), ledger.AppendRequest{
 		TaskID: base.Task.ID, SessionID: base.Task.SessionID, ExpectedHeadDigestSHA256: "",
 		EventType: closureprotocol.LedgerEventTaskPrepared,
 		Payload: ledger.TaskEventPayload{
 			SchemaVersion: ledger.EventPayloadSchemaVersion, EventType: closureprotocol.LedgerEventTaskPrepared,
 			TaskID: base.Task.ID, SessionID: base.Task.SessionID, BaseBinding: &base,
-			Artifacts: map[string]closureprotocol.LedgerPayloadRef{"closure_request": ref},
+			Artifacts: artifacts,
 		},
 		PayloadMediaType: "application/yaml", ProducerID: "test", ProducedAt: e0,
 	}); err != nil {
@@ -459,7 +494,7 @@ func TestBuildSameGraphDifferentTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	repoB, taskB := e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Delete() {}\n")
+	repoB, taskB := e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Delete() {}\n", nil)
 	b, err := Build(context.Background(), BuildRequest{RepositoryRoot: repoB, TaskDirectory: taskB, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatal(err)
