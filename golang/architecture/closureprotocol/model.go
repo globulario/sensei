@@ -355,6 +355,7 @@ const (
 	StageMaintainedClaims             ResultPipelineStage = "maintained_claims"
 	StagePlaneAssessment              ResultPipelineStage = "plane_assessment"
 	StageClosureAssessment            ResultPipelineStage = "closure_assessment"
+	StageArchitectQuestions           ResultPipelineStage = "architect_questions"
 	StageProofRequirements            ResultPipelineStage = "proof_requirements"
 	StageArtifactManifest             ResultPipelineStage = "artifact_manifest"
 )
@@ -364,7 +365,7 @@ const (
 var ResultPipelineStages = []ResultPipelineStage{
 	StageGovernedSourceManifest, StageGeneratedRepositoryArtifacts, StageArchitectureGraph,
 	StageInferredClaims, StageMaintainedClaims, StagePlaneAssessment, StageClosureAssessment,
-	StageProofRequirements, StageArtifactManifest,
+	StageArchitectQuestions, StageProofRequirements, StageArtifactManifest,
 }
 
 // ArtifactDerivation is one edge of the freshness derivation graph: it records

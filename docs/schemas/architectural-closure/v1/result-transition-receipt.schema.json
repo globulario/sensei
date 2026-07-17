@@ -28,7 +28,7 @@
             "enum": [
               "governed_source_manifest", "generated_repository_artifacts", "architecture_graph",
               "inferred_claims", "maintained_claims", "plane_assessment", "closure_assessment",
-              "proof_requirements", "artifact_manifest"
+              "architect_questions", "proof_requirements", "artifact_manifest"
             ]
           },
           "output_artifact_receipt_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
