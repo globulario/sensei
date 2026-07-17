@@ -14,16 +14,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
+// finalizeBuildArtifact stamps a canonical whole-graph marker onto already
+// compiled triples, delegating the single finalization implementation to
+// graphbuild. It preserves the prior no-validation contract (callers validate
+// separately) by using graphbuild.Stamp.
 func finalizeBuildArtifact(nt []byte) ([]byte, seedmeta.Marker, int, int) {
-	deduped, uniqueCount, dupCount := extractor.DedupNTriples(nt)
-	finalNT, marker := seedmeta.AppendMarker(deduped)
-	return finalNT, marker, uniqueCount, dupCount
+	comp := graphbuild.CompilationFromGraph(nt)
+	art, _ := graphbuild.Stamp(context.Background(), graphbuild.FinalizeRequest{Compilation: comp})
+	marker := seedmeta.Marker{
+		Digest:      art.GraphSemanticDigestSHA256,
+		IRI:         art.MarkerIRI,
+		TripleCount: int64(art.ArtifactTripleCount),
+	}
+	return art.NTriples, marker, comp.UniqueTripleCount, comp.DuplicateTripleCount
 }
 
 func runBuild(args []string) int {

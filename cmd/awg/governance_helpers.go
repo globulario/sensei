@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -41,34 +43,31 @@ func defaultBuildInputDirsFromRoot(root string) []string {
 	return dirs
 }
 
+// compileAwarenessInputs selects the explicit source roots and delegates all
+// graph semantics to graphbuild. It returns the canonical marker-free graph;
+// callers finalize it (idempotently) to stamp the whole-graph marker. Source
+// discovery stays here; compilation/canonicalization/validation live in the
+// package.
 func compileAwarenessInputs(inputDirs []string, repo, domain, sourceSet string, strict bool) ([]byte, int, error) {
-	var buf bytes.Buffer
-	totalTriples := 0
+	sources := make([]graphbuild.SourceRoot, 0, len(inputDirs))
 	for _, dir := range inputDirs {
-		info, err := os.Stat(dir)
-		if err != nil {
-			return nil, 0, err
-		}
-		if !info.IsDir() {
-			return nil, 0, fmt.Errorf("%s is not a directory", dir)
-		}
-		emitter, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{
-			DefaultRepo:      strings.TrimSpace(repo),
+		sources = append(sources, graphbuild.SourceRoot{
+			FilesystemPath:   dir,
+			IdentityRoot:     dir,
+			RepositoryDomain: strings.TrimSpace(repo),
 			DefaultDomain:    strings.TrimSpace(domain),
 			DefaultSourceSet: strings.TrimSpace(sourceSet),
 		})
-		if err != nil {
-			return nil, 0, fmt.Errorf("import %s: %w", dir, err)
-		}
-		if strict && report.HasUnknown() {
-			for _, f := range report.Skipped() {
-				return nil, 0, fmt.Errorf("--strict: %s: %s", f.Path, f.Status)
-			}
-			return nil, 0, fmt.Errorf("--strict: unrecognized YAML schema(s) in %s", dir)
-		}
-		totalTriples += emitter.Triples
 	}
-	return buf.Bytes(), totalTriples, nil
+	policy := graphbuild.ValidationPolicy{}
+	if strict {
+		policy = graphbuild.CompatibilityPolicy()
+	}
+	comp, err := graphbuild.Compile(context.Background(), graphbuild.CompileRequest{Sources: sources, Policy: policy})
+	if err != nil {
+		return nil, 0, err
+	}
+	return comp.CanonicalNTriples, comp.UniqueTripleCount, nil
 }
 
 func buildProjectArtifact(root string) ([]byte, error) {
@@ -82,26 +81,7 @@ func buildProjectArtifact(root string) ([]byte, error) {
 }
 
 func stripGraphMarkerLines(nt []byte) []byte {
-	marker, ok := seedmeta.ParseMarker(nt)
-	if !ok {
-		return bytes.TrimSpace(nt)
-	}
-	needle := "<" + marker.IRI + ">"
-	var kept []string
-	for _, raw := range strings.Split(string(nt), "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, needle+" ") {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	if len(kept) == 0 {
-		return nil
-	}
-	return append([]byte(strings.Join(kept, "\n")), '\n')
+	return graphbuild.StripMarker(nt)
 }
 
 func combineGraphArtifacts(governanceNT, projectNT []byte) ([]byte, seedmeta.Marker, int, int) {

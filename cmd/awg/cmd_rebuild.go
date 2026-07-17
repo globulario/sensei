@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"flag"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -301,14 +303,18 @@ func dirUnder(dir, root string) bool {
 	return dir == root || strings.HasPrefix(dir, root+string(filepath.Separator))
 }
 
+// generateNTWithOwnership selects the ownership-normalized source roots (staging
+// the filtered services-generated mirror when needed) and delegates all graph
+// semantics to graphbuild. Source selection, per-run staging, and its cleanup
+// stay here; compilation, canonicalization, dedup, and marker stamping live in
+// the package. The returned triple count is the true artifact total
+// (graph + 6 marker triples) — the historic "+5" undercount is not carried
+// forward.
 func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPrefixes []string, servicesOwnershipRepo string, dirDomains []string, intentDomain string) ([]byte, int, int, error) {
-	var buf bytes.Buffer
-	opts := extractor.ImportDirOptions{
-		StripPathPrefixes:   stripPathPrefixes,
-		SkipNestedGenerated: true,
-	}
+	stripPrefixes := stripPathPrefixes
 	cleanup := func() {}
-	defer cleanup()
+	// Close over cleanup so the reassigned staging cleanup actually runs.
+	defer func() { cleanup() }()
 	if servicesOwnershipRepo != "" {
 		normalized, stripPrefix, nextCleanup, err := normalizeInputDirsForOwnership(inputDirs, servicesOwnershipRepo)
 		if err != nil {
@@ -323,38 +329,43 @@ func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPref
 		// /tmp/awg-services-generated-NNNN/... path that drifts every run and
 		// keeps the embeddata-freshness gate permanently un-armable.
 		if stripPrefix != "" {
-			opts.StripPathPrefixes = append(opts.StripPathPrefixes, stripPrefix)
+			stripPrefixes = append(append([]string{}, stripPathPrefixes...), stripPrefix)
 		}
 	}
 
-	var totalTriples, yamlCount int
+	sources := make([]graphbuild.SourceRoot, 0, len(inputDirs)+1)
 	for i, dir := range inputDirs {
-		o := opts
+		domain := ""
 		if i < len(dirDomains) {
-			o.DefaultRepo = dirDomains[i] // "" → home domain (unchanged)
+			domain = dirDomains[i] // "" → home domain (unchanged)
 		}
-		emitter, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, o)
-		if err != nil {
-			return nil, 0, 0, fmt.Errorf("import %s: %w", dir, err)
-		}
-		totalTriples += emitter.Triples
-		yamlCount += len(report.Files)
+		sources = append(sources, graphbuild.SourceRoot{
+			FilesystemPath:      dir,
+			IdentityRoot:        dir,
+			StripPathPrefixes:   stripPrefixes,
+			RepositoryDomain:    domain,
+			SkipNestedGenerated: true,
+		})
 	}
 	if intentDir != "" {
-		o := opts
-		o.DefaultRepo = intentDomain
-		emitter, report, err := extractor.ImportAwarenessDirWithOpts(intentDir, &buf, o)
-		if err != nil {
-			return nil, 0, 0, fmt.Errorf("import intent %s: %w", intentDir, err)
-		}
-		totalTriples += emitter.Triples
-		yamlCount += len(report.Files)
+		sources = append(sources, graphbuild.SourceRoot{
+			FilesystemPath:      intentDir,
+			IdentityRoot:        intentDir,
+			StripPathPrefixes:   stripPrefixes,
+			RepositoryDomain:    intentDomain,
+			SkipNestedGenerated: true,
+		})
 	}
-	// Canonical dedup — same computation yaml2nt applies to the committed
-	// seed, so freshness comparisons compare like with like.
-	deduped, uniqueCount, _ := extractor.DedupNTriples(buf.Bytes())
-	stamped, _ := seedmeta.AppendMarker(deduped)
-	return stamped, uniqueCount + 5, yamlCount, nil
+
+	comp, err := graphbuild.Compile(context.Background(), graphbuild.CompileRequest{Sources: sources, Policy: graphbuild.ValidationPolicy{}})
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	art, err := graphbuild.Stamp(context.Background(), graphbuild.FinalizeRequest{Compilation: comp})
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	return art.NTriples, art.ArtifactTripleCount, len(comp.ImportReport.Files), nil
 }
 
 func normalizeInputDirsForOwnership(inputDirs []string, svcRepo string) ([]string, string, func(), error) {
