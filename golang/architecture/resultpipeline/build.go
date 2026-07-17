@@ -166,21 +166,21 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 		return BuildResult{}, fmt.Errorf("resultpipeline: plane assessment: %w", err)
 	}
 
-	// Stage 7: closure assessment.
-	closureReq := closure.Request{
-		SchemaVersion: "1",
-		TaskID:        bound.Task.ID,
-		Binding:       resultBinding,
-		Scope: closureScopeFromRequest(closure.Scope{
-			Domain:               domain,
-			TaskClass:            "architecture_change",
-			RiskClass:            "architecture_sensitive",
-			AccessMode:           "modify",
-			DirectionRequirement: "not_required",
-			Files:                observedFiles(bound),
-		}, domain),
+	// Stage 7: closure assessment. Load the task's authoritative closure request
+	// from the verified ledger (never the mutable projection), preserving its
+	// scope — task class, risk, access mode, direction requirement, domains,
+	// files, symbols, components, and additional dimensions — and rebinding only
+	// the repository snapshot and graph to the exact result. The result scope is
+	// NOT reduced to the observed change: read targets and architectural
+	// consequences matter too.
+	closureReq, err := loadRecordedClosureRequest(taskDir, bound.Task)
+	if err != nil {
+		return BuildResult{}, err
 	}
-	limitations = append(limitations, "closure scope synthesized from admitted change set; task_class/risk_class/direction default to conservative values")
+	closureReq.Binding = resultBinding
+	if strings.TrimSpace(closureReq.Scope.Domain) == "" {
+		closureReq.Scope.Domain = domain
+	}
 	graphReceipt := graphsnapshot.Receipt{DigestSHA256: rb.GraphDigestSHA256, Status: architecture.GraphDigestResolved, Verified: true}
 	closureReport, err := closure.Evaluate(closure.Context{
 		Request:          closureReq,
@@ -251,21 +251,34 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 	}, nil
 }
 
+// loadRecordedClosureRequest loads the task's authoritative closure request from
+// the verified ledger-backed task_prepared artifact. It never trusts the mutable
+// closure-request.yaml projection: the bytes come from the content-addressed
+// ledger artifact, read only after the ledger chain verifies. It fails closed
+// when no authoritative request exists.
+func loadRecordedClosureRequest(taskDir string, task closureprotocol.TaskBinding) (closure.Request, error) {
+	data, found, err := admission.LoadLatestArtifactBytes(taskDir, closureprotocol.LedgerEventTaskPrepared, "closure_request")
+	if err != nil {
+		return closure.Request{}, fmt.Errorf("resultpipeline: closure_request_unavailable: %w", err)
+	}
+	if !found {
+		return closure.Request{}, fmt.Errorf("resultpipeline: closure_request_unavailable: task_prepared event has no closure_request artifact")
+	}
+	req, err := closure.UnmarshalRequestYAML(data)
+	if err != nil {
+		return closure.Request{}, fmt.Errorf("resultpipeline: closure_request_unavailable: %w", err)
+	}
+	if id := strings.TrimSpace(req.TaskID); id != "" && strings.TrimSpace(task.ID) != "" && id != strings.TrimSpace(task.ID) {
+		return closure.Request{}, fmt.Errorf("resultpipeline: closure_request_unavailable: recorded closure request task %q does not match bound task %q", id, task.ID)
+	}
+	return req, nil
+}
+
 func revisionStatus(rev string) string {
 	if strings.TrimSpace(rev) == "" {
 		return architecture.RevisionUnavailable
 	}
 	return architecture.RevisionResolved
-}
-
-func observedFiles(bound resulttransition.BoundRepositoryResult) []string {
-	var files []string
-	for _, f := range bound.ObservedChange.Files {
-		if p := strings.TrimSpace(f.Path); p != "" {
-			files = append(files, p)
-		}
-	}
-	return dedupeStrings(files)
 }
 
 func dedupeStrings(in []string) []string {

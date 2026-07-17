@@ -4,7 +4,6 @@ package resultpipeline
 
 import (
 	"github.com/globulario/sensei/golang/architecture"
-	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/factextract"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/proofrequirements"
@@ -122,13 +121,4 @@ type InferredClaimsBundle struct {
 type MaintainedClaimsBundle struct {
 	Document architecture.ClaimDocument `json:"document" yaml:"document"`
 	Report   any                        `json:"report" yaml:"report"`
-}
-
-// closureScopeFromRequest preserves the task scope while rebinding the repository
-// snapshot and graph to the exact result (spec §15).
-func closureScopeFromRequest(base closure.Scope, domain string) closure.Scope {
-	if base.Domain == "" {
-		base.Domain = domain
-	}
-	return base
 }
