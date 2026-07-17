@@ -13,3 +13,11 @@ mutation_paths:
     mechanism_kind: generated_artifact_rebuild
     target_kinds:
       - generated_artifact
+
+  # ── Phase 8.1a: architect-question disposition (owner transaction, not a file edit) ──
+  - id: mutation_path.question_disposition
+    label: Governed architect-question disposition
+    status: active
+    mechanism_kind: owner_rpc
+    target_kinds:
+      - architect_question

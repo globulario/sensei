@@ -45,6 +45,7 @@ const (
 	OperationMigrate OperationKind = "migrate"
 	OperationRebuild OperationKind = "rebuild"
 	OperationObserve OperationKind = "observe"
+	OperationDispose OperationKind = "dispose"
 
 	MechanismRepositoryEdit           MechanismKind = "repository_edit"
 	MechanismOwnerRPC                 MechanismKind = "owner_rpc"
@@ -149,6 +150,7 @@ var (
 	OperationKinds = []OperationKind{
 		OperationRead, OperationCreate, OperationModify, OperationDelete, OperationRename, OperationExecute,
 		OperationMigrate, OperationRebuild, OperationObserve,
+		OperationDispose,
 	}
 	MechanismKinds = []MechanismKind{
 		MechanismRepositoryEdit, MechanismOwnerRPC, MechanismGovernedWorkflow, MechanismMigrationRunner,
