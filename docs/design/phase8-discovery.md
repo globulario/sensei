@@ -1,219 +1,317 @@
-# Phase 8 Discovery — Terminal Completion
+# Phase 8 Discovery — Terminal Architectural Closure
 
-**Status:** discovery only. No implementation, no new ledger event, no awareness
-mutation. This document reconstructs the Phase 8 contract from repository evidence
-(frozen `closureprotocol` types, inline ownership comments, the `architectural-closure-v1`
-design doc, existing tests, and governed sources). It is authored for the
-`SENSEI PHASE 8 DISCOVERY CHECKPOINT` and stops at a proposal for architect review.
+**Status:** discovery only. No implementation, no new ledger event, no CLI, no
+validator, no test, and **no awareness/graph mutation**. This document
+reconstructs the Phase 8 contract from repository evidence (frozen
+`closureprotocol` types, inline ownership comments, the `architectural-closure-v1`
+design law, existing tests, and governed sources). It stops at a proposal for
+architect review.
 
-## 1. Preflight & briefing evidence (recorded honestly)
+**Round 2 revision.** Round 1 reconstructed Phase 8 as *terminal completion*
+only. Per the DISCOVERY REPAIR REQUIRED review, Phase 8 is **terminal
+architectural closure**, comprising **two distinct owner-controlled slices**:
 
-- `sensei preflight --task "Phase 8 discovery…" --file certification/ledger.go --file
-  closureprotocol/model.go --file tasksession/advance_result.go --domain
-  github.com/globulario/sensei --mode standard` →
-  **`PREFLIGHT_STATUS_EMPTY`, Risk `UNKNOWN_IMPACT`, Confidence `LOW`**, `coverage
-  sufficient=false anchors=0 (no anchors fired, no files indexed — coverage thin
-  for this area)`. Authority is authoritative/certified (live 91,124 triples).
+- **Slice 8.1 — architectural question disposition and governed promotion** (the
+  epistemic feedback loop Phase 7's mandatory `architect_questions` stage created).
+- **Slice 8.2 — terminal completion** (`certified → completed`), which now
+  *verifies* the loop is closed but mutates none of it.
+
+Slice 8.1 is ordered **before** 8.2: completion consumes an authoritative
+question-resolution summary and fails closed if the loop is open.
+
+## 1. Preflight & briefing evidence (recorded honestly — a BLOCKER)
+
+- `sensei preflight --task "Phase 8 discovery…" --file certification/ledger.go
+  --file closureprotocol/model.go --file tasksession/advance_result.go --domain
+  github.com/globulario/sensei --mode standard` → **`PREFLIGHT_STATUS_EMPTY`,
+  Risk `UNKNOWN_IMPACT`, Confidence `LOW`, `coverage sufficient=false anchors=0`.**
 - `sensei briefing --file <path>` for `certification/ledger.go`,
   `closureprotocol/model.go`, `tasksession/advance_result.go` → **all
-  `No direct awareness anchors found` (EMPTY)**.
+  `No direct awareness anchors found` (EMPTY).**
 
-**Interpretation (not permission):** the live authoritative awareness graph is built
-from an earlier main commit and contains **no anchors** for the architectural-closure
-packages. EMPTY here means *this area is unannotated in the governed graph*, not "no
-rules apply." Discovery therefore rests on **source evidence**: the frozen
-`closureprotocol` contracts, the `docs/design/architectural-closure-v1.md` design law,
-inline phase-ownership comments, `docs/awareness/invariants.yaml`, and tests. This
-coverage gap is itself an architect question (§9, Q1).
+Interpretation (not permission): the live authoritative awareness graph is built
+from a commit that predates the whole closure stack, so it has **no anchors** for
+these packages. EMPTY = *this area is unannotated governed knowledge*, not "no
+rules apply." Per the architect ruling on Q1, this EMPTY coverage is a **blocker,
+not a follow-up chore**: Phase 8 must author governed invariants, failure modes,
+forbidden fixes, and required tests **before production implementation**. This
+discovery therefore rests entirely on *source* evidence.
 
-## 2. What the repository already fixes about Phase 8
+## 2. Owner / boundary separation (do not collapse these stores)
 
-The post-`proving` region of the lifecycle is already named and partly built:
+The feedback loop and completion span four distinct owners; Phase 8 must respect
+the separation and never fold them into one store:
 
-- **Ledger vocabulary** (`closureprotocol/vocabulary.go:129-135`): after
-  `result_transition_recorded` come `evidence_recorded`, `proof_discharged`,
-  `certified`, `completed`, `revoked`, `migration_executed`.
-- **Task phases** (`vocabulary.go:107-118`): `proving → certified → completed`, plus
-  `revoked`, `uncertifiable`, `abandoned`, `waiting_evidence`, `waiting_architect`.
-- **Frozen completion contract** (`closureprotocol`): `CompletionReceipt` (`model.go:276`),
-  `ValidateCompletionReceipt` (`validate.go:416`), `CompletionReceiptDigest`
-  (`canonical.go:127`), `TaskTerminalStatus` {`completed`, `completed_with_exception`,
-  `refused`, `abandoned`, `revoked`} (`vocabulary.go:27-31`, `validTerminalStatus`).
-- **Explicit ownership hand-off to Phase 8** (direct quotes):
-  - `certification/model.go:18-20`: the certification engine "makes no claim of
-    result-graph freshness (Phase 7), **completion, or terminal closure (Phase 8)**."
-  - `certification/ledger.go:41`: "No path in this package ever appends a `completed`
-    event — **completion is Phase 8's transaction**."
-  - `certification/receipt.go:46-47`: "**Phase 8 must call this** [`VerifyReceipt`] (and
-    recompute the digest from the persisted bytes) before trusting a receipt reference."
-  - `cmd/awg/cmd_certify_change.go:41`: "This command never appends a `completed` event
-    (**Phase 8 owns completion**)."
-  - `certification/adversarial_test.go` `TestCertificationPackageNeverTouchesCompletion`:
-    "completion is Phase 8's transaction, structurally out of reach here."
-- **Design law** (`architectural-closure-v1.md`):
-  - "Reasoning closure and terminal completion are **distinct**." (l.103)
-  - "Only a valid `CompletionReceipt` may establish terminal completion." (l.109)
-  - Legal transitions: `certified → revoked`, `completed → revoked`; illegal:
-    `scope_verified → completed`, `admitted → certified`, `revoked → completed`,
-    `completed → admitted` (l.660-684).
-  - Frozen rules (l.686-694): `completed` is terminal for one session; a completed task
-    is never silently reopened; revocation is a **new** ledger event and usually a
-    remediation task; waiting states do not erase prior receipts.
-  - Closure predicate (l.696-723): ten dimensions incl. `completion`; for a completed
-    mutation task the mandatory dimensions (identity, scope, authority, mutation,
-    epistemic, freshness, **completion**) may not be `not_applicable`;
-    `pass_with_exception` (→ `completed_with_exception`) requires a valid, unexpired
-    waiver applying to the exact dimension.
-- **No completion owner exists yet:** there is no `golang/architecture/completion/`
-  package, no `sensei complete-task` CLI, and no operational producer that appends a
-  `completed` event. **This absence is the Phase 8 gap.**
+| Owner | Responsibility | Existing anchor |
+|---|---|---|
+| **Task ledger** (`ledger`, per-task append-only chain) | records the *question lifecycle and disposition* for one task/session/result | `ledger` Store; today it carries no question/answer event — a gap (§5) |
+| **Governed-knowledge owner** (`sensei propose` → `docs/awareness/*.yaml`; candidates → `knowledgeadoption`/`adoption.Receipt`) | controls *reusable architectural truth*; CLI-guarded | `cmd_propose.go:87`; `boundary.candidate_promotion`, `decision.candidate_promotion_remains_cli_guarded` |
+| **Graph builder** (`graphbuild` + `sensei rebuild`/`build`) | rebuilds the *deterministic knowledge projection* (`embeddata/awareness.nt`), ownership-aware freshness gate | `cmd_rebuild.go:26`, `graphbuild.Compile/Stamp`, `seedfreshness.go`, invariant `awareness.seed_is_generated_author_in_yaml` (`invariants.yaml:288`) |
+| **Briefing** (`server.Briefing`) | *reads* the rebuilt graph, strictly task-local/domain-scoped | `server/briefing.go:35`, `server/scope.go:77` `InScope`, invariant `awareness.task_claim_scoping_is_task_local_and_explainable` (`invariants.yaml:434`) |
+| **Completion** (Phase 8.2, unbuilt) | *verifies* the loop is closed; mutates none of the above | — |
 
-## 3. Phase-boundary ownership (Phases 3–7) — what Phase 8 must NOT duplicate
+## 3. Slice 8.1 — architectural question disposition and governed promotion
 
-| Phase | Package(s) | Ledger event(s) it owns | Phase transition | Must not be re-done by Phase 8 |
-|------|-----------|------------------------|------------------|-------------------------------|
-| 3 (admission v2) | `admission`, `authority`, `identity`, `tasksession` producers | `authority_resolved`, `admission_decided`, `admission_consumed`, `change_observed`, `scope_verified` | …→ `scope_verified` | typed authority/admission/scope decisions |
-| 4 (evidence) | `evidencereceipt` | (`evidence_recorded` — see Q2) | — | EvidenceReceipt validation, coverage, freshness, conflict detection |
-| 5 (proof) | `proofdischarge` | (`proof_discharged` — see Q2) | — | proof-discharge computation, waivers, compatibility |
-| 6 (certification) | `certification` (+ `sensei certify-change`) | `certified` | `proving → certified` | the four-lane engine — **sole writer of `CorrectnessCertified`** (`invariants.yaml:540 closure.only_certification_engine_establishes_correctness`) |
-| 7 (result transition) | `resulttransition` (contract), `resultpipeline` (builder), `resultrecording` (recorder), `tasksession.AdvanceResultTransition` (owner) | `result_transition_recorded` | `scope_verified → proving` | building/recording the result binding; the advance-result orchestration |
+### 3.1 The loop, and the machinery that already exists
 
-**Phase 8 (this proposal): completion.** Event `completed`; transition
-`certified → completed`; establishes terminal closure via `CompletionReceipt`. It
-consumes — never reproduces — the certification receipt.
+Phase 7's mandatory `architect_questions` stage produces the questions; the
+missing operation is carrying an authorized answer back into governed memory.
 
-## 4. Candidate Phase 8 contract
+1. **Question identity (canonical, stable).** `questiongen.Generate`
+   (`questiongen.go:268`) walks every current closure blocker (exactly-one
+   disposition per blocker, `questiongen.go:798`) and emits `OpenQuestion`
+   (`dialogue.go:62-88`) with `BlocksClosureBlockers` (`questiongen.go:377`),
+   `BlocksClosureDimension`, `BlocksClaims`, `ArchitectRequired`, `Status`
+   (`open/awaiting_architect/answered/resolved/accepted_unknown/superseded`,
+   `dialogue.go:33-39`). Identity is content-addressed:
+   `StableOpenQuestionID(q)` = `"question."+hash(repo | domain |
+   blocks_closure_dimension | question_text | blocks_claims | hypothesis-ids |
+   template)` (`dialogue.go:125-153`) — stable across regenerations, independent of
+   timestamp/status. Bundled as the stage-8 `ArchitectQuestionsBundle`
+   (`resultpipeline/stages.go:72-94`) with `ArchitectQuestionsActionable`.
+2. **Answer record + disposition (exists, but offline).** `ArchitectAnswer`
+   (`dialogue.go:95-113`): `AnswersQuestions`, `Author AnswerAuthor{Role,ID}`,
+   `Statement`, `Classifications` (accepted answer types incl.
+   `governed_decision_candidate`, `exception_authorization`,
+   `unknown_acknowledgement`, `dialogue.go:41-49`), `Scope`, `EvidenceRefs`,
+   **`GovernanceStatus`** — the disposition axis:
+   `recorded/awaiting_evidence/awaiting_governance/accepted_for_question/rejected/superseded`
+   (`dialogue.go:50-55`). Deterministic `StableArchitectAnswerID`
+   (`dialogue.go:155`). Ops `RecordAnswer`/`AdjudicateAnswer`
+   (`questiongen/dialogue_ops.go:80,158`); CLI `sensei record-answer` /
+   `adjudicate-answer` (`cmd_architecture_dialogue.go`). **These mutate an offline
+   `--dialogue` artifact only — not the task ledger and not governed sources.**
+3. **Governed promotion owner (exists, CLI-guarded).** `sensei propose`
+   (`cmd_propose.go:87`) appends typed entries to `docs/awareness/<file>`;
+   `contract_unknown` routes to `candidates/…` review-only with **no rebuild**
+   (`cmd_propose.go:420-428,333-341`); other kinds rebuild and re-stage the seed
+   (`cmd_propose.go:350-364`). Candidate evaluation: `knowledgeadoption.Run`
+   (`engine.go:164`) stages / machine-adopts / rejects — "it **never creates
+   governed knowledge**" (`engine.go:3-6`) — writing a bundle to
+   `.sensei/project/knowledge`, not `docs/awareness`. The promotion/provenance
+   receipt type is **`adoption.Receipt`** (`adoption/receipt.go:27-45`):
+   `PromotionStatus` (`candidate/machine_adopted/governed`), `AssertionOrigin`,
+   `DecisionActor/Context/Policy/Timestamp`, `ValidForRevision`,
+   `ValidForGraphDigest`, `ReviewStatus`, `SourceReceipts`, `RevocationConditions`;
+   gate `ValidateMachineAdoption` fails closed unless snapshot-bound
+   (`receipt.go:109-139`). Promotion is CLI-guarded law:
+   `boundary.candidate_promotion`, `boundary.corpus_cli_mutation`,
+   `decision.candidate_promotion_remains_cli_guarded`, forbidden fix
+   `ui_direct_candidate_promotion_without_guarded_backend_api`.
+4. **Deterministic graph rebuild (exists).** `sensei rebuild` (`cmd_rebuild.go:26`)
+   / `build` → `graphbuild.Compile`+`Stamp` (`cmd_build.go:360`) →
+   `embeddata/awareness.nt` (ownership-aware freshness gate `seedfreshness.go`;
+   Oxigraph PUT *replaces* the default graph so a promoted+removed candidate is
+   cleanly reflected, `cmd_rebuild.go:533-536`).
+5. **Briefing read path (exists, strictly scoped).** `server.Briefing`
+   (`briefing.go:35`) assembles domain-scoped sections via `InScope`
+   (`scope.go:77`) / `briefingScope` (`scope.go:89`); guarded against foreign-domain
+   leak (`TestInScope*_NoForeignLeak`). Task-local claims stay task-local
+   (invariant `task_claim_scoping_is_task_local_and_explainable`; failure mode
+   `behavioral.task_claim_scope_blocker_explosion`, `failure_modes.yaml:306`).
 
-### State transition & authority owner
-- **Owner:** a new `golang/architecture/completion` package, mirroring `certification`:
-  a pure `Evaluate` (decides the terminal outcome, produces a `CompletionReceipt`) plus a
-  ledger-integrated `CompleteTask` (the sole side-effecting entry). A thin
-  `sensei complete-task` CLI adapter carries only operational inputs (task dir,
-  expected head, clock), exactly as `certify-change` does for Phase 6.
-- **Transition:** `certified → completed` only. `scope_verified/proving → completed` is
-  illegal; a task with no `certified` predecessor fails closed.
+### 3.2 The genuine gaps Slice 8.1 must bridge (negative evidence)
 
-### Authoritative inputs (consumed, never fabricated)
-- The recorded `certified` event's `CertificationReceipt`, re-validated via
-  `certification.VerifyReceipt` (recompute digest from persisted bytes) — the design
-  explicitly requires this. `CompletionReceipt.CertificationDigestSHA256` binds it.
-- The upstream chain digests already carried through: base binding, result binding,
-  closure assessment, authority resolution, admission decision/verification, and the
-  proof-discharge / evidence-receipt digests the certification lanes consumed
-  (`CompletionReceipt` fields at `model.go:276-296`).
-- The `CompletionPolicy` (already threaded into the base binding
-  `tasksession/session.go:684` = `completion.architectural_closure.v1` and the admission
-  decision `CompletionPolicyID`) and a completing actor.
+- **No bridge from an accepted `ArchitectAnswer` to governed promotion.**
+  `record-answer`/`adjudicate-answer` mutate only the offline dialogue;
+  `propose`/`knowledgeadoption`/`promotion_gate` never read answers (grep for
+  `ArchitectAnswer`/`accepted_for_question`/`AnswerType*` in those files → zero
+  hits). An answer reaching `accepted_for_question` feeds **no** promotion path.
+- **No task-ledger record for question disposition.** The six post-proving ledger
+  events do **not** include a question/answer event; the dialogue artifact holds
+  answers but no ledger event records the lifecycle/disposition. Slice 8.1 must
+  define one (a new task-ledger event + its payload validator).
+- **No `PromotionReceipt` type** (closest is `adoption.Receipt`); **no
+  `AnswerDisposition`/`DispositionRecord`** type (the disposition axis is
+  `ArchitectAnswer.GovernanceStatus`).
+- **Answers/questions are not surfaced in briefings.** `OpenQuestion`/
+  `ArchitectAnswer` are `explicit query only` RDF classes (`vocab.go:61-62`),
+  absent from `briefing.go` (only counted in `metadata.go:167`). The "briefing
+  feedback" leg does not close — promoted knowledge must reach future briefings
+  with provenance back to the originating question/answer.
+- **The pipeline's `unresolved` set is status-blind** (`build.go:635-640`: every
+  `ArchitectRequired` question, no status filter), so answering unblocks proving
+  only indirectly, via a graph rebuild that removes the backing blocker —
+  reinforcing that **promotion + rebuild is the real unblock path**, and it is
+  currently disconnected from the answer record.
 
-### Output (the only thing Phase 8 appends)
-- One `completed` ledger event carrying a validated `CompletionReceipt`
-  (`ValidateCompletionReceipt` + self-excluding `CompletionReceiptDigest`), with
-  `TerminalStatus ∈ {completed, completed_with_exception}` for the primary path.
+### 3.3 Candidate Slice-8.1 shape (proposal — do not build)
 
-### Projection effects
-- The status projection advances to `PhaseCompleted` / `TerminalCompleted` (a terminal
-  projection). No projection is written directly; projections rebuild from the verified
-  chain, as in Phases 6/7.
+Two small, distinct owner-controlled operations, each mirroring the accepted
+patterns:
 
-### Replay / idempotency, stale-head, post-commit (mirror the accepted Step-8 / certify semantics)
-- **Expected-head protection:** `CompleteTask` requires an expected head and refuses a
-  stale head (mirrors `certification.CertifyTask` `ErrStaleExpectedHead`).
-- **Replay:** an exact re-completion of an already-`completed` task appends no second
-  event and reports the current terminal state.
-- **Post-commit:** a durable `completed` entry whose HEAD/projection reconciliation
-  fails exposes the committed identity and permits an exact retry (mirrors
-  `resultrecording` `ErrEntryDurable` / `PostCommitError`).
+1. **Record an authorized disposition into the task ledger** (a new task-ledger
+   transaction, standalone CLI e.g. `sensei disposition-question` — **not** hidden
+   in `complete-task`). It consumes a stable `question.<hex>` identity from the
+   Phase-7 result's `architect_questions` bundle; records disposition ∈ {answer,
+   dismiss, defer, task-local} bound to task/session/result/question identity, an
+   **authority-verified** answering actor (reuse `closureprotocol.ActorBinding` +
+   `authority.VerifyActorBinding`, never a generic "AI answer" authority),
+   rationale, effective scope, and answer provenance; distinguishes **task-local**
+   resolution (stays in the ledger/dialogue) from **reusable** truth. The payload
+   embeds/derives the frozen `ArchitectAnswer` + its `GovernanceStatus`; a new
+   payload-validator branch requires it. Dismissed/deferred questions remain
+   durable and explainable in the chain.
+2. **Promote a reusable answer through the governed-knowledge owner** — the answer
+   flows into `sensei propose` (governed source mutation) → `rebuild`
+   (`graphbuild`) → seed, bound to the exact canonical claim/decision/invariant via
+   a governed-promotion record. Reuse **`adoption.Receipt`** as the promotion
+   receipt (bind `AssertionOrigin=promoted`, `DecisionActor`,
+   `ValidForRevision/GraphDigest`, `SourceReceipts` = the certified result +
+   originating question/answer). Promotion stays **CLI-guarded** (never a direct
+   graph write). Future briefings must then surface the promoted node with
+   provenance `PropAnswersQuestion`/`PropAuthoredIn` back to the question — which
+   requires wiring `OpenQuestion`/`ArchitectAnswer` (or the promoted node's
+   provenance) into `briefing.go`'s scoped sections.
 
-### Forbidden outputs (boundary)
-- Never set / imply `CorrectnessCertified` (only `certification` does) and never
-  re-run the certification lanes.
-- Never append `certified`, `evidence_recorded`, `proof_discharged`, `revoked`, or
-  `migration_executed`.
-- Never accept a caller-supplied terminal status, verdict, or completion truth — the
-  engine derives it.
-- Never reopen a `completed` task (`completed → admitted/…` illegal); revocation is a
-  separate event/phase.
+Semantics (mirror the accepted Step-8 discipline): exact promotion replay is
+**idempotent** (same answer+claim → no duplicate governed node / no second ledger
+event); a **contradictory** promoted answer, a **stale** graph digest, an
+**unauthorized** promotion, or a **concurrent** promotion fails closed;
+task-local answers must be kept out of unrelated repository-wide briefings
+(reuse `InScope`); a **graph-rebuild failure** leaves governed sources and the
+ledger consistent (fail closed, retryable) and never a partially-promoted world;
+**post-commit recovery** exposes committed identity and permits exact retry.
 
-## 5. Boundary tests Phase 8 must carry
-- A non-certified task cannot be completed (fail closed; `admitted/scope_verified/
-  proving → completed` refused).
-- Completion binds the exact certification receipt by digest; a forged/mismatched
-  `CertificationDigestSHA256` or a receipt that fails `VerifyReceipt` refuses.
-- Re-completion is idempotent (no second `completed` event).
-- A structural test that the `completion` package never references `CorrectnessCertified`
-  and never appends `certified`/`evidence_recorded`/`proof_discharged`/`revoked`
-  (mirror of `TestCertificationPackageNeverTouchesCompletion`).
-- Stale-head refusal; post-commit recovery; and a boundary proof that no
-  revocation/migration event is emitted.
+## 4. Slice 8.2 — terminal completion (accepted findings + the new gate)
 
-## 6. Smallest implementable Phase 8 slice (proposal — do not build yet)
-**Slice 8.1 — the terminal completion transaction.** Keep certification, completion,
-revocation, and migration **distinct** (the repository evidence proves they are distinct
-events/receipts; nothing shows them atomic).
-- `golang/architecture/completion/`: `Evaluate(request, records, policy) → Result`
-  (typed `CompletionReceipt` + verdict) and `CompleteTask(opts) → TaskCompleteResult`
-  (ledger-integrated: verify → expected head → load certified receipt + upstream →
-  `VerifyReceipt` → evaluate → store receipt content-addressed → append `completed` →
-  rebuild projections → re-verify).
-- Ledger payload validator for the `completed` event (require the completion-receipt
-  artifact), added in `ledger`/`completion` alongside the existing per-event validators.
-- Thin `sensei complete-task --task-dir --expected-head [--format]` CLI.
-- **Typed shapes:** `CompleteTaskOptions{TaskDir, ExpectedHeadDigestSHA256, RepoRoot,
-  ProducerID, ProducedAt}`; `TaskCompleteResult{Result, Appended, Head, ReceiptRef,
-  Verification}` (mirrors `certification.TaskCertifyResult`).
-- **Invariants to add (governed, in a later authored step — not during discovery):**
-  only a `CompletionReceipt` establishes terminal completion; a `completed` event
-  requires a prior `certified` event whose receipt re-verifies; `completed` is terminal
-  and never reopened.
-- **Failure modes:** completion-without-certification; certification-digest drift;
-  reopened-completed; caller-supplied-terminal-status; stale-head; post-commit.
-- **E2E matrix:** (1) certified task → complete → `completed`, reload/validate, terminal;
-  (2) not-yet-certified → refused; (3) exact replay idempotent; (4) forged certification
-  digest → refused; (5) stale head → refused; (6) post-commit recovery retries without a
-  second event; (7) boundary proof: no `CorrectnessCertified` write and no
-  certified/evidence/proof/revoked/migration event; (8) thin-CLI machine+human output.
+The Round-1 terminal-completion reconstruction is retained and accepted:
 
-## 7. Explicit architect questions (gaps not filled by invention)
-- **Q1 — governed coverage gap.** The completion contract lives in source
-  (`closureprotocol` + design doc) but is **absent from the live awareness graph**
-  (preflight/briefings EMPTY). Should Slice 8.1 also author governed knowledge
-  (invariants/failure modes/required tests) for completion, and if so, does that block
-  implementation or follow it? (No awareness mutation was made during discovery.)
-- **Q2 — the unused `evidence_recorded`/`proof_discharged` events (resolved by an
-  exhaustive reference sweep; one residual question).** These two events have **zero
-  operational producers**: a whole-tree grep for `EventType: closureprotocol.LedgerEvent…`
-  finds exactly two post-scope-verified appends — `result_transition_recorded`
-  (`resultrecording/record.go:130,151`) and `certified` (`certification/ledger.go:155,158`);
-  `evidence_recorded`, `proof_discharged`, `completed`, `revoked`, `migration_executed`
-  are declared constants only, with no append site and no payload-validator branch
-  (`ledger/event.go` special-cases only `result_transition_recorded`). Certification does
-  **not** consume evidence/proof as ledger events: `certification.CertifyTask` resolves
-  evidence-receipt and proof-discharge records as **content-addressed artifacts**
-  referenced by digest in `certification-request.yaml` (`certification/source.go:43-224`),
-  each independently digest-verified. So Phase 8 completion consumes the **certification
-  receipt** (via `certification.VerifyReceipt`), not any evidence/proof event, and there is
-  **no** `proving → certified` ledger-event gap that Phase 8 must fill. Residual architect
-  question: are `evidence_recorded`/`proof_discharged` **dead reserved vocabulary**, or
-  intended for a future phase that records evidence/proof *as ledger events* rather than
-  artifacts? Completion does not need them; their status only determines whether
-  completion's boundary test should also forbid them.
-- **Q3 — completion inputs.** Does completion require a `completion-request.yaml`
-  (analogous to `certification-request.yaml`), or does it derive the policy + completing
-  actor entirely from the certified event + base binding? Where does `CompletingActor`
-  come from operationally (the enrolled agent identity)?
-- **Q4 — terminal-status scope.** `TaskTerminalStatus` includes `refused`, `abandoned`,
-  `revoked` besides `completed`/`completed_with_exception`. The design treats
-  `abandoned`/`stale`/`uncertifiable` as side-transitions from any nonterminal state,
-  and `revoked` as a distinct event. Confirm Slice 8.1 owns only
-  `completed`/`completed_with_exception`, and that `abandoned`/`refused`/`revoked` are
-  separate transitions/phases.
-- **Q5 — advance-task vs. standalone.** Phase 6 exposed certification as a standalone
-  `certify-change` CLI, not folded into `AdvanceResultTransition`. Confirm Phase 8
-  completion should likewise be a standalone `complete-task` transaction (not part of the
-  advance-result owner), preserving one-owner-per-transaction.
+- **Owner:** a new `golang/architecture/completion` package — pure `Evaluate`
+  (produces a `CompletionReceipt`) + ledger-integrated `CompleteTask` (sole side
+  effect), plus a thin standalone `sensei complete-task` CLI (**not** folded into
+  `AdvanceResultTransition`; architect Q5 ruling). Mirrors `certification.CertifyTask`.
+- **Transition:** `certified → completed` only (design state machine, illegal
+  `scope_verified/proving → completed`, `completed` terminal/never reopened).
+  `completed`/`completed_with_exception` only (architect Q4); revocation,
+  abandonment, refusal, migration remain distinct.
+- **Authoritative completion input (architect Q3 ruling):** an **explicit,
+  authority-bound completion request/record** — a content-addressed
+  `completion-request.yaml`-style locator following the certification-request
+  pattern (`certification/source.go`). The completing actor must **not** be an
+  arbitrary caller string nor a silent reuse of the certifying actor.
+- **Consumes, never re-runs:** the persisted `CertificationReceipt` via
+  `certification.VerifyReceipt` (`receipt.go:47`) + digest recompute
+  (`CompletionReceipt.CertificationDigestSHA256`); the upstream chain digests; the
+  `completion.architectural_closure.v1` policy. It never re-runs certification
+  lanes and never writes `CorrectnessCertified` (Phase 6 sole writer).
+- **Output/projection/semantics:** one `completed` event carrying a validated,
+  content-addressed `CompletionReceipt` (`ValidateCompletionReceipt` `validate.go:416`,
+  `CompletionReceiptDigest` `canonical.go:127`); status projection →
+  `PhaseCompleted`/`TerminalCompleted` (rebuilt, never written directly); a new
+  `completed` payload-validator branch in `ledger/event.go` (mirroring the
+  `result_transition_receipt` rule); exact-replay idempotency, expected-head
+  stale refusal, durable-entry post-commit recovery.
+
+**New gate (the loop must be closed).** Completion consumes an authoritative
+question-resolution summary and **fails closed** when:
+
+- a closure-blocking `ArchitectRequired` question remains unresolved (today
+  surfaced as `proofrequirements.ProvingBlocked` on
+  `UnresolvedArchitectQuestionIDs`, `compose.go:377`);
+- a reusable answer was accepted (`accepted_for_question`) but its governed
+  promotion/rebuild is **incomplete or stale** (adoption not `governed`, or the
+  promoted node's `ValidForGraphDigest` ≠ the current seed digest);
+- a **contradictory** promoted answer remains contested;
+- required question **provenance does not bind the exact certified result**.
+
+Completion **must not** itself answer questions or mutate governed knowledge; it
+only verifies the separate question/promotion owner (Slice 8.1) completed its work.
+
+## 5. Phase-boundary ownership (Phases 3–8)
+
+| Phase | Package(s) | Event(s) owned | Transition |
+|---|---|---|---|
+| 3 admission | admission, authority, identity | authority_resolved, admission_decided, admission_consumed, change_observed, scope_verified | → scope_verified |
+| 4 evidence | evidencereceipt | none (evidence artifacts) | — |
+| 5 proof | proofdischarge | none (proof-discharge artifacts) | — |
+| 6 certification | certification (+ `certify-change`) | **certified** — sole `CorrectnessCertified` writer | proving → certified |
+| 7 result transition | resulttransition+resultpipeline+resultrecording+`AdvanceResultTransition`; questions via `questiongen` | **result_transition_recorded** (+ the `architect_questions` bundle) | scope_verified → proving |
+| **8.1 question disposition + promotion** | **new** — a question-disposition ledger transaction + governed promotion via `propose`/`adoption`/`graphbuild`/`briefing` | **new task-ledger disposition event** (name TBD) | records dispositions; promotes reusable truth (does not change task phase) |
+| **8.2 completion** | **new** `completion` (+ `complete-task`) | **completed** | certified → completed |
+
+`evidence_recorded`/`proof_discharged`/`revoked`/`migration_executed` remain
+reserved, non-operational vocabulary (architect Q2); Phase 8 neither requires nor
+emits them.
+
+## 6. Combined E2E matrix (proposed — proves BOTH the loop and completion)
+
+**Feedback loop (Slice 8.1):**
+1. A Phase-7 result with an `ArchitectRequired` open question → disposition
+   `answer` recorded in the task ledger, bound to the exact question/result/actor
+   identity; question status → resolved; a task-status projection reflects it.
+2. A **reusable** answer → governed promotion via `propose` → `rebuild` → the
+   promoted claim/decision/invariant appears in `docs/awareness/*` and the rebuilt
+   seed, with an `adoption.Receipt` binding actor/revision/graph-digest.
+3. A **future briefing** surfaces the promoted knowledge with provenance back to
+   the originating question/answer; a **task-local** answer does **not** leak into
+   an unrelated-domain briefing (`InScope`).
+4. Dismissed/deferred questions remain durable and explainable.
+5. Exact promotion replay is idempotent (no duplicate node/event); contradictory
+   / stale-digest / unauthorized / concurrent promotion fails closed; a graph-
+   rebuild failure is atomic + retryable (post-commit recovery).
+
+**Terminal completion (Slice 8.2):**
+6. A certified task whose loop is closed → `complete-task` → one `completed` event,
+   independent reload/validate, `PhaseCompleted`/`TerminalCompleted`.
+7. Fail-closed: an unresolved closure-blocking question → refused; an accepted-but-
+   unpromoted (or stale-promotion) answer → refused; a contradictory promoted
+   answer → refused; question provenance not binding the certified result → refused.
+8. Not-certified task → refused; forged certification digest → refused; exact
+   replay idempotent; stale head → refused; post-commit recovery; boundary proof
+   (no `CorrectnessCertified` write; no
+   certified/evidence/proof/revoked/migration event); thin-CLI machine+human
+   output with no caller-supplied phase/status/verdict/terminal-status.
+
+## 7. Architect rulings (folded) + remaining questions
+
+Rulings applied: **Q1** govern-first is a blocker (§1); **Q2** evidence/proof
+events reserved, never required/emitted; **Q3** explicit authority-bound
+completion request, no arbitrary/certifying-actor reuse; **Q4** completion owns
+only `completed`/`completed_with_exception`; **Q5** completion standalone, and
+question disposition/promotion is its own owner-controlled transaction.
+
+Remaining source-gaps → explicit architect questions:
+
+- **A1 — the disposition ledger event.** No task-ledger event for question
+  disposition exists. Confirm Phase 8 defines a new event (name? e.g.
+  `architect_answer_recorded` / `question_disposition_recorded`) with a payload
+  validator, distinct from the six reserved post-proving events; and confirm the
+  answering-actor authority model (which role/grant authorizes an answer vs a
+  promotion — reuse `authority.VerifyActorBinding`; do **not** invent an "AI
+  answer" authority).
+- **A2 — answer → promotion bridge.** There is no code linking an
+  `accepted_for_question` answer to `propose`/governed promotion. Confirm the
+  intended bridge: does Slice 8.1 add an `answer → propose` path (the answer's
+  classification `governed_decision_candidate`/`exception_authorization` selecting
+  the propose kind + target governed record), gated by the promotion CLI owner and
+  `adoption.ValidateMachineAdoption`?
+- **A3 — promotion receipt.** Confirm `adoption.Receipt` is the promotion receipt
+  Phase 8 should bind (vs a new type), and how it binds to the originating
+  question/answer + the certified result (via `SourceReceipts`).
+- **A4 — briefing surfacing.** Surfacing promoted answers in briefings requires
+  wiring `OpenQuestion`/`ArchitectAnswer`/the promoted node into `briefing.go`
+  scoped sections (they are explicit-query-only today). Confirm this is in Slice
+  8.1 scope and how provenance-back-to-question is presented without leaking
+  task-local answers.
+- **A5 — completion's question-resolution summary.** Confirm the authoritative
+  source completion reads to verify the loop is closed: the Phase-7
+  `ArchitectQuestionsBundle` + `proofrequirements.ProvingDisposition` on the
+  certified result, cross-checked against governed promotion state
+  (adoption `governed` + `ValidForGraphDigest` == current seed). Is the
+  status-blind `unresolved` computation (`build.go:635-640`) acceptable, or must
+  Phase 8 read answer `GovernanceStatus` too?
+- **A6 — governed knowledge to author (Q1).** Which invariants/failure-modes/
+  forbidden-fixes/required-tests must Slice 8.1/8.2 author before implementation
+  (e.g. "only the governed-knowledge owner promotes reusable truth", "completion
+  never mutates governed knowledge", "a completed task's blocking questions are all
+  resolved+promoted-or-task-local")? Authoring them is itself an awareness mutation
+  gated to a later reviewed step.
 
 ## 8. Confirmation
-No Phase 8 production implementation has begun: this change adds only this discovery
-document. No new package, no ledger event, no CLI, no validator, no test, and no
-awareness/graph mutation were added. `CorrectnessCertified` remains false; PRs #56/#57/#59
-are untouched.
+
+No Phase 8 production implementation has begun and **no governed/awareness
+mutation has been made**: this change adds only this discovery document — no new
+package, ledger event, CLI, validator, test, or graph rebuild. `CorrectnessCertified`
+remains false; PRs #56/#57/#59 are untouched. The task ledger, governed-source
+authority, and briefing projection remain three distinct stores in this proposal.
