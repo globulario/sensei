@@ -106,6 +106,11 @@ func LoadRecordedTransition(taskDir, transitionID string) (RecordedTransition, e
 	if err != nil {
 		return RecordedTransition{}, recErr(CodeReloadFailed, "verify chain: %v", err)
 	}
+	// Test seam: a concurrent append here must not leak into the reconstruction,
+	// which reads only from this frozen chain snapshot.
+	if afterChainSnapshot != nil {
+		afterChainSnapshot(taskDir)
+	}
 	var target ledger.VerifiedEntry
 	found := false
 	var receipt closureprotocol.ResultTransitionReceipt
@@ -248,7 +253,7 @@ func LoadRecordedTransition(taskDir, transitionID string) (RecordedTransition, e
 		rt.projectionBytes[key] = data
 	}
 
-	build, err := reconstructBuildResult(taskDir, receipt, stageArtifacts, rt.ImpactReport)
+	build, err := reconstructBuildResult(chain, taskDir, target.Entry.Sequence, receipt, stageArtifacts, rt.ImpactReport)
 	if err != nil {
 		return RecordedTransition{}, err
 	}
@@ -256,10 +261,60 @@ func LoadRecordedTransition(taskDir, transitionID string) (RecordedTransition, e
 	return rt, nil
 }
 
+// afterChainSnapshot is a test seam fired once, immediately after the reload's
+// single chain snapshot is taken and before any upstream record is decoded from
+// it. A test uses it to append to the on-disk ledger and prove the reconstruction
+// still reads only the frozen snapshot (no mixed ledger world).
+var afterChainSnapshot func(taskDir string)
+
+// latestEventFromChain returns the latest entry of eventType that PRECEDES the
+// transition entry (beforeSeq) in the frozen chain — the upstream world the
+// transition was recorded against — its parsed payload, and requires the
+// payload/entry task-session to equal want. Bounding to entries before the
+// transition makes reconstruction stable across later ledger appends.
+func latestEventFromChain(chain ledger.VerifiedChain, taskDir string, eventType closureprotocol.LedgerEventType, want closureprotocol.TaskBinding, beforeSeq int) (ledger.VerifiedEntry, ledger.TaskEventPayload, error) {
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		ve := chain.Entries[i]
+		if ve.Entry.Sequence >= beforeSeq {
+			continue
+		}
+		if ve.Entry.EventType != eventType {
+			continue
+		}
+		payload, err := loadEventPayload(ve)
+		if err != nil {
+			return ledger.VerifiedEntry{}, ledger.TaskEventPayload{}, err
+		}
+		if ve.Entry.Task.ID != want.ID || ve.Entry.Task.SessionID != want.SessionID ||
+			payload.TaskID != want.ID || payload.SessionID != want.SessionID {
+			return ledger.VerifiedEntry{}, ledger.TaskEventPayload{}, recErr(CodeSessionMismatch, "%s event task/session differs from the transition", eventType)
+		}
+		return ve, payload, nil
+	}
+	return ledger.VerifiedEntry{}, ledger.TaskEventPayload{}, recErr(CodeReloadFailed, "no %s event in chain", eventType)
+}
+
+// chainArtifactJSON reads and JSON-decodes an artifact named key from one event's
+// payload, verifying its byte digest against the chain-recorded ref.
+func chainArtifactJSON(taskDir string, payload ledger.TaskEventPayload, key string, out any) error {
+	ref, ok := payload.Artifacts[key]
+	if !ok {
+		return recErr(CodeReloadFailed, "event has no artifact %q", key)
+	}
+	data, err := readArtifact(taskDir, ref)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return recErr(CodeReloadFailed, "decode %q: %v", key, err)
+	}
+	return nil
+}
+
 // reconstructBuildResult assembles a BuildResult from the receipt, the stored
 // stage artifacts, the impact report, and the earlier verified upstream ledger
 // records — with no repository read and no graph rebuild.
-func reconstructBuildResult(taskDir string, receipt closureprotocol.ResultTransitionReceipt, stages []resultpipeline.PipelineArtifact, impact governedimpact.Report) (resultpipeline.BuildResult, error) {
+func reconstructBuildResult(chain ledger.VerifiedChain, taskDir string, transitionSeq int, receipt closureprotocol.ResultTransitionReceipt, stages []resultpipeline.PipelineArtifact, impact governedimpact.Report) (resultpipeline.BuildResult, error) {
 	byStage := map[closureprotocol.ResultPipelineStage]resultpipeline.PipelineArtifact{}
 	for _, a := range stages {
 		byStage[a.Stage] = a
@@ -277,38 +332,73 @@ func reconstructBuildResult(taskDir string, receipt closureprotocol.ResultTransi
 		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "decode proof: %v", err)
 	}
 
-	// Reload EVERY upstream record from earlier verified events and RECOMPUTE its
-	// digest, requiring equality with the receipt's carried digest — the same laws
-	// resulttransition.BindRepositoryResult enforced. A forged receipt digest is
-	// caught here; nothing is trusted merely because the receipt carries it.
-	recAuth, err := admission.LoadRecordedAuthority(taskDir)
+	// Reload EVERY upstream record from the SINGLE verified chain snapshot (never the
+	// multi-read admission helpers, which each re-verify the ledger and could mix
+	// different ledger worlds during a concurrent append), RECOMPUTE its digest, and
+	// require equality with the receipt — the same laws resulttransition.BindRepositoryResult
+	// enforced. Nothing is trusted merely because the receipt carries it.
+	want := receipt.Task
+
+	prepEntry, prepPayload, err := latestEventFromChain(chain, taskDir, closureprotocol.LedgerEventTaskPrepared, want, transitionSeq)
 	if err != nil {
-		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load authority: %v", err)
+		return resultpipeline.BuildResult{}, err
 	}
-	decision, err := admission.LoadRecordedDecision(taskDir)
+	_ = prepEntry
+	if prepPayload.BaseBinding == nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "task_prepared carries no base binding")
+	}
+	base := *prepPayload.BaseBinding
+
+	_, authPayload, err := latestEventFromChain(chain, taskDir, closureprotocol.LedgerEventAuthorityResolved, want, transitionSeq)
 	if err != nil {
-		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load decision: %v", err)
+		return resultpipeline.BuildResult{}, err
 	}
-	consumption, err := admission.LoadRecordedConsumption(taskDir)
+	var resolution closureprotocol.AuthorityResolution
+	var actor closureprotocol.ActorBinding
+	if err := chainArtifactJSON(taskDir, authPayload, "authority_resolution", &resolution); err != nil {
+		return resultpipeline.BuildResult{}, err
+	}
+	if err := chainArtifactJSON(taskDir, authPayload, "actor_binding", &actor); err != nil {
+		return resultpipeline.BuildResult{}, err
+	}
+
+	_, decPayload, err := latestEventFromChain(chain, taskDir, closureprotocol.LedgerEventAdmissionDecided, want, transitionSeq)
 	if err != nil {
-		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load consumption: %v", err)
+		return resultpipeline.BuildResult{}, err
 	}
-	observed, err := admission.LoadRecordedObservedChange(taskDir)
+	var decision closureprotocol.AdmissionDecision
+	if err := chainArtifactJSON(taskDir, decPayload, "admission_decision", &decision); err != nil {
+		return resultpipeline.BuildResult{}, err
+	}
+
+	_, consPayload, err := latestEventFromChain(chain, taskDir, closureprotocol.LedgerEventAdmissionConsumed, want, transitionSeq)
 	if err != nil {
-		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load observed change: %v", err)
+		return resultpipeline.BuildResult{}, err
 	}
-	scope, err := admission.LoadRecordedScopeVerification(taskDir)
+	var consumption closureprotocol.CapabilityConsumption
+	if err := chainArtifactJSON(taskDir, consPayload, "capability_consumption", &consumption); err != nil {
+		return resultpipeline.BuildResult{}, err
+	}
+
+	_, obsPayload, err := latestEventFromChain(chain, taskDir, closureprotocol.LedgerEventChangeObserved, want, transitionSeq)
 	if err != nil {
-		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load scope verification: %v", err)
+		return resultpipeline.BuildResult{}, err
 	}
-	base, err := admission.LoadTaskBaseBinding(taskDir)
+	var observed admission.ObservedChangeSet
+	if err := chainArtifactJSON(taskDir, obsPayload, "observed_change_set", &observed); err != nil {
+		return resultpipeline.BuildResult{}, err
+	}
+
+	scopeEntry, scopePayload, err := latestEventFromChain(chain, taskDir, closureprotocol.LedgerEventScopeVerified, want, transitionSeq)
 	if err != nil {
-		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load base binding: %v", err)
+		return resultpipeline.BuildResult{}, err
 	}
-	evaluatedAt, err := admission.LoadEventProducedAt(taskDir, closureprotocol.LedgerEventScopeVerified)
-	if err != nil {
-		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load evaluated at: %v", err)
+	var scope admission.ScopeVerification
+	if err := chainArtifactJSON(taskDir, scopePayload, "scope_verification", &scope); err != nil {
+		return resultpipeline.BuildResult{}, err
 	}
+	evaluatedAt := scopeEntry.Entry.ProducedAt
+	recAuth := admission.RecordedAuthority{Resolution: resolution, Actor: actor, Base: base}
 
 	baseDigest, err := binding.SemanticDigestBase(base)
 	if err != nil {
