@@ -1,19 +1,45 @@
-# High-Risk Files — directories and files that require awareness briefing.
+# High-Risk Files — directories and files that require an awareness briefing.
 #
-# Any edit to a path matching these prefixes triggers an automatic
-# briefing lookup. This is where your most load-bearing code lives.
+# Any edit to a path matching these prefixes requires `sensei briefing --file
+# <path>` first. The `.claude/hooks/enforce-briefing.sh` PreToolUse hook reads
+# this list and blocks an un-briefed edit; the graph importer records each path
+# as a `guardrail protects <file>` edge, so the coverage is deterministic and
+# visible in the awareness graph (closing the awareness_source_mutation_without
+# _enforcement gap: enforcement is derived from validation + graph build, not a
+# convention).
 #
-# Start with the directories where bugs are most expensive:
-# - Authentication / authorization
-# - Database migrations
-# - Core business logic
-# - Infrastructure / deployment
-# - API contracts
+# This is Sensei's SELF-governance surface — the load-bearing code and the
+# governed sources that decide who may change what, where, and how. Keep it
+# aligned with the authority surface, not padded: proximity is not authority.
 
 files:
-  # Examples — replace with your actual critical paths:
-  # - src/auth/
-  # - src/database/migrations/
-  # - src/config/
-  # - src/api/middleware/
-  # - infrastructure/
+  # ── Architectural closure substrate ──────────────────────────────────────
+  # Identity, typed authority, admission v2, the append-only task ledger, the
+  # result pipeline / transition / recording boundary, task session and its
+  # projections. This is where the fail-closed governance chain lives; a wrong
+  # edit here can silently weaken the guarantees the whole system rests on.
+  - golang/architecture/
+
+  # ── The graph engine that enforces authority ─────────────────────────────
+  # Risk classification, preflight, admission RPCs, blast-radius and change
+  # impact — the server code that reads the governed sources below and turns
+  # them into gates. Governing the sources but not the enforcer would be a hole.
+  - golang/server/
+
+  # ── The CLI / authority command surface ──────────────────────────────────
+  - cmd/awg/
+
+  # ── Governed awareness sources that control architectural authority ───────
+  # Editing any of these changes who may act, on which paths, via which
+  # mechanism, at which risk — or which invariants and repairs are binding.
+  # Brief before touching so the change is an explainable authority move.
+  - docs/awareness/invariants.yaml
+  - docs/awareness/forbidden_fixes.yaml
+  - docs/awareness/actor_roles.yaml
+  - docs/awareness/authority_domains.yaml
+  - docs/awareness/authority_grants.yaml
+  - docs/awareness/delegation_policies.yaml
+  - docs/awareness/mutation_paths.yaml
+  - docs/awareness/observation_paths.yaml
+  - docs/awareness/activation_rules.yaml
+  - docs/awareness/high_risk_files.yaml
