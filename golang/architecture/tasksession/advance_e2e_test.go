@@ -305,6 +305,32 @@ func e2eSeed(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []s
 	return repo, taskDir, resultRev
 }
 
+const e2eInvariantsChanged = `invariants:
+  - id: test.publish_mutates_state
+    title: Publish mutates package identity AND governs more
+    severity: critical
+    status: active
+    protects:
+      files:
+        - src/model.go
+    required_tests:
+      - src/model_test.go:TestPublish
+`
+
+// e2eRegenerate recomputes the graph-input snapshot over the repo's CURRENT
+// content and regenerates every governed artifact into the tree — the "regenerate
+// required repository artifacts" step a governed change triggers.
+func e2eRegenerate(t *testing.T, repo string) {
+	t.Helper()
+	snapshot, _, err := graphbuild.SnapshotFromBuildInputs(
+		resultpipeline.GraphInputPolicyV1, repo, e2eDomain,
+		[]graphbuild.SourceRoot{{FilesystemPath: filepath.Join(repo, "docs", "awareness"), SkipNestedGenerated: true}}, nil)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	e2eGenerate(t, repo, snapshot)
+}
+
 // e2eSeedClean seeds a task whose committed result honestly closes (low-risk,
 // read, direction-not-applicable, committed revision → verdict closed, extraction
 // complete, proving ready).
@@ -504,6 +530,48 @@ func TestE2EConcurrentAdvancesRecordExactlyOnce(t *testing.T) {
 	}
 	if e2eCountTransitions(e2eLedgerEvents(t, taskDir)) != 1 {
 		t.Fatal("no second transition event may be appended under concurrency")
+	}
+}
+
+// Scenario 3 — governed change: a committed result that changes a governed
+// invariant (plus its regenerated artifacts) survives the complete orchestration
+// with the EXACT governed record identity preserved through storage and reload.
+func TestE2EGovernedChangeSurvivesOrchestration(t *testing.T) {
+	const wantInvID = "https://globular.io/awareness#invariant/test.publish_mutates_state"
+	repo, taskDir, resultRev := e2eSeed(t,
+		func(tt *testing.T, r string) {
+			e2ewrite(tt, r, "src/model.go", "package src\n\n// Publish is a no-op.\nfunc Publish() {}\n")
+			e2ewrite(tt, r, "docs/awareness/invariants.yaml", e2eInvariantsChanged)
+			e2eRegenerate(tt, r)
+		},
+		[]string{"src/model.go"}, closure.DirectionNotApplicable,
+		[]string{"src/model.go", "docs/awareness/invariants.yaml"},
+		[]string{"golang/server/embeddata/awareness.nt", "golang/server/embeddata/awareness.result-manifest.tsv"})
+
+	res := e2eAdvance(t, repo, taskDir, resultRev)
+	if res.Outcome != OutcomeRecorded {
+		t.Fatalf("outcome = %s (refusal=%s %s)", res.Outcome, res.RefusalCode, res.RefusalDetail)
+	}
+
+	// Reload entirely from the ledger and prove the exact changed invariant survived.
+	rt, err := resultrecording.LoadRecordedTransition(taskDir, res.TransitionID)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if err := resultrecording.ValidateRecordedTransition(rt); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	for _, im := range rt.ImpactReport.Impacts {
+		changed := closureprotocol.GovernedKnowledgeImpactChanged(im)
+		if im.Category == "invariants" {
+			if !changed || len(im.ChangedRecordIDs) != 1 || im.ChangedRecordIDs[0] != wantInvID {
+				t.Fatalf("invariants changed-set = %v, want exactly [%s]", im.ChangedRecordIDs, wantInvID)
+			}
+			continue
+		}
+		if changed {
+			t.Fatalf("unrelated category %q changed: %v", im.Category, im.ChangedRecordIDs)
+		}
 	}
 }
 
