@@ -3,7 +3,6 @@
 package ledger
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,20 +39,13 @@ func readEntry(path string) (Entry, error) {
 	return entry, nil
 }
 
-// failHeadWrites forces the next N HEAD writes to fail; it exists only for
-// deterministic fault-injection tests of the durable-entry / HEAD-failure path.
-var failHeadWrites int
-
-// FailNextHeadWriteForTest makes exactly the next HEAD write fail. Test-only.
-func FailNextHeadWriteForTest() { failHeadWrites = 1 }
-
-// FailHeadWritesForTest makes the next n HEAD writes fail. Test-only.
-func FailHeadWritesForTest(n int) { failHeadWrites = n }
-
 func writeHead(path string, head Head) error {
-	if failHeadWrites > 0 {
-		failHeadWrites--
-		return errors.New("injected head write fault")
+	// headWriteFault is a no-op in the production build (see faultinject_off.go);
+	// deterministic durable-entry / HEAD-failure tests supply a failing seam only
+	// under the sensei_faultinject build tag (faultinject.go). No exported API and
+	// no mutable production global can toggle HEAD writes.
+	if err := headWriteFault(); err != nil {
+		return err
 	}
 	data, err := binding.CanonicalYAML(head)
 	if err != nil {
