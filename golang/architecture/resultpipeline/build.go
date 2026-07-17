@@ -15,6 +15,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/factextract"
 	"github.com/globulario/sensei/golang/architecture/generatedartifact"
+	"github.com/globulario/sensei/golang/architecture/governedimpact"
 	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
 	"github.com/globulario/sensei/golang/architecture/inference"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
@@ -37,6 +38,12 @@ type BuildResult struct {
 	ClosureReport     closure.Report
 	Dialogue          architecture.DialogueDocument
 	ProofRequirements ProofRequirementDocument
+
+	// GovernedKnowledgeImpactReport is the exact governed-knowledge change between
+	// the admitted base architecture and this result. It is receipt-construction
+	// input, not an eleventh pipeline stage — it never enters the ten-stage
+	// derivation graph.
+	GovernedKnowledgeImpactReport governedimpact.Report
 
 	PipelinePolicyID string
 	EvaluatedAt      string
@@ -316,18 +323,76 @@ func assembleBuildResult(ctx context.Context, req BuildRequest) (BuildResult, er
 	}
 	artifacts = append(artifacts, manifest)
 
+	// Governed-knowledge impact: the exact change between the admitted base and the
+	// result. Not a pipeline stage — computed from the same base graph proven
+	// non-stale above and the exact result graph plus the verified Stage 2 proof
+	// obligations, so no source is extracted a second time.
+	impactReport, err := computeGovernedImpact(ctx, baseRoot, domain, base, recorded, profile, baseGraph, cg, genResult)
+	if err != nil {
+		return BuildResult{}, err
+	}
+
 	return BuildResult{
-		BoundRepositoryResult:     bound,
-		ResultBinding:             rb,
-		ResultBindingDigestSHA256: rbDigest,
-		StageArtifacts:            artifacts,
-		ClosureReport:             closureReport,
-		Dialogue:                  qResult.Dialogue,
-		ProofRequirements:         proofDoc,
-		PipelinePolicyID:          policyID,
-		EvaluatedAt:               evaluatedAt,
-		Limitations:               limitations,
+		BoundRepositoryResult:         bound,
+		ResultBinding:                 rb,
+		ResultBindingDigestSHA256:     rbDigest,
+		StageArtifacts:                artifacts,
+		ClosureReport:                 closureReport,
+		Dialogue:                      qResult.Dialogue,
+		ProofRequirements:             proofDoc,
+		GovernedKnowledgeImpactReport: impactReport,
+		PipelinePolicyID:              policyID,
+		EvaluatedAt:                   evaluatedAt,
+		Limitations:                   limitations,
 	}, nil
+}
+
+// computeGovernedImpact builds the base and result governed snapshots and compares
+// them. The base proof obligations are generated in memory through the same
+// producer and profile as the result; the result proof obligations reuse the
+// exact verified Stage 2 output. Nothing is written.
+func computeGovernedImpact(ctx context.Context, baseRoot, domain string, base closureprotocol.BaseBinding, recorded recordedGraphInputs, profile generatedartifact.Profile, baseGraph, cg compiledGraph, genResult generatedartifact.VerificationResult) (governedimpact.Report, error) {
+	baseSourceManifestDigest, err := closureprotocol.SemanticDigest(baseGraph.compilation.SourceManifest)
+	if err != nil {
+		return governedimpact.Report{}, err
+	}
+	baseGen, err := generatedartifact.Generate(ctx, generatedartifact.Context{
+		RepositoryRoot:                 baseRoot,
+		RepositoryDomain:               domain,
+		GraphInputPolicyID:             recorded.Snapshot.PolicyID,
+		GraphInputSnapshotDigestSHA256: recorded.SnapshotDigest,
+		SourceManifestDigestSHA256:     baseSourceManifestDigest,
+		SupplementalGraphs:             recorded.Snapshot.SupplementalGraphs,
+		GraphArtifact:                  baseGraph.artifact,
+	}, profile)
+	if err != nil {
+		return governedimpact.Report{}, fmt.Errorf("resultpipeline: generate base proof obligations: %w", err)
+	}
+	var baseProof generatedartifact.Output
+	for _, o := range baseGen {
+		if o.Path == generatedartifact.ProofObligationsPath {
+			baseProof = o
+		}
+	}
+	resultProof, _ := genResult.ExpectedOutputByPath(generatedartifact.ProofObligationsPath)
+
+	baseSnap := governedimpact.Snapshot{
+		GraphSemanticDigestSHA256:            baseGraph.artifact.GraphSemanticDigestSHA256,
+		Triples:                              baseGraph.triples,
+		ProofObligationsBytes:                baseProof.Bytes,
+		ProofObligationsSemanticDigestSHA256: baseProof.SemanticDigestSHA256,
+		CertificationPolicyID:                base.Policies.Certification,
+		CompletionPolicyID:                   base.Policies.Completion,
+	}
+	resultSnap := governedimpact.Snapshot{
+		GraphSemanticDigestSHA256:            cg.artifact.GraphSemanticDigestSHA256,
+		Triples:                              cg.triples,
+		ProofObligationsBytes:                resultProof.Bytes,
+		ProofObligationsSemanticDigestSHA256: resultProof.SemanticDigestSHA256,
+		CertificationPolicyID:                base.Policies.Certification,
+		CompletionPolicyID:                   base.Policies.Completion,
+	}
+	return governedimpact.Compare(baseSnap, resultSnap)
 }
 
 // loadRecordedClosureRequest loads the task's authoritative closure request from
