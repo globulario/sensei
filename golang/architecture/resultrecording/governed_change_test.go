@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"path/filepath"
 
@@ -40,7 +41,7 @@ func TestGovernedChangeSurvivesRecordAndReload(t *testing.T) {
 		rwrite(tt, r, "src/model.go", "package src\n\n// Publish is a no-op.\nfunc Publish() {}\n")
 		rwrite(tt, r, "docs/awareness/invariants.yaml", rInvariantsChanged)
 		regenerateArtifacts(tt, r) // the governed change alters the graph → regenerate derived artifacts
-	}, []string{"src/model.go"})
+	}, []string{"src/model.go"}, closure.DirectionNotApplicable)
 
 	head, err := admission.TaskLedgerHead(taskDir)
 	if err != nil {
@@ -55,11 +56,9 @@ func TestGovernedChangeSurvivesRecordAndReload(t *testing.T) {
 		t.Fatalf("prepare governed-change candidate: %v", err)
 	}
 
-	// The candidate's real impact report shows invariants changed with the exact id.
-	invID := changedID(t, c.BuildResult.GovernedKnowledgeImpactReport, "invariants")
-	if invID == "" {
-		t.Fatal("governed invariant change not detected in the candidate impact report")
-	}
+	const wantInvID = "https://globular.io/awareness#invariant/test.publish_mutates_state"
+	// The candidate's real impact report shows exactly the one invariant changed.
+	assertOnlyInvariantChanged(t, c.BuildResult.GovernedKnowledgeImpactReport, wantInvID)
 
 	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
 	if err != nil {
@@ -69,7 +68,7 @@ func TestGovernedChangeSurvivesRecordAndReload(t *testing.T) {
 		t.Fatalf("disposition = %s", res.Disposition)
 	}
 
-	// Reload entirely from the ledger and prove the change survived storage.
+	// Reload entirely from the ledger and prove the exact change survived storage.
 	rt, err := LoadRecordedTransition(taskDir, c.Receipt.TransitionID)
 	if err != nil {
 		t.Fatalf("reload: %v", err)
@@ -77,39 +76,44 @@ func TestGovernedChangeSurvivesRecordAndReload(t *testing.T) {
 	if err := ValidateRecordedTransition(rt); err != nil {
 		t.Fatalf("recorded transition invalid: %v", err)
 	}
-	reloadedID := changedID(t, rt.ImpactReport, "invariants")
-	if reloadedID != invID {
-		t.Fatalf("exact invariant id did not survive storage: stored %q reloaded %q", invID, reloadedID)
+	assertOnlyInvariantChanged(t, rt.ImpactReport, wantInvID)
+
+	// The receipt's ten impacts equal the stored full report (set-wise).
+	if closureprotocol.MustSemanticDigest(sortedImpacts(rt.Receipt.GovernedKnowledgeImpacts)) != closureprotocol.MustSemanticDigest(sortedImpacts(rt.ImpactReport.Impacts)) {
+		t.Fatal("receipt impacts differ from stored report")
 	}
-	// Unrelated governed categories are unchanged.
-	for _, im := range rt.ImpactReport.Impacts {
-		if im.Category == "invariants" {
-			continue
-		}
-		if im.Category == "proof_obligations" {
-			continue // may legitimately change if obligations derive from the surface
-		}
-		if closureprotocol.GovernedKnowledgeImpactChanged(im) {
-			t.Fatalf("unrelated category %q changed: %v", im.Category, im.ChangedRecordIDs)
-		}
+
+	// All ten stage artifacts survived byte-identically.
+	want := map[closureprotocol.ResultPipelineStage][]byte{}
+	for _, a := range c.BuildResult.StageArtifacts {
+		want[a.Stage] = a.Bytes
 	}
-	// The receipt's ten impacts equal the stored full report.
-	if len(rt.Receipt.GovernedKnowledgeImpacts) != len(rt.ImpactReport.Impacts) {
-		t.Fatal("receipt impacts count differs from stored report")
+	if len(rt.Stages) != 10 {
+		t.Fatalf("reloaded %d stages", len(rt.Stages))
+	}
+	for _, s := range rt.Stages {
+		if string(s.Artifact.Bytes) != string(want[s.Stage]) {
+			t.Fatalf("stage %s bytes did not survive byte-identically", s.Stage)
+		}
 	}
 }
 
-func changedID(t *testing.T, rep governedimpact.Report, category string) string {
+// assertOnlyInvariantChanged requires the invariants category to change with
+// exactly wantID and every other category to be unchanged.
+func assertOnlyInvariantChanged(t *testing.T, rep governedimpact.Report, wantID string) {
 	t.Helper()
 	for _, im := range rep.Impacts {
-		if im.Category == category && closureprotocol.GovernedKnowledgeImpactChanged(im) {
-			if len(im.ChangedRecordIDs) == 0 {
-				t.Fatalf("category %q changed but reports no record id", category)
+		changed := closureprotocol.GovernedKnowledgeImpactChanged(im)
+		if im.Category == "invariants" {
+			if !changed || len(im.ChangedRecordIDs) != 1 || im.ChangedRecordIDs[0] != wantID {
+				t.Fatalf("invariants changed-set = %v, want exactly [%s]", im.ChangedRecordIDs, wantID)
 			}
-			return im.ChangedRecordIDs[0]
+			continue
+		}
+		if changed {
+			t.Fatalf("unrelated category %q changed: %v", im.Category, im.ChangedRecordIDs)
 		}
 	}
-	return ""
 }
 
 // regenerateArtifacts recompiles the graph over the current repository content and
