@@ -131,7 +131,7 @@ func recordCapabilityConsumption(t *testing.T, taskDir string, decision closurep
 func TestGovernanceReadyForAdmissionBeforeDecision(t *testing.T) {
 	_, taskDir := enrolledPreparedTask(t)
 	for i := 0; i < 3; i++ {
-		disp := governanceDisposition(taskDir, time.Now().UTC())
+		disp := mustDisposition(t, taskDir, time.Now().UTC())
 		if !disp.Resolved || disp.Status != StatusReadyForAdmission {
 			t.Fatalf("read %d disposition = %+v, want resolved ready_for_admission", i, disp)
 		}
@@ -151,7 +151,7 @@ func TestGovernanceReadyForMutationAfterDecision(t *testing.T) {
 	recordAdmissionDecision(t, taskDir, time.Now().UTC())
 	rebindActivePointer(t, repo, taskDir)
 
-	disp := governanceDisposition(taskDir, time.Now().UTC())
+	disp := mustDisposition(t, taskDir, time.Now().UTC())
 	if !disp.Resolved || disp.Status != StatusReadyForMutation || !disp.GrantModify {
 		t.Fatalf("disposition = %+v, want resolved ready_for_mutation with grant", disp)
 	}
@@ -180,7 +180,7 @@ func TestGovernanceRecordedDecisionExpires(t *testing.T) {
 	}
 
 	// Within validity: grants, and does not extend the recorded expiry.
-	if disp := governanceDisposition(taskDir, decidedAt.Add(time.Hour)); disp.Status != StatusReadyForMutation {
+	if disp := mustDisposition(t, taskDir, decidedAt.Add(time.Hour)); disp.Status != StatusReadyForMutation {
 		t.Fatalf("within-window disposition = %q, want ready_for_mutation", disp.Status)
 	}
 	if got, _ := admission.LoadRecordedDecision(taskDir); got.CapabilityExpiry != wantExpiry {
@@ -188,7 +188,7 @@ func TestGovernanceRecordedDecisionExpires(t *testing.T) {
 	}
 
 	// Past validity: refused, and still does not rewrite the recorded expiry.
-	if disp := governanceDisposition(taskDir, decidedAt.Add(25*time.Hour)); disp.Status != StatusRefused {
+	if disp := mustDisposition(t, taskDir, decidedAt.Add(25*time.Hour)); disp.Status != StatusRefused {
 		t.Fatalf("expired disposition = %q, want refused", disp.Status)
 	}
 	if got, _ := admission.LoadRecordedDecision(taskDir); got.CapabilityExpiry != wantExpiry {
@@ -206,7 +206,7 @@ func TestGovernanceConsumedCapabilityStaysSpent(t *testing.T) {
 	recordCapabilityConsumption(t, taskDir, decision, time.Now().UTC())
 
 	for i := 0; i < 3; i++ {
-		disp := governanceDisposition(taskDir, time.Now().UTC())
+		disp := mustDisposition(t, taskDir, time.Now().UTC())
 		if disp.Status != StatusAdmitted {
 			t.Fatalf("read %d disposition = %q, want admitted", i, disp.Status)
 		}
@@ -221,7 +221,7 @@ func TestGovernanceWaitsWhenNotEnrolled(t *testing.T) {
 	res := prepareEdit(t, repo, graph)
 	taskDir := filepath.Join(repo, filepath.FromSlash(res.TaskDir))
 
-	disp := governanceDisposition(taskDir, time.Now().UTC())
+	disp := mustDisposition(t, taskDir, time.Now().UTC())
 	if disp.Resolved {
 		t.Fatalf("disposition should be unresolved without enrollment: %+v", disp)
 	}
@@ -329,7 +329,7 @@ func TestGovernanceScopeVerifiedIsNonMutableTerminal(t *testing.T) {
 	recordScopeVerification(t, taskDir, true)
 	rebindActivePointer(t, repo, taskDir)
 
-	disp := governanceDisposition(taskDir, time.Now().UTC())
+	disp := mustDisposition(t, taskDir, time.Now().UTC())
 	if disp.Status != StatusScopeVerified || !disp.Terminal {
 		t.Fatalf("disposition = %+v, want scope_verified terminal", disp)
 	}
@@ -357,7 +357,7 @@ func TestGovernanceScopeVerifiedIsNonMutableTerminal(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		if d := governanceDisposition(taskDir, time.Now().UTC()); d.Status != StatusScopeVerified || d.GrantModify {
+		if d := mustDisposition(t, taskDir, time.Now().UTC()); d.Status != StatusScopeVerified || d.GrantModify {
 			t.Fatalf("re-read %d reopened terminal: %+v", i, d)
 		}
 	}
@@ -398,8 +398,19 @@ func TestGovernanceWaitingMechanicalOnScopeViolation(t *testing.T) {
 	_, taskDir := enrolledPreparedTask(t)
 	recordScopeVerification(t, taskDir, false)
 
-	disp := governanceDisposition(taskDir, time.Now().UTC())
+	disp := mustDisposition(t, taskDir, time.Now().UTC())
 	if disp.Status != StatusWaitingMechanical {
 		t.Fatalf("out-of-envelope disposition = %q, want waiting_mechanical_repair", disp.Status)
 	}
+}
+
+// mustDisposition folds governance and fails the test on an integrity error, so the
+// existing disposition assertions stay concise under the strict (state, error) API.
+func mustDisposition(t *testing.T, taskDir string, now time.Time) governanceState {
+	t.Helper()
+	disp, err := governanceDisposition(taskDir, now)
+	if err != nil {
+		t.Fatalf("governanceDisposition: %v", err)
+	}
+	return disp
 }

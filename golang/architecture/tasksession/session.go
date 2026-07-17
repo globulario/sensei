@@ -546,7 +546,12 @@ func Status(opts StatusOptions) (StatusResult, error) {
 		}
 	}
 	if res.Status != StatusStale {
-		disp := governanceDisposition(taskDir, time.Now().UTC())
+		disp, derr := governanceDisposition(taskDir, time.Now().UTC())
+		if derr != nil {
+			// Fail closed: an unreadable or drifted governance record never grants
+			// or suggests mutation. Report waiting_governance rather than a grant.
+			disp = governanceState{Phase: closureprotocol.PhaseWaitingGovernance, Status: StatusWaitingGovernance}
+		}
 		applyGovernedDisposition(&res, disp, res.Status)
 	}
 	return res, nil
