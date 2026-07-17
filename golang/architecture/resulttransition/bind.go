@@ -68,6 +68,14 @@ type BoundRepositoryResult struct {
 	RepositoryResult RepositoryResultBinding
 	ObservedChange   admission.ObservedChangeSet
 
+	// AuthorityResolution and AdmissionDecision are the exact verified upstream
+	// records this binding was proven against, carried forward so a later proof
+	// stage composes against the same decision the result was bound to and never
+	// re-reads a possibly-changed ledger (TOCTOU). Their digests equal
+	// AuthorityResolutionDigestSHA256 and AdmissionDecisionDigestSHA256.
+	AuthorityResolution closureprotocol.AuthorityResolution
+	AdmissionDecision   closureprotocol.AdmissionDecision
+
 	BaseBindingDigestSHA256           string
 	ActorBindingDigestSHA256          string
 	AuthorityResolutionDigestSHA256   string
@@ -273,6 +281,8 @@ func BindRepositoryResult(ctx context.Context, req BindResultRequest) (BoundRepo
 			GitTreeObjectID:        resultTree.GitTreeObjectID,
 		},
 		ObservedChange:                    reobserved,
+		AuthorityResolution:               recAuth.Resolution,
+		AdmissionDecision:                 decision,
 		BaseBindingDigestSHA256:           baseDigest,
 		ActorBindingDigestSHA256:          actorDigest,
 		AuthorityResolutionDigestSHA256:   authorityDigest,

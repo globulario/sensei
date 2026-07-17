@@ -33,6 +33,14 @@ func TestBindCommittedExactResult(t *testing.T) {
 	if len(got.ObservedChange.Files) != 1 || got.ObservedChange.Files[0].ChangeType != "modify" {
 		t.Fatalf("observed change = %+v, want one modify", got.ObservedChange.Files)
 	}
+	// The verified upstream records are carried forward and match their digests, so
+	// a later proof stage never re-reads the ledger.
+	if d := closureprotocol.MustSemanticDigest(got.AdmissionDecision); d != got.AdmissionDecisionDigestSHA256 {
+		t.Fatalf("carried admission decision digest %s != %s", d, got.AdmissionDecisionDigestSHA256)
+	}
+	if got.AuthorityResolution.AuthorityResolutionDigestSHA256 != got.AuthorityResolutionDigestSHA256 {
+		t.Fatalf("carried authority resolution digest mismatch")
+	}
 }
 
 func TestBindCommittedWrongRevisionFails(t *testing.T) {
