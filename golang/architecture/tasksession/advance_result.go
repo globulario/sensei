@@ -4,7 +4,6 @@ package tasksession
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -320,11 +319,36 @@ type currentSnapshot struct {
 // else from the governance disposition. It reads the projection in-memory from the
 // chain via ledger.Project, so a durable transition whose on-disk projection was not
 // reconciled is still reported as its true current state (with projection_drift).
+// currentStateValidator verifies the chain under the stronger result-transition
+// contract: every payload passes the generic task-event validation, and a
+// result_transition_recorded event must additionally pass the strict result-
+// transition validation, so a malformed transition event fails at verification
+// rather than being read as a weaker lifecycle projection.
+func currentStateValidator(et closureprotocol.LedgerEventType, _ string, data []byte) error {
+	if err := ledger.ValidateTaskEventPayload(et, data); err != nil {
+		return err
+	}
+	if et != closureprotocol.LedgerEventResultTransitionRecorded {
+		return nil
+	}
+	payload, err := ledger.ParseTaskEventPayload(data)
+	if err != nil {
+		return err
+	}
+	return resultrecording.ValidateResultTransitionEventPayload(payload)
+}
+
 func loadCurrentState(taskDir string, deps advanceDeps) (currentSnapshot, error) {
-	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(governanceValidator))
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(currentStateValidator))
 	chain, err := store.VerifyChain()
 	if err != nil {
 		return currentSnapshot{}, err
+	}
+	// One snapshot for the whole reconstruction: an append after this point (e.g. a
+	// concurrent writer) cannot produce a chimera of head-from-A / phase-from-B. The
+	// injected hook lets a test append here and prove exactly that.
+	if deps.afterSnapshot != nil {
+		deps.afterSnapshot(taskDir)
 	}
 	set, err := ledger.Project(chain)
 	if err != nil {
@@ -335,28 +359,23 @@ func loadCurrentState(taskDir string, deps advanceDeps) (currentSnapshot, error)
 		sequence:        chain.Head.Sequence,
 		projectionState: ledger.ProjectionState(taskDir, set),
 	}
-	// A recorded result-transition writes the resultrecording status projection
-	// (JSON, schema resultrecording.projection/v1). When present it is the furthest
-	// recorded state (proving / complete-but-blocked). Any other projection (e.g. the
-	// legacy tasksession lifecycle status) is not a result-transition state, so we
-	// fall through to the governance disposition rather than misread it.
-	if statusBytes, ok := set.Files["projections/status.yaml"]; ok {
-		var doc struct {
-			SchemaVersion     string                    `json:"schema_version"`
-			TaskPhase         closureprotocol.TaskPhase `json:"task_phase"`
-			OperationalStatus string                    `json:"operational_status"`
-			WaitingOn         []string                  `json:"waiting_on"`
-			NextAction        string                    `json:"next_action"`
+
+	// A recorded result-transition is the authoritative current state. Presence is
+	// determined from the CHAIN, not by parsing status.yaml, and it is validated
+	// under the STRONGER result-transition contract: a present-but-malformed
+	// transition state fails closed, never silently degrades to a lifecycle reading.
+	if txVE, ok := latestChainEvent(chain, closureprotocol.LedgerEventResultTransitionRecorded); ok {
+		phase, status, next, waiting, err := currentFromTransition(taskDir, txVE)
+		if err != nil {
+			return currentSnapshot{}, err
 		}
-		if json.Unmarshal(statusBytes, &doc) == nil && doc.SchemaVersion == "resultrecording.projection/v1" {
-			cs.phase = doc.TaskPhase
-			cs.status = doc.OperationalStatus
-			cs.next = advanceNext(doc.NextAction)
-			cs.waitingReasons = doc.WaitingOn
-			return cs, nil
-		}
+		cs.phase, cs.status, cs.next, cs.waitingReasons = phase, status, next, waiting
+		return cs, nil
 	}
-	disp, err := governanceDisposition(taskDir, deps.now(), deps.afterSnapshot)
+
+	// No transition: fold governance from the SAME verified snapshot — no re-verify,
+	// no mixed world.
+	disp, err := foldGovernance(chain, taskDir, deps.now())
 	if err != nil {
 		return currentSnapshot{}, err
 	}
@@ -364,6 +383,48 @@ func loadCurrentState(taskDir string, deps advanceDeps) (currentSnapshot, error)
 	cs.status = disp.Status
 	cs.next = dispositionNextAction(disp)
 	return cs, nil
+}
+
+// currentFromTransition reads the recorded result-transition's current state under
+// the stronger result-transition contract, from the frozen snapshot entry. The
+// event payload must pass strict result-transition validation and the status
+// projection must be the canonical resultrecording.projection/v1; any malformed or
+// drifted transition state is a hard error (fail closed), never a fallback.
+func currentFromTransition(taskDir string, txVE ledger.VerifiedEntry) (closureprotocol.TaskPhase, string, NextAction, []string, error) {
+	data, err := ledger.ReadVerifiedPayload(txVE)
+	if err != nil {
+		return "", "", NextAction{}, nil, err
+	}
+	payload, err := ledger.ParseTaskEventPayload(data)
+	if err != nil {
+		return "", "", NextAction{}, nil, err
+	}
+	if err := resultrecording.ValidateResultTransitionEventPayload(payload); err != nil {
+		return "", "", NextAction{}, nil, err
+	}
+	var doc struct {
+		SchemaVersion     string                    `json:"schema_version"`
+		TaskPhase         closureprotocol.TaskPhase `json:"task_phase"`
+		OperationalStatus string                    `json:"operational_status"`
+		WaitingOn         []string                  `json:"waiting_on"`
+		NextAction        string                    `json:"next_action"`
+	}
+	if err := decodeGovernedArtifact(taskDir, txVE, "status", &doc); err != nil {
+		return "", "", NextAction{}, nil, err
+	}
+	if doc.SchemaVersion != "resultrecording.projection/v1" {
+		return "", "", NextAction{}, nil, &GovernanceError{Code: GovernanceCodeRecordUnreadable, Detail: "result-transition status projection has unexpected schema " + doc.SchemaVersion}
+	}
+	return doc.TaskPhase, doc.OperationalStatus, advanceNext(doc.NextAction), doc.WaitingOn, nil
+}
+
+func latestChainEvent(chain ledger.VerifiedChain, et closureprotocol.LedgerEventType) (ledger.VerifiedEntry, bool) {
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		if chain.Entries[i].Entry.EventType == et {
+			return chain.Entries[i], true
+		}
+	}
+	return ledger.VerifiedEntry{}, false
 }
 
 // dispositionNextAction maps a governance disposition to the single current next
