@@ -247,6 +247,7 @@ func ToClaimDocumentBinding(base closureprotocol.BaseBinding) architecture.Claim
 		RepositoryDomain:  base.Repository.Domain,
 		Revision:          base.Repository.Revision,
 		RevisionStatus:    base.Repository.RevisionStatus,
+		TreeDigestSHA256:  base.Repository.TreeDigestSHA256,
 		GraphDigestSHA256: base.Graph.DigestSHA256,
 		GraphDigestStatus: base.Graph.DigestStatus,
 	}
@@ -255,9 +256,10 @@ func ToClaimDocumentBinding(base closureprotocol.BaseBinding) architecture.Claim
 func FromClaimDocumentBinding(in architecture.ClaimDocumentBinding, taskID, sessionID, iterationDigest string, policies closureprotocol.PolicyBinding) (closureprotocol.BaseBinding, error) {
 	base := closureprotocol.BaseBinding{
 		Repository: closureprotocol.RepositorySnapshot{
-			Domain:         strings.TrimSpace(in.RepositoryDomain),
-			Revision:       strings.TrimSpace(in.Revision),
-			RevisionStatus: strings.TrimSpace(in.RevisionStatus),
+			Domain:           strings.TrimSpace(in.RepositoryDomain),
+			Revision:         strings.TrimSpace(in.Revision),
+			RevisionStatus:   strings.TrimSpace(in.RevisionStatus),
+			TreeDigestSHA256: strings.TrimSpace(in.TreeDigestSHA256),
 		},
 		Graph: closureprotocol.GraphSnapshot{
 			DigestSHA256:  strings.TrimSpace(in.GraphDigestSHA256),

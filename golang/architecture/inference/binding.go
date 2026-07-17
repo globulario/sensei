@@ -10,10 +10,10 @@ import (
 
 func statusForPremises(ctx Context, facts []architecture.Fact) (string, []string) {
 	var unknowns []string
-	if ctx.Binding.RevisionStatus != architecture.RevisionResolved || ctx.Binding.Revision == "" {
+	if !architecture.RepositoryRevisionResolved(ctx.Binding) && !architecture.RepositoryTreeResolved(ctx.Binding) {
 		unknowns = append(unknowns, "The claim cannot be certified against a resolved repository revision and graph digest.")
 	}
-	if ctx.Binding.GraphDigestStatus != architecture.GraphDigestResolved || ctx.Binding.GraphDigestSHA256 == "" {
+	if !architecture.RepositoryGraphResolved(ctx.Binding) {
 		unknowns = append(unknowns, "The claim cannot be certified against a resolved repository revision and graph digest.")
 	}
 	for _, f := range facts {
@@ -26,7 +26,12 @@ func statusForPremises(ctx Context, facts []architecture.Fact) (string, []string
 			continue
 		}
 		p := f.Provenance
-		if p.RevisionStatus != architecture.RevisionResolved {
+		// A premise is bound to an exact repository state either by a resolved
+		// committed revision or, for an admitted uncommitted result tree, by a
+		// resolved per-file source digest that pins the exact file content.
+		revisionBound := p.RevisionStatus == architecture.RevisionResolved
+		sourceBound := p.SourceKind == "source_file" && p.SourceDigestStatus == architecture.SourceDigestResolved
+		if !revisionBound && !sourceBound {
 			unknowns = append(unknowns, "A premise fact lacks a resolved repository revision.")
 		}
 		if p.SourceKind == "source_file" && p.SourceDigestStatus != architecture.SourceDigestResolved {

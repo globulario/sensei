@@ -1536,13 +1536,14 @@ func crossWithoutBoundaryOrContract(nodes []Node) bool {
 }
 
 func bindingResolved(b architecture.ClaimDocumentBinding) bool {
-	return b.RepositoryDomain != "" && b.RevisionStatus == architecture.RevisionResolved && b.Revision != "" && b.GraphDigestStatus == architecture.GraphDigestResolved && b.GraphDigestSHA256 != ""
+	return b.RepositoryDomain != "" && architecture.RepositorySnapshotResolved(b)
 }
 
 func bindingsEqual(a, b architecture.ClaimDocumentBinding) bool {
 	return a.RepositoryDomain == b.RepositoryDomain &&
 		a.Revision == b.Revision &&
 		a.RevisionStatus == b.RevisionStatus &&
+		a.TreeDigestSHA256 == b.TreeDigestSHA256 &&
 		a.GraphDigestSHA256 == b.GraphDigestSHA256 &&
 		a.GraphDigestStatus == b.GraphDigestStatus
 }
@@ -1563,6 +1564,7 @@ func observedBinding(ctx Context) architecture.ClaimDocumentBinding {
 func claimReportBinding(b plane.ClaimBindingReport) architecture.ClaimDocumentBinding {
 	return architecture.ClaimDocumentBinding{
 		RepositoryDomain: b.RepositoryDomain, Revision: b.Revision, RevisionStatus: b.RevisionStatus,
+		TreeDigestSHA256:  b.TreeDigestSHA256,
 		GraphDigestSHA256: b.GraphDigestSHA256, GraphDigestStatus: b.GraphDigestStatus,
 	}
 }

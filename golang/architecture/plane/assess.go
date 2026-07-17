@@ -48,6 +48,7 @@ func Assess(ctx Context) (Report, error) {
 			RepositoryDomain:  doc.Binding.RepositoryDomain,
 			Revision:          doc.Binding.Revision,
 			RevisionStatus:    doc.Binding.RevisionStatus,
+			TreeDigestSHA256:  doc.Binding.TreeDigestSHA256,
 			GraphDigestSHA256: doc.Binding.GraphDigestSHA256,
 			GraphDigestStatus: doc.Binding.GraphDigestStatus,
 		},

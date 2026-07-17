@@ -17,10 +17,10 @@ func BuildClaimDocument(ctx Context, applications []Application) (architecture.C
 	used := map[string]bool{}
 	claims := make([]architecture.Claim, 0, len(applications))
 	limitations := relevantLimitations(ctx.Limitations, nil)
-	if ctx.Binding.RevisionStatus != architecture.RevisionResolved {
+	if !architecture.RepositoryRevisionResolved(ctx.Binding) && !architecture.RepositoryTreeResolved(ctx.Binding) {
 		limitations = append(limitations, architecture.Limitation{Source: "repository", Scope: "revision", Reason: "repository revision is not resolved", Blocking: true})
 	}
-	if ctx.Binding.GraphDigestStatus != architecture.GraphDigestResolved {
+	if !architecture.RepositoryGraphResolved(ctx.Binding) {
 		limitations = append(limitations, architecture.Limitation{Source: "graph", Scope: "graph_digest", Reason: "graph digest is not resolved", Blocking: true})
 	}
 	for _, app := range applications {

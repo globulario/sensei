@@ -24,9 +24,14 @@ type ClaimDocument struct {
 }
 
 type ClaimDocumentBinding struct {
-	RepositoryDomain  string `json:"repository_domain" yaml:"repository_domain"`
-	Revision          string `json:"revision,omitempty" yaml:"revision,omitempty"`
-	RevisionStatus    string `json:"revision_status" yaml:"revision_status"`
+	RepositoryDomain string `json:"repository_domain" yaml:"repository_domain"`
+	Revision         string `json:"revision,omitempty" yaml:"revision,omitempty"`
+	RevisionStatus   string `json:"revision_status" yaml:"revision_status"`
+	// TreeDigestSHA256 is the canonical Sensei repository-tree digest (64
+	// lowercase hex) that identifies an exact result tree, including an admitted
+	// but uncommitted working tree that has no revision. It is never a native Git
+	// object id. It is optional so revision-only bindings remain valid unchanged.
+	TreeDigestSHA256  string `json:"tree_digest_sha256,omitempty" yaml:"tree_digest_sha256,omitempty"`
 	GraphDigestSHA256 string `json:"graph_digest_sha256,omitempty" yaml:"graph_digest_sha256,omitempty"`
 	GraphDigestStatus string `json:"graph_digest_status" yaml:"graph_digest_status"`
 }
@@ -226,6 +231,7 @@ func canonicalizeClaimDocument(in ClaimDocument) ClaimDocument {
 	doc.Binding.RepositoryDomain = strings.TrimSpace(doc.Binding.RepositoryDomain)
 	doc.Binding.Revision = strings.TrimSpace(doc.Binding.Revision)
 	doc.Binding.RevisionStatus = strings.TrimSpace(doc.Binding.RevisionStatus)
+	doc.Binding.TreeDigestSHA256 = strings.TrimSpace(doc.Binding.TreeDigestSHA256)
 	doc.Binding.GraphDigestSHA256 = strings.TrimSpace(doc.Binding.GraphDigestSHA256)
 	doc.Binding.GraphDigestStatus = strings.TrimSpace(doc.Binding.GraphDigestStatus)
 	return doc
@@ -247,7 +253,7 @@ func bindingCanSupportStatus(b ClaimDocumentBinding, status string) bool {
 	if status == StatusUnknown || status == StatusStale {
 		return true
 	}
-	return b.RevisionStatus == RevisionResolved && b.GraphDigestStatus == GraphDigestResolved
+	return RepositorySnapshotResolved(b)
 }
 
 func claimScopeWithinFact(claimItems, factItems []string) bool {
