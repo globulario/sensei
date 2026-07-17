@@ -95,6 +95,12 @@ func rresolution(t *testing.T, actorDigest, baseDigest string) closureprotocol.A
 // whose closure honestly closes, and returns the task dir + committed result
 // revision. resultSrc is the committed result content of src/model.go.
 func seedCleanTask(t *testing.T, resultSrc string) (repo, taskDir, resultRev string) {
+	return seedTask(t, func(tt *testing.T, r string) { rwrite(tt, r, "src/model.go", resultSrc) }, []string{"src/model.go"})
+}
+
+// seedTask is the parameterized clean-task seeder: resultMutate applies the
+// committed result change and scopeFiles is the admitted closure scope.
+func seedTask(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []string) (repo, taskDir, resultRev string) {
 	t.Helper()
 	repo = t.TempDir()
 	rgit(t, repo, "init", "-q")
@@ -134,7 +140,7 @@ func seedCleanTask(t *testing.T, resultSrc string) (repo, taskDir, resultRev str
 		t.Fatal(err)
 	}
 
-	rwrite(t, repo, "src/model.go", resultSrc)
+	resultMutate(t, repo)
 	rgit(t, repo, "add", "-A")
 	rgit(t, repo, "commit", "-q", "-m", "result")
 	resultRev = rgit(t, repo, "rev-parse", "HEAD")
@@ -168,7 +174,7 @@ func seedCleanTask(t *testing.T, resultSrc string) (repo, taskDir, resultRev str
 	closureReq := closure.Request{
 		SchemaVersion: "1", TaskID: base.Task.ID, Binding: resultBinding,
 		Scope: closure.Scope{Domain: rDomain, TaskClass: "repository_repair", RiskClass: closure.RiskLowRisk,
-			AccessMode: closure.AccessRead, DirectionRequirement: closure.DirectionNotApplicable, Files: []string{"src/model.go"}},
+			AccessMode: closure.AccessRead, DirectionRequirement: closure.DirectionNotApplicable, Files: scopeFiles},
 	}
 	closureBytes, err := closure.MarshalCanonicalRequestYAML(closureReq)
 	if err != nil {
