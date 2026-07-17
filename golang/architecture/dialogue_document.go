@@ -251,6 +251,7 @@ func canonicalizeDialogueDocument(in DialogueDocument) DialogueDocument {
 	doc.CompiledBy = strings.TrimSpace(doc.CompiledBy)
 	doc.Binding.RepositoryDomain = strings.TrimSpace(doc.Binding.RepositoryDomain)
 	doc.Binding.Revision = strings.TrimSpace(doc.Binding.Revision)
+	doc.Binding.TreeDigestSHA256 = strings.TrimSpace(doc.Binding.TreeDigestSHA256)
 	doc.Binding.RevisionStatus = strings.TrimSpace(doc.Binding.RevisionStatus)
 	doc.Binding.GraphDigestSHA256 = strings.TrimSpace(doc.Binding.GraphDigestSHA256)
 	doc.Binding.GraphDigestStatus = strings.TrimSpace(doc.Binding.GraphDigestStatus)
@@ -258,7 +259,7 @@ func canonicalizeDialogueDocument(in DialogueDocument) DialogueDocument {
 }
 
 func bindingCanResolveDialogue(b ClaimDocumentBinding) bool {
-	return b.RevisionStatus == RevisionResolved && b.GraphDigestStatus == GraphDigestResolved
+	return RepositorySnapshotResolved(b)
 }
 
 func validateDialogueScopeBinding(binding ClaimDocumentBinding, scope ClaimScope, label string) error {

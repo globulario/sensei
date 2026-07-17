@@ -790,6 +790,7 @@ func bindingsEqual(a, b architecture.ClaimDocumentBinding) bool {
 	return a.RepositoryDomain == b.RepositoryDomain &&
 		a.Revision == b.Revision &&
 		a.RevisionStatus == b.RevisionStatus &&
+		a.TreeDigestSHA256 == b.TreeDigestSHA256 &&
 		a.GraphDigestSHA256 == b.GraphDigestSHA256 &&
 		a.GraphDigestStatus == b.GraphDigestStatus
 }

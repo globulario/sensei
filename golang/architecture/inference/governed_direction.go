@@ -47,8 +47,8 @@ func LoadGovernedDirectionFacts(opts GovernedDirectionOptions) ([]architecture.F
 			Blocking: false,
 		}}, nil
 	}
-	if opts.Binding.RevisionStatus != architecture.RevisionResolved || strings.TrimSpace(opts.Binding.Revision) == "" {
-		return nil, nil, fmt.Errorf("governed direction graph input requires resolved repository revision binding")
+	if !architecture.RepositoryRevisionResolved(opts.Binding) && !architecture.RepositoryTreeResolved(opts.Binding) {
+		return nil, nil, fmt.Errorf("governed direction graph input requires resolved repository revision or tree binding")
 	}
 	if opts.Binding.GraphDigestStatus != architecture.GraphDigestResolved || opts.Binding.GraphDigestSHA256 == "" {
 		return nil, nil, fmt.Errorf("governed direction graph input requires resolved graph digest binding")

@@ -630,7 +630,7 @@ func TestGovernedDirectionLoaderRejectsUnresolvedRevisionBinding(t *testing.T) {
 			GraphDigestStatus: architecture.GraphDigestResolved,
 		},
 	})
-	if err == nil || !strings.Contains(err.Error(), "resolved repository revision binding") {
+	if err == nil || !strings.Contains(err.Error(), "resolved repository revision or tree binding") {
 		t.Fatalf("err=%v", err)
 	}
 }

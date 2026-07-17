@@ -116,6 +116,7 @@ type ClaimBindingReport struct {
 	RepositoryDomain  string `json:"repository_domain,omitempty" yaml:"repository_domain,omitempty"`
 	Revision          string `json:"revision,omitempty" yaml:"revision,omitempty"`
 	RevisionStatus    string `json:"revision_status" yaml:"revision_status"`
+	TreeDigestSHA256  string `json:"tree_digest_sha256,omitempty" yaml:"tree_digest_sha256,omitempty"`
 	GraphDigestSHA256 string `json:"graph_digest_sha256,omitempty" yaml:"graph_digest_sha256,omitempty"`
 	GraphDigestStatus string `json:"graph_digest_status" yaml:"graph_digest_status"`
 }
