@@ -22,6 +22,10 @@ const (
 	resultManifestPath   = "golang/server/embeddata/awareness.result-manifest.tsv"
 )
 
+// ProofObligationsPath is the repository path of the generated proof-obligations
+// artifact, exported so a downstream stage can reuse its expected output.
+const ProofObligationsPath = proofObligationsPath
+
 // Producer A: proof obligations, derived directly from the exact result root's
 // authority surfaces — never from the (possibly stale) candidate YAML.
 type proofObligationsProducer struct{}
