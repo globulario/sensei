@@ -311,7 +311,7 @@ func TestInferClaimsGovernedDirectionRequiresResolvedRevisionBinding(t *testing.
 			"--graph-digest", digest,
 		})
 	})
-	if code != 1 || !strings.Contains(stderr, "resolved repository revision binding") {
+	if code != 1 || !strings.Contains(stderr, "resolved repository revision or tree binding") {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
 }
