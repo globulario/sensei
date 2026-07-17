@@ -117,24 +117,25 @@ const (
 	PhaseAbandoned               TaskPhase = "abandoned"
 	PhaseRevoked                 TaskPhase = "revoked"
 
-	LedgerEventLegacyImport             LedgerEventType = "legacy_import"
-	LedgerEventTaskPrepared             LedgerEventType = "task_prepared"
-	LedgerEventConvergenceAdvanced      LedgerEventType = "convergence_advanced"
-	LedgerEventClosureAssessed          LedgerEventType = "closure_assessed"
-	LedgerEventAdmissionDecided         LedgerEventType = "admission_decided"
-	LedgerEventAuthorityResolved        LedgerEventType = "authority_resolved"
-	LedgerEventAdmissionConsumed        LedgerEventType = "admission_consumed"
-	LedgerEventChangeObserved           LedgerEventType = "change_observed"
-	LedgerEventScopeVerified            LedgerEventType = "scope_verified"
-	LedgerEventResultTransitionRecorded LedgerEventType = "result_transition_recorded"
-	LedgerEventEvidenceRecorded         LedgerEventType = "evidence_recorded"
-	LedgerEventProofDischarged          LedgerEventType = "proof_discharged"
-	LedgerEventCertified                LedgerEventType = "certified"
-	LedgerEventCompleted                LedgerEventType = "completed"
-	LedgerEventRevoked                  LedgerEventType = "revoked"
-	LedgerEventMigrationExecuted        LedgerEventType = "migration_executed"
-	LedgerEventTaskControlProjected     LedgerEventType = "task_control_projected"
-	LedgerEventTaskMarkedStale          LedgerEventType = "task_marked_stale"
+	LedgerEventLegacyImport                LedgerEventType = "legacy_import"
+	LedgerEventTaskPrepared                LedgerEventType = "task_prepared"
+	LedgerEventConvergenceAdvanced         LedgerEventType = "convergence_advanced"
+	LedgerEventClosureAssessed             LedgerEventType = "closure_assessed"
+	LedgerEventAdmissionDecided            LedgerEventType = "admission_decided"
+	LedgerEventAuthorityResolved           LedgerEventType = "authority_resolved"
+	LedgerEventAdmissionConsumed           LedgerEventType = "admission_consumed"
+	LedgerEventChangeObserved              LedgerEventType = "change_observed"
+	LedgerEventScopeVerified               LedgerEventType = "scope_verified"
+	LedgerEventResultTransitionRecorded    LedgerEventType = "result_transition_recorded"
+	LedgerEventQuestionDispositionRecorded LedgerEventType = "question_disposition_recorded"
+	LedgerEventEvidenceRecorded            LedgerEventType = "evidence_recorded"
+	LedgerEventProofDischarged             LedgerEventType = "proof_discharged"
+	LedgerEventCertified                   LedgerEventType = "certified"
+	LedgerEventCompleted                   LedgerEventType = "completed"
+	LedgerEventRevoked                     LedgerEventType = "revoked"
+	LedgerEventMigrationExecuted           LedgerEventType = "migration_executed"
+	LedgerEventTaskControlProjected        LedgerEventType = "task_control_projected"
+	LedgerEventTaskMarkedStale             LedgerEventType = "task_marked_stale"
 )
 
 var (
@@ -188,6 +189,7 @@ var (
 		LedgerEventChangeObserved,
 		LedgerEventScopeVerified,
 		LedgerEventResultTransitionRecorded,
+		LedgerEventQuestionDispositionRecorded,
 		LedgerEventEvidenceRecorded,
 		LedgerEventProofDischarged,
 		LedgerEventCertified,
