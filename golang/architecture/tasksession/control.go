@@ -301,8 +301,13 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 		return AdvanceTaskResult{}, err
 	}
 	// Typed admission-v2 governance is authoritative for the mutation grant:
-	// legacy admission no longer hands out modify permission on its own.
-	gov := governanceDisposition(taskDir, now().UTC())
+	// legacy admission no longer hands out modify permission on its own. A
+	// governance-integrity error fails closed — the task cannot advance and no
+	// mutation is granted.
+	gov, gerr := governanceDisposition(taskDir, now().UTC())
+	if gerr != nil {
+		return AdvanceTaskResult{}, gerr
+	}
 	modifyCapability := decision.MutationCapability
 	modifyScope := decision.Envelope.ModifyPaths
 	if gov.Resolved {

@@ -3,6 +3,12 @@
 package tasksession
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -10,6 +16,34 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 )
+
+// GovernanceError is a typed governance-integrity failure: recorded history that
+// is present but unreadable, malformed, or drifted from its recorded digest. It is
+// never absence, so it must never be treated as "no record" and must never grant
+// or suggest mutation.
+type GovernanceError struct {
+	Code   string
+	Detail string
+}
+
+func (e *GovernanceError) Error() string { return e.Code + ": " + e.Detail }
+
+// Stable governance-integrity error codes.
+const (
+	GovernanceCodeChainUnverifiable = "tasksession.governance_chain_unverifiable"
+	GovernanceCodeRecordUnreadable  = "tasksession.governance_record_unreadable"
+	GovernanceCodeArtifactDrifted   = "tasksession.governance_artifact_drifted"
+)
+
+// governanceAfterSnapshot is a test seam fired once, immediately after the reducer
+// takes its single verified-chain snapshot and before any record is decoded. A
+// test uses it to append to the on-disk ledger and prove the reduction reads only
+// the frozen snapshot (no mixed-ledger disposition).
+var governanceAfterSnapshot func(taskDir string)
+
+func governanceValidator(et closureprotocol.LedgerEventType, _ string, data []byte) error {
+	return ledger.ValidateTaskEventPayload(et, data)
+}
 
 // governanceState is the admission-v2 disposition folded read-only from a task's
 // typed ledger receipts.
@@ -36,84 +70,93 @@ type governanceState struct {
 	Terminal bool
 }
 
-// governanceDisposition folds the recorded admission-v2 receipts into the
-// furthest legal task phase. It is a pure ledger reducer: it reads
-// authority_resolved -> admission_decided -> admission_consumed ->
-// change_observed -> scope_verified and derives the disposition from what was
-// recorded. It never calls DecideAdmission — deciding admission is a write-path
-// transition (admit-change), not a projection input, so reading a task can never
-// mint, refresh, or extend a capability. A recorded decision expires against its
-// own CapabilityExpiry; reading it does not extend its validity.
-func governanceDisposition(taskDir string, now time.Time) governanceState {
-	rec, err := admission.LoadRecordedAuthority(taskDir)
+// governanceDisposition folds the recorded admission-v2 receipts into the furthest
+// legal task phase from ONE verified-chain snapshot, failing closed. Every event
+// payload is read through ledger.ReadVerifiedPayload and every referenced artifact
+// is revalidated against its recorded digest before decoding, so the reducer can
+// never mix on-disk worlds nor trust drifted bytes. Only genuine ABSENCE of an
+// event may move the task to an earlier phase; any integrity or read error is a
+// typed GovernanceError that never grants or suggests mutation. It never calls
+// DecideAdmission — reading a task can never mint, refresh, or extend a capability;
+// a recorded decision expires against its own CapabilityExpiry.
+func governanceDisposition(taskDir string, now time.Time) (governanceState, error) {
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(governanceValidator))
+	chain, err := store.VerifyChain()
 	if err != nil {
-		// No authority_resolved receipt: the task never engaged v2 governance.
-		return governanceState{Phase: closureprotocol.PhaseWaitingGovernance, Status: StatusWaitingGovernance}
+		return governanceState{}, &GovernanceError{Code: GovernanceCodeChainUnverifiable, Detail: err.Error()}
+	}
+	if governanceAfterSnapshot != nil {
+		governanceAfterSnapshot(taskDir)
+	}
+	// Index the single snapshot: the latest verified entry per event type. Every
+	// decode below reads only from this frozen snapshot and the immutable,
+	// content-addressed artifacts its entries reference.
+	latest := map[closureprotocol.LedgerEventType]ledger.VerifiedEntry{}
+	for _, ve := range chain.Entries {
+		latest[ve.Entry.EventType] = ve
 	}
 
-	// Terminal: a scope verification was recorded post-mutation. Scope
-	// verification is a non-mutable terminal — no further mutation is granted and
-	// no admission is reopened. A failed verification drops to mechanical repair.
-	if v, err := admission.LoadRecordedScopeVerification(taskDir); err == nil {
+	// authority_resolved ABSENT → the task never engaged typed governance.
+	authVE, ok := latest[closureprotocol.LedgerEventAuthorityResolved]
+	if !ok {
+		return governanceState{Phase: closureprotocol.PhaseWaitingGovernance, Status: StatusWaitingGovernance}, nil
+	}
+	var rec admission.RecordedAuthority
+	if err := decodeGovernedArtifact(taskDir, authVE, "authority_resolution", &rec.Resolution); err != nil {
+		return governanceState{}, err
+	}
+	if err := decodeGovernedArtifact(taskDir, authVE, "actor_binding", &rec.Actor); err != nil {
+		return governanceState{}, err
+	}
+	if err := decodeGovernedArtifact(taskDir, authVE, "change_plan", &rec.ChangePlan); err != nil {
+		return governanceState{}, err
+	}
+	if err := decodeGovernedArtifact(taskDir, authVE, "base_binding", &rec.Base); err != nil {
+		return governanceState{}, err
+	}
+
+	// scope_verified is the non-mutable terminal. Present-but-unreadable is a HARD
+	// error — never "no terminal", so a corrupt verification cannot reopen the task.
+	if scopeVE, ok := latest[closureprotocol.LedgerEventScopeVerified]; ok {
+		var v admission.ScopeVerification
+		if err := decodeGovernedArtifact(taskDir, scopeVE, "scope_verification", &v); err != nil {
+			return governanceState{}, err
+		}
 		if admission.ScopeVerified(v) {
-			return governanceState{
-				Phase:    closureprotocol.PhaseScopeVerified,
-				Status:   StatusScopeVerified,
-				Resolved: true,
-				Terminal: true,
-			}
+			return governanceState{Phase: closureprotocol.PhaseScopeVerified, Status: StatusScopeVerified, Resolved: true, Terminal: true}, nil
 		}
-		return governanceState{
-			Phase:    closureprotocol.PhaseWaitingMechanicalRepair,
-			Status:   StatusWaitingMechanical,
-			Resolved: true,
-		}
+		return governanceState{Phase: closureprotocol.PhaseWaitingMechanicalRepair, Status: StatusWaitingMechanical, Resolved: true}, nil
 	}
 
-	dec, err := admission.LoadRecordedDecision(taskDir)
-	if err != nil {
-		// Authority resolved, but no typed admission decision recorded yet. The
-		// next legal action is admit-change; no mutation is granted here.
-		return governanceState{
-			Phase:    closureprotocol.PhaseReadyForAdmission,
-			Status:   StatusReadyForAdmission,
-			Resolved: true,
-		}
+	decVE, ok := latest[closureprotocol.LedgerEventAdmissionDecided]
+	if !ok {
+		// Authority resolved, no typed decision yet: the next legal action is
+		// admit-change; no mutation is granted here.
+		return governanceState{Phase: closureprotocol.PhaseReadyForAdmission, Status: StatusReadyForAdmission, Resolved: true}, nil
 	}
-	// Validate the recorded decision against the recorded authority WITHOUT
-	// recomputing it: a decision whose request digest no longer binds, or whose
-	// capability has expired, grants nothing. Reading never extends validity.
+	var dec closureprotocol.AdmissionDecision
+	if err := decodeGovernedArtifact(taskDir, decVE, "admission_decision", &dec); err != nil {
+		return governanceState{}, err
+	}
 	if !recordedDecisionBinds(dec, rec, now) {
-		return governanceState{
-			Phase:    closureprotocol.PhaseRefused,
-			Status:   StatusRefused,
-			Resolved: true,
-		}
+		return governanceState{Phase: closureprotocol.PhaseRefused, Status: StatusRefused, Resolved: true}, nil
 	}
 
-	// A change_observed receipt (recorded between consumption and verification)
-	// — none is emitted operationally today, but fold it when present: the
-	// mutation is observed but scope is not yet verified, so mutation is closed
-	// and the next action is scope verification.
-	if hasLedgerEvent(taskDir, closureprotocol.LedgerEventChangeObserved) {
-		return governanceState{
-			Phase:    closureprotocol.PhaseMutationObserved,
-			Status:   StatusMutationObserved,
-			Resolved: true,
-		}
+	// change_observed present: the mutation is observed but scope is not yet
+	// verified, so mutation is closed and the next action is scope verification.
+	if _, ok := latest[closureprotocol.LedgerEventChangeObserved]; ok {
+		return governanceState{Phase: closureprotocol.PhaseMutationObserved, Status: StatusMutationObserved, Resolved: true}, nil
 	}
 
-	// Decision binds and no mutation has been observed yet. The single-use
-	// capability governs the mutation grant: once consumed it is spent, so no
-	// fresh modify permission is projected even though the task stays admitted
-	// awaiting its observed-change receipt. A consumed capability can never
-	// reappear as available through a read.
-	if _, err := admission.LoadRecordedConsumption(taskDir); err == nil {
-		return governanceState{
-			Phase:    closureprotocol.PhaseAdmitted,
-			Status:   StatusAdmitted,
-			Resolved: true,
+	// A recorded consumption spends the single-use capability. Present-but-
+	// unreadable is a HARD error: it must NEVER be mistaken for "unconsumed" and
+	// resurrect a mutation grant.
+	if consVE, ok := latest[closureprotocol.LedgerEventAdmissionConsumed]; ok {
+		var c closureprotocol.CapabilityConsumption
+		if err := decodeGovernedArtifact(taskDir, consVE, "capability_consumption", &c); err != nil {
+			return governanceState{}, err
 		}
+		return governanceState{Phase: closureprotocol.PhaseAdmitted, Status: StatusAdmitted, Resolved: true}, nil
 	}
 	return governanceState{
 		Phase:       closureprotocol.PhaseAdmitted,
@@ -121,7 +164,38 @@ func governanceDisposition(taskDir string, now time.Time) governanceState {
 		ModifyPaths: changePlanTargets(rec.ChangePlan),
 		GrantModify: true,
 		Resolved:    true,
+	}, nil
+}
+
+// decodeGovernedArtifact reads a verified entry's payload (revalidated against the
+// entry digest) from the frozen snapshot, then reads the referenced artifact and
+// recomputes its byte digest against the recorded ref before decoding. A present-
+// but-corrupt record is a typed GovernanceError, never silent absence.
+func decodeGovernedArtifact(taskDir string, ve ledger.VerifiedEntry, key string, out any) error {
+	data, err := ledger.ReadVerifiedPayload(ve)
+	if err != nil {
+		return &GovernanceError{Code: GovernanceCodeRecordUnreadable, Detail: fmt.Sprintf("%s payload: %v", ve.Entry.EventType, err)}
 	}
+	payload, err := ledger.ParseTaskEventPayload(data)
+	if err != nil {
+		return &GovernanceError{Code: GovernanceCodeRecordUnreadable, Detail: fmt.Sprintf("%s payload parse: %v", ve.Entry.EventType, err)}
+	}
+	ref, ok := payload.Artifacts[key]
+	if !ok {
+		return &GovernanceError{Code: GovernanceCodeRecordUnreadable, Detail: fmt.Sprintf("%s event has no artifact %q", ve.Entry.EventType, key)}
+	}
+	raw, err := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
+	if err != nil {
+		return &GovernanceError{Code: GovernanceCodeArtifactDrifted, Detail: fmt.Sprintf("%s artifact %q: %v", ve.Entry.EventType, key, err)}
+	}
+	sum := sha256.Sum256(raw)
+	if hex.EncodeToString(sum[:]) != ref.DigestSHA256 {
+		return &GovernanceError{Code: GovernanceCodeArtifactDrifted, Detail: fmt.Sprintf("%s artifact %q digest does not match its recorded ref", ve.Entry.EventType, key)}
+	}
+	if err := json.Unmarshal(raw, out); err != nil {
+		return &GovernanceError{Code: GovernanceCodeRecordUnreadable, Detail: fmt.Sprintf("%s artifact %q decode: %v", ve.Entry.EventType, key, err)}
+	}
+	return nil
 }
 
 // recordedDecisionBinds validates a recorded admission decision against the
@@ -188,24 +262,6 @@ func applyGovernedDisposition(res *StatusResult, disp governanceState, legacySta
 	case StatusAdmitted:
 		res.Next = NextAction{Action: NextVerifyAdmission, Summary: "apply the admitted mutation, then run verify-admission to record the observed change and verify scope"}
 	}
-}
-
-// hasLedgerEvent reports whether the task ledger contains at least one event of
-// the given type, read-only.
-func hasLedgerEvent(taskDir string, want closureprotocol.LedgerEventType) bool {
-	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(func(et closureprotocol.LedgerEventType, _ string, data []byte) error {
-		return ledger.ValidateTaskEventPayload(et, data)
-	}))
-	chain, err := store.VerifyChain()
-	if err != nil {
-		return false
-	}
-	for _, e := range chain.Entries {
-		if e.Entry.EventType == want {
-			return true
-		}
-	}
-	return false
 }
 
 func changePlanTargets(plan closureprotocol.ChangePlan) []string {
