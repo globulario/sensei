@@ -11,6 +11,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resultrecording"
+	"github.com/globulario/sensei/golang/architecture/resulttestkit"
 )
 
 // Scenario 6 — post-commit recovery. Requires the non-shipping HEAD-write fault
@@ -24,9 +25,10 @@ import (
 // false success; an exact retry after the fault clears reconciles with no second
 // event.
 func TestE2EPostCommitRecoveryRetriesWithoutSecondEvent(t *testing.T) {
-	repo, taskDir, resultRev := e2eSeedClean(t)
+	r := e2eSeed(t, resulttestkit.Options{})
+	taskDir := r.TaskDir
 	req := AdvanceResultRequest{
-		RepositoryRoot: repo, TaskDirectory: taskDir, RepositoryDomain: e2eDomain, ResultRevision: resultRev,
+		RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir, RepositoryDomain: resulttestkit.Domain, ResultRevision: r.ResultRev,
 		Now: time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC),
 	}
 

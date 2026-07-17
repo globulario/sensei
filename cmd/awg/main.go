@@ -251,6 +251,8 @@ func main() {
 		os.Exit(dispatchVerifyAdmission(args))
 	case "admission-status":
 		os.Exit(runAdmissionStatus(args))
+	case "advance-result":
+		os.Exit(runAdvanceResult(args))
 	case "prepare-change":
 		os.Exit(runPrepareChange(args))
 	case "task-status":
