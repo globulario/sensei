@@ -146,6 +146,13 @@ func TestReplayAfterLedgerAdvancedDoesNotRegress(t *testing.T) {
 
 	// Advance the ledger with an unrelated event (a divergent scope_verified).
 	appendDivergentScope(t, taskDir, c)
+	newHead, err := admission.TaskLedgerHead(taskDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newHead == txEntry {
+		t.Fatal("ledger did not advance")
+	}
 
 	replay, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
 	if err != nil {
@@ -154,8 +161,26 @@ func TestReplayAfterLedgerAdvancedDoesNotRegress(t *testing.T) {
 	if replay.Disposition != DispositionReconciled {
 		t.Fatalf("replay disposition = %s", replay.Disposition)
 	}
+	// The transition entry identity is still the transition's own entry.
 	if replay.EntryDigestSHA256 != txEntry {
-		t.Fatalf("replay reported %s, want the transition's own entry %s", replay.EntryDigestSHA256, txEntry)
+		t.Fatalf("replay reported entry %s, want the transition's own entry %s", replay.EntryDigestSHA256, txEntry)
+	}
+	// But the reported CURRENT head is the actual advanced head, not the transition.
+	if replay.CurrentLedgerHeadSHA256 != newHead {
+		t.Fatalf("replay current head = %s, want the actual advanced head %s", replay.CurrentLedgerHeadSHA256, newHead)
+	}
+	if replay.CurrentLedgerHeadSHA256 == txEntry {
+		t.Fatal("replay misreported the transition entry as the current head")
+	}
+	// The reported projected state is the current rebuilt projection (unchanged by
+	// the divergent event, which carried no projection), read from status.yaml.
+	cur, err := currentProjectedState(taskDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replay.TaskPhase != cur.TaskPhase || replay.OperationalStatus != cur.OperationalStatus || replay.NextAction != cur.NextAction {
+		t.Fatalf("replay state %s/%s/%s != current projection %s/%s/%s",
+			replay.TaskPhase, replay.OperationalStatus, replay.NextAction, cur.TaskPhase, cur.OperationalStatus, cur.NextAction)
 	}
 	if replay.TaskPhase != res.TaskPhase || replay.OperationalStatus != res.OperationalStatus {
 		t.Fatal("replay regressed the projected task state")
