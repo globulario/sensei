@@ -274,8 +274,14 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 	}
 	questions := architectQuestionsBundle(qResult, closureReport)
 
-	// Stage 9: proof requirements.
-	proofDoc := proofRequirements(resultRoot, rbDigest, rb.GraphDigestSHA256, closureSemantic, questions, bound, closureReport)
+	// Stage 9: proof requirements. Compose the complete result-bound requirements
+	// from the seven authoritative sources — carried authority/admission truth,
+	// the verified Stage 2 outputs, the scoped result graph, closure, and the
+	// architect questions — via the single composer. No source is re-extracted.
+	proofDoc, err := proofrequirements.Compose(ctx, composeProofInput(rbDigest, bound, genResult, cg.closIndex, closureReport, questions))
+	if err != nil {
+		return BuildResult{}, fmt.Errorf("resultpipeline: proof requirements: %w", err)
+	}
 
 	// Assemble the nine stage artifacts, their receipts and derivations.
 	artifacts, err := assembleStages(rbDigest, cg, inferred, maintResult, planeReport, closureReport, questions, proofDoc, genArtifacts)
@@ -519,60 +525,57 @@ func sortedKeys(m map[string]bool) []string {
 	return out
 }
 
-func proofRequirements(resultRoot, rbDigest, graphDigest, closureDigest string, questions ArchitectQuestionsBundle, bound resulttransition.BoundRepositoryResult, rep closure.Report) ProofRequirementDocument {
-	doc := ProofRequirementDocument{
-		SchemaVersion:                         "1",
-		GeneratedBy:                           "sensei.proofrequirements",
-		ResultBindingDigestSHA256:             rbDigest,
-		SourceAdmissionDecisionDigestSHA256:   bound.AdmissionDecisionDigestSHA256,
-		SourceAuthorityResolutionDigestSHA256: bound.AuthorityResolutionDigestSHA256,
-		SourceGraphDigestSHA256:               graphDigest,
-		SourceClosureDigestSHA256:             closureDigest,
+// composeProofInput adapts the pipeline's in-memory stage state into the neutral
+// proofrequirements.ComposeInput. It carries the exact verified upstream truth
+// (authority resolution + admission decision and their digests, straight from the
+// binding — never a ledger re-read), reuses the verified Stage 2 generated
+// proof-obligations output rather than re-extracting authority surfaces, and
+// passes the scoped result graph, closure report, and neutral architect-question
+// accounting.
+func composeProofInput(rbDigest string, bound resulttransition.BoundRepositoryResult, gen generatedartifact.VerificationResult, graph closure.GraphIndex, rep closure.Report, questions ArchitectQuestionsBundle) proofrequirements.ComposeInput {
+	var verifiedPaths []string
+	for _, out := range gen.ExpectedOutputs {
+		if p := strings.TrimSpace(out.Path); p != "" {
+			verifiedPaths = append(verifiedPaths, p)
+		}
 	}
-	// The proof requirements bind the WHOLE architect-questions bundle (question
-	// text, IDs, dialogue state, and blocker accounting), not only the report.
-	if qd, err := closureprotocol.SemanticDigest(questions); err == nil {
-		doc.SourceQuestionsDigestSHA256 = qd
-	}
-	surfaces, err := factextract.ExtractAuthorityCandidates(resultRoot)
-	if err != nil {
-		doc.Limitations = append(doc.Limitations, "authority-surface extraction failed: "+err.Error())
-	} else {
-		doc.Obligations = proofrequirements.BuildObligations(surfaces).ProofObligations
-	}
-	for _, q := range questions.Dialogue.OpenQuestions {
-		if q.ArchitectRequired {
-			doc.UnresolvedArchitectQuestion = append(doc.UnresolvedArchitectQuestion, q.ID)
+	var repoProof proofrequirements.RepositoryProofOutput
+	if out, ok := gen.ExpectedOutputByPath(generatedartifact.ProofObligationsPath); ok {
+		repoProof = proofrequirements.RepositoryProofOutput{
+			Path: out.Path, Bytes: out.Bytes,
+			SemanticDigestSHA256: out.SemanticDigestSHA256, ByteDigestSHA256: out.ByteDigestSHA256,
 		}
 	}
 
-	// Extraction completeness is honest, not optimistic. This composition consults
-	// authority surfaces, closure, and architect questions, but does NOT yet
-	// compose the recorded admission-decision proof slots, required
-	// runtime-evidence profiles, or graph-declared proof obligations and required
-	// tests, so a required requirement source was not consulted: extraction is
-	// INCOMPLETE (never a "complete" empty set from unconsulted inputs).
-	doc.Limitations = append(doc.Limitations, "result-side admission proof slots, runtime-evidence profiles, graph obligations, required tests, and forbidden moves are not yet composed")
-	if rep.Verdict == closure.VerdictUncertifiable {
-		doc.ExtractionCompleteness = ExtractionUncertifiable
-	} else {
-		doc.ExtractionCompleteness = ExtractionIncomplete
+	var unresolved []string
+	for _, q := range questions.Dialogue.OpenQuestions {
+		if q.ArchitectRequired {
+			unresolved = append(unresolved, q.ID)
+		}
 	}
 
-	// Proving disposition is a separate axis. Unresolved / non-actionable architect
-	// questions block proving; an uncertifiable closure makes proving
-	// uncertifiable. (Once extraction is complete this stays a distinct signal:
-	// complete extraction can still be blocked.)
-	switch {
-	case rep.Verdict == closure.VerdictUncertifiable:
-		doc.ProvingDisposition = ProvingUncertifiable
-	case !questions.ArchitectQuestionsActionable:
-		doc.ProvingDisposition = ProvingBlocked
-		doc.Limitations = append(doc.Limitations, "architect questions are not actionable; proving stays blocked until resolved")
-	default:
-		// Requirements are not yet fully composed, so proving cannot be declared
-		// ready; it stays blocked pending the admission/graph composition.
-		doc.ProvingDisposition = ProvingBlocked
+	return proofrequirements.ComposeInput{
+		ResultBindingDigestSHA256:         rbDigest,
+		AuthorityResolution:               bound.AuthorityResolution,
+		ExpectedAuthorityResolutionDigest: bound.AuthorityResolutionDigestSHA256,
+		AdmissionDecision:                 bound.AdmissionDecision,
+		ExpectedAdmissionDecisionDigest:   bound.AdmissionDecisionDigestSHA256,
+		GeneratedArtifacts: proofrequirements.GeneratedArtifactSummary{
+			ManifestDigestSHA256: closureprotocol.MustSemanticDigest(gen.Manifest),
+			VerifiedPaths:        verifiedPaths,
+			AllRequiredMatched:   gen.Manifest.AllRequiredMatched,
+		},
+		RepositoryProofOutput: repoProof,
+		Graph:                 graph,
+		ClosureReport:         rep,
+		Questions: proofrequirements.QuestionInput{
+			CurrentBlockerIDs:              questions.CurrentBlockerIDs,
+			AccountedBlockerIDs:            questions.AccountedBlockerIDs,
+			UnaccountedBlockerIDs:          questions.UnaccountedBlockerIDs,
+			DuplicateAccountingIDs:         questions.DuplicateAccountingIDs,
+			UnsupportedCriticalIDs:         questions.UnsupportedCritical,
+			UnresolvedArchitectQuestionIDs: unresolved,
+			Actionable:                     questions.ArchitectQuestionsActionable,
+		},
 	}
-	return doc
 }
