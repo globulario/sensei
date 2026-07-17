@@ -87,9 +87,18 @@ func governanceDisposition(taskDir string, now time.Time, afterSnapshot func(tas
 	if afterSnapshot != nil {
 		afterSnapshot(taskDir)
 	}
-	// Index the single snapshot: the latest verified entry per event type. Every
-	// decode below reads only from this frozen snapshot and the immutable,
-	// content-addressed artifacts its entries reference.
+	return foldGovernance(chain, taskDir, now)
+}
+
+// foldGovernance folds the admission-v2 governance from an ALREADY-verified chain
+// snapshot. It reads only that snapshot and the immutable, content-addressed
+// artifacts its entries reference, so a caller (loadCurrentState) can fold
+// governance from the SAME snapshot it used for head/sequence/projection — one
+// authoritative world, no second verification. Fail-closed rules are unchanged:
+// only absence moves to an earlier phase; any integrity/read error is a typed
+// GovernanceError that never grants or suggests mutation.
+func foldGovernance(chain ledger.VerifiedChain, taskDir string, now time.Time) (governanceState, error) {
+	// Index the single snapshot: the latest verified entry per event type.
 	latest := map[closureprotocol.LedgerEventType]ledger.VerifiedEntry{}
 	for _, ve := range chain.Entries {
 		latest[ve.Entry.EventType] = ve
