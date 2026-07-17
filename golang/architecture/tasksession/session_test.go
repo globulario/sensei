@@ -15,6 +15,8 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
@@ -130,6 +132,61 @@ func TestPrepareChangeCreatesCanonicalLayoutAndActivePointer(t *testing.T) {
 	}
 	if !st.Verified {
 		t.Fatalf("status did not verify: %+v", st.VerifyErrors)
+	}
+}
+
+func TestPrepareChangeRecordsGraphInputSnapshot(t *testing.T) {
+	repo, graph := testRepo(t)
+	snap := &graphbuild.GraphInputSnapshot{
+		PolicyID:         "sensei.resultpipeline.graph-inputs/v1",
+		RepositoryDomain: "github.com/example/project",
+		SourceRoots:      []graphbuild.LogicalSourceRoot{{LogicalPath: "docs/awareness", SkipNestedGenerated: true}},
+	}
+	res, err := Prepare(PrepareOptions{
+		RepoRoot: repo, RepositoryDomain: "github.com/example/project",
+		Description: "Bind graph inputs.", Mode: admission.ModeModify,
+		TaskClass: "graph_input_binding", RiskClass: closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionPreserve,
+		Files:                []FileOperation{{Path: "gin.go", Operation: admission.OperationModify}},
+		GraphNT:              graph,
+		GraphInputSnapshot:   snap,
+	})
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	taskDir := filepath.Join(repo, filepath.FromSlash(res.TaskDir))
+	data, found, err := admission.LoadLatestArtifactBytes(taskDir, closureprotocol.LedgerEventTaskPrepared, "graph_input_snapshot")
+	if err != nil || !found {
+		t.Fatalf("graph_input_snapshot artifact missing on task_prepared: found=%v err=%v", found, err)
+	}
+	var got graphbuild.GraphInputSnapshot
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal recorded snapshot: %v", err)
+	}
+	if err := graphbuild.ValidateGraphInputSnapshot(got); err != nil {
+		t.Fatalf("recorded snapshot must validate: %v", err)
+	}
+	if got.SnapshotDigestSHA256 == "" || got.PolicyID != snap.PolicyID {
+		t.Fatalf("recorded snapshot is not the authoritative one: %+v", got)
+	}
+}
+
+func TestPrepareChangeWithoutSnapshotRecordsUnavailable(t *testing.T) {
+	repo, graph := testRepo(t)
+	res, err := Prepare(PrepareOptions{
+		RepoRoot: repo, RepositoryDomain: "github.com/example/project",
+		Description: "No graph inputs supplied.", Mode: admission.ModeModify,
+		TaskClass: "graph_input_absent", RiskClass: closure.RiskArchitectureSensitive,
+		DirectionRequirement: closure.DirectionPreserve,
+		Files:                []FileOperation{{Path: "gin.go", Operation: admission.OperationModify}},
+		GraphNT:              graph,
+	})
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	taskDir := filepath.Join(repo, filepath.FromSlash(res.TaskDir))
+	if _, found, _ := admission.LoadLatestArtifactBytes(taskDir, closureprotocol.LedgerEventTaskPrepared, "graph_input_snapshot"); found {
+		t.Fatal("no snapshot was supplied, but a graph_input_snapshot artifact was recorded")
 	}
 }
 
