@@ -71,6 +71,43 @@ func LoadLatestArtifactOptional(taskDir string, eventType closureprotocol.Ledger
 	return false, fmt.Errorf("no %s event found in task ledger", eventType)
 }
 
+// LoadLatestArtifactBytes returns the raw bytes of the artifact named artifactKey
+// from the most recent ledger event of eventType, after verifying the ledger
+// chain. Unlike LoadLatestArtifact it does not assume JSON, so a caller can decode
+// a YAML-serialized artifact (e.g. the closure request). It fails closed when the
+// event is absent; a latest event that omits artifactKey yields (nil, false, nil).
+func LoadLatestArtifactBytes(taskDir string, eventType closureprotocol.LedgerEventType, artifactKey string) ([]byte, bool, error) {
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
+	chain, err := store.VerifyChain()
+	if err != nil {
+		return nil, false, err
+	}
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		ve := chain.Entries[i]
+		if ve.Entry.EventType != eventType {
+			continue
+		}
+		data, err := os.ReadFile(ve.PayloadPath)
+		if err != nil {
+			return nil, false, err
+		}
+		payload, err := ledger.ParseTaskEventPayload(data)
+		if err != nil {
+			return nil, false, err
+		}
+		ref, ok := payload.Artifacts[artifactKey]
+		if !ok {
+			return nil, false, nil
+		}
+		artifactData, err := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
+		if err != nil {
+			return nil, false, err
+		}
+		return artifactData, true, nil
+	}
+	return nil, false, fmt.Errorf("no %s event found in task ledger", eventType)
+}
+
 // LoadLatestArtifact loads the JSON artifact named artifactKey from the most
 // recent ledger event of eventType into out. It fails closed when the event is
 // absent or the artifact is missing.
