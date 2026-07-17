@@ -23,7 +23,7 @@ func blockedCandidate(t *testing.T) (taskDir string, c resultpipeline.Transition
 	t.Helper()
 	repo, taskDir, rev := seedTask(t, func(tt *testing.T, r string) {
 		rwrite(tt, r, "src/model.go", "package src\n\n// Publish is a no-op.\nfunc Publish() {}\n")
-	}, []string{"src/model.go"}, closure.DirectionEvolve)
+	}, []string{"src/model.go"}, closure.DirectionEvolve, []string{"src/model.go"}, nil)
 	head, err := admission.TaskLedgerHead(taskDir)
 	if err != nil {
 		t.Fatal(err)
