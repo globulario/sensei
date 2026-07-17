@@ -90,6 +90,8 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 	}
 	entry.EntryDigestSHA256 = digest
 
+	// writeEntry is atomic (temp + rename): once it returns nil the entry is
+	// durable and the append is committed. A failure here is genuinely pre-commit.
 	if err := writeEntry(filepath.Join(s.ledgerDir(), ledgerEntryFilename(entry.Sequence, entry.EventType, digest)), entry); err != nil {
 		return AppendResult{}, err
 	}
@@ -100,8 +102,12 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 		EntryDigestSHA256: digest,
 		EntryPath:         filepath.ToSlash(filepath.Join("ledger", ledgerEntryFilename(entry.Sequence, entry.EventType, digest))),
 	}
+	// The entry is now durable. A HEAD write failure is a POST-commit condition,
+	// not a pre-commit failure: report it as ErrEntryDurable carrying the committed
+	// entry identity so the caller reconciles instead of assuming no append.
 	if err := writeHead(s.headPath(), head); err != nil {
-		return AppendResult{}, err
+		return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
+			ErrEntryDurable{Entry: entry, Head: head, Detail: err.Error()}
 	}
 	return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path}, nil
 }
