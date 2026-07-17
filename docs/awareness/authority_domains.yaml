@@ -28,3 +28,34 @@ authority_domains:
       - bound repository read
     must_read_via_ids:
       - observation_path.repository_read
+
+  # ── Phase 8.1a: architect-question disposition authority (task truth layer) ──
+  - id: authority.sensei_question_disposition
+    label: Sensei architect-question disposition
+    status: active
+    truth_layer: task
+    owner_service: service.sensei.question_disposition
+    evidence_freshness: disposition binds the exact task result and architect-questions bundle by digest
+    covers_paths:
+      - cmd/awg/
+      - docs/awareness/
+      - golang/architecture/
+      - golang/extractor/
+      - golang/rdf/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed question disposition
+    must_mutate_via_ids:
+      - mutation_path.question_disposition
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read

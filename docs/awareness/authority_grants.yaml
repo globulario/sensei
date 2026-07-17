@@ -20,3 +20,23 @@ authority_grants:
     valid_until: ""
     delegable: true
     delegation_policy_id: delegation_policy.repository_repair
+
+  # ── Phase 8.1a: dedicated question-disposition grant (NOT repository repair) ──
+  - id: grant.sensei.question_disposition
+    label: Sensei architect-question disposition grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_question_disposition
+    actions:
+      - dispose
+    target_kinds:
+      - architect_question
+    required_mechanism_ids:
+      - mutation_path.question_disposition
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""
