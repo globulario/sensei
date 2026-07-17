@@ -17,42 +17,78 @@ import (
 
 // AdvanceResultTransition is the single owner of Phase-7 advance-task sequencing.
 // It advances a task by exactly one legal action derived from its verified ledger
-// and rebuilt projections. It never reproduces phase policy: the admission-v2
-// disposition is folded read-only by governanceDisposition, and at the legal
-// scope_verified result step the transition is built by the accepted result
-// pipeline and recorded by resultrecording — the sole side-effecting owner.
+// and rebuilt projections. It reproduces no phase policy: the admission-v2
+// disposition is folded strictly (single verified snapshot, fail-closed) by
+// governanceDisposition, and at the legal scope_verified result step the transition
+// is built by the accepted result pipeline and recorded by resultrecording — the
+// sole side-effecting owner.
 //
 // It performs a ledger write only at scope_verified (recording the transition).
-// Every earlier or blocked state is reported, not mutated: the caller (agent)
-// owns applying admitted mutations, so the orchestrator names the one next legal
-// action instead of forging it. Missing, contradictory, stale, or invalid
-// prerequisites become a typed refusal/waiting outcome — never success.
+// Every earlier or blocked state is reported, not mutated: the agent owns applying
+// admitted mutations, so the orchestrator names the ONE next legal action instead
+// of forging it. Missing prerequisites become a typed refusal/waiting outcome, and
+// any governance-integrity error is a hard refusal — never success, never a grant.
+
+// advanceNow is the trusted internal clock used for capability-expiry evaluation.
+// It is unexported so no caller can backdate expiry; tests override it as a
+// dependency seam. The candidate's recorded_at is NOT taken from this clock — it is
+// anchored to the scope_verified ledger event so retries are byte-identical.
+var advanceNow = func() time.Time { return time.Now().UTC() }
 
 // AdvanceOutcome is the closed set of orchestration outcomes.
 type AdvanceOutcome string
 
 const (
-	// OutcomeWaiting: a legal action remains but the orchestrator cannot perform
-	// it (it is the agent's to do); NextAction names it. No ledger write occurred.
-	OutcomeWaiting AdvanceOutcome = "waiting"
-	// OutcomeRecorded: a result transition is the authoritative outcome (including
-	// an idempotent replay/reconcile that appended no second event).
-	OutcomeRecorded AdvanceOutcome = "recorded"
-	// OutcomeRefused: governance refuses the task; no legal advance exists now.
-	OutcomeRefused AdvanceOutcome = "refused"
-	// OutcomeStale: the ledger head moved concurrently; no transition was recorded
-	// and nothing was falsely reported as success.
-	OutcomeStale AdvanceOutcome = "stale"
-	// OutcomePostCommitIncomplete: the transition entry is durable but derived-state
-	// reconciliation did not complete; the committed identity is exposed and the
-	// exact same advance may be retried.
+	OutcomeWaiting              AdvanceOutcome = "waiting"
+	OutcomeRecorded             AdvanceOutcome = "recorded"
+	OutcomeRefused              AdvanceOutcome = "refused"
+	OutcomeStale                AdvanceOutcome = "stale"
 	OutcomePostCommitIncomplete AdvanceOutcome = "post_commit_incomplete"
 )
 
+// Stable machine next-action identities. Each names EXACTLY ONE step; the matching
+// summary in advanceNextSummaries describes the same single step (never two).
+const (
+	AdvanceNextResolveAuthority  = "resolve_authority"
+	AdvanceNextDecideAdmission   = "decide_admission"
+	AdvanceNextConsumeCapability = "consume_capability"
+	AdvanceNextPerformMutation   = "perform_mutation"
+	AdvanceNextVerifyScope       = "verify_scope"
+	AdvanceNextMechanicalRepair  = "perform_mechanical_repair"
+	AdvanceNextReconcile         = "reconcile_from_current_head"
+	AdvanceNextRetrySameAdvance  = "retry_same_advance"
+	AdvanceNextNone              = "none"
+)
+
+// advanceNextSummaries maps every machine action identity (this package's plus the
+// single-step identities resultrecording.ClassifyNextState emits) to a one-step
+// human summary. It is the single source of truth, so Action and Summary can never
+// disagree and no summary can smuggle a second action.
+var advanceNextSummaries = map[string]string{
+	AdvanceNextResolveAuthority:                "resolve typed authority for this task (prepare-change / enroll-agent)",
+	AdvanceNextDecideAdmission:                 "run admit-change to decide typed admission",
+	AdvanceNextConsumeCapability:               "run consume-admission to spend the single-use capability",
+	AdvanceNextPerformMutation:                 "apply the admitted mutation",
+	AdvanceNextVerifyScope:                     "run verify-admission to verify the observed change against the admitted scope",
+	AdvanceNextMechanicalRepair:                "perform the mechanical repair that returns the change to the admitted scope",
+	AdvanceNextReconcile:                       "re-derive from the current head and advance again",
+	AdvanceNextRetrySameAdvance:                "retry the exact same advance to reconcile the durable entry",
+	AdvanceNextNone:                            "no legal advance now; revise scope or authority",
+	resultrecording.NextActionCompleteProof:    "complete the required proof",
+	resultrecording.NextActionGovernanceReview: "resolve the governance review that blocks proving",
+	resultrecording.NextActionResolveQuestion:  "answer the architect question that blocks proving",
+	// resultrecording.NextActionMechanicalRepair shares AdvanceNextMechanicalRepair's
+	// value ("perform_mechanical_repair"), already mapped above.
+}
+
+func advanceNext(id string) NextAction {
+	return NextAction{Action: id, Summary: advanceNextSummaries[id]}
+}
+
 // AdvanceResultRequest carries only operational inputs. It never accepts a
 // caller-supplied phase, status, authority verdict, admission success, derivable
-// digest, proof result, or certification/completion claim — those are derived
-// from verified records or refused.
+// digest, proof result, certification claim, or clock — those are derived from
+// verified records (and the trusted internal clock) or refused.
 type AdvanceResultRequest struct {
 	RepositoryRoot   string
 	TaskDirectory    string
@@ -60,18 +96,17 @@ type AdvanceResultRequest struct {
 	// ResultRevision names the committed result. Recording requires a committed
 	// revision result because the candidate is built twice deterministically.
 	ResultRevision string
-	// Now is the explicit stable clock (the RecordedAt assertion). The orchestrator
-	// has no internal clock.
-	Now time.Time
 }
 
 // AdvanceResult is the deterministic description of what happened and what remains
 // legal. The transition entry identity is reported separately from the actual
-// current ledger head, which may have advanced past it.
+// current ledger head, which may have advanced past it. For every outcome the
+// current verified head and projected phase/status are reported when available;
+// CurrentStateAvailable is false (with CurrentStateDetail set) when they cannot be
+// reconstructed, so a "current" field is never silently empty.
 type AdvanceResult struct {
 	Outcome AdvanceOutcome
 
-	// Transition* are set when Outcome is recorded or post_commit_incomplete.
 	TransitionRecorded          bool
 	TransitionDisposition       resultrecording.RecordDisposition
 	TransitionID                string
@@ -79,26 +114,25 @@ type AdvanceResult struct {
 	CurrentLedgerHeadSHA256     string
 	LedgerSequence              int
 
-	TaskPhase         closureprotocol.TaskPhase
-	OperationalStatus string
-	NextAction        NextAction
-	WaitingReasons    []string
+	TaskPhase             closureprotocol.TaskPhase
+	OperationalStatus     string
+	NextAction            NextAction
+	WaitingReasons        []string
+	CurrentStateAvailable bool
+	CurrentStateDetail    string
 
-	// RefusalCode/Detail carry the underlying typed reason for a refused or stale
-	// outcome (e.g. resultrecording.stale_expected_head). Never a success.
 	RefusalCode   string
 	RefusalDetail string
 
-	// PostCommit* are set only for OutcomePostCommitIncomplete.
 	PostCommitEntryDigestSHA256 string
 	PostCommitRecoveryAction    string
 
 	ProjectionState string
 }
 
-// AdvanceError is a typed orchestration failure for malformed requests or
-// genuinely unreadable ledger state. State-machine outcomes (waiting, refused,
-// stale, post-commit) are returned as an AdvanceResult with no error.
+// AdvanceError is a typed orchestration failure for malformed requests or genuinely
+// unreadable ledger state. State-machine outcomes (waiting, refused, stale, post-
+// commit) are returned as an AdvanceResult with no error.
 type AdvanceError struct {
 	Code   string
 	Detail string
@@ -106,7 +140,6 @@ type AdvanceError struct {
 
 func (e *AdvanceError) Error() string { return e.Code + ": " + e.Detail }
 
-// Stable advance-error codes.
 const (
 	AdvanceCodeInvalidRequest   = "tasksession.advance_invalid_request"
 	AdvanceCodeLedgerUnreadable = "tasksession.advance_ledger_unreadable"
@@ -119,57 +152,93 @@ func AdvanceResultTransition(ctx context.Context, req AdvanceResultRequest) (Adv
 	if taskDir == "" {
 		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeInvalidRequest, Detail: "task directory is required"}
 	}
-	if req.Now.IsZero() {
-		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeInvalidRequest, Detail: "now (stable clock) is required; the orchestrator has no internal clock"}
-	}
 
-	// Fold the admission-v2 receipts into the furthest legal phase, read-only.
-	disp := governanceDisposition(taskDir, req.Now)
+	// Fold the admission-v2 receipts strictly from one verified snapshot. A
+	// governance-integrity error is a hard refusal that never grants or suggests
+	// mutation; only genuine absence moves to an earlier phase.
+	disp, err := governanceDisposition(taskDir, advanceNow())
+	if err != nil {
+		var gerr *GovernanceError
+		if errors.As(err, &gerr) {
+			return withCurrentState(taskDir, AdvanceResult{
+				Outcome: OutcomeRefused, NextAction: advanceNext(AdvanceNextNone),
+				RefusalCode: gerr.Code, RefusalDetail: gerr.Detail,
+			}), nil
+		}
+		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeLedgerUnreadable, Detail: err.Error()}
+	}
 
 	switch {
 	case disp.Terminal:
-		// scope_verified: the one legal action is recording the result transition.
-		return advanceAtScopeVerified(ctx, req, taskDir)
+		return advanceAtScopeVerified(ctx, req, taskDir, disp)
 	case !disp.Resolved:
-		return waiting(disp, NextAction{Action: NextRebuildResult, Summary: "resolve typed authority for this task (prepare-change / enroll-agent), then admit the change"}), nil
+		return waiting(taskDir, disp, advanceNext(AdvanceNextResolveAuthority)), nil
 	case disp.Status == StatusRefused:
-		return AdvanceResult{
+		return withCurrentState(taskDir, AdvanceResult{
 			Outcome: OutcomeRefused, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
-			NextAction:  NextAction{Action: NextProposeKnowledge, Summary: "admission refused this operation; revise scope/authority — no mutation is granted"},
+			NextAction:  advanceNext(AdvanceNextNone),
 			RefusalCode: "tasksession.admission_refused", RefusalDetail: "the recorded admission decision does not admit every operation, or its capability expired",
-		}, nil
+		}), nil
 	case disp.Status == StatusWaitingMechanical:
-		return waiting(disp, NextAction{Action: NextPerformEdit, Summary: "scope verification found an out-of-envelope change; perform the mechanical repair, then re-verify"}), nil
+		return waiting(taskDir, disp, advanceNext(AdvanceNextMechanicalRepair)), nil
 	case disp.GrantModify:
-		return waiting(disp, NextAction{Action: NextConsumeCapability, Summary: "run consume-admission to spend the single-use capability for this exact operation set before applying the mutation"}), nil
-	case disp.Status == StatusAdmitted, disp.Status == StatusMutationObserved:
-		return waiting(disp, NextAction{Action: NextVerifyAdmission, Summary: "apply the admitted mutation, then run verify-admission to record the observed change and verify scope"}), nil
+		return waiting(taskDir, disp, advanceNext(AdvanceNextConsumeCapability)), nil
+	case disp.Status == StatusMutationObserved:
+		return waiting(taskDir, disp, advanceNext(AdvanceNextVerifyScope)), nil
+	case disp.Status == StatusAdmitted:
+		// Consumed capability, mutation not yet observed: the ONE next step is to
+		// apply the admitted mutation (verification is a distinct later step).
+		return waiting(taskDir, disp, advanceNext(AdvanceNextPerformMutation)), nil
 	case disp.Status == StatusReadyForAdmission:
-		return waiting(disp, NextAction{Action: NextPerformEdit, Summary: "run admit-change to decide typed admission for the resolved authority"}), nil
+		return waiting(taskDir, disp, advanceNext(AdvanceNextDecideAdmission)), nil
 	default:
-		return waiting(disp, NextAction{Action: NextRebuildResult, Summary: "await governance"}), nil
+		return waiting(taskDir, disp, advanceNext(AdvanceNextResolveAuthority)), nil
 	}
 }
 
-// waiting builds a no-write waiting result from a disposition.
-func waiting(disp governanceState, next NextAction) AdvanceResult {
-	return AdvanceResult{
+// waiting builds a no-write waiting result and attaches the current head/state.
+func waiting(taskDir string, disp governanceState, next NextAction) AdvanceResult {
+	return withCurrentState(taskDir, AdvanceResult{
 		Outcome:           OutcomeWaiting,
 		TaskPhase:         disp.Phase,
 		OperationalStatus: disp.Status,
 		NextAction:        next,
+	})
+}
+
+// withCurrentState fills the actual current verified head (and, if not already
+// set, phase/status) so every non-recorded outcome carries the real current state
+// rather than empty fields. When the head cannot be reconstructed it records the
+// unavailability explicitly instead of leaving a silent blank.
+func withCurrentState(taskDir string, r AdvanceResult) AdvanceResult {
+	head, err := admission.TaskLedgerHead(taskDir)
+	if err != nil {
+		r.CurrentStateAvailable = false
+		r.CurrentStateDetail = "current ledger head unavailable: " + err.Error()
+		return r
 	}
+	if r.CurrentLedgerHeadSHA256 == "" {
+		r.CurrentLedgerHeadSHA256 = head
+	}
+	r.CurrentStateAvailable = true
+	return r
 }
 
 // advanceAtScopeVerified builds the result-bound transition candidate through the
 // accepted pipeline and records it. It regenerates no candidate bytes during
 // recording, bypasses no expected-head protection, writes no projection directly,
-// and appends no second event for an exact replay — all of that is enforced by
-// resultrecording.RecordTransition, which this delegates to.
-func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskDir string) (AdvanceResult, error) {
+// and appends no second event for an exact replay — all enforced by
+// resultrecording.RecordTransition, which this delegates to. The candidate's
+// recorded_at is anchored to the scope_verified ledger event, so a retry produces a
+// byte-identical receipt and reconciles instead of conflicting.
+func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskDir string, disp governanceState) (AdvanceResult, error) {
 	head, err := admission.TaskLedgerHead(taskDir)
 	if err != nil {
 		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeLedgerUnreadable, Detail: err.Error()}
+	}
+	recordedAt, err := admission.LoadEventProducedAt(taskDir, closureprotocol.LedgerEventScopeVerified)
+	if err != nil {
+		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeLedgerUnreadable, Detail: "scope_verified produced_at: " + err.Error()}
 	}
 
 	candidate, err := resultpipeline.PrepareTransition(ctx, resultpipeline.PrepareTransitionRequest{
@@ -181,19 +250,16 @@ func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskD
 			RepositoryDomain: req.RepositoryDomain,
 		},
 		ExpectedLedgerHeadDigestSHA256: head,
-		RecordedAt:                     req.Now.UTC().Format(time.RFC3339),
+		RecordedAt:                     recordedAt,
 	})
 	if err != nil {
-		// Missing/contradictory/invalid prerequisites (unresolved records, drifted
-		// result, changed ledger) → typed refusal, never success.
-		return AdvanceResult{
-			Outcome: OutcomeRefused, OperationalStatus: StatusRefused,
+		return withCurrentState(taskDir, AdvanceResult{
+			Outcome: OutcomeRefused, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
+			NextAction:  advanceNext(AdvanceNextNone),
 			RefusalCode: errorCode(err, "resultpipeline.prepare_failed"), RefusalDetail: err.Error(),
-		}, nil
+		}), nil
 	}
 
-	// Waiting reasons come from the phase owner's own classifier — never re-derived
-	// here. They are meaningful only when the recorded result stays scope_verified.
 	next, cerr := resultrecording.ClassifyNextState(candidate.BuildResult.ProofRequirements)
 	if cerr != nil {
 		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeRecordFailed, Detail: cerr.Error()}
@@ -203,34 +269,32 @@ func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskD
 	if rerr != nil {
 		var pce *resultrecording.PostCommitError
 		if errors.As(rerr, &pce) {
-			// The entry is durable; expose committed identity and the retry path.
-			return AdvanceResult{
+			return withCurrentState(taskDir, AdvanceResult{
 				Outcome:                     OutcomePostCommitIncomplete,
 				TransitionRecorded:          true,
 				TransitionID:                pce.TransitionID,
 				TransitionEntryDigestSHA256: pce.EntryDigestSHA256,
 				CurrentLedgerHeadSHA256:     pce.LedgerHeadDigestSHA256,
+				TaskPhase:                   disp.Phase, OperationalStatus: disp.Status,
+				NextAction:                  advanceNext(AdvanceNextRetrySameAdvance),
 				PostCommitEntryDigestSHA256: pce.EntryDigestSHA256,
 				PostCommitRecoveryAction:    pce.RecoveryAction,
 				RefusalCode:                 pce.Code, RefusalDetail: pce.Detail,
-			}, nil
+			}), nil
 		}
 		var rec *resultrecording.Error
 		if errors.As(rerr, &rec) && rec.Code == resultrecording.CodeStaleExpectedHead {
-			// A concurrent writer moved the head between prepare and record. No
-			// transition was recorded; report stale, never a false success.
-			return AdvanceResult{
-				Outcome: OutcomeStale, OperationalStatus: StatusStale,
-				NextAction:  NextAction{Action: NextRebuildResult, Summary: "the ledger head moved during recording; re-derive from the current head and advance again"},
+			return withCurrentState(taskDir, AdvanceResult{
+				Outcome: OutcomeStale, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
+				NextAction:  advanceNext(AdvanceNextReconcile),
 				RefusalCode: rec.Code, RefusalDetail: rec.Detail,
-			}, nil
+			}), nil
 		}
-		// Any other typed recording failure (invalid candidate, id conflict, ...) is
-		// a refusal, not success.
-		return AdvanceResult{
-			Outcome: OutcomeRefused, OperationalStatus: StatusRefused,
+		return withCurrentState(taskDir, AdvanceResult{
+			Outcome: OutcomeRefused, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
+			NextAction:  advanceNext(AdvanceNextNone),
 			RefusalCode: errorCode(rerr, resultrecording.CodeAppendFailed), RefusalDetail: rerr.Error(),
-		}, nil
+		}), nil
 	}
 
 	out := AdvanceResult{
@@ -243,17 +307,18 @@ func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskD
 		LedgerSequence:              res.LedgerSequence,
 		TaskPhase:                   res.TaskPhase,
 		OperationalStatus:           res.OperationalStatus,
-		NextAction:                  NextAction{Action: res.NextAction, Summary: res.NextAction},
+		NextAction:                  advanceNext(res.NextAction),
+		CurrentStateAvailable:       true,
 		ProjectionState:             res.ProjectionState,
 	}
-	// A complete-but-blocked result stays scope_verified and retains every blocker.
 	if res.TaskPhase == closureprotocol.PhaseScopeVerified {
 		out.WaitingReasons = next.WaitingOn
 	}
 	return out, nil
 }
 
-// errorCode extracts a typed code from a resultrecording error, else a fallback.
+// errorCode extracts a typed code from a resultrecording/resultpipeline error, else
+// a fallback.
 func errorCode(err error, fallback string) string {
 	var rec *resultrecording.Error
 	if errors.As(err, &rec) {

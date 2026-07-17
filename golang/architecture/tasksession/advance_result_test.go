@@ -8,71 +8,74 @@ import (
 	"time"
 )
 
-func advReq(repo, taskDir string, now time.Time) AdvanceResultRequest {
-	return AdvanceResultRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultRevision: "HEAD", Now: now}
+func advReq(repo, taskDir string) AdvanceResultRequest {
+	return AdvanceResultRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultRevision: "HEAD"}
 }
 
-// TestAdvanceRejectsMalformedRequest: a request with no task directory or no
-// stable clock is a hard error, never a silent success.
+// TestAdvanceRejectsMalformedRequest: a request with no task directory is a hard
+// error, never a silent success.
 func TestAdvanceRejectsMalformedRequest(t *testing.T) {
-	if _, err := AdvanceResultTransition(context.Background(), AdvanceResultRequest{Now: time.Now()}); err == nil {
+	if _, err := AdvanceResultTransition(context.Background(), AdvanceResultRequest{}); err == nil {
 		t.Fatal("empty task directory must error")
-	}
-	if _, err := AdvanceResultTransition(context.Background(), AdvanceResultRequest{TaskDirectory: "/nonexistent"}); err == nil {
-		t.Fatal("zero clock must error (the orchestrator has no internal clock)")
 	}
 }
 
 // TestAdvanceWaitsForAdmissionDecision: authority is resolved but no typed
-// decision is recorded, so the one legal action is admit-change — reported, not
+// decision is recorded, so the one legal action is decide_admission — reported, not
 // performed, and no transition is recorded.
 func TestAdvanceWaitsForAdmissionDecision(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
-	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir, time.Now().UTC()))
+	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Outcome != OutcomeWaiting || res.OperationalStatus != StatusReadyForAdmission {
 		t.Fatalf("got %s/%s, want waiting/ready_for_admission", res.Outcome, res.OperationalStatus)
 	}
+	if res.NextAction.Action != AdvanceNextDecideAdmission {
+		t.Fatalf("next = %q, want %q", res.NextAction.Action, AdvanceNextDecideAdmission)
+	}
 	if res.TransitionRecorded {
 		t.Fatal("no transition may be recorded before scope_verified")
 	}
+	if !res.CurrentStateAvailable || res.CurrentLedgerHeadSHA256 == "" {
+		t.Fatal("a waiting result must report the current verified head")
+	}
 }
 
-// TestAdvanceWaitsToConsumeThenVerify: after a decision the next legal action is
-// consume-admission; after consumption it is verify-admission. The orchestrator
-// reports the single load-bearing next action at each step.
-func TestAdvanceWaitsToConsumeThenVerify(t *testing.T) {
+// TestAdvanceWaitsToPerformMutationThenVerify: after a decision the next action is
+// consume_capability; after consumption it is perform_mutation (a single step, not
+// "apply then verify"). Each step is exactly one action.
+func TestAdvanceWaitsToPerformMutationThenVerify(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
 	now := time.Now().UTC()
 	dec := recordAdmissionDecision(t, taskDir, now)
 
-	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir, now))
+	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Outcome != OutcomeWaiting || res.NextAction.Action != NextConsumeCapability {
-		t.Fatalf("after decision got %s/%q, want waiting/consume", res.Outcome, res.NextAction.Action)
+	if res.Outcome != OutcomeWaiting || res.NextAction.Action != AdvanceNextConsumeCapability {
+		t.Fatalf("after decision got %s/%q, want waiting/consume_capability", res.Outcome, res.NextAction.Action)
 	}
 
 	recordCapabilityConsumption(t, taskDir, dec, now)
-	res, err = AdvanceResultTransition(context.Background(), advReq(repo, taskDir, now))
+	res, err = AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Outcome != OutcomeWaiting || res.NextAction.Action != NextVerifyAdmission {
-		t.Fatalf("after consume got %s/%q, want waiting/verify", res.Outcome, res.NextAction.Action)
+	if res.Outcome != OutcomeWaiting || res.NextAction.Action != AdvanceNextPerformMutation {
+		t.Fatalf("after consume got %s/%q, want waiting/perform_mutation", res.Outcome, res.NextAction.Action)
 	}
 }
 
 // TestAdvanceRefusesExpiredDecision: a decision whose single-use capability has
-// expired grants nothing — the orchestrator refuses, never advances.
+// expired grants nothing — the orchestrator refuses, never advances. The expiry is
+// evaluated against the trusted internal clock, not a caller-supplied time.
 func TestAdvanceRefusesExpiredDecision(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
-	now := time.Now().UTC()
-	recordAdmissionDecision(t, taskDir, now.Add(-25*time.Hour)) // capability expired (24h window)
-	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir, now))
+	recordAdmissionDecision(t, taskDir, time.Now().UTC().Add(-25*time.Hour)) // 24h window elapsed
+	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,9 +87,43 @@ func TestAdvanceRefusesExpiredDecision(t *testing.T) {
 	}
 }
 
+// TestAdvanceCannotBackdateExpiredCapability proves an API caller cannot revive an
+// expired capability by supplying a past time: the request has no clock field, so
+// expiry is always evaluated against the trusted internal clock (advanceNow). Even
+// when the internal clock is (test-only) moved to just before expiry the capability
+// binds, and when it is at/after expiry it refuses — the caller has no say.
+func TestAdvanceCannotBackdateExpiredCapability(t *testing.T) {
+	repo, taskDir := enrolledPreparedTask(t)
+	decidedAt := time.Now().UTC()
+	recordAdmissionDecision(t, taskDir, decidedAt)
+
+	saved := advanceNow
+	defer func() { advanceNow = saved }()
+
+	// Internal clock before expiry → still admitted (ready_for_mutation).
+	advanceNow = func() time.Time { return decidedAt.Add(time.Hour) }
+	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.OperationalStatus != StatusReadyForMutation {
+		t.Fatalf("within window got %s, want ready_for_mutation", res.OperationalStatus)
+	}
+
+	// Internal clock past expiry → refused. There is no request field a caller
+	// could set to move this clock backward.
+	advanceNow = func() time.Time { return decidedAt.Add(25 * time.Hour) }
+	res, err = AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcome != OutcomeRefused {
+		t.Fatalf("past window got %s, want refused", res.Outcome)
+	}
+}
+
 // TestAdvanceWaitsMechanicalOnScopeViolation: a recorded scope verification that
-// found an out-of-envelope change leaves the task waiting on mechanical repair,
-// not advanced.
+// found an out-of-envelope change leaves the task waiting on mechanical repair.
 func TestAdvanceWaitsMechanicalOnScopeViolation(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
 	now := time.Now().UTC()
@@ -94,19 +131,21 @@ func TestAdvanceWaitsMechanicalOnScopeViolation(t *testing.T) {
 	recordCapabilityConsumption(t, taskDir, dec, now)
 	recordScopeVerification(t, taskDir, false) // verification failed
 
-	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir, now))
+	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Outcome != OutcomeWaiting || res.OperationalStatus != StatusWaitingMechanical {
 		t.Fatalf("got %s/%s, want waiting/waiting_mechanical_repair", res.Outcome, res.OperationalStatus)
 	}
+	if res.NextAction.Action != AdvanceNextMechanicalRepair {
+		t.Fatalf("next = %q, want %q", res.NextAction.Action, AdvanceNextMechanicalRepair)
+	}
 }
 
 // TestAdvanceFailsClosedAtScopeVerifiedWithoutValidResult: at the scope_verified
-// terminal the orchestrator drives the result boundary, but a missing/invalid
-// result prerequisite must produce a typed refusal — never a false success and
-// never a recorded transition.
+// terminal a missing/invalid result prerequisite is a typed refusal — never a false
+// success and never a recorded transition — and still reports the current state.
 func TestAdvanceFailsClosedAtScopeVerifiedWithoutValidResult(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
 	now := time.Now().UTC()
@@ -115,13 +154,13 @@ func TestAdvanceFailsClosedAtScopeVerifiedWithoutValidResult(t *testing.T) {
 	recordScopeVerification(t, taskDir, true) // scope_verified terminal
 
 	res, err := AdvanceResultTransition(context.Background(), AdvanceResultRequest{
-		RepositoryRoot: repo, TaskDirectory: taskDir, ResultRevision: "does-not-exist", Now: now,
+		RepositoryRoot: repo, TaskDirectory: taskDir, ResultRevision: "does-not-exist",
 	})
 	if err != nil {
 		t.Fatalf("a bad result prerequisite must be a typed refusal result, not an error: %v", err)
 	}
 	if res.Outcome != OutcomeRefused {
-		t.Fatalf("scope_verified with no valid result must refuse, never succeed; got %s (recorded=%v)", res.Outcome, res.TransitionRecorded)
+		t.Fatalf("scope_verified with no valid result must refuse; got %s (recorded=%v)", res.Outcome, res.TransitionRecorded)
 	}
 	if res.TransitionRecorded {
 		t.Fatal("no transition may be recorded when preparation fails")
@@ -129,4 +168,39 @@ func TestAdvanceFailsClosedAtScopeVerifiedWithoutValidResult(t *testing.T) {
 	if res.RefusalCode == "" {
 		t.Fatal("a refusal must carry the underlying typed code")
 	}
+	if !res.CurrentStateAvailable || res.CurrentLedgerHeadSHA256 == "" {
+		t.Fatal("a refusal must still report the current verified head")
+	}
+}
+
+// TestNextActionTableIsSingleStep asserts that every machine action identity the
+// orchestrator can emit has a summary, and that no summary smuggles a second action
+// (no " then " / " and " connective that would recreate the flat-output failure).
+func TestNextActionTableIsSingleStep(t *testing.T) {
+	for id, summary := range advanceNextSummaries {
+		if summary == "" {
+			t.Errorf("action %q has no summary", id)
+		}
+		if containsSecondAction(summary) {
+			t.Errorf("action %q summary describes more than one step: %q", id, summary)
+		}
+	}
+}
+
+func containsSecondAction(s string) bool {
+	for _, conn := range []string{" then ", " and then ", ", then "} {
+		if indexOf(s, conn) >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }

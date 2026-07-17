@@ -7,11 +7,10 @@ package tasksession
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resultrecording"
-	"github.com/globulario/sensei/golang/architecture/resulttestkit"
+	"github.com/globulario/sensei/internal/resulttestkit"
 )
 
 // Scenario 6 — post-commit recovery. Requires the non-shipping HEAD-write fault
@@ -29,7 +28,6 @@ func TestE2EPostCommitRecoveryRetriesWithoutSecondEvent(t *testing.T) {
 	taskDir := r.TaskDir
 	req := AdvanceResultRequest{
 		RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir, RepositoryDomain: resulttestkit.Domain, ResultRevision: r.ResultRev,
-		Now: time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC),
 	}
 
 	// Fail the append's HEAD write AND the reconciliation's HEAD write.
