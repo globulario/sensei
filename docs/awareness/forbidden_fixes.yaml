@@ -59,3 +59,64 @@ forbidden_fixes:
     related_invariants:
       - invariant.sensei.evidence_receipts_are_validated_not_self_certified
     reason: Never accept a receipt's self-declared freshness/trust/status as authoritative to reach PASS. The validator must recompute effective status against the proof request and binding. Producer-supplied freshness with no observed time is UNKNOWN, not PASS.
+  # ── Phase 8: terminal architectural closure — forbidden fixes (Slice 8.0) ──
+  - id: phase8_direct_graph_or_projection_write
+    title: write the graph or briefing projection directly during disposition/promotion/completion
+    summary: Have a Phase-8 package write the awareness graph, seed, or a briefing/ledger projection directly instead of mutating the governed source and rebuilding through the deterministic owner path (and rebuilding ledger projections from the verified chain).
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+      - closure.completion_never_mutates_governed_or_certification_truth
+    reason: reusable truth is established only by governed-source mutation + deterministic graph rebuild; projections rebuild from the verified chain — never a direct graph/projection write
+    contract: reusable truth is established only by governed-source mutation + deterministic graph rebuild; projections rebuild from the verified chain — never a direct graph/projection write
+  - id: phase8_production_calls_cli_handler_or_duplicates_policy
+    title: call a CLI handler from a production package or duplicate CLI promotion policy
+    summary: Have a Phase-8 production package invoke a cmd/awg run* handler (e.g. runPropose) or re-implement propose/rebuild policy inline, instead of a reusable governed-promotion owner sitting beneath sensei propose that both the CLI and Phase 8 call.
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+    reason: a reusable governed-promotion owner sits beneath sensei propose; production packages call that owner, never a CLI handler, and never duplicate CLI policy
+    contract: a reusable governed-promotion owner sits beneath sensei propose; production packages call that owner, never a CLI handler, and never duplicate CLI policy
+  - id: phase8_arbitrary_actor_or_implicit_authority_reuse
+    title: use an arbitrary actor string or implicitly reuse another authority for disposition/promotion/completion
+    summary: Derive the answering actor, promotion actor, or completing actor from an arbitrary caller string, or silently reuse the certifying actor, instead of an explicit authority-bound actor verified via authority.VerifyActorBinding — with answer authority and promotion authority as separate typed operations.
+    related_invariants:
+      - closure.only_question_disposition_owner_records_question_outcomes
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+    reason: answer, promotion, and completion actors are explicit, authority-verified, and separate; never an arbitrary string and never an implicit reuse of another operation's authority
+    contract: answer, promotion, and completion actors are explicit, authority-verified, and separate; never an arbitrary string and never an implicit reuse of another operation's authority
+  - id: phase8_adoption_receipt_or_node_alone_as_promotion_proof
+    title: treat an adoption.Receipt or a graph node alone as authoritative promotion
+    summary: Accept an adoption.Receipt (candidate evidence) or the mere existence of a governed graph node as proof that a reusable answer was authorized and correctly promoted, instead of a QuestionPromotionReceipt binding the full question -> answer -> authority -> result -> governed mutation -> rebuilt graph lineage.
+    related_invariants:
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+    reason: authoritative promotion is a QuestionPromotionReceipt binding the full lineage; adoption.Receipt is upstream candidate evidence and a node's existence proves nothing about authorization or provenance
+    contract: authoritative promotion is a QuestionPromotionReceipt binding the full lineage; adoption.Receipt is upstream candidate evidence and a node's existence proves nothing about authorization or provenance
+  - id: phase8_delete_question_to_improve_closure
+    title: delete or drop an architect question to improve closure
+    summary: Remove, hide, or drop a closure-blocking architect question (or rely on a rebuild that removes its backing blocker) to make proving/certification/completion pass, instead of an explicit authorized disposition preserved as lineage.
+    related_invariants:
+      - closure.no_blocking_question_satisfied_by_omission
+    reason: a blocking question is cleared only by an explicit authorized disposition preserved as lineage; never by deletion, omission, or a rebuilt-away blocker
+    contract: a blocking question is cleared only by an explicit authorized disposition preserved as lineage; never by deletion, omission, or a rebuilt-away blocker
+  - id: phase8_convert_deferred_dismissed_to_resolved_without_disposition
+    title: convert a deferred or dismissed question into resolved without an authorized disposition
+    summary: Reclassify a deferred/dismissed question as resolved (or drop it from the resolution summary) without a new authority-verified disposition, instead of keeping deferred/dismissed questions durable and explainable.
+    related_invariants:
+      - closure.only_question_disposition_owner_records_question_outcomes
+      - closure.no_blocking_question_satisfied_by_omission
+    reason: deferred and dismissed questions stay durable and explainable; they become resolved only through a new authority-verified disposition, never by reclassification or omission
+    contract: deferred and dismissed questions stay durable and explainable; they become resolved only through a new authority-verified disposition, never by reclassification or omission
+  - id: phase8_copy_task_local_answer_into_governed_sources
+    title: copy a task-local answer into governed sources or a repository briefing
+    summary: Promote or surface a task_local disposition into docs/awareness governed sources or a repository-wide/foreign-domain briefing, instead of keeping it confined to its exact task/session/result and effective scope.
+    related_invariants:
+      - closure.task_local_answers_never_enter_repository_briefings
+    reason: task-local answers are confined to their exact task/session/result and effective scope; they never enter governed sources or repository-wide/foreign-domain briefings
+    contract: task-local answers are confined to their exact task/session/result and effective scope; they never enter governed sources or repository-wide/foreign-domain briefings
+  - id: phase8_completion_repairs_the_feedback_loop
+    title: let completion answer, promote, rebuild, re-certify, or otherwise repair the loop it verifies
+    summary: Have the completion transaction record a disposition, promote an answer, mutate governed sources, rebuild the graph, or re-run certification to make a task completable, instead of verify-only fail-closed behavior over the separate question/promotion owner and the certification receipt.
+    related_invariants:
+      - closure.completion_never_mutates_governed_or_certification_truth
+      - closure.completion_requires_closed_current_question_loop
+    reason: completion is verify-only; it fails closed when the loop is open and never answers, promotes, rebuilds, re-certifies, or otherwise repairs the loop it is supposed to verify
+    contract: completion is verify-only; it fails closed when the loop is open and never answers, promotes, rebuilds, re-certifies, or otherwise repairs the loop it is supposed to verify

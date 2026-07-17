@@ -206,3 +206,22 @@ required_tests:
         - awareness.open_questions_remain_visible_until_resolved
       files:
         - golang/server/change_impact.go
+  # ── Phase 8: terminal architectural closure — govern-first structural test (Slice 8.0) ──
+  - id: golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    title: The Phase-8 terminal-architectural-closure governed contract is present, schema-valid, and coverage-bound
+    protects:
+      failure_modes:
+        - closure.accepted_answer_stranded_outside_governed_promotion
+        - closure.dialogue_answer_mistaken_for_governed_truth
+        - closure.unauthorized_stale_or_contradictory_promotion
+        - closure.task_local_answer_leaks_into_global_briefing
+        - closure.graph_rebuilt_without_question_answer_provenance
+        - closure.status_blind_unresolved_question_computation
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+        - closure.duplicate_promotion_or_duplicate_completion
+        - closure.partial_governed_source_or_graph_commit
+        - closure.caller_supplied_disposition_terminal_status_or_correctness
+      files:
+        - docs/awareness/invariants.yaml
+        - docs/awareness/failure_modes.yaml
+        - docs/awareness/forbidden_fixes.yaml

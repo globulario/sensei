@@ -34,7 +34,9 @@ files:
   # mechanism, at which risk — or which invariants and repairs are binding.
   # Brief before touching so the change is an explainable authority move.
   - docs/awareness/invariants.yaml
+  - docs/awareness/failure_modes.yaml
   - docs/awareness/forbidden_fixes.yaml
+  - docs/awareness/required_tests.yaml
   - docs/awareness/actor_roles.yaml
   - docs/awareness/authority_domains.yaml
   - docs/awareness/authority_grants.yaml
