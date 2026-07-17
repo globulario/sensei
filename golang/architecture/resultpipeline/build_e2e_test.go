@@ -16,6 +16,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/generatedartifact"
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resulttransition"
@@ -96,20 +97,13 @@ func e2eSeed(t *testing.T) (repo, taskDir string) {
 	return e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n", nil)
 }
 
-func e2eSeedVariant(t *testing.T, resultSrc string, supplemental []graphbuild.SupplementalGraph) (repo, taskDir string) {
+func e2eSeedVariant(t *testing.T, resultSrc string, supplemental []graphbuild.SupplementalGraph, mutators ...func(repo string)) (repo, taskDir string) {
 	t.Helper()
 	repo = t.TempDir()
 	e2eGit(t, repo, "init", "-q")
 	e2eWrite(t, repo, "docs/awareness/invariants.yaml", e2eInvariants)
 	e2eWrite(t, repo, "src/model.go", "package src\n\nfunc Publish() {}\n")
-	e2eGit(t, repo, "add", "-A")
-	e2eGit(t, repo, "commit", "-q", "-m", "base")
-	baseRev := e2eGit(t, repo, "rev-parse", "HEAD")
 
-	baseTree, err := binding.ResolveTreeIdentity(context.Background(), repo, baseRev)
-	if err != nil {
-		t.Fatal(err)
-	}
 	// Build the immutable graph-input snapshot from the exact inputs, exactly as a
 	// production caller would (via the shared graphbuild helper).
 	snapshot, supplementalBytes, err := graphbuild.SnapshotFromBuildInputs(
@@ -131,6 +125,41 @@ func e2eSeedVariant(t *testing.T, resultSrc string, supplemental []graphbuild.Su
 		t.Fatalf("compile base graph: %v", err)
 	}
 	baseGraphDigest := baseCG.artifact.GraphSemanticDigestSHA256
+
+	// Generate and materialize the exact governed generated artifacts, exactly as a
+	// rebuild would, so the result tree carries what Stage 2 regenerates.
+	profile, err := generatedartifact.ProfileForDomain(e2eDomain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srcManDigest, err := closureprotocol.SemanticDigest(baseCG.compilation.SourceManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gen, err := generatedartifact.Generate(context.Background(), generatedartifact.Context{
+		RepositoryRoot: repo, RepositoryDomain: e2eDomain,
+		GraphInputPolicyID: snapshot.PolicyID, GraphInputSnapshotDigestSHA256: snapshot.SnapshotDigestSHA256,
+		SourceManifestDigestSHA256: srcManDigest, SupplementalGraphs: snapshot.SupplementalGraphs,
+		GraphArtifact: baseCG.artifact,
+	}, profile)
+	if err != nil {
+		t.Fatalf("generate artifacts: %v", err)
+	}
+	for _, o := range gen {
+		e2eWrite(t, repo, o.Path, string(o.Bytes))
+	}
+	for _, m := range mutators {
+		m(repo)
+	}
+
+	e2eGit(t, repo, "add", "-A")
+	e2eGit(t, repo, "commit", "-q", "-m", "base")
+	baseRev := e2eGit(t, repo, "rev-parse", "HEAD")
+
+	baseTree, err := binding.ResolveTreeIdentity(context.Background(), repo, baseRev)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	base := closureprotocol.BaseBinding{
 		Repository: closureprotocol.RepositorySnapshot{Domain: e2eDomain, Revision: baseRev, RevisionStatus: "resolved", TreeDigestSHA256: baseTree.DigestSHA256},

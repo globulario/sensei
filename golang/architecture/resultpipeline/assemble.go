@@ -3,12 +3,9 @@
 package resultpipeline
 
 import (
-	"os"
-	"path/filepath"
-	"sort"
-
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/generatedartifact"
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
@@ -40,57 +37,6 @@ func governedSourceManifestBundle(cg compiledGraph) GovernedSourceManifestBundle
 		SupplementalGraphs:             cg.snapshot.SupplementalGraphs,
 		SourceManifest:                 cg.compilation.SourceManifest,
 	}
-}
-
-// governedGeneratedPaths is the closed, versioned set of repository-generated
-// artifacts a Phase 7 result may carry. Stage 2 verifies them by presence and
-// exact byte digest against the materialized result tree; it never writes them.
-var governedGeneratedPaths = []string{
-	"docs/awareness/generated/proof_obligations.yaml",
-	"golang/server/embeddata/awareness.nt",
-	"golang/server/embeddata/awareness.transaction.tsv",
-}
-
-// GeneratedArtifactEntry records one governed generated artifact observed in the
-// result tree.
-type GeneratedArtifactEntry struct {
-	Path             string `json:"path" yaml:"path"`
-	ByteDigestSHA256 string `json:"byte_digest_sha256" yaml:"byte_digest_sha256"`
-	Status           string `json:"status" yaml:"status"`
-}
-
-// GeneratedManifest is the stage-2 canonical output.
-type GeneratedManifest struct {
-	SchemaVersion string                   `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy   string                   `json:"generated_by" yaml:"generated_by"`
-	Artifacts     []GeneratedArtifactEntry `json:"artifacts" yaml:"artifacts"`
-	Limitations   []string                 `json:"limitations,omitempty" yaml:"limitations,omitempty"`
-}
-
-// verifyGeneratedArtifacts records the governed generated artifacts present in
-// the materialized result tree by exact byte digest and populates the result
-// binding's GeneratedArtifacts. It never writes a repository file. Producer
-// regeneration (regenerate-and-compare) is recorded as a limitation rather than
-// silently claimed.
-func verifyGeneratedArtifacts(resultRoot string) ([]closureprotocol.ResultArtifact, GeneratedManifest, []string) {
-	manifest := GeneratedManifest{SchemaVersion: "1", GeneratedBy: "sensei.generated-artifacts"}
-	var generated []closureprotocol.ResultArtifact
-	for _, rel := range governedGeneratedPaths {
-		abs := filepath.Join(resultRoot, filepath.FromSlash(rel))
-		data, err := os.ReadFile(abs)
-		if err != nil {
-			manifest.Artifacts = append(manifest.Artifacts, GeneratedArtifactEntry{Path: rel, Status: "not_present"})
-			continue
-		}
-		digest := sha256hex(data)
-		manifest.Artifacts = append(manifest.Artifacts, GeneratedArtifactEntry{Path: rel, ByteDigestSHA256: digest, Status: "present"})
-		generated = append(generated, closureprotocol.ResultArtifact{Path: rel, DigestSHA256: digest})
-	}
-	sort.Slice(manifest.Artifacts, func(i, j int) bool { return manifest.Artifacts[i].Path < manifest.Artifacts[j].Path })
-	sort.Slice(generated, func(i, j int) bool { return generated[i].Path < generated[j].Path })
-	limitations := []string{"generated repository artifacts recorded by presence and exact byte digest; producer regeneration-and-compare verification is not yet performed"}
-	manifest.Limitations = limitations
-	return generated, manifest, limitations
 }
 
 // graphArtifact builds the stage-3 architecture-graph artifact from the stamped
@@ -133,7 +79,7 @@ func assembleStages(
 	closureRep closure.Report,
 	questions ArchitectQuestionsBundle,
 	proofDoc ProofRequirementDocument,
-	gen GeneratedManifest,
+	gen generatedartifact.VerificationManifest,
 ) ([]PipelineArtifact, error) {
 	var arts []PipelineArtifact
 

@@ -14,6 +14,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/factextract"
+	"github.com/globulario/sensei/golang/architecture/generatedartifact"
 	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
 	"github.com/globulario/sensei/golang/architecture/inference"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
@@ -131,10 +132,32 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 		return BuildResult{}, err
 	}
 
-	// Stage 2: generated repository artifacts (verify presence/digest against the
-	// materialized result tree; never write).
-	generated, genArtifacts, genLimitations := verifyGeneratedArtifacts(resultRoot)
-	limitations = append(limitations, genLimitations...)
+	// Stage 2: generated repository artifacts. Regenerate every governed artifact
+	// in memory from the exact result architecture and compare byte-for-byte
+	// against the materialized result tree; never write. Only verified artifacts
+	// bind into the result binding.
+	profile, err := generatedartifact.ProfileForDomain(domain)
+	if err != nil {
+		return BuildResult{}, err
+	}
+	sourceManifestDigest, err := closureprotocol.SemanticDigest(cg.compilation.SourceManifest)
+	if err != nil {
+		return BuildResult{}, err
+	}
+	genResult, err := generatedartifact.RegenerateAndVerify(ctx, generatedartifact.Context{
+		RepositoryRoot:                 resultRoot,
+		RepositoryDomain:               domain,
+		GraphInputPolicyID:             recorded.Snapshot.PolicyID,
+		GraphInputSnapshotDigestSHA256: recorded.SnapshotDigest,
+		SourceManifestDigestSHA256:     sourceManifestDigest,
+		SupplementalGraphs:             recorded.Snapshot.SupplementalGraphs,
+		GraphArtifact:                  cg.artifact,
+	}, profile)
+	if err != nil {
+		return BuildResult{}, err
+	}
+	generated := genResult.VerifiedArtifacts
+	genArtifacts := genResult.Manifest
 
 	// Complete the frozen ResultBinding now that the graph digest and generated
 	// artifacts are known. It is never modified after any receipt binds it.
