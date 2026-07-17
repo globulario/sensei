@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,6 +93,9 @@ func RecordTransition(ctx context.Context, req RecordRequest) (RecordResult, err
 	if strings.TrimSpace(chain.TaskID) != "" && chain.TaskID != taskID {
 		return RecordResult{}, recErr(CodeTaskMismatch, "ledger task %q does not match candidate %q", chain.TaskID, taskID)
 	}
+	if err := verifyChainIdentity(chain, taskID, sessionID); err != nil {
+		return RecordResult{}, err
+	}
 
 	// Existing-transition semantics: exact replay reconciles; a different receipt
 	// for the same logical transition is a conflict.
@@ -150,8 +154,26 @@ func RecordTransition(ctx context.Context, req RecordRequest) (RecordResult, err
 		ProducerID:               recordingProducerID,
 		ProducedAt:               producedAt,
 	})
-	if err != nil {
+	var durable ledger.ErrEntryDurable
+	var stale ledger.ErrStaleHead
+	switch {
+	case err == nil:
+		// appended (or ledger-level exact replay); handled below.
+	case errors.As(err, &durable):
+		// Durable-entry-but-HEAD-failed is a POST-commit condition: the entry is
+		// authoritative. Carry its identity forward so postCommit reconciles HEAD.
+		appended = ledger.AppendResult{Entry: durable.Entry, Head: durable.Head}
+	case errors.As(err, &stale):
+		// A concurrent writer moved the head first; there is no second event.
+		return RecordResult{}, recErr(CodeStaleExpectedHead, "ledger head moved during recording")
+	default:
 		return RecordResult{}, recErr(CodeAppendFailed, "%v", err)
+	}
+
+	// A ledger-level exact replay (a concurrent identical writer appended first)
+	// creates no second event; reconcile and report it as such.
+	if appended.Replay {
+		return reconcileAndReport(taskDir, store, c, recordedRef{entry: appended.Entry}, DispositionReconciled)
 	}
 
 	// --- commit point passed: the entry is durable. Any failure below is a typed
@@ -238,28 +260,29 @@ func storeArtifacts(store *ledger.Store, c resultpipeline.TransitionCandidate, n
 // the recorded transition. Any failure is a PostCommitError carrying the durable
 // entry identity; the recovery action is to retry the exact same candidate.
 func postCommit(taskDir string, store *ledger.Store, c resultpipeline.TransitionCandidate, result *RecordResult) error {
-	if _, err := ledger.RebuildProjections(taskDir, recordingPayloadValidator); err != nil {
-		return &PostCommitError{Code: CodeProjectionRebuildFailed, TransitionID: result.TransitionID, EntryDigestSHA256: result.EntryDigestSHA256, LedgerHeadDigestSHA256: result.CurrentLedgerHeadSHA256, RecoveryAction: "retry the same candidate", Detail: err.Error()}
+	post := func(code, detail string) *PostCommitError {
+		return &PostCommitError{Code: code, TransitionID: result.TransitionID, EntryDigestSHA256: result.EntryDigestSHA256, LedgerHeadDigestSHA256: result.CurrentLedgerHeadSHA256, RecoveryAction: "retry the same candidate", Detail: detail}
+	}
+	rec, err := store.ReconcileDerivedState()
+	if err != nil {
+		return post(CodeProjectionRebuildFailed, err.Error())
 	}
 	recorded, err := LoadRecordedTransition(taskDir, result.TransitionID)
 	if err != nil {
-		return &PostCommitError{Code: CodePostCommitValidationFailed, TransitionID: result.TransitionID, EntryDigestSHA256: result.EntryDigestSHA256, LedgerHeadDigestSHA256: result.CurrentLedgerHeadSHA256, RecoveryAction: "retry the same candidate", Detail: err.Error()}
+		return post(CodePostCommitValidationFailed, err.Error())
 	}
 	if err := ValidateRecordedTransition(recorded); err != nil {
-		return &PostCommitError{Code: CodePostCommitValidationFailed, TransitionID: result.TransitionID, EntryDigestSHA256: result.EntryDigestSHA256, LedgerHeadDigestSHA256: result.CurrentLedgerHeadSHA256, RecoveryAction: "retry the same candidate", Detail: err.Error()}
+		return post(CodePostCommitValidationFailed, err.Error())
 	}
-	set, err := ledger.RebuildProjections(taskDir, recordingPayloadValidator)
-	if err != nil {
-		return &PostCommitError{Code: CodeProjectionRebuildFailed, TransitionID: result.TransitionID, EntryDigestSHA256: result.EntryDigestSHA256, LedgerHeadDigestSHA256: result.CurrentLedgerHeadSHA256, RecoveryAction: "retry the same candidate", Detail: err.Error()}
-	}
-	result.ProjectionState = ledger.ProjectionState(taskDir, set)
+	result.ProjectionState = rec.ProjectionState
+	result.CurrentLedgerHeadSHA256 = recorded.Entry.EntryDigestSHA256
 	return nil
 }
 
 // reconcileAndReport handles an exact replay: it repairs derived state and reloads
 // without appending a second event.
 func reconcileAndReport(taskDir string, store *ledger.Store, c resultpipeline.TransitionCandidate, existing recordedRef, disposition RecordDisposition) (RecordResult, error) {
-	set, err := ledger.RebuildProjections(taskDir, recordingPayloadValidator)
+	rec, err := store.ReconcileDerivedState()
 	if err != nil {
 		return RecordResult{}, recErr(CodeProjectionRebuildFailed, "%v", err)
 	}
@@ -291,8 +314,22 @@ func reconcileAndReport(taskDir string, store *ledger.Store, c resultpipeline.Tr
 		TaskPhase:               next.TaskPhase,
 		OperationalStatus:       next.OperationalStatus,
 		NextAction:              next.NextAction,
-		ProjectionState:         ledger.ProjectionState(taskDir, set),
+		ProjectionState:         rec.ProjectionState,
 	}, nil
+}
+
+// verifyChainIdentity requires one task id and one session id across the whole
+// verified chain and equal to the candidate's task/session.
+func verifyChainIdentity(chain ledger.VerifiedChain, taskID, sessionID string) error {
+	for _, ve := range chain.Entries {
+		if strings.TrimSpace(ve.Entry.Task.ID) != taskID {
+			return recErr(CodeTaskMismatch, "ledger entry task %q does not match candidate %q", ve.Entry.Task.ID, taskID)
+		}
+		if strings.TrimSpace(ve.Entry.Task.SessionID) != sessionID {
+			return recErr(CodeSessionMismatch, "ledger entry session %q does not match candidate %q", ve.Entry.Task.SessionID, sessionID)
+		}
+	}
+	return nil
 }
 
 // readArtifact reads the confined bytes of a ref and verifies its digest.

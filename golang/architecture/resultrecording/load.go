@@ -3,12 +3,14 @@
 package resultrecording
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/governedimpact"
@@ -50,6 +52,10 @@ type RecordedTransition struct {
 	StatusRef      closureprotocol.LedgerPayloadRef
 
 	ReconstructedBuildResult resultpipeline.BuildResult
+
+	// projectionBytes holds the reloaded canonical bytes of the three projections,
+	// validated for exact correspondence to the derived next state.
+	projectionBytes map[string][]byte
 }
 
 // findRecordedTransition scans the verified chain for a result_transition_recorded
@@ -150,6 +156,23 @@ func LoadRecordedTransition(taskDir, transitionID string) (RecordedTransition, e
 		return RecordedTransition{}, recErr(CodeRecordedTransitionInvalid, "receipt: %v", err)
 	}
 
+	// The stored event payload must itself be contract-valid AND bind exactly to the
+	// receipt: same task, session, and result binding. A payload naming another
+	// task/session/result or a swapped ref fails even if the bytes are individually
+	// valid.
+	if err := ValidateResultTransitionEventPayload(payload); err != nil {
+		return RecordedTransition{}, recErr(CodeRecordedTransitionInvalid, "event payload: %v", err)
+	}
+	if payload.TaskID != receipt.Task.ID || payload.SessionID != receipt.Task.SessionID {
+		return RecordedTransition{}, recErr(CodeRecordedTransitionInvalid, "event task/session differs from the receipt")
+	}
+	if target.Entry.Task.ID != receipt.Task.ID || target.Entry.Task.SessionID != receipt.Task.SessionID {
+		return RecordedTransition{}, recErr(CodeSessionMismatch, "ledger entry task/session differs from the receipt")
+	}
+	if payload.ResultBinding == nil || closureprotocol.MustSemanticDigest(*payload.ResultBinding) != closureprotocol.MustSemanticDigest(receipt.ResultBinding) {
+		return RecordedTransition{}, recErr(CodeRecordedTransitionInvalid, "event result binding differs from the receipt")
+	}
+
 	rt := RecordedTransition{
 		Entry: target.Entry, EventPayload: payload,
 		ReceiptRef: payload.Artifacts[KeyReceipt], Receipt: receipt, ReceiptBytes: append([]byte(nil), receiptBytes...),
@@ -213,6 +236,18 @@ func LoadRecordedTransition(taskDir, transitionID string) (RecordedTransition, e
 		rt.Stages = append(rt.Stages, RecordedStage{Stage: stage, Ref: ref, Artifact: art})
 	}
 
+	// Reload the three projection artifacts (bytes verified against their refs).
+	rt.projectionBytes = map[string][]byte{}
+	for key, ref := range map[string]closureprotocol.LedgerPayloadRef{
+		KeySession: rt.SessionRef, KeyTaskControl: rt.TaskControlRef, KeyStatus: rt.StatusRef,
+	} {
+		data, err := readArtifact(taskDir, ref)
+		if err != nil {
+			return RecordedTransition{}, err
+		}
+		rt.projectionBytes[key] = data
+	}
+
 	build, err := reconstructBuildResult(taskDir, receipt, stageArtifacts, rt.ImpactReport)
 	if err != nil {
 		return RecordedTransition{}, err
@@ -242,6 +277,10 @@ func reconstructBuildResult(taskDir string, receipt closureprotocol.ResultTransi
 		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "decode proof: %v", err)
 	}
 
+	// Reload EVERY upstream record from earlier verified events and RECOMPUTE its
+	// digest, requiring equality with the receipt's carried digest — the same laws
+	// resulttransition.BindRepositoryResult enforced. A forged receipt digest is
+	// caught here; nothing is trusted merely because the receipt carries it.
 	recAuth, err := admission.LoadRecordedAuthority(taskDir)
 	if err != nil {
 		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load authority: %v", err)
@@ -250,13 +289,59 @@ func reconstructBuildResult(taskDir string, receipt closureprotocol.ResultTransi
 	if err != nil {
 		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load decision: %v", err)
 	}
+	consumption, err := admission.LoadRecordedConsumption(taskDir)
+	if err != nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load consumption: %v", err)
+	}
 	observed, err := admission.LoadRecordedObservedChange(taskDir)
 	if err != nil {
 		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load observed change: %v", err)
 	}
+	scope, err := admission.LoadRecordedScopeVerification(taskDir)
+	if err != nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load scope verification: %v", err)
+	}
+	base, err := admission.LoadTaskBaseBinding(taskDir)
+	if err != nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load base binding: %v", err)
+	}
 	evaluatedAt, err := admission.LoadEventProducedAt(taskDir, closureprotocol.LedgerEventScopeVerified)
 	if err != nil {
 		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "load evaluated at: %v", err)
+	}
+
+	baseDigest, err := binding.SemanticDigestBase(base)
+	if err != nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "base digest: %v", err)
+	}
+	authDigest, err := closureprotocol.AuthorityResolutionDigest(recAuth.Resolution)
+	if err != nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "authority digest: %v", err)
+	}
+	observedDigest, err := admission.ObservedChangeSetDigest(observed)
+	if err != nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "observed digest: %v", err)
+	}
+	scopeDigest, err := admission.ScopeVerificationDigest(scope)
+	if err != nil {
+		return resultpipeline.BuildResult{}, recErr(CodeReloadFailed, "scope digest: %v", err)
+	}
+	actorDigest := closureprotocol.MustSemanticDigest(recAuth.Actor)
+	decisionDigest := closureprotocol.MustSemanticDigest(decision)
+	consumptionDigest := closureprotocol.MustSemanticDigest(consumption)
+
+	for _, c := range []struct{ name, got, want string }{
+		{"base_binding", baseDigest, receipt.BaseBindingDigestSHA256},
+		{"actor_binding", actorDigest, receipt.ActorBindingDigestSHA256},
+		{"authority_resolution", authDigest, receipt.AuthorityResolutionDigestSHA256},
+		{"admission_decision", decisionDigest, receipt.AdmissionDecisionDigestSHA256},
+		{"capability_consumption", consumptionDigest, receipt.CapabilityConsumptionDigestSHA256},
+		{"observed_change", observedDigest, receipt.ObservedChangeSetDigestSHA256},
+		{"scope_verification", scopeDigest, receipt.ScopeVerificationDigestSHA256},
+	} {
+		if strings.TrimSpace(c.got) != strings.TrimSpace(c.want) {
+			return resultpipeline.BuildResult{}, recErr(CodeReceiptMismatch, "recomputed %s digest does not match the receipt", c.name)
+		}
 	}
 
 	rb := receipt.ResultBinding
@@ -272,13 +357,13 @@ func reconstructBuildResult(taskDir string, receipt closureprotocol.ResultTransi
 		ObservedChange:                    observed,
 		AuthorityResolution:               recAuth.Resolution,
 		AdmissionDecision:                 decision,
-		BaseBindingDigestSHA256:           receipt.BaseBindingDigestSHA256,
-		ActorBindingDigestSHA256:          receipt.ActorBindingDigestSHA256,
-		AuthorityResolutionDigestSHA256:   receipt.AuthorityResolutionDigestSHA256,
-		AdmissionDecisionDigestSHA256:     receipt.AdmissionDecisionDigestSHA256,
-		CapabilityConsumptionDigestSHA256: receipt.CapabilityConsumptionDigestSHA256,
-		ObservedChangeSetDigestSHA256:     receipt.ObservedChangeSetDigestSHA256,
-		ScopeVerificationDigestSHA256:     receipt.ScopeVerificationDigestSHA256,
+		BaseBindingDigestSHA256:           baseDigest,
+		ActorBindingDigestSHA256:          actorDigest,
+		AuthorityResolutionDigestSHA256:   authDigest,
+		AdmissionDecisionDigestSHA256:     decisionDigest,
+		CapabilityConsumptionDigestSHA256: consumptionDigest,
+		ObservedChangeSetDigestSHA256:     observedDigest,
+		ScopeVerificationDigestSHA256:     scopeDigest,
 	}
 
 	return resultpipeline.BuildResult{
@@ -355,7 +440,64 @@ func ValidateRecordedTransition(rt RecordedTransition) error {
 	if closureprotocol.MustSemanticDigest(sortedImpacts(r.GovernedKnowledgeImpacts)) != closureprotocol.MustSemanticDigest(sortedImpacts(rt.ImpactReport.Impacts)) {
 		return recErr(CodeImpactMismatch, "receipt impacts differ from the stored full impact report")
 	}
+
+	// Projections correspond exactly to the derived next state, the receipt, and the
+	// result binding — and never claim certified or completed.
+	next, err := ClassifyNextState(build.ProofRequirements)
+	if err != nil {
+		return recErr(CodeRecordedTransitionInvalid, "next state: %v", err)
+	}
+	for _, kind := range []string{KeySession, KeyTaskControl, KeyStatus} {
+		if err := validateProjection(rt.projectionBytes[kind], kind, rt.Receipt, next, build.EvaluatedAt); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// validateProjection strictly parses one projection and requires it to be exactly
+// the canonical projection derived from the receipt, the authoritative reconstructed
+// evaluation time, and the derived next state — and to never claim certified/completed.
+func validateProjection(data []byte, kind string, receipt closureprotocol.ResultTransitionReceipt, next NextState, evaluatedAt string) error {
+	if data == nil {
+		return recErr(CodeProjectionDrift, "projection %q is absent", kind)
+	}
+	doc, err := parseProjection(data)
+	if err != nil {
+		return recErr(CodeProjectionDrift, "projection %q: %v", kind, err)
+	}
+	if doc.TaskPhase == closureprotocol.PhaseCertified || doc.TaskPhase == closureprotocol.PhaseCompleted ||
+		strings.Contains(doc.OperationalStatus, "certified") || strings.Contains(doc.OperationalStatus, "completed") {
+		return recErr(CodeProjectionDrift, "projection %q claims certified/completed", kind)
+	}
+	want := newProjectionDoc(kind, resultpipeline.TransitionCandidate{
+		BuildResult: resultpipeline.BuildResult{EvaluatedAt: evaluatedAt},
+		Receipt:     receipt,
+	}, next)
+	wb, err := closureprotocol.CanonicalJSON(want)
+	if err != nil {
+		return err
+	}
+	if string(wb) != string(data) {
+		return recErr(CodeProjectionDrift, "projection %q does not correspond to the derived state/receipt", kind)
+	}
+	return nil
+}
+
+func parseProjection(data []byte) (projectionDoc, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	var doc projectionDoc
+	if err := dec.Decode(&doc); err != nil {
+		return projectionDoc{}, err
+	}
+	if _, err := dec.Token(); err == nil {
+		return projectionDoc{}, recErr(CodeProjectionDrift, "trailing content in projection")
+	}
+	if doc.SchemaVersion != projectionSchemaVersion {
+		return projectionDoc{}, recErr(CodeProjectionDrift, "unexpected projection schema version %q", doc.SchemaVersion)
+	}
+	return doc, nil
 }
 
 func readFileAbs(path string) ([]byte, error) { return os.ReadFile(path) }
