@@ -111,6 +111,8 @@ func renderAdvanceHuman(o advanceResultOutput) {
 	if o.TransitionRecorded {
 		fmt.Printf("transition: %s (%s)\n", short(o.TransitionEntryDigestSHA256), o.TransitionDisposition)
 		fmt.Printf("head:     %s  seq %d\n", short(o.CurrentLedgerHeadDigestSHA256), o.LedgerSequence)
+	} else if o.CurrentStateAvailable && o.CurrentLedgerHeadDigestSHA256 != "" {
+		fmt.Printf("head:     %s\n", short(o.CurrentLedgerHeadDigestSHA256))
 	}
 	if o.TaskPhase != "" {
 		fmt.Printf("phase:    %s / %s\n", o.TaskPhase, o.OperationalStatus)
