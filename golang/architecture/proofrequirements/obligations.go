@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package proofrequirements
 
 import (
 	"bytes"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -51,85 +48,6 @@ type proofTemplate struct {
 	evidenceLane string
 	slots        []generatedProofSlot
 	notes        string
-}
-
-func runExtractProofObligations(args []string) int {
-	fs := flag.NewFlagSet("sensei extract-proof-obligations", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	repoRoot := fs.String("repo-root", ".", "repository root")
-	authorityPath := fs.String("authority", "", "authority surfaces YAML (default: <repo>/docs/awareness/candidates/authority_surface_candidates.yaml)")
-	output := fs.String("output", "", "proof obligations YAML (default: <repo>/docs/awareness/generated/proof_obligations.yaml)")
-	check := fs.Bool("check", false, "compare committed proof-obligations file to a fresh run; exit 1 if stale")
-	format := fs.String("format", "text", "output format: text | json")
-	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
-	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: sensei extract-proof-obligations [flags]
-
-Generate deterministic proof-obligation YAML from authority surfaces. This is a
-governance-layer extractor: it derives expected proof slots by authority kind,
-but does not evaluate any repair event.
-
-Flags:
-`)
-		fs.PrintDefaults()
-	}
-	if err := fs.Parse(args); err != nil {
-		return 2
-	}
-	if *asJSON {
-		*format = "json"
-	}
-	root, err := filepath.Abs(*repoRoot)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: resolve repo root: %v\n", err)
-		return 1
-	}
-	authPath := *authorityPath
-	if authPath == "" {
-		authPath = filepath.Join(root, "docs", "awareness", "candidates", "authority_surface_candidates.yaml")
-	}
-	surfaces, err := loadAuthoritySurfaces(authPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: load authority surfaces: %v\n", err)
-		return 1
-	}
-	doc := buildProofObligations(surfaces)
-	out, err := renderProofObligations(doc)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: render: %v\n", err)
-		return 1
-	}
-	target := *output
-	if target == "" {
-		target = filepath.Join(root, "docs", "awareness", "generated", "proof_obligations.yaml")
-	}
-	if *check {
-		committed, _ := os.ReadFile(target)
-		if !bytes.Equal(bytes.TrimSpace(committed), bytes.TrimSpace(out)) {
-			fmt.Fprintf(os.Stderr, "extract-proof-obligations: STALE — %s differs from a fresh run; rerun to regenerate\n", target)
-			return 1
-		}
-	}
-	if !*check {
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: mkdir: %v\n", err)
-			return 1
-		}
-		if err := os.WriteFile(target, out, 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "sensei extract-proof-obligations: write: %v\n", err)
-			return 1
-		}
-	}
-
-	switch *format {
-	case "json":
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		_ = enc.Encode(doc)
-	default:
-		fmt.Print(renderProofObligationSummary(doc, target, *check))
-	}
-	return 0
 }
 
 func loadAuthoritySurfaces(path string) ([]authoritySurfaceCandidate, error) {
