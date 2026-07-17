@@ -113,23 +113,26 @@ func assembleStages(
 	if err != nil {
 		return nil, err
 	}
-	arts = append(arts, a1)
 	d1 := a1.Receipt.ReceiptDigestSHA256
 
-	a2, err := jsonArtifact(closureprotocol.StageGeneratedRepositoryArtifacts, "generated_repository_artifacts",
-		"result-pipeline/generated-repository-artifacts.json", gen, rbDigest, producer(ProducerGeneratedArtifact), []string{d1})
+	// The architecture graph derives from the governed source manifest alone. The
+	// generated-repository-artifact stage derives from the governed source
+	// manifest AND the architecture graph, because it verifies the graph's output
+	// mirrors — so it is built after the graph but presented before it in the
+	// canonical stage order.
+	a3, err := graphArtifact(rbDigest, cg.artifact.GraphSemanticDigestSHA256, cg.artifact.NTriples, []string{d1})
 	if err != nil {
 		return nil, err
 	}
-	arts = append(arts, a2)
-	d2 := a2.Receipt.ReceiptDigestSHA256
-
-	a3, err := graphArtifact(rbDigest, cg.artifact.GraphSemanticDigestSHA256, cg.artifact.NTriples, []string{d1, d2})
-	if err != nil {
-		return nil, err
-	}
-	arts = append(arts, a3)
 	d3 := a3.Receipt.ReceiptDigestSHA256
+
+	a2, err := jsonArtifact(closureprotocol.StageGeneratedRepositoryArtifacts, "generated_repository_artifacts",
+		"result-pipeline/generated-repository-artifacts.json", gen, rbDigest, producer(ProducerGeneratedArtifact), []string{d1, d3})
+	if err != nil {
+		return nil, err
+	}
+
+	arts = append(arts, a1, a2, a3)
 
 	a4, err := jsonArtifact(closureprotocol.StageInferredClaims, "inferred_claims",
 		"result-pipeline/inferred-claims.json", inferred, rbDigest, producer(ProducerClaimbuild), []string{d3})

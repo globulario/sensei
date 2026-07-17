@@ -59,10 +59,20 @@ type ProofRequirementDocument struct {
 	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
 	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
 
-	ResultBindingDigestSHA256   string `json:"result_binding_digest_sha256" yaml:"result_binding_digest_sha256"`
-	SourceGraphDigestSHA256     string `json:"source_graph_digest_sha256" yaml:"source_graph_digest_sha256"`
-	SourceClosureDigestSHA256   string `json:"source_closure_digest_sha256" yaml:"source_closure_digest_sha256"`
-	SourceQuestionsDigestSHA256 string `json:"source_questions_digest_sha256" yaml:"source_questions_digest_sha256"`
+	// Completeness is a closed vocabulary: "complete" only when admission, graph,
+	// closure, and architect-question inputs were all consulted and no unresolved
+	// extraction limitation remains; "blocked" when a required input was not
+	// consulted or an architect decision remains unresolved; "uncertifiable" when
+	// closure itself is uncertifiable. An incomplete extraction must never
+	// serialize as a complete empty requirement set.
+	Completeness string `json:"completeness" yaml:"completeness"`
+
+	ResultBindingDigestSHA256             string `json:"result_binding_digest_sha256" yaml:"result_binding_digest_sha256"`
+	SourceAdmissionDecisionDigestSHA256   string `json:"source_admission_decision_digest_sha256,omitempty" yaml:"source_admission_decision_digest_sha256,omitempty"`
+	SourceAuthorityResolutionDigestSHA256 string `json:"source_authority_resolution_digest_sha256,omitempty" yaml:"source_authority_resolution_digest_sha256,omitempty"`
+	SourceGraphDigestSHA256               string `json:"source_graph_digest_sha256" yaml:"source_graph_digest_sha256"`
+	SourceClosureDigestSHA256             string `json:"source_closure_digest_sha256" yaml:"source_closure_digest_sha256"`
+	SourceQuestionsDigestSHA256           string `json:"source_questions_digest_sha256" yaml:"source_questions_digest_sha256"`
 
 	Obligations                 []proofrequirements.Obligation `json:"obligations" yaml:"obligations"`
 	RequiredTests               []string                       `json:"required_tests" yaml:"required_tests"`
@@ -71,17 +81,34 @@ type ProofRequirementDocument struct {
 	Limitations                 []string                       `json:"limitations" yaml:"limitations"`
 }
 
+const (
+	ProofComplete      = "complete"
+	ProofBlocked       = "blocked"
+	ProofUncertifiable = "uncertifiable"
+)
+
 // ArchitectQuestionsBundle is the stage-8 canonical output: the result-bound
-// dialogue, the generation report, and the blocker accounting. When no question
-// is warranted it still exists with GeneratedCount 0 and AllBlockersAccountedFor
-// true — the absence of open questions is a produced, verifiable fact.
+// dialogue, the generation report, and exact, set-based blocker accounting. When
+// no question is warranted it still exists with GeneratedCount 0 and
+// AllBlockersAccountedFor true — the absence of open questions is a produced,
+// verifiable fact. Accounting is by exact blocker-ID set, never by count:
+// every current closure blocker must have exactly one current disposition, and
+// historical no_longer_backed questions never satisfy a current blocker.
 type ArchitectQuestionsBundle struct {
-	Dialogue                architecture.DialogueDocument `json:"dialogue" yaml:"dialogue"`
-	Report                  questiongen.Report            `json:"report" yaml:"report"`
-	GeneratedCount          int                           `json:"generated_count" yaml:"generated_count"`
-	ArchitectRequiredCount  int                           `json:"architect_required_count" yaml:"architect_required_count"`
-	AllBlockersAccountedFor bool                          `json:"all_blockers_accounted_for" yaml:"all_blockers_accounted_for"`
-	UnsupportedCritical     []string                      `json:"unsupported_critical_blockers" yaml:"unsupported_critical_blockers"`
+	Dialogue               architecture.DialogueDocument `json:"dialogue" yaml:"dialogue"`
+	Report                 questiongen.Report            `json:"report" yaml:"report"`
+	GeneratedCount         int                           `json:"generated_count" yaml:"generated_count"`
+	ArchitectRequiredCount int                           `json:"architect_required_count" yaml:"architect_required_count"`
+
+	CurrentBlockerIDs        []string `json:"current_blocker_ids" yaml:"current_blocker_ids"`
+	AccountedBlockerIDs      []string `json:"accounted_blocker_ids" yaml:"accounted_blocker_ids"`
+	UnaccountedBlockerIDs    []string `json:"unaccounted_blocker_ids" yaml:"unaccounted_blocker_ids"`
+	DuplicateAccountingIDs   []string `json:"duplicate_accounting_ids" yaml:"duplicate_accounting_ids"`
+	HistoricalNoLongerBacked []string `json:"historical_questions_no_longer_backed" yaml:"historical_questions_no_longer_backed"`
+	UnsupportedCritical      []string `json:"unsupported_critical_blockers" yaml:"unsupported_critical_blockers"`
+
+	AllBlockersAccountedFor      bool `json:"all_blockers_accounted_for" yaml:"all_blockers_accounted_for"`
+	ArchitectQuestionsActionable bool `json:"architect_questions_actionable" yaml:"architect_questions_actionable"`
 }
 
 // InferredClaimsBundle is the stage-4 canonical output: the normalized result

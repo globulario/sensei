@@ -5,6 +5,7 @@ package resultpipeline
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -221,7 +222,7 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 	questions := architectQuestionsBundle(qResult, closureReport)
 
 	// Stage 9: proof requirements.
-	proofDoc := proofRequirements(resultRoot, rbDigest, rb.GraphDigestSHA256, closureSemantic, qResult, closureReport)
+	proofDoc := proofRequirements(resultRoot, rbDigest, rb.GraphDigestSHA256, closureSemantic, questions, bound, closureReport)
 
 	// Assemble the nine stage artifacts, their receipts and derivations.
 	artifacts, err := assembleStages(rbDigest, cg, inferred, maintResult, planeReport, closureReport, questions, proofDoc, genArtifacts)
@@ -370,39 +371,106 @@ func baseClaimReference(ctx context.Context, baseRoot, domain string, base closu
 }
 
 func architectQuestionsBundle(res questiongen.Result, rep closure.Report) ArchitectQuestionsBundle {
-	generated := len(res.Report.Generated)
 	architectRequired := 0
 	for _, q := range res.Dialogue.OpenQuestions {
 		if q.ArchitectRequired {
 			architectRequired++
 		}
 	}
-	var unsupported []string
-	for _, item := range res.Report.Skipped {
-		if item.ReasonCode == "unsupported_template" || item.Disposition == questiongen.DispositionUnsupportedTemplate || item.Disposition == questiongen.DispositionInsufficientGrounding {
-			unsupported = append(unsupported, item.BlockerID)
+
+	// The exact set of current closure blockers.
+	currentIDs := map[string]bool{}
+	for _, b := range rep.Blockers {
+		if id := strings.TrimSpace(b.ID); id != "" {
+			currentIDs[id] = true
 		}
 	}
-	accounted := len(rep.Blockers) == len(res.Report.Generated)+len(res.Report.ExistingCoverage)+len(res.Report.Skipped)+len(res.Report.NoLongerBacked)
+
+	// Count each current blocker's dispositions across the current (non-historical)
+	// buckets. no_longer_backed is historical dialogue cleanup and never counts
+	// toward a current blocker.
+	dispositions := map[string][]string{}
+	unsupported := map[string]bool{}
+	current := func(items []questiongen.Item) {
+		for _, it := range items {
+			id := strings.TrimSpace(it.BlockerID)
+			if id == "" || !currentIDs[id] {
+				continue
+			}
+			dispositions[id] = append(dispositions[id], it.Disposition)
+			if it.Disposition == questiongen.DispositionUnsupportedTemplate || it.Disposition == questiongen.DispositionInsufficientGrounding {
+				unsupported[id] = true
+			}
+		}
+	}
+	current(res.Report.Generated)
+	current(res.Report.ExistingCoverage)
+	current(res.Report.Skipped)
+
+	var accounted, unaccounted, duplicate, unsupportedCritical []string
+	for id := range currentIDs {
+		switch n := len(dispositions[id]); {
+		case n == 1:
+			accounted = append(accounted, id)
+		case n == 0:
+			unaccounted = append(unaccounted, id)
+		default:
+			duplicate = append(duplicate, id)
+		}
+		if unsupported[id] {
+			unsupportedCritical = append(unsupportedCritical, id)
+		}
+	}
+	var historical []string
+	for _, it := range res.Report.NoLongerBacked {
+		historical = append(historical, strings.TrimSpace(it.BlockerID))
+	}
+
+	all := len(unaccounted) == 0 && len(duplicate) == 0
+	// A load-bearing blocker with an unsupported template or insufficient grounding
+	// is accounted for (we explained why no question was generated) but the
+	// architect decision is NOT resolved, so questions are not actionable and proof
+	// stays blocked.
+	actionable := all && len(unsupportedCritical) == 0
+
 	return ArchitectQuestionsBundle{
-		Dialogue:                res.Dialogue,
-		Report:                  res.Report,
-		GeneratedCount:          generated,
-		ArchitectRequiredCount:  architectRequired,
-		AllBlockersAccountedFor: accounted,
-		UnsupportedCritical:     unsupported,
+		Dialogue:                     res.Dialogue,
+		Report:                       res.Report,
+		GeneratedCount:               len(res.Report.Generated),
+		ArchitectRequiredCount:       architectRequired,
+		CurrentBlockerIDs:            dedupeStrings(sortedKeys(currentIDs)),
+		AccountedBlockerIDs:          dedupeStrings(accounted),
+		UnaccountedBlockerIDs:        dedupeStrings(unaccounted),
+		DuplicateAccountingIDs:       dedupeStrings(duplicate),
+		HistoricalNoLongerBacked:     dedupeStrings(historical),
+		UnsupportedCritical:          dedupeStrings(unsupportedCritical),
+		AllBlockersAccountedFor:      all,
+		ArchitectQuestionsActionable: actionable,
 	}
 }
 
-func proofRequirements(resultRoot, rbDigest, graphDigest, closureDigest string, q questiongen.Result, rep closure.Report) ProofRequirementDocument {
-	doc := ProofRequirementDocument{
-		SchemaVersion:             "1",
-		GeneratedBy:               "sensei.proofrequirements",
-		ResultBindingDigestSHA256: rbDigest,
-		SourceGraphDigestSHA256:   graphDigest,
-		SourceClosureDigestSHA256: closureDigest,
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
 	}
-	if qd, err := closureprotocol.SemanticDigest(q.Report); err == nil {
+	sort.Strings(out)
+	return out
+}
+
+func proofRequirements(resultRoot, rbDigest, graphDigest, closureDigest string, questions ArchitectQuestionsBundle, bound resulttransition.BoundRepositoryResult, rep closure.Report) ProofRequirementDocument {
+	doc := ProofRequirementDocument{
+		SchemaVersion:                         "1",
+		GeneratedBy:                           "sensei.proofrequirements",
+		ResultBindingDigestSHA256:             rbDigest,
+		SourceAdmissionDecisionDigestSHA256:   bound.AdmissionDecisionDigestSHA256,
+		SourceAuthorityResolutionDigestSHA256: bound.AuthorityResolutionDigestSHA256,
+		SourceGraphDigestSHA256:               graphDigest,
+		SourceClosureDigestSHA256:             closureDigest,
+	}
+	// The proof requirements bind the WHOLE architect-questions bundle (question
+	// text, IDs, dialogue state, and blocker accounting), not only the report.
+	if qd, err := closureprotocol.SemanticDigest(questions); err == nil {
 		doc.SourceQuestionsDigestSHA256 = qd
 	}
 	surfaces, err := factextract.ExtractAuthorityCandidates(resultRoot)
@@ -411,14 +479,29 @@ func proofRequirements(resultRoot, rbDigest, graphDigest, closureDigest string, 
 	} else {
 		doc.Obligations = proofrequirements.BuildObligations(surfaces).ProofObligations
 	}
-	for _, q := range q.Dialogue.OpenQuestions {
+	for _, q := range questions.Dialogue.OpenQuestions {
 		if q.ArchitectRequired {
 			doc.UnresolvedArchitectQuestion = append(doc.UnresolvedArchitectQuestion, q.ID)
 		}
 	}
-	if len(doc.Obligations) == 0 {
-		doc.Limitations = append(doc.Limitations, "no proof obligations derived for this result (explicit empty requirement set)")
+
+	// Completeness is honest, not optimistic. This composition consults authority
+	// surfaces, closure, and architect questions, but does NOT yet compose the
+	// recorded admission-decision proof slots, required runtime-evidence profiles,
+	// or graph-declared proof obligations and required tests, so it cannot claim
+	// "complete". The absence of obligations here therefore means "not fully
+	// consulted", never "consulted and none applied".
+	doc.Limitations = append(doc.Limitations, "result-side admission proof slots, runtime-evidence profiles, graph obligations, required tests, and forbidden moves are not yet composed")
+	switch {
+	case rep.Verdict == closure.VerdictUncertifiable:
+		doc.Completeness = ProofUncertifiable
+	default:
+		// Blocked: required inputs remain unconsulted, or an architect decision is
+		// unresolved / non-actionable.
+		doc.Completeness = ProofBlocked
 	}
-	doc.Limitations = append(doc.Limitations, "result-side required tests and forbidden moves not yet composed from the result graph")
+	if !questions.ArchitectQuestionsActionable {
+		doc.Limitations = append(doc.Limitations, "architect questions are not actionable; proof stays blocked until resolved")
+	}
 	return doc
 }
