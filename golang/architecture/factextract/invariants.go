@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package factextract
 
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -112,92 +111,6 @@ type invariantRepositoryIdentity struct {
 	Repository   string
 	Domain       string
 	DomainStatus string
-}
-
-func runExtractInvariants(args []string) int {
-	fs := flag.NewFlagSet("sensei extract-invariants", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	opts := invariantExtractOptions{}
-	fs.StringVar(&opts.Repo, "repo", ".", "repository root to inspect")
-	fs.StringVar(&opts.Format, "format", "json", "output format: json | yaml")
-	fs.StringVar(&opts.Output, "output", "", "write extraction artifact to this path instead of stdout")
-	fs.BoolVar(&opts.IncludeHistory, "include-history", false, "inspect recent git history for historical-removal facts")
-	fs.BoolVar(&opts.IncludeDocs, "include-docs", true, "extract normative documentation/comment facts")
-	fs.BoolVar(&opts.IncludeTests, "include-tests", true, "extract architectural test facts")
-	fs.BoolVar(&opts.IncludeMutationAnalysis, "include-mutation-analysis", false, "prepare isolated mutation-analysis workspace (bounded mode placeholder)")
-	fs.StringVar(&opts.MinimumConfidence, "minimum-confidence", "low", "minimum candidate confidence: low | medium | high | proven")
-	fs.BoolVar(&opts.Explain, "explain", false, "include supporting facts and scoring explanations (always true for JSON/YAML)")
-	fs.BoolVar(&opts.Check, "check", false, "compare --output with a fresh deterministic extraction")
-	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: sensei extract-invariants --repo <checkout> [flags]
-
-Extract normalized facts and review-only invariant candidates from repository
-evidence. The command never promotes candidates into governed invariants.
-
-Flags:
-`)
-		fs.PrintDefaults()
-	}
-	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
-			return 0
-		}
-		return 2
-	}
-	if fs.NArg() != 0 {
-		fs.Usage()
-		return 2
-	}
-	if opts.Check && strings.TrimSpace(opts.Output) == "" {
-		fmt.Fprintln(os.Stderr, "sensei extract-invariants: --check requires --output")
-		return 2
-	}
-	root, err := filepath.Abs(opts.Repo)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-invariants: resolve repo: %v\n", err)
-		return 1
-	}
-	if info, err := os.Stat(root); err != nil || !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "sensei extract-invariants: --repo must be an existing directory: %s\n", root)
-		return 2
-	}
-	report, err := buildInvariantExtractionReport(root, opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-invariants: %v\n", err)
-		return 1
-	}
-	rendered, err := renderInvariantExtractionReport(report, opts.Format)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-invariants: %v\n", err)
-		return 2
-	}
-	if opts.Check {
-		existing, err := os.ReadFile(opts.Output)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "sensei extract-invariants: read --output: %v\n", err)
-			return 1
-		}
-		if !bytes.Equal(bytes.TrimSpace(existing), bytes.TrimSpace(rendered)) {
-			fmt.Fprintf(os.Stderr, "extract-invariants: STALE — %s differs from fresh extraction\n", opts.Output)
-			return 1
-		}
-		fmt.Fprintf(os.Stderr, "extract-invariants: fresh (%d facts, %d candidates)\n", len(report.Facts), len(report.Candidates))
-		return 0
-	}
-	if strings.TrimSpace(opts.Output) != "" {
-		if err := os.MkdirAll(filepath.Dir(opts.Output), 0o755); err != nil {
-			fmt.Fprintf(os.Stderr, "sensei extract-invariants: mkdir: %v\n", err)
-			return 1
-		}
-		if err := os.WriteFile(opts.Output, rendered, 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "sensei extract-invariants: write: %v\n", err)
-			return 1
-		}
-		fmt.Fprintf(os.Stderr, "extract-invariants: wrote %d fact(s), %d candidate(s) to %s\n", len(report.Facts), len(report.Candidates), opts.Output)
-		return 0
-	}
-	fmt.Print(string(rendered))
-	return 0
 }
 
 func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (invariantExtractionReport, error) {

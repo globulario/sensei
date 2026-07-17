@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package factextract
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -59,78 +58,6 @@ type authorityFeatures struct {
 	authority  []string
 	notes      []string
 	evidence   []string
-}
-
-func runExtractAuthority(args []string) int {
-	fs := flag.NewFlagSet("sensei extract-authority", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	repoRoot := fs.String("repo-root", ".", "repository root to scan")
-	output := fs.String("output", "", "candidate YAML to write (default: <repo>/docs/awareness/candidates/authority_surface_candidates.yaml)")
-	check := fs.Bool("check", false, "compare committed candidate YAML to a fresh run; exit 1 if stale")
-	minConf := fs.String("minimum-confidence", "", "drop surfaces below this level: low|medium|high|proven (default: keep all). medium keeps routes/lifecycle/guarded-mutations; drops bare mutations.")
-	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: sensei extract-authority [flags]
-
-Extract conservative AuthoritySurface candidates from Go source. The command
-emits status:candidate YAML only; nothing is auto-promoted or imported as live
-graph authority.
-
-Flags:
-`)
-		fs.PrintDefaults()
-	}
-	if err := fs.Parse(args); err != nil {
-		return 2
-	}
-
-	root, err := filepath.Abs(*repoRoot)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-authority: resolve repo root: %v\n", err)
-		return 1
-	}
-	cands, err := extractAuthorityCandidates(root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-authority: %v\n", err)
-		return 1
-	}
-	cands = filterAuthorityByMinConfidence(cands, *minConf)
-	out, err := renderAuthorityCandidates(root, cands)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-authority: render: %v\n", err)
-		return 1
-	}
-
-	target := *output
-	if target == "" {
-		target = filepath.Join(root, "docs", "awareness", "candidates", "authority_surface_candidates.yaml")
-	}
-	if *check {
-		committed, _ := os.ReadFile(target)
-		if !bytes.Equal(bytes.TrimSpace(committed), bytes.TrimSpace(out)) {
-			fmt.Fprintf(os.Stderr, "extract-authority: STALE — %s differs from a fresh run; rerun to regenerate\n", target)
-			return 1
-		}
-		fmt.Fprintf(os.Stderr, "extract-authority: fresh (%d candidates)\n", len(cands))
-		return 0
-	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-authority: mkdir: %v\n", err)
-		return 1
-	}
-	if err := os.WriteFile(target, out, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei extract-authority: write: %v\n", err)
-		return 1
-	}
-
-	kinds := map[string]int{}
-	for _, c := range cands {
-		kinds[c.Kind]++
-	}
-	fmt.Fprintf(os.Stderr, "extract-authority: wrote %d candidate(s) to %s\n", len(cands), target)
-	for _, line := range authorityKindSummary(kinds) {
-		fmt.Fprintf(os.Stderr, "  %s\n", line)
-	}
-	return 0
 }
 
 func extractAuthorityCandidates(root string) ([]authoritySurfaceCandidate, error) {

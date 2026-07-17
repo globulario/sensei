@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package factextract
 
 import (
 	"bytes"
@@ -461,7 +461,7 @@ func TestExtractInvariantsYAMLRemainsDeterministic(t *testing.T) {
 }
 
 func TestGoArchitectureStillUsesSingleASTPass(t *testing.T) {
-	raw, err := os.ReadFile("cmd_extract_invariants.go")
+	raw, err := os.ReadFile("invariants.go")
 	if err != nil {
 		t.Fatal(err)
 	}
