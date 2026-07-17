@@ -408,7 +408,7 @@ func TestGovernanceWaitingMechanicalOnScopeViolation(t *testing.T) {
 // existing disposition assertions stay concise under the strict (state, error) API.
 func mustDisposition(t *testing.T, taskDir string, now time.Time) governanceState {
 	t.Helper()
-	disp, err := governanceDisposition(taskDir, now)
+	disp, err := governanceDisposition(taskDir, now, nil)
 	if err != nil {
 		t.Fatalf("governanceDisposition: %v", err)
 	}

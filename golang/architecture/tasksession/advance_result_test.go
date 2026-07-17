@@ -12,6 +12,17 @@ func advReq(repo, taskDir string) AdvanceResultRequest {
 	return AdvanceResultRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultRevision: "HEAD"}
 }
 
+// testAdvance runs the unexported orchestration helper with production dependencies,
+// optionally mutated per-test (clock, snapshot hook, recorder). No process global is
+// touched, so concurrent advances are unaffected.
+func testAdvance(req AdvanceResultRequest, mut func(*advanceDeps)) (AdvanceResult, error) {
+	d := productionAdvanceDeps()
+	if mut != nil {
+		mut(&d)
+	}
+	return advanceResultTransition(context.Background(), req, d)
+}
+
 // TestAdvanceRejectsMalformedRequest: a request with no task directory is a hard
 // error, never a silent success.
 func TestAdvanceRejectsMalformedRequest(t *testing.T) {
@@ -89,20 +100,21 @@ func TestAdvanceRefusesExpiredDecision(t *testing.T) {
 
 // TestAdvanceCannotBackdateExpiredCapability proves an API caller cannot revive an
 // expired capability by supplying a past time: the request has no clock field, so
-// expiry is always evaluated against the trusted internal clock (advanceNow). Even
-// when the internal clock is (test-only) moved to just before expiry the capability
-// binds, and when it is at/after expiry it refuses — the caller has no say.
+// expiry is always evaluated against the trusted internal clock, which is an
+// injected dependency (never a process global). When the clock is (test-only)
+// injected just before expiry the capability binds; at/after expiry it refuses —
+// the caller has no say.
 func TestAdvanceCannotBackdateExpiredCapability(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
 	decidedAt := time.Now().UTC()
 	recordAdmissionDecision(t, taskDir, decidedAt)
 
-	saved := advanceNow
-	defer func() { advanceNow = saved }()
-
-	// Internal clock before expiry → still admitted (ready_for_mutation).
-	advanceNow = func() time.Time { return decidedAt.Add(time.Hour) }
-	res, err := AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
+	// Internal clock before expiry → still admitted (ready_for_mutation). The clock
+	// is an injected dependency, never a process global and never a request field, so
+	// a caller cannot move it.
+	res, err := testAdvance(advReq(repo, taskDir), func(d *advanceDeps) {
+		d.now = func() time.Time { return decidedAt.Add(time.Hour) }
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,10 +122,10 @@ func TestAdvanceCannotBackdateExpiredCapability(t *testing.T) {
 		t.Fatalf("within window got %s, want ready_for_mutation", res.OperationalStatus)
 	}
 
-	// Internal clock past expiry → refused. There is no request field a caller
-	// could set to move this clock backward.
-	advanceNow = func() time.Time { return decidedAt.Add(25 * time.Hour) }
-	res, err = AdvanceResultTransition(context.Background(), advReq(repo, taskDir))
+	// Internal clock past expiry → refused.
+	res, err = testAdvance(advReq(repo, taskDir), func(d *advanceDeps) {
+		d.now = func() time.Time { return decidedAt.Add(25 * time.Hour) }
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

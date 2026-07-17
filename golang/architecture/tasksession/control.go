@@ -304,7 +304,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	// legacy admission no longer hands out modify permission on its own. A
 	// governance-integrity error fails closed — the task cannot advance and no
 	// mutation is granted.
-	gov, gerr := governanceDisposition(taskDir, now().UTC())
+	gov, gerr := governanceDisposition(taskDir, now().UTC(), nil)
 	if gerr != nil {
 		return AdvanceTaskResult{}, gerr
 	}
