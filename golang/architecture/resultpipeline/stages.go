@@ -58,13 +58,19 @@ type ProofRequirementDocument struct {
 	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
 	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
 
-	// Completeness is a closed vocabulary: "complete" only when admission, graph,
-	// closure, and architect-question inputs were all consulted and no unresolved
-	// extraction limitation remains; "blocked" when a required input was not
-	// consulted or an architect decision remains unresolved; "uncertifiable" when
-	// closure itself is uncertifiable. An incomplete extraction must never
-	// serialize as a complete empty requirement set.
-	Completeness string `json:"completeness" yaml:"completeness"`
+	// ExtractionCompleteness and ProvingDisposition are DISTINCT: knowing exactly
+	// why proving is blocked is not the same as failing to extract the
+	// requirements. ExtractionCompleteness is "complete" only when every required
+	// requirement source (admission, graph, closure, questions) was successfully
+	// consulted; "incomplete" when a required source could not be loaded or
+	// interpreted; "uncertifiable" when no legitimate requirement set can be
+	// established. ProvingDisposition is "ready" when requirements are complete and
+	// nothing blocks; "blocked" when complete but an architect decision, closure
+	// requirement, or evidence requirement is unresolved; "uncertifiable" when
+	// proving cannot be defined honestly. An unresolved architect question is
+	// normally (complete, blocked), never (incomplete, ...).
+	ExtractionCompleteness string `json:"extraction_completeness" yaml:"extraction_completeness"`
+	ProvingDisposition     string `json:"proving_disposition" yaml:"proving_disposition"`
 
 	ResultBindingDigestSHA256             string `json:"result_binding_digest_sha256" yaml:"result_binding_digest_sha256"`
 	SourceAdmissionDecisionDigestSHA256   string `json:"source_admission_decision_digest_sha256,omitempty" yaml:"source_admission_decision_digest_sha256,omitempty"`
@@ -80,10 +86,18 @@ type ProofRequirementDocument struct {
 	Limitations                 []string                       `json:"limitations" yaml:"limitations"`
 }
 
+// Extraction-completeness vocabulary.
 const (
-	ProofComplete      = "complete"
-	ProofBlocked       = "blocked"
-	ProofUncertifiable = "uncertifiable"
+	ExtractionComplete      = "complete"
+	ExtractionIncomplete    = "incomplete"
+	ExtractionUncertifiable = "uncertifiable"
+)
+
+// Proving-disposition vocabulary.
+const (
+	ProvingReady         = "ready"
+	ProvingBlocked       = "blocked"
+	ProvingUncertifiable = "uncertifiable"
 )
 
 // ArchitectQuestionsBundle is the stage-8 canonical output: the result-bound

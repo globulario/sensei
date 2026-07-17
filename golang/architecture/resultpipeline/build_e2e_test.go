@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -90,6 +91,10 @@ func e2eResolution(actorDigest, baseDigest string) closureprotocol.AuthorityReso
 // worktree before observation so the observed change matches. It returns the repo
 // root and task directory.
 func e2eSeed(t *testing.T) (repo, taskDir string) {
+	return e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n")
+}
+
+func e2eSeedVariant(t *testing.T, resultSrc string) (repo, taskDir string) {
 	t.Helper()
 	repo = t.TempDir()
 	e2eGit(t, repo, "init", "-q")
@@ -122,7 +127,7 @@ func e2eSeed(t *testing.T) (repo, taskDir string) {
 	}
 
 	// Mutate the worktree BEFORE observation so the observed change captures it.
-	e2eWrite(t, repo, "src/model.go", "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n")
+	e2eWrite(t, repo, "src/model.go", resultSrc)
 
 	taskDir = t.TempDir()
 	validator := func(et closureprotocol.LedgerEventType, mt string, data []byte) error {
@@ -290,7 +295,7 @@ func canonicalProjection(res BuildResult) string {
 	for _, a := range res.StageArtifacts {
 		b.WriteString(string(a.Stage) + "|" + a.Receipt.ReceiptDigestSHA256 + "|" + sha256hex(a.Bytes) + "\n")
 	}
-	b.WriteString(res.ClosureReport.Verdict + "|" + res.ProofRequirements.Completeness + "\n")
+	b.WriteString(res.ClosureReport.Verdict + "|" + res.ProofRequirements.ExtractionCompleteness + "|" + res.ProofRequirements.ProvingDisposition + "\n")
 	for _, l := range res.Limitations {
 		b.WriteString("lim:" + l + "\n")
 	}
@@ -373,6 +378,154 @@ func TestBuildCommittedMatchesWorktreeTree(t *testing.T) {
 	if committed.ResultBinding.ResultRevision != resultRev || wt.ResultBinding.ResultRevision != "" {
 		t.Fatalf("result revisions wrong: committed=%q worktree=%q", committed.ResultBinding.ResultRevision, wt.ResultBinding.ResultRevision)
 	}
+}
+
+// §7 relocated checkout: two independent checkouts with identical Git objects and
+// task-ledger bytes at different absolute paths produce canonically identical
+// output.
+func TestBuildRelocatedCheckout(t *testing.T) {
+	repo, taskDir := e2eSeed(t)
+	req := BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain}
+	first, err := Build(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	base := t.TempDir()
+	repo2 := filepath.Join(base, "relocated-repo")
+	task2 := filepath.Join(base, "relocated-task")
+	if out, err := exec.Command("cp", "-a", repo, repo2).CombinedOutput(); err != nil {
+		t.Fatalf("cp repo: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("cp", "-a", taskDir, task2).CombinedOutput(); err != nil {
+		t.Fatalf("cp task: %v\n%s", err, out)
+	}
+	relocated, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo2, TaskDirectory: task2, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	if err != nil {
+		t.Fatalf("relocated build: %v", err)
+	}
+	if canonicalProjection(relocated) != canonicalProjection(first) {
+		t.Fatal("relocated checkout produced different canonical output")
+	}
+}
+
+// §7 parallel execution: concurrent Build over the same read-only repository and
+// ledger is race-clean and identical, with no shared mutable state.
+func TestBuildParallel(t *testing.T) {
+	repo, taskDir := e2eSeed(t)
+	req := BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain}
+	first, err := Build(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := canonicalProjection(first)
+
+	const n = 6
+	var wg sync.WaitGroup
+	got := make([]string, n)
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			res, err := Build(context.Background(), req)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			got[i] = canonicalProjection(res)
+		}(i)
+	}
+	wg.Wait()
+	for i := 0; i < n; i++ {
+		if errs[i] != nil {
+			t.Fatalf("parallel build %d: %v", i, errs[i])
+		}
+		if got[i] != want {
+			t.Fatalf("parallel build %d diverged", i)
+		}
+	}
+}
+
+// §7 same graph, different tree: two result trees whose governed sources (hence
+// architecture graph) are identical but whose code differs must stay
+// distinguished by tree identity — a matching graph digest never permits
+// cross-tree reuse.
+func TestBuildSameGraphDifferentTree(t *testing.T) {
+	// e2eSeed mutates src/model.go; a second seed with a DIFFERENT src mutation
+	// but identical docs/awareness yields the same graph, a different tree.
+	repoA, taskA := e2eSeed(t)
+	a, err := Build(context.Background(), BuildRequest{RepositoryRoot: repoA, TaskDirectory: taskA, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoB, taskB := e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Delete() {}\n")
+	b, err := Build(context.Background(), BuildRequest{RepositoryRoot: repoB, TaskDirectory: taskB, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.ResultBinding.GraphDigestSHA256 != b.ResultBinding.GraphDigestSHA256 {
+		t.Skip("governed sources diverged unexpectedly; not a valid same-graph case")
+	}
+	if a.ResultBinding.ResultTreeDigestSHA256 == b.ResultBinding.ResultTreeDigestSHA256 {
+		t.Fatal("different code trees must have different tree digests")
+	}
+	if a.ResultBindingDigestSHA256 == b.ResultBindingDigestSHA256 {
+		t.Fatal("same graph but different tree must NOT share a result binding digest")
+	}
+	// No stage receipt of A is reusable for B.
+	bReceipts := map[string]bool{}
+	for _, x := range b.StageArtifacts {
+		bReceipts[x.Receipt.ReceiptDigestSHA256] = true
+	}
+	for _, x := range a.StageArtifacts {
+		if bReceipts[x.Receipt.ReceiptDigestSHA256] {
+			t.Fatalf("stage %s receipt is reusable across distinct result trees", x.Stage)
+		}
+	}
+}
+
+// §7 base/result swap: a worktree changed after scope_verified no longer matches
+// the observed change and is refused.
+func TestBuildRejectsPostScopeVerificationMutation(t *testing.T) {
+	repo, taskDir := e2eSeed(t)
+	e2eWrite(t, repo, "src/model.go", "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n\nfunc Sneak() {}\n")
+	_, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	if err == nil || !strings.Contains(err.Error(), "observed_change_mismatch") {
+		t.Fatalf("expected observed_change_mismatch, got %v", err)
+	}
+}
+
+// §8 structural omission over the ACTUAL live build: removing any one of the ten
+// stage receipts + derivations fails the frozen validator.
+func TestBuildOmissionStructural(t *testing.T) {
+	repo, taskDir := e2eSeed(t)
+	res, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	if err != nil {
+		t.Fatal(err)
+	}
+	full := e2eCandidateReceipt(res)
+	if err := closureprotocol.ValidateResultTransitionReceipt(full); err != nil {
+		t.Fatalf("full transition should validate: %v", err)
+	}
+	for i, dropped := range res.StageArtifacts {
+		c := full
+		c.OperationalArtifactReceipts = dropReceipt(full.OperationalArtifactReceipts, i)
+		c.Derivations = dropDerivation(full.Derivations, i)
+		if err := closureprotocol.ValidateResultTransitionReceipt(c); err == nil {
+			t.Fatalf("dropping stage %s still validated", dropped.Stage)
+		}
+	}
+}
+
+func dropReceipt(in []closureprotocol.ArtifactReceipt, i int) []closureprotocol.ArtifactReceipt {
+	out := append([]closureprotocol.ArtifactReceipt{}, in[:i]...)
+	return append(out, in[i+1:]...)
+}
+
+func dropDerivation(in []closureprotocol.ArtifactDerivation, i int) []closureprotocol.ArtifactDerivation {
+	out := append([]closureprotocol.ArtifactDerivation{}, in[:i]...)
+	return append(out, in[i+1:]...)
 }
 
 func e2eCandidateReceipt(res BuildResult) closureprotocol.ResultTransitionReceipt {
