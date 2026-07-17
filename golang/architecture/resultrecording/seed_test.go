@@ -70,8 +70,12 @@ func ractor() closureprotocol.ActorBinding {
 	return closureprotocol.ActorBinding{PrincipalID: "actor.test", ActorKind: closureprotocol.ActorAgent, Roles: []string{"role.repository_repair_agent"}, Issuer: "sensei.local"}
 }
 
-func rresolution(t *testing.T, actorDigest, baseDigest string) closureprotocol.AuthorityResolution {
+func rresolution(t *testing.T, actorDigest, baseDigest string, ops []closureprotocol.ChangeOperation) closureprotocol.AuthorityResolution {
 	t.Helper()
+	var opResults []closureprotocol.AuthorityResolutionOperation
+	for _, op := range ops {
+		opResults = append(opResults, closureprotocol.AuthorityResolutionOperation{OperationID: op.OperationID, Status: closureprotocol.ReceiptValid, SelectedMechanism: closureprotocol.MechanismRepositoryEdit})
+	}
 	r := closureprotocol.AuthorityResolution{
 		ActorBindingDigestSHA256:         actorDigest,
 		BaseBindingDigestSHA256:          baseDigest,
@@ -81,9 +85,7 @@ func rresolution(t *testing.T, actorDigest, baseDigest string) closureprotocol.A
 		PolicyID:                         "admission.strict.v2",
 		EvaluatedAt:                      "2026-07-16T12:00:00Z",
 		Status:                           closureprotocol.ReceiptValid,
-		OperationResults: []closureprotocol.AuthorityResolutionOperation{
-			{OperationID: "op.1", Status: closureprotocol.ReceiptValid, SelectedMechanism: closureprotocol.MechanismRepositoryEdit},
-		},
+		OperationResults:                 opResults,
 	}
 	d, err := closureprotocol.AuthorityResolutionDigest(r)
 	if err != nil {
@@ -97,12 +99,16 @@ func rresolution(t *testing.T, actorDigest, baseDigest string) closureprotocol.A
 // whose closure honestly closes, and returns the task dir + committed result
 // revision. resultSrc is the committed result content of src/model.go.
 func seedCleanTask(t *testing.T, resultSrc string) (repo, taskDir, resultRev string) {
-	return seedTask(t, func(tt *testing.T, r string) { rwrite(tt, r, "src/model.go", resultSrc) }, []string{"src/model.go"}, closure.DirectionNotApplicable)
+	return seedTask(t, func(tt *testing.T, r string) { rwrite(tt, r, "src/model.go", resultSrc) },
+		[]string{"src/model.go"}, closure.DirectionNotApplicable, []string{"src/model.go"}, nil)
 }
 
-// seedTask is the parameterized clean-task seeder: resultMutate applies the
-// committed result change and scopeFiles is the admitted closure scope.
-func seedTask(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []string, direction string) (repo, taskDir, resultRev string) {
+// seedTask is the parameterized clean-task seeder. authorizedSources and
+// authorizedGenerated are the operations PREDECLARED (before observing the result)
+// in the change plan, authority resolution, admission decision, capability
+// consumption, and scope expectation — admission authorizes the plan, then the
+// observed result is proven to match it (never the reverse).
+func seedTask(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []string, direction string, authorizedSources, authorizedGenerated []string) (repo, taskDir, resultRev string) {
 	t.Helper()
 	repo = t.TempDir()
 	rgit(t, repo, "init", "-q")
@@ -207,20 +213,19 @@ func seedTask(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolution := rresolution(t, actorDigest, baseDigest)
+	// PREDECLARE the admitted operations (before observing the result). The same
+	// operations flow through the change plan, authority resolution, admission
+	// decision, capability consumption, and scope expectation; admission authorizes
+	// the plan first and the observed result is proven to match it afterwards.
+	ops, verdicts, consumedOps := operationsForAuthorized(authorizedSources)
+	requiredGenerated := append([]string(nil), authorizedGenerated...)
+	changePlan := closureprotocol.ChangePlan{PlanID: "plan.rec", Operations: ops}
+
+	resolution := rresolution(t, actorDigest, baseDigest, ops)
 	authorityDigest := resolution.AuthorityResolutionDigestSHA256
-	if _, err := admission.RecordAuthorityResolved(store, head(), base.Task, resolution, actor, closureprotocol.ChangePlan{PlanID: "plan.rec"}, base, nil, e0); err != nil {
+	if _, err := admission.RecordAuthorityResolved(store, head(), base.Task, resolution, actor, changePlan, base, nil, e0); err != nil {
 		t.Fatalf("authority: %v", err)
 	}
-	// Observe the real committed change and derive the admitted operations from it, so
-	// the scope verification genuinely admits EVERY changed governed and generated
-	// path (never a hand-crafted receipt narrower than the mutation).
-	observed, err := resulttransition.ObserveChange(repo, baseRev, resultRev, actorDigest, authorityDigest)
-	if err != nil {
-		t.Fatalf("observe: %v", err)
-	}
-	ops, verdicts, consumedOps, requiredGenerated := operationsForObserved(observed)
-
 	decision := closureprotocol.AdmissionDecision{DecisionID: "decision.rec", RequestDigestSHA256: "req0", PolicyID: "admission.strict.v2",
 		OperationVerdicts: verdicts, CapabilityID: "cap.rec", CompletionPolicyID: "completion.architectural_closure.v1"}
 	decisionDigest := closureprotocol.MustSemanticDigest(decision)
@@ -232,11 +237,16 @@ func seedTask(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []
 	if _, err := admission.RecordAdmissionConsumed(store, head(), consumption, e0); err != nil {
 		t.Fatalf("consume: %v", err)
 	}
+
+	// NOW observe the real committed change and prove it matches the earlier
+	// authorization.
+	observed, err := resulttransition.ObserveChange(repo, baseRev, resultRev, actorDigest, authorityDigest)
+	if err != nil {
+		t.Fatalf("observe: %v", err)
+	}
 	if _, err := admission.RecordChangeObserved(store, head(), base.Task, observed, e0); err != nil {
 		t.Fatalf("observed: %v", err)
 	}
-
-	// Genuine scope verification through the real admission contract.
 	scope, err := admission.VerifyScope(admission.ScopeExpectation{
 		Decision: decision, Operations: ops, Consumption: consumption,
 		ActorBindingDigestSHA256: actorDigest, AuthorityResolutionDigestSHA256: authorityDigest,
@@ -247,7 +257,7 @@ func seedTask(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []
 		t.Fatalf("verify scope: %v", err)
 	}
 	if scope.Status != closureprotocol.ReceiptValid {
-		t.Fatalf("scope verification did not pass: %+v", scope.Violations)
+		t.Fatalf("observed result does not match the pre-authorized scope: %+v", scope.Violations)
 	}
 	if _, err := admission.RecordScopeVerified(store, head(), base.Task, scope, e0); err != nil {
 		t.Fatalf("scope: %v", err)
@@ -263,27 +273,18 @@ var generatedArtifactPaths = map[string]bool{
 	"golang/server/embeddata/awareness.result-manifest.tsv": true,
 }
 
-// operationsForObserved derives admitted modify operations for every non-generated
-// changed path and lists the changed generated paths as required artifacts.
-func operationsForObserved(observed admission.ObservedChangeSet) (ops []closureprotocol.ChangeOperation, verdicts []closureprotocol.OperationAdmissionVerdict, consumedOps, requiredGenerated []string) {
-	paths := make([]string, 0, len(observed.Files))
-	for _, f := range observed.Files {
-		paths = append(paths, f.Path)
-	}
+// operationsForAuthorized builds admitted modify operations for the PREDECLARED
+// source paths (before the result is observed).
+func operationsForAuthorized(sourcePaths []string) (ops []closureprotocol.ChangeOperation, verdicts []closureprotocol.OperationAdmissionVerdict, consumedOps []string) {
+	paths := append([]string(nil), sourcePaths...)
 	sortStrings(paths)
-	n := 0
-	for _, p := range paths {
-		if generatedArtifactPaths[p] {
-			requiredGenerated = append(requiredGenerated, p)
-			continue
-		}
-		n++
-		opID := fmtOp(n)
+	for i, p := range paths {
+		opID := fmtOp(i + 1)
 		ops = append(ops, closureprotocol.ChangeOperation{OperationID: opID, Kind: closureprotocol.OperationModify, TargetKind: "source_file", Target: p, SelectedMechanism: closureprotocol.MechanismRepositoryEdit})
 		verdicts = append(verdicts, closureprotocol.OperationAdmissionVerdict{OperationID: opID, Verdict: "admitted"})
 		consumedOps = append(consumedOps, opID)
 	}
-	return ops, verdicts, consumedOps, requiredGenerated
+	return ops, verdicts, consumedOps
 }
 
 // compileForSeed mirrors resultpipeline.compileGovernedGraph exactly (ClosureStrict
@@ -348,3 +349,14 @@ func cleanCandidate(t *testing.T, recordedAt string) (taskDir string, candidate 
 
 func sortStrings(s []string) { sort.Strings(s) }
 func fmtOp(n int) string     { return fmt.Sprintf("op.%d", n) }
+
+// generatedArtifactContractPaths is the sorted set of governed generated-artifact
+// output paths (the generated-artifact contract).
+func generatedArtifactContractPaths() []string {
+	out := make([]string, 0, len(generatedArtifactPaths))
+	for p := range generatedArtifactPaths {
+		out = append(out, p)
+	}
+	sortStrings(out)
+	return out
+}

@@ -37,11 +37,19 @@ const rInvariantsChanged = `invariants:
 func TestGovernedChangeSurvivesRecordAndReload(t *testing.T) {
 	// The committed result changes the governed invariant (title) plus a trivial,
 	// in-scope source comment; the admitted scope stays the represented src/model.go.
+	// The change is authorized BEFORE it is observed: the plan declares the source
+	// mutation and the governed invariant mutation, and the three generated
+	// artifacts (the generated-artifact contract) as required generated artifacts.
 	repo, taskDir, resultRev := seedTask(t, func(tt *testing.T, r string) {
 		rwrite(tt, r, "src/model.go", "package src\n\n// Publish is a no-op.\nfunc Publish() {}\n")
 		rwrite(tt, r, "docs/awareness/invariants.yaml", rInvariantsChanged)
 		regenerateArtifacts(tt, r) // the governed change alters the graph → regenerate derived artifacts
-	}, []string{"src/model.go"}, closure.DirectionNotApplicable)
+	}, []string{"src/model.go"}, closure.DirectionNotApplicable,
+		[]string{"src/model.go", "docs/awareness/invariants.yaml"},
+		// An invariant change alters the graph-derived generated artifacts (the
+		// embedded graph and its result manifest); proof_obligations is
+		// authority-derived and unchanged, so it is not a required rebuild here.
+		[]string{"golang/server/embeddata/awareness.nt", "golang/server/embeddata/awareness.result-manifest.tsv"})
 
 	head, err := admission.TaskLedgerHead(taskDir)
 	if err != nil {
