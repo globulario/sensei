@@ -141,10 +141,12 @@ type ComposeInput struct {
 	GeneratedArtifacts    GeneratedArtifactSummary
 	RepositoryProofOutput RepositoryProofOutput
 
-	Graph         closure.GraphIndex
-	ClosureReport closure.Report
+	Graph                     closure.GraphIndex
+	GraphSemanticDigestSHA256 string
+	ClosureReport             closure.Report
 
-	Questions QuestionInput
+	Questions                     QuestionInput
+	QuestionsSemanticDigestSHA256 string
 }
 
 // Compose builds the complete result-bound proof-requirement document from the
@@ -208,6 +210,7 @@ func Compose(_ context.Context, in ComposeInput) (Document, error) {
 	}
 
 	// --- result_graph ---
+	doc.SourceGraphDigestSHA256 = strings.TrimSpace(in.GraphSemanticDigestSHA256)
 	graphProj, gerr := ProjectScopedGraph(in.ClosureReport, in.Graph)
 	if gerr != nil {
 		cov[OriginResultGraph] = SourceCoverage{Source: OriginResultGraph, Status: CoverageInvalid, Detail: gerr.Error()}
@@ -224,7 +227,10 @@ func Compose(_ context.Context, in ComposeInput) (Document, error) {
 	cov[OriginClosure] = SourceCoverage{Source: OriginClosure, Status: CoverageConsulted, DigestSHA256: doc.SourceClosureDigestSHA256}
 
 	// --- architect_questions ---
-	doc.SourceQuestionsDigestSHA256 = closureprotocol.MustSemanticDigest(in.Questions)
+	// The provenance digest is the Stage 8 bundle's digest (the artifact the
+	// questions receipt binds), passed in explicitly; the neutral QuestionInput is
+	// only a projection of that bundle.
+	doc.SourceQuestionsDigestSHA256 = strings.TrimSpace(in.QuestionsSemanticDigestSHA256)
 	doc.ArchitectQuestions = composeArchitectQuestions(in.Questions)
 	cov[OriginArchitectQuestions] = SourceCoverage{Source: OriginArchitectQuestions, Status: CoverageConsulted, DigestSHA256: doc.SourceQuestionsDigestSHA256}
 

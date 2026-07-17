@@ -61,7 +61,7 @@ func TestComposeProofInputReachesComplete(t *testing.T) {
 		ArchitectQuestionsActionable: true,
 	}
 
-	in := composeProofInput("rb-digest", bound, gen, graph, rep, questions)
+	in := composeProofInput("rb-digest", "graph-sem-digest", bound, gen, graph, rep, questions)
 	// The adapter must carry the exact upstream truth, not a re-read.
 	if in.ExpectedAdmissionDecisionDigest != bound.AdmissionDecisionDigestSHA256 {
 		t.Fatal("adapter dropped the carried admission decision digest")

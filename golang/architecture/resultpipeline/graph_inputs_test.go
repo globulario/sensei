@@ -107,7 +107,9 @@ func TestBuildEndToEndWithSupplemental(t *testing.T) {
 	sup, _ := seedmeta.AppendMarker([]byte("<https://globular.io/awareness#pack/a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Component> .\n"))
 	repo, taskDir := e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n",
 		[]graphbuild.SupplementalGraph{{ID: "governance.pack", Version: "v1", NTriples: sup}})
-	res, err := Build(context.Background(), BuildRequest{
+	// Worktree result is uncertifiable at the gate; this test targets supplemental
+	// graph-input assembly, so it uses the pre-gate assembler.
+	res, err := assembleBuildResult(context.Background(), BuildRequest{
 		RepositoryRoot: repo, TaskDirectory: taskDir,
 		ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain,
 	})
