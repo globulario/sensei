@@ -12,7 +12,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resultrecording"
-	"github.com/globulario/sensei/golang/architecture/resulttestkit"
+	"github.com/globulario/sensei/internal/resulttestkit"
 )
 
 // These repository-level E2E scenarios drive a real admitted + scope-verified task
@@ -26,7 +26,6 @@ func e2eAdvance(t *testing.T, r resulttestkit.Result) AdvanceResult {
 	t.Helper()
 	res, err := AdvanceResultTransition(context.Background(), AdvanceResultRequest{
 		RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir, RepositoryDomain: resulttestkit.Domain, ResultRevision: r.ResultRev,
-		Now: time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
 		t.Fatalf("advance: %v", err)
@@ -187,6 +186,33 @@ func TestE2EGovernedChangeSurvivesOrchestration(t *testing.T) {
 	}
 }
 
+// TestE2EReplayAcrossInvocationTimesIsIdempotent proves the candidate's recorded_at
+// is anchored to the scope_verified ledger event, not the wall clock: a second
+// invocation with the internal clock advanced still produces a byte-identical
+// receipt, so it reconciles as a replay instead of a transition_id_conflict, and
+// appends no second event.
+func TestE2EReplayAcrossInvocationTimesIsIdempotent(t *testing.T) {
+	r := e2eSeed(t, resulttestkit.Options{})
+	saved := advanceNow
+	defer func() { advanceNow = saved }()
+
+	advanceNow = func() time.Time { return time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC) }
+	first := e2eAdvance(t, r)
+
+	advanceNow = func() time.Time { return time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC) } // time advanced
+	second := e2eAdvance(t, r)
+
+	if second.TransitionEntryDigestSHA256 != first.TransitionEntryDigestSHA256 {
+		t.Fatal("a later invocation produced a different transition entry (recorded_at leaked the wall clock)")
+	}
+	if second.TransitionDisposition != resultrecording.DispositionReplayed && second.TransitionDisposition != resultrecording.DispositionReconciled {
+		t.Fatalf("second invocation disposition = %s, want replayed/reconciled", second.TransitionDisposition)
+	}
+	if e2eCountTransitions(e2eLedgerEvents(t, r.TaskDir)) != 1 {
+		t.Fatal("a later-time invocation appended a second transition event")
+	}
+}
+
 // Scenario 4 — exact replay: a second advance appends no second event and reports
 // the current ledger/projection state.
 func TestE2EReplayIsIdempotent(t *testing.T) {
@@ -230,7 +256,6 @@ func TestE2EConcurrentAdvancesRecordExactlyOnce(t *testing.T) {
 			defer wg.Done()
 			res, err := AdvanceResultTransition(context.Background(), AdvanceResultRequest{
 				RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir, RepositoryDomain: resulttestkit.Domain, ResultRevision: r.ResultRev,
-				Now: time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC),
 			})
 			results <- outcome{res, err}
 		}()
