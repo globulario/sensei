@@ -15,6 +15,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/generatedartifact"
+	"github.com/globulario/sensei/golang/architecture/governedimpact"
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resulttransition"
@@ -278,5 +279,34 @@ func TestBuildRefusesUncertifiable(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), CodeProofExtractionUncertifiable) {
 		t.Fatalf("want %s, got %v", CodeProofExtractionUncertifiable, err)
+	}
+}
+
+// TestBuildImpactReportComplete proves the clean build carries a complete,
+// validating governed-impact report, and that a governed-file-free result leaves
+// every governed category unchanged.
+func TestBuildImpactReportComplete(t *testing.T) {
+	repo, taskDir, resultRev := e2eSeedClean(t)
+	res, err := Build(context.Background(), BuildRequest{
+		RepositoryRoot: repo, TaskDirectory: taskDir,
+		ResultMode: resulttransition.ResultModeRevision, ResultRevision: resultRev, RepositoryDomain: e2eDomain,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep := res.GovernedKnowledgeImpactReport
+	if len(rep.Impacts) != len(closureprotocol.GovernedKnowledgeCategories()) {
+		t.Fatalf("impact report has %d categories", len(rep.Impacts))
+	}
+	if err := governedimpact.ValidateReport(rep); err != nil {
+		t.Fatalf("impact report invalid: %v", err)
+	}
+	if rep.ResultGraphDigestSHA256 != res.ResultBinding.GraphDigestSHA256 {
+		t.Fatal("impact result graph digest does not bind the result")
+	}
+	for _, im := range rep.Impacts {
+		if closureprotocol.GovernedKnowledgeImpactChanged(im) {
+			t.Fatalf("comment-only result changed governed category %q: %v", im.Category, im.ChangedRecordIDs)
+		}
 	}
 }

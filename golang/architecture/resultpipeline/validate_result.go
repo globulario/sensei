@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/governedimpact"
 )
 
 // Machine-stable validation error codes. Callers and tests distinguish outcomes
@@ -28,6 +29,7 @@ const (
 	CodeProofExtractionIncomplete    = "resultpipeline.proof_extraction_incomplete"
 	CodeProofExtractionUncertifiable = "resultpipeline.proof_extraction_uncertifiable"
 	CodeTransitionContractInvalid    = "resultpipeline.transition_contract_invalid"
+	CodeGovernedImpactInvalid        = "resultpipeline.governed_impact_invalid"
 )
 
 // ValidationError is a typed, code-stable validation failure.
@@ -183,6 +185,12 @@ func ValidateBuildResult(result BuildResult) error {
 		return err
 	}
 
+	// Governed-knowledge impact report (receipt-construction input, not a stage):
+	// internally consistent, and its result graph digest binds the exact result.
+	if err := validateGovernedImpact(result); err != nil {
+		return err
+	}
+
 	// §18: the shared generic topology contract, last.
 	receipts := make([]closureprotocol.ArtifactReceipt, 0, len(result.StageArtifacts))
 	derivations := make([]closureprotocol.ArtifactDerivation, 0, len(result.StageArtifacts))
@@ -199,6 +207,24 @@ func ValidateBuildResult(result BuildResult) error {
 		Derivations:                   derivations,
 	}); err != nil {
 		return verr(CodeTransitionContractInvalid, "", "%v", err)
+	}
+	return nil
+}
+
+// validateGovernedImpact re-validates the governed-knowledge impact report and
+// binds its result graph digest to the exact result. The base graph digest is a
+// validated 64-hex value; base-graph equality to the admitted base is proven at
+// assembly time, where the admitted base graph is known.
+func validateGovernedImpact(result BuildResult) error {
+	rep := result.GovernedKnowledgeImpactReport
+	if err := governedimpact.ValidateReport(rep); err != nil {
+		return verr(CodeGovernedImpactInvalid, "", "%v", err)
+	}
+	if rep.ResultGraphDigestSHA256 != result.ResultBinding.GraphDigestSHA256 {
+		return verr(CodeGovernedImpactInvalid, "", "impact result graph digest does not bind the current result")
+	}
+	if !isHex64(rep.BaseGraphDigestSHA256) {
+		return verr(CodeGovernedImpactInvalid, "", "impact base graph digest is not a 64-hex sha256")
 	}
 	return nil
 }
