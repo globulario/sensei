@@ -60,11 +60,11 @@ var RuntimeOwnerPathSlotKinds = []string{
 // produced by LoadFromYAML / LoadFromGraph so the engine never touches RDF or
 // extractor internals directly.
 type ProofObligation struct {
-	ID                          string          `json:"id" yaml:"id"`
-	Status                      string          `json:"status" yaml:"status"` // candidate|approved authored lifecycle status; not a receipt_status
-	DerivedFromAuthoritySurface string          `json:"derived_from_authority_surface,omitempty" yaml:"derived_from_authority_surface,omitempty"`
-	AppliesToAuthoritySurfaces  []string        `json:"applies_to_authority_surfaces,omitempty" yaml:"applies_to_authority_surfaces,omitempty"`
-	EvidenceLane                string          `json:"evidence_lane,omitempty" yaml:"evidence_lane,omitempty"`
+	ID                          string   `json:"id" yaml:"id"`
+	Status                      string   `json:"status" yaml:"status"` // candidate|approved authored lifecycle status; not a receipt_status
+	DerivedFromAuthoritySurface string   `json:"derived_from_authority_surface,omitempty" yaml:"derived_from_authority_surface,omitempty"`
+	AppliesToAuthoritySurfaces  []string `json:"applies_to_authority_surfaces,omitempty" yaml:"applies_to_authority_surfaces,omitempty"`
+	EvidenceLane                string   `json:"evidence_lane,omitempty" yaml:"evidence_lane,omitempty"`
 	// RequiresRuntimeEvidence is the governed-mandate signal: when true, this
 	// obligation MANDATES runtime evidence, so its runtime-owner-path slots stay
 	// required regardless of coverage profile (including under static_test) and

@@ -51,8 +51,8 @@ func EvaluateClosure(dimensions []DimensionResult, policy CompletionPolicy) Clos
 	for _, dim := range Dimensions {
 		if required[dim] && !seen[dim] {
 			eval.BlockingDimensions = append(eval.BlockingDimensions, DimensionResult{
-				Dimension: dim,
-				Status:    DimensionUnknown,
+				Dimension:   dim,
+				Status:      DimensionUnknown,
 				ReasonCodes: []string{"closure.dimension.missing"},
 			})
 		}
@@ -81,4 +81,3 @@ func normalizeDimensionResults(results []DimensionResult) []DimensionResult {
 	})
 	return out
 }
-
