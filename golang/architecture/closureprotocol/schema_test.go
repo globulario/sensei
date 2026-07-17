@@ -37,4 +37,3 @@ func TestSchemasParseAndAreClosed(t *testing.T) {
 		}
 	}
 }
-

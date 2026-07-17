@@ -6,7 +6,7 @@ import "testing"
 
 func TestEvaluateClosureCompleted(t *testing.T) {
 	eval := EvaluateClosure(allPassDimensions(), CompletionPolicy{
-		PolicyID: "completion.architectural_closure.v1",
+		PolicyID:                "completion.architectural_closure.v1",
 		AllowedWaiverDimensions: []Dimension{DimensionProof},
 	})
 	if !eval.TerminallyClosed {
@@ -28,7 +28,7 @@ func TestEvaluateClosureAllowsExceptionWhenPolicyPermits(t *testing.T) {
 	dims[7].Status = DimensionPassWithException
 	dims[7].ExceptionID = "waiver.proof.slot-1"
 	eval := EvaluateClosure(dims, CompletionPolicy{
-		PolicyID: "completion.architectural_closure.v1",
+		PolicyID:                "completion.architectural_closure.v1",
 		AllowedWaiverDimensions: []Dimension{DimensionProof},
 	})
 	if !eval.TerminallyClosed {
@@ -50,4 +50,3 @@ func allPassDimensions() []DimensionResult {
 		{Dimension: DimensionCompletion, Status: DimensionPass},
 	}
 }
-

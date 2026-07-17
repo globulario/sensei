@@ -58,7 +58,9 @@ func testCtx(profiles map[string]closureprotocol.EvidenceProfile, receipts []clo
 	}
 }
 
-func testSlot(id, kind string) ProofSlotSpec { return ProofSlotSpec{ID: id, Kind: kind, Required: true} }
+func testSlot(id, kind string) ProofSlotSpec {
+	return ProofSlotSpec{ID: id, Kind: kind, Required: true}
+}
 
 func testOb(id string, slots ...ProofSlotSpec) ProofObligation {
 	return ProofObligation{ID: id, Status: "candidate", RequiredSlots: slots}
@@ -79,8 +81,10 @@ func TestCheckCompatibility(t *testing.T) {
 	}{
 		{name: "clean receipt passes", mutate: func(r *closureprotocol.EvidenceReceipt, c *Context) {}, wantOK: true},
 		{
-			name:    "revoked",
-			mutate:  func(r *closureprotocol.EvidenceReceipt, c *Context) { c.RevokedReceiptIDs = map[string]bool{r.ReceiptID: true} },
+			name: "revoked",
+			mutate: func(r *closureprotocol.EvidenceReceipt, c *Context) {
+				c.RevokedReceiptIDs = map[string]bool{r.ReceiptID: true}
+			},
 			wantOne: ReasonReceiptRevoked,
 		},
 		{
@@ -89,8 +93,10 @@ func TestCheckCompatibility(t *testing.T) {
 			wantOne: ReasonEvidenceKindMismatch,
 		},
 		{
-			name:    "authority kind never discharges",
-			mutate:  func(r *closureprotocol.EvidenceReceipt, c *Context) { r.EvidenceKind = closureprotocol.EvidenceAuthority },
+			name: "authority kind never discharges",
+			mutate: func(r *closureprotocol.EvidenceReceipt, c *Context) {
+				r.EvidenceKind = closureprotocol.EvidenceAuthority
+			},
 			wantOne: ReasonEvidenceKindMismatch,
 		},
 		{
@@ -107,8 +113,10 @@ func TestCheckCompatibility(t *testing.T) {
 			wantOne: ReasonObservationPathUngoverned,
 		},
 		{
-			name:    "result binding mismatch",
-			mutate:  func(r *closureprotocol.EvidenceReceipt, c *Context) { r.ResultBinding.ResultTreeDigestSHA256 = "other-tree" },
+			name: "result binding mismatch",
+			mutate: func(r *closureprotocol.EvidenceReceipt, c *Context) {
+				r.ResultBinding.ResultTreeDigestSHA256 = "other-tree"
+			},
 			wantOne: ReasonResultBindingMismatch,
 		},
 		{

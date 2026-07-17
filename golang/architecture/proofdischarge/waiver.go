@@ -17,7 +17,7 @@ import (
 // the governance ceiling; a waiver is the concrete, narrower grant under it.
 type GovernanceException struct {
 	ID                     string   `json:"id" yaml:"id"`
-	Status                 string   `json:"status" yaml:"status"`    // must be "governed" to authorize a waiver
+	Status                 string   `json:"status" yaml:"status"`       // must be "governed" to authorize a waiver
 	Dimension              string   `json:"dimension" yaml:"dimension"` // must equal "proof"
 	AppliesToObligationIDs []string `json:"applies_to_obligation_ids,omitempty" yaml:"applies_to_obligation_ids,omitempty"`
 	AppliesToSlotIDs       []string `json:"applies_to_slot_ids,omitempty" yaml:"applies_to_slot_ids,omitempty"`
