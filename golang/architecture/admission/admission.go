@@ -23,6 +23,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
 	"github.com/globulario/sensei/golang/architecture/probe"
+	"github.com/globulario/sensei/golang/architecture/proofrequirements"
 	"github.com/globulario/sensei/golang/architecture/questiongen"
 	"gopkg.in/yaml.v3"
 )
@@ -2110,16 +2111,11 @@ func itemFromNode(n closure.Node, fallbackClass string) GuidanceItem {
 	return GuidanceItem{ID: n.ID, Class: class, Label: firstNonEmpty(n.Label, n.Comment), Status: n.Status, Plane: n.ArchitecturalPlane, SourceIDs: clean(append([]string{n.IRI}, n.AnchoredIn...)), Paths: cleanPathStrings(append(append([]string{n.SourcePath}, n.AuthoredIn...), n.CoversPath...)), Details: details}
 }
 
+// nodeByReceipt delegates to the single shared definition of scoped-node
+// resolution so admission guidance and Phase 7 proof composition can never
+// disagree on which node a receipt resolves to.
 func nodeByReceipt(graph closure.GraphIndex, nr closure.NodeReceipt) (closure.Node, bool) {
-	if nr.IRI != "" {
-		n, ok := graph.Nodes[nr.IRI]
-		return n, ok
-	}
-	if iri := graph.NodesByID[nr.ID]; iri != "" {
-		n, ok := graph.Nodes[iri]
-		return n, ok
-	}
-	return closure.Node{}, false
+	return proofrequirements.NodeByReceipt(graph, nr)
 }
 
 func graphHasClass(graph closure.GraphIndex, id, class string) bool {
@@ -2131,17 +2127,9 @@ func graphHasClass(graph closure.GraphIndex, id, class string) bool {
 	return ok && hasAnyClass(n, class)
 }
 
+// hasAnyClass delegates to the single shared classification predicate.
 func hasAnyClass(n closure.Node, classes ...string) bool {
-	want := map[string]bool{}
-	for _, c := range classes {
-		want[strings.ToLower(c)] = true
-	}
-	for _, c := range n.Classes {
-		if want[strings.ToLower(c)] {
-			return true
-		}
-	}
-	return false
+	return proofrequirements.HasAnyClass(n, classes...)
 }
 
 func fileRepresentedByClaim(path string, claims []architecture.Claim) bool {
