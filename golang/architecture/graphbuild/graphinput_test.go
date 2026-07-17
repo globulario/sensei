@@ -78,11 +78,17 @@ func TestGraphInputSnapshotRejections(t *testing.T) {
 		"absolute root": func(s *GraphInputSnapshot) { s.SourceRoots = []LogicalSourceRoot{{LogicalPath: "/etc"}} },
 		"escaping root": func(s *GraphInputSnapshot) { s.SourceRoots = []LogicalSourceRoot{{LogicalPath: "../x"}} },
 		"wrong schema":  func(s *GraphInputSnapshot) { s.SchemaVersion = "other" },
-		"bad supplemental": func(s *GraphInputSnapshot) {
-			s.SupplementalGraphs = []SupplementalGraphBinding{{ID: "p", Version: "v1", SemanticDigestSHA256: "short", ArtifactKey: "k"}}
+		"bad supplemental digest": func(s *GraphInputSnapshot) {
+			s.SupplementalGraphs = []SupplementalGraphBinding{{ID: "p", Version: "v1", SemanticDigestSHA256: "short", ArtifactKey: "supplemental_graph.p"}}
 		},
-		"supplemental no key": func(s *GraphInputSnapshot) {
-			s.SupplementalGraphs = []SupplementalGraphBinding{{ID: "p", Version: "v1", SemanticDigestSHA256: supDigest}}
+		"supplemental inconsistent key": func(s *GraphInputSnapshot) {
+			s.SupplementalGraphs = []SupplementalGraphBinding{{ID: "p", Version: "v1", SemanticDigestSHA256: supDigest, ArtifactKey: "supplemental_graph.other"}}
+		},
+		"supplemental key outside namespace": func(s *GraphInputSnapshot) {
+			s.SupplementalGraphs = []SupplementalGraphBinding{{ID: "p", Version: "v1", SemanticDigestSHA256: supDigest, ArtifactKey: "closure_request"}}
+		},
+		"supplemental uppercase id": func(s *GraphInputSnapshot) {
+			s.SupplementalGraphs = []SupplementalGraphBinding{{ID: "Pack", Version: "v1", SemanticDigestSHA256: supDigest, ArtifactKey: "supplemental_graph.Pack"}}
 		},
 	}
 	for name, mut := range cases {
