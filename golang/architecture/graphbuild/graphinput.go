@@ -4,6 +4,7 @@ package graphbuild
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -13,6 +14,29 @@ import (
 // GraphInputSnapshotSchemaVersion identifies the immutable graph-input snapshot
 // shape.
 const GraphInputSnapshotSchemaVersion = "graphbuild.graph-input-snapshot/v1"
+
+// SupplementalGraphArtifactKeyPrefix is the closed namespace every supplemental
+// graph's content-addressed task-artifact key lives under, so a supplemental
+// reference can never collide with a core task artifact (closure_request,
+// graph_input_snapshot, session, ...).
+const SupplementalGraphArtifactKeyPrefix = "supplemental_graph."
+
+// supplementalIDRE is the closed, deterministic supplemental-id grammar. It is
+// lowercase so two ids can never differ only by case and then collide onto one
+// artifact key.
+var supplementalIDRE = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+
+// SupplementalGraphArtifactKey returns the content-addressed task-artifact key
+// for a supplemental graph id. It refuses any id outside the closed grammar
+// (uppercase, path separators, whitespace, control characters, "..", empty), so
+// no two distinct ids are silently normalized to one key.
+func SupplementalGraphArtifactKey(id string) (string, error) {
+	id = strings.TrimSpace(id)
+	if !supplementalIDRE.MatchString(id) || strings.Contains(id, "..") {
+		return "", fmt.Errorf("graphbuild: supplemental graph id %q is not a valid lowercase id", id)
+	}
+	return SupplementalGraphArtifactKeyPrefix + id, nil
+}
 
 // LogicalSourceRoot is one governed source root named by a repository-relative
 // logical path. It never carries an absolute path, a mutable active-pointer path,
@@ -84,23 +108,62 @@ func CanonicalizeGraphInputSnapshot(in GraphInputSnapshot) (GraphInputSnapshot, 
 
 	sups := make([]SupplementalGraphBinding, 0, len(in.SupplementalGraphs))
 	seenSup := map[string]bool{}
+	seenKey := map[string]bool{}
 	for _, s := range in.SupplementalGraphs {
 		s.ID = strings.TrimSpace(s.ID)
 		s.Version = strings.TrimSpace(s.Version)
 		s.SemanticDigestSHA256 = strings.TrimSpace(s.SemanticDigestSHA256)
 		s.ArtifactKey = strings.TrimSpace(s.ArtifactKey)
-		if s.ID == "" {
-			return GraphInputSnapshot{}, fmt.Errorf("graphbuild: graph-input snapshot has an empty supplemental graph id")
+		wantKey, err := SupplementalGraphArtifactKey(s.ID)
+		if err != nil {
+			return GraphInputSnapshot{}, err
+		}
+		if s.ArtifactKey == "" {
+			s.ArtifactKey = wantKey
+		}
+		if s.ArtifactKey != wantKey {
+			return GraphInputSnapshot{}, fmt.Errorf("graphbuild: supplemental graph %q artifact key %q is not %q", s.ID, s.ArtifactKey, wantKey)
 		}
 		if seenSup[s.ID] {
 			return GraphInputSnapshot{}, fmt.Errorf("graphbuild: duplicate supplemental graph id %q", s.ID)
 		}
+		if seenKey[s.ArtifactKey] {
+			return GraphInputSnapshot{}, fmt.Errorf("graphbuild: duplicate supplemental graph artifact key %q", s.ArtifactKey)
+		}
 		seenSup[s.ID] = true
+		seenKey[s.ArtifactKey] = true
 		sups = append(sups, s)
 	}
-	sort.Slice(sups, func(i, j int) bool { return sups[i].ID < sups[j].ID })
+	sort.Slice(sups, func(i, j int) bool {
+		if sups[i].ID != sups[j].ID {
+			return sups[i].ID < sups[j].ID
+		}
+		return sups[i].ArtifactKey < sups[j].ArtifactKey
+	})
 	out.SupplementalGraphs = sups
 	return out, nil
+}
+
+// ValidateBoundGraphInputSnapshot is the strict check for a snapshot that has
+// already been stamped and recorded: it requires a nonempty snapshot digest,
+// passes the full structural validation, and requires the recorded digest to
+// recompute exactly. The looser ValidateGraphInputSnapshot stays available for a
+// caller constructing a snapshot before stamping it.
+func ValidateBoundGraphInputSnapshot(snapshot GraphInputSnapshot) error {
+	if strings.TrimSpace(snapshot.SnapshotDigestSHA256) == "" {
+		return fmt.Errorf("graphbuild: bound graph-input snapshot requires a snapshot digest")
+	}
+	if err := ValidateGraphInputSnapshot(snapshot); err != nil {
+		return err
+	}
+	want, err := GraphInputSnapshotDigest(snapshot)
+	if err != nil {
+		return err
+	}
+	if want != strings.TrimSpace(snapshot.SnapshotDigestSHA256) {
+		return fmt.Errorf("graphbuild: bound graph-input snapshot digest does not recompute")
+	}
+	return nil
 }
 
 // GraphInputSnapshotDigest is the self-excluding semantic identity of a snapshot.
