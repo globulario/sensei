@@ -428,6 +428,20 @@ bindings. Validation requires every referenced artifact to exist, every output t
 be produced once, every mandatory stage to be present, every input binding to be
 the current result, and the graph to be acyclic.
 
+The arrow above is the canonical **presentation** order, not the dependency
+order. The dependency edges are what the `ArtifactDerivation` graph records and
+what validation enforces. In particular, `generated_repository_artifacts`
+depends on `architecture_graph`, not the reverse: generated graph *inputs* (for
+example `proof_obligations.yaml`) are read into the graph through the governed
+source manifest, and generated repository *outputs* (for example the embedded
+`awareness.nt` and its transaction record) are outputs of graph construction that
+the generated-artifact stage verifies. So the graph derives from the governed
+source manifest alone, and the generated-repository-artifact stage derives from
+both the governed source manifest and the architecture graph. Encoding the
+opposite direction would hide a cycle once the generated-artifact stage actually
+regenerates the graph's output mirrors. Presentation order must never imply a
+false build dependency.
+
 ### The omission law
 
 `architect_questions` is a mandatory stage, not an optional one, and it is placed
