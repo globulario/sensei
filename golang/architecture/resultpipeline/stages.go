@@ -100,8 +100,11 @@ type InferredClaimsBundle struct {
 	Limitations []architecture.Limitation  `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
-// MaintainedClaimsBundle is the stage-5 canonical output.
+// MaintainedClaimsBundle is the stage-5 canonical output. Report is strongly
+// typed so the build-result validator can strictly decode the Stage 5 artifact
+// into its exact canonical shape — a canonical pipeline artifact never carries an
+// untyped payload.
 type MaintainedClaimsBundle struct {
 	Document architecture.ClaimDocument `json:"document" yaml:"document"`
-	Report   any                        `json:"report" yaml:"report"`
+	Report   maintenance.Report         `json:"report" yaml:"report"`
 }

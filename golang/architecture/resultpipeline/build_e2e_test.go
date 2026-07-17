@@ -303,7 +303,7 @@ func TestBuildEndToEndWorktree(t *testing.T) {
 	statusBefore := e2eGit(t, repo, "status", "--porcelain")
 	headBefore := e2eGit(t, repo, "rev-parse", "HEAD")
 
-	res, err := Build(context.Background(), BuildRequest{
+	res, err := assembleBuildResult(context.Background(), BuildRequest{
 		RepositoryRoot: repo, TaskDirectory: taskDir,
 		ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain,
 	})
@@ -371,13 +371,13 @@ func canonicalProjection(res BuildResult) string {
 func TestBuildDeterministicRepeated(t *testing.T) {
 	repo, taskDir := e2eSeed(t)
 	req := BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain}
-	first, err := Build(context.Background(), req)
+	first, err := assembleBuildResult(context.Background(), req)
 	if err != nil {
 		t.Fatalf("Build 1: %v", err)
 	}
 	want := canonicalProjection(first)
 	for i := 0; i < 3; i++ {
-		got, err := Build(context.Background(), req)
+		got, err := assembleBuildResult(context.Background(), req)
 		if err != nil {
 			t.Fatalf("Build %d: %v", i+2, err)
 		}
@@ -391,7 +391,7 @@ func TestBuildDeterministicRepeated(t *testing.T) {
 // absolute path appears in any stage artifact or limitation.
 func TestBuildNoTemporaryPaths(t *testing.T) {
 	repo, taskDir := e2eSeed(t)
-	res, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	res, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func TestBuildNoTemporaryPaths(t *testing.T) {
 // digest and the same ten stages, regardless of result mode.
 func TestBuildCommittedMatchesWorktreeTree(t *testing.T) {
 	repo, taskDir := e2eSeed(t)
-	wt, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	wt, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatalf("worktree build: %v", err)
 	}
@@ -424,7 +424,7 @@ func TestBuildCommittedMatchesWorktreeTree(t *testing.T) {
 	e2eGit(t, repo, "add", "-A")
 	e2eGit(t, repo, "commit", "-q", "-m", "result")
 	resultRev := e2eGit(t, repo, "rev-parse", "HEAD")
-	committed, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeRevision, ResultRevision: resultRev, RepositoryDomain: e2eDomain})
+	committed, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeRevision, ResultRevision: resultRev, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatalf("committed build: %v", err)
 	}
@@ -450,7 +450,7 @@ func TestBuildCommittedMatchesWorktreeTree(t *testing.T) {
 func TestBuildRelocatedCheckout(t *testing.T) {
 	repo, taskDir := e2eSeed(t)
 	req := BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain}
-	first, err := Build(context.Background(), req)
+	first, err := assembleBuildResult(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +464,7 @@ func TestBuildRelocatedCheckout(t *testing.T) {
 	if out, err := exec.Command("cp", "-a", taskDir, task2).CombinedOutput(); err != nil {
 		t.Fatalf("cp task: %v\n%s", err, out)
 	}
-	relocated, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo2, TaskDirectory: task2, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	relocated, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repo2, TaskDirectory: task2, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatalf("relocated build: %v", err)
 	}
@@ -478,7 +478,7 @@ func TestBuildRelocatedCheckout(t *testing.T) {
 func TestBuildParallel(t *testing.T) {
 	repo, taskDir := e2eSeed(t)
 	req := BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain}
-	first, err := Build(context.Background(), req)
+	first, err := assembleBuildResult(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -492,7 +492,7 @@ func TestBuildParallel(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			res, err := Build(context.Background(), req)
+			res, err := assembleBuildResult(context.Background(), req)
 			if err != nil {
 				errs[i] = err
 				return
@@ -519,12 +519,12 @@ func TestBuildSameGraphDifferentTree(t *testing.T) {
 	// e2eSeed mutates src/model.go; a second seed with a DIFFERENT src mutation
 	// but identical docs/awareness yields the same graph, a different tree.
 	repoA, taskA := e2eSeed(t)
-	a, err := Build(context.Background(), BuildRequest{RepositoryRoot: repoA, TaskDirectory: taskA, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	a, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repoA, TaskDirectory: taskA, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatal(err)
 	}
 	repoB, taskB := e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Delete() {}\n", nil)
-	b, err := Build(context.Background(), BuildRequest{RepositoryRoot: repoB, TaskDirectory: taskB, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	b, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repoB, TaskDirectory: taskB, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +554,7 @@ func TestBuildSameGraphDifferentTree(t *testing.T) {
 func TestBuildRejectsPostScopeVerificationMutation(t *testing.T) {
 	repo, taskDir := e2eSeed(t)
 	e2eWrite(t, repo, "src/model.go", "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n\nfunc Sneak() {}\n")
-	_, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	_, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err == nil || !strings.Contains(err.Error(), "observed_change_mismatch") {
 		t.Fatalf("expected observed_change_mismatch, got %v", err)
 	}
@@ -564,7 +564,7 @@ func TestBuildRejectsPostScopeVerificationMutation(t *testing.T) {
 // stage receipts + derivations fails the frozen validator.
 func TestBuildOmissionStructural(t *testing.T) {
 	repo, taskDir := e2eSeed(t)
-	res, err := Build(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
+	res, err := assembleBuildResult(context.Background(), BuildRequest{RepositoryRoot: repo, TaskDirectory: taskDir, ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain})
 	if err != nil {
 		t.Fatal(err)
 	}

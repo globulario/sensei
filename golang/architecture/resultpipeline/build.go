@@ -44,9 +44,29 @@ type BuildResult struct {
 }
 
 // Build composes the complete ten-stage result architecture for one admitted,
-// scope-verified task. It is pure and offline; it records nothing, certifies
-// nothing, and completes nothing.
+// scope-verified task and fails closed unless the result is semantically valid.
+// It is pure and offline; it records nothing, certifies nothing, and completes
+// nothing. A worktree-mode result has no verified revision and is therefore
+// legitimately uncertifiable — such a result is refused, not returned.
 func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
+	result, err := assembleBuildResult(ctx, req)
+	if err != nil {
+		return BuildResult{}, err
+	}
+	// Fail closed: a semantically incomplete result is never returned alongside a
+	// nil error. The validator is pure and offline; it does not modify result.
+	if err := ValidateBuildResult(result); err != nil {
+		return BuildResult{}, fmt.Errorf("resultpipeline: validate build result: %w", err)
+	}
+	return result, nil
+}
+
+// assembleBuildResult composes the ten-stage result without the final semantic
+// gate. Callers other than Build must not use it to return a result to a
+// governance consumer; it exists so assembly-structural properties can be tested
+// on results the gate would legitimately refuse (e.g. an uncertifiable worktree
+// result).
+func assembleBuildResult(ctx context.Context, req BuildRequest) (BuildResult, error) {
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
 	if root == "" || taskDir == "" {
@@ -278,7 +298,7 @@ func Build(ctx context.Context, req BuildRequest) (BuildResult, error) {
 	// from the seven authoritative sources — carried authority/admission truth,
 	// the verified Stage 2 outputs, the scoped result graph, closure, and the
 	// architect questions — via the single composer. No source is re-extracted.
-	proofDoc, err := proofrequirements.Compose(ctx, composeProofInput(rbDigest, bound, genResult, cg.closIndex, closureReport, questions))
+	proofDoc, err := proofrequirements.Compose(ctx, composeProofInput(rbDigest, rb.GraphDigestSHA256, bound, genResult, cg.closIndex, closureReport, questions))
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("resultpipeline: proof requirements: %w", err)
 	}
@@ -532,7 +552,7 @@ func sortedKeys(m map[string]bool) []string {
 // proof-obligations output rather than re-extracting authority surfaces, and
 // passes the scoped result graph, closure report, and neutral architect-question
 // accounting.
-func composeProofInput(rbDigest string, bound resulttransition.BoundRepositoryResult, gen generatedartifact.VerificationResult, graph closure.GraphIndex, rep closure.Report, questions ArchitectQuestionsBundle) proofrequirements.ComposeInput {
+func composeProofInput(rbDigest, graphSemanticDigest string, bound resulttransition.BoundRepositoryResult, gen generatedartifact.VerificationResult, graph closure.GraphIndex, rep closure.Report, questions ArchitectQuestionsBundle) proofrequirements.ComposeInput {
 	var verifiedPaths []string
 	for _, out := range gen.ExpectedOutputs {
 		if p := strings.TrimSpace(out.Path); p != "" {
@@ -565,9 +585,11 @@ func composeProofInput(rbDigest string, bound resulttransition.BoundRepositoryRe
 			VerifiedPaths:        verifiedPaths,
 			AllRequiredMatched:   gen.Manifest.AllRequiredMatched,
 		},
-		RepositoryProofOutput: repoProof,
-		Graph:                 graph,
-		ClosureReport:         rep,
+		RepositoryProofOutput:         repoProof,
+		Graph:                         graph,
+		GraphSemanticDigestSHA256:     graphSemanticDigest,
+		ClosureReport:                 rep,
+		QuestionsSemanticDigestSHA256: closureprotocol.MustSemanticDigest(questions),
 		Questions: proofrequirements.QuestionInput{
 			CurrentBlockerIDs:              questions.CurrentBlockerIDs,
 			AccountedBlockerIDs:            questions.AccountedBlockerIDs,
