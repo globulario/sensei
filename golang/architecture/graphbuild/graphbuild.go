@@ -241,8 +241,23 @@ func Compile(ctx context.Context, req CompileRequest) (Compilation, error) {
 }
 
 // Finalize composes a compilation with verified supplemental graphs into exactly
-// one stamped artifact.
+// one stamped artifact, validating the final N-Triples.
 func Finalize(ctx context.Context, req FinalizeRequest) (Artifact, error) {
+	art, err := Stamp(ctx, req)
+	if err != nil {
+		return Artifact{}, err
+	}
+	if errs := extractor.ValidateNTriples(bytes.NewReader(art.NTriples)); len(errs) > 0 {
+		return Artifact{}, fmt.Errorf("graphbuild: final artifact has %d N-Triples validation error(s): %s", len(errs), errs[0].Error())
+	}
+	return art, nil
+}
+
+// Stamp composes a compilation with verified supplemental graphs into exactly one
+// stamped artifact WITHOUT validating the result. Callers that validate
+// separately (or that stamp already-trusted bytes) use this; most callers should
+// use Finalize.
+func Stamp(ctx context.Context, req FinalizeRequest) (Artifact, error) {
 	if err := ctx.Err(); err != nil {
 		return Artifact{}, err
 	}
@@ -263,9 +278,6 @@ func Finalize(ctx context.Context, req FinalizeRequest) (Artifact, error) {
 
 	deduped, _, dup := extractor.DedupNTriples(merged.Bytes())
 	finalNT, marker := seedmeta.AppendMarker(deduped)
-	if errs := extractor.ValidateNTriples(bytes.NewReader(finalNT)); len(errs) > 0 {
-		return Artifact{}, fmt.Errorf("graphbuild: final artifact has %d N-Triples validation error(s): %s", len(errs), errs[0].Error())
-	}
 
 	byteSum := sha256.Sum256(finalNT)
 	artifactTriples := int(marker.TripleCount)
@@ -303,6 +315,25 @@ func Build(ctx context.Context, req CompileRequest, supplemental []SupplementalG
 		return Artifact{}, err
 	}
 	return Finalize(ctx, FinalizeRequest{Compilation: comp, SupplementalGraphs: supplemental})
+}
+
+// StripMarker returns a graph's marker-free body (the six seed-marker triples
+// removed). It is the shared marker-stripping used across the builder and its CLI
+// adapters.
+func StripMarker(nt []byte) []byte { return stripMarkerLines(nt) }
+
+// CompilationFromGraph wraps already-produced triples (marker-free or marked) as
+// a Compilation, for callers that obtained triples outside Compile — an
+// N-Triples file input, or a previously stamped artifact being recomposed. It
+// carries no source manifest.
+func CompilationFromGraph(raw []byte) Compilation {
+	canonical, unique, dup := canonicalGraph(raw)
+	return Compilation{
+		CanonicalNTriples:    canonical,
+		UniqueTripleCount:    unique,
+		DuplicateTripleCount: dup,
+		SourceManifest:       SourceManifest{SchemaVersion: ManifestSchemaVersion, ImportPolicy: "external", Exclusions: baseExclusions},
+	}
 }
 
 // canonicalGraph dedups raw triples and returns the sorted, marker-free canonical
