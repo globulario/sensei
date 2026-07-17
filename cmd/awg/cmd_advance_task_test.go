@@ -8,6 +8,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/tasksession"
 	"github.com/globulario/sensei/internal/resulttestkit"
 )
 
@@ -146,6 +148,48 @@ func TestCLIAdvanceResultReplayAcrossInvocations(t *testing.T) {
 	}
 	if o2.TransitionEntryDigestSHA256 != o1.TransitionEntryDigestSHA256 {
 		t.Fatal("second invocation reported a different transition entry")
+	}
+}
+
+// TestCLIAdvanceStaleRendersAdvancedNotPreAttemptState: the renderer maps a stale
+// outcome verbatim from the owner's result, so machine and human output present the
+// genuinely current (advanced) phase/status and never pair current_state_available:
+// true with the pre-attempt scope_verified phase. Exit code is 3.
+func TestCLIAdvanceStaleRendersAdvancedNotPreAttemptState(t *testing.T) {
+	// The owner's stale result after a competing writer advanced the head to proving.
+	res := tasksession.AdvanceResult{
+		Outcome:                 tasksession.OutcomeStale,
+		CurrentStateAvailable:   true,
+		CurrentLedgerHeadSHA256: "7c513be718f37b0e2e2d749128fe0158e07fc79c5c625e86591d240d47af59fb",
+		TaskPhase:               closureprotocol.PhaseProving,
+		OperationalStatus:       "ready_for_proving",
+		RefusalCode:             "resultrecording.stale_expected_head",
+	}
+	out := toAdvanceOutput(res)
+
+	if out.CurrentStateAvailable && (out.TaskPhase == "scope_verified" || out.OperationalStatus == "scope_verified") {
+		t.Fatal("stale output must never pair current_state_available:true with the pre-attempt scope_verified state")
+	}
+	if out.TaskPhase != "proving" {
+		t.Fatalf("stale output phase = %q, want the advanced current phase proving", out.TaskPhase)
+	}
+	if out.CorrectnessCertified {
+		t.Fatal("correctness_certified must be false")
+	}
+	// machine output round-trips with the advanced current state.
+	b, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var round advanceResultOutput
+	if err := json.Unmarshal(b, &round); err != nil {
+		t.Fatal(err)
+	}
+	if round.TaskPhase != "proving" || !round.CurrentStateAvailable {
+		t.Fatalf("machine output lost the current state: %+v", round)
+	}
+	if advanceExitCode(res.Outcome) != 3 {
+		t.Fatalf("stale exit code = %d, want 3", advanceExitCode(res.Outcome))
 	}
 }
 

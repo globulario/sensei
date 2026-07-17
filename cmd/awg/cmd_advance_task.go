@@ -73,7 +73,21 @@ func runAdvanceResult(args []string) int {
 		return 2
 	}
 
-	out := advanceResultOutput{
+	out := toAdvanceOutput(res)
+
+	if strings.TrimSpace(format) == "" || format == "text" {
+		renderAdvanceHuman(out)
+	} else if err := printValue(out, format); err != nil {
+		fmt.Fprintln(os.Stderr, "advance-result:", err)
+		return 1
+	}
+	return advanceExitCode(res.Outcome)
+}
+
+// toAdvanceOutput maps the owner's typed result to the stable machine render,
+// verbatim (correctness_certified is always false). It computes nothing itself.
+func toAdvanceOutput(res tasksession.AdvanceResult) advanceResultOutput {
+	return advanceResultOutput{
 		Outcome:                       string(res.Outcome),
 		TransitionRecorded:            res.TransitionRecorded,
 		TransitionDisposition:         string(res.TransitionDisposition),
@@ -94,14 +108,6 @@ func runAdvanceResult(args []string) int {
 		PostCommitRecoveryAction:      res.PostCommitRecoveryAction,
 		CorrectnessCertified:          false,
 	}
-
-	if strings.TrimSpace(format) == "" || format == "text" {
-		renderAdvanceHuman(out)
-	} else if err := printValue(out, format); err != nil {
-		fmt.Fprintln(os.Stderr, "advance-result:", err)
-		return 1
-	}
-	return advanceExitCode(res.Outcome)
 }
 
 // renderAdvanceHuman prints a concise human summary leading with the load-bearing
