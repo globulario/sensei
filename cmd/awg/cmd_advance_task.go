@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/globulario/sensei/golang/architecture/tasksession"
 )
@@ -31,6 +30,8 @@ type advanceResultOutput struct {
 	NextAction                    string   `json:"next_action,omitempty" yaml:"next_action,omitempty"`
 	NextActionSummary             string   `json:"next_action_summary,omitempty" yaml:"next_action_summary,omitempty"`
 	WaitingReasons                []string `json:"waiting_reasons,omitempty" yaml:"waiting_reasons,omitempty"`
+	CurrentStateAvailable         bool     `json:"current_state_available" yaml:"current_state_available"`
+	CurrentStateDetail            string   `json:"current_state_detail,omitempty" yaml:"current_state_detail,omitempty"`
 	RefusalCode                   string   `json:"refusal_code,omitempty" yaml:"refusal_code,omitempty"`
 	RefusalDetail                 string   `json:"refusal_detail,omitempty" yaml:"refusal_detail,omitempty"`
 	PostCommitEntryDigestSHA256   string   `json:"post_commit_entry_digest_sha256,omitempty" yaml:"post_commit_entry_digest_sha256,omitempty"`
@@ -65,7 +66,7 @@ func runAdvanceResult(args []string) int {
 
 	res, err := tasksession.AdvanceResultTransition(context.Background(), tasksession.AdvanceResultRequest{
 		RepositoryRoot: repoRoot, TaskDirectory: dir, RepositoryDomain: domain,
-		ResultRevision: resultRevision, Now: time.Now().UTC(),
+		ResultRevision: resultRevision,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "advance-result:", err)
@@ -85,6 +86,8 @@ func runAdvanceResult(args []string) int {
 		NextAction:                    res.NextAction.Action,
 		NextActionSummary:             res.NextAction.Summary,
 		WaitingReasons:                res.WaitingReasons,
+		CurrentStateAvailable:         res.CurrentStateAvailable,
+		CurrentStateDetail:            res.CurrentStateDetail,
 		RefusalCode:                   res.RefusalCode,
 		RefusalDetail:                 res.RefusalDetail,
 		PostCommitEntryDigestSHA256:   res.PostCommitEntryDigestSHA256,
@@ -123,6 +126,9 @@ func renderAdvanceHuman(o advanceResultOutput) {
 	}
 	if o.PostCommitRecoveryAction != "" {
 		fmt.Printf("recovery: %s (committed entry %s)\n", o.PostCommitRecoveryAction, short(o.PostCommitEntryDigestSHA256))
+	}
+	if !o.CurrentStateAvailable && o.CurrentStateDetail != "" {
+		fmt.Printf("current:  %s\n", o.CurrentStateDetail)
 	}
 	fmt.Printf("correctness_certified: %v\n", o.CorrectnessCertified)
 }
