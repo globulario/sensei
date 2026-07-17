@@ -174,10 +174,11 @@ closure_protocol_fixture:
                   output_artifact_receipt_digest_sha256: 33f225ec66505a92ccb468ac0a94320c56ab461d1c2b211d7cd2145274430857
                   input_artifact_receipt_digests_sha256:
                     - 5a5d5dd9d37e5f9699c0e2c64b972450c59e14fb1b1be9d2b814c15880a90ee1
+                    - 359a5798b25235f6e3610b1391fb18d21f6a00ecd5af3ef08b20cd33ae0b457f
                 - stage: architecture_graph
                   output_artifact_receipt_digest_sha256: 359a5798b25235f6e3610b1391fb18d21f6a00ecd5af3ef08b20cd33ae0b457f
                   input_artifact_receipt_digests_sha256:
-                    - 33f225ec66505a92ccb468ac0a94320c56ab461d1c2b211d7cd2145274430857
+                    - 5a5d5dd9d37e5f9699c0e2c64b972450c59e14fb1b1be9d2b814c15880a90ee1
                 - stage: inferred_claims
                   output_artifact_receipt_digest_sha256: e2586cf6d4b5e8ed15d35dc315b2d4c2573532beac9bc6a235ec0b6e044fcc24
                   input_artifact_receipt_digests_sha256:
