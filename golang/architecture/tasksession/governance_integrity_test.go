@@ -58,7 +58,7 @@ func TestGovernanceCorruptConsumptionCannotRestoreGrant(t *testing.T) {
 
 	corruptGovernedArtifact(t, taskDir, closureprotocol.LedgerEventAdmissionConsumed, "capability_consumption")
 
-	disp, err := governanceDisposition(taskDir, now)
+	disp, err := governanceDisposition(taskDir, now, nil)
 	var gerr *GovernanceError
 	if !errors.As(err, &gerr) {
 		t.Fatalf("want GovernanceError, got %v (disp %s grant=%v)", err, disp.Status, disp.GrantModify)
@@ -80,7 +80,7 @@ func TestGovernanceCorruptScopeVerificationCannotReopen(t *testing.T) {
 
 	corruptGovernedArtifact(t, taskDir, closureprotocol.LedgerEventScopeVerified, "scope_verification")
 
-	disp, err := governanceDisposition(taskDir, now)
+	disp, err := governanceDisposition(taskDir, now, nil)
 	var gerr *GovernanceError
 	if !errors.As(err, &gerr) {
 		t.Fatalf("want GovernanceError, got %v (disp %s)", err, disp.Status)
@@ -100,16 +100,15 @@ func TestGovernanceIgnoresAppendDuringReduction(t *testing.T) {
 	recordCapabilityConsumption(t, taskDir, dec, now) // → admitted
 
 	fired := false
-	governanceAfterSnapshot = func(td string) {
+	afterSnapshot := func(td string) {
 		if fired {
 			return
 		}
 		fired = true
 		recordScopeVerification(t, td, true) // append a terminal AFTER the snapshot
 	}
-	defer func() { governanceAfterSnapshot = nil }()
 
-	disp, err := governanceDisposition(taskDir, now)
+	disp, err := governanceDisposition(taskDir, now, afterSnapshot)
 	if err != nil {
 		t.Fatal(err)
 	}

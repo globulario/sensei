@@ -22,11 +22,13 @@ import (
 // resulttestkit (imported only by tests, so it never ships) and is shared with the
 // CLI E2E — one harness, not three copies.
 
+func e2eReq(r resulttestkit.Result) AdvanceResultRequest {
+	return AdvanceResultRequest{RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir, RepositoryDomain: resulttestkit.Domain, ResultRevision: r.ResultRev}
+}
+
 func e2eAdvance(t *testing.T, r resulttestkit.Result) AdvanceResult {
 	t.Helper()
-	res, err := AdvanceResultTransition(context.Background(), AdvanceResultRequest{
-		RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir, RepositoryDomain: resulttestkit.Domain, ResultRevision: r.ResultRev,
-	})
+	res, err := AdvanceResultTransition(context.Background(), e2eReq(r))
 	if err != nil {
 		t.Fatalf("advance: %v", err)
 	}
@@ -193,14 +195,19 @@ func TestE2EGovernedChangeSurvivesOrchestration(t *testing.T) {
 // appends no second event.
 func TestE2EReplayAcrossInvocationTimesIsIdempotent(t *testing.T) {
 	r := e2eSeed(t, resulttestkit.Options{})
-	saved := advanceNow
-	defer func() { advanceNow = saved }()
 
-	advanceNow = func() time.Time { return time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC) }
-	first := e2eAdvance(t, r)
-
-	advanceNow = func() time.Time { return time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC) } // time advanced
-	second := e2eAdvance(t, r)
+	first, err := testAdvance(e2eReq(r), func(d *advanceDeps) {
+		d.now = func() time.Time { return time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC) }
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := testAdvance(e2eReq(r), func(d *advanceDeps) {
+		d.now = func() time.Time { return time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC) } // time advanced
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if second.TransitionEntryDigestSHA256 != first.TransitionEntryDigestSHA256 {
 		t.Fatal("a later invocation produced a different transition entry (recorded_at leaked the wall clock)")
@@ -231,6 +238,49 @@ func TestE2EReplayIsIdempotent(t *testing.T) {
 	}
 	if e2eCountTransitions(e2eLedgerEvents(t, r.TaskDir)) != 1 {
 		t.Fatal("replay must not append a second transition event")
+	}
+}
+
+// TestE2EStaleReportsAdvancedCurrentState proves the stale outcome reports the
+// state belonging to the ADVANCED current head, not the pre-attempt scope_verified
+// disposition. A competing writer records the transition first (advancing the task
+// to proving); our own record then observes a stale expected head. The stale
+// condition is injected through the private dependency boundary — no production
+// pipeline seam, no build tag.
+func TestE2EStaleReportsAdvancedCurrentState(t *testing.T) {
+	r := e2eSeed(t, resulttestkit.Options{})
+
+	res, err := testAdvance(e2eReq(r), func(d *advanceDeps) {
+		competing := d.record
+		d.record = func(ctx context.Context, req resultrecording.RecordRequest) (resultrecording.RecordResult, error) {
+			// The competing writer actually records — advancing the ledger to proving.
+			if _, e := competing(ctx, req); e != nil {
+				return resultrecording.RecordResult{}, e
+			}
+			// Our own attempt then observes a stale expected head.
+			return resultrecording.RecordResult{}, &resultrecording.Error{Code: resultrecording.CodeStaleExpectedHead, Detail: "a competing writer advanced the head"}
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcome != OutcomeStale {
+		t.Fatalf("outcome = %s, want stale", res.Outcome)
+	}
+	if !res.CurrentStateAvailable {
+		t.Fatal("a stale outcome must report the genuinely current state")
+	}
+	if res.TaskPhase != closureprotocol.PhaseProving {
+		t.Fatalf("stale current phase = %s, want proving (the advanced head), not the pre-attempt scope_verified", res.TaskPhase)
+	}
+	if res.OperationalStatus == string(closureprotocol.PhaseScopeVerified) || res.OperationalStatus == "scope_verified" {
+		t.Fatal("stale must not label the pre-attempt scope_verified disposition as current")
+	}
+	if res.CurrentLedgerHeadSHA256 == "" {
+		t.Fatal("stale must report the actual current head")
+	}
+	if e2eCountTransitions(e2eLedgerEvents(t, r.TaskDir)) != 1 {
+		t.Fatal("exactly one transition (the competing writer's) expected")
 	}
 }
 

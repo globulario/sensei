@@ -4,36 +4,50 @@ package tasksession
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resultpipeline"
 	"github.com/globulario/sensei/golang/architecture/resultrecording"
 	"github.com/globulario/sensei/golang/architecture/resulttransition"
 )
 
 // AdvanceResultTransition is the single owner of Phase-7 advance-task sequencing.
-// It advances a task by exactly one legal action derived from its verified ledger
-// and rebuilt projections. It reproduces no phase policy: the admission-v2
-// disposition is folded strictly (single verified snapshot, fail-closed) by
-// governanceDisposition, and at the legal scope_verified result step the transition
-// is built by the accepted result pipeline and recorded by resultrecording — the
-// sole side-effecting owner.
+// It advances a task by exactly one legal action derived from its verified ledger:
+// the admission-v2 disposition is folded strictly (single verified snapshot, fail-
+// closed), and at the legal scope_verified result step the transition is built by
+// the accepted result pipeline and recorded by resultrecording — the sole side-
+// effecting owner. A ledger write happens only at scope_verified; every earlier or
+// blocked state is reported, not mutated.
 //
-// It performs a ledger write only at scope_verified (recording the transition).
-// Every earlier or blocked state is reported, not mutated: the agent owns applying
-// admitted mutations, so the orchestrator names the ONE next legal action instead
-// of forging it. Missing prerequisites become a typed refusal/waiting outcome, and
-// any governance-integrity error is a hard refusal — never success, never a grant.
+// It carries no process-global mutable state: the trusted clock, snapshot hook, and
+// pipeline recorder are immutable production dependencies injected through the
+// unexported advanceResultTransition; tests call that helper with local
+// dependencies instead of mutating any global.
 
-// advanceNow is the trusted internal clock used for capability-expiry evaluation.
-// It is unexported so no caller can backdate expiry; tests override it as a
-// dependency seam. The candidate's recorded_at is NOT taken from this clock — it is
-// anchored to the scope_verified ledger event so retries are byte-identical.
-var advanceNow = func() time.Time { return time.Now().UTC() }
+// advanceDeps is the immutable dependency set for one advance. Production builds it
+// once via productionAdvanceDeps; tests construct their own with a controlled clock,
+// snapshot hook, or recorder — no shared global, no ForTest API, no fault toggle.
+type advanceDeps struct {
+	now           func() time.Time
+	afterSnapshot func(taskDir string)
+	prepare       func(context.Context, resultpipeline.PrepareTransitionRequest) (resultpipeline.TransitionCandidate, error)
+	record        func(context.Context, resultrecording.RecordRequest) (resultrecording.RecordResult, error)
+}
+
+func productionAdvanceDeps() advanceDeps {
+	return advanceDeps{
+		now:           func() time.Time { return time.Now().UTC() },
+		afterSnapshot: nil,
+		prepare:       resultpipeline.PrepareTransition,
+		record:        resultrecording.RecordTransition,
+	}
+}
 
 // AdvanceOutcome is the closed set of orchestration outcomes.
 type AdvanceOutcome string
@@ -55,14 +69,14 @@ const (
 	AdvanceNextPerformMutation   = "perform_mutation"
 	AdvanceNextVerifyScope       = "verify_scope"
 	AdvanceNextMechanicalRepair  = "perform_mechanical_repair"
-	AdvanceNextReconcile         = "reconcile_from_current_head"
+	AdvanceNextRecordTransition  = "record_result_transition"
 	AdvanceNextRetrySameAdvance  = "retry_same_advance"
 	AdvanceNextNone              = "none"
 )
 
 // advanceNextSummaries maps every machine action identity (this package's plus the
-// single-step identities resultrecording.ClassifyNextState emits) to a one-step
-// human summary. It is the single source of truth, so Action and Summary can never
+// single-step identities resultrecording emits on the status projection) to a one-
+// step human summary — the single source of truth, so Action and Summary can never
 // disagree and no summary can smuggle a second action.
 var advanceNextSummaries = map[string]string{
 	AdvanceNextResolveAuthority:                "resolve typed authority for this task (prepare-change / enroll-agent)",
@@ -71,7 +85,7 @@ var advanceNextSummaries = map[string]string{
 	AdvanceNextPerformMutation:                 "apply the admitted mutation",
 	AdvanceNextVerifyScope:                     "run verify-admission to verify the observed change against the admitted scope",
 	AdvanceNextMechanicalRepair:                "perform the mechanical repair that returns the change to the admitted scope",
-	AdvanceNextReconcile:                       "re-derive from the current head and advance again",
+	AdvanceNextRecordTransition:                "advance the task to record the result transition at scope_verified",
 	AdvanceNextRetrySameAdvance:                "retry the exact same advance to reconcile the durable entry",
 	AdvanceNextNone:                            "no legal advance now; revise scope or authority",
 	resultrecording.NextActionCompleteProof:    "complete the required proof",
@@ -87,23 +101,20 @@ func advanceNext(id string) NextAction {
 
 // AdvanceResultRequest carries only operational inputs. It never accepts a
 // caller-supplied phase, status, authority verdict, admission success, derivable
-// digest, proof result, certification claim, or clock — those are derived from
-// verified records (and the trusted internal clock) or refused.
+// digest, proof result, certification claim, or clock.
 type AdvanceResultRequest struct {
 	RepositoryRoot   string
 	TaskDirectory    string
 	RepositoryDomain string
-	// ResultRevision names the committed result. Recording requires a committed
-	// revision result because the candidate is built twice deterministically.
-	ResultRevision string
+	ResultRevision   string
 }
 
 // AdvanceResult is the deterministic description of what happened and what remains
-// legal. The transition entry identity is reported separately from the actual
-// current ledger head, which may have advanced past it. For every outcome the
-// current verified head and projected phase/status are reported when available;
-// CurrentStateAvailable is false (with CurrentStateDetail set) when they cannot be
-// reconstructed, so a "current" field is never silently empty.
+// legal. For every non-recorded outcome the CURRENT state (head, sequence, phase,
+// status, next action, waiting reasons, projection state) is reconstructed from the
+// current verified ledger after the attempt — never the pre-attempt disposition.
+// CurrentStateAvailable is false (with CurrentStateDetail set) when the current
+// state cannot be reconstructed, and phase/status are then left empty.
 type AdvanceResult struct {
 	Outcome AdvanceOutcome
 
@@ -130,9 +141,8 @@ type AdvanceResult struct {
 	ProjectionState string
 }
 
-// AdvanceError is a typed orchestration failure for malformed requests or genuinely
-// unreadable ledger state. State-machine outcomes (waiting, refused, stale, post-
-// commit) are returned as an AdvanceResult with no error.
+// AdvanceError is a typed orchestration failure for malformed requests. State-
+// machine outcomes are returned as an AdvanceResult with no error.
 type AdvanceError struct {
 	Code   string
 	Detail string
@@ -146,23 +156,24 @@ const (
 	AdvanceCodeRecordFailed     = "tasksession.advance_record_failed"
 )
 
-// AdvanceResultTransition performs one legal advance from verified task state.
+// AdvanceResultTransition performs one legal advance from verified task state using
+// immutable production dependencies.
 func AdvanceResultTransition(ctx context.Context, req AdvanceResultRequest) (AdvanceResult, error) {
+	return advanceResultTransition(ctx, req, productionAdvanceDeps())
+}
+
+func advanceResultTransition(ctx context.Context, req AdvanceResultRequest, deps advanceDeps) (AdvanceResult, error) {
 	taskDir := strings.TrimSpace(req.TaskDirectory)
 	if taskDir == "" {
 		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeInvalidRequest, Detail: "task directory is required"}
 	}
 
-	// Fold the admission-v2 receipts strictly from one verified snapshot. A
-	// governance-integrity error is a hard refusal that never grants or suggests
-	// mutation; only genuine absence moves to an earlier phase.
-	disp, err := governanceDisposition(taskDir, advanceNow())
+	disp, err := governanceDisposition(taskDir, deps.now(), deps.afterSnapshot)
 	if err != nil {
 		var gerr *GovernanceError
 		if errors.As(err, &gerr) {
-			return withCurrentState(taskDir, AdvanceResult{
-				Outcome: OutcomeRefused, NextAction: advanceNext(AdvanceNextNone),
-				RefusalCode: gerr.Code, RefusalDetail: gerr.Detail,
+			return withCurrentState(taskDir, deps, AdvanceResult{
+				Outcome: OutcomeRefused, RefusalCode: gerr.Code, RefusalDetail: gerr.Detail,
 			}), nil
 		}
 		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeLedgerUnreadable, Detail: err.Error()}
@@ -170,68 +181,26 @@ func AdvanceResultTransition(ctx context.Context, req AdvanceResultRequest) (Adv
 
 	switch {
 	case disp.Terminal:
-		return advanceAtScopeVerified(ctx, req, taskDir, disp)
-	case !disp.Resolved:
-		return waiting(taskDir, disp, advanceNext(AdvanceNextResolveAuthority)), nil
+		return advanceAtScopeVerified(ctx, req, taskDir, deps)
 	case disp.Status == StatusRefused:
-		return withCurrentState(taskDir, AdvanceResult{
-			Outcome: OutcomeRefused, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
-			NextAction:  advanceNext(AdvanceNextNone),
+		return withCurrentState(taskDir, deps, AdvanceResult{
+			Outcome:     OutcomeRefused,
 			RefusalCode: "tasksession.admission_refused", RefusalDetail: "the recorded admission decision does not admit every operation, or its capability expired",
 		}), nil
-	case disp.Status == StatusWaitingMechanical:
-		return waiting(taskDir, disp, advanceNext(AdvanceNextMechanicalRepair)), nil
-	case disp.GrantModify:
-		return waiting(taskDir, disp, advanceNext(AdvanceNextConsumeCapability)), nil
-	case disp.Status == StatusMutationObserved:
-		return waiting(taskDir, disp, advanceNext(AdvanceNextVerifyScope)), nil
-	case disp.Status == StatusAdmitted:
-		// Consumed capability, mutation not yet observed: the ONE next step is to
-		// apply the admitted mutation (verification is a distinct later step).
-		return waiting(taskDir, disp, advanceNext(AdvanceNextPerformMutation)), nil
-	case disp.Status == StatusReadyForAdmission:
-		return waiting(taskDir, disp, advanceNext(AdvanceNextDecideAdmission)), nil
 	default:
-		return waiting(taskDir, disp, advanceNext(AdvanceNextResolveAuthority)), nil
+		// Every non-terminal, non-refused state is a waiting state whose single
+		// current next action is derived from the disposition.
+		return withCurrentState(taskDir, deps, AdvanceResult{Outcome: OutcomeWaiting}), nil
 	}
-}
-
-// waiting builds a no-write waiting result and attaches the current head/state.
-func waiting(taskDir string, disp governanceState, next NextAction) AdvanceResult {
-	return withCurrentState(taskDir, AdvanceResult{
-		Outcome:           OutcomeWaiting,
-		TaskPhase:         disp.Phase,
-		OperationalStatus: disp.Status,
-		NextAction:        next,
-	})
-}
-
-// withCurrentState fills the actual current verified head (and, if not already
-// set, phase/status) so every non-recorded outcome carries the real current state
-// rather than empty fields. When the head cannot be reconstructed it records the
-// unavailability explicitly instead of leaving a silent blank.
-func withCurrentState(taskDir string, r AdvanceResult) AdvanceResult {
-	head, err := admission.TaskLedgerHead(taskDir)
-	if err != nil {
-		r.CurrentStateAvailable = false
-		r.CurrentStateDetail = "current ledger head unavailable: " + err.Error()
-		return r
-	}
-	if r.CurrentLedgerHeadSHA256 == "" {
-		r.CurrentLedgerHeadSHA256 = head
-	}
-	r.CurrentStateAvailable = true
-	return r
 }
 
 // advanceAtScopeVerified builds the result-bound transition candidate through the
 // accepted pipeline and records it. It regenerates no candidate bytes during
 // recording, bypasses no expected-head protection, writes no projection directly,
-// and appends no second event for an exact replay — all enforced by
-// resultrecording.RecordTransition, which this delegates to. The candidate's
-// recorded_at is anchored to the scope_verified ledger event, so a retry produces a
-// byte-identical receipt and reconciles instead of conflicting.
-func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskDir string, disp governanceState) (AdvanceResult, error) {
+// and appends no second event for an exact replay — all enforced by the recorder.
+// The candidate's recorded_at is anchored to the scope_verified ledger event, so a
+// retry produces a byte-identical receipt and reconciles instead of conflicting.
+func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskDir string, deps advanceDeps) (AdvanceResult, error) {
 	head, err := admission.TaskLedgerHead(taskDir)
 	if err != nil {
 		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeLedgerUnreadable, Detail: err.Error()}
@@ -241,7 +210,7 @@ func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskD
 		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeLedgerUnreadable, Detail: "scope_verified produced_at: " + err.Error()}
 	}
 
-	candidate, err := resultpipeline.PrepareTransition(ctx, resultpipeline.PrepareTransitionRequest{
+	candidate, err := deps.prepare(ctx, resultpipeline.PrepareTransitionRequest{
 		Build: resultpipeline.BuildRequest{
 			RepositoryRoot:   req.RepositoryRoot,
 			TaskDirectory:    taskDir,
@@ -253,30 +222,20 @@ func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskD
 		RecordedAt:                     recordedAt,
 	})
 	if err != nil {
-		return withCurrentState(taskDir, AdvanceResult{
-			Outcome: OutcomeRefused, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
-			NextAction:  advanceNext(AdvanceNextNone),
-			RefusalCode: errorCode(err, "resultpipeline.prepare_failed"), RefusalDetail: err.Error(),
+		return withCurrentState(taskDir, deps, AdvanceResult{
+			Outcome: OutcomeRefused, RefusalCode: errorCode(err, "resultpipeline.prepare_failed"), RefusalDetail: err.Error(),
 		}), nil
 	}
 
-	next, cerr := resultrecording.ClassifyNextState(candidate.BuildResult.ProofRequirements)
-	if cerr != nil {
-		return AdvanceResult{}, &AdvanceError{Code: AdvanceCodeRecordFailed, Detail: cerr.Error()}
-	}
-
-	res, rerr := resultrecording.RecordTransition(ctx, resultrecording.RecordRequest{TaskDirectory: taskDir, Candidate: candidate})
+	res, rerr := deps.record(ctx, resultrecording.RecordRequest{TaskDirectory: taskDir, Candidate: candidate})
 	if rerr != nil {
 		var pce *resultrecording.PostCommitError
 		if errors.As(rerr, &pce) {
-			return withCurrentState(taskDir, AdvanceResult{
+			return withCurrentState(taskDir, deps, AdvanceResult{
 				Outcome:                     OutcomePostCommitIncomplete,
 				TransitionRecorded:          true,
 				TransitionID:                pce.TransitionID,
 				TransitionEntryDigestSHA256: pce.EntryDigestSHA256,
-				CurrentLedgerHeadSHA256:     pce.LedgerHeadDigestSHA256,
-				TaskPhase:                   disp.Phase, OperationalStatus: disp.Status,
-				NextAction:                  advanceNext(AdvanceNextRetrySameAdvance),
 				PostCommitEntryDigestSHA256: pce.EntryDigestSHA256,
 				PostCommitRecoveryAction:    pce.RecoveryAction,
 				RefusalCode:                 pce.Code, RefusalDetail: pce.Detail,
@@ -284,20 +243,16 @@ func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskD
 		}
 		var rec *resultrecording.Error
 		if errors.As(rerr, &rec) && rec.Code == resultrecording.CodeStaleExpectedHead {
-			return withCurrentState(taskDir, AdvanceResult{
-				Outcome: OutcomeStale, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
-				NextAction:  advanceNext(AdvanceNextReconcile),
-				RefusalCode: rec.Code, RefusalDetail: rec.Detail,
+			return withCurrentState(taskDir, deps, AdvanceResult{
+				Outcome: OutcomeStale, RefusalCode: rec.Code, RefusalDetail: rec.Detail,
 			}), nil
 		}
-		return withCurrentState(taskDir, AdvanceResult{
-			Outcome: OutcomeRefused, TaskPhase: disp.Phase, OperationalStatus: disp.Status,
-			NextAction:  advanceNext(AdvanceNextNone),
-			RefusalCode: errorCode(rerr, resultrecording.CodeAppendFailed), RefusalDetail: rerr.Error(),
+		return withCurrentState(taskDir, deps, AdvanceResult{
+			Outcome: OutcomeRefused, RefusalCode: errorCode(rerr, resultrecording.CodeAppendFailed), RefusalDetail: rerr.Error(),
 		}), nil
 	}
 
-	out := AdvanceResult{
+	recorded := AdvanceResult{
 		Outcome:                     OutcomeRecorded,
 		TransitionRecorded:          true,
 		TransitionDisposition:       res.Disposition,
@@ -311,10 +266,129 @@ func advanceAtScopeVerified(ctx context.Context, req AdvanceResultRequest, taskD
 		CurrentStateAvailable:       true,
 		ProjectionState:             res.ProjectionState,
 	}
+	// A complete-but-blocked result stays scope_verified and retains its waiting
+	// reasons; read them from the authoritative status projection.
 	if res.TaskPhase == closureprotocol.PhaseScopeVerified {
-		out.WaitingReasons = next.WaitingOn
+		if cs, err := loadCurrentState(taskDir, deps); err == nil {
+			recorded.WaitingReasons = cs.waitingReasons
+		}
 	}
-	return out, nil
+	return recorded, nil
+}
+
+// withCurrentState reconstructs and attaches the genuinely current state after the
+// attempt. It never labels the pre-attempt disposition as current: head, sequence,
+// phase, status, next action, waiting reasons, and projection state all come from
+// the current verified ledger / result-transition projection. On reconstruction
+// failure it sets CurrentStateAvailable=false with the reason and leaves phase and
+// status empty.
+func withCurrentState(taskDir string, deps advanceDeps, r AdvanceResult) AdvanceResult {
+	cs, err := loadCurrentState(taskDir, deps)
+	if err != nil {
+		r.CurrentStateAvailable = false
+		r.CurrentStateDetail = "current state unavailable: " + err.Error()
+		r.TaskPhase = ""
+		r.OperationalStatus = ""
+		return r
+	}
+	r.CurrentLedgerHeadSHA256 = cs.head
+	r.LedgerSequence = cs.sequence
+	r.TaskPhase = cs.phase
+	r.OperationalStatus = cs.status
+	r.NextAction = cs.next
+	r.WaitingReasons = cs.waitingReasons
+	r.ProjectionState = cs.projectionState
+	r.CurrentStateAvailable = true
+	return r
+}
+
+// currentSnapshot is the reconstructed current task state.
+type currentSnapshot struct {
+	head            string
+	sequence        int
+	phase           closureprotocol.TaskPhase
+	status          string
+	next            NextAction
+	waitingReasons  []string
+	projectionState string
+}
+
+// loadCurrentState derives the current state from the current verified ledger: the
+// head/sequence from the verified chain, and phase/status/next/waiting/projection
+// from the recorded result-transition projection when one exists (it reflects the
+// furthest recorded state, including a transition another writer just recorded),
+// else from the governance disposition. It reads the projection in-memory from the
+// chain via ledger.Project, so a durable transition whose on-disk projection was not
+// reconciled is still reported as its true current state (with projection_drift).
+func loadCurrentState(taskDir string, deps advanceDeps) (currentSnapshot, error) {
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(governanceValidator))
+	chain, err := store.VerifyChain()
+	if err != nil {
+		return currentSnapshot{}, err
+	}
+	set, err := ledger.Project(chain)
+	if err != nil {
+		return currentSnapshot{}, err
+	}
+	cs := currentSnapshot{
+		head:            chain.Head.EntryDigestSHA256,
+		sequence:        chain.Head.Sequence,
+		projectionState: ledger.ProjectionState(taskDir, set),
+	}
+	// A recorded result-transition writes the resultrecording status projection
+	// (JSON, schema resultrecording.projection/v1). When present it is the furthest
+	// recorded state (proving / complete-but-blocked). Any other projection (e.g. the
+	// legacy tasksession lifecycle status) is not a result-transition state, so we
+	// fall through to the governance disposition rather than misread it.
+	if statusBytes, ok := set.Files["projections/status.yaml"]; ok {
+		var doc struct {
+			SchemaVersion     string                    `json:"schema_version"`
+			TaskPhase         closureprotocol.TaskPhase `json:"task_phase"`
+			OperationalStatus string                    `json:"operational_status"`
+			WaitingOn         []string                  `json:"waiting_on"`
+			NextAction        string                    `json:"next_action"`
+		}
+		if json.Unmarshal(statusBytes, &doc) == nil && doc.SchemaVersion == "resultrecording.projection/v1" {
+			cs.phase = doc.TaskPhase
+			cs.status = doc.OperationalStatus
+			cs.next = advanceNext(doc.NextAction)
+			cs.waitingReasons = doc.WaitingOn
+			return cs, nil
+		}
+	}
+	disp, err := governanceDisposition(taskDir, deps.now(), deps.afterSnapshot)
+	if err != nil {
+		return currentSnapshot{}, err
+	}
+	cs.phase = disp.Phase
+	cs.status = disp.Status
+	cs.next = dispositionNextAction(disp)
+	return cs, nil
+}
+
+// dispositionNextAction maps a governance disposition to the single current next
+// legal action.
+func dispositionNextAction(disp governanceState) NextAction {
+	switch {
+	case !disp.Resolved:
+		return advanceNext(AdvanceNextResolveAuthority)
+	case disp.Status == StatusRefused:
+		return advanceNext(AdvanceNextNone)
+	case disp.Terminal:
+		return advanceNext(AdvanceNextRecordTransition)
+	case disp.Status == StatusWaitingMechanical:
+		return advanceNext(AdvanceNextMechanicalRepair)
+	case disp.GrantModify:
+		return advanceNext(AdvanceNextConsumeCapability)
+	case disp.Status == StatusMutationObserved:
+		return advanceNext(AdvanceNextVerifyScope)
+	case disp.Status == StatusAdmitted:
+		return advanceNext(AdvanceNextPerformMutation)
+	case disp.Status == StatusReadyForAdmission:
+		return advanceNext(AdvanceNextDecideAdmission)
+	default:
+		return advanceNext(AdvanceNextResolveAuthority)
+	}
 }
 
 // errorCode extracts a typed code from a resultrecording/resultpipeline error, else

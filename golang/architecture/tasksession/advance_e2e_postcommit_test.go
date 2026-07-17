@@ -8,6 +8,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resultrecording"
 	"github.com/globulario/sensei/internal/resulttestkit"
@@ -43,6 +44,18 @@ func TestE2EPostCommitRecoveryRetriesWithoutSecondEvent(t *testing.T) {
 	}
 	if res.PostCommitEntryDigestSHA256 == "" || res.PostCommitRecoveryAction == "" {
 		t.Fatal("post-commit must expose the committed entry identity and a recovery action")
+	}
+	// Repair 2: report the durable transition's RECONSTRUCTED current state — the
+	// entry is durable (phase proving), and the on-disk projection is honestly marked
+	// drifted since reconciliation did not complete. Never the pre-attempt disp.
+	if !res.CurrentStateAvailable {
+		t.Fatal("a durable post-commit entry must report its reconstructed current state")
+	}
+	if res.TaskPhase != closureprotocol.PhaseProving {
+		t.Fatalf("post-commit current phase = %s, want proving (the durable transition)", res.TaskPhase)
+	}
+	if res.ProjectionState != "projection_drift" {
+		t.Fatalf("post-commit projection state = %q, want projection_drift (unreconciled)", res.ProjectionState)
 	}
 	if e2eCountTransitions(e2eLedgerEvents(t, taskDir)) != 1 {
 		t.Fatal("the durable entry must exist exactly once")

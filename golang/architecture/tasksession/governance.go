@@ -35,12 +35,6 @@ const (
 	GovernanceCodeArtifactDrifted   = "tasksession.governance_artifact_drifted"
 )
 
-// governanceAfterSnapshot is a test seam fired once, immediately after the reducer
-// takes its single verified-chain snapshot and before any record is decoded. A
-// test uses it to append to the on-disk ledger and prove the reduction reads only
-// the frozen snapshot (no mixed-ledger disposition).
-var governanceAfterSnapshot func(taskDir string)
-
 func governanceValidator(et closureprotocol.LedgerEventType, _ string, data []byte) error {
 	return ledger.ValidateTaskEventPayload(et, data)
 }
@@ -79,14 +73,19 @@ type governanceState struct {
 // typed GovernanceError that never grants or suggests mutation. It never calls
 // DecideAdmission — reading a task can never mint, refresh, or extend a capability;
 // a recorded decision expires against its own CapabilityExpiry.
-func governanceDisposition(taskDir string, now time.Time) (governanceState, error) {
+//
+// afterSnapshot is an injected hook (nil in production) fired once, immediately
+// after the single verified-chain snapshot is taken and before any record is
+// decoded, so a test can append to the on-disk ledger and prove the reduction
+// reads only the frozen snapshot. It is passed per call, never a process global.
+func governanceDisposition(taskDir string, now time.Time, afterSnapshot func(taskDir string)) (governanceState, error) {
 	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(governanceValidator))
 	chain, err := store.VerifyChain()
 	if err != nil {
 		return governanceState{}, &GovernanceError{Code: GovernanceCodeChainUnverifiable, Detail: err.Error()}
 	}
-	if governanceAfterSnapshot != nil {
-		governanceAfterSnapshot(taskDir)
+	if afterSnapshot != nil {
+		afterSnapshot(taskDir)
 	}
 	// Index the single snapshot: the latest verified entry per event type. Every
 	// decode below reads only from this frozen snapshot and the immutable,

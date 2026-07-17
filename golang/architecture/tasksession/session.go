@@ -546,7 +546,7 @@ func Status(opts StatusOptions) (StatusResult, error) {
 		}
 	}
 	if res.Status != StatusStale {
-		disp, derr := governanceDisposition(taskDir, time.Now().UTC())
+		disp, derr := governanceDisposition(taskDir, time.Now().UTC(), nil)
 		if derr != nil {
 			// Fail closed: an unreadable or drifted governance record never grants
 			// or suggests mutation. Report waiting_governance rather than a grant.
