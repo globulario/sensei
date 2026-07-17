@@ -428,6 +428,25 @@ type ResultTransitionReceipt struct {
 	ReceiptDigestSHA256               string                    `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
 }
 
+// ResultPipelineContract is the pure, reusable input to the generic result-
+// pipeline topology laws shared by the recorded ResultTransitionReceipt and the
+// in-memory build-result validator. It carries only what those laws need: the
+// two collapse-guard anchors that live outside the binding (base binding and
+// observed change), the embedded result binding and its digest, and the full set
+// of operational artifact receipts and derivations. It deliberately omits task
+// identity, recording time, upstream authority digests, and status — those are
+// the recorded receipt's concern, not the topology's.
+type ResultPipelineContract struct {
+	BaseBindingDigestSHA256       string
+	ObservedChangeSetDigestSHA256 string
+
+	ResultBinding             ResultBinding
+	ResultBindingDigestSHA256 string
+
+	OperationalArtifactReceipts []ArtifactReceipt
+	Derivations                 []ArtifactDerivation
+}
+
 type RevocationReceipt struct {
 	RevocationID       string   `json:"revocation_id" yaml:"revocation_id"`
 	RevokedTargetID    string   `json:"revoked_target_id" yaml:"revoked_target_id"`

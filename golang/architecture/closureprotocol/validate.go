@@ -601,7 +601,7 @@ func ValidateResultTransitionReceipt(in ResultTransitionReceipt) error {
 		}
 	}
 	// One canonical result representation: the embedded binding, verified against
-	// its own recomputed digest.
+	// its own recomputed digest. (Shared with the build-result validator.)
 	if err := validateResultBindingShape(in.ResultBinding); err != nil {
 		return err
 	}
@@ -620,6 +620,54 @@ func ValidateResultTransitionReceipt(in ResultTransitionReceipt) error {
 	}
 	if _, err := time.Parse(time.RFC3339, in.RecordedAt); err != nil {
 		return errors.New("recorded_at must be RFC3339")
+	}
+
+	// Governed-knowledge impacts: closed categories, digest-derived change. This is
+	// a recorded-receipt concern, not a generic topology law.
+	for _, impact := range in.GovernedKnowledgeImpacts {
+		if !validGovernedKnowledgeCategory(impact.Category) {
+			return fmt.Errorf("unknown governed knowledge category %q", impact.Category)
+		}
+		if !isHexSHA256(impact.BaseManifestDigestSHA256) || !isHexSHA256(impact.ResultManifestDigestSHA256) {
+			return errors.New("governed knowledge impact manifest digests must be 64-hex sha256")
+		}
+	}
+
+	// The generic topology laws — artifact receipts, derivation graph, and collapse
+	// guard — are owned by the shared contract validator so the in-memory
+	// build-result validator enforces the identical laws without duplicating them.
+	// The binding shape and digest are revalidated inside the contract; that is
+	// idempotent with the check above.
+	return ValidateResultPipelineContract(ResultPipelineContract{
+		BaseBindingDigestSHA256:       in.BaseBindingDigestSHA256,
+		ObservedChangeSetDigestSHA256: in.ObservedChangeSetDigestSHA256,
+		ResultBinding:                 in.ResultBinding,
+		ResultBindingDigestSHA256:     in.ResultBindingDigestSHA256,
+		OperationalArtifactReceipts:   in.OperationalArtifactReceipts,
+		Derivations:                   in.Derivations,
+	})
+}
+
+// ValidateResultPipelineContract owns the generic result-pipeline topology laws:
+// one canonical result binding verified against its recomputed digest; every
+// operational artifact receipt valid and bound to that result; every mandatory
+// derivation stage present exactly once over a closed stage set; every derivation
+// input and output resolving to an existing receipt with no duplicate output, no
+// self-input, and no cycle; every derivation input binding equal to the current
+// result; and the collapse guard across base binding, observed change, patch,
+// result tree, result graph, and the Stage 10 manifest. It reads nothing and
+// constructs nothing; it is the single definition both the recorded transition
+// receipt and the in-memory build-result validator delegate to.
+func ValidateResultPipelineContract(in ResultPipelineContract) error {
+	if err := validateResultBindingShape(in.ResultBinding); err != nil {
+		return err
+	}
+	rbDigest, err := ResultBindingDigest(in.ResultBinding)
+	if err != nil {
+		return err
+	}
+	if in.ResultBindingDigestSHA256 != rbDigest {
+		return errors.New("result_binding_digest_sha256 does not match the embedded result_binding")
 	}
 
 	// Operational artifacts: each valid, each bound to THIS result binding, indexed
@@ -688,16 +736,6 @@ func ValidateResultTransitionReceipt(in ResultTransitionReceipt) error {
 		}
 		if cyclic(edges) {
 			return errors.New("derivation graph contains a cycle")
-		}
-	}
-
-	// Governed-knowledge impacts: closed categories, digest-derived change.
-	for _, impact := range in.GovernedKnowledgeImpacts {
-		if !validGovernedKnowledgeCategory(impact.Category) {
-			return fmt.Errorf("unknown governed knowledge category %q", impact.Category)
-		}
-		if !isHexSHA256(impact.BaseManifestDigestSHA256) || !isHexSHA256(impact.ResultManifestDigestSHA256) {
-			return errors.New("governed knowledge impact manifest digests must be 64-hex sha256")
 		}
 	}
 
