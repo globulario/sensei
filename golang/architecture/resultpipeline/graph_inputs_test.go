@@ -81,6 +81,26 @@ func TestGraphInputSupplementalDigestMismatch(t *testing.T) {
 	}
 }
 
+// §14/§15 negative: when only awareness.nt is fresh but the result manifest is
+// stale (it was committed with a corrupt body), Stage 2 refuses the build — an
+// existing generated file is not proof it was regenerated.
+func TestBuildRejectsStaleResultManifest(t *testing.T) {
+	repo, taskDir := e2eSeedVariant(t, "package src\n\nfunc Publish() {}\n\nfunc Revoke() {}\n", nil,
+		func(repo string) {
+			// Corrupt the committed result manifest; awareness.nt stays correct.
+			if err := os.WriteFile(filepath.Join(repo, "golang", "server", "embeddata", "awareness.result-manifest.tsv"), []byte("stale\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		})
+	_, err := Build(context.Background(), BuildRequest{
+		RepositoryRoot: repo, TaskDirectory: taskDir,
+		ResultMode: resulttransition.ResultModeWorktree, RepositoryDomain: e2eDomain,
+	})
+	if err == nil || !strings.Contains(err.Error(), "generated_artifact") {
+		t.Fatalf("a stale result manifest must be refused, got %v", err)
+	}
+}
+
 // §13 one-verified-supplemental case: the full pipeline builds end-to-end when the
 // snapshot binds a supplemental graph, reproducing the base graph and validating.
 func TestBuildEndToEndWithSupplemental(t *testing.T) {

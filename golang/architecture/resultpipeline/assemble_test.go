@@ -10,6 +10,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/generatedartifact"
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
@@ -46,7 +47,7 @@ func syntheticStages(t *testing.T) (closureprotocol.ResultBinding, string, []Pip
 		closure.Report{},
 		ArchitectQuestionsBundle{AllBlockersAccountedFor: true},
 		ProofRequirementDocument{SchemaVersion: "1"},
-		GeneratedManifest{SchemaVersion: "1"},
+		generatedartifact.VerificationManifest{SchemaVersion: "1"},
 	)
 	if err != nil {
 		t.Fatalf("assembleStages: %v", err)
