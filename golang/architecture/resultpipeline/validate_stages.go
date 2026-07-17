@@ -471,7 +471,7 @@ func validateManifest(result BuildResult, byStage map[closureprotocol.ResultPipe
 			e.ReceiptDigestSHA256 != src.Receipt.ReceiptDigestSHA256 {
 			return verr(CodeArtifactManifestMismatch, art.Stage, "entry %q does not match its source artifact", stage)
 		}
-		if !equalStrings(e.DerivationInputs, src.Derivation.InputArtifactReceiptDigestsSHA256) {
+		if !equalDigestSet(e.DerivationInputs, src.Derivation.InputArtifactReceiptDigestsSHA256) {
 			return verr(CodeArtifactManifestMismatch, art.Stage, "entry %q derivation inputs are stale", stage)
 		}
 		if stage == closureprotocol.StageArtifactManifest {
@@ -499,8 +499,8 @@ func validateDerivationManifest(art PipelineArtifact, receiptDigest map[closurep
 	for _, stage := range closureprotocol.ResultPipelineStages[:9] {
 		want = append(want, receiptDigest[stage])
 	}
-	if !equalStrings(d.InputArtifactReceiptDigestsSHA256, want) {
-		return verr(CodeStageDerivationMismatch, art.Stage, "manifest derivation inputs are not the nine prior receipts in order")
+	if !equalDigestSet(d.InputArtifactReceiptDigestsSHA256, want) {
+		return verr(CodeStageDerivationMismatch, art.Stage, "manifest derivation inputs are not the exact set of nine prior receipts")
 	}
 	return nil
 }
