@@ -175,7 +175,7 @@ func TestContradictoryProposalRefused(t *testing.T) {
 	}
 	req := p.request()
 	conflicting := proposedInvariant()
-	conflicting.Proposal.Description = "a genuinely different governed body"
+	conflicting.Description = "a genuinely different governed body"
 	req.Proposal = conflicting
 	res, _ := Promote(context.Background(), req)
 	if res.Outcome != OutcomeContradiction {

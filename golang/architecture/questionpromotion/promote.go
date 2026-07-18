@@ -17,6 +17,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/governedmutation"
 	"github.com/globulario/sensei/golang/architecture/identity"
 	"github.com/globulario/sensei/golang/architecture/questiondisposition"
+	"github.com/globulario/sensei/golang/propose"
 )
 
 // Dedicated governed-promotion authority (Slice 8.1b-0), distinct from disposition.
@@ -58,14 +59,10 @@ type PromoteRequest struct {
 	RepositoryDomain                       string
 	IdentityRoot                           string // promotion actor identity store
 	QuestionDispositionReceiptDigestSHA256 string // which disposition to promote
-	Proposal                               proposeRecord
+	Proposal                               propose.Request
 	EffectiveScopeDomain                   string
 	EffectiveScopeFiles                    []string
 }
-
-// proposeRecord is the caller's proposed governed record (kind + body). It is an
-// alias so the owner owns the type surface without importing the CLI.
-type proposeRecord = governedmutation.Request
 
 // PromoteResult is the typed transaction outcome.
 type PromoteResult struct {
@@ -179,9 +176,7 @@ func prepare(req PromoteRequest) (QuestionPromotionReceipt, string, error) {
 	}
 
 	// Validate the proposed governed record and derive canonical identity.
-	preq := req.Proposal
-	preq.RepositoryRoot = root
-	plan, err := governedmutation.Plan(preq)
+	plan, err := governedmutation.Plan(governedmutation.Request{RepositoryRoot: root, Proposal: req.Proposal})
 	if err != nil {
 		var ce *governedmutation.ContradictionError
 		if errors.As(err, &ce) {
@@ -192,9 +187,9 @@ func prepare(req PromoteRequest) (QuestionPromotionReceipt, string, error) {
 	if plan.IsCandidate {
 		return QuestionPromotionReceipt{}, "", refusal(OutcomeIneligibleDisposition, "promotion target must be a governed kind, not a candidate")
 	}
-	nodeIRI := GovernedNodeIRIFor(preq.Proposal.Kind, plan.CanonicalID)
+	nodeIRI := GovernedNodeIRIFor(req.Proposal.Kind, plan.CanonicalID)
 	if nodeIRI == "" {
-		return QuestionPromotionReceipt{}, "", refusal(OutcomeIneligibleDisposition, "kind %q has no governed node class", preq.Proposal.Kind)
+		return QuestionPromotionReceipt{}, "", refusal(OutcomeIneligibleDisposition, "kind %q has no governed node class", req.Proposal.Kind)
 	}
 
 	// Effective scope must be a subset of the accepted disposition scope.
@@ -223,7 +218,7 @@ func prepare(req PromoteRequest) (QuestionPromotionReceipt, string, error) {
 		PromotionActorBindingDigestSHA256:      actorDigest,
 		PromotionAuthorityGrantID:              grantID,
 		PromotionAuthorityRoleID:               roleID,
-		GovernedTargetKind:                     preq.Proposal.Kind,
+		GovernedTargetKind:                     req.Proposal.Kind,
 		CanonicalRecordID:                      plan.CanonicalID,
 		SourceDocument:                         plan.TargetRelPath,
 		TopLevelKey:                            plan.TopKey,

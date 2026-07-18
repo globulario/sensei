@@ -57,8 +57,7 @@ func verifyConjunctiveAuthority(ctx context.Context, req PromoteRequest, prepare
 	}
 
 	// 4. The governed source record exists with the exact mutation identity.
-	greq := req.Proposal
-	greq.RepositoryRoot = req.RepositoryRoot
+	greq := governedmutation.Request{RepositoryRoot: req.RepositoryRoot, Proposal: req.Proposal}
 	plan, perr := governedmutation.Plan(greq)
 	if perr != nil {
 		return fmt.Errorf("re-plan governed record: %w", perr)

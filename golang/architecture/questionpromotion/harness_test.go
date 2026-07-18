@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/globulario/sensei/golang/architecture/governedmutation"
 	"github.com/globulario/sensei/golang/architecture/identity"
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
 	"github.com/globulario/sensei/golang/architecture/repograph"
@@ -59,17 +58,17 @@ type promotable struct {
 	TaskDir           string
 	IdentityRoot      string
 	DispositionDigest string
-	Proposal          governedmutation.Request
+	Proposal          propose.Request
 }
 
 // proposedInvariant is the governed record a promotion realizes from the answer.
-func proposedInvariant() governedmutation.Request {
-	return governedmutation.Request{Proposal: propose.Request{
+func proposedInvariant() propose.Request {
+	return propose.Request{
 		Kind: "invariant", ID: "invariant.promoted.reload_validates",
 		Title: "Reload validates before serving", Description: "promoted from an accepted architect answer",
 		SourceFiles: []string{"golang/server/reload.go"}, RelatedFailures: []string{"failure.x"},
 		Domain: testDomain,
-	}}
+	}
 }
 
 // seedPromotable produces a repo with a recorded answered+reusable_candidate
