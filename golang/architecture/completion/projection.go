@@ -172,21 +172,34 @@ func ValidateCompletionEnvelope(e CompletionProjectionEnvelope) error {
 	return nil
 }
 
+// stampEnvelope ENFORCES the availability/field conjunction before it computes a
+// digest. An invalid envelope is never stamped: it receives no canonical digest, so
+// validation governs construction rather than being an optional review step. Only the
+// dedicated constructors reach this path, so a stamped envelope is always valid.
 func stampEnvelope(e CompletionProjectionEnvelope) CompletionProjectionEnvelope {
 	e.SchemaVersion = completionEnvelopeSchemaVersion
 	e.NonAuthoritativeProjection = true
 	e.DigestSHA256 = ""
+	if ValidateCompletionEnvelope(e) != nil {
+		return e // unstamped, digest-less, detectably non-canonical
+	}
 	if d, err := closureprotocol.SemanticDigest(e); err == nil {
 		e.DigestSHA256 = d
 	}
 	return e
 }
 
-// UnavailableCompletionEnvelope is the typed unavailable envelope. Its class is
-// constrained to the closed CompletionUnavailableClass vocabulary; it never fabricates
-// a terminal state.
-func UnavailableCompletionEnvelope(class CompletionUnavailableClass, detail string) CompletionProjectionEnvelope {
-	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: class, UnavailableDetail: detail})
+// UnavailableTaskDirectoryEnvelope is the ONLY constructor for a
+// task_directory_unresolved envelope. The class cannot be caller-supplied, so no
+// off-vocabulary reason can be minted.
+func UnavailableTaskDirectoryEnvelope(detail string) CompletionProjectionEnvelope {
+	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: UnavailableTaskDirectoryUnresolved, UnavailableDetail: detail})
+}
+
+// UnavailableProjectionOwnerEnvelope is the ONLY constructor for a
+// projection_owner_error envelope.
+func UnavailableProjectionOwnerEnvelope(detail string) CompletionProjectionEnvelope {
+	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: UnavailableProjectionOwnerError, UnavailableDetail: detail})
 }
 
 // BuildCompletionProjectionEnvelope builds the canonical projection and wraps it in a
@@ -195,15 +208,19 @@ func UnavailableCompletionEnvelope(class CompletionUnavailableClass, detail stri
 func BuildCompletionProjectionEnvelope(ctx context.Context, req Request) CompletionProjectionEnvelope {
 	p, err := BuildCompletionProjection(ctx, req)
 	if err != nil {
-		return UnavailableCompletionEnvelope(UnavailableProjectionOwnerError, err.Error())
+		return UnavailableProjectionOwnerEnvelope(err.Error())
 	}
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionAvailable, Projection: &p})
 }
 
-// Summary renders the envelope as one deterministic line — the projection summary when
-// available, or an explicit typed unavailability line otherwise. Never blank.
+// Summary renders the envelope as one deterministic line. It VALIDATES first and
+// never reinterprets a malformed envelope: an invalid envelope renders as an explicit
+// invalid line rather than being silently mapped into the unavailable path.
 func (e CompletionProjectionEnvelope) Summary() string {
-	if e.Availability == CompletionAvailable && e.Projection != nil {
+	if err := ValidateCompletionEnvelope(e); err != nil {
+		return fmt.Sprintf("invalid completion projection envelope (%v) [non-authoritative projection]", err)
+	}
+	if e.Availability == CompletionAvailable {
 		return e.Projection.Summary()
 	}
 	return fmt.Sprintf("unavailable (%s: %s) [non-authoritative projection]", e.UnavailableClass, e.UnavailableDetail)

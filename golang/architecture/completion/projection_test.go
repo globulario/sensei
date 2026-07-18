@@ -218,57 +218,83 @@ func TestCompletionProjectionEnvelopeAvailability(t *testing.T) {
 		t.Fatalf("unavailable summary must say so: %q", envErr.Summary())
 	}
 
-	// A typed unavailable envelope fabricates no terminal state and stays deterministic.
-	u1 := UnavailableCompletionEnvelope("task_directory_unresolved", "no active task pointer")
-	u2 := UnavailableCompletionEnvelope("task_directory_unresolved", "no active task pointer")
+	// A dedicated unavailable constructor fabricates no terminal state and is
+	// deterministic and valid.
+	u1 := UnavailableTaskDirectoryEnvelope("no active task pointer")
+	u2 := UnavailableTaskDirectoryEnvelope("no active task pointer")
 	if u1.Availability != CompletionUnavailable || u1.Projection != nil || !u1.NonAuthoritativeProjection {
 		t.Fatalf("unavailable envelope malformed: %+v", u1)
 	}
-	if u1.DigestSHA256 != u2.DigestSHA256 {
-		t.Fatal("unavailable envelope is not deterministic")
+	if u1.DigestSHA256 == "" || u1.DigestSHA256 != u2.DigestSHA256 {
+		t.Fatal("unavailable envelope must be stamped and deterministic")
 	}
 	if env.DigestSHA256 == u1.DigestSHA256 {
 		t.Fatal("available and unavailable must have distinct identities")
 	}
+	if err := ValidateCompletionEnvelope(u1); err != nil {
+		t.Fatalf("dedicated constructor produced an invalid envelope: %v", err)
+	}
 }
 
-// Correction: the unavailable class is a CLOSED vocabulary; arbitrary strings and
-// malformed available/unavailable combinations cannot become canonical envelopes.
-func TestCompletionEnvelopeClosedVocabulary(t *testing.T) {
+// Correction: validation GOVERNS construction and rendering — an arbitrary class or a
+// malformed conjunction cannot be stamped or rendered as canonical.
+func TestCompletionEnvelopeValidationEnforced(t *testing.T) {
 	w := seedWorld(t)
 	head := w.ready(t)
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("completion failed")
 	}
+	// The available builder and both dedicated unavailable constructors are valid,
+	// stamped, and deterministic.
 	available := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
-	if err := ValidateCompletionEnvelope(available); err != nil {
-		t.Fatalf("valid available envelope rejected: %v", err)
-	}
-	for _, c := range []CompletionUnavailableClass{UnavailableTaskDirectoryUnresolved, UnavailableProjectionOwnerError} {
-		if err := ValidateCompletionEnvelope(UnavailableCompletionEnvelope(c, "x")); err != nil {
-			t.Fatalf("recognized class %q rejected: %v", c, err)
+	for _, e := range []CompletionProjectionEnvelope{available, UnavailableTaskDirectoryEnvelope("x"), UnavailableProjectionOwnerEnvelope("y")} {
+		if err := ValidateCompletionEnvelope(e); err != nil {
+			t.Fatalf("constructor produced invalid envelope: %v", err)
+		}
+		if e.DigestSHA256 == "" {
+			t.Fatal("valid constructor output must be stamped")
 		}
 	}
 
-	// arbitrary class cannot be canonical (must be explicitly cast — and still rejected).
-	arbitrary := UnavailableCompletionEnvelope(CompletionUnavailableClass("owner_failure"), "synonym")
+	// An explicitly cast arbitrary class cannot be stamped (no digest) and cannot
+	// render as canonical (Summary reports it invalid).
+	arbitrary := stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: CompletionUnavailableClass("owner_failure"), UnavailableDetail: "synonym"})
+	if arbitrary.DigestSHA256 != "" {
+		t.Fatal("an arbitrary unavailable class must never be stamped")
+	}
 	if ValidateCompletionEnvelope(arbitrary) == nil {
 		t.Fatal("an arbitrary unavailable class must be rejected")
 	}
-
-	// malformed conjunctions are rejected.
-	malformed := []CompletionProjectionEnvelope{
-		{Availability: CompletionAvailable, Projection: nil, NonAuthoritativeProjection: true},                                                                       // available without projection
-		{Availability: CompletionAvailable, Projection: available.Projection, UnavailableClass: UnavailableProjectionOwnerError, NonAuthoritativeProjection: true},   // available with a class
-		{Availability: CompletionUnavailable, Projection: available.Projection, UnavailableClass: UnavailableProjectionOwnerError, NonAuthoritativeProjection: true}, // unavailable with a projection
-		{Availability: CompletionUnavailable, UnavailableClass: "", NonAuthoritativeProjection: true},                                                                // unavailable without a class
-		{Availability: "maybe", NonAuthoritativeProjection: true},                                                                                                    // off-vocabulary availability
-		{Availability: CompletionUnavailable, UnavailableClass: UnavailableProjectionOwnerError},                                                                     // not non-authoritative
+	if !strings.Contains(arbitrary.Summary(), "invalid completion projection envelope") {
+		t.Fatalf("arbitrary class must render as invalid, got %q", arbitrary.Summary())
 	}
-	for i, e := range malformed {
-		if ValidateCompletionEnvelope(e) == nil {
+
+	// Malformed available/unavailable conjunctions are never stamped and render as
+	// invalid — in particular `available` with a nil projection is NOT reinterpreted as
+	// unavailable.
+	malformed := []CompletionProjectionEnvelope{
+		{Availability: CompletionAvailable, Projection: nil},
+		{Availability: CompletionAvailable, Projection: available.Projection, UnavailableClass: UnavailableProjectionOwnerError},
+		{Availability: CompletionUnavailable, Projection: available.Projection, UnavailableClass: UnavailableProjectionOwnerError},
+		{Availability: CompletionUnavailable, UnavailableClass: ""},
+		{Availability: "maybe"},
+	}
+	for i, m := range malformed {
+		stamped := stampEnvelope(m)
+		if stamped.DigestSHA256 != "" {
+			t.Fatalf("malformed envelope %d must never be stamped", i)
+		}
+		if ValidateCompletionEnvelope(stamped) == nil {
 			t.Fatalf("malformed envelope %d must be rejected", i)
 		}
+		if !strings.Contains(stamped.Summary(), "invalid completion projection envelope") {
+			t.Fatalf("malformed envelope %d must render as invalid, got %q", i, stamped.Summary())
+		}
+	}
+	// The available-with-nil case must not be mapped to the unavailable rendering.
+	availNil := CompletionProjectionEnvelope{Availability: CompletionAvailable}
+	if strings.Contains(availNil.Summary(), "unavailable (") {
+		t.Fatalf("available+nil must not render as unavailable: %q", availNil.Summary())
 	}
 }
 
