@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 )
 
 // certificatePath is the content-addressed location of a certificate, keyed by its
@@ -46,6 +49,51 @@ func persistCertificate(root string, c QuestionResolutionCertificate) (relPath s
 		return rel, false, err
 	}
 	return rel, false, nil
+}
+
+// DiscoverCertificates lists the persisted question-resolution certificate digests
+// present in the repository certificate store. Discovery is NON-AUTHORITATIVE: each
+// digest must be loaded and validated (LoadCertificate) before it may be trusted.
+func DiscoverCertificates(root string) ([]string, error) {
+	base := filepath.Join(root, filepath.FromSlash(CertificationsRelDir))
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() {
+			out = append(out, e.Name())
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// CertificateClaim is the untrusted routing view of a persisted certificate: the
+// task and ledger head it PURPORTS to bind. It carries no authority and is used
+// only to decide relevance to a particular task world; a candidate must still pass
+// LoadCertificate (full validation) before it may satisfy anything.
+type CertificateClaim struct {
+	Task                       closureprotocol.TaskBinding
+	TaskLedgerHeadDigestSHA256 string
+}
+
+// ReadCertificateClaim reads a persisted certificate's claimed task and ledger head
+// WITHOUT validation. It is untrusted routing metadata, never proof.
+func ReadCertificateClaim(root, digest string) (CertificateClaim, error) {
+	data, err := os.ReadFile(certificatePath(root, digest))
+	if err != nil {
+		return CertificateClaim{}, err
+	}
+	var c QuestionResolutionCertificate
+	if err := json.Unmarshal(data, &c); err != nil {
+		return CertificateClaim{}, err
+	}
+	return CertificateClaim{Task: c.Task, TaskLedgerHeadDigestSHA256: c.TaskLedgerHeadDigestSHA256}, nil
 }
 
 // LoadCertificate reads and validates a persisted certificate by its digest.

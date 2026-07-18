@@ -986,3 +986,34 @@ invariants:
       - golang/architecture/repograph/repograph_test.go:TestStoreAdapterParityWithGraphsnapshot
     contract: >
       the offline provenance query mirrors store.Store semantics, proven by parity.
+  # ── Phase 8.2a: read-only terminal-completion readiness evaluator ──
+  - id: closure.completion_readiness_is_read_only_evidence_conjunction
+    title: Terminal-completion readiness is a read-only evidence conjunction, never a completion
+    severity: high
+    status: active
+    description: >
+      Phase 8.2a. The terminal-completion readiness evaluator is a deterministic,
+      read-only projection. It re-proves each required completion obligation from
+      durable artifacts and their owners (task ledger, Phase-6 correctness
+      certification, Phase-8.1d question-resolution certification, governed source
+      manifest) and conjoins them into a typed per-obligation assessment. It trusts
+      no caller-supplied boolean, receipt path, briefing, or prose status; it
+      persists no completion receipt, appends no completed event, and mutates
+      nothing. A ready assessment reports only that the required evidence currently
+      holds — it does not perform, authorize, or assert terminal completion.
+    protects:
+      files:
+        - golang/architecture/completion/readiness.go
+        - golang/architecture/completion/load.go
+        - golang/architecture/completion/model.go
+    required_tests:
+      - golang/architecture/completion/readiness_test.go:TestAssessDoesNotAssertCompletion
+      - golang/architecture/completion/readiness_test.go:TestAssessDeterministicAndNoSideEffects
+    contract: >
+      Terminal-completion readiness evaluation is distinct from terminal-completion
+      mutation, from Phase-6 correctness certification, and from Phase-8.1d
+      question-resolution certification. The evaluator only re-proves and conjoins
+      existing authoritative evidence read-only; it never establishes correctness or
+      question resolution itself, never authorizes or emits completion, and fails
+      closed on missing, stale, tampered, contradictory, wrong-bound, or unsupported
+      evidence.
