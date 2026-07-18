@@ -12,8 +12,10 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/governedmutation"
 	qp "github.com/globulario/sensei/golang/architecture/questionpromotion"
 	"github.com/globulario/sensei/golang/architecture/repograph"
+	"github.com/globulario/sensei/golang/propose"
 	"github.com/globulario/sensei/golang/rdf"
 )
 
@@ -50,11 +52,15 @@ func validReceipt() qp.QuestionPromotionReceipt {
 		MarkerDigestSHA256:                     hexN('d'),
 		MarkerIRI:                              "https://globular.io/awareness#seedBuild/sha256-" + hexN('c'),
 		ProjectionProducerID:                   repograph.ProducerID,
-		PromotionAttemptID:                     "attempt.1",
 		CombinedSeedObligationOutstanding:      true,
 		Producer:                               qp.GeneratedBy,
 		PromotedAt:                             "2026-07-16T00:00:00Z",
 	}
+	lineage, err := qp.ComputeLineageID(r)
+	if err != nil {
+		panic(err)
+	}
+	r.PromotionLineageID = lineage
 	d, err := qp.Digest(r)
 	if err != nil {
 		panic(err)
@@ -231,5 +237,103 @@ func TestReceiptPackageHasNoSideEffectsOrCLIImport(t *testing.T) {
 				t.Errorf("%s performs a forbidden side effect %q", e.Name(), forbidden)
 			}
 		}
+	}
+}
+
+// Validate recomputes the derived identities: a stale receipt digest or a forged
+// lineage id fails closed (they drive the content address and the RDF node IRI).
+func TestStaleDerivedIdentitiesRejected(t *testing.T) {
+	r := validReceipt()
+	r.ReceiptDigestSHA256 = hexN('e') // arbitrary, non-recomputing
+	if err := qp.Validate(r); err == nil {
+		t.Fatal("a stale receipt digest must be rejected")
+	}
+	r2 := validReceipt()
+	r2.PromotionLineageID = hexN('e') // forged, does not derive from the frozen world
+	r2.ReceiptDigestSHA256 = ""
+	if err := qp.Validate(r2); err == nil {
+		t.Fatal("a forged promotion lineage id must be rejected")
+	}
+}
+
+// The provenance node uses the pre-graph lineage id, so the receipt digest is
+// never embedded into the provenance graph — the fixed point is broken.
+func TestReceiptDigestNotEmbeddedInProvenance(t *testing.T) {
+	r := validReceipt()
+	nt := qp.ProvenanceTriples(r)
+	if bytes.Contains(nt, []byte(r.ReceiptDigestSHA256)) {
+		t.Fatal("the receipt digest must not appear in the provenance graph (fixed-point cycle)")
+	}
+	if !bytes.Contains(nt, []byte(r.PromotionLineageID)) {
+		t.Fatal("the provenance receipt node must be minted from the lineage id")
+	}
+}
+
+// End-to-end construction proof (the directive's required order): freeze inputs →
+// derive lineage id → render provenance → build+digest the real repository graph →
+// construct+digest the receipt binding that exact graph → validate → repeat from
+// identical inputs and obtain identical lineage id, graph digest, and receipt
+// digest, with no fixed-point iteration.
+func TestEndToEndConstructionNoFixedPoint(t *testing.T) {
+	build := func() (lineage, graphDigest, receiptDigest string, provenance []byte) {
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, "docs", "awareness"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		pre, _ := governedmutation.GovernedManifestDigest(root)
+		if _, err := governedmutation.Apply(governedmutation.Request{RepositoryRoot: root, Proposal: propose.Request{
+			Kind: "invariant", ID: "invariant.reload_validates", Title: "Reload validates before serving",
+			Description: "x", SourceFiles: []string{"golang/server/reload.go"},
+			RelatedFailures: []string{"failure.x"}, Domain: "github.com/globulario/sensei",
+		}}); err != nil {
+			t.Fatalf("apply: %v", err)
+		}
+		post, _ := governedmutation.GovernedManifestDigest(root)
+		vp, err := repograph.Build(context.Background(), repograph.BuildRequest{
+			RepositoryRoot: root, RepositoryDomain: "github.com/globulario/sensei", ExpectedManifestDigestSHA256: post,
+		})
+		if err != nil {
+			t.Fatalf("build graph: %v", err)
+		}
+		// Construct the receipt binding this exact verified graph.
+		r := validReceipt()
+		r.CanonicalRecordID = "invariant.reload_validates"
+		r.GovernedNodeIRI = qp.GovernedNodeIRIFor("invariant", "invariant.reload_validates")
+		r.PreMutationManifestDigestSHA256 = pre
+		r.PostMutationManifestDigestSHA256 = post
+		r.GraphBuildInputDigestSHA256 = vp.GraphBuildInputDigestSHA256
+		r.PersistedGraphByteDigestSHA256 = vp.CompiledGraphByteDigestSHA256
+		r.GraphSemanticDigestSHA256 = vp.GraphSemanticDigestSHA256
+		r.MarkerDigestSHA256 = vp.MarkerDigestSHA256
+		r.MarkerIRI = vp.MarkerIRI
+		r.ProjectionProducerID = vp.ProducerID
+		// Derive the pre-graph lineage id, then render provenance, then seal the digest.
+		lineage, err = qp.ComputeLineageID(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.PromotionLineageID = lineage
+		provenance = qp.ProvenanceTriples(r) // uses the pre-graph lineage id
+		r.ReceiptDigestSHA256 = ""
+		receiptDigest, err = qp.Digest(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.ReceiptDigestSHA256 = receiptDigest
+		if err := qp.Validate(r); err != nil {
+			t.Fatalf("validate: %v", err)
+		}
+		return lineage, vp.GraphSemanticDigestSHA256, receiptDigest, provenance
+	}
+
+	l1, g1, rc1, prov1 := build()
+	// The provenance (which would be emitted into the graph) never embeds the
+	// receipt digest, so the graph identity does not depend on it.
+	if bytes.Contains(prov1, []byte(rc1)) {
+		t.Fatal("provenance embeds the receipt digest — the cycle is not broken")
+	}
+	l2, g2, rc2, _ := build()
+	if l1 != l2 || g1 != g2 || rc1 != rc2 {
+		t.Fatalf("non-deterministic construction:\n lineage %s/%s\n graph %s/%s\n receipt %s/%s", l1, l2, g1, g2, rc1, rc2)
 	}
 }

@@ -12,8 +12,11 @@ import (
 // are content-addressed / id-addressed so the same lineage always mints the same
 // nodes, and they match the bare IRIs the repograph store adapter indexes.
 
+// ReceiptNodeIRI is minted from the PRE-GRAPH PromotionLineageID, never the final
+// ReceiptDigestSHA256 — so emitting this node into the verified graph does not make
+// the graph digest depend on the receipt digest that binds it (no fixed point).
 func ReceiptNodeIRI(in QuestionPromotionReceipt) string {
-	return bareIRI(rdf.MintIRI(rdf.ClassQuestionPromotionReceipt, in.ReceiptDigestSHA256))
+	return bareIRI(rdf.MintIRI(rdf.ClassQuestionPromotionReceipt, in.PromotionLineageID))
 }
 
 func DispositionNodeIRI(in QuestionPromotionReceipt) string {

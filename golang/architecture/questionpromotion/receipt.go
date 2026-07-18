@@ -94,9 +94,14 @@ type QuestionPromotionReceipt struct {
 	MarkerIRI                      string `json:"marker_iri" yaml:"marker_iri"`
 	ProjectionProducerID           string `json:"projection_producer_id" yaml:"projection_producer_id"`
 
-	// Attempt/replay identity; the committed causal identity is reserved for the
-	// 8.1b-4 commit and excluded from the receipt digest.
-	PromotionAttemptID            string `json:"promotion_attempt_id" yaml:"promotion_attempt_id"`
+	// PromotionLineageID is the PRE-GRAPH stable identity of this promotion,
+	// derived deterministically from the frozen prepared world (ComputeLineageID).
+	// It — NOT the receipt digest — is the RDF receipt node identity, so the
+	// verified graph never embeds the final receipt digest that binds that same
+	// graph (no cryptographic fixed point). It doubles as the attempt/replay
+	// identity. The committed causal identity is the commit/recovery identity,
+	// reserved for the 8.1b-4 commit and excluded from the receipt digest.
+	PromotionLineageID            string `json:"promotion_lineage_id" yaml:"promotion_lineage_id"`
 	CommittedCausalIdentitySHA256 string `json:"committed_causal_identity_sha256,omitempty" yaml:"committed_causal_identity_sha256,omitempty"`
 
 	// The combined embedded seed is a separate cross-repository obligation; the
@@ -109,12 +114,35 @@ type QuestionPromotionReceipt struct {
 	ReceiptDigestSHA256 string `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
 }
 
-// Digest returns the self-excluding SHA-256 content address. Both the digest
-// field and the reserved committed-causal-identity field are blanked, so the
-// receipt's identity is stable before and after the 8.1b-4 commit stamps it.
+// Digest returns the self-excluding SHA-256 content address that binds the
+// verified graph identities. Both the digest field and the reserved
+// committed-causal-identity field are blanked, so the receipt's identity is
+// stable before and after the 8.1b-4 commit stamps it. PromotionLineageID stays
+// in the digest — it is a pre-graph input, not derived from the graph.
 func Digest(in QuestionPromotionReceipt) (string, error) {
 	in.ReceiptDigestSHA256 = ""
 	in.CommittedCausalIdentitySHA256 = ""
+	return closureprotocol.SemanticDigest(in)
+}
+
+// ComputeLineageID derives the pre-graph promotion lineage identity from the
+// frozen prepared world only — it excludes every value produced by the mutation,
+// the graph build, the commit, and the stamp. Because it depends on no graph
+// identity, the lineage-addressed RDF receipt node can be emitted into the very
+// graph the receipt later binds, with no fixed point.
+func ComputeLineageID(in QuestionPromotionReceipt) (string, error) {
+	in.PromotionLineageID = ""
+	in.ReceiptDigestSHA256 = ""
+	in.CommittedCausalIdentitySHA256 = ""
+	// Values produced during/after mutation, graph build, or commit are excluded.
+	in.PostMutationManifestDigestSHA256 = ""
+	in.GraphBuildInputDigestSHA256 = ""
+	in.PersistedGraphByteDigestSHA256 = ""
+	in.GraphSemanticDigestSHA256 = ""
+	in.MarkerDigestSHA256 = ""
+	in.MarkerIRI = ""
+	in.ProjectionProducerID = ""
+	in.PromotedAt = ""
 	return closureprotocol.SemanticDigest(in)
 }
 
@@ -155,6 +183,7 @@ func Validate(in QuestionPromotionReceipt) error {
 		"persisted_graph_byte_digest":         in.PersistedGraphByteDigestSHA256,
 		"graph_semantic_digest":               in.GraphSemanticDigestSHA256,
 		"marker_digest":                       in.MarkerDigestSHA256,
+		"promotion_lineage_id":                in.PromotionLineageID,
 	} {
 		if !isHex64(d) {
 			return errors.New("question promotion: " + name + " must be 64-hex")
@@ -174,7 +203,6 @@ func Validate(in QuestionPromotionReceipt) error {
 		"governed_node_iri":              in.GovernedNodeIRI,
 		"marker_iri":                     in.MarkerIRI,
 		"projection_producer_id":         in.ProjectionProducerID,
-		"promotion_attempt_id":           in.PromotionAttemptID,
 		"producer":                       in.Producer,
 	} {
 		if strings.TrimSpace(v) == "" {
@@ -207,6 +235,29 @@ func Validate(in QuestionPromotionReceipt) error {
 	}
 	if _, err := time.Parse(time.RFC3339, in.PromotedAt); err != nil {
 		return errors.New("question promotion: promoted_at must be RFC3339")
+	}
+
+	// The pre-graph lineage id must be the deterministic derivation of the frozen
+	// prepared world — a stale or forged lineage id (which drives the RDF node
+	// IRI) fails closed.
+	wantLineage, err := ComputeLineageID(in)
+	if err != nil {
+		return err
+	}
+	if in.PromotionLineageID != wantLineage {
+		return errors.New("question promotion: promotion_lineage_id does not match the frozen prepared world")
+	}
+
+	// When the content address is populated it must recompute — an arbitrary or
+	// stale receipt digest can never validate structurally.
+	if in.ReceiptDigestSHA256 != "" {
+		wantDigest, derr := Digest(in)
+		if derr != nil {
+			return derr
+		}
+		if in.ReceiptDigestSHA256 != wantDigest {
+			return errors.New("question promotion: receipt_digest_sha256 does not recompute")
+		}
 	}
 	return nil
 }
