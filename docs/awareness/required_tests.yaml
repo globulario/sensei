@@ -285,3 +285,63 @@ required_tests:
         - docs/awareness/failure_modes.yaml
         - docs/awareness/forbidden_fixes.yaml
         - docs/awareness/authority_grants.yaml
+  # ── Phase 8.1b: behavioral bindings for the governed-promotion transaction ──
+  - id: golang/architecture/questionpromotion/final_test.go:TestAuthorityNonCollapse
+    title: No single durable artifact (journal, source, graph, marker, receipt) establishes reusable truth alone
+    protects:
+      failure_modes:
+        - closure.promotion_journal_mistaken_for_governed_truth
+        - closure.receipt_authoritative_before_projection_verified
+      files:
+        - golang/architecture/questionpromotion/conjunctive.go
+        - golang/architecture/questionpromotion/drive.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestCrashWindow3_SourceEventDurableGraphAbsent
+    title: A durable source mutation without verified graph is promotion_incomplete and recovers, never reported governed
+    protects:
+      failure_modes:
+        - closure.incomplete_source_commit_reported_governed
+      files:
+        - golang/architecture/questionpromotion/drive.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestGraphTamperFailsClosedOnReplay
+    title: A graph built from a different or tampered source world fails closed, never promoted
+    protects:
+      failure_modes:
+        - closure.graph_verified_against_wrong_source_world
+      files:
+        - golang/architecture/repograph/build.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestConcurrentIdenticalSingleCommit
+    title: Retry and concurrent identical promotions resume one attempt and record exactly one commit
+    protects:
+      failure_modes:
+        - closure.duplicate_attempt_or_record_on_retry
+      files:
+        - golang/architecture/questionpromotion/promote.go
+        - golang/architecture/questionpromotion/journal.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestContradictoryProposalRefused
+    title: A same-id different-semantics governed record is a typed contradiction, never overwritten
+    protects:
+      failure_modes:
+        - closure.contradictory_canonical_id_overwritten
+      files:
+        - golang/architecture/governedmutation/apply.go
+  - id: golang/architecture/repograph/repograph_test.go:TestNoEmbeddedSeedMutation
+    title: The repository-scoped graph owner never writes the combined embedded seed
+    protects:
+      failure_modes:
+        - closure.repo_graph_confused_with_combined_seed
+      files:
+        - golang/architecture/repograph/build.go
+  - id: golang/architecture/questionpromotion/final_test.go:TestPromotionWritesNoCertificationOrCompletion
+    title: The promotion journal never enters task phase/status/certification/completion truth
+    protects:
+      failure_modes:
+        - closure.promotion_event_leaks_into_task_projection
+      files:
+        - golang/architecture/questionpromotion/journal.go
+  - id: golang/architecture/repograph/repograph_test.go:TestStoreAdapterParityWithGraphsnapshot
+    title: The offline provenance query matches the canonical graph-reader semantics
+    protects:
+      failure_modes:
+        - closure.offline_query_diverges_from_graph_owner
+      files:
+        - golang/architecture/repograph/store_adapter.go

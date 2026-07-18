@@ -827,6 +827,7 @@ invariants:
         - golang/architecture/ledger/lock.go
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/questionpromotion/final_test.go:TestAuthorityNonCollapse
     contract: >
       promotion authority is the verified committed receipt; the journal is recovery
       metadata and never establishes reusable truth.
@@ -845,6 +846,7 @@ invariants:
         - golang/architecture/graphbuild/graphbuild.go
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/questionpromotion/matrix_test.go:TestCrashWindow3_SourceEventDurableGraphAbsent
     contract: >
       source_committed reports promotion_incomplete; only graph_verified then
       promotion_committed completes the promotion.
@@ -864,6 +866,7 @@ invariants:
         - golang/architecture/graphsnapshot/graphsnapshot.go
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/questionpromotion/matrix_test.go:TestGraphTamperFailsClosedOnReplay
     contract: >
       the verified graph must correspond to the exact committed source manifest;
       any drift is typed stale/incomplete, never successful promotion.
@@ -881,6 +884,7 @@ invariants:
         - docs/design/phase8-discovery.md
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/questionpromotion/matrix_test.go:TestConcurrentIdenticalSingleCommit
     contract: >
       one stable attempt identity per frozen input set; retry resumes, never duplicates.
   - id: closure.contradictory_canonical_id_never_overwritten
@@ -896,6 +900,7 @@ invariants:
         - cmd/awg/cmd_propose.go
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/questionpromotion/matrix_test.go:TestContradictoryProposalRefused
     contract: >
       same id + different semantics is a typed contradiction; same body is replay; never overwrite.
   - id: closure.promotion_receipt_only_after_projection_verified
@@ -914,6 +919,7 @@ invariants:
         - docs/design/phase8-discovery.md
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/questionpromotion/final_test.go:TestEndToEndIdentityCrosslinks
     contract: >
       the receipt is written only after persisted-projection verification; all trusted
       values are recomputed, never caller-supplied.
@@ -933,6 +939,7 @@ invariants:
         - golang/architecture/graphsnapshot/graphsnapshot.go
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/repograph/repograph_test.go:TestNoEmbeddedSeedMutation
     contract: >
       repository graph (.sensei/project/graph.nt) and combined seed (embeddata/awareness.nt)
       are distinct identities; promotion touches only the former.
@@ -951,6 +958,7 @@ invariants:
         - golang/architecture/ledger/lock.go
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/questionpromotion/final_test.go:TestPromotionWritesNoCertificationOrCompletion
     contract: >
       promotion journal events are promotion-local and never enter task phase/status truth.
   - id: closure.offline_provenance_query_matches_graph_owner
@@ -967,5 +975,6 @@ invariants:
         - golang/architecture/graphsnapshot/graphsnapshot.go
     required_tests:
       - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+      - golang/architecture/repograph/repograph_test.go:TestStoreAdapterParityWithGraphsnapshot
     contract: >
       the offline provenance query mirrors store.Store semantics, proven by parity.
