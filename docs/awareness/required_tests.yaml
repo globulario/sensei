@@ -463,3 +463,28 @@ required_tests:
         - closure.certification_or_completion_over_unresolved_or_stale_promotion
       files:
         - golang/architecture/completion/complete.go
+  # ── Phase 8.2c: durable terminal-state reconstruction and recovery ──
+  - id: golang/architecture/completion/inspect_test.go:TestInspectTamperedReceipt
+    title: A tampered receipt is reconstructed as an integrity failure, never a completion
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      failure_modes:
+        - closure.recovery_blesses_residue_or_normalizes_contradiction
+      files:
+        - golang/architecture/completion/inspect.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectGovernedDriftAfterCompletion
+    title: Governed drift after completion is reported distinctly and never alters the historical receipt
+    protects:
+      failure_modes:
+        - closure.recovery_blesses_residue_or_normalizes_contradiction
+      files:
+        - golang/architecture/completion/inspect.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectDeterministicAndSideEffectFree
+    title: Reconstruction is deterministic and writes no authoritative truth
+    protects:
+      invariants:
+        - closure.terminal_recovery_rebuilds_derived_state_only
+      files:
+        - golang/architecture/completion/inspect.go
+        - golang/architecture/completion/recover.go

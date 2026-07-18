@@ -1027,3 +1027,51 @@ invariants:
       question resolution itself, never authorizes or emits completion, and fails
       closed on missing, stale, tampered, contradictory, wrong-bound, or unsupported
       evidence.
+  # ── Phase 8.2c: durable terminal-state reconstruction and recovery ──
+  - id: closure.terminal_state_reconstructed_only_from_durable_conjunction
+    title: Terminal completion is reconstructible only from the unique durable event/receipt conjunction
+    severity: critical
+    status: active
+    description: >
+      Phase 8.2c. After restart, projection loss, interrupted persistence, or later
+      inspection, terminal state is reconstructed from durable owner-verified
+      artifacts alone. A completion is authoritative only as EXACTLY one completed
+      event plus its valid matching content-addressed receipt, zero revoked facts,
+      and bindings intact. A valid receipt without a completed event is residue, not
+      completion; a completed event without a valid matching receipt is broken, not
+      completion; multiple completed events or any revoked fact are contradictory
+      terminal history. Projections are derived state and never terminal authority.
+    protects:
+      files:
+        - golang/architecture/completion/inspect.go
+        - golang/architecture/completion/recover.go
+    required_tests:
+      - golang/architecture/completion/inspect_test.go:TestInspectCommittedAfterRestart
+      - golang/architecture/completion/inspect_test.go:TestInspectReceiptWithoutEvent
+      - golang/architecture/completion/inspect_test.go:TestInspectEventWithoutReceipt
+    contract: >
+      Reconstruction reuses the single terminal-history classifier; it never invents,
+      repairs, supersedes, or blesses a terminal fact, never normalizes contradictory
+      history, and never treats receipt-only residue or an event without a valid
+      receipt as completion. Reconstruction is read-only and deterministic.
+  - id: closure.terminal_recovery_rebuilds_derived_state_only
+    title: Terminal recovery restores derived projections only and never appends or blesses a terminal fact
+    severity: critical
+    status: active
+    description: >
+      Phase 8.2c. Projection recovery restores derived state from an already-valid
+      unique durable conjunction. It appends no ledger event, rewrites no receipt,
+      resolves no completion authority, uses no terminal-completion operation, and can
+      never create, replace, supersede, or bless a terminal fact. Contradictory
+      terminal history is never normalized; receipt-only residue is never blessed;
+      retry through the completion owner is the only path that may append a completion.
+    protects:
+      files:
+        - golang/architecture/completion/recover.go
+    required_tests:
+      - golang/architecture/completion/inspect_test.go:TestInspectAndRecoverProjectionLoss
+      - golang/architecture/completion/inspect_test.go:TestInspectDuplicateCompleted
+    contract: >
+      Recovery is derived-state maintenance only: it rebuilds projections from a valid
+      unique durable conjunction and otherwise refuses, never appending a completed
+      event, never normalizing contradictory history, and never blessing residue.
