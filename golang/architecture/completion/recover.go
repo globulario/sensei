@@ -52,8 +52,11 @@ type RecoverResult struct {
 func RecoverProjections(ctx context.Context, req Request) (RecoverResult, error) {
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
-	if root == "" || taskDir == "" {
-		return RecoverResult{Outcome: RecoverInputInvalid, Detail: "repository root and task directory are required"}, nil
+	// Repository and task must name one world before the lock or the projection rebuild:
+	// the lock is acquired under the root while projections are rebuilt under the task
+	// directory, so a mismatched pair would lock one world and mutate another.
+	if berr := validateRepositoryTaskBinding(root, taskDir); berr != nil {
+		return RecoverResult{Outcome: RecoverInputInvalid, Detail: berr.Error()}, nil
 	}
 
 	// Serialize with completion attempts so a rebuild never races an append. The lock

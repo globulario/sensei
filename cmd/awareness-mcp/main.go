@@ -381,6 +381,22 @@ var inspectTerminalDelegate = completion.InspectTerminalState
 
 var recoverProjectionsDelegate = completion.RecoverProjections
 
+// stringArg returns the string value for key. An absent key yields "" so the caller can
+// apply its default (e.g. the active task); a PRESENT but non-string value is a hard
+// error — a malformed identity must never coerce to "" and silently select the active
+// task, since schema enforcement is advisory.
+func stringArg(args map[string]interface{}, key string) (string, error) {
+	v, ok := args[key]
+	if !ok || v == nil {
+		return "", nil
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("property %q must be a string", key)
+	}
+	return s, nil
+}
+
 func (b *bridge) callTool(ctx context.Context, name string, args map[string]interface{}) (*toolResult, error) {
 	switch name {
 	case "awareness_briefing":
@@ -627,10 +643,22 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 				return nil, fmt.Errorf("unknown property %q; complete_task accepts no completion status or extra fields", k)
 			}
 		}
-		repo, _ := args["repo"].(string)
-		task, _ := args["task"].(string)
-		identityRoot, _ := args["identity_root"].(string)
-		expectedHead, _ := args["expected_head"].(string)
+		repo, err := stringArg(args, "repo")
+		if err != nil {
+			return nil, err
+		}
+		task, err := stringArg(args, "task")
+		if err != nil {
+			return nil, err
+		}
+		identityRoot, err := stringArg(args, "identity_root")
+		if err != nil {
+			return nil, err
+		}
+		expectedHead, err := stringArg(args, "expected_head")
+		if err != nil {
+			return nil, err
+		}
 		repo = strings.TrimSpace(repo)
 		if repo == "" || strings.TrimSpace(expectedHead) == "" {
 			return nil, fmt.Errorf("repo and expected_head are required")
@@ -684,8 +712,14 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 				return nil, fmt.Errorf("unknown property %q; inspect_terminal accepts no extra fields", k)
 			}
 		}
-		repo, _ := args["repo"].(string)
-		task, _ := args["task"].(string)
+		repo, err := stringArg(args, "repo")
+		if err != nil {
+			return nil, err
+		}
+		task, err := stringArg(args, "task")
+		if err != nil {
+			return nil, err
+		}
 		repo = strings.TrimSpace(repo)
 		if repo == "" {
 			return nil, fmt.Errorf("repo is required")
@@ -721,8 +755,14 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 				return nil, fmt.Errorf("unknown property %q; recover_projections accepts no extra fields", k)
 			}
 		}
-		repo, _ := args["repo"].(string)
-		task, _ := args["task"].(string)
+		repo, err := stringArg(args, "repo")
+		if err != nil {
+			return nil, err
+		}
+		task, err := stringArg(args, "task")
+		if err != nil {
+			return nil, err
+		}
 		repo = strings.TrimSpace(repo)
 		if repo == "" {
 			return nil, fmt.Errorf("repo is required")

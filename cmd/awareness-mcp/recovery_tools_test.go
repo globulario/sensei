@@ -38,6 +38,21 @@ func TestRecoveryToolsRegistered(t *testing.T) {
 	}
 }
 
+// A present non-string repo or task is rejected at runtime across all completion tools —
+// a malformed identity must never coerce to "" and silently select the active task.
+func TestCompletionToolsRejectNonStringIdentity(t *testing.T) {
+	b := &bridge{}
+	ctx := context.Background()
+	for _, name := range []string{"complete_task", "inspect_terminal", "recover_projections"} {
+		if _, err := b.callTool(ctx, name, map[string]interface{}{"repo": 123}); err == nil {
+			t.Fatalf("%s: a non-string repo must be rejected at runtime", name)
+		}
+		if _, err := b.callTool(ctx, name, map[string]interface{}{"repo": t.TempDir(), "task": []interface{}{"x"}}); err == nil {
+			t.Fatalf("%s: a non-string task must be rejected, never coerced to the active task", name)
+		}
+	}
+}
+
 // inspect_terminal delegates and reports the reconstructed state; an unknown property is
 // rejected at runtime, not just by schema.
 func TestInspectTerminalToolDelegatesAndRejectsUnknown(t *testing.T) {
@@ -92,8 +107,13 @@ func TestRecoverProjectionsToolMappingAndWritesNothing(t *testing.T) {
 		t.Fatalf("seed: %v", serr)
 	}
 	req := completion.Request{RepositoryRoot: seed.Repo, TaskDirectory: seed.TaskDir}
-	if _, err := b.callTool(ctx, "recover_projections", map[string]interface{}{"repo": seed.Repo, "task": seed.TaskDir}); err != nil {
+	rres, err := b.callTool(ctx, "recover_projections", map[string]interface{}{"repo": seed.Repo, "task": seed.TaskDir})
+	if err != nil {
 		t.Fatalf("real-owner recover must not error on a not-completed task: %v", err)
+	}
+	// Assert the EXACT returned outcome, not merely that it did not error.
+	if rres == nil || !strings.Contains(rres.Text, "nothing_to_recover") {
+		t.Fatalf("real-owner recover must surface the exact nothing_to_recover outcome: %+v", rres)
 	}
 	after, err := completion.InspectTerminalState(ctx, req)
 	if err != nil {
