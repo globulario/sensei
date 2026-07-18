@@ -97,3 +97,67 @@ func (p CompletionProjection) Summary() string {
 	return fmt.Sprintf("completion: state=%s verdict=%s authoritative=%v%s [non-authoritative projection]",
 		p.TerminalState, p.ClosureVerdict, p.AuthoritativeCompletion, drift)
 }
+
+const completionEnvelopeSchemaVersion = "completion.projection_envelope/v1"
+
+// CompletionAvailability is the typed availability of the completion projection at a
+// surface boundary. It distinguishes a real projection (available — which itself
+// carries not_completed/unsupported/integrity_failure states) from the projection
+// being unestablishable (unavailable), so a surface never collapses those realities
+// into silence. Omission is a remapping; this envelope forbids it.
+type CompletionAvailability string
+
+const (
+	CompletionAvailable   CompletionAvailability = "available"
+	CompletionUnavailable CompletionAvailability = "unavailable"
+)
+
+// CompletionProjectionEnvelope makes projection availability explicit and typed. When
+// available it carries the deterministic projection; when unavailable it carries a
+// typed error class and detail. It is always non-authoritative and never fabricates a
+// terminal state for a construction error.
+type CompletionProjectionEnvelope struct {
+	SchemaVersion              string                 `json:"schema_version" yaml:"schema_version"`
+	Availability               CompletionAvailability `json:"availability" yaml:"availability"`
+	Projection                 *CompletionProjection  `json:"projection,omitempty" yaml:"projection,omitempty"`
+	UnavailableClass           string                 `json:"unavailable_class,omitempty" yaml:"unavailable_class,omitempty"`
+	UnavailableDetail          string                 `json:"unavailable_detail,omitempty" yaml:"unavailable_detail,omitempty"`
+	NonAuthoritativeProjection bool                   `json:"non_authoritative_projection" yaml:"non_authoritative_projection"`
+	DigestSHA256               string                 `json:"digest_sha256,omitempty" yaml:"digest_sha256,omitempty"`
+}
+
+func stampEnvelope(e CompletionProjectionEnvelope) CompletionProjectionEnvelope {
+	e.SchemaVersion = completionEnvelopeSchemaVersion
+	e.NonAuthoritativeProjection = true
+	e.DigestSHA256 = ""
+	if d, err := closureprotocol.SemanticDigest(e); err == nil {
+		e.DigestSHA256 = d
+	}
+	return e
+}
+
+// UnavailableCompletionEnvelope is the typed unavailable envelope. It never fabricates
+// a terminal state; the class/detail carry why the projection could not be established.
+func UnavailableCompletionEnvelope(class, detail string) CompletionProjectionEnvelope {
+	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: class, UnavailableDetail: detail})
+}
+
+// BuildCompletionProjectionEnvelope builds the canonical projection and wraps it in a
+// typed availability envelope. It never errors: a projection-owner error becomes an
+// explicit `unavailable` envelope rather than silence. Read-only, mutates nothing.
+func BuildCompletionProjectionEnvelope(ctx context.Context, req Request) CompletionProjectionEnvelope {
+	p, err := BuildCompletionProjection(ctx, req)
+	if err != nil {
+		return UnavailableCompletionEnvelope("projection_owner_error", err.Error())
+	}
+	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionAvailable, Projection: &p})
+}
+
+// Summary renders the envelope as one deterministic line — the projection summary when
+// available, or an explicit typed unavailability line otherwise. Never blank.
+func (e CompletionProjectionEnvelope) Summary() string {
+	if e.Availability == CompletionAvailable && e.Projection != nil {
+		return e.Projection.Summary()
+	}
+	return fmt.Sprintf("unavailable (%s: %s) [non-authoritative projection]", e.UnavailableClass, e.UnavailableDetail)
+}

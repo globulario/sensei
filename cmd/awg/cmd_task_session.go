@@ -164,38 +164,36 @@ Flags:
 	// consumes the completion owner's reconstruction; it re-derives nothing and
 	// mutates nothing. A task without a completion-relevant ledger simply yields the
 	// projection's `unsupported`/`not_completed` state.
-	proj := completionProjectionFor(opts)
-	if err := printTaskStatus(res, proj, format); err != nil {
+	env := completionProjectionEnvelope(opts)
+	if err := printTaskStatus(res, env, format); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei task-status: %v\n", err)
 		return 2
 	}
 	return 0
 }
 
-// completionProjectionFor resolves the same task directory tasksession.Status uses,
-// then builds the canonical read-only completion projection. It returns nil when the
-// projection cannot be established and never fails the status command.
-func completionProjectionFor(opts tasksession.StatusOptions) *completion.CompletionProjection {
+// completionProjectionEnvelope resolves the same task directory tasksession.Status
+// uses, then builds the canonical completion projection wrapped in a typed
+// availability envelope. It NEVER omits: a resolution or owner failure becomes an
+// explicit `unavailable` envelope with a typed class/detail, never silence, and never
+// a fabricated terminal state. It never fails the status command and mutates nothing.
+func completionProjectionEnvelope(opts tasksession.StatusOptions) completion.CompletionProjectionEnvelope {
 	abs, err := filepath.Abs(strings.TrimSpace(opts.RepoRoot))
 	if err != nil {
-		return nil
+		return completion.UnavailableCompletionEnvelope("task_directory_unresolved", "repository path: "+err.Error())
 	}
 	taskDir := strings.TrimSpace(opts.TaskDir)
 	if opts.Active || taskDir == "" {
 		p, perr := tasksession.LoadActivePointer(abs)
 		if perr != nil {
-			return nil
+			return completion.UnavailableCompletionEnvelope("task_directory_unresolved", "active task pointer: "+perr.Error())
 		}
 		taskDir = filepath.Dir(filepath.Join(abs, filepath.FromSlash(p.SessionPath)))
 	}
-	if taskDir == "" {
-		return nil
+	if strings.TrimSpace(taskDir) == "" {
+		return completion.UnavailableCompletionEnvelope("task_directory_unresolved", "no task directory resolved")
 	}
-	proj, berr := completion.BuildCompletionProjection(context.Background(), completion.Request{RepositoryRoot: abs, TaskDirectory: taskDir})
-	if berr != nil {
-		return nil
-	}
-	return &proj
+	return completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: abs, TaskDirectory: taskDir})
 }
 
 func runAdvanceTask(args []string) int {
@@ -476,7 +474,7 @@ func printPrepareChange(res tasksession.PrepareResult, format string) error {
 	}
 }
 
-func printTaskStatus(res tasksession.StatusResult, proj *completion.CompletionProjection, format string) error {
+func printTaskStatus(res tasksession.StatusResult, env completion.CompletionProjectionEnvelope, format string) error {
 	switch strings.TrimSpace(format) {
 	case "", "text":
 		fmt.Printf("Task: %s\n", res.TaskID)
@@ -500,20 +498,19 @@ func printTaskStatus(res tasksession.StatusResult, proj *completion.CompletionPr
 		} else if len(res.VerifyErrors) > 0 {
 			fmt.Printf("Verified: false (%s)\n", strings.Join(res.VerifyErrors, "; "))
 		}
-		if proj != nil {
-			// The single canonical completion mapping — no separate state translation.
-			fmt.Printf("Completion: %s\n", proj.Summary())
-		}
+		// The single canonical completion mapping — always shown, never omitted; an
+		// unavailable projection is reported explicitly, not as silence.
+		fmt.Printf("Completion: %s\n", env.Summary())
 		return nil
 	case "yaml", "yml":
-		data, err := yaml.Marshal(taskStatusEnvelope(res, proj))
+		data, err := yaml.Marshal(taskStatusEnvelope(res, env))
 		if err != nil {
 			return err
 		}
 		fmt.Print(string(data))
 		return nil
 	case "json":
-		data, err := json.MarshalIndent(taskStatusEnvelope(res, proj), "", "  ")
+		data, err := json.MarshalIndent(taskStatusEnvelope(res, env), "", "  ")
 		if err != nil {
 			return err
 		}
@@ -525,11 +522,11 @@ func printTaskStatus(res tasksession.StatusResult, proj *completion.CompletionPr
 }
 
 // taskStatusEnvelope carries the task status plus the canonical, non-authoritative
-// completion projection under a distinct key so no surface re-maps completion state.
-func taskStatusEnvelope(res tasksession.StatusResult, proj *completion.CompletionProjection) map[string]any {
-	out := map[string]any{"architecture_task_status": res}
-	if proj != nil {
-		out["completion_projection"] = proj
+// completion projection ENVELOPE under a distinct key. The envelope is always present
+// (available or unavailable), so structured output never silently omits completion.
+func taskStatusEnvelope(res tasksession.StatusResult, env completion.CompletionProjectionEnvelope) map[string]any {
+	return map[string]any{
+		"architecture_task_status": res,
+		"completion_projection":    env,
 	}
-	return out
 }
