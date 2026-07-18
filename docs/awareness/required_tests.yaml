@@ -266,3 +266,22 @@ required_tests:
         - closure.partial_governed_source_or_graph_commit
       files:
         - golang/architecture/questiondisposition/record.go
+  # ── Phase 8.1b: govern-first structural gate ──
+  - id: golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    title: The Phase-8.1b governed-promotion contract is present, schema-valid, and coverage-bound
+    protects:
+      failure_modes:
+        - closure.promotion_journal_mistaken_for_governed_truth
+        - closure.incomplete_source_commit_reported_governed
+        - closure.graph_verified_against_wrong_source_world
+        - closure.duplicate_attempt_or_record_on_retry
+        - closure.contradictory_canonical_id_overwritten
+        - closure.receipt_authoritative_before_projection_verified
+        - closure.repo_graph_confused_with_combined_seed
+        - closure.promotion_event_leaks_into_task_projection
+        - closure.offline_query_diverges_from_graph_owner
+      files:
+        - docs/awareness/invariants.yaml
+        - docs/awareness/failure_modes.yaml
+        - docs/awareness/forbidden_fixes.yaml
+        - docs/awareness/authority_grants.yaml
