@@ -712,3 +712,26 @@ failure_modes:
       - closure.terminal_state_reconstructed_only_from_durable_conjunction
       - closure.terminal_recovery_rebuilds_derived_state_only
     evidence: Phase 8.2c govern-first; reconstruction is read-only and recovery is derived-state maintenance only.
+  # ── Phase 8.2d: end-to-end completion closure ──
+  - id: closure.phase8_report_or_integration_treated_as_completion_authority
+    title: The Phase-8 closure report or integration verifier was treated as completion authority, or collapsed the three closure claims
+    severity: critical
+    root_cause: |
+      A Phase-8 implementation-closure report or the end-to-end integration verifier
+      was used as if it completed a task, was allowed to append/repair/promote/certify/
+      mutate, reported authoritative completion without the whole durable conjunction
+      re-verifying, or collapsed implementation closure, completion of one task, and
+      repository-wide perfection into a single claim.
+    symptoms:
+      - the closure report used as runtime completion authority
+      - the integration verifier appending a completed event or repairing upstream truth
+      - authoritative_completion reported while a bound component fails re-verification
+      - implementation closure conflated with task completion or repository perfection
+    forbidden_fixes:
+      - use_the_phase8_report_or_integration_verifier_as_completion_authority
+      - let_the_integration_verifier_append_repair_or_mutate
+      - collapse_implementation_closure_task_completion_and_repository_perfection
+    related_invariants:
+      - closure.authoritative_completion_iff_whole_durable_conjunction
+      - closure.completion_never_mutates_governed_or_certification_truth
+    evidence: Phase 8.2d govern-first; the integration verifier and closure report are read-only evidence, never completion authority.

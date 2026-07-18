@@ -1075,3 +1075,33 @@ invariants:
       Recovery is derived-state maintenance only: it rebuilds projections from a valid
       unique durable conjunction and otherwise refuses, never appending a completed
       event, never normalizing contradictory history, and never blessing residue.
+  # ── Phase 8.2d: end-to-end completion closure ──
+  - id: closure.authoritative_completion_iff_whole_durable_conjunction
+    title: Authoritative completion exists iff the whole durable conjunction holds
+    severity: critical
+    status: active
+    description: >
+      Phase 8.2d. A task is authoritatively completed only when the complete durable
+      conjunction holds: current task/result, Phase-6 correctness, a closed current
+      question loop, fresh governed evidence at completion time, exact completion
+      authority, exactly one completed event, exactly one matching receipt, and zero
+      revoked facts. The end-to-end integration verifier composes the accepted owners
+      read-only — it re-verifies each bound component through its owner and never
+      appends completion, repairs upstream truth, promotes knowledge, disposes
+      questions, certifies correctness, or mutates governed sources. Governed drift
+      after completion is reported distinctly and never rewritten as corruption or
+      current readiness.
+    protects:
+      files:
+        - golang/architecture/completion/integration.go
+        - golang/architecture/completion/closure_report.go
+    required_tests:
+      - golang/architecture/completion/integration_test.go:TestClosureHappyPath
+      - golang/architecture/completion/integration_test.go:TestClosureTamperingBreaksClosure
+      - golang/architecture/completion/integration_test.go:TestPhase8ClosureReportContract
+    contract: >
+      The integration verifier proves authoritative completion iff the whole durable
+      conjunction re-verifies through each owner; it is read-only. The Phase-8 closure
+      report is implementation evidence only — never a task-completion fact and never
+      runtime completion authority — and keeps implementation closure, completion of
+      one task, and repository-wide perfection as three distinct claims.
