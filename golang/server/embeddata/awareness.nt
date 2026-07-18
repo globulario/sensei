@@ -453,7 +453,7 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.propose> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.propose> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph.query> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.awareness_graph.query> <http://www.w3.org/2000/01/rdf-schema#comment> "Query forwards raw SPARQL to the backend store. RBAC-gated to the awareness.admin role. Not for agent consumption — debugging and operator workflows only. — rpc Query(QueryRequest) returns (QueryResponse)" .
+<https://globular.io/awareness#contract/contract.awareness_graph.query> <http://www.w3.org/2000/01/rdf-schema#comment> "Query exposes constrained typed graph browsing only. ArchitectureClaim, OpenQuestion, and ArchitectAnswer are available here only when explicitly requested; they remain non-authoritative and are not surfaced through Briefing, Impact, or Preflight. — rpc Query(QueryRequest) returns (QueryResponse)" .
 <https://globular.io/awareness#contract/contract.awareness_graph.query> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.Query" .
 <https://globular.io/awareness#contract/contract.awareness_graph.query> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
 <https://globular.io/awareness#contract/contract.awareness_graph.query> <https://globular.io/awareness#assertionMethod> "inferred" .
@@ -483,7 +483,7 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.reference_sites> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.reference_sites> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.awareness_graph.resolve> <http://www.w3.org/2000/01/rdf-schema#comment> "Resolve fetches a single node by its annotation ID (e.g. \"invariant:foo\", \"pat.bar\"). Returns the node's triples plus any code-anchor provenance. This is the tool agents call after reading a // @invariant: X comment. — rpc Resolve(ResolveRequest) returns (ResolveResponse)" .
+<https://globular.io/awareness#contract/contract.awareness_graph.resolve> <http://www.w3.org/2000/01/rdf-schema#comment> "Resolve fetches a single node by its annotation ID (e.g. \"invariant:foo\", \"pat.bar\"). Returns the node's triples plus any code-anchor provenance. This is the tool agents call after reading a // @invariant: X comment, or when explicitly inspecting a non-authoritative architecture_claim, open_question, or architect_answer. — rpc Resolve(ResolveRequest) returns (ResolveResponse)" .
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.Resolve" .
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#assertionMethod> "inferred" .
@@ -6095,9 +6095,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-3114646757ddbf58fe12e5f9d48bb98c23596a3e6789c5c50b766a082c5d5e42> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-3114646757ddbf58fe12e5f9d48bb98c23596a3e6789c5c50b766a082c5d5e42> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 3114646757dd" .
-<https://globular.io/awareness#seedBuild/sha256-3114646757ddbf58fe12e5f9d48bb98c23596a3e6789c5c50b766a082c5d5e42> <https://globular.io/awareness#seedDigestSha256> "3114646757ddbf58fe12e5f9d48bb98c23596a3e6789c5c50b766a082c5d5e42" .
-<https://globular.io/awareness#seedBuild/sha256-3114646757ddbf58fe12e5f9d48bb98c23596a3e6789c5c50b766a082c5d5e42> <https://globular.io/awareness#seedTripleCount> "6103" .
-<https://globular.io/awareness#seedBuild/sha256-3114646757ddbf58fe12e5f9d48bb98c23596a3e6789c5c50b766a082c5d5e42> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-3114646757ddbf58fe12e5f9d48bb98c23596a3e6789c5c50b766a082c5d5e42> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 0a7f4f92ae29" .
+<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#seedDigestSha256> "0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830" .
+<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#seedTripleCount> "6103" .
+<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
