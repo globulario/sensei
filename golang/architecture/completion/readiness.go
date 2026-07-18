@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/governedmutation"
 )
@@ -41,7 +40,7 @@ func AssessReadiness(ctx context.Context, req Request) (ReadinessAssessment, err
 	if manifest, merr := governedmutation.GovernedManifestDigest(root); merr == nil {
 		ev.governedManifest = manifest
 	}
-	loadCorrectnessEvidence(taskDir, chain, ev)
+	loadCorrectnessEvidence(taskDir, chain, rb, haveRB, ev)
 	loadQuestionResolutionEvidence(root, ev)
 	detectConflictingCompletion(chain, ev)
 
@@ -117,31 +116,32 @@ func assess(ev *evidence) ReadinessAssessment {
 	}
 }
 
+// assessCorrectness classifies the CURRENT-result correctness evidence. Historical
+// certificates (for older/different results) are excluded upstream and never reach
+// here, so an older certification can neither satisfy nor contradict the current
+// result. Fail-closed precedence: a tampered current candidate, then a verified
+// receipt that binds another result, then multiple distinct valid current
+// certificates, then the single valid one, then historical-only (stale), then none.
 func assessCorrectness(ev *evidence) ObligationAssessment {
 	id := ObligationCorrectnessCertificate
 	switch {
-	case ev.correctnessCount == 0:
-		return ob(id, EvidenceMissing, "no Phase-6 correctness certification recorded", nil)
-	case ev.correctnessCount > 1:
-		return ob(id, EvidenceContradictory, "multiple distinct correctness certifications recorded", nil)
-	case !ev.correctnessValid:
-		return ob(id, EvidenceIntegrityFailure, ev.correctnessErr, nil)
+	case ev.correctnessTampered:
+		return ob(id, EvidenceIntegrityFailure, ev.correctnessTamperedErr, refEvidence("certification_receipt", ev.correctnessDigest))
+	case ev.correctnessWrongResult:
+		return ob(id, EvidenceWrongBinding, "a current-routed certificate's verified receipt binds another result", nil)
+	case ev.correctnessCurrentValid > 1:
+		return ob(id, EvidenceContradictory, "multiple distinct valid certifications for the current result", nil)
+	case ev.correctnessCurrentValid == 1:
+		v := ev.correctness.CertificationVerdict
+		if v != closureprotocol.Certified && v != closureprotocol.CertifiedWithConditions {
+			return ob(id, EvidenceUnsupported, "certification verdict is "+string(v), refEvidence("certification_receipt", ev.correctnessDigest))
+		}
+		return ob(id, EvidenceSatisfied, "verdict "+string(v), refEvidence("certification_receipt", ev.correctnessDigest))
+	case ev.correctnessHistorical > 0:
+		return ob(id, EvidenceStale, "only older results are certified; the current result has no certification", nil)
+	default:
+		return ob(id, EvidenceMissing, "no Phase-6 correctness certification recorded for the current result", nil)
 	}
-	rc := ev.correctness
-	v := rc.CertificationVerdict
-	if v != closureprotocol.Certified && v != closureprotocol.CertifiedWithConditions {
-		return ob(id, EvidenceUnsupported, "certification verdict is "+string(v), refEvidence("certification_receipt", ev.correctnessDigest))
-	}
-	if ev.correctnessSuperseded {
-		return ob(id, EvidenceStale, "a later result transition advanced the world after certification", refEvidence("certification_receipt", ev.correctnessDigest))
-	}
-	if !ev.haveResultBinding {
-		return ob(id, EvidenceUnsupported, "no current result binding to compare", nil)
-	}
-	if !binding.ResultBindingEqual(rc.ResultBinding, ev.resultBinding) {
-		return ob(id, EvidenceWrongBinding, "correctness certificate binds a different result", refEvidence("certification_receipt", ev.correctnessDigest))
-	}
-	return ob(id, EvidenceSatisfied, "verdict "+string(v), refEvidence("certification_receipt", ev.correctnessDigest))
 }
 
 func assessQuestionResolution(ev *evidence) ObligationAssessment {

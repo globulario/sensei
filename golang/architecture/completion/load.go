@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/binding"
 	"github.com/globulario/sensei/golang/architecture/certification"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
@@ -27,13 +28,17 @@ type evidence struct {
 	headDigest        string
 	governedManifest  string
 
-	// Phase-6 correctness certification.
-	correctness           *closureprotocol.CertificationReceipt
-	correctnessDigest     string
-	correctnessValid      bool
-	correctnessErr        string
-	correctnessCount      int  // distinct certified receipts on the ledger
-	correctnessSuperseded bool // a later result transition advanced the world after certification
+	// Phase-6 correctness certification, bounded to the CURRENT result. A certified
+	// event is routed by its claimed result binding; only current-result candidates
+	// are re-verified, and a verified receipt satisfies only when its own binding
+	// equals the current result.
+	correctness             *closureprotocol.CertificationReceipt // the single valid current-result receipt
+	correctnessDigest       string
+	correctnessCurrentValid int  // distinct valid receipts binding the current result
+	correctnessTampered     bool // a current-result candidate failed byte/parse/receipt verification
+	correctnessTamperedErr  string
+	correctnessWrongResult  bool // a current-routed candidate verified but its receipt binds another result
+	correctnessHistorical   int  // certified events bound to a different/older result (historical, excluded)
 
 	// Phase-8.1d question-resolution certification.
 	qr              *questionresolution.QuestionResolutionCertificate
@@ -90,72 +95,79 @@ func latestResultBinding(chain ledger.VerifiedChain) (closureprotocol.ResultBind
 }
 
 // loadCorrectnessEvidence re-proves the recorded Phase-6 correctness certification
-// from the task ledger. It counts distinct certified receipts (for contradiction),
-// reads the most recent one's artifact, checks its byte integrity, and re-verifies
-// it with the certification owner. It never re-runs certification lanes.
-func loadCorrectnessEvidence(taskDir string, chain ledger.VerifiedChain, ev *evidence) {
-	distinct := map[string]bool{}
-	var current *ledger.VerifiedEntry
+// bounded to the CURRENT result. Each verified certified event is routed by its
+// claimed (untrusted) result binding: events bound to a different/older result are
+// historical and excluded from the current-result decision. Current-result
+// candidates are byte-checked and independently re-verified with the certification
+// owner; a verified receipt counts only when its OWN result binding equals the
+// current result. It never re-runs certification lanes. Historical certificates —
+// broken or valid — cannot poison the current result.
+func loadCorrectnessEvidence(taskDir string, chain ledger.VerifiedChain, currentRB closureprotocol.ResultBinding, haveRB bool, ev *evidence) {
+	if !haveRB {
+		return // without a current result we cannot route correctness → missing
+	}
+	valid := map[string]bool{}
 	for i := len(chain.Entries) - 1; i >= 0; i-- {
 		ve := chain.Entries[i]
 		if ve.Entry.EventType != closureprotocol.LedgerEventCertified {
 			continue
 		}
-		if current == nil {
-			e := ve
-			current = &e
+		data, err := ledger.ReadVerifiedPayload(ve)
+		if err != nil {
+			continue
 		}
-		distinct[ve.Entry.Payload.DigestSHA256] = true
-	}
-	ev.correctnessCount = len(distinct)
-	if current == nil {
-		return
-	}
-	// A result transition recorded after the certified event means the world
-	// advanced and the certificate certified an older result — stale.
-	for _, ve := range chain.Entries {
-		if ve.Entry.EventType == closureprotocol.LedgerEventResultTransitionRecorded &&
-			ve.Entry.Sequence > current.Entry.Sequence {
-			ev.correctnessSuperseded = true
-			break
+		payload, err := ledger.ParseTaskEventPayload(data)
+		if err != nil || payload.ResultBinding == nil {
+			continue
+		}
+		// Route by the event's claimed result binding (untrusted routing metadata).
+		if !binding.ResultBindingEqual(*payload.ResultBinding, currentRB) {
+			ev.correctnessHistorical++
+			continue
+		}
+		// A current-result candidate: byte-check + independently re-verify.
+		ref, ok := payload.Artifacts["certification_receipt"]
+		if !ok {
+			ev.correctnessTampered = true
+			ev.correctnessTamperedErr = "current certified event has no certification_receipt artifact"
+			continue
+		}
+		raw, rerr := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
+		if rerr != nil {
+			ev.correctnessTampered = true
+			ev.correctnessTamperedErr = "certification receipt artifact unreadable: " + rerr.Error()
+			continue
+		}
+		if sha256Hex(raw) != ref.DigestSHA256 {
+			ev.correctnessTampered = true
+			ev.correctnessTamperedErr = "certification receipt artifact digest mismatch"
+			continue
+		}
+		var rc closureprotocol.CertificationReceipt
+		if jerr := json.Unmarshal(raw, &rc); jerr != nil {
+			ev.correctnessTampered = true
+			ev.correctnessTamperedErr = "certification receipt unparseable: " + jerr.Error()
+			continue
+		}
+		if verr := certification.VerifyReceipt(rc); verr != nil {
+			ev.correctnessTampered = true
+			ev.correctnessTamperedErr = "certification receipt failed re-verification: " + verr.Error()
+			continue
+		}
+		// A verified receipt may satisfy only when its OWN binding equals the current
+		// result — a receipt binding another result fails closed.
+		if !binding.ResultBindingEqual(rc.ResultBinding, currentRB) {
+			ev.correctnessWrongResult = true
+			continue
+		}
+		valid[rc.DigestSHA256] = true
+		if ev.correctness == nil {
+			e := rc
+			ev.correctness = &e
+			ev.correctnessDigest = rc.DigestSHA256
 		}
 	}
-	data, err := ledger.ReadVerifiedPayload(*current)
-	if err != nil {
-		ev.correctnessErr = "certified event payload unreadable: " + err.Error()
-		return
-	}
-	payload, err := ledger.ParseTaskEventPayload(data)
-	if err != nil {
-		ev.correctnessErr = "certified event payload malformed: " + err.Error()
-		return
-	}
-	ref, ok := payload.Artifacts["certification_receipt"]
-	if !ok {
-		ev.correctnessErr = "certified event has no certification_receipt artifact"
-		return
-	}
-	raw, err := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
-	if err != nil {
-		ev.correctnessErr = "certification receipt artifact unreadable: " + err.Error()
-		return
-	}
-	if sha256Hex(raw) != ref.DigestSHA256 {
-		ev.correctnessErr = "certification receipt artifact digest mismatch"
-		return
-	}
-	var rc closureprotocol.CertificationReceipt
-	if err := json.Unmarshal(raw, &rc); err != nil {
-		ev.correctnessErr = "certification receipt unparseable: " + err.Error()
-		return
-	}
-	if err := certification.VerifyReceipt(rc); err != nil {
-		ev.correctnessErr = "certification receipt failed re-verification: " + err.Error()
-		return
-	}
-	ev.correctness = &rc
-	ev.correctnessDigest = rc.DigestSHA256
-	ev.correctnessValid = true
+	ev.correctnessCurrentValid = len(valid)
 }
 
 // loadQuestionResolutionEvidence re-proves the Phase-8.1d question-resolution

@@ -83,14 +83,84 @@ func TestAssessStaleQuestionResolution(t *testing.T) {
 	}
 }
 
-// Item 6: wrong-result certificate → rejected (wrong binding).
-func TestAssessWrongResultBinding(t *testing.T) {
+// Correction: a certificate bound only to a DIFFERENT result is historical, not a
+// contradiction — the current result is simply uncertified (stale), never poisoned.
+func TestAssessOtherResultCertificateIsStale(t *testing.T) {
 	w := seedWorld(t)
 	w.resolveAll(t)
 	rb := currentResultBinding(t, w.TaskDir)
-	wrong := rb
-	wrong.ResultTreeDigestSHA256 = "0000000000000000000000000000000000000000000000000000000000000000"
-	w.seedCorrectness(t, wrong, closureprotocol.Certified)
+	other := rb
+	other.ResultTreeDigestSHA256 = "0000000000000000000000000000000000000000000000000000000000000000"
+	w.seedCorrectness(t, other, closureprotocol.Certified) // bound to a different result
+	w.runQRCert(t)
+	a := w.assess(t)
+	if stateOf(a, ObligationCorrectnessCertificate) != EvidenceStale {
+		t.Fatalf("correctness = %s, want stale", stateOf(a, ObligationCorrectnessCertificate))
+	}
+}
+
+// Correction proof: an old-result certificate plus one valid current-result
+// certificate → correctness satisfied (the old one is historical, excluded).
+func TestAssessOldResultPlusCurrentSatisfied(t *testing.T) {
+	w := seedWorld(t)
+	w.resolveAll(t)
+	rb := currentResultBinding(t, w.TaskDir)
+	old := rb
+	old.ResultTreeDigestSHA256 = "1111111111111111111111111111111111111111111111111111111111111111"
+	w.seedCorrectness(t, old, closureprotocol.Certified) // historical
+	w.seedCorrectness(t, rb, closureprotocol.Certified)  // current
+	w.runQRCert(t)
+	a := w.assess(t)
+	if stateOf(a, ObligationCorrectnessCertificate) != EvidenceSatisfied {
+		t.Fatalf("correctness = %s, want satisfied", stateOf(a, ObligationCorrectnessCertificate))
+	}
+	if a.Readiness != ReadinessReady {
+		t.Fatalf("readiness = %s, want ready", a.Readiness)
+	}
+}
+
+// Correction proof: two distinct valid certificates for the CURRENT result →
+// contradictory (fail closed, no map/order selection).
+func TestAssessTwoCurrentCertsContradictory(t *testing.T) {
+	w := seedWorld(t)
+	w.resolveAll(t)
+	rb := currentResultBinding(t, w.TaskDir)
+	w.seedCorrectness(t, rb, closureprotocol.Certified)
+	w.seedCorrectness(t, rb, closureprotocol.CertifiedWithConditions) // distinct receipt, same result
+	w.runQRCert(t)
+	a := w.assess(t)
+	if stateOf(a, ObligationCorrectnessCertificate) != EvidenceContradictory {
+		t.Fatalf("correctness = %s, want contradictory", stateOf(a, ObligationCorrectnessCertificate))
+	}
+}
+
+// Correction proof: a broken certificate bound only to an older result must not
+// poison a valid current result.
+func TestAssessHistoricalTamperDoesNotPoison(t *testing.T) {
+	w := seedWorld(t)
+	w.resolveAll(t)
+	rb := currentResultBinding(t, w.TaskDir)
+	old := rb
+	old.ResultTreeDigestSHA256 = "2222222222222222222222222222222222222222222222222222222222222222"
+	oldDigest := w.seedCorrectness(t, old, closureprotocol.Certified)
+	tamperCertReceipt(t, w.TaskDir, oldDigest) // corrupt the historical certificate
+	w.seedCorrectness(t, rb, closureprotocol.Certified)
+	w.runQRCert(t)
+	a := w.assess(t)
+	if stateOf(a, ObligationCorrectnessCertificate) != EvidenceSatisfied {
+		t.Fatalf("correctness = %s, want satisfied (historical tamper must not poison)", stateOf(a, ObligationCorrectnessCertificate))
+	}
+}
+
+// Correction proof (item 5): a certificate whose event routes it to the current
+// result but whose verified receipt binds another result → fail closed.
+func TestAssessMismatchedPayloadReceiptWrongResult(t *testing.T) {
+	w := seedWorld(t)
+	w.resolveAll(t)
+	rb := currentResultBinding(t, w.TaskDir)
+	other := rb
+	other.ResultTreeDigestSHA256 = "3333333333333333333333333333333333333333333333333333333333333333"
+	w.seedCorrectnessMismatched(t, rb, other, closureprotocol.Certified) // payload=current, receipt=other
 	w.runQRCert(t)
 	a := w.assess(t)
 	if stateOf(a, ObligationCorrectnessCertificate) != EvidenceWrongBinding {
