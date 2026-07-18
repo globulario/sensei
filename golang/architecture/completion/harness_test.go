@@ -252,6 +252,72 @@ func (w world) seedCorrectness(t *testing.T, rb closureprotocol.ResultBinding, v
 	return digest
 }
 
+// seedCorrectnessMismatched fabricates a certified event whose PAYLOAD binds
+// payloadRB (used for routing) while the receipt artifact binds receiptRB. It lets
+// a test drive the item-5 case where routing claims the current result but the
+// verified receipt binds another.
+func (w world) seedCorrectnessMismatched(t *testing.T, payloadRB, receiptRB closureprotocol.ResultBinding, verdict closureprotocol.CertificationVerdict) string {
+	t.Helper()
+	receipt := closureprotocol.CertificationReceipt{
+		ResultBinding:        receiptRB,
+		CertificationPolicy:  "certification.architectural_closure.v1",
+		ScopeLane:            closureprotocol.DimensionPass,
+		AuthorityLane:        closureprotocol.DimensionPass,
+		ProofLane:            closureprotocol.DimensionPass,
+		EvidenceLane:         closureprotocol.DimensionPass,
+		CertificationVerdict: verdict,
+	}
+	digest, err := closureprotocol.CertificationReceiptDigest(receipt)
+	if err != nil {
+		t.Fatalf("cert digest: %v", err)
+	}
+	receipt.DigestSHA256 = digest
+	if err := certification.VerifyReceipt(receipt); err != nil {
+		t.Fatalf("fabricated receipt invalid: %v", err)
+	}
+	bytes, err := closureprotocol.CanonicalJSON(receipt)
+	if err != nil {
+		t.Fatalf("canonical json: %v", err)
+	}
+	store := ledger.NewStore(w.TaskDir)
+	ref, err := store.StoreArtifactBytes(bytes, "application/json")
+	if err != nil {
+		t.Fatalf("store artifact: %v", err)
+	}
+	report, err := store.Verify()
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	ra, err := admission.LoadRecordedAuthority(w.TaskDir)
+	if err != nil {
+		t.Fatalf("recorded authority: %v", err)
+	}
+	task := ra.Base.Task
+	prb := payloadRB
+	if _, err := store.Append(context.Background(), ledger.AppendRequest{
+		TaskID:                   task.ID,
+		SessionID:                task.SessionID,
+		ExpectedHeadDigestSHA256: report.HeadDigestSHA256,
+		EventType:                closureprotocol.LedgerEventCertified,
+		Payload: ledger.TaskEventPayload{
+			SchemaVersion: ledger.EventPayloadSchemaVersion,
+			EventType:     closureprotocol.LedgerEventCertified,
+			TaskID:        task.ID,
+			SessionID:     task.SessionID,
+			TaskPhase:     closureprotocol.PhaseCertified,
+			Status:        string(verdict),
+			ResultBinding: &prb,
+			Artifacts:     map[string]closureprotocol.LedgerPayloadRef{"certification_receipt": ref},
+		},
+		PayloadMediaType: "application/yaml",
+		ProducerID:       "sensei certify-change",
+		ProducedAt:       certAt,
+	}); err != nil {
+		t.Fatalf("append certified: %v", err)
+	}
+	return digest
+}
+
 func (w world) assess(t *testing.T) ReadinessAssessment {
 	t.Helper()
 	a, err := AssessReadiness(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})

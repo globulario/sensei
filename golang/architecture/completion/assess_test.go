@@ -31,9 +31,8 @@ func satisfiedEvidence() *evidence {
 			CertificationVerdict: closureprotocol.Certified,
 			ProofLane:            closureprotocol.DimensionPass,
 		},
-		correctnessDigest: "correctness-digest",
-		correctnessValid:  true,
-		correctnessCount:  1,
+		correctnessDigest:       "correctness-digest",
+		correctnessCurrentValid: 1,
 		qr: &questionresolution.QuestionResolutionCertificate{
 			GovernedManifestDigestSHA256: manifest,
 		},
@@ -51,12 +50,12 @@ func TestAssessCorrectnessClassification(t *testing.T) {
 		want EvidenceState
 	}{
 		{"satisfied", func(e *evidence) {}, EvidenceSatisfied},
-		{"missing", func(e *evidence) { e.correctness = nil; e.correctnessValid = false; e.correctnessCount = 0 }, EvidenceMissing},
-		{"contradictory", func(e *evidence) { e.correctnessCount = 2 }, EvidenceContradictory},
-		{"integrity", func(e *evidence) { e.correctnessValid = false; e.correctnessErr = "tampered" }, EvidenceIntegrityFailure},
+		{"missing", func(e *evidence) { e.correctness = nil; e.correctnessCurrentValid = 0 }, EvidenceMissing},
+		{"contradictory", func(e *evidence) { e.correctnessCurrentValid = 2 }, EvidenceContradictory},
+		{"integrity", func(e *evidence) { e.correctnessTampered = true; e.correctnessTamperedErr = "tampered" }, EvidenceIntegrityFailure},
 		{"unsupported_verdict", func(e *evidence) { e.correctness.CertificationVerdict = closureprotocol.CertificationReviewRequired }, EvidenceUnsupported},
-		{"stale_superseded", func(e *evidence) { e.correctnessSuperseded = true }, EvidenceStale},
-		{"wrong_binding", func(e *evidence) { e.correctness.ResultBinding = closureprotocol.ResultBinding{BaseRevision: "other"} }, EvidenceWrongBinding},
+		{"stale_historical_only", func(e *evidence) { e.correctness = nil; e.correctnessCurrentValid = 0; e.correctnessHistorical = 1 }, EvidenceStale},
+		{"wrong_result", func(e *evidence) { e.correctnessWrongResult = true }, EvidenceWrongBinding},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -132,7 +131,7 @@ func TestAssessReadyRequiresEveryObligation(t *testing.T) {
 	// Breaking any single obligation drops readiness.
 	breakers := []func(*evidence){
 		func(e *evidence) { e.haveResultBinding = false },
-		func(e *evidence) { e.correctnessCount = 0; e.correctness = nil; e.correctnessValid = false },
+		func(e *evidence) { e.correctnessCurrentValid = 0; e.correctness = nil },
 		func(e *evidence) { e.qrRelevantCount = 0; e.qr = nil; e.qrValid = false },
 		func(e *evidence) { e.correctness.ProofLane = closureprotocol.DimensionBlocked },
 		func(e *evidence) { e.qr.GovernedManifestDigestSHA256 = "changed" },
