@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -325,6 +326,205 @@ func (w world) assess(t *testing.T) ReadinessAssessment {
 		t.Fatalf("assess: %v", err)
 	}
 	return a
+}
+
+func currentHead(t *testing.T, taskDir string) string {
+	t.Helper()
+	rep, err := ledger.NewStore(taskDir).Verify()
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	return rep.HeadDigestSHA256
+}
+
+// ready sets up a fully-ready task (both certificates for the current result) and
+// returns the pre-completion head.
+func (w world) ready(t *testing.T) string {
+	t.Helper()
+	w.resolveAll(t)
+	rb := currentResultBinding(t, w.TaskDir)
+	w.seedCorrectness(t, rb, closureprotocol.Certified)
+	w.runQRCert(t)
+	return currentHead(t, w.TaskDir)
+}
+
+func (w world) complete(t *testing.T, expectedHead string) CompleteResult {
+	t.Helper()
+	res, err := CompleteTask(context.Background(), CompleteRequest{
+		RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir, IdentityRoot: w.IdentityRoot,
+		ExpectedLedgerHeadDigestSHA256: expectedHead,
+	})
+	if err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	return res
+}
+
+// tamperCurrentCorrectness corrupts the current-result correctness receipt artifact.
+func tamperCurrentCorrectness(t *testing.T, taskDir string) {
+	t.Helper()
+	chain, err := ledger.NewStore(taskDir).VerifyChain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		ve := chain.Entries[i]
+		if ve.Entry.EventType != closureprotocol.LedgerEventCertified {
+			continue
+		}
+		data, _ := ledger.ReadVerifiedPayload(ve)
+		payload, _ := ledger.ParseTaskEventPayload(data)
+		ref := payload.Artifacts["certification_receipt"]
+		p := filepath.Join(taskDir, filepath.FromSlash(ref.Path))
+		raw, _ := os.ReadFile(p)
+		if err := os.WriteFile(p, append(raw, []byte(" ")...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	t.Fatal("no certified event to tamper")
+}
+
+// tamperQRCert corrupts the persisted question-resolution certificate.
+func tamperQRCert(t *testing.T, repo string) {
+	t.Helper()
+	base := filepath.Join(repo, ".sensei", "project", "question-resolution-certifications")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		p := filepath.Join(base, e.Name(), "certificate.json")
+		raw, rerr := os.ReadFile(p)
+		if rerr != nil {
+			continue
+		}
+		// Corrupt the stored digest so the claim (task/head) still routes but full
+		// validation fails — a tampered, not merely absent, certificate.
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			t.Fatal(err)
+		}
+		m["digest_sha256"] = "0000000000000000000000000000000000000000000000000000000000000000"
+		out, err := json.Marshal(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, out, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	t.Fatal("no qr certificate to tamper")
+}
+
+// changeGoverned mutates a governed source file so the governed manifest digest
+// changes, without disturbing the promoted record.
+func changeGoverned(t *testing.T, repo string) {
+	t.Helper()
+	p := filepath.Join(repo, "docs", "awareness", "authority_domains.yaml")
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, append(raw, []byte("\n# drift\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// tamperCompletionReceipt corrupts the persisted terminal completion receipt.
+func tamperCompletionReceipt(t *testing.T, taskDir string) {
+	t.Helper()
+	chain, err := ledger.NewStore(taskDir).VerifyChain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		ve := chain.Entries[i]
+		if ve.Entry.EventType != closureprotocol.LedgerEventCompleted {
+			continue
+		}
+		data, _ := ledger.ReadVerifiedPayload(ve)
+		payload, _ := ledger.ParseTaskEventPayload(data)
+		ref := payload.Artifacts[completionArtifactKey]
+		p := filepath.Join(taskDir, filepath.FromSlash(ref.Path))
+		raw, _ := os.ReadFile(p)
+		if err := os.WriteFile(p, append(raw, []byte(" ")...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	t.Fatal("no completed event to tamper")
+}
+
+// appendResultTransition fabricates a new result_transition_recorded event binding a
+// different result, simulating post-completion re-work.
+func (w world) appendResultTransition(t *testing.T, rb closureprotocol.ResultBinding) {
+	t.Helper()
+	store := ledger.NewStore(w.TaskDir)
+	report, err := store.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ra, err := admission.LoadRecordedAuthority(w.TaskDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := ra.Base.Task
+	if _, err := store.Append(context.Background(), ledger.AppendRequest{
+		TaskID:                   task.ID,
+		SessionID:                task.SessionID,
+		ExpectedHeadDigestSHA256: report.HeadDigestSHA256,
+		EventType:                closureprotocol.LedgerEventResultTransitionRecorded,
+		Payload: ledger.TaskEventPayload{
+			SchemaVersion: ledger.EventPayloadSchemaVersion,
+			EventType:     closureprotocol.LedgerEventResultTransitionRecorded,
+			TaskID:        task.ID,
+			SessionID:     task.SessionID,
+			ResultBinding: &rb,
+		},
+		PayloadMediaType: "application/yaml",
+		ProducerID:       "test",
+		ProducedAt:       certAt,
+	}); err != nil {
+		t.Fatalf("append transition: %v", err)
+	}
+}
+
+// appendRevoked fabricates a revoked event.
+func (w world) appendRevoked(t *testing.T) {
+	t.Helper()
+	store := ledger.NewStore(w.TaskDir)
+	report, err := store.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ra, err := admission.LoadRecordedAuthority(w.TaskDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := ra.Base.Task
+	if _, err := store.Append(context.Background(), ledger.AppendRequest{
+		TaskID:                   task.ID,
+		SessionID:                task.SessionID,
+		ExpectedHeadDigestSHA256: report.HeadDigestSHA256,
+		EventType:                closureprotocol.LedgerEventRevoked,
+		Payload: ledger.TaskEventPayload{
+			SchemaVersion: ledger.EventPayloadSchemaVersion,
+			EventType:     closureprotocol.LedgerEventRevoked,
+			TaskID:        task.ID,
+			SessionID:     task.SessionID,
+			TaskPhase:     closureprotocol.PhaseRevoked,
+		},
+		PayloadMediaType: "application/yaml",
+		ProducerID:       "test",
+		ProducedAt:       certAt,
+	}); err != nil {
+		t.Fatalf("append revoked: %v", err)
+	}
 }
 
 func stateOf(a ReadinessAssessment, id ObligationID) EvidenceState {

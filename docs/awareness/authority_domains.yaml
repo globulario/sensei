@@ -124,3 +124,38 @@ authority_domains:
       - bound repository read
     must_read_via_ids:
       - observation_path.repository_read
+
+  # ── Phase 8.2b: terminal completion (the sole authoritative completed fact) ──
+  # Distinct from correctness certification, question disposition, governed
+  # promotion, and question-resolution certification. Only the completion owner may
+  # append the terminal `completed` fact, and only by re-proving the full readiness
+  # conjunction under one transaction boundary.
+  - id: authority.sensei_terminal_completion
+    label: Sensei terminal task completion
+    status: active
+    truth_layer: task
+    owner_service: service.sensei.completion
+    evidence_freshness: completion binds the exact task, current result, pre-completion ledger head, readiness assessment, correctness receipt, question-resolution certificate, and governed manifest by digest under one lock
+    covers_paths:
+      - cmd/awg/
+      - docs/awareness/
+      - golang/architecture/
+      - golang/extractor/
+      - golang/rdf/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed terminal completion
+    must_mutate_via_ids:
+      - mutation_path.terminal_completion
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read

@@ -36,17 +36,18 @@ const (
 	ActorCI      ActorKind = "ci"
 	ActorSystem  ActorKind = "system"
 
-	OperationRead    OperationKind = "read"
-	OperationCreate  OperationKind = "create"
-	OperationModify  OperationKind = "modify"
-	OperationDelete  OperationKind = "delete"
-	OperationRename  OperationKind = "rename"
-	OperationExecute OperationKind = "execute"
-	OperationMigrate OperationKind = "migrate"
-	OperationRebuild OperationKind = "rebuild"
-	OperationObserve OperationKind = "observe"
-	OperationDispose OperationKind = "dispose"
-	OperationPromote OperationKind = "promote"
+	OperationRead     OperationKind = "read"
+	OperationCreate   OperationKind = "create"
+	OperationModify   OperationKind = "modify"
+	OperationDelete   OperationKind = "delete"
+	OperationRename   OperationKind = "rename"
+	OperationExecute  OperationKind = "execute"
+	OperationMigrate  OperationKind = "migrate"
+	OperationRebuild  OperationKind = "rebuild"
+	OperationObserve  OperationKind = "observe"
+	OperationDispose  OperationKind = "dispose"
+	OperationPromote  OperationKind = "promote"
+	OperationComplete OperationKind = "complete"
 
 	MechanismRepositoryEdit           MechanismKind = "repository_edit"
 	MechanismOwnerRPC                 MechanismKind = "owner_rpc"
@@ -153,6 +154,7 @@ var (
 		OperationMigrate, OperationRebuild, OperationObserve,
 		OperationDispose,
 		OperationPromote,
+		OperationComplete,
 	}
 	MechanismKinds = []MechanismKind{
 		MechanismRepositoryEdit, MechanismOwnerRPC, MechanismGovernedWorkflow, MechanismMigrationRunner,

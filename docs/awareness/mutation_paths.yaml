@@ -40,3 +40,11 @@ mutation_paths:
     mechanism_kind: owner_rpc
     target_kinds:
       - question_resolution_certificate
+
+  # ── Phase 8.2b: terminal completion (governed workflow) ──
+  - id: mutation_path.terminal_completion
+    label: Governed terminal task completion
+    status: active
+    mechanism_kind: governed_workflow
+    target_kinds:
+      - task_completion
