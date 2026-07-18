@@ -601,6 +601,7 @@ invariants:
         - golang/architecture/ledger/event.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/questiondisposition/e2e_test.go:TestE2EAnsweredReusableRecordsAndProjects
     contract: >
       An authoritative task question outcome is established only by a
       question_disposition_recorded ledger event appended by the question-disposition
@@ -648,6 +649,7 @@ invariants:
         - golang/architecture/questiongen/dialogue_ops.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/questiondisposition/matrix_test.go:TestMissingDispositionGrantFailsClosed
     contract: >
       An architect answer becomes authoritative only through an authorized disposition
       (verified actor) recorded by the question-disposition owner; a reusable answer
@@ -693,6 +695,7 @@ invariants:
         - golang/server/scope.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/questiondisposition/matrix_test.go:TestAnsweredTaskLocalReevaluatesAndContains
     contract: >
       Task-local answers are confined to their exact task/session/result and effective
       scope and are surfaced only in a task-scoped status/briefing surface, never in
@@ -714,6 +717,7 @@ invariants:
         - golang/architecture/resultpipeline/build.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/questiondisposition/matrix_test.go:TestDismissedIsDurableAndDoesNotEraseQuestion
     contract: >
       Every closure-blocking architect-required question must resolve to exactly one
       effective state in a canonical QuestionResolutionSummary (resolved_reusable_promoted,
