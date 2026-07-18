@@ -41,6 +41,8 @@
 //	sensei certify                          Legacy benchmark certification adapter (not architectural closure)
 //	sensei certify-change                   Architectural-closure certification over a verified task ledger
 //	sensei complete-task                    Delegate terminal completion to the Phase-8 owner (thin invocation surface)
+//	sensei inspect-terminal                 Reconstruct a task's honest terminal state (read-only surface)
+//	sensei recover-projections              Rebuild stale/missing derived projections from a valid conjunction
 //	sensei extract-authority                Extract candidate authority surfaces from code
 //	sensei extract-proof-obligations        Generate proof obligations from authority surfaces
 //	sensei infer-claims                     Derive offline ArchitectureClaim candidates from facts
@@ -212,6 +214,10 @@ func main() {
 		os.Exit(runCertifyChange(args))
 	case "complete-task":
 		os.Exit(runCompleteTask(args))
+	case "inspect-terminal":
+		os.Exit(runInspectTerminal(args))
+	case "recover-projections":
+		os.Exit(runRecoverProjections(args))
 	case "extract-authority":
 		os.Exit(runExtractAuthority(args))
 	case "extract-proof-obligations":
@@ -410,6 +416,8 @@ Repair and evaluation helpers:
   certify        Legacy benchmark repair-claim verdict (not architectural closure)
   certify-change Architectural-closure certification over a verified task ledger
   complete-task  Delegate terminal completion to the Phase-8 owner (thin invocation surface)
+  inspect-terminal Reconstruct a task's honest terminal state (read-only surface)
+  recover-projections Rebuild stale/missing derived projections from a valid conjunction
   extract-invariants Extract normalized facts and review-only invariant candidates
   infer-claims   Derive offline ArchitectureClaim candidates from normalized facts
   maintain-claims Recalculate offline ArchitectureClaim status from explicit proof
