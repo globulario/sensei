@@ -220,3 +220,24 @@ func snapshotTree(t *testing.T, root string) string {
 	})
 	return string(b)
 }
+
+// A domain-scoped promotion is excluded when the briefing domain is unknown
+// (empty) — unknown domain must not fail open.
+func TestBriefingExcludesScopedPromotionOnEmptyDomain(t *testing.T) {
+	file := "golang/server/reload.go"
+	repo := seedCommittedPromotion(t, []string{file})
+	got, _ := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, "")
+	if len(got) != 0 {
+		t.Fatalf("domain-scoped promotion entered binding context with an empty domain: %+v", got)
+	}
+}
+
+// A domain-scoped promotion is excluded when the briefing domain differs.
+func TestBriefingExcludesScopedPromotionOnDifferentDomain(t *testing.T) {
+	file := "golang/server/reload.go"
+	repo := seedCommittedPromotion(t, []string{file})
+	got, _ := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, "github.com/other/repo")
+	if len(got) != 0 {
+		t.Fatalf("domain-scoped promotion entered binding context for a different domain: %+v", got)
+	}
+}

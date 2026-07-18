@@ -72,7 +72,9 @@ func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, 
 // or a task-scoped file. A promotion with no declared effective scope is not
 // selected into binding context.
 func promotionInScope(rc questionpromotion.QuestionPromotionReceipt, file string, taskFiles map[string]bool, domain string) bool {
-	if rc.EffectiveScopeDomain != "" && domain != "" && rc.EffectiveScopeDomain != domain {
+	// A promotion that declares a governed domain must match the task's domain
+	// exactly. An unknown (empty) task domain is NOT a match — fail closed.
+	if rc.EffectiveScopeDomain != "" && rc.EffectiveScopeDomain != domain {
 		return false
 	}
 	if len(rc.EffectiveScopeFiles) == 0 {
