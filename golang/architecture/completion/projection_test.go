@@ -372,6 +372,38 @@ func TestCompletionEnvelopeCanonicalPublication(t *testing.T) {
 		t.Fatal("mutating the nested projection must fail canonical publication validation")
 	}
 
+	// One layer below the envelope: an internally consistent but IMPOSSIBLE projection —
+	// verdict=not_completed with authoritative_completion=true — re-digested at BOTH the
+	// projection and envelope layers so every digest verifies, must still be rejected
+	// because the nested projection violates its own canonical contract.
+	impossible := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	impossible.Projection.ClosureVerdict = ClosureNotCompleted
+	impossible.Projection.AuthoritativeCompletion = true
+	pd, perr := recomputeProjectionDigest(*impossible.Projection)
+	if perr != nil {
+		t.Fatalf("recompute projection digest: %v", perr)
+	}
+	impossible.Projection.DigestSHA256 = pd
+	ed, eerr := recomputeEnvelopeDigest(impossible)
+	if eerr != nil {
+		t.Fatalf("recompute envelope digest: %v", eerr)
+	}
+	impossible.DigestSHA256 = ed
+	// The envelope digest verifies, but the projection contract does not.
+	if perr := ValidateCanonicalCompletionProjection(*impossible.Projection); perr == nil {
+		t.Fatal("a projection with authoritative=true but verdict=not_completed must fail its contract")
+	}
+	if ValidateCanonicalCompletionEnvelope(impossible) == nil {
+		t.Fatal("an available envelope wrapping a contradictory projection must fail canonical publication")
+	}
+	ipub := impossible.PublicationView()
+	if ipub.Canonical || ipub.InvalidClass != PublicationInvalidProjection {
+		t.Fatalf("impossible nested projection must publish canonical:false class=projection, got %#v", ipub)
+	}
+	if err := ValidateCompletionPublication(ipub); err != nil {
+		t.Fatalf("the non-canonical publication must re-validate as a coherent union: %v", err)
+	}
+
 	// An off-schema version and a stripped digest each fail canonical publication while
 	// leaving the structural conjunction intact.
 	badSchema := UnavailableProjectionOwnerEnvelope("s")
