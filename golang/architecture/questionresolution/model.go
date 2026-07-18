@@ -80,6 +80,11 @@ const (
 	// StateReusablePromoted: a reusable-candidate answer backed by a valid,
 	// independently re-proven committed promotion binding this exact disposition.
 	StateReusablePromoted QuestionState = "reusable_promoted"
+	// StateEvidenceIntegrityFailure: a reusable-candidate answer whose relevant
+	// promotion evidence is broken — a promotion that purports to bind THIS
+	// disposition but fails re-verification, or two verified promotions binding the
+	// same disposition (contradictory/ambiguous). It fails the gate closed.
+	StateEvidenceIntegrityFailure QuestionState = "evidence_integrity_failure"
 )
 
 // QuestionResolution is the per-question projection. It preserves exact identifiers

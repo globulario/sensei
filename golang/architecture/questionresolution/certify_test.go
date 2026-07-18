@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
+	"github.com/globulario/sensei/golang/architecture/questionpromotion"
 	"github.com/globulario/sensei/golang/propose"
 )
 
@@ -128,8 +129,46 @@ func TestGateBlockedOnReusableWithoutPromotion(t *testing.T) {
 	}
 }
 
-// Item 5: a tampered promotion is excluded with a typed integrity finding and fails
-// the gate closed.
+// Boundedness (correction): an unrelated broken promotion elsewhere in the
+// repository must NOT block a fully-resolved current task.
+func TestUnrelatedBrokenPromotionDoesNotBlock(t *testing.T) {
+	w := seedWorld(t)
+	qA, qB := w.Questions[0].QuestionID, w.Questions[1].QuestionID
+	dA := w.dispose2(t, qA, qd.DispositionAnswered, qd.ReusabilityReusableCandidate, "A")
+	w.promote(t, dA, proposedInvariant())
+	w.dispose2(t, qB, qd.DispositionAnswered, qd.ReusabilityTaskLocal, "B")
+	// Debris: a broken promotion binding a disposition of no current-task question.
+	writeUnrelatedBrokenPromotion(t, w.Repo, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+
+	res := w.certify(t)
+	if res.Outcome != OutcomeSatisfied {
+		t.Fatalf("outcome = %s (%s); unrelated debris must not veto a bounded certificate", res.Outcome, res.Detail)
+	}
+	if len(res.Summary.IntegrityFindings) != 0 {
+		t.Fatalf("unrelated debris leaked into findings: %v", res.Summary.IntegrityFindings)
+	}
+}
+
+// Boundedness (correction, requirement 7): two verified promotions binding the same
+// disposition fail closed as contradictory evidence — never map-order selection.
+func TestReusableClassificationFailsClosedOnCollision(t *testing.T) {
+	two := []questionpromotion.VerifiedPromotion{{PromotionLineageID: "lineage.a"}, {PromotionLineageID: "lineage.b"}}
+	if st, finding := classifyReusable(two, ""); st != StateEvidenceIntegrityFailure || finding == "" {
+		t.Fatalf("two verified promotions: state=%s finding=%q, want evidence_integrity_failure + finding", st, finding)
+	}
+	if st, _ := classifyReusable(two[:1], ""); st != StateReusablePromoted {
+		t.Fatalf("one verified promotion state = %s, want reusable_promoted", st)
+	}
+	if st, _ := classifyReusable(nil, "broken"); st != StateEvidenceIntegrityFailure {
+		t.Fatalf("relevant integrity state = %s, want evidence_integrity_failure", st)
+	}
+	if st, _ := classifyReusable(nil, ""); st != StateReusableUnpromoted {
+		t.Fatalf("no evidence state = %s, want reusable_candidate_unpromoted", st)
+	}
+}
+
+// Item 5: a tampered promotion tied to a current reusable disposition is excluded
+// with a typed integrity finding and fails the gate closed.
 func TestGateBlockedOnTamperedPromotion(t *testing.T) {
 	w := seedWorld(t)
 	dA := w.dispose2(t, w.Questions[0].QuestionID, qd.DispositionAnswered, qd.ReusabilityReusableCandidate, "A")
