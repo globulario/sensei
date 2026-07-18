@@ -320,7 +320,7 @@ distilled from real production incidents and portable to any system:
 
 | Category | Count | Examples |
 |---|---|---|
-| **Authority** | 20 | wrong actor writes truth; one value, two meanings |
+| **Authority** | 21 | wrong actor writes truth; one value, two meanings |
 | **Signal** | 19 | a fallback that looks like truth; errors absorbed into timeouts |
 | **Lifecycle** | 38 | a write with no cleanup; intermediate state that looks done |
 | **Dependency** | 7 | critical path blocked by a non-critical service |
