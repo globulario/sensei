@@ -7,12 +7,12 @@ import "github.com/globulario/sensei/golang/architecture"
 // OpenQuestionRef identifies a disposable architect question on the latest
 // recorded result transition.
 type OpenQuestionRef struct {
-	QuestionID             string
-	QuestionText           string
-	BlocksClosureDimension string
-	ArchitectRequired      bool
-	ScopeDomain            string
-	ScopeFiles             []string
+	QuestionID             string   `json:"question_id" yaml:"question_id"`
+	QuestionText           string   `json:"question_text" yaml:"question_text"`
+	BlocksClosureDimension string   `json:"blocks_closure_dimension,omitempty" yaml:"blocks_closure_dimension,omitempty"`
+	ArchitectRequired      bool     `json:"architect_required" yaml:"architect_required"`
+	ScopeDomain            string   `json:"scope_domain,omitempty" yaml:"scope_domain,omitempty"`
+	ScopeFiles             []string `json:"scope_files,omitempty" yaml:"scope_files,omitempty"`
 }
 
 // OpenQuestionsForLatestTransition lists the architect questions carried by the
