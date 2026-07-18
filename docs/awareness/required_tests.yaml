@@ -488,3 +488,27 @@ required_tests:
       files:
         - golang/architecture/completion/inspect.go
         - golang/architecture/completion/recover.go
+  # ── Phase 8.2d: end-to-end completion closure ──
+  - id: golang/architecture/completion/integration_test.go:TestClosureTamperingBreaksClosure
+    title: Tampering any bound component cannot produce authoritative end-to-end closure
+    protects:
+      invariants:
+        - closure.authoritative_completion_iff_whole_durable_conjunction
+      failure_modes:
+        - closure.phase8_report_or_integration_treated_as_completion_authority
+      files:
+        - golang/architecture/completion/integration.go
+  - id: golang/architecture/completion/integration_test.go:TestClosureAuthoritySeparation
+    title: Completion authority is disjoint and projection recovery never appends a completed fact
+    protects:
+      failure_modes:
+        - closure.phase8_report_or_integration_treated_as_completion_authority
+      files:
+        - golang/architecture/completion/integration.go
+  - id: golang/architecture/completion/integration_test.go:TestPhase8ClosureReportContract
+    title: The Phase-8 closure report enumerates all owners and terminal states and keeps the three closure claims distinct
+    protects:
+      invariants:
+        - closure.authoritative_completion_iff_whole_durable_conjunction
+      files:
+        - golang/architecture/completion/closure_report.go
