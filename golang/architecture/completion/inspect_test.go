@@ -257,6 +257,36 @@ func TestInspectDeterministicAndSideEffectFree(t *testing.T) {
 	}
 }
 
+// Correction: a valid event/receipt pair with NO durable current result binding can
+// never report committed, is never projection-recoverable, and recovery refuses
+// without writing anything. Absence of a mismatch is not proof of a match.
+func TestInspectNoCurrentResultNotCommitted(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("setup completion failed")
+	}
+	// Lose the current result identity (latest transition carries no binding).
+	w.appendEmptyResultTransition(t)
+
+	a := w.inspect(t)
+	if a.State == TerminalCommitted || a.State == TerminalProjectionStaleOrMissing {
+		t.Fatalf("state = %s: an unprovable current result must not be committed/recoverable", a.State)
+	}
+	if a.State != TerminalUnsupported {
+		t.Fatalf("state = %s, want unsupported", a.State)
+	}
+	before := treeDigest(t, w.Repo)
+	entriesBefore := ledgerEntryCount(t, w.TaskDir)
+	rec := w.recover(t)
+	if rec.Outcome == RecoverProjectionsRebuilt || rec.Outcome == RecoverAlreadyCurrent {
+		t.Fatalf("recover = %s: must refuse an unprovable current result", rec.Outcome)
+	}
+	if treeDigest(t, w.Repo) != before || ledgerEntryCount(t, w.TaskDir) != entriesBefore {
+		t.Fatal("recovery wrote something while refusing")
+	}
+}
+
 // A not-completed task is reconstructed as not_completed with nothing to recover.
 func TestInspectNotCompleted(t *testing.T) {
 	w := seedWorld(t)
