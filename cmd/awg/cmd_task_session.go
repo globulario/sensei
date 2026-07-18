@@ -180,20 +180,25 @@ Flags:
 func completionProjectionEnvelope(opts tasksession.StatusOptions) completion.CompletionProjectionEnvelope {
 	abs, err := filepath.Abs(strings.TrimSpace(opts.RepoRoot))
 	if err != nil {
-		return completion.UnavailableCompletionEnvelope(completion.UnavailableTaskDirectoryUnresolved, "repository path: "+err.Error())
+		return completion.UnavailableTaskDirectoryEnvelope("repository path: " + err.Error())
 	}
 	taskDir := strings.TrimSpace(opts.TaskDir)
 	if opts.Active || taskDir == "" {
 		p, perr := tasksession.LoadActivePointer(abs)
 		if perr != nil {
-			return completion.UnavailableCompletionEnvelope(completion.UnavailableTaskDirectoryUnresolved, "active task pointer: "+perr.Error())
+			return completion.UnavailableTaskDirectoryEnvelope("active task pointer: " + perr.Error())
 		}
 		taskDir = filepath.Dir(filepath.Join(abs, filepath.FromSlash(p.SessionPath)))
 	}
 	if strings.TrimSpace(taskDir) == "" {
-		return completion.UnavailableCompletionEnvelope(completion.UnavailableTaskDirectoryUnresolved, "no task directory resolved")
+		return completion.UnavailableTaskDirectoryEnvelope("no task directory resolved")
 	}
-	return completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: abs, TaskDirectory: taskDir})
+	env := completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: abs, TaskDirectory: taskDir})
+	// The task-status path receives only a validated envelope.
+	if completion.ValidateCompletionEnvelope(env) != nil {
+		return completion.UnavailableProjectionOwnerEnvelope("internal: invalid completion envelope")
+	}
+	return env
 }
 
 func runAdvanceTask(args []string) int {
