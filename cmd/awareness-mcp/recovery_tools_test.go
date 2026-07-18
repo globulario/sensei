@@ -50,6 +50,31 @@ func TestCompletionToolsRejectNonStringIdentity(t *testing.T) {
 		if _, err := b.callTool(ctx, name, map[string]interface{}{"repo": t.TempDir(), "task": []interface{}{"x"}}); err == nil {
 			t.Fatalf("%s: a non-string task must be rejected, never coerced to the active task", name)
 		}
+		// A present JSON null decodes to a present nil — that is malformed identity, not
+		// an omitted field, and must fail rather than silently select the active task.
+		if _, err := b.callTool(ctx, name, map[string]interface{}{"repo": nil}); err == nil {
+			t.Fatalf("%s: a present null repo must be rejected", name)
+		}
+		if _, err := b.callTool(ctx, name, map[string]interface{}{"repo": t.TempDir(), "task": nil}); err == nil {
+			t.Fatalf("%s: a present null task must be rejected, never coerced to the active task", name)
+		}
+	}
+}
+
+// stringArg distinguishes an OMITTED field (default) from a SUPPLIED malformed one
+// (reject) — including JSON null, which decodes to a present nil.
+func TestStringArg(t *testing.T) {
+	if v, err := stringArg(map[string]interface{}{}, "task"); v != "" || err != nil {
+		t.Fatalf("an absent key must default to empty, got %q %v", v, err)
+	}
+	if v, err := stringArg(map[string]interface{}{"task": "x"}, "task"); v != "x" || err != nil {
+		t.Fatalf("a present string must pass through, got %q %v", v, err)
+	}
+	if _, err := stringArg(map[string]interface{}{"task": nil}, "task"); err == nil {
+		t.Fatal("a present null must be rejected, not defaulted to the active task")
+	}
+	if _, err := stringArg(map[string]interface{}{"task": 123}, "task"); err == nil {
+		t.Fatal("a present non-string must be rejected")
 	}
 }
 

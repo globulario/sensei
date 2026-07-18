@@ -381,13 +381,14 @@ var inspectTerminalDelegate = completion.InspectTerminalState
 
 var recoverProjectionsDelegate = completion.RecoverProjections
 
-// stringArg returns the string value for key. An absent key yields "" so the caller can
-// apply its default (e.g. the active task); a PRESENT but non-string value is a hard
-// error — a malformed identity must never coerce to "" and silently select the active
-// task, since schema enforcement is advisory.
+// stringArg returns the string value for key. Only an ABSENT key yields "" so the caller
+// can apply its default (e.g. the active task). A PRESENT value that is not a string —
+// including JSON null, which decodes to a present nil — is a hard error: a malformed
+// identity must never coerce to "" and silently select the active task, since schema
+// enforcement is advisory. "Omitted" and "supplied malformed" are different worlds.
 func stringArg(args map[string]interface{}, key string) (string, error) {
 	v, ok := args[key]
-	if !ok || v == nil {
+	if !ok {
 		return "", nil
 	}
 	s, ok := v.(string)
