@@ -34,6 +34,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/completion"
 	"github.com/globulario/sensei/golang/architecture/probeexec"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/architecture/tasksession"
@@ -311,6 +313,20 @@ func (b *bridge) tools() []tool {
 				"required": []string{"decision_path", "bundle_dir", "repo"},
 			},
 		},
+		{
+			Name:        "complete_task",
+			Description: "Delegate terminal completion to the Phase-8 completion owner (completion.CompleteTask) and report its closed outcome (committed/exact_replay/not_ready/...). Thin invocation surface: it accepts no caller-supplied status, adds no authority or mutation path, is idempotent on replay, and cannot manufacture completion \u2014 a refusal is reported and writes nothing.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"repo":          map[string]interface{}{"type": "string"},
+					"task":          map[string]interface{}{"type": "string"},
+					"identity_root": map[string]interface{}{"type": "string"},
+					"expected_head": map[string]interface{}{"type": "string"},
+				},
+				"required": []string{"repo", "expected_head"},
+			},
+		},
 	}
 }
 
@@ -562,6 +578,56 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 			return nil, err
 		}
 		return &toolResult{Text: admission.RenderVerificationText(verification), Structured: structAdmissionVerification(verification)}, nil
+
+	case "complete_task":
+		repo, _ := args["repo"].(string)
+		task, _ := args["task"].(string)
+		identityRoot, _ := args["identity_root"].(string)
+		expectedHead, _ := args["expected_head"].(string)
+		repo = strings.TrimSpace(repo)
+		if repo == "" || strings.TrimSpace(expectedHead) == "" {
+			return nil, fmt.Errorf("repo and expected_head are required")
+		}
+		absRepo, err := filepath.Abs(repo)
+		if err != nil {
+			return nil, err
+		}
+		// Resolve the task directory (active pointer when task is omitted), then delegate
+		// once to the sole terminal-completion owner. This surface adds no completion
+		// logic and accepts no caller-supplied status; the owner decides the outcome.
+		taskDir := strings.TrimSpace(task)
+		if taskDir == "" {
+			ptr, perr := tasksession.LoadActivePointer(absRepo)
+			if perr != nil {
+				return nil, perr
+			}
+			taskDir = filepath.Join(absRepo, filepath.Dir(filepath.FromSlash(ptr.SessionPath)))
+		} else {
+			taskDir, err = filepath.Abs(taskDir)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if strings.TrimSpace(identityRoot) == "" {
+			identityRoot = filepath.Join(absRepo, ".sensei", "identity")
+		}
+		res, err := completion.CompleteTask(ctx, completion.CompleteRequest{
+			RepositoryRoot:                 absRepo,
+			TaskDirectory:                  taskDir,
+			IdentityRoot:                   strings.TrimSpace(identityRoot),
+			ExpectedLedgerHeadDigestSHA256: strings.TrimSpace(expectedHead),
+		})
+		if err != nil {
+			return nil, err
+		}
+		text := "outcome: " + string(res.Outcome)
+		if strings.TrimSpace(res.Detail) != "" {
+			text += "\ndetail: " + res.Detail
+		}
+		if res.ReceiptPath != "" {
+			text += "\nreceipt: " + res.ReceiptPath
+		}
+		return &toolResult{Text: text, Structured: structFrom(res)}, nil
 
 	default:
 		return nil, fmt.Errorf("unknown tool %q", name)
