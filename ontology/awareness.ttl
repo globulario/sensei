@@ -126,6 +126,14 @@ aw:OpenQuestion a owl:Class ; rdfs:label "Open Question" ;
 aw:ArchitectAnswer a owl:Class ; rdfs:label "Architect Answer" ;
     rdfs:comment "A typed record of an architect's exact statement. It is not observed truth, not active Intent or Decision, not automatically trusted because of author role, not promotable in place, and explicit-query-only in Increment 3. accepted_for_question resolves only the dialogue artifact and does not promote architecture." .
 
+# ── Phase 8.1b governed-promotion provenance nodes (lineage only) ──────────
+aw:QuestionPromotionReceipt a owl:Class ; rdfs:label "Question Promotion Receipt" ;
+    rdfs:comment "Content-addressed proof that an accepted reusable-candidate question disposition was promoted into a governed record and a verified repository-graph node. Lineage/authority only; implies no certification or completion." .
+aw:QuestionDispositionReceipt a owl:Class ; rdfs:label "Question Disposition Receipt" ;
+    rdfs:comment "The authoritative task-ledger outcome of one architect question on one exact result. A provenance node referenced by a promotion receipt." .
+aw:ResultBinding a owl:Class ; rdfs:label "Result Binding" ;
+    rdfs:comment "Provenance node for the exact task result a promotion lineage pertains to (content-addressed by the result binding digest)." .
+
 # ── Design-pattern awareness (the "how" layer) ─────────────────────────────
 # Helps agents recognise the correct architectural SHAPE and avoid misusing it.
 # Grounded only: a pattern earns its place by protecting a boundary, satisfying
@@ -824,6 +832,20 @@ aw:lastReviewedAt a owl:DatatypeProperty ; rdfs:label "last reviewed at" ;
     rdfs:comment "OpenQuestion → string. Authored RFC3339 review time." ; rdfs:range xsd:string .
 aw:answersQuestion a owl:ObjectProperty ; rdfs:label "answers question" ;
     rdfs:comment "ArchitectAnswer → OpenQuestion. The dialogue question this exact statement answers." .
+
+# ── Phase 8.1b governed-promotion provenance edges (lineage only) ──────────
+aw:promotedVia a owl:ObjectProperty ; rdfs:label "promoted via" ;
+    rdfs:comment "Governed node → QuestionPromotionReceipt. The promotion that established this reusable node. Provenance only." .
+aw:recordsDisposition a owl:ObjectProperty ; rdfs:label "records disposition" ;
+    rdfs:comment "QuestionPromotionReceipt → QuestionDispositionReceipt. The exact disposition being promoted." .
+aw:resolvesAnswer a owl:ObjectProperty ; rdfs:label "resolves answer" ;
+    rdfs:comment "QuestionDispositionReceipt → ArchitectAnswer. The architect answer this disposition recorded." .
+aw:raisedForTask a owl:ObjectProperty ; rdfs:label "raised for task" ;
+    rdfs:comment "OpenQuestion → Task. The task the question was raised for." .
+aw:inSession a owl:ObjectProperty ; rdfs:label "in session" ;
+    rdfs:comment "Task → TaskSession. The session the task belongs to." .
+aw:forResult a owl:ObjectProperty ; rdfs:label "for result" ;
+    rdfs:comment "QuestionPromotionReceipt → ResultBinding. The exact result the promotion pertains to." .
 aw:authorRole a owl:DatatypeProperty ; rdfs:label "author role" ;
     rdfs:comment "ArchitectAnswer → string. Authored role token only; it does not prove authorization." ; rdfs:range xsd:string .
 aw:authorId a owl:DatatypeProperty ; rdfs:label "author id" ;

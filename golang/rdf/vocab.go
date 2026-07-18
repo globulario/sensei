@@ -61,6 +61,12 @@ const (
 	ClassOpenQuestion      = AwNS + "OpenQuestion"      // non-authoritative closure-gap artifact; explicit query only
 	ClassArchitectAnswer   = AwNS + "ArchitectAnswer"   // typed architect statement; explicit query only
 
+	// Phase 8.1b governed-promotion provenance nodes (content-addressed). These
+	// are provenance lineage only — they imply no certification or completion.
+	ClassQuestionPromotionReceipt   = AwNS + "QuestionPromotionReceipt"
+	ClassQuestionDispositionReceipt = AwNS + "QuestionDispositionReceipt"
+	ClassResultBinding              = AwNS + "ResultBinding"
+
 	// Design-pattern awareness (the "how" layer). DesignPattern = general shape;
 	// ImplementationPattern (declared above) = project realisation; PatternMisuse
 	// = visible misuse. Distinct from the legacy generic ClassPattern catalogue.
@@ -446,7 +452,19 @@ const (
 	PropCreatedAt                     = AwNS + "createdAt"
 	PropLastReviewedAt                = AwNS + "lastReviewedAt"
 
-	PropAnswersQuestion        = AwNS + "answersQuestion"
+	PropAnswersQuestion = AwNS + "answersQuestion"
+
+	// Phase 8.1b governed-promotion provenance edges. Directed to support the
+	// full outbound chain governed node -> promotion receipt -> disposition
+	// receipt -> architect answer -> open question -> task -> session, plus
+	// promotion receipt -> result binding. They carry no certification/completion
+	// meaning; they are lineage only.
+	PropPromotedVia            = AwNS + "promotedVia"        // governed node -> promotion receipt
+	PropRecordsDisposition     = AwNS + "recordsDisposition" // promotion receipt -> disposition receipt
+	PropResolvesAnswer         = AwNS + "resolvesAnswer"     // disposition receipt -> architect answer
+	PropRaisedForTask          = AwNS + "raisedForTask"      // open question -> task
+	PropInSession              = AwNS + "inSession"          // task -> session
+	PropForResult              = AwNS + "forResult"          // promotion receipt -> result binding
 	PropAuthorRole             = AwNS + "authorRole"
 	PropAuthorID               = AwNS + "authorId"
 	PropAnswerStatement        = AwNS + "answerStatement"
