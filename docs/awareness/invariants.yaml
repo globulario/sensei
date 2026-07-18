@@ -740,14 +740,21 @@ invariants:
         - golang/architecture/certification/evaluate.go
         - golang/architecture/certification/ledger.go
         - golang/architecture/proofrequirements/compose.go
+        - golang/architecture/questionresolution/summarize.go
+        - golang/architecture/questionresolution/certify.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/questionresolution/certify_test.go:TestGateBlockedOnUnresolvedBindingQuestion
+      - golang/architecture/questionresolution/certify_test.go:TestGateSatisfiedByPromotionAndTaskLocal
     contract: >
       A certifying verdict requires a complete, content-addressed QuestionResolutionSummary
       for the exact result in which every blocking architect-required question is
-      effectively resolved (reusable-promoted or task-local). Certification consumes and
-      independently verifies the summary; it never records dispositions, promotes
-      answers, or moves answer/promotion ownership into the certification engine.
+      effectively resolved (reusable-promoted or task-local). The bounded question-resolution
+      certification is an isolated owner path (Phase 8.1d) authorized by a distinct governed
+      triple; it consumes and independently re-verifies the summary through the question-
+      disposition and promotion owners; it never records dispositions, promotes answers, sets
+      CorrectnessCertified, emits the Phase-6 certified event, or moves answer/promotion
+      ownership into the certification engine.
   - id: closure.completion_requires_closed_current_question_loop
     title: Completion requires certification plus a closed, current question/promotion loop
     severity: critical

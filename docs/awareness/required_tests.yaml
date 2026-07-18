@@ -364,3 +364,44 @@ required_tests:
       files:
         - golang/architecture/questionpromotion/consume.go
         - golang/architecture/questionpromotion/conjunctive.go
+  # ── Phase 8.1d: bounded question-resolution summary + certification gate ──
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateBlockedOnReusableWithoutPromotion
+    title: The bounded gate fails closed when a reusable answer lacks a valid committed promotion or a binding question is unresolved
+    protects:
+      invariants:
+        - closure.certification_requires_verified_question_resolution_summary
+        - closure.no_blocking_question_satisfied_by_omission
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/questionresolution/certify.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateBlockedOnTamperedPromotion
+    title: The bounded gate excludes a tampered promotion with a typed integrity finding and fails closed
+    protects:
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+        - closure.unauthorized_stale_or_contradictory_promotion
+      files:
+        - golang/architecture/questionresolution/summarize.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateNeverAssertsCorrectnessOrCompletion
+    title: The bounded certificate never asserts correctness or completion and appends no Phase-6 certified/completed event
+    protects:
+      failure_modes:
+        - closure.caller_supplied_disposition_terminal_status_or_correctness
+      files:
+        - golang/architecture/questionresolution/model.go
+        - golang/architecture/questionresolution/certify.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestCertifyIsDeterministicAndIdempotent
+    title: The bounded gate is deterministic and replay-idempotent on an unchanged world, appending no additional file or ledger event
+    protects:
+      failure_modes:
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/questionresolution/persist.go
+  - id: golang/architecture/questionresolution/summarize_test.go:TestSummaryExactPerQuestionStates
+    title: The question-resolution summary computes exact typed per-question states with preserved provenance, never a blind status
+    protects:
+      failure_modes:
+        - closure.status_blind_unresolved_question_computation
+      files:
+        - golang/architecture/questionresolution/summarize.go

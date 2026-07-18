@@ -29,3 +29,14 @@ mutation_paths:
     mechanism_kind: governed_workflow
     target_kinds:
       - governed_record
+
+  # ── Phase 8.1d: bounded question-resolution certification (owner RPC) ──
+  # Governs the owner-RPC emission of the read-only question-resolution
+  # certificate. It does not mutate governed source; it authorizes the isolated
+  # certification owner to write its bounded attestation artifact.
+  - id: mutation_path.question_resolution_certification
+    label: Bounded question-resolution certification
+    status: active
+    mechanism_kind: owner_rpc
+    target_kinds:
+      - question_resolution_certificate
