@@ -40,6 +40,22 @@ func VerifyCommittedPromotion(ctx context.Context, repoRoot, lineageID string) (
 	}, nil
 }
 
+// ClaimedDispositionDigest reads, from a discovered lineage directory, the
+// question_disposition_receipt_digest_sha256 that a durable promotion candidate
+// PURPORTS to bind. It performs NO verification and confers NO authority: the value
+// is untrusted routing metadata, used only to decide whether a candidate is even
+// relevant to a particular task's dispositions. A candidate must still pass
+// VerifyCommittedPromotion before it may satisfy anything. An unreadable candidate
+// yields an error and should be treated as unrelated, not as proof of a defect.
+func ClaimedDispositionDigest(repoRoot, lineageID string) (string, error) {
+	promotionDir := filepath.Join(repoRoot, ".sensei", "project", "promotions", lineageID)
+	rc, err := loadReceipt(filepath.Join(promotionDir, receiptFileName))
+	if err != nil {
+		return "", err
+	}
+	return rc.QuestionDispositionReceiptDigestSHA256, nil
+}
+
 // DiscoverCommittedPromotions lists the promotion-attempt lineage ids present in
 // the repository promotion index (.sensei/project/promotions/<lineage>/).
 // Discovery is NON-AUTHORITATIVE: each id must be re-proven with

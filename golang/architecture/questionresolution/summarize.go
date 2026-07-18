@@ -23,11 +23,18 @@ type SummaryRequest struct {
 // Summarize produces the deterministic, read-only question-resolution projection.
 // It reuses the question-disposition owner (enumeration + per-question projection)
 // and the promotion verification boundary as the SOLE authorities; it re-implements
-// none of their validation. Discovery of promotions is non-authoritative: every
-// candidate is independently re-proven before it can satisfy a reusable obligation,
-// and a broken conjunction becomes a typed integrity finding rather than silent
-// acceptance. Output is sorted, so identical durable inputs yield a byte-identical
-// summary. Summarize mutates nothing.
+// none of their validation.
+//
+// The projection is TASK-BOUNDED. It first collects this task's reusable-candidate
+// disposition receipt digests, then routes each discovered promotion by its claimed
+// disposition digest — untrusted routing metadata, never authority. A promotion is
+// re-proven with VerifyCommittedPromotion only when it purports to bind one of those
+// current-task digests; only then can it satisfy (verified) or block (failed) this
+// summary. Unrelated broken promotion debris elsewhere in the repository is excluded
+// and can never veto this bounded certificate. Two verified promotions for one
+// disposition are contradictory and fail closed rather than silently overwriting.
+// Output is sorted, so identical durable inputs yield a byte-identical summary.
+// Summarize mutates nothing.
 func Summarize(ctx context.Context, req SummaryRequest) (Summary, error) {
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
@@ -52,25 +59,12 @@ func Summarize(ctx context.Context, req SummaryRequest) (Summary, error) {
 		return Summary{}, fmt.Errorf("enumerate questions: %w", err)
 	}
 
-	// Independently re-prove every discovered promotion. A verified promotion is
-	// indexed by the exact disposition it promoted; a failed one becomes a typed
-	// integrity finding. Discovery order does not affect the result (sorted below).
-	verifiedByDisposition := map[string]questionpromotion.VerifiedPromotion{}
-	var integrity []string
-	lineages, derr := questionpromotion.DiscoverCommittedPromotions(root)
-	if derr != nil {
-		return Summary{}, fmt.Errorf("discover promotions: %w", derr)
-	}
-	for _, lineage := range lineages {
-		vp, verr := questionpromotion.VerifyCommittedPromotion(ctx, root, lineage)
-		if verr != nil {
-			integrity = append(integrity, fmt.Sprintf("promotion %s excluded (integrity): %v", shortID(lineage), verr))
-			continue
-		}
-		verifiedByDisposition[vp.Receipt.QuestionDispositionReceiptDigestSHA256] = vp
-	}
-
-	var out []QuestionResolution
+	// Pass A: project every question. Terminal, non-reusable states settle here.
+	// Reusable-candidate questions are held pending the promotion decision, and
+	// their exact disposition digests form the current-task relevance set.
+	out := make([]QuestionResolution, 0, len(questions))
+	reusableDigest := map[string]bool{} // current reusable-candidate disposition digests
+	pendingReusable := map[int]string{} // index in out -> disposition digest
 	for _, q := range questions {
 		qr := QuestionResolution{
 			QuestionID:             q.QuestionID,
@@ -80,56 +74,107 @@ func Summarize(ctx context.Context, req SummaryRequest) (Summary, error) {
 			ScopeFiles:             append([]string(nil), q.ScopeFiles...),
 		}
 		proj, perr := qd.ProjectQuestion(taskDir, q.QuestionID)
-		if perr != nil || !proj.Disposed {
+		switch {
+		case perr != nil || !proj.Disposed:
 			qr.State = StateUnresolved
-			out = append(out, qr)
-			continue
-		}
-		if proj.Contested {
+		case proj.Contested:
 			qr.State = StateContested
 			qr.DispositionReceiptDigestSHA256 = proj.Latest.ReceiptDigestSHA256
-			out = append(out, qr)
-			continue
-		}
-		d := proj.Latest
-		qr.Disposition = string(d.Disposition)
-		qr.Reusability = string(d.Reusability)
-		qr.DispositionReceiptDigestSHA256 = d.ReceiptDigestSHA256
-		switch {
-		case d.Disposition == qd.DispositionDeferred:
-			qr.State = StateDeferred
-		case d.Disposition == qd.DispositionDismissed:
-			qr.State = StateDismissed
-		case d.Disposition == qd.DispositionTaskLocal,
-			d.Disposition == qd.DispositionAnswered && d.Reusability == qd.ReusabilityTaskLocal:
-			qr.State = StateAnsweredTaskLocal
-		case d.Disposition == qd.DispositionAnswered && d.Reusability == qd.ReusabilityReusableCandidate:
-			if vp, ok := verifiedByDisposition[d.ReceiptDigestSHA256]; ok {
-				qr.State = StateReusablePromoted
-				qr.PromotionLineageID = vp.PromotionLineageID
-				qr.PromotionReceiptDigestSHA256 = vp.Receipt.ReceiptDigestSHA256
-				qr.GovernedNodeIRI = vp.GovernedNodeIRI
-			} else {
-				qr.State = StateReusableUnpromoted
-			}
 		default:
-			// An answered disposition with no admissible reusability should be
-			// impossible (the disposition owner's Validate enforces it); treat any
-			// unclassified disposition as unresolved rather than silently passing.
-			qr.State = StateUnresolved
+			d := proj.Latest
+			qr.Disposition = string(d.Disposition)
+			qr.Reusability = string(d.Reusability)
+			qr.DispositionReceiptDigestSHA256 = d.ReceiptDigestSHA256
+			switch {
+			case d.Disposition == qd.DispositionDeferred:
+				qr.State = StateDeferred
+			case d.Disposition == qd.DispositionDismissed:
+				qr.State = StateDismissed
+			case d.Disposition == qd.DispositionTaskLocal,
+				d.Disposition == qd.DispositionAnswered && d.Reusability == qd.ReusabilityTaskLocal:
+				qr.State = StateAnsweredTaskLocal
+			case d.Disposition == qd.DispositionAnswered && d.Reusability == qd.ReusabilityReusableCandidate:
+				reusableDigest[d.ReceiptDigestSHA256] = true
+				pendingReusable[len(out)] = d.ReceiptDigestSHA256
+				// state decided in pass C
+			default:
+				qr.State = StateUnresolved
+			}
 		}
 		out = append(out, qr)
 	}
 
+	// Pass B: route discovered promotions by claimed disposition (non-authoritative)
+	// and re-prove only those relevant to a current reusable-candidate disposition.
+	verifiedByDisp := map[string][]questionpromotion.VerifiedPromotion{}
+	integrityByDisp := map[string]string{}
+	lineages, derr := questionpromotion.DiscoverCommittedPromotions(root)
+	if derr != nil {
+		return Summary{}, fmt.Errorf("discover promotions: %w", derr)
+	}
+	for _, lineage := range lineages {
+		claim, cerr := questionpromotion.ClaimedDispositionDigest(root, lineage)
+		if cerr != nil || claim == "" || !reusableDigest[claim] {
+			// Unreadable, unclaimed, or unrelated to this task — excluded. It can
+			// neither satisfy nor block this bounded certificate.
+			continue
+		}
+		vp, verr := questionpromotion.VerifyCommittedPromotion(ctx, root, lineage)
+		if verr != nil {
+			integrityByDisp[claim] = fmt.Sprintf("promotion %s excluded (integrity): %v", shortID(lineage), verr)
+			continue
+		}
+		// A verified promotion may satisfy ONLY its exact current-task disposition.
+		key := vp.Receipt.QuestionDispositionReceiptDigestSHA256
+		if !reusableDigest[key] {
+			continue
+		}
+		verifiedByDisp[key] = append(verifiedByDisp[key], vp)
+	}
+
+	// Pass C: settle reusable-candidate states from the task-bounded evidence.
+	var findings []string
+	for idx, digest := range pendingReusable {
+		state, finding := classifyReusable(verifiedByDisp[digest], integrityByDisp[digest])
+		out[idx].State = state
+		if state == StateReusablePromoted {
+			vp := verifiedByDisp[digest][0]
+			out[idx].PromotionLineageID = vp.PromotionLineageID
+			out[idx].PromotionReceiptDigestSHA256 = vp.Receipt.ReceiptDigestSHA256
+			out[idx].GovernedNodeIRI = vp.GovernedNodeIRI
+		}
+		if finding != "" {
+			findings = append(findings, finding)
+		}
+	}
+
 	sort.Slice(out, func(i, j int) bool { return out[i].QuestionID < out[j].QuestionID })
-	sort.Strings(integrity)
+	sort.Strings(findings)
 	return Summary{
 		SchemaVersion:              SummarySchemaVersion,
 		Task:                       ra.Base.Task,
 		TaskLedgerHeadDigestSHA256: chain.Head.EntryDigestSHA256,
 		Questions:                  out,
-		IntegrityFindings:          integrity,
+		IntegrityFindings:          findings,
 	}, nil
+}
+
+// classifyReusable decides a reusable-candidate question's state from the
+// TASK-BOUNDED promotion evidence for its disposition digest. Two or more verified
+// promotions binding one disposition are contradictory and fail closed (never
+// map-order selection); a relevant verification failure is an integrity failure;
+// exactly one verified promotion satisfies; none is an incomplete obligation.
+func classifyReusable(verified []questionpromotion.VerifiedPromotion, relevantIntegrity string) (QuestionState, string) {
+	switch {
+	case len(verified) > 1:
+		return StateEvidenceIntegrityFailure, "contradictory: multiple verified promotions bind the same disposition"
+	case relevantIntegrity != "":
+		return StateEvidenceIntegrityFailure, relevantIntegrity
+	case len(verified) == 1:
+		return StateReusablePromoted, ""
+	default:
+		return StateReusableUnpromoted, ""
+	}
 }
 
 func shortID(s string) string {

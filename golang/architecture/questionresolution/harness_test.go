@@ -174,6 +174,23 @@ func (w world) summarize(t *testing.T) Summary {
 	return s
 }
 
+// writeUnrelatedBrokenPromotion fabricates a promotion candidate in the repository
+// promotion index whose claimed disposition digest belongs to no current-task
+// question. It has no journal/graph/governed record, so it would fail verification —
+// but it must be routed as unrelated and excluded before verification, so it can
+// never block this task's certificate.
+func writeUnrelatedBrokenPromotion(t *testing.T, repo, dispositionDigest string) {
+	t.Helper()
+	dir := filepath.Join(repo, ".sensei", "project", "promotions", "unrelated-lineage")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"question_disposition_receipt_digest_sha256":"` + dispositionDigest + `"}`
+	if err := os.WriteFile(filepath.Join(dir, "receipt.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func tamperGraph(t *testing.T, repo string) {
 	t.Helper()
 	p := filepath.Join(repo, ".sensei", "project", "graph.nt")
