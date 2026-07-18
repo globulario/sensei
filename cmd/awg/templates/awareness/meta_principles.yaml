@@ -7000,3 +7000,59 @@ invariants:
       - meta.topology_change_is_a_first_class_event
       - meta.half_done_must_not_look_done
       - meta.quorum_change_requires_pre_failure_safety
+
+
+  - id: meta.existence_checks_must_not_substitute_for_cardinality_proofs
+    title: "Existence does not prove cardinality — finding one matching fact is not proof that exactly one exists"
+    category: structure
+    antipattern: "Find one and assume uniqueness"
+    wrong_instinct: A successful lookup feels like proof of a valid singular world, but it establishes existence only and may silently ignore contradictory duplicates
+    severity: critical
+    status: active
+    summary: |
+      Every architectural claim carries a quantifier. A lookup that returns one
+      matching record proves only that at least one match exists. It does not prove
+      uniqueness, exclusivity, terminality, completeness, or singular authority.
+
+      When correctness requires exactly one authoritative fact, selecting the first,
+      latest, or otherwise convenient match is insufficient. Additional matching
+      facts may represent contradictory authority, duplicate terminal events,
+      ambiguous ownership, competing certificates, or an invalid split-brain world.
+
+      Formally:
+
+        exists x: P(x)
+
+      does not imply:
+
+        exists exactly one x: P(x)
+
+      This distinction applies wherever architecture requires:
+
+        - exactly one canonical owner
+        - exactly one active authority
+        - exactly one canonical identity
+        - exactly one current certificate
+        - exactly one terminal completion
+        - exactly one writer for governed truth
+
+      Code shaped as findFirst, findLatest, lookupOne, or findEvent is suspicious
+      when the surrounding claim requires uniqueness. Such functions prove
+      existence, not cardinality.
+    enforcement: |
+      Every predicate whose correctness depends on uniqueness, exclusivity,
+      singular authority, or terminality must explicitly classify cardinality:
+
+        zero matches      -> missing
+        exactly one match -> candidate may be independently verified
+        multiple matches  -> contradictory; fail closed
+
+      Selecting and validating one match while ignoring additional matches is
+      forbidden when the architectural contract requires exactly one.
+
+      Reviews must identify the quantifier carried by each architectural claim:
+      exists, exactly one, at most one, all, none, current-only, or relevant-only.
+      The implementation must prove that same quantifier rather than a weaker one.
+    related_invariants:
+      - meta.identity_computation_must_be_invariant
+      - meta.half_done_must_not_look_done
