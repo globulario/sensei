@@ -12,75 +12,82 @@ import (
 	"github.com/globulario/sensei/golang/architecture/repograph"
 )
 
-// verifyConjunctiveAuthority re-proves that reusable truth exists — ALL conditions
-// must hold, and no single artifact is authority by itself. It is called after a
-// commit append and on committed replay, always re-proving from disk.
-func verifyConjunctiveAuthority(ctx context.Context, req PromoteRequest, prepared QuestionPromotionReceipt, lineageID, promotionDir string, j *Journal) error {
+// proveCommittedConjunction re-proves that reusable governed truth exists for a
+// promotion, entirely from durable artifacts — the journal, the receipt, the
+// governed source, and the persisted graph. ALL conditions must hold, and no
+// single artifact is authority by itself. It reconstructs the record-present
+// check from the receipt (no PromoteRequest needed), so it is reused by both the
+// transaction (post-commit + replay) and any consumer (e.g. briefing) that must
+// independently verify a discovered promotion. It returns the verified receipt.
+func proveCommittedConjunction(ctx context.Context, repoRoot, lineageID, promotionDir string, j *Journal) (QuestionPromotionReceipt, error) {
 	chain, err := j.Verify()
 	if err != nil {
-		return err
+		return QuestionPromotionReceipt{}, err
 	}
 	// 1. Journal head is exactly one valid promotion_committed event.
-	if len(chain) == 0 || chain[len(chain)-1].EventType != EventPromotionCommitted {
-		return fmt.Errorf("journal head is not promotion_committed")
+	if len(chain) < 2 || chain[len(chain)-1].EventType != EventPromotionCommitted {
+		return QuestionPromotionReceipt{}, fmt.Errorf("journal head is not promotion_committed")
 	}
 	committedEntry := chain[len(chain)-1]
 	gvEntry := chain[len(chain)-2]
+	if gvEntry.EventType != EventGraphVerified {
+		return QuestionPromotionReceipt{}, fmt.Errorf("promotion_committed not preceded by graph_verified")
+	}
 	var cp commitPayload
 	if err := json.Unmarshal(committedEntry.Payload, &cp); err != nil {
-		return err
+		return QuestionPromotionReceipt{}, err
 	}
 
-	// 3. The durable receipt validates and matches that event.
+	// 3. The durable receipt validates and matches the commit event.
 	rc, err := loadReceipt(filepath.Join(promotionDir, receiptFileName))
 	if err != nil {
-		return fmt.Errorf("load receipt: %w", err)
+		return QuestionPromotionReceipt{}, fmt.Errorf("load receipt: %w", err)
 	}
 	if err := Validate(rc); err != nil {
-		return fmt.Errorf("receipt invalid: %w", err)
+		return QuestionPromotionReceipt{}, fmt.Errorf("receipt invalid: %w", err)
 	}
 	if rc.ReceiptDigestSHA256 != cp.ReceiptDigestSHA256 {
-		return fmt.Errorf("receipt digest does not match the commit event")
+		return QuestionPromotionReceipt{}, fmt.Errorf("receipt digest does not match the commit event")
 	}
 	// 2. Receipt digest and committed causal identity recompute.
 	if d, _ := Digest(rc); d != rc.ReceiptDigestSHA256 {
-		return fmt.Errorf("receipt digest does not recompute")
+		return QuestionPromotionReceipt{}, fmt.Errorf("receipt digest does not recompute")
 	}
 	wantCommitted := committedCausalIdentity(lineageID, rc.ReceiptDigestSHA256, gvEntry.EntryDigestSHA256, gvEntry.ProducedAt)
 	if wantCommitted != cp.CommittedCausalIdentitySHA256 || rc.CommittedCausalIdentitySHA256 != wantCommitted {
-		return fmt.Errorf("committed causal identity does not recompute")
+		return QuestionPromotionReceipt{}, fmt.Errorf("committed causal identity does not recompute")
 	}
 
-	// 7. All frozen bindings still match (lineage id ties them together).
+	// 7. Lineage id ties the frozen world together.
 	if rc.PromotionLineageID != lineageID {
-		return fmt.Errorf("receipt lineage id drifted")
+		return QuestionPromotionReceipt{}, fmt.Errorf("receipt lineage id drifted")
 	}
 
-	// 4. The governed source record exists with the exact mutation identity.
-	greq := governedmutation.Request{RepositoryRoot: req.RepositoryRoot, Proposal: req.Proposal}
-	plan, perr := governedmutation.Plan(greq)
-	if perr != nil {
-		return fmt.Errorf("re-plan governed record: %w", perr)
+	// 4. The governed source record exists with the exact mutation identity —
+	// reconstructed from the receipt, not a proposal.
+	bodyDigest, found, berr := governedmutation.RecordBodyDigest(repoRoot, rc.SourceDocument, rc.TopLevelKey, rc.CanonicalRecordID)
+	if berr != nil {
+		return QuestionPromotionReceipt{}, fmt.Errorf("read governed record: %w", berr)
 	}
-	if plan.Disposition != governedmutation.DispositionReplay {
-		return fmt.Errorf("governed source record is absent")
+	if !found {
+		return QuestionPromotionReceipt{}, fmt.Errorf("governed source record is absent")
 	}
-	if plan.MutationDigestSHA256 != rc.CanonicalMutationDigestSHA256 {
-		return fmt.Errorf("governed record mutation identity drifted")
+	if bodyDigest != rc.CanonicalMutationDigestSHA256 {
+		return QuestionPromotionReceipt{}, fmt.Errorf("governed record mutation identity drifted")
 	}
 
 	// 5. The current persisted graph and marker independently verify.
-	reloaded, verr := repograph.VerifyPersisted(ctx, req.RepositoryRoot)
+	reloaded, verr := repograph.VerifyPersisted(ctx, repoRoot)
 	if verr != nil {
-		return fmt.Errorf("graph reverify: %w", verr)
+		return QuestionPromotionReceipt{}, fmt.Errorf("graph reverify: %w", verr)
 	}
 	if reloaded.GraphSemanticDigestSHA256 != rc.GraphSemanticDigestSHA256 ||
 		reloaded.CompiledGraphByteDigestSHA256 != rc.PersistedGraphByteDigestSHA256 {
-		return fmt.Errorf("persisted graph drifted from the receipt-bound world")
+		return QuestionPromotionReceipt{}, fmt.Errorf("persisted graph drifted from the receipt-bound world")
 	}
 	// 6. The governed node and complete promotion provenance chain are present.
-	if perr := repograph.VerifyProvenance(ctx, req.RepositoryRoot, buildProvenanceInput(prepared, lineageID)); perr != nil {
-		return fmt.Errorf("provenance chain: %w", perr)
+	if perr := repograph.VerifyProvenance(ctx, repoRoot, buildProvenanceInput(rc, lineageID)); perr != nil {
+		return QuestionPromotionReceipt{}, fmt.Errorf("provenance chain: %w", perr)
 	}
-	return nil
+	return rc, nil
 }

@@ -34,25 +34,30 @@ type BriefingClaim struct {
 }
 
 type TaskBriefing struct {
-	SchemaVersion       string                            `json:"schema_version" yaml:"schema_version"`
-	TaskID              string                            `json:"task_id" yaml:"task_id"`
-	File                string                            `json:"file" yaml:"file"`
-	Component           string                            `json:"component,omitempty" yaml:"component,omitempty"`
-	Binding             architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
-	Inspect             string                            `json:"inspect" yaml:"inspect"`
-	Modify              string                            `json:"modify" yaml:"modify"`
-	RelevantClaims      []BriefingClaim                   `json:"relevant_claims,omitempty" yaml:"relevant_claims,omitempty"`
-	RelevantClaimCount  int                               `json:"relevant_claim_count" yaml:"relevant_claim_count"`
-	TestBackedCount     int                               `json:"test_backed_count" yaml:"test_backed_count"`
-	FailureModes        []string                          `json:"failure_modes,omitempty" yaml:"failure_modes,omitempty"`
-	Constraints         []string                          `json:"constraints,omitempty" yaml:"constraints,omitempty"`
-	PrimaryBlocker      *taskcontrol.ClassifiedBlocker    `json:"primary_blocker,omitempty" yaml:"primary_blocker,omitempty"`
-	PrimaryQuestion     *taskcontrol.ClassifiedQuestion   `json:"primary_question,omitempty" yaml:"primary_question,omitempty"`
-	PrimaryNextAction   taskcontrol.NextAction            `json:"primary_next_action" yaml:"primary_next_action"`
-	AdditionalBlockers  int                               `json:"additional_blockers" yaml:"additional_blockers"`
-	AdditionalQuestions int                               `json:"additional_questions" yaml:"additional_questions"`
-	AdditionalProbes    int                               `json:"additional_probes" yaml:"additional_probes"`
-	Limitations         []string                          `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	SchemaVersion      string                            `json:"schema_version" yaml:"schema_version"`
+	TaskID             string                            `json:"task_id" yaml:"task_id"`
+	File               string                            `json:"file" yaml:"file"`
+	Component          string                            `json:"component,omitempty" yaml:"component,omitempty"`
+	Binding            architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
+	Inspect            string                            `json:"inspect" yaml:"inspect"`
+	Modify             string                            `json:"modify" yaml:"modify"`
+	RelevantClaims     []BriefingClaim                   `json:"relevant_claims,omitempty" yaml:"relevant_claims,omitempty"`
+	RelevantClaimCount int                               `json:"relevant_claim_count" yaml:"relevant_claim_count"`
+	TestBackedCount    int                               `json:"test_backed_count" yaml:"test_backed_count"`
+	FailureModes       []string                          `json:"failure_modes,omitempty" yaml:"failure_modes,omitempty"`
+	Constraints        []string                          `json:"constraints,omitempty" yaml:"constraints,omitempty"`
+	// PromotedGovernedKnowledge is committed governed truth promoted from architect
+	// answers (Phase 8.1b), independently re-proven and scope-relevant to this task.
+	// It is categorically distinct from RelevantClaims (task-local) and questions
+	// (unresolved dialogue), and implies no certification or completion.
+	PromotedGovernedKnowledge []PromotedGovernedRecord        `json:"promoted_governed_knowledge,omitempty" yaml:"promoted_governed_knowledge,omitempty"`
+	PrimaryBlocker            *taskcontrol.ClassifiedBlocker  `json:"primary_blocker,omitempty" yaml:"primary_blocker,omitempty"`
+	PrimaryQuestion           *taskcontrol.ClassifiedQuestion `json:"primary_question,omitempty" yaml:"primary_question,omitempty"`
+	PrimaryNextAction         taskcontrol.NextAction          `json:"primary_next_action" yaml:"primary_next_action"`
+	AdditionalBlockers        int                             `json:"additional_blockers" yaml:"additional_blockers"`
+	AdditionalQuestions       int                             `json:"additional_questions" yaml:"additional_questions"`
+	AdditionalProbes          int                             `json:"additional_probes" yaml:"additional_probes"`
+	Limitations               []string                        `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
 type briefingClaimIndex struct {
@@ -153,6 +158,17 @@ func BuildTaskBriefing(repoRoot, taskDir, file string, active bool) (TaskBriefin
 	}
 	brief.Constraints = sortedUnique(brief.Constraints)
 	brief.FailureModes = sortedUnique(brief.FailureModes)
+
+	// Consume committed governed promotions relevant to the task scope. Discovery
+	// is non-authoritative; each is independently re-proven and scope-filtered.
+	taskFiles := map[string]bool{file: true}
+	for f := range index.ByFile {
+		taskFiles[f] = true
+	}
+	promoted, promotionFindings := collectPromotedKnowledge(repoRoot, file, taskFiles, state.Binding.RepositoryDomain)
+	brief.PromotedGovernedKnowledge = promoted
+	brief.Limitations = append(brief.Limitations, promotionFindings...)
+
 	brief.AdditionalBlockers = maxInt(0, state.Summary.ActiveRootBlockers-1)
 	architectQuestions := 0
 	for _, question := range state.Questions {
