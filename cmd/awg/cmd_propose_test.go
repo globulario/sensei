@@ -217,7 +217,12 @@ func TestApplyProposal_InvalidRejectedNoMutation(t *testing.T) {
 	}
 }
 
-func TestApplyProposal_DuplicateIDDeterministic(t *testing.T) {
+// TestApplyProposal_ContradictoryIDRefusedNoMutation: reusing an existing
+// canonical ID with a DIFFERENT body is a typed contradiction — the governed
+// mutation owner refuses it and mutates nothing (never overwrites). This is the
+// Slice-8.1b contract that supersedes the old "any duplicate id is a silent
+// no-op" behavior.
+func TestApplyProposal_ContradictoryIDRefusedNoMutation(t *testing.T) {
 	root := initProposeRepo(t)
 	stubRebuild(t)
 	path := filepath.Join(root, "docs/awareness/failure_modes.yaml")
@@ -225,21 +230,60 @@ func TestApplyProposal_DuplicateIDDeterministic(t *testing.T) {
 
 	req := &ProposeRequest{
 		Kind:              "failure_mode",
-		ID:                "awareness.existing_failure", // already in the seed
+		ID:                "awareness.existing_failure", // already in the seed, different body
 		Title:             "Trying to re-add an existing failure",
 		RelatedInvariants: []string{"awareness.some_invariant"},
 		Evidence:          []string{"dup"},
 	}
 	res, code := applyProposal(req, proposeOptions{targetRepo: root, agRepo: root})
+	if code != 1 {
+		t.Fatalf("contradictory id should be refused (exit 1), got %d", code)
+	}
+	if res.Status != "validation_failed" {
+		t.Fatalf("status = %q, want validation_failed", res.Status)
+	}
+	after, _ := os.ReadFile(path)
+	if string(before) != string(after) {
+		t.Fatal("contradictory proposal mutated the YAML file")
+	}
+}
+
+// TestApplyProposal_ExactReplayIsDuplicateNoMutation: re-proposing the exact same
+// canonical id + equivalent body is a replay — deterministic, exit 0, no second
+// record.
+func TestApplyProposal_ExactReplayIsDuplicateNoMutation(t *testing.T) {
+	root := initProposeRepo(t)
+	stubRebuild(t)
+	path := filepath.Join(root, "docs/awareness/failure_modes.yaml")
+
+	req := &ProposeRequest{
+		Kind:              "failure_mode",
+		Title:             "Reload serves a stale seed after a failed rebuild",
+		Description:       "A failed rebuild left the previous seed served as current.",
+		Severity:          "high",
+		SourceFiles:       []string{"golang/server/reload.go"},
+		RelatedInvariants: []string{"awareness.some_invariant"},
+		RequiredTests:     []string{"golang/server/reload_test.go:TestReloadFresh"},
+		Evidence:          []string{"observed stale seed served"},
+		Domain:            "github.com/globulario/sensei",
+	}
+	first, code := applyProposal(req, proposeOptions{targetRepo: root, agRepo: root})
 	if code != 0 {
-		t.Fatalf("duplicate should exit 0 deterministically, got %d", code)
+		t.Fatalf("first apply exit = %d, want 0; errors: %v", code, first.ValidationErrors)
+	}
+	afterFirst, _ := os.ReadFile(path)
+
+	// Same request again → replay, no mutation.
+	res, code := applyProposal(req, proposeOptions{targetRepo: root, agRepo: root})
+	if code != 0 {
+		t.Fatalf("replay should exit 0, got %d", code)
 	}
 	if res.Status != "duplicate" {
 		t.Fatalf("status = %q, want duplicate", res.Status)
 	}
-	after, _ := os.ReadFile(path)
-	if string(before) != string(after) {
-		t.Fatal("duplicate proposal mutated the YAML file")
+	afterSecond, _ := os.ReadFile(path)
+	if string(afterFirst) != string(afterSecond) {
+		t.Fatal("replay mutated the YAML file")
 	}
 }
 
