@@ -181,34 +181,67 @@ func recomputeEnvelopeDigest(e CompletionProjectionEnvelope) (string, error) {
 	return closureprotocol.SemanticDigest(e)
 }
 
-// ValidateCanonicalCompletionEnvelope is the PUBLICATION check, distinct from the
+// CompletionPublicationInvalidClass is the CLOSED vocabulary of reasons a stamped
+// envelope is not canonically publishable. It is produced only by the classifier below —
+// never caller-supplied — so a publication surface reports a recognized category rather
+// than an ad-hoc string.
+type CompletionPublicationInvalidClass string
+
+const (
+	// PublicationInvalidStructure: the envelope fails the pre-stamp structural conjunction.
+	PublicationInvalidStructure CompletionPublicationInvalidClass = "structure"
+	// PublicationInvalidSchema: the envelope schema version is not the canonical one.
+	PublicationInvalidSchema CompletionPublicationInvalidClass = "schema"
+	// PublicationInvalidDigestMalformed: the envelope carries no well-formed / recomputable digest.
+	PublicationInvalidDigestMalformed CompletionPublicationInvalidClass = "digest_malformed"
+	// PublicationInvalidDigestMismatch: the stored digest no longer matches the content (altered after stamping).
+	PublicationInvalidDigestMismatch CompletionPublicationInvalidClass = "digest_mismatch"
+)
+
+func validPublicationInvalidClass(c CompletionPublicationInvalidClass) bool {
+	switch c {
+	case PublicationInvalidStructure, PublicationInvalidSchema, PublicationInvalidDigestMalformed, PublicationInvalidDigestMismatch:
+		return true
+	}
+	return false
+}
+
+// classifyCanonicalCompletionEnvelope is the PUBLICATION check, distinct from the
 // pre-stamp structural ValidateCompletionEnvelope. Closing the constructor door stops
 // invalid construction, but a stamped envelope can still be mutated or forged between
 // the workshop and the display case: its fields keep satisfying the structural
 // conjunction while its digest no longer represents its content. Publication therefore
 // re-verifies canonical identity — structural validity PLUS the exact envelope schema
 // version, a well-formed digest, and equality between the stored digest and a freshly
-// recomputed self-excluding digest. Detectable invalidity is not enforced validity;
-// identity not re-verified at publication is still advisory, so every surface that
-// publishes completion truth (Summary, structured task-status) must require this.
-func ValidateCanonicalCompletionEnvelope(e CompletionProjectionEnvelope) error {
+// recomputed self-excluding digest. It returns ("", nil) when canonical, else the typed
+// class and the detail. Detectable invalidity is not enforced validity; identity not
+// re-verified at publication is still advisory.
+func classifyCanonicalCompletionEnvelope(e CompletionProjectionEnvelope) (CompletionPublicationInvalidClass, error) {
 	if err := ValidateCompletionEnvelope(e); err != nil {
-		return err
+		return PublicationInvalidStructure, err
 	}
 	if e.SchemaVersion != completionEnvelopeSchemaVersion {
-		return fmt.Errorf("envelope schema version %q is not the canonical %q", e.SchemaVersion, completionEnvelopeSchemaVersion)
+		return PublicationInvalidSchema, fmt.Errorf("envelope schema version %q is not the canonical %q", e.SchemaVersion, completionEnvelopeSchemaVersion)
 	}
 	if !isHex64(e.DigestSHA256) {
-		return fmt.Errorf("envelope carries no well-formed self-excluding digest")
+		return PublicationInvalidDigestMalformed, fmt.Errorf("envelope carries no well-formed self-excluding digest")
 	}
 	recomputed, err := recomputeEnvelopeDigest(e)
 	if err != nil {
-		return fmt.Errorf("recompute envelope digest: %w", err)
+		return PublicationInvalidDigestMalformed, fmt.Errorf("recompute envelope digest: %w", err)
 	}
 	if recomputed != e.DigestSHA256 {
-		return fmt.Errorf("envelope digest %s does not match content; it was altered after stamping", e.DigestSHA256)
+		return PublicationInvalidDigestMismatch, fmt.Errorf("envelope digest %s does not match content; it was altered after stamping", e.DigestSHA256)
 	}
-	return nil
+	return "", nil
+}
+
+// ValidateCanonicalCompletionEnvelope is the boolean-style publication gate used by
+// surfaces that publish completion truth (Summary, structured task-status). It reports
+// the classifier's error and hides the class from callers that only need validity.
+func ValidateCanonicalCompletionEnvelope(e CompletionProjectionEnvelope) error {
+	_, err := classifyCanonicalCompletionEnvelope(e)
+	return err
 }
 
 // stampEnvelope ENFORCES the availability/field conjunction before it computes a
@@ -267,19 +300,73 @@ func (e CompletionProjectionEnvelope) Summary() string {
 	return fmt.Sprintf("unavailable (%s: %s) [non-authoritative projection]", e.UnavailableClass, e.UnavailableDetail)
 }
 
-// PublicationView is the representation a surface may PUBLISH in structured output. Like
-// Summary it requires canonical publication validity: a tampered, unstamped, or
-// wrong-schema envelope is emitted as an explicit invalid marker — never as if it were
-// the canonical envelope — so structured task-status cannot present altered content
-// under a stale digest. A canonically valid envelope is published verbatim.
-func (e CompletionProjectionEnvelope) PublicationView() any {
-	if err := ValidateCanonicalCompletionEnvelope(e); err != nil {
-		return map[string]any{
-			"schema_version":               completionEnvelopeSchemaVersion,
-			"canonical":                    false,
-			"invalid_reason":               err.Error(),
-			"non_authoritative_projection": true,
-		}
+const completionPublicationSchemaVersion = "completion.projection_publication/v1"
+
+// CompletionProjectionPublication is the STABLE typed wire union a surface publishes for
+// a completion projection. It has ONE schema identifier and ONE outer shape across both
+// outcomes, so a single schema never describes two incompatible shapes: `canonical: true`
+// carries the verified envelope; `canonical: false` carries a typed invalid class from
+// the closed CompletionPublicationInvalidClass vocabulary plus a human reason. It is
+// always non-authoritative.
+type CompletionProjectionPublication struct {
+	SchemaVersion              string                            `json:"schema_version" yaml:"schema_version"`
+	Canonical                  bool                              `json:"canonical" yaml:"canonical"`
+	Envelope                   *CompletionProjectionEnvelope     `json:"envelope,omitempty" yaml:"envelope,omitempty"`
+	InvalidClass               CompletionPublicationInvalidClass `json:"invalid_class,omitempty" yaml:"invalid_class,omitempty"`
+	InvalidReason              string                            `json:"invalid_reason,omitempty" yaml:"invalid_reason,omitempty"`
+	NonAuthoritativeProjection bool                              `json:"non_authoritative_projection" yaml:"non_authoritative_projection"`
+}
+
+// PublicationView is the representation a surface may PUBLISH in structured output. It
+// always returns the same typed union under one schema: a canonical envelope is carried
+// verbatim under `canonical: true`; a tampered, unstamped, or wrong-schema envelope
+// becomes `canonical: false` with a typed class + reason — never presented as if it were
+// the canonical envelope, and never mislabeled with the envelope's own schema.
+func (e CompletionProjectionEnvelope) PublicationView() CompletionProjectionPublication {
+	pub := CompletionProjectionPublication{
+		SchemaVersion:              completionPublicationSchemaVersion,
+		NonAuthoritativeProjection: true,
 	}
-	return e
+	if class, err := classifyCanonicalCompletionEnvelope(e); err != nil {
+		pub.Canonical = false
+		pub.InvalidClass = class
+		pub.InvalidReason = err.Error()
+		return pub
+	}
+	env := e
+	pub.Canonical = true
+	pub.Envelope = &env
+	return pub
+}
+
+// ValidateCompletionPublication enforces the union's own conjunction so a consumer can
+// re-verify a published value: the canonical schema, non-authoritative, and exactly one
+// coherent path — canonical with a canonically valid envelope and no invalid fields, or
+// non-canonical with a recognized class, a reason, and no envelope.
+func ValidateCompletionPublication(p CompletionProjectionPublication) error {
+	if p.SchemaVersion != completionPublicationSchemaVersion {
+		return fmt.Errorf("publication schema version %q is not the canonical %q", p.SchemaVersion, completionPublicationSchemaVersion)
+	}
+	if !p.NonAuthoritativeProjection {
+		return fmt.Errorf("completion publication must be non-authoritative")
+	}
+	if p.Canonical {
+		if p.Envelope == nil {
+			return fmt.Errorf("canonical publication must carry an envelope")
+		}
+		if p.InvalidClass != "" || p.InvalidReason != "" {
+			return fmt.Errorf("canonical publication must carry no invalid class/reason")
+		}
+		return ValidateCanonicalCompletionEnvelope(*p.Envelope)
+	}
+	if p.Envelope != nil {
+		return fmt.Errorf("non-canonical publication must carry no envelope")
+	}
+	if !validPublicationInvalidClass(p.InvalidClass) {
+		return fmt.Errorf("non-canonical publication class %q is not recognized", p.InvalidClass)
+	}
+	if p.InvalidReason == "" {
+		return fmt.Errorf("non-canonical publication must carry a reason")
+	}
+	return nil
 }
