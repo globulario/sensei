@@ -84,3 +84,26 @@ authority_grants:
     valid_until: ""
     delegable: false
     delegation_policy_id: ""
+
+  # ── Phase 8.2b: terminal completion grant ──
+  # A dedicated complete/task_completion/governed_workflow triple so the resolver
+  # cannot cross-authorize completion with certification, disposition, promotion, or
+  # question-resolution certification grants.
+  - id: grant.sensei.terminal_completion
+    label: Sensei terminal task completion grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_terminal_completion
+    actions:
+      - complete
+    target_kinds:
+      - task_completion
+    required_mechanism_ids:
+      - mutation_path.terminal_completion
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""

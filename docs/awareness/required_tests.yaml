@@ -430,3 +430,36 @@ required_tests:
         - closure.certification_or_completion_over_unresolved_or_stale_promotion
       files:
         - golang/architecture/completion/readiness.go
+  # ── Phase 8.2b: authoritative terminal-completion mutation ──
+  - id: golang/architecture/completion/complete_test.go:TestCompleteExactReplay
+    title: An exact re-completion appends no second completed event and reports the terminal state
+    protects:
+      invariants:
+        - closure.completed_tasks_are_terminal_and_replay_idempotent
+      failure_modes:
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/completion/complete.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteConcurrentSingleWinner
+    title: Concurrent completion attempts yield at most one authoritative completion
+    protects:
+      failure_modes:
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/completion/complete.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteRefusesMissingQR
+    title: Completion fails closed when the readiness conjunction is unsatisfied, writing nothing
+    protects:
+      invariants:
+        - closure.completion_requires_closed_current_question_loop
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/completion/complete.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteTamperedReceiptFailsVerification
+    title: A completed event whose receipt is tampered fails verification; a receipt alone is not completion
+    protects:
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/completion/complete.go

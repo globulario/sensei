@@ -769,11 +769,16 @@ invariants:
       files:
         - docs/design/phase8-discovery.md
         - golang/architecture/certification/ledger.go
+        - golang/architecture/completion/complete.go
+        - golang/architecture/completion/readiness.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/completion/complete_test.go:TestCompleteHappyPath
+      - golang/architecture/completion/complete_test.go:TestCompleteRefusesMissingQR
     contract: >
       Completion appends completed only when a re-verified certification receipt AND a
-      closed, current question/promotion loop both hold. Completion fails closed on an
+      closed, current question/promotion loop both hold (Phase 8.2b re-proves the
+      Phase-8.2a readiness conjunction under one lock). Completion fails closed on an
       unresolved blocking question, an accepted-but-unpromoted or stale-graph promotion,
       a contested contradictory promotion, or question provenance that does not bind the
       certified result.
@@ -789,14 +794,16 @@ invariants:
     protects:
       files:
         - docs/design/phase8-discovery.md
+        - golang/architecture/completion/complete.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/completion/complete_test.go:TestCompleteMutatesNoUpstreamTruth
     contract: >
       The completion transaction is verify-only over the feedback loop and certification:
-      it appends exactly one completed event with a validated CompletionReceipt and never
-      mutates dialogue, governed sources, the graph, briefing projections, proof, or
-      certification truth, and never sets CorrectnessCertified (Phase 6 remains its sole
-      writer). Completion cannot repair the loop it verifies.
+      it appends exactly one completed event with a validated completion receipt and never
+      mutates dialogue, governed sources, the graph, briefing projections, proof,
+      question-resolution, or certification truth, and never sets CorrectnessCertified
+      (Phase 6 remains its sole writer). Completion cannot repair the loop it verifies.
   - id: closure.completed_tasks_are_terminal_and_replay_idempotent
     title: Completed tasks are terminal and replay-idempotent
     severity: critical
@@ -810,8 +817,11 @@ invariants:
       files:
         - docs/design/phase8-discovery.md
         - golang/architecture/closureprotocol/vocabulary.go
+        - golang/architecture/completion/complete.go
     required_tests:
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+      - golang/architecture/completion/complete_test.go:TestCompleteExactReplay
+      - golang/architecture/completion/complete_test.go:TestCompleteConcurrentSingleWinner
     contract: >
       completed is a terminal task state for one session; a completed task is never
       reopened. An exact replay of a completed task appends no second completed event and
