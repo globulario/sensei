@@ -792,3 +792,25 @@ failure_modes:
     related_invariants:
       - closure.phase9_surfaces_locked_until_a_reviewed_slice
     evidence: Phase 9.0 govern-first; one slice open at a time, GNN out of scope.
+  # ── Phase 9.1: canonical read-only completion projection ──
+  - id: closure.completion_surface_collapses_or_remaps_terminal_state
+    title: A surface collapsed or independently re-mapped completion terminal state
+    severity: high
+    root_cause: |
+      A server/CLI/briefing surface translated broken, contradictory, or unsupported
+      terminal state into a generic incomplete state, re-mapped terminal state or
+      closure verdict separately from the one canonical projection, showed a
+      non-authoritative projection as terminal truth, or derived authoritative_completion
+      from something other than ClosureAuthoritativeCompletion.
+    symptoms:
+      - broken/contradictory/unsupported collapsed to a generic incomplete
+      - duplicate state mapping in server, CLI, and briefing code
+      - a projection displayed as the terminal fact
+      - authoritative_completion inferred from a phase/status heuristic
+    forbidden_fixes:
+      - phase9_reinterpret_or_rederive_completion_truth_in_a_surface
+      - phase9_treat_projection_or_closure_report_as_completion_authority
+    related_invariants:
+      - closure.completion_projection_is_the_single_canonical_read_view
+      - closure.phase9_projections_are_not_terminal_authority
+    evidence: Phase 9.1 govern-first; one canonical projection, no fallback collapse.
