@@ -328,6 +328,32 @@ func (b *bridge) tools() []tool {
 				"required":             []string{"repo", "expected_head"},
 			},
 		},
+		{
+			Name:        "inspect_terminal",
+			Description: "Reconstruct a task's honest terminal state via the Phase-8 owner (completion.InspectTerminalState). Read-only: it establishes no completion, blesses no residue, and normalizes no contradiction; it reports the reconstructed state verbatim.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"repo": map[string]interface{}{"type": "string"},
+					"task": map[string]interface{}{"type": "string"},
+				},
+				"additionalProperties": false,
+				"required":             []string{"repo"},
+			},
+		},
+		{
+			Name:        "recover_projections",
+			Description: "Rebuild stale/missing derived projections from a valid durable conjunction via the Phase-8 owner (completion.RecoverProjections). Derived-state maintenance only: appends no ledger event, rewrites no receipt, never normalizes contradiction, never blesses residue. Reports the closed recovery outcome.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"repo": map[string]interface{}{"type": "string"},
+					"task": map[string]interface{}{"type": "string"},
+				},
+				"additionalProperties": false,
+				"required":             []string{"repo"},
+			},
+		},
 	}
 }
 
@@ -348,6 +374,12 @@ func (b *bridge) tools() []tool {
 // can inject any closed outcome (and an infrastructure error) to prove the surface's
 // typed-result vs error mapping without reconstructing the readiness world.
 var completeTaskDelegate = completion.CompleteTask
+
+// inspectTerminalDelegate and recoverProjectionsDelegate are the read/recovery owners,
+// package vars so tests can inject any closed state/outcome without a durable world.
+var inspectTerminalDelegate = completion.InspectTerminalState
+
+var recoverProjectionsDelegate = completion.RecoverProjections
 
 func (b *bridge) callTool(ctx context.Context, name string, args map[string]interface{}) (*toolResult, error) {
 	switch name {
@@ -643,6 +675,80 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 			text += "\nreceipt: " + res.ReceiptPath
 		}
 		return &toolResult{Text: text, Structured: structFrom(res)}, nil
+
+	case "inspect_terminal":
+		for k := range args {
+			switch k {
+			case "repo", "task":
+			default:
+				return nil, fmt.Errorf("unknown property %q; inspect_terminal accepts no extra fields", k)
+			}
+		}
+		repo, _ := args["repo"].(string)
+		task, _ := args["task"].(string)
+		repo = strings.TrimSpace(repo)
+		if repo == "" {
+			return nil, fmt.Errorf("repo is required")
+		}
+		absRepo, err := filepath.Abs(repo)
+		if err != nil {
+			return nil, err
+		}
+		taskDir := strings.TrimSpace(task)
+		if taskDir == "" {
+			ptr, perr := tasksession.LoadActivePointer(absRepo)
+			if perr != nil {
+				return nil, perr
+			}
+			taskDir = filepath.Join(absRepo, filepath.Dir(filepath.FromSlash(ptr.SessionPath)))
+		} else {
+			taskDir, err = filepath.Abs(taskDir)
+			if err != nil {
+				return nil, err
+			}
+		}
+		res, err := inspectTerminalDelegate(ctx, completion.Request{RepositoryRoot: absRepo, TaskDirectory: taskDir})
+		if err != nil {
+			return nil, err
+		}
+		return &toolResult{Text: "terminal state: " + string(res.State), Structured: structFrom(res)}, nil
+
+	case "recover_projections":
+		for k := range args {
+			switch k {
+			case "repo", "task":
+			default:
+				return nil, fmt.Errorf("unknown property %q; recover_projections accepts no extra fields", k)
+			}
+		}
+		repo, _ := args["repo"].(string)
+		task, _ := args["task"].(string)
+		repo = strings.TrimSpace(repo)
+		if repo == "" {
+			return nil, fmt.Errorf("repo is required")
+		}
+		absRepo, err := filepath.Abs(repo)
+		if err != nil {
+			return nil, err
+		}
+		taskDir := strings.TrimSpace(task)
+		if taskDir == "" {
+			ptr, perr := tasksession.LoadActivePointer(absRepo)
+			if perr != nil {
+				return nil, perr
+			}
+			taskDir = filepath.Join(absRepo, filepath.Dir(filepath.FromSlash(ptr.SessionPath)))
+		} else {
+			taskDir, err = filepath.Abs(taskDir)
+			if err != nil {
+				return nil, err
+			}
+		}
+		res, err := recoverProjectionsDelegate(ctx, completion.Request{RepositoryRoot: absRepo, TaskDirectory: taskDir})
+		if err != nil {
+			return nil, err
+		}
+		return &toolResult{Text: "recovery outcome: " + string(res.Outcome), Structured: structFrom(res)}, nil
 
 	default:
 		return nil, fmt.Errorf("unknown tool %q", name)
