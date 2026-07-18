@@ -298,6 +298,73 @@ func TestCompletionEnvelopeValidationEnforced(t *testing.T) {
 	}
 }
 
+// Correction: canonical PUBLICATION validity is re-verified at the render/publish
+// boundary, not only at construction. Closing the constructor door stops invalid
+// construction, but a stamped envelope can be altered between the workshop and the
+// display case: its fields keep satisfying the structural conjunction while its digest
+// no longer represents its content. Publication must reject it — detectable invalidity
+// is not enforced validity.
+func TestCompletionEnvelopeCanonicalPublication(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("completion failed")
+	}
+	available := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+
+	// Freshly stamped envelopes are canonically valid and publish verbatim.
+	for _, e := range []CompletionProjectionEnvelope{available, UnavailableProjectionOwnerEnvelope("y"), UnavailableTaskDirectoryEnvelope("z")} {
+		if err := ValidateCanonicalCompletionEnvelope(e); err != nil {
+			t.Fatalf("stamped envelope must be canonically valid: %v", err)
+		}
+		if _, isMarker := e.PublicationView().(map[string]any); isMarker {
+			t.Fatal("a canonical envelope must publish verbatim, not as an invalid marker")
+		}
+	}
+
+	// Mutate an unavailable envelope's detail AFTER stamping. Structure still passes; the
+	// digest no longer matches, so canonical publication fails and both publish surfaces
+	// report invalid rather than rendering the changed content.
+	tampered := UnavailableProjectionOwnerEnvelope("original")
+	tampered.UnavailableDetail = "changed after stamping"
+	if err := ValidateCompletionEnvelope(tampered); err != nil {
+		t.Fatalf("structural validation should still pass on a field-consistent mutation: %v", err)
+	}
+	if ValidateCanonicalCompletionEnvelope(tampered) == nil {
+		t.Fatal("post-stamp mutation must fail canonical publication validation")
+	}
+	if !strings.Contains(tampered.Summary(), "invalid completion projection envelope") {
+		t.Fatalf("tampered envelope must render invalid, got %q", tampered.Summary())
+	}
+	if strings.Contains(tampered.Summary(), "changed after stamping") {
+		t.Fatalf("tampered content must not be rendered: %q", tampered.Summary())
+	}
+	if m, ok := tampered.PublicationView().(map[string]any); !ok || m["canonical"] != false {
+		t.Fatalf("tampered envelope must publish as an invalid marker, got %#v", tampered.PublicationView())
+	}
+
+	// Mutate the nested available projection AFTER stamping — the envelope digest covers
+	// it, so canonical publication catches this too.
+	tam2 := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	tam2.Projection.Detail = tam2.Projection.Detail + " forged"
+	if ValidateCanonicalCompletionEnvelope(tam2) == nil {
+		t.Fatal("mutating the nested projection must fail canonical publication validation")
+	}
+
+	// An off-schema version and a stripped digest each fail canonical publication while
+	// leaving the structural conjunction intact.
+	badSchema := UnavailableProjectionOwnerEnvelope("s")
+	badSchema.SchemaVersion = "completion.projection_envelope/v2"
+	if ValidateCompletionEnvelope(badSchema) != nil || ValidateCanonicalCompletionEnvelope(badSchema) == nil {
+		t.Fatal("off-schema envelope must pass structure but fail canonical publication")
+	}
+	noDigest := UnavailableProjectionOwnerEnvelope("d")
+	noDigest.DigestSHA256 = ""
+	if ValidateCompletionEnvelope(noDigest) != nil || ValidateCanonicalCompletionEnvelope(noDigest) == nil {
+		t.Fatal("digest-less envelope must pass structure but fail canonical publication")
+	}
+}
+
 // 15: the projection explicitly disclaims terminal authority and repository-wide
 // perfection.
 func TestProjectionDisclaimsAuthority(t *testing.T) {

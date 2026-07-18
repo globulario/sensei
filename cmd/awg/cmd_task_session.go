@@ -194,9 +194,12 @@ func completionProjectionEnvelope(opts tasksession.StatusOptions) completion.Com
 		return completion.UnavailableTaskDirectoryEnvelope("no task directory resolved")
 	}
 	env := completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: abs, TaskDirectory: taskDir})
-	// The task-status path receives only a validated envelope.
-	if completion.ValidateCompletionEnvelope(env) != nil {
-		return completion.UnavailableProjectionOwnerEnvelope("internal: invalid completion envelope")
+	// The task-status path receives only a canonically valid envelope: structure plus
+	// exact schema and a verified self-excluding digest. A freshly built envelope always
+	// passes; the check guards against an internal build that failed to stamp canonical
+	// identity, which would otherwise reach publication.
+	if completion.ValidateCanonicalCompletionEnvelope(env) != nil {
+		return completion.UnavailableProjectionOwnerEnvelope("internal: non-canonical completion envelope")
 	}
 	return env
 }
@@ -532,6 +535,8 @@ func printTaskStatus(res tasksession.StatusResult, env completion.CompletionProj
 func taskStatusEnvelope(res tasksession.StatusResult, env completion.CompletionProjectionEnvelope) map[string]any {
 	return map[string]any{
 		"architecture_task_status": res,
-		"completion_projection":    env,
+		// Publish through the canonical-publication gate: a post-stamp tampered envelope
+		// is emitted as an explicit invalid marker, never as if it were canonical.
+		"completion_projection": env.PublicationView(),
 	}
 }
