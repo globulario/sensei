@@ -253,6 +253,8 @@ func main() {
 		os.Exit(runAdmissionStatus(args))
 	case "advance-result":
 		os.Exit(runAdvanceResult(args))
+	case "disposition-question":
+		os.Exit(runDispositionQuestion(args))
 	case "prepare-change":
 		os.Exit(runPrepareChange(args))
 	case "task-status":
