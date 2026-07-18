@@ -405,3 +405,28 @@ required_tests:
         - closure.status_blind_unresolved_question_computation
       files:
         - golang/architecture/questionresolution/summarize.go
+  # ── Phase 8.2a: read-only terminal-completion readiness evaluator ──
+  - id: golang/architecture/completion/readiness_test.go:TestAssessReadyWhenBothCertificatesPresent
+    title: Readiness is ready only when correctness and question-resolution evidence and freshness all hold
+    protects:
+      invariants:
+        - closure.completion_readiness_is_read_only_evidence_conjunction
+      files:
+        - golang/architecture/completion/readiness.go
+  - id: golang/architecture/completion/readiness_test.go:TestAssessDoesNotAssertCompletion
+    title: The readiness evaluator asserts no terminal completion and appends no completed event
+    protects:
+      invariants:
+        - closure.completion_readiness_is_read_only_evidence_conjunction
+      failure_modes:
+        - closure.readiness_evaluation_asserts_or_performs_completion
+      files:
+        - golang/architecture/completion/readiness.go
+  - id: golang/architecture/completion/assess_test.go:TestAssessReadyRequiresEveryObligation
+    title: Readiness fails closed unless every required completion obligation is satisfied
+    protects:
+      failure_modes:
+        - closure.readiness_evaluation_asserts_or_performs_completion
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/completion/readiness.go

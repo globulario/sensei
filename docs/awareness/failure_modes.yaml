@@ -665,3 +665,26 @@ failure_modes:
     related_invariants:
       - closure.offline_provenance_query_matches_graph_owner
     evidence: Phase 8.1b govern-first; parity with the graph owner is required.
+  # ── Phase 8.2a: read-only terminal-completion readiness evaluator ──
+  - id: closure.readiness_evaluation_asserts_or_performs_completion
+    title: The readiness evaluator asserted or performed terminal completion, or reported ready on incomplete evidence
+    severity: high
+    root_cause: |
+      A read-only completion-readiness projection was allowed to persist a completion
+      receipt, append a completed ledger event, mutate governed/certification/ledger
+      state, trust a caller-supplied status or receipt path, or report ready while
+      required evidence was missing, stale, tampered, contradictory, or wrong-bound.
+      Readiness is then mistaken for completion and the terminal key is turned without
+      the full authoritative conjunction.
+    symptoms:
+      - a completed event or completion receipt produced by the readiness evaluator
+      - readiness=ready while a required obligation is not satisfied
+      - the evaluator trusting a caller boolean or receipt path instead of re-proving
+      - the assessment changing without any change in durable evidence
+    forbidden_fixes:
+      - report_readiness_as_completion_or_emit_a_completed_event_from_the_evaluator
+      - trust_a_caller_supplied_status_or_receipt_path_instead_of_re_proving
+    related_invariants:
+      - closure.completion_readiness_is_read_only_evidence_conjunction
+      - closure.completion_requires_closed_current_question_loop
+    evidence: Phase 8.2a govern-first; the readiness projection is read-only and asserts no completion.
