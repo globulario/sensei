@@ -130,9 +130,13 @@ func reverifyOwners(root, taskDir string, terminal TerminalStateAssessment) ([]C
 	qrOK, qrDetail := reverifyQuestionResolution(root, receipt.QuestionResolutionCertificateDigestSHA256)
 	comps = append(comps, ComponentVerification{Component: "question_resolution", Verified: qrOK, BoundDigestSHA256: receipt.QuestionResolutionCertificateDigestSHA256, Detail: qrDetail})
 
-	// 8.2a readiness: the frozen readiness assessment digest is bound.
-	readyOK := isHex64(receipt.ReadinessAssessmentDigestSHA256)
-	comps = append(comps, ComponentVerification{Component: "readiness_binding", Verified: readyOK, BoundDigestSHA256: receipt.ReadinessAssessmentDigestSHA256})
+	// 8.2a readiness: RECONSTRUCT the exact frozen readiness assessment from the
+	// receipt's own bound fields, validate it, recompute its digest, and require
+	// equality with the bound digest. Format proves syntax; recomputation proves
+	// identity. This is a historical reconstruction, never a live AssessReadiness —
+	// completion itself advanced the ledger head and terminal-conflict state.
+	readyOK, readyDetail := reverifyReadiness(receipt)
+	comps = append(comps, ComponentVerification{Component: "readiness_binding", Verified: readyOK, BoundDigestSHA256: receipt.ReadinessAssessmentDigestSHA256, Detail: readyDetail})
 
 	governedManifest, _ := governedmutation.GovernedManifestDigest(root)
 	return comps, receipt.GovernedManifestDigestSHA256 != governedManifest
@@ -161,6 +165,72 @@ func reverifyQuestionResolution(root, boundDigest string) (bool, string) {
 	}
 	if cert.DigestSHA256 != boundDigest {
 		return false, "question-resolution certificate digest does not match the bound digest"
+	}
+	return true, ""
+}
+
+// reconstructReadiness rebuilds the exact frozen readiness assessment that justified
+// a completion, entirely from the completion receipt's own bound fields plus the
+// fixed readiness constants. The Readiness verdict is recomputed from the bound
+// obligations exactly as the readiness owner does (ready iff all satisfied), so a
+// forged receipt with any unsatisfied/mutated obligation cannot reproduce the digest.
+func reconstructReadiness(receipt TerminalCompletionReceipt) ReadinessAssessment {
+	readiness := ReadinessReady
+	for _, o := range receipt.Obligations {
+		if o.State != EvidenceSatisfied {
+			readiness = ReadinessNotReady
+		}
+	}
+	return ReadinessAssessment{
+		SchemaVersion:                ReadinessSchemaVersion,
+		Task:                         receipt.Completion.Task,
+		ResultBinding:                receipt.Completion.ResultBinding,
+		TaskLedgerHeadDigestSHA256:   receipt.PreCompletionLedgerHeadDigestSHA256,
+		GovernedManifestDigestSHA256: receipt.GovernedManifestDigestSHA256,
+		Obligations:                  receipt.Obligations,
+		Readiness:                    readiness,
+		Limitations:                  readinessLimitations(),
+		Bound:                        boundStatement(),
+	}
+}
+
+// reverifyReadiness proves the bound readiness owner by identity, not syntax: it
+// reconstructs the frozen assessment, validates its schema and obligations, recomputes
+// its self-excluding digest, and requires exact equality with the receipt-bound digest
+// AND that the reconstructed assessment is actually ready.
+func reverifyReadiness(receipt TerminalCompletionReceipt) (bool, string) {
+	// The bound obligation set must be exactly the canonical set — no missing, no
+	// duplicate, no extra — proven explicitly so a semantic-digest set-normalization
+	// can never hide a duplicated or dropped obligation.
+	if len(receipt.Obligations) != len(obligationOrder) {
+		return false, "readiness obligation count does not match the canonical set"
+	}
+	seen := map[ObligationID]bool{}
+	for _, o := range receipt.Obligations {
+		if seen[o.Obligation] {
+			return false, "duplicate readiness obligation"
+		}
+		seen[o.Obligation] = true
+	}
+	for _, id := range obligationOrder {
+		if !seen[id] {
+			return false, "missing readiness obligation " + string(id)
+		}
+	}
+	r := reconstructReadiness(receipt)
+	digest, err := AssessmentDigest(r)
+	if err != nil {
+		return false, "readiness digest recompute failed: " + err.Error()
+	}
+	r.DigestSHA256 = digest
+	if verr := ValidateAssessment(r); verr != nil {
+		return false, "reconstructed readiness invalid: " + verr.Error()
+	}
+	if r.Readiness != ReadinessReady {
+		return false, "reconstructed readiness is not ready"
+	}
+	if digest != receipt.ReadinessAssessmentDigestSHA256 {
+		return false, "reconstructed readiness digest does not match the completion-bound digest"
 	}
 	return true, ""
 }

@@ -284,6 +284,67 @@ func TestClosureDeterministic(t *testing.T) {
 	}
 }
 
+// Readiness identity (correction): the bound readiness owner is proven by
+// reconstruction + digest recomputation, not digest syntax. Any invented digest, or
+// mutated/missing/duplicate obligations, breaks it; an unchanged completion holds.
+func TestClosureReadinessProvenByIdentityNotSyntax(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("completion failed")
+	}
+	receipt, err := verifyDurableConjunction(w.TaskDir, currentResultBinding(t, w.TaskDir))
+	if err != nil {
+		t.Fatalf("load receipt: %v", err)
+	}
+	if ok, d := reverifyReadiness(receipt); !ok {
+		t.Fatalf("unchanged readiness rejected: %s", d)
+	}
+
+	// arbitrary well-formed digest — passes isHex64, fails identity.
+	bad := receipt
+	bad.ReadinessAssessmentDigestSHA256 = strings.Repeat("a", 64)
+	if ok, _ := reverifyReadiness(bad); ok {
+		t.Fatal("an invented well-formed readiness digest must break closure")
+	}
+
+	// mutated obligation state.
+	mutated := receipt
+	mutated.Obligations = append([]ObligationAssessment(nil), receipt.Obligations...)
+	mutated.Obligations[0].State = EvidenceMissing
+	if ok, _ := reverifyReadiness(mutated); ok {
+		t.Fatal("a mutated obligation must break closure")
+	}
+
+	// missing obligation.
+	missing := receipt
+	missing.Obligations = receipt.Obligations[:len(receipt.Obligations)-1]
+	if ok, _ := reverifyReadiness(missing); ok {
+		t.Fatal("a missing obligation must break closure")
+	}
+
+	// duplicate obligation.
+	dup := receipt
+	dup.Obligations = append(append([]ObligationAssessment(nil), receipt.Obligations...), receipt.Obligations[0])
+	if ok, _ := reverifyReadiness(dup); ok {
+		t.Fatal("a duplicate obligation must break closure")
+	}
+
+	// wrong obligation (replace one id with an off-set value).
+	wrong := receipt
+	wrong.Obligations = append([]ObligationAssessment(nil), receipt.Obligations...)
+	wrong.Obligations[0].Obligation = "not_an_obligation"
+	if ok, _ := reverifyReadiness(wrong); ok {
+		t.Fatal("a wrong obligation must break closure")
+	}
+
+	// End-to-end: a receipt whose readiness fails identity cannot yield authoritative
+	// closure — proven through the full verifier on the untouched happy path.
+	if w.verifyClosure(t).Verdict != ClosureAuthoritativeCompletion {
+		t.Fatal("unchanged completion must remain authoritative")
+	}
+}
+
 // World 15 + contract: all Phase-8 owners and terminal states are present and
 // connected, and the closure report keeps the three claims distinct.
 func TestPhase8ClosureReportContract(t *testing.T) {
