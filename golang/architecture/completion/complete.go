@@ -75,6 +75,12 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 	if root == "" || taskDir == "" || idRoot == "" || expected == "" {
 		return refuse(OutcomeInputInvalid, "repository root, task dir, identity root, and expected head are required")
 	}
+	// Repository and task must name one world before any lock, authority resolution,
+	// receipt write, or append: the lock and authority are computed from the root while
+	// the ledger is read and mutated under the task directory.
+	if berr := validateRepositoryTaskBinding(root, taskDir); berr != nil {
+		return refuse(OutcomeInputInvalid, "%s", berr.Error())
+	}
 	now := time.Now().UTC()
 
 	// The outermost composable lock serializes completion attempts, so concurrent

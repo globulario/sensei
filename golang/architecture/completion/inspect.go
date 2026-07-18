@@ -100,8 +100,10 @@ func InspectTerminalState(ctx context.Context, req Request) (TerminalStateAssess
 	_ = ctx
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
-	if root == "" || taskDir == "" {
-		return TerminalStateAssessment{}, fmt.Errorf("repository root and task directory are required")
+	// Repository and task must name one world before any read: the governed-manifest
+	// truth is computed from the root while the ledger is read from the task directory.
+	if berr := validateRepositoryTaskBinding(root, taskDir); berr != nil {
+		return TerminalStateAssessment{}, berr
 	}
 
 	a := TerminalStateAssessment{SchemaVersion: inspectSchemaVersion, Bound: inspectBound()}

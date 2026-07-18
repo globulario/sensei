@@ -95,8 +95,16 @@ func TestRunRecoverProjections_RealOwnerRefusesWritesNothingIdempotent(t *testin
 		t.Fatalf("seeded task should start not_completed, got %s", before.State)
 	}
 	for _, pass := range []string{"first", "replay"} {
-		if code := runRecoverProjections([]string{"--repo", seed.Repo, "--task-dir", seed.TaskDir}); code != 1 {
+		var code int
+		out := captureStdout(t, func() {
+			code = runRecoverProjections([]string{"--repo", seed.Repo, "--task-dir", seed.TaskDir})
+		})
+		if code != 1 {
 			t.Fatalf("%s: nothing-to-recover must exit 1, got %d", pass, code)
+		}
+		// Assert the EXACT outcome, not just exit 1 — five outcomes share exit 1.
+		if !strings.Contains(out, "nothing_to_recover") {
+			t.Fatalf("%s: must surface the exact nothing_to_recover outcome: %q", pass, out)
 		}
 		after, ierr := completion.InspectTerminalState(ctx, req)
 		if ierr != nil {

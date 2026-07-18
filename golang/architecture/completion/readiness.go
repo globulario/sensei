@@ -4,7 +4,6 @@ package completion
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
@@ -27,8 +26,11 @@ func AssessReadiness(ctx context.Context, req Request) (ReadinessAssessment, err
 	_ = ctx
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
-	if root == "" || taskDir == "" {
-		return ReadinessAssessment{}, fmt.Errorf("repository root and task directory are required")
+	// Repository and task must name one world before any evidence read: governed
+	// freshness is anchored on the root while obligations are re-proved from the task
+	// directory's durable artifacts.
+	if berr := validateRepositoryTaskBinding(root, taskDir); berr != nil {
+		return ReadinessAssessment{}, berr
 	}
 
 	chain, task, head, rb, haveRB, err := loadTaskWorld(taskDir)

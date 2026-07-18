@@ -176,7 +176,14 @@ func Seed(baseDir string, opts Options) (Result, error) {
 		},
 	}
 
-	taskDir, err := os.MkdirTemp(baseDir, "task-")
+	// Nest the task under the repository (mirroring production's
+	// <repo>/.sensei/tasks/<id>) so repository and task name one world, as the
+	// completion owners now require.
+	tasksParent := filepath.Join(repo, ".sensei", "tasks")
+	if err := os.MkdirAll(tasksParent, 0o755); err != nil {
+		return Result{}, err
+	}
+	taskDir, err := os.MkdirTemp(tasksParent, "task-")
 	if err != nil {
 		return Result{}, err
 	}

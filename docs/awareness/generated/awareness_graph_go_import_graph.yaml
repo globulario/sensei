@@ -95,6 +95,7 @@ components:
       - cmd/awg/cmd_infer_claims.go
       - cmd/awg/cmd_ingest.go
       - cmd/awg/cmd_init.go
+      - cmd/awg/cmd_inspect_terminal.go
       - cmd/awg/cmd_intent_mine.go
       - cmd/awg/cmd_learn.go
       - cmd/awg/cmd_lifecycle.go
@@ -113,6 +114,7 @@ components:
       - cmd/awg/cmd_query.go
       - cmd/awg/cmd_rebuild.go
       - cmd/awg/cmd_reconcile.go
+      - cmd/awg/cmd_recover_projections.go
       - cmd/awg/cmd_repair_plan.go
       - cmd/awg/cmd_repair_report.go
       - cmd/awg/cmd_repo_eval.go
@@ -395,6 +397,7 @@ components:
       - golang/architecture/completion/readiness.go
       - golang/architecture/completion/receipt.go
       - golang/architecture/completion/recover.go
+      - golang/architecture/completion/worldbinding.go
       - golang/architecture/convergence/convergence.go
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
