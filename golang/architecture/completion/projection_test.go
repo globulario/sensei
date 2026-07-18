@@ -178,6 +178,60 @@ func TestProjectionSummaryPreservesAllStatesAndVerdicts(t *testing.T) {
 	}
 }
 
+// Correction: projection availability is explicit and typed at the surface boundary —
+// never omitted, never a fabricated terminal state.
+func TestCompletionProjectionEnvelopeAvailability(t *testing.T) {
+	// A valid completion is available and carries the real projection.
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("completion failed")
+	}
+	env := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	if env.Availability != CompletionAvailable || env.Projection == nil {
+		t.Fatalf("valid completion must be available with a projection: %+v", env)
+	}
+	if env.Projection.TerminalState != TerminalCommitted {
+		t.Fatalf("available projection unchanged expected committed, got %s", env.Projection.TerminalState)
+	}
+	if !strings.Contains(env.Summary(), "committed") {
+		t.Fatalf("envelope summary dropped state: %q", env.Summary())
+	}
+
+	// A not-completed task still surfaces as an actual projection, not absence.
+	w2 := seedWorld(t)
+	env2 := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w2.Repo, TaskDirectory: w2.TaskDir})
+	if env2.Availability != CompletionAvailable || env2.Projection == nil || env2.Projection.TerminalState != TerminalNotCompleted {
+		t.Fatalf("not_completed must be an actual projection, not absence: %+v", env2)
+	}
+
+	// A projection-owner error (empty task dir) becomes an explicit typed unavailable
+	// envelope — visible, not silent, and never a fabricated terminal state.
+	envErr := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: ""})
+	if envErr.Availability != CompletionUnavailable || envErr.Projection != nil {
+		t.Fatalf("owner error must be unavailable with no projection: %+v", envErr)
+	}
+	if envErr.UnavailableClass != "projection_owner_error" {
+		t.Fatalf("unavailable class = %q, want projection_owner_error", envErr.UnavailableClass)
+	}
+	if !strings.Contains(envErr.Summary(), "unavailable") {
+		t.Fatalf("unavailable summary must say so: %q", envErr.Summary())
+	}
+
+	// A typed unavailable envelope fabricates no terminal state and stays deterministic.
+	u1 := UnavailableCompletionEnvelope("task_directory_unresolved", "no active task pointer")
+	u2 := UnavailableCompletionEnvelope("task_directory_unresolved", "no active task pointer")
+	if u1.Availability != CompletionUnavailable || u1.Projection != nil || !u1.NonAuthoritativeProjection {
+		t.Fatalf("unavailable envelope malformed: %+v", u1)
+	}
+	if u1.DigestSHA256 != u2.DigestSHA256 {
+		t.Fatal("unavailable envelope is not deterministic")
+	}
+	if env.DigestSHA256 == u1.DigestSHA256 {
+		t.Fatal("available and unavailable must have distinct identities")
+	}
+}
+
 // 15: the projection explicitly disclaims terminal authority and repository-wide
 // perfection.
 func TestProjectionDisclaimsAuthority(t *testing.T) {
