@@ -112,18 +112,64 @@ const (
 	CompletionUnavailable CompletionAvailability = "unavailable"
 )
 
+// CompletionUnavailableClass is the CLOSED vocabulary of reasons a completion
+// projection could not be established at a surface boundary. Only these values are
+// canonical; an arbitrary synonym cannot become a valid envelope.
+type CompletionUnavailableClass string
+
+const (
+	// UnavailableTaskDirectoryUnresolved: the surface could not resolve a task
+	// directory (no active pointer / unreadable repository path).
+	UnavailableTaskDirectoryUnresolved CompletionUnavailableClass = "task_directory_unresolved"
+	// UnavailableProjectionOwnerError: the projection owner returned an error.
+	UnavailableProjectionOwnerError CompletionUnavailableClass = "projection_owner_error"
+)
+
+func validUnavailableClass(c CompletionUnavailableClass) bool {
+	return c == UnavailableTaskDirectoryUnresolved || c == UnavailableProjectionOwnerError
+}
+
 // CompletionProjectionEnvelope makes projection availability explicit and typed. When
 // available it carries the deterministic projection; when unavailable it carries a
-// typed error class and detail. It is always non-authoritative and never fabricates a
-// terminal state for a construction error.
+// class from the closed CompletionUnavailableClass vocabulary and a detail. It is
+// always non-authoritative and never fabricates a terminal state for a construction
+// error.
 type CompletionProjectionEnvelope struct {
-	SchemaVersion              string                 `json:"schema_version" yaml:"schema_version"`
-	Availability               CompletionAvailability `json:"availability" yaml:"availability"`
-	Projection                 *CompletionProjection  `json:"projection,omitempty" yaml:"projection,omitempty"`
-	UnavailableClass           string                 `json:"unavailable_class,omitempty" yaml:"unavailable_class,omitempty"`
-	UnavailableDetail          string                 `json:"unavailable_detail,omitempty" yaml:"unavailable_detail,omitempty"`
-	NonAuthoritativeProjection bool                   `json:"non_authoritative_projection" yaml:"non_authoritative_projection"`
-	DigestSHA256               string                 `json:"digest_sha256,omitempty" yaml:"digest_sha256,omitempty"`
+	SchemaVersion              string                     `json:"schema_version" yaml:"schema_version"`
+	Availability               CompletionAvailability     `json:"availability" yaml:"availability"`
+	Projection                 *CompletionProjection      `json:"projection,omitempty" yaml:"projection,omitempty"`
+	UnavailableClass           CompletionUnavailableClass `json:"unavailable_class,omitempty" yaml:"unavailable_class,omitempty"`
+	UnavailableDetail          string                     `json:"unavailable_detail,omitempty" yaml:"unavailable_detail,omitempty"`
+	NonAuthoritativeProjection bool                       `json:"non_authoritative_projection" yaml:"non_authoritative_projection"`
+	DigestSHA256               string                     `json:"digest_sha256,omitempty" yaml:"digest_sha256,omitempty"`
+}
+
+// ValidateCompletionEnvelope enforces the availability/field conjunction and the
+// closed unavailable vocabulary, so an arbitrary class or a malformed available/
+// unavailable combination cannot pass as canonical.
+func ValidateCompletionEnvelope(e CompletionProjectionEnvelope) error {
+	switch e.Availability {
+	case CompletionAvailable:
+		if e.Projection == nil {
+			return fmt.Errorf("available envelope must carry a projection")
+		}
+		if e.UnavailableClass != "" || e.UnavailableDetail != "" {
+			return fmt.Errorf("available envelope must carry no unavailable class/detail")
+		}
+	case CompletionUnavailable:
+		if e.Projection != nil {
+			return fmt.Errorf("unavailable envelope must carry no projection")
+		}
+		if !validUnavailableClass(e.UnavailableClass) {
+			return fmt.Errorf("unavailable envelope class %q is not a recognized CompletionUnavailableClass", e.UnavailableClass)
+		}
+	default:
+		return fmt.Errorf("availability %q is off-vocabulary", e.Availability)
+	}
+	if !e.NonAuthoritativeProjection {
+		return fmt.Errorf("completion envelope must be non-authoritative")
+	}
+	return nil
 }
 
 func stampEnvelope(e CompletionProjectionEnvelope) CompletionProjectionEnvelope {
@@ -136,9 +182,10 @@ func stampEnvelope(e CompletionProjectionEnvelope) CompletionProjectionEnvelope 
 	return e
 }
 
-// UnavailableCompletionEnvelope is the typed unavailable envelope. It never fabricates
-// a terminal state; the class/detail carry why the projection could not be established.
-func UnavailableCompletionEnvelope(class, detail string) CompletionProjectionEnvelope {
+// UnavailableCompletionEnvelope is the typed unavailable envelope. Its class is
+// constrained to the closed CompletionUnavailableClass vocabulary; it never fabricates
+// a terminal state.
+func UnavailableCompletionEnvelope(class CompletionUnavailableClass, detail string) CompletionProjectionEnvelope {
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: class, UnavailableDetail: detail})
 }
 
@@ -148,7 +195,7 @@ func UnavailableCompletionEnvelope(class, detail string) CompletionProjectionEnv
 func BuildCompletionProjectionEnvelope(ctx context.Context, req Request) CompletionProjectionEnvelope {
 	p, err := BuildCompletionProjection(ctx, req)
 	if err != nil {
-		return UnavailableCompletionEnvelope("projection_owner_error", err.Error())
+		return UnavailableCompletionEnvelope(UnavailableProjectionOwnerError, err.Error())
 	}
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionAvailable, Projection: &p})
 }
