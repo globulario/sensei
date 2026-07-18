@@ -75,6 +75,10 @@ func proposedInvariant() propose.Request {
 // disposition ready to promote, plus an enrolled promotion identity and the
 // governed policy carrying the promotion grant.
 func seedPromotable(t *testing.T) promotable {
+	return seedDispositionOnly(t, qd.DispositionAnswered, qd.ReusabilityReusableCandidate)
+}
+
+func seedDispositionOnly(t *testing.T, disp qd.Disposition, reuse qd.Reusability) promotable {
 	t.Helper()
 	r, err := resulttestkit.Seed(t.TempDir(), resulttestkit.Options{
 		Direction:   "evolve",
@@ -101,7 +105,7 @@ func seedPromotable(t *testing.T) promotable {
 	// Record an answered + reusable_candidate disposition.
 	cand, err := qd.Prepare(qd.PrepareRequest{
 		TaskDirectory: r.TaskDir, RepositoryRoot: r.Repo, IdentityRoot: identity.Root(r.Repo),
-		QuestionID: questions[0].QuestionID, Disposition: qd.DispositionAnswered, Reusability: qd.ReusabilityReusableCandidate,
+		QuestionID: questions[0].QuestionID, Disposition: disp, Reusability: reuse,
 		Rationale: "the intended basis is X", AnswerID: "answer.1", AnswerBytes: []byte("the intended basis is X"),
 	})
 	if err != nil {
