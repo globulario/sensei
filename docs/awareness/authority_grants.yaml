@@ -60,3 +60,27 @@ authority_grants:
     valid_until: ""
     delegable: false
     delegation_policy_id: ""
+
+  # ── Phase 8.1d: bounded question-resolution certification grant ──
+  # Distinct from grant.sensei.question_disposition and
+  # grant.sensei.governed_promotion: a dedicated action/target/mechanism triple so
+  # the authority resolver cannot cross-authorize certification with disposition or
+  # promotion. The operation is an owner-RPC observation over durable task evidence.
+  - id: grant.sensei.question_resolution_certification
+    label: Sensei bounded question-resolution certification grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_question_resolution_certification
+    actions:
+      - observe
+    target_kinds:
+      - question_resolution_certificate
+    required_mechanism_ids:
+      - mutation_path.question_resolution_certification
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""
