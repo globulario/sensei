@@ -33,6 +33,11 @@ type BuildRequest struct {
 	RepositoryRoot               string
 	RepositoryDomain             string
 	ExpectedManifestDigestSHA256 string
+	// Provenance, when set, is a typed digest-bound supplemental graph input whose
+	// triples are compiled and stamped INTO the canonical graph (an owned build
+	// input, never a post-build append) and whose chain is independently proven
+	// present after reload.
+	Provenance *PromotionProvenance
 }
 
 // VerifiedProjection is the typed result of a verified repository-graph
@@ -56,6 +61,10 @@ type VerifiedProjection struct {
 	MarkerIRI                     string
 	MarkerSchemaVersion           string
 	GraphTripleCount              int
+
+	// SupplementalProvenanceDigestSHA256 is the stamped provenance identity folded
+	// into GraphBuildInputDigestSHA256; empty when no provenance was supplied.
+	SupplementalProvenanceDigestSHA256 string
 
 	ProducerID      string
 	ProducerVersion string

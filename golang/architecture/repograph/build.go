@@ -75,14 +75,27 @@ func buildWith(ctx context.Context, req BuildRequest, deps buildDeps) (VerifiedP
 	if err != nil {
 		return VerifiedProjection{}, &CompileError{Detail: err.Error()}
 	}
-	buildInputDigest := comp.SourceManifest.DigestSHA256
+	// Typed digest-bound supplemental provenance is compiled INTO the graph as an
+	// owned build input; its digest folds into the build-input identity.
+	var supplementals []graphbuild.SupplementalGraph
+	supProvenanceDigest := ""
+	if req.Provenance != nil {
+		sup, digest, perr := req.Provenance.stampedSupplemental()
+		if perr != nil {
+			return VerifiedProjection{}, perr
+		}
+		supplementals = append(supplementals, sup)
+		supProvenanceDigest = digest
+	}
 
 	// Stamp: projection authority. Stamped bytes = canonicalized body + 6 marker
 	// triples, so they differ from the compile artifact bytes.
-	art, err := graphbuild.Stamp(ctx, graphbuild.FinalizeRequest{Compilation: comp})
+	art, err := graphbuild.Stamp(ctx, graphbuild.FinalizeRequest{Compilation: comp, SupplementalGraphs: supplementals})
 	if err != nil {
 		return VerifiedProjection{}, &CompileError{Detail: "stamp: " + err.Error()}
 	}
+	// The build-input identity now includes the supplemental provenance.
+	buildInputDigest := art.SourceManifest.DigestSHA256
 	stamped := art.NTriples
 	byteDigest := art.ArtifactByteDigestSHA256
 	semanticDigest := art.GraphSemanticDigestSHA256
@@ -130,23 +143,31 @@ func buildWith(ctx context.Context, req BuildRequest, deps buildDeps) (VerifiedP
 		return VerifiedProjection{}, err
 	}
 
+	// Independently prove the supplemental provenance chain from the persisted graph.
+	if req.Provenance != nil {
+		if err := proveChain(ctx, graphPath, req.Provenance); err != nil {
+			return VerifiedProjection{}, err
+		}
+	}
+
 	return VerifiedProjection{
-		RepositoryRoot:                root,
-		Disposition:                   disposition,
-		GraphPath:                     GraphRelPath,
-		MarkerPath:                    MarkerRelPath,
-		SourceManifestDigestSHA256:    preManifest,
-		GraphBuildInputDigestSHA256:   buildInputDigest,
-		CompiledGraphByteDigestSHA256: byteDigest,
-		GraphSemanticDigestSHA256:     semanticDigest,
-		MarkerDigestSHA256:            marker.Digest,
-		MarkerIRI:                     marker.IRI,
-		MarkerSchemaVersion:           markerSchemaVersion,
-		GraphTripleCount:              graphTriples,
-		ProducerID:                    ProducerID,
-		ProducerVersion:               ProducerVersion,
-		Verified:                      true,
-		CombinedSeedObligation:        combinedSeedObligation,
+		RepositoryRoot:                     root,
+		Disposition:                        disposition,
+		GraphPath:                          GraphRelPath,
+		MarkerPath:                         MarkerRelPath,
+		SourceManifestDigestSHA256:         preManifest,
+		SupplementalProvenanceDigestSHA256: supProvenanceDigest,
+		GraphBuildInputDigestSHA256:        buildInputDigest,
+		CompiledGraphByteDigestSHA256:      byteDigest,
+		GraphSemanticDigestSHA256:          semanticDigest,
+		MarkerDigestSHA256:                 marker.Digest,
+		MarkerIRI:                          marker.IRI,
+		MarkerSchemaVersion:                markerSchemaVersion,
+		GraphTripleCount:                   graphTriples,
+		ProducerID:                         ProducerID,
+		ProducerVersion:                    ProducerVersion,
+		Verified:                           true,
+		CombinedSeedObligation:             combinedSeedObligation,
 	}, nil
 }
 

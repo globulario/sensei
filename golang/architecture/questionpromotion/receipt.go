@@ -134,7 +134,11 @@ func ComputeLineageID(in QuestionPromotionReceipt) (string, error) {
 	in.PromotionLineageID = ""
 	in.ReceiptDigestSHA256 = ""
 	in.CommittedCausalIdentitySHA256 = ""
-	// Values produced during/after mutation, graph build, or commit are excluded.
+	// Values produced during/after mutation, graph build, or commit are excluded,
+	// as is the pre-mutation manifest: it is an environmental fact frozen in the
+	// prepared journal event, not an intrinsic identity of what is promoted, and it
+	// must not make the lineage id (the replay key) unstable across retries.
+	in.PreMutationManifestDigestSHA256 = ""
 	in.PostMutationManifestDigestSHA256 = ""
 	in.GraphBuildInputDigestSHA256 = ""
 	in.PersistedGraphByteDigestSHA256 = ""

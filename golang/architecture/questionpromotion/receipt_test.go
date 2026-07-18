@@ -218,11 +218,16 @@ func TestProvenanceChainTraversableAndLineageOnly(t *testing.T) {
 	}
 }
 
-// 9 — the receipt package writes nothing (no CLI, YAML, graph, journal, correctness).
+// 9 — no file in the package imports cmd/awg or sets CorrectnessCertified, and the
+// pure artifact files (receipt.go, provenance.go) have no side effects. The
+// transaction owner (promote/drive/journal) legitimately writes the promotion-local
+// journal and receipt; it is proven side-effect-bounded by the crash-window and
+// boundary tests instead.
 func TestReceiptPackageHasNoSideEffectsOrCLIImport(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(file)
 	entries, _ := os.ReadDir(dir)
+	pureArtifactFiles := map[string]bool{"receipt.go": true, "provenance.go": true}
 	for _, e := range entries {
 		if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
 			continue
@@ -232,9 +237,14 @@ func TestReceiptPackageHasNoSideEffectsOrCLIImport(t *testing.T) {
 		if strings.Contains(src, "globulario/sensei/cmd/awg") {
 			t.Errorf("%s imports cmd/awg", e.Name())
 		}
-		for _, forbidden := range []string{"os.WriteFile", "os.Create", "CorrectnessCertified", "ledger.NewStore"} {
-			if strings.Contains(src, forbidden) {
-				t.Errorf("%s performs a forbidden side effect %q", e.Name(), forbidden)
+		if strings.Contains(src, "CorrectnessCertified") {
+			t.Errorf("%s references CorrectnessCertified", e.Name())
+		}
+		if pureArtifactFiles[e.Name()] {
+			for _, forbidden := range []string{"os.WriteFile", "os.Create", "ledger.NewStore"} {
+				if strings.Contains(src, forbidden) {
+					t.Errorf("%s (pure artifact) performs a forbidden side effect %q", e.Name(), forbidden)
+				}
 			}
 		}
 	}
