@@ -172,6 +172,45 @@ func ValidateCompletionEnvelope(e CompletionProjectionEnvelope) error {
 	return nil
 }
 
+// recomputeEnvelopeDigest reproduces the exact self-excluding digest stampEnvelope
+// wrote: the DigestSHA256 field is cleared before hashing so the digest never covers
+// itself. Every other field — including a post-stamp mutation to schema, class, detail,
+// or the nested projection — participates, so any alteration changes the result.
+func recomputeEnvelopeDigest(e CompletionProjectionEnvelope) (string, error) {
+	e.DigestSHA256 = ""
+	return closureprotocol.SemanticDigest(e)
+}
+
+// ValidateCanonicalCompletionEnvelope is the PUBLICATION check, distinct from the
+// pre-stamp structural ValidateCompletionEnvelope. Closing the constructor door stops
+// invalid construction, but a stamped envelope can still be mutated or forged between
+// the workshop and the display case: its fields keep satisfying the structural
+// conjunction while its digest no longer represents its content. Publication therefore
+// re-verifies canonical identity — structural validity PLUS the exact envelope schema
+// version, a well-formed digest, and equality between the stored digest and a freshly
+// recomputed self-excluding digest. Detectable invalidity is not enforced validity;
+// identity not re-verified at publication is still advisory, so every surface that
+// publishes completion truth (Summary, structured task-status) must require this.
+func ValidateCanonicalCompletionEnvelope(e CompletionProjectionEnvelope) error {
+	if err := ValidateCompletionEnvelope(e); err != nil {
+		return err
+	}
+	if e.SchemaVersion != completionEnvelopeSchemaVersion {
+		return fmt.Errorf("envelope schema version %q is not the canonical %q", e.SchemaVersion, completionEnvelopeSchemaVersion)
+	}
+	if !isHex64(e.DigestSHA256) {
+		return fmt.Errorf("envelope carries no well-formed self-excluding digest")
+	}
+	recomputed, err := recomputeEnvelopeDigest(e)
+	if err != nil {
+		return fmt.Errorf("recompute envelope digest: %w", err)
+	}
+	if recomputed != e.DigestSHA256 {
+		return fmt.Errorf("envelope digest %s does not match content; it was altered after stamping", e.DigestSHA256)
+	}
+	return nil
+}
+
 // stampEnvelope ENFORCES the availability/field conjunction before it computes a
 // digest. An invalid envelope is never stamped: it receives no canonical digest, so
 // validation governs construction rather than being an optional review step. Only the
@@ -213,15 +252,34 @@ func BuildCompletionProjectionEnvelope(ctx context.Context, req Request) Complet
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionAvailable, Projection: &p})
 }
 
-// Summary renders the envelope as one deterministic line. It VALIDATES first and
-// never reinterprets a malformed envelope: an invalid envelope renders as an explicit
-// invalid line rather than being silently mapped into the unavailable path.
+// Summary renders the envelope as one deterministic line. It requires CANONICAL
+// publication validity — not merely the structural conjunction — so an envelope altered
+// or forged after stamping renders as explicitly invalid rather than presenting its
+// tampered content under a stale digest. It never reinterprets a malformed envelope
+// into the unavailable path.
 func (e CompletionProjectionEnvelope) Summary() string {
-	if err := ValidateCompletionEnvelope(e); err != nil {
+	if err := ValidateCanonicalCompletionEnvelope(e); err != nil {
 		return fmt.Sprintf("invalid completion projection envelope (%v) [non-authoritative projection]", err)
 	}
 	if e.Availability == CompletionAvailable {
 		return e.Projection.Summary()
 	}
 	return fmt.Sprintf("unavailable (%s: %s) [non-authoritative projection]", e.UnavailableClass, e.UnavailableDetail)
+}
+
+// PublicationView is the representation a surface may PUBLISH in structured output. Like
+// Summary it requires canonical publication validity: a tampered, unstamped, or
+// wrong-schema envelope is emitted as an explicit invalid marker — never as if it were
+// the canonical envelope — so structured task-status cannot present altered content
+// under a stale digest. A canonically valid envelope is published verbatim.
+func (e CompletionProjectionEnvelope) PublicationView() any {
+	if err := ValidateCanonicalCompletionEnvelope(e); err != nil {
+		return map[string]any{
+			"schema_version":               completionEnvelopeSchemaVersion,
+			"canonical":                    false,
+			"invalid_reason":               err.Error(),
+			"non_authoritative_projection": true,
+		}
+	}
+	return e
 }
