@@ -1200,3 +1200,30 @@ invariants:
     contract: >
       No Phase-9 surface ships without its reviewed slice; one slice is open at a time;
       GNN is excluded until repository evidence justifies it.
+  # ── Phase 9.1: canonical read-only completion projection ──
+  - id: closure.completion_projection_is_the_single_canonical_read_view
+    title: The completion projection is the single canonical read-only view of Phase-8 completion truth
+    severity: critical
+    status: active
+    description: >
+      Phase 9.1. One canonical, deterministic, read-only projection composes the
+      exported Phase-8 read owners (InspectTerminalState, VerifyCompletionClosure) and
+      is the single mapping that server, task-status, and task-briefing consume — no
+      surface invents its own translation. It preserves the owners' closed
+      state/verdict vocabularies without collapsing them, derives
+      authoritative_completion only from ClosureAuthoritativeCompletion, preserves the
+      distinction between historical authoritative completion and current governed
+      drift, is explicitly non-authoritative, and mutates nothing. It never calls
+      CompleteTask/RecoverProjections, re-derives terminal truth from raw files, or
+      treats itself or the closure report as terminal authority.
+    protects:
+      files:
+        - golang/architecture/completion/projection.go
+        - cmd/awg/cmd_task_session.go
+    required_tests:
+      - golang/architecture/completion/projection_test.go:TestProjectionNonAuthoritativeWorlds
+      - golang/architecture/completion/projection_test.go:TestProjectionDisclaimsAuthority
+    contract: >
+      The completion projection is a read-only, non-authoritative composition of the
+      Phase-8 read owners; it is the single canonical mapping and the sole terminal
+      truth remains the durable event/receipt conjunction.

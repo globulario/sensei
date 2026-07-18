@@ -512,3 +512,20 @@ required_tests:
         - closure.authoritative_completion_iff_whole_durable_conjunction
       files:
         - golang/architecture/completion/closure_report.go
+  # ── Phase 9.1: canonical read-only completion projection ──
+  - id: golang/architecture/completion/projection_test.go:TestProjectionSummaryPreservesAllStatesAndVerdicts
+    title: The canonical completion rendering preserves every terminal state and closure verdict without fallback collapse
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      failure_modes:
+        - closure.completion_surface_collapses_or_remaps_terminal_state
+      files:
+        - golang/architecture/completion/projection.go
+  - id: golang/architecture/completion/projection_test.go:TestProjectionZeroMutation
+    title: Building the canonical completion projection performs zero mutation
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      files:
+        - golang/architecture/completion/projection.go
