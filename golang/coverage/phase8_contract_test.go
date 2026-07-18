@@ -109,8 +109,11 @@ func assertGovernedIDs(t *testing.T, path, topKey string, wantIDs []string) {
 			t.Errorf("%s: missing Phase-8 governed record %q", filepath.Base(path), id)
 			continue
 		}
-		if title, _ := e["title"].(string); strings.TrimSpace(title) == "" {
-			t.Errorf("%s: %q has no title (schema-invalid)", filepath.Base(path), id)
+		// Governed records carry a "title"; authority records carry a "label".
+		title, _ := e["title"].(string)
+		label, _ := e["label"].(string)
+		if strings.TrimSpace(title) == "" && strings.TrimSpace(label) == "" {
+			t.Errorf("%s: %q has no title/label (schema-invalid)", filepath.Base(path), id)
 		}
 	}
 }

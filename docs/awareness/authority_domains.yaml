@@ -59,3 +59,30 @@ authority_domains:
       - bound repository read
     must_read_via_ids:
       - observation_path.repository_read
+
+  # ── Phase 8.1b: governed-promotion authority (repository governed truth) ──
+  - id: authority.sensei_governed_promotion
+    label: Sensei governed reusable-knowledge promotion
+    status: active
+    truth_layer: repository
+    owner_service: service.sensei.question_promotion
+    evidence_freshness: promotion binds the exact disposition receipt, committed source manifest, and rebuilt repository graph by digest
+    covers_paths:
+      - docs/awareness/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed promotion
+    must_mutate_via_ids:
+      - mutation_path.governed_promotion
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read

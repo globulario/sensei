@@ -40,3 +40,23 @@ authority_grants:
     valid_until: ""
     delegable: false
     delegation_policy_id: ""
+
+  # ── Phase 8.1b: dedicated governed-promotion grant (NOT question disposition) ──
+  - id: grant.sensei.governed_promotion
+    label: Sensei governed reusable-knowledge promotion grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_governed_promotion
+    actions:
+      - promote
+    target_kinds:
+      - governed_record
+    required_mechanism_ids:
+      - mutation_path.governed_promotion
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""

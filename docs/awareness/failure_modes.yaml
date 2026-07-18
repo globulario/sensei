@@ -553,3 +553,115 @@ failure_modes:
     related_invariants:
       - closure.only_question_disposition_owner_records_question_outcomes
       - closure.completion_never_mutates_governed_or_certification_truth
+  # ── Phase 8.1b: governed promotion failure surface ──
+  - id: closure.promotion_journal_mistaken_for_governed_truth
+    title: A promotion attempt journal is treated as governed truth
+    severity: critical
+    description: >
+      A journal entry, source file, graph node, authority marker, or adoption.Receipt is
+      accepted as promotion proof instead of a verified question_promotion_committed receipt.
+    protects:
+      files:
+        - golang/architecture/ledger/lock.go
+    related_invariants:
+      - closure.promotion_journal_is_not_governed_truth
+      - closure.promotion_receipt_only_after_projection_verified
+    evidence: Phase 8.1b govern-first; recovery metadata is not authority.
+  - id: closure.incomplete_source_commit_reported_governed
+    title: A committed source mutation is reported governed before graph verification
+    severity: critical
+    description: >
+      Filesystem success at governed_source_committed is reported as completed promotion
+      without independently reloading and verifying the persisted repository graph and marker.
+    protects:
+      files:
+        - golang/architecture/graphbuild/graphbuild.go
+    related_invariants:
+      - closure.source_commit_without_graph_verification_is_incomplete
+    evidence: Phase 8.1b govern-first; source_committed is promotion_incomplete.
+  - id: closure.graph_verified_against_wrong_source_world
+    title: The graph is verified against a different source world than was committed
+    severity: critical
+    description: >
+      A concurrent writer changes docs/awareness between source commit and rebuild, so the
+      graph is compiled from a foreign source set yet the attempt claims its own promotion
+      (the writer-A/writer-B chimera).
+    protects:
+      files:
+        - golang/architecture/graphbuild/graphbuild.go
+        - golang/architecture/graphsnapshot/graphsnapshot.go
+    related_invariants:
+      - closure.graph_verification_binds_committed_manifest
+    evidence: Phase 8.1b govern-first; lock + manifest CAS prevent the chimera.
+  - id: closure.duplicate_attempt_or_record_on_retry
+    title: Retry mints a second attempt, record, receipt, or node
+    severity: critical
+    description: >
+      Identical frozen inputs produce more than one attempt id, or promotion writes a
+      duplicate governed record / second receipt / duplicate node instead of resuming.
+    protects:
+      files:
+        - golang/architecture/ledger/lock.go
+    related_invariants:
+      - closure.promotion_retry_resumes_same_attempt
+    evidence: Phase 8.1b govern-first; content-addressed attempt id + replay.
+  - id: closure.contradictory_canonical_id_overwritten
+    title: A contradictory canonical governed record is overwritten
+    severity: critical
+    description: >
+      A same-ID different-semantics governed record is silently overwritten instead of
+      raising a typed collision/contradiction.
+    protects:
+      files:
+        - cmd/awg/cmd_propose.go
+    related_invariants:
+      - closure.contradictory_canonical_id_never_overwritten
+    evidence: Phase 8.1b govern-first; governed source is append-only under promotion.
+  - id: closure.receipt_authoritative_before_projection_verified
+    title: The promotion receipt is made authoritative before projection verification
+    severity: critical
+    description: >
+      A QuestionPromotionReceipt is written or trusted before the persisted graph and marker
+      are reloaded and verified, or trusts a caller-supplied governed status/graph digest/node IRI.
+    protects:
+      files:
+        - golang/architecture/adoption/receipt.go
+    related_invariants:
+      - closure.promotion_receipt_only_after_projection_verified
+    evidence: Phase 8.1b govern-first; recompute all trusted values.
+  - id: closure.repo_graph_confused_with_combined_seed
+    title: The repository graph is confused with the combined embedded seed
+    severity: critical
+    description: >
+      Promotion edits or partially regenerates golang/server/embeddata/awareness.nt, or claims
+      combined-seed convergence from a repository-scoped compile without the services checkout.
+    protects:
+      files:
+        - golang/server/embeddata/awareness.nt
+    related_invariants:
+      - closure.repo_graph_and_combined_seed_identities_distinct
+    evidence: Phase 8.1b govern-first; combined seed is a separate obligation.
+  - id: closure.promotion_event_leaks_into_task_projection
+    title: A promotion journal event leaks into task phase/status truth
+    severity: critical
+    description: >
+      A promotion state is modeled as a task event, added to task LedgerEventTypes, projected
+      into task phase/status, or consumed by task-ledger reducers.
+    protects:
+      files:
+        - golang/architecture/closureprotocol/vocabulary.go
+    related_invariants:
+      - closure.promotion_journal_separate_from_task_lifecycle
+    evidence: Phase 8.1b govern-first; promotion vocabulary is promotion-local.
+  - id: closure.offline_query_diverges_from_graph_owner
+    title: The offline provenance query diverges from normal graph-owner semantics
+    severity: critical
+    description: >
+      The offline reader invents a second RDF interpretation (IRI parsing, edge direction,
+      literal handling, results) that does not match store.Store, with no parity test.
+    protects:
+      files:
+        - golang/architecture/graphsnapshot/graphsnapshot.go
+    related_invariants:
+      - closure.offline_provenance_query_matches_graph_owner
+    evidence: Phase 8.1b govern-first; parity with the graph owner is required.

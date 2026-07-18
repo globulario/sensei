@@ -809,3 +809,163 @@ invariants:
       reopened. An exact replay of a completed task appends no second completed event and
       returns the current terminal state. Rework after certification proceeds as a new
       result binding under a new iteration/session, never as an in-place reopen.
+  # ── Phase 8.1b: governed promotion — atomicity, projection, journal laws ──
+  - id: closure.promotion_journal_is_not_governed_truth
+    title: A promotion attempt journal never constitutes governed truth
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. The per-attempt promotion journal under .sensei/project/promotions
+      is recovery metadata only. Reusable governed truth exists only when a verified
+      question_promotion_committed state produces an authoritative QuestionPromotionReceipt
+      bound to a committed source manifest and a reloaded repository graph. A journal
+      entry, a source file, a graph node, an authority marker, or an adoption.Receipt
+      alone is never promotion proof.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+        - golang/architecture/ledger/lock.go
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      promotion authority is the verified committed receipt; the journal is recovery
+      metadata and never establishes reusable truth.
+  - id: closure.source_commit_without_graph_verification_is_incomplete
+    title: A committed source mutation without verified graph projection is promotion_incomplete
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. After governed_source_committed the canonical YAML is durable authoring
+      truth, but the Phase-8 promotion claim is promotion_incomplete until governed_graph_verified
+      independently reloads and verifies the persisted repository graph and authority marker.
+      Filesystem success is never reported as epistemic promotion.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+        - golang/architecture/graphbuild/graphbuild.go
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      source_committed reports promotion_incomplete; only graph_verified then
+      promotion_committed completes the promotion.
+  - id: closure.graph_verification_binds_committed_manifest
+    title: Graph verification binds the exact committed governed-source manifest
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. The rebuilt repository graph must derive from the exact committed
+      governed-source manifest of this attempt: the receipt binds pre- and post-mutation
+      manifest digests, the deterministic graph-build input identity, and the persisted
+      graph byte digest plus authority-marker digest. A graph compiled from a different
+      source world is rejected even if it happens to contain the target node.
+    protects:
+      files:
+        - golang/architecture/graphbuild/graphbuild.go
+        - golang/architecture/graphsnapshot/graphsnapshot.go
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      the verified graph must correspond to the exact committed source manifest;
+      any drift is typed stale/incomplete, never successful promotion.
+  - id: closure.promotion_retry_resumes_same_attempt
+    title: Promotion retry resumes the same content-addressed attempt
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. Identical frozen inputs resolve to one content-addressed attempt id.
+      Retry resumes and reconciles that attempt from its durable journal; it never mints
+      a second attempt, a duplicate governed record, a second receipt, or a duplicate node.
+    protects:
+      files:
+        - golang/architecture/ledger/lock.go
+        - docs/design/phase8-discovery.md
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      one stable attempt identity per frozen input set; retry resumes, never duplicates.
+  - id: closure.contradictory_canonical_id_never_overwritten
+    title: A contradictory canonical governed record is never overwritten
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. Promoting a canonical record ID whose existing governed body differs in
+      semantics is a typed collision/contradiction, never an overwrite. An exact same
+      canonical body and lineage is replay. Governed source is append-only under promotion.
+    protects:
+      files:
+        - cmd/awg/cmd_propose.go
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      same id + different semantics is a typed contradiction; same body is replay; never overwrite.
+  - id: closure.promotion_receipt_only_after_projection_verified
+    title: The promotion receipt is authoritative only after persisted projection verification
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. The QuestionPromotionReceipt becomes authoritative only at
+      question_promotion_committed, after the canonical repository graph and authority
+      marker were persisted, independently reloaded, and verified against the committed
+      manifest. Recompute every trusted value; trust no caller-supplied governed status,
+      graph digest, node IRI, source digest, provenance verdict, or promotion status.
+    protects:
+      files:
+        - golang/architecture/adoption/receipt.go
+        - docs/design/phase8-discovery.md
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      the receipt is written only after persisted-projection verification; all trusted
+      values are recomputed, never caller-supplied.
+  - id: closure.repo_graph_and_combined_seed_identities_distinct
+    title: Repository-scoped graph identity and combined embedded-seed identity are never confused
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. The canonical repository-scoped projection is .sensei/project/graph.nt
+      plus .sensei/graph-authority.json. The combined embedded seed
+      golang/server/embeddata/awareness.nt is a separate cross-repository deployment
+      artifact. Promotion never edits, partially regenerates, or claims convergence of the
+      combined seed; the outstanding combined-seed obligation is reported explicitly.
+    protects:
+      files:
+        - golang/server/embeddata/awareness.nt
+        - golang/architecture/graphsnapshot/graphsnapshot.go
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      repository graph (.sensei/project/graph.nt) and combined seed (embeddata/awareness.nt)
+      are distinct identities; promotion touches only the former.
+  - id: closure.promotion_journal_separate_from_task_lifecycle
+    title: The promotion journal is separate from task lifecycle truth
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. The four promotion states (question_promotion_prepared,
+      governed_source_committed, governed_graph_verified, question_promotion_committed)
+      use a promotion-local typed vocabulary. They are never ordinary task events, never
+      projected into task phase/status, and never consumed by task-ledger reducers.
+    protects:
+      files:
+        - golang/architecture/closureprotocol/vocabulary.go
+        - golang/architecture/ledger/lock.go
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      promotion journal events are promotion-local and never enter task phase/status truth.
+  - id: closure.offline_provenance_query_matches_graph_owner
+    title: Offline provenance query semantics match the normal graph owner
+    severity: critical
+    status: active
+    description: >
+      Phase 8.1b. The offline provenance reader over the persisted repository graph
+      implements or reuses the normal store.Store describe/inbound semantics: canonical IRI
+      parsing, edge direction, literal handling, and results must match the graph owner,
+      proven by parity tests. It never invents a second RDF interpretation.
+    protects:
+      files:
+        - golang/architecture/graphsnapshot/graphsnapshot.go
+    required_tests:
+      - golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    contract: >
+      the offline provenance query mirrors store.Store semantics, proven by parity.

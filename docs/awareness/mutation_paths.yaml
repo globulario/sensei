@@ -21,3 +21,11 @@ mutation_paths:
     mechanism_kind: owner_rpc
     target_kinds:
       - architect_question
+
+  # ── Phase 8.1b: governed promotion (source mutation + deterministic rebuild) ──
+  - id: mutation_path.governed_promotion
+    label: Governed reusable-knowledge promotion
+    status: active
+    mechanism_kind: governed_workflow
+    target_kinds:
+      - governed_record
