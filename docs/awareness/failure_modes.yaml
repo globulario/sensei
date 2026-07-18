@@ -688,3 +688,27 @@ failure_modes:
       - closure.completion_readiness_is_read_only_evidence_conjunction
       - closure.completion_requires_closed_current_question_loop
     evidence: Phase 8.2a govern-first; the readiness projection is read-only and asserts no completion.
+  # ── Phase 8.2c: durable terminal-state reconstruction and recovery ──
+  - id: closure.recovery_blesses_residue_or_normalizes_contradiction
+    title: Terminal reconstruction or recovery blessed residue, accepted a broken completion, or normalized contradictory history
+    severity: critical
+    root_cause: |
+      A restart/inspection/recovery path treated a receipt-only artifact or a completed
+      event without a valid receipt as a completion, chose one of multiple completed
+      facts (or ignored a revoked fact) to "repair" terminal history, synthesized an
+      expected pre-completion head, or let a projection rebuild append a completed event
+      or rewrite a receipt. Derived projection state was mistaken for terminal authority.
+    symptoms:
+      - receipt-only residue reported as a valid completion
+      - a completed event with a missing/tampered receipt reported as completion
+      - multiple completed facts (or completed plus revoked) normalized to one
+      - a projection rebuild that appended a ledger event or rewrote a receipt
+      - governed drift after completion reported as corruption or altering the receipt
+    forbidden_fixes:
+      - bless_receipt_only_residue_or_event_without_receipt_as_completion
+      - normalize_contradictory_terminal_history_by_choosing_one_fact
+      - let_projection_rebuild_append_or_rewrite_a_terminal_fact
+    related_invariants:
+      - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      - closure.terminal_recovery_rebuilds_derived_state_only
+    evidence: Phase 8.2c govern-first; reconstruction is read-only and recovery is derived-state maintenance only.
