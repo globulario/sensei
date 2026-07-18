@@ -98,16 +98,14 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 	currentRB, haveRB := latestResultBinding(chain)
 	governedManifest, _ := governedmutation.GovernedManifestDigest(root)
 
-	// The replay/conflict decision must not depend on the strict authority-resolution
-	// reload, so a terminal task carrying downstream re-work events is still classified
-	// (not treated as an invalid ledger).
-	// A revocation is terminal and fails closed.
-	if _, ok := findEvent(chain, closureprotocol.LedgerEventRevoked); ok {
-		return refuse(OutcomeConflictingCompletion, "a revocation fact already exists")
-	}
-	// An existing completed fact is replay (unchanged world) or conflict (anything else).
-	if entry, ok := findEvent(chain, closureprotocol.LedgerEventCompleted); ok {
-		return handleExistingCompletion(taskDir, entry, expected, currentRB, governedManifest)
+	// Terminal-history cardinality is part of truth: completion may proceed only when
+	// there are zero completed and zero revoked facts; exactly one completed (and no
+	// revoked) is eligible for replay/conflict; anything else fails closed. This is
+	// classified from the verified chain and must not depend on the strict
+	// authority-resolution reload, so a terminal task carrying downstream re-work
+	// events is still classified (not treated as an invalid ledger).
+	if res, ok := terminalStateDecision(taskDir, chain, expected, currentRB, governedManifest); ok {
+		return res, nil
 	}
 
 	if !haveRB {
@@ -237,10 +235,11 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 	if appErr != nil {
 		var stale ledger.ErrStaleHead
 		if errors.As(appErr, &stale) {
-			// A completion raced ahead of us. Reconcile deterministically.
-			if fresh, ok := store.VerifyChain(); ok == nil {
-				if entry, found := findEvent(fresh, closureprotocol.LedgerEventCompleted); found {
-					return handleExistingCompletion(taskDir, entry, expected, currentRB, governedManifest)
+			// A completion raced ahead of us. Reconcile deterministically against the
+			// terminal-history cardinality, never the latest fact alone.
+			if fresh, ferr := store.VerifyChain(); ferr == nil {
+				if res, ok := terminalStateDecision(taskDir, fresh, expected, currentRB, governedManifest); ok {
+					return res, nil
 				}
 			}
 			return refuse(OutcomeStaleExpectedHead, "ledger head advanced during completion")
@@ -289,23 +288,30 @@ func handleExistingCompletion(taskDir string, completed ledger.VerifiedEntry, ex
 	return refuse(OutcomeConflictingCompletion, "task already carries a terminal completion for a different world; no supersession")
 }
 
-// verifyDurableConjunction independently re-proves that a completed event and its
-// content-addressed receipt both exist and match — the authoritative completion fact.
+// verifyDurableConjunction independently re-proves the authoritative completion
+// fact: EXACTLY one completed event, zero revoked facts, its content-addressed
+// receipt present and matching, and the receipt bound to the expected current result.
 func verifyDurableConjunction(taskDir string, currentRB closureprotocol.ResultBinding) (TerminalCompletionReceipt, error) {
 	chain, err := ledger.NewStore(taskDir).VerifyChain()
 	if err != nil {
 		return TerminalCompletionReceipt{}, err
 	}
-	entry, ok := findEvent(chain, closureprotocol.LedgerEventCompleted)
-	if !ok {
-		return TerminalCompletionReceipt{}, fmt.Errorf("no completed event")
+	tf := classifyTerminalFacts(chain)
+	if tf.revokedCount > 0 {
+		return TerminalCompletionReceipt{}, fmt.Errorf("a revocation fact is present")
 	}
-	receipt, ref, lerr := loadTerminalReceipt(taskDir, entry)
+	if tf.completedCount != 1 {
+		return TerminalCompletionReceipt{}, fmt.Errorf("expected exactly one completed event, found %d", tf.completedCount)
+	}
+	receipt, ref, lerr := loadTerminalReceipt(taskDir, tf.completed)
 	if lerr != nil {
 		return TerminalCompletionReceipt{}, lerr
 	}
-	if err := completedEventMatches(entry, receipt, ref); err != nil {
+	if err := completedEventMatches(tf.completed, receipt, ref); err != nil {
 		return TerminalCompletionReceipt{}, err
+	}
+	if !bindingpkg.ResultBindingEqual(receipt.Completion.ResultBinding, currentRB) {
+		return TerminalCompletionReceipt{}, fmt.Errorf("completed receipt binds a different result than the current result")
 	}
 	return receipt, nil
 }
@@ -365,13 +371,51 @@ func completedEventMatches(completed ledger.VerifiedEntry, receipt TerminalCompl
 	return nil
 }
 
-func findEvent(chain ledger.VerifiedChain, eventType closureprotocol.LedgerEventType) (ledger.VerifiedEntry, bool) {
-	for i := len(chain.Entries) - 1; i >= 0; i-- {
-		if chain.Entries[i].Entry.EventType == eventType {
-			return chain.Entries[i], true
+// terminalFacts is the classification of a task ledger's terminal history.
+type terminalFacts struct {
+	completedCount int
+	revokedCount   int
+	completed      ledger.VerifiedEntry // the completed entry when completedCount == 1
+}
+
+// classifyTerminalFacts counts the completed and revoked events across the whole
+// verified chain — terminal uniqueness is proven by cardinality, not by taking the
+// latest fact.
+func classifyTerminalFacts(chain ledger.VerifiedChain) terminalFacts {
+	var tf terminalFacts
+	for _, ve := range chain.Entries {
+		switch ve.Entry.EventType {
+		case closureprotocol.LedgerEventCompleted:
+			tf.completedCount++
+			tf.completed = ve
+		case closureprotocol.LedgerEventRevoked:
+			tf.revokedCount++
 		}
 	}
-	return ledger.VerifiedEntry{}, false
+	return tf
+}
+
+// terminalStateDecision applies the terminal-history cardinality rule in strict
+// fail-closed order: any revoked fact is contradictory; more than one completed fact
+// is non-unique; exactly one completed (and no revoked) is dispatched to
+// replay/conflict classification. ok=false means no terminal fact exists and
+// completion may proceed. It is used by both the pre-mutation path and the CAS-race
+// reconciliation so both share one definition of terminal truth.
+func terminalStateDecision(taskDir string, chain ledger.VerifiedChain, expected string, currentRB closureprotocol.ResultBinding, governedManifest string) (CompleteResult, bool) {
+	tf := classifyTerminalFacts(chain)
+	switch {
+	case tf.revokedCount > 0:
+		r, _ := refuse(OutcomeConflictingCompletion, "a revocation fact exists — contradictory terminal history")
+		return r, true
+	case tf.completedCount > 1:
+		r, _ := refuse(OutcomeConflictingCompletion, "multiple completed facts on the ledger — terminal history is not unique")
+		return r, true
+	case tf.completedCount == 1:
+		r, _ := handleExistingCompletion(taskDir, tf.completed, expected, currentRB, governedManifest)
+		return r, true
+	default:
+		return CompleteResult{}, false
+	}
 }
 
 func short(s string) string {
