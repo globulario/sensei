@@ -98,6 +98,87 @@ func (p CompletionProjection) Summary() string {
 		p.TerminalState, p.ClosureVerdict, p.AuthoritativeCompletion, drift)
 }
 
+// recomputeProjectionDigest reproduces the projection's self-excluding digest: the
+// DigestSHA256 field is cleared before hashing, exactly as BuildCompletionProjection
+// stamped it, so any post-stamp change to any other field alters the result.
+func recomputeProjectionDigest(p CompletionProjection) (string, error) {
+	p.DigestSHA256 = ""
+	return closureprotocol.SemanticDigest(p)
+}
+
+func validCompletionTerminalState(s TerminalState) bool {
+	for _, v := range AssessmentBoundStates() {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func validClosureVerdict(v ClosureVerdict) bool {
+	switch v {
+	case ClosureAuthoritativeCompletion, ClosureNotCompleted, ClosureBroken, ClosureContradictory, ClosureUnsupported:
+		return true
+	}
+	return false
+}
+
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// ValidateCanonicalCompletionProjection enforces the projection's OWN canonical contract,
+// one layer below the envelope. A verified envelope digest proves the projection bytes
+// are intact, not that the projection is meaningful: a caller could stamp an internally
+// consistent but impossible projection — e.g. verdict=not_completed with
+// authoritative_completion=true — and re-digest it. This validator requires the exact
+// projection schema, the closed terminal-state and verdict vocabularies, the
+// authoritative boolean derived ONLY from the authoritative verdict, the
+// non-authoritative marker, the canonical distinctions and bound statement, and a
+// verified self-excluding digest.
+func ValidateCanonicalCompletionProjection(p CompletionProjection) error {
+	if p.SchemaVersion != completionProjectionSchemaVersion {
+		return fmt.Errorf("projection schema version %q is not the canonical %q", p.SchemaVersion, completionProjectionSchemaVersion)
+	}
+	if !validCompletionTerminalState(p.TerminalState) {
+		return fmt.Errorf("projection terminal state %q is off-vocabulary", p.TerminalState)
+	}
+	if !validClosureVerdict(p.ClosureVerdict) {
+		return fmt.Errorf("projection closure verdict %q is off-vocabulary", p.ClosureVerdict)
+	}
+	if p.AuthoritativeCompletion != (p.ClosureVerdict == ClosureAuthoritativeCompletion) {
+		return fmt.Errorf("authoritative_completion must be derived only from the authoritative verdict")
+	}
+	if !p.NonAuthoritativeProjection {
+		return fmt.Errorf("completion projection must be non-authoritative")
+	}
+	if !stringSlicesEqual(p.Distinctions, projectionDistinctions()) {
+		return fmt.Errorf("projection distinctions are not the canonical set")
+	}
+	if !stringSlicesEqual(p.Bound, projectionBound()) {
+		return fmt.Errorf("projection bound is not the canonical statement")
+	}
+	if !isHex64(p.DigestSHA256) {
+		return fmt.Errorf("projection carries no well-formed self-excluding digest")
+	}
+	recomputed, err := recomputeProjectionDigest(p)
+	if err != nil {
+		return fmt.Errorf("recompute projection digest: %w", err)
+	}
+	if recomputed != p.DigestSHA256 {
+		return fmt.Errorf("projection digest %s does not match content; it was altered after stamping", p.DigestSHA256)
+	}
+	return nil
+}
+
 const completionEnvelopeSchemaVersion = "completion.projection_envelope/v1"
 
 // CompletionAvailability is the typed availability of the completion projection at a
@@ -196,11 +277,13 @@ const (
 	PublicationInvalidDigestMalformed CompletionPublicationInvalidClass = "digest_malformed"
 	// PublicationInvalidDigestMismatch: the stored digest no longer matches the content (altered after stamping).
 	PublicationInvalidDigestMismatch CompletionPublicationInvalidClass = "digest_mismatch"
+	// PublicationInvalidProjection: the nested projection does not obey its own canonical contract.
+	PublicationInvalidProjection CompletionPublicationInvalidClass = "projection"
 )
 
 func validPublicationInvalidClass(c CompletionPublicationInvalidClass) bool {
 	switch c {
-	case PublicationInvalidStructure, PublicationInvalidSchema, PublicationInvalidDigestMalformed, PublicationInvalidDigestMismatch:
+	case PublicationInvalidStructure, PublicationInvalidSchema, PublicationInvalidDigestMalformed, PublicationInvalidDigestMismatch, PublicationInvalidProjection:
 		return true
 	}
 	return false
@@ -232,6 +315,15 @@ func classifyCanonicalCompletionEnvelope(e CompletionProjectionEnvelope) (Comple
 	}
 	if recomputed != e.DigestSHA256 {
 		return PublicationInvalidDigestMismatch, fmt.Errorf("envelope digest %s does not match content; it was altered after stamping", e.DigestSHA256)
+	}
+	// One layer below the envelope: an available envelope must carry a projection that
+	// obeys its OWN canonical contract. A verified envelope digest proves the bytes are
+	// intact, not that the nested projection is meaningful, so an impossible projection
+	// (e.g. verdict=not_completed with authoritative_completion=true) is rejected here.
+	if e.Availability == CompletionAvailable {
+		if perr := ValidateCanonicalCompletionProjection(*e.Projection); perr != nil {
+			return PublicationInvalidProjection, fmt.Errorf("nested projection is not canonical: %w", perr)
+		}
 	}
 	return "", nil
 }
