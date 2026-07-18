@@ -735,3 +735,60 @@ failure_modes:
       - closure.authoritative_completion_iff_whole_durable_conjunction
       - closure.completion_never_mutates_governed_or_certification_truth
     evidence: Phase 8.2d govern-first; the integration verifier and closure report are read-only evidence, never completion authority.
+  # ── Phase 9.0: operational surfacing of completion truth ──
+  - id: closure.phase9_surface_manufactures_or_reinterprets_completion
+    title: A Phase-9 surface manufactured or reinterpreted completion truth
+    severity: critical
+    root_cause: |
+      A CLI, MCP, server, CI gate, or editor surface appended a completed event,
+      produced/replaced a completion receipt, re-derived readiness/correctness/
+      question-resolution/terminal cardinality, normalized contradictory terminal
+      history, or claimed completed from a projection or residue — instead of
+      delegating to, and read-only consuming, the completion owner.
+    symptoms:
+      - a surface writing a completed event or a completion receipt
+      - a CLI/MCP re-implementing completion logic instead of calling CompleteTask
+      - a read model claiming completed without the durable event/receipt conjunction
+      - a surface normalizing duplicate/revoked terminal history
+    forbidden_fixes:
+      - phase9_surface_appends_completed_or_writes_receipt
+      - phase9_reinterpret_or_rederive_completion_truth_in_a_surface
+    related_invariants:
+      - closure.phase9_surfaces_consume_completion_truth_never_reinterpret_it
+      - closure.phase9_invocation_surfaces_only_delegate_to_the_owner
+    evidence: Phase 9.0 govern-first; surfaces are thin clients over the completion owner.
+  - id: closure.phase9_projection_or_report_treated_as_terminal_authority
+    title: A Phase-9 projection or the closure report was treated as terminal completion authority
+    severity: critical
+    root_cause: |
+      A Phase-9 read model, task-status view, CI gate, or editor cockpit treated its
+      projection as terminal truth, or the Phase-8 closure report was used as runtime
+      completion authority, or the three closure distinctions were collapsed into one.
+    symptoms:
+      - a gate/editor treating a projection as the terminal fact
+      - the closure report used to authorize completion or merge
+      - implementation closure conflated with task completion or repository perfection
+    forbidden_fixes:
+      - phase9_treat_projection_or_closure_report_as_completion_authority
+    related_invariants:
+      - closure.phase9_projections_are_not_terminal_authority
+      - closure.phase9_preserves_the_three_completion_distinctions
+    evidence: Phase 9.0 govern-first; the durable event/receipt conjunction is the sole terminal truth.
+  - id: closure.phase9_surface_shipped_without_a_reviewed_slice
+    title: A Phase-9 surface shipped without its own reviewed slice
+    severity: high
+    root_cause: |
+      A CLI, MCP, CI/GitHub, editor, or GNN surface was implemented or enabled without
+      an open, reviewed Phase-9 slice carrying its acceptance criteria, failure modes,
+      and proof matrix — or a GNN/ML capability was introduced without repository
+      evidence.
+    symptoms:
+      - a product surface landing outside a reviewed slice
+      - more than one Phase-9 slice open at once
+      - a GNN/embedding capability with no grounding evidence
+    forbidden_fixes:
+      - phase9_ship_a_surface_without_a_reviewed_slice
+      - phase9_invent_a_gnn_or_ml_capability_without_repository_evidence
+    related_invariants:
+      - closure.phase9_surfaces_locked_until_a_reviewed_slice
+    evidence: Phase 9.0 govern-first; one slice open at a time, GNN out of scope.
