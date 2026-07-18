@@ -245,6 +245,70 @@ func TestCompleteMutatesNoUpstreamTruth(t *testing.T) {
 	}
 }
 
+// Cardinality: two completed events on the ledger can never replay — terminal
+// history must be unique (covers "invalid old + valid latest" too, since the count
+// check fires regardless of which event is valid).
+func TestCompleteMultipleCompletedFailsClosed(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("setup completion failed")
+	}
+	seedCompletedEvent(t, w.TaskDir) // a second completed fact
+	res := w.complete(t, head)
+	if res.Outcome != OutcomeConflictingCompletion {
+		t.Fatalf("outcome = %s, want conflicting_completion", res.Outcome)
+	}
+}
+
+// Cardinality: a completed fact together with a revoked fact is contradictory
+// terminal history and fails closed.
+func TestCompleteCompletedPlusRevokedFailsClosed(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("setup completion failed")
+	}
+	w.appendRevoked(t)
+	res := w.complete(t, head)
+	if res.Outcome != OutcomeConflictingCompletion {
+		t.Fatalf("outcome = %s, want conflicting_completion", res.Outcome)
+	}
+}
+
+// Cardinality: post-commit verification rejects duplicate completed facts.
+func TestVerifyDurableConjunctionRejectsDuplicate(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("setup completion failed")
+	}
+	rb := currentResultBinding(t, w.TaskDir)
+	if _, err := verifyDurableConjunction(w.TaskDir, rb); err != nil {
+		t.Fatalf("single completion should verify: %v", err)
+	}
+	seedCompletedEvent(t, w.TaskDir)
+	if _, err := verifyDurableConjunction(w.TaskDir, rb); err == nil {
+		t.Fatal("duplicate completed facts must fail durable verification")
+	}
+}
+
+// Cardinality/binding: post-commit verification rejects a valid event/receipt pair
+// bound to a result other than the expected current result.
+func TestVerifyDurableConjunctionRejectsWrongResult(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("setup completion failed")
+	}
+	rb := currentResultBinding(t, w.TaskDir)
+	wrong := rb
+	wrong.ResultTreeDigestSHA256 = "6666666666666666666666666666666666666666666666666666666666666666"
+	if _, err := verifyDurableConjunction(w.TaskDir, wrong); err == nil {
+		t.Fatal("a receipt bound to a different result must fail durable verification")
+	}
+}
+
 // Item 18: deterministic causal identity on unchanged evidence; changed evidence
 // changes it.
 func TestCompleteCausalIdentityDeterminism(t *testing.T) {
