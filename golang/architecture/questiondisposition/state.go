@@ -2,6 +2,50 @@
 
 package questiondisposition
 
+import "github.com/globulario/sensei/golang/architecture"
+
+// OpenQuestionRef identifies a disposable architect question on the latest
+// recorded result transition.
+type OpenQuestionRef struct {
+	QuestionID             string
+	QuestionText           string
+	BlocksClosureDimension string
+	ArchitectRequired      bool
+	ScopeDomain            string
+	ScopeFiles             []string
+}
+
+// OpenQuestionsForLatestTransition lists the architect questions carried by the
+// latest result_transition_recorded event, each with its stable id. It reads
+// from one verified snapshot and never writes.
+func OpenQuestionsForLatestTransition(taskDir string) ([]OpenQuestionRef, error) {
+	store := newStore(taskDir)
+	chain, err := store.VerifyChain()
+	if err != nil {
+		return nil, qdErr(CodeChainVerifyFailed, "%v", err)
+	}
+	_, payload, ok := latestResultTransition(chain)
+	if !ok {
+		return nil, qdErr(CodeNoResultTransition, "no result_transition_recorded event on the ledger")
+	}
+	bundle, _, err := loadArchitectQuestions(taskDir, payload)
+	if err != nil {
+		return nil, err
+	}
+	var out []OpenQuestionRef
+	for _, q := range bundle.Dialogue.OpenQuestions {
+		out = append(out, OpenQuestionRef{
+			QuestionID:             architecture.StableOpenQuestionID(q),
+			QuestionText:           q.QuestionText,
+			BlocksClosureDimension: q.BlocksClosureDimension,
+			ArchitectRequired:      q.ArchitectRequired,
+			ScopeDomain:            q.Scope.Domain,
+			ScopeFiles:             append([]string(nil), q.Scope.Files...),
+		})
+	}
+	return out, nil
+}
+
 // NextAction is the single load-bearing next step for a disposed (or undisposed)
 // architect question. It is advisory routing only — this owner never promotes,
 // rebuilds, certifies, or completes; the named later owners do.
