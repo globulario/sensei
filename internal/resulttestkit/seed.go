@@ -65,6 +65,11 @@ type Options struct {
 	AuthorizedSources []string
 	// AuthorizedGenerated are the required generated-artifact paths.
 	AuthorizedGenerated []string
+	// Epoch stamps every seeded ledger event's produced_at. It defaults to the
+	// Unix epoch (1970) to preserve deterministic legacy behavior; set it to a
+	// realistic time when a downstream test resolves a governed grant whose
+	// valid_from would otherwise post-date the anchored event.
+	Epoch time.Time
 }
 
 // Result is the seeded task.
@@ -81,6 +86,9 @@ type Result struct {
 func Seed(baseDir string, opts Options) (Result, error) {
 	if opts.Direction == "" {
 		opts.Direction = closure.DirectionNotApplicable
+	}
+	if opts.Epoch.IsZero() {
+		opts.Epoch = epoch
 	}
 	if opts.ScopeFiles == nil {
 		opts.ScopeFiles = []string{"src/model.go"}
@@ -207,7 +215,7 @@ func Seed(baseDir string, opts Options) (Result, error) {
 		Payload: ledger.TaskEventPayload{SchemaVersion: ledger.EventPayloadSchemaVersion, EventType: closureprotocol.LedgerEventTaskPrepared,
 			TaskID: base.Task.ID, SessionID: base.Task.SessionID, BaseBinding: &base,
 			Artifacts: map[string]closureprotocol.LedgerPayloadRef{"closure_request": ref, "graph_input_snapshot": snapRef}},
-		PayloadMediaType: "application/yaml", ProducerID: "test", ProducedAt: epoch,
+		PayloadMediaType: "application/yaml", ProducerID: "test", ProducedAt: opts.Epoch,
 	}); err != nil {
 		return Result{}, fmt.Errorf("task_prepared: %w", err)
 	}
@@ -227,7 +235,7 @@ func Seed(baseDir string, opts Options) (Result, error) {
 	if h, err = head(); err != nil {
 		return Result{}, err
 	}
-	if _, err := admission.RecordAuthorityResolved(store, h, base.Task, resolution, actor, closureprotocol.ChangePlan{PlanID: "plan.e2e", Operations: ops}, base, nil, epoch); err != nil {
+	if _, err := admission.RecordAuthorityResolved(store, h, base.Task, resolution, actor, closureprotocol.ChangePlan{PlanID: "plan.e2e", Operations: ops}, base, nil, opts.Epoch); err != nil {
 		return Result{}, fmt.Errorf("authority: %w", err)
 	}
 	decision := closureprotocol.AdmissionDecision{DecisionID: "decision.e2e", RequestDigestSHA256: "req0", PolicyID: "admission.strict.v2",
@@ -236,7 +244,7 @@ func Seed(baseDir string, opts Options) (Result, error) {
 	if h, err = head(); err != nil {
 		return Result{}, err
 	}
-	if _, err := admission.RecordAdmissionDecided(store, h, decision, base.Task, epoch); err != nil {
+	if _, err := admission.RecordAdmissionDecided(store, h, decision, base.Task, opts.Epoch); err != nil {
 		return Result{}, fmt.Errorf("decision: %w", err)
 	}
 	consumption := closureprotocol.CapabilityConsumption{CapabilityID: "cap.e2e", Task: base.Task, ConsumerActor: actor,
@@ -244,7 +252,7 @@ func Seed(baseDir string, opts Options) (Result, error) {
 	if h, err = head(); err != nil {
 		return Result{}, err
 	}
-	if _, err := admission.RecordAdmissionConsumed(store, h, consumption, epoch); err != nil {
+	if _, err := admission.RecordAdmissionConsumed(store, h, consumption, opts.Epoch); err != nil {
 		return Result{}, fmt.Errorf("consume: %w", err)
 	}
 	observed, err := resulttransition.ObserveChange(repo, baseRev, resultRev, actorDigest, authorityDigest)
@@ -254,7 +262,7 @@ func Seed(baseDir string, opts Options) (Result, error) {
 	if h, err = head(); err != nil {
 		return Result{}, err
 	}
-	if _, err := admission.RecordChangeObserved(store, h, base.Task, observed, epoch); err != nil {
+	if _, err := admission.RecordChangeObserved(store, h, base.Task, observed, opts.Epoch); err != nil {
 		return Result{}, fmt.Errorf("observed: %w", err)
 	}
 	scope, err := admission.VerifyScope(admission.ScopeExpectation{
@@ -271,7 +279,7 @@ func Seed(baseDir string, opts Options) (Result, error) {
 	if h, err = head(); err != nil {
 		return Result{}, err
 	}
-	if _, err := admission.RecordScopeVerified(store, h, base.Task, scope, epoch); err != nil {
+	if _, err := admission.RecordScopeVerified(store, h, base.Task, scope, opts.Epoch); err != nil {
 		return Result{}, fmt.Errorf("scope: %w", err)
 	}
 	return Result{Repo: repo, TaskDir: taskDir, ResultRev: resultRev, TaskID: base.Task.ID, SessionID: base.Task.SessionID}, nil
