@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -61,15 +62,13 @@ func TestCompleteTaskToolDelegatesRefusesWritesNothing(t *testing.T) {
 		"task":          seed.TaskDir,
 		"expected_head": report.HeadDigestSHA256,
 	})
-	// A refusal surfaces as a structured outcome (callErr == nil); an infrastructure
-	// failure surfaces as a Go error. Either way, completion must NOT be manufactured.
-	if callErr == nil {
-		if res == nil || !strings.Contains(res.Text, "outcome:") {
-			t.Fatalf("tool must surface an outcome, got %+v", res)
-		}
-		if strings.Contains(res.Text, "committed") {
-			t.Fatalf("an unready task must not be committed: %q", res.Text)
-		}
+	// The seeded task's refusal is a typed owner outcome, so it MUST surface as a
+	// structured result with no Go error — and it must be exactly not_ready.
+	if callErr != nil {
+		t.Fatalf("a typed refusal must surface as a result, not an error: %v", callErr)
+	}
+	if res == nil || !strings.Contains(res.Text, "not_ready") {
+		t.Fatalf("the seeded task must surface not_ready as a structured outcome, got %+v", res)
 	}
 	after, err := completion.InspectTerminalState(ctx, req)
 	if err != nil {
@@ -77,5 +76,63 @@ func TestCompleteTaskToolDelegatesRefusesWritesNothing(t *testing.T) {
 	}
 	if after.State != completion.TerminalNotCompleted {
 		t.Fatalf("MCP delegation must not manufacture completion; state=%s", after.State)
+	}
+}
+
+// The tool rejects caller-supplied claims both by schema (additionalProperties:false) and
+// at runtime — a schema declaration alone is an advisory lock painted on the door.
+func TestCompleteTaskToolRejectsUnknownProperty(t *testing.T) {
+	b := &bridge{}
+	var declared bool
+	for _, tl := range b.tools() {
+		if tl.Name == "complete_task" {
+			ap, ok := tl.InputSchema["additionalProperties"]
+			if !ok || ap != false {
+				t.Fatalf("complete_task schema must set additionalProperties:false, got %v", tl.InputSchema["additionalProperties"])
+			}
+			declared = true
+		}
+	}
+	if !declared {
+		t.Fatal("complete_task tool not found")
+	}
+	_, err := b.callTool(context.Background(), "complete_task", map[string]interface{}{
+		"repo":          t.TempDir(),
+		"expected_head": strings.Repeat("a", 64),
+		"status":        "completed",
+	})
+	if err == nil || !strings.Contains(err.Error(), "unknown property") {
+		t.Fatalf("an unknown property must be rejected at runtime, got %v", err)
+	}
+}
+
+// A typed outcome (success or refusal) is a structured result with err == nil; an
+// infrastructure error is a Go error, never a fabricated outcome. Injected delegate so
+// all paths are proven without the readiness world.
+func TestCompleteTaskToolOutcomeMapping(t *testing.T) {
+	orig := completeTaskDelegate
+	defer func() { completeTaskDelegate = orig }()
+	b := &bridge{}
+	ctx := context.Background()
+	args := map[string]interface{}{"repo": t.TempDir(), "task": t.TempDir(), "expected_head": strings.Repeat("a", 64)}
+
+	for _, outcome := range []completion.Outcome{completion.OutcomeCommitted, completion.OutcomeNotReady} {
+		completeTaskDelegate = func(ctx context.Context, req completion.CompleteRequest) (completion.CompleteResult, error) {
+			return completion.CompleteResult{Outcome: outcome}, nil
+		}
+		res, err := b.callTool(ctx, "complete_task", args)
+		if err != nil {
+			t.Fatalf("typed outcome %s must be a result, not an error: %v", outcome, err)
+		}
+		if res == nil || !strings.Contains(res.Text, string(outcome)) {
+			t.Fatalf("tool must surface outcome %s: %+v", outcome, res)
+		}
+	}
+
+	completeTaskDelegate = func(ctx context.Context, req completion.CompleteRequest) (completion.CompleteResult, error) {
+		return completion.CompleteResult{}, fmt.Errorf("lock unavailable")
+	}
+	if _, err := b.callTool(ctx, "complete_task", args); err == nil {
+		t.Fatal("an infrastructure error must surface as a Go error, not a fabricated outcome")
 	}
 }

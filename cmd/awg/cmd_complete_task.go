@@ -51,6 +51,12 @@ authority: it accepts no caller-supplied status and cannot manufacture completio
 		}
 		return 2
 	}
+	// Reject positional input outright rather than silently ignoring it: the surface
+	// accepts no completion status or claim, only typed flags the owner consumes.
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "sensei complete-task: unexpected argument %q; this surface accepts no completion status or positional input\n", fs.Arg(0))
+		return 2
+	}
 	if strings.TrimSpace(expectedHead) == "" {
 		fmt.Fprintln(os.Stderr, "sensei complete-task: --expected-head is required")
 		return 2
@@ -74,7 +80,7 @@ authority: it accepts no caller-supplied status and cannot manufacture completio
 		identityRoot = filepath.Join(absRepo, ".sensei", "identity")
 	}
 
-	res, err := completion.CompleteTask(context.Background(), completion.CompleteRequest{
+	res, err := completeTaskDelegate(context.Background(), completion.CompleteRequest{
 		RepositoryRoot:                 absRepo,
 		TaskDirectory:                  dir,
 		IdentityRoot:                   identityRoot,
@@ -104,9 +110,20 @@ authority: it accepts no caller-supplied status and cannot manufacture completio
 		fmt.Print(renderCompleteTaskText(res))
 	}
 
-	// Exit status reflects the owner's outcome, never a caller assertion. Only the two
-	// success outcomes are non-error; every refusal/failure is exit 1.
-	switch res.Outcome {
+	// Exit status reflects the owner's outcome, never a caller assertion.
+	return completeTaskExitCode(res.Outcome)
+}
+
+// completeTaskDelegate is the terminal-completion owner. It is a package var so tests can
+// inject any of the closed outcomes (and an infrastructure error) to prove the full
+// outcome→exit-code mapping without reconstructing the readiness world.
+var completeTaskDelegate = completion.CompleteTask
+
+// completeTaskExitCode maps the owner's closed outcome set to a process exit code: only
+// the two success outcomes are 0; every refusal or failure is 1. It is the single place
+// the surface classifies an outcome, and it invents no outcome of its own.
+func completeTaskExitCode(o completion.Outcome) int {
+	switch o {
 	case completion.OutcomeCommitted, completion.OutcomeExactReplay:
 		return 0
 	default:

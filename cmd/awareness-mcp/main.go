@@ -324,7 +324,8 @@ func (b *bridge) tools() []tool {
 					"identity_root": map[string]interface{}{"type": "string"},
 					"expected_head": map[string]interface{}{"type": "string"},
 				},
-				"required": []string{"repo", "expected_head"},
+				"additionalProperties": false,
+				"required":             []string{"repo", "expected_head"},
 			},
 		},
 	}
@@ -343,6 +344,11 @@ func (b *bridge) tools() []tool {
 // @awareness enforces=globular.awareness_graph:invariant.awareness.query.no_arbitrary_sparql
 // @awareness protects=globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
 // @awareness risk=high
+// completeTaskDelegate is the terminal-completion owner. It is a package var so tests
+// can inject any closed outcome (and an infrastructure error) to prove the surface's
+// typed-result vs error mapping without reconstructing the readiness world.
+var completeTaskDelegate = completion.CompleteTask
+
 func (b *bridge) callTool(ctx context.Context, name string, args map[string]interface{}) (*toolResult, error) {
 	switch name {
 	case "awareness_briefing":
@@ -580,6 +586,15 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		return &toolResult{Text: admission.RenderVerificationText(verification), Structured: structAdmissionVerification(verification)}, nil
 
 	case "complete_task":
+		// Reject unknown properties at runtime, not by schema alone: a schema declaration
+		// is advisory, and this surface must accept no completion status or extra field.
+		for k := range args {
+			switch k {
+			case "repo", "task", "identity_root", "expected_head":
+			default:
+				return nil, fmt.Errorf("unknown property %q; complete_task accepts no completion status or extra fields", k)
+			}
+		}
 		repo, _ := args["repo"].(string)
 		task, _ := args["task"].(string)
 		identityRoot, _ := args["identity_root"].(string)
@@ -611,7 +626,7 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		if strings.TrimSpace(identityRoot) == "" {
 			identityRoot = filepath.Join(absRepo, ".sensei", "identity")
 		}
-		res, err := completion.CompleteTask(ctx, completion.CompleteRequest{
+		res, err := completeTaskDelegate(ctx, completion.CompleteRequest{
 			RepositoryRoot:                 absRepo,
 			TaskDirectory:                  taskDir,
 			IdentityRoot:                   strings.TrimSpace(identityRoot),

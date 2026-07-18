@@ -29,6 +29,12 @@ files:
   # ── The CLI / authority command surface ──────────────────────────────────
   - cmd/awg/
 
+  # ── The MCP invocation surface (Phase 9.2) ───────────────────────────────
+  # A thin client that delegates terminal completion to the completion owner.
+  # Added when its slice opened so it cannot later be edited without the
+  # briefing gate — a delegating surface must never grow completion authority.
+  - cmd/awareness-mcp/
+
   # ── Governed awareness sources that control architectural authority ───────
   # Editing any of these changes who may act, on which paths, via which
   # mechanism, at which risk — or which invariants and repairs are binding.
