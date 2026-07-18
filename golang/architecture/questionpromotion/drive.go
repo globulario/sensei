@@ -126,8 +126,7 @@ func drive(ctx context.Context, req PromoteRequest, prepared QuestionPromotionRe
 // pre-manifest CAS, then records source_committed only after the exact mutation
 // and post-manifest are recomputed.
 func sourceCommit(req PromoteRequest, prepared QuestionPromotionReceipt, j *Journal, headDigest string, deps promoteDeps) (JournalEntry, *PromoteResult, error) {
-	greq := req.Proposal
-	greq.RepositoryRoot = req.RepositoryRoot
+	greq := governedmutation.Request{RepositoryRoot: req.RepositoryRoot, Proposal: req.Proposal}
 	// Classify against the CURRENT source (recovery-aware): a replay means the
 	// record was already applied by a prior crashed attempt.
 	plan, perr := governedmutation.Plan(greq)

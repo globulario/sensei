@@ -255,6 +255,8 @@ func main() {
 		os.Exit(runAdvanceResult(args))
 	case "disposition-question":
 		os.Exit(runDispositionQuestion(args))
+	case "promote-answer":
+		os.Exit(runPromoteAnswer(args))
 	case "prepare-change":
 		os.Exit(runPrepareChange(args))
 	case "task-status":
