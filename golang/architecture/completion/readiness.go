@@ -109,10 +109,17 @@ func assess(ev *evidence) ReadinessAssessment {
 		GovernedManifestDigestSHA256: ev.governedManifest,
 		Obligations:                  list,
 		Readiness:                    readiness,
-		Limitations: []string{
-			"the Phase-6 correctness certificate records no governed-manifest digest; governed-world freshness is anchored on the Phase-8.1d certificate, which does bind it",
-		},
-		Bound: boundStatement(),
+		Limitations:                  readinessLimitations(),
+		Bound:                        boundStatement(),
+	}
+}
+
+// readinessLimitations is the fixed limitation set embedded in every readiness
+// assessment. It is factored out so a historical readiness reconstruction (8.2d)
+// can reproduce the exact frozen assessment and recompute its digest.
+func readinessLimitations() []string {
+	return []string{
+		"the Phase-6 correctness certificate records no governed-manifest digest; governed-world freshness is anchored on the Phase-8.1d certificate, which does bind it",
 	}
 }
 
