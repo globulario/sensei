@@ -225,3 +225,44 @@ required_tests:
         - docs/awareness/invariants.yaml
         - docs/awareness/failure_modes.yaml
         - docs/awareness/forbidden_fixes.yaml
+  # ── Phase 8.1a: behavioral bindings for the question-disposition owner ──
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestBoundaryProofNoLaterPhaseOrGovernedMutation
+    title: A recorded disposition advances no lifecycle phase and mutates no governed or certification truth
+    protects:
+      failure_modes:
+        - closure.caller_supplied_disposition_terminal_status_or_correctness
+        - closure.task_local_answer_leaks_into_global_briefing
+      files:
+        - golang/architecture/questiondisposition/record.go
+        - golang/architecture/questiondisposition/payload.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestMissingDispositionGrantFailsClosed
+    title: A disposition requires a resolved question-disposition grant, not a dialogue answer's existence
+    protects:
+      failure_modes:
+        - closure.dialogue_answer_mistaken_for_governed_truth
+      files:
+        - golang/architecture/questiondisposition/prepare.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestAnsweredTaskLocalReevaluatesAndContains
+    title: A task-local answer is confined to its task and never enters governed sources
+    protects:
+      failure_modes:
+        - closure.task_local_answer_leaks_into_global_briefing
+      files:
+        - golang/architecture/questiondisposition/prepare.go
+        - golang/architecture/questiondisposition/state.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestConflictingSecondIsContestedNeverOverwrites
+    title: A conflicting second disposition is contested with both immutable records preserved, computed status-aware
+    protects:
+      failure_modes:
+        - closure.status_blind_unresolved_question_computation
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/questiondisposition/record.go
+        - golang/architecture/questiondisposition/state.go
+  - id: golang/architecture/questiondisposition/fault_test.go:TestPostCommitErrorThenRetryRecovers
+    title: A durable disposition entry with a failed projection recovers with no second event
+    protects:
+      failure_modes:
+        - closure.partial_governed_source_or_graph_commit
+      files:
+        - golang/architecture/questiondisposition/record.go
