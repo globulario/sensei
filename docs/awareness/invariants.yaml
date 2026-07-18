@@ -500,7 +500,7 @@ invariants:
         - golang/architecture/evidencereceipt/validate.go
         - golang/architecture/evidencereceipt/model.go
     required_tests:
-      - validate_test.go:TestValidate
+      - golang/architecture/evidencereceipt/validate_test.go:TestValidate
     contract: An evidence receipt's effective freshness, trust, and applicability are computed by the validator against the proof request and result/runtime binding. A receipt cannot declare itself fresh or authoritative; missing, stale, conflicting, or non-owner-path evidence yields UNKNOWN/STALE/CONFLICTED/INVALID, never PASS.
   - id: closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
     title: Runtime evidence may be not applicable only when no governed obligation requires it
@@ -521,10 +521,10 @@ invariants:
         - golang/architecture/proofdischarge/discharge.go
         - golang/architecture/proofdischarge/compatibility.go
     required_tests:
-      - coverage_test.go:TestEvaluateCoverage
-      - discharge_test.go:TestRow9a_MandatedRuntimeStaticTestNoReceipt
-      - discharge_test.go:TestRow9b_MandatedRuntimeStaticTestWithReceipt
-      - discharge_test.go:TestRow9c_NonMandatedRuntimeStaticTestNotApplicable
+      - golang/architecture/evidencereceipt/coverage_test.go:TestEvaluateCoverage
+      - golang/architecture/proofdischarge/discharge_test.go:TestRow9a_MandatedRuntimeStaticTestNoReceipt
+      - golang/architecture/proofdischarge/discharge_test.go:TestRow9b_MandatedRuntimeStaticTestWithReceipt
+      - golang/architecture/proofdischarge/discharge_test.go:TestRow9c_NonMandatedRuntimeStaticTestNotApplicable
     contract: >
       A certification profile may mark runtime evidence not_applicable only when
       no applicable governed proof obligation requires runtime evidence. When an
@@ -549,7 +549,7 @@ invariants:
         - golang/architecture/certification/ledger.go
         - cmd/awg/cmd_certify.go
     required_tests:
-      - adversarial_test.go:TestEvaluate_ForgedRecordIsRefusedNotScored
+      - golang/architecture/certification/evaluate_test.go:TestEvaluate_ForgedRecordIsRefusedNotScored
     contract: CorrectnessCertified true (a certifying verdict) may be established only by a CertificationReceipt produced by golang/architecture/certification, which recomputes the scope, authority, proof, and evidence lanes from typed, digest-verified records. Caller-supplied booleans, scores, clean diffs, passing test subsets, and legacy benchmark events can never certify. The legacy certify --event adapter is display-only and cannot append a certified ledger event.
   - id: closure.no_verdict_improves_by_omitting_a_weakening_computation
     title: No verdict may improve because a computation capable of weakening it was omitted

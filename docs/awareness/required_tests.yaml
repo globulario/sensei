@@ -529,3 +529,275 @@ required_tests:
         - closure.completion_projection_is_the_single_canonical_read_view
       files:
         - golang/architecture/completion/projection.go
+
+  # ── Phase 8/9 architectural-closure proof obligations ──────────────────────
+  # Canonical anchors for the closure invariants' cited required_tests. Defined
+  # here (not allowlisted in dangling_refs_baseline.tsv) because they are
+  # executable internal proof obligations, not cite-only external references.
+  - id: golang/architecture/certification/evaluate_test.go:TestEvaluate_ForgedRecordIsRefusedNotScored
+    title: A forged certification record is refused, never scored
+    protects:
+      invariants:
+        - closure.only_certification_engine_establishes_correctness
+      files:
+        - golang/architecture/certification/evaluate_test.go
+  - id: cmd/awg/cmd_bootstrap_test.go:TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository
+    title: sync-bootstrap installs agent awareness scaffolding for a pre-existing repository
+    protects:
+      failure_modes:
+        - failure.import.preexisting_awareness_skips_agent_scaffold
+      files:
+        - cmd/awg/cmd_bootstrap_test.go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords
+    title: infer-claims skips draft governed directional records
+    protects:
+      invariants:
+        - awareness.governed_direction_records_must_be_claim_consumable
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - cmd/awg/cmd_infer_claims_test.go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph
+    title: infer-claims synthesizes governed directional claims from the graph
+    protects:
+      invariants:
+        - awareness.governed_direction_records_must_be_claim_consumable
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - cmd/awg/cmd_infer_claims_test.go
+  - id: golang/architecture/evidencereceipt/coverage_test.go:TestEvaluateCoverage
+    title: Evidence coverage evaluation is deterministic across profiles
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/evidencereceipt/coverage_test.go
+  - id: golang/architecture/proofdischarge/discharge_test.go:TestRow9a_MandatedRuntimeStaticTestNoReceipt
+    title: Mandated runtime evidence with a static test and no receipt does not discharge
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/proofdischarge/discharge_test.go
+  - id: golang/architecture/proofdischarge/discharge_test.go:TestRow9b_MandatedRuntimeStaticTestWithReceipt
+    title: Mandated runtime evidence with a static test and a receipt discharges
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/proofdischarge/discharge_test.go
+  - id: golang/architecture/proofdischarge/discharge_test.go:TestRow9c_NonMandatedRuntimeStaticTestNotApplicable
+    title: Non-mandated runtime evidence for a static test is not-applicable, not a failure
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/proofdischarge/discharge_test.go
+  - id: golang/architecture/closure/model_test.go:TestClosureRequestFileRepresentedByCanonicalSourceFileIRI
+    title: A closure request file is represented by its canonical source-file IRI
+    protects:
+      invariants:
+        - awareness.authored_knowledge_sources_are_governable_repository_files
+      files:
+        - golang/architecture/closure/model_test.go
+  - id: golang/architecture/closure/model_test.go:TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode
+    title: A failure-mode blocker clears only when the source file is genuinely vulnerable
+    protects:
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - golang/architecture/closure/model_test.go
+  - id: golang/architecture/closure/model_test.go:TestUnrepresentedFileRemainsOpen
+    title: An unrepresented file remains open, never silently closed
+    protects:
+      invariants:
+        - awareness.authored_knowledge_sources_are_governable_repository_files
+      files:
+        - golang/architecture/closure/model_test.go
+  - id: golang/architecture/closureprotocol/fixtures_test.go:TestFixtures
+    title: Closure-protocol golden fixtures round-trip and validate
+    protects:
+      invariants:
+        - closure.no_verdict_improves_by_omitting_a_weakening_computation
+      files:
+        - golang/architecture/closureprotocol/fixtures_test.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteHappyPath
+    title: Terminal completion commits when the whole durable conjunction holds
+    protects:
+      invariants:
+        - closure.completion_requires_closed_current_question_loop
+      files:
+        - golang/architecture/completion/complete_test.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteMutatesNoUpstreamTruth
+    title: Terminal completion mutates no governed, certification, or dialogue truth
+    protects:
+      invariants:
+        - closure.completion_never_mutates_governed_or_certification_truth
+      files:
+        - golang/architecture/completion/complete_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectAndRecoverProjectionLoss
+    title: Recovery rebuilds a lost projection from the valid durable conjunction only
+    protects:
+      invariants:
+        - closure.terminal_recovery_rebuilds_derived_state_only
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectCommittedAfterRestart
+    title: Committed terminal state is reconstructed from durable owners after restart
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectDuplicateCompleted
+    title: Duplicate completed events reconstruct as contradictory terminal history, never committed
+    protects:
+      invariants:
+        - closure.terminal_recovery_rebuilds_derived_state_only
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectEventWithoutReceipt
+    title: A completed event without a valid receipt reconstructs as broken, not completed
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectReceiptWithoutEvent
+    title: A receipt without a completed event reconstructs as residue, not completion
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/integration_test.go:TestClosureHappyPath
+    title: End-to-end authoritative completion holds iff the whole durable conjunction re-verifies
+    protects:
+      invariants:
+        - closure.authoritative_completion_iff_whole_durable_conjunction
+      files:
+        - golang/architecture/completion/integration_test.go
+  - id: golang/architecture/completion/projection_test.go:TestProjectionDisclaimsAuthority
+    title: The completion projection disclaims terminal authority and repository-wide perfection
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      files:
+        - golang/architecture/completion/projection_test.go
+  - id: golang/architecture/completion/projection_test.go:TestProjectionNonAuthoritativeWorlds
+    title: The completion projection stays non-authoritative across all terminal-state worlds
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      files:
+        - golang/architecture/completion/projection_test.go
+  - id: golang/architecture/completion/readiness_test.go:TestAssessDeterministicAndNoSideEffects
+    title: Readiness assessment is deterministic and free of side effects
+    protects:
+      invariants:
+        - closure.completion_readiness_is_read_only_evidence_conjunction
+      files:
+        - golang/architecture/completion/readiness_test.go
+  - id: golang/architecture/questiondisposition/e2e_test.go:TestE2EAnsweredReusableRecordsAndProjects
+    title: An answered reusable question is recorded and projected by its disposition owner
+    protects:
+      invariants:
+        - closure.only_question_disposition_owner_records_question_outcomes
+      files:
+        - golang/architecture/questiondisposition/e2e_test.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestDismissedIsDurableAndDoesNotEraseQuestion
+    title: A dismissed question is durable and is never erased by omission
+    protects:
+      invariants:
+        - closure.no_blocking_question_satisfied_by_omission
+      files:
+        - golang/architecture/questiondisposition/matrix_test.go
+  - id: golang/architecture/questionpromotion/final_test.go:TestEndToEndIdentityCrosslinks
+    title: Promotion identity cross-links hold end-to-end; the receipt is written only after the projection verifies
+    protects:
+      invariants:
+        - closure.promotion_receipt_only_after_projection_verified
+      files:
+        - golang/architecture/questionpromotion/final_test.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateBlockedOnUnresolvedBindingQuestion
+    title: The certification gate is blocked while a binding question is unresolved
+    protects:
+      invariants:
+        - closure.certification_requires_verified_question_resolution_summary
+      files:
+        - golang/architecture/questionresolution/certify_test.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateSatisfiedByPromotionAndTaskLocal
+    title: The certification gate is satisfied by committed promotion plus task-local resolution
+    protects:
+      invariants:
+        - closure.certification_requires_verified_question_resolution_summary
+      files:
+        - golang/architecture/questionresolution/certify_test.go
+  - id: golang/architecture/taskcontrol/project_test.go:TestCompressionAccountingBalances
+    title: Task-control projection compression accounting balances
+    protects:
+      failure_modes:
+        - failure.sensei.flat_task_closure_output_hides_the_load_bearing_next_action
+      files:
+        - golang/architecture/taskcontrol/project_test.go
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingNeverSurfacesTaskLocal
+    title: Repository briefings never surface task-local answers
+    protects:
+      invariants:
+        - closure.task_local_answers_never_enter_repository_briefings
+      files:
+        - golang/architecture/tasksession/briefing_promotion_test.go
+  - id: golang/architecture/tasksession/session_test.go:TestAdvanceTaskRunsOneAtomicGenerationAndReplays
+    title: advance-task runs one atomic generation and replays idempotently
+    protects:
+      failure_modes:
+        - failure.sensei.flat_task_closure_output_hides_the_load_bearing_next_action
+      files:
+        - golang/architecture/tasksession/session_test.go
+  - id: golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    title: The Phase-9 governed contract (invariants, failure modes, forbidden fixes, high-risk coverage) is present
+    protects:
+      invariants:
+        - closure.phase9_surfaces_consume_completion_truth_never_reinterpret_it
+        - closure.phase9_invocation_surfaces_only_delegate_to_the_owner
+        - closure.phase9_projections_are_not_terminal_authority
+        - closure.phase9_preserves_the_three_completion_distinctions
+        - closure.phase9_surfaces_locked_until_a_reviewed_slice
+      files:
+        - golang/coverage/phase9_contract_test.go
+  - id: golang/extractor/yaml_import_test.go:TestImportFixture_KnownTriplesPresent
+    title: YAML import emits the known triples for the fixture corpus
+    protects:
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - golang/extractor/yaml_import_test.go
+  - id: golang/server/architecture_dialogue_server_test.go:TestQueryByClassArchitectAnswer
+    title: The server resolves ArchitectAnswer nodes by class query
+    protects:
+      failure_modes:
+        - failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+      files:
+        - golang/server/architecture_dialogue_server_test.go
+  - id: golang/server/architecture_dialogue_server_test.go:TestQueryByClassOpenQuestion
+    title: The server resolves OpenQuestion nodes by class query
+    protects:
+      failure_modes:
+        - failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+      files:
+        - golang/server/architecture_dialogue_server_test.go
+  - id: golang/server/architecture_evidence_probe_server_test.go:TestQueryByClassEvidenceProbe
+    title: The server resolves EvidenceProbe nodes by class query
+    protects:
+      failure_modes:
+        - failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+      files:
+        - golang/server/architecture_evidence_probe_server_test.go
+  - id: golang/architecture/evidencereceipt/validate_test.go:TestValidate
+    title: Evidence receipts are validated, not self-certified
+    protects:
+      invariants:
+        - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+      files:
+        - golang/architecture/evidencereceipt/validate_test.go
