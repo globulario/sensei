@@ -65,6 +65,7 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 	for _, p := range []string{
 		"golang/architecture/completion/complete.go", // the completion owner Phase-9 consumes
 		"cmd/awg/main.go",           // the CLI invocation surface
+		"cmd/awareness-mcp/main.go", // the MCP invocation surface (9.2, added when the slice opened)
 		"golang/server/briefing.go", // the server read-model surface
 		"docs/awareness/invariants.yaml",
 		"docs/awareness/failure_modes.yaml",
