@@ -232,6 +232,46 @@ func TestCompletionProjectionEnvelopeAvailability(t *testing.T) {
 	}
 }
 
+// Correction: the unavailable class is a CLOSED vocabulary; arbitrary strings and
+// malformed available/unavailable combinations cannot become canonical envelopes.
+func TestCompletionEnvelopeClosedVocabulary(t *testing.T) {
+	w := seedWorld(t)
+	head := w.ready(t)
+	if w.complete(t, head).Outcome != OutcomeCommitted {
+		t.Fatal("completion failed")
+	}
+	available := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	if err := ValidateCompletionEnvelope(available); err != nil {
+		t.Fatalf("valid available envelope rejected: %v", err)
+	}
+	for _, c := range []CompletionUnavailableClass{UnavailableTaskDirectoryUnresolved, UnavailableProjectionOwnerError} {
+		if err := ValidateCompletionEnvelope(UnavailableCompletionEnvelope(c, "x")); err != nil {
+			t.Fatalf("recognized class %q rejected: %v", c, err)
+		}
+	}
+
+	// arbitrary class cannot be canonical (must be explicitly cast — and still rejected).
+	arbitrary := UnavailableCompletionEnvelope(CompletionUnavailableClass("owner_failure"), "synonym")
+	if ValidateCompletionEnvelope(arbitrary) == nil {
+		t.Fatal("an arbitrary unavailable class must be rejected")
+	}
+
+	// malformed conjunctions are rejected.
+	malformed := []CompletionProjectionEnvelope{
+		{Availability: CompletionAvailable, Projection: nil, NonAuthoritativeProjection: true},                                                                       // available without projection
+		{Availability: CompletionAvailable, Projection: available.Projection, UnavailableClass: UnavailableProjectionOwnerError, NonAuthoritativeProjection: true},   // available with a class
+		{Availability: CompletionUnavailable, Projection: available.Projection, UnavailableClass: UnavailableProjectionOwnerError, NonAuthoritativeProjection: true}, // unavailable with a projection
+		{Availability: CompletionUnavailable, UnavailableClass: "", NonAuthoritativeProjection: true},                                                                // unavailable without a class
+		{Availability: "maybe", NonAuthoritativeProjection: true},                                                                                                    // off-vocabulary availability
+		{Availability: CompletionUnavailable, UnavailableClass: UnavailableProjectionOwnerError},                                                                     // not non-authoritative
+	}
+	for i, e := range malformed {
+		if ValidateCompletionEnvelope(e) == nil {
+			t.Fatalf("malformed envelope %d must be rejected", i)
+		}
+	}
+}
+
 // 15: the projection explicitly disclaims terminal authority and repository-wide
 // perfection.
 func TestProjectionDisclaimsAuthority(t *testing.T) {

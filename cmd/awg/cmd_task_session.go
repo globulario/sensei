@@ -180,18 +180,18 @@ Flags:
 func completionProjectionEnvelope(opts tasksession.StatusOptions) completion.CompletionProjectionEnvelope {
 	abs, err := filepath.Abs(strings.TrimSpace(opts.RepoRoot))
 	if err != nil {
-		return completion.UnavailableCompletionEnvelope("task_directory_unresolved", "repository path: "+err.Error())
+		return completion.UnavailableCompletionEnvelope(completion.UnavailableTaskDirectoryUnresolved, "repository path: "+err.Error())
 	}
 	taskDir := strings.TrimSpace(opts.TaskDir)
 	if opts.Active || taskDir == "" {
 		p, perr := tasksession.LoadActivePointer(abs)
 		if perr != nil {
-			return completion.UnavailableCompletionEnvelope("task_directory_unresolved", "active task pointer: "+perr.Error())
+			return completion.UnavailableCompletionEnvelope(completion.UnavailableTaskDirectoryUnresolved, "active task pointer: "+perr.Error())
 		}
 		taskDir = filepath.Dir(filepath.Join(abs, filepath.FromSlash(p.SessionPath)))
 	}
 	if strings.TrimSpace(taskDir) == "" {
-		return completion.UnavailableCompletionEnvelope("task_directory_unresolved", "no task directory resolved")
+		return completion.UnavailableCompletionEnvelope(completion.UnavailableTaskDirectoryUnresolved, "no task directory resolved")
 	}
 	return completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: abs, TaskDirectory: taskDir})
 }
