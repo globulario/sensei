@@ -494,6 +494,41 @@ func (w world) appendResultTransition(t *testing.T, rb closureprotocol.ResultBin
 	}
 }
 
+// appendEmptyResultTransition fabricates a result_transition_recorded event that
+// carries no result binding, so the current result identity can no longer be
+// reconstructed (latestResultBinding returns false) while the chain stays valid.
+func (w world) appendEmptyResultTransition(t *testing.T) {
+	t.Helper()
+	store := ledger.NewStore(w.TaskDir)
+	report, err := store.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ra, err := admission.LoadRecordedAuthority(w.TaskDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := ra.Base.Task
+	if _, err := store.Append(context.Background(), ledger.AppendRequest{
+		TaskID:                   task.ID,
+		SessionID:                task.SessionID,
+		ExpectedHeadDigestSHA256: report.HeadDigestSHA256,
+		EventType:                closureprotocol.LedgerEventResultTransitionRecorded,
+		Payload: ledger.TaskEventPayload{
+			SchemaVersion: ledger.EventPayloadSchemaVersion,
+			EventType:     closureprotocol.LedgerEventResultTransitionRecorded,
+			TaskID:        task.ID,
+			SessionID:     task.SessionID,
+			// no ResultBinding
+		},
+		PayloadMediaType: "application/yaml",
+		ProducerID:       "test",
+		ProducedAt:       certAt,
+	}); err != nil {
+		t.Fatalf("append empty transition: %v", err)
+	}
+}
+
 // appendRevoked fabricates a revoked event.
 func (w world) appendRevoked(t *testing.T) {
 	t.Helper()

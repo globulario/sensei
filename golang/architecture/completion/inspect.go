@@ -164,7 +164,17 @@ func classifyUniqueCompleted(taskDir string, tf terminalFacts, currentRB closure
 		a.Detail = merr.Error()
 		return
 	}
-	if haveRB && !bindingpkg.ResultBindingEqual(receipt.Completion.ResultBinding, currentRB) {
+	// A valid event/receipt pair proves which result was historically completed, but
+	// without a durable CURRENT result identity we cannot prove it is still the task's
+	// current result world. Missing comparison evidence is not equality: reconstruction
+	// must PROVE (current result exists AND receipt result == current result), never
+	// merely observe the absence of a mismatch.
+	if !haveRB {
+		a.State = TerminalUnsupported
+		a.Detail = "no current result binding: cannot prove the completed result is the current result world"
+		return
+	}
+	if !bindingpkg.ResultBindingEqual(receipt.Completion.ResultBinding, currentRB) {
 		a.State = TerminalWrongBinding
 		a.Detail = "the completed receipt binds a different result than the current result"
 		return
