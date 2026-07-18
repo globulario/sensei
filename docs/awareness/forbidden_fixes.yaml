@@ -179,3 +179,40 @@ forbidden_fixes:
       - closure.graph_verification_binds_committed_manifest
     reason: graph_verified requires the persisted repository graph and marker to be reloaded and verified through the normal freshness/authority semantics; a temporary compile is never completion
     contract: graph_verified requires the persisted repository graph and marker to be reloaded and verified through the normal freshness/authority semantics; a temporary compile is never completion
+  # ── Phase 9.0: operational surfacing of completion truth ──
+  - id: phase9_surface_appends_completed_or_writes_receipt
+    title: a Phase-9 surface appends a completed event or writes a completion receipt
+    summary: Let a CLI/MCP/server/CI/editor surface append a completed ledger event or produce/replace a completion receipt instead of delegating to the completion owner.
+    related_invariants:
+      - closure.phase9_invocation_surfaces_only_delegate_to_the_owner
+    reason: the completion owner (CompleteTask) is the sole path that may append a completed fact; a surface that writes one mints a second, unverified completer
+    contract: completion is appended only by completion.CompleteTask under its authority and readiness conjunction
+  - id: phase9_reinterpret_or_rederive_completion_truth_in_a_surface
+    title: reinterpret or re-derive completion truth inside a surface
+    summary: Re-derive readiness, correctness, question resolution, or terminal cardinality in a CLI/MCP/server/CI/editor surface instead of reading the owner's reconstruction.
+    related_invariants:
+      - closure.phase9_surfaces_consume_completion_truth_never_reinterpret_it
+    reason: the completion owner reconstructs terminal truth; a surface that re-derives it creates a divergent second interpretation
+    contract: surfaces consume InspectTerminalState/VerifyCompletionClosure output; they never re-derive it
+  - id: phase9_treat_projection_or_closure_report_as_completion_authority
+    title: treat a projection or the Phase-8 closure report as completion authority
+    summary: Use a task-status view, CI gate projection, editor cockpit, or the Phase-8 closure report as if it were terminal completion authority or a task-completion fact.
+    related_invariants:
+      - closure.phase9_projections_are_not_terminal_authority
+      - closure.phase9_preserves_the_three_completion_distinctions
+    reason: projections are derived and non-authoritative; the closure report is implementation evidence; only the durable event/receipt conjunction is terminal truth
+    contract: the durable completed event plus its matching receipt is the sole terminal authority
+  - id: phase9_ship_a_surface_without_a_reviewed_slice
+    title: ship a Phase-9 surface without a reviewed slice
+    summary: Implement or enable a CLI, MCP, CI/GitHub, or editor surface without an open, reviewed Phase-9 slice carrying acceptance criteria, failure modes, and a proof matrix.
+    related_invariants:
+      - closure.phase9_surfaces_locked_until_a_reviewed_slice
+    reason: govern-first — a product surface is authorized only by its own reviewed slice, one at a time
+    contract: each Phase-9 surface is unlocked only by its reviewed slice; one slice open at a time
+  - id: phase9_invent_a_gnn_or_ml_capability_without_repository_evidence
+    title: invent a GNN or ML capability without repository evidence
+    summary: Introduce a graph-neural-network / embedding-similarity / ML memory capability that has no grounding in repository evidence.
+    related_invariants:
+      - closure.phase9_surfaces_locked_until_a_reviewed_slice
+    reason: the repository has no GNN design and argues against embedding-similarity memory; a GNN capability would be invention, not repo-grounded governance
+    contract: GNN is out of scope until new reviewed repository evidence justifies it

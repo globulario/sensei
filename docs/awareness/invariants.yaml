@@ -1105,3 +1105,98 @@ invariants:
       report is implementation evidence only — never a task-completion fact and never
       runtime completion authority — and keeps implementation closure, completion of
       one task, and repository-wide perfection as three distinct claims.
+  # ── Phase 9.0: governed contract for operational surfacing of completion truth ──
+  - id: closure.phase9_surfaces_consume_completion_truth_never_reinterpret_it
+    title: Phase-9 surfaces consume terminal-completion truth read-only and never reinterpret it
+    severity: critical
+    status: active
+    description: >
+      Phase 9. Every Phase-9 surface (CLI, MCP, server read model, CI gate, editor) is
+      a read-only projection of, or a delegating invocation to, the Phase-8 completion
+      owner. A surface may consume InspectTerminalState, VerifyCompletionClosure,
+      BuildPhase8ClosureReport, RecoverProjections, and the read-only completed
+      event/receipt; it must never append a completed event, produce/replace a
+      completion receipt, re-derive readiness/correctness/question-resolution/terminal
+      cardinality, or normalize contradictory terminal history at the surface.
+    protects:
+      files:
+        - docs/design/phase9-contract.md
+        - golang/architecture/completion/
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      Phase-9 surfaces are thin clients over the completion owner; the completion owner
+      remains the sole terminal authority. No surface reinterprets, re-derives, or
+      re-authorizes completion truth.
+  - id: closure.phase9_invocation_surfaces_only_delegate_to_the_owner
+    title: Phase-9 invocation surfaces only delegate to the completion owner
+    severity: critical
+    status: active
+    description: >
+      Phase 9. A Phase-9 invocation surface (complete-task CLI/MCP, recovery surface)
+      only delegates to the existing completion owner (CompleteTask / RecoverProjections)
+      and surfaces its typed outcome. It mints no second completion authority, bypasses
+      no readiness or authority resolution, and accepts no caller-supplied completion
+      status, receipt, or cardinality.
+    protects:
+      files:
+        - docs/design/phase9-contract.md
+        - cmd/awg/
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      Completion is invoked only by delegating to completion.CompleteTask; the surface
+      manufactures no completion and reuses the single authorized owner path.
+  - id: closure.phase9_projections_are_not_terminal_authority
+    title: Phase-9 read models and projections are never terminal authority
+    severity: critical
+    status: active
+    description: >
+      Phase 9. Phase-9 read models (task-status view, briefing, CI gate, editor cockpit)
+      are non-authoritative. The durable completed event plus its matching receipt —
+      reconstructed by the completion owner — is the sole terminal truth. A projection,
+      read model, or the Phase-8 closure report is never used as runtime completion
+      authority.
+    protects:
+      files:
+        - docs/design/phase9-contract.md
+        - golang/server/
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      Projections are derived and non-authoritative; only the durable event/receipt
+      conjunction is terminal truth.
+  - id: closure.phase9_preserves_the_three_completion_distinctions
+    title: Phase-9 surfaces preserve implementation closure vs task completion vs repository perfection
+    severity: critical
+    status: active
+    description: >
+      Phase 9. No Phase-9 surface collapses the three distinct claims the Phase-8
+      closure report preserves: Phase-8 implementation closure, completion of one task,
+      and repository-wide perfection. The closure report is surfaced only as
+      implementation evidence, never as a task-completion fact or runtime authority.
+    protects:
+      files:
+        - docs/design/phase9-contract.md
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      Implementation closure, completion of one task, and repository-wide perfection
+      remain three distinct claims at every Phase-9 surface.
+  - id: closure.phase9_surfaces_locked_until_a_reviewed_slice
+    title: Phase-9 product surfaces stay locked until unlocked by their own reviewed slice
+    severity: critical
+    status: active
+    description: >
+      Phase 9. CLI, MCP, CI/GitHub, editor, and any GNN surface remain locked; each is
+      enabled only by its own reviewed Phase-9 slice with acceptance criteria, failure
+      modes, and a proof matrix. GNN / embedding-similarity memory is out of scope,
+      not merely deferred, absent new reviewed repository evidence.
+    protects:
+      files:
+        - docs/design/phase9-contract.md
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      No Phase-9 surface ships without its reviewed slice; one slice is open at a time;
+      GNN is excluded until repository evidence justifies it.
