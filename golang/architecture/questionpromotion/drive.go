@@ -298,7 +298,7 @@ func receiptCommit(ctx context.Context, req PromoteRequest, prepared QuestionPro
 		gvHead.ProducedAt); jerr != nil {
 		return tamperedResult(jerr, lineageID)
 	}
-	if cerr := verifyConjunctiveAuthority(ctx, req, prepared, lineageID, promotionDir, j); cerr != nil {
+	if _, cerr := proveCommittedConjunction(ctx, req.RepositoryRoot, lineageID, promotionDir, j); cerr != nil {
 		return PromoteResult{Outcome: OutcomeIncompleteAtCommit, Detail: cerr.Error(), PromotionLineageID: lineageID}, nil
 	}
 	return PromoteResult{Outcome: OutcomeCommitted, PromotionLineageID: lineageID, ReceiptDigestSHA256: receiptDigest,
@@ -308,12 +308,9 @@ func receiptCommit(ctx context.Context, req PromoteRequest, prepared QuestionPro
 // committedReplay returns the already-committed authoritative receipt without
 // writing, after re-proving the full conjunctive authority.
 func committedReplay(ctx context.Context, req PromoteRequest, prepared QuestionPromotionReceipt, lineageID, promotionDir string, j *Journal) (PromoteResult, error) {
-	if cerr := verifyConjunctiveAuthority(ctx, req, prepared, lineageID, promotionDir, j); cerr != nil {
+	rc, cerr := proveCommittedConjunction(ctx, req.RepositoryRoot, lineageID, promotionDir, j)
+	if cerr != nil {
 		return PromoteResult{Outcome: OutcomeTamperedJournal, Detail: cerr.Error(), PromotionLineageID: lineageID}, nil
-	}
-	rc, err := loadReceipt(filepath.Join(promotionDir, receiptFileName))
-	if err != nil {
-		return PromoteResult{Outcome: OutcomeTamperedJournal, Detail: err.Error(), PromotionLineageID: lineageID}, nil
 	}
 	return PromoteResult{Outcome: OutcomeExactReplay, PromotionLineageID: lineageID, ReceiptDigestSHA256: rc.ReceiptDigestSHA256,
 		CommittedCausalIdentitySHA256: rc.CommittedCausalIdentitySHA256, Receipt: &rc}, nil

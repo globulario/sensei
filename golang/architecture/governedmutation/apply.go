@@ -262,3 +262,12 @@ func writeFileAtomic(path string, data []byte) error {
 	}
 	return os.Rename(tmpName, path)
 }
+
+// RecordBodyDigest returns the semantic body digest of an existing governed
+// record identified by (repo-relative source document, top-level key, canonical
+// id) — the same value bound as a mutation digest. It lets a consumer re-prove a
+// promoted record is present with its exact identity without the original
+// proposal. found is false when the file or record is absent.
+func RecordBodyDigest(root, relPath, topKey, id string) (digest string, found bool, err error) {
+	return existingEntryDigest(filepath.Join(root, filepath.FromSlash(relPath)), topKey, id)
+}

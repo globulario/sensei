@@ -345,3 +345,22 @@ required_tests:
         - closure.offline_query_diverges_from_graph_owner
       files:
         - golang/architecture/repograph/store_adapter.go
+  # ── Phase 8.1c: only re-proven committed promotions enter binding briefing context ──
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingConsumesRelevantPromotion
+    title: A task briefing surfaces only independently re-proven, scope-relevant committed governed promotions
+    protects:
+      failure_modes:
+        - closure.task_local_answer_leaks_into_global_briefing
+        - closure.promotion_journal_mistaken_for_governed_truth
+      files:
+        - golang/architecture/tasksession/briefing_promotion.go
+        - golang/architecture/questionpromotion/consume.go
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesTamperedPromotionWithFinding
+    title: A stale/tampered/incomplete promotion is excluded from binding briefing context with a typed integrity finding
+    protects:
+      failure_modes:
+        - closure.receipt_authoritative_before_projection_verified
+        - closure.graph_verified_against_wrong_source_world
+      files:
+        - golang/architecture/questionpromotion/consume.go
+        - golang/architecture/questionpromotion/conjunctive.go

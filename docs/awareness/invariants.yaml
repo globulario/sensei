@@ -694,6 +694,7 @@ invariants:
         - golang/server/briefing.go
         - golang/server/scope.go
     required_tests:
+      - golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingNeverSurfacesTaskLocal
       - golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
       - golang/architecture/questiondisposition/matrix_test.go:TestAnsweredTaskLocalReevaluatesAndContains
     contract: >

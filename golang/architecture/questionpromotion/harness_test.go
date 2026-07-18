@@ -11,10 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/identity"
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
 	"github.com/globulario/sensei/golang/architecture/repograph"
-	"github.com/globulario/sensei/golang/architecture/tasksession"
+	"github.com/globulario/sensei/golang/architecture/resultpipeline"
+	"github.com/globulario/sensei/golang/architecture/resultrecording"
+	"github.com/globulario/sensei/golang/architecture/resulttransition"
 	"github.com/globulario/sensei/golang/propose"
 	"github.com/globulario/sensei/internal/resulttestkit"
 )
@@ -92,11 +95,23 @@ func seedDispositionOnly(t *testing.T, disp qd.Disposition, reuse qd.Reusability
 	if _, err := identity.Enroll(identity.EnrollOptions{Root: identity.Root(r.Repo), Now: enrollNow}); err != nil {
 		t.Fatalf("enroll: %v", err)
 	}
-	adv, err := tasksession.AdvanceResultTransition(context.Background(), tasksession.AdvanceResultRequest{
-		RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir, RepositoryDomain: resulttestkit.Domain, ResultRevision: r.ResultRev,
+	// Record the result_transition_recorded event via the layer beneath
+	// tasksession.AdvanceResultTransition, so this test never imports tasksession
+	// (which now imports questionpromotion — a test-only cycle otherwise).
+	head, herr := admission.TaskLedgerHead(r.TaskDir)
+	if herr != nil {
+		t.Fatalf("head: %v", herr)
+	}
+	c, perr := resultpipeline.PrepareTransition(context.Background(), resultpipeline.PrepareTransitionRequest{
+		Build: resultpipeline.BuildRequest{RepositoryRoot: r.Repo, TaskDirectory: r.TaskDir,
+			ResultMode: resulttransition.ResultModeRevision, ResultRevision: r.ResultRev, RepositoryDomain: resulttestkit.Domain},
+		ExpectedLedgerHeadDigestSHA256: head, RecordedAt: "2026-07-16T00:00:00Z",
 	})
-	if err != nil || adv.TransitionID == "" {
-		t.Fatalf("advance: %v (outcome %s)", err, adv.Outcome)
+	if perr != nil {
+		t.Fatalf("prepare transition: %v", perr)
+	}
+	if _, rerr := resultrecording.RecordTransition(context.Background(), resultrecording.RecordRequest{TaskDirectory: r.TaskDir, Candidate: c}); rerr != nil {
+		t.Fatalf("record transition: %v", rerr)
 	}
 	questions, err := qd.OpenQuestionsForLatestTransition(r.TaskDir)
 	if err != nil || len(questions) == 0 {
