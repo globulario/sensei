@@ -312,13 +312,21 @@ func TestCompletionEnvelopeCanonicalPublication(t *testing.T) {
 	}
 	available := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
 
-	// Freshly stamped envelopes are canonically valid and publish verbatim.
+	// Freshly stamped envelopes are canonically valid and publish as a canonical union
+	// carrying the verbatim envelope under the stable publication schema.
 	for _, e := range []CompletionProjectionEnvelope{available, UnavailableProjectionOwnerEnvelope("y"), UnavailableTaskDirectoryEnvelope("z")} {
 		if err := ValidateCanonicalCompletionEnvelope(e); err != nil {
 			t.Fatalf("stamped envelope must be canonically valid: %v", err)
 		}
-		if _, isMarker := e.PublicationView().(map[string]any); isMarker {
-			t.Fatal("a canonical envelope must publish verbatim, not as an invalid marker")
+		pub := e.PublicationView()
+		if pub.SchemaVersion != "completion.projection_publication/v1" {
+			t.Fatalf("publication schema = %q, want the stable union schema", pub.SchemaVersion)
+		}
+		if !pub.Canonical || pub.Envelope == nil || pub.InvalidClass != "" {
+			t.Fatalf("a canonical envelope must publish verbatim under canonical:true, got %#v", pub)
+		}
+		if err := ValidateCompletionPublication(pub); err != nil {
+			t.Fatalf("canonical publication must re-validate: %v", err)
 		}
 	}
 
@@ -339,8 +347,21 @@ func TestCompletionEnvelopeCanonicalPublication(t *testing.T) {
 	if strings.Contains(tampered.Summary(), "changed after stamping") {
 		t.Fatalf("tampered content must not be rendered: %q", tampered.Summary())
 	}
-	if m, ok := tampered.PublicationView().(map[string]any); !ok || m["canonical"] != false {
-		t.Fatalf("tampered envelope must publish as an invalid marker, got %#v", tampered.PublicationView())
+	// The tampered envelope publishes as the SAME typed union under the SAME schema — the
+	// non-canonical path — with a recognized class and no envelope, not a foreign shape
+	// mislabeled with the envelope schema.
+	tpub := tampered.PublicationView()
+	if tpub.SchemaVersion != "completion.projection_publication/v1" {
+		t.Fatalf("both paths must share the publication schema, got %q", tpub.SchemaVersion)
+	}
+	if tpub.Canonical || tpub.Envelope != nil {
+		t.Fatalf("tampered envelope must publish as canonical:false with no envelope, got %#v", tpub)
+	}
+	if tpub.InvalidClass != PublicationInvalidDigestMismatch {
+		t.Fatalf("tampered envelope class = %q, want digest_mismatch", tpub.InvalidClass)
+	}
+	if err := ValidateCompletionPublication(tpub); err != nil {
+		t.Fatalf("non-canonical publication must re-validate as a coherent union: %v", err)
 	}
 
 	// Mutate the nested available projection AFTER stamping — the envelope digest covers
@@ -358,10 +379,16 @@ func TestCompletionEnvelopeCanonicalPublication(t *testing.T) {
 	if ValidateCompletionEnvelope(badSchema) != nil || ValidateCanonicalCompletionEnvelope(badSchema) == nil {
 		t.Fatal("off-schema envelope must pass structure but fail canonical publication")
 	}
+	if badSchema.PublicationView().InvalidClass != PublicationInvalidSchema {
+		t.Fatalf("off-schema class = %q, want schema", badSchema.PublicationView().InvalidClass)
+	}
 	noDigest := UnavailableProjectionOwnerEnvelope("d")
 	noDigest.DigestSHA256 = ""
 	if ValidateCompletionEnvelope(noDigest) != nil || ValidateCanonicalCompletionEnvelope(noDigest) == nil {
 		t.Fatal("digest-less envelope must pass structure but fail canonical publication")
+	}
+	if noDigest.PublicationView().InvalidClass != PublicationInvalidDigestMalformed {
+		t.Fatalf("digest-less class = %q, want digest_malformed", noDigest.PublicationView().InvalidClass)
 	}
 }
 

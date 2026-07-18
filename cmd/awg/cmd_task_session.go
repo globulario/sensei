@@ -535,8 +535,9 @@ func printTaskStatus(res tasksession.StatusResult, env completion.CompletionProj
 func taskStatusEnvelope(res tasksession.StatusResult, env completion.CompletionProjectionEnvelope) map[string]any {
 	return map[string]any{
 		"architecture_task_status": res,
-		// Publish through the canonical-publication gate: a post-stamp tampered envelope
-		// is emitted as an explicit invalid marker, never as if it were canonical.
+		// Publish the stable typed publication union: one schema, one outer shape for both
+		// canonical and non-canonical outcomes, so a post-stamp tampered envelope is
+		// reported as canonical:false rather than presented as if it were canonical.
 		"completion_projection": env.PublicationView(),
 	}
 }
