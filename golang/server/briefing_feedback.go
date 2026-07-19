@@ -100,7 +100,11 @@ func (s *server) resolveBriefingFeedback(ctx context.Context, scope feedbackBrie
 	if err != nil {
 		return resolvedBriefingFeedback{}, fmt.Errorf("build briefing feedback projection: %w", err)
 	}
-	if wire, werr := briefingFeedbackMapper(proj); werr == nil {
+	mapper := s.feedbackMapper
+	if mapper == nil {
+		mapper = briefingFeedbackToProto
+	}
+	if wire, werr := mapper(proj); werr == nil {
 		return resolvedBriefingFeedback{Projection: proj, Wire: wire}, nil
 	} else {
 		s.logger.Printf("awareness-graph: briefing feedback wire mapping failed (sanitized): %v", werr)
@@ -114,17 +118,12 @@ func (s *server) resolveBriefingFeedback(ctx context.Context, scope feedbackBrie
 	if ferr != nil {
 		return resolvedBriefingFeedback{}, fmt.Errorf("build feedback fallback: %w", ferr)
 	}
-	fwire, fwerr := briefingFeedbackMapper(fb)
+	fwire, fwerr := mapper(fb)
 	if fwerr != nil {
 		return resolvedBriefingFeedback{}, fmt.Errorf("map feedback fallback: %w", fwerr)
 	}
 	return resolvedBriefingFeedback{Projection: fb, Wire: fwire}, nil
 }
-
-// briefingFeedbackMapper is the projection→wire mapper, a package var so a test can inject a
-// mapping failure to exercise the (expected-unreachable) adapter-failure fallback. Production
-// always uses the pure briefingFeedbackToProto adapter.
-var briefingFeedbackMapper = briefingFeedbackToProto
 
 // feedbackDomainCanonical reports whether a RAW requested domain is canonical: unpadded and
 // free of embedded whitespace. Empty is permitted (the graph domain-resolution contract governs

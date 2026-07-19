@@ -46,6 +46,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
 	"github.com/globulario/sensei/golang/netcfg"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -142,6 +143,12 @@ type server struct {
 	// for briefing feedback. nil = unconfigured (feedback unavailable, graph
 	// briefing unaffected). Never mutated by a request handler, never caller-selected.
 	briefingRepo *briefingRepositoryContext
+
+	// feedbackMapper is the projection→wire adapter, an immutable per-server dependency
+	// established at construction (production: briefingFeedbackToProto). It exists as a field
+	// (not a package global) so a test can inject an adapter failure without mutating shared
+	// state — race-safe under parallel tests. nil falls back to briefingFeedbackToProto.
+	feedbackMapper func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error)
 }
 
 // defaultHomeDomain is the domain key assigned to untagged host-project nodes
@@ -150,9 +157,10 @@ const defaultHomeDomain = "globular"
 
 func newServer(s store.Store) *server {
 	return &server{
-		store:      s,
-		logger:     log.New(io.Discard, "", 0),
-		homeDomain: defaultHomeDomain,
+		store:          s,
+		logger:         log.New(io.Discard, "", 0),
+		homeDomain:     defaultHomeDomain,
+		feedbackMapper: briefingFeedbackToProto,
 	}
 }
 
