@@ -31,7 +31,7 @@ func TestImpact_StructuredNodes(t *testing.T) {
 				Symbols: []*awarenesspb.CodeSymbolNode{
 					{Id: "x.go:F", Label: "F", File: "x.go", Language: "go", References: []string{"y.go:G"}},
 				},
-				Authority: testCurrentAuthority(),
+				Authority: testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -66,7 +66,7 @@ func TestImpact_StructuredNodes(t *testing.T) {
 func TestAuthority_OneLineInTextFullInStructured(t *testing.T) {
 	b := testBridge(fakeClient{
 		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
-			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority()}, nil
+			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority("")}, nil
 		},
 	})
 	res, err := b.callTool(context.Background(), "awareness_impact", map[string]interface{}{"file": "x.go"})

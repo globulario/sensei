@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -105,12 +106,13 @@ func (b *bridge) callText(ctx context.Context, name string, args map[string]inte
 	return res.Text, nil
 }
 
-func testCurrentAuthority() *awarenesspb.GraphAuthority {
+func testCurrentAuthority(commit string) *awarenesspb.GraphAuthority {
 	return &awarenesspb.GraphAuthority{
 		Authoritative:                   true,
 		GraphFreshnessState:             awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
 		BuildProvenanceState:            awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED,
 		SeedState:                       awarenesspb.SeedState_SEED_STATE_CURRENT,
+		SourceRepoCommit:                commit,
 		EmbeddedSeedDigestSha256:        "seed123",
 		LiveStoreGraphDigestSha256:      "live123",
 		LiveStoreGraphTripleCount:       42,
@@ -120,6 +122,16 @@ func testCurrentAuthority() *awarenesspb.GraphAuthority {
 		CertifiedServicesRepoCommit:     "svc789",
 		EmbeddedTransactionDetail:       "embedded transaction certifies embedded seed",
 	}
+}
+
+// testGitHEAD resolves the current HEAD commit SHA for tests that need expected_head.
+func testGitHEAD(t *testing.T) string {
+	t.Helper()
+	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Skipf("cannot resolve git HEAD: %v", err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func TestBriefingTool_ValidatesMissingFile(t *testing.T) {
@@ -138,7 +150,7 @@ func TestBriefingTool_MapsOKResponse(t *testing.T) {
 				ReferencedIds: []string{"invariant:x"},
 				Prose:         "Awareness briefing for a.go",
 				GeneratedInMs: 12,
-				Authority:     testCurrentAuthority(),
+				Authority:     testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -183,7 +195,7 @@ func TestImpactTool_FormatsAuthority(t *testing.T) {
 		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{
 				DirectInvariants: []*awarenesspb.KnowledgeNode{{Id: "x", Class: "invariant"}},
-				Authority:        testCurrentAuthority(),
+				Authority:        testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -296,7 +308,7 @@ func TestQueryTool_MapsRequestAndFormatsRows(t *testing.T) {
 					{Id: "invariant:x", Class: "invariant", Label: "X invariant", Severity: "critical"},
 				},
 				GeneratedInMs: 3,
-				Authority:     testCurrentAuthority(),
+				Authority:     testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -587,7 +599,7 @@ func TestPreflightTool_MapsRequestAndFormatsVerdict(t *testing.T) {
 				Confidence:      awarenesspb.Confidence_CONFIDENCE_MEDIUM,
 				RequiredActions: []string{"read heartbeat.go first"},
 				BlindSpots:      []string{"none"},
-				Authority:       testCurrentAuthority(),
+				Authority:       testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -769,13 +781,14 @@ func TestAwarenessAuditDiffTool_Registered(t *testing.T) {
 }
 
 func TestAwarenessAuditDiffTool_EvaluatesDiff(t *testing.T) {
+	head := testGitHEAD(t)
 	fake := fakeClient{
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			return &awarenesspb.EditCheckResponse{}, nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{
-				Authority: testCurrentAuthority(),
+				Authority: testCurrentAuthority(head),
 			}, nil
 		},
 	}
@@ -789,7 +802,8 @@ new file mode 100644
 +func main() {}
 `
 	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
-		"diff": validDiff,
+		"diff":          validDiff,
+		"expected_head": head,
 	})
 	if err != nil {
 		t.Fatalf("callTool awareness_audit_diff failed: %v", err)
@@ -803,6 +817,7 @@ new file mode 100644
 }
 
 func TestAwarenessAuditDiffTool_FailsOnStaleOrNilAuthority(t *testing.T) {
+	head := testGitHEAD(t)
 	fake := fakeClient{
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			return &awarenesspb.EditCheckResponse{}, nil
@@ -823,12 +838,66 @@ new file mode 100644
 +func main() {}
 `
 	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
-		"diff": validDiff,
+		"diff":          validDiff,
+		"expected_head": head,
 	})
 	if err != nil {
 		t.Fatalf("callTool failed: %v", err)
 	}
 	if !strings.Contains(res.Text, "decision: cannot_verify") {
 		t.Fatalf("expected cannot_verify on nil authority, got text: %s", res.Text)
+	}
+}
+
+func TestAwarenessAuditDiffTool_RequiresExpectedHead(t *testing.T) {
+	br := testBridge(fakeClient{})
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	_, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": validDiff,
+	})
+	if err == nil || !strings.Contains(err.Error(), "expected_head is required") {
+		t.Fatalf("expected error about missing expected_head, got: %v", err)
+	}
+}
+
+func TestAwarenessAuditDiffTool_GraphCommitMismatch(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			// Graph was compiled from a different commit
+			return &awarenesspb.ImpactResponse{
+				Authority: testCurrentAuthority("aaaa" + head[4:]),
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          validDiff,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	// Graph commit mismatch should cause cannot_verify
+	if !strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("expected cannot_verify on graph commit mismatch, got text: %s", res.Text)
 	}
 }
