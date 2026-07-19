@@ -57,8 +57,9 @@ jobs:
 
       - name: Onboarding docs claim the real principle count (self-updating)
         # The shipping pack is the source of truth. Any doc stating a TOTAL
-        # principle count must state the pack's count, and the README category
-        # table must sum to it.
+        # principle count must state the pack's count. (The former README
+        # category-table check was retired when the principle catalog moved to
+        # docs/meta-principles.md in the Sensei doc reframing.)
         run: |
           DOCS="README.md QUICKSTART.md INSTALL.md docs/quickstart.md docs/meta-principles.md docs/case-study-cold-start.md docs/blog/awg-introduction.md examples/payment-cold-start/README.md"
           PACK=$(grep -cE '^  - id: meta\.' cmd/awg/templates/awareness/meta_principles.yaml)
@@ -70,12 +71,7 @@ jobs:
             grep -rnoE "$PAT" $DOCS 2>/dev/null || true
             exit 1
           fi
-          SUM=$(grep -oE '\*\*(Authority|Signal|Lifecycle|Dependency|Perception|Composition|Structure|Evolution)\*\* \| [0-9]+' README.md | grep -oE '[0-9]+$' | awk '{s+=$1} END{print s}')
-          if [ "$SUM" != "${PACK}" ]; then
-            echo "::error::README category table sums to ${SUM}, but the pack has ${PACK}. Fix the per-category counts."
-            exit 1
-          fi
-          echo "onboarding docs: total count and README category table both match the pack (${PACK})"
+          echo "onboarding docs: total principle count matches the pack (${PACK})"
 
       - name: Run tests
         run: go test ./... -count=1 -timeout 120s
