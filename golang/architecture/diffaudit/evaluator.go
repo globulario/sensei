@@ -11,7 +11,7 @@ import (
 // SingleFileChecker evaluates single file content and graph impact.
 type SingleFileChecker interface {
 	CheckFile(ctx context.Context, file string, content string, domain string) ([]AuditFinding, error)
-	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []string, contracts []string, findings []AuditFinding, err error)
+	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []string, contracts []string, RelevantRules []string, err error)
 }
 
 // AuditOptions configures the diff audit run.
@@ -41,12 +41,9 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		ReasonCodes:         append([]ReasonCode{}, parsed.ReasonCodes...),
 	}
 
-	changedPathSet := make(map[string]bool)
 	hasBinary := false
 
 	for _, patch := range parsed.Files {
-		changedPathSet[patch.Path] = true
-
 		summary := ChangedFileSummary{
 			Path:         patch.Path,
 			OldPath:      patch.OldPath,
@@ -82,41 +79,57 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 				continue
 			}
 
-			// Gather impact (required tests, contracts, path invariants)
-			tests, contracts, impactFindings, err := checker.GetFileImpact(ctx, patch.Path, opts.Domain)
+			// Gather impact (required tests & contracts)
+			tests, contracts, _, err := checker.GetFileImpact(ctx, patch.Path, opts.Domain)
 			if err != nil {
 				result.Availability = AvailabilityCannotVerify
 				result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
 			} else {
 				result.ImplicatedTests = append(result.ImplicatedTests, tests...)
 				result.ImplicatedContracts = append(result.ImplicatedContracts, contracts...)
-				result.Findings = append(result.Findings, impactFindings...)
 			}
 
-			// Evaluate added/modified content if hunks present
+			// Evaluate added lines within each hunk cleanly without fabricating synthetic whole-file code
 			if len(patch.Hunks) > 0 {
-				addedContent := extractAddedContent(patch)
-				if addedContent != "" {
-					fileFindings, err := checker.CheckFile(ctx, patch.Path, addedContent, opts.Domain)
-					if err != nil {
-						result.ReasonCodes = append(result.ReasonCodes, ReasonEvaluatorUnavailable)
-					} else {
-						result.Findings = append(result.Findings, fileFindings...)
+				for _, hunk := range patch.Hunks {
+					var addedLines []string
+					for _, line := range hunk.Lines {
+						if strings.HasPrefix(line, "+") {
+							addedLines = append(addedLines, strings.TrimPrefix(line, "+"))
+						}
+					}
+					if len(addedLines) > 0 {
+						hunkContent := strings.Join(addedLines, "\n")
+						fileFindings, err := checker.CheckFile(ctx, patch.Path, hunkContent, opts.Domain)
+						if err != nil {
+							result.ReasonCodes = append(result.ReasonCodes, ReasonEvaluatorUnavailable)
+							result.Availability = AvailabilityCannotVerify
+						} else {
+							for i := range fileFindings {
+								fileFindings[i].HunkIndex = hunk.Index
+							}
+							result.Findings = append(result.Findings, fileFindings...)
+						}
 					}
 				}
 			}
 		}
 	}
 
-	// Compute overall decision based on findings
-	for _, f := range result.Findings {
-		if f.Disposition == "block" {
-			result.Decision = DecisionBlock
-			break
-		} else if f.Disposition == "review" && result.Decision != DecisionBlock {
-			result.Decision = DecisionReview
-		} else if f.Disposition == "cannot_verify" && result.Decision == DecisionPass {
-			result.Decision = DecisionCannotVerify
+	// Compute overall decision strictly:
+	// Rule: If graph/evaluator unavailable, decision CANNOT be pass!
+	if result.Availability != AvailabilityAvailable || len(result.ReasonCodes) > 0 {
+		result.Decision = DecisionCannotVerify
+	} else {
+		for _, f := range result.Findings {
+			if f.Disposition == "block" {
+				result.Decision = DecisionBlock
+				break
+			} else if f.Disposition == "review" && result.Decision != DecisionBlock {
+				result.Decision = DecisionReview
+			} else if f.Disposition == "cannot_verify" && result.Decision == DecisionPass {
+				result.Decision = DecisionCannotVerify
+			}
 		}
 	}
 
@@ -128,17 +141,4 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 	result.Digest = digest
 
 	return result, nil
-}
-
-func extractAddedContent(patch ParsedFilePatch) string {
-	var sb strings.Builder
-	for _, hunk := range patch.Hunks {
-		for _, line := range hunk.Lines {
-			if strings.HasPrefix(line, "+") {
-				sb.WriteString(strings.TrimPrefix(line, "+"))
-				sb.WriteString("\n")
-			}
-		}
-	}
-	return sb.String()
 }

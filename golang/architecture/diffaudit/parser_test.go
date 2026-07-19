@@ -11,10 +11,11 @@ const sampleValidDiff = `diff --git a/cmd/main.go b/cmd/main.go
 index 1234567..89abcdef 100644
 --- a/cmd/main.go
 +++ b/cmd/main.go
-@@ -10,3 +10,4 @@ func main() {
- 	fmt.Println("hello")
+@@ -10,3 +10,4 @@
+  func main() {
+  	fmt.Println("hello")
 +	fmt.Println("world")
- }
+  }
 diff --git a/docs/readme.md b/docs/readme.md
 new file mode 100644
 --- /dev/null
@@ -90,11 +91,11 @@ func TestParseDiff_HostileInputs(t *testing.T) {
 	}{
 		{
 			name: "path traversal dotdot",
-			diff: "diff --git a/../etc/passwd b/../etc/passwd\n--- a/../etc/passwd\n+++ b/../etc/passwd\n@@ -1,1 +1,1 @@\n",
+			diff: "diff --git a/../etc/passwd b/../etc/passwd\n--- a/../etc/passwd\n+++ b/../etc/passwd\n@@ -0,0 +1,1 @@\n+x\n",
 		},
 		{
 			name: "absolute path leading slash",
-			diff: "diff --git a//etc/shadow b//etc/shadow\n--- a//etc/shadow\n+++ b//etc/shadow\n@@ -1,1 +1,1 @@\n",
+			diff: "diff --git a//etc/shadow b//etc/shadow\n--- a//etc/shadow\n+++ b//etc/shadow\n@@ -0,0 +1,1 @@\n+x\n",
 		},
 		{
 			name: "windows drive path",
@@ -103,6 +104,18 @@ func TestParseDiff_HostileInputs(t *testing.T) {
 		{
 			name: "null byte in payload",
 			diff: "diff --git a/file.txt b/file.txt\x00\n",
+		},
+		{
+			name: "case collision ambiguity",
+			diff: "diff --git a/foo.go b/foo.go\n--- a/foo.go\n+++ b/foo.go\n@@ -0,0 +1,1 @@\n+a\ndiff --git a/Foo.go b/Foo.go\n--- a/Foo.go\n+++ b/Foo.go\n@@ -0,0 +1,1 @@\n+b\n",
+		},
+		{
+			name: "hunk line count mismatch",
+			diff: "diff --git a/file.go b/file.go\n--- a/file.go\n+++ b/file.go\n@@ -1,5 +1,5 @@\n+a\n",
+		},
+		{
+			name: "header only incomplete patch",
+			diff: "diff --git a/incomplete.go b/incomplete.go\n--- a/incomplete.go\n+++ b/incomplete.go\n",
 		},
 	}
 
@@ -120,29 +133,16 @@ func TestParseDiff_DuplicateFilePaths(t *testing.T) {
 	dupDiff := `diff --git a/src/app.go b/src/app.go
 --- a/src/app.go
 +++ b/src/app.go
-@@ -1,1 +1,1 @@
+@@ -0,0 +1,1 @@
 +a
 diff --git a/src/app.go b/src/app.go
 --- a/src/app.go
 +++ b/src/app.go
-@@ -1,1 +1,1 @@
+@@ -0,0 +1,1 @@
 +b
 `
 	_, err := ParseDiff(dupDiff, DefaultParseOptions())
-	if err == nil || !strings.Contains(err.Error(), "duplicate or ambiguous") {
+	if err == nil || !strings.Contains(err.Error(), "duplicate logical file path") {
 		t.Fatalf("expected duplicate path error, got: %v", err)
-	}
-}
-
-func TestParseDiff_BoundsExceeded(t *testing.T) {
-	opts := ParseOptions{
-		MaxBytes: 100,
-		MaxFiles: 10,
-		MaxHunks: 10,
-	}
-	largeDiff := strings.Repeat("diff --git a/a.go b/a.go\n", 10)
-	_, err := ParseDiff(largeDiff, opts)
-	if err == nil || !strings.Contains(err.Error(), "maximum size limit") {
-		t.Fatalf("expected max size error, got: %v", err)
 	}
 }

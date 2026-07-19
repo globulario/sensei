@@ -4,12 +4,13 @@ package diffaudit
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
 type fakeChecker struct {
 	checkFileFunc     func(ctx context.Context, file, content, domain string) ([]AuditFinding, error)
-	getFileImpactFunc func(ctx context.Context, file, domain string) ([]string, []string, []AuditFinding, error)
+	getFileImpactFunc func(ctx context.Context, file, domain string) ([]string, []string, []string, error)
 }
 
 func (f *fakeChecker) CheckFile(ctx context.Context, file, content, domain string) ([]AuditFinding, error) {
@@ -19,7 +20,7 @@ func (f *fakeChecker) CheckFile(ctx context.Context, file, content, domain strin
 	return nil, nil
 }
 
-func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([]string, []string, []AuditFinding, error) {
+func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([]string, []string, []string, error) {
 	if f.getFileImpactFunc != nil {
 		return f.getFileImpactFunc(ctx, file, domain)
 	}
@@ -76,5 +77,29 @@ func TestEvaluateDiff_BlocksOnForbiddenFix(t *testing.T) {
 	}
 	if len(res.Findings) != 1 || res.Findings[0].RecordID != "ff-1" {
 		t.Errorf("unexpected findings: %+v", res.Findings)
+	}
+}
+
+func TestEvaluateDiff_GraphUnavailableForcesCannotVerify(t *testing.T) {
+	parsed, err := ParseDiff(sampleValidDiff, DefaultParseOptions())
+	if err != nil {
+		t.Fatalf("ParseDiff: %v", err)
+	}
+
+	checker := &fakeChecker{
+		getFileImpactFunc: func(_ context.Context, file, domain string) ([]string, []string, []string, error) {
+			return nil, nil, nil, fmt.Errorf("impact query error")
+		},
+	}
+
+	res, err := EvaluateDiff(context.Background(), parsed, checker, AuditOptions{})
+	if err != nil {
+		t.Fatalf("EvaluateDiff: %v", err)
+	}
+	if res.Decision != DecisionCannotVerify {
+		t.Errorf("expected DecisionCannotVerify when graph is unavailable, got %s", res.Decision)
+	}
+	if res.Availability != AvailabilityCannotVerify {
+		t.Errorf("expected AvailabilityCannotVerify, got %s", res.Availability)
 	}
 }
