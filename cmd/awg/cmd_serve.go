@@ -52,6 +52,8 @@ func runServe(args []string) int {
 	noOxigraph := fs.Bool("no-oxigraph", false, "don't start Oxigraph (use an external instance)")
 	homeDomain := fs.String("home-domain", "", "domain key for untagged host-project nodes (cold-start non-Globular deployments set their own; default: globular)")
 	enablePropose := fs.Bool("enable-propose", false, "enable the Propose RPC agent write path (writes validated candidates under docs/awareness/candidates/; off by default)")
+	repoRoot := fs.String("repo-root", "", "repository root for governed briefing feedback (with --repo-domain); resolved to an absolute existing directory. Enables briefing-feedback verification.")
+	repoDomain := fs.String("repo-domain", "", "canonical repository domain for briefing feedback (with --repo-root); identifies the filesystem repository whose promotions may be verified (NOT --home-domain).")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei serve [flags]
 
@@ -68,6 +70,15 @@ Flags:
 	}
 
 	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	// Resolve the briefing repository context BEFORE starting any child process so a
+	// misconfiguration exits 2 cleanly. The caller explicitly selected this root, so the
+	// wrapper may resolve a relative path here; the server binary itself never does.
+	serveRepoRoot, serveRepoDomain, rcErr := resolveServeRepoContext(*repoRoot, *repoDomain)
+	if rcErr != nil {
+		fmt.Fprintf(os.Stderr, "sensei serve: %v\n", rcErr)
 		return 2
 	}
 
@@ -168,6 +179,9 @@ Flags:
 	if *homeDomain != "" {
 		srvArgs = append(srvArgs, "-home-domain", *homeDomain)
 	}
+	if serveRepoRoot != "" {
+		srvArgs = append(srvArgs, "-repo-root", serveRepoRoot, "-repo-domain", serveRepoDomain)
+	}
 	if *enablePropose {
 		root, rerr := resolveProjectRoot("")
 		if rerr != nil {
@@ -245,6 +259,44 @@ Flags:
 
 	fmt.Fprintf(os.Stderr, "sensei: stopped\n")
 	return exitCode
+}
+
+// resolveServeRepoContext validates and resolves the --repo-root/--repo-domain pair for the
+// serve wrapper. Both-or-neither (neither ⇒ feedback disabled). Padded root/domain and a
+// whitespace domain are configuration errors. Because the CALLER explicitly selected this root,
+// the wrapper may resolve a relative path to absolute here (filepath.Abs), then resolve
+// symlinks once and require an existing directory; it never resolves an empty value and never
+// defaults to the working directory. Only the resulting absolute root is forwarded to the
+// server binary (which itself never calls filepath.Abs).
+func resolveServeRepoContext(root, domain string) (string, string, error) {
+	if root == "" && domain == "" {
+		return "", "", nil
+	}
+	if root == "" || domain == "" {
+		return "", "", fmt.Errorf("--repo-root and --repo-domain must be set together")
+	}
+	if root != strings.TrimSpace(root) {
+		return "", "", fmt.Errorf("--repo-root is padded")
+	}
+	if domain != strings.TrimSpace(domain) || strings.ContainsAny(domain, " \t\r\n") {
+		return "", "", fmt.Errorf("--repo-domain is padded or contains whitespace")
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return "", "", fmt.Errorf("--repo-root: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", "", fmt.Errorf("--repo-root does not resolve: %w", err)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return "", "", fmt.Errorf("--repo-root: %w", err)
+	}
+	if !info.IsDir() {
+		return "", "", fmt.Errorf("--repo-root is not a directory")
+	}
+	return resolved, domain, nil
 }
 
 func resolveServeGraphMarkerFile(configured string, noSeed bool) (string, error) {

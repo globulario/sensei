@@ -176,6 +176,107 @@ message BriefingResponse {
 
   // Current/provenance stamp for this graph-backed answer.
   GraphAuthority authority = 6;
+
+  // Governed briefing feedback (Phase 9.6). The canonical
+  // briefing.feedback_projection/v1 produced by the briefingfeedback owner,
+  // mirrored as a closed typed message. ADDITIVE — clients that ignore field 7
+  // keep working. The prose above is rendered only from this same projection;
+  // no filesystem repository root ever appears here.
+  BriefingFeedbackProjection feedback = 7;
+}
+
+// ─── Briefing feedback (Phase 9.6) ─────────────────────────────────────────
+//
+// Closed typed mirror of the canonical briefing.feedback_projection/v1. The
+// server is a thin consumer: these values are mapped 1:1 from a validated
+// briefingfeedback.Projection and never recomputed on the wire side.
+
+// BriefingFeedbackAvailability mirrors the closed availability vocabulary.
+enum BriefingFeedbackAvailability {
+  BRIEFING_FEEDBACK_AVAILABILITY_UNSPECIFIED = 0;
+  BRIEFING_FEEDBACK_AVAILABILITY_AVAILABLE = 1;
+  BRIEFING_FEEDBACK_AVAILABILITY_EMPTY = 2;
+  BRIEFING_FEEDBACK_AVAILABILITY_DEGRADED = 3;
+  BRIEFING_FEEDBACK_AVAILABILITY_UNAVAILABLE = 4;
+  BRIEFING_FEEDBACK_AVAILABILITY_INVALID = 5;
+}
+
+// BriefingFeedbackFindingClass mirrors the ten closed finding classes.
+enum BriefingFeedbackFindingClass {
+  BRIEFING_FEEDBACK_FINDING_CLASS_UNSPECIFIED = 0;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_VERIFIED = 1;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_OUT_OF_SCOPE = 2;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_INCOMPLETE = 3;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_INTEGRITY_FAILURE = 4;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_CONTRADICTORY = 5;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_STALE = 6;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_UNVERIFIABLE = 7;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_DISCOVERY_UNAVAILABLE = 8;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_SCOPE_IDENTITY_INVALID = 9;
+  BRIEFING_FEEDBACK_FINDING_CLASS_PROMOTION_UNKNOWN_CLASSIFICATION = 10;
+}
+
+// BriefingFeedbackDisposition mirrors the finding admission disposition.
+enum BriefingFeedbackDisposition {
+  BRIEFING_FEEDBACK_DISPOSITION_UNSPECIFIED = 0;
+  BRIEFING_FEEDBACK_DISPOSITION_ADMITTED = 1;
+  BRIEFING_FEEDBACK_DISPOSITION_EXCLUDED = 2;
+  BRIEFING_FEEDBACK_DISPOSITION_UNAVAILABLE = 3;
+}
+
+// BriefingFeedbackVerifiedRecord is one admitted, independently-verified
+// committed promotion. Question/answer/receipt/task/session/lineage identities
+// are structured provenance, never governed knowledge.
+message BriefingFeedbackVerifiedRecord {
+  string governed_node_iri = 1;
+  string governed_kind = 2;
+  string canonical_record_id = 3;
+  string source_document = 4;
+  string promotion_lineage_id = 5;
+  string promotion_receipt_digest_sha256 = 6;
+  string question_id = 7;
+  string answer_id = 8;
+  string disposition_receipt_digest_sha256 = 9;
+  string originating_task_id = 10;
+  string originating_session_id = 11;
+  string effective_domain = 12;
+  repeated string effective_file_scope = 13;
+  BriefingFeedbackFindingClass verification_class = 14;
+  string provenance_interpretation = 15;
+}
+
+// BriefingFeedbackFinding is a typed candidate diagnostic. claimed_* fields are
+// UNTRUSTED routing metadata and confer no authority.
+message BriefingFeedbackFinding {
+  BriefingFeedbackFindingClass class = 1;
+  string reason_code = 2;
+  string lineage_id = 3;
+  string claimed_domain = 4;
+  repeated string claimed_files = 5;
+  string affected_domain = 6;
+  repeated string affected_files = 7;
+  BriefingFeedbackDisposition disposition = 8;
+  string detail = 9;
+}
+
+// BriefingFeedbackProjection mirrors the canonical projection. No filesystem
+// repository root is present. digest_sha256 is the canonical self-excluding
+// digest, preserved exactly from the owner.
+message BriefingFeedbackProjection {
+  string schema_version = 1;
+  string producer_name = 2;
+  string producer_version = 3;
+  string repository_identity = 4;
+  string requested_domain = 5;
+  repeated string requested_files = 6;
+  string task_id = 7;
+  string session_id = 8;
+  BriefingFeedbackAvailability availability = 9;
+  repeated BriefingFeedbackVerifiedRecord records = 10;
+  repeated BriefingFeedbackFinding findings = 11;
+  bool non_authoritative_projection = 12;
+  string bound = 13;
+  string digest_sha256 = 14;
 }
 
 // MatchedImplementationPattern is one project recipe surfaced to the agent

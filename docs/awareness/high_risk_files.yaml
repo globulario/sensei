@@ -35,6 +35,12 @@ files:
   # briefing gate — a delegating surface must never grow completion authority.
   - cmd/awareness-mcp/
 
+  # ── The gRPC wire contract (Phase 9.6 Checkpoint 2) ──────────────────────
+  # The typed service surface. The briefing-feedback projection rides an
+  # additive typed field here; a wrong field number or a non-additive change
+  # breaks every client. Brief before touching so the change stays additive.
+  - proto/awareness_graph.proto
+
   # ── Governed awareness sources that control architectural authority ───────
   # Editing any of these changes who may act, on which paths, via which
   # mechanism, at which risk — or which invariants and repairs are binding.
