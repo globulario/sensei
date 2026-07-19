@@ -3,6 +3,7 @@
 package ledger
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -71,7 +72,37 @@ func renderPayload(payload any, mediaType string) (renderedPayload, error) {
 }
 
 func semanticDigestForBytes(mediaType string, data []byte) (string, error) {
-	switch strings.TrimSpace(mediaType) {
+	return semanticDigestForBytesCtx(context.Background(), mediaType, data)
+}
+
+// semanticDigestForBytesCtx computes the semantic digest of a payload, reusing an
+// evaluation-scoped memo when ctx carries one. The result is identical to the
+// non-memoized computation for the same bytes; the memo only avoids re-parsing and
+// re-canonicalizing bytes already digested in this evaluation. A parse failure is
+// never memoized, so a malformed payload still surfaces its error on every call.
+func semanticDigestForBytesCtx(ctx context.Context, mediaType string, data []byte) (string, error) {
+	mt := strings.TrimSpace(mediaType)
+	structured := mt == "application/yaml" || mt == "text/yaml" || mt == "application/x-yaml" || mt == "application/json"
+	scope := scopeFrom(ctx)
+	var key string
+	if scope != nil && structured {
+		key = digestMemoKey(mt, data)
+		if d, ok := scope.lookup(key); ok {
+			return d, nil
+		}
+	}
+	digest, err := computeSemanticDigest(mt, data)
+	if err != nil {
+		return "", err
+	}
+	if scope != nil && structured {
+		scope.store(key, digest)
+	}
+	return digest, nil
+}
+
+func computeSemanticDigest(mediaType string, data []byte) (string, error) {
+	switch mediaType {
 	case "application/yaml", "text/yaml", "application/x-yaml":
 		var value any
 		if err := yaml.Unmarshal(data, &value); err != nil {

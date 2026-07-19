@@ -3,6 +3,7 @@
 package ledger
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -55,7 +56,7 @@ func Project(chain VerifiedChain) (ProjectionSet, error) {
 }
 
 func RebuildProjections(taskDir string, validator PayloadValidator) (ProjectionSet, error) {
-	chain, err := loadVerifiedChain(taskDir, validator)
+	chain, err := loadVerifiedChain(context.Background(), taskDir, validator)
 	if err != nil {
 		return ProjectionSet{}, err
 	}

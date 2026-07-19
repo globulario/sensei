@@ -8,6 +8,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/governedmutation"
+	"github.com/globulario/sensei/golang/architecture/ledger"
 )
 
 // Request selects the task/result world to assess. It carries NO caller booleans,
@@ -23,7 +24,9 @@ type Request struct {
 // write, no completion receipt, no completed event. A ready assessment reports only
 // that the required evidence conjunction currently holds — it is NOT a completion.
 func AssessReadiness(ctx context.Context, req Request) (ReadinessAssessment, error) {
-	_ = ctx
+	// Open one evaluation scope so the many read-only re-verifications this assessment
+	// performs over the same immutable ledger digest each payload at most once.
+	ctx, _ = ledger.WithVerificationScope(ctx)
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
 	// Repository and task must name one world before any evidence read: governed
@@ -33,7 +36,7 @@ func AssessReadiness(ctx context.Context, req Request) (ReadinessAssessment, err
 		return ReadinessAssessment{}, berr
 	}
 
-	chain, task, head, rb, haveRB, err := loadTaskWorld(taskDir)
+	chain, task, head, rb, haveRB, err := loadTaskWorld(ctx, taskDir)
 	if err != nil {
 		return ReadinessAssessment{}, err
 	}
