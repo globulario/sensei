@@ -148,6 +148,8 @@ func main() {
 		os.Exit(runEditBrief(args))
 	case "gate":
 		os.Exit(runGate(args))
+	case "produce-change-binding":
+		os.Exit(runProduceChangeBinding(args))
 	case "evidence":
 		os.Exit(runEvidence(args))
 	case "resolve":
