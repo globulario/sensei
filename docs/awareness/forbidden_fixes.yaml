@@ -216,3 +216,17 @@ forbidden_fixes:
       - closure.phase9_surfaces_locked_until_a_reviewed_slice
     reason: the repository has no GNN design and argues against embedding-similarity memory; a GNN capability would be invention, not repo-grounded governance
     contract: GNN is out of scope until new reviewed repository evidence justifies it
+  - id: phase9_gate_fails_closed_on_sensei_unavailability
+    title: fail the completion gate closed when Sensei is unavailable
+    summary: Turn a Sensei/store/owner outage — where the closure verdict cannot be computed — into a blocking gate failure instead of a degraded (fail-open) pass.
+    related_invariants:
+      - closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict
+    reason: fail-safe — AI is supplementary, never required; a Sensei outage must never halt every merge, and unavailability is not a broken verdict
+    contract: the completion gate degrades (fail-open) on unavailability; only a computed pathological verdict blocks
+  - id: phase9_gate_enforces_without_per_domain_opt_in
+    title: enforce the completion gate without per-domain opt-in
+    summary: Make the completion gate block merges on a repo/domain that has not explicitly adopted enforce via its per-repo gate policy.
+    related_invariants:
+      - closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict
+    reason: hard-gate is opt-in per repo-owner, per-domain, never imposed; a foreign-domain verdict never gates another repo's CI
+    contract: enforce mode is opt-in per repo/domain via the gate policy; advisory is the default

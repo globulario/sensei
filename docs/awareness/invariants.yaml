@@ -1227,3 +1227,29 @@ invariants:
       The completion projection is a read-only, non-authoritative composition of the
       Phase-8 read owners; it is the single canonical mapping and the sole terminal
       truth remains the durable event/receipt conjunction.
+  # ── Phase 9.4: CI/GitHub completion gate ──
+  - id: closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict
+    title: The completion gate degrades on unavailability but blocks on a computed pathological verdict
+    severity: critical
+    status: active
+    description: >
+      Phase 9.4. The CI/GitHub completion gate reads a task's closure verdict through the
+      canonical read view (BuildCompletionProjection / VerifyCompletionClosure), never raw
+      ledger or receipts, and adds only advisory/enforce policy — it re-derives nothing,
+      mutates nothing, and is never terminal authority. Two axes must never be conflated:
+      when the verdict CANNOT be computed (Sensei/store/owner unreachable, task directory
+      unresolved) the gate fails OPEN with a degraded annotation, since AI is supplementary
+      and never required; when a verdict IS computed and is pathological (broken_completion,
+      contradictory_terminal_history, unsupported) the gate fails CLOSED under enforce.
+      authoritative_completion passes; not_completed passes by default and blocks only under
+      an explicit require_completion policy. Enforce is opt-in per repo/domain, never imposed.
+    protects:
+      files:
+        - docs/design/phase9.4-contract.md
+        - cmd/awg/cmd_gate.go
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      The completion gate degrades (fail-open) on unavailability and blocks (fail-closed,
+      under enforce) on a computed broken/contradictory/unsupported verdict; it is
+      read-only, opt-in per domain, and never terminal authority.
