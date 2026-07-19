@@ -871,3 +871,18 @@ required_tests:
         - closure.change_task_binding_producer_is_authoritative_and_deterministic
       files:
         - golang/architecture/changebindingproducer/github_env.go
+  # Phase 9.4c change-to-task binding (Checkpoint 3) — consumption + enforcement composition.
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestCompose_OwnerNeverInvokedBeforeBindingAcceptance
+    title: The completion owner is never invoked before an authoritative change binding is accepted
+    protects:
+      invariants:
+        - closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
+      files:
+        - golang/architecture/changebindingconsumer/consume.go
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestConsume_CorrespondenceAttacksBlock
+    title: A change-to-task binding is authoritative only on exact correspondence to the current subject
+    protects:
+      invariants:
+        - closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
+      files:
+        - golang/architecture/changebindingconsumer/consume.go

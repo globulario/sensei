@@ -252,6 +252,12 @@ func runGate(args []string) int {
 	rpcTimeout := fs.Duration("rpc-timeout", 10*time.Second, "per-file Sensei RPC timeout; set <=0 to use only --total-timeout")
 	gateCompletion := fs.Bool("completion", false, "Phase 9.4a completion gate (advisory): report a task's Phase-8 closure verdict + the three distinctions read-only instead of gating a diff. Requires --task-dir; consumes the canonical completion projection envelope; exits 0 always (enforcement is 9.4b).")
 	gateTaskDir := fs.String("task-dir", "", "completion gate: the explicit task directory (.sensei/tasks/task.<id>)")
+	// Phase 9.4c: authoritative change-to-task binding consumed BEFORE the 9.4b decision.
+	requireBinding := fs.Bool("require-binding", false, "Phase 9.4c: require an authoritative completion.change_task_binding/v1 (from --binding) that matches the current GitHub subject before the completion enforce decision runs.")
+	bindingPath := fs.String("binding", "", "Phase 9.4c: path to the published change-to-task binding artifact to consume.")
+	gateTaskID := fs.String("task-id", "", "Phase 9.4c: explicit canonical task id (for binding subject correspondence).")
+	gateSessionID := fs.String("session-id", "", "Phase 9.4c: explicit task session id (for binding subject correspondence).")
+	completionDigest := fs.String("completion-digest", "", "Phase 9.4c: the completion-result digest under evaluation (for binding subject correspondence).")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei gate [--diff <range>] [--domain <repo>] [--enforce] [flags]
 
@@ -296,7 +302,12 @@ Flags:
 	if *gateCompletion {
 		modeLower := strings.ToLower(strings.TrimSpace(*mode))
 		if *enforce || modeLower == "enforce" || modeLower == "block" {
-			return runGateCompletionEnforce(*repoRoot, *gateTaskDir, *domain, *policyPath, *asJSON, *sarifPath)
+			return runGateCompletionEnforce(completionEnforceArgs{
+				repoRoot: *repoRoot, taskDir: *gateTaskDir, domain: *domain, policyPath: *policyPath,
+				asJSON: *asJSON, sarifPath: *sarifPath,
+				requireBinding: *requireBinding, bindingPath: *bindingPath,
+				taskID: *gateTaskID, sessionID: *gateSessionID, completionDigest: *completionDigest,
+			})
 		}
 		// Advisory (9.4a) — unchanged. A completion policy applies only under --enforce, so
 		// supplying --policy here is a no-op the gate rejects rather than silently ignore.

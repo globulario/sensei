@@ -145,10 +145,48 @@ runs:
             echo "❌ Binding production failed — see the typed audit \`${{ inputs.binding-audit }}\`."
           fi
         } >> "$GITHUB_STEP_SUMMARY"
-        # Fail loudly when production was requested but could not complete. This is a
-        # PRODUCTION failure — it never feeds the 9.4b enforcement decision below, which does
-        # not consume the binding in this checkpoint (composition is Checkpoint 3).
+        # Fail loudly when production was requested but could not complete.
         exit $PCODE
+
+    - name: Enforce completion with the change-to-task binding (Phase 9.4c)
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${{ inputs.produce-completion-binding }}" != "true" ]; then
+          echo "completion+binding enforcement not requested; skipping."
+          exit 0
+        fi
+        echo "::group::Consume binding + enforce completion"
+        DOMAIN=""; [ -n "${{ inputs.domain }}" ] && DOMAIN="--domain ${{ inputs.domain }}"
+        set +e
+        sensei gate --completion --enforce --require-binding \
+          --repo-root . \
+          --binding "${{ inputs.binding-output }}" \
+          --task-dir "${{ inputs.completion-task-dir }}" \
+          --task-id "${{ inputs.completion-task-id }}" \
+          --session-id "${{ inputs.completion-session-id }}" \
+          --completion-digest "${{ inputs.completion-digest }}" \
+          $DOMAIN --json | tee "$RUNNER_TEMP/completion-enforce.json"
+        ECODE=${PIPESTATUS[0]}
+        set -e
+        echo "::endgroup::"
+        {
+          echo "## Sensei completion enforcement (binding-composed)"
+          echo ""
+          if [ "$ECODE" = "0" ]; then
+            echo "✅ Authoritative binding + completion decision passed (or authorized degraded)."
+          elif [ "$ECODE" = "2" ]; then
+            echo "⚠️ Invocation/config error (see the combined audit)."
+          else
+            echo "❌ Blocked at the binding or completion stage — see the combined audit."
+          fi
+          echo ""
+          echo '```json'
+          cat "$RUNNER_TEMP/completion-enforce.json" 2>/dev/null || true
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        # The binding is consumed BEFORE the completion decision; a block fails the workflow.
+        exit $ECODE
 
     - name: Gate the diff + write job summary
       shell: bash
