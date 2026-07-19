@@ -3,6 +3,7 @@
 package completion
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -55,17 +56,17 @@ type evidence struct {
 
 // loadTaskWorld verifies the task ledger and reads the current task identity, head,
 // and result binding read-only. It never repairs or rebuilds.
-func loadTaskWorld(taskDir string) (ledger.VerifiedChain, closureprotocol.TaskBinding, string, closureprotocol.ResultBinding, bool, error) {
+func loadTaskWorld(ctx context.Context, taskDir string) (ledger.VerifiedChain, closureprotocol.TaskBinding, string, closureprotocol.ResultBinding, bool, error) {
 	store := ledger.NewStore(taskDir)
-	report, err := store.Verify()
+	report, err := store.VerifyCtx(ctx)
 	if err != nil || !report.Valid || report.EntryCount == 0 {
 		return ledger.VerifiedChain{}, closureprotocol.TaskBinding{}, "", closureprotocol.ResultBinding{}, false, fmt.Errorf("task ledger did not verify")
 	}
-	chain, err := store.VerifyChain()
+	chain, err := store.VerifyChainCtx(ctx)
 	if err != nil || len(chain.Entries) == 0 {
 		return ledger.VerifiedChain{}, closureprotocol.TaskBinding{}, "", closureprotocol.ResultBinding{}, false, fmt.Errorf("task ledger chain unavailable")
 	}
-	ra, err := admission.LoadRecordedAuthority(taskDir)
+	ra, err := admission.LoadRecordedAuthorityCtx(ctx, taskDir)
 	if err != nil {
 		return ledger.VerifiedChain{}, closureprotocol.TaskBinding{}, "", closureprotocol.ResultBinding{}, false, fmt.Errorf("load recorded authority: %w", err)
 	}

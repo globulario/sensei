@@ -3,6 +3,7 @@
 package ledger
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,8 +12,8 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 )
 
-func verifyTaskLedger(taskDir string, validator PayloadValidator) (VerificationReport, error) {
-	chain, report, err := verifyAndLoadChain(taskDir, validator)
+func verifyTaskLedger(ctx context.Context, taskDir string, validator PayloadValidator) (VerificationReport, error) {
+	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
 	if err != nil {
 		return VerificationReport{}, err
 	}
@@ -30,8 +31,8 @@ func verifyTaskLedger(taskDir string, validator PayloadValidator) (VerificationR
 	return report, nil
 }
 
-func loadVerifiedChain(taskDir string, validator PayloadValidator) (VerifiedChain, error) {
-	chain, report, err := verifyAndLoadChain(taskDir, validator)
+func loadVerifiedChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, error) {
+	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
 	if err != nil {
 		return VerifiedChain{}, err
 	}
@@ -41,7 +42,7 @@ func loadVerifiedChain(taskDir string, validator PayloadValidator) (VerifiedChai
 	return chain, nil
 }
 
-func verifyAndLoadChain(taskDir string, validator PayloadValidator) (VerifiedChain, VerificationReport, error) {
+func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, VerificationReport, error) {
 	s := NewStore(taskDir, WithPayloadValidator(validator))
 	files, err := listLedgerEntryFiles(s.ledgerDir())
 	if err != nil {
@@ -107,7 +108,7 @@ func verifyAndLoadChain(taskDir string, validator PayloadValidator) (VerifiedCha
 			if err != nil {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.payload_unreadable", Detail: err.Error(), Path: filepath.ToSlash(payloadPath)})
 			} else {
-				digest, err := semanticDigestForBytes(entry.Payload.MediaType, data)
+				digest, err := semanticDigestForBytesCtx(ctx, entry.Payload.MediaType, data)
 				if err != nil {
 					report.Errors = append(report.Errors, VerificationError{Code: "ledger.payload_render_failed", Detail: err.Error(), Path: filepath.ToSlash(payloadPath)})
 				} else if digest != entry.Payload.DigestSHA256 {

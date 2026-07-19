@@ -102,13 +102,25 @@ func (s *Store) Append(ctx context.Context, req AppendRequest) (AppendResult, er
 }
 
 func (s *Store) Verify() (VerificationReport, error) {
-	return verifyTaskLedger(s.taskDir, s.payloadValidator)
+	return verifyTaskLedger(context.Background(), s.taskDir, s.payloadValidator)
+}
+
+// VerifyCtx is Verify with an evaluation scope. When ctx carries a verification
+// scope (see WithVerificationScope) the chain's per-payload semantic digests are
+// memoized for this evaluation; the verification is otherwise identical.
+func (s *Store) VerifyCtx(ctx context.Context) (VerificationReport, error) {
+	return verifyTaskLedger(ctx, s.taskDir, s.payloadValidator)
 }
 
 func (s *Store) VerifyChain() (VerifiedChain, error) {
-	return loadVerifiedChain(s.taskDir, s.payloadValidator)
+	return loadVerifiedChain(context.Background(), s.taskDir, s.payloadValidator)
+}
+
+// VerifyChainCtx is VerifyChain with an evaluation scope (see VerifyCtx).
+func (s *Store) VerifyChainCtx(ctx context.Context) (VerifiedChain, error) {
+	return loadVerifiedChain(ctx, s.taskDir, s.payloadValidator)
 }
 
 func VerifyTaskLedger(taskDir string) (VerificationReport, error) {
-	return verifyTaskLedger(taskDir, nil)
+	return verifyTaskLedger(context.Background(), taskDir, nil)
 }

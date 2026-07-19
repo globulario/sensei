@@ -3,6 +3,7 @@
 package admission
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -42,6 +43,17 @@ func LoadLatestArtifactOptional(taskDir string, eventType closureprotocol.Ledger
 	if err != nil {
 		return false, err
 	}
+	return latestArtifactFromChain(taskDir, chain, eventType, artifactKey, out)
+}
+
+// latestArtifactFromChain reads a named JSON artifact from the most recent event of
+// eventType in an already-verified chain, without re-verifying it. It is the shared
+// core of the artifact loaders, so a caller that needs several artifacts from one
+// chain (LoadRecordedAuthority) can verify the ledger once and read each artifact
+// from the same verified snapshot instead of reopening the world per artifact. A
+// latest event that omits artifactKey yields (false, nil); an absent event fails
+// closed with the same error the per-artifact loaders return.
+func latestArtifactFromChain(taskDir string, chain ledger.VerifiedChain, eventType closureprotocol.LedgerEventType, artifactKey string, out any) (bool, error) {
 	for i := len(chain.Entries) - 1; i >= 0; i-- {
 		ve := chain.Entries[i]
 		if ve.Entry.EventType != eventType {
@@ -167,18 +179,42 @@ type RecordedAuthority struct {
 // delegation receipts are loaded only when the event recorded them (delegated
 // resolutions); a non-delegated resolution leaves DelegationReceipts nil.
 func LoadRecordedAuthority(taskDir string) (RecordedAuthority, error) {
+	return LoadRecordedAuthorityCtx(context.Background(), taskDir)
+}
+
+// LoadRecordedAuthorityCtx loads the latest authority_resolved bundle, verifying the
+// task ledger exactly once and reading all five artifacts from that single verified
+// chain instead of re-verifying per artifact. When ctx carries an evaluation scope
+// (ledger.WithVerificationScope) the verification participates in that scope's digest
+// memo. The result is byte-for-byte identical to loading each artifact separately:
+// the four core artifacts fail closed when absent, and delegation receipts are read
+// only when the event recorded them.
+func LoadRecordedAuthorityCtx(ctx context.Context, taskDir string) (RecordedAuthority, error) {
+	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
+	chain, err := store.VerifyChainCtx(ctx)
+	if err != nil {
+		return RecordedAuthority{}, err
+	}
 	var out RecordedAuthority
-	for key, dst := range map[string]any{
-		"authority_resolution": &out.Resolution,
-		"actor_binding":        &out.Actor,
-		"change_plan":          &out.ChangePlan,
-		"base_binding":         &out.Base,
-	} {
-		if err := LoadLatestArtifact(taskDir, closureprotocol.LedgerEventAuthorityResolved, key, dst); err != nil {
+	required := []struct {
+		key string
+		dst any
+	}{
+		{"authority_resolution", &out.Resolution},
+		{"actor_binding", &out.Actor},
+		{"change_plan", &out.ChangePlan},
+		{"base_binding", &out.Base},
+	}
+	for _, r := range required {
+		found, err := latestArtifactFromChain(taskDir, chain, closureprotocol.LedgerEventAuthorityResolved, r.key, r.dst)
+		if err != nil {
 			return RecordedAuthority{}, err
 		}
+		if !found {
+			return RecordedAuthority{}, fmt.Errorf("ledger event %s has no artifact %q", closureprotocol.LedgerEventAuthorityResolved, r.key)
+		}
 	}
-	if _, err := LoadLatestArtifactOptional(taskDir, closureprotocol.LedgerEventAuthorityResolved, "delegation_receipts", &out.DelegationReceipts); err != nil {
+	if _, err := latestArtifactFromChain(taskDir, chain, closureprotocol.LedgerEventAuthorityResolved, "delegation_receipts", &out.DelegationReceipts); err != nil {
 		return RecordedAuthority{}, err
 	}
 	return out, nil
