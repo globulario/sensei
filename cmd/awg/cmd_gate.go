@@ -288,9 +288,21 @@ Flags:
 	}
 
 	// Phase 9.4a: the advisory completion gate is a distinct read path — it consumes a
-	// task's completion projection envelope, not a diff. It ignores the diff/domain/
-	// enforcement flags and always exits 0.
+	// task's completion projection envelope, not a diff, and always exits 0 on an
+	// evaluated outcome. It is ADVISORY ONLY. An explicit enforcement request must be a
+	// hard invocation error, never a silently-downgraded advisory pass — otherwise a
+	// caller who asked to "lock it" would get a counterfeit green. Enforcement and the
+	// completion policy are locked to Phase 9.4b.
 	if *gateCompletion {
+		modeLower := strings.ToLower(strings.TrimSpace(*mode))
+		if *enforce || modeLower == "enforce" || modeLower == "block" {
+			fmt.Fprintln(os.Stderr, "sensei gate --completion: completion enforcement is unavailable until Phase 9.4b; 9.4a is advisory-only (remove --enforce / --mode enforce)")
+			return 2
+		}
+		if strings.TrimSpace(*policyPath) != "" {
+			fmt.Fprintln(os.Stderr, "sensei gate --completion: a completion gate policy is unavailable until Phase 9.4b; do not supply --policy with --completion")
+			return 2
+		}
 		return runGateCompletion(*repoRoot, *gateTaskDir, *asJSON, *sarifPath)
 	}
 
