@@ -374,12 +374,12 @@ equivalent to `sensei serve --repo-root <path> --repo-domain <canonical-domain>`
 spellings may follow repository conventions; the two pieces form ONE context). Frozen rules:
 - neither value is ever supplied by `BriefingRequest`;
 - both must be configured together — one without the other is a configuration error;
-- neither configured ⇒ the feedback leg is DISABLED and OMITTED from the response (no
-  field 7, no prose, no status change): the response is byte-for-byte the pre-9.6 graph
-  briefing, "fully usable", never forced to DEGRADED (feedback is an opt-in configured
-  feature, distinct from a configured-but-unavailable leg which composes to DEGRADED); the
-  `briefingfeedback` owner still reports `repository_context_absent` for a consumer with no
-  context. Only ONE repository is supported;
+- neither configured ⇒ feedback is EXPLICIT and typed on the wire: field 7 carries a
+  `feedback_unavailable` projection with reason `repository_context_absent`, and the base
+  status composes to DEGRADED per the frozen table while the complete base graph briefing
+  prose is preserved. This is the honest state — the complete Phase 9.6 briefing surface
+  reports that governed feedback could not be established — not an omission and not
+  `feedback_empty`. Only ONE repository is supported;
 - the root is resolved (symlinks once) and validated as an existing directory once at
   startup; the domain is exact, unpadded, whitespace-free, and immutable;
 - a request whose exact resolved graph domain is not the configured repository domain may
@@ -403,7 +403,41 @@ the generic server briefing a task-only request:
 
 The exact task-scoped feedback path already exists through `TaskBriefing.FeedbackProjection`
 (Checkpoint 1); Checkpoint 2 creates no second task-resolution surface inside the generic
-server briefing.
+server briefing. Because task-only feedback can never be established, a task-only server
+briefing always composes to DEGRADED.
+
+### 17.4 Raw request identity + feedback invalidity (frozen)
+The graph briefing may continue using its established normalized (trimmed) inputs. The
+feedback leg SEPARATELY inspects the RAW `BriefingRequest.file` / `.domain` (captured before
+trimming) so a padded identity the graph briefing silently repaired can never become feedback
+authority. A feedback file identity is canonical only when the raw value equals its trim, is
+non-empty (file-scoped), and passes the repository-relative rules with no repair; a feedback
+domain is canonical only when the raw value equals its trim with no embedded whitespace (empty
+permitted under the graph domain-resolution contract). A trimmed/case-folded value is never
+proof of repository match. For a configured server with noncanonical raw identity, the feedback
+leg invokes NO promotion discovery or verification and emits a `feedback_invalid` projection
+(`promotion_scope_identity_invalid`, reason `requested_file_noncanonical` /
+`requested_domain_noncanonical`) via the canonical `briefingfeedback.BuildInvalid` constructor;
+the base graph briefing remains usable where the graph surface still accepts the (trimmed)
+request, and combined status is DEGRADED.
+
+### 17.5 Atomic projection+wire resolution (frozen)
+The server resolves the feedback projection AND its wire mapping as ONE pair
+(`resolvedBriefingFeedback{Projection, Wire}`) and uses that single pair for field 7, prose,
+referenced ids, and status — the projection is never mapped a second time, so the structured
+section, prose, referenced ids, and status can never diverge or reference different
+projections. If mapping a valid primary projection unexpectedly fails, the server logs the raw
+adapter error server-side, builds and maps ONE canonical `feedback_projection_internal_
+unavailable` fallback, and uses it consistently; if even the fallback cannot map, the RPC
+returns a typed gRPC internal error rather than a response where prose/status/references and
+field 7 diverge.
+
+### 17.6 Backward compatibility (frozen distinction)
+WIRE compatibility: existing clients that do not know field 7 keep decoding the response and
+ignore it. SEMANTIC change: an upgraded server's overall status MAY now become DEGRADED because
+the complete Phase 9.6 briefing surface explicitly reports that governed briefing feedback
+could not be established (e.g. an unconfigured server). Checkpoint 2 does NOT claim byte-for-byte
+or status-identical compatibility for an unconfigured new server.
 
 ### 17.3 Additive typed wire + prose parity (frozen)
 The server is a thin consumer: it never rediscovers promotion artifacts, reimplements

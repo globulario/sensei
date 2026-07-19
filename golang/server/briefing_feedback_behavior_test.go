@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/store"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func testFeedbackServer(repo *briefingRepositoryContext) *server {
@@ -65,7 +68,7 @@ func TestBriefingFeedback_RepositoryContextAbsent(t *testing.T) {
 // non-existent root still yields a clean domain-mismatch projection, not an internal error).
 func TestBriefingFeedback_ForeignDomainNoOwnerInvocation(t *testing.T) {
 	s := testFeedbackServer(&briefingRepositoryContext{Root: "/nonexistent/repo", Domain: "github.com/x/y"})
-	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{effectiveDomain: "github.com/other/z", file: "a/b.go"})
+	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{effectiveDomain: "github.com/other/z", file: "a/b.go", rawFile: "a/b.go", rawDomain: "github.com/other/z"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +80,7 @@ func TestBriefingFeedback_ForeignDomainNoOwnerInvocation(t *testing.T) {
 // Task-only server briefing → canonical-task-scope unavailable, no filesystem read.
 func TestBriefingFeedback_TaskOnlyUnavailable(t *testing.T) {
 	s := testFeedbackServer(&briefingRepositoryContext{Root: "/nonexistent/repo", Domain: "github.com/x/y"})
-	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{taskOnly: true, effectiveDomain: "github.com/x/y"})
+	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{taskOnly: true, effectiveDomain: "github.com/x/y", rawDomain: "github.com/x/y"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,22 +108,47 @@ func TestBriefingFeedbackProse_PrivacyAndParity(t *testing.T) {
 	_ = empty // exercised above; empty availability is covered by the seeded test
 }
 
-// Unconfigured server: feedback is OMITTED entirely — field 7 nil, status/prose unchanged
-// (backward compatible; old clients and the pre-9.6 contract are preserved).
-func TestBriefing_UnconfiguredOmitsFeedback(t *testing.T) {
+// Unconfigured server: feedback is EXPLICIT on the wire — field 7 present, feedback_unavailable,
+// reason repository_context_absent — and the base OK/EMPTY status composes to DEGRADED while the
+// base graph prose is preserved. (This is a semantic improvement, not byte-for-byte compat.)
+func TestBriefing_UnconfiguredEmitsUnavailableAndDegrades(t *testing.T) {
+	// Base EMPTY (no anchors) → DEGRADED.
 	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.GetFeedback() != nil {
-		t.Fatalf("unconfigured server must omit feedback, got %+v", resp.GetFeedback())
+	if resp.GetFeedback() == nil {
+		t.Fatal("unconfigured server must emit an explicit feedback section (field 7)")
 	}
-	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
-		t.Fatalf("unconfigured status must be unchanged EMPTY, got %v", resp.GetStatus())
+	if resp.GetFeedback().GetAvailability() != awarenesspb.BriefingFeedbackAvailability_BRIEFING_FEEDBACK_AVAILABILITY_UNAVAILABLE {
+		t.Fatalf("unconfigured feedback must be unavailable, got %v", resp.GetFeedback().GetAvailability())
 	}
-	if strings.Contains(resp.GetProse(), "Governed briefing feedback") {
-		t.Fatalf("unconfigured server must not render feedback prose")
+	if len(resp.GetFeedback().GetFindings()) != 1 || resp.GetFeedback().GetFindings()[0].GetReasonCode() != string(briefingfeedback.RepositoryContextAbsent) {
+		t.Fatalf("unconfigured reason must be repository_context_absent: %+v", resp.GetFeedback().GetFindings())
+	}
+	if resp.GetFeedback().GetTaskId() != "" {
+		t.Fatalf("unconfigured feedback must carry no task identity")
+	}
+	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_DEGRADED {
+		t.Fatalf("EMPTY base + unavailable feedback must be DEGRADED, got %v", resp.GetStatus())
+	}
+	if !strings.Contains(resp.GetProse(), "Awareness briefing for test/example.go") {
+		t.Fatalf("base graph prose was erased: %q", resp.GetProse())
+	}
+
+	// Base OK (an anchor) → DEGRADED.
+	s2 := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
+		return []store.ImpactFact{
+			{NodeIRI: "https://globular.io/awareness#invariant/test.x", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "x"},
+		}, nil
+	}})
+	resp2, err := s2.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp2.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_DEGRADED {
+		t.Fatalf("OK base + unavailable feedback must be DEGRADED, got %v", resp2.GetStatus())
 	}
 }
 
@@ -170,5 +198,127 @@ func TestBriefing_ForeignDomainDegradesButKeepsBase(t *testing.T) {
 	// The base graph briefing is preserved.
 	if !strings.Contains(resp.GetProse(), "Awareness briefing for test/example.go") {
 		t.Fatalf("base graph briefing prose was erased: %q", resp.GetProse())
+	}
+}
+
+// Padded/noncanonical raw identity never reaches the owner and yields feedback_invalid. The
+// configured root points at a non-existent path: if the owner ran, Build would return an
+// INTERNAL projection, so an invalid reason structurally proves the owner was not invoked.
+func TestBriefingFeedback_PaddedIdentityNeverReachesOwner(t *testing.T) {
+	s := testFeedbackServer(&briefingRepositoryContext{Root: "/nonexistent/repo", Domain: "github.com/x/y"})
+	cases := []struct {
+		name   string
+		scope  feedbackBriefingScope
+		reason briefingfeedback.InvalidReason
+	}{
+		{"padded file", feedbackBriefingScope{effectiveDomain: "github.com/x/y", file: "a/b.go", rawFile: " a/b.go", rawDomain: "github.com/x/y"}, briefingfeedback.RequestedFileNoncanonical},
+		{"unsafe file", feedbackBriefingScope{effectiveDomain: "github.com/x/y", file: "a/b.go", rawFile: "../escape", rawDomain: "github.com/x/y"}, briefingfeedback.RequestedFileNoncanonical},
+		{"padded domain", feedbackBriefingScope{effectiveDomain: "github.com/x/y", file: "a/b.go", rawFile: "a/b.go", rawDomain: "github.com/x/y "}, briefingfeedback.RequestedDomainNoncanonical},
+		{"whitespace domain", feedbackBriefingScope{effectiveDomain: "github.com/x/y", file: "a/b.go", rawFile: "a/b.go", rawDomain: "a b"}, briefingfeedback.RequestedDomainNoncanonical},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, err := s.briefingFeedback(context.Background(), tc.scope)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p.Availability != briefingfeedback.FeedbackInvalid || p.Findings[0].ReasonCode != string(tc.reason) {
+				t.Fatalf("want feedback_invalid/%s (no owner call), got %q %+v", tc.reason, p.Availability, p.Findings)
+			}
+		})
+	}
+}
+
+// A padded raw file on a CONFIGURED server: feedback is invalid → DEGRADED, but the graph
+// briefing (which trims) still produces its base prose.
+func TestBriefing_PaddedFileInvalidKeepsGraphBriefing(t *testing.T) {
+	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
+		return []store.ImpactFact{
+			{NodeIRI: "https://globular.io/awareness#invariant/test.x", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "x"},
+		}, nil
+	}})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
+	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: " test/example.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.GetFeedback().GetAvailability() != awarenesspb.BriefingFeedbackAvailability_BRIEFING_FEEDBACK_AVAILABILITY_INVALID {
+		t.Fatalf("padded file must yield feedback_invalid, got %v", resp.GetFeedback().GetAvailability())
+	}
+	if resp.GetFeedback().GetFindings()[0].GetReasonCode() != string(briefingfeedback.RequestedFileNoncanonical) {
+		t.Fatalf("wrong invalid reason: %v", resp.GetFeedback().GetFindings())
+	}
+	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_DEGRADED {
+		t.Fatalf("invalid feedback must degrade, got %v", resp.GetStatus())
+	}
+	if !strings.Contains(resp.GetProse(), "Awareness briefing for test/example.go") {
+		t.Fatalf("graph briefing prose (trimmed file) must remain: %q", resp.GetProse())
+	}
+}
+
+// The resolver returns the projection and its wire mapping as one pair (same digest).
+func TestResolveBriefingFeedback_AtomicPair(t *testing.T) {
+	s := testFeedbackServer(nil)
+	resolved, err := s.resolveBriefingFeedback(context.Background(), feedbackBriefingScope{effectiveDomain: "github.com/x/y", file: "a/b.go", rawFile: "a/b.go", rawDomain: "github.com/x/y"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Wire == nil || resolved.Wire.GetDigestSha256() != resolved.Projection.DigestSHA256 {
+		t.Fatalf("projection and wire are not the same pair")
+	}
+}
+
+// Injected primary adapter failure → the resolver falls back to a canonical internal-unavailable
+// projection, mapped consistently (field 7 + projection agree). A double failure → error.
+func TestResolveBriefingFeedback_AdapterFallback(t *testing.T) {
+	orig := briefingFeedbackMapper
+	defer func() { briefingFeedbackMapper = orig }()
+
+	// Fail only the FIRST mapping; the fallback maps normally.
+	calls := 0
+	briefingFeedbackMapper = func(p briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
+		calls++
+		if calls == 1 {
+			return nil, errBoom
+		}
+		return orig(p)
+	}
+	s := testFeedbackServer(&briefingRepositoryContext{Root: "/nonexistent", Domain: "github.com/x/y"})
+	resolved, err := s.resolveBriefingFeedback(context.Background(), feedbackBriefingScope{taskOnly: true, effectiveDomain: "github.com/x/y", rawDomain: "github.com/x/y"})
+	if err != nil {
+		t.Fatalf("single adapter failure should fall back, got %v", err)
+	}
+	if resolved.Projection.Availability != briefingfeedback.FeedbackUnavailable ||
+		resolved.Projection.Findings[0].ReasonCode != string(briefingfeedback.FeedbackProjectionInternalUnavailable) {
+		t.Fatalf("fallback must be feedback_projection_internal_unavailable: %+v", resolved.Projection.Findings)
+	}
+	if resolved.Wire == nil || resolved.Wire.GetDigestSha256() != resolved.Projection.DigestSHA256 {
+		t.Fatalf("fallback projection and wire must agree")
+	}
+
+	// Fail ALL mappings → resolver returns an error (RPC translates to gRPC internal).
+	briefingFeedbackMapper = func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
+		return nil, errBoom
+	}
+	if _, err := s.resolveBriefingFeedback(context.Background(), feedbackBriefingScope{taskOnly: true, effectiveDomain: "github.com/x/y", rawDomain: "github.com/x/y"}); err == nil {
+		t.Fatal("double adapter failure must return an error")
+	}
+}
+
+var errBoom = fmt.Errorf("injected adapter failure")
+
+// When even the fallback cannot map, the RPC returns a typed gRPC internal error rather than a
+// divergent response (prose/status without field 7).
+func TestBriefing_DoubleAdapterFailureReturnsInternal(t *testing.T) {
+	orig := briefingFeedbackMapper
+	defer func() { briefingFeedbackMapper = orig }()
+	briefingFeedbackMapper = func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
+		return nil, errBoom
+	}
+	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
+	_, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("double adapter failure must yield gRPC Internal, got %v", err)
 	}
 }

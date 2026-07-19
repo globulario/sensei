@@ -94,7 +94,7 @@ func TestBriefingFeedback_VerifiedPromotionEndToEnd(t *testing.T) {
 	repo := seedServerPromotion(t, []string{file})
 	s := testFeedbackServer(&briefingRepositoryContext{Root: repo, Domain: feedbackTestDomain})
 
-	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{effectiveDomain: feedbackTestDomain, file: file})
+	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{effectiveDomain: feedbackTestDomain, file: file, rawFile: file, rawDomain: feedbackTestDomain})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestBriefingFeedback_VerifiedPromotionEndToEnd(t *testing.T) {
 func TestBriefingFeedback_OutOfScopeIsEmpty(t *testing.T) {
 	repo := seedServerPromotion(t, []string{"golang/server/reload.go"})
 	s := testFeedbackServer(&briefingRepositoryContext{Root: repo, Domain: feedbackTestDomain})
-	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{effectiveDomain: feedbackTestDomain, file: "cmd/other/main.go"})
+	p, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{effectiveDomain: feedbackTestDomain, file: "cmd/other/main.go", rawFile: "cmd/other/main.go", rawDomain: feedbackTestDomain})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -92,6 +92,70 @@ func BuildUnavailable(scope Scope, reason UnavailableReason) (Projection, error)
 	return p, nil
 }
 
+// InvalidReason is the CLOSED vocabulary of typed reasons a consumer's RAW request identity is
+// noncanonical, so no feedback can be scoped. The zero value fails closed.
+type InvalidReason string
+
+const (
+	// RequestedFileNoncanonical: the raw requested file was padded/unsafe/noncanonical.
+	RequestedFileNoncanonical InvalidReason = "requested_file_noncanonical"
+	// RequestedDomainNoncanonical: the raw requested domain was padded or carried whitespace.
+	RequestedDomainNoncanonical InvalidReason = "requested_domain_noncanonical"
+)
+
+func validInvalidReason(r InvalidReason) bool {
+	switch r {
+	case RequestedFileNoncanonical, RequestedDomainNoncanonical:
+		return true
+	}
+	return false
+}
+
+// BuildInvalid produces a valid, deterministic feedback_invalid projection carrying one typed
+// excluded finding for a noncanonical raw request identity. It is the canonical owner operation
+// for consumer scope-identity invalidity — the server never hand-assembles an invalid
+// projection. It serializes NO raw unsafe identity (the sanitizing carrier blanks/drops
+// noncanonical fields) and no filesystem root, and fails closed on an unknown reason.
+func BuildInvalid(scope Scope, reason InvalidReason) (Projection, error) {
+	if !validInvalidReason(reason) {
+		return Projection{}, fmt.Errorf("unknown invalid reason %q", reason)
+	}
+	identity := canonicalOrBlank(scope.RepositoryIdentity)
+	files := canonicalFiles(scope.RequestedFiles)
+	finding := Finding{
+		Class:          PromotionScopeIdentityInvalid,
+		ReasonCode:     string(reason),
+		Disposition:    DispositionExcluded,
+		AffectedDomain: canonicalOrBlank(scope.RequestedDomain),
+		AffectedFiles:  files,
+	}
+	p := Projection{
+		SchemaVersion:              SchemaVersion,
+		ProducerName:               ProducerName,
+		ProducerVersion:            ProducerVersion,
+		RepositoryIdentity:         identity,
+		RequestedDomain:            canonicalDomainOrBlank(scope.RequestedDomain, identity),
+		RequestedFiles:             files,
+		Availability:               FeedbackInvalid,
+		Findings:                   []Finding{finding},
+		NonAuthoritativeProjection: true,
+		Bound:                      BoundStatement,
+	}
+	if scope.Task != nil && scope.Task.TaskID != "" && scope.Task.SessionID != "" && scope.Task.RepositoryDomain == identity {
+		p.TaskID = scope.Task.TaskID
+		p.SessionID = scope.Task.SessionID
+	}
+	dig, err := ComputeDigest(p)
+	if err != nil {
+		return Projection{}, err
+	}
+	p.DigestSHA256 = dig
+	if err := ValidateProjection(p); err != nil {
+		return Projection{}, err
+	}
+	return p, nil
+}
+
 // canonicalFiles canonicalizes, deduplicates, and sorts a file list, dropping any entry that is
 // not repository-relative canonical (a fail-closed carrier never surfaces an unsafe path).
 func canonicalFiles(in []string) []string {

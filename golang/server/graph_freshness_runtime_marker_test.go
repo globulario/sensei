@@ -202,6 +202,7 @@ func TestBriefing_RuntimeMarkerAllowsNonEmbeddedAuthoritativeGraph(t *testing.T)
 		},
 	})
 	s.graphMarkerFile = markerPath
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{
 		File: "modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go",

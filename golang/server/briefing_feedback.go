@@ -17,25 +17,50 @@ import (
 )
 
 // feedbackBriefingScope is the exact, already-resolved scope the server hands to the feedback
-// selector. It carries NO filesystem root (the root is the immutable startup-owned context).
+// selector. It carries NO filesystem root. rawFile/rawDomain are the UNTRIMMED request values —
+// the feedback leg checks their canonicality itself so a padded identity the graph briefing
+// silently trimmed can never be repaired into feedback authority.
 type feedbackBriefingScope struct {
 	taskOnly        bool   // natural-language task briefing — no canonical file/task scope
 	effectiveDomain string // the exact domain the graph briefing already resolved
-	file            string // repository-relative file (file-scoped only)
+	file            string // canonical repository-relative file (file-scoped only)
+	rawFile         string // untrimmed BriefingRequest.file
+	rawDomain       string // untrimmed BriefingRequest.domain
+}
+
+// resolvedBriefingFeedback is the ONE atomic result: a valid projection AND its exact wire
+// mapping. The RPC uses this single pair for field 7, prose, referenced ids, and status, so the
+// structured section, the prose, and the status can never diverge or reference different
+// projections.
+type resolvedBriefingFeedback struct {
+	Projection briefingfeedback.Projection
+	Wire       *awarenesspb.BriefingFeedbackProjection
 }
 
 // briefingFeedback selects exactly ONE feedback path and returns the canonical projection. It
 // is a thin consumer: it never rediscovers promotions, reimplements verification, calculates
-// availability, or reinterprets findings — it either invokes the canonical owner
-// (briefingfeedback.Build) for an exact file-scoped request against the matching configured
-// repository, or returns a canonical typed-unavailable projection for every other case WITHOUT
-// touching the filesystem or invoking the owner.
+// availability, or reinterprets findings.
+//
+// Precedence: repository context absent (feature not configured) → repository_context_absent
+// (no filesystem access, no owner invocation); then noncanonical RAW identity → feedback_invalid
+// (no owner invocation); then task-only → canonical_task_scope_not_established; then foreign
+// resolved domain → repository_context_domain_mismatch; then the exact file-scoped owner call.
 func (s *server) briefingFeedback(ctx context.Context, scope feedbackBriefingScope) (briefingfeedback.Projection, error) {
-	// Repository context absent — no filesystem access, no owner invocation.
+	// Repository context absent — feedback is unavailable but explicit on the wire. No
+	// filesystem access, no owner invocation, no task identity.
 	if s.briefingRepo == nil {
 		return briefingfeedback.BuildUnavailable(feedbackScopeIdentity(scope, ""), briefingfeedback.RepositoryContextAbsent)
 	}
 	repo := s.briefingRepo
+
+	// Noncanonical RAW identity is never repaired into feedback authority. The domain is checked
+	// in both modes; the file only in file-scoped mode. No promotion discovery/verification runs.
+	if !feedbackDomainCanonical(scope.rawDomain) {
+		return briefingfeedback.BuildInvalid(feedbackScopeIdentity(scope, repo.Domain), briefingfeedback.RequestedDomainNoncanonical)
+	}
+	if !scope.taskOnly && !feedbackFileCanonical(scope.rawFile) {
+		return briefingfeedback.BuildInvalid(feedbackScopeIdentity(scope, repo.Domain), briefingfeedback.RequestedFileNoncanonical)
+	}
 
 	// Task-only natural-language briefing — task text is not canonical task identity.
 	if scope.taskOnly {
@@ -49,8 +74,7 @@ func (s *server) briefingFeedback(ctx context.Context, scope feedbackBriefingSco
 	}
 
 	// File-scoped, matching repository — invoke the canonical owner with the IMMUTABLE
-	// configured root + domain and the exact repository-relative file. No task binding: the
-	// server never discovers a task for the file.
+	// configured root + domain and the exact repository-relative file. No task binding.
 	proj, err := briefingfeedback.Build(ctx, briefingfeedback.Request{
 		RepositoryRoot:     repo.Root,
 		RepositoryIdentity: repo.Domain,
@@ -58,7 +82,7 @@ func (s *server) briefingFeedback(ctx context.Context, scope feedbackBriefingSco
 		RequestedFiles:     []string{scope.file},
 	})
 	if err != nil {
-		// The owner's exceptional Go error stays server-side; the wire/prose get a typed
+		// The owner's exceptional Go error stays server-side; the caller gets a typed
 		// unavailable projection, never the raw error.
 		s.logger.Printf("awareness-graph: briefing feedback owner error (sanitized): %v", err)
 		return briefingfeedback.BuildUnavailable(feedbackScopeIdentity(scope, repo.Domain), briefingfeedback.FeedbackProjectionInternalUnavailable)
@@ -66,40 +90,73 @@ func (s *server) briefingFeedback(ctx context.Context, scope feedbackBriefingSco
 	return proj, nil
 }
 
-// resolveBriefingFeedback returns the feedback projection for a scope, or nil to OMIT feedback
-// entirely. Feedback is an opt-in configured feature: when no startup-owned repository context
-// is configured, the feedback leg is DISABLED and the response is byte-for-byte the pre-9.6
-// graph briefing (no field 7, no prose, no status change) — "the graph briefing remains
-// usable." nil is also returned in the impossible last-resort case that not even a typed
-// unavailable projection can be constructed, so the graph briefing is never aborted.
-func (s *server) resolveBriefingFeedback(ctx context.Context, scope feedbackBriefingScope) *briefingfeedback.Projection {
-	if s.briefingRepo == nil {
-		return nil // feedback disabled — graph briefing unchanged
-	}
+// resolveBriefingFeedback resolves the projection AND its wire mapping as one atomic pair. On
+// the (expected-unreachable) failure to map a valid primary projection, it falls back to a
+// canonical feedback_projection_internal_unavailable projection and maps THAT, using it
+// consistently. If even the fallback cannot map, it returns an error so the RPC fails with a
+// typed gRPC internal — never a response where prose/status/references and field 7 diverge.
+func (s *server) resolveBriefingFeedback(ctx context.Context, scope feedbackBriefingScope) (resolvedBriefingFeedback, error) {
 	proj, err := s.briefingFeedback(ctx, scope)
 	if err != nil {
-		s.logger.Printf("awareness-graph: briefing feedback projection unavailable (sanitized): %v", err)
-		return nil
+		return resolvedBriefingFeedback{}, fmt.Errorf("build briefing feedback projection: %w", err)
 	}
-	return &proj
+	if wire, werr := briefingFeedbackMapper(proj); werr == nil {
+		return resolvedBriefingFeedback{Projection: proj, Wire: wire}, nil
+	} else {
+		s.logger.Printf("awareness-graph: briefing feedback wire mapping failed (sanitized): %v", werr)
+	}
+	// Adapter-failure fallback: one canonical internal-unavailable projection, mapped once.
+	domain := ""
+	if s.briefingRepo != nil {
+		domain = s.briefingRepo.Domain
+	}
+	fb, ferr := briefingfeedback.BuildUnavailable(feedbackScopeIdentity(scope, domain), briefingfeedback.FeedbackProjectionInternalUnavailable)
+	if ferr != nil {
+		return resolvedBriefingFeedback{}, fmt.Errorf("build feedback fallback: %w", ferr)
+	}
+	fwire, fwerr := briefingFeedbackMapper(fb)
+	if fwerr != nil {
+		return resolvedBriefingFeedback{}, fmt.Errorf("map feedback fallback: %w", fwerr)
+	}
+	return resolvedBriefingFeedback{Projection: fb, Wire: fwire}, nil
 }
 
-// feedbackWire maps a resolved projection to its additive wire message, or nil (a mapping
-// failure is logged and never aborts the graph briefing).
-func (s *server) feedbackWire(proj *briefingfeedback.Projection) *awarenesspb.BriefingFeedbackProjection {
-	if proj == nil {
-		return nil
-	}
-	wire, err := briefingFeedbackToProto(*proj)
-	if err != nil {
-		s.logger.Printf("awareness-graph: briefing feedback wire mapping failed (sanitized): %v", err)
-		return nil
-	}
-	return wire
+// briefingFeedbackMapper is the projection→wire mapper, a package var so a test can inject a
+// mapping failure to exercise the (expected-unreachable) adapter-failure fallback. Production
+// always uses the pure briefingFeedbackToProto adapter.
+var briefingFeedbackMapper = briefingFeedbackToProto
+
+// feedbackDomainCanonical reports whether a RAW requested domain is canonical: unpadded and
+// free of embedded whitespace. Empty is permitted (the graph domain-resolution contract governs
+// it). A trimmed/case-folded value is never used as proof of repository match.
+func feedbackDomainCanonical(raw string) bool {
+	return raw == strings.TrimSpace(raw) && !strings.ContainsAny(raw, " \t\r\n")
 }
 
-// feedbackScopeIdentity builds the public identity for a typed-unavailable projection. It never
-// carries a filesystem root.
+// feedbackFileCanonical reports whether a RAW requested file is canonical: unpadded, non-empty,
+// and a safe repository-relative path (no leading/trailing whitespace repaired, no unsafe path
+// normalized into acceptance). Backslash→slash parity is permitted.
+func feedbackFileCanonical(raw string) bool {
+	if raw != strings.TrimSpace(raw) || raw == "" {
+		return false
+	}
+	s := strings.ReplaceAll(raw, "\\", "/")
+	if strings.HasPrefix(s, "/") {
+		return false
+	}
+	if len(s) >= 2 && s[1] == ':' {
+		return false
+	}
+	for _, seg := range strings.Split(s, "/") {
+		if seg == "" || seg == "." || seg == ".." || seg != strings.TrimSpace(seg) {
+			return false
+		}
+	}
+	return true
+}
+
+// feedbackScopeIdentity builds the public identity for a typed unavailable/invalid projection.
+// It never carries a filesystem root.
 func feedbackScopeIdentity(scope feedbackBriefingScope, repoDomain string) briefingfeedback.Scope {
 	sc := briefingfeedback.Scope{RepositoryIdentity: repoDomain, RequestedDomain: scope.effectiveDomain}
 	if !scope.taskOnly && scope.file != "" {
