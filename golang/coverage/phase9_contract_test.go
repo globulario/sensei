@@ -27,6 +27,7 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"closure.phase9_surfaces_locked_until_a_reviewed_slice",
 		// Slice 9.4 — CI/GitHub completion gate.
 		"closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict",
+		"closure.completion_gate_requires_explicit_identity_when_enforcement_applies",
 	}
 	wantFailureModes := []string{
 		"closure.phase9_surface_manufactures_or_reinterprets_completion",
@@ -42,6 +43,7 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"phase9_invent_a_gnn_or_ml_capability_without_repository_evidence",
 		"phase9_gate_fails_closed_on_sensei_unavailability",
 		"phase9_gate_enforces_without_per_domain_opt_in",
+		"phase9_gate_treats_missing_required_task_identity_as_runtime_unavailability",
 	}
 
 	assertGovernedIDs(t, filepath.Join(root, "docs", "awareness", "invariants.yaml"), "invariants", wantInvariants)
