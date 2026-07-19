@@ -44,6 +44,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/diffaudit"
 	"github.com/globulario/sensei/golang/architecture/completion"
 	"github.com/globulario/sensei/golang/architecture/probeexec"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
@@ -241,6 +242,20 @@ func (b *bridge) tools() []tool {
 					"domain":             map[string]interface{}{"type": "string"},
 				},
 				"required": []string{"kind"},
+			},
+		},
+		{
+			Name:        "awareness_audit_diff",
+			Description: "Deterministic read-only audit of a unified Git diff across touched files against active invariants, forbidden fixes, and contracts. Returns awareness.diff_audit/v1.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"diff":          map[string]interface{}{"type": "string", "description": "the raw unified Git diff payload"},
+					"task":          map[string]interface{}{"type": "string", "description": "optional human task description"},
+					"expected_head": map[string]interface{}{"type": "string", "description": "optional exact commit SHA"},
+					"domain":        map[string]interface{}{"type": "string", "description": "optional repo/domain scope"},
+				},
+				"required": []string{"diff"},
 			},
 		},
 		{
@@ -556,6 +571,9 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 
 	case "awareness_propose":
 		return b.callPropose(ctx, args)
+
+	case "awareness_audit_diff":
+		return b.callAuditDiff(ctx, args)
 
 	case "task_status":
 		repo, _ := args["repo"].(string)
@@ -1963,4 +1981,131 @@ func main() {
 		fmt.Fprintf(os.Stderr, "awareness-mcp: serve: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+type mcpSingleFileChecker struct {
+	bridge *bridge
+	ctx    context.Context
+}
+
+func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, content string, domain string) ([]diffaudit.AuditFinding, error) {
+	resp, err := c.bridge.client.EditCheck(ctx, &awarenesspb.EditCheckRequest{
+		File:            file,
+		ProposedContent: content,
+		Domain:          domain,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var findings []diffaudit.AuditFinding
+	for _, w := range resp.GetWarnings() {
+		disp := "review"
+		if w.GetEnforcement() == "block" || w.GetSeverity() == "block" {
+			disp = "block"
+		}
+		findings = append(findings, diffaudit.AuditFinding{
+			RecordID:    w.GetRuleId(),
+			RecordClass: w.GetClass(),
+			Disposition: disp,
+			FilePath:    file,
+			Explanation: w.GetMessage(),
+			Provenance:  w.GetProvenance(),
+		})
+	}
+	return findings, nil
+}
+
+func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]string, []string, []diffaudit.AuditFinding, error) {
+	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
+		File:   file,
+		Domain: domain,
+	})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	var tests []string
+	for _, t := range resp.GetRequiredTests() {
+		tests = append(tests, t.GetId())
+	}
+	var contracts []string
+	for _, ct := range resp.GetDirectIntents() {
+		contracts = append(contracts, ct.GetId())
+	}
+
+	var findings []diffaudit.AuditFinding
+	for _, ff := range resp.GetForbiddenFixes() {
+		findings = append(findings, diffaudit.AuditFinding{
+			RecordID:    ff.GetId(),
+			RecordClass: "forbidden_fix",
+			Disposition: "block",
+			FilePath:    file,
+			Explanation: ff.GetLabel(),
+		})
+	}
+	return tests, contracts, findings, nil
+}
+
+func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{}) (*toolResult, error) {
+	diffText := argString(args, "diff")
+	if strings.TrimSpace(diffText) == "" {
+		return nil, fmt.Errorf("diff is required")
+	}
+	task := argString(args, "task")
+	expectedHead := argString(args, "expected_head")
+	domain := strings.TrimSpace(argString(args, "domain"))
+
+	parsed, err := diffaudit.ParseDiff(diffText, diffaudit.DefaultParseOptions())
+	if err != nil {
+		res := &diffaudit.AuditResult{
+			Schema:       diffaudit.SchemaV1,
+			InputTrust:   diffaudit.TrustCaller,
+			Availability: diffaudit.AvailabilityUnsupported,
+			Decision:     diffaudit.DecisionCannotVerify,
+			ExpectedHead: expectedHead,
+			ReasonCodes:  []diffaudit.ReasonCode{diffaudit.ReasonMalformedDiff},
+			Limitations:  []string{err.Error()},
+		}
+		digest, _ := res.ComputeDigest()
+		res.Digest = digest
+		return &toolResult{
+			Text:       fmt.Sprintf("decision: cannot_verify\navailability: unsupported\nreason: malformed_diff (%v)", err),
+			Structured: res,
+		}, nil
+	}
+
+	checker := &mcpSingleFileChecker{bridge: b, ctx: ctx}
+	res, err := diffaudit.EvaluateDiff(ctx, parsed, checker, diffaudit.AuditOptions{
+		Task:         task,
+		ExpectedHead: expectedHead,
+		Domain:       domain,
+	})
+	if err != nil {
+		return nil, toolRPCError("audit_diff", err)
+	}
+
+	return &toolResult{
+		Text:       formatAuditDiff(res),
+		Structured: res,
+	}, nil
+}
+
+func formatAuditDiff(res *diffaudit.AuditResult) string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "schema: %s\n", res.Schema)
+	fmt.Fprintf(&sb, "decision: %s\n", res.Decision)
+	fmt.Fprintf(&sb, "availability: %s\n", res.Availability)
+	fmt.Fprintf(&sb, "input_trust: %s\n", res.InputTrust)
+	fmt.Fprintf(&sb, "digest: %s\n", res.Digest)
+	fmt.Fprintf(&sb, "changed_files_count: %d\n", len(res.ChangedFiles))
+	fmt.Fprintf(&sb, "findings_count: %d\n\n", len(res.Findings))
+
+	if len(res.Findings) > 0 {
+		sb.WriteString("Findings:\n")
+		for _, f := range res.Findings {
+			fmt.Fprintf(&sb, "- [%s] %s (%s): %s\n", f.Disposition, f.RecordID, f.FilePath, f.Explanation)
+		}
+	} else {
+		sb.WriteString("No blocking findings found in supplied diff.")
+	}
+	return sb.String()
 }

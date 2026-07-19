@@ -752,3 +752,49 @@ func TestFailoverClient_RetriesTransportFailures(t *testing.T) {
 		t.Fatalf("secondCalled=%v resp=%v", secondCalled, resp)
 	}
 }
+
+func TestAwarenessAuditDiffTool_Registered(t *testing.T) {
+	br := &bridge{}
+	tools := br.tools()
+	found := false
+	for _, tool := range tools {
+		if tool.Name == "awareness_audit_diff" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("awareness_audit_diff tool not registered in tools()")
+	}
+}
+
+func TestAwarenessAuditDiffTool_EvaluatesDiff(t *testing.T) {
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+--- a/main.go
++++ b/main.go
+@@ -1,1 +1,2 @@
+ func main() {}
++func foo() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": validDiff,
+	})
+	if err != nil {
+		t.Fatalf("callTool awareness_audit_diff failed: %v", err)
+	}
+	if res == nil || res.Text == "" {
+		t.Fatal("expected non-empty toolResult text")
+	}
+	if !strings.Contains(res.Text, "decision: pass") {
+		t.Fatalf("expected decision: pass, got text: %s", res.Text)
+	}
+}
