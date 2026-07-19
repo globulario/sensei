@@ -3,7 +3,7 @@
 Meta-principles are universal patterns that predict where bugs hide. They are not rules about your specific codebase — they are rules about how software systems fail. Use them to classify incidents and find sibling bugs before they ship.
 
 Every initialized Sensei project gets a generated cold-start pack at
-`docs/awareness/meta_principles.yaml` — **134 principles across 8 categories**:
+`docs/awareness/meta_principles.yaml` — **137 principles across 8 categories**:
 
 | Category | Question it answers | Count |
 |---|---|---|

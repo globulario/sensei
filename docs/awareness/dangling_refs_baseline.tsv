@@ -7,13 +7,18 @@
 # reference is intentionally cite-only (e.g. an external standard).
 https://globular.io/awareness#ForbiddenFix	aggregate_scoped_value_into_global_without_aggregation_function
 https://globular.io/awareness#ForbiddenFix	alias_bundle_sha_into_entrypoint_sha_variable
+https://globular.io/awareness#ForbiddenFix	allow_a_caller_supplied_class_or_enum_where_a_closed_constructor_belongs
 https://globular.io/awareness#ForbiddenFix	approval_token_replayed_after_successful_execution
 https://globular.io/awareness#ForbiddenFix	approval_validity_assumed_durable_across_failover
+https://globular.io/awareness#ForbiddenFix	assign_identity_digest_or_render_before_validating
 https://globular.io/awareness#ForbiddenFix	assume_installed_means_running
 https://globular.io/awareness#ForbiddenFix	bootstrap_flag_persists_without_clearing_path
 https://globular.io/awareness#ForbiddenFix	cli_bulk_apply_state_via_direct_etcd_writes
+https://globular.io/awareness#ForbiddenFix	collapse_distinct_failure_conditions_into_one_empty_observable
 https://globular.io/awareness#ForbiddenFix	day0_grace_without_expiry_check
+https://globular.io/awareness#ForbiddenFix	drop_or_nil_a_field_on_error_instead_of_returning_a_typed_unavailable_result
 https://globular.io/awareness#ForbiddenFix	escalation_state_kept_in_memory_only
+https://globular.io/awareness#ForbiddenFix	fabricate_a_real_or_terminal_state_to_avoid_reporting_unavailable
 https://globular.io/awareness#ForbiddenFix	fall_back_to_alternative_action_on_workflow_step_failure
 https://globular.io/awareness#ForbiddenFix	filter_out_vip_in_node_identity_ips
 https://globular.io/awareness#ForbiddenFix	forbidden.absorb_tls_error_into_timeout
@@ -70,12 +75,15 @@ https://globular.io/awareness#ForbiddenFix	forbidden.eventually_consistent_with_
 https://globular.io/awareness#ForbiddenFix	forbidden.fabricate_identity_from_secondary_observation
 https://globular.io/awareness#ForbiddenFix	forbidden.fast_decision_on_slow_signal_without_staleness_check
 https://globular.io/awareness#ForbiddenFix	forbidden.feature_with_only_platform_native_mode
+https://globular.io/awareness#ForbiddenFix	forbidden.find_first_as_uniqueness_proof
+https://globular.io/awareness#ForbiddenFix	forbidden.find_latest_as_cardinality_proof
 https://globular.io/awareness#ForbiddenFix	forbidden.fire_and_forget_goroutine_on_error_path
 https://globular.io/awareness#ForbiddenFix	forbidden.handler_reads_workflow_runs_to_reconstruct_engine_state
 https://globular.io/awareness#ForbiddenFix	forbidden.hardcoded_string_translation_between_name_forms
 https://globular.io/awareness#ForbiddenFix	forbidden.high_cardinality_metric_labels_to_compensate_for_missing_events
 https://globular.io/awareness#ForbiddenFix	forbidden.high_volume_emit_without_consumer_for_full_rate
 https://globular.io/awareness#ForbiddenFix	forbidden.hot_deploy_local_binary_as_break_glass
+https://globular.io/awareness#ForbiddenFix	forbidden.ignore_duplicate_authoritative_facts
 https://globular.io/awareness#ForbiddenFix	forbidden.infer_coverage_from_result_count
 https://globular.io/awareness#ForbiddenFix	forbidden.jwt_verified_once_per_connection_for_persistent_streams
 https://globular.io/awareness#ForbiddenFix	forbidden.last_write_wins_by_physical_timestamp_without_version_vector
@@ -152,6 +160,7 @@ https://globular.io/awareness#ForbiddenFix	mark_release_available_from_local_suc
 https://globular.io/awareness#ForbiddenFix	marking_available_from_local_success_only
 https://globular.io/awareness#ForbiddenFix	mcp_tool_executes_mutation_without_workflow_dispatch
 https://globular.io/awareness#ForbiddenFix	read_per_instance_metric_as_global_without_label_filter
+https://globular.io/awareness#ForbiddenFix	rely_on_an_optional_validate_helper_instead_of_enforcing_at_construction
 https://globular.io/awareness#ForbiddenFix	reuse_in_memory_plan_after_leader_failover
 https://globular.io/awareness#ForbiddenFix	skip_systemd_health_check_if_installed
 https://globular.io/awareness#ForbiddenFix	substitute_convergence_hash_for_binary_checksum_when_latter_empty
