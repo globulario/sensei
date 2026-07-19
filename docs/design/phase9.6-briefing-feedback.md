@@ -374,8 +374,12 @@ equivalent to `sensei serve --repo-root <path> --repo-domain <canonical-domain>`
 spellings may follow repository conventions; the two pieces form ONE context). Frozen rules:
 - neither value is ever supplied by `BriefingRequest`;
 - both must be configured together — one without the other is a configuration error;
-- neither configured ⇒ feedback is `feedback_unavailable` while the graph briefing stays
-  fully usable; only ONE repository is supported;
+- neither configured ⇒ the feedback leg is DISABLED and OMITTED from the response (no
+  field 7, no prose, no status change): the response is byte-for-byte the pre-9.6 graph
+  briefing, "fully usable", never forced to DEGRADED (feedback is an opt-in configured
+  feature, distinct from a configured-but-unavailable leg which composes to DEGRADED); the
+  `briefingfeedback` owner still reports `repository_context_absent` for a consumer with no
+  context. Only ONE repository is supported;
 - the root is resolved (symlinks once) and validated as an existing directory once at
   startup; the domain is exact, unpadded, whitespace-free, and immutable;
 - a request whose exact resolved graph domain is not the configured repository domain may
