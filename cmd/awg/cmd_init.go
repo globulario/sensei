@@ -19,11 +19,18 @@ import (
 
 // initOptions selects which agent surfaces `sensei init` wires up.
 type initOptions struct {
-	hooks    bool // .claude/hooks/*
-	claudeMD bool // CLAUDE.md
-	agentsMD bool // AGENTS.md (cross-tool convention)
-	cursor   bool // .cursor/rules/sensei.mdc
-	mcp      bool // .mcp.json (opt-in; write/merge the Sensei server)
+	hooks       bool // .claude/hooks/*
+	claudeMD    bool // CLAUDE.md
+	agentsMD    bool // AGENTS.md (cross-tool convention)
+	cursor      bool // .cursor/rules/sensei.mdc
+	mcp         bool // .mcp.json (opt-in; write/merge the Sensei server)
+	skills      bool // built-in project skills
+	skillsForce bool // replace locally modified managed skill copies
+}
+
+type initReport struct {
+	created []string
+	notices []string
 }
 
 //go:embed templates/*
@@ -38,6 +45,8 @@ func runInit(args []string) int {
 	withAgentsMD := fs.Bool("agents-md", true, "append Sensei snippet to AGENTS.md (Codex/Cursor/others)")
 	withCursor := fs.Bool("cursor", true, "write a Cursor rule (.cursor/rules/sensei.mdc)")
 	withMCP := fs.Bool("mcp", false, "write/merge the Sensei MCP server into .mcp.json (opt-in)")
+	withSkills := fs.Bool("skills", true, "install bundled Sensei project skills under .sensei/skills and native agent skill folders")
+	skillsForce := fs.Bool("skills-force", false, "replace locally modified Sensei-managed skill copies")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei init [flags]
 
@@ -50,6 +59,9 @@ Scaffolds awareness for a new project. Creates:
   .sensei/config.yaml                    Sensei configuration
 
 And wires up your agent tools (each idempotent; toggle with the flags below):
+  .sensei/skills/sensei-architect        Canonical bundled Sensei Architect skill
+  .agents/skills/sensei-architect        Codex / Agent Skills repo skill
+  .claude/skills/sensei-architect        Claude Code project skill
   CLAUDE.md, AGENTS.md                   Sensei instructions for the agent
   .cursor/rules/sensei.mdc               Cursor rule
   .claude/hooks/*                        Claude Code PreToolUse push/guard hooks
@@ -70,25 +82,30 @@ Flags:
 		return 1
 	}
 
-	created, err := scaffoldProject(root, initOptions{
-		hooks:    *withHooks,
-		claudeMD: *withClaudeMD,
-		agentsMD: *withAgentsMD,
-		cursor:   *withCursor,
-		mcp:      *withMCP,
+	report, err := scaffoldProjectWithReport(root, initOptions{
+		hooks:       *withHooks,
+		claudeMD:    *withClaudeMD,
+		agentsMD:    *withAgentsMD,
+		cursor:      *withCursor,
+		mcp:         *withMCP,
+		skills:      *withSkills,
+		skillsForce: *skillsForce,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei init: %v\n", err)
 		return 1
 	}
 
-	fmt.Fprintf(os.Stdout, "AWG initialized. Created:\n")
-	for _, f := range created {
+	fmt.Fprintf(os.Stdout, "Sensei initialized. Created:\n")
+	for _, f := range report.created {
 		rel, _ := filepath.Rel(root, f)
 		if rel == "" {
 			rel = f
 		}
 		fmt.Fprintf(os.Stdout, "  %s\n", rel)
+	}
+	for _, notice := range report.notices {
+		fmt.Fprintf(os.Stdout, "Notice: %s\n", notice)
 	}
 
 	fmt.Fprintf(os.Stdout, `
@@ -98,17 +115,29 @@ Next steps:
      (the 8-category meta-principle pack is already installed:
       docs/awareness/meta_principles.yaml — link your rules to it
       via related_invariants)
-  3. Start the server:  sensei serve -no-seed &
+  3. The Sensei Architect skill is installed at .sensei/skills/sensei-architect
+     and native agent skill locations when supported. It is model-invoked for
+     architecture-sensitive work and uses MCP tools when --mcp is configured.
+  4. Start the server:  sensei serve -no-seed &
      (-no-seed: your project builds its own graph — without it the
       server seeds the embedded Globular reference graph)
-  4. Compile your graph: sensei build
-  5. First briefing:     sensei briefing -file <your-critical-file>
+  5. Compile your graph: sensei build
+  6. First briefing:     sensei briefing -file <your-critical-file>
 `)
 	return 0
 }
 
 func scaffoldProject(root string, opts initOptions) ([]string, error) {
+	report, err := scaffoldProjectWithReport(root, opts)
+	if err != nil {
+		return nil, err
+	}
+	return report.created, nil
+}
+
+func scaffoldProjectWithReport(root string, opts initOptions) (initReport, error) {
 	var created []string
+	var notices []string
 
 	// Create docs/awareness/ files from templates.
 	awarenessFiles := []string{
@@ -121,7 +150,7 @@ func scaffoldProject(root string, opts initOptions) ([]string, error) {
 	}
 	awarenessDir := filepath.Join(root, "docs", "awareness")
 	if err := os.MkdirAll(awarenessDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create docs/awareness: %w", err)
+		return initReport{}, fmt.Errorf("create docs/awareness: %w", err)
 	}
 	for _, name := range awarenessFiles {
 		dst := filepath.Join(awarenessDir, name)
@@ -130,10 +159,10 @@ func scaffoldProject(root string, opts initOptions) ([]string, error) {
 		}
 		content, err := templates.ReadFile("templates/awareness/" + name)
 		if err != nil {
-			return nil, fmt.Errorf("read template %s: %w", name, err)
+			return initReport{}, fmt.Errorf("read template %s: %w", name, err)
 		}
 		if err := os.WriteFile(dst, content, 0o644); err != nil {
-			return nil, fmt.Errorf("write %s: %w", dst, err)
+			return initReport{}, fmt.Errorf("write %s: %w", dst, err)
 		}
 		created = append(created, dst)
 	}
@@ -141,25 +170,34 @@ func scaffoldProject(root string, opts initOptions) ([]string, error) {
 	// Create the state directory (.sensei, or a pre-existing legacy .awg).
 	stateDir := statedir.Path(root)
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create %s: %w", statedir.Name(root), err)
+		return initReport{}, fmt.Errorf("create %s: %w", statedir.Name(root), err)
 	}
 	cfgPath := filepath.Join(stateDir, "config.yaml")
 	if _, err := os.Stat(cfgPath); err != nil {
 		content, err := templates.ReadFile("templates/config.yaml")
 		if err != nil {
-			return nil, fmt.Errorf("read config template: %w", err)
+			return initReport{}, fmt.Errorf("read config template: %w", err)
 		}
 		if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
-			return nil, fmt.Errorf("write config: %w", err)
+			return initReport{}, fmt.Errorf("write config: %w", err)
 		}
 		created = append(created, cfgPath)
+	}
+
+	if opts.skills {
+		skillFiles, skillNotices, err := scaffoldBuiltinSkills(root, opts.skillsForce)
+		if err != nil {
+			return initReport{}, fmt.Errorf("skills: %w", err)
+		}
+		created = append(created, skillFiles...)
+		notices = append(notices, skillNotices...)
 	}
 
 	// Create Claude Code hooks.
 	if opts.hooks {
 		hookFiles, err := scaffoldHooks(root)
 		if err != nil {
-			return nil, fmt.Errorf("hooks: %w", err)
+			return initReport{}, fmt.Errorf("hooks: %w", err)
 		}
 		created = append(created, hookFiles...)
 	}
@@ -168,34 +206,34 @@ func scaffoldProject(root string, opts initOptions) ([]string, error) {
 	// a don't-overwrite guard), so re-running init never duplicates.
 	if opts.claudeMD {
 		if f, err := appendSnippet(filepath.Join(root, "CLAUDE.md"), "## Sensei", "templates/claude-md-snippet.md"); err != nil {
-			return nil, fmt.Errorf("CLAUDE.md: %w", err)
+			return initReport{}, fmt.Errorf("CLAUDE.md: %w", err)
 		} else if f != "" {
 			created = append(created, f)
 		}
 	}
 	if opts.agentsMD {
 		if f, err := appendSnippet(filepath.Join(root, "AGENTS.md"), "## Sensei", "templates/agent-snippet.md"); err != nil {
-			return nil, fmt.Errorf("AGENTS.md: %w", err)
+			return initReport{}, fmt.Errorf("AGENTS.md: %w", err)
 		} else if f != "" {
 			created = append(created, f)
 		}
 	}
 	if opts.cursor {
 		if f, err := writeCursorRule(root); err != nil {
-			return nil, fmt.Errorf("cursor rule: %w", err)
+			return initReport{}, fmt.Errorf("cursor rule: %w", err)
 		} else if f != "" {
 			created = append(created, f)
 		}
 	}
 	if opts.mcp {
 		if f, err := writeMCPConfig(root); err != nil {
-			return nil, fmt.Errorf(".mcp.json: %w", err)
+			return initReport{}, fmt.Errorf(".mcp.json: %w", err)
 		} else if f != "" {
 			created = append(created, f)
 		}
 	}
 
-	return created, nil
+	return initReport{created: created, notices: notices}, nil
 }
 
 // writeCursorRule installs a Cursor rule at .cursor/rules/sensei.mdc. Skips an
@@ -235,7 +273,40 @@ func writeMCPConfig(root string) (string, error) {
 		servers = map[string]any{}
 	}
 	if _, exists := servers["sensei"]; exists {
-		return "", nil // never clobber an existing sensei entry
+		changed := false
+		for _, legacy := range []string{"awg", "awareness-graph"} {
+			if _, exists := servers[legacy]; exists {
+				delete(servers, legacy)
+				changed = true
+			}
+		}
+		if !changed {
+			return "", nil // never clobber an existing sensei entry
+		}
+		cfg["mcpServers"] = servers
+		out, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
+			return "", err
+		}
+		return path, nil
+	}
+	for _, legacy := range []string{"awg", "awareness-graph"} {
+		if server, exists := servers[legacy]; exists {
+			servers["sensei"] = server
+			delete(servers, legacy)
+			cfg["mcpServers"] = servers
+			out, err := json.MarshalIndent(cfg, "", "  ")
+			if err != nil {
+				return "", err
+			}
+			if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
+				return "", err
+			}
+			return path, nil
+		}
 	}
 	servers["sensei"] = map[string]any{
 		"command": resolveMCPBinary(),

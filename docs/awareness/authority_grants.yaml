@@ -1,0 +1,109 @@
+authority_grants:
+  - id: grant.sensei.repository_repair
+    label: Sensei repository repair grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_repository_mutation
+    actions:
+      - read
+      - modify
+      - create
+    target_kinds:
+      - source_file
+      - governed_source
+    required_mechanism_ids:
+      - mutation_path.repository_edit
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: true
+    delegation_policy_id: delegation_policy.repository_repair
+
+  # ── Phase 8.1a: dedicated question-disposition grant (NOT repository repair) ──
+  - id: grant.sensei.question_disposition
+    label: Sensei architect-question disposition grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_question_disposition
+    actions:
+      - dispose
+    target_kinds:
+      - architect_question
+    required_mechanism_ids:
+      - mutation_path.question_disposition
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""
+
+  # ── Phase 8.1b: dedicated governed-promotion grant (NOT question disposition) ──
+  - id: grant.sensei.governed_promotion
+    label: Sensei governed reusable-knowledge promotion grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_governed_promotion
+    actions:
+      - promote
+    target_kinds:
+      - governed_record
+    required_mechanism_ids:
+      - mutation_path.governed_promotion
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""
+
+  # ── Phase 8.1d: bounded question-resolution certification grant ──
+  # Distinct from grant.sensei.question_disposition and
+  # grant.sensei.governed_promotion: a dedicated action/target/mechanism triple so
+  # the authority resolver cannot cross-authorize certification with disposition or
+  # promotion. The operation is an owner-RPC observation over durable task evidence.
+  - id: grant.sensei.question_resolution_certification
+    label: Sensei bounded question-resolution certification grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_question_resolution_certification
+    actions:
+      - observe
+    target_kinds:
+      - question_resolution_certificate
+    required_mechanism_ids:
+      - mutation_path.question_resolution_certification
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""
+
+  # ── Phase 8.2b: terminal completion grant ──
+  # A dedicated complete/task_completion/governed_workflow triple so the resolver
+  # cannot cross-authorize completion with certification, disposition, promotion, or
+  # question-resolution certification grants.
+  - id: grant.sensei.terminal_completion
+    label: Sensei terminal task completion grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_terminal_completion
+    actions:
+      - complete
+    target_kinds:
+      - task_completion
+    required_mechanism_ids:
+      - mutation_path.terminal_completion
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""

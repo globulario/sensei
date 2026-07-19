@@ -1,0 +1,206 @@
+closure_protocol_fixture:
+    completion_policy:
+        policy_id: completion.architectural_closure.v1
+    expected:
+        terminally_closed: false
+        validation_error_contains: share one identity
+    name: collapsed-result-tree-graph
+    records:
+        result_transition_receipt:
+            transition_id: transition.result.1
+            task:
+                id: task.completed
+                session_id: session.completed
+            base_binding_digest_sha256: b0c6eece40d3208ae2df779f6e87cda4567b5db6429f8262875a0e1a8114a253
+            actor_binding_digest_sha256: 9974a74facae74803d9b98a50404052422e1f257b062ca2a3c80413765a3db76
+            authority_resolution_digest_sha256: 8159fb41170f252245d39adddf348d00a03761225d09d794e0193e5ac1a56db1
+            admission_decision_digest_sha256: 66173bcdf282592108718be0962202edaa7910638bdb86aee1ebb760c7e5201c
+            capability_consumption_digest_sha256: 9d52566cc6e11dbb5a501e8a0ccb3917b0d6863484a8d7f035742ada44e71ced
+            observed_change_set_digest_sha256: 9976c137ae2cf3f2dd3c78a8f9636df8f494b6cb3611f08dc52d884fd1e62b19
+            scope_verification_digest_sha256: c4faeaeb891be264d897c185ec14b6fc5a07f1d3bb690c93907ecb16186f3649
+            result_binding:
+                base_revision: baserev-1
+                patch_digest_sha256: a4895eb44afc336fecbba6e520cd67e178dace0276655d102fceffa8e5f70570
+                result_tree_digest_sha256: 95b4926ebe5211f3197fc1c7f0c2dccbb75bfc35c2f9161edaaf87c501119629
+                result_revision: resultrev-1
+                graph_digest_sha256: 95b4926ebe5211f3197fc1c7f0c2dccbb75bfc35c2f9161edaaf87c501119629
+                generated_artifacts:
+                    - path: golang/server/embeddata/awareness.nt
+                      digest_sha256: 8f6f0e15dd7f999b520824553f6d8ec9d5a1df4dd4451c69ba064ba4d9f6433a
+            result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+            operational_artifact_receipts:
+                - id: artifact.architect_questions
+                  kind: architect_questions
+                  path: artifacts/architect_questions.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: a15653fefb2c78a738f78864086afc414df2fa2b5969520a0f83299c56bf3517
+                  byte_digest_sha256: 4e8a601014cc658567cc37a2ccb33e412ed0776c1e1ad759e96d4b46811125be
+                  producer:
+                    id: sensei.architect_questions
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: b3e5ed4ca1d1972d45676e4c229a82337ffabcf3a804c5b00fea68f4f84f6126
+                - id: artifact.governed_source_manifest
+                  kind: governed_source_manifest
+                  path: artifacts/governed_source_manifest.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: c24d7c114ff16884f4ba07747d9127364e228cff931a9f789345247d5c57cd97
+                  byte_digest_sha256: 0ab530c8c759ca2977eec030f8f972ff6af23d3d973069e17f14c971ea3df2c3
+                  producer:
+                    id: sensei.governed_source_manifest
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: d5f93ae0d33ff9e0d6160536ea508e3793f03e122e8ecd02799ce78a934fc9fc
+                - id: artifact.generated_repository_artifacts
+                  kind: generated_repository_artifacts
+                  path: artifacts/generated_repository_artifacts.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: 03e55c54af70cba71e4e4d37294a474531099647b1156eceef4111e8fd328e7a
+                  byte_digest_sha256: 9f983a9e0bc0a253bda5dcde558a962e02edfc00c7534a0b03ea2cdfc9736ba1
+                  producer:
+                    id: sensei.generated_repository_artifacts
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: a1536d12634ebddef63a16abffee9500ba5a27cb64d0bf8591fe48287ced04b0
+                - id: artifact.architecture_graph
+                  kind: architecture_graph
+                  path: artifacts/architecture_graph.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: ed76f95b34300f69c6979c659d56132c8842ba540bcde00c68f3060816bf7198
+                  byte_digest_sha256: 5c5b8b5e9a97caa735c7a131544014a9551981a82271516a1f756f806733c63b
+                  producer:
+                    id: sensei.architecture_graph
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: c1bd1e91364de6a0a5454bd77ee90acc08d7f46b4436b81031ddaf0087b68f46
+                - id: artifact.inferred_claims
+                  kind: inferred_claims
+                  path: artifacts/inferred_claims.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: 0f871b486b2b7769801bb48c93fde387c057f7baebb3638ea6d8c862f488ac97
+                  byte_digest_sha256: c81ff2dec169c36eacab23158f3789d23366e8acbd1e4471ef543f2d8801638d
+                  producer:
+                    id: sensei.inferred_claims
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: 125fbf4cd23467e83092e28f70c22f89dda7c368efb0cfa273cf10d38ba7fc03
+                - id: artifact.maintained_claims
+                  kind: maintained_claims
+                  path: artifacts/maintained_claims.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: 7244e367311555d70f49d854be262afe96b879a75b338cd42fb0d2fe78baebfe
+                  byte_digest_sha256: 7a5ad5db393863880669f18e0693157950a32ef692fa8a1563f72667d8950470
+                  producer:
+                    id: sensei.maintained_claims
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: 779bf81748f7684dce88155541603b84f82d19826ae4234be4175517abd44c42
+                - id: artifact.plane_assessment
+                  kind: plane_assessment
+                  path: artifacts/plane_assessment.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: 53373b4b70aafdfdff8aeb395759392097fbbfe2f7354b8b2f6e963eb36647fd
+                  byte_digest_sha256: ca5106c57cd192f0be231490f896037afe44028455bad49668f5ce2808453539
+                  producer:
+                    id: sensei.plane_assessment
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: 2143dce72b61422e8c4e58c4bc143cc8e9a9b98c8f697bec06c626266e6c95bb
+                - id: artifact.closure_assessment
+                  kind: closure_assessment
+                  path: artifacts/closure_assessment.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: 46b76b96627bbf283f42bc05998a132ccfebb624b3080650ecb3a702269f22e1
+                  byte_digest_sha256: c4660174f88627d6599040895454210fc7c9d3259978564797bc918be4ef5fd1
+                  producer:
+                    id: sensei.closure_assessment
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: 058a7e33b0edf458e6a2806694ead77efcd19991ab7ffee11eab766647ccf438
+                - id: artifact.proof_requirements
+                  kind: proof_requirements
+                  path: artifacts/proof_requirements.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: 0f9ec90a601b4b4a8c8d9bb3dde6ddf369b72d5537650a0e5d9e812a86b16a10
+                  byte_digest_sha256: 6e6ad55841a0adccce5d861fb13a1a635e39bcf82a5019d63da084a647d1a672
+                  producer:
+                    id: sensei.proof_requirements
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: a332ff29fe41e79c62a484826d3ed61420172d314c7b0fd17360313df4e9d8fe
+                - id: artifact.artifact_manifest
+                  kind: artifact_manifest
+                  path: artifacts/artifact_manifest.bin
+                  media_type: application/octet-stream
+                  semantic_digest_sha256: add3b4ff201dcdbe41f558558ca399b3b373aebe534062b4f8d072da7ca7586c
+                  byte_digest_sha256: 758cdc14c17b4e3af25110a3c777aada16a6d4d43601eea8f9e4ff11207fd098
+                  producer:
+                    id: sensei.artifact_manifest
+                    version: v1
+                  result_binding_digest_sha256: efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                  receipt_digest_sha256: 8bd7fe1a53f2aa5b3aaf92707617b41195a624d5353efbe245cfcb5d5f602208
+            derivations:
+                - stage: architect_questions
+                  output_artifact_receipt_digest_sha256: b3e5ed4ca1d1972d45676e4c229a82337ffabcf3a804c5b00fea68f4f84f6126
+                  input_artifact_receipt_digests_sha256:
+                    - 058a7e33b0edf458e6a2806694ead77efcd19991ab7ffee11eab766647ccf438
+                  input_binding_digests_sha256:
+                    - efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                - stage: governed_source_manifest
+                  output_artifact_receipt_digest_sha256: d5f93ae0d33ff9e0d6160536ea508e3793f03e122e8ecd02799ce78a934fc9fc
+                  input_binding_digests_sha256:
+                    - efe7d959be78eecfbdcea5b1fb116feedbeb279aa9787c77caa4457ac0e13a66
+                - stage: generated_repository_artifacts
+                  output_artifact_receipt_digest_sha256: a1536d12634ebddef63a16abffee9500ba5a27cb64d0bf8591fe48287ced04b0
+                  input_artifact_receipt_digests_sha256:
+                    - d5f93ae0d33ff9e0d6160536ea508e3793f03e122e8ecd02799ce78a934fc9fc
+                - stage: architecture_graph
+                  output_artifact_receipt_digest_sha256: c1bd1e91364de6a0a5454bd77ee90acc08d7f46b4436b81031ddaf0087b68f46
+                  input_artifact_receipt_digests_sha256:
+                    - a1536d12634ebddef63a16abffee9500ba5a27cb64d0bf8591fe48287ced04b0
+                - stage: inferred_claims
+                  output_artifact_receipt_digest_sha256: 125fbf4cd23467e83092e28f70c22f89dda7c368efb0cfa273cf10d38ba7fc03
+                  input_artifact_receipt_digests_sha256:
+                    - c1bd1e91364de6a0a5454bd77ee90acc08d7f46b4436b81031ddaf0087b68f46
+                - stage: maintained_claims
+                  output_artifact_receipt_digest_sha256: 779bf81748f7684dce88155541603b84f82d19826ae4234be4175517abd44c42
+                  input_artifact_receipt_digests_sha256:
+                    - c1bd1e91364de6a0a5454bd77ee90acc08d7f46b4436b81031ddaf0087b68f46
+                    - 125fbf4cd23467e83092e28f70c22f89dda7c368efb0cfa273cf10d38ba7fc03
+                - stage: plane_assessment
+                  output_artifact_receipt_digest_sha256: 2143dce72b61422e8c4e58c4bc143cc8e9a9b98c8f697bec06c626266e6c95bb
+                  input_artifact_receipt_digests_sha256:
+                    - 779bf81748f7684dce88155541603b84f82d19826ae4234be4175517abd44c42
+                - stage: closure_assessment
+                  output_artifact_receipt_digest_sha256: 058a7e33b0edf458e6a2806694ead77efcd19991ab7ffee11eab766647ccf438
+                  input_artifact_receipt_digests_sha256:
+                    - 2143dce72b61422e8c4e58c4bc143cc8e9a9b98c8f697bec06c626266e6c95bb
+                - stage: proof_requirements
+                  output_artifact_receipt_digest_sha256: a332ff29fe41e79c62a484826d3ed61420172d314c7b0fd17360313df4e9d8fe
+                  input_artifact_receipt_digests_sha256:
+                    - 058a7e33b0edf458e6a2806694ead77efcd19991ab7ffee11eab766647ccf438
+                - stage: artifact_manifest
+                  output_artifact_receipt_digest_sha256: 8bd7fe1a53f2aa5b3aaf92707617b41195a624d5353efbe245cfcb5d5f602208
+                  input_artifact_receipt_digests_sha256:
+                    - d5f93ae0d33ff9e0d6160536ea508e3793f03e122e8ecd02799ce78a934fc9fc
+                    - a1536d12634ebddef63a16abffee9500ba5a27cb64d0bf8591fe48287ced04b0
+                    - c1bd1e91364de6a0a5454bd77ee90acc08d7f46b4436b81031ddaf0087b68f46
+                    - 125fbf4cd23467e83092e28f70c22f89dda7c368efb0cfa273cf10d38ba7fc03
+                    - 779bf81748f7684dce88155541603b84f82d19826ae4234be4175517abd44c42
+                    - 2143dce72b61422e8c4e58c4bc143cc8e9a9b98c8f697bec06c626266e6c95bb
+                    - 058a7e33b0edf458e6a2806694ead77efcd19991ab7ffee11eab766647ccf438
+                    - a332ff29fe41e79c62a484826d3ed61420172d314c7b0fd17360313df4e9d8fe
+            governed_knowledge_impacts:
+                - category: authority
+                  base_manifest_digest_sha256: 0e64c7ee2490a871c160ae7412636653926e1f7f25b801b95262869e8b2be81a
+                  result_manifest_digest_sha256: 3d9c79797e476d3e667fa45cad7a5f960e485330edf3b80b16a049bffa100bf0
+                - category: proof_obligations
+                  base_manifest_digest_sha256: 6199aecf23aba7e87b2dafb8b4915260da85e3cf53568197b7e451982392fb8e
+                  result_manifest_digest_sha256: 6199aecf23aba7e87b2dafb8b4915260da85e3cf53568197b7e451982392fb8e
+            pipeline_producer_versions:
+                - producer: sensei.result-transition
+                  version: v1
+            pipeline_policy_id: pipeline.result_transition.v1
+            recorded_at: "2026-07-16T00:15:00Z"
+            status: valid
+            receipt_digest_sha256: 04c4368b8864b61fd0a6abe595fb4211b6b83d68b9af32b04ba2c8f7a5edb7b8

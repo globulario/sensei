@@ -12,13 +12,22 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// TokenEnv is the environment variable holding the bearer token an AWG client
+// TokenEnv is the environment variable holding the bearer token a Sensei client
 // sends to an auth-enabled server. Empty/unset means "no token" — correct for
 // the trusted-network self-host default where the server also has auth off.
-const TokenEnv = "AWG_TOKEN"
+const TokenEnv = "SENSEI_TOKEN"
 
-// TokenFromEnv returns the trimmed bearer token from $AWG_TOKEN ("" when unset).
-func TokenFromEnv() string { return strings.TrimSpace(os.Getenv(TokenEnv)) }
+// LegacyTokenEnv is the pre-rename compatibility fallback.
+const LegacyTokenEnv = "AWG_TOKEN"
+
+// TokenFromEnv returns the trimmed bearer token from $SENSEI_TOKEN, falling back
+// to legacy $AWG_TOKEN when unset.
+func TokenFromEnv() string {
+	if v := strings.TrimSpace(os.Getenv(TokenEnv)); v != "" {
+		return v
+	}
+	return strings.TrimSpace(os.Getenv(LegacyTokenEnv))
+}
 
 // bearerPerRPC attaches "authorization: Bearer <token>" to every RPC. It permits
 // plaintext transport (RequireTransportSecurity=false) so self-host on a trusted
@@ -42,8 +51,8 @@ func BearerToken(token string) credentials.PerRPCCredentials {
 }
 
 // DialConn opens a raw gRPC connection with insecure transport plus the bearer
-// token from $AWG_TOKEN when set. Shared by the CLI commands and the MCP bridge
-// so token handling lives in exactly one place.
+// token from $SENSEI_TOKEN, or legacy $AWG_TOKEN, when set. Shared by the CLI
+// commands and the MCP bridge so token handling lives in exactly one place.
 func DialConn(addr string) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	if cred := BearerToken(TokenFromEnv()); cred != nil {

@@ -2,7 +2,12 @@
 
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestEvaluateSeedFreshness_ExternalOnlyDiffPasses(t *testing.T) {
 	agOnly := nt(agLabel, agSev)
@@ -30,5 +35,31 @@ func TestEvaluateSeedFreshness_OwnedDriftFails(t *testing.T) {
 	}
 	if len(got.details) == 0 {
 		t.Fatal("expected owned drift details")
+	}
+}
+
+func TestRunRebuild_DefaultSelfOnlyIgnoresServicesRepo(t *testing.T) {
+	agRepo, svcRepo := setupSeedStatusRepos(t)
+
+	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+		t.Fatalf("runRebuild code=%d, want 0", code)
+	}
+
+	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
+	seedBytes, err := os.ReadFile(seedPath)
+	if err != nil {
+		t.Fatalf("read seed: %v", err)
+	}
+	if strings.Contains(string(seedBytes), "svc.test.one") {
+		t.Fatalf("default rebuild leaked services triples into self-only seed:\n%s", string(seedBytes))
+	}
+
+	txPath := defaultTransactionPath(agRepo)
+	txBytes, err := os.ReadFile(txPath)
+	if err != nil {
+		t.Fatalf("read transaction stamp: %v", err)
+	}
+	if !strings.Contains(string(txBytes), "repo\tservices\tmissing") {
+		t.Fatalf("self-only transaction should mark services missing:\n%s", string(txBytes))
 	}
 }

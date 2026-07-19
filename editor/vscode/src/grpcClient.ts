@@ -250,6 +250,12 @@ export interface MetadataResponse {
   design_pattern_count?: string;
   implementation_pattern_count?: string;
   pattern_misuse_count?: string;
+  // Phase 2 closure/dialogue/evidence graph classes. These are explicit-query
+  // only and do not contribute to Phase 1 graph coverage or readiness.
+  architecture_claim_count?: string;
+  open_question_count?: string;
+  architect_answer_count?: string;
+  evidence_probe_count?: string;
   server_started_unix?: string;
   generated_in_ms?: string;
   /** Distinct selectable domain keys in the graph (for the domain filter). */
@@ -310,12 +316,17 @@ export function queryRelated(
   addr: string,
   id: string,
   limit: number,
-  timeoutMs: number
+  timeoutMs: number,
+  domain?: string
 ): Promise<QueryResponse> {
+  const body: Record<string, unknown> = { mode: 'QUERY_MODE_RELATED', id, limit };
+  if (domain) {
+    body.domain = domain;
+  }
   return unary<QueryResponse>(
     addr,
     'Query',
-    { mode: 'QUERY_MODE_RELATED', id, limit },
+    body,
     timeoutMs
   );
 }

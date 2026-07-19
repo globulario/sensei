@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/common.schema.json",
+  "title": "Architectural Closure v1 Common Types",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "architectural-closure/v1"
+    }
+  },
+  "$defs": {
+    "actor_kind": {
+      "type": "string",
+      "enum": ["human", "agent", "service", "ci", "system"]
+    },
+    "operation_kind": {
+      "type": "string",
+      "enum": ["read", "create", "modify", "delete", "rename", "execute", "migrate", "rebuild", "observe"]
+    },
+    "mechanism_kind": {
+      "type": "string",
+      "enum": ["repository_edit", "owner_rpc", "governed_workflow", "migration_runner", "generated_artifact_rebuild", "test_runner", "runtime_adapter", "manual_authorized"]
+    },
+    "evidence_kind": {
+      "type": "string",
+      "enum": ["static", "test", "runtime", "artifact", "review", "authority", "hybrid"]
+    },
+    "receipt_status": {
+      "type": "string",
+      "enum": ["valid", "invalid", "stale", "conflicted", "superseded", "revoked", "unknown"]
+    },
+    "certification_verdict": {
+      "type": "string",
+      "enum": ["certified", "certified_with_conditions", "review_required", "blocked", "uncertifiable", "stale", "revoked"]
+    },
+    "dimension": {
+      "type": "string",
+      "enum": ["identity", "scope", "direction", "authority", "mutation", "protection", "epistemic", "proof", "freshness", "completion"]
+    },
+    "dimension_status": {
+      "type": "string",
+      "enum": ["pass", "pass_with_exception", "blocked", "unknown", "stale", "conflicted", "not_applicable"]
+    },
+    "task_phase": {
+      "type": "string",
+      "enum": ["prepared", "converging", "ready_for_admission", "admitted", "mutation_observed", "scope_verified", "proving", "certified", "completed", "waiting_architect", "waiting_evidence", "waiting_governance", "waiting_mechanical_repair", "refused", "stale", "uncertifiable", "abandoned", "revoked"]
+    },
+    "ledger_event_type": {
+      "type": "string",
+      "enum": ["legacy_import", "task_prepared", "convergence_advanced", "closure_assessed", "admission_decided", "authority_resolved", "admission_consumed", "change_observed", "scope_verified", "evidence_recorded", "proof_discharged", "certified", "completed", "revoked", "migration_executed", "task_control_projected", "task_marked_stale"]
+    },
+    "artifact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "media_type": {"type": "string"},
+        "digest_sha256": {"type": "string"}
+      },
+      "required": ["path", "media_type", "digest_sha256"]
+    }
+  }
+}

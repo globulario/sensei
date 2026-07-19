@@ -25,6 +25,7 @@
 - [Onboard an existing repo](./onboard-existing-repo.md) — repeatable recipe (+ `scripts/awg-init-repo.sh`) to stand up an awareness graph on a repo you didn't author it for: structural bootstrap, history mining, and the judgment passes
 - [Initialize](./initialize.md) — local bootstrap, load, reload, and troubleshooting
 - [Skill Ingestion](./skill-ingestion.md) — generate review-only Sensei candidates from external `SKILL.md` agent skill packs
+- [Sensei Architect Skill](./sensei-architect-skill.md) — built-in project skill installed by `sensei init`
 - [Local User Services](./initialize-user-services.md) — supervised local `systemd --user` runtime for Sensei and Oxigraph
 - Operational smoke targets: `make oxigraph-health`, `make smoke-local`
 - Integration tests: `go test -tags=integration ./...`

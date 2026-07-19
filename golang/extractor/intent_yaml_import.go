@@ -29,6 +29,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/globulario/sensei/golang/architecture/adoption"
 	"github.com/globulario/sensei/golang/rdf"
 )
 
@@ -36,12 +37,12 @@ import (
 
 type yamlIntent struct {
 	domainScope        `yaml:",inline"`
+	adoption.Receipt   `yaml:",inline"`
 	ID                 string   `yaml:"id"`
 	Level              string   `yaml:"level"`
 	Title              string   `yaml:"title"`
 	Intent             string   `yaml:"intent"`
 	AgentGuidance      string   `yaml:"agent_guidance"`
-	Status             string   `yaml:"status"`
 	BadSmells          []string `yaml:"bad_smells"`
 	ActivationTriggers []string `yaml:"activation_triggers"`
 	ExpressedBy        []string `yaml:"expressed_by"`
@@ -104,8 +105,8 @@ func importIntent(e *rdf.Emitter, path string) error {
 	if intent.Level != "" {
 		e.Triple(subj, rdf.IRI(rdf.PropLevel), rdf.Lit(intent.Level))
 	}
-	if intent.Status != "" {
-		e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit(intent.Status))
+	if err := emitAdoptionReceipt(e, subj, rdf.ClassIntent, intent.ID, intent.Receipt); err != nil {
+		return fmt.Errorf("adoption receipt: %w", err)
 	}
 	e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 

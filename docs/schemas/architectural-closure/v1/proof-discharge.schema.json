@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/proof-discharge.schema.json",
+  "title": "Architectural Closure v1 Proof Discharge",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "obligation_id": {"type": "string"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+    "slot_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "slot_id": {"type": "string"},
+          "status": {"$ref": "common.schema.json#/$defs/dimension_status"},
+          "receipt_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["slot_id", "status"]
+      }
+    },
+    "mapped_evidence": {"type": "array", "items": {"type": "string"}},
+    "missing_slots": {"type": "array", "items": {"type": "string"}},
+    "incompatible_receipts": {"type": "array", "items": {"type": "string"}},
+    "discharge_digest_sha256": {"type": "string"}
+  },
+  "required": ["obligation_id", "status", "slot_results"]
+}
+

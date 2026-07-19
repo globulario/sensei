@@ -115,3 +115,49 @@ decisions:
       kind: Constraint
       stereotype: architecture_decision
       view: awareness
+  - id: decision.awareness_mutation_enforcement.desired
+    title: Awareness-source mutation should gain deterministic enforcement recognition
+    status: accepted
+    architectural_plane: desired
+    rationale: Exact mutations to governed awareness sources should be eligible for conditional behavioral support when Sensei can prove a deterministic validation and graph-build enforcement path for that source.
+    context: Closure currently distinguishes observed behavior from architectural intent but does not yet recognize deterministic enforcement for canonical awareness-source mutations. This leaves legitimate architecture-sensitive changes blocked even when the affected source is governed by closed validation and graph compilation.
+    consequences: Awareness-source mutations remain non-observed and non-authoritative by themselves, but may become conditionally behavior-supported when the enforcement path is explicit, bounded, and verified.
+    related_invariants:
+      - awareness.governed_direction_records_must_be_claim_consumable
+      - awareness.authored_knowledge_sources_are_governable_repository_files
+    mitigates:
+      - closure.governed_knowledge_present_but_non_consumable
+      - behavioral.awareness_source_mutation_without_enforcement
+    source_files:
+      - golang/architecture/admission/admission.go
+      - golang/architecture/admission/admission_test.go
+      - golang/architecture/closure/model.go
+      - golang/architecture/closure/model_test.go
+      - golang/architecture/closure/util.go
+      - golang/architecture/tasksession/session.go
+      - golang/architecture/tasksession/session_test.go
+      - golang/extractor/yaml_import_dir.go
+      - golang/extractor/yaml_import_dir_test.go
+  - id: decision.awareness_mutation_enforcement.intended
+    title: Awareness-source mutation enforcement is derived from deterministic validation and graph build
+    status: accepted
+    architectural_plane: intended
+    rationale: Canonical awareness-source mutations should be evaluated through explicit enforcement plans derived from deterministic importer, validation, and graph-build steps rather than by treating the YAML declaration itself as observed behavior.
+    context: The enforcement path must remain revision-bound, task-bound, and policy-bound so that closure and admission agree on what verification is required before mutation may be attempted.
+    consequences: Conditional behavioral support depends on explicit enforcement receipts; it does not establish architectural correctness or permit task-local knowledge to become canonical truth.
+    related_invariants:
+      - awareness.governed_direction_records_must_be_claim_consumable
+      - awareness.authored_knowledge_sources_are_governable_repository_files
+    mitigates:
+      - closure.governed_knowledge_present_but_non_consumable
+      - behavioral.awareness_source_mutation_without_enforcement
+    source_files:
+      - golang/architecture/admission/admission.go
+      - golang/architecture/admission/admission_test.go
+      - golang/architecture/closure/model.go
+      - golang/architecture/closure/model_test.go
+      - golang/architecture/closure/util.go
+      - golang/architecture/tasksession/session.go
+      - golang/architecture/tasksession/session_test.go
+      - golang/extractor/yaml_import_dir.go
+      - golang/extractor/yaml_import_dir_test.go

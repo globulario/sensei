@@ -59,8 +59,8 @@ cp "${WORK}/build/bin/sensei" "${WORK}/bundle/bin/sensei"
 cp "${WORK}/build/bin/awareness-mcp" "${WORK}/bundle/bin/awareness-mcp"
 cp "${WORK}/build/bin/awareness-graph" "${WORK}/bundle/bin/awareness-graph"
 cp "${REPO_ROOT}/scripts/fetch-oxigraph.sh" "${WORK}/bundle/scripts/fetch-oxigraph.sh"
-cp "${REPO_ROOT}/scripts/install-awg-user-services.sh" "${WORK}/bundle/scripts/install-awg-user-services.sh"
-chmod +x "${WORK}/bundle/scripts/fetch-oxigraph.sh" "${WORK}/bundle/scripts/install-awg-user-services.sh"
+cp "${REPO_ROOT}/scripts/install-sensei-user-services.sh" "${WORK}/bundle/scripts/install-sensei-user-services.sh"
+chmod +x "${WORK}/bundle/scripts/fetch-oxigraph.sh" "${WORK}/bundle/scripts/install-sensei-user-services.sh"
 
 echo "==> creating and extracting awg-local bundle"
 tar czf "${WORK}/awg-local_test_linux_amd64.tgz" -C "${WORK}/bundle" .
@@ -69,7 +69,7 @@ tar -xzf "${WORK}/awg-local_test_linux_amd64.tgz" -C "${WORK}/extract"
 
 [[ -x "${WORK}/extract/bin/sensei" ]] || fail "extracted bundle missing bin/sensei"
 [[ -x "${WORK}/extract/bin/awareness-graph" ]] || fail "extracted bundle missing bin/awareness-graph"
-[[ -f "${WORK}/extract/scripts/install-awg-user-services.sh" ]] || fail "extracted bundle missing install-awg-user-services.sh"
+[[ -f "${WORK}/extract/scripts/install-sensei-user-services.sh" ]] || fail "extracted bundle missing install-sensei-user-services.sh"
 
 echo "==> preparing external oxigraph for extracted bundle"
 if [[ -x "${REPO_ROOT}/bin/oxigraph" ]]; then

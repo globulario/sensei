@@ -122,3 +122,19 @@ func TestOntologyVocabDriftForbidden(t *testing.T) {
 		}
 	}
 }
+
+func TestExplicitAdoptionPropertiesExistInOntology(t *testing.T) {
+	_, goProps := vocabConstants(t)
+	_, ttlProps := ttlDeclarations(t)
+	for _, local := range []string{
+		"decisionActor", "decisionContext", "decisionPolicy", "decisionTimestamp",
+		"reviewStatus", "adoptionBasis", "corroborationKind", "revocationCondition",
+	} {
+		if _, ok := goProps[local]; !ok {
+			t.Errorf("adoption property aw:%s missing from vocab.go", local)
+		}
+		if !ttlProps[local] {
+			t.Errorf("adoption property aw:%s missing from ontology/awareness.ttl", local)
+		}
+	}
+}

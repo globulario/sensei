@@ -110,7 +110,7 @@ done
 grep -q -- "-no-seed" "${WORK}/serve.log" || { cat "${WORK}/serve.log" >&2; fail "server did not acknowledge -no-seed"; }
 
 echo "==> build"
-( cd "${PROJ}" && "${WORK}/sensei" build -strict \
+( cd "${PROJ}" && "${WORK}/sensei" build -strict -all \
     -input docs/awareness \
     -store-url "http://127.0.0.1:${OXI_PORT}/store?default" ) \
   || fail "sensei build -strict failed"

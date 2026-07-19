@@ -8,7 +8,7 @@
 # Docker), verifies its checksum, and installs the binaries onto your PATH.
 #
 # Options (environment variables):
-#   SENSEI_VERSION=v1.1.0             pin a release (default: latest)
+#   SENSEI_VERSION=v1.2.1             pin a release (default: latest)
 #   SENSEI_PREFIX=/custom/bin         install dir (default: ~/.local/bin)
 #
 # POSIX sh only (this runs piped into `sh`) — no bashisms.
@@ -110,3 +110,7 @@ say '    { "mcpServers": { "sensei": {'
 say "        \"command\": \"${PREFIX}/awareness-mcp\","
 say '        "args": ["--awareness-addr", "localhost:10120"] } } }'
 say "Then:  sensei serve -no-seed &   # start the local store + server"
+say ""
+say "VS Code users — install the Sensei dashboard extension:"
+say "    code --install-extension globulario.sensei-awareness"
+say "  (or search \"Sensei — Architectural Memory\" in the Extensions view)."

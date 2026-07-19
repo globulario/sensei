@@ -83,7 +83,7 @@ func runBenchmarkScore(args []string) int {
 	fs := flag.NewFlagSet("sensei benchmark-score", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address for authoritative repair-plan resolution")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address for authoritative repair-plan resolution")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo for cross-repo atomicity (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo for cross-repo atomicity (auto-detect)")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/f2p_tests/files")

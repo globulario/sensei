@@ -36,6 +36,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
 )
 
@@ -541,6 +543,67 @@ func (c *Client) CountByClass(ctx context.Context, classIRI string) (int64, erro
 	return n, nil
 }
 
+// SeedMarkers returns complete SeedBuild marker nodes currently present in the
+// live graph. It is used by startup repair code to refresh a stale runtime
+// marker file only when the store itself already carries one unambiguous marker.
+func (c *Client) SeedMarkers(ctx context.Context) ([]seedmeta.Marker, error) {
+	q := fmt.Sprintf(`SELECT ?m ?digest ?count WHERE {
+  ?m <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%sSeedBuild> .
+  ?m <%sseedDigestSha256> ?digest .
+  ?m <%sseedTripleCount> ?count .
+}`, seedmeta.NamespaceIRI, seedmeta.NamespaceIRI, seedmeta.NamespaceIRI)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph seed markers: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph seed markers: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("oxigraph seed markers: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var result struct {
+		Results struct {
+			Bindings []struct {
+				M struct {
+					Value string `json:"value"`
+				} `json:"m"`
+				Digest struct {
+					Value string `json:"value"`
+				} `json:"digest"`
+				Count struct {
+					Value string `json:"value"`
+				} `json:"count"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("oxigraph seed markers: decode: %w", err)
+	}
+	out := make([]seedmeta.Marker, 0, len(result.Results.Bindings))
+	for _, b := range result.Results.Bindings {
+		if b.M.Value == "" || b.Digest.Value == "" || b.Count.Value == "" {
+			continue
+		}
+		var n int64
+		if _, err := fmt.Sscanf(b.Count.Value, "%d", &n); err != nil || n <= 0 {
+			continue
+		}
+		out = append(out, seedmeta.Marker{
+			IRI:         b.M.Value,
+			Digest:      b.Digest.Value,
+			TripleCount: n,
+		})
+	}
+	return out, nil
+}
+
 // Domains returns the distinct aw:repo domain keys present in the graph — the
 // selectable domains (e.g. "github.com/owner/repo"), excluding shared
 // meta-principles (which carry aw:domain "shared", not aw:repo). Used by
@@ -585,18 +648,30 @@ func (c *Client) Domains(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// CountTriplesInDomain counts triples whose SUBJECT is visible to a domain scope
-// — the per-repo analogue of CountTriples. In scope: aw:repo == domain, or a
-// shared node, or (when domain is the home domain) any untagged subject.
+// CountTriplesInDomain counts triples whose SUBJECT is visible to a domain
+// scope — the per-repo analogue of CountTriples. In scope: aw:repo == domain,
+// or a shared node, or (when domain is the home domain) any untagged subject.
 func (c *Client) CountTriplesInDomain(ctx context.Context, domain, home string) (int64, error) {
-	var where string
-	if domain == home {
-		// home: everything not attributed to some other repo (untagged + shared).
-		where = `?s ?p ?o . FILTER NOT EXISTS { ?s <https://globular.io/awareness#repo> ?r }`
-	} else {
-		where = fmt.Sprintf(`?s ?p ?o . { ?s <https://globular.io/awareness#repo> "%s" } UNION { ?s <https://globular.io/awareness#domain> "shared" }`, domain)
+	repo := rdf.Lit(domain)
+	branches := []string{
+		fmt.Sprintf(`{ ?s <https://globular.io/awareness#repo> %s }`, repo),
+		`{ ?s <https://globular.io/awareness#domain> "shared" }`,
 	}
-	q := fmt.Sprintf(`SELECT (COUNT(*) AS ?n) WHERE { %s }`, where)
+	if domain == home {
+		branches = append(branches, `{
+  ?s ?scopeP ?scopeO .
+  FILTER NOT EXISTS { ?s <https://globular.io/awareness#repo> ?r }
+  FILTER NOT EXISTS { ?s <https://globular.io/awareness#domain> "shared" }
+}`)
+	}
+	q := fmt.Sprintf(`SELECT (COUNT(*) AS ?n) WHERE {
+  {
+    SELECT DISTINCT ?s WHERE {
+      %s
+    }
+  }
+  ?s ?p ?o .
+}`, strings.Join(branches, "\n      UNION\n      "))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {
 		return 0, fmt.Errorf("oxigraph count-triples-in-domain: %w", err)
@@ -801,6 +876,86 @@ func (c *Client) Load(ctx context.Context, r io.Reader) error {
 		return fmt.Errorf("oxigraph load: %s: %s", resp.Status, strings.TrimSpace(string(body)))
 	}
 	return nil
+}
+
+// updateURL derives the SPARQL Update endpoint from queryURL by replacing the
+// trailing "/query" path segment with "/update". Oxigraph co-locates query,
+// update, and store endpoints on the same port.
+func (c *Client) updateURL() string {
+	base := strings.TrimSuffix(c.queryURL, "/query")
+	return base + "/update"
+}
+
+// Update executes a SPARQL Update (INSERT/DELETE) against the store. Unlike Load
+// (a whole-graph PUT replace), Update mutates in place — the primitive behind a
+// domain-scoped, non-destructive rebuild: it lets `sensei build --repo` remove
+// only one repo's slice (subjects tagged aw:repo == domain) without disturbing
+// other domains, shared nodes, or the home slice.
+func (c *Client) Update(ctx context.Context, update string) error {
+	updateClient := &http.Client{Timeout: 60 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.updateURL(), strings.NewReader(update))
+	if err != nil {
+		return fmt.Errorf("oxigraph update: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-update")
+	resp, err := updateClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("oxigraph update: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("oxigraph update: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+// Append merges N-Triples into the default graph via a Graph Store Protocol
+// POST (additive), in contrast to Load's PUT (replace). Used by the scoped
+// rebuild to add a freshly compiled domain slice — and its recomputed marker —
+// on top of the domains already present. Identical triples are idempotent (the
+// store deduplicates on merge).
+func (c *Client) Append(ctx context.Context, r io.Reader) error {
+	appendClient := &http.Client{Timeout: 60 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.storeURL(), r)
+	if err != nil {
+		return fmt.Errorf("oxigraph append: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/n-triples")
+	resp, err := appendClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("oxigraph append: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("oxigraph append: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+// DumpNTriples returns the entire default graph serialized as N-Triples via a
+// Graph Store Protocol GET. The scoped rebuild reads the whole graph back after
+// its DELETE/append so it can recompute the single whole-graph marker (digest +
+// total triple count) that the server verifies — the marker is global, so any
+// scoped change must restamp it over the post-update contents.
+func (c *Client) DumpNTriples(ctx context.Context) ([]byte, error) {
+	dumpClient := &http.Client{Timeout: 120 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.storeURL(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph dump: build request: %w", err)
+	}
+	req.Header.Set("Accept", "application/n-triples")
+	resp, err := dumpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph dump: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return nil, fmt.Errorf("oxigraph dump: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return io.ReadAll(resp.Body)
 }
 
 type sparqlSelectResult struct {

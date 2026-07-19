@@ -23,6 +23,7 @@
 //	sensei resolve <class> <id>             Fetch a single node by class + id
 //	sensei query --mode <mode>              Structured browse of the graph
 //	sensei metadata                         Graph-level coverage and freshness
+//	sensei domains                          List selectable graph domains
 //	sensei governance status                Show local managed-governance state
 //	sensei check                            Validate YAML sources without building
 //	sensei validate                         Deep structural check of YAML sources
@@ -33,9 +34,35 @@
 //	sensei benchmark-score                  Standard brief->judge benchmark workflow
 //	sensei benchmark-retry                  Benchmark retry-plan controller
 //	sensei benchmark-event-meta             Read orchestration metadata from learning events
-//	sensei certify                          Local governance certification over authored event metadata
+//	sensei benchmark-freeze                 Freeze external cold-start benchmark workspace
+//	sensei benchmark-reconstruct            Reconstruct bounded benchmark state
+//	sensei benchmark-evaluate               Evaluate external benchmark receipts
+//	sensei benchmark-status                 Inspect external benchmark state
+//	sensei certify                          Legacy benchmark certification adapter (not architectural closure)
+//	sensei certify-change                   Architectural-closure certification over a verified task ledger
+//	sensei complete-task                    Delegate terminal completion to the Phase-8 owner (thin invocation surface)
+//	sensei inspect-terminal                 Reconstruct a task's honest terminal state (read-only surface)
+//	sensei recover-projections              Rebuild stale/missing derived projections from a valid conjunction
 //	sensei extract-authority                Extract candidate authority surfaces from code
 //	sensei extract-proof-obligations        Generate proof obligations from authority surfaces
+//	sensei infer-claims                     Derive offline ArchitectureClaim candidates from facts
+//	sensei maintain-claims                  Recalculate offline ArchitectureClaim status
+//	sensei assess-planes                    Verify ArchitectureClaim architectural-plane basis offline
+//	sensei generate-questions               Generate offline OpenQuestion candidates from closure blockers
+//	sensei record-answer                    Record an exact architect answer offline
+//	sensei adjudicate-answer                Adjudicate a recorded architect answer offline
+//	sensei plan-probes                      Generate offline EvidenceProbe plans
+//	sensei record-probe-result              Record an externally executed probe result offline
+//	sensei advance-convergence              Advance one offline convergence session iteration
+//	sensei convergence-status               Inspect an offline convergence session
+//	sensei bootstrap-direction-digest       Compute canonical digest for a bootstrap direction authorization
+//	sensei admit-change                     Evaluate bounded agent admission
+//	sensei verify-admission                 Verify a diff stayed inside admission scope
+//	sensei admission-status                 Inspect admission receipts
+//	sensei prepare-change                   Create or refresh one active task session
+//	sensei task-status                      Inspect an active task session
+//	sensei advance-task                     Run safe evidence and advance one task iteration
+//	sensei task-briefing                    Show bounded file context for an active task
 //	sensei proof-plan                       Show required proof before a repair can be promoted
 //	sensei repair-plan                      Build an authoritative governed repair plan
 //	sensei seed-status                      Check generated/committed/live seed authority alignment
@@ -93,6 +120,8 @@ func main() {
 		os.Exit(runInit(args))
 	case "bootstrap":
 		os.Exit(runBootstrap(args))
+	case "import":
+		os.Exit(runImport(args))
 	case "onboard":
 		os.Exit(runOnboard(args))
 	case "build":
@@ -127,6 +156,8 @@ func main() {
 		os.Exit(runQuery(args))
 	case "metadata":
 		os.Exit(runMetadata(args))
+	case "domains":
+		os.Exit(runDomains(args))
 	case "governance":
 		os.Exit(runGovernance(args))
 	case "check":
@@ -157,6 +188,8 @@ func main() {
 		os.Exit(runReviewRealization(args))
 	case "repo-eval":
 		os.Exit(runRepoEval(args))
+	case "architecture-extract":
+		os.Exit(runArchitectureExtract(args))
 	case "benchmark-brief":
 		os.Exit(runBenchmarkBrief(args))
 	case "benchmark-judge":
@@ -167,12 +200,82 @@ func main() {
 		os.Exit(runBenchmarkRetry(args))
 	case "benchmark-event-meta":
 		os.Exit(runBenchmarkEventMeta(args))
+	case "benchmark-freeze":
+		os.Exit(runBenchmarkFreezeExternal(args))
+	case "benchmark-reconstruct":
+		os.Exit(runBenchmarkReconstruct(args))
+	case "benchmark-evaluate":
+		os.Exit(runBenchmarkEvaluateExternal(args))
+	case "benchmark-status":
+		os.Exit(runBenchmarkStatusExternal(args))
 	case "certify":
 		os.Exit(runCertify(args))
+	case "certify-change":
+		os.Exit(runCertifyChange(args))
+	case "complete-task":
+		os.Exit(runCompleteTask(args))
+	case "inspect-terminal":
+		os.Exit(runInspectTerminal(args))
+	case "recover-projections":
+		os.Exit(runRecoverProjections(args))
 	case "extract-authority":
 		os.Exit(runExtractAuthority(args))
 	case "extract-proof-obligations":
 		os.Exit(runExtractProofObligations(args))
+	case "extract-invariants":
+		os.Exit(runExtractInvariants(args))
+	case "infer-claims":
+		os.Exit(runInferClaims(args))
+	case "maintain-claims":
+		os.Exit(runMaintainClaims(args))
+	case "assess-planes":
+		os.Exit(runAssessPlanes(args))
+	case "assess-closure":
+		os.Exit(runAssessClosure(args))
+	case "generate-questions":
+		os.Exit(runGenerateQuestions(args))
+	case "record-answer":
+		os.Exit(runRecordAnswer(args))
+	case "adjudicate-answer":
+		os.Exit(runAdjudicateAnswer(args))
+	case "plan-probes":
+		os.Exit(runPlanProbes(args))
+	case "record-probe-result":
+		os.Exit(runRecordProbeResult(args))
+	case "advance-convergence":
+		os.Exit(runAdvanceConvergence(args))
+	case "convergence-status":
+		os.Exit(runConvergenceStatus(args))
+	case "bootstrap-direction-digest":
+		os.Exit(runBootstrapDirectionDigest(args))
+	case "enroll-agent":
+		os.Exit(runEnrollAgent(args))
+	case "authority-resolve":
+		os.Exit(runAuthorityResolve(args))
+	case "consume-admission":
+		os.Exit(runConsumeAdmission(args))
+	case "admit-change":
+		os.Exit(dispatchAdmitChange(args))
+	case "verify-admission":
+		os.Exit(dispatchVerifyAdmission(args))
+	case "admission-status":
+		os.Exit(runAdmissionStatus(args))
+	case "advance-result":
+		os.Exit(runAdvanceResult(args))
+	case "disposition-question":
+		os.Exit(runDispositionQuestion(args))
+	case "promote-answer":
+		os.Exit(runPromoteAnswer(args))
+	case "prepare-change":
+		os.Exit(runPrepareChange(args))
+	case "task-status":
+		os.Exit(runTaskStatus(args))
+	case "advance-task":
+		os.Exit(runAdvanceTask(args))
+	case "task-briefing":
+		os.Exit(runTaskBriefing(args))
+	case "task-ledger":
+		os.Exit(runTaskLedger(args))
 	case "proof-plan":
 		os.Exit(runProofPlan(args))
 	case "repair-plan":
@@ -237,64 +340,107 @@ func printUsage() {
 
 Usage: sensei <command> [flags]
 
-Query commands (require a running Sensei server):
+Onboard or refresh a repo:
+  init           Scaffold awareness for a new project
+  import         Learn a repo in one command; --refresh re-extracts an existing checkout
+  bootstrap      Advanced extractor stage: deterministic structure + optional history
+  build          Compile YAML sources and load into the store
+  rebuild        Rebuild self-only awareness.nt (--combined includes paired repo)
+  serve          Start the gRPC awareness server
+  demo           Stand up a private graph and return one real briefing
+
+Query before editing:
+  preflight      Risk classification before editing a file or task
   briefing       Query the graph for a file or task
+  edit-brief     Claude Code PreToolUse push: hand the agent a file briefing
   impact         Get structured knowledge nodes for a file
-  preflight      Risk classification before editing a file
-  contract-assess Report-only contract synthesis assessment from explicit evidence
-  contract-bootstrap Build a proposed repair-contract bootstrap from issue/tests/Sensei
-  edit-check     Warn (advisory) if a proposed edit violates repo-scoped rules
-  edit-brief     Claude Code PreToolUse push: hand the agent a file's briefing as context before it edits
-  gate           Hard gate over a git diff (--enforce to block; --event-log to record outcomes)
-  evidence       Aggregate the gate/guard outcome ledger ("caught N incidents across M repos")
   resolve        Fetch a single awareness node by class + id
   query          Structured browse (by_file | by_id | by_class | related)
   metadata       Show graph-level coverage and freshness
-  governance     Verify/activate/status for local managed-governance packs
+  domains        List selectable graph domains from Metadata
+
+Record or promote a lesson:
+  propose        Append one typed feedback entry, rebuild + reload, stage
+  feedback-check Warn when a durable fix added no graph feedback
+  promote        Promote a candidate into canonical awareness YAML
+  ingest         Feed new knowledge into the graph
+  skill-ingest   Generate review-only ImplementationPattern candidates from SKILL.md files
+  intent-mine    Mine and ground architectural-intent candidates
+  cold-bootstrap Advanced miner: history/review candidates
+  corpus         Review/hold/never classification for finding reports
+
+Gate or validate a change:
+  gate           Hard gate over a git diff (--enforce to block)
+  impact-gate    Changed files -> protecting invariants' required_tests
+  repair-gate    Fail-closed CI verdict from repair classification or artifact
+  runtime-gate   Fail-closed CI/operator gate over a runtime verdict
+  contract-assess Report-only contract synthesis assessment
+  contract-bootstrap Build a proposed repair-contract bootstrap
+  architecture-extract Layer repository evidence into observed/inferred/governed contracts
+  check          Validate YAML sources without building
+  validate       Deep structural check (dangling refs, missing files, dup IDs)
+  validate-draft Validate draft candidates before promotion
+  audit          Self-audit for drift, gaps, and inconsistencies
+  repo-eval      Evidence-based repository quality evaluation (fix | draft-upgrade)
+  merge-check    Verify a PR is merge-authorized; never merges
+  edit-check     Warn if a proposed edit violates repo-scoped rules
   pattern-check  Check files against ImplementationPattern recipes
   source-check   Scan source files for structural pattern violations
   visual-audit   Screenshot routes and compare against golden images
 
-Local commands (no server required):
-  demo           One command: stand up a private graph and return one real briefing
-  init           Scaffold awareness for a new project
-  bootstrap      Initialize Sensei for an existing repo (deterministic extraction + optional history)
-  build          Compile YAML sources and load into the store
-  serve          Start the gRPC awareness server
-  check          Validate YAML sources without building
-  validate       Deep structural check (dangling refs, missing files, dup IDs)
-  audit          Self-audit for drift, gaps, and inconsistencies
-  merge-check    Verify a PR is merge-authorized (per-check + mergeability; never merges)
-  runtime-adapter validate  Validate a runtime-adapter/v1 manifest (lanes->platform mapping)
-  runtime-snapshot validate Validate a runtime-evidence/v1 snapshot (schema only; Phase 1)
-  cluster-diagnose Typed runtime verdict from a snapshot (blocked_by_quorum, converged, ...)
-  runtime-repair-report Validate a runtime repair (before/action/after; valid_runtime_repair or honest block)
-  runtime-gate     Fail-closed CI/operator gate over a runtime verdict (no implicit green)
-  runtime-candidate Turn a recurring runtime verdict into a governance CANDIDATE (review-gated; never auto-enforced)
-  repo-eval      Evidence-based repository quality evaluation and safe metadata repair
-                 subcommands: fix | draft-upgrade
-  benchmark-brief Build a compact local repair envelope for benchmark/PR fixing
+Runtime, recovery, and provenance:
+  runtime-adapter validate   Validate a runtime-adapter/v1 manifest
+  runtime-snapshot validate  Validate a runtime-evidence/v1 snapshot
+  cluster-diagnose           Typed runtime verdict from a snapshot
+  runtime-repair-report      Validate a runtime repair claim
+  runtime-candidate          Turn a recurring runtime verdict into a candidate
+  reconcile                  Diff live store against committed seed
+  seed-status                Check generated/committed/live seed authority alignment
+  governance                 Verify/activate/status for managed-governance packs
+  evidence                   Aggregate the gate/guard outcome ledger
+
+Repair and evaluation helpers:
+  proof-plan     Show required proof/forbidden-move checklist before editing
+  repair-plan    Build an authoritative governed repair plan
+  repair-report  Emit the governed post-edit repair report artifact
+  draft-candidate Draft an incident/finding/scar into a review-queue candidate
+  benchmark-brief Build a compact repair envelope for benchmark/PR fixing
   benchmark-judge Judge a patch envelope for contract/test discipline
   benchmark-score Standard brief->judge benchmark workflow and combined score
   benchmark-retry Build a reusable benchmark retry plan from run evidence
-  benchmark-event-meta Read small orchestration metadata from benchmark learning events
-  certify        Evaluate a repair claim/promotion verdict from authored event metadata
+  benchmark-event-meta Read orchestration metadata from benchmark learning events
+  benchmark-freeze Freeze an external cold-start benchmark workspace
+  benchmark-reconstruct Reconstruct bounded benchmark state from a blind workspace
+  benchmark-evaluate Reveal oracle receipts and produce a categorical report
+  benchmark-status Print compact external benchmark state
+  certify        Legacy benchmark repair-claim verdict (not architectural closure)
+  certify-change Architectural-closure certification over a verified task ledger
+  complete-task  Delegate terminal completion to the Phase-8 owner (thin invocation surface)
+  inspect-terminal Reconstruct a task's honest terminal state (read-only surface)
+  recover-projections Rebuild stale/missing derived projections from a valid conjunction
+  extract-invariants Extract normalized facts and review-only invariant candidates
+  infer-claims   Derive offline ArchitectureClaim candidates from normalized facts
+  maintain-claims Recalculate offline ArchitectureClaim status from explicit proof
+  assess-planes  Verify ArchitectureClaim architectural-plane basis offline
+  assess-closure Evaluate bounded architectural closure from explicit artifacts
+  generate-questions Generate offline OpenQuestion candidates from closure blockers
+  record-answer  Record an exact architect answer offline
+  adjudicate-answer Adjudicate a recorded architect answer offline
+  plan-probes    Generate offline EvidenceProbe plans from evidence questions
+  record-probe-result Record an externally executed probe result offline
+  advance-convergence Advance one offline convergence session iteration
+  convergence-status Inspect an offline convergence session bundle
+  bootstrap-direction-digest Compute canonical digest for a bootstrap direction authorization
+  admit-change   Evaluate bounded agent admission from a convergence bundle
+  verify-admission Verify a working-tree diff against an admission envelope
+  admission-status Inspect admission and scope-verification receipts
+  prepare-change Create or refresh one active architectural task session
+  task-status    Inspect an active architectural task session
+  advance-task   Execute safe static evidence and advance one task iteration
+  task-briefing  Show bounded file context for an active task
+  task-ledger    Verify, import, and rebuild append-only task ledgers
   extract-authority Extract candidate authority surfaces from Go code
   extract-proof-obligations Generate proof obligations from authority surfaces
-  proof-plan     Show the required proof/forbidden-move checklist before editing
-  repair-plan    Build an authoritative governed repair plan
-  seed-status    Check generated/committed/live seed authority alignment
-  reconcile      Diff the live store against the committed seed; name store-only orphans
-  draft-candidate Draft an incident/finding/scar into a review-queue candidate (WB-2)
-  impact-gate    Changed files -> protecting invariants' required_tests; fail-closed verify (CG-5)
-  repair-report  Emit the governed post-edit repair report artifact
-  repair-gate    Fail-closed CI verdict from repair classification or artifact
-  rebuild        Rebuild awareness.nt from YAML sources across repos
-  promote        Promote a candidate into canonical awareness YAML
-  propose        Append one typed feedback entry (failure_mode/invariant/required_test/forbidden_fix), rebuild + reload, stage (never commit)
-  feedback-check Warn when a session fixed a durable error class but added no graph feedback (Stop-hook backing)
-  ingest         Feed new knowledge into the graph
-  skill-ingest   Generate review-only ImplementationPattern candidates from external SKILL.md files
 
 Other:
   version        Print version and exit

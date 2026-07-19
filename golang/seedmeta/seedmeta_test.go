@@ -26,6 +26,25 @@ func TestAppendMarker_IsIdempotent(t *testing.T) {
 	}
 }
 
+func TestAppendMarker_CanonicalizesTripleOrder(t *testing.T) {
+	firstInput := []byte(
+		"<https://globular.io/awareness#invariant/b> <http://www.w3.org/2000/01/rdf-schema#label> \"B\" .\n" +
+			"<https://globular.io/awareness#invariant/a> <http://www.w3.org/2000/01/rdf-schema#label> \"A\" .\n")
+	secondInput := []byte(
+		"<https://globular.io/awareness#invariant/a> <http://www.w3.org/2000/01/rdf-schema#label> \"A\" .\n" +
+			"<https://globular.io/awareness#invariant/b> <http://www.w3.org/2000/01/rdf-schema#label> \"B\" .\n")
+
+	first, firstMarker := AppendMarker(firstInput)
+	second, secondMarker := AppendMarker(secondInput)
+
+	if string(first) != string(second) {
+		t.Fatalf("canonical graph output differs across input order:\nfirst:\n%s\nsecond:\n%s", first, second)
+	}
+	if firstMarker != secondMarker {
+		t.Fatalf("marker differs across input order: %#v vs %#v", firstMarker, secondMarker)
+	}
+}
+
 func TestParseMarker_FindsDigestAndIRI(t *testing.T) {
 	stamped, want := AppendMarker([]byte("<https://globular.io/awareness#invariant/foo> <http://www.w3.org/2000/01/rdf-schema#label> \"Foo\" .\n"))
 	got, ok := ParseMarker(stamped)

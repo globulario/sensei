@@ -11,7 +11,7 @@ package main
 //
 //   rebuild embeddata (deterministic, no Oxigraph dependency)
 //     -> validate corpus (dangling refs / dup ids / missing sources)
-//       -> audit -check (freshness + coherence)
+//       -> audit --check (freshness + coherence)
 //         -> stage the regenerated artifact
 //
 // It refuses to report success if any step fails, and it reports the directive's
@@ -24,7 +24,7 @@ package main
 //
 // Idempotent: running it twice with no source changes produces no diff (rebuild only
 // writes the seed when its content hash changes). That is the property that lets the
-// freshness gate be authoritative — see `sensei audit -check`.
+// freshness gate be authoritative — see `sensei audit --check`.
 
 import (
 	"flag"
@@ -64,7 +64,7 @@ func runLearn(args []string) int {
 	// 1. Rebuild embeddata. -no-runtime-reload keeps it headless-safe (no Oxigraph
 	//    dependency); --check makes it compare-only (no write).
 	fmt.Println("\n[1/4] rebuild embeddata (deterministic)...")
-	rebuildArgs := append([]string{"-no-runtime-reload"}, pass(true, true)...)
+	rebuildArgs := append([]string{"-no-runtime-reload", "--combined"}, pass(true, true)...)
 	if *checkOnly {
 		rebuildArgs = append(rebuildArgs, "-check")
 	}

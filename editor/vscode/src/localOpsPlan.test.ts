@@ -9,6 +9,8 @@ import * as path from 'path';
 import {
   candidatePromotePlan,
   resolveRebuildPlan,
+  resolveSenseiBinaryCandidates,
+  validateReadOnlySenseiArgs,
   type RebuildPlanLike,
 } from './localOpsPlan';
 
@@ -80,9 +82,46 @@ test('resolveRebuildPlan auto-detects sibling services for awareness-graph repo'
   assert.equal(plan.mode, 'combined');
   assert.equal(plan.servicesDetected, true);
   assert.equal(plan.servicesRepoPath, services);
-  assert.deepEqual(plan.args, ['rebuild', '--services-repo', services, '--tag-by-repo']);
-  assert.equal(plan.command, `sensei rebuild --services-repo ${services} --tag-by-repo`);
+  assert.deepEqual(plan.args, ['rebuild', '--combined', '--services-repo', services, '--tag-by-repo']);
+  assert.equal(plan.command, `sensei rebuild --combined --services-repo ${services} --tag-by-repo`);
   assert.equal(plan.seedPath, path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'));
+});
+
+test('resolveRebuildPlan uses single-repo rebuild for selected workspace domain', (t) => {
+  const parent = tempDir(t);
+  const ag = path.join(parent, 'sensei');
+  const services = path.join(parent, 'services');
+  mkdirp(path.join(ag, 'golang', 'server', 'embeddata'));
+  mkdirp(path.join(services, 'docs', 'awareness'));
+  fs.writeFileSync(path.join(services, 'docs', 'awareness', 'namespaces.yaml'), 'namespaces: []\n');
+  fs.writeFileSync(path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'), '<s> <p> <o> .\n');
+
+  const plan = resolveRebuildPlan('sensei', ag, '', {
+    selectedDomain: 'github.com/globulario/sensei',
+    workspaceDomain: 'github.com/globulario/sensei',
+  });
+
+  assert.equal(plan.mode, 'single');
+  assert.deepEqual(plan.args, ['rebuild']);
+  assert.equal(plan.seedPath, path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'));
+});
+
+test('resolveRebuildPlan blocks selected foreign domain', (t) => {
+  const parent = tempDir(t);
+  const ag = path.join(parent, 'sensei');
+  const services = path.join(parent, 'services');
+  mkdirp(path.join(ag, 'golang', 'server', 'embeddata'));
+  mkdirp(path.join(services, 'docs', 'awareness'));
+  fs.writeFileSync(path.join(services, 'docs', 'awareness', 'namespaces.yaml'), 'namespaces: []\n');
+  fs.writeFileSync(path.join(ag, 'golang', 'server', 'embeddata', 'awareness.nt'), '<s> <p> <o> .\n');
+
+  const plan = resolveRebuildPlan('sensei', ag, '', {
+    selectedDomain: 'github.com/caddyserver/caddy',
+    workspaceDomain: 'github.com/globulario/sensei',
+  });
+
+  assert.equal(plan.mode, 'blocked');
+  assert.match(plan.reason || '', /not rebuildable from this workspace/);
 });
 
 test('resolveRebuildPlan blocks awareness-graph rebuild when services repo is missing', (t) => {
@@ -108,4 +147,49 @@ test('resolveRebuildPlan blocks invalid configured services repo path', (t) => {
 
   assert.equal(plan.mode, 'blocked');
   assert.match(plan.reason || '', /is set to "\.\.\/not-services" but that is not a services repo/);
+});
+
+test('resolveSenseiBinaryCandidates finds repo-root binary from nested extension workspace', (t) => {
+  const root = tempDir(t);
+  const nested = path.join(root, 'editor', 'vscode');
+  mkdirp(path.join(root, 'golang', 'server', 'embeddata'));
+  mkdirp(nested);
+
+  const cands = resolveSenseiBinaryCandidates(nested, '');
+
+  assert.equal(cands[0], path.join(root, 'bin', 'sensei'));
+  assert(cands.includes('sensei'));
+  assert(cands.includes(path.join(root, 'bin', 'awg')));
+});
+
+test('resolveSenseiBinaryCandidates preserves explicit configured binary first', (t) => {
+  const root = tempDir(t);
+  const nested = path.join(root, 'editor', 'vscode');
+  mkdirp(path.join(root, 'golang', 'server', 'embeddata'));
+  mkdirp(nested);
+
+  const cands = resolveSenseiBinaryCandidates(nested, '/custom/sensei');
+
+  assert.equal(cands[0], '/custom/sensei');
+  assert.equal(cands[1], path.join(root, 'bin', 'sensei'));
+});
+
+test('validateReadOnlySenseiArgs accepts status-only control commands', () => {
+  assert.equal(validateReadOnlySenseiArgs(['convergence-status', '--session', '.sensei/closure/session.yaml']), undefined);
+  assert.equal(validateReadOnlySenseiArgs(['admission-status', '--decision', '.sensei/admission/decision.yaml']), undefined);
+  assert.equal(validateReadOnlySenseiArgs(['benchmark-status']), undefined);
+  assert.equal(validateReadOnlySenseiArgs(['task-status', '--active', '--verify', '--format', 'json']), undefined);
+});
+
+test('validateReadOnlySenseiArgs requires explicit assess-closure inputs', () => {
+  assert.match(validateReadOnlySenseiArgs(['assess-closure']) || '', /requires explicit/);
+  assert.equal(
+    validateReadOnlySenseiArgs(['assess-closure', '--request', 'request.yaml', '--claims', 'claims.yaml']),
+    undefined
+  );
+});
+
+test('validateReadOnlySenseiArgs rejects write commands and shell metacharacters', () => {
+  assert.match(validateReadOnlySenseiArgs(['record-answer', '--dialogue', 'd.yaml']) || '', /not allowed/);
+  assert.match(validateReadOnlySenseiArgs(['convergence-status', '--session', 'a.yaml;rm']) || '', /literal argv/);
 });

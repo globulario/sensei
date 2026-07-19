@@ -72,6 +72,38 @@ func TestScan_Go_InternalDependsOn(t *testing.T) {
 	}
 }
 
+func TestScan_Go_RootPackageIsCanonicalComponent(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), fixtureModule)
+	writeFile(t, filepath.Join(root, "gin.go"), "package gin\nimport \"acme.test/app/render\"\n")
+	writeFile(t, filepath.Join(root, "tree.go"), "package gin\n")
+	writeFile(t, filepath.Join(root, "context_test.go"), "package gin\n")
+	writeFile(t, filepath.Join(root, "generated.pb.go"), "package gin\n")
+	writeFile(t, filepath.Join(root, "render", "render.go"), "package render\nimport \"acme.test/app\"\n")
+
+	doc, err := Scan(root, "go", Config{})
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	gin := findComp(doc, "component.gin")
+	if gin == nil {
+		t.Fatalf("missing component.gin: %+v", doc.Components)
+	}
+	if gin.Name != "gin" {
+		t.Fatalf("root component name=%q want gin", gin.Name)
+	}
+	if got := gin.SourceFiles; len(got) != 2 || !contains(got, "gin.go") || !contains(got, "tree.go") {
+		t.Fatalf("root source_files=%v want gin.go and tree.go", got)
+	}
+	if !contains(gin.DependsOn, "component.render") {
+		t.Fatalf("root depends_on=%v want component.render", gin.DependsOn)
+	}
+	render := findComp(doc, "component.render")
+	if render == nil || !contains(render.DependsOn, "component.gin") {
+		t.Fatalf("root-target import was not represented: %+v", render)
+	}
+}
+
 // TestScan_Go_ClassifierUpgrade is the fictional custom-classifier fixture: a
 // project rule upgrades a raw import into a semantic reads_from edge.
 func TestScan_Go_ClassifierUpgrade(t *testing.T) {

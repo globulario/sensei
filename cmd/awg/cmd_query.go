@@ -25,7 +25,7 @@ var queryRPC = func(ctx context.Context, addr string, req *awarenesspb.QueryRequ
 func runQuery(args []string) int {
 	fs := flag.NewFlagSet("sensei query", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	mode := fs.String("mode", "", "by_file | by_id | by_class | related (required)")
 	file := fs.String("file", "", "repo-relative path (for mode=by_file)")
 	id := fs.String("id", "", "class-qualified id (for mode=by_id/related)")
@@ -47,7 +47,7 @@ Modes:
 Classes: invariant, failure_mode, incident_pattern, intent, symbol, source_file,
          code_symbol, forbidden_fix, test, meta_principle, component, boundary,
          contract, decision, evidence, design_pattern, implementation_pattern,
-         pattern_misuse
+         pattern_misuse, architecture_claim, open_question, architect_answer, evidence_probe
 
 Flags:
 `)
@@ -77,7 +77,7 @@ Flags:
 	if *class != "" {
 		qc, ok := parseQueryClass(*class)
 		if !ok {
-			fmt.Fprintln(os.Stderr, "sensei query: --class must be one of: invariant, failure_mode, incident_pattern, intent, symbol, source_file")
+			fmt.Fprintln(os.Stderr, "sensei query: --class must be one of the listed query classes")
 			return 2
 		}
 		req.Class = qc
@@ -170,6 +170,14 @@ func parseQueryClass(s string) (awarenesspb.QueryClass, bool) {
 		return awarenesspb.QueryClass_QUERY_CLASS_IMPLEMENTATION_PATTERN, true
 	case "pattern_misuse":
 		return awarenesspb.QueryClass_QUERY_CLASS_PATTERN_MISUSE, true
+	case "architecture_claim":
+		return awarenesspb.QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM, true
+	case "open_question":
+		return awarenesspb.QueryClass_QUERY_CLASS_OPEN_QUESTION, true
+	case "architect_answer":
+		return awarenesspb.QueryClass_QUERY_CLASS_ARCHITECT_ANSWER, true
+	case "evidence_probe":
+		return awarenesspb.QueryClass_QUERY_CLASS_EVIDENCE_PROBE, true
 	}
 	return 0, false
 }

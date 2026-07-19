@@ -1,25 +1,25 @@
-# Example: enforce AWG's architectural rules on every PR.
+# Example: enforce Sensei's architectural rules on every PR.
 #
-# Copy to .github/workflows/awg-gate.yml in your repo. This is a CONTROL gate:
+# Copy to .github/workflows/sensei-gate.yml in your repo. This is a CONTROL gate:
 # it fails the PR when a change trips an `enforcement: block` rule in your
 # awareness graph (a forbidden-fix shape, a boundary violation, …). Clean PRs
 # pass. It never edits code.
 #
-# `awg gate --enforce` exits:
+# `sensei gate --enforce` exits:
 #   0 — PASS      (no blocking finding)
 #   1 — BLOCKED   (a change tripped an enforcement:block rule; see the log)
-#   2 — CANNOT VERIFY (AWG could not evaluate the diff — fails closed)
+#   2 — CANNOT VERIFY (Sensei could not evaluate the diff — fails closed)
 #
 # Use `--report-only` instead of `--enforce` to start advisory (always exit 0)
 # while you tune rules, then flip to `--enforce` to make it bite.
 
-name: AWG gate
+name: Sensei gate
 on:
   pull_request:
     branches: ['**']
 
 jobs:
-  awg-gate:
+  sensei-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,25 +30,25 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: Install AWG
+      - name: Install Sensei
         run: |
-          go install github.com/globulario/sensei/cmd/awg@latest
-          # Or build from a vendored checkout: make awg
+          curl -fsSL https://raw.githubusercontent.com/globulario/sensei/main/install.sh | sh
+          # Or build from a vendored checkout: make sensei
 
       - name: Serve the awareness graph
         run: |
-          awg serve -no-seed &                # local Oxigraph + gRPC server
-          awg build                           # compile docs/awareness into the store
-          for i in $(seq 1 15); do awg metadata >/dev/null 2>&1 && break; sleep 1; done
+          sensei serve -no-seed &             # local Oxigraph + gRPC server
+          sensei build                        # compile docs/awareness into the store
+          for i in $(seq 1 15); do sensei metadata >/dev/null 2>&1 && break; sleep 1; done
 
       - name: Enforce architectural rules on the diff
         env:
           # Record every outcome (block/warn/allow + rules) to an evidence
-          # ledger. Aggregate it later with `awg evidence --log <path>` to get
+          # ledger. Aggregate it later with `sensei evidence --log <path>` to get
           # "caught N drift incidents across M repos". Optional; omit to disable.
-          AWG_EVENT_LOG: awg-events.jsonl
+          SENSEI_EVENT_LOG: sensei-events.jsonl
         run: |
-          awg gate --enforce \
+          sensei gate --enforce \
             --diff "origin/${{ github.base_ref }}...HEAD" \
             --repo-root .
           # exit 1 (blocked) or 2 (cannot verify) fails the job; 0 passes.
@@ -58,6 +58,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: awg-events
-          path: awg-events.jsonl
+          name: sensei-events
+          path: sensei-events.jsonl
           if-no-files-found: ignore

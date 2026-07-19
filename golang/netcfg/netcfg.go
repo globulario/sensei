@@ -8,9 +8,11 @@
 // Every default is overridable at runtime through an environment variable so
 // that "change the port once" holds without recompiling:
 //
-//	AWG_ADDR           gRPC service address        (default localhost:10120 / :10120 to listen)
-//	AWG_OXIGRAPH_URL   Oxigraph HTTP endpoint base  (default http://localhost:7878)
-//	AWG_OXIGRAPH_BIND  Oxigraph listen address      (default 127.0.0.1:7878)
+//	SENSEI_ADDR           gRPC service address        (default localhost:10120 / :10120 to listen)
+//	SENSEI_OXIGRAPH_URL   Oxigraph HTTP endpoint base  (default http://localhost:7878)
+//	SENSEI_OXIGRAPH_BIND  Oxigraph listen address      (default 127.0.0.1:7878)
+//
+// The old AWG_* names remain as compatibility fallbacks only.
 //
 // An explicit --addr / --oxigraph-url / --oxigraph-bind flag still wins over
 // the environment, because these functions only supply the flag default.
@@ -38,46 +40,61 @@ const (
 	DefaultOxigraphBase = "http://localhost:7878"
 
 	// EnvServiceAddr overrides the gRPC service address.
-	EnvServiceAddr = "AWG_ADDR"
+	EnvServiceAddr = "SENSEI_ADDR"
+	// EnvLegacyServiceAddr is the pre-rename compatibility fallback.
+	EnvLegacyServiceAddr = "AWG_ADDR"
 	// EnvOxigraphURL overrides the Oxigraph HTTP endpoint (base or full path).
-	EnvOxigraphURL = "AWG_OXIGRAPH_URL"
+	EnvOxigraphURL = "SENSEI_OXIGRAPH_URL"
+	// EnvLegacyOxigraphURL is the pre-rename compatibility fallback.
+	EnvLegacyOxigraphURL = "AWG_OXIGRAPH_URL"
 	// EnvOxigraphBind overrides the Oxigraph listen address.
-	EnvOxigraphBind = "AWG_OXIGRAPH_BIND"
+	EnvOxigraphBind = "SENSEI_OXIGRAPH_BIND"
+	// EnvLegacyOxigraphBind is the pre-rename compatibility fallback.
+	EnvLegacyOxigraphBind = "AWG_OXIGRAPH_BIND"
 )
 
 func env(key string) string { return strings.TrimSpace(os.Getenv(key)) }
 
-// ServiceAddr is the gRPC address clients should dial: $AWG_ADDR or
-// localhost:10120.
+func envOrLegacy(primary, legacy string) string {
+	if v := env(primary); v != "" {
+		return v
+	}
+	return env(legacy)
+}
+
+// ServiceAddr is the gRPC address clients should dial: $SENSEI_ADDR, legacy
+// $AWG_ADDR, or localhost:10120.
 func ServiceAddr() string {
-	if v := env(EnvServiceAddr); v != "" {
+	if v := envOrLegacy(EnvServiceAddr, EnvLegacyServiceAddr); v != "" {
 		return v
 	}
 	return DefaultServiceHostPort
 }
 
-// ServiceListenAddr is the address the server binds: $AWG_ADDR or :10120.
+// ServiceListenAddr is the address the server binds: $SENSEI_ADDR, legacy
+// $AWG_ADDR, or :10120.
 func ServiceListenAddr() string {
-	if v := env(EnvServiceAddr); v != "" {
+	if v := envOrLegacy(EnvServiceAddr, EnvLegacyServiceAddr); v != "" {
 		return v
 	}
 	return DefaultServiceListen
 }
 
-// OxigraphBind is the Oxigraph listen address: $AWG_OXIGRAPH_BIND or
-// 127.0.0.1:7878.
+// OxigraphBind is the Oxigraph listen address: $SENSEI_OXIGRAPH_BIND, legacy
+// $AWG_OXIGRAPH_BIND, or 127.0.0.1:7878.
 func OxigraphBind() string {
-	if v := env(EnvOxigraphBind); v != "" {
+	if v := envOrLegacy(EnvOxigraphBind, EnvLegacyOxigraphBind); v != "" {
 		return v
 	}
 	return DefaultOxigraphBind
 }
 
 // OxigraphBase returns the scheme://host:port of the Oxigraph endpoint with any
-// well-known path/query suffix stripped, honoring $AWG_OXIGRAPH_URL. Callers
-// should use OxigraphQueryURL / OxigraphStoreURL rather than this directly.
+// well-known path/query suffix stripped, honoring $SENSEI_OXIGRAPH_URL and
+// legacy $AWG_OXIGRAPH_URL. Callers should use OxigraphQueryURL /
+// OxigraphStoreURL rather than this directly.
 func OxigraphBase() string {
-	raw := env(EnvOxigraphURL)
+	raw := envOrLegacy(EnvOxigraphURL, EnvLegacyOxigraphURL)
 	if raw == "" {
 		return DefaultOxigraphBase
 	}

@@ -23,6 +23,7 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
+	"github.com/globulario/sensei/golang/architecture/adoption"
 	"github.com/globulario/sensei/golang/rdf"
 )
 
@@ -162,12 +163,12 @@ func importComponents(e *rdf.Emitter, path string) error {
 // ── Boundary ───────────────────────────────────────────────────────────────
 
 type yamlBoundary struct {
+	adoption.Receipt `yaml:",inline"`
 	ID               string     `yaml:"id"`
 	Name             string     `yaml:"name"`
 	Title            string     `yaml:"title"`
 	Description      string     `yaml:"description"`
 	Kind             string     `yaml:"kind"`
-	Status           string     `yaml:"status"`
 	Assertion        string     `yaml:"assertion"`
 	Separates        []string   `yaml:"separates"`
 	Protects         []string   `yaml:"protects"`
@@ -207,7 +208,9 @@ func importBoundaries(e *rdf.Emitter, path string) error {
 		e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit(coalesce(b.Name, b.Title, b.ID)))
 		emitOptLit(e, subj, rdf.PropComment, b.Description)
 		emitOptLit(e, subj, rdf.PropKind, b.Kind)
-		emitOptLit(e, subj, rdf.PropStatus, b.Status)
+		if err := emitAdoptionReceipt(e, subj, rdf.ClassBoundary, b.ID, b.Receipt); err != nil {
+			return fmt.Errorf("boundary %s adoption receipt: %w", b.ID, err)
+		}
 		e.Triple(subj, rdf.IRI(rdf.PropAssertionMethod), rdf.Lit(assertionOrDefault(b.Assertion)))
 		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 
@@ -230,13 +233,14 @@ func importBoundaries(e *rdf.Emitter, path string) error {
 // CLI contracts with read/write semantics. Both emit aw:Contract nodes.
 
 type yamlArchContract struct {
+	adoption.Receipt        `yaml:",inline"`
 	ID                      string     `yaml:"id"`
 	Name                    string     `yaml:"name"`
 	Description             string     `yaml:"description"`
 	Kind                    string     `yaml:"kind"`
 	Stability               string     `yaml:"stability"`
 	ReadOrWrite             string     `yaml:"read_or_write"`
-	Status                  string     `yaml:"status"`
+	PublicConsumerCategory  string     `yaml:"public_consumer_category"`
 	Assertion               string     `yaml:"assertion"`
 	ExposedBy               []string   `yaml:"exposed_by"`
 	ConsumedBy              []string   `yaml:"consumed_by"`
@@ -278,7 +282,10 @@ func importArchitectureContracts(e *rdf.Emitter, path string) error {
 		emitOptLit(e, subj, rdf.PropKind, c.Kind)
 		emitOptLit(e, subj, rdf.PropStability, c.Stability)
 		emitOptLit(e, subj, rdf.PropReadOrWrite, c.ReadOrWrite)
-		emitOptLit(e, subj, rdf.PropStatus, c.Status)
+		emitOptLit(e, subj, rdf.PropPublicConsumerCategory, c.PublicConsumerCategory)
+		if err := emitAdoptionReceipt(e, subj, rdf.ClassContract, c.ID, c.Receipt); err != nil {
+			return fmt.Errorf("contract %s adoption receipt: %w", c.ID, err)
+		}
 		e.Triple(subj, rdf.IRI(rdf.PropAssertionMethod), rdf.Lit(assertionOrDefault(c.Assertion)))
 		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 

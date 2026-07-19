@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/capability-consumption.schema.json",
+  "title": "Architectural Closure v1 Capability Consumption",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "capability_id": {"type": "string"},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "session_id": {"type": "string"},
+        "iteration_digest_sha256": {"type": "string"}
+      },
+      "required": ["id", "session_id"]
+    },
+    "consumer_actor": {"$ref": "actor-binding.schema.json"},
+    "consumed_operation_ids": {"type": "array", "items": {"type": "string"}},
+    "consumed_at": {"type": "string"},
+    "decision_digest_sha256": {"type": "string"},
+    "one_use_status": {"$ref": "common.schema.json#/$defs/receipt_status"}
+  },
+  "required": ["capability_id", "task", "consumer_actor", "consumed_operation_ids", "consumed_at", "decision_digest_sha256", "one_use_status"]
+}
+

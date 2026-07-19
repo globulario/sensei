@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/artifact-receipt.schema.json",
+  "title": "Architectural Closure v1 Artifact Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "kind": {"type": "string"},
+    "path": {"type": "string"},
+    "media_type": {"type": "string"},
+    "semantic_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "byte_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "version": {"type": "string"}
+      },
+      "required": ["id", "version"]
+    },
+    "result_binding_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "receipt_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "required": ["kind", "semantic_digest_sha256", "producer", "result_binding_digest_sha256"]
+}

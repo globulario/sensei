@@ -47,6 +47,10 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	}
 
 	start := time.Now()
+	requestedDomain := strings.TrimSpace(req.GetDomain())
+	if err := s.requireDomainWhenAmbiguous(ctx, requestedDomain); err != nil {
+		return nil, err
+	}
 
 	// Task-only mode: invariants/failure_modes/intents are file-anchored so
 	// we cannot surface those without a file. ImplementationPatterns, however,
@@ -57,7 +61,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	if file == "" {
 		// Task-only mode has no file to resolve a domain from, so the scope is
 		// the explicit request or the home domain — never another repo's rules.
-		scope := briefingScope(strings.TrimSpace(req.GetDomain()), "", s.homeDomain)
+		scope := briefingScope(requestedDomain, "", s.homeDomain)
 		var implPatterns []*awarenesspb.MatchedImplementationPattern
 		if loaded, err := s.loadImplementationPatterns(ctx); err == nil {
 			implPatterns = matchPatternsForBriefing(task, "", inScopePatterns(loaded, scope))
@@ -97,7 +101,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		return out, nil
 	}
 
-	impact, provByID, resolvedScope, err := s.collectImpact(ctx, file, strings.TrimSpace(req.GetDomain()))
+	impact, provByID, resolvedScope, err := s.collectImpact(ctx, file, requestedDomain)
 	if err != nil {
 		// Preserve an already-coded status (e.g. FailedPrecondition for an
 		// ambiguous domain scope); only an uncoded error is a backend failure.
@@ -132,7 +136,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	// impact above — a domain-scoped briefing must not leak another repo's
 	// implementation patterns or intent triggers (shared nodes always pass).
 	// An unanchored file resolves to "", so fall back to the home domain.
-	sectionScope := briefingScope(strings.TrimSpace(req.GetDomain()), resolvedScope, s.homeDomain)
+	sectionScope := briefingScope(requestedDomain, resolvedScope, s.homeDomain)
 
 	// Implementation patterns — task/file-shape matched, bounded to 3.
 	// A failure here degrades the patterns section only, never the whole

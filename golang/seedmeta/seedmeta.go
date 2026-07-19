@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -28,7 +29,7 @@ type Marker struct {
 }
 
 func AppendMarker(nt []byte) ([]byte, Marker) {
-	base := normalize(stripMarkerLines(nt))
+	base := canonicalize(stripMarkerLines(nt))
 	sum := sha256.Sum256(base)
 	digest := hex.EncodeToString(sum[:])
 	tripleCount := countTriples(base) + 6
@@ -39,13 +40,27 @@ func AppendMarker(nt []byte) ([]byte, Marker) {
 	}
 	var out bytes.Buffer
 	out.Write(base)
-	fmt.Fprintf(&out, "<%s> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .\n", marker.IRI, markerClassIRI)
-	fmt.Fprintf(&out, "<%s> <http://www.w3.org/2000/01/rdf-schema#label> %q .\n", marker.IRI, "Embedded seed sha256 "+digest[:12])
-	fmt.Fprintf(&out, "<%s> <%s> %q .\n", marker.IRI, markerDigestIRI, digest)
-	fmt.Fprintf(&out, "<%s> <%s> %q .\n", marker.IRI, markerTripleCountIRI, strconv.FormatInt(tripleCount, 10))
-	fmt.Fprintf(&out, "<%s> <%s> %q .\n", marker.IRI, markerVersionIRI, markerVersion)
-	fmt.Fprintf(&out, "<%s> <%s> %q .\n", marker.IRI, markerAuthoredInIRI, "generated:seed_marker")
+	out.Write(MarkerTriples(marker))
 	return out.Bytes(), marker
+}
+
+// MarkerTriples serializes the 6 self-describing marker triples for m as
+// N-Triples. It is the single source for the marker's on-graph shape, shared by
+// AppendMarker (whole-artifact stamping) and the scoped-update path in
+// `sensei build --repo`, which recomputes the whole-graph marker and INSERTs
+// only these lines after a domain-scoped DELETE/append — never re-PUTting the
+// full graph. Callers MUST pass a Marker whose TripleCount already accounts for
+// these 6 lines (as AppendMarker computes it), so the live total the server
+// verifies against stays exact.
+func MarkerTriples(m Marker) []byte {
+	var out bytes.Buffer
+	fmt.Fprintf(&out, "<%s> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .\n", m.IRI, markerClassIRI)
+	fmt.Fprintf(&out, "<%s> <http://www.w3.org/2000/01/rdf-schema#label> %q .\n", m.IRI, "Embedded seed sha256 "+m.Digest[:12])
+	fmt.Fprintf(&out, "<%s> <%s> %q .\n", m.IRI, markerDigestIRI, m.Digest)
+	fmt.Fprintf(&out, "<%s> <%s> %q .\n", m.IRI, markerTripleCountIRI, strconv.FormatInt(m.TripleCount, 10))
+	fmt.Fprintf(&out, "<%s> <%s> %q .\n", m.IRI, markerVersionIRI, markerVersion)
+	fmt.Fprintf(&out, "<%s> <%s> %q .\n", m.IRI, markerAuthoredInIRI, "generated:seed_marker")
+	return out.Bytes()
 }
 
 func ParseMarker(nt []byte) (Marker, bool) {
@@ -54,7 +69,7 @@ func ParseMarker(nt []byte) (Marker, bool) {
 		return Marker{}, false
 	}
 	if marker.TripleCount == 0 {
-		marker.TripleCount = countTriples(normalize(nt))
+		marker.TripleCount = countTriples(canonicalize(nt))
 	}
 	return marker, true
 }
@@ -86,15 +101,26 @@ func parseMarker(nt []byte) (Marker, bool) {
 	return marker, true
 }
 
-func normalize(nt []byte) []byte {
-	b := bytes.TrimSpace(nt)
-	if len(b) == 0 {
+func canonicalize(nt []byte) []byte {
+	lines := strings.Split(string(nt), "\n")
+	kept := make([]string, 0, len(lines))
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if len(kept) == 0 {
 		return []byte{}
 	}
-	out := make([]byte, 0, len(b)+1)
-	out = append(out, b...)
-	out = append(out, '\n')
-	return out
+	sort.Strings(kept)
+	var out bytes.Buffer
+	for _, line := range kept {
+		out.WriteString(line)
+		out.WriteByte('\n')
+	}
+	return out.Bytes()
 }
 
 func stripMarkerLines(nt []byte) []byte {

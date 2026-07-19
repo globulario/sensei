@@ -450,7 +450,7 @@ the engineering, and it wires that into the build:
 3. **Unproven authority fails the build.** The `contract-verification-wiring`
    audit check is **FAIL-level**: a home-domain contract that claims it requires
    verification but wires none of `requiresTest` / `constrainedByInvariant` /
-   `violatedBy` / `detect` fails `sensei audit --check`. *Authority must carry its
+   `violatedBy` / `detect` fails `sensei audit --check --domain <repo-domain>`. *Authority must carry its
    proof*, mechanically, or the gate goes red.
 
 The consequence is a rule you can state in one line — *no resolution without a

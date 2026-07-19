@@ -1,0 +1,20 @@
+closure_protocol_fixture:
+  name: replayed-capability
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: one_use_status must be valid for first use
+  records:
+    capability_consumption:
+      capability_id: cap.replayed
+      task:
+        id: task.invalid
+        session_id: session.invalid
+      consumer_actor:
+        principal_id: actor.dave
+        actor_kind: human
+      consumed_operation_ids: [op.invalid]
+      consumed_at: "2026-07-15T19:00:00Z"
+      decision_digest_sha256: decision123
+      one_use_status: superseded
+

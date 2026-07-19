@@ -56,10 +56,15 @@ type yamlAuthorityDomain struct {
 	CoversPaths       []string `yaml:"covers_paths"`
 	OwnsState         []string `yaml:"owns_state"`
 	MayWrite          []string `yaml:"may_write"`
+	MayWriteRoleIDs   []string `yaml:"may_write_role_ids"`
 	MayRead           []string `yaml:"may_read"`
+	MayReadRoleIDs    []string `yaml:"may_read_role_ids"`
 	MustMutateVia     []string `yaml:"must_mutate_via"`
+	MustMutateViaIDs  []string `yaml:"must_mutate_via_ids"`
 	MustReadVia       []string `yaml:"must_read_via"`
+	MustReadViaIDs    []string `yaml:"must_read_via_ids"`
 	ObservesVia       []string `yaml:"observes_via"`
+	ObservesViaIDs    []string `yaml:"observes_via_ids"`
 	ForbidsBypass     []string `yaml:"forbids_bypass"`
 	EvidenceFreshness string   `yaml:"evidence_freshness"`
 	Notes             string   `yaml:"notes"`
@@ -102,10 +107,15 @@ func importAuthorityDomains(e *rdf.Emitter, path string) error {
 		emitOptLits(e, subj, rdf.PropCoversPath, d.CoversPaths)
 		emitOptLits(e, subj, rdf.PropOwnsState, d.OwnsState)
 		emitOptLits(e, subj, rdf.PropMayWrite, d.MayWrite)
+		emitOptLits(e, subj, rdf.PropMayWriteRoleID, d.MayWriteRoleIDs)
 		emitOptLits(e, subj, rdf.PropMayRead, d.MayRead)
+		emitOptLits(e, subj, rdf.PropMayReadRoleID, d.MayReadRoleIDs)
 		emitOptLits(e, subj, rdf.PropMustMutateVia, d.MustMutateVia)
+		emitOptLits(e, subj, rdf.PropMustMutateViaID, d.MustMutateViaIDs)
 		emitOptLits(e, subj, rdf.PropMustReadVia, d.MustReadVia)
+		emitOptLits(e, subj, rdf.PropMustReadViaID, d.MustReadViaIDs)
 		emitOptLits(e, subj, rdf.PropObservesVia, d.ObservesVia)
+		emitOptLits(e, subj, rdf.PropObservesViaID, d.ObservesViaIDs)
 		emitOptLits(e, subj, rdf.PropForbidsBypass, d.ForbidsBypass)
 	}
 

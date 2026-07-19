@@ -1,0 +1,118 @@
+architecture_benchmark_candidate_shortlist:
+  schema_version: "1"
+  repository_id: gin
+  repository_domain: github.com/gin-gonic/gin
+  curator_role: codex_curator
+  curator_context_note: >
+    Curator-only artifact. Contains future revision identifiers and patch
+    statistics. Must not be supplied to the blind runner.
+  local_repository_path_status: explicit_local_path_verified
+  local_repository_path_redacted: true
+  repository_preflight:
+    is_inside_work_tree: true
+    is_shallow: false
+    reachable_commit_count: 2004
+    source_status_note: >
+      Source checkout has untracked local Sensei/agent files. Freezing must use
+      committed Git history only and must not carry untracked files into the
+      blind workspace.
+    remote_present: true
+    current_head: 34dac209ffb6ef85cc78c5d217bbb7ad001d68fd
+  candidates:
+    - candidate_id: gin-candidate-001
+      base_revision: fb2583442c4d9bccb75e6d26f1aa6e7c01950db6
+      oracle_revision_start: 472d086
+      oracle_revision_end: 472d086
+      task_source_kind: commit_message
+      task_source_digest_sha256: a503e3ee84cbd8210ba2b2542f612bd67e0edb2a20387102ca2948ac0c05597b
+      public_task_summary: >
+        Preserve safe fixed-path redirection behavior when route lookup must
+        compare case-insensitive paths involving static and wildcard children.
+      architectural_surfaces:
+        - behavioral
+        - contract
+        - route_matching
+      likely_task_class: preserve_redirect_fixed_path_route_lookup
+      likely_risk_class: architecture_sensitive
+      likely_access_mode: write
+      likely_direction_requirement: preserve
+      bounded_paths_at_base:
+        - tree.go
+        - tree_test.go
+      oracle_patch_stats:
+        files_changed: 2
+        insertions: 159
+        deletions: 1
+      selection_strengths:
+        - Real route-tree behavior with panic/failure semantics.
+        - Bounded to path-tree lookup and regression tests.
+        - Architectural surface includes route precedence between static and wildcard children.
+      selection_risks:
+        - Commit message contains implementation details, so final task text must be rewritten neutrally.
+        - Patch has a larger test addition than code change, which may bias oracle comparison toward test coverage.
+      disqualification_reasons: []
+    - candidate_id: gin-candidate-002
+      base_revision: 93ff771e6dbf10e432864b30f3719ac5c84a4d4a
+      oracle_revision_start: 5fad976
+      oracle_revision_end: 5fad976
+      task_source_kind: commit_message
+      task_source_digest_sha256: 049ff56299cdd8c7e10f4a3348eb3d374f6dab2b766c38e0c368f9bdef8d1cb3
+      public_task_summary: >
+        Preserve literal-colon route behavior across engine request-serving
+        paths so direct handler use and normal request serving share the same
+        route tree semantics.
+      architectural_surfaces:
+        - behavioral
+        - public_api_compatibility
+        - route_registration
+      likely_task_class: preserve_literal_colon_route_registration
+      likely_risk_class: architecture_sensitive
+      likely_access_mode: write
+      likely_direction_requirement: preserve
+      bounded_paths_at_base:
+        - gin.go
+        - gin_test.go
+      oracle_patch_stats:
+        files_changed: 2
+        insertions: 107
+        deletions: 0
+      selection_strengths:
+        - Strong first-pilot fit: bounded Gin routing/public API behavior.
+        - Future solution is one commit and avoids generated/vendor files.
+        - Scope is narrow enough for blind reconstruction and admission.
+      selection_risks:
+        - Commit message mentions the literal-colon symptom; final blind task text must avoid solution helper names.
+        - The task may require understanding deferred route tree update lifecycle.
+      disqualification_reasons: []
+    - candidate_id: gin-candidate-003
+      base_revision: 52ecf029bd2e9b4d2652f96dd2b753f8bc6b6e95
+      oracle_revision_start: 771dcc6
+      oracle_revision_end: 771dcc6
+      task_source_kind: commit_message
+      task_source_digest_sha256: deaf4e29bcfaadce4d998f68847595d93ea5eaf1b2e760a0ff4881615e1b65b8
+      public_task_summary: >
+        Add a bounded routing option for escaped-path handling while preserving
+        existing request path behavior and public engine configuration semantics.
+      architectural_surfaces:
+        - public_api_compatibility
+        - request_lifecycle
+        - route_matching
+      likely_task_class: evolve_escaped_path_routing_option
+      likely_risk_class: architecture_sensitive
+      likely_access_mode: write
+      likely_direction_requirement: evolve
+      bounded_paths_at_base:
+        - gin.go
+        - gin_test.go
+      oracle_patch_stats:
+        files_changed: 2
+        insertions: 63
+        deletions: 2
+      selection_strengths:
+        - Bounded public configuration and request-routing semantics.
+        - Future solution is one commit and avoids generated/vendor files.
+        - Useful contrast with preservation tasks because the direction is evolve.
+      selection_risks:
+        - Feature-shaped task may require more human intent than a first blind pilot.
+        - Commit subject itself is close to the desired API behavior, so task text must be carefully neutralized.
+      disqualification_reasons: []

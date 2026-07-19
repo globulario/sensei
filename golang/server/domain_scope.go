@@ -4,9 +4,12 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"github.com/globulario/sensei/golang/rdf"
 	"github.com/globulario/sensei/golang/store"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Domain scoping for Metadata counts and Query lists. The counting/filtering
@@ -14,7 +17,7 @@ import (
 // facts ClassFacts already returns — no hand-rolled domain SPARQL FILTERs, which
 // is where a cross-domain leak would hide. The only new store capability is
 // enumerating the selectable domains, behind an optional interface so test
-// stubs and future stores need not implement it (they degrade to graph-wide).
+// stubs and future stores need not implement it (they omit scoped-only values).
 
 // domainLister is the optional store capability that enumerates the distinct
 // selectable domain keys present in the graph (the aw:repo literals). Absent →
@@ -116,22 +119,70 @@ func (s *server) inScopeClassIRIs(ctx context.Context, classIRI, home, scope str
 // may scope to). Shared and empties are excluded (uniqueSorted). Returns nil
 // when the store can't enumerate.
 func (s *server) availableDomains(ctx context.Context) []string {
+	out, ok, err := s.selectableDomains(ctx)
+	if !ok || err != nil {
+		return nil
+	}
+	return out
+}
+
+func (s *server) selectableDomains(ctx context.Context) ([]string, bool, error) {
 	lister, ok := s.store.(domainLister)
 	if !ok {
-		return nil
+		return nil, false, nil
 	}
 	keys, err := lister.Domains(ctx)
 	if err != nil {
-		return nil
+		return nil, true, err
 	}
 	if s.homeDomain != "" {
 		keys = append(keys, s.homeDomain)
 	}
 	out := uniqueSorted(keys) // drops "" and rdf.DomainShared, sorts, de-dups
 	if len(out) == 0 {
+		return nil, true, nil
+	}
+	return out, true, nil
+}
+
+func (s *server) validateRequestedDomain(ctx context.Context, requested string) error {
+	requested = strings.TrimSpace(requested)
+	if requested == "" {
 		return nil
 	}
-	return out
+	available, ok, err := s.selectableDomains(ctx)
+	if err != nil {
+		return status.Errorf(codes.Unavailable, "domain list query failed: %v", err)
+	}
+	if !ok {
+		return nil
+	}
+	for _, d := range available {
+		if d == requested {
+			return nil
+		}
+	}
+	return status.Errorf(codes.FailedPrecondition,
+		"unknown domain scope %q: graph domains are %v", requested, available)
+}
+
+func (s *server) requireDomainWhenAmbiguous(ctx context.Context, requested string) error {
+	requested = strings.TrimSpace(requested)
+	if err := s.validateRequestedDomain(ctx, requested); err != nil {
+		return err
+	}
+	if requested != "" {
+		return nil
+	}
+	available, ok, err := s.selectableDomains(ctx)
+	if err != nil {
+		return status.Errorf(codes.Unavailable, "domain list query failed: %v", err)
+	}
+	if ok && len(available) > 1 {
+		return status.Errorf(codes.FailedPrecondition,
+			"ambiguous domain scope: graph holds %d domains %v — specify --domain", len(available), available)
+	}
+	return nil
 }
 
 // nodeDomainsFromFacts maps each node in a ClassFacts result to its resolved

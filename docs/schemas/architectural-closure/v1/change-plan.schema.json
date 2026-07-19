@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/change-plan.schema.json",
+  "title": "Architectural Closure v1 Change Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "plan_id": {"type": "string"},
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operation_id": {"type": "string"},
+          "kind": {"$ref": "common.schema.json#/$defs/operation_kind"},
+          "target_kind": {"type": "string"},
+          "target": {"type": "string"},
+          "authority_domain_ids": {"type": "array", "items": {"type": "string"}},
+          "selected_mechanism": {"$ref": "common.schema.json#/$defs/mechanism_kind"},
+          "intended_effect": {"type": "string"},
+          "risk_class": {"type": "string"}
+        },
+        "required": ["operation_id", "kind", "target_kind", "target", "selected_mechanism"],
+        "comment": "rename is a reserved but unsupported operation kind in v1: ChangeOperation cannot encode distinct source and destination endpoints, so a rename operation must fail closed (protocol.rename_requires_explicit_source_and_destination) until a later protocol version.",
+        "not": {"properties": {"kind": {"const": "rename"}}, "required": ["kind"]}
+      }
+    }
+  },
+  "required": ["plan_id", "operations"]
+}
+

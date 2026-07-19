@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/admission-request.schema.json",
+  "title": "Architectural Closure v1 Admission Request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "actor_binding": {"$ref": "actor-binding.schema.json"},
+    "base_binding": {"$ref": "binding.schema.json"},
+    "change_plan": {"$ref": "change-plan.schema.json"},
+    "authority_resolution_digest_sha256": {"type": "string"},
+    "accepted_conditions": {"type": "array", "items": {"type": "string"}},
+    "requested_validity": {"type": "string"},
+    "policy_id": {"type": "string"}
+  },
+  "required": ["actor_binding", "base_binding", "change_plan", "authority_resolution_digest_sha256", "policy_id"]
+}
+

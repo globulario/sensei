@@ -10,6 +10,7 @@ import { AwarenessProvider } from './awarenessProvider';
 import { DashboardPanel } from './dashboardPanel';
 import { disposeClient } from './grpcClient';
 import { resetProjectDomainCache } from './projectDomain';
+import { resetAwgBinaryCache } from './awgRunner';
 
 const REFRESH_DEBOUNCE_MS = 250;
 
@@ -76,6 +77,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('sensei')) {
         resetProjectDomainCache();
+        resetAwgBinaryCache();
         scheduleRefresh();
       }
     }),
@@ -86,6 +88,21 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('sensei.refresh', () => scheduleRefresh()),
     vscode.commands.registerCommand('sensei.openDashboard', () =>
       DashboardPanel.show(context)
+    ),
+    vscode.commands.registerCommand('sensei.selectClosureAssessment', () =>
+      DashboardPanel.selectControlArtifact(context, 'closure')
+    ),
+    vscode.commands.registerCommand('sensei.selectConvergenceSession', () =>
+      DashboardPanel.selectControlArtifact(context, 'convergence')
+    ),
+    vscode.commands.registerCommand('sensei.selectAdmissionDecision', () =>
+      DashboardPanel.selectControlArtifact(context, 'admission')
+    ),
+    vscode.commands.registerCommand('sensei.selectAdmissionVerification', () =>
+      DashboardPanel.selectControlArtifact(context, 'verification')
+    ),
+    vscode.commands.registerCommand('sensei.clearPhase2Selection', () =>
+      DashboardPanel.clearControlSelection(context)
     ),
     vscode.commands.registerCommand(
       'sensei.revealAnchor',

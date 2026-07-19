@@ -6,7 +6,7 @@ package main
 //
 // This is a SEPARATE, self-contained code path from the default `sensei gate`
 // (EditCheck/gRPC) flow: it activates only when --contracts is passed, never
-// touches the AWG server, and leaves default behavior unchanged. It proves the
+// touches the Sensei server, and leaves default behavior unchanged. It proves the
 // mechanical core of Phase-2 — a frozen, human-authored contract can be checked
 // against a diff WITHOUT reading the gold patch — by evaluating each contract's
 // detect rule over the diff's added/changed lines only.
@@ -654,7 +654,7 @@ func printContractReport(r gateContractsReport) {
 	if r.Enforce {
 		mode = "enforce"
 	}
-	fmt.Printf("AWG gate (frozen contracts, %s) — diff %s\n", mode, r.Diff)
+	fmt.Printf("Sensei gate (frozen contracts, %s) — diff %s\n", mode, r.Diff)
 	fmt.Printf("  contracts: %d   respected: %d   violated: %d   not_applicable: %d   scope_warnings: %d\n\n",
 		r.Summary.Contracts, r.Summary.Respected, r.Summary.Violated, r.Summary.NotApplicable, r.Summary.ScopeWarnings)
 	for _, v := range r.Verdicts {

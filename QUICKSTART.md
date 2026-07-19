@@ -31,10 +31,17 @@ cd sensei && ./scripts/install.sh && export PATH="$PWD/bin:$PATH"
 Full platform notes (tarballs, macOS/Windows, the Oxigraph dependency, the
 Docker alternative): **[INSTALL.md](INSTALL.md)**.
 
+VS Code users — install the dashboard extension (search "Sensei — Architectural
+Memory" in the Extensions view, or):
+
+```bash
+code --install-extension globulario.sensei-awareness
+```
+
 Recommended local runtime:
 
 ```bash
-bash ./scripts/install-awg-user-services.sh --skip-build
+bash ./scripts/install-sensei-user-services.sh --skip-build
 ```
 
 That gives you a supervised local Sensei stack and is the preferred path for real
@@ -56,8 +63,17 @@ This scaffolds:
 | `docs/awareness/failure_modes.yaml` | incidents and anticipated bug classes |
 | `docs/awareness/meta_principles.yaml` | the portable pack: 8 categories, 134 principles |
 | `docs/awareness/high_risk_files.yaml` | paths that require a briefing before edits |
+| `.sensei/skills/sensei-architect/` | canonical Sensei Architect skill, enabled by default |
+| `.agents/skills/sensei-architect/` | Codex / Agent Skills project skill |
+| `.claude/skills/sensei-architect/` | Claude Code project skill |
+| `.cursor/rules/sensei.mdc` | Cursor rule that points to the canonical skill |
 | `.claude/hooks/` | Claude Code hooks that ENFORCE briefing-before-edit |
 | `CLAUDE.md` (appended) | tells the agent how to use awareness |
+
+Use `sensei init --skills=false` to opt out of skill installation. Re-running
+`sensei init` is idempotent: unchanged managed skills are left alone, newer
+bundled copies can update untouched installs, and local edits are preserved with
+a notice unless you pass `--skills-force`.
 
 ## 3. Start the graph
 
@@ -160,7 +176,7 @@ bridge for `awareness_briefing` / `impact` / `resolve` / `query` /
 
 ```json
 { "mcpServers": { "sensei": {
-    "command": "/path/to/awareness-graph/bin/awareness-mcp",
+    "command": "/path/to/sensei/bin/awareness-mcp",
     "args": ["--awareness-addr", "localhost:10120"] } } }
 ```
 
