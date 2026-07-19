@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
 	"github.com/globulario/sensei/golang/architecture/identity"
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
 	qp "github.com/globulario/sensei/golang/architecture/questionpromotion"
@@ -93,9 +94,13 @@ func seedCommittedPromotion(t *testing.T, scopeFiles []string) string {
 func TestBriefingConsumesRelevantPromotion(t *testing.T) {
 	file := "golang/server/reload.go"
 	repo := seedCommittedPromotion(t, []string{file})
-	got, findings := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain)
+	res := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain, "task.consumer", "session.consumer")
+	got, findings := res.Records, res.Limitations
 	if len(findings) != 0 {
 		t.Fatalf("unexpected integrity findings: %v", findings)
+	}
+	if res.Projection.Availability != briefingfeedback.FeedbackAvailable {
+		t.Fatalf("availability = %q, want feedback_available", res.Projection.Availability)
 	}
 	if len(got) != 1 {
 		t.Fatalf("promoted records = %d, want 1", len(got))
@@ -119,7 +124,8 @@ func TestBriefingConsumesRelevantPromotion(t *testing.T) {
 // An out-of-scope promotion is excluded.
 func TestBriefingExcludesUnrelatedPromotion(t *testing.T) {
 	repo := seedCommittedPromotion(t, []string{"golang/server/reload.go"})
-	got, findings := collectPromotedKnowledge(repo, "cmd/other/main.go", map[string]bool{"cmd/other/main.go": true}, cDomain)
+	res := collectPromotedKnowledge(repo, "cmd/other/main.go", map[string]bool{"cmd/other/main.go": true}, cDomain, "task.consumer", "session.consumer")
+	got, findings := res.Records, res.Limitations
 	if len(got) != 0 {
 		t.Fatalf("out-of-scope promotion appeared: %+v", got)
 	}
@@ -128,8 +134,12 @@ func TestBriefingExcludesUnrelatedPromotion(t *testing.T) {
 	}
 }
 
-// A broken conjunct excludes the promotion and reports a typed integrity finding.
-func TestBriefingExcludesTamperedPromotionWithFinding(t *testing.T) {
+// Tampering the SHARED persisted graph breaks the marker↔graph cross-check for every
+// candidate: it is a shared verification-facility outage (graph_reverify_failed), not a
+// candidate-local defect. The promotion is excluded and the whole feedback is unavailable
+// (honestly stronger than degrading a single candidate). The candidate-local degrade path is
+// proven by the incomplete-promotion test.
+func TestBriefingUnavailableOnTamperedSharedGraph(t *testing.T) {
 	file := "golang/server/reload.go"
 	repo := seedCommittedPromotion(t, []string{file})
 	// Tamper the persisted repository graph.
@@ -137,12 +147,16 @@ func TestBriefingExcludesTamperedPromotionWithFinding(t *testing.T) {
 	data, _ := os.ReadFile(graphPath)
 	os.WriteFile(graphPath, append(data, []byte("\n<x> <y> <z> .\n")...), 0o644)
 
-	got, findings := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain)
+	res := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain, "task.consumer", "session.consumer")
+	got, findings := res.Records, res.Limitations
 	if len(got) != 0 {
 		t.Fatalf("tampered promotion entered binding context: %+v", got)
 	}
+	if res.Projection.Availability != briefingfeedback.FeedbackUnavailable {
+		t.Fatalf("tampered shared graph must be a facility outage, got %q", res.Projection.Availability)
+	}
 	if len(findings) != 1 {
-		t.Fatalf("integrity findings = %d, want 1", len(findings))
+		t.Fatalf("facility findings = %d, want 1", len(findings))
 	}
 }
 
@@ -150,12 +164,15 @@ func TestBriefingExcludesTamperedPromotionWithFinding(t *testing.T) {
 func TestBriefingPromotedKnowledgeDeterministic(t *testing.T) {
 	file := "golang/server/reload.go"
 	repo := seedCommittedPromotion(t, []string{file})
-	a, _ := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain)
-	b, _ := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain)
-	if len(a) != len(b) || len(a) != 1 {
-		t.Fatalf("non-deterministic count: %d vs %d", len(a), len(b))
+	a := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain, "task.consumer", "session.consumer")
+	b := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain, "task.consumer", "session.consumer")
+	if len(a.Records) != len(b.Records) || len(a.Records) != 1 {
+		t.Fatalf("non-deterministic count: %d vs %d", len(a.Records), len(b.Records))
 	}
-	if a[0] != b[0] {
+	if a.Projection.DigestSHA256 != b.Projection.DigestSHA256 {
+		t.Fatal("projection digest differs across identical calls")
+	}
+	if a.Records[0] != b.Records[0] {
 		t.Fatal("promoted-knowledge content differs across identical calls")
 	}
 }
@@ -165,7 +182,8 @@ func TestBriefingPromotedKnowledgeDeterministic(t *testing.T) {
 func TestBriefingNeverSurfacesTaskLocal(t *testing.T) {
 	// A repo with a disposition but NO committed promotion.
 	r, _ := resulttestkit.Seed(t.TempDir(), resulttestkit.Options{Direction: "evolve", Epoch: cEpoch})
-	got, findings := collectPromotedKnowledge(r.Repo, "golang/server/reload.go", map[string]bool{"golang/server/reload.go": true}, cDomain)
+	res := collectPromotedKnowledge(r.Repo, "golang/server/reload.go", map[string]bool{"golang/server/reload.go": true}, cDomain, "task.consumer", "session.consumer")
+	got, findings := res.Records, res.Limitations
 	if len(got) != 0 || len(findings) != 0 {
 		t.Fatalf("surfaced non-promoted knowledge: %v / %v", got, findings)
 	}
@@ -184,7 +202,8 @@ func TestBriefingExcludesIncompletePromotion(t *testing.T) {
 	last := entries[len(entries)-1].Name()
 	os.Remove(filepath.Join(jdir, last))
 
-	got, findings := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain)
+	res := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain, "task.consumer", "session.consumer")
+	got, findings := res.Records, res.Limitations
 	if len(got) != 0 {
 		t.Fatalf("incomplete promotion entered binding context: %+v", got)
 	}
@@ -199,8 +218,7 @@ func TestBriefingConsumptionHasNoSideEffects(t *testing.T) {
 	file := "golang/server/reload.go"
 	repo := seedCommittedPromotion(t, []string{file})
 	before := snapshotTree(t, repo)
-	if _, _ = collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain); true {
-	}
+	_ = collectPromotedKnowledge(repo, file, map[string]bool{file: true}, cDomain, "task.consumer", "session.consumer")
 	after := snapshotTree(t, repo)
 	if before != after {
 		t.Fatal("promoted-knowledge consumption mutated the repository")
@@ -226,9 +244,9 @@ func snapshotTree(t *testing.T, root string) string {
 func TestBriefingExcludesScopedPromotionOnEmptyDomain(t *testing.T) {
 	file := "golang/server/reload.go"
 	repo := seedCommittedPromotion(t, []string{file})
-	got, _ := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, "")
-	if len(got) != 0 {
-		t.Fatalf("domain-scoped promotion entered binding context with an empty domain: %+v", got)
+	res := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, "", "task.consumer", "session.consumer")
+	if len(res.Records) != 0 {
+		t.Fatalf("domain-scoped promotion entered binding context with an empty domain: %+v", res.Records)
 	}
 }
 
@@ -236,8 +254,8 @@ func TestBriefingExcludesScopedPromotionOnEmptyDomain(t *testing.T) {
 func TestBriefingExcludesScopedPromotionOnDifferentDomain(t *testing.T) {
 	file := "golang/server/reload.go"
 	repo := seedCommittedPromotion(t, []string{file})
-	got, _ := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, "github.com/other/repo")
-	if len(got) != 0 {
-		t.Fatalf("domain-scoped promotion entered binding context for a different domain: %+v", got)
+	res := collectPromotedKnowledge(repo, file, map[string]bool{file: true}, "github.com/other/repo", "task.consumer", "session.consumer")
+	if len(res.Records) != 0 {
+		t.Fatalf("domain-scoped promotion entered binding context for a different domain: %+v", res.Records)
 	}
 }

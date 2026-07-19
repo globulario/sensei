@@ -5,9 +5,8 @@ package tasksession
 import (
 	"context"
 	"fmt"
-	"sort"
 
-	"github.com/globulario/sensei/golang/architecture/questionpromotion"
+	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
 )
 
 // PromotedGovernedRecord is one committed governed promotion surfaced in a task
@@ -28,64 +27,76 @@ type PromotedGovernedRecord struct {
 	SessionID                      string `json:"session_id" yaml:"session_id"`
 }
 
-// collectPromotedKnowledge discovers committed governed promotions, independently
-// re-proves each through the questionpromotion verification boundary (it does NOT
-// re-implement receipt/journal/source/graph/provenance validation), and includes
-// only verified promotions whose governed scope intersects the task scope. A
-// stale/tampered/incomplete/non-committed promotion is reported as a typed
-// integrity limitation and excluded from binding context. Output is deterministic
-// (sorted), so an unchanged repository/task world yields byte-identical content.
-func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, domain string) ([]PromotedGovernedRecord, []string) {
-	lineages, err := questionpromotion.DiscoverCommittedPromotions(repoRoot)
-	if err != nil {
-		return nil, []string{"promoted-knowledge discovery unavailable: " + err.Error()}
-	}
-	var out []PromotedGovernedRecord
-	var findings []string
-	for _, lineage := range lineages {
-		vp, verr := questionpromotion.VerifyCommittedPromotion(context.Background(), repoRoot, lineage)
-		if verr != nil {
-			findings = append(findings, fmt.Sprintf("promoted knowledge %s excluded (integrity): %v", shortLineage(lineage), verr))
-			continue
-		}
-		if !promotionInScope(vp.Receipt, file, taskFiles, domain) {
-			continue
-		}
-		rc := vp.Receipt
-		out = append(out, PromotedGovernedRecord{
-			GovernedNodeIRI: vp.GovernedNodeIRI, Kind: rc.GovernedTargetKind,
-			CanonicalRecordID: rc.CanonicalRecordID, SourceDocument: rc.SourceDocument,
-			PromotionLineageID: vp.PromotionLineageID, ReceiptDigestSHA256: rc.ReceiptDigestSHA256,
-			QuestionID: rc.QuestionID, AnswerID: rc.AnswerID,
-			DispositionReceiptDigestSHA256: rc.QuestionDispositionReceiptDigestSHA256,
-			TaskID:                         rc.Task.ID, SessionID: rc.Task.SessionID,
-		})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].GovernedNodeIRI < out[j].GovernedNodeIRI })
-	sort.Strings(findings)
-	return out, findings
+// promotedKnowledgeResult carries the exact canonical feedback projection alongside the
+// mechanically-derived compatibility surfaces. The projection is canonical (and explicitly
+// non-authoritative); Records and Limitations are pure projections of it, so old consumers keep
+// the two legacy surfaces while new consumers read the typed projection (availability, typed
+// findings) without parsing prose.
+type promotedKnowledgeResult struct {
+	Projection  briefingfeedback.Projection
+	Records     []PromotedGovernedRecord
+	Limitations []string
 }
 
-// promotionInScope requires the promotion's governed scope to intersect the task
-// scope: the effective-scope domain must match (an unscoped-domain promotion
-// applies to any), and at least one effective-scope file must be the briefing file
-// or a task-scoped file. A promotion with no declared effective scope is not
-// selected into binding context.
-func promotionInScope(rc questionpromotion.QuestionPromotionReceipt, file string, taskFiles map[string]bool, domain string) bool {
-	// A promotion that declares a governed domain must match the task's domain
-	// exactly. An unknown (empty) task domain is NOT a match — fail closed.
-	if rc.EffectiveScopeDomain != "" && rc.EffectiveScopeDomain != domain {
-		return false
+// collectPromotedKnowledge is a thin adapter over the canonical briefingfeedback owner. It
+// binds the EXACT canonical task identity supplied by task-session control (task id, session
+// id, repository domain, verified task file set) into the owner request — it never infers
+// identity from the task directory, active-task proximity, requested file, or working
+// directory. The owner discovers, independently verifies, and scope-filters; this adapter only
+// maps the one canonical projection into the briefing's compatibility shapes. Compatibility
+// records come from the projection's VERIFIED records; compatibility limitations come from its
+// TYPED findings — never from raw verification error text.
+func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, domain, taskID, sessionID string) promotedKnowledgeResult {
+	files := make([]string, 0, len(taskFiles))
+	for f := range taskFiles {
+		files = append(files, f)
 	}
-	if len(rc.EffectiveScopeFiles) == 0 {
-		return false
+	proj, err := briefingfeedback.Build(context.Background(), briefingfeedback.Request{
+		RepositoryRoot:     repoRoot,
+		RepositoryIdentity: domain,
+		RequestedDomain:    domain,
+		RequestedFiles:     []string{file},
+		Task:               &briefingfeedback.TaskBinding{TaskID: taskID, SessionID: sessionID, RepositoryDomain: domain, Files: files},
+	})
+	if err != nil {
+		// Impossible internal projection state (digest/validation) — never a bare zero value
+		// of promoted knowledge presented as truth.
+		return promotedKnowledgeResult{Limitations: []string{"promoted-knowledge projection unavailable"}}
 	}
-	for _, f := range rc.EffectiveScopeFiles {
-		if f == file || taskFiles[f] {
-			return true
-		}
+	res := promotedKnowledgeResult{Projection: proj}
+	for _, r := range proj.Records {
+		res.Records = append(res.Records, PromotedGovernedRecord{
+			GovernedNodeIRI:                r.GovernedNodeIRI,
+			Kind:                           r.GovernedKind,
+			CanonicalRecordID:              r.CanonicalRecordID,
+			SourceDocument:                 r.SourceDocument,
+			PromotionLineageID:             r.PromotionLineageID,
+			ReceiptDigestSHA256:            r.PromotionReceiptDigestSHA256,
+			QuestionID:                     r.QuestionID,
+			AnswerID:                       r.AnswerID,
+			DispositionReceiptDigestSHA256: r.DispositionReceiptDigestSHA256,
+			TaskID:                         r.OriginatingTaskID,
+			SessionID:                      r.OriginatingSessionID,
+		})
 	}
-	return false
+	for _, f := range proj.Findings {
+		res.Limitations = append(res.Limitations, limitationFromFinding(f))
+	}
+	return res
+}
+
+// limitationFromFinding renders a TYPED feedback finding as a stable human-readable limitation
+// string. It uses only the closed finding class + reason code + lineage provenance — never the
+// underlying verification error text.
+func limitationFromFinding(f briefingfeedback.Finding) string {
+	switch f.Class {
+	case briefingfeedback.PromotionDiscoveryUnavailable:
+		return "promoted-knowledge discovery unavailable"
+	case briefingfeedback.PromotionScopeIdentityInvalid:
+		return "promoted-knowledge request invalid: " + f.ReasonCode
+	default:
+		return fmt.Sprintf("promoted knowledge %s excluded (%s): %s", shortLineage(f.LineageID), f.Class, f.ReasonCode)
+	}
 }
 
 func shortLineage(s string) string {

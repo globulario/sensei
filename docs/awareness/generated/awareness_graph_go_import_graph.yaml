@@ -372,6 +372,11 @@ components:
       - golang/architecture/benchmark/benchmark.go
       - golang/architecture/binding/binding.go
       - golang/architecture/binding_resolution.go
+      - golang/architecture/briefingfeedback/build.go
+      - golang/architecture/briefingfeedback/digest.go
+      - golang/architecture/briefingfeedback/model.go
+      - golang/architecture/briefingfeedback/scope.go
+      - golang/architecture/briefingfeedback/unavailable.go
       - golang/architecture/buildtransaction/result_manifest.go
       - golang/architecture/certification/errors.go
       - golang/architecture/certification/evaluate.go
@@ -522,11 +527,13 @@ components:
       - golang/architecture/questiongen/questiongen.go
       - golang/architecture/questionpromotion/conjunctive.go
       - golang/architecture/questionpromotion/consume.go
+      - golang/architecture/questionpromotion/descriptor.go
       - golang/architecture/questionpromotion/drive.go
       - golang/architecture/questionpromotion/journal.go
       - golang/architecture/questionpromotion/promote.go
       - golang/architecture/questionpromotion/provenance.go
       - golang/architecture/questionpromotion/receipt.go
+      - golang/architecture/questionpromotion/verification_error.go
       - golang/architecture/questionresolution/authority.go
       - golang/architecture/questionresolution/certify.go
       - golang/architecture/questionresolution/model.go
@@ -862,6 +869,9 @@ components:
       - golang/server/authority_domains.go
       - golang/server/blast_radius.go
       - golang/server/briefing.go
+      - golang/server/briefing_feedback.go
+      - golang/server/briefing_feedback_adapter.go
+      - golang/server/briefing_repo_context.go
       - golang/server/change_impact.go
       - golang/server/code_symbol.go
       - golang/server/config.go
@@ -894,6 +904,7 @@ components:
       - golang/server/surface_limits.go
       - golang/server/surface_observability.go
     depends_on:
+      - component.golang.architecture
       - component.golang.coverage
       - component.golang.governancepack
       - component.golang.netcfg

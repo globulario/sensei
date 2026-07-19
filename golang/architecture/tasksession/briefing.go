@@ -11,6 +11,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
 	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/rdf"
@@ -50,14 +51,20 @@ type TaskBriefing struct {
 	// answers (Phase 8.1b), independently re-proven and scope-relevant to this task.
 	// It is categorically distinct from RelevantClaims (task-local) and questions
 	// (unresolved dialogue), and implies no certification or completion.
-	PromotedGovernedKnowledge []PromotedGovernedRecord        `json:"promoted_governed_knowledge,omitempty" yaml:"promoted_governed_knowledge,omitempty"`
-	PrimaryBlocker            *taskcontrol.ClassifiedBlocker  `json:"primary_blocker,omitempty" yaml:"primary_blocker,omitempty"`
-	PrimaryQuestion           *taskcontrol.ClassifiedQuestion `json:"primary_question,omitempty" yaml:"primary_question,omitempty"`
-	PrimaryNextAction         taskcontrol.NextAction          `json:"primary_next_action" yaml:"primary_next_action"`
-	AdditionalBlockers        int                             `json:"additional_blockers" yaml:"additional_blockers"`
-	AdditionalQuestions       int                             `json:"additional_questions" yaml:"additional_questions"`
-	AdditionalProbes          int                             `json:"additional_probes" yaml:"additional_probes"`
-	Limitations               []string                        `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	PromotedGovernedKnowledge []PromotedGovernedRecord `json:"promoted_governed_knowledge,omitempty" yaml:"promoted_governed_knowledge,omitempty"`
+	// FeedbackProjection is the exact canonical briefing.feedback_projection/v1 returned by the
+	// briefingfeedback owner. PromotedGovernedKnowledge and the promotion limitations are
+	// mechanically derived from it, so new consumers can distinguish available, empty, degraded,
+	// unavailable, and invalid (and read typed findings) without parsing prose, while old
+	// consumers keep the two legacy surfaces.
+	FeedbackProjection  *briefingfeedback.Projection    `json:"feedback_projection,omitempty" yaml:"feedback_projection,omitempty"`
+	PrimaryBlocker      *taskcontrol.ClassifiedBlocker  `json:"primary_blocker,omitempty" yaml:"primary_blocker,omitempty"`
+	PrimaryQuestion     *taskcontrol.ClassifiedQuestion `json:"primary_question,omitempty" yaml:"primary_question,omitempty"`
+	PrimaryNextAction   taskcontrol.NextAction          `json:"primary_next_action" yaml:"primary_next_action"`
+	AdditionalBlockers  int                             `json:"additional_blockers" yaml:"additional_blockers"`
+	AdditionalQuestions int                             `json:"additional_questions" yaml:"additional_questions"`
+	AdditionalProbes    int                             `json:"additional_probes" yaml:"additional_probes"`
+	Limitations         []string                        `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
 type briefingClaimIndex struct {
@@ -165,9 +172,13 @@ func BuildTaskBriefing(repoRoot, taskDir, file string, active bool) (TaskBriefin
 	for f := range index.ByFile {
 		taskFiles[f] = true
 	}
-	promoted, promotionFindings := collectPromotedKnowledge(repoRoot, file, taskFiles, state.Binding.RepositoryDomain)
-	brief.PromotedGovernedKnowledge = promoted
-	brief.Limitations = append(brief.Limitations, promotionFindings...)
+	// Bind the EXACT canonical task identity established by task-session control — never
+	// inferred from the task directory, active-task proximity, the requested file, or cwd.
+	promoted := collectPromotedKnowledge(repoRoot, file, taskFiles, state.Binding.RepositoryDomain, state.TaskID, stableTaskSessionID(state.TaskID))
+	feedback := promoted.Projection
+	brief.FeedbackProjection = &feedback
+	brief.PromotedGovernedKnowledge = promoted.Records
+	brief.Limitations = append(brief.Limitations, promoted.Limitations...)
 
 	brief.AdditionalBlockers = maxInt(0, state.Summary.ActiveRootBlockers-1)
 	architectQuestions := 0
