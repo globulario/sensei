@@ -62,6 +62,19 @@ func DefaultParseOptions() ParseOptions {
 	}
 }
 
+// IsHexSHA returns true if s is an exact 40-character hexadecimal Git commit SHA.
+func IsHexSHA(s string) bool {
+	if len(s) != 40 {
+		return false
+	}
+	for _, r := range s {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
 // ParseDiff parses raw unified Git diff text cleanly and securely.
 func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 	if opts.MaxBytes == 0 {
@@ -170,9 +183,11 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 				}
 			}
 
+			cleanOld, _ := sanitizePath(oldPath)
+
 			current = &ParsedFilePatch{
 				Path:    p,
-				OldPath: oldPath,
+				OldPath: cleanOld,
 				Kind:    ChangeModify,
 			}
 			continue
@@ -197,7 +212,11 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		}
 		if strings.HasPrefix(line, "rename from ") {
 			current.Kind = ChangeRename
-			current.OldPath = parseQuotedPath(line[12:])
+			renOld, err := sanitizePath(line[12:])
+			if err != nil || renOld == "" {
+				return nil, fmt.Errorf("line %d: invalid rename from path: %w", lineNum, err)
+			}
+			current.OldPath = renOld
 			continue
 		}
 		if strings.HasPrefix(line, "rename to ") {
@@ -252,7 +271,6 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 			continue
 		}
 		if strings.HasPrefix(line, "\\ No newline at end of file") {
-			// Ignore standard git diff newline marker line
 			continue
 		}
 		if strings.HasPrefix(line, "@@ ") {
@@ -374,20 +392,28 @@ func parseHunkHeader(line string) (oldStart, oldLines, newStart, newLines int, e
 	oldSpec := strings.TrimPrefix(subParts[0], "-")
 	newSpec := strings.TrimPrefix(subParts[1], "+")
 
-	oldStart, oldLines = parseRange(oldSpec)
-	newStart, newLines = parseRange(newSpec)
+	var err1, err2 error
+	oldStart, oldLines, err1 = parseRange(oldSpec)
+	newStart, newLines, err2 = parseRange(newSpec)
+	if err1 != nil || err2 != nil {
+		return 0, 0, 0, 0, fmt.Errorf("invalid range numbers in header spec: %s", spec)
+	}
 	return oldStart, oldLines, newStart, newLines, nil
 }
 
-func parseRange(spec string) (start, count int) {
+func parseRange(spec string) (start, count int, err error) {
 	parts := strings.Split(spec, ",")
-	fmt.Sscanf(parts[0], "%d", &start)
+	if _, err := fmt.Sscanf(parts[0], "%d", &start); err != nil {
+		return 0, 0, fmt.Errorf("invalid start line: %w", err)
+	}
 	if len(parts) > 1 {
-		fmt.Sscanf(parts[1], "%d", &count)
+		if _, err := fmt.Sscanf(parts[1], "%d", &count); err != nil {
+			return 0, 0, fmt.Errorf("invalid line count: %w", err)
+		}
 	} else {
 		count = 1
 	}
-	return start, count
+	return start, count, nil
 }
 
 func deduplicateReasonCodes(in []ReasonCode) []ReasonCode {

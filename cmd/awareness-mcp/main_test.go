@@ -779,11 +779,12 @@ func TestAwarenessAuditDiffTool_EvaluatesDiff(t *testing.T) {
 	}
 	br := testBridge(fake)
 	validDiff := `diff --git a/main.go b/main.go
---- a/main.go
+new file mode 100644
+--- /dev/null
 +++ b/main.go
-@@ -1,1 +1,2 @@
- func main() {}
-+func foo() {}
+@@ -0,0 +1,2 @@
++package main
++func main() {}
 `
 	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
 		"diff": validDiff,
