@@ -1,0 +1,9 @@
+default: inherit
+rules:
+  closure.some_rule: block
+completion:
+  default: advisory
+  domains:
+    github.com/globulario/sensei:
+      mode: enforce
+      require_completion: true

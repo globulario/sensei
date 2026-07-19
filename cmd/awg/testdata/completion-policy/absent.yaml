@@ -1,0 +1,3 @@
+default: inherit
+rules:
+  closure.some_rule: block

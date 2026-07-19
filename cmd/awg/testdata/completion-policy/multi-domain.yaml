@@ -1,0 +1,8 @@
+completion:
+  default: advisory
+  domains:
+    github.com/globulario/sensei:
+      mode: enforce
+      require_completion: true
+    github.com/caddyserver/caddy:
+      mode: advisory
