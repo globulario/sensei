@@ -137,6 +137,11 @@ type server struct {
 	// Empty disables the write path (Propose returns Unavailable) — the default,
 	// so a read-only served graph never gains a write surface by accident.
 	awarenessDir string
+
+	// briefingRepo is the immutable startup-owned repository context (root+domain)
+	// for briefing feedback. nil = unconfigured (feedback unavailable, graph
+	// briefing unaffected). Never mutated by a request handler, never caller-selected.
+	briefingRepo *briefingRepositoryContext
 }
 
 // defaultHomeDomain is the domain key assigned to untagged host-project nodes
@@ -172,6 +177,10 @@ func main() {
 	homeDomain := flag.String("home-domain", defaultHomeDomain,
 		"domain key for the host project's own untagged knowledge nodes; "+
 			"cold-start non-Globular deployments should set this to their project key")
+	repoRoot := flag.String("repo-root", "",
+		"absolute repository root for briefing feedback (with -repo-domain); enables governed briefing-feedback verification. A relative root fails startup.")
+	repoDomain := flag.String("repo-domain", "",
+		"canonical repository domain for briefing feedback (with -repo-root); identifies the filesystem repository whose promotions may be verified (NOT home-domain).")
 	authToken := flag.String("auth-token", authTokenFromEnv(),
 		"require this bearer token on every AwarenessGraph RPC (health/reflection exempt). Default: $SENSEI_TOKEN, then legacy $AWG_TOKEN. Empty = open (trusted-network self-host default).")
 	debug := flag.Bool("debug", false, "enable verbose startup logs")
@@ -235,7 +244,13 @@ func main() {
 		// existing legacy .awg/ store, otherwise defaults to .sensei/.
 		markerFile = seedmeta.RuntimeMarkerPath(".")
 	}
-	if err := serve(finalAddr, cfg, finalRequireStore, *noSeed, *allowStaleSeed, strings.TrimSpace(*homeDomain), markerFile, strings.TrimSpace(*awarenessDir), strings.TrimSpace(*authToken), log.Default()); err != nil {
+	// Establish the immutable startup-owned briefing repository context before serving.
+	// A bad config fails startup (never falls back to cwd).
+	briefingRepo, err := establishBriefingRepositoryContext(*repoRoot, *repoDomain)
+	if err != nil {
+		log.Fatalf("awareness-graph: briefing repository context: %v", err)
+	}
+	if err := serve(finalAddr, cfg, finalRequireStore, *noSeed, *allowStaleSeed, strings.TrimSpace(*homeDomain), markerFile, strings.TrimSpace(*awarenessDir), strings.TrimSpace(*authToken), briefingRepo, log.Default()); err != nil {
 		log.Fatalf("awareness-graph: %v", err)
 	}
 }
@@ -245,7 +260,7 @@ func main() {
 //
 // The logger parameter exists so tests can capture log output without
 // fighting the global log package. Production code passes log.Default().
-func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed bool, homeDomain, graphMarkerFile, awarenessDir, authToken string, logger *log.Logger) error {
+func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed bool, homeDomain, graphMarkerFile, awarenessDir, authToken string, briefingRepo *briefingRepositoryContext, logger *log.Logger) error {
 	// 1. Construct the store. URL-level validation runs here so a
 	// typo'd flag fails before TCP binds.
 	rdfStore, err := oxigraph.New(cfg.OxigraphQueryURL)
@@ -339,6 +354,10 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 		} else {
 			srv.awarenessDir = filepath.Clean(awarenessDir)
 		}
+	}
+	srv.briefingRepo = briefingRepo
+	if briefingRepo != nil {
+		logger.Printf("awareness-graph: briefing feedback ENABLED for %s (%s)", briefingRepo.Domain, briefingRepo.Root)
 	}
 	srv.logger = logger
 	healthSrv := setupGrpcService(grpcServer, srv)
