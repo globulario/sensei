@@ -1870,6 +1870,30 @@ test_symbols:
     symbol: TestSymbolFileOf
     package: main
     language: go
+  - id: cmd/awg/cmd_gate_completion_compose_test.go:TestCompose_AbsentBindingBlocks
+    file: cmd/awg/cmd_gate_completion_compose_test.go
+    symbol: TestCompose_AbsentBindingBlocks
+    package: main
+    language: go
+    doc: "A missing binding artifact under require_completion blocks as absent (never degrades)."
+  - id: cmd/awg/cmd_gate_completion_compose_test.go:TestCompose_AcceptedBindingRunsCompletion
+    file: cmd/awg/cmd_gate_completion_compose_test.go
+    symbol: TestCompose_AcceptedBindingRunsCompletion
+    package: main
+    language: go
+    doc: "Binding accepted → the 9.4b completion evaluation runs; a not_completed world under\nrequire_completion blocks (completion stage)."
+  - id: cmd/awg/cmd_gate_completion_compose_test.go:TestCompose_MismatchedBindingBlocksBeforeCompletion
+    file: cmd/awg/cmd_gate_completion_compose_test.go
+    symbol: TestCompose_MismatchedBindingBlocksBeforeCompletion
+    package: main
+    language: go
+    doc: "A mismatched binding (wrong task-id in the subject vs the binding) blocks at the BINDING\nstage — completion never runs."
+  - id: cmd/awg/cmd_gate_completion_compose_test.go:TestCompose_MissingMandatoryInputExits2
+    file: cmd/awg/cmd_gate_completion_compose_test.go
+    symbol: TestCompose_MissingMandatoryInputExits2
+    package: main
+    language: go
+    doc: "Missing mandatory 9.4c inputs → exit 2 (invocation error), never a silent pass."
   - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_AdvisoryReportsVerdictAndZeroMutation
     file: cmd/awg/cmd_gate_completion_test.go
     symbol: TestGateCompletion_AdvisoryReportsVerdictAndZeroMutation
@@ -5595,6 +5619,41 @@ test_symbols:
     symbol: TestValidate_SubjectMatching
     package: changebinding
     language: go
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestCompose_InvalidBindingPlusRuntimeBlocks
+    file: golang/architecture/changebindingconsumer/consumer_test.go
+    symbol: TestCompose_InvalidBindingPlusRuntimeBlocks
+    package: changebindingconsumer
+    language: go
+    doc: "Invalid binding + genuine runtime failure blocks (the runtime lane is unreachable); an\nauthoritative binding + runtime failure may degrade — proving the ordering is the gate."
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestCompose_OwnerNeverInvokedBeforeBindingAcceptance
+    file: golang/architecture/changebindingconsumer/consumer_test.go
+    symbol: TestCompose_OwnerNeverInvokedBeforeBindingAcceptance
+    package: changebindingconsumer
+    language: go
+    doc: "Compose ordering: the completion thunk (owner invocation) runs ONLY after the binding is\naccepted; any binding failure blocks before completion and never calls the thunk."
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestConsume_CorrespondenceAttacksBlock
+    file: golang/architecture/changebindingconsumer/consumer_test.go
+    symbol: TestConsume_CorrespondenceAttacksBlock
+    package: changebindingconsumer
+    language: go
+    doc: "Passport-swap, repository/change, and current-context correspondence attacks — each\nblocks with its own typed reason; a binding never self-authorizes."
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestConsume_DeterminismAndIsolation
+    file: golang/architecture/changebindingconsumer/consumer_test.go
+    symbol: TestConsume_DeterminismAndIsolation
+    package: changebindingconsumer
+    language: go
+    doc: "Determinism + isolation: not-required preserves the completion decision verbatim; repeated\nevaluation is identical; the binding for one subject never accepts another."
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestConsume_HappyPathAccepted
+    file: golang/architecture/changebindingconsumer/consumer_test.go
+    symbol: TestConsume_HappyPathAccepted
+    package: changebindingconsumer
+    language: go
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestConsume_PublicationAndProvenanceAttacks
+    file: golang/architecture/changebindingconsumer/consumer_test.go
+    symbol: TestConsume_PublicationAndProvenanceAttacks
+    package: changebindingconsumer
+    language: go
+    doc: "Publication-set + provenance attacks."
   - id: golang/architecture/changebindingproducer/github_env_test.go:TestExtract_PullRequestAuthoritative
     file: golang/architecture/changebindingproducer/github_env_test.go
     symbol: TestExtract_PullRequestAuthoritative
