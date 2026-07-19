@@ -98,3 +98,34 @@ func TestBuildUnavailable_TaskHonoredOnlyWhenCoherent(t *testing.T) {
 		t.Fatalf("incoherent task binding must not be stamped: %+v", bad)
 	}
 }
+
+func TestBuildInvalid_ReasonsAndFailClosed(t *testing.T) {
+	for _, reason := range []InvalidReason{RequestedFileNoncanonical, RequestedDomainNoncanonical} {
+		p, err := BuildInvalid(Scope{RepositoryIdentity: testDomain, RequestedDomain: testDomain}, reason)
+		if err != nil {
+			t.Fatalf("BuildInvalid(%s): %v", reason, err)
+		}
+		if verr := ValidateProjection(p); verr != nil {
+			t.Fatalf("invalid projection not canonical: %v", verr)
+		}
+		if p.Availability != FeedbackInvalid || len(p.Findings) != 1 ||
+			p.Findings[0].Class != PromotionScopeIdentityInvalid || p.Findings[0].Disposition != DispositionExcluded ||
+			p.Findings[0].ReasonCode != string(reason) {
+			t.Fatalf("finding malformed: %+v", p.Findings)
+		}
+	}
+	if _, err := BuildInvalid(Scope{RepositoryIdentity: testDomain}, "made_up"); err == nil {
+		t.Fatal("unknown invalid reason must fail closed")
+	}
+}
+
+func TestBuildInvalid_SerializesNoRawUnsafeIdentity(t *testing.T) {
+	// A caller may pass unsafe raw values in scope; the carrier must drop/blank them.
+	p, err := BuildInvalid(Scope{RepositoryIdentity: testDomain, RequestedDomain: "pad ded", RequestedFiles: []string{"../escape"}}, RequestedFileNoncanonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.RequestedFiles) != 0 || p.RequestedDomain != "" {
+		t.Fatalf("unsafe raw identity leaked: files=%v domain=%q", p.RequestedFiles, p.RequestedDomain)
+	}
+}
