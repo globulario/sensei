@@ -801,3 +801,32 @@ required_tests:
         - invariant.sensei.evidence_receipts_are_validated_not_self_certified
       files:
         - golang/architecture/evidencereceipt/validate_test.go
+  # Phase 9.4b completion gate — the enforce decision, the identity/runtime cause
+  # split, and per-domain opt-in realize the forward-declared 9.4b governing records.
+  - id: golang/architecture/completion/ownererror_test.go:TestBuildEnvelope_RuntimeRequiresAttemptedInvocation
+    title: Runtime unavailability requires positive evidence that owner invocation was attempted after a valid identity
+    protects:
+      invariants:
+        - closure.completion_gate_requires_explicit_identity_when_enforcement_applies
+      failure_modes:
+        - closure.completion_gate_conflates_unavailability_with_a_broken_verdict
+      files:
+        - golang/architecture/completion/ownererror.go
+        - golang/architecture/completion/projection.go
+  - id: golang/architecture/completion/worldbinding_adversarial_test.go:TestIdentityBoundary_AdversarialAreAllIdentityErrors
+    title: Every task-identity bypass is a typed identity error that can never reach the runtime degraded-pass lane
+    protects:
+      invariants:
+        - closure.completion_gate_requires_explicit_identity_when_enforcement_applies
+      files:
+        - golang/architecture/completion/worldbinding.go
+        - golang/architecture/completion/ownererror.go
+  - id: cmd/awg/completion_decision_test.go:TestDecideCompletionEnforcement_Matrix
+    title: The completion enforce decision degrades only on a runtime cause and blocks every computed pathological verdict
+    protects:
+      invariants:
+        - closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict
+      failure_modes:
+        - closure.completion_gate_conflates_unavailability_with_a_broken_verdict
+      files:
+        - cmd/awg/completion_decision.go

@@ -1,0 +1,4 @@
+completion:
+  domains:
+    github.com/globulario/sensei:
+      mode: advisory

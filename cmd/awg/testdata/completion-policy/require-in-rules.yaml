@@ -1,0 +1,5 @@
+default: block
+rules:
+  require_completion: block
+  completion: block
+  "*": block

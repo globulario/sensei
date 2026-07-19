@@ -182,12 +182,14 @@ func TestCompletionProjectionEnvelopeAvailability(t *testing.T) {
 
 	// A projection-owner error (empty task dir) becomes an explicit typed unavailable
 	// envelope — visible, not silent, and never a fabricated terminal state.
+	// An empty task directory is an ABSENT identity → the owner error is classified as
+	// the typed identity cause (never the generic/ambiguous class, never runtime).
 	envErr := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: ""})
 	if envErr.Availability != CompletionUnavailable || envErr.Projection != nil {
 		t.Fatalf("owner error must be unavailable with no projection: %+v", envErr)
 	}
-	if envErr.UnavailableClass != "projection_owner_error" {
-		t.Fatalf("unavailable class = %q, want projection_owner_error", envErr.UnavailableClass)
+	if envErr.UnavailableClass != UnavailableProjectionOwnerIdentityError {
+		t.Fatalf("unavailable class = %q, want projection_owner_identity_error", envErr.UnavailableClass)
 	}
 	if !strings.Contains(envErr.Summary(), "unavailable") {
 		t.Fatalf("unavailable summary must say so: %q", envErr.Summary())

@@ -22,25 +22,30 @@ import (
 // The check is symlink-aware (a symlinked task directory cannot smuggle in another
 // repository's world) and MUST run before any read, lock, authority resolution, receipt
 // write, ledger append, or projection rebuild.
+// validateRepositoryTaskBinding returns a typed *ProjectionIdentityError for every
+// failure: an absent, unresolvable, or out-of-world task identity is an IDENTITY
+// failure (block under enforce), never a runtime/availability failure. The typed error
+// is what lets a downstream enforcement surface distinguish identity from runtime
+// without ever parsing the message.
 func validateRepositoryTaskBinding(root, taskDir string) error {
 	root = strings.TrimSpace(root)
 	taskDir = strings.TrimSpace(taskDir)
 	if root == "" || taskDir == "" {
-		return fmt.Errorf("repository root and task directory are required")
+		return identityError("identity_absent", fmt.Errorf("repository root and task directory are required"))
 	}
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
-		return fmt.Errorf("resolve repository root: %w", err)
+		return identityError("identity_unresolvable", fmt.Errorf("resolve repository root: %w", err))
 	}
 	absTask, err := filepath.Abs(taskDir)
 	if err != nil {
-		return fmt.Errorf("resolve task directory: %w", err)
+		return identityError("identity_unresolvable", fmt.Errorf("resolve task directory: %w", err))
 	}
 	realRoot := resolveSymlinks(absRoot)
 	realTask := resolveSymlinks(absTask)
 	rel, err := filepath.Rel(realRoot, realTask)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("task directory %q is outside repository %q: repository and task must name one world", taskDir, root)
+		return identityError("identity_out_of_scope", fmt.Errorf("task directory %q is outside repository %q: repository and task must name one world", taskDir, root))
 	}
 	return nil
 }
