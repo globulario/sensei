@@ -452,11 +452,118 @@ classification. Combined status composes base ⊕ feedback by a frozen table: fe
 converts a degraded/unavailable/invalid state into OK, and the base graph briefing content is
 always preserved when feedback is degraded, unavailable, or invalid.
 
+## 18. Checkpoint 3 — adversarial proof and closure (frozen)
+
+### 18.1 Final Phase 9.6 guarantee
+For an exact repository, domain, file scope, and optional authoritative task binding, Sensei
+surfaces only independently verified committed governed promotions. It preserves their exact
+question, answer, disposition, promotion, task, and session provenance; classifies relevant
+failures through closed typed outcomes; isolates unrelated debris; and presents one
+deterministic non-authoritative projection consistently through task briefing, server
+structure, prose, references, and status. It performs no architectural mutation, completion,
+or certification.
+
+### 18.2 Closure laws (frozen)
+- **Single semantic owner** — `golang/architecture/briefingfeedback` is the sole owner of
+  discovery coordination, relevance routing, verification-result classification, verified-scope
+  admission, availability, and deterministic projection construction. `tasksession`,
+  `golang/server`, protobuf code, and the future editor never reproduce those rules
+  (proven statically by `coverage.TestBriefingFeedbackOwnershipBoundary`).
+- **Consumer parity** — task and server consumers may carry different request-binding identity,
+  but for the same effective repository/domain/file scope they select the same verified
+  records, failure classes, reason codes, and availability; any difference is explained solely
+  by typed request scope (e.g. a broader verified task file set), never consumer policy
+  (`server.TestClosure_OwnerServerTaskParity`,
+  `server.TestClosure_TaskFileSetExpansionChangesScopeNotPolicy`).
+- **Projection atomicity** — the canonical projection, protobuf field 7, feedback prose,
+  feedback referenced ids, and combined status are one indivisible observation, resolved as a
+  single `resolvedBriefingFeedback{Projection, Wire}` pair
+  (`server.TestResolveBriefingFeedback_AtomicPair`, `TestClosure_RpcStructuredProseReferenceParity`).
+- **Explicit absence** — unavailable/invalid feedback is visible and typed; it never silently
+  becomes `feedback_empty`, a missing field 7, an unchanged success status, or proof that no
+  promoted knowledge exists (`server.TestBriefing_UnconfiguredEmitsUnavailableAndDegrades`).
+- **Non-authority** — the projection is canonical but non-authoritative: it cannot promote
+  knowledge, decide an answer, close/complete a task, certify correctness, or approve a merge.
+
+### 18.3 Bounded hardening (Checkpoint 3)
+- `ValidateProjection` enforces an exact unavailable/invalid identity matrix: only the
+  `repository_context_absent` carrier may blank an unavailable projection's repository identity
+  (no records, no task/session, exactly one `promotion_discovery_unavailable`/`unavailable`
+  finding); every other unavailable case requires a canonical non-empty identity. A manually
+  assembled projection can never erase an established identity
+  (`briefingfeedback.TestValidateProjection_UnavailableIdentityMatrix`).
+- One repository-relative **slash identity** per file is used by both the graph impact leg and
+  the feedback leg (`filepath.ToSlash` on the trimmed request; canonicality judged on the RAW
+  value; never repaired with `filepath.Clean`). Backslash and slash spellings produce the same
+  canonical identity and feedback result (`server.TestBriefingFeedback_SlashIdentityParity`).
+- The projection→wire mapper is an immutable per-server dependency (`server.feedbackMapper`
+  established at construction), not a mutable package global — race-safe under parallel tests.
+
+### 18.4 Adversarial proof ledger (§13 matrix → executable test)
+| # | Contract | Test symbol |
+|---|----------|-------------|
+| 1 | verified in-scope committed promotion appears | `server.TestBriefingFeedback_VerifiedPromotionEndToEnd`; `briefingfeedback.TestBuild_VerifiedAdmittedRecord` |
+| 2 | exact provenance identities preserved | `server.TestBriefingFeedback_VerifiedPromotionEndToEnd` |
+| 3 | task-local answer never appears | `server.TestClosure_PrivacySentinelsAbsent` |
+| 4 | unpromoted candidate never governed truth | `tasksession.TestBriefingNeverSurfacesTaskLocal` |
+| 5 | incomplete promotion excluded + typed | `tasksession.TestBriefingExcludesIncompletePromotion`; `briefingfeedback.TestBuild_TypedFailureClassification` |
+| 6–9 | tampered journal/receipt/governed-source/graph-or-marker blocks candidate | `questionpromotion` conjunctive tests; `tasksession.TestBriefingUnavailableOnTamperedSharedGraph`; `briefingfeedback.TestBuild_TypedFailureClassification` |
+| 10 | missing provenance edge blocks | `briefingfeedback.TestBuild_TypedFailureClassification` (incomplete) |
+| 11 | contradictory evidence fails closed | `briefingfeedback.TestBuild_DuplicateVerifiedLineageIsContradictory`, `TestBuild_ConflictingRelevantDescriptorsAreContradictory` |
+| 12 | unknown verification classification fails closed | `briefingfeedback.TestBuild_UntypedFailureIsUnknownClassificationAndInvalid` |
+| 13 | different domain excluded | `briefingfeedback.TestBuild_ScopeAdmissionLaw`; `tasksession.TestBriefingExcludesScopedPromotionOnDifferentDomain` |
+| 14 | empty requested domain cannot admit domain-scoped | `briefingfeedback.TestBuild_ScopeAdmissionLaw`; `tasksession.TestBriefingExcludesScopedPromotionOnEmptyDomain` |
+| 15 | case/whitespace/prefix/suffix/basename variants do not match | `briefingfeedback.TestBuild_ScopeAdmissionLaw` |
+| 16 | unrelated file scope excluded | `briefingfeedback.TestBuild_ScopeAdmissionLaw` (disjoint) |
+| 17 | absent effective file scope not global | `briefingfeedback.TestBuild_ScopeAdmissionLaw` (absent) |
+| 18 | cross-task requires scope intersection | `server.TestClosure_TaskFileSetExpansionChangesScopeNotPolicy`; `briefingfeedback.TestBuild_CrossTaskFailureIsStillRelevant` |
+| 19 | one repository cannot enter another's | `server.TestBriefingFeedback_ForeignDomainNoOwnerInvocation` |
+| 20 | unrelated broken debris does not degrade | `briefingfeedback.TestBuild_UnrelatedFailureIsDroppedNotDegraded` |
+| 21 | relevant broken promotion → typed degraded | `briefingfeedback.TestBuild_RelevantAndUnrelatedFailuresCoexist` |
+| 22 | discovery outage explicit | `briefingfeedback.TestBuild_DiscoveryOutageIsUnavailable` |
+| 23 | verification outage not reclassified as verified | `briefingfeedback.TestBuild_CandidateLocalVsFacilityImpact` |
+| 24 | graph adjacency without committed conjunction insufficient | `coverage.TestBriefingFeedbackOwnershipBoundary` (owner admits only via `VerifyCommittedPromotion`) |
+| 25 | self-described issuer/tool/status insufficient | `questionpromotion` conjunctive verification tests |
+| 26 | structured response + prose use same projection | `server.TestClosure_RpcStructuredProseReferenceParity`, `TestResolveBriefingFeedback_AtomicPair` |
+| 27 | prose rendering cannot change classification | `server.TestClosure_RpcStructuredProseReferenceParity` |
+| 28 | mutation after digesting fails validation | `briefingfeedback.TestBuild_DigestIsSelfExcludingAndTamperEvident` |
+| 29 | repeated execution byte-identical | `server.TestClosure_Determinism`; `briefingfeedback.TestBuild_DeterministicRegardlessOfDiscoveryOrder` |
+| 30 | tasksession + server same record set | `server.TestClosure_OwnerServerTaskParity` |
+| 31 | feedback mutates no state | `server.TestClosure_NoMutation`; `tasksession.TestBriefingConsumptionHasNoSideEffects` |
+| 32 | base briefing available when feedback degraded | `server.TestBriefing_ForeignDomainDegradesButKeepsBase` |
+| 33 | Phase 9.4 behavior unchanged | full `./golang/... ./cmd/...` suite (no 9.4 change) |
+| 34 | `CorrectnessCertified` unchanged | structural — no writer added; Phase 6 remains sole certifier |
+
+### 18.5 Closure record
+- Accepted heads: Checkpoint 1 `53b7a71`; Checkpoint 2 `cdff72f`.
+- Final owner boundary: `golang/architecture/briefingfeedback` (sole owner); consumers
+  `tasksession` (task briefing) and `golang/server` (RPC field 7) via the owner + pure adapter.
+- Wire schema: additive `BriefingResponse.feedback = 7`; closed
+  `BriefingFeedbackProjection`/`VerifiedRecord`/`Finding` + availability/finding-class/
+  disposition enums; no filesystem root on the wire; canonical digest preserved.
+- Parity result: owner ≡ server ≡ task fingerprints for the same verified scope; differences
+  only from verified task file-set expansion. Mutation result: byte-identical repository
+  snapshot across the feedback battery. Determinism result: identical projection JSON, digest,
+  and deterministic protobuf bytes across repeated/shuffled execution. Platform result: one
+  slash identity; `filepath`-based paths; symlink test skipped on Windows; CI runs the
+  ubuntu+windows matrix.
+- Explicit limitations: Phase 9.6 provides briefing and future control-panel INPUTS, not
+  correctness certification. It makes no claim of repository-wide architectural perfection; it
+  surfaces only what is independently verified for the exact requested scope.
+
+### 18.6 Final closure statement
+Phase 9.6 is COMPLETE pending merge of PR #82. Phase 9.5 remains unopened. Phase 6 remains the
+sole correctness certifier; `CorrectnessCertified` remains false. Phase 9.6 delivers the
+governed briefing-feedback leg — necessary briefing and future cockpit inputs — never
+certification, completion, or merge authority.
+
 ---
 
-This document opens Phase 9.6 and freezes the Checkpoint-1 and Checkpoint-2 review rulings.
-Checkpoint 1 implemented the canonical owner + typed `questionpromotion` seams + the
-tasksession migration; Checkpoint 2 integrates the canonical projection into the server
-`Briefing` RPC through an additive typed wire contract + startup-owned repository context,
-adding NO editor, GitHub, certification, completion, or Phase 9.5 behavior. Phase 9.5 remains
-locked; `CorrectnessCertified` untouched.
+This document opened Phase 9.6 and froze the review rulings across three checkpoints.
+Checkpoint 1 (accepted `53b7a71`) implemented the canonical owner + typed `questionpromotion`
+seams + the tasksession migration; Checkpoint 2 (accepted `cdff72f`) integrated the canonical
+projection into the server `Briefing` RPC through an additive typed wire contract +
+startup-owned repository context; Checkpoint 3 closed the phase through adversarial proof,
+cross-consumer parity, deterministic platform behaviour, mutation isolation, and this closure
+documentation — adding NO new product surface, and NO editor, GitHub, certification,
+completion, or Phase 9.5 behaviour. Phase 9.5 remains locked; `CorrectnessCertified` untouched.
