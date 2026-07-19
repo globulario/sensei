@@ -237,3 +237,10 @@ forbidden_fixes:
       - closure.completion_gate_requires_explicit_identity_when_enforcement_applies
     reason: an absent identity is a caller failure, not a Sensei outage; conflating them lets a repo that opted into enforcement bypass the gate by breaking its task binding
     contract: missing/invalid required identity is cannot-verify and blocks under enforce; only a runtime outage after identity was established degrades
+  - id: phase9_change_task_binding_normalizes_or_infers_identity
+    title: normalize or infer change-to-task identity instead of exact typed matching
+    summary: Trim, case-fold, shorten, path-clean, or basename/prefix-match any change-to-task identity value, or infer the task from a branch name, commit message, --task-dir, or ambient Git state, or accept a stale-head or cross-repository binding, or resolve a contradictory publication set by selecting a record.
+    related_invariants:
+      - closure.change_task_binding_is_exact_typed_and_positively_authorized
+    reason: a completed task laundered onto an unrelated change is prevented ONLY by exact, typed, self-digested identity with positive provenance authority; any normalization/inference/selection reopens the bypass
+    contract: change-to-task identity is exact and typed; noncanonical input is rejected not normalized; no branch/commit/--task-dir/Git-state inference; a contradictory publication set fails closed and no record is selected
