@@ -436,6 +436,50 @@ test_symbols:
     symbol: TestAwarenessAddrs_LocalhostAddsFallback
     package: main
     language: go
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_EvaluatesDiff
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_EvaluatesDiff
+    package: main
+    language: go
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_ExpectedHeadOptional
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_ExpectedHeadOptional
+    package: main
+    language: go
+    doc: "expected_head is optional per the governing contract §3. Omitting it is\naccepted; an add-file diff needs no base content and passes."
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_FailsOnStaleOrNilAuthority
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_FailsOnStaleOrNilAuthority
+    package: main
+    language: go
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_GraphCommitMismatch
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_GraphCommitMismatch
+    package: main
+    language: go
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed
+    package: main
+    language: go
+    doc: "An authoritative graph that exposes no source/build commit identity cannot be\nbound to expected_head and must fail closed."
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify
+    package: main
+    language: go
+    doc: "Without expected_head the base of a modified file cannot be bound to a\ncanonical snapshot, and the tool must not read ambient working-tree state\n(§2). The modify hunk therefore degrades to cannot_verify."
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_NoExpectedHeadMissingGraphCommitFailsClosed
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_NoExpectedHeadMissingGraphCommitFailsClosed
+    package: main
+    language: go
+    doc: "Even with NO expected_head, an authoritative graph that exposes no\nsource/build commit cannot bind the verdict to a rule snapshot and must fail\nclosed. This exercises the omitted-head route the graph-commit guard used to\nskip."
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_Registered
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_Registered
+    package: main
+    language: go
   - id: cmd/awareness-mcp/main_test.go:TestBriefingTool_MapsEmptyClearly
     file: cmd/awareness-mcp/main_test.go
     symbol: TestBriefingTool_MapsEmptyClearly
@@ -7715,6 +7759,66 @@ test_symbols:
     file: golang/architecture/dialogue_test.go
     symbol: TestValidateOpenQuestionRejectsUnknownPriority
     package: architecture
+    language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluateDiff_DeletedGovernedTarget
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluateDiff_DeletedGovernedTarget
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluateDiff_EmptyGraphCommitForcesCannotVerify
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluateDiff_EmptyGraphCommitForcesCannotVerify
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluateDiff_HunkOverlapError
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluateDiff_HunkOverlapError
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluateDiff_NilCheckerForcesCannotVerify
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluateDiff_NilCheckerForcesCannotVerify
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluateDiff_OmittedCompanionFileObligation
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluateDiff_OmittedCompanionFileObligation
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluateDiff_OmittedCompanionImplementationFile
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluateDiff_OmittedCompanionImplementationFile
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluateDiff_PassesCleanDiff
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluateDiff_PassesCleanDiff
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/model_test.go:TestAuditResult_ComputeDigest_Deterministic
+    file: golang/architecture/diffaudit/model_test.go
+    symbol: TestAuditResult_ComputeDigest_Deterministic
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/parser_test.go:TestParseDiff_BinaryFile
+    file: golang/architecture/diffaudit/parser_test.go
+    symbol: TestParseDiff_BinaryFile
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/parser_test.go:TestParseDiff_DuplicateFilePaths
+    file: golang/architecture/diffaudit/parser_test.go
+    symbol: TestParseDiff_DuplicateFilePaths
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/parser_test.go:TestParseDiff_HostileInputs
+    file: golang/architecture/diffaudit/parser_test.go
+    symbol: TestParseDiff_HostileInputs
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/parser_test.go:TestParseDiff_ValidMultiFile
+    file: golang/architecture/diffaudit/parser_test.go
+    symbol: TestParseDiff_ValidMultiFile
+    package: diffaudit
     language: go
   - id: golang/architecture/evidencereceipt/coverage_test.go:TestEvaluateCoverage
     file: golang/architecture/evidencereceipt/coverage_test.go
