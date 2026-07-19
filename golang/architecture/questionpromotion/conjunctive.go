@@ -78,7 +78,7 @@ func proveCommittedConjunction(ctx context.Context, repoRoot, lineageID, promoti
 	// 5. The current persisted graph and marker independently verify.
 	reloaded, gverr := repograph.VerifyPersisted(ctx, repoRoot)
 	if gverr != nil {
-		return QuestionPromotionReceipt{}, vfail(VerifyUnverifiable, "graph_reverify_failed", "graph reverify", gverr)
+		return QuestionPromotionReceipt{}, vfailFacility(VerifyUnverifiable, "graph_reverify_failed", "graph reverify", gverr)
 	}
 	if reloaded.GraphSemanticDigestSHA256 != rc.GraphSemanticDigestSHA256 ||
 		reloaded.CompiledGraphByteDigestSHA256 != rc.PersistedGraphByteDigestSHA256 {

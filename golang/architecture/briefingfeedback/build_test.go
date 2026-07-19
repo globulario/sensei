@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -73,7 +75,8 @@ type outcome struct {
 // verification outcome map, and an optional descriptor map (default: relevant).
 func fakeDeps(lineages []string, out map[string]outcome, desc map[string]qp.CandidateDescriptor) deps {
 	return deps{
-		discover: func(string) ([]string, error) { return lineages, nil },
+		resolveRoot: func(r string) (string, error) { return r, nil },
+		discover:    func(string) ([]string, error) { return lineages, nil },
 		descriptor: func(_, lin string) qp.CandidateDescriptor {
 			if desc != nil {
 				if d, ok := desc[lin]; ok {
@@ -95,7 +98,7 @@ func validReq() Request {
 		RepositoryIdentity: testDomain,
 		RequestedDomain:    testDomain,
 		RequestedFiles:     []string{testFile},
-		Task:               &TaskBinding{TaskID: "task.origin", SessionID: "session.origin", Files: []string{testFile}},
+		Task:               &TaskBinding{TaskID: "task.origin", SessionID: "session.origin", RepositoryDomain: testDomain, Files: []string{testFile}},
 	}
 }
 
@@ -348,6 +351,7 @@ func TestBuild_MalformedRequest(t *testing.T) {
 			req := tc.req(validReq())
 			// discover should never be reached for a malformed request.
 			d := deps{
+				resolveRoot: func(r string) (string, error) { return r, nil },
 				discover: func(string) ([]string, error) {
 					t.Fatal("discover must not run for malformed request")
 					return nil, nil
@@ -436,7 +440,8 @@ func TestBuild_ConflictingRelevantDescriptorsAreContradictory(t *testing.T) {
 	descSeq := []qp.CandidateDescriptor{a, b}
 	i := 0
 	d := deps{
-		discover: func(string) ([]string, error) { return []string{"L1", "L1"}, nil },
+		resolveRoot: func(r string) (string, error) { return r, nil },
+		discover:    func(string) ([]string, error) { return []string{"L1", "L1"}, nil },
 		descriptor: func(_, _ string) qp.CandidateDescriptor {
 			dd := descSeq[i]
 			i++
@@ -459,8 +464,9 @@ func TestBuild_ConflictingUnrelatedDescriptorsDoNotPoison(t *testing.T) {
 	descSeq := []qp.CandidateDescriptor{a, b}
 	i := 0
 	d := deps{
-		discover:   func(string) ([]string, error) { return []string{"L1", "L1"}, nil },
-		descriptor: func(_, _ string) qp.CandidateDescriptor { dd := descSeq[i]; i++; return dd },
+		resolveRoot: func(r string) (string, error) { return r, nil },
+		discover:    func(string) ([]string, error) { return []string{"L1", "L1"}, nil },
+		descriptor:  func(_, _ string) qp.CandidateDescriptor { dd := descSeq[i]; i++; return dd },
 		verify: func(context.Context, string, string) (qp.VerifiedPromotion, error) {
 			return qp.VerifiedPromotion{}, verErr(qp.VerifyIncomplete, "x")
 		},
@@ -572,5 +578,217 @@ func TestBuild_ProjectionOmitsRepositoryRoot(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func verErr(class qp.VerificationFailureClass, reason string) error {
-	return &qp.VerificationError{Class: class, ReasonCode: reason, Cause: errors.New("boom")}
+	return &qp.VerificationError{Class: class, ReasonCode: reason, Impact: qp.VerificationCandidateLocal, Cause: errors.New("boom")}
+}
+
+func facilityErr(reason string) error {
+	return &qp.VerificationError{Class: qp.VerifyUnverifiable, ReasonCode: reason, Impact: qp.VerificationFacilityUnavailable, Cause: errors.New("boom-io")}
+}
+
+// ---------------------------------------------------------------------------
+// Repair proofs (Checkpoint 1 review): identity, root, padded paths, facility
+// impact, order-independence, duplicate-finding refusal.
+// ---------------------------------------------------------------------------
+
+// A task-scoped request missing task id or session id fails closed as feedback_invalid.
+func TestBuild_MissingTaskIdentityFailsClosed(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(*TaskBinding)
+		reason string
+	}{
+		{"no task id", func(tb *TaskBinding) { tb.TaskID = "" }, "task_identity_absent"},
+		{"no session id", func(tb *TaskBinding) { tb.SessionID = "" }, "session_identity_absent"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validReq()
+			tc.mutate(req.Task)
+			p := mustBuild(t, req, fakeDeps([]string{"L1"}, map[string]outcome{"L1": {vp: verified("L1", nil)}}, nil))
+			if p.Availability != FeedbackInvalid || len(p.Findings) != 1 || p.Findings[0].ReasonCode != tc.reason {
+				t.Fatalf("want feedback_invalid/%s, got %q %+v", tc.reason, p.Availability, p.Findings)
+			}
+			if p.TaskID != "" || p.SessionID != "" {
+				t.Fatalf("invalid projection must not be task-bound: %+v", p)
+			}
+		})
+	}
+}
+
+// A task/repository domain mismatch fails closed (no fallback, no case/prefix repair).
+func TestBuild_RepositoryDomainMismatchFailsClosed(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(*Request)
+		reason string
+	}{
+		{"requested domain != identity", func(r *Request) { r.RequestedDomain = "github.com/other/repo" }, "repository_identity_incoherent"},
+		{"task domain != identity", func(r *Request) { r.Task.RepositoryDomain = "github.com/other/repo" }, "task_domain_incoherent"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validReq()
+			tc.mutate(&req)
+			p := mustBuild(t, req, fakeDeps([]string{"L1"}, map[string]outcome{"L1": {vp: verified("L1", nil)}}, nil))
+			if p.Availability != FeedbackInvalid || p.Findings[0].ReasonCode != tc.reason {
+				t.Fatalf("want feedback_invalid/%s, got %q %+v", tc.reason, p.Availability, p.Findings)
+			}
+		})
+	}
+}
+
+// Relative, padded, and absent repository roots are rejected at the owner boundary — never
+// resolved against the process working directory.
+func TestBuild_RepositoryRootIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		root   string
+		reason string
+	}{
+		{"relative root", "relative/checkout", "repository_root_relative"},
+		{"padded root", " /repo ", "repository_root_padded"},
+		{"absent root", "   ", "repository_root_absent"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validReq()
+			req.RepositoryRoot = tc.root
+			d := fakeDeps([]string{"L1"}, map[string]outcome{"L1": {vp: verified("L1", nil)}}, nil)
+			d.resolveRoot = func(string) (string, error) { t.Fatal("resolveRoot must not run for an invalid root"); return "", nil }
+			p := mustBuild(t, req, d)
+			if p.Availability != FeedbackInvalid || p.Findings[0].ReasonCode != tc.reason {
+				t.Fatalf("want feedback_invalid/%s, got %q %+v", tc.reason, p.Availability, p.Findings)
+			}
+		})
+	}
+}
+
+// An absolute-but-unresolvable root (does not exist / not a directory) is feedback_invalid.
+func TestBuild_UnresolvableRootIsInvalid(t *testing.T) {
+	d := fakeDeps([]string{"L1"}, map[string]outcome{"L1": {vp: verified("L1", nil)}}, nil)
+	d.resolveRoot = func(string) (string, error) { return "", errors.New("no such directory") }
+	p := mustBuild(t, validReq(), d)
+	if p.Availability != FeedbackInvalid || p.Findings[0].ReasonCode != "repository_root_unresolvable" {
+		t.Fatalf("want feedback_invalid/repository_root_unresolvable, got %q %+v", p.Availability, p.Findings)
+	}
+}
+
+// resolveRepoRoot (the production resolver) resolves symlinks once, requires a directory, and
+// never calls filepath.Abs.
+func TestResolveRepoRoot_RealFilesystem(t *testing.T) {
+	dir := t.TempDir()
+	got, err := resolveRepoRoot(dir)
+	if err != nil {
+		t.Fatalf("resolveRepoRoot(%q) = %v", dir, err)
+	}
+	if !filepath.IsAbs(got) {
+		t.Fatalf("resolved root not absolute: %q", got)
+	}
+	// A file, not a directory, is rejected.
+	f := filepath.Join(dir, "file")
+	if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolveRepoRoot(f); err == nil {
+		t.Fatal("resolveRepoRoot must reject a non-directory")
+	}
+	// A missing path is rejected.
+	if _, err := resolveRepoRoot(filepath.Join(dir, "nope")); err == nil {
+		t.Fatal("resolveRepoRoot must reject a missing path")
+	}
+}
+
+// A padded file identity is rejected, never trimmed into a distinct canonical path.
+func TestBuild_PaddedFileIdentityRejected(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(*Request)
+		reason string
+	}{
+		{"padded requested file", func(r *Request) { r.RequestedFiles = []string{" golang/server/reload.go"} }, "unsafe_requested_file"},
+		{"trailing-space requested file", func(r *Request) { r.RequestedFiles = []string{"golang/server/reload.go "} }, "unsafe_requested_file"},
+		{"padded task file", func(r *Request) { r.Task.Files = []string{"golang/server/reload.go\t"} }, "unsafe_task_file"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := validReq()
+			tc.mutate(&req)
+			p := mustBuild(t, req, fakeDeps([]string{"L1"}, map[string]outcome{"L1": {vp: verified("L1", nil)}}, nil))
+			if p.Availability != FeedbackInvalid || p.Findings[0].ReasonCode != tc.reason {
+				t.Fatalf("want feedback_invalid/%s, got %q %+v", tc.reason, p.Availability, p.Findings)
+			}
+		})
+	}
+}
+
+// A candidate-local unverifiable result degrades (excluded); a shared-facility outage is
+// unavailable — the two are distinct.
+func TestBuild_CandidateLocalVsFacilityImpact(t *testing.T) {
+	local := mustBuild(t, validReq(), fakeDeps([]string{"L1"}, map[string]outcome{"L1": {err: verErr(qp.VerifyUnverifiable, "governed_record_unreadable")}}, nil))
+	if local.Availability != FeedbackDegraded || local.Findings[0].Disposition != DispositionExcluded {
+		t.Fatalf("candidate-local unverifiable must degrade+exclude: %q %+v", local.Availability, local.Findings)
+	}
+	facility := mustBuild(t, validReq(), fakeDeps([]string{"L1"}, map[string]outcome{"L1": {err: facilityErr("graph_reverify_failed")}}, nil))
+	if facility.Availability != FeedbackUnavailable {
+		t.Fatalf("facility outage must be unavailable, got %q", facility.Availability)
+	}
+	if len(facility.Findings) != 1 || facility.Findings[0].Disposition != DispositionUnavailable || facility.Findings[0].Class != PromotionUnverifiable {
+		t.Fatalf("facility finding malformed: %+v", facility.Findings)
+	}
+}
+
+// A global facility outage classifies as unavailable regardless of discovery order and is
+// reported exactly once.
+func TestBuild_FacilityOutageOrderIndependent(t *testing.T) {
+	out := map[string]outcome{
+		"A": {err: facilityErr("graph_reverify_failed")},
+		"B": {err: verErr(qp.VerifyIntegrityFailure, "tampered")},
+	}
+	desc := map[string]qp.CandidateDescriptor{"A": relevantDesc("A"), "B": relevantDesc("B")}
+	forward := mustBuild(t, validReq(), fakeDeps([]string{"A", "B"}, out, desc))
+	reverse := mustBuild(t, validReq(), fakeDeps([]string{"B", "A"}, out, desc))
+	if forward.Availability != FeedbackUnavailable || reverse.Availability != FeedbackUnavailable {
+		t.Fatalf("facility outage must be unavailable both orders: %q / %q", forward.Availability, reverse.Availability)
+	}
+	if forward.DigestSHA256 != reverse.DigestSHA256 {
+		t.Fatalf("facility-outage projection not order-independent")
+	}
+	facilityFindings := 0
+	for _, f := range forward.Findings {
+		if f.Disposition == DispositionUnavailable {
+			facilityFindings++
+		}
+	}
+	if facilityFindings != 1 {
+		t.Fatalf("facility outage must be reported exactly once, got %d", facilityFindings)
+	}
+}
+
+// ValidateProjection refuses a duplicate finding identity; finalize deduplicates.
+func TestValidateProjection_DuplicateFindingRefused(t *testing.T) {
+	base := mustBuild(t, validReq(), fakeDeps(nil, nil, nil))
+	dup := base
+	f := Finding{Class: PromotionStale, ReasonCode: "drift", LineageID: "L1", AffectedDomain: testDomain, Disposition: DispositionExcluded}
+	dup.Findings = []Finding{f, f}
+	dup.Availability = FeedbackDegraded
+	dup.DigestSHA256 = ""
+	dig, _ := ComputeDigest(dup)
+	dup.DigestSHA256 = dig
+	if ValidateProjection(dup) == nil {
+		t.Fatal("duplicate finding identity must be refused")
+	}
+	if got := dedupeFindings([]Finding{f, f}); len(got) != 1 {
+		t.Fatalf("dedupeFindings must collapse duplicates, got %d", len(got))
+	}
+}
+
+// No raw verification error text or answer text is serialized into the projection.
+func TestBuild_NoRawTextSerialized(t *testing.T) {
+	p := mustBuild(t, validReq(), fakeDeps([]string{"L1", "L2"}, map[string]outcome{
+		"L1": {vp: verified("L1", nil)},
+		"L2": {err: verErr(qp.VerifyIntegrityFailure, "tampered")},
+	}, map[string]qp.CandidateDescriptor{"L1": relevantDesc("L1"), "L2": relevantDesc("L2")}))
+	blob, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(blob), "boom") {
+		t.Fatalf("raw verification error text leaked into projection")
+	}
 }

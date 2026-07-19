@@ -323,6 +323,48 @@ This preserves the accepted domain-neutral promotion behavior (today's `promotio
 admits an unscoped-domain promotion) without letting an unknown domain authorize a
 domain-scoped record.
 
+### 16.3 Cross-task relevance ruling (frozen)
+A governed promotion is reusable across tasks. Its originating task and session are
+**provenance, not consumption scope**. A failed candidate from another originating task
+remains relevant when its claimed repository/domain and file scope intersect the requested
+scope exactly. Frozen consequences:
+- `relevantFailure` imposes **no** originating-task equality requirement — the claimed
+  originating task id is never a relevance filter (that would drop genuinely relevant debris
+  and break cross-task reuse for the primary task-briefing consumer);
+- relevance is exact repository-identity/domain compatibility **plus** file-scope
+  intersection, from UNTRUSTED claimed descriptor metadata only;
+- untrusted descriptor metadata never admits a record — the verified effective scope from
+  `VerifyCommittedPromotion` is the sole admission authority;
+- a verified promotion likewise admits regardless of which task originally promoted it; the
+  admitted record carries the ORIGINATING task/session as provenance, never the consuming
+  task.
+
+### 16.4 Repository-context + identity coherence (frozen for Checkpoint 1)
+The canonical owner never derives authority from ambient filesystem context:
+- the repository root must be explicitly supplied, unpadded, and **absolute**; a relative
+  root is rejected at the owner boundary, never resolved with `filepath.Abs` against the
+  process working directory; the established absolute root is symlink-resolved once, verified
+  to be an existing directory, and the **same** established root is passed to discovery,
+  descriptor loading, and verification; it is never serialized into the projection;
+- `RepositoryIdentity` is the established canonical repository domain (the narrower
+  Checkpoint-1 contract, absent a distinct repository-ID resolver). For task-scoped requests
+  the requested domain, repository identity, and task-binding repository domain must
+  correspond **exactly** (no case/whitespace repair, no prefix/suffix/basename/home-domain
+  fallback); a mismatch is `feedback_invalid`. A task-scoped request additionally requires a
+  non-empty task id and session id. The exact task identity is supplied by task-session
+  control, never inferred from task-directory basename, active-task proximity, the requested
+  file, cwd, or a promotion receipt.
+
+### 16.5 Verification impact vocabulary (frozen)
+`questionpromotion` exposes a closed verification **impact** distinct from the failure cause:
+`candidate_local` (a definitive property of this candidate or a read of its own dependency)
+versus `facility_unavailable` (a shared verification facility — the persisted-graph reverify
+facility or a shared marker dependency — was unavailable, so nothing can be verified). A
+relevant candidate-local failure degrades (`feedback_degraded`, excluded); a shared-facility
+outage is `feedback_unavailable` (reported once, discovery-order independent, distinct from
+malformed identity and candidate invalidity). `briefingfeedback` classifies from the typed
+impact only — never by parsing error text or matching reason-code strings.
+
 ---
 
 This document opens Phase 9.6 and freezes the Checkpoint-1 review rulings. The opening

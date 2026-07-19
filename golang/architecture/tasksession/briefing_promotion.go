@@ -27,14 +27,25 @@ type PromotedGovernedRecord struct {
 	SessionID                      string `json:"session_id" yaml:"session_id"`
 }
 
-// collectPromotedKnowledge is a thin adapter over the canonical briefingfeedback
-// owner: the task briefing no longer discovers, verifies, or scope-filters
-// promotions itself. It builds the owner's deterministic feedback projection for
-// the task scope and maps the VERIFIED records into the briefing's compatibility
-// shape and the typed findings into human-readable limitations. It never
-// re-implements verification and never parses raw verification error text —
-// limitations are derived from the projection's TYPED finding class + reason.
-func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, domain string) ([]PromotedGovernedRecord, []string) {
+// promotedKnowledgeResult carries the exact canonical feedback projection alongside the
+// mechanically-derived compatibility surfaces. The projection is authoritative; Records and
+// Limitations are pure projections of it, so old consumers keep the two legacy surfaces while
+// new consumers read the typed projection (availability, typed findings) without parsing prose.
+type promotedKnowledgeResult struct {
+	Projection  briefingfeedback.Projection
+	Records     []PromotedGovernedRecord
+	Limitations []string
+}
+
+// collectPromotedKnowledge is a thin adapter over the canonical briefingfeedback owner. It
+// binds the EXACT canonical task identity supplied by task-session control (task id, session
+// id, repository domain, verified task file set) into the owner request — it never infers
+// identity from the task directory, active-task proximity, requested file, or working
+// directory. The owner discovers, independently verifies, and scope-filters; this adapter only
+// maps the one canonical projection into the briefing's compatibility shapes. Compatibility
+// records come from the projection's VERIFIED records; compatibility limitations come from its
+// TYPED findings — never from raw verification error text.
+func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, domain, taskID, sessionID string) promotedKnowledgeResult {
 	files := make([]string, 0, len(taskFiles))
 	for f := range taskFiles {
 		files = append(files, f)
@@ -44,16 +55,16 @@ func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, 
 		RepositoryIdentity: domain,
 		RequestedDomain:    domain,
 		RequestedFiles:     []string{file},
-		Task:               &briefingfeedback.TaskBinding{Files: files},
+		Task:               &briefingfeedback.TaskBinding{TaskID: taskID, SessionID: sessionID, RepositoryDomain: domain, Files: files},
 	})
 	if err != nil {
-		// Impossible internal projection state (digest/validation) — never a bare zero
-		// value of promoted knowledge presented as truth.
-		return nil, []string{"promoted-knowledge projection unavailable"}
+		// Impossible internal projection state (digest/validation) — never a bare zero value
+		// of promoted knowledge presented as truth.
+		return promotedKnowledgeResult{Limitations: []string{"promoted-knowledge projection unavailable"}}
 	}
-	out := make([]PromotedGovernedRecord, 0, len(proj.Records))
+	res := promotedKnowledgeResult{Projection: proj}
 	for _, r := range proj.Records {
-		out = append(out, PromotedGovernedRecord{
+		res.Records = append(res.Records, PromotedGovernedRecord{
 			GovernedNodeIRI:                r.GovernedNodeIRI,
 			Kind:                           r.GovernedKind,
 			CanonicalRecordID:              r.CanonicalRecordID,
@@ -67,16 +78,15 @@ func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, 
 			SessionID:                      r.OriginatingSessionID,
 		})
 	}
-	var limitations []string
 	for _, f := range proj.Findings {
-		limitations = append(limitations, limitationFromFinding(f))
+		res.Limitations = append(res.Limitations, limitationFromFinding(f))
 	}
-	return out, limitations
+	return res
 }
 
-// limitationFromFinding renders a TYPED feedback finding as a stable human-readable
-// limitation string. It uses only the closed finding class + reason code + lineage
-// provenance — never the underlying verification error text.
+// limitationFromFinding renders a TYPED feedback finding as a stable human-readable limitation
+// string. It uses only the closed finding class + reason code + lineage provenance — never the
+// underlying verification error text.
 func limitationFromFinding(f briefingfeedback.Finding) string {
 	switch f.Class {
 	case briefingfeedback.PromotionDiscoveryUnavailable:
