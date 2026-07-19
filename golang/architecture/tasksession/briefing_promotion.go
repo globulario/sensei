@@ -5,9 +5,8 @@ package tasksession
 import (
 	"context"
 	"fmt"
-	"sort"
 
-	"github.com/globulario/sensei/golang/architecture/questionpromotion"
+	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
 )
 
 // PromotedGovernedRecord is one committed governed promotion surfaced in a task
@@ -28,64 +27,65 @@ type PromotedGovernedRecord struct {
 	SessionID                      string `json:"session_id" yaml:"session_id"`
 }
 
-// collectPromotedKnowledge discovers committed governed promotions, independently
-// re-proves each through the questionpromotion verification boundary (it does NOT
-// re-implement receipt/journal/source/graph/provenance validation), and includes
-// only verified promotions whose governed scope intersects the task scope. A
-// stale/tampered/incomplete/non-committed promotion is reported as a typed
-// integrity limitation and excluded from binding context. Output is deterministic
-// (sorted), so an unchanged repository/task world yields byte-identical content.
+// collectPromotedKnowledge is a thin adapter over the canonical briefingfeedback
+// owner: the task briefing no longer discovers, verifies, or scope-filters
+// promotions itself. It builds the owner's deterministic feedback projection for
+// the task scope and maps the VERIFIED records into the briefing's compatibility
+// shape and the typed findings into human-readable limitations. It never
+// re-implements verification and never parses raw verification error text —
+// limitations are derived from the projection's TYPED finding class + reason.
 func collectPromotedKnowledge(repoRoot, file string, taskFiles map[string]bool, domain string) ([]PromotedGovernedRecord, []string) {
-	lineages, err := questionpromotion.DiscoverCommittedPromotions(repoRoot)
-	if err != nil {
-		return nil, []string{"promoted-knowledge discovery unavailable: " + err.Error()}
+	files := make([]string, 0, len(taskFiles))
+	for f := range taskFiles {
+		files = append(files, f)
 	}
-	var out []PromotedGovernedRecord
-	var findings []string
-	for _, lineage := range lineages {
-		vp, verr := questionpromotion.VerifyCommittedPromotion(context.Background(), repoRoot, lineage)
-		if verr != nil {
-			findings = append(findings, fmt.Sprintf("promoted knowledge %s excluded (integrity): %v", shortLineage(lineage), verr))
-			continue
-		}
-		if !promotionInScope(vp.Receipt, file, taskFiles, domain) {
-			continue
-		}
-		rc := vp.Receipt
+	proj, err := briefingfeedback.Build(context.Background(), briefingfeedback.Request{
+		RepositoryRoot:     repoRoot,
+		RepositoryIdentity: domain,
+		RequestedDomain:    domain,
+		RequestedFiles:     []string{file},
+		Task:               &briefingfeedback.TaskBinding{Files: files},
+	})
+	if err != nil {
+		// Impossible internal projection state (digest/validation) — never a bare zero
+		// value of promoted knowledge presented as truth.
+		return nil, []string{"promoted-knowledge projection unavailable"}
+	}
+	out := make([]PromotedGovernedRecord, 0, len(proj.Records))
+	for _, r := range proj.Records {
 		out = append(out, PromotedGovernedRecord{
-			GovernedNodeIRI: vp.GovernedNodeIRI, Kind: rc.GovernedTargetKind,
-			CanonicalRecordID: rc.CanonicalRecordID, SourceDocument: rc.SourceDocument,
-			PromotionLineageID: vp.PromotionLineageID, ReceiptDigestSHA256: rc.ReceiptDigestSHA256,
-			QuestionID: rc.QuestionID, AnswerID: rc.AnswerID,
-			DispositionReceiptDigestSHA256: rc.QuestionDispositionReceiptDigestSHA256,
-			TaskID:                         rc.Task.ID, SessionID: rc.Task.SessionID,
+			GovernedNodeIRI:                r.GovernedNodeIRI,
+			Kind:                           r.GovernedKind,
+			CanonicalRecordID:              r.CanonicalRecordID,
+			SourceDocument:                 r.SourceDocument,
+			PromotionLineageID:             r.PromotionLineageID,
+			ReceiptDigestSHA256:            r.PromotionReceiptDigestSHA256,
+			QuestionID:                     r.QuestionID,
+			AnswerID:                       r.AnswerID,
+			DispositionReceiptDigestSHA256: r.DispositionReceiptDigestSHA256,
+			TaskID:                         r.OriginatingTaskID,
+			SessionID:                      r.OriginatingSessionID,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].GovernedNodeIRI < out[j].GovernedNodeIRI })
-	sort.Strings(findings)
-	return out, findings
+	var limitations []string
+	for _, f := range proj.Findings {
+		limitations = append(limitations, limitationFromFinding(f))
+	}
+	return out, limitations
 }
 
-// promotionInScope requires the promotion's governed scope to intersect the task
-// scope: the effective-scope domain must match (an unscoped-domain promotion
-// applies to any), and at least one effective-scope file must be the briefing file
-// or a task-scoped file. A promotion with no declared effective scope is not
-// selected into binding context.
-func promotionInScope(rc questionpromotion.QuestionPromotionReceipt, file string, taskFiles map[string]bool, domain string) bool {
-	// A promotion that declares a governed domain must match the task's domain
-	// exactly. An unknown (empty) task domain is NOT a match — fail closed.
-	if rc.EffectiveScopeDomain != "" && rc.EffectiveScopeDomain != domain {
-		return false
+// limitationFromFinding renders a TYPED feedback finding as a stable human-readable
+// limitation string. It uses only the closed finding class + reason code + lineage
+// provenance — never the underlying verification error text.
+func limitationFromFinding(f briefingfeedback.Finding) string {
+	switch f.Class {
+	case briefingfeedback.PromotionDiscoveryUnavailable:
+		return "promoted-knowledge discovery unavailable"
+	case briefingfeedback.PromotionScopeIdentityInvalid:
+		return "promoted-knowledge request invalid: " + f.ReasonCode
+	default:
+		return fmt.Sprintf("promoted knowledge %s excluded (%s): %s", shortLineage(f.LineageID), f.Class, f.ReasonCode)
 	}
-	if len(rc.EffectiveScopeFiles) == 0 {
-		return false
-	}
-	for _, f := range rc.EffectiveScopeFiles {
-		if f == file || taskFiles[f] {
-			return true
-		}
-	}
-	return false
 }
 
 func shortLineage(s string) string {
