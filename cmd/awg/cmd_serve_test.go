@@ -219,3 +219,42 @@ func TestReconcileRuntimeTransactionStamp_KeepsMatchingStamp(t *testing.T) {
 		t.Fatalf("matching transaction removed: %v", err)
 	}
 }
+
+func TestResolveServeRepoContext(t *testing.T) {
+	dir := t.TempDir()
+
+	if r, d, err := resolveServeRepoContext("", ""); err != nil || r != "" || d != "" {
+		t.Fatalf("neither set must disable feedback, got %q %q %v", r, d, err)
+	}
+	if _, _, err := resolveServeRepoContext(dir, ""); err == nil {
+		t.Fatal("root without domain must fail")
+	}
+	if _, _, err := resolveServeRepoContext("", "d"); err == nil {
+		t.Fatal("domain without root must fail")
+	}
+	if _, _, err := resolveServeRepoContext(" "+dir, "d"); err == nil {
+		t.Fatal("padded root must fail")
+	}
+	if _, _, err := resolveServeRepoContext(dir, "a b"); err == nil {
+		t.Fatal("whitespace domain must fail")
+	}
+	// The wrapper MAY resolve a relative root (the caller selected it explicitly).
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	os.Chdir(dir)
+	sub := "subdir"
+	if err := os.Mkdir(filepath.Join(dir, sub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r, d, err := resolveServeRepoContext(sub, "github.com/x/y")
+	if err != nil {
+		t.Fatalf("relative root should resolve in the wrapper: %v", err)
+	}
+	if !filepath.IsAbs(r) || d != "github.com/x/y" {
+		t.Fatalf("wrapper must forward an absolute root + domain, got %q %q", r, d)
+	}
+	// A missing root fails.
+	if _, _, err := resolveServeRepoContext(filepath.Join(dir, "missing"), "d"); err == nil {
+		t.Fatal("missing root must fail")
+	}
+}
