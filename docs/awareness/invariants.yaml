@@ -1343,3 +1343,34 @@ invariants:
       The producer builds only from authoritative event + verified checkout + explicit task +
       exact completion digest, self-validates through the Checkpoint-1 validator, publishes
       deterministically, and fails in its own vocabulary — never a 9.4b runtime/degraded reason.
+  - id: closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
+    title: The change-to-task binding is validated before the 9.4b completion decision, and an invalid binding never degrades
+    severity: critical
+    status: active
+    description: >
+      Phase 9.4c Checkpoint 3. Where a domain requires completion in authoritative GitHub
+      enforcement, an authoritative completion.change_task_binding/v1 is validated BEFORE the
+      unchanged 9.4b completion decision runs. Authority is exact correspondence to the current
+      trusted subject reconstructed INDEPENDENTLY of the publication (event repo/change/base/head
+      == checkout; explicit task/session; the exact completion-result digest under evaluation;
+      expected producer) plus positive provenance — a binding never self-authorizes via its own
+      provider/issuer/tool/digest. The two typed layers stay distinct (binding decision +
+      completion decision); an absent/malformed/stale/contradictory/unverifiable/mismatched
+      binding BLOCKS at the binding stage and the completion evaluation (owner invocation) never
+      runs, so an invalid binding can NEVER reach the 9.4b runtime-degradation lane; only an
+      authoritative binding followed by a genuine post-invocation owner runtime failure may
+      degrade under the unchanged 9.4b policy. Exactly one publication is consumed from the one
+      documented path; a set is never resolved by selection. A not-required/unlisted domain
+      preserves the frozen 9.4a/9.4b behavior. No cryptographic attestation is claimed.
+    protects:
+      files:
+        - golang/architecture/changebindingconsumer/consume.go
+        - cmd/awg/cmd_gate_completion_compose.go
+        - .github/actions/sensei-gate/action.yml
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      An authoritative change-to-task binding is validated against the independently-reconstructed
+      current subject before the unchanged 9.4b decision; an invalid binding blocks before
+      completion and never degrades; only an authoritative binding plus a genuine post-invocation
+      runtime failure may degrade.

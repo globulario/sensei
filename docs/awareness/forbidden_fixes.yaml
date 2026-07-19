@@ -251,3 +251,10 @@ forbidden_fixes:
       - closure.change_task_binding_producer_is_authoritative_and_deterministic
     reason: producer failures are a caller/config concern, never a Sensei runtime outage; conflating them lets an unauthenticated or mismatched production earn a degraded pass, and promoting local Git state forges authority
     contract: producer failures use the closed producer vocabulary and never a 9.4b runtime/degraded reason; only positively verified GitHub provenance is authoritative; only a self-validated authoritative binding is published
+  - id: phase9_completion_enforced_without_authoritative_change_binding
+    title: enforce completion without first validating an authoritative change binding, or let an invalid binding degrade
+    summary: Invoke the completion projection/owner (the 9.4b runtime lane) before an authoritative change-to-task binding is accepted, accept a binding on its self-described fields instead of exact current-subject correspondence, select one binding from a contradictory set, or let an absent/malformed/stale/mismatched/unverifiable binding reach a degraded pass.
+    related_invariants:
+      - closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
+    reason: composing binding validation in front of the completion decision is the only thing that stops a valid completion being laundered onto an unrelated change; letting the owner run first, or degrading on an invalid binding, reopens the passport swap and the runtime-degradation bypass
+    contract: binding validation precedes the completion evaluation; the owner is never invoked before an authoritative binding is accepted; an invalid binding always blocks and never degrades
