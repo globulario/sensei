@@ -7439,3 +7439,155 @@ invariants:
       - meta.topology_change_is_a_first_class_event
       - meta.half_done_must_not_look_done
       - meta.quorum_change_requires_pre_failure_safety
+  - id: meta.existence_checks_must_not_substitute_for_cardinality_proofs
+    title: "Existence does not prove cardinality — finding one matching fact is not proof that exactly one exists"
+    category: structure
+    antipattern: "Find one and assume uniqueness"
+    wrong_instinct: A successful lookup feels like proof of a valid singular world, but it establishes existence only and may silently ignore contradictory duplicates
+    severity: critical
+    status: active
+    summary: |
+      Every architectural claim carries a quantifier. A lookup that returns one
+      matching record proves only that at least one match exists. It does not prove
+      uniqueness, exclusivity, terminality, completeness, or singular authority.
+
+      When correctness requires exactly one authoritative fact, selecting the first,
+      latest, or otherwise convenient match is insufficient. Additional matching
+      facts may represent contradictory authority, duplicate terminal events,
+      ambiguous ownership, competing certificates, or an invalid split-brain world.
+
+      Formally:
+
+        exists x: P(x)
+
+      does not imply:
+
+        exists exactly one x: P(x)
+
+      This distinction applies wherever architecture requires:
+
+        - exactly one canonical owner
+        - exactly one active authority
+        - exactly one canonical identity
+        - exactly one current certificate
+        - exactly one terminal completion
+        - exactly one writer for governed truth
+
+      Code shaped as findFirst, findLatest, lookupOne, or findEvent is suspicious
+      when the surrounding claim requires uniqueness. Such functions prove
+      existence, not cardinality.
+    enforcement: |
+      Every predicate whose correctness depends on uniqueness, exclusivity,
+      singular authority, or terminality must explicitly classify cardinality:
+
+        zero matches      -> missing
+        exactly one match -> candidate may be independently verified
+        multiple matches  -> contradictory; fail closed
+
+      Selecting and validating one match while ignoring additional matches is
+      forbidden when the architectural contract requires exactly one.
+
+      Reviews must identify the quantifier carried by each architectural claim:
+      exists, exactly one, at most one, all, none, current-only, or relevant-only.
+      The implementation must prove that same quantifier rather than a weaker one.
+    forbidden_fixes:
+      - forbidden.find_first_as_uniqueness_proof
+      - forbidden.find_latest_as_cardinality_proof
+      - forbidden.ignore_duplicate_authoritative_facts
+    related_invariants:
+      - meta.identity_computation_must_be_invariant
+      - meta.half_done_must_not_look_done
+  - id: meta.omission_is_an_invisible_state_mapping
+    title: "Absence is still a mapping — omitting a field after a failure silently collapses distinct states into one"
+    category: signal
+    antipattern: "On error, return nil / drop the field"
+    wrong_instinct: Dropping an unavailable value feels neutral, but silence maps several distinct realities to the same empty observable, so no consumer can tell them apart
+    severity: critical
+    status: active
+    summary: |
+      When a surface omits information after failing to construct or retrieve it, the
+      omission still communicates a state — an undocumented one. A dropped field maps
+      many distinct conditions onto the same empty observable:
+
+        no value exists
+        the value is unsupported
+        the source/identity could not be resolved
+        the owner returned an error
+        the evidence is unreadable
+        integrity verification failed
+
+      A consumer cannot distinguish them, and the missing field becomes an invisible
+      fallback state that nobody declared. `error -> omitted field` is not neutral.
+
+      A governed surface must represent unavailable truth EXPLICITLY and typed:
+
+        available   -> carry the canonical value
+        unavailable -> carry a typed, closed-vocabulary reason (class + detail)
+
+      It must not fabricate a real or terminal state for a construction error, and it
+      must not erase the error either. "Absence of evidence is not evidence of
+      absence"; and an omitted state is an undocumented state mapping. This is the
+      output-boundary sibling of meta.absence_scope_must_be_explicit (which governs
+      lookup absence) and meta.fallback_must_degrade_semantics (which governs a wrong
+      value shaped like truth): here the danger is no value at all.
+    enforcement: |
+      Any authoritative or governance-sensitive projection must remain visible at the
+      surface boundary. Failure to establish it produces an explicit typed
+      availability result (available | unavailable + a closed-vocabulary reason),
+      never omission and never a fabricated real state. For every surface that can
+      fail, a review asks: does an error path drop or nil the field? If so, which
+      distinct conditions now share that silence, and what typed result should each
+      carry instead?
+    forbidden_fixes:
+      - drop_or_nil_a_field_on_error_instead_of_returning_a_typed_unavailable_result
+      - collapse_distinct_failure_conditions_into_one_empty_observable
+      - fabricate_a_real_or_terminal_state_to_avoid_reporting_unavailable
+    related_invariants:
+      - meta.absence_scope_must_be_explicit
+      - meta.fallback_must_degrade_semantics
+      - meta.existence_checks_must_not_substitute_for_cardinality_proofs
+  - id: meta.validation_must_govern_construction_not_merely_detect
+    title: "Detectable invalidity is not enforced validity — a validator is advisory until every construction and output path is forced through it"
+    category: structure
+    antipattern: "We have a Validate function, so the type is safe"
+    wrong_instinct: A validation function feels like a guarantee, but if construction, identity, serialization, and rendering do not require it, invalid objects still get canonical identity and cross the boundary looking authoritative
+    severity: critical
+    status: active
+    summary: |
+      A system does not preserve an invariant merely because it CAN detect violations
+      when someone voluntarily validates. `Validate(x) exists` does not imply `all
+      published x are valid`.
+
+      A validator is advisory until every construction, publication, serialization,
+      identity/digest, and rendering path is forced through it. Otherwise a caller can
+      build a malformed object — an off-vocabulary class, a nil-where-required field —
+      and still receive the canonical schema, a digest, and a renderable summary; the
+      object looks canonical though it is invalid. Tests that prove "invalid objects
+      can be detected" do not prove "invalid objects cannot be produced or published".
+
+      The stronger rule attaches validity to the production boundary:
+
+        construct(x) => valid(x)
+        publish(x)   => valid(x)
+
+      Invalid objects must not receive canonical identity, digest, serialization, or
+      presentation. Where possible make malformed states unrepresentable through the
+      public API: dedicated constructors that encode the allowed combinations
+      (NewTaskDirectoryUnresolved(detail), NewProjectionOwnerError(detail)) are
+      stronger than a generic New(class, detail) that lets callers invent vocabulary.
+    enforcement: |
+      Attach validation to the production boundary, not to an optional helper: the
+      stamping/identity path validates BEFORE assigning a canonical digest; the render
+      path validates BEFORE presenting; public constructors admit only valid
+      combinations (prefer closed dedicated constructors over caller-supplied
+      enums/strings). Any structure exposed to agents, CLI, MCP, CI, or editors must be
+      valid by construction or refused before it receives canonical presentation.
+      Reviews distinguish validation CAPABILITY from validation ENFORCEMENT.
+    forbidden_fixes:
+      - rely_on_an_optional_validate_helper_instead_of_enforcing_at_construction
+      - allow_a_caller_supplied_class_or_enum_where_a_closed_constructor_belongs
+      - assign_identity_digest_or_render_before_validating
+    related_invariants:
+      - meta.existence_checks_must_not_substitute_for_cardinality_proofs
+      - meta.omission_is_an_invisible_state_mapping
+      - meta.code.contract_must_outlive_implementation_fashion
