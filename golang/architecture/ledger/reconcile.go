@@ -31,7 +31,7 @@ func (s *Store) ReconcileDerivedState() (ReconcileResult, error) {
 	}
 	defer release()
 
-	chain, err := loadVerifiedChain(s.taskDir, s.payloadValidator)
+	chain, err := loadVerifiedChain(context.Background(), s.taskDir, s.payloadValidator)
 	if err != nil {
 		return ReconcileResult{}, err
 	}

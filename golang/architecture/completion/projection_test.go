@@ -24,7 +24,7 @@ func (w world) project(t *testing.T) CompletionProjection {
 
 // 1: not completed is represented exactly.
 func TestProjectionNotCompleted(t *testing.T) {
-	w := seedWorld(t)
+	w := cloneNotCompleted(t)
 	p := w.project(t)
 	if p.TerminalState != TerminalNotCompleted || p.ClosureVerdict != ClosureNotCompleted || p.AuthoritativeCompletion {
 		t.Fatalf("not-completed projection = %+v", p)
@@ -34,11 +34,7 @@ func TestProjectionNotCompleted(t *testing.T) {
 // 2 + 10: authoritative completion only from the full conjunction; governed drift
 // keeps it authoritative with the flag set.
 func TestProjectionAuthoritativeAndDrift(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	p := w.project(t)
 	if p.TerminalState != TerminalCommitted || p.ClosureVerdict != ClosureAuthoritativeCompletion || !p.AuthoritativeCompletion {
 		t.Fatalf("authoritative projection = %+v", p)
@@ -88,8 +84,7 @@ func TestProjectionNonAuthoritativeWorlds(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			w := seedWorld(t)
-			head := w.ready(t)
+			w, head := cloneReady(t)
 			c.mutate(t, w, head)
 			p := w.project(t)
 			if p.TerminalState != c.state {
@@ -107,11 +102,7 @@ func TestProjectionNonAuthoritativeWorlds(t *testing.T) {
 
 // 9: projection loss does not erase valid authoritative completion.
 func TestProjectionSurvivesProjectionLoss(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	deleteProjections(t, w.TaskDir)
 	p := w.project(t)
 	if !p.AuthoritativeCompletion || p.ClosureVerdict != ClosureAuthoritativeCompletion {
@@ -121,11 +112,7 @@ func TestProjectionSurvivesProjectionLoss(t *testing.T) {
 
 // 11: tampering any bound owner breaks the closure verdict surfaced by the projection.
 func TestProjectionTamperingBreaks(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	tamperCurrentCorrectness(t, w.TaskDir)
 	p := w.project(t)
 	if p.AuthoritativeCompletion || p.ClosureVerdict == ClosureAuthoritativeCompletion {
@@ -135,11 +122,7 @@ func TestProjectionTamperingBreaks(t *testing.T) {
 
 // 12: unchanged evidence yields a byte-identical projection digest.
 func TestProjectionDeterministic(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	if w.project(t).DigestSHA256 != w.project(t).DigestSHA256 {
 		t.Fatal("projection is not deterministic")
 	}
@@ -147,11 +130,7 @@ func TestProjectionDeterministic(t *testing.T) {
 
 // 13: building the projection performs zero mutation.
 func TestProjectionZeroMutation(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	before := treeDigest(t, w.Repo)
 	entries := ledgerEntryCount(t, w.TaskDir)
 	_ = w.project(t)
@@ -182,11 +161,7 @@ func TestProjectionSummaryPreservesAllStatesAndVerdicts(t *testing.T) {
 // never omitted, never a fabricated terminal state.
 func TestCompletionProjectionEnvelopeAvailability(t *testing.T) {
 	// A valid completion is available and carries the real projection.
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	env := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
 	if env.Availability != CompletionAvailable || env.Projection == nil {
 		t.Fatalf("valid completion must be available with a projection: %+v", env)
@@ -199,7 +174,7 @@ func TestCompletionProjectionEnvelopeAvailability(t *testing.T) {
 	}
 
 	// A not-completed task still surfaces as an actual projection, not absence.
-	w2 := seedWorld(t)
+	w2 := cloneNotCompleted(t)
 	env2 := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w2.Repo, TaskDirectory: w2.TaskDir})
 	if env2.Availability != CompletionAvailable || env2.Projection == nil || env2.Projection.TerminalState != TerminalNotCompleted {
 		t.Fatalf("not_completed must be an actual projection, not absence: %+v", env2)
@@ -239,11 +214,7 @@ func TestCompletionProjectionEnvelopeAvailability(t *testing.T) {
 // Correction: validation GOVERNS construction and rendering — an arbitrary class or a
 // malformed conjunction cannot be stamped or rendered as canonical.
 func TestCompletionEnvelopeValidationEnforced(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	// The available builder and both dedicated unavailable constructors are valid,
 	// stamped, and deterministic.
 	available := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
@@ -305,11 +276,7 @@ func TestCompletionEnvelopeValidationEnforced(t *testing.T) {
 // no longer represents its content. Publication must reject it — detectable invalidity
 // is not enforced validity.
 func TestCompletionEnvelopeCanonicalPublication(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	available := BuildCompletionProjectionEnvelope(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
 
 	// Freshly stamped envelopes are canonically valid and publish as a canonical union
@@ -427,11 +394,7 @@ func TestCompletionEnvelopeCanonicalPublication(t *testing.T) {
 // 15: the projection explicitly disclaims terminal authority and repository-wide
 // perfection.
 func TestProjectionDisclaimsAuthority(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	p := w.project(t)
 	if !p.NonAuthoritativeProjection {
 		t.Fatal("must be non-authoritative")
