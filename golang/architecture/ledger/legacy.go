@@ -46,7 +46,7 @@ func ImportLegacyTask(taskDir string, opts ImportOptions) (ImportResult, error) 
 		return ValidateTaskEventPayload(eventType, data)
 	}))
 	if report, err := store.Verify(); err == nil && report.Valid && report.EntryCount > 0 {
-		chain, loadErr := loadVerifiedChain(taskDir, store.payloadValidator)
+		chain, loadErr := loadVerifiedChain(context.Background(), taskDir, store.payloadValidator)
 		if loadErr == nil && len(chain.Entries) == 1 && chain.Entries[0].Entry.EventType == closureprotocol.LedgerEventLegacyImport {
 			return ImportResult{TaskID: taskID, SessionID: sessionID, Head: chain.Head, Replay: true, Limitations: append([]string{}, legacyImportLimitations...)}, nil
 		}

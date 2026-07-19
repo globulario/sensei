@@ -32,11 +32,7 @@ func componentVerified(a CompletionClosureAssessment, name string) bool {
 // World 1: eligible -> ready -> one completion -> reinspect -> authoritative closure
 // with every owner re-verified end-to-end.
 func TestClosureHappyPath(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	a := w.verifyClosure(t)
 	if a.Verdict != ClosureAuthoritativeCompletion {
 		t.Fatalf("verdict = %s, want authoritative_completion", a.Verdict)
@@ -88,11 +84,7 @@ func TestClosureCrashResidueThenComplete(t *testing.T) {
 // World 4: an event without a valid receipt is never authoritative and recovery
 // cannot bless it.
 func TestClosureBrokenCompletion(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	deleteReceiptArtifact(t, w.TaskDir)
 	if v := w.verifyClosure(t).Verdict; v != ClosureBroken {
 		t.Fatalf("verdict = %s, want broken_completion", v)
@@ -104,21 +96,13 @@ func TestClosureBrokenCompletion(t *testing.T) {
 
 // World 5 & 6: duplicate completed facts and a revoked fact are contradictory.
 func TestClosureDuplicateAndRevoked(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	seedCompletedEvent(t, w.TaskDir)
 	if v := w.verifyClosure(t).Verdict; v != ClosureContradictory {
 		t.Fatalf("duplicate verdict = %s, want contradictory", v)
 	}
 
-	w2 := seedWorld(t)
-	h2 := w2.ready(t)
-	if w2.complete(t, h2).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w2 := cloneCommitted(t)
 	w2.appendRevoked(t)
 	if v := w2.verifyClosure(t).Verdict; v != ClosureContradictory {
 		t.Fatalf("revoked verdict = %s, want contradictory", v)
@@ -128,11 +112,7 @@ func TestClosureDuplicateAndRevoked(t *testing.T) {
 // World 7 & 8: a completion for an older result, or a lost current result, is never
 // authoritative current completion.
 func TestClosureResultTransitionAndMissingResult(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	rb := currentResultBinding(t, w.TaskDir)
 	newer := rb
 	newer.ResultTreeDigestSHA256 = "8888888888888888888888888888888888888888888888888888888888888888"
@@ -141,11 +121,7 @@ func TestClosureResultTransitionAndMissingResult(t *testing.T) {
 		t.Fatalf("older-result verdict = %s, want broken_completion", v)
 	}
 
-	w2 := seedWorld(t)
-	h2 := w2.ready(t)
-	if w2.complete(t, h2).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w2 := cloneCommitted(t)
 	w2.appendEmptyResultTransition(t)
 	if v := w2.verifyClosure(t).Verdict; v != ClosureUnsupported {
 		t.Fatalf("missing-result verdict = %s, want unsupported", v)
@@ -155,11 +131,7 @@ func TestClosureResultTransitionAndMissingResult(t *testing.T) {
 // World 9: governed drift after completion keeps the completion authoritative and is
 // reported distinctly, never as corruption.
 func TestClosureGovernedDrift(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	changeGoverned(t, w.Repo)
 	a := w.verifyClosure(t)
 	if a.Verdict != ClosureAuthoritativeCompletion {
@@ -173,11 +145,7 @@ func TestClosureGovernedDrift(t *testing.T) {
 // World 10: projection loss reconstructs as a valid conjunction; recovery rebuilds
 // only projections; cardinality unchanged.
 func TestClosureProjectionLossThenRecover(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	deleteProjections(t, w.TaskDir)
 	if w.verifyClosure(t).Verdict != ClosureAuthoritativeCompletion {
 		t.Fatal("valid conjunction with stale projections must remain authoritative")
@@ -197,11 +165,7 @@ func TestClosureProjectionLossThenRecover(t *testing.T) {
 // World 11: tampering any bound component cannot produce authoritative closure.
 func TestClosureTamperingBreaksClosure(t *testing.T) {
 	t.Run("correctness", func(t *testing.T) {
-		w := seedWorld(t)
-		head := w.ready(t)
-		if w.complete(t, head).Outcome != OutcomeCommitted {
-			t.Fatal("completion failed")
-		}
+		w := cloneCommitted(t)
 		tamperCurrentCorrectness(t, w.TaskDir)
 		a := w.verifyClosure(t)
 		if a.Verdict == ClosureAuthoritativeCompletion || componentVerified(a, "phase6_correctness") {
@@ -209,11 +173,7 @@ func TestClosureTamperingBreaksClosure(t *testing.T) {
 		}
 	})
 	t.Run("question_resolution", func(t *testing.T) {
-		w := seedWorld(t)
-		head := w.ready(t)
-		if w.complete(t, head).Outcome != OutcomeCommitted {
-			t.Fatal("completion failed")
-		}
+		w := cloneCommitted(t)
 		tamperQRCert(t, w.Repo)
 		a := w.verifyClosure(t)
 		if a.Verdict == ClosureAuthoritativeCompletion || componentVerified(a, "question_resolution") {
@@ -221,11 +181,7 @@ func TestClosureTamperingBreaksClosure(t *testing.T) {
 		}
 	})
 	t.Run("completion_receipt", func(t *testing.T) {
-		w := seedWorld(t)
-		head := w.ready(t)
-		if w.complete(t, head).Outcome != OutcomeCommitted {
-			t.Fatal("completion failed")
-		}
+		w := cloneCommitted(t)
 		tamperCompletionReceipt(t, w.TaskDir)
 		if w.verifyClosure(t).Verdict == ClosureAuthoritativeCompletion {
 			t.Fatal("tampered completion receipt must break closure")
@@ -265,7 +221,7 @@ func TestClosureConcurrentCompletionAndRecovery(t *testing.T) {
 // World 13: no caller-supplied value can manufacture closure — the request carries
 // only repo/task, and an unready task is never authoritative.
 func TestClosureNoCallerManufacture(t *testing.T) {
-	w := seedWorld(t)
+	w := cloneNotCompleted(t)
 	w.resolveAll(t) // resolved but never certified: not ready, not completed
 	if v := w.verifyClosure(t).Verdict; v != ClosureNotCompleted {
 		t.Fatalf("verdict = %s, want not_completed", v)
@@ -274,11 +230,7 @@ func TestClosureNoCallerManufacture(t *testing.T) {
 
 // World 14: unchanged durable evidence produces a byte-identical closure identity.
 func TestClosureDeterministic(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	if w.verifyClosure(t).DigestSHA256 != w.verifyClosure(t).DigestSHA256 {
 		t.Fatal("closure verification is not deterministic")
 	}
@@ -288,12 +240,8 @@ func TestClosureDeterministic(t *testing.T) {
 // reconstruction + digest recomputation, not digest syntax. Any invented digest, or
 // mutated/missing/duplicate obligations, breaks it; an unchanged completion holds.
 func TestClosureReadinessProvenByIdentityNotSyntax(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
-	receipt, err := verifyDurableConjunction(w.TaskDir, currentResultBinding(t, w.TaskDir))
+	w := cloneCommitted(t)
+	receipt, err := verifyDurableConjunction(context.Background(), w.TaskDir, currentResultBinding(t, w.TaskDir))
 	if err != nil {
 		t.Fatalf("load receipt: %v", err)
 	}
@@ -394,11 +342,7 @@ func TestClosureAuthoritySeparation(t *testing.T) {
 		t.Fatal("completion grant must be disjoint from the other owner grants")
 	}
 	// recovery on a committed task never appends completed.
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("completion failed")
-	}
+	w := cloneCommitted(t)
 	deleteProjections(t, w.TaskDir)
 	if w.recover(t).Outcome != RecoverProjectionsRebuilt {
 		t.Fatal("recovery failed")

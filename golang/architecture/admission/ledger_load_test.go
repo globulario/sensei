@@ -3,9 +3,11 @@
 package admission
 
 import (
+	"context"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
+	"github.com/globulario/sensei/golang/architecture/ledger"
 )
 
 // TestLoadRecordedAuthorityRoundTrips proves the read side reconstructs exactly
@@ -59,6 +61,54 @@ func TestLoadRecordedAuthorityAbsentFailsClosed(t *testing.T) {
 	_, dir, _ := admissionLedgerStore(t, task)
 	if _, err := LoadRecordedAuthority(dir); err == nil {
 		t.Fatal("expected failure when no authority_resolved event exists")
+	}
+}
+
+// TestLoadRecordedAuthorityCtxSharesOneVerification proves the read side now verifies
+// the chain once and reads all five artifacts from that single verified snapshot: the
+// ctx variant returns the byte-identical bundle, and a SECOND load in the same
+// evaluation scope adds zero digest computations (the whole chain was already digested
+// once), rather than re-verifying the ledger per artifact as the old five-call path did.
+func TestLoadRecordedAuthorityCtxSharesOneVerification(t *testing.T) {
+	task := closureprotocol.TaskBinding{ID: "task.once", SessionID: "session.once"}
+	store, dir, head := admissionLedgerStore(t, task)
+
+	in := writerInput(closureprotocol.MechanismRepositoryEdit)
+	resolution, err := ResolveAuthority(authorizingIndex(), in)
+	if err != nil {
+		t.Fatalf("ResolveAuthority: %v", err)
+	}
+	if _, err := RecordAuthorityResolved(store, head, task, resolution, in.Actor, in.ChangePlan, in.Base, nil, ledgerProducedAt()); err != nil {
+		t.Fatalf("RecordAuthorityResolved: %v", err)
+	}
+
+	// Equivalence: the ctx variant reconstructs the same bundle as the plain loader.
+	plain, err := LoadRecordedAuthority(dir)
+	if err != nil {
+		t.Fatalf("plain load: %v", err)
+	}
+	ctx, scope := ledger.WithVerificationScope(context.Background())
+	scoped, err := LoadRecordedAuthorityCtx(ctx, dir)
+	if err != nil {
+		t.Fatalf("ctx load: %v", err)
+	}
+	pd, _ := closureprotocol.AuthorityResolutionDigest(plain.Resolution)
+	sd, _ := closureprotocol.AuthorityResolutionDigest(scoped.Resolution)
+	if pd != sd {
+		t.Fatalf("ctx-loaded resolution %s != plain %s", sd, pd)
+	}
+
+	// One load digested the whole chain once. A second load in the same scope reuses
+	// every memoized digest — proving the five artifact reads share one verification.
+	afterFirst := scope.DigestComputations()
+	if afterFirst == 0 {
+		t.Fatal("expected the load to verify (and digest) the chain within the scope")
+	}
+	if _, err := LoadRecordedAuthorityCtx(ctx, dir); err != nil {
+		t.Fatalf("second ctx load: %v", err)
+	}
+	if afterSecond := scope.DigestComputations(); afterSecond != afterFirst {
+		t.Fatalf("second load must add no digest computations, went %d -> %d", afterFirst, afterSecond)
 	}
 }
 

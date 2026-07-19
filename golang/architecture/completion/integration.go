@@ -69,6 +69,10 @@ func closureVerifierBound() []string {
 // VerifyCompletionClosure composes the accepted owners into a single end-to-end
 // verdict for one task. It is read-only and deterministic.
 func VerifyCompletionClosure(ctx context.Context, req Request) (CompletionClosureAssessment, error) {
+	// One evaluation scope spans the terminal inspection AND the owner re-verification
+	// below, so the same immutable ledger is digested at most once across the whole
+	// closure check (InspectTerminalState reuses this scope rather than opening its own).
+	ctx, _ = ledger.WithVerificationScope(ctx)
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
 	if root == "" || taskDir == "" {
@@ -91,7 +95,7 @@ func VerifyCompletionClosure(ctx context.Context, req Request) (CompletionClosur
 		a.Verdict = ClosureUnsupported
 	case TerminalCommitted, TerminalProjectionStaleOrMissing:
 		// A valid durable conjunction exists; re-verify each bound owner end-to-end.
-		comps, drift := reverifyOwners(root, taskDir, terminal)
+		comps, drift := reverifyOwners(ctx, root, taskDir, terminal)
 		a.Components = comps
 		a.GovernedDriftAfterCompletion = drift
 		if allVerified(comps) {
@@ -109,12 +113,12 @@ func VerifyCompletionClosure(ctx context.Context, req Request) (CompletionClosur
 // the completion conjunction (8.2b), the Phase-6 correctness receipt, the Phase-8.1d
 // question-resolution certificate, and the frozen readiness binding. Governed drift
 // is reported but is not a failure — freshness was proven at completion time.
-func reverifyOwners(root, taskDir string, terminal TerminalStateAssessment) ([]ComponentVerification, bool) {
+func reverifyOwners(ctx context.Context, root, taskDir string, terminal TerminalStateAssessment) ([]ComponentVerification, bool) {
 	comps := []ComponentVerification{
 		{Component: "terminal_reconstruction", Verified: true, Detail: string(terminal.State)},
 	}
 	currentRB := terminal.CurrentResultBinding
-	receipt, cerr := verifyDurableConjunction(taskDir, currentRB)
+	receipt, cerr := verifyDurableConjunction(ctx, taskDir, currentRB)
 	if cerr != nil {
 		comps = append(comps, ComponentVerification{Component: "completion_conjunction", Verified: false, Detail: cerr.Error()})
 		return comps, false
@@ -123,7 +127,7 @@ func reverifyOwners(root, taskDir string, terminal TerminalStateAssessment) ([]C
 
 	// Phase-6 correctness: the bound correctness receipt still loads, verifies, and is
 	// current for this result.
-	correctnessOK, correctnessDetail := reverifyCorrectness(taskDir, currentRB, receipt.CorrectnessReceiptDigestSHA256)
+	correctnessOK, correctnessDetail := reverifyCorrectness(ctx, taskDir, currentRB, receipt.CorrectnessReceiptDigestSHA256)
 	comps = append(comps, ComponentVerification{Component: "phase6_correctness", Verified: correctnessOK, BoundDigestSHA256: receipt.CorrectnessReceiptDigestSHA256, Detail: correctnessDetail})
 
 	// Phase-8.1d question resolution: the bound certificate still loads and validates.
@@ -142,8 +146,8 @@ func reverifyOwners(root, taskDir string, terminal TerminalStateAssessment) ([]C
 	return comps, receipt.GovernedManifestDigestSHA256 != governedManifest
 }
 
-func reverifyCorrectness(taskDir string, currentRB closureprotocol.ResultBinding, boundDigest string) (bool, string) {
-	chain, err := ledger.NewStore(taskDir).VerifyChain()
+func reverifyCorrectness(ctx context.Context, taskDir string, currentRB closureprotocol.ResultBinding, boundDigest string) (bool, string) {
+	chain, err := ledger.NewStore(taskDir).VerifyChainCtx(ctx)
 	if err != nil {
 		return false, "chain unavailable"
 	}

@@ -32,7 +32,7 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 	}
 	defer release()
 
-	report, err := verifyTaskLedger(s.taskDir, s.payloadValidator)
+	report, err := verifyTaskLedger(ctx, s.taskDir, s.payloadValidator)
 	if err != nil {
 		return AppendResult{}, err
 	}
@@ -41,8 +41,8 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 	}
 	currentHead := report.HeadDigestSHA256
 	if currentHead != req.ExpectedHeadDigestSHA256 {
-		if report.EntryCount > 0 && currentHead != "" && replayMatchesCurrentHead(s, req, report) {
-			chain, err := loadVerifiedChain(s.taskDir, s.payloadValidator)
+		if report.EntryCount > 0 && currentHead != "" && replayMatchesCurrentHead(ctx, s, req, report) {
+			chain, err := loadVerifiedChain(ctx, s.taskDir, s.payloadValidator)
 			if err != nil {
 				return AppendResult{}, err
 			}
@@ -112,12 +112,12 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 	return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path}, nil
 }
 
-func replayMatchesCurrentHead(s *Store, req AppendRequest, report VerificationReport) bool {
+func replayMatchesCurrentHead(ctx context.Context, s *Store, req AppendRequest, report VerificationReport) bool {
 	payload, err := renderPayload(req.Payload, req.PayloadMediaType)
 	if err != nil {
 		return false
 	}
-	chain, err := loadVerifiedChain(s.taskDir, s.payloadValidator)
+	chain, err := loadVerifiedChain(ctx, s.taskDir, s.payloadValidator)
 	if err != nil || len(chain.Entries) == 0 {
 		return false
 	}
