@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -105,12 +106,13 @@ func (b *bridge) callText(ctx context.Context, name string, args map[string]inte
 	return res.Text, nil
 }
 
-func testCurrentAuthority() *awarenesspb.GraphAuthority {
+func testCurrentAuthority(commit string) *awarenesspb.GraphAuthority {
 	return &awarenesspb.GraphAuthority{
 		Authoritative:                   true,
 		GraphFreshnessState:             awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
 		BuildProvenanceState:            awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED,
 		SeedState:                       awarenesspb.SeedState_SEED_STATE_CURRENT,
+		SourceRepoCommit:                commit,
 		EmbeddedSeedDigestSha256:        "seed123",
 		LiveStoreGraphDigestSha256:      "live123",
 		LiveStoreGraphTripleCount:       42,
@@ -120,6 +122,16 @@ func testCurrentAuthority() *awarenesspb.GraphAuthority {
 		CertifiedServicesRepoCommit:     "svc789",
 		EmbeddedTransactionDetail:       "embedded transaction certifies embedded seed",
 	}
+}
+
+// testGitHEAD resolves the current HEAD commit SHA for tests that need expected_head.
+func testGitHEAD(t *testing.T) string {
+	t.Helper()
+	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Skipf("cannot resolve git HEAD: %v", err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func TestBriefingTool_ValidatesMissingFile(t *testing.T) {
@@ -138,7 +150,7 @@ func TestBriefingTool_MapsOKResponse(t *testing.T) {
 				ReferencedIds: []string{"invariant:x"},
 				Prose:         "Awareness briefing for a.go",
 				GeneratedInMs: 12,
-				Authority:     testCurrentAuthority(),
+				Authority:     testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -183,7 +195,7 @@ func TestImpactTool_FormatsAuthority(t *testing.T) {
 		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{
 				DirectInvariants: []*awarenesspb.KnowledgeNode{{Id: "x", Class: "invariant"}},
-				Authority:        testCurrentAuthority(),
+				Authority:        testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -296,7 +308,7 @@ func TestQueryTool_MapsRequestAndFormatsRows(t *testing.T) {
 					{Id: "invariant:x", Class: "invariant", Label: "X invariant", Severity: "critical"},
 				},
 				GeneratedInMs: 3,
-				Authority:     testCurrentAuthority(),
+				Authority:     testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -587,7 +599,7 @@ func TestPreflightTool_MapsRequestAndFormatsVerdict(t *testing.T) {
 				Confidence:      awarenesspb.Confidence_CONFIDENCE_MEDIUM,
 				RequiredActions: []string{"read heartbeat.go first"},
 				BlindSpots:      []string{"none"},
-				Authority:       testCurrentAuthority(),
+				Authority:       testCurrentAuthority(""),
 			}, nil
 		},
 	})
@@ -750,5 +762,266 @@ func TestFailoverClient_RetriesTransportFailures(t *testing.T) {
 	}
 	if !secondCalled || resp.GetServerVersion() != "ok" {
 		t.Fatalf("secondCalled=%v resp=%v", secondCalled, resp)
+	}
+}
+
+func TestAwarenessAuditDiffTool_Registered(t *testing.T) {
+	br := &bridge{}
+	tools := br.tools()
+	found := false
+	for _, tool := range tools {
+		if tool.Name == "awareness_audit_diff" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("awareness_audit_diff tool not registered in tools()")
+	}
+}
+
+func TestAwarenessAuditDiffTool_EvaluatesDiff(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{
+				Authority: testCurrentAuthority(head),
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          validDiff,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool awareness_audit_diff failed: %v", err)
+	}
+	if res == nil || res.Text == "" {
+		t.Fatal("expected non-empty toolResult text")
+	}
+	if !strings.Contains(res.Text, "decision: pass") {
+		t.Fatalf("expected decision: pass, got text: %s", res.Text)
+	}
+}
+
+func TestAwarenessAuditDiffTool_FailsOnStaleOrNilAuthority(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{
+				Authority: nil,
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          validDiff,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "decision: cannot_verify") {
+		t.Fatalf("expected cannot_verify on nil authority, got text: %s", res.Text)
+	}
+}
+
+// expected_head is optional per the governing contract §3. Omitting it is
+// accepted; an add-file diff needs no base content and passes.
+func TestAwarenessAuditDiffTool_ExpectedHeadOptional(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": validDiff,
+	})
+	if err != nil {
+		t.Fatalf("expected no error when expected_head is omitted, got: %v", err)
+	}
+	if !strings.Contains(res.Text, "decision: pass") {
+		t.Fatalf("expected decision: pass for add-file diff without expected_head, got text: %s", res.Text)
+	}
+}
+
+// Without expected_head the base of a modified file cannot be bound to a
+// canonical snapshot, and the tool must not read ambient working-tree state
+// (§2). The modify hunk therefore degrades to cannot_verify.
+func TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
+		},
+	}
+	br := testBridge(fake)
+	modifyDiff := `diff --git a/foo.go b/foo.go
+--- a/foo.go
++++ b/foo.go
+@@ -1,1 +1,1 @@
+-old
++new
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": modifyDiff,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "decision: cannot_verify") {
+		t.Fatalf("expected cannot_verify for modify diff without expected_head, got text: %s", res.Text)
+	}
+}
+
+// Even with NO expected_head, an authoritative graph that exposes no
+// source/build commit cannot bind the verdict to a rule snapshot and must fail
+// closed. This exercises the omitted-head route the graph-commit guard used to
+// skip.
+func TestAwarenessAuditDiffTool_NoExpectedHeadMissingGraphCommitFailsClosed(t *testing.T) {
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{
+				Authority: &awarenesspb.GraphAuthority{
+					Authoritative:       true,
+					GraphFreshnessState: awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+					// No SourceRepoCommit or GraphBuildCommit.
+				},
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": validDiff,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("expected cannot_verify when graph exposes no commit identity and no expected_head, got text: %s", res.Text)
+	}
+}
+
+// An authoritative graph that exposes no source/build commit identity cannot be
+// bound to expected_head and must fail closed.
+func TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{
+				Authority: &awarenesspb.GraphAuthority{
+					Authoritative:       true,
+					GraphFreshnessState: awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+					// No SourceRepoCommit or GraphBuildCommit.
+				},
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          validDiff,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("expected cannot_verify when graph exposes no commit identity, got text: %s", res.Text)
+	}
+}
+
+func TestAwarenessAuditDiffTool_GraphCommitMismatch(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			// Graph was compiled from a different commit
+			return &awarenesspb.ImpactResponse{
+				Authority: testCurrentAuthority("aaaa" + head[4:]),
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          validDiff,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	// Graph commit mismatch should cause cannot_verify
+	if !strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("expected cannot_verify on graph commit mismatch, got text: %s", res.Text)
 	}
 }
