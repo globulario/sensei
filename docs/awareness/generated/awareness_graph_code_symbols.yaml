@@ -4555,6 +4555,12 @@ test_symbols:
     symbol: TestLoadRecordedAuthorityAbsentFailsClosed
     package: admission
     language: go
+  - id: golang/architecture/admission/ledger_load_test.go:TestLoadRecordedAuthorityCtxSharesOneVerification
+    file: golang/architecture/admission/ledger_load_test.go
+    symbol: TestLoadRecordedAuthorityCtxSharesOneVerification
+    package: admission
+    language: go
+    doc: "TestLoadRecordedAuthorityCtxSharesOneVerification proves the read side now verifies\nthe chain once and reads all five artifacts from that single verified snapshot: the\nctx variant returns the byte-identical bundle, and a SECOND load in the same\nevaluation scope adds zero digest computations (the whole chain was already digested\nonce), rather than re-verifying the ledger per artifact as the old five-call path did."
   - id: golang/architecture/admission/ledger_load_test.go:TestLoadRecordedAuthorityRoundTrips
     file: golang/architecture/admission/ledger_load_test.go
     symbol: TestLoadRecordedAuthorityRoundTrips
@@ -6308,6 +6314,18 @@ test_symbols:
     package: completion
     language: go
     doc: "Cardinality/binding: post-commit verification rejects a valid event/receipt pair\nbound to a result other than the expected current result."
+  - id: golang/architecture/completion/fixtureclone_proof_test.go:TestFixture_CloneMutationDoesNotPoisonBaseOrSiblings
+    file: golang/architecture/completion/fixtureclone_proof_test.go
+    symbol: TestFixture_CloneMutationDoesNotPoisonBaseOrSiblings
+    package: completion
+    language: go
+    doc: "Mutating one clone must not alter the immutable base or any sibling clone — the\nisolation that makes a shared base safe. A tampered completion receipt breaks only\nits own world; a freshly cloned world remains authoritative."
+  - id: golang/architecture/completion/fixtureclone_proof_test.go:TestFixture_ConstructedOncePerClassCloneDirsUnique
+    file: golang/architecture/completion/fixtureclone_proof_test.go
+    symbol: TestFixture_ConstructedOncePerClassCloneDirsUnique
+    package: completion
+    language: go
+    doc: "The canonical world is built exactly once through the real pipeline, and every\nconsumer gets a unique directory — the setup-call counter is the contract, not\nwall-clock. constructions is a sync.Once guard, so it is 1 after any number of\nclones; clones grows one per handout."
   - id: golang/architecture/completion/inspect_test.go:TestInspectAndRecoverProjectionLoss
     file: golang/architecture/completion/inspect_test.go
     symbol: TestInspectAndRecoverProjectionLoss
@@ -8190,6 +8208,42 @@ test_symbols:
     symbol: TestVerifyReportsOrphanArtifacts
     package: ledger
     language: go
+  - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_DifferentBytesRecompute
+    file: golang/architecture/ledger/verifyscope_test.go
+    symbol: TestVerificationScope_DifferentBytesRecompute
+    package: ledger
+    language: go
+    doc: "Different bytes force a recompute — the memo is keyed by content, never reused across\ndistinct payloads."
+  - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_DigestComputedOncePerEvaluation
+    file: golang/architecture/ledger/verifyscope_test.go
+    symbol: TestVerificationScope_DigestComputedOncePerEvaluation
+    package: ledger
+    language: go
+    doc: "Repeated verifications of the same immutable chain digest each payload once per\nevaluation — the bounded-work contract, proven by the computation counter rather\nthan wall-clock."
+  - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_MutationBetweenVerificationsIsDetected
+    file: golang/architecture/ledger/verifyscope_test.go
+    symbol: TestVerificationScope_MutationBetweenVerificationsIsDetected
+    package: ledger
+    language: go
+    doc: "A byte-for-byte change to a payload between two verifications in the SAME scope is\nstill detected: the memo key is the content hash, so mutated bytes miss the memo,\nrecompute, and surface the digest mismatch. The memo can never launder a mutation."
+  - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_ReusedDigestIsByteIdentical
+    file: golang/architecture/ledger/verifyscope_test.go
+    symbol: TestVerificationScope_ReusedDigestIsByteIdentical
+    package: ledger
+    language: go
+    doc: "The memoized digest for a payload is byte-for-byte identical to the non-memoized\ncomputation, and identical bytes are digested exactly once within a scope."
+  - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_ScopedEqualsUnscopedReport
+    file: golang/architecture/ledger/verifyscope_test.go
+    symbol: TestVerificationScope_ScopedEqualsUnscopedReport
+    package: ledger
+    language: go
+    doc: "A scoped verification and an unscoped verification of the same ledger produce an\nidentical report: the memo changes performance, never the verdict."
+  - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_ValidationAlwaysRerunsOnMemoHit
+    file: golang/architecture/ledger/verifyscope_test.go
+    symbol: TestVerificationScope_ValidationAlwaysRerunsOnMemoHit
+    package: ledger
+    language: go
+    doc: "Event-type payload validation runs on every entry of every verification and is never\nskipped by a digest-memo hit: validation and digesting are independent."
   - id: golang/architecture/maintenance/maintenance_test.go:TestAbsentCurrentClaimIsReportedRetiredAndStale
     file: golang/architecture/maintenance/maintenance_test.go
     symbol: TestAbsentCurrentClaimIsReportedRetiredAndStale
