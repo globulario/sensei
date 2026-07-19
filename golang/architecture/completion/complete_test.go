@@ -29,24 +29,21 @@ func (w world) expectRefusal(t *testing.T, expectedHead string, want Outcome) Co
 
 // Item 2/6: a tampered current correctness artifact → not ready, zero writes.
 func TestCompleteRefusesTamperedCorrectness(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	tamperCurrentCorrectness(t, w.TaskDir)
 	w.expectRefusal(t, head, OutcomeNotReady)
 }
 
 // Item 7: a tampered current question-resolution certificate → not ready.
 func TestCompleteRefusesTamperedQR(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	tamperQRCert(t, w.Repo)
 	w.expectRefusal(t, head, OutcomeNotReady)
 }
 
 // Item 5: governed world changes between observation and mutation → refusal.
 func TestCompleteRefusesGovernedDrift(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	changeGoverned(t, w.Repo)
 	w.expectRefusal(t, head, OutcomeNotReady)
 }
@@ -77,16 +74,14 @@ func TestCompleteRefusesWrongResult(t *testing.T) {
 
 // Item 4: a stale expected head → refusal.
 func TestCompleteRefusesStaleExpectedHead(t *testing.T) {
-	w := seedWorld(t)
-	w.ready(t)
+	w, _ := cloneReady(t)
 	stale := "0000000000000000000000000000000000000000000000000000000000000000"
 	w.expectRefusal(t, stale, OutcomeStaleExpectedHead)
 }
 
 // Item 9: an un-enrolled completion actor → authority refusal.
 func TestCompleteRefusesMissingAuthority(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	res, err := CompleteTask(context.Background(), CompleteRequest{
 		RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir, IdentityRoot: t.TempDir(),
 		ExpectedLedgerHeadDigestSHA256: head,
@@ -113,8 +108,7 @@ func TestCompleteNoCallerCanManufacture(t *testing.T) {
 
 // Item 10: exact retry → replay, no duplicate receipt or event.
 func TestCompleteExactReplay(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	first := w.complete(t, head)
 	if first.Outcome != OutcomeCommitted {
 		t.Fatalf("first = %s (%s)", first.Outcome, first.Detail)
@@ -130,8 +124,7 @@ func TestCompleteExactReplay(t *testing.T) {
 
 // Item 11: concurrent completion attempts → at most one authoritative completion.
 func TestCompleteConcurrentSingleWinner(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	const n = 4
 	var wg sync.WaitGroup
 	outcomes := make([]Outcome, n)
@@ -171,8 +164,7 @@ func TestCompleteConcurrentSingleWinner(t *testing.T) {
 
 // Item 13/14: a completed event whose receipt is tampered fails verification.
 func TestCompleteTamperedReceiptFailsVerification(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("setup completion failed")
 	}
@@ -190,8 +182,7 @@ func TestCompleteTamperedReceiptFailsVerification(t *testing.T) {
 // Item 15: a completed fact for an older result must not silently complete a newer
 // result.
 func TestCompleteOlderResultDoesNotCompleteNewer(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("setup completion failed")
 	}
@@ -209,8 +200,7 @@ func TestCompleteOlderResultDoesNotCompleteNewer(t *testing.T) {
 
 // Item 16: a revoked fact fails closed.
 func TestCompleteRevokedFailsClosed(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	_ = head
 	w.appendRevoked(t)
 	newHead := currentHead(t, w.TaskDir)
@@ -226,8 +216,7 @@ func TestCompleteRevokedFailsClosed(t *testing.T) {
 // Item 17: completion mutates no correctness, disposition, promotion, question-
 // resolution, or governed-source truth.
 func TestCompleteMutatesNoUpstreamTruth(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	governedBefore := treeDigest(t, w.Repo+"/docs/awareness")
 	promotionsBefore := treeDigest(t, w.Repo+"/.sensei/project/promotions")
 	qrBefore := treeDigest(t, w.Repo+"/.sensei/project/question-resolution-certifications")
@@ -249,8 +238,7 @@ func TestCompleteMutatesNoUpstreamTruth(t *testing.T) {
 // history must be unique (covers "invalid old + valid latest" too, since the count
 // check fires regardless of which event is valid).
 func TestCompleteMultipleCompletedFailsClosed(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("setup completion failed")
 	}
@@ -264,8 +252,7 @@ func TestCompleteMultipleCompletedFailsClosed(t *testing.T) {
 // Cardinality: a completed fact together with a revoked fact is contradictory
 // terminal history and fails closed.
 func TestCompleteCompletedPlusRevokedFailsClosed(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("setup completion failed")
 	}
@@ -278,8 +265,7 @@ func TestCompleteCompletedPlusRevokedFailsClosed(t *testing.T) {
 
 // Cardinality: post-commit verification rejects duplicate completed facts.
 func TestVerifyDurableConjunctionRejectsDuplicate(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("setup completion failed")
 	}
@@ -296,8 +282,7 @@ func TestVerifyDurableConjunctionRejectsDuplicate(t *testing.T) {
 // Cardinality/binding: post-commit verification rejects a valid event/receipt pair
 // bound to a result other than the expected current result.
 func TestVerifyDurableConjunctionRejectsWrongResult(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("setup completion failed")
 	}
@@ -327,8 +312,7 @@ func TestCompleteCausalIdentityDeterminism(t *testing.T) {
 
 // Item 1: a fully ready current world → one receipt + one completed event.
 func TestCompleteHappyPath(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
+	w, head := cloneReady(t)
 	res := w.complete(t, head)
 	if res.Outcome != OutcomeCommitted {
 		t.Fatalf("outcome = %s (%s), want committed", res.Outcome, res.Detail)
