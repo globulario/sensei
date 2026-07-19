@@ -27,6 +27,7 @@ func runAudit(args []string) int {
 	ciMode := fs.Bool("check", false, "exit 1 on any FAIL (CI mode)")
 	warnStale := fs.Bool("warn-stale", false, "downgrade embeddata-freshness FAIL to WARN (PR-advisory, GC-2): a stale seed does not block; the seed-rebuild workflow auto-reconciles on merge. All other checks (orphans, validity, coverage) stay hard")
 	fix := fs.Bool("fix", false, "auto-repair mechanical issues")
+	domain := fs.String("domain", "", "repo/domain scope for corpus checks (e.g. github.com/caddyserver/caddy); includes shared knowledge")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	fs.Usage = func() {
@@ -57,9 +58,15 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	auditDomain := strings.TrimSpace(*domain)
+	if err := rejectPathLikeBuildDomain("audit --domain", auditDomain); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei audit: %v\n", err)
+		return 2
+	}
 
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
+	domainRepo := auditRepoForDomain(auditDomain, svcRepo, agRepo)
 
 	if svcRepo == "" && agRepo == "" {
 		fmt.Fprintln(os.Stderr, "sensei audit: cannot find repos; use --services-repo / --ag-repo")
@@ -67,6 +74,9 @@ Flags:
 	}
 
 	fmt.Println("Awareness graph self-audit")
+	if auditDomain != "" {
+		fmt.Printf("Domain scope: %s (+ shared)\n", auditDomain)
+	}
 	fmt.Println()
 
 	inputDirs, intentDir, err := collectInputDirs(svcRepo, agRepo)
@@ -74,20 +84,41 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei audit: %v\n", err)
 		return 1
 	}
+	validityInputDirs, validityIntentDir := inputDirs, intentDir
+	if auditDomain != "" && domainRepo != "" {
+		validityInputDirs, validityIntentDir = auditInputsForRepo(inputDirs, intentDir, domainRepo)
+	}
 
 	var checks []auditResult
 
 	fmt.Println("  generating N-Triples...")
 	seedInputDirs, seedIntentDir := auditSeedGenerationInputs(inputDirs, intentDir, svcRepo, agRepo)
-	ntBytes, totalTriples, yamlCount, genErr := generateNT(seedInputDirs, seedIntentDir, svcRepo, agRepo, false)
+	tagByRepo := auditDomain != ""
+	ntBytes, totalTriples, yamlCount, genErr := generateNT(seedInputDirs, seedIntentDir, svcRepo, agRepo, tagByRepo)
+	checkNTBytes := ntBytes
+	checkTriples := totalTriples
+	var scoped domainFilterResult
+	if genErr == nil && auditDomain != "" {
+		scoped = filterNTriplesToDomainResult(ntBytes, auditDomain)
+		checkNTBytes, checkTriples = scoped.bytes, scoped.triples
+	}
 
 	seedPath := ""
 	if agRepo != "" {
 		seedPath = filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
 	}
 
-	// 1. Embeddata freshness
-	if genErr != nil {
+	// 1. Domain scope sanity
+	if genErr == nil && auditDomain != "" {
+		checks = append(checks, checkAuditDomainScope(auditDomain, domainRepo, scoped))
+	}
+
+	// 2. Embeddata freshness
+	if auditDomain != "" {
+		// Freshness compares the whole committed seed artifact. A domain-scoped
+		// audit intentionally evaluates a graph slice, so this whole-artifact gate
+		// belongs to the unscoped audit.
+	} else if genErr != nil {
 		checks = append(checks, auditResult{name: "embeddata-freshness", level: auditFAIL, summary: genErr.Error()})
 	} else if seedPath != "" {
 		// agOnly = seed regenerated from the awareness-graph-owned corpus alone,
@@ -112,58 +143,83 @@ Flags:
 		checks = append(checks, c)
 	}
 
-	// 2. YAML validity
+	// 3. YAML validity
 	if genErr != nil {
 		checks = append(checks, auditResult{name: "yaml-validity", level: auditFAIL, summary: genErr.Error()})
 	} else {
-		checks = append(checks, checkYAMLValidity(inputDirs, intentDir, svcRepo, agRepo, yamlCount))
+		checks = append(checks, checkYAMLValidity(validityInputDirs, validityIntentDir, svcRepo, agRepo, yamlCount))
 	}
 
-	// 3. N-Triples validity
+	// 4. N-Triples validity
 	if genErr != nil {
 		checks = append(checks, auditResult{name: "ntriples-validity", level: auditFAIL, summary: genErr.Error()})
 	} else {
-		checks = append(checks, checkNTValidity(ntBytes, totalTriples))
+		checks = append(checks, checkNTValidity(checkNTBytes, checkTriples))
 	}
 
-	// 4. Coverage gaps
-	if genErr == nil && svcRepo != "" {
-		checks = append(checks, checkCoverageGaps(svcRepo, ntBytes))
+	// 5. Coverage gaps
+	coverageRepo := svcRepo
+	if auditDomain != "" {
+		coverageRepo = domainRepo
+	}
+	if genErr == nil && coverageRepo != "" {
+		checks = append(checks, checkCoverageGaps(coverageRepo, checkNTBytes))
+	} else if genErr == nil && auditDomain != "" {
+		checks = append(checks, auditResult{name: "coverage-gaps", level: auditWARN, summary: "domain repo root unavailable for high_risk_files.yaml"})
 	}
 
-	// 5. Stale file refs
+	// 6. Stale file refs
 	if genErr == nil {
-		checks = append(checks, checkStaleFileRefs(svcRepo, agRepo, ntBytes))
+		checks = append(checks, checkStaleFileRefs(svcRepo, agRepo, checkNTBytes))
 	}
 
-	// 6. Test coverage
-	if svcRepo != "" {
-		checks = append(checks, checkTestCoverage(svcRepo))
+	// 7. Test coverage
+	testRepo := svcRepo
+	if auditDomain != "" {
+		testRepo = domainRepo
+	}
+	if testRepo != "" {
+		checks = append(checks, checkTestCoverage(testRepo))
+	} else if auditDomain != "" {
+		checks = append(checks, auditResult{name: "test-coverage", level: auditWARN, summary: "domain repo root unavailable for invariants.yaml"})
 	}
 
-	// 7. Contract assessment (report-only)
-	if agRepo != "" {
+	// 8. Meta-principle coverage completeness
+	if agRepo != "" && (auditDomain == "" || domainRepo == agRepo) {
 		checks = append(checks, checkMetaPrincipleCoverage(svcRepo, agRepo))
 	}
 
-	// 8. Contract assessment (report-only)
+	// 9. Contract assessment (report-only)
 	localIntentDir, pairedIntentDir := selectAuditIntentDirs(agRepo, svcRepo)
+	if auditDomain != "" {
+		localIntentDir, pairedIntentDir = "", ""
+		if domainRepo != "" {
+			intent := filepath.Join(domainRepo, "docs", "intent")
+			if _, err := os.Stat(intent); err == nil {
+				localIntentDir = intent
+			}
+		}
+	}
 	if localIntentDir != "" {
 		checks = append(checks, checkContractAssessment(localIntentDir, pairedIntentDir))
 	}
 
-	// 9. Contract verification wiring — a contract that claims
+	// 10. Contract verification wiring — a contract that claims
 	// requiresVerification must carry at least one verification anchor, else the
 	// promise is empty (no spine to the failure/invariant/test layer).
 	if genErr == nil {
-		checks = append(checks, checkContractVerificationWiring(ntBytes))
+		checks = append(checks, checkContractVerificationWiring(checkNTBytes))
 	}
 
-	// 10. Seed orphans — committed-seed nodes whose authoring YAML no longer
+	// 11. Seed orphans — committed-seed nodes whose authoring YAML no longer
 	// exists (store-vs-YAML drift the ownership-aware freshness check tolerates
 	// for the external partition). Third leg of the coherence gate (GC-1).
 	if seedPath != "" {
-		checks = append(checks, checkSeedOrphans(svcRepo, agRepo, seedPath))
+		if auditDomain == "" {
+			checks = append(checks, checkSeedOrphans(svcRepo, agRepo, seedPath))
+		} else {
+			checks = append(checks, checkSeedOrphansInDomain(svcRepo, agRepo, seedPath, auditDomain))
+		}
 	}
 
 	// PR-advisory staleness (GC-2): downgrade ONLY embeddata-freshness FAIL to
@@ -203,6 +259,10 @@ Flags:
 	fmt.Println("  coverage, test/contract wiring). A clean result does NOT assert that the repo")
 	fmt.Println("  builds, that CI is green, or that the corpus is fresh vs current source — run")
 	fmt.Println("  the build/tests and re-extract (make import-graph / proto-contracts / scip) for those.")
+	if auditDomain != "" {
+		fmt.Println("  Domain scope applies to graph-derived checks; raw YAML parse validity still checks")
+		fmt.Println("  the resolved local corpus files before graph filtering.")
+	}
 
 	if *fix {
 		var fixable []auditResult
@@ -244,6 +304,153 @@ func auditSeedGenerationInputs(inputDirs []string, intentDir, svcRepo, agRepo st
 		return inputDirs, ""
 	}
 	return []string{selfAwareness}, ""
+}
+
+func auditRepoForDomain(domain, svcRepo, agRepo string) string {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return ""
+	}
+	if svcRepo != "" && gitRemoteDomain(svcRepo) == domain {
+		return svcRepo
+	}
+	if agRepo != "" && gitRemoteDomain(agRepo) == domain {
+		return agRepo
+	}
+	return ""
+}
+
+func auditInputsForRepo(inputDirs []string, intentDir, repoRoot string) ([]string, string) {
+	if strings.TrimSpace(repoRoot) == "" {
+		return inputDirs, intentDir
+	}
+	var dirs []string
+	for _, dir := range inputDirs {
+		if dirUnder(dir, repoRoot) {
+			dirs = append(dirs, dir)
+		}
+	}
+	if intentDir != "" && !dirUnder(intentDir, repoRoot) {
+		intentDir = ""
+	}
+	return dirs, intentDir
+}
+
+// filterNTriplesToDomain returns the graph slice visible to one repo/domain:
+// nodes explicitly tagged with aw:repo == domain plus shared nodes. This mirrors
+// the runtime query scope for repo-selected views while staying deterministic
+// over the freshly generated audit corpus.
+type domainFilterResult struct {
+	bytes          []byte
+	triples        int
+	repoSubjects   int
+	sharedSubjects int
+}
+
+func filterNTriplesToDomain(ntBytes []byte, domain string) ([]byte, int) {
+	res := filterNTriplesToDomainResult(ntBytes, domain)
+	return res.bytes, res.triples
+}
+
+func filterNTriplesToDomainResult(ntBytes []byte, domain string) domainFilterResult {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return domainFilterResult{bytes: ntBytes, triples: countNTriplesLines(ntBytes)}
+	}
+
+	repoPred := "<" + rdf.PropRepo + ">"
+	domainPred := "<" + rdf.PropDomain + ">"
+	keep := map[string]bool{}
+	repoSubjects := map[string]bool{}
+	sharedSubjects := map[string]bool{}
+
+	sc := bufio.NewScanner(bytes.NewReader(ntBytes))
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		s, p, rest, ok := splitNTripleLine(sc.Text())
+		if !ok {
+			continue
+		}
+		switch p {
+		case repoPred:
+			if v, ok := ntLiteralValue(rest); ok && v == domain {
+				keep[s] = true
+				repoSubjects[s] = true
+			}
+		case domainPred:
+			if v, ok := ntLiteralValue(rest); ok && v == rdf.DomainShared {
+				keep[s] = true
+				sharedSubjects[s] = true
+			}
+		}
+	}
+
+	var out bytes.Buffer
+	count := 0
+	sc = bufio.NewScanner(bytes.NewReader(ntBytes))
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		s, _, _, ok := splitNTripleLine(line)
+		if !ok || !keep[s] {
+			continue
+		}
+		out.WriteString(line)
+		out.WriteByte('\n')
+		count++
+	}
+	return domainFilterResult{
+		bytes:          out.Bytes(),
+		triples:        count,
+		repoSubjects:   len(repoSubjects),
+		sharedSubjects: len(sharedSubjects),
+	}
+}
+
+func checkAuditDomainScope(domain, repoRoot string, scoped domainFilterResult) auditResult {
+	const name = "domain-scope"
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return auditResult{name: name, level: auditPASS, summary: "unscoped audit"}
+	}
+	if scoped.repoSubjects == 0 {
+		detail := fmt.Sprintf("no generated graph subjects carry aw:repo %q", domain)
+		if repoRoot == "" {
+			detail += "; no matching local repo root was found"
+		}
+		return auditResult{
+			name:    name,
+			level:   auditFAIL,
+			summary: fmt.Sprintf("domain %q matched 0 repo-owned subjects", domain),
+			details: []string{detail},
+		}
+	}
+	summary := fmt.Sprintf("%s scoped: %d repo-owned subject(s), %d shared subject(s), %d triples",
+		domain, scoped.repoSubjects, scoped.sharedSubjects, scoped.triples)
+	if repoRoot == "" {
+		return auditResult{name: name, level: auditWARN, summary: summary + "; local repo root unavailable"}
+	}
+	return auditResult{name: name, level: auditPASS, summary: summary}
+}
+
+func splitNTripleLine(line string) (subject, predicate, rest string, ok bool) {
+	f := strings.SplitN(strings.TrimSpace(line), " ", 3)
+	if len(f) < 3 {
+		return "", "", "", false
+	}
+	return f[0], f[1], f[2], true
+}
+
+func countNTriplesLines(ntBytes []byte) int {
+	count := 0
+	sc := bufio.NewScanner(bytes.NewReader(ntBytes))
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		if strings.TrimSpace(sc.Text()) != "" {
+			count++
+		}
+	}
+	return count
 }
 
 // downgradeFreshnessToAdvisory implements --warn-stale (GC-2): it turns ONLY an
@@ -842,7 +1049,25 @@ func checkSeedOrphans(svcRepo, agRepo, seedPath string) auditResult {
 	if err != nil {
 		return auditResult{name: name, level: auditFAIL, summary: "cannot read seed: " + err.Error()}
 	}
+	return checkSeedOrphansFromNT(svcRepo, agRepo, committed)
+}
 
+func checkSeedOrphansInDomain(svcRepo, agRepo, seedPath, domain string) auditResult {
+	const name = "seed-orphans"
+	committed, err := os.ReadFile(seedPath)
+	if err != nil {
+		return auditResult{name: name, level: auditFAIL, summary: "cannot read seed: " + err.Error()}
+	}
+	scoped, _ := filterNTriplesToDomain(committed, domain)
+	res := checkSeedOrphansFromNT(svcRepo, agRepo, scoped)
+	if res.level == auditPASS {
+		res.summary += " in domain " + domain
+	}
+	return res
+}
+
+func checkSeedOrphansFromNT(svcRepo, agRepo string, committed []byte) auditResult {
+	const name = "seed-orphans"
 	authoredPred := "<" + rdf.PropAuthoredIn + ">"
 	// subject → file-path authoredIn values (synthetic markers excluded).
 	provenance := map[string][]string{}

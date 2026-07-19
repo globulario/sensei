@@ -35,18 +35,18 @@ func requireBenchmarkAuthority(ctx context.Context, addr, agRepo, svcRepo string
 
 func validateLiveBenchmarkAuthority(resp *awarenesspb.MetadataResponse) error {
 	if resp == nil {
-		return fmt.Errorf("live AWG metadata missing")
+		return fmt.Errorf("live Sensei metadata missing")
 	}
 	if resp.GetGraphFreshnessState() != awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT {
-		return fmt.Errorf("live AWG server is not authoritative: freshness=%s (%s)",
+		return fmt.Errorf("live Sensei server is not authoritative: freshness=%s (%s)",
 			strings.ToLower(strings.TrimPrefix(resp.GetGraphFreshnessState().String(), "GRAPH_FRESHNESS_STATE_")),
 			strings.TrimSpace(resp.GetGraphFreshnessDetail()))
 	}
 	if !resp.GetEmbeddedTransactionMatchesSeed() {
-		return fmt.Errorf("live AWG server is not transaction-certified: %s", strings.TrimSpace(resp.GetEmbeddedTransactionDetail()))
+		return fmt.Errorf("live Sensei server is not transaction-certified: %s", strings.TrimSpace(resp.GetEmbeddedTransactionDetail()))
 	}
 	if strings.TrimSpace(resp.GetCertifiedAwarenessGraphCommit()) == "" || strings.TrimSpace(resp.GetCertifiedServicesRepoCommit()) == "" {
-		return fmt.Errorf("live AWG server is missing certified cross-repo commits")
+		return fmt.Errorf("live Sensei server is missing certified cross-repo commits")
 	}
 	return nil
 }

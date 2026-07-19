@@ -107,7 +107,7 @@ sensei promote-realization --impl contract.http.api_save_config \
 
 sensei rebuild                          # emit realizesContract / realizedByContract into the store
 sensei briefing --file internal/http/handlers/config.go   # see the authority chain
-sensei audit --check                    # the gate (below) is green and FAIL-level
+sensei audit --check --domain <repo-domain> # scoped gate: green and FAIL-level
 ```
 
 ## Governance guarantee
@@ -123,7 +123,7 @@ The spine is designed so the graph cannot quietly grow fake authority:
 3. **Unproven authority fails audit.** The `contract-verification-wiring` audit
    check is **FAIL-level**: a home-domain contract that claims `requiresVerification`
    but wires none of `requiresTest` / `constrainedByInvariant` / `violatedBy` /
-   `detect` fails `sensei audit --check`. Authority must carry its proof.
+   `detect` fails `sensei audit --check --domain <repo-domain>`. Authority must carry its proof.
 4. **Benchmark fixtures are excluded.** Repo-tagged contracts (the Multi-SWE-bench
    `frozen_contract_set` fixtures under `eval/`, e.g. `github.com/example/tinyrepo`)
    have their own verification model (the frozen-contract gate) and are *not*

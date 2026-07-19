@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/waiver-receipt.schema.json",
+  "title": "Architectural Closure v1 Waiver Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "waiver_id": {"type": "string"},
+    "dimension": {"$ref": "common.schema.json#/$defs/dimension"},
+    "policy_id": {"type": "string"},
+    "justification": {"type": "string"},
+    "expires_at": {"type": "string"},
+    "applies_to": {"type": "array", "items": {"type": "string"}},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+    "digest_sha256": {"type": "string"}
+  },
+  "required": ["waiver_id", "dimension", "policy_id", "justification", "expires_at", "status"]
+}
+

@@ -84,7 +84,7 @@ for i in $(seq 1 40); do grep -q "listening on" "${WORK}/serve.log" 2>/dev/null 
   [[ $i -eq 40 ]] && { cat "${WORK}/serve.log" >&2; fail "gRPC server did not start"; }; done
 
 echo "==> [3] awg build -strict"
-( cd "${PROJ}" && "${AWG}" build -strict -input docs/awareness \
+( cd "${PROJ}" && "${AWG}" build -strict -all -input docs/awareness \
     -store-url "http://127.0.0.1:${OXI_PORT}/store?default" ) || fail "build -strict failed"
 
 echo "==> [4] no Globular seed leak"

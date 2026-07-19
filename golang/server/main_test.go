@@ -359,6 +359,33 @@ func TestResolve_NotFoundOnNoTriples(t *testing.T) {
 	assertCurrentAuthority(t, resp.GetAuthority())
 }
 
+func TestResolve_UnknownRequestedDomainFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{},
+		domains:   []string{"github.com/globulario/sensei"},
+	})
+	s.homeDomain = "github.com/globulario/sensei"
+	_, err := s.Resolve(context.Background(), &awarenesspb.ResolveRequest{
+		Id: "test.example.invariant", Class: "invariant", Domain: "github.com/example/missing",
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("Resolve code=%s, want %s (%v)", status.Code(err), codes.FailedPrecondition, err)
+	}
+}
+
+func TestResolve_MissingDomainInMultiDomainGraphFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{},
+		domains:   []string{"github.com/globulario/sensei", "github.com/globulario/services"},
+	})
+	_, err := s.Resolve(context.Background(), &awarenesspb.ResolveRequest{
+		Id: "test.example.invariant", Class: "invariant",
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("Resolve code=%s, want %s (%v)", status.Code(err), codes.FailedPrecondition, err)
+	}
+}
+
 func TestResolve_FoundMapsCoreFields(t *testing.T) {
 	s := newServer(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
@@ -1827,6 +1854,42 @@ func TestQuery_BackendErrorReturnsUnavailable(t *testing.T) {
 	})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("Query code=%s, want %s", status.Code(err), codes.Unavailable)
+	}
+}
+
+func TestQuery_UnknownRequestedDomainFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			classFacts: func(_ context.Context, _ string, _ int) ([]store.ImpactFact, error) {
+				return invariantFacts("known.rule", "Known rule", "high"), nil
+			},
+		},
+		domains: []string{"github.com/globulario/sensei"},
+	})
+	s.homeDomain = "github.com/globulario/sensei"
+	_, err := s.Query(context.Background(), &awarenesspb.QueryRequest{
+		Mode: awarenesspb.QueryMode_QUERY_MODE_BY_CLASS, Class: awarenesspb.QueryClass_QUERY_CLASS_INVARIANT,
+		Domain: "github.com/example/missing",
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("Query code=%s, want %s (%v)", status.Code(err), codes.FailedPrecondition, err)
+	}
+}
+
+func TestQuery_MissingDomainInMultiDomainGraphFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			classFacts: func(_ context.Context, _ string, _ int) ([]store.ImpactFact, error) {
+				return invariantFacts("known.rule", "Known rule", "high"), nil
+			},
+		},
+		domains: []string{"github.com/globulario/sensei", "github.com/globulario/services"},
+	})
+	_, err := s.Query(context.Background(), &awarenesspb.QueryRequest{
+		Mode: awarenesspb.QueryMode_QUERY_MODE_BY_CLASS, Class: awarenesspb.QueryClass_QUERY_CLASS_INVARIANT,
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("Query code=%s, want %s (%v)", status.Code(err), codes.FailedPrecondition, err)
 	}
 }
 

@@ -22,6 +22,9 @@ func writeFile(t *testing.T, path, content string) {
 
 func TestExtractComponents(t *testing.T) {
 	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module acme.test/gin\n")
+	writeFile(t, filepath.Join(root, "gin.go"), "package gin\n")
+	writeFile(t, filepath.Join(root, "tree.go"), "package gin\n")
 	writeFile(t, filepath.Join(root, "cmd", "server", "main.go"), "package main\nfunc main(){}\n")
 	writeFile(t, filepath.Join(root, "pkg", "lib", "lib.go"), "package lib\n")
 	writeFile(t, filepath.Join(root, "pkg", "lib", "lib_test.go"), "package lib\n") // test-only must not make a component by itself
@@ -54,6 +57,13 @@ func TestExtractComponents(t *testing.T) {
 	}
 	if lib.Kind != "module" {
 		t.Errorf("pkg/lib kind = %q, want module", lib.Kind)
+	}
+	rootComp, ok := byID["component.gin"]
+	if !ok {
+		t.Fatalf("missing component.gin; got %v", keysOf(byID))
+	}
+	if len(rootComp.SourceFiles) != 2 {
+		t.Fatalf("root source_files=%v want gin.go and tree.go", rootComp.SourceFiles)
 	}
 
 	if _, bad := byID["component.vendor.x"]; bad {
@@ -145,6 +155,35 @@ func TestMergeImportGraphComponents_MergesEdgesIntoSingleComponentSet(t *testing
 	}
 	if _, ok := byID["component.pkg.lib"]; !ok {
 		t.Fatalf("missing imported-only component: %+v", byID)
+	}
+}
+
+func TestExtractGoCodeSymbolsWithoutNamespaceRegistry(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module acme.test/gin\n")
+	writeFile(t, filepath.Join(root, "gin.go"), `package gin
+type Engine struct{}
+const Version = "1"
+var Default = Engine{}
+func New() *Engine { return &Engine{} }
+func (e *Engine) Run() {}
+`)
+	components := extractComponents(root)
+	symbols, err := extractGoCodeSymbols(root, components)
+	if err != nil {
+		t.Fatalf("extract Go symbols: %v", err)
+	}
+	bySymbol := map[string]bootstrapCodeSymbol{}
+	for _, symbol := range symbols {
+		bySymbol[symbol.Symbol] = symbol
+	}
+	for _, want := range []string{"gin.Engine", "gin.Version", "gin.Default", "gin.New", "gin.Engine.Run"} {
+		if _, ok := bySymbol[want]; !ok {
+			t.Errorf("missing %s in %+v", want, symbols)
+		}
+	}
+	if got := bySymbol["gin.Engine.Run"].Component; got != "component.gin" {
+		t.Fatalf("method component=%q want component.gin", got)
 	}
 }
 

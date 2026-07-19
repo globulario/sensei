@@ -1,0 +1,31 @@
+closure_protocol_fixture:
+  name: migration-in-progress
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    terminally_closed: false
+    terminal_status: blocked
+  dimensions:
+    - {dimension: identity, status: pass}
+    - {dimension: scope, status: pass}
+    - {dimension: direction, status: pass}
+    - {dimension: authority, status: pass}
+    - {dimension: mutation, status: pass}
+    - {dimension: protection, status: pass}
+    - {dimension: epistemic, status: pass}
+    - {dimension: proof, status: blocked, reason_codes: [migration.step.incomplete]}
+    - {dimension: freshness, status: pass}
+    - {dimension: completion, status: blocked}
+  records:
+    migration_execution_receipt:
+      migration_plan_id: migration.plan.1
+      step_id: step.2
+      source_state: old
+      target_state: new
+      mechanism: migration_runner
+      actor_id: actor.migrator
+      mutation_receipt_digest_sha256: mutation123
+      proof_discharge_digest_sha256: proof123
+      rollback_available: true
+      status: valid
+

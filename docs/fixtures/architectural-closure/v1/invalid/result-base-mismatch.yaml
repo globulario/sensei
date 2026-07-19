@@ -1,0 +1,44 @@
+closure_protocol_fixture:
+  name: result-base-mismatch
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: result base revision must match base binding revision
+  records:
+    completion_receipt:
+      task:
+        id: task.invalid
+        session_id: session.invalid
+      terminal_status: completed
+      base_binding:
+        repository:
+          domain: github.com/globulario/sensei
+          revision: base123
+          revision_status: resolved
+        graph:
+          digest_sha256: graph123
+          digest_status: resolved
+        task:
+          id: task.invalid
+          session_id: session.invalid
+        policies:
+          admission: admission.strict.v2
+          certification: certification.architectural_closure.v1
+          completion: completion.architectural_closure.v1
+          revocation: revocation.architectural_closure.v1
+          ledger: ledger.task.v1
+          canonicalization: canonicalization.architectural_closure.v1
+      result_binding:
+        base_revision: other456
+        patch_digest_sha256: patch123
+        result_tree_digest_sha256: tree123
+        graph_digest_sha256: resultgraph123
+      closure_assessment_digest_sha256: closure123
+      authority_resolution_digest_sha256: authority123
+      admission_decision_digest_sha256: decision123
+      admission_verification_digest_sha256: verify123
+      certification_digest_sha256: cert123
+      completion_policy: completion.architectural_closure.v1
+      completed_at: "2026-07-15T19:10:00Z"
+      completing_actor: actor.dave
+

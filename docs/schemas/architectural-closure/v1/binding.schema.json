@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/binding.schema.json",
+  "title": "Architectural Closure v1 Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "domain": {"type": "string"},
+        "revision": {"type": "string"},
+        "revision_status": {"type": "string"},
+        "tree_digest_sha256": {"type": "string"}
+      },
+      "required": ["domain", "revision_status"]
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "digest_sha256": {"type": "string"},
+        "digest_status": {"type": "string"},
+        "schema_version": {"type": "string"}
+      },
+      "required": ["digest_status"]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "session_id": {"type": "string"},
+        "iteration_digest_sha256": {"type": "string"}
+      },
+      "required": ["id", "session_id"]
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "admission": {"type": "string"},
+        "certification": {"type": "string"},
+        "completion": {"type": "string"},
+        "revocation": {"type": "string"},
+        "ledger": {"type": "string"},
+        "canonicalization": {"type": "string"}
+      },
+      "required": ["admission", "certification", "completion", "revocation", "ledger", "canonicalization"]
+    }
+  },
+  "required": ["repository", "graph", "task", "policies"]
+}
+

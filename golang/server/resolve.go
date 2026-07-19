@@ -42,6 +42,10 @@ func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (
 	if err := s.requireCurrentGraphAuthority(ctx, "resolve"); err != nil {
 		return nil, err
 	}
+	requestedDomain := strings.TrimSpace(req.GetDomain())
+	if err := s.requireDomainWhenAmbiguous(ctx, requestedDomain); err != nil {
+		return nil, err
+	}
 
 	iri, canonicalClass, err := resolveIRIForClassAndID(req.GetClass(), req.GetId())
 	if err != nil {
@@ -72,8 +76,8 @@ func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (
 	// that belongs to another repo must not be returned (it is invisible in
 	// that scope). The node's domain comes from its own aw:repo/aw:domain
 	// facts; untagged nodes default to the home domain.
-	if requested := strings.TrimSpace(req.GetDomain()); requested != "" {
-		if !nodeInScopeFromTriples(triples, s.homeDomain, requested) {
+	if requestedDomain != "" {
+		if !nodeInScopeFromTriples(triples, s.homeDomain, requestedDomain) {
 			out := &awarenesspb.ResolveResponse{Found: false, Authority: s.graphAuthority(ctx)}
 			s.logResolveUsage(req, out)
 			return out, nil
@@ -194,6 +198,14 @@ func resolveIRIForClassAndID(class, id string) (iri string, canonicalClass strin
 		return mintedIRI(rdf.ClassImplementationPattern, id), "implementation_pattern", nil
 	case "pattern_misuse":
 		return mintedIRI(rdf.ClassPatternMisuse, id), "pattern_misuse", nil
+	case "architecture_claim":
+		return mintedIRI(rdf.ClassArchitectureClaim, id), "architecture_claim", nil
+	case "open_question":
+		return mintedIRI(rdf.ClassOpenQuestion, id), "open_question", nil
+	case "architect_answer":
+		return mintedIRI(rdf.ClassArchitectAnswer, id), "architect_answer", nil
+	case "evidence_probe":
+		return mintedIRI(rdf.ClassEvidenceProbe, id), "evidence_probe", nil
 	default:
 		return "", "", fmt.Errorf("unsupported class %q", class)
 	}
@@ -258,6 +270,14 @@ func awarenessRelatedID(iri string) (string, bool) {
 		return "implementation_pattern:" + idPart, true
 	case "patternMisuse":
 		return "pattern_misuse:" + idPart, true
+	case "architectureClaim":
+		return "architecture_claim:" + idPart, true
+	case "openQuestion":
+		return "open_question:" + idPart, true
+	case "architectAnswer":
+		return "architect_answer:" + idPart, true
+	case "evidenceProbe":
+		return "evidence_probe:" + idPart, true
 	default:
 		return "", false
 	}
@@ -305,6 +325,18 @@ func applyNodeFact(node *awarenesspb.KnowledgeNode, t store.Triple) {
 		if !t.ObjectIsIRI && node.UmlView == "" {
 			node.UmlView = t.Object
 		}
+	case rdf.PropEpistemicStatus:
+		if !t.ObjectIsIRI && node.Class == "architecture_claim" && node.Status == "" {
+			node.Status = t.Object
+		}
+	case rdf.PropQuestionStatus:
+		if !t.ObjectIsIRI && node.Class == "open_question" && node.Status == "" {
+			node.Status = t.Object
+		}
+	case rdf.PropAnswerGovernanceStatus:
+		if !t.ObjectIsIRI && node.Class == "architect_answer" && node.Status == "" {
+			node.Status = t.Object
+		}
 	}
 	if t.ObjectIsIRI {
 		if rel, ok := awarenessRelatedID(t.Object); ok {
@@ -317,6 +349,18 @@ func applyNodeFact(node *awarenesspb.KnowledgeNode, t store.Triple) {
 	// graph links. Surface them as facts so a pattern node reads as governed,
 	// not bare. Curated/prose predicates are handled above and excluded here.
 	if lbl, ok := patternRuleLabel[relationShortName(t.Predicate)]; ok {
+		node.Facts = appendFactCapped(node.Facts, lbl, t.Object, maxResolveFacts)
+	}
+	if lbl, ok := architectureClaimFactLabel[relationShortName(t.Predicate)]; ok {
+		node.Facts = appendFactCapped(node.Facts, lbl, t.Object, maxResolveFacts)
+	}
+	if lbl, ok := openQuestionFactLabel[relationShortName(t.Predicate)]; ok {
+		node.Facts = appendFactCapped(node.Facts, lbl, t.Object, maxResolveFacts)
+	}
+	if lbl, ok := architectAnswerFactLabel[relationShortName(t.Predicate)]; ok {
+		node.Facts = appendFactCapped(node.Facts, lbl, t.Object, maxResolveFacts)
+	}
+	if lbl, ok := evidenceProbeFactLabel[relationShortName(t.Predicate)]; ok {
 		node.Facts = appendFactCapped(node.Facts, lbl, t.Object, maxResolveFacts)
 	}
 }
@@ -332,4 +376,85 @@ var patternRuleLabel = map[string]string{
 	"activationTrigger": "trigger",
 	"referenceFile":     "reference",
 	"requiresPattern":   "requires pattern",
+}
+
+var architectureClaimFactLabel = map[string]string{
+	"claimSubject":              "claim subject",
+	"claimPredicate":            "claim predicate",
+	"claimObject":               "claim object",
+	"architecturalPlane":        "architectural plane",
+	"assertionOrigin":           "assertion origin",
+	"epistemicStatus":           "epistemic status",
+	"generatedByInferenceRule":  "inference rule",
+	"derivedFromFact":           "premise fact",
+	"hasAlternativeExplanation": "alternative explanation",
+	"hasUnknown":                "unknown",
+	"hasInvalidationCondition":  "invalidation condition",
+	"validForCommit":            "valid for commit",
+	"validForGraphDigest":       "valid for graph digest",
+	"confidenceScore":           "confidence",
+	"promotionStatus":           "promotion status",
+	"humanReviewRequired":       "human review required",
+}
+
+var openQuestionFactLabel = map[string]string{
+	"questionText":                  "question text",
+	"blocksClosureDimension":        "closure dimension",
+	"blocksClosureBlocker":          "closure blocker",
+	"questionTemplateId":            "question template",
+	"questionTemplateVersion":       "question template version",
+	"sourceClosureAssessmentDigest": "source closure assessment digest",
+	"acceptedAnswerType":            "accepted answer type",
+	"reasonOpen":                    "reason open",
+	"knownFact":                     "known fact",
+	"competingHypothesis":           "competing hypothesis",
+	"missingEvidence":               "missing evidence",
+	"questionPriority":              "priority",
+	"riskIfUnresolved":              "risk if unresolved",
+	"architectRequired":             "architect required",
+	"questionStatus":                "question status",
+	"createdAt":                     "created at",
+	"lastReviewedAt":                "last reviewed at",
+	"validForCommit":                "valid for commit",
+	"validForGraphDigest":           "valid for graph digest",
+}
+
+var architectAnswerFactLabel = map[string]string{
+	"authorRole":             "author role",
+	"authorId":               "author ID",
+	"answerStatement":        "answer statement",
+	"answerClassification":   "classification",
+	"answerCondition":        "condition",
+	"evidencePointer":        "evidence pointer",
+	"selectedHypothesis":     "selected hypothesis",
+	"reframedQuestion":       "reframed question",
+	"recordedAt":             "recorded at",
+	"answerGovernanceStatus": "governance status",
+	"validForCommit":         "valid for commit",
+	"validForGraphDigest":    "valid for graph digest",
+}
+
+var evidenceProbeFactLabel = map[string]string{
+	"status":                        "status",
+	"addressesClosureBlocker":       "closure blocker",
+	"probeTemplateId":               "probe template",
+	"probeTemplateVersion":          "probe template version",
+	"probeKind":                     "probe kind",
+	"hasEvidenceLane":               "evidence lane",
+	"evidenceRole":                  "evidence role",
+	"observedFromService":           "owner service",
+	"observedViaPath":               "observation path",
+	"hasFreshnessWindow":            "freshness window",
+	"hasTrustLevel":                 "trust level",
+	"mustComeFromOwnerPath":         "must come from owner path",
+	"safetyClass":                   "safety class",
+	"requiresApprovalGate":          "approval gate",
+	"automaticExecutionAllowed":     "automatic execution allowed",
+	"hasProbeStep":                  "probe step",
+	"expectedArtifactKind":          "expected artifact kind",
+	"sourceClosureAssessmentDigest": "source closure assessment digest",
+	"sourceDialogueDigest":          "source dialogue digest",
+	"sourceClaimDocumentDigest":     "source claim document digest",
+	"validForCommit":                "valid for commit",
+	"validForGraphDigest":           "valid for graph digest",
 }

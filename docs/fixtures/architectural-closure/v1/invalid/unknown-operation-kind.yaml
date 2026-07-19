@@ -1,0 +1,16 @@
+closure_protocol_fixture:
+  name: unknown-operation-kind
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: invalid operation kind
+  records:
+    change_plan:
+      plan_id: plan.invalid
+      operations:
+        - operation_id: op.invalid
+          kind: patch
+          target_kind: file
+          target: docs/design/architectural-closure-v1.md
+          selected_mechanism: repository_edit
+

@@ -5,6 +5,14 @@ architectural drift. Before editing files, consult the awareness graph — it ho
 the invariants, failure modes, forbidden fixes, and required tests that no diff
 shows.
 
+Sensei also installs the **Sensei Architect** skill. For architecture-sensitive
+planning, implementation, debugging, review, recovery, migration, security, or
+state/convergence work, load `.sensei/skills/sensei-architect/SKILL.md` before
+planning or editing. Prefer native discovery from `.agents/skills/sensei-architect/`
+when your agent supports Agent Skills. Use MCP tools when configured and CLI
+fallbacks otherwise. Stay proportional to the risk and preserve durable lessons
+with `sensei propose`.
+
 ### Behavioral guidelines
 
 General discipline for every change (paraphrased from Andrej Karpathy's

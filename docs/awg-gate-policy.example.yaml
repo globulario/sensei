@@ -1,7 +1,7 @@
-# Example per-repo enforcement policy for `awg gate`.
+# Example per-repo enforcement policy for `sensei gate`.
 #
-# Copy to <repo-root>/.awg/gate-policy.yaml (the gate reads that path
-# automatically) or point at it with `awg gate --policy <file>`.
+# Copy to <repo-root>/.sensei/gate-policy.yaml (the gate reads that path
+# automatically) or point at it with `sensei gate --policy <file>`.
 #
 # A rule's DECLARED level (warn|block) lives in the awareness graph. This file
 # lets THIS repo re-level or silence rules with no change to the rule or the

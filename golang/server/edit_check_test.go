@@ -180,6 +180,46 @@ func TestEditCheck_MultiDomainUnscoped_FailsClosed(t *testing.T) {
 	}
 }
 
+func TestEditCheck_UnknownRequestedDomainFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return scopeFacts(map[string]string{caddyRuleID: caddyDomain}), nil
+			},
+			detectFacts: func(_ context.Context) ([]store.ImpactFact, error) {
+				return caddyDetectFacts(), nil
+			},
+		},
+		domains: []string{caddyDomain},
+	})
+	_, err := s.EditCheck(context.Background(), &awarenesspb.EditCheckRequest{
+		File: caddyFile, ProposedContent: badContent, Domain: "github.com/example/missing",
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("unknown requested domain must fail closed, got %v", err)
+	}
+}
+
+func TestEditCheck_MissingDomainInMultiDomainGraphFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return scopeFacts(map[string]string{caddyRuleID: caddyDomain}), nil
+			},
+			detectFacts: func(_ context.Context) ([]store.ImpactFact, error) {
+				return caddyDetectFacts(), nil
+			},
+		},
+		domains: []string{caddyDomain, "github.com/globulario/sensei"},
+	})
+	_, err := s.EditCheck(context.Background(), &awarenesspb.EditCheckRequest{
+		File: caddyFile, ProposedContent: badContent,
+	})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("missing domain in multi-domain graph must fail closed, got %v", err)
+	}
+}
+
 // applies_to_paths refinement: a bad shape on a file that does not match the
 // rule's path globs is not evaluated (rules_evaluated=0), so no warning.
 func TestEditCheck_PathMismatch_NotEvaluated(t *testing.T) {

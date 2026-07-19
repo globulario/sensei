@@ -19,7 +19,7 @@ import (
 func runPatternCheck(args []string) int {
 	fs := flag.NewFlagSet("sensei pattern-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	format := fs.String("format", "table", "output format: table | json")
 	failOnViolation := fs.Bool("fail-on-violation", true, "exit non-zero on violation")
 	fs.Usage = func() {

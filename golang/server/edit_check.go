@@ -34,9 +34,13 @@ func (s *server) EditCheck(ctx context.Context, req *awarenesspb.EditCheckReques
 	}
 	start := time.Now()
 	content := req.GetProposedContent()
+	requestedDomain := strings.TrimSpace(req.GetDomain())
+	if err := s.requireDomainWhenAmbiguous(ctx, requestedDomain); err != nil {
+		return nil, err
+	}
 
 	// Scope + fail-closed handled by collectImpact (identical to Briefing).
-	impact, _, _, err := s.collectImpact(ctx, file, strings.TrimSpace(req.GetDomain()))
+	impact, _, _, err := s.collectImpact(ctx, file, requestedDomain)
 	if err != nil {
 		if _, ok := status.FromError(err); ok && status.Code(err) != codes.Unknown {
 			return nil, err // preserve FailedPrecondition for an ambiguous scope

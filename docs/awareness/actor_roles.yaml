@@ -1,0 +1,31 @@
+actor_roles:
+  - id: role.repository_repair_agent
+    label: Repository repair agent
+    status: active
+    allowed_actor_kinds:
+      - agent
+      - human
+    trusted_issuers:
+      - sensei.local
+    aliases:
+      - repository repair agent
+
+  - id: role.repository_maintainer
+    label: Repository maintainer
+    status: active
+    allowed_actor_kinds:
+      - human
+      - agent
+    trusted_issuers:
+      - sensei.local
+    aliases:
+      - repository maintainer
+
+  - id: role.ci
+    label: Continuous integration actor
+    status: active
+    allowed_actor_kinds:
+      - ci
+      - service
+    trusted_issuers:
+      - github.actions

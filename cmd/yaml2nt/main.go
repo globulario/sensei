@@ -343,6 +343,57 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "yaml2nt: %d new dangling reference(s) — every cited anchor must have a matching definition\n", len(newErrs))
 			return exitRuntime
 		}
+		claimErrs, err := extractor.ValidateArchitectureClaimReferences(bytes.NewReader(buf.Bytes()))
+		if err != nil {
+			fmt.Fprintf(stderr, "yaml2nt: architecture claim reference validator: %v\n", err)
+			return exitRuntime
+		}
+		if len(claimErrs) > 0 {
+			const maxReported = 50
+			for i, e := range claimErrs {
+				if i >= maxReported {
+					fmt.Fprintf(stderr, "yaml2nt: ... %d more architecture claim reference errors omitted\n", len(claimErrs)-i)
+					break
+				}
+				fmt.Fprintf(stderr, "yaml2nt: %s\n", e)
+			}
+			fmt.Fprintf(stderr, "yaml2nt: %d architecture claim reference error(s)\n", len(claimErrs))
+			return exitRuntime
+		}
+		dialogueErrs, err := extractor.ValidateArchitectureDialogueReferences(bytes.NewReader(buf.Bytes()))
+		if err != nil {
+			fmt.Fprintf(stderr, "yaml2nt: architecture dialogue reference validator: %v\n", err)
+			return exitRuntime
+		}
+		if len(dialogueErrs) > 0 {
+			const maxReported = 50
+			for i, e := range dialogueErrs {
+				if i >= maxReported {
+					fmt.Fprintf(stderr, "yaml2nt: ... %d more architecture dialogue reference errors omitted\n", len(dialogueErrs)-i)
+					break
+				}
+				fmt.Fprintf(stderr, "yaml2nt: %s\n", e)
+			}
+			fmt.Fprintf(stderr, "yaml2nt: %d architecture dialogue reference error(s)\n", len(dialogueErrs))
+			return exitRuntime
+		}
+		probeErrs, err := extractor.ValidateArchitectureEvidenceProbeReferences(bytes.NewReader(buf.Bytes()))
+		if err != nil {
+			fmt.Fprintf(stderr, "yaml2nt: architecture evidence probe reference validator: %v\n", err)
+			return exitRuntime
+		}
+		if len(probeErrs) > 0 {
+			const maxReported = 50
+			for i, e := range probeErrs {
+				if i >= maxReported {
+					fmt.Fprintf(stderr, "yaml2nt: ... %d more architecture evidence probe reference errors omitted\n", len(probeErrs)-i)
+					break
+				}
+				fmt.Fprintf(stderr, "yaml2nt: %s\n", e)
+			}
+			fmt.Fprintf(stderr, "yaml2nt: %d architecture evidence probe reference error(s)\n", len(probeErrs))
+			return exitRuntime
+		}
 		recon, err := extractor.ValidateTestReconciliation(bytes.NewReader(buf.Bytes()))
 		if err != nil {
 			fmt.Fprintf(stderr, "yaml2nt: test reconciliation validator: %v\n", err)

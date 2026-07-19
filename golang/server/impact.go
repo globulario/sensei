@@ -42,6 +42,9 @@ func (s *server) Impact(ctx context.Context, req *awarenesspb.ImpactRequest) (*a
 	if err := s.requireCurrentGraphAuthority(ctx, "impact"); err != nil {
 		return nil, err
 	}
+	if err := s.requireDomainWhenAmbiguous(ctx, strings.TrimSpace(req.GetDomain())); err != nil {
+		return nil, err
+	}
 	resp, _, _, err := s.collectImpact(ctx, file, strings.TrimSpace(req.GetDomain()))
 	if err != nil {
 		// Preserve an already-coded status (e.g. FailedPrecondition for an
@@ -60,6 +63,11 @@ func (s *server) Impact(ctx context.Context, req *awarenesspb.ImpactRequest) (*a
 // briefing sections (implementation patterns, intent triggers) can be filtered to
 // the SAME domain rather than leaking foreign-repo rules — see briefing.go.
 func (s *server) collectImpact(ctx context.Context, file, requestedDomain string) (*awarenesspb.ImpactResponse, map[string]nodeProvenance, string, error) {
+	requestedDomain = strings.TrimSpace(requestedDomain)
+	if err := s.validateRequestedDomain(ctx, requestedDomain); err != nil {
+		return nil, nil, "", err
+	}
+
 	fileIRI := mintedIRI(rdf.ClassSourceFile, file)
 	facts, err := s.store.ImpactForFile(ctx, fileIRI)
 	if err != nil {

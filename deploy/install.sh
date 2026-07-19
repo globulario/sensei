@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Install the AWG client tools (awg + awareness-mcp) with Go.
+# Install the Sensei client tools (sensei + awareness-mcp) with Go.
 #
 #   curl -fsSL https://raw.githubusercontent.com/globulario/sensei/master/deploy/install.sh | sh
 #
@@ -11,7 +11,7 @@
 set -eu
 
 MODULE="github.com/globulario/sensei"
-VERSION="${AWG_VERSION:-latest}"
+VERSION="${SENSEI_VERSION:-${AWG_VERSION:-latest}}"
 
 if ! command -v go >/dev/null 2>&1; then
 	echo "install: Go is required (https://go.dev/dl/) — 1.25+." >&2
@@ -20,21 +20,26 @@ fi
 
 bindir="$(go env GOBIN)"
 [ -n "$bindir" ] || bindir="$(go env GOPATH)/bin"
+mkdir -p "$bindir"
 
 # Prefer a local checkout when run from inside the repo (exact source); else
-# install the published module at $AWG_VERSION.
+# install the published module at $SENSEI_VERSION (or legacy $AWG_VERSION).
 if [ -f "go.mod" ] && grep -q "^module ${MODULE}\$" go.mod 2>/dev/null; then
-	echo "install: building awg + awareness-mcp from local checkout -> ${bindir}"
-	go install ./cmd/awg ./cmd/awareness-mcp
+	echo "install: building sensei + awareness-mcp from local checkout -> ${bindir}"
+	go build -o "${bindir}/sensei" ./cmd/awg
+	go install ./cmd/awareness-mcp
 else
-	echo "install: go install ${MODULE}/cmd/{awg,awareness-mcp}@${VERSION} -> ${bindir}"
-	go install "${MODULE}/cmd/awg@${VERSION}"
+	echo "install: building sensei + awareness-mcp from ${MODULE}@${VERSION} -> ${bindir}"
+	tmpdir="$(mktemp -d)"
+	trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+	GOBIN="$tmpdir" go install "${MODULE}/cmd/awg@${VERSION}"
 	go install "${MODULE}/cmd/awareness-mcp@${VERSION}"
+	cp "${tmpdir}/awg" "${bindir}/sensei"
 fi
 
 echo
 echo "installed:"
-for b in awg awareness-mcp; do
+for b in sensei awareness-mcp; do
 	if [ -x "${bindir}/${b}" ]; then
 		echo "  ${bindir}/${b}"
 	fi
@@ -46,9 +51,9 @@ case ":${PATH}:" in
 esac
 echo "next — run the SERVICE, then point the client at it:"
 echo "  recommended:  cd deploy && docker compose up --build   # bundles Oxigraph"
-echo "  then:         export AWG_ADDR=localhost:10120 && awg metadata"
+echo "  then:         export SENSEI_ADDR=localhost:10120 && sensei metadata"
 echo
-echo "note: 'awg serve' (local, no Docker) ALSO needs an 'oxigraph' binary on PATH"
+echo "note: 'sensei serve' (local, no Docker) ALSO needs an 'oxigraph' binary on PATH"
 echo "      (this installer does not provide it — https://github.com/oxigraph/oxigraph/releases,"
-echo "      or run it externally and use 'awg serve --no-oxigraph'). The compose path avoids this."
-echo "if the service requires auth, export AWG_TOKEN=<token> for the client too."
+echo "      or run it externally and use 'sensei serve --no-oxigraph'). The compose path avoids this."
+echo "if the service requires auth, export SENSEI_TOKEN=<token> for the client too."

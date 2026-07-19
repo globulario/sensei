@@ -14,9 +14,13 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 // exeName appends the platform executable extension (".exe" on Windows) so the
@@ -43,7 +47,7 @@ func runServe(args []string) int {
 	oxigraphBind := fs.String("oxigraph-bind", defaultOxigraphBind(), "Oxigraph listen address")
 	noSeed := fs.Bool("no-seed", false, "skip the embedded Globular seed (cold-start projects: build your own graph with `sensei build`)")
 	allowStaleSeed := fs.Bool("allow-stale-seed", false, "allow startup when the live store is missing the embedded seed marker")
-	graphMarkerFile := fs.String("graph-marker-file", "", "runtime graph marker file for --no-seed authority checks (default: <project>/.sensei/graph-authority.json)")
+	graphMarkerFile := fs.String("graph-marker-file", "", "runtime graph marker file for live graph authority checks (default: <project>/.sensei/graph-authority.json only with --no-seed; embedded-seed mode uses the embedded marker unless this flag is explicit)")
 	dataDir := fs.String("data", "", "Oxigraph data directory (default: ~/.local/share/sensei/oxigraph)")
 	noOxigraph := fs.Bool("no-oxigraph", false, "don't start Oxigraph (use an external instance)")
 	homeDomain := fs.String("home-domain", "", "domain key for untagged host-project nodes (cold-start non-Globular deployments set their own; default: globular)")
@@ -124,7 +128,7 @@ Flags:
 		}
 	}
 
-	// ── Start AWG server ────────────────────────────────────────────────
+	// ── Start Sensei server ─────────────────────────────────────────────
 	srvBin, err := findServerBinary()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei serve: %v\n", err)
@@ -142,18 +146,22 @@ Flags:
 	if *allowStaleSeed {
 		srvArgs = append(srvArgs, "-allow-stale-seed")
 	}
-	if *noSeed {
-		markerPath := *graphMarkerFile
-		if markerPath == "" {
-			markerPath, err = defaultRuntimeMarkerFile()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "sensei serve: resolve graph marker file: %v\n", err)
-				if oxiCmd != nil {
-					oxiCmd.Process.Signal(syscall.SIGTERM)
-					oxiCmd.Wait()
-				}
-				return 1
+	markerPath, err := resolveServeGraphMarkerFile(*graphMarkerFile, *noSeed)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei serve: resolve graph marker file: %v\n", err)
+		if oxiCmd != nil {
+			oxiCmd.Process.Signal(syscall.SIGTERM)
+			oxiCmd.Wait()
+		}
+		return 1
+	}
+	if markerPath != "" {
+		if *noSeed && strings.TrimSpace(*graphMarkerFile) == "" {
+			syncCtx, syncCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			if err := syncDefaultRuntimeMarkerFromLiveStore(syncCtx, markerPath, oxigraphURL, os.Stderr); err != nil {
+				fmt.Fprintf(os.Stderr, "sensei serve: runtime marker refresh skipped: %v\n", err)
 			}
+			syncCancel()
 		}
 		srvArgs = append(srvArgs, "-graph-marker-file", markerPath)
 	}
@@ -237,6 +245,125 @@ Flags:
 
 	fmt.Fprintf(os.Stderr, "sensei: stopped\n")
 	return exitCode
+}
+
+func resolveServeGraphMarkerFile(configured string, noSeed bool) (string, error) {
+	configured = strings.TrimSpace(configured)
+	if configured != "" {
+		return configured, nil
+	}
+	defaultPath, err := defaultRuntimeMarkerFile()
+	if err != nil {
+		if noSeed {
+			return "", err
+		}
+		return "", nil
+	}
+	return selectServeGraphMarkerFile(configured, defaultPath, pathExists(defaultPath), noSeed), nil
+}
+
+func selectServeGraphMarkerFile(configured, defaultPath string, _ bool, noSeed bool) string {
+	configured = strings.TrimSpace(configured)
+	if configured != "" {
+		return configured
+	}
+	defaultPath = strings.TrimSpace(defaultPath)
+	if defaultPath == "" {
+		return ""
+	}
+	if noSeed {
+		return defaultPath
+	}
+	return ""
+}
+
+func syncDefaultRuntimeMarkerFromLiveStore(ctx context.Context, markerPath, queryURL string, out io.Writer) error {
+	markerPath = strings.TrimSpace(markerPath)
+	if markerPath == "" {
+		return nil
+	}
+	client, err := oxigraph.New(queryURL)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	markers, err := client.SeedMarkers(ctx)
+	if err != nil {
+		return err
+	}
+	if len(markers) == 0 {
+		return nil
+	}
+	if len(markers) > 1 {
+		return fmt.Errorf("live store has %d graph markers; refusing to choose one", len(markers))
+	}
+	liveCount, err := client.CountTriples(ctx)
+	if err != nil {
+		return err
+	}
+	marker := markers[0]
+	if marker.TripleCount != liveCount {
+		return fmt.Errorf("live marker triple count %d does not match live store count %d", marker.TripleCount, liveCount)
+	}
+	current, err := seedmeta.ReadMarkerFile(markerPath)
+	if err == nil && current.Digest == marker.Digest && current.IRI == marker.IRI && current.TripleCount == marker.TripleCount {
+		if err := reconcileRuntimeTransactionStamp(markerPath, marker, out); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
+		return err
+	}
+	if err := reconcileRuntimeTransactionStamp(markerPath, marker, out); err != nil {
+		return err
+	}
+	if out != nil {
+		fmt.Fprintf(out, "sensei serve: refreshed runtime graph marker %s from live store (%s, %d triples)\n", markerPath, truncate(marker.Digest, 12), marker.TripleCount)
+	}
+	return nil
+}
+
+func reconcileRuntimeTransactionStamp(markerPath string, marker seedmeta.Marker, out io.Writer) error {
+	txPath := seedmeta.RuntimeTransactionPath(markerPath)
+	if strings.TrimSpace(txPath) == "" {
+		return nil
+	}
+	data, err := os.ReadFile(txPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read runtime transaction stamp: %w", err)
+	}
+	stamp := seedmeta.ParseTransactionStamp(data)
+	if runtimeTransactionMatchesMarker(stamp, marker) {
+		return nil
+	}
+	if err := os.Remove(txPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove stale runtime transaction stamp: %w", err)
+	}
+	if out != nil {
+		fmt.Fprintf(out, "sensei serve: removed stale runtime transaction stamp %s\n", txPath)
+	}
+	return nil
+}
+
+func runtimeTransactionMatchesMarker(stamp seedmeta.TransactionStamp, marker seedmeta.Marker) bool {
+	if !stamp.Present {
+		return false
+	}
+	if strings.TrimSpace(stamp.SeedDigest) != marker.Digest {
+		return false
+	}
+	if strings.TrimSpace(stamp.SeedTripleCount) == "" {
+		return true
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(stamp.SeedTripleCount), 10, 64)
+	return err == nil && n == marker.TripleCount
 }
 
 // findServerBinary locates the awareness-graph server binary.

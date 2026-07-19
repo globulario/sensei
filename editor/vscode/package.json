@@ -2,7 +2,7 @@
   "name": "sensei-awareness",
   "displayName": "Sensei — Architectural Memory",
   "description": "See the invariants, failure modes, and intent that govern the file you are editing — straight from your project's awareness graph.",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "publisher": "globulario",
   "license": "Apache-2.0",
   "icon": "media/icon.png",
@@ -75,6 +75,26 @@
         "command": "sensei.openDashboard",
         "title": "Sensei: Open Project Dashboard",
         "icon": "$(graph)"
+      },
+      {
+        "command": "sensei.selectClosureAssessment",
+        "title": "Sensei: Select Closure Assessment"
+      },
+      {
+        "command": "sensei.selectConvergenceSession",
+        "title": "Sensei: Select Convergence Session"
+      },
+      {
+        "command": "sensei.selectAdmissionDecision",
+        "title": "Sensei: Select Admission Decision"
+      },
+      {
+        "command": "sensei.selectAdmissionVerification",
+        "title": "Sensei: Select Admission Verification"
+      },
+      {
+        "command": "sensei.clearPhase2Selection",
+        "title": "Sensei: Clear Phase 2 Selection"
       }
     ],
     "menus": {
@@ -136,7 +156,27 @@
         "sensei.servicesRepoPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the sibling `services` repo, for rebuilding the COMBINED awareness-graph + services seed. Required only when the workspace is the awareness-graph repo (whose committed seed is the combined graph). When set, Rebuild runs `sensei rebuild --services-repo <path>`; relative paths resolve against the awareness-graph repo root. Leave empty to auto-detect `../services` — if the workspace needs a combined seed and none is found, Rebuild is disabled rather than silently producing a single-repo seed."
+          "description": "Path to the sibling `services` repo, for rebuilding the COMBINED awareness-graph + services seed. Required only when the workspace is the awareness-graph repo (whose committed seed is the combined graph). When set, Rebuild runs `sensei rebuild --combined --services-repo <path> --tag-by-repo`; relative paths resolve against the awareness-graph repo root. Leave empty to auto-detect `../services` — if the workspace needs a combined seed and none is found, Rebuild is disabled rather than silently producing a single-repo seed."
+        },
+        "sensei.control.closureAssessment": {
+          "type": "string",
+          "default": "",
+          "description": "Optional workspace-relative path to the active closure assessment artifact."
+        },
+        "sensei.control.convergenceSession": {
+          "type": "string",
+          "default": "",
+          "description": "Optional workspace-relative path to the active convergence session artifact."
+        },
+        "sensei.control.admissionDecision": {
+          "type": "string",
+          "default": "",
+          "description": "Optional workspace-relative path to the active admission decision artifact."
+        },
+        "sensei.control.admissionVerification": {
+          "type": "string",
+          "default": "",
+          "description": "Optional workspace-relative path to the active admission verification artifact."
         }
       }
     }

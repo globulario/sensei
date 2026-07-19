@@ -22,6 +22,7 @@ components:
     source_files:
       - cmd/awareness-mcp/main.go
     depends_on:
+      - component.golang.architecture
       - component.golang.client
       - component.golang.netcfg
     external_imports:
@@ -42,56 +43,78 @@ components:
       - cmd/awg/authority_read_errors.go
       - cmd/awg/bootstrap_candidates.go
       - cmd/awg/bootstrap_extract.go
+      - cmd/awg/boundary_extract.go
       - cmd/awg/build_transaction.go
+      - cmd/awg/builtin_skills.go
+      - cmd/awg/cmd_admission_v2.go
+      - cmd/awg/cmd_admit_change.go
+      - cmd/awg/cmd_advance_convergence.go
+      - cmd/awg/cmd_advance_task.go
+      - cmd/awg/cmd_architecture_dialogue.go
+      - cmd/awg/cmd_architecture_extract.go
+      - cmd/awg/cmd_assess_closure.go
+      - cmd/awg/cmd_assess_planes.go
       - cmd/awg/cmd_audit.go
       - cmd/awg/cmd_benchmark_brief.go
       - cmd/awg/cmd_benchmark_event_meta.go
+      - cmd/awg/cmd_benchmark_external.go
       - cmd/awg/cmd_benchmark_judge.go
       - cmd/awg/cmd_benchmark_retry.go
       - cmd/awg/cmd_benchmark_score.go
       - cmd/awg/cmd_bootstrap.go
+      - cmd/awg/cmd_bootstrap_direction.go
       - cmd/awg/cmd_briefing.go
       - cmd/awg/cmd_build.go
       - cmd/awg/cmd_certify.go
+      - cmd/awg/cmd_certify_change.go
       - cmd/awg/cmd_check.go
       - cmd/awg/cmd_cluster_diagnose.go
       - cmd/awg/cmd_cold_bootstrap.go
+      - cmd/awg/cmd_complete_task.go
       - cmd/awg/cmd_contract_assess.go
       - cmd/awg/cmd_contract_bootstrap.go
       - cmd/awg/cmd_corpus.go
       - cmd/awg/cmd_demo.go
+      - cmd/awg/cmd_disposition_question.go
       - cmd/awg/cmd_draft_candidate.go
       - cmd/awg/cmd_edit_brief.go
       - cmd/awg/cmd_edit_check.go
       - cmd/awg/cmd_edit_guard.go
+      - cmd/awg/cmd_enroll_agent.go
       - cmd/awg/cmd_evidence.go
-      - cmd/awg/cmd_extract_authority.go
-      - cmd/awg/cmd_extract_proof_obligations.go
       - cmd/awg/cmd_feedback_check.go
       - cmd/awg/cmd_gate.go
       - cmd/awg/cmd_gate_completeness.go
       - cmd/awg/cmd_gate_contracts.go
       - cmd/awg/cmd_gate_sarif.go
+      - cmd/awg/cmd_generate_questions.go
       - cmd/awg/cmd_governance.go
       - cmd/awg/cmd_impact.go
       - cmd/awg/cmd_impact_gate.go
+      - cmd/awg/cmd_import.go
+      - cmd/awg/cmd_infer_claims.go
       - cmd/awg/cmd_ingest.go
       - cmd/awg/cmd_init.go
+      - cmd/awg/cmd_inspect_terminal.go
       - cmd/awg/cmd_intent_mine.go
       - cmd/awg/cmd_learn.go
       - cmd/awg/cmd_lifecycle.go
+      - cmd/awg/cmd_maintain_claims.go
       - cmd/awg/cmd_merge_check.go
       - cmd/awg/cmd_metadata.go
       - cmd/awg/cmd_onboard.go
       - cmd/awg/cmd_pattern_check.go
+      - cmd/awg/cmd_plan_probes.go
       - cmd/awg/cmd_preflight.go
       - cmd/awg/cmd_promote.go
+      - cmd/awg/cmd_promote_answer.go
       - cmd/awg/cmd_promote_realization.go
       - cmd/awg/cmd_proof_plan.go
       - cmd/awg/cmd_propose.go
       - cmd/awg/cmd_query.go
       - cmd/awg/cmd_rebuild.go
       - cmd/awg/cmd_reconcile.go
+      - cmd/awg/cmd_recover_projections.go
       - cmd/awg/cmd_repair_plan.go
       - cmd/awg/cmd_repair_report.go
       - cmd/awg/cmd_repo_eval.go
@@ -109,12 +132,15 @@ components:
       - cmd/awg/cmd_skill_ingest.go
       - cmd/awg/cmd_source_check.go
       - cmd/awg/cmd_suggest_realizations.go
+      - cmd/awg/cmd_task_ledger.go
+      - cmd/awg/cmd_task_session.go
       - cmd/awg/cmd_validate.go
       - cmd/awg/cmd_validate_draft.go
       - cmd/awg/cmd_visual_audit.go
       - cmd/awg/cross_repo_atomic.go
       - cmd/awg/cross_repo_guard.go
       - cmd/awg/defaults.go
+      - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
       - cmd/awg/git_domain.go
       - cmd/awg/governance_helpers.go
@@ -123,8 +149,10 @@ components:
       - cmd/awg/helpers.go
       - cmd/awg/json_output.go
       - cmd/awg/main.go
+      - cmd/awg/proofrequirements_adapter.go
       - cmd/awg/seedfreshness.go
     depends_on:
+      - component.golang.architecture
       - component.golang.client
       - component.golang.contractassess
       - component.golang.coverage
@@ -317,6 +345,222 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.golang.architecture
+    name: architecture
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/admission/admission.go
+      - golang/architecture/admission/admission_ledger.go
+      - golang/architecture/admission/authority_resolution.go
+      - golang/architecture/admission/capability.go
+      - golang/architecture/admission/decision_v2.go
+      - golang/architecture/admission/ledger_load.go
+      - golang/architecture/admission/scope_v2.go
+      - golang/architecture/adoption/receipt.go
+      - golang/architecture/authority/actor.go
+      - golang/architecture/authority/delegation_verify.go
+      - golang/architecture/authority/model.go
+      - golang/architecture/authority/policy.go
+      - golang/architecture/authority/resolve.go
+      - golang/architecture/benchmark/benchmark.go
+      - golang/architecture/binding/binding.go
+      - golang/architecture/binding_resolution.go
+      - golang/architecture/buildtransaction/result_manifest.go
+      - golang/architecture/certification/errors.go
+      - golang/architecture/certification/evaluate.go
+      - golang/architecture/certification/lanes.go
+      - golang/architecture/certification/ledger.go
+      - golang/architecture/certification/model.go
+      - golang/architecture/certification/policy.go
+      - golang/architecture/certification/receipt.go
+      - golang/architecture/certification/request.go
+      - golang/architecture/certification/source.go
+      - golang/architecture/claim.go
+      - golang/architecture/claim_document.go
+      - golang/architecture/claimaudit/audit.go
+      - golang/architecture/closure/model.go
+      - golang/architecture/closure/util.go
+      - golang/architecture/closureprotocol/canonical.go
+      - golang/architecture/closureprotocol/model.go
+      - golang/architecture/closureprotocol/predicate.go
+      - golang/architecture/closureprotocol/validate.go
+      - golang/architecture/closureprotocol/vocabulary.go
+      - golang/architecture/completion/authority.go
+      - golang/architecture/completion/closure_report.go
+      - golang/architecture/completion/complete.go
+      - golang/architecture/completion/inspect.go
+      - golang/architecture/completion/integration.go
+      - golang/architecture/completion/load.go
+      - golang/architecture/completion/model.go
+      - golang/architecture/completion/projection.go
+      - golang/architecture/completion/readiness.go
+      - golang/architecture/completion/receipt.go
+      - golang/architecture/completion/recover.go
+      - golang/architecture/completion/worldbinding.go
+      - golang/architecture/convergence/convergence.go
+      - golang/architecture/dialogue.go
+      - golang/architecture/dialogue_document.go
+      - golang/architecture/evidencereceipt/coverage.go
+      - golang/architecture/evidencereceipt/freshness.go
+      - golang/architecture/evidencereceipt/model.go
+      - golang/architecture/evidencereceipt/profile.go
+      - golang/architecture/evidencereceipt/runtime.go
+      - golang/architecture/evidencereceipt/validate.go
+      - golang/architecture/fact.go
+      - golang/architecture/factextract/authority.go
+      - golang/architecture/factextract/factextract.go
+      - golang/architecture/factextract/invariant_rules.go
+      - golang/architecture/factextract/invariants.go
+      - golang/architecture/factextract/util.go
+      - golang/architecture/generatedartifact/generatedartifact.go
+      - golang/architecture/generatedartifact/producers.go
+      - golang/architecture/gosemantics/extract.go
+      - golang/architecture/governedimpact/codec.go
+      - golang/architecture/governedimpact/governedimpact.go
+      - golang/architecture/governedimpact/validate.go
+      - golang/architecture/governedmutation/apply.go
+      - golang/architecture/governedmutation/governedmutation.go
+      - golang/architecture/governedmutation/lock.go
+      - golang/architecture/governedmutation/manifest.go
+      - golang/architecture/governedmutation/records.go
+      - golang/architecture/graphbuild/graphbuild.go
+      - golang/architecture/graphbuild/graphinput.go
+      - golang/architecture/graphbuild/manifest.go
+      - golang/architecture/graphbuild/supplemental.go
+      - golang/architecture/graphsnapshot/graphsnapshot.go
+      - golang/architecture/identity/identity.go
+      - golang/architecture/inference/binding.go
+      - golang/architecture/inference/document.go
+      - golang/architecture/inference/engine.go
+      - golang/architecture/inference/governed_direction.go
+      - golang/architecture/inference/registry.go
+      - golang/architecture/inference/rule.go
+      - golang/architecture/inference/rules.go
+      - golang/architecture/inference/semantic_rules.go
+      - golang/architecture/inference/util.go
+      - golang/architecture/knowledgeadoption/contracts.go
+      - golang/architecture/knowledgeadoption/engine.go
+      - golang/architecture/knowledgeadoption/output.go
+      - golang/architecture/ledger/append.go
+      - golang/architecture/ledger/artifact.go
+      - golang/architecture/ledger/errors.go
+      - golang/architecture/ledger/event.go
+      - golang/architecture/ledger/faultinject.go
+      - golang/architecture/ledger/faultinject_off.go
+      - golang/architecture/ledger/legacy.go
+      - golang/architecture/ledger/load.go
+      - golang/architecture/ledger/lock.go
+      - golang/architecture/ledger/model.go
+      - golang/architecture/ledger/projection.go
+      - golang/architecture/ledger/reconcile.go
+      - golang/architecture/ledger/reload.go
+      - golang/architecture/ledger/store.go
+      - golang/architecture/ledger/util.go
+      - golang/architecture/ledger/verify.go
+      - golang/architecture/maintenance/evaluate.go
+      - golang/architecture/maintenance/evidence.go
+      - golang/architecture/maintenance/model.go
+      - golang/architecture/maintenance/render.go
+      - golang/architecture/maintenance/report.go
+      - golang/architecture/maintenance/source_verify.go
+      - golang/architecture/plane/assess.go
+      - golang/architecture/plane/graph_index.go
+      - golang/architecture/plane/model.go
+      - golang/architecture/plane/policy.go
+      - golang/architecture/plane/proposition.go
+      - golang/architecture/plane/render.go
+      - golang/architecture/plane/report.go
+      - golang/architecture/probe/generate.go
+      - golang/architecture/probe/model.go
+      - golang/architecture/probe/result.go
+      - golang/architecture/probeexec/executor.go
+      - golang/architecture/proofdischarge/compatibility.go
+      - golang/architecture/proofdischarge/coverage.go
+      - golang/architecture/proofdischarge/digest.go
+      - golang/architecture/proofdischarge/discharge.go
+      - golang/architecture/proofdischarge/errors.go
+      - golang/architecture/proofdischarge/model.go
+      - golang/architecture/proofdischarge/report.go
+      - golang/architecture/proofdischarge/waiver.go
+      - golang/architecture/proofrequirements/compose.go
+      - golang/architecture/proofrequirements/compose_sources.go
+      - golang/architecture/proofrequirements/graph.go
+      - golang/architecture/proofrequirements/obligations.go
+      - golang/architecture/proofrequirements/parse.go
+      - golang/architecture/proofrequirements/proofrequirements.go
+      - golang/architecture/questiondisposition/errors.go
+      - golang/architecture/questiondisposition/load.go
+      - golang/architecture/questiondisposition/model.go
+      - golang/architecture/questiondisposition/payload.go
+      - golang/architecture/questiondisposition/prepare.go
+      - golang/architecture/questiondisposition/record.go
+      - golang/architecture/questiondisposition/state.go
+      - golang/architecture/questiongen/dialogue_ops.go
+      - golang/architecture/questiongen/questiongen.go
+      - golang/architecture/questionpromotion/conjunctive.go
+      - golang/architecture/questionpromotion/consume.go
+      - golang/architecture/questionpromotion/drive.go
+      - golang/architecture/questionpromotion/journal.go
+      - golang/architecture/questionpromotion/promote.go
+      - golang/architecture/questionpromotion/provenance.go
+      - golang/architecture/questionpromotion/receipt.go
+      - golang/architecture/questionresolution/authority.go
+      - golang/architecture/questionresolution/certify.go
+      - golang/architecture/questionresolution/model.go
+      - golang/architecture/questionresolution/persist.go
+      - golang/architecture/questionresolution/summarize.go
+      - golang/architecture/repograph/build.go
+      - golang/architecture/repograph/provenance_input.go
+      - golang/architecture/repograph/repograph.go
+      - golang/architecture/repograph/store_adapter.go
+      - golang/architecture/resultpipeline/assemble.go
+      - golang/architecture/resultpipeline/build.go
+      - golang/architecture/resultpipeline/deterministic.go
+      - golang/architecture/resultpipeline/graph.go
+      - golang/architecture/resultpipeline/graph_inputs.go
+      - golang/architecture/resultpipeline/materialize.go
+      - golang/architecture/resultpipeline/receipts.go
+      - golang/architecture/resultpipeline/stages.go
+      - golang/architecture/resultpipeline/transition.go
+      - golang/architecture/resultpipeline/transition_validate.go
+      - golang/architecture/resultpipeline/validate_result.go
+      - golang/architecture/resultpipeline/validate_stages.go
+      - golang/architecture/resultrecording/classify.go
+      - golang/architecture/resultrecording/errors.go
+      - golang/architecture/resultrecording/keys.go
+      - golang/architecture/resultrecording/load.go
+      - golang/architecture/resultrecording/payload.go
+      - golang/architecture/resultrecording/projection.go
+      - golang/architecture/resultrecording/record.go
+      - golang/architecture/resulttransition/bind.go
+      - golang/architecture/resulttransition/confine.go
+      - golang/architecture/resulttransition/observe.go
+      - golang/architecture/taskcontrol/model.go
+      - golang/architecture/taskcontrol/project.go
+      - golang/architecture/tasksession/advance_result.go
+      - golang/architecture/tasksession/briefing.go
+      - golang/architecture/tasksession/briefing_promotion.go
+      - golang/architecture/tasksession/control.go
+      - golang/architecture/tasksession/governance.go
+      - golang/architecture/tasksession/session.go
+      - golang/architecture/tasksession/session_authority.go
+    depends_on:
+      - component.golang.extractor
+      - component.golang.propose
+      - component.golang.rdf
+      - component.golang.seedmeta
+      - component.golang.store
+    external_imports:
+      - golang.org/x/tools/go/packages
+      - golang.org/x/tools/go/ssa
+      - golang.org/x/tools/go/ssa/ssautil
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.client
     name: client
     kind: module
@@ -373,16 +617,27 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/extractor/adoption_receipt.go
       - golang/extractor/agent_run_jsonl_import.go
+      - golang/extractor/architecture_claim_reference_validator.go
+      - golang/extractor/architecture_claim_yaml_import.go
+      - golang/extractor/architecture_dialogue_reference_validator.go
+      - golang/extractor/architecture_dialogue_yaml_import.go
+      - golang/extractor/architecture_evidence_probe_reference_validator.go
+      - golang/extractor/architecture_evidence_probe_yaml_import.go
       - golang/extractor/architecture_spine_yaml_import.go
+      - golang/extractor/authored_plane.go
       - golang/extractor/authority_domains_yaml_import.go
+      - golang/extractor/authority_policy_yaml_import.go
       - golang/extractor/code_symbols_import.go
       - golang/extractor/coldsource/bundle_export.go
       - golang/extractor/coldsource/citation_check.go
       - golang/extractor/coldsource/claude_cli_client.go
+      - golang/extractor/coldsource/codex_cli_client.go
       - golang/extractor/coldsource/draft_contract.go
       - golang/extractor/coldsource/draft_llm.go
       - golang/extractor/coldsource/draft_llm_prompt.go
+      - golang/extractor/coldsource/drafter_backend.go
       - golang/extractor/coldsource/emit.go
       - golang/extractor/coldsource/extract_conventional.go
       - golang/extractor/coldsource/extract_pr_reviews.go
@@ -393,6 +648,7 @@ components:
       - golang/extractor/coldsource/intent_draft.go
       - golang/extractor/coldsource/intent_draft_llm.go
       - golang/extractor/coldsource/intent_grounding.go
+      - golang/extractor/coldsource/intent_identity.go
       - golang/extractor/coldsource/intent_report.go
       - golang/extractor/coldsource/intent_sources.go
       - golang/extractor/coldsource/llm_client.go
@@ -437,6 +693,7 @@ components:
       - golang/extractor/yaml_import_dir.go
       - golang/extractor/yaml_import_phaseB.go
     depends_on:
+      - component.golang.architecture
       - component.golang.rdf
     external_imports:
       - github.com/emicklei/proto
@@ -671,6 +928,24 @@ components:
     source_files:
       - golang/store/oxigraph/oxigraph.go
       - golang/store/store.go
+    depends_on:
+      - component.golang.rdf
+      - component.golang.seedmeta
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.internal.resulttestkit
+    name: resulttestkit
+    kind: module
+    assertion: inferred
+    source_files:
+      - internal/resulttestkit/seed.go
+    depends_on:
+      - component.golang.architecture
+    external_imports:
+      - gopkg.in/yaml.v3
     uml:
       kind: Component
       stereotype: module

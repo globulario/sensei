@@ -71,7 +71,7 @@ When it finishes, `bin/` holds all three binaries.
 Recommended local runtime:
 
 ```bash
-bash ./scripts/install-awg-user-services.sh
+bash ./scripts/install-sensei-user-services.sh
 ```
 
 This installs supervised `systemd --user` services, reuses an already-healthy

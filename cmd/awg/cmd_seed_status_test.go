@@ -19,7 +19,7 @@ import (
 
 func TestSeedStatus_CurrentAcrossGeneratedCommittedAndLive(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
@@ -55,7 +55,7 @@ func TestSeedStatus_CurrentAcrossGeneratedCommittedAndLive(t *testing.T) {
 
 func TestSeedStatus_SplitWhenCommittedLiveMatchButGeneratedDrifted(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
@@ -147,7 +147,7 @@ func seedStatusStore(t *testing.T, loaded []byte) string {
 
 func TestSeedStatus_LiveStoreUnknownWhenQueryFails(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
@@ -181,7 +181,7 @@ func TestSeedStatus_LiveStoreUnknownWhenQueryFails(t *testing.T) {
 
 func TestSeedStatus_LiveStoreDownWhenQueryEndpointIsUnreachable(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
@@ -211,7 +211,7 @@ func TestSeedStatus_LiveStoreDownWhenQueryEndpointIsUnreachable(t *testing.T) {
 
 func TestSeedStatus_BlockedWhenCombinedSeedLosesServicesRepo(t *testing.T) {
 	agRepo, svcRepo := setupSeedStatusRepos(t)
-	if code := runRebuild([]string{"--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
 	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")

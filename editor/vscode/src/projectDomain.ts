@@ -88,3 +88,25 @@ export async function effectiveDomain(explicit: string | undefined): Promise<str
   cache = { root, domain: domain || '' };
   return domain;
 }
+
+/** Choose the dashboard's automatic graph scope after Metadata returns.
+ *
+ * If the graph rejected the workspace-derived domain, stay graph-wide. That
+ * keeps Rebuild on the combined path so a legacy home-only graph can be
+ * regenerated with repo tags instead of getting stuck scoped to `globular`.
+ */
+export function chooseAutomaticGraphDomain(
+  requestedDomain: string,
+  availableDomains: string[],
+  requestRejected: boolean
+): string {
+  const requested = requestedDomain.trim();
+  const available = availableDomains.map((d) => d.trim()).filter(Boolean);
+  if (requested && !requestRejected && available.includes(requested)) {
+    return requested;
+  }
+  if (!requested && available.length === 1) {
+    return available[0];
+  }
+  return '';
+}

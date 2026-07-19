@@ -10,33 +10,33 @@ reuse it and supervise only `awareness-graph`.
 
 ```bash
 cd /home/dave/Documents/github.com/globulario/sensei
-./scripts/install-awg-user-services.sh
+./scripts/install-sensei-user-services.sh
 ```
 
 Auto behavior:
 
 - if `http://127.0.0.1:7878/query` is already healthy, the script reuses that
-  Oxigraph and installs only `awg-awareness-graph.service`
+  Oxigraph and installs only `sensei-awareness-graph.service`
 - otherwise it installs both:
-  - `awg-oxigraph.service`
-  - `awg-awareness-graph.service`
+  - `sensei-oxigraph.service`
+  - `sensei-awareness-graph.service`
 
 To force reuse of an existing service-managed Oxigraph:
 
 ```bash
-./scripts/install-awg-user-services.sh --reuse-existing-oxigraph
+./scripts/install-sensei-user-services.sh --reuse-existing-oxigraph
 ```
 
 To force Sensei to own both local user services:
 
 ```bash
-./scripts/install-awg-user-services.sh --no-reuse-existing-oxigraph
+./scripts/install-sensei-user-services.sh --no-reuse-existing-oxigraph
 ```
 
 The `awareness-graph` unit starts with `-require-store=true` and performs a
 pre-start check against the configured Oxigraph endpoint, so it fails closed if
 the backend is unavailable. When Sensei installs its own local Oxigraph unit, the
-service also depends on `awg-oxigraph.service`.
+service also depends on `sensei-oxigraph.service`.
 
 ## Verify
 
@@ -56,17 +56,17 @@ Seed state:          current
 If you reused an existing Oxigraph:
 
 ```bash
-systemctl --user restart awg-awareness-graph.service
-systemctl --user stop awg-awareness-graph.service
-systemctl --user status awg-awareness-graph.service
-journalctl --user -u awg-awareness-graph.service -n 100 --no-pager
+systemctl --user restart sensei-awareness-graph.service
+systemctl --user stop sensei-awareness-graph.service
+systemctl --user status sensei-awareness-graph.service
+journalctl --user -u sensei-awareness-graph.service -n 100 --no-pager
 ```
 
 If Sensei installed both local user units:
 
 ```bash
-systemctl --user restart awg-oxigraph.service awg-awareness-graph.service
-systemctl --user stop awg-awareness-graph.service awg-oxigraph.service
-systemctl --user status awg-oxigraph.service awg-awareness-graph.service
-journalctl --user -u awg-oxigraph.service -u awg-awareness-graph.service -n 100 --no-pager
+systemctl --user restart sensei-oxigraph.service sensei-awareness-graph.service
+systemctl --user stop sensei-awareness-graph.service sensei-oxigraph.service
+systemctl --user status sensei-oxigraph.service sensei-awareness-graph.service
+journalctl --user -u sensei-oxigraph.service -u sensei-awareness-graph.service -n 100 --no-pager
 ```

@@ -10,26 +10,33 @@
   // cls === null  -> no by_class listing endpoint (forbidden fixes, tests):
   // we show the count and an honest note rather than faking a list.
   const ASPECTS = [
-    { key: 'invariant', label: 'Invariants', cls: 'QUERY_CLASS_INVARIANT', count: 'invariant_count' },
-    { key: 'failure_mode', label: 'Failure modes', cls: 'QUERY_CLASS_FAILURE_MODE', count: 'failure_mode_count' },
-    { key: 'intent', label: 'Intents', cls: 'QUERY_CLASS_INTENT', count: 'intent_count' },
-    { key: 'incident_pattern', label: 'Incident patterns', cls: 'QUERY_CLASS_INCIDENT_PATTERN', count: 'incident_pattern_count' },
-    { key: 'forbidden_fix', label: 'Forbidden fixes', cls: 'QUERY_CLASS_FORBIDDEN_FIX', count: 'forbidden_fix_count' },
-    { key: 'test', label: 'Tests', cls: 'QUERY_CLASS_TEST', count: 'required_test_count' },
-    { key: 'source_file', label: 'Files', cls: 'QUERY_CLASS_SOURCE_FILE', count: 'source_file_count' },
+    { phase: 'awareness', key: 'invariant', label: 'Invariants', cls: 'QUERY_CLASS_INVARIANT', count: 'invariant_count' },
+    { phase: 'awareness', key: 'failure_mode', label: 'Failure modes', cls: 'QUERY_CLASS_FAILURE_MODE', count: 'failure_mode_count' },
+    { phase: 'awareness', key: 'intent', label: 'Intents', cls: 'QUERY_CLASS_INTENT', count: 'intent_count' },
+    { phase: 'awareness', key: 'incident_pattern', label: 'Incident patterns', cls: 'QUERY_CLASS_INCIDENT_PATTERN', count: 'incident_pattern_count' },
+    { phase: 'awareness', key: 'forbidden_fix', label: 'Forbidden fixes', cls: 'QUERY_CLASS_FORBIDDEN_FIX', count: 'forbidden_fix_count' },
+    { phase: 'awareness', key: 'test', label: 'Tests', cls: 'QUERY_CLASS_TEST', count: 'required_test_count' },
+    { phase: 'awareness', key: 'source_file', label: 'Files', cls: 'QUERY_CLASS_SOURCE_FILE', count: 'source_file_count' },
     // ── architectural spine + pattern layer (grouped after a separator) ──
-    { key: 'component', label: 'Components', cls: 'QUERY_CLASS_COMPONENT', count: 'component_count', group: 'Architecture' },
-    { key: 'boundary', label: 'Boundaries', cls: 'QUERY_CLASS_BOUNDARY', count: 'boundary_count' },
-    { key: 'contract', label: 'Contracts', cls: 'QUERY_CLASS_CONTRACT', count: 'contract_count' },
-    { key: 'decision', label: 'Decisions', cls: 'QUERY_CLASS_DECISION', count: 'decision_count' },
-    { key: 'evidence', label: 'Evidence', cls: 'QUERY_CLASS_EVIDENCE', count: 'evidence_count' },
-    { key: 'meta_principle', label: 'Meta-principles', cls: 'QUERY_CLASS_META_PRINCIPLE', count: 'meta_principle_count' },
-    { key: 'design_pattern', label: 'Design patterns', cls: 'QUERY_CLASS_DESIGN_PATTERN', count: 'design_pattern_count' },
-    { key: 'implementation_pattern', label: 'Impl. patterns', cls: 'QUERY_CLASS_IMPLEMENTATION_PATTERN', count: 'implementation_pattern_count' },
-    { key: 'pattern_misuse', label: 'Pattern misuses', cls: 'QUERY_CLASS_PATTERN_MISUSE', count: 'pattern_misuse_count' },
+    { phase: 'awareness', key: 'component', label: 'Components', cls: 'QUERY_CLASS_COMPONENT', count: 'component_count', group: 'Architecture' },
+    { phase: 'awareness', key: 'boundary', label: 'Boundaries', cls: 'QUERY_CLASS_BOUNDARY', count: 'boundary_count' },
+    { phase: 'awareness', key: 'contract', label: 'Contracts', cls: 'QUERY_CLASS_CONTRACT', count: 'contract_count' },
+    { phase: 'awareness', key: 'decision', label: 'Decisions', cls: 'QUERY_CLASS_DECISION', count: 'decision_count' },
+    { phase: 'awareness', key: 'evidence', label: 'Evidence', cls: 'QUERY_CLASS_EVIDENCE', count: 'evidence_count' },
+    { phase: 'awareness', key: 'meta_principle', label: 'Meta-principles', cls: 'QUERY_CLASS_META_PRINCIPLE', count: 'meta_principle_count' },
+    { phase: 'awareness', key: 'design_pattern', label: 'Design patterns', cls: 'QUERY_CLASS_DESIGN_PATTERN', count: 'design_pattern_count' },
+    { phase: 'awareness', key: 'implementation_pattern', label: 'Impl. patterns', cls: 'QUERY_CLASS_IMPLEMENTATION_PATTERN', count: 'implementation_pattern_count' },
+    { phase: 'awareness', key: 'pattern_misuse', label: 'Pattern misuses', cls: 'QUERY_CLASS_PATTERN_MISUSE', count: 'pattern_misuse_count' },
     // ── review + corpus layer (evidence-based, read-only) ──
-    { key: 'review', label: 'Review', cls: '__review__', count: null, group: 'Review' },
-    { key: 'candidates', label: 'Candidates', cls: '__candidates__', count: null },
+    { phase: 'awareness', key: 'review', label: 'Review', cls: '__review__', count: null, group: 'Review' },
+    { phase: 'awareness', key: 'candidates', label: 'Candidates', cls: '__candidates__', count: null },
+    // ── Phase 2 closure/control layer ──
+    { phase: 'control', key: 'control_overview', label: 'Overview', cls: '__control__', count: null },
+    { phase: 'control', key: 'architecture_claim', label: 'Claims', cls: 'QUERY_CLASS_ARCHITECTURE_CLAIM', count: 'architecture_claim_count', group: 'Dialogue' },
+    { phase: 'control', key: 'open_question', label: 'Questions', cls: 'QUERY_CLASS_OPEN_QUESTION', count: 'open_question_count' },
+    { phase: 'control', key: 'architect_answer', label: 'Answers', cls: 'QUERY_CLASS_ARCHITECT_ANSWER', count: 'architect_answer_count' },
+    { phase: 'control', key: 'evidence_probe', label: 'Probes', cls: 'QUERY_CLASS_EVIDENCE_PROBE', count: 'evidence_probe_count' },
+    { phase: 'control', key: 'benchmark', label: 'External proof', cls: '__benchmark__', count: null, group: 'Proof' },
   ];
 
   // UML views (closed set, mirrors ValidUMLViews). null = All.
@@ -43,6 +50,8 @@
     component: '#5a9bd4', boundary: '#c586c0', contract: '#4ec9b0', decision: '#dcdcaa',
     evidence: '#6a9955', meta_principle: '#9b7bd4', design_pattern: '#56b6c2',
     implementation_pattern: '#7aa6c2', pattern_misuse: '#e06c75',
+    architecture_claim: '#4ec9b0', open_question: '#e0a000',
+    architect_answer: '#b180d7', evidence_probe: '#56b6c2',
   };
   const SEV_COLOR = {
     critical: '#f14c4c', high: '#e0a000', warning: '#cca700', info: '#3794ff', degraded: '#e0a000',
@@ -56,6 +65,8 @@
     component: [-0.45, -0.95], boundary: [0.95, -0.5], contract: [0.7, 0.5],
     decision: [-0.95, -0.35], evidence: [-0.3, 0.95], meta_principle: [-0.6, -0.75],
     design_pattern: [0.4, 0.9], implementation_pattern: [0.9, 0.25], pattern_misuse: [0.25, -0.95],
+    architecture_claim: [-0.9, -0.3], open_question: [0.2, -1],
+    architect_answer: [0.95, -0.25], evidence_probe: [0.45, 0.9],
   };
 
   // ---- state -------------------------------------------------------------
@@ -77,6 +88,9 @@
   let lastRefresh = null; // last reload/rebuild result (shown in the banner)
   let viewFilter = null; // active UML view filter (null = All)
   let activeDomain = ''; // the domain the banner/lists are scoped to ('' = all)
+  let activePhase = 'awareness';
+  let controlState = null;
+  let controlStatus = {};
   const graph = { center: null, label: null, depth: 1, nodes: [], edges: [], authority: null, view: null };
 
   // ---- elements ----------------------------------------------------------
@@ -87,7 +101,9 @@
 
   // ---- boot --------------------------------------------------------------
   vscode.postMessage({ type: 'getMetadata' });
+  vscode.postMessage({ type: 'getControlState' });
   renderViewFilter();
+  renderPhaseRail();
   selectAspect('invariant');
 
   elSearch.addEventListener('input', renderList);
@@ -104,7 +120,9 @@
   window.addEventListener('message', (ev) => {
     const m = ev.data;
     switch (m.type) {
-      case 'metadata': meta = m.data; if (m.localOps) localOps = m.localOps; if (m.activeDomain !== undefined) activeDomain = m.activeDomain; renderBanner(); renderNav(); if (active === 'review') renderReview(); break;
+      case 'metadata': meta = m.data; if (m.localOps) localOps = m.localOps; if (m.activeDomain !== undefined) activeDomain = m.activeDomain; renderBanner(); renderNav(); if (active === 'review') renderReview(); else if (active === 'control_overview') renderControlOverview(); break;
+      case 'controlState': controlState = m; if (m.localOps) localOps = m.localOps; renderBanner(); if (active === 'control_overview') renderControlOverview(); break;
+      case 'controlStatus': controlStatus[m.kind || 'unknown'] = m; if (active === 'control_overview') renderControlOverview(); break;
       case 'refreshResult': lastRefresh = m; renderRefreshStatus(); break;
       case 'list':
         if (aspectByKey(active).cls === m.cls) {
@@ -226,7 +244,7 @@
     const authority = metadataAuthority(meta);
     const freshness = effectiveMetadataFreshness(meta);
     st.className = 'banner__state banner__state--' + s.c;
-    st.textContent = s.t;
+    st.textContent = phaseHeaderText(s);
     renderRefreshBar();
     const cells = [
       ['invariant_count', 'invariants'], ['failure_mode_count', 'failure modes'],
@@ -234,7 +252,7 @@
       ['forbidden_fix_count', 'forbidden fixes'], ['required_test_count', 'tests'],
       ['source_file_count', 'files'],
       ['component_count', 'components'], ['contract_count', 'contracts'], ['decision_count', 'decisions'],
-      ['triple_count', 'triples'],
+      ['triple_count', activeDomain ? 'scope triples' : 'store triples'],
     ];
     stats.innerHTML = '';
     for (const [f, lbl] of cells) {
@@ -257,6 +275,8 @@
       `coverage <b>${esc((meta.coverage_state || 'COVERAGE_STATE_UNSPECIFIED').replace('COVERAGE_STATE_', '').toLowerCase())}</b>`,
       `candidate queue <b>${esc((meta.candidate_queue_state || 'CANDIDATE_QUEUE_STATE_UNSPECIFIED').replace('CANDIDATE_QUEUE_STATE_', '').toLowerCase())}</b>`,
       `benchmark <b>${esc((meta.benchmark_state || 'BENCHMARK_STATE_UNSPECIFIED').replace('BENCHMARK_STATE_', '').toLowerCase())}</b>`,
+      `closure <b>${esc(closureLabel())}</b>`,
+      `agent admission <b>${esc(admissionLabel())}</b>`,
       `built <b>${esc(builtTxt)}</b>`,
       `query ${esc(meta.generated_in_ms || '?')}ms`,
       `<span title="The daemon cannot see your live source tree, so drift vs. uncommitted/HEAD changes is not verifiable here.">sync vs live source: not verifiable ⓘ</span>`,
@@ -264,6 +284,69 @@
     if (!authority.authoritative && authority.detail) {
       mEl.innerHTML += `<span class="banner__meta-warn">${esc(authority.detail)}</span>`;
     }
+  }
+
+  function phaseHeaderText(graphState) {
+    if (activePhase === 'awareness') return graphState.t;
+    const graph = graphState.c === 'ok' || graphState.c === 'warn' ? 'Graph current' : graphState.t;
+    const task = activeTask();
+    if (!task || task.kind === 'none') return `${graph} · no active architectural task`;
+    if (!taskScopeMatches()) return `${graph} · workspace task belongs to another domain`;
+    if (task.kind === 'stale' || task.kind === 'invalid' || task.verified === false) return 'Task stale · admission not trusted';
+    const admission = task.admission || 'not established';
+    if (/admitted|allowed/i.test(admission)) return `${graph} · bounded mutation admitted`;
+    return `${graph} · closure ${task.closure || 'open'} · mutation waiting`;
+  }
+
+  function summaryOf(kind, key) {
+    const a = controlState && controlState.artifacts && controlState.artifacts[kind];
+    return (a && a.summary && a.summary[key]) || '';
+  }
+
+  function activeTask() {
+    return controlState && controlState.activeTask;
+  }
+
+  function taskScopeMatches() {
+    const task = activeTask();
+    if (!task || task.kind === 'none' || !activeDomain || !task.repositoryDomain) return true;
+    if (controlState && controlState.graphDomain === activeDomain && typeof controlState.taskScopeMatches === 'boolean') {
+      return controlState.taskScopeMatches;
+    }
+    return task.repositoryDomain === activeDomain;
+  }
+
+  function closureLabel() {
+    const task = activeTask();
+    if (task && task.kind !== 'none' && taskScopeMatches()) return task.closure || 'open';
+    const a = controlState && controlState.artifacts && controlState.artifacts.closure;
+    if (!a || !a.exists) return 'not assessed';
+    return summaryOf('closure', 'verdict') || 'selected';
+  }
+
+  function admissionLabel() {
+    const task = activeTask();
+    if (task && task.kind !== 'none' && taskScopeMatches()) return task.admission || 'not established';
+    const a = controlState && controlState.artifacts && controlState.artifacts.admission;
+    if (!a || !a.exists) return 'not established';
+    return summaryOf('admission', 'decision') || 'selected';
+  }
+
+  function renderPhaseRail() {
+    const rail = $('phaseRail');
+    if (!rail) return;
+    rail.querySelectorAll('.phase-btn').forEach((b) => {
+      b.classList.toggle('phase-btn--on', b.dataset.phase === activePhase);
+      b.onclick = () => selectPhase(b.dataset.phase);
+    });
+  }
+
+  function selectPhase(phase) {
+    if (!phase || phase === activePhase) return;
+    activePhase = phase;
+    renderPhaseRail();
+    renderNav();
+    selectAspect(phase === 'control' ? 'control_overview' : 'invariant');
   }
 
   // ---- two-mode refresh --------------------------------------------------
@@ -299,7 +382,10 @@
       sel.addEventListener('change', () => {
         activeDomain = sel.value;
         vscode.postMessage({ type: 'setDomain', domain: sel.value }); // re-pulls the banner
-        vscode.postMessage({ type: 'listClass', cls: active });       // re-scope the open list
+        const a = aspectByKey(active);
+        if (a && a.cls && !String(a.cls).startsWith('__')) {
+          vscode.postMessage({ type: 'listClass', cls: a.cls });       // re-scope the open list
+        }
       });
     }
     renderRefreshStatus();
@@ -311,7 +397,7 @@
     const domains = (meta && meta.available_domains) || [];
     if (!domains.length) return '';
     const opt = (val, label, sel) => `<option value="${esc(val)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
-    let opts = opt('', 'All domains', activeDomain === '');
+    let opts = opt('', 'All domains (store)', activeDomain === '');
     for (const d of domains) opts += opt(d, d, activeDomain === d);
     return `<select id="domainSelect" class="domain-select" title="Scope the banner and lists to a project/domain">${opts}</select>`;
   }
@@ -382,7 +468,7 @@
   // ---- nav ---------------------------------------------------------------
   function renderNav() {
     elNav.innerHTML = '';
-    for (const a of ASPECTS) {
+    for (const a of ASPECTS.filter((x) => (x.phase || 'awareness') === activePhase)) {
       if (a.group) {
         const sep = document.createElement('span');
         sep.className = 'nav__group';
@@ -429,11 +515,17 @@
   }
 
   function selectAspect(key) {
+    const selected = aspectByKey(key);
+    if (selected && selected.phase && selected.phase !== activePhase) {
+      activePhase = selected.phase;
+      renderPhaseRail();
+    }
     active = key;
     selectedId = null; // each aspect auto-selects its own first row
     renderNav();
     document.body.classList.toggle('candidates-mode', key === 'candidates');
     document.body.classList.toggle('review-mode', key === 'review');
+    document.body.classList.toggle('control-mode', activePhase === 'control');
     const a = aspectByKey(key);
     listRows = [];
     listAuthority = null;
@@ -451,6 +543,16 @@
       elList.innerHTML = '<div class="notice">Loading candidate queue…</div>';
       elCount.textContent = '';
       vscode.postMessage({ type: 'getCandidates' });
+      return;
+    }
+    if (key === 'control_overview') {
+      elCount.textContent = '';
+      vscode.postMessage({ type: 'getControlState' });
+      renderControlOverview();
+      return;
+    }
+    if (key === 'benchmark') {
+      renderBenchmark();
       return;
     }
     if (!a.cls) {
@@ -533,6 +635,7 @@
     if (n.status) h += `<span class="badge">${esc(n.status)}</span> `;
     h += `<code class="muted">${esc(n.id || '')}</code></div>`;
     h += authorityLine(m.authority);
+    h += phase2Honesty(n.class);
     h += umlLine(n);
     if (n.description) h += `<div class="desc">${esc(n.description)}</div>`;
 
@@ -605,6 +708,23 @@
     return `<div class="uml">${txt}</div>`;
   }
 
+  function phase2Honesty(cls) {
+    const c = String(cls || '');
+    if (c === 'architecture_claim') {
+      return '<div class="control-warn"><b>Claim is non-authoritative.</b> It remains a maintained proposition until governance promotes or accepts the relevant knowledge.</div>';
+    }
+    if (c === 'open_question') {
+      return '<div class="control-warn"><b>Question records a closure gap.</b> It is not evidence and must stay visible until explicitly resolved.</div>';
+    }
+    if (c === 'architect_answer') {
+      return '<div class="control-warn"><b>Architect answer is not Evidence.</b> Acceptance/adjudication is separate and does not by itself prove implementation truth.</div>';
+    }
+    if (c === 'evidence_probe') {
+      return '<div class="control-warn"><b>Probe is a plan only.</b> This client does not execute probes or tests.</div>';
+    }
+    return '';
+  }
+
   function inlineAuthority(a) {
     if (!a) return '';
     const freshness = stateLabel(a.graph_freshness_state || 'GRAPH_FRESHNESS_STATE_UNSPECIFIED');
@@ -624,6 +744,8 @@
   const REL_SECTIONS = [
     ['Components', 'component'], ['Boundaries', 'boundary'], ['Contracts', 'contract'],
     ['Decisions', 'decision'], ['Evidence', 'evidence'], ['Meta-principles', 'meta_principle'],
+    ['Claims', 'architecture_claim'], ['Questions', 'open_question'],
+    ['Answers', 'architect_answer'], ['Probes', 'evidence_probe'],
     ['Design patterns', 'design_pattern'], ['Impl. patterns', 'implementation_pattern'],
     ['Pattern misuses', 'pattern_misuse'],
     ['Source files', 'source_file'], ['Tests', 'test'], ['Forbidden fixes', 'forbidden_fix'],
@@ -800,6 +922,272 @@
     const title = $('graphTitle');
     if (title) title.textContent = 'Reasoning chain';
     elSvg.innerHTML = ''; graph.center = null; selectedId = null;
+  }
+
+  // ---- Phase 2: closure and control --------------------------------------
+  function artifact(kind) {
+    return controlState && controlState.artifacts && controlState.artifacts[kind];
+  }
+
+  function artifactValue(kind, key, fallback) {
+    const a = artifact(kind);
+    return (a && a.summary && a.summary[key]) || fallback || '';
+  }
+
+  function artifactCard(kind, title, emptyLabel) {
+    const a = artifact(kind);
+    const ok = a && a.exists && a.valid;
+    let h = `<div class="control-card ${ok ? 'control-card--ok' : ''}">`;
+    h += `<div class="control-card__head"><b>${esc(title)}</b>`;
+    h += `<span class="badge">${ok ? 'selected' : emptyLabel}</span></div>`;
+    if (!a || !a.exists) {
+      h += `<div class="muted">${esc((a && a.error) || 'No artifact selected.')}</div>`;
+    } else {
+      h += `<div class="control-path">${esc(a.path || a.configured || '')}</div>`;
+      const rows = Object.entries(a.summary || {}).filter(([, v]) => v);
+      if (rows.length) {
+        h += '<dl class="control-dl">';
+        for (const [k, v] of rows) h += `<dt>${esc(k.replace(/_/g, ' '))}</dt><dd>${esc(v)}</dd>`;
+        h += '</dl>';
+      } else {
+        h += '<div class="muted">Artifact selected; no canonical summary fields recognized by the client.</div>';
+      }
+      if (a.digest) h += `<div class="muted">digest ${esc(String(a.digest).slice(0, 12))}</div>`;
+    }
+    h += '<div class="control-actions">';
+    h += `<button class="btn-mini control-act" data-control-select="${esc(kind)}">Select</button>`;
+    h += `<button class="btn-mini control-act" data-control-status="${esc(kind)}" ${ok ? '' : 'disabled'}>Status</button>`;
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderControlOverview() {
+    const task = activeTask();
+    renderTaskList(task);
+    let h = '<div class="control">';
+    if (!task || task.kind === 'none') {
+      h += noActiveTaskHtml(task);
+    } else {
+      h += activeTaskHomeHtml(task);
+    }
+    h += advancedArtifactSelectionHtml(!task || task.kind === 'none');
+    h += '</div>';
+    elDetail.innerHTML = h;
+    clearControlGraph();
+    elDetail.querySelectorAll('[data-control-select]').forEach((b) =>
+      b.addEventListener('click', () => vscode.postMessage({ type: 'selectControlArtifact', kind: b.dataset.controlSelect })));
+    elDetail.querySelectorAll('[data-control-status]').forEach((b) =>
+      b.addEventListener('click', () => vscode.postMessage({ type: 'controlStatus', kind: b.dataset.controlStatus })));
+    elDetail.querySelectorAll('[data-control-clear]').forEach((b) =>
+      b.addEventListener('click', () => vscode.postMessage({ type: 'clearControlSelection' })));
+    elDetail.querySelectorAll('[data-control-refresh]').forEach((b) =>
+      b.addEventListener('click', () => vscode.postMessage({ type: 'getControlState' })));
+    elDetail.querySelectorAll('[data-copy-command]').forEach((b) =>
+      b.addEventListener('click', () => vscode.postMessage({ type: 'copy', text: b.dataset.copyCommand })));
+  }
+
+  function controlPill(label, value) {
+    return `<div class="control-pill"><span>${esc(label)}</span><b>${esc(value || 'unknown')}</b></div>`;
+  }
+
+  function renderTaskList(task) {
+    if (!task || task.kind === 'none') {
+      elCount.textContent = 'No active task';
+      elList.innerHTML =
+        '<div class="notice"><b>No active architectural task</b><br>Closure is task-bound. Use <code>sensei prepare-change</code> to create and bind closure, convergence, admission, and next-action artifacts.</div>';
+      return;
+    }
+    const c = task.counts || {};
+    elCount.textContent = taskScopeMatches()
+      ? `${fmt(c.claims)} task claim(s) · ${fmt(c.questions)} question(s) · ${fmt(c.answers)} answer(s) · ${fmt(c.probes)} probe(s)`
+      : `Workspace task: ${task.repositoryDomain || 'unknown'} · selected graph: ${activeDomain || 'all domains'}`;
+    const rows = [
+      ['Task', task.taskId || 'unknown'],
+      ['Closure', task.closure || 'open'],
+      ['Mutation', task.admission || task.modify || 'waiting'],
+      ['Next', nextActionLabel(task.next)],
+      ['Active file', task.activeFile && task.activeFile.label],
+    ];
+    elList.innerHTML = rows.map(([label, value]) =>
+      `<div class="control-list-row"><span>${esc(label)}</span><b>${esc(value || 'unknown')}</b></div>`
+    ).join('');
+  }
+
+  function noActiveTaskHtml(task) {
+    let h = '<div class="control-empty">';
+    h += '<h2>No active architectural task</h2>';
+    h += '<p class="muted">Closure and admission are task-bound. The dashboard will not infer safety from graph-wide Claims, Questions, Answers, or Probes.</p>';
+    h += '<div class="control-actions control-actions--top">';
+    h += '<button class="btn-mini" data-copy-command="sensei prepare-change --help">Prepare command</button>';
+    h += '<button class="btn-mini" data-copy-command="sensei task-status --active --verify">Check active task</button>';
+    h += '<button class="btn-mini control-act" data-control-refresh>Advanced artifact selection</button>';
+    h += '</div>';
+    if (task && task.errors && task.errors.length) {
+      h += `<div class="control-warn">${esc(task.errors.join('; '))}</div>`;
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function activeTaskHomeHtml(task) {
+    const authority = metadataAuthority(meta);
+    const verified = task.verified === true ? 'verified' : task.verified === false ? 'not verified' : 'local pointer';
+    let h = '<div class="task-home">';
+    h += '<div class="task-head">';
+    h += `<div><h2>${esc(task.description || 'Active architectural task')}</h2>`;
+    h += `<div class="sub"><code>${esc(task.taskId || '')}</code> · ${esc(task.repositoryDomain || 'unknown repo')} · rev ${esc(short(task.revision))} · graph ${esc(short(task.graphDigest))}</div></div>`;
+    h += `<span class="badge">${esc(verified)}</span>`;
+    h += '</div>';
+    if (!taskScopeMatches()) {
+      h += `<div class="control-warn"><b>Graph/task scope mismatch.</b> The selected graph is <code>${esc(activeDomain)}</code>, but the active task belongs to <code>${esc(task.repositoryDomain || 'unknown')}</code>. Open that repository workspace to inspect its task dialogue; this task does not establish closure or admission for the selected graph.</div>`;
+    }
+    h += '<div class="control-strip">';
+    h += controlPill('Graph', authority.authoritative ? 'current' : 'not trusted');
+    h += controlPill('Closure', task.closure || 'open');
+    h += controlPill('Convergence', task.convergence || 'pending');
+    h += controlPill('Inspect', task.inspect || 'waiting');
+    h += controlPill('Modify', task.modify || task.admission || 'waiting');
+    h += '</div>';
+    h += '<div class="control-honesty"><b>Bounded closure is not repository-wide understanding.</b> Admission is permission to attempt, not proof of correctness. Verification checks scope only.</div>';
+    h += nextActionHtml(task);
+    h += '<div class="control-grid">';
+    h += taskCountsCard(task);
+    h += envelopeCard(task);
+    h += governanceBridgeCard(task);
+    h += verificationCard(task);
+    h += '</div>';
+    h += artifactHealthHtml(task);
+    return h + '</div>';
+  }
+
+  function nextActionHtml(task) {
+    const next = task.next || {};
+    let h = '<div class="next-action">';
+    h += '<span>Next required action</span>';
+    h += `<b>${esc(nextActionLabel(next))}</b>`;
+    if (next.summary) h += `<p>${esc(next.summary)}</p>`;
+    if (next.reference) h += `<code>${esc(next.reference)}</code>`;
+    return h + '</div>';
+  }
+
+  function nextActionLabel(next) {
+    if (!next) return 'prepare change';
+    return [next.action, next.reference].filter(Boolean).join(' ') || 'prepare change';
+  }
+
+  function taskCountsCard(task) {
+    const c = task.counts || {};
+    return `<div class="control-card"><div class="control-card__head"><b>Task dialogue</b><span class="badge">task-local</span></div>`
+      + `<dl class="control-dl"><dt>claims</dt><dd>${fmt(c.claims)}</dd><dt>questions</dt><dd>${fmt(c.questions)}</dd><dt>answers</dt><dd>${fmt(c.answers)}</dd><dt>probes</dt><dd>${fmt(c.probes)}</dd></dl>`
+      + `<div class="muted">Graph tab counts remain repository or domain inventory; these counts come only from the active task artifacts.</div></div>`;
+  }
+
+  function envelopeCard(task) {
+    const af = task.activeFile || {};
+    let h = '<div class="control-card">';
+    h += '<div class="control-card__head"><b>Admission envelope</b><span class="badge">exact paths</span></div>';
+    h += `<div class="control-big">${esc(af.label || 'No active editor file')}</div>`;
+    if (af.relativePath) h += `<div class="control-path">${esc(af.relativePath)}</div>`;
+    h += '<div class="section"><h4>Modify</h4>' + pathList(task.modifyEnvelope) + '</div>';
+    h += '<div class="section"><h4>Read</h4>' + pathList(task.readEnvelope) + '</div>';
+    return h + '</div>';
+  }
+
+  function governanceBridgeCard(task) {
+    const answers = Number((task.counts && task.counts.answers) || 0);
+    return `<div class="control-card"><div class="control-card__head"><b>Governance bridge</b><span class="badge">review</span></div>`
+      + `<div class="control-big">${fmt(answers)}</div>`
+      + '<div class="muted">Accepted answers are reviewable governance candidates. The dashboard does not promote them automatically.</div></div>';
+  }
+
+  function verificationCard(task) {
+    let h = '<div class="control-card">';
+    h += '<div class="control-card__head"><b>Verification</b><span class="badge">scope only</span></div>';
+    h += `<div class="control-big">${esc(task.verified === true ? 'trusted' : task.verified === false ? 'not trusted' : 'pending')}</div>`;
+    h += `<dl class="control-dl"><dt>phase</dt><dd>${esc(task.phase || 'unknown')}</dd><dt>status</dt><dd>${esc(task.status || 'unknown')}</dd><dt>proof</dt><dd>pending</dd><dt>correctness certified</dt><dd>no</dd></dl>`;
+    if (task.verifyErrors && task.verifyErrors.length) h += `<div class="control-warn">${esc(task.verifyErrors.join('; '))}</div>`;
+    return h + '</div>';
+  }
+
+  function artifactHealthHtml(task) {
+    const rows = task.artifactHealth || [];
+    if (!rows.length) return '';
+    let h = '<details class="control-advanced"><summary>Task artifact receipts</summary><div class="control-grid">';
+    for (const r of rows) {
+      h += `<div class="control-card ${r.exists ? 'control-card--ok' : ''}"><div class="control-card__head"><b>${esc(String(r.name).replace(/_/g, ' '))}</b><span class="badge">${r.exists ? 'present' : 'missing'}</span></div>`;
+      h += `<div class="control-path">${esc(r.path || '')}</div>`;
+      if (r.digest) h += `<div class="muted">digest ${esc(r.digest)}</div>`;
+      if (r.error) h += `<div class="muted">${esc(r.error)}</div>`;
+      h += '</div>';
+    }
+    return h + '</div></details>';
+  }
+
+  function advancedArtifactSelectionHtml(open) {
+    let h = `<details class="control-advanced" ${open ? 'open' : ''}><summary>Advanced artifact selection</summary>`;
+    h += '<div class="muted">Manual selections are for inspection only. They do not activate a task and do not establish admission.</div>';
+    h += '<div class="control-grid">';
+    h += artifactCard('closure', 'Closure assessment', 'not assessed');
+    h += artifactCard('convergence', 'Convergence session', 'not selected');
+    h += artifactCard('admission', 'Admission decision', 'not established');
+    h += artifactCard('verification', 'Admission verification', 'not verified');
+    h += '</div>';
+    h += '<div class="control-actions control-actions--top">';
+    h += '<button class="btn-mini control-act" data-control-clear>Clear selections</button>';
+    h += '<button class="btn-mini control-act" data-control-refresh>Refresh artifacts</button>';
+    h += '</div>';
+    h += controlStatusBlocks();
+    return h + '</details>';
+  }
+
+  function pathList(paths) {
+    if (!paths || !paths.length) return '<div class="muted">none</div>';
+    return '<ul class="path-list">' + paths.map((p) => `<li><code>${esc(p)}</code></li>`).join('') + '</ul>';
+  }
+
+  function short(v) {
+    return v ? String(v).slice(0, 10) : 'unknown';
+  }
+
+  function controlStatusBlocks() {
+    const entries = Object.entries(controlStatus).filter(([, v]) => v);
+    if (!entries.length) return '';
+    let h = '<div class="control-statuses">';
+    for (const [kind, m] of entries) {
+      h += `<div class="opsum ${m.ok ? 'opsum--ok' : 'opsum--bad'}"><b>${esc(kind)} status</b>`;
+      if (m.message && !m.ok) h += `<div>${esc(m.message)}</div>`;
+      if (m.stdout) h += `<pre>${esc(m.stdout)}</pre>`;
+      if (m.stderr) h += `<pre>${esc(m.stderr)}</pre>`;
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+
+  function clearControlGraph() {
+    const title = $('graphTitle');
+    if (title) title.textContent = 'Phase 2 state';
+    elSvg.innerHTML = '';
+    graph.center = null;
+    selectedId = null;
+  }
+
+  function renderBenchmark() {
+    elCount.textContent = 'External proof';
+    elList.innerHTML = '<div class="notice">Benchmark status is metadata visibility only. There is no network, agent, test, oracle, or evaluation execution button here.</div>';
+    let h = '<div class="control">';
+    h += '<div class="control-honesty"><b>External proof is separate from closure and admission.</b> The client does not calculate a composite benchmark score.</div>';
+    h += '<div class="control-grid">';
+    h += benchmarkCard('State', (meta && meta.benchmark_state) || 'BENCHMARK_STATE_UNSPECIFIED');
+    h += benchmarkCard('Contracts', fmt(meta && meta.benchmark_contract_count));
+    h += benchmarkCard('Learning events', fmt(meta && meta.benchmark_learning_event_count));
+    h += benchmarkCard('Latest task', (meta && meta.benchmark_latest_task_id) || 'none');
+    h += '</div></div>';
+    elDetail.innerHTML = h;
+    clearControlGraph();
+  }
+
+  function benchmarkCard(title, value) {
+    return `<div class="control-card"><div class="control-card__head"><b>${esc(title)}</b></div><div class="control-big">${esc(value)}</div></div>`;
   }
 
   // ---- candidates --------------------------------------------------------

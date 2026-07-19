@@ -31,6 +31,7 @@ func TestBearerToken(t *testing.T) {
 }
 
 func TestTokenFromEnv(t *testing.T) {
+	t.Setenv(LegacyTokenEnv, "")
 	t.Setenv(TokenEnv, "  tok  ")
 	if got := TokenFromEnv(); got != "tok" {
 		t.Errorf("TokenFromEnv = %q, want trimmed 'tok'", got)
@@ -38,5 +39,18 @@ func TestTokenFromEnv(t *testing.T) {
 	t.Setenv(TokenEnv, "")
 	if got := TokenFromEnv(); got != "" {
 		t.Errorf("unset/empty must be '', got %q", got)
+	}
+}
+
+func TestTokenFromEnvLegacyFallback(t *testing.T) {
+	t.Setenv(TokenEnv, "")
+	t.Setenv(LegacyTokenEnv, "  legacy  ")
+	if got := TokenFromEnv(); got != "legacy" {
+		t.Errorf("TokenFromEnv legacy fallback = %q, want trimmed 'legacy'", got)
+	}
+
+	t.Setenv(TokenEnv, "  sensei  ")
+	if got := TokenFromEnv(); got != "sensei" {
+		t.Errorf("TokenFromEnv should prefer %s over %s, got %q", TokenEnv, LegacyTokenEnv, got)
 	}
 }

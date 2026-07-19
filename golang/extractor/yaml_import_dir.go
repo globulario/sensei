@@ -136,6 +136,15 @@ type schemaEntry struct {
 	description string // one-line description for report output
 }
 
+type AwarenessSourceDescriptor struct {
+	Path                      string
+	Schema                    string
+	Phase                     string
+	ImporterID                string
+	SourceClass               string
+	CanonicalMutationEligible bool
+}
+
 // keySchemas is an ordered (priority) table mapping top-level YAML keys to
 // schema entries. The first matching key wins. Importable schemas are listed
 // first so they are never shadowed by a broader match.
@@ -150,6 +159,9 @@ var keySchemas = []struct {
 	{"invariants", schemaEntry{"invariants", true, false, "A", "invariant rules"}},
 	{"failure_modes", schemaEntry{"failure_modes", true, false, "A", "failure mode catalogue"}},
 	{"incident_patterns", schemaEntry{"incident_patterns", true, false, "A", "incident pattern library"}},
+	{"architecture_claims", schemaEntry{"architecture_claims", true, false, "A", "generated non-authoritative architecture claims"}},
+	{"architecture_dialogue", schemaEntry{"architecture_dialogue", true, false, "A", "generated non-authoritative architecture dialogue"}},
+	{"architecture_evidence_probes", schemaEntry{"architecture_evidence_probes", true, false, "A", "generated non-authoritative evidence probe plans"}},
 
 	// ── Phase B — importers now implemented ──────────────────────────────
 	{"forbidden_fixes", schemaEntry{"forbidden_fixes", true, false, "B", "forbidden fix registry"}},
@@ -160,6 +172,11 @@ var keySchemas = []struct {
 	{"design_patterns", schemaEntry{"design_patterns", true, false, "B", "design patterns (verbose)"}},
 	{"services", schemaEntry{"services", true, false, "B", "service catalogue"}},
 	{"authority_domains", schemaEntry{"authority_domains", true, false, "B", "state-ownership authority domains"}},
+	{"actor_roles", schemaEntry{"actor_roles", true, false, "B", "typed actor role policy"}},
+	{"authority_grants", schemaEntry{"authority_grants", true, false, "B", "typed authority grants"}},
+	{"delegation_policies", schemaEntry{"delegation_policies", true, false, "B", "typed delegation policies"}},
+	{"mutation_paths", schemaEntry{"mutation_paths", true, false, "B", "typed mutation path policy"}},
+	{"observation_paths", schemaEntry{"observation_paths", true, false, "B", "typed observation path policy"}},
 	{"runtime_evidence", schemaEntry{"runtime_evidence", true, false, "B", "runtime evidence profiles"}},
 	{"proof_obligations", schemaEntry{"proof_obligations", true, false, "B", "proof obligations derived from authority surfaces"}},
 	{"learning_event", schemaEntry{"learning_event", true, false, "B", "mode-d learning and certification event"}},
@@ -191,6 +208,7 @@ var keySchemas = []struct {
 	{"files", schemaEntry{"high_risk_files", true, false, "B", "high-risk file list"}},
 	{"activation_rules", schemaEntry{"activation_rules", true, false, "B", "awareness activation rule registry"}},
 	{"version", schemaEntry{"versioned_doc", true, false, "B", "versioned contract document"}},
+	{"incidents", schemaEntry{"incidents", true, false, "B", "incident records"}},
 	{"incident_id", schemaEntry{"incident", true, false, "B", "individual incident record"}},
 
 	// ── Architectural spine (Stage A) — MUST be last among importable schemas ──
@@ -301,6 +319,118 @@ func detectSchema(raw map[string]any) (schemaEntry, bool) {
 	return schemaEntry{}, false
 }
 
+func DescribeAwarenessSource(path string) (AwarenessSourceDescriptor, bool, error) {
+	rawPath := path
+	path = normalizeAwarenessDescriptorPath(path)
+	if !strings.HasSuffix(path, ".yaml") {
+		return AwarenessSourceDescriptor{}, false, nil
+	}
+	data, err := os.ReadFile(rawPath)
+	if err != nil {
+		return AwarenessSourceDescriptor{}, false, err
+	}
+	var raw map[string]any
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return AwarenessSourceDescriptor{}, false, err
+	}
+	if raw == nil {
+		return AwarenessSourceDescriptor{}, false, nil
+	}
+	entry, ok := detectSchema(raw)
+	if !ok || !entry.importable {
+		return AwarenessSourceDescriptor{}, false, nil
+	}
+	desc, ok := awarenessMutationDescriptorFor(filepath.ToSlash(path), entry)
+	if !ok {
+		return AwarenessSourceDescriptor{}, false, nil
+	}
+	return desc, true, nil
+}
+
+func awarenessMutationDescriptorFor(path string, entry schemaEntry) (AwarenessSourceDescriptor, bool) {
+	path = normalizeAwarenessDescriptorPath(path)
+	if path == "" || strings.Contains(path, "/candidates/") || strings.Contains(path, "/generated/") || strings.HasPrefix(path, ".sensei/") {
+		return AwarenessSourceDescriptor{}, false
+	}
+	desc := AwarenessSourceDescriptor{
+		Path:        path,
+		Schema:      entry.name,
+		Phase:       entry.phase,
+		ImporterID:  awarenessMutationImporterID(entry.name),
+		SourceClass: awarenessMutationSourceClass(entry.name),
+	}
+	if desc.ImporterID == "" || desc.SourceClass == "" {
+		return AwarenessSourceDescriptor{}, false
+	}
+	switch entry.name {
+	case "invariants", "failure_modes":
+		desc.CanonicalMutationEligible = path == "docs/awareness/"+filepath.Base(path)
+	case "components", "boundaries", "evidence", "architecture_contracts":
+		desc.CanonicalMutationEligible = strings.HasPrefix(path, "docs/awareness/architecture/") && strings.HasSuffix(path, ".yaml")
+	case "intent":
+		desc.CanonicalMutationEligible = strings.HasPrefix(path, "docs/intent/") && strings.HasSuffix(path, ".yaml")
+	default:
+		desc.CanonicalMutationEligible = false
+	}
+	if !desc.CanonicalMutationEligible {
+		return AwarenessSourceDescriptor{}, false
+	}
+	return desc, true
+}
+
+func normalizeAwarenessDescriptorPath(path string) string {
+	path = filepath.ToSlash(strings.TrimSpace(path))
+	if idx := strings.Index(path, "/docs/"); idx >= 0 {
+		return strings.TrimPrefix(path[idx+1:], "./")
+	}
+	if idx := strings.Index(path, "/.sensei/"); idx >= 0 {
+		return strings.TrimPrefix(path[idx+1:], "./")
+	}
+	return strings.TrimPrefix(path, "./")
+}
+
+func awarenessMutationImporterID(schema string) string {
+	switch strings.TrimSpace(schema) {
+	case "invariants":
+		return "awareness.invariant_yaml_import.v1"
+	case "failure_modes":
+		return "awareness.failure_mode_yaml_import.v1"
+	case "components":
+		return "awareness.component_yaml_import.v1"
+	case "boundaries":
+		return "awareness.boundary_yaml_import.v1"
+	case "architecture_contracts":
+		return "awareness.architecture_contract_yaml_import.v1"
+	case "evidence":
+		return "awareness.evidence_yaml_import.v1"
+	case "intent":
+		return "awareness.intent_yaml_import.v1"
+	default:
+		return ""
+	}
+}
+
+func awarenessMutationSourceClass(schema string) string {
+	switch strings.TrimSpace(schema) {
+	case "invariants":
+		return "canonical_awareness_invariant_registry"
+	case "failure_modes":
+		return "canonical_awareness_failure_mode_registry"
+	case "components":
+		return "canonical_awareness_component_registry"
+	case "boundaries":
+		return "canonical_awareness_boundary_registry"
+	case "architecture_contracts":
+		return "canonical_awareness_contract_registry"
+	case "evidence":
+		return "canonical_awareness_evidence_registry"
+	case "intent":
+		return "canonical_awareness_intent_document"
+	default:
+		return ""
+	}
+}
+
 // classifyAndImport reads one YAML file, detects its schema, and imports it
 // if a registered importer exists. It is the inner loop of ImportAwarenessDir.
 //
@@ -388,6 +518,12 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importFailureModes(e, path)
 	case "incident_patterns":
 		importErr = importIncidentPatterns(e, path)
+	case "architecture_claims":
+		importErr = importArchitectureClaims(e, path)
+	case "architecture_dialogue":
+		importErr = importArchitectureDialogue(e, path)
+	case "architecture_evidence_probes":
+		importErr = importArchitectureEvidenceProbes(e, path)
 	// Phase B
 	case "forbidden_fixes":
 		importErr = importForbiddenFixes(e, path)
@@ -397,6 +533,8 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importContracts(e, path)
 	case "incident":
 		importErr = importIncident(e, path)
+	case "incidents":
+		importErr = importIncidents(e, path)
 	case "decisions":
 		importErr = importDecisions(e, path)
 	case "guardrails":
@@ -419,6 +557,16 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importOutcomeFeedback(e, path)
 	case "authority_domains":
 		importErr = importAuthorityDomains(e, path)
+	case "actor_roles":
+		importErr = importActorRoles(e, path)
+	case "authority_grants":
+		importErr = importAuthorityGrants(e, path)
+	case "delegation_policies":
+		importErr = importDelegationPolicies(e, path)
+	case "mutation_paths":
+		importErr = importMutationPaths(e, path)
+	case "observation_paths":
+		importErr = importObservationPaths(e, path)
 	case "repair_plan":
 		importErr = importRepairPlan(e, path)
 	case "runtime_evidence":

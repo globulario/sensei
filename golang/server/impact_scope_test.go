@@ -83,6 +83,23 @@ func TestCollectImpact_SingleDomainUnscoped_ReturnsAll(t *testing.T) {
 	}
 }
 
+func TestCollectImpact_UnknownRequestedDomainFailsClosed(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return scopeFacts(map[string]string{"globular.rule.a": ""}), nil
+			},
+		},
+		domains: []string{"github.com/globulario/sensei"},
+	})
+	s.homeDomain = "github.com/globulario/sensei"
+
+	_, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/example/missing")
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("unknown requested domain must fail closed, got %v", err)
+	}
+}
+
 // Mixed-domain result with no scope → fail closed (FailedPrecondition), never
 // a mixed result set.
 func TestCollectImpact_MixedDomainUnscoped_FailsClosed(t *testing.T) {
@@ -119,6 +136,33 @@ func TestCollectImpact_CaddyScope_NoGlobularLeak(t *testing.T) {
 	}
 	if !hasID(ids, "meta.absence_scope") {
 		t.Fatalf("shared meta-principle must be visible in any scope: %v", ids)
+	}
+}
+
+func TestQueryByFile_HonorsDomainScope(t *testing.T) {
+	facts := scopeFacts(map[string]string{
+		"globular.rule.a":    "",
+		"caddy.rule.rewrite": "github.com/caddyserver/caddy",
+		"meta.absence_scope": rdf.DomainShared,
+	})
+	s := newScopeServer(facts, "globular")
+	resp, err := s.Query(context.Background(), &awarenesspb.QueryRequest{
+		Mode:   awarenesspb.QueryMode_QUERY_MODE_BY_FILE,
+		File:   "f.go",
+		Domain: "github.com/caddyserver/caddy",
+	})
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	var ids []string
+	for _, row := range resp.GetRows() {
+		ids = append(ids, row.GetId())
+	}
+	if hasID(ids, "invariant:globular.rule.a") {
+		t.Fatalf("globular rule leaked into caddy query scope: %v", ids)
+	}
+	if !hasID(ids, "invariant:caddy.rule.rewrite") || !hasID(ids, "invariant:meta.absence_scope") {
+		t.Fatalf("scoped query missing caddy/shared rows: %v", ids)
 	}
 }
 

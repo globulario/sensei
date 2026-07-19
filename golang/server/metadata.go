@@ -119,8 +119,7 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	// Per-class counts. Graph-wide by default (fast COUNT); when a domain is
 	// requested, count only nodes visible to it (reusing InScope over the facts
 	// ClassFacts already returns) so a multi-domain graph reports this project's
-	// totals. triple_count stays the raw store size — triples are not cleanly
-	// domain-attributable — so the client labels it graph-wide.
+	// totals.
 	domain := strings.TrimSpace(req.GetDomain())
 	countClass := func(classIRI string) int64 {
 		if domain == "" {
@@ -139,16 +138,13 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 		return countClassInScope(facts, s.homeDomain, domain)
 	}
 
-	// triple_count: graph-wide by default; when a domain is requested and the
-	// store can attribute triples, count only that domain's (each triple by its
-	// subject's domain — repo/shared/home).
+	// triple_count follows the same scope as the class counts. It is graph-wide
+	// by default and scoped to the selected repo/shared slice when requested.
 	if domain != "" {
 		if tc, ok := s.store.(tripleDomainCounter); ok {
 			if n, err := tc.CountTriplesInDomain(ctx, domain, s.homeDomain); err == nil {
 				resp.TripleCount = n
 			}
-		} else if n, err := c.CountTriples(ctx); err == nil {
-			resp.TripleCount = n
 		}
 	} else if n, err := c.CountTriples(ctx); err == nil {
 		resp.TripleCount = n
@@ -173,6 +169,10 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	resp.DesignPatternCount = countClass(rdf.ClassDesignPattern)
 	resp.ImplementationPatternCount = countClass(rdf.ClassImplementationPattern)
 	resp.PatternMisuseCount = countClass(rdf.ClassPatternMisuse)
+	resp.ArchitectureClaimCount = countClass(rdf.ClassArchitectureClaim)
+	resp.OpenQuestionCount = countClass(rdf.ClassOpenQuestion)
+	resp.ArchitectAnswerCount = countClass(rdf.ClassArchitectAnswer)
+	resp.EvidenceProbeCount = countClass(rdf.ClassEvidenceProbe)
 
 	resp.BuildProvenanceState = classifyBuildProvenance(resp)
 	resp.CoverageState = classifyCoverage(resp)
