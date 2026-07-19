@@ -18,7 +18,12 @@ type Requirement struct {
 // SingleFileChecker evaluates single file content and graph impact.
 type SingleFileChecker interface {
 	CheckFile(ctx context.Context, file string, content string, domain string) ([]AuditFinding, error)
-	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []Requirement, contracts []Requirement, RelevantRules []string, err error)
+	// GetFileImpact returns the file's governed obligations plus the observed
+	// authority commit of the rule snapshot that produced them. An authoritative
+	// graph must always expose a non-empty commit; the implementation fails
+	// closed (returns an error) when it cannot, so a successful call always
+	// carries an identity the result can bind its digest to.
+	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []Requirement, contracts []Requirement, RelevantRules []string, graphCommit string, err error)
 }
 
 // BaseFileReader optionally reads the un-edited base content of a file from the repository.
@@ -131,13 +136,27 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 			readPath = patch.OldPath
 		}
 
-		// 1. Gather file impact (required tests, contracts, and relevant rules)
-		tests, contracts, rules, err := checker.GetFileImpact(ctx, readPath, opts.Domain)
+		// 1. Gather file impact (required tests, contracts, relevant rules, and
+		//    the observed authority commit of the rule snapshot).
+		tests, contracts, rules, graphCommit, err := checker.GetFileImpact(ctx, readPath, opts.Domain)
 		if err != nil {
 			result.Availability = AvailabilityCannotVerify
 			result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
 			result.Limitations = append(result.Limitations, fmt.Sprintf("graph impact query failed for %s: %v", readPath, err))
 		} else {
+			// Bind the result to the rule snapshot that produced it. The commit
+			// must be consistent across every file in one audit (one graph, one
+			// authority); a divergence means the snapshot shifted mid-audit and
+			// the result cannot be trusted.
+			if graphCommit != "" {
+				if result.GraphCommit == "" {
+					result.GraphCommit = graphCommit
+				} else if result.GraphCommit != graphCommit {
+					result.Availability = AvailabilityCannotVerify
+					result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
+					result.Limitations = append(result.Limitations, fmt.Sprintf("graph authority commit inconsistent across files: %s vs %s", result.GraphCommit, graphCommit))
+				}
+			}
 			for _, t := range tests {
 				result.ImplicatedTests = append(result.ImplicatedTests, t.ID)
 				allTests = append(allTests, t)
