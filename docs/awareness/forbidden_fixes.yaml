@@ -258,3 +258,17 @@ forbidden_fixes:
       - closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
     reason: composing binding validation in front of the completion decision is the only thing that stops a valid completion being laundered onto an unrelated change; letting the owner run first, or degrading on an invalid binding, reopens the passport swap and the runtime-degradation bypass
     contract: binding validation precedes the completion evaluation; the owner is never invoked before an authoritative binding is accepted; an invalid binding always blocks and never degrades
+  - id: phase9_briefing_feedback_parses_promotion_error_text_or_reimplements_verification
+    title: parse questionpromotion error strings or reimplement/duplicate promotion verification for briefing feedback
+    summary: Classify a promotion verification outcome by parsing its error message, re-read promotion journals/receipts/governed-source/graph in briefingfeedback to reconstruct verification, or reimplement committed-promotion verification / scope / relevance / classification in the server or task briefing instead of the one canonical owner.
+    related_invariants:
+      - closure.briefing_feedback_is_verified_scoped_and_single_owner
+    reason: verification and its typed cause are owned by questionpromotion; a second implementation (or error-text parsing) drifts, and platform error text is nondeterministic — classification must come from a typed verification cause, and there must be exactly one feedback owner
+    contract: briefingfeedback classifies from questionpromotion's TYPED verification cause; verification lives once in questionpromotion; the feedback projection has one canonical owner both consumers share
+  - id: phase9_briefing_feedback_infers_scope_or_leaks_or_owns_feedback_elsewhere
+    title: infer promotion scope by normalization/fallback, leak task-local answers, let debris poison scope, or move the feedback owner into server/editor
+    summary: Admit a promotion by trimming/case-folding/basename/prefix/suffix/domain-or-file fallback, treat graph adjacency / claimed scope / issuer / status as authority, let an unrelated broken promotion degrade the requested briefing, render raw answer text as reusable governed knowledge, treat a feedback outage as proof no promoted knowledge exists, or let the future server/editor become the feedback owner.
+    related_invariants:
+      - closure.briefing_feedback_is_verified_scoped_and_single_owner
+    reason: exact verified scope is the only admission authority; unrelated debris and task-local dialogue must never enter reusable governed briefing context; the canonical owner (not the server or editor) decides feedback
+    contract: admission requires exact VERIFIED domain+file scope; untrusted claims only route relevance; unrelated debris never poisons scope; raw answer text is never governed knowledge; a feedback outage is typed-unavailable, not emptiness; briefingfeedback is the sole owner
