@@ -143,7 +143,11 @@ func ValidateProjection(p Projection) error {
 	if hasWhitespace(p.RepositoryIdentity) {
 		return fmt.Errorf("feedback projection repository identity is malformed")
 	}
-	if p.Availability != FeedbackInvalid && p.RepositoryIdentity == "" {
+	// An ESTABLISHED projection (the owner ran against a real repository) must carry a present,
+	// canonical repository identity. A fail-closed carrier (invalid request, or unavailable when
+	// no repository context is established) may blank the identity that could not be established.
+	established := p.Availability == FeedbackAvailable || p.Availability == FeedbackEmpty || p.Availability == FeedbackDegraded
+	if established && p.RepositoryIdentity == "" {
 		return fmt.Errorf("feedback projection repository identity is empty")
 	}
 	if p.RequestedDomain != "" {
