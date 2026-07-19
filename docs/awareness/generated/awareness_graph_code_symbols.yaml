@@ -1876,18 +1876,18 @@ test_symbols:
     package: main
     language: go
     doc: "Available not_completed: reports availability + verdict + all three distinctions, exits\n0, and mutates NOTHING — proven by a full file-content snapshot, the assessment digest,\nand the ledger head, not merely the terminal-state enum."
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_EnforceRoutingAndPolicyGuards
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_EnforceRoutingAndPolicyGuards
+    package: main
+    language: go
+    doc: "9.4b routing: enforce requests reach the enforce path (and, with no completion policy\nadopted, pass — enforcement never activates without opt-in); advisory requests are\nunchanged and still consult no policy."
   - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_JSONNestedEnvelope
     file: cmd/awg/cmd_gate_completion_test.go
     symbol: TestGateCompletion_JSONNestedEnvelope
     package: main
     language: go
     doc: "JSON is the typed publication union with the nested available envelope, exact verdict,\nterminal state, authoritative boolean, and exactly three distinctions."
-  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_RejectsExplicitEnforcement
-    file: cmd/awg/cmd_gate_completion_test.go
-    symbol: TestGateCompletion_RejectsExplicitEnforcement
-    package: main
-    language: go
-    doc: "9.4a must reject an explicit enforcement request rather than silently downgrade it —\nbut advisory/report-only requests pass."
   - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_RequiresTaskDir
     file: cmd/awg/cmd_gate_completion_test.go
     symbol: TestGateCompletion_RequiresTaskDir
@@ -3590,6 +3590,161 @@ test_symbols:
     symbol: TestCDPDispatch_PropagatesProtocolError
     package: main
     language: go
+  - id: cmd/awg/completion_decision_test.go:TestDecideCompletionEnforcement_Matrix
+    file: cmd/awg/completion_decision_test.go
+    symbol: TestDecideCompletionEnforcement_Matrix
+    package: main
+    language: go
+    doc: "The full frozen 9.4b decision table, exercised purely."
+  - id: cmd/awg/completion_decision_test.go:TestDecideCompletionEnforcement_SafetyRules
+    file: cmd/awg/completion_decision_test.go
+    symbol: TestDecideCompletionEnforcement_SafetyRules
+    package: main
+    language: go
+    doc: "Global safety rules that hold regardless of verdict/cause."
+  - id: cmd/awg/completion_decision_test.go:TestGateCompletionEnforce_EndToEnd
+    file: cmd/awg/completion_decision_test.go
+    symbol: TestGateCompletionEnforce_EndToEnd
+    package: main
+    language: go
+    doc: "End-to-end wiring: the enforce path routes policy + envelope through the decision and\nmaps the result to exit codes, without changing advisory or non-opted-in behavior."
+  - id: cmd/awg/completion_decision_test.go:TestGateCompletionEnforce_IdentityInvalidBlocks
+    file: cmd/awg/completion_decision_test.go
+    symbol: TestGateCompletionEnforce_IdentityInvalidBlocks
+    package: main
+    language: go
+    doc: "Identity-invalid end-to-end: a cross-repo request under required completion blocks as\nan identity failure — it never degrades to a pass."
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_DecisionDeterministic
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_DecisionDeterministic
+    package: main
+    language: go
+    doc: "The pure decision is deterministic across repeated evaluation."
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_DomainIsolationStable
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_DomainIsolationStable
+    package: main
+    language: go
+    doc: "Evaluating one domain does not activate completion for another, and policy resolution\nis not mutated by repeated evaluation (loader holds no cross-call state)."
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_DomainLookalikesDoNotInherit
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_DomainLookalikesDoNotInherit
+    package: main
+    language: go
+    doc: "A domain identity that only RESEMBLES an opted-in domain (case, prefix, suffix,\nparent, whitespace) never inherits its enforcement — exact identity only."
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_ExitCodeContract
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_ExitCodeContract
+    package: main
+    language: go
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_InvalidPolicyNeverCollapses
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_InvalidPolicyNeverCollapses
+    package: main
+    language: go
+    doc: "Invalid policy combined with an otherwise authoritative task still fails loudly — it\nnever collapses to absent/advisory/not-required and never lets the task pass."
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_PublicationLaunderingFailsClosed
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_PublicationLaunderingFailsClosed
+    package: main
+    language: go
+    doc: "No malformed, contradictory, or unknown publication can be laundered into a pass or a\ndegraded pass under required completion."
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_StableReasonCodeInJSON
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_StableReasonCodeInJSON
+    package: main
+    language: go
+    doc: "The JSON enforce result carries a STABLE typed reason code, asserted independently of\nany human-readable prose."
+  - id: cmd/awg/completion_enforce_adversarial_test.go:TestAdversarial_UnsupportedNotLaunderedToNotCompleted
+    file: cmd/awg/completion_enforce_adversarial_test.go
+    symbol: TestAdversarial_UnsupportedNotLaunderedToNotCompleted
+    package: main
+    language: go
+    doc: "unsupported is never reclassified as not_completed — distinct reasons, both block."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_AdvisoryListedIsPresentNotRequired
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_AdvisoryListedIsPresentNotRequired
+    package: main
+    language: go
+    doc: "A domain listed with mode advisory and no require_completion is present, not required."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_Deterministic
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_Deterministic
+    package: main
+    language: go
+    doc: "Proof 7: resolution is deterministic — the same configuration resolves identically\nevery time, for valid and invalid inputs alike."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_DoesNotDisturbEditCheckPolicy
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_DoesNotDisturbEditCheckPolicy
+    package: main
+    language: go
+    doc: "Proof 8 (part): a gate-policy file that ADDS a completion section is still parsed\nunchanged by the existing EditCheck loader — the completion section does not disturb\nthe Rules map, and the completion loader does not require the EditCheck keys."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_DomainMatchIsExactNoFallback
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_DomainMatchIsExactNoFallback
+    package: main
+    language: go
+    doc: "Domain matching is exact identity — no case folding, prefix stripping, basename, or\nother fallback lookup path."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_ExposesTypedDomainPolicy
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_ExposesTypedDomainPolicy
+    package: main
+    language: go
+    doc: "The resolved per-domain policy (the typed API the enforce checkpoint will consume)\nexposes the effective mode and require flag without enforcing anything here."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_InvalidFailsLoudly
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_InvalidFailsLoudly
+    package: main
+    language: go
+    doc: "Proofs 4 & 5 & malformed variants: every invalid policy fails loudly with a non-nil\nerror AND the typed invalid state — never absent, never a silent valid result."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_InvalidZeroValueIsNotAbsent
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_InvalidZeroValueIsNotAbsent
+    package: main
+    language: go
+    doc: "The invalid zero value never masquerades as absent: they are distinct constants and\ndistinct strings, and an uninitialized result reads as invalid, not absent."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_MissingExplicitPathIsLoud
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_MissingExplicitPathIsLoud
+    package: main
+    language: go
+    doc: "A missing EXPLICIT policy path is loud (an error), matching resolveGatePolicy — asking\nfor a policy that isn't there must not be silently treated as absent."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_NoFileIsAbsent
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_NoFileIsAbsent
+    package: main
+    language: go
+    doc: "Proof 8 (part): no policy FILE at all preserves current behavior — absent, no error."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_NoSectionIsAbsent
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_NoSectionIsAbsent
+    package: main
+    language: go
+    doc: "Proof 1: a policy with no completion section loads as absent (nil error)."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_OneDomainDoesNotActivateAnother
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_OneDomainDoesNotActivateAnother
+    package: main
+    language: go
+    doc: "One domain's opt-in never activates another domain's gate, and an unlisted domain is\nabsent even when the file enforces for a different domain."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_RequireFalseIsPresentNotRequired
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_RequireFalseIsPresentNotRequired
+    package: main
+    language: go
+    doc: "Proof 2: require_completion:false loads successfully and is DISTINCT from absent."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_RequireTrueIsPresentRequired
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_RequireTrueIsPresentRequired
+    package: main
+    language: go
+    doc: "Proof 3: require_completion:true loads successfully as present_required."
+  - id: cmd/awg/completion_policy_test.go:TestCompletionPolicy_RulesMapCannotActivateCompletion
+    file: cmd/awg/completion_policy_test.go
+    symbol: TestCompletionPolicy_RulesMapCannotActivateCompletion
+    package: main
+    language: go
+    doc: "Proof 6: completion enforcement cannot be activated through the EditCheck Rules map —\na require_completion rule id, a completion rule id, or a wildcard rule leave the\ncompletion policy ABSENT (not enabled) for every domain."
   - id: cmd/awg/completion_projection_test.go:TestCompletionProjectionEnvelopeResolutionFailureIsVisible
     file: cmd/awg/completion_projection_test.go
     symbol: TestCompletionProjectionEnvelopeResolutionFailureIsVisible
@@ -6529,6 +6684,42 @@ test_symbols:
     package: completion
     language: go
     doc: "World 15 + contract: all Phase-8 owners and terminal states are present and\nconnected, and the closure report keeps the three claims distinct."
+  - id: golang/architecture/completion/ownererror_test.go:TestBuildEnvelope_IdentityFailsBeforeInvocation
+    file: golang/architecture/completion/ownererror_test.go
+    symbol: TestBuildEnvelope_IdentityFailsBeforeInvocation
+    package: completion
+    language: go
+    doc: "Identity failures produce the identity cause end-to-end AND never invoke the owner —\nthe spy proves invocation did not occur (invocation is not inferred from the error)."
+  - id: golang/architecture/completion/ownererror_test.go:TestBuildEnvelope_RuntimeRequiresAttemptedInvocation
+    file: golang/architecture/completion/ownererror_test.go
+    symbol: TestBuildEnvelope_RuntimeRequiresAttemptedInvocation
+    package: completion
+    language: go
+    doc: "Runtime is reached ONLY after a valid identity and an ATTEMPTED owner invocation. The\nspy records that invocation actually occurred; the runtime class is not inferred from\nthe returned error alone."
+  - id: golang/architecture/completion/ownererror_test.go:TestOwnerErrorClass_GenericIsFailClosedNotRuntime
+    file: golang/architecture/completion/ownererror_test.go
+    symbol: TestOwnerErrorClass_GenericIsFailClosedNotRuntime
+    package: completion
+    language: go
+    doc: "The retained generic projection_owner_error class is fail-closed: the classifier maps\nany untyped/unknown error to it, and it is distinct from the runtime class."
+  - id: golang/architecture/completion/ownererror_test.go:TestOwnerErrorClass_IdentityNeverRuntime
+    file: golang/architecture/completion/ownererror_test.go
+    symbol: TestOwnerErrorClass_IdentityNeverRuntime
+    package: completion
+    language: go
+    doc: "An identity failure can NEVER be laundered into runtime — not by outer wrapping, and\nnot even by passing through the runtime marker."
+  - id: golang/architecture/completion/ownererror_test.go:TestOwnerErrorClass_PositiveEvidenceOnly
+    file: golang/architecture/completion/ownererror_test.go
+    symbol: TestOwnerErrorClass_PositiveEvidenceOnly
+    package: completion
+    language: go
+    doc: "The classifier grants runtime ONLY on positive typed evidence. An identity error →\nidentity; a ProjectionRuntimeError → runtime; ANY other error (untyped, unknown) →\nthe generic fail-closed class. Runtime is never granted by absence of identity."
+  - id: golang/architecture/completion/ownererror_test.go:TestOwnerErrorClass_TypedNotTextual
+    file: golang/architecture/completion/ownererror_test.go
+    symbol: TestOwnerErrorClass_TypedNotTextual
+    package: completion
+    language: go
+    doc: "Classification follows the typed cause, not message text: identical outer wrapping\nover an identity vs a runtime cause classifies distinctly."
   - id: golang/architecture/completion/projection_test.go:TestCompletionEnvelopeCanonicalPublication
     file: golang/architecture/completion/projection_test.go
     symbol: TestCompletionEnvelopeCanonicalPublication
@@ -6691,6 +6882,18 @@ test_symbols:
     package: completion
     language: go
     doc: "Item 10: no caller boolean or path exists to manufacture satisfaction — the\nrequest carries only repo + task dir, and an unresolved task is never ready."
+  - id: golang/architecture/completion/worldbinding_adversarial_test.go:TestIdentityBoundary_AdversarialAreAllIdentityErrors
+    file: golang/architecture/completion/worldbinding_adversarial_test.go
+    symbol: TestIdentityBoundary_AdversarialAreAllIdentityErrors
+    package: completion
+    language: go
+    doc: "Every identity-boundary bypass attempt is rejected as a TYPED identity error — so it\ncan only ever block (or exit as a config error) under enforcement, never degrade."
+  - id: golang/architecture/completion/worldbinding_adversarial_test.go:TestIdentityBoundary_SymlinkEscapeIsIdentityError
+    file: golang/architecture/completion/worldbinding_adversarial_test.go
+    symbol: TestIdentityBoundary_SymlinkEscapeIsIdentityError
+    package: completion
+    language: go
+    doc: "A symlinked task directory cannot smuggle in another repository's world: the\nsymlink-resolved path is out of scope → a typed identity error."
   - id: golang/architecture/completion/worldbinding_test.go:TestOwnerEntrypointsRejectCrossRepositoryComposition
     file: golang/architecture/completion/worldbinding_test.go
     symbol: TestOwnerEntrypointsRejectCrossRepositoryComposition
