@@ -372,6 +372,10 @@ components:
       - golang/architecture/benchmark/benchmark.go
       - golang/architecture/binding/binding.go
       - golang/architecture/binding_resolution.go
+      - golang/architecture/briefingfeedback/build.go
+      - golang/architecture/briefingfeedback/digest.go
+      - golang/architecture/briefingfeedback/model.go
+      - golang/architecture/briefingfeedback/scope.go
       - golang/architecture/buildtransaction/result_manifest.go
       - golang/architecture/certification/errors.go
       - golang/architecture/certification/evaluate.go
@@ -519,11 +523,13 @@ components:
       - golang/architecture/questiongen/questiongen.go
       - golang/architecture/questionpromotion/conjunctive.go
       - golang/architecture/questionpromotion/consume.go
+      - golang/architecture/questionpromotion/descriptor.go
       - golang/architecture/questionpromotion/drive.go
       - golang/architecture/questionpromotion/journal.go
       - golang/architecture/questionpromotion/promote.go
       - golang/architecture/questionpromotion/provenance.go
       - golang/architecture/questionpromotion/receipt.go
+      - golang/architecture/questionpromotion/verification_error.go
       - golang/architecture/questionresolution/authority.go
       - golang/architecture/questionresolution/certify.go
       - golang/architecture/questionresolution/model.go

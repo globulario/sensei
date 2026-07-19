@@ -5168,6 +5168,116 @@ test_symbols:
     package: architecture
     language: go
     doc: "Test 2 / Test 19: an uncommitted result tree supports exact (supported) claims\nwithout a fake revision."
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_BackslashPathParity
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_BackslashPathParity
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_ConflictingRelevantDescriptorsAreContradictory
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_ConflictingRelevantDescriptorsAreContradictory
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_ConflictingUnrelatedDescriptorsDoNotPoison
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_ConflictingUnrelatedDescriptorsDoNotPoison
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_CrossTaskFailureIsStillRelevant
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_CrossTaskFailureIsStillRelevant
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_DeterministicRegardlessOfDiscoveryOrder
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_DeterministicRegardlessOfDiscoveryOrder
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_DigestIsSelfExcludingAndTamperEvident
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_DigestIsSelfExcludingAndTamperEvident
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_DiscoveryOutageIsUnavailable
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_DiscoveryOutageIsUnavailable
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_DomainNeutralPromotionAdmittedOnFileScope
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_DomainNeutralPromotionAdmittedOnFileScope
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_DuplicateVerifiedLineageIsContradictory
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_DuplicateVerifiedLineageIsContradictory
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_EmptyDomainIsNotMalformed
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_EmptyDomainIsNotMalformed
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_MalformedRequest
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_MalformedRequest
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_NoPromotionsIsEmpty
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_NoPromotionsIsEmpty
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_ProjectionOmitsRepositoryRoot
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_ProjectionOmitsRepositoryRoot
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_RelevantAndUnrelatedFailuresCoexist
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_RelevantAndUnrelatedFailuresCoexist
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_ScopeAdmissionLaw
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_ScopeAdmissionLaw
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_TypedFailureClassification
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_TypedFailureClassification
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_UnreadableFailedCandidateIsUnrelated
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_UnreadableFailedCandidateIsUnrelated
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_UnrelatedFailureIsDroppedNotDegraded
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_UnrelatedFailureIsDroppedNotDegraded
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_UntypedFailureIsUnknownClassificationAndInvalid
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_UntypedFailureIsUnknownClassificationAndInvalid
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_VerifiedAdmittedRecord
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_VerifiedAdmittedRecord
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestValidateProjection_OffVocabularyFails
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestValidateProjection_OffVocabularyFails
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestValidateProjection_ZeroValueFails
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestValidateProjection_ZeroValueFails
+    package: briefingfeedback
+    language: go
   - id: golang/architecture/buildtransaction/result_manifest_test.go:TestResultManifestContainsRequiredIdentities
     file: golang/architecture/buildtransaction/result_manifest_test.go
     symbol: TestResultManifestContainsRequiredIdentities
@@ -9868,6 +9978,18 @@ test_symbols:
     symbol: TestValidReceiptValidates
     package: questionpromotion_test
     language: go
+  - id: golang/architecture/questionpromotion/verification_error_test.go:TestLoadCandidateDescriptor_UnreadableIsUnrelated
+    file: golang/architecture/questionpromotion/verification_error_test.go
+    symbol: TestLoadCandidateDescriptor_UnreadableIsUnrelated
+    package: questionpromotion
+    language: go
+    doc: "An unreadable candidate descriptor is Readable=false with no claimed identity — treated as\nunrelated debris, never a scoped defect; it confers no authority."
+  - id: golang/architecture/questionpromotion/verification_error_test.go:TestVerificationError_TypedAndTextPreserved
+    file: golang/architecture/questionpromotion/verification_error_test.go
+    symbol: TestVerificationError_TypedAndTextPreserved
+    package: questionpromotion
+    language: go
+    doc: "The typed verification failure exposes a closed class + reason via AsVerificationError,\npreserves the human-readable message, and survives wrapping — so a consumer classifies by\ntype, never by text."
   - id: golang/architecture/questionresolution/certify_test.go:TestCertifyIsDeterministicAndIdempotent
     file: golang/architecture/questionresolution/certify_test.go
     symbol: TestCertifyIsDeterministicAndIdempotent
