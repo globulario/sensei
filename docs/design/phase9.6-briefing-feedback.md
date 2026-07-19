@@ -296,8 +296,36 @@ ingestion; no model feedback/RL/GNN/ranking; no automatic answer generation or p
 raw dialogue publication; no repo-wide project completion; no generic arbitrary-RDF briefing
 extension; no unrelated briefing redesign.
 
+## 16. Checkpoint-1 review rulings (frozen)
+
+### 16.1 Future server repository context (implemented in Checkpoint 2, frozen now)
+Checkpoint 2 establishes the server repository context through an explicit, optional,
+startup-owned configuration equivalent to `--repo-root <path>` (exact spelling may follow
+existing CLI conventions). Frozen semantics: configured once at server startup;
+canonicalized once; verified as an existing repository root; retained as immutable
+server-owned context; **never** supplied/overridden by `BriefingRequest`, and never
+inferred from the process cwd, the requested file, the domain, or promotion artifacts;
+never changed between requests. Absent configuration ⇒ `feedback_unavailable`, while the
+existing graph briefing stays usable. **Not implemented in Checkpoint 1.**
+
+### 16.2 Empty-domain semantics (frozen)
+An empty requested domain is NOT automatically malformed. Frozen distinction:
+- a **malformed** domain identity ⇒ `feedback_invalid`;
+- an **empty** domain ⇒ no domain-scoped promotion may be admitted;
+- a promotion with an empty **verified effective** domain may still qualify when exact
+  repository identity + file-scope intersection are established (domain-neutral promotions);
+- where another existing boundary requires a domain because repository scope is ambiguous,
+  that boundary may reject the request before feedback projection begins;
+- no home-domain / basename / prefix / suffix / case / whitespace / single-candidate
+  fallback is permitted.
+
+This preserves the accepted domain-neutral promotion behavior (today's `promotionInScope`
+admits an unscoped-domain promotion) without letting an unknown domain authorize a
+domain-scoped record.
+
 ---
 
-This document opens Phase 9.6. It writes **no implementation code and mutates no governed
-source**. Checkpoint 1 does not begin until this opening contract is reviewed. Phase 9.5
-remains locked.
+This document opens Phase 9.6 and freezes the Checkpoint-1 review rulings. The opening
+commit wrote no implementation code; Checkpoint 1 implements the canonical owner + the
+typed `questionpromotion` seams + the tasksession migration, and adds NO server, protobuf,
+editor, GitHub, certification, or completion behavior. Phase 9.5 remains locked.

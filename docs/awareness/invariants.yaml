@@ -1374,3 +1374,38 @@ invariants:
       current subject before the unchanged 9.4b decision; an invalid binding blocks before
       completion and never degrades; only an authoritative binding plus a genuine post-invocation
       runtime failure may degrade.
+  - id: closure.briefing_feedback_is_verified_scoped_and_single_owner
+    title: Briefing feedback consumes only independently-verified committed promotions, scope-exact and through one canonical owner
+    severity: critical
+    status: active
+    description: >
+      Phase 9.6 Checkpoint 1. One canonical read-only owner (golang/architecture/briefingfeedback)
+      produces the deterministic briefing.feedback_projection/v1. It admits a promoted governed
+      record ONLY after questionpromotion.VerifyCommittedPromotion re-proves the complete
+      committed conjunction (never graph adjacency, a promotion directory name, a receipt path, an
+      issuer string, or a claimed status). Admission uses the VERIFIED effective scope with EXACT
+      domain identity (no trim/case-fold/basename/prefix/suffix/fallback; an empty requested domain
+      cannot admit a domain-scoped promotion; a domain-neutral verified promotion may qualify only
+      on exact repository + file-scope intersection) and file-scope intersection (a promotion with
+      no effective file scope is never assumed global). It preserves exact question/answer/
+      disposition/task/session/result/promotion-lineage provenance — the governed record is the
+      reusable truth while question/answer are lineage, and raw answer text is never rendered as
+      governed knowledge. The projection is non-authoritative and asserts no certification or
+      completion. A relevant broken promotion degrades the requested scope (typed), but unrelated
+      broken-promotion debris never poisons it, and untrusted claim metadata may only ROUTE a
+      candidate for verification — never establish authority or admission. Failure classification
+      is TYPED (from questionpromotion's typed verification cause), never from error text. Both the
+      task briefing and the future server briefing consume this one owner — no consumer
+      reimplements discovery, verification, scope, relevance, or classification.
+    protects:
+      files:
+        - docs/design/phase9.6-briefing-feedback.md
+        - golang/architecture/briefingfeedback/build.go
+        - golang/architecture/briefingfeedback/model.go
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      Briefing feedback admits only VerifyCommittedPromotion-verified committed promotions with
+      exact verified domain+file scope, preserves exact lineage provenance, is non-authoritative,
+      classifies failures by typed cause not text, isolates unrelated debris, and is produced by one
+      canonical owner both task and server briefing consume.

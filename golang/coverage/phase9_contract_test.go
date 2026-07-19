@@ -32,6 +32,8 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"closure.change_task_binding_is_exact_typed_and_positively_authorized",
 		"closure.change_task_binding_producer_is_authoritative_and_deterministic",
 		"closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades",
+		// Slice 9.6 — governed briefing-feedback leg.
+		"closure.briefing_feedback_is_verified_scoped_and_single_owner",
 	}
 	wantFailureModes := []string{
 		"closure.phase9_surface_manufactures_or_reinterprets_completion",
@@ -39,6 +41,7 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"closure.phase9_surface_shipped_without_a_reviewed_slice",
 		"closure.completion_gate_conflates_unavailability_with_a_broken_verdict",
 		"closure.change_task_binding_launders_a_completion_onto_an_unrelated_change",
+		"closure.briefing_feedback_reimplements_or_broadens_or_leaks_promotion",
 	}
 	wantForbiddenFixes := []string{
 		"phase9_surface_appends_completed_or_writes_receipt",
@@ -52,6 +55,8 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"phase9_change_task_binding_normalizes_or_infers_identity",
 		"phase9_change_task_binding_producer_failure_enters_runtime_degradation",
 		"phase9_completion_enforced_without_authoritative_change_binding",
+		"phase9_briefing_feedback_parses_promotion_error_text_or_reimplements_verification",
+		"phase9_briefing_feedback_infers_scope_or_leaks_or_owns_feedback_elsewhere",
 	}
 
 	assertGovernedIDs(t, filepath.Join(root, "docs", "awareness", "invariants.yaml"), "invariants", wantInvariants)
@@ -59,7 +64,7 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 	assertGovernedIDs(t, filepath.Join(root, "docs", "awareness", "forbidden_fixes.yaml"), "forbidden_fixes", wantForbiddenFixes)
 
 	// The governed roadmap and the opened slice contracts must be authored.
-	for _, doc := range []string{"phase9-contract.md", "phase9.4-contract.md", "phase9.4c-change-task-binding.md"} {
+	for _, doc := range []string{"phase9-contract.md", "phase9.4-contract.md", "phase9.4c-change-task-binding.md", "phase9.6-briefing-feedback.md"} {
 		if _, err := os.Stat(filepath.Join(root, "docs", "design", doc)); err != nil {
 			t.Fatalf("Phase-9 governed contract docs/design/%s is missing: %v", doc, err)
 		}
