@@ -86,6 +86,7 @@ components:
       - cmd/awg/cmd_gate.go
       - cmd/awg/cmd_gate_completeness.go
       - cmd/awg/cmd_gate_completion.go
+      - cmd/awg/cmd_gate_completion_compose.go
       - cmd/awg/cmd_gate_completion_enforce.go
       - cmd/awg/cmd_gate_contracts.go
       - cmd/awg/cmd_gate_sarif.go
@@ -108,6 +109,7 @@ components:
       - cmd/awg/cmd_pattern_check.go
       - cmd/awg/cmd_plan_probes.go
       - cmd/awg/cmd_preflight.go
+      - cmd/awg/cmd_produce_binding.go
       - cmd/awg/cmd_promote.go
       - cmd/awg/cmd_promote_answer.go
       - cmd/awg/cmd_promote_realization.go
@@ -380,6 +382,17 @@ components:
       - golang/architecture/certification/receipt.go
       - golang/architecture/certification/request.go
       - golang/architecture/certification/source.go
+      - golang/architecture/changebinding/digest.go
+      - golang/architecture/changebinding/model.go
+      - golang/architecture/changebinding/parse.go
+      - golang/architecture/changebinding/validate.go
+      - golang/architecture/changebindingconsumer/consume.go
+      - golang/architecture/changebindingconsumer/model.go
+      - golang/architecture/changebindingproducer/github_env.go
+      - golang/architecture/changebindingproducer/model.go
+      - golang/architecture/changebindingproducer/produce.go
+      - golang/architecture/changebindingproducer/provenance.go
+      - golang/architecture/changebindingproducer/publish.go
       - golang/architecture/claim.go
       - golang/architecture/claim_document.go
       - golang/architecture/claimaudit/audit.go

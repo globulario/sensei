@@ -837,3 +837,24 @@ failure_modes:
     related_invariants:
       - closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict
     evidence: Phase 9.4 govern-first; availability (fail-open) and verdict (fail-closed) are distinct axes.
+  - id: closure.change_task_binding_launders_a_completion_onto_an_unrelated_change
+    title: A change-to-task binding laundered a valid completion onto an unrelated change
+    severity: high
+    root_cause: |
+      A change-to-task validator trimmed / case-folded / shortened / path-cleaned an identity
+      value, inferred the task from a branch name / commit message / --task-dir / ambient Git
+      state, accepted a stale-head or cross-repository binding, treated a populated issuer as
+      authoritative without positive provenance verification, or resolved a contradictory
+      publication set by selecting the first / newest / sorted / authoritative-looking /
+      --task-dir-matching record — letting a valid completion for one task be supplied as the
+      identity for an unrelated change.
+    symptoms:
+      - a completed task A accepted as the identity for an unrelated change B
+      - a stale-head or wrong-repository binding accepted
+      - a populated issuer accepted without positive provenance verification
+      - one record selected from a contradictory publication set
+    forbidden_fixes:
+      - phase9_change_task_binding_normalizes_or_infers_identity
+    related_invariants:
+      - closure.change_task_binding_is_exact_typed_and_positively_authorized
+    evidence: Phase 9.4c govern-first; exact typed identity + positive provenance + fail-closed contradiction prevent completion laundering.

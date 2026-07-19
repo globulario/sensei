@@ -13,18 +13,28 @@ import (
 	"github.com/globulario/sensei/golang/architecture/completion"
 )
 
-// runGateCompletionEnforce is Phase 9.4b: the completion gate's ENFORCE path. It
-// resolves the domain's completion policy, consumes the same read-only typed envelope
-// the advisory path uses, applies the pure decision (decideCompletionEnforcement), and
-// exits 1 only on a block. It mutates nothing; identity source is the explicit
-// --task-dir (no fallback). A malformed policy fails loudly (exit 2), never advisory.
-func runGateCompletionEnforce(repoRoot, taskDir, domain, policyPath string, asJSON bool, sarifPath string) int {
-	td := strings.TrimSpace(taskDir)
+// completionEnforceArgs carries the enforce-path inputs (9.4b + the 9.4c binding gate).
+type completionEnforceArgs struct {
+	repoRoot, taskDir, domain, policyPath string
+	asJSON                                bool
+	sarifPath                             string
+	// Phase 9.4c binding gate.
+	requireBinding                                   bool
+	bindingPath, taskID, sessionID, completionDigest string
+}
+
+// runGateCompletionEnforce is the completion gate's ENFORCE path. Without --require-binding
+// it is the unchanged Phase 9.4b decision. With --require-binding (Phase 9.4c) it consumes
+// an authoritative change-to-task binding BEFORE the 9.4b decision runs: the completion
+// evaluation (owner invocation) is structurally unreachable until the binding is accepted.
+// A malformed policy fails loudly (exit 2), never advisory.
+func runGateCompletionEnforce(a completionEnforceArgs) int {
+	td := strings.TrimSpace(a.taskDir)
 	if td == "" {
 		fmt.Fprintln(os.Stderr, "sensei gate --completion --enforce: --task-dir is required (explicit task identity; no fallback)")
 		return 2
 	}
-	absRepo, err := filepath.Abs(strings.TrimSpace(repoRoot))
+	absRepo, err := filepath.Abs(strings.TrimSpace(a.repoRoot))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sensei gate --completion --enforce:", err)
 		return 2
@@ -37,44 +47,50 @@ func runGateCompletionEnforce(repoRoot, taskDir, domain, policyPath string, asJS
 
 	// Resolve the completion policy for this domain. A malformed/invalid/unreadable
 	// policy is a loud configuration error — never silently treated as absent or advisory.
-	state, perr := resolveCompletionPolicy(policyPath, absRepo, domain)
+	state, perr := resolveCompletionPolicy(a.policyPath, absRepo, a.domain)
 	if perr != nil {
 		fmt.Fprintf(os.Stderr, "sensei gate --completion --enforce: invalid completion policy: %v\n", perr)
 		return 2
 	}
 
-	// Consume the typed availability envelope, read-only, exactly as the advisory path.
-	env := completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: absRepo, TaskDirectory: absTask})
-	pub := env.PublicationView()
-
-	in := completionEnforceInput{
-		PolicyState:      state,
-		PublicationValid: completion.ValidateCompletionPublication(pub) == nil,
-		Availability:     env.Availability,
-		UnavailableClass: env.UnavailableClass,
+	// The 9.4b completion evaluation, as a closure. It BUILDS the projection (owner
+	// invocation) and decides — so it must run only after the binding gate accepts.
+	evaluate := func() (completionDecision, completionEnforceInput) {
+		env := completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: absRepo, TaskDirectory: absTask})
+		pub := env.PublicationView()
+		in := completionEnforceInput{
+			PolicyState:      state,
+			PublicationValid: completion.ValidateCompletionPublication(pub) == nil,
+			Availability:     env.Availability,
+			UnavailableClass: env.UnavailableClass,
+		}
+		if env.Projection != nil {
+			in.Verdict = env.Projection.ClosureVerdict
+		}
+		return decideCompletionEnforcement(in), in
 	}
-	if env.Projection != nil {
-		in.Verdict = env.Projection.ClosureVerdict
-	}
-	decision := decideCompletionEnforcement(in)
 
-	if sarifPath != "" {
-		if werr := writeCompletionEnforceSARIF(sarifPath, absTask, domain, state, in, decision); werr != nil {
-			// A SARIF write failure is advisory-only; it never changes the gate verdict.
-			fmt.Fprintf(os.Stderr, "sensei gate --completion --enforce: warning: could not write SARIF %q: %v\n", sarifPath, werr)
+	if a.requireBinding {
+		return runGateCompletionComposed(a, absRepo, absTask, state, evaluate)
+	}
+
+	// Phase 9.4b path — unchanged.
+	decision, in := evaluate()
+	if a.sarifPath != "" {
+		if werr := writeCompletionEnforceSARIF(a.sarifPath, absTask, a.domain, state, in, decision); werr != nil {
+			fmt.Fprintf(os.Stderr, "sensei gate --completion --enforce: warning: could not write SARIF %q: %v\n", a.sarifPath, werr)
 		}
 	}
-	if asJSON {
+	if a.asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		if eerr := enc.Encode(completionEnforceReport(absTask, domain, state, in, decision)); eerr != nil {
+		if eerr := enc.Encode(completionEnforceReport(absTask, a.domain, state, in, decision)); eerr != nil {
 			fmt.Fprintf(os.Stderr, "sensei gate --completion --enforce: %v\n", eerr)
 			return 2
 		}
 	} else {
-		fmt.Print(renderCompletionEnforceText(absTask, domain, state, in, decision))
+		fmt.Print(renderCompletionEnforceText(absTask, a.domain, state, in, decision))
 	}
-
 	return exitCodeForDecision(decision)
 }
 

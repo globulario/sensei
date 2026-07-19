@@ -830,3 +830,59 @@ required_tests:
         - closure.completion_gate_conflates_unavailability_with_a_broken_verdict
       files:
         - cmd/awg/completion_decision.go
+  # Phase 9.4c change-to-task binding (Checkpoint 1) — the typed identity object, its
+  # canonical digest, strict parser, and pure validator realize the 9.4c governing records.
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidate_SubjectMatching
+    title: A change-to-task binding validates by exact typed subject match and fails closed per typed class
+    protects:
+      invariants:
+        - closure.change_task_binding_is_exact_typed_and_positively_authorized
+      failure_modes:
+        - closure.change_task_binding_launders_a_completion_onto_an_unrelated_change
+      files:
+        - golang/architecture/changebinding/validate.go
+        - golang/architecture/changebinding/model.go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidateSet_Contradictions
+    title: A contradictory change-to-task publication set fails closed and no record is ever selected
+    protects:
+      invariants:
+        - closure.change_task_binding_is_exact_typed_and_positively_authorized
+      files:
+        - golang/architecture/changebinding/validate.go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestParse_RejectsNoncanonicalIdentities
+    title: Noncanonical change-to-task identity is rejected, never normalized
+    protects:
+      invariants:
+        - closure.change_task_binding_is_exact_typed_and_positively_authorized
+      files:
+        - golang/architecture/changebinding/parse.go
+  # Phase 9.4c change-to-task binding (Checkpoint 2) — the authoritative GitHub producer.
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_StagedFailures
+    title: The change-to-task producer fails in its own typed vocabulary, never a 9.4b runtime/degraded reason
+    protects:
+      invariants:
+        - closure.change_task_binding_producer_is_authoritative_and_deterministic
+      files:
+        - golang/architecture/changebindingproducer/produce.go
+  - id: golang/architecture/changebindingproducer/github_env_test.go:TestExtract_UnsupportedAndMissing
+    title: Only a supported GitHub pull_request event is authoritative; local execution is never promoted
+    protects:
+      invariants:
+        - closure.change_task_binding_producer_is_authoritative_and_deterministic
+      files:
+        - golang/architecture/changebindingproducer/github_env.go
+  # Phase 9.4c change-to-task binding (Checkpoint 3) — consumption + enforcement composition.
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestCompose_OwnerNeverInvokedBeforeBindingAcceptance
+    title: The completion owner is never invoked before an authoritative change binding is accepted
+    protects:
+      invariants:
+        - closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
+      files:
+        - golang/architecture/changebindingconsumer/consume.go
+  - id: golang/architecture/changebindingconsumer/consumer_test.go:TestConsume_CorrespondenceAttacksBlock
+    title: A change-to-task binding is authoritative only on exact correspondence to the current subject
+    protects:
+      invariants:
+        - closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
+      files:
+        - golang/architecture/changebindingconsumer/consume.go
