@@ -128,6 +128,27 @@ current repository call graph and identify:
 The new composition may orchestrate these owners, but must not copy their rule semantics into
 the MCP handler.
 
+**Admission is not composed into v1.** The canonical admission owner
+(`admission.Verify`) observes *ambient* repository/working-tree state against an
+admitted scope. That is a different subject than the caller-supplied diff, and
+invoking it here would both make this read-only projection an admission
+authority and cause it to read ambient Git state — each forbidden by §2.
+Working-tree admission verification is the separately governed `verify_admission`
+tool. This projection lists admission among the owners it is *aware of*, not
+among the owners it *calls*.
+
+**Companion and test obligations require typed file roles.** The graph query
+owner returns governed records whose `related_ids` are IRI-shaped node
+references and whose `anchor` records the authoring location, never necessarily
+the implementation or test file that must change. The handler must not infer
+obligation file paths from these by string shape; doing so fabricates
+obligations. A required_test's own canonical ID (`<test/file>:<TestName>`) is a
+grounded exception — it *is* the test file's identity. The cross-file companion
+checks in §7 (a contract changed without its implementation/test; a required
+companion omitted) therefore stay dormant until the graph owner returns typed
+companion/test file roles (a later, separately reviewed Impact-contract
+extension). A dormant grounded check is honest; a firing guessed one is not.
+
 Required high-level flow:
 
 1. validate and parse the complete diff;

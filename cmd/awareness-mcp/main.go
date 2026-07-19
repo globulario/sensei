@@ -2030,28 +2030,25 @@ func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (s
 		}
 	}
 
-	if c.expectedHead != "" && diffaudit.IsHexSHA(c.expectedHead) {
-		cmd := exec.CommandContext(ctx, "git", "show", fmt.Sprintf("%s:%s", c.expectedHead, cleanP))
-		cmd.Dir = c.root
-		data, err := cmd.Output()
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				stderr := string(exitErr.Stderr)
-				if strings.Contains(stderr, "exists on disk, but not in") || strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "invalid object name") {
-					return "", false, nil
-				}
-			}
-			return "", false, fmt.Errorf("failed to read base file from commit %s: %w", c.expectedHead, err)
-		}
-		return string(data), true, nil
+	// Base content is read only from the caller-attested commit (expected_head).
+	// Without an explicit pinned SHA the tool must NOT fall back to ambient
+	// working-tree state (governing contract §2); it reports the base as
+	// unavailable so modify hunks degrade to cannot_verify instead of being
+	// reconstructed against whatever happens to be on disk.
+	if c.expectedHead == "" || !diffaudit.IsHexSHA(c.expectedHead) {
+		return "", false, nil
 	}
-
-	data, err := os.ReadFile(absTarget)
+	cmd := exec.CommandContext(ctx, "git", "show", fmt.Sprintf("%s:%s", c.expectedHead, cleanP))
+	cmd.Dir = c.root
+	data, err := cmd.Output()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", false, nil
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitErr.Stderr)
+			if strings.Contains(stderr, "exists on disk, but not in") || strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "invalid object name") {
+				return "", false, nil
+			}
 		}
-		return "", false, err
+		return "", false, fmt.Errorf("failed to read base file from commit %s: %w", c.expectedHead, err)
 	}
 	return string(data), true, nil
 }
@@ -2083,6 +2080,27 @@ func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, conte
 	return findings, nil
 }
 
+// requiredTestPathFromID grounds a required_test's obligation file path from its
+// canonical node identity ("<relative/test/file>:<TestName>"). It returns an
+// empty string when the ID does not encode a file-shaped path, so the caller
+// never raises an omitted-test finding against a guessed or IRI-shaped token.
+func requiredTestPathFromID(id string) string {
+	raw := strings.ReplaceAll(strings.TrimSpace(id), "%2F", "/")
+	if raw == "" {
+		return ""
+	}
+	path := raw
+	if i := strings.LastIndex(raw, ":"); i > 0 {
+		path = raw[:i]
+	}
+	// Require a file-shaped path (a base name carrying an extension). A bare
+	// token or IRI-shaped identifier is not a usable obligation path.
+	if !strings.Contains(filepath.Base(path), ".") {
+		return ""
+	}
+	return path
+}
+
 func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, error) {
 	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
 		File:   file,
@@ -2110,7 +2128,16 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 		if graphCommit == "" {
 			graphCommit = resp.GetAuthority().GetGraphBuildCommit()
 		}
-		if graphCommit != "" && graphCommit != c.expectedHead {
+		if graphCommit == "" {
+			// An authoritative graph that exposes no commit identity cannot be
+			// bound to the audited snapshot. Fail closed rather than accept an
+			// authority claim we cannot tie to expected_head.
+			return nil, nil, nil, fmt.Errorf(
+				"graph claims authority but exposes no source/build commit identity to bind against expected_head %s",
+				c.expectedHead,
+			)
+		}
+		if graphCommit != c.expectedHead {
 			return nil, nil, nil, fmt.Errorf(
 				"graph authority commit %s does not match expected_head %s: the awareness graph was compiled from a different snapshot",
 				graphCommit, c.expectedHead,
@@ -2118,59 +2145,44 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 		}
 	}
 
-	// 3. Map required tests — extract path from the short ID (split on "::"),
-	//    falling back to anchor.file and anchor.source_yaml.
+	// 3. Map required tests. A required_test node's canonical ID is its own
+	//    identity, "<relative/test/file>:<TestName>", so the obligation path is
+	//    grounded by reading the ID — never inferred from the authoring anchor.
+	//    anchor.source_yaml/anchor.file record where the record was written (e.g.
+	//    docs/awareness/required_tests.yaml), not the test file that must change,
+	//    so using them keyed omitted-test findings on the wrong path.
 	var tests []diffaudit.Requirement
 	for _, t := range resp.GetRequiredTests() {
-		testPath := ""
-		if idx := strings.Index(t.GetId(), "::"); idx != -1 {
-			testPath = t.GetId()[:idx]
-		} else if t.GetAnchor() != nil && t.GetAnchor().GetFile() != "" {
-			testPath = t.GetAnchor().GetFile()
-		} else if t.GetAnchor() != nil && t.GetAnchor().GetSourceYaml() != "" {
-			testPath = t.GetAnchor().GetSourceYaml()
-		}
 		tests = append(tests, diffaudit.Requirement{
 			ID:   t.GetId(),
-			Path: testPath,
+			Path: requiredTestPathFromID(t.GetId()),
 		})
 	}
 
-	// 4. Sourced contracts: actual contracts live in direct_architecture, NOT direct_intents!
-	//    Populate RelatedPaths from related_ids to enable whole-change composition checks.
+	// 4. Sourced contracts live in direct_architecture with class "contract". The
+	//    contract's own governed file is grounded from its authoring YAML path.
+	//    Companion implementation/test roles are deliberately NOT inferred:
+	//    related_ids are IRI-shaped node references (see proto KnowledgeNode
+	//    related_ids), never file paths, so string-matching them into companion
+	//    paths fabricates obligations. Whole-change companion checks therefore
+	//    stay dormant until the graph owner returns typed companion file roles
+	//    (the Phase 2 Impact-contract extension); a read-only projection must not
+	//    raise block findings on guessed paths.
 	var contracts []diffaudit.Requirement
 	for _, ct := range resp.GetDirectArchitecture() {
-		if strings.ToLower(ct.GetClass()) == "contract" {
-			contractPath := ""
-			if ct.GetAnchor() != nil && ct.GetAnchor().GetSourceYaml() != "" {
-				contractPath = ct.GetAnchor().GetSourceYaml()
-			} else if ct.GetAnchor() != nil && ct.GetAnchor().GetFile() != "" {
-				contractPath = ct.GetAnchor().GetFile()
-			} else if idx := strings.Index(ct.GetId(), "::"); idx != -1 {
-				contractPath = ct.GetId()[:idx]
-			}
-
-			// Extract companion implementation file paths from related_ids.
-			// Related IDs that point to source files use the "source_file/" prefix
-			// or carry aw:expressedBy edges represented as relative file paths.
-			var relatedPaths []string
-			for _, rel := range ct.GetRelatedIds() {
-				if strings.HasPrefix(rel, "source_file/") {
-					relatedPaths = append(relatedPaths, strings.TrimPrefix(rel, "source_file/"))
-				} else if strings.Contains(rel, "/") && !strings.HasPrefix(rel, "http") && !strings.Contains(rel, "::") {
-					// Heuristic: if it looks like a repo-relative file path
-					// (contains '/', not a URL, not a short ID with '::'),
-					// treat it as a companion implementation path.
-					relatedPaths = append(relatedPaths, rel)
-				}
-			}
-
-			contracts = append(contracts, diffaudit.Requirement{
-				ID:           ct.GetId(),
-				Path:         contractPath,
-				RelatedPaths: relatedPaths,
-			})
+		if strings.ToLower(ct.GetClass()) != "contract" {
+			continue
 		}
+		contractPath := ""
+		if ct.GetAnchor() != nil && ct.GetAnchor().GetSourceYaml() != "" {
+			contractPath = ct.GetAnchor().GetSourceYaml()
+		} else if ct.GetAnchor() != nil && ct.GetAnchor().GetFile() != "" {
+			contractPath = ct.GetAnchor().GetFile()
+		}
+		contracts = append(contracts, diffaudit.Requirement{
+			ID:   ct.GetId(),
+			Path: contractPath,
+		})
 	}
 
 	var rules []string
@@ -2212,17 +2224,16 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 		root = strings.TrimSpace(string(out))
 	}
 
-	// expected_head is required — the frozen design says it must not be guessed
-	// or replaced by the current branch. Fail closed if omitted.
-	if expectedHead == "" {
-		return nil, fmt.Errorf("expected_head is required: the diff audit cannot bind to a canonical repository snapshot without an explicit commit SHA")
-	}
-
-	// Validate that expectedHead is a legitimate full hex SHA and exists as a commit.
-	if !diffaudit.IsHexSHA(expectedHead) {
-		return nil, fmt.Errorf("expected_head %q is not a valid hex SHA", expectedHead)
-	}
-	{
+	// expected_head is OPTIONAL (governing contract §3): the diff is caller-
+	// supplied evidence. When supplied it is exact identity evidence only — never
+	// guessed, shortened, or replaced by the current branch — so validate it
+	// strictly. When omitted, base content cannot be bound to a canonical
+	// snapshot and modify hunks degrade to cannot_verify rather than being
+	// reconstructed against ambient working-tree state.
+	if expectedHead != "" {
+		if !diffaudit.IsHexSHA(expectedHead) {
+			return nil, fmt.Errorf("expected_head %q is not a valid hex SHA", expectedHead)
+		}
 		cmd := exec.CommandContext(ctx, "git", "rev-parse", "--quiet", "--verify", fmt.Sprintf("%s^{commit}", expectedHead))
 		cmd.Dir = root
 		if err := cmd.Run(); err != nil {
@@ -2259,7 +2270,6 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 		Task:         task,
 		ExpectedHead: expectedHead,
 		Domain:       domain,
-		RepoRoot:     root,
 	})
 	if err != nil {
 		return nil, toolRPCError("audit_diff", err)

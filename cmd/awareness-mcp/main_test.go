@@ -849,8 +849,19 @@ new file mode 100644
 	}
 }
 
-func TestAwarenessAuditDiffTool_RequiresExpectedHead(t *testing.T) {
-	br := testBridge(fakeClient{})
+// expected_head is optional per the governing contract §3. Omitting it is
+// accepted; an add-file diff needs no base content and passes.
+func TestAwarenessAuditDiffTool_ExpectedHeadOptional(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
+		},
+	}
+	br := testBridge(fake)
 	validDiff := `diff --git a/main.go b/main.go
 new file mode 100644
 --- /dev/null
@@ -859,11 +870,85 @@ new file mode 100644
 +package main
 +func main() {}
 `
-	_, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
 		"diff": validDiff,
 	})
-	if err == nil || !strings.Contains(err.Error(), "expected_head is required") {
-		t.Fatalf("expected error about missing expected_head, got: %v", err)
+	if err != nil {
+		t.Fatalf("expected no error when expected_head is omitted, got: %v", err)
+	}
+	if !strings.Contains(res.Text, "decision: pass") {
+		t.Fatalf("expected decision: pass for add-file diff without expected_head, got text: %s", res.Text)
+	}
+}
+
+// Without expected_head the base of a modified file cannot be bound to a
+// canonical snapshot, and the tool must not read ambient working-tree state
+// (§2). The modify hunk therefore degrades to cannot_verify.
+func TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
+		},
+	}
+	br := testBridge(fake)
+	modifyDiff := `diff --git a/foo.go b/foo.go
+--- a/foo.go
++++ b/foo.go
+@@ -1,1 +1,1 @@
+-old
++new
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": modifyDiff,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "decision: cannot_verify") {
+		t.Fatalf("expected cannot_verify for modify diff without expected_head, got text: %s", res.Text)
+	}
+}
+
+// An authoritative graph that exposes no source/build commit identity cannot be
+// bound to expected_head and must fail closed.
+func TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed(t *testing.T) {
+	head := testGitHEAD(t)
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{
+				Authority: &awarenesspb.GraphAuthority{
+					Authoritative:       true,
+					GraphFreshnessState: awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+					// No SourceRepoCommit or GraphBuildCommit.
+				},
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          validDiff,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("expected cannot_verify when graph exposes no commit identity, got text: %s", res.Text)
 	}
 }
 
