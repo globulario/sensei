@@ -1986,6 +1986,23 @@ func main() {
 type mcpSingleFileChecker struct {
 	bridge *bridge
 	ctx    context.Context
+	root   string
+}
+
+func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
+	if c.root == "" {
+		return "", false, nil
+	}
+	cleanP := filepath.Clean(path)
+	fullP := filepath.Join(c.root, cleanP)
+	data, err := os.ReadFile(fullP)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return string(data), true, nil
 }
 
 func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, content string, domain string) ([]diffaudit.AuditFinding, error) {
@@ -2058,7 +2075,7 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 	}
 	task := argString(args, "task")
 	expectedHead := strings.TrimSpace(argString(args, "expected_head"))
-	if expectedHead != "" && len(expectedHead) != 40 {
+	if expectedHead != "" && !diffaudit.IsHexSHA(expectedHead) {
 		return nil, fmt.Errorf("expected_head, when supplied, must be an exact 40-character hex commit SHA: got %q", expectedHead)
 	}
 
@@ -2083,7 +2100,8 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 		}, nil
 	}
 
-	checker := &mcpSingleFileChecker{bridge: b, ctx: ctx}
+	root, _ := os.Getwd()
+	checker := &mcpSingleFileChecker{bridge: b, ctx: ctx, root: root}
 	res, err := diffaudit.EvaluateDiff(ctx, parsed, checker, diffaudit.AuditOptions{
 		Task:         task,
 		ExpectedHead: expectedHead,

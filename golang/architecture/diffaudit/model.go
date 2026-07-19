@@ -107,13 +107,38 @@ type AuditResult struct {
 	Limitations         []string             `json:"limitations,omitempty"`
 }
 
+// Validate asserts that the AuditResult conforms to the canonical v1 specification.
+func (r *AuditResult) Validate() error {
+	if r.Schema != SchemaV1 {
+		return fmt.Errorf("invalid schema %q, expected %q", r.Schema, SchemaV1)
+	}
+	if r.InputTrust != TrustCaller {
+		return fmt.Errorf("invalid input trust %q, expected %q", r.InputTrust, TrustCaller)
+	}
+	if r.Digest == "" {
+		return fmt.Errorf("digest is required")
+	}
+
+	computed, err := r.ComputeDigest()
+	if err != nil {
+		return fmt.Errorf("failed to compute validation digest: %w", err)
+	}
+	if computed != r.Digest {
+		return fmt.Errorf("result digest mismatch: calculated %s != stored %s", computed, r.Digest)
+	}
+
+	// Safety rule: unavailable or errored execution can NEVER claim DecisionPass!
+	if (r.Availability != AvailabilityAvailable || len(r.ReasonCodes) > 0) && r.Decision == DecisionPass {
+		return fmt.Errorf("invalid state: decision cannot be pass when availability is %s or reason codes are present", r.Availability)
+	}
+	return nil
+}
+
 // ComputeDigest calculates the canonical self-excluding SHA-256 digest of an AuditResult.
 func (r *AuditResult) ComputeDigest() (string, error) {
-	// Create a copy without the Digest field
 	cp := *r
 	cp.Digest = ""
 
-	// Ensure slice fields are sorted deterministically
 	sortChangedFiles(cp.ChangedFiles)
 	sortAuditFindings(cp.Findings)
 	cp.ImplicatedTests = sortedUniqueStrings(cp.ImplicatedTests)
@@ -146,7 +171,10 @@ func sortAuditFindings(findings []AuditFinding) {
 		if findings[i].RecordID != findings[j].RecordID {
 			return findings[i].RecordID < findings[j].RecordID
 		}
-		return findings[i].Explanation < findings[j].Explanation
+		if findings[i].HunkIndex != findings[j].HunkIndex {
+			return findings[i].HunkIndex < findings[j].HunkIndex
+		}
+		return findings[i].RecordClass < findings[j].RecordClass
 	})
 }
 

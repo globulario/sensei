@@ -256,6 +256,19 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.cmd.markerfix
+    name: _markerfix
+    kind: service
+    assertion: inferred
+    source_files:
+      - cmd/_markerfix/main.go
+    depends_on:
+      - component.golang.seedmeta
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
   - id: component.cmd.openapi_scan
     name: openapi-scan
     kind: service
@@ -419,6 +432,9 @@ components:
       - golang/architecture/convergence/convergence.go
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
+      - golang/architecture/diffaudit/evaluator.go
+      - golang/architecture/diffaudit/model.go
+      - golang/architecture/diffaudit/parser.go
       - golang/architecture/evidencereceipt/coverage.go
       - golang/architecture/evidencereceipt/freshness.go
       - golang/architecture/evidencereceipt/model.go

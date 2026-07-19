@@ -98,8 +98,13 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 			continue
 		}
 
+		readPath := patch.Path
+		if patch.OldPath != "" {
+			readPath = patch.OldPath
+		}
+
 		// 1. Gather file impact (required tests, contracts)
-		tests, contracts, _, err := checker.GetFileImpact(ctx, patch.Path, opts.Domain)
+		tests, contracts, _, err := checker.GetFileImpact(ctx, readPath, opts.Domain)
 		if err != nil {
 			result.Availability = AvailabilityCannotVerify
 			result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
@@ -127,7 +132,7 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 			var contentLoaded bool
 
 			if baseReader != nil {
-				baseContent, ok, err := baseReader.ReadBaseFile(ctx, patch.Path)
+				baseContent, ok, err := baseReader.ReadBaseFile(ctx, readPath)
 				if err == nil && ok {
 					reconstructed, err := applyHunks(baseContent, patch.Hunks)
 					if err == nil {
@@ -137,20 +142,20 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 				}
 			}
 
-			if !contentLoaded {
-				// Fallback to hunk added-line evaluation
-				var addedLines []string
-				for _, hunk := range patch.Hunks {
-					for _, line := range hunk.Lines {
-						if strings.HasPrefix(line, "+") {
-							addedLines = append(addedLines, strings.TrimPrefix(line, "+"))
-						}
-					}
+			if !contentLoaded && patch.Kind == ChangeAdd {
+				// For new files (adds), reconstruction from empty base is exact
+				reconstructed, err := applyHunks("", patch.Hunks)
+				if err == nil {
+					proposedContent = reconstructed
+					contentLoaded = true
 				}
-				proposedContent = strings.Join(addedLines, "\n")
 			}
 
-			if proposedContent != "" {
+			if !contentLoaded {
+				// Unverifiable base -> set cannot_verify
+				result.Availability = AvailabilityCannotVerify
+				result.ReasonCodes = append(result.ReasonCodes, ReasonRepoContextUnavailable)
+			} else if proposedContent != "" {
 				fileFindings, err := checker.CheckFile(ctx, patch.Path, proposedContent, opts.Domain)
 				if err != nil {
 					result.ReasonCodes = append(result.ReasonCodes, ReasonEvaluatorUnavailable)
@@ -208,6 +213,18 @@ func deduplicateFindings(in []AuditFinding) []AuditFinding {
 }
 
 func applyHunks(base string, hunks []DiffHunk) (string, error) {
+	if base == "" {
+		var out []string
+		for _, hunk := range hunks {
+			for _, line := range hunk.Lines {
+				if strings.HasPrefix(line, "+") {
+					out = append(out, strings.TrimPrefix(line, "+"))
+				}
+			}
+		}
+		return strings.Join(out, "\n"), nil
+	}
+
 	baseLines := strings.Split(base, "\n")
 	var out []string
 	baseIdx := 0
@@ -226,9 +243,19 @@ func applyHunks(base string, hunks []DiffHunk) (string, error) {
 			if strings.HasPrefix(line, "+") {
 				out = append(out, strings.TrimPrefix(line, "+"))
 			} else if strings.HasPrefix(line, "-") {
+				expectedDel := strings.TrimPrefix(line, "-")
+				if baseIdx < len(baseLines) {
+					if strings.TrimSpace(baseLines[baseIdx]) != strings.TrimSpace(expectedDel) {
+						return "", fmt.Errorf("hunk line mismatch on deleted line: base %q != patch %q", baseLines[baseIdx], expectedDel)
+					}
+				}
 				baseIdx++
 			} else {
+				contextLine := strings.TrimPrefix(line, " ")
 				if baseIdx < len(baseLines) {
+					if strings.TrimSpace(baseLines[baseIdx]) != strings.TrimSpace(contextLine) {
+						return "", fmt.Errorf("hunk line mismatch on context line: base %q != patch %q", baseLines[baseIdx], contextLine)
+					}
 					out = append(out, baseLines[baseIdx])
 					baseIdx++
 				}

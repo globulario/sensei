@@ -10,6 +10,7 @@ import (
 type fakeChecker struct {
 	checkFileFunc     func(ctx context.Context, file, content, domain string) ([]AuditFinding, error)
 	getFileImpactFunc func(ctx context.Context, file, domain string) ([]string, []string, []string, error)
+	readBaseFileFunc  func(ctx context.Context, path string) (string, bool, error)
 }
 
 func (f *fakeChecker) CheckFile(ctx context.Context, file, content, domain string) ([]AuditFinding, error) {
@@ -24,6 +25,13 @@ func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([
 		return f.getFileImpactFunc(ctx, file, domain)
 	}
 	return nil, nil, nil, nil
+}
+
+func (f *fakeChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
+	if f.readBaseFileFunc != nil {
+		return f.readBaseFileFunc(ctx, path)
+	}
+	return " func main() {}\n fmt.Println(\"hello\")\n }\n", true, nil
 }
 
 func TestEvaluateDiff_PassesCleanDiff(t *testing.T) {
@@ -42,6 +50,9 @@ func TestEvaluateDiff_PassesCleanDiff(t *testing.T) {
 	if res.Digest == "" {
 		t.Error("digest is empty")
 	}
+	if err := res.Validate(); err != nil {
+		t.Errorf("Validate() failed: %v", err)
+	}
 }
 
 func TestEvaluateDiff_NilCheckerForcesCannotVerify(t *testing.T) {
@@ -56,6 +67,9 @@ func TestEvaluateDiff_NilCheckerForcesCannotVerify(t *testing.T) {
 	}
 	if res.Decision != DecisionCannotVerify || res.Availability != AvailabilityCannotVerify {
 		t.Errorf("expected cannot_verify for nil checker, got decision=%s, availability=%s", res.Decision, res.Availability)
+	}
+	if err := res.Validate(); err != nil {
+		t.Errorf("Validate() failed: %v", err)
 	}
 }
 
@@ -83,5 +97,8 @@ func TestEvaluateDiff_OmittedCompanionFileObligation(t *testing.T) {
 	}
 	if len(res.Findings) == 0 || res.Findings[0].RecordID != "obligation.omitted_required_test" {
 		t.Errorf("expected obligation.omitted_required_test finding, got %+v", res.Findings)
+	}
+	if err := res.Validate(); err != nil {
+		t.Errorf("Validate() failed: %v", err)
 	}
 }

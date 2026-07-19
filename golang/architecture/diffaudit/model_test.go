@@ -56,4 +56,16 @@ func TestAuditResult_ComputeDigest_Deterministic(t *testing.T) {
 	if d1 != d2 {
 		t.Fatalf("expected deterministic digests for equivalent results: d1=%s, d2=%s", d1, d2)
 	}
+
+	res1.Digest = d1
+	if err := res1.Validate(); err != nil {
+		t.Fatalf("res1 validation failed: %v", err)
+	}
+
+	resInvalid := res1
+	resInvalid.Decision = DecisionPass
+	resInvalid.Availability = AvailabilityCannotVerify
+	if err := resInvalid.Validate(); err == nil {
+		t.Fatal("expected validation error for DecisionPass when Availability is CannotVerify")
+	}
 }
