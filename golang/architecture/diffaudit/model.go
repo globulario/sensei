@@ -99,6 +99,8 @@ type AuditResult struct {
 	Availability        Availability         `json:"availability"`
 	Decision            Decision             `json:"decision"`
 	ExpectedHead        string               `json:"expected_head,omitempty"`
+	Domain              string               `json:"domain,omitempty"`
+	Task                string               `json:"task,omitempty"`
 	ChangedFiles        []ChangedFileSummary `json:"changed_files"`
 	Findings            []AuditFinding       `json:"findings"`
 	ImplicatedTests     []string             `json:"implicated_tests,omitempty"`

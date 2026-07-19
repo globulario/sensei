@@ -5,6 +5,7 @@ package diffaudit
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -50,6 +51,8 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		Availability:        AvailabilityAvailable,
 		Decision:            DecisionPass,
 		ExpectedHead:        opts.ExpectedHead,
+		Domain:              opts.Domain,
+		Task:                opts.Task,
 		ChangedFiles:        make([]ChangedFileSummary, 0, len(parsed.Files)),
 		Findings:            make([]AuditFinding, 0),
 		ImplicatedTests:     make([]string, 0),
@@ -67,56 +70,44 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		return result, nil
 	}
 
-	// 1. Compose and enforce task change-envelope/admission policy if Task is specified
+	// Admission verification: delegate to the canonical admission.Verify owner
+	// if the required decision artifact exists on disk. Do NOT reimplement
+	// envelope, capability, or operation checks locally — that duplicates and
+	// diverges from the canonical admission protocol.
 	if opts.Task != "" && opts.RepoRoot != "" {
-		var dec admission.Decision
-		var loaded bool
-		paths := []string{
+		decisionPaths := []string{
 			filepath.Join(opts.RepoRoot, ".sensei", "tasks", opts.Task, "decision.yaml"),
 			filepath.Join(opts.RepoRoot, ".sensei", "tasks", opts.Task, "source", "architecture-admission-decision.yaml"),
 		}
-		for _, p := range paths {
-			if d, err := admission.LoadDecision(p); err == nil {
-				dec = d
-				loaded = true
+		var foundDecisionPath string
+		for _, p := range decisionPaths {
+			if _, err := os.Stat(p); err == nil {
+				foundDecisionPath = p
 				break
 			}
 		}
 
-		if loaded {
-			if opts.ExpectedHead != "" && dec.Binding.Revision != "" && opts.ExpectedHead != dec.Binding.Revision {
+		if foundDecisionPath != "" {
+			bundleDir := filepath.Join(opts.RepoRoot, ".sensei", "tasks", opts.Task)
+			verification, err := admission.Verify(admission.VerifyOptions{
+				DecisionPath: foundDecisionPath,
+				BundleDir:    bundleDir,
+				Repo:         opts.RepoRoot,
+			})
+			if err != nil {
 				result.Findings = append(result.Findings, AuditFinding{
-					RecordID:    "admission.envelope.revision_mismatch",
+					RecordID:    "admission.verify_error",
+					RecordClass: "admission",
+					Disposition: "cannot_verify",
+					Explanation: fmt.Sprintf("admission verification failed: %v", err),
+				})
+			} else if verification.Status != admission.VerificationScopeCompliant {
+				result.Findings = append(result.Findings, AuditFinding{
+					RecordID:    "admission.scope_violated",
 					RecordClass: "admission",
 					Disposition: "block",
-					Explanation: fmt.Sprintf("expected_head commit %s does not match the admitted task revision %s", opts.ExpectedHead, dec.Binding.Revision),
+					Explanation: fmt.Sprintf("admission verification returned status %s: the change does not comply with its admitted scope", verification.Status),
 				})
-			}
-
-			modifySet := make(map[string]bool)
-			for _, p := range dec.Envelope.ModifyPaths {
-				modifySet[p] = true
-			}
-
-			for _, patch := range parsed.Files {
-				if !modifySet[patch.Path] {
-					result.Findings = append(result.Findings, AuditFinding{
-						RecordID:    "admission.envelope.path_outside_envelope",
-						RecordClass: "admission",
-						Disposition: "block",
-						FilePath:    patch.Path,
-						Explanation: fmt.Sprintf("file %s is not admitted in the active task change envelope", patch.Path),
-					})
-				}
-				if dec.MutationCapability != admission.CapabilityAdmitted && dec.MutationCapability != admission.CapabilityAdmittedWithConditions {
-					result.Findings = append(result.Findings, AuditFinding{
-						RecordID:    "admission.envelope.read_only_mutation",
-						RecordClass: "admission",
-						Disposition: "block",
-						FilePath:    patch.Path,
-						Explanation: fmt.Sprintf("write mutation to %s attempted under read-only capability", patch.Path),
-					})
-				}
 			}
 		}
 	}
@@ -343,6 +334,8 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 			Availability:    AvailabilityCannotVerify,
 			Decision:        DecisionCannotVerify,
 			ExpectedHead:    opts.ExpectedHead,
+			Domain:          opts.Domain,
+			Task:            opts.Task,
 			ReasonCodes:     []ReasonCode{ReasonResultValidationFail},
 			Limitations:     []string{fmt.Sprintf("validation failed: %v", err)},
 		}
@@ -361,14 +354,46 @@ func deduplicateFindings(in []AuditFinding) []AuditFinding {
 	if len(in) == 0 {
 		return in
 	}
-	seen := make(map[string]bool)
-	out := make([]AuditFinding, 0, len(in))
+
+	// Disposition strength: block > cannot_verify > review > advisory.
+	// When two findings share the same (path, recordID, class, hunkIndex),
+	// keep only the one with the strongest disposition.
+	strength := map[string]int{
+		"block":         3,
+		"cannot_verify": 2,
+		"review":        1,
+		"advisory":      0,
+	}
+
+	type dedupKey struct {
+		filePath    string
+		recordID    string
+		recordClass string
+		hunkIndex   int
+	}
+
+	best := make(map[dedupKey]AuditFinding)
+	order := make([]dedupKey, 0, len(in))
+
 	for _, f := range in {
-		key := fmt.Sprintf("%s|%s|%s|%d", f.FilePath, f.RecordID, f.RecordClass, f.HunkIndex)
-		if !seen[key] {
-			seen[key] = true
-			out = append(out, f)
+		key := dedupKey{
+			filePath:    f.FilePath,
+			recordID:    f.RecordID,
+			recordClass: f.RecordClass,
+			hunkIndex:   f.HunkIndex,
 		}
+		existing, exists := best[key]
+		if !exists {
+			best[key] = f
+			order = append(order, key)
+		} else if strength[f.Disposition] > strength[existing.Disposition] {
+			best[key] = f
+		}
+	}
+
+	out := make([]AuditFinding, 0, len(order))
+	for _, key := range order {
+		out = append(out, best[key])
 	}
 	return out
 }
