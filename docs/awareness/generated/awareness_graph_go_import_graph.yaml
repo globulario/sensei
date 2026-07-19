@@ -458,6 +458,7 @@ components:
       - golang/architecture/ledger/store.go
       - golang/architecture/ledger/util.go
       - golang/architecture/ledger/verify.go
+      - golang/architecture/ledger/verifyscope.go
       - golang/architecture/maintenance/evaluate.go
       - golang/architecture/maintenance/evidence.go
       - golang/architecture/maintenance/model.go
