@@ -3,6 +3,9 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -130,5 +133,33 @@ func TestBriefingFeedbackToProto_PreservesAndRefuses(t *testing.T) {
 	bad.DigestSHA256 = "deadbeef"
 	if _, err := briefingFeedbackToProto(bad); err == nil {
 		t.Fatal("adapter must refuse a non-canonical projection")
+	}
+}
+
+// The vendored VS Code proto exactly matches the canonical proto (wire sync).
+func TestVendoredProtoMatchesCanonical(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	canonical, err := os.ReadFile(filepath.Join(root, "proto", "awareness_graph.proto"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	vendored, err := os.ReadFile(filepath.Join(root, "editor", "vscode", "proto", "awareness_graph.proto"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(canonical) != string(vendored) {
+		t.Fatal("vendored VS Code proto is out of sync with the canonical proto")
+	}
+}
+
+// The feedback wire schema carries no filesystem repository root field.
+func TestBriefingFeedbackProjection_NoRepositoryRootField(t *testing.T) {
+	md := (&awarenesspb.BriefingFeedbackProjection{}).ProtoReflect().Descriptor()
+	for i := 0; i < md.Fields().Len(); i++ {
+		name := string(md.Fields().Get(i).Name())
+		if strings.Contains(name, "root") || name == "repository_path" || name == "checkout" {
+			t.Fatalf("feedback wire schema exposes a filesystem-root field %q", name)
+		}
 	}
 }
