@@ -182,7 +182,7 @@ func TestCompleteTamperedReceiptFailsVerification(t *testing.T) {
 	if res.Outcome != OutcomeIntegrityFailure {
 		t.Fatalf("outcome = %s, want integrity_failure", res.Outcome)
 	}
-	if _, err := verifyDurableConjunction(w.TaskDir, currentResultBinding(t, w.TaskDir)); err == nil {
+	if _, err := verifyDurableConjunction(context.Background(), w.TaskDir, currentResultBinding(t, w.TaskDir)); err == nil {
 		t.Fatal("durable conjunction must fail on a tampered receipt")
 	}
 }
@@ -284,11 +284,11 @@ func TestVerifyDurableConjunctionRejectsDuplicate(t *testing.T) {
 		t.Fatal("setup completion failed")
 	}
 	rb := currentResultBinding(t, w.TaskDir)
-	if _, err := verifyDurableConjunction(w.TaskDir, rb); err != nil {
+	if _, err := verifyDurableConjunction(context.Background(), w.TaskDir, rb); err != nil {
 		t.Fatalf("single completion should verify: %v", err)
 	}
 	seedCompletedEvent(t, w.TaskDir)
-	if _, err := verifyDurableConjunction(w.TaskDir, rb); err == nil {
+	if _, err := verifyDurableConjunction(context.Background(), w.TaskDir, rb); err == nil {
 		t.Fatal("duplicate completed facts must fail durable verification")
 	}
 }
@@ -304,7 +304,7 @@ func TestVerifyDurableConjunctionRejectsWrongResult(t *testing.T) {
 	rb := currentResultBinding(t, w.TaskDir)
 	wrong := rb
 	wrong.ResultTreeDigestSHA256 = "6666666666666666666666666666666666666666666666666666666666666666"
-	if _, err := verifyDurableConjunction(w.TaskDir, wrong); err == nil {
+	if _, err := verifyDurableConjunction(context.Background(), w.TaskDir, wrong); err == nil {
 		t.Fatal("a receipt bound to a different result must fail durable verification")
 	}
 }
@@ -347,7 +347,7 @@ func TestCompleteHappyPath(t *testing.T) {
 		t.Fatalf("completed events = %d, want 1", n)
 	}
 	// the durable conjunction verifies independently.
-	if _, err := verifyDurableConjunction(w.TaskDir, currentResultBinding(t, w.TaskDir)); err != nil {
+	if _, err := verifyDurableConjunction(context.Background(), w.TaskDir, currentResultBinding(t, w.TaskDir)); err != nil {
 		t.Fatalf("durable conjunction: %v", err)
 	}
 }

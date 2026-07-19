@@ -293,7 +293,7 @@ func TestClosureReadinessProvenByIdentityNotSyntax(t *testing.T) {
 	if w.complete(t, head).Outcome != OutcomeCommitted {
 		t.Fatal("completion failed")
 	}
-	receipt, err := verifyDurableConjunction(w.TaskDir, currentResultBinding(t, w.TaskDir))
+	receipt, err := verifyDurableConjunction(context.Background(), w.TaskDir, currentResultBinding(t, w.TaskDir))
 	if err != nil {
 		t.Fatalf("load receipt: %v", err)
 	}

@@ -97,7 +97,7 @@ func inspectBound() []string {
 // and reuses the 8.2b terminal-history classifier so it shares one definition of
 // terminal truth. It is read-only and deterministic.
 func InspectTerminalState(ctx context.Context, req Request) (TerminalStateAssessment, error) {
-	_ = ctx
+	ctx, _ = ledger.WithVerificationScope(ctx)
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
 	// Repository and task must name one world before any read: the governed-manifest
@@ -109,13 +109,13 @@ func InspectTerminalState(ctx context.Context, req Request) (TerminalStateAssess
 	a := TerminalStateAssessment{SchemaVersion: inspectSchemaVersion, Bound: inspectBound()}
 
 	store := ledger.NewStore(taskDir)
-	report, verr := store.Verify()
+	report, verr := store.VerifyCtx(ctx)
 	if verr != nil || !report.Valid || report.EntryCount == 0 {
 		a.State = TerminalUnsupported
 		a.Detail = "task ledger did not verify"
 		return stampInspect(a), nil
 	}
-	chain, cerr := store.VerifyChain()
+	chain, cerr := store.VerifyChainCtx(ctx)
 	if cerr != nil || len(chain.Entries) == 0 {
 		a.State = TerminalUnsupported
 		a.Detail = "task ledger chain unavailable"

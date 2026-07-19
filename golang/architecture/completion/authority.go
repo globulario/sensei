@@ -3,6 +3,7 @@
 package completion
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -17,8 +18,8 @@ import (
 // authorized it. It resolves against the isolated completion triple, so it can
 // never be cross-authorized by a certification, disposition, promotion, or
 // question-resolution certification grant.
-func resolveCompletionAuthority(index authority.PolicyIndex, binding closureprotocol.ActorBinding, verified authority.VerifiedActor, evaluatedAt time.Time, taskDir string) (string, string, error) {
-	ra, err := admission.LoadRecordedAuthority(taskDir)
+func resolveCompletionAuthority(ctx context.Context, index authority.PolicyIndex, binding closureprotocol.ActorBinding, verified authority.VerifiedActor, evaluatedAt time.Time, taskDir string) (string, string, error) {
+	ra, err := admission.LoadRecordedAuthorityCtx(ctx, taskDir)
 	if err != nil {
 		return "", "", fmt.Errorf("load recorded authority: %w", err)
 	}

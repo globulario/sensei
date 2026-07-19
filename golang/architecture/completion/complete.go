@@ -68,6 +68,7 @@ func refuse(o Outcome, format string, a ...any) (CompleteResult, error) {
 // it never mutates correctness, disposition, promotion, question-resolution, or
 // governed-source truth.
 func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, error) {
+	ctx, _ = ledger.WithVerificationScope(ctx)
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
 	idRoot := strings.TrimSpace(req.IdentityRoot)
@@ -92,11 +93,11 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 	defer release()
 
 	store := ledger.NewStore(taskDir)
-	report, verr := store.Verify()
+	report, verr := store.VerifyCtx(ctx)
 	if verr != nil || !report.Valid || report.EntryCount == 0 {
 		return refuse(OutcomeLedgerInvalid, "task ledger did not verify")
 	}
-	chain, cerr := store.VerifyChain()
+	chain, cerr := store.VerifyChainCtx(ctx)
 	if cerr != nil || len(chain.Entries) == 0 {
 		return refuse(OutcomeLedgerInvalid, "task ledger chain unavailable")
 	}
@@ -123,7 +124,7 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 		return refuse(OutcomeStaleExpectedHead, "expected head %s, current %s", short(expected), short(report.HeadDigestSHA256))
 	}
 
-	ra, aerr := admission.LoadRecordedAuthority(taskDir)
+	ra, aerr := admission.LoadRecordedAuthorityCtx(ctx, taskDir)
 	if aerr != nil {
 		return refuse(OutcomeLedgerInvalid, "load recorded authority: %v", aerr)
 	}
@@ -142,7 +143,7 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 	if verifyErr != nil || verified.Status != closureprotocol.ReceiptValid {
 		return refuse(OutcomeAuthorityRefusal, "completion actor not verified")
 	}
-	grantID, roleID, resErr := resolveCompletionAuthority(index, binding, verified, now, taskDir)
+	grantID, roleID, resErr := resolveCompletionAuthority(ctx, index, binding, verified, now, taskDir)
 	if resErr != nil {
 		return refuse(OutcomeAuthorityRefusal, "%v", resErr)
 	}
@@ -243,7 +244,7 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 		if errors.As(appErr, &stale) {
 			// A completion raced ahead of us. Reconcile deterministically against the
 			// terminal-history cardinality, never the latest fact alone.
-			if fresh, ferr := store.VerifyChain(); ferr == nil {
+			if fresh, ferr := store.VerifyChainCtx(ctx); ferr == nil {
 				if res, ok := terminalStateDecision(taskDir, fresh, expected, currentRB, governedManifest); ok {
 					return res, nil
 				}
@@ -255,13 +256,13 @@ func CompleteTask(ctx context.Context, req CompleteRequest) (CompleteResult, err
 	if _, prerr := ledger.RebuildProjections(taskDir, nil); prerr != nil {
 		return refuse(OutcomeLedgerInvalid, "rebuild projections: %v", prerr)
 	}
-	final, ferr := store.Verify()
+	final, ferr := store.VerifyCtx(ctx)
 	if ferr != nil || !final.Valid {
 		return refuse(OutcomeLedgerInvalid, "ledger invalid after append")
 	}
 	// Verify the durable conjunction: the completed event and its receipt both
 	// present and matching. A receipt alone is never completion.
-	if _, verifyErr := verifyDurableConjunction(taskDir, currentRB); verifyErr != nil {
+	if _, verifyErr := verifyDurableConjunction(ctx, taskDir, currentRB); verifyErr != nil {
 		return refuse(OutcomeIntegrityFailure, "durable conjunction: %v", verifyErr)
 	}
 	out := CompleteResult{Outcome: OutcomeCommitted, Assessment: &assessment, Receipt: &receipt, ReceiptPath: ref.Path}
@@ -297,8 +298,8 @@ func handleExistingCompletion(taskDir string, completed ledger.VerifiedEntry, ex
 // verifyDurableConjunction independently re-proves the authoritative completion
 // fact: EXACTLY one completed event, zero revoked facts, its content-addressed
 // receipt present and matching, and the receipt bound to the expected current result.
-func verifyDurableConjunction(taskDir string, currentRB closureprotocol.ResultBinding) (TerminalCompletionReceipt, error) {
-	chain, err := ledger.NewStore(taskDir).VerifyChain()
+func verifyDurableConjunction(ctx context.Context, taskDir string, currentRB closureprotocol.ResultBinding) (TerminalCompletionReceipt, error) {
+	chain, err := ledger.NewStore(taskDir).VerifyChainCtx(ctx)
 	if err != nil {
 		return TerminalCompletionReceipt{}, err
 	}
