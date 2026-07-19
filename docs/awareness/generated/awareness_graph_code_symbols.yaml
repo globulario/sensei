@@ -5539,6 +5539,56 @@ test_symbols:
     symbol: TestReceipt_VerifyDetectsTamper
     package: certification
     language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestDigest_DeterministicAndNoNormalization
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestDigest_DeterministicAndNoNormalization
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestDigest_EveryBoundFieldAffectsDigest
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestDigest_EveryBoundFieldAffectsDigest
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestDigest_ExcludesOnlyItself
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestDigest_ExcludesOnlyItself
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestDigest_ReorderedSourceSameDigest
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestDigest_ReorderedSourceSameDigest
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestParse_RejectsNoncanonicalIdentities
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestParse_RejectsNoncanonicalIdentities
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestParse_ValidAndStrict
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestParse_ValidAndStrict
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidateSet_Contradictions
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestValidateSet_Contradictions
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidate_AuthorityAndDigest
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestValidate_AuthorityAndDigest
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidate_PureNoAmbientReads
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestValidate_PureNoAmbientReads
+    package: changebinding
+    language: go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidate_SubjectMatching
+    file: golang/architecture/changebinding/changebinding_test.go
+    symbol: TestValidate_SubjectMatching
+    package: changebinding
+    language: go
   - id: golang/architecture/claim_compaction_test.go:TestClaimCompactionIsDeterministicAndDoesNotTruncate
     file: golang/architecture/claim_compaction_test.go
     symbol: TestClaimCompactionIsDeterministicAndDoesNotTruncate
