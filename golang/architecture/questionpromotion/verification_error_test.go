@@ -34,6 +34,22 @@ func TestVerificationError_TypedAndTextPreserved(t *testing.T) {
 	}
 }
 
+// The typed verification failure exposes a closed IMPACT distinct from its cause: an ordinary
+// failure is candidate-local; a shared-facility outage is facility-unavailable — so a consumer
+// degrades one candidate versus reporting a global outage without parsing text.
+func TestVerificationError_TypedImpact(t *testing.T) {
+	local := vfail(VerifyIntegrityFailure, "receipt_invalid", "receipt invalid", nil)
+	lv, _ := AsVerificationError(local)
+	if lv.Impact != VerificationCandidateLocal {
+		t.Fatalf("ordinary failure impact = %q, want candidate_local", lv.Impact)
+	}
+	facility := vfailFacility(VerifyUnverifiable, "graph_reverify_failed", "graph reverify", errors.New("io"))
+	fv, _ := AsVerificationError(facility)
+	if fv.Impact != VerificationFacilityUnavailable {
+		t.Fatalf("facility outage impact = %q, want facility_unavailable", fv.Impact)
+	}
+}
+
 // An unreadable candidate descriptor is Readable=false with no claimed identity — treated as
 // unrelated debris, never a scoped defect; it confers no authority.
 func TestLoadCandidateDescriptor_UnreadableIsUnrelated(t *testing.T) {

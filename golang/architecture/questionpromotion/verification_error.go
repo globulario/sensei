@@ -23,11 +23,28 @@ const (
 	VerifyUnverifiable VerificationFailureClass = "unverifiable"
 )
 
+// VerificationImpact is the CLOSED typed SCOPE of a verification failure, distinct from its
+// cause. It answers "is this failure specific to THIS candidate, or is a shared verification
+// facility unavailable so NOTHING can be verified right now?" — so a consumer degrades one
+// candidate versus reporting a global outage WITHOUT parsing error text.
+type VerificationImpact string
+
+const (
+	// VerificationCandidateLocal: the failure is a definitive property of THIS candidate
+	// (tampered/incomplete/stale/invalid) or a read of this candidate's own dependency.
+	VerificationCandidateLocal VerificationImpact = "candidate_local"
+	// VerificationFacilityUnavailable: a SHARED verification facility (the persisted-graph
+	// reverify facility, a shared marker dependency) was unavailable, so no candidate can be
+	// verified right now. This is a global outage, not a per-candidate defect.
+	VerificationFacilityUnavailable VerificationImpact = "facility_unavailable"
+)
+
 // VerificationError is the typed verification failure. Callers that only check err != nil
 // remain compatible; Error()/Unwrap() are preserved; a typed consumer uses AsVerificationError.
 type VerificationError struct {
 	Class      VerificationFailureClass
 	ReasonCode string
+	Impact     VerificationImpact
 	Cause      error
 	message    string
 }
@@ -50,8 +67,19 @@ func AsVerificationError(err error) (*VerificationError, bool) {
 	return nil, false
 }
 
-// vfail builds a typed verification failure whose Error() preserves the original message.
+// vfail builds a typed CANDIDATE-LOCAL verification failure whose Error() preserves the
+// original message. Most verification failures are definitive properties of the candidate.
 func vfail(class VerificationFailureClass, reason, msg string, cause error) error {
+	return vfailImpact(class, reason, VerificationCandidateLocal, msg, cause)
+}
+
+// vfailFacility builds a typed FACILITY-UNAVAILABLE verification failure: a shared
+// verification dependency was unavailable, so the outcome is not a property of the candidate.
+func vfailFacility(class VerificationFailureClass, reason, msg string, cause error) error {
+	return vfailImpact(class, reason, VerificationFacilityUnavailable, msg, cause)
+}
+
+func vfailImpact(class VerificationFailureClass, reason string, impact VerificationImpact, msg string, cause error) error {
 	full := msg
 	switch {
 	case msg != "" && cause != nil:
@@ -59,5 +87,5 @@ func vfail(class VerificationFailureClass, reason, msg string, cause error) erro
 	case msg == "" && cause != nil:
 		full = cause.Error()
 	}
-	return &VerificationError{Class: class, ReasonCode: reason, Cause: cause, message: full}
+	return &VerificationError{Class: class, ReasonCode: reason, Impact: impact, Cause: cause, message: full}
 }
