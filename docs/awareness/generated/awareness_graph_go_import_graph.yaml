@@ -380,6 +380,10 @@ components:
       - golang/architecture/certification/receipt.go
       - golang/architecture/certification/request.go
       - golang/architecture/certification/source.go
+      - golang/architecture/changebinding/digest.go
+      - golang/architecture/changebinding/model.go
+      - golang/architecture/changebinding/parse.go
+      - golang/architecture/changebinding/validate.go
       - golang/architecture/claim.go
       - golang/architecture/claim_document.go
       - golang/architecture/claimaudit/audit.go
