@@ -138,6 +138,7 @@ components:
       - cmd/awg/cmd_validate.go
       - cmd/awg/cmd_validate_draft.go
       - cmd/awg/cmd_visual_audit.go
+      - cmd/awg/completion_policy.go
       - cmd/awg/cross_repo_atomic.go
       - cmd/awg/cross_repo_guard.go
       - cmd/awg/defaults.go
