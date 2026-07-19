@@ -913,6 +913,45 @@ func TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify(t *testing
 	}
 }
 
+// Even with NO expected_head, an authoritative graph that exposes no
+// source/build commit cannot bind the verdict to a rule snapshot and must fail
+// closed. This exercises the omitted-head route the graph-commit guard used to
+// skip.
+func TestAwarenessAuditDiffTool_NoExpectedHeadMissingGraphCommitFailsClosed(t *testing.T) {
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{
+				Authority: &awarenesspb.GraphAuthority{
+					Authoritative:       true,
+					GraphFreshnessState: awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+					// No SourceRepoCommit or GraphBuildCommit.
+				},
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": validDiff,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("expected cannot_verify when graph exposes no commit identity and no expected_head, got text: %s", res.Text)
+	}
+}
+
 // An authoritative graph that exposes no source/build commit identity cannot be
 // bound to expected_head and must fail closed.
 func TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed(t *testing.T) {

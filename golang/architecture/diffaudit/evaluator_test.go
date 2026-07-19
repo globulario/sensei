@@ -9,7 +9,7 @@ import (
 
 type fakeChecker struct {
 	checkFileFunc     func(ctx context.Context, file, content, domain string) ([]AuditFinding, error)
-	getFileImpactFunc func(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, error)
+	getFileImpactFunc func(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error)
 	readBaseFileFunc  func(ctx context.Context, path string) (string, bool, error)
 }
 
@@ -20,11 +20,11 @@ func (f *fakeChecker) CheckFile(ctx context.Context, file, content, domain strin
 	return nil, nil
 }
 
-func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, error) {
+func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error) {
 	if f.getFileImpactFunc != nil {
 		return f.getFileImpactFunc(ctx, file, domain)
 	}
-	return nil, nil, nil, nil
+	return nil, nil, nil, "", nil
 }
 
 func (f *fakeChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
@@ -80,11 +80,11 @@ func TestEvaluateDiff_OmittedCompanionFileObligation(t *testing.T) {
 	}
 
 	checker := &fakeChecker{
-		getFileImpactFunc: func(_ context.Context, file, domain string) ([]Requirement, []Requirement, []string, error) {
+		getFileImpactFunc: func(_ context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error) {
 			if file == "cmd/main.go" {
-				return []Requirement{{ID: "test-1", Path: "cmd/main_test.go"}}, nil, nil, nil
+				return []Requirement{{ID: "test-1", Path: "cmd/main_test.go"}}, nil, nil, "graphcommit1", nil
 			}
-			return nil, nil, nil, nil
+			return nil, nil, nil, "graphcommit1", nil
 		},
 	}
 
@@ -149,15 +149,15 @@ func TestEvaluateDiff_OmittedCompanionImplementationFile(t *testing.T) {
 	}
 
 	checker := &fakeChecker{
-		getFileImpactFunc: func(_ context.Context, file, domain string) ([]Requirement, []Requirement, []string, error) {
+		getFileImpactFunc: func(_ context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error) {
 			if file == "docs/contracts/auth.yaml" {
 				return nil, []Requirement{{
 					ID:           "contract.auth",
 					Path:         "docs/contracts/auth.yaml",
 					RelatedPaths: []string{"golang/auth/auth.go"},
-				}}, nil, nil
+				}}, nil, "graphcommit1", nil
 			}
-			return nil, nil, nil, nil
+			return nil, nil, nil, "graphcommit1", nil
 		},
 		readBaseFileFunc: func(_ context.Context, _ string) (string, bool, error) {
 			return "# auth contract\n", true, nil
@@ -192,15 +192,15 @@ deleted file mode 100644
 	}
 
 	checker := &fakeChecker{
-		getFileImpactFunc: func(_ context.Context, file, domain string) ([]Requirement, []Requirement, []string, error) {
+		getFileImpactFunc: func(_ context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error) {
 			if file == "golang/auth/auth.go" {
 				return nil, []Requirement{{
 					ID:           "contract.auth",
 					Path:         "docs/contracts/auth.yaml",
 					RelatedPaths: []string{"golang/auth/auth.go"},
-				}}, nil, nil
+				}}, nil, "graphcommit1", nil
 			}
-			return nil, nil, nil, nil
+			return nil, nil, nil, "graphcommit1", nil
 		},
 		readBaseFileFunc: func(_ context.Context, _ string) (string, bool, error) {
 			return "package auth\nfunc Authenticate() {}\n", true, nil

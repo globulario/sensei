@@ -101,6 +101,7 @@ type AuditResult struct {
 	ExpectedHead        string               `json:"expected_head,omitempty"`
 	Domain              string               `json:"domain,omitempty"`
 	Task                string               `json:"task,omitempty"`
+	GraphCommit         string               `json:"graph_commit,omitempty"` // observed authority commit of the rule snapshot; binds the digest to the graph that produced it
 	ChangedFiles        []ChangedFileSummary `json:"changed_files"`
 	Findings            []AuditFinding       `json:"findings"`
 	ImplicatedTests     []string             `json:"implicated_tests,omitempty"`

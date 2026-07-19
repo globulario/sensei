@@ -2101,13 +2101,13 @@ func requiredTestPathFromID(id string) string {
 	return path
 }
 
-func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, error) {
+func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, string, error) {
 	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
 		File:   file,
 		Domain: domain,
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, "", err
 	}
 
 	// 1. Inspect graph authority stamp. A stale or unverified graph must fail closed!
@@ -2116,33 +2116,30 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 		if resp.GetAuthority() != nil {
 			state = resp.GetAuthority().GetGraphFreshnessState()
 		}
-		return nil, nil, nil, fmt.Errorf("graph is not authoritative: freshness state %v", state)
+		return nil, nil, nil, "", fmt.Errorf("graph is not authoritative: freshness state %v", state)
 	}
 
-	// 2. Bind graph authority commit to the expected repository snapshot.
-	//    The graph's source_repo_commit (or graph_build_commit) must match
-	//    the expectedHead we are auditing against. If they diverge, the graph
-	//    was compiled from a different commit and its rules may not apply.
-	if c.expectedHead != "" {
-		graphCommit := resp.GetAuthority().GetSourceRepoCommit()
-		if graphCommit == "" {
-			graphCommit = resp.GetAuthority().GetGraphBuildCommit()
-		}
-		if graphCommit == "" {
-			// An authoritative graph that exposes no commit identity cannot be
-			// bound to the audited snapshot. Fail closed rather than accept an
-			// authority claim we cannot tie to expected_head.
-			return nil, nil, nil, fmt.Errorf(
-				"graph claims authority but exposes no source/build commit identity to bind against expected_head %s",
-				c.expectedHead,
-			)
-		}
-		if graphCommit != c.expectedHead {
-			return nil, nil, nil, fmt.Errorf(
-				"graph authority commit %s does not match expected_head %s: the awareness graph was compiled from a different snapshot",
-				graphCommit, c.expectedHead,
-			)
-		}
+	// 2. Bind the graph to an exact commit identity. Any authoritative graph MUST
+	//    expose a source/build commit — without it a verdict cannot be tied to the
+	//    rule snapshot that produced it — so fail closed regardless of whether
+	//    expected_head was supplied. The commit is returned so it enters the
+	//    result digest. Compare it against expected_head only when the caller
+	//    pinned one; a divergence means the graph was compiled from a different
+	//    snapshot and its rules may not apply.
+	graphCommit := resp.GetAuthority().GetSourceRepoCommit()
+	if graphCommit == "" {
+		graphCommit = resp.GetAuthority().GetGraphBuildCommit()
+	}
+	if graphCommit == "" {
+		return nil, nil, nil, "", fmt.Errorf(
+			"graph claims authority but exposes no source/build commit identity to bind the audit to a rule snapshot",
+		)
+	}
+	if c.expectedHead != "" && graphCommit != c.expectedHead {
+		return nil, nil, nil, "", fmt.Errorf(
+			"graph authority commit %s does not match expected_head %s: the awareness graph was compiled from a different snapshot",
+			graphCommit, c.expectedHead,
+		)
 	}
 
 	// 3. Map required tests. A required_test node's canonical ID is its own
@@ -2189,7 +2186,7 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	for _, ff := range resp.GetForbiddenFixes() {
 		rules = append(rules, ff.GetId())
 	}
-	return tests, contracts, rules, nil
+	return tests, contracts, rules, graphCommit, nil
 }
 
 func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{}) (*toolResult, error) {
