@@ -399,17 +399,35 @@ func UnavailableProjectionOwnerCauseEnvelope(err error) CompletionProjectionEnve
 // typed availability envelope. It never errors: a projection-owner error becomes an
 // explicit `unavailable` envelope rather than silence. Read-only, mutates nothing.
 func BuildCompletionProjectionEnvelope(ctx context.Context, req Request) CompletionProjectionEnvelope {
-	p, err := buildProjectionForEnvelope(ctx, req)
+	// Positive identity gate at THIS boundary, before any owner invocation. An absent,
+	// unresolvable, out-of-scope, or otherwise invalid task identity fails here as a
+	// typed identity error and the owner is never invoked — so the runtime lane below is
+	// structurally unreachable for an identity failure.
+	if err := validateRepositoryTaskBinding(req.RepositoryRoot, req.TaskDirectory); err != nil {
+		return UnavailableProjectionOwnerCauseEnvelope(err)
+	}
+	// Identity established. Invoke the canonical owner. Any error from the invocation is
+	// tagged with POSITIVE runtime evidence (invokeCompletionOwner IS the invocation
+	// boundary) — the only way to earn the runtime class.
+	p, err := invokeCompletionOwner(ctx, req)
 	if err != nil {
-		// Classify the cause at the boundary from the error's TYPE: an identity failure
-		// (block under enforce) is never conflated with a runtime failure (degraded pass).
 		return UnavailableProjectionOwnerCauseEnvelope(err)
 	}
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionAvailable, Projection: &p})
 }
 
-// buildProjectionForEnvelope is the projection builder the envelope wraps. It is a
-// package var ONLY so a test can simulate a post-identity runtime failure of the
+// invokeCompletionOwner is the owner-invocation boundary: reaching it proves identity
+// was validated and the owner is being invoked, so ANY error it returns is positive
+// runtime evidence (runtimeError keeps a stray identity error as identity). This
+// placement — not the mere absence of an identity error — is what earns the runtime
+// class.
+func invokeCompletionOwner(ctx context.Context, req Request) (CompletionProjection, error) {
+	p, err := buildProjectionForEnvelope(ctx, req)
+	return p, runtimeError(err)
+}
+
+// buildProjectionForEnvelope is the projection builder invokeCompletionOwner runs. It is
+// a package var ONLY so a test can simulate a post-identity runtime failure of the
 // resolved owner — which the in-process owner does not otherwise surface — to prove the
 // runtime cause is classified distinctly from identity. Production always uses
 // BuildCompletionProjection.

@@ -245,7 +245,10 @@ func (p completionGatePolicy) stateFor(domain string) completionPolicyState {
 	if !p.present {
 		return completionPolicyAbsent
 	}
-	dp, ok := p.domains[strings.TrimSpace(domain)]
+	// Exact identity: the input domain is matched verbatim against the policy keys. No
+	// trimming, case folding, prefix stripping, or other normalization of the input — a
+	// whitespace/case/prefix variant is a DIFFERENT, unlisted domain, not a match.
+	dp, ok := p.domains[domain]
 	if !ok {
 		return completionPolicyAbsent
 	}
@@ -263,6 +266,6 @@ func (p completionGatePolicy) domainPolicy(domain string) (completionDomainPolic
 	if !p.present {
 		return completionDomainPolicy{}, false
 	}
-	dp, ok := p.domains[strings.TrimSpace(domain)]
+	dp, ok := p.domains[domain] // exact identity, no normalization (see stateFor)
 	return dp, ok
 }

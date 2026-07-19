@@ -75,10 +75,17 @@ func runGateCompletionEnforce(repoRoot, taskDir, domain, policyPath string, asJS
 		fmt.Print(renderCompletionEnforceText(absTask, domain, state, in, decision))
 	}
 
-	if decision.Result == decisionBlock {
+	return exitCodeForDecision(decision)
+}
+
+// exitCodeForDecision is the externally observable exit contract for an EVALUATED
+// enforcement decision: a block exits 1; pass and the authorized degraded-runtime pass
+// both exit 0. (Malformed policy / missing --task-dir exit 2 before a decision exists.)
+func exitCodeForDecision(d completionDecision) int {
+	if d.Result == decisionBlock {
 		return 1
 	}
-	return 0 // pass or degraded_pass
+	return 0
 }
 
 // completionEnforceResultJSON is the minimum typed enforcement result — a stable,
