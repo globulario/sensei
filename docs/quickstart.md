@@ -49,7 +49,7 @@ docs/awareness/
   incident_patterns.yaml    # Edit shapes that introduce bugs
   high_risk_files.yaml      # Files requiring briefing
   activation_rules.yaml     # When briefing is required
-  meta_principles.yaml      # 134 portable principles, 8 categories (seed)
+  meta_principles.yaml      # 137 portable principles, 8 categories (seed)
 .sensei/config.yaml         # Sensei configuration
 .sensei/skills/sensei-architect/
                             # Canonical bundled Sensei Architect skill
@@ -344,7 +344,7 @@ Now the same class of bug can never ship again — the briefing warns before the
 
 ### Classify with meta-principles
 
-When documenting an incident, check if it matches one of the 134 meta-principles in `docs/awareness/meta_principles.yaml` (8 categories: authority, signal, lifecycle, dependency, perception, composition, structure, evolution). These predict where similar bugs are hiding — and evolution principles govern whether the fix itself ships safely:
+When documenting an incident, check if it matches one of the 137 meta-principles in `docs/awareness/meta_principles.yaml` (8 categories: authority, signal, lifecycle, dependency, perception, composition, structure, evolution). These predict where similar bugs are hiding — and evolution principles govern whether the fix itself ships safely:
 
 | If the bug was... | Check this principle |
 |---|---|
