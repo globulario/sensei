@@ -167,6 +167,13 @@ func (r *AuditResult) Validate() error {
 		return fmt.Errorf("invalid state: decision cannot be pass when availability is %s or reason codes are present", r.Availability)
 	}
 
+	// An available result must be bound to the rule snapshot that produced it.
+	// Availability stays available only when every graph-backed impact query
+	// succeeded, so a missing graph_commit means the verdict is unanchored.
+	if r.Availability == AvailabilityAvailable && r.GraphCommit == "" {
+		return fmt.Errorf("invalid state: availability is available but graph_commit is empty; an available result must be bound to a rule snapshot")
+	}
+
 	if hasBlock && r.Decision != DecisionBlock {
 		return fmt.Errorf("decision mismatch: expected block, got %s", r.Decision)
 	}

@@ -24,7 +24,8 @@ func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([
 	if f.getFileImpactFunc != nil {
 		return f.getFileImpactFunc(ctx, file, domain)
 	}
-	return nil, nil, nil, "", nil
+	// Default: an authoritative graph always exposes a commit identity.
+	return nil, nil, nil, "cleancommit", nil
 }
 
 func (f *fakeChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
@@ -49,6 +50,39 @@ func TestEvaluateDiff_PassesCleanDiff(t *testing.T) {
 	}
 	if res.Digest == "" {
 		t.Error("digest is empty")
+	}
+	if res.GraphCommit != "cleancommit" {
+		t.Errorf("expected graph_commit to reach the result, got %q", res.GraphCommit)
+	}
+	if err := res.Validate(); err != nil {
+		t.Errorf("Validate() failed: %v", err)
+	}
+}
+
+func TestEvaluateDiff_EmptyGraphCommitForcesCannotVerify(t *testing.T) {
+	parsed, err := ParseDiff(sampleValidDiff, DefaultParseOptions())
+	if err != nil {
+		t.Fatalf("ParseDiff: %v", err)
+	}
+
+	// A checker that reports impact successfully but exposes no commit identity
+	// must not yield an available/pass result: the canonical evaluator itself
+	// fails closed rather than trusting the caller to enforce the binding.
+	checker := &fakeChecker{
+		getFileImpactFunc: func(_ context.Context, _, _ string) ([]Requirement, []Requirement, []string, string, error) {
+			return nil, nil, nil, "", nil
+		},
+	}
+
+	res, err := EvaluateDiff(context.Background(), parsed, checker, AuditOptions{})
+	if err != nil {
+		t.Fatalf("EvaluateDiff: %v", err)
+	}
+	if res.Decision != DecisionCannotVerify || res.Availability != AvailabilityCannotVerify {
+		t.Errorf("expected cannot_verify for empty graph commit, got decision=%s, availability=%s", res.Decision, res.Availability)
+	}
+	if res.GraphCommit != "" {
+		t.Errorf("expected empty graph_commit, got %q", res.GraphCommit)
 	}
 	if err := res.Validate(); err != nil {
 		t.Errorf("Validate() failed: %v", err)

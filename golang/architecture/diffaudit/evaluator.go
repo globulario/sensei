@@ -143,19 +143,25 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 			result.Availability = AvailabilityCannotVerify
 			result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
 			result.Limitations = append(result.Limitations, fmt.Sprintf("graph impact query failed for %s: %v", readPath, err))
+		} else if graphCommit == "" {
+			// The canonical lock: a successful impact response MUST carry the rule
+			// snapshot's commit identity. Without it the result cannot be bound to
+			// the graph that produced it, so fail closed here rather than trust
+			// every present and future caller to enforce the binding upstream.
+			result.Availability = AvailabilityCannotVerify
+			result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
+			result.Limitations = append(result.Limitations, fmt.Sprintf("graph impact for %s returned no authority commit identity", readPath))
 		} else {
 			// Bind the result to the rule snapshot that produced it. The commit
 			// must be consistent across every file in one audit (one graph, one
 			// authority); a divergence means the snapshot shifted mid-audit and
 			// the result cannot be trusted.
-			if graphCommit != "" {
-				if result.GraphCommit == "" {
-					result.GraphCommit = graphCommit
-				} else if result.GraphCommit != graphCommit {
-					result.Availability = AvailabilityCannotVerify
-					result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
-					result.Limitations = append(result.Limitations, fmt.Sprintf("graph authority commit inconsistent across files: %s vs %s", result.GraphCommit, graphCommit))
-				}
+			if result.GraphCommit == "" {
+				result.GraphCommit = graphCommit
+			} else if result.GraphCommit != graphCommit {
+				result.Availability = AvailabilityCannotVerify
+				result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
+				result.Limitations = append(result.Limitations, fmt.Sprintf("graph authority commit inconsistent across files: %s vs %s", result.GraphCommit, graphCommit))
 			}
 			for _, t := range tests {
 				result.ImplicatedTests = append(result.ImplicatedTests, t.ID)
