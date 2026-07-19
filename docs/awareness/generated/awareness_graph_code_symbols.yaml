@@ -1870,6 +1870,47 @@ test_symbols:
     symbol: TestSymbolFileOf
     package: main
     language: go
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_AdvisoryReportsVerdictAndZeroMutation
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_AdvisoryReportsVerdictAndZeroMutation
+    package: main
+    language: go
+    doc: "Available not_completed: reports availability + verdict + all three distinctions, exits\n0, and mutates NOTHING — proven by a full file-content snapshot, the assessment digest,\nand the ledger head, not merely the terminal-state enum."
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_JSONNestedEnvelope
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_JSONNestedEnvelope
+    package: main
+    language: go
+    doc: "JSON is the typed publication union with the nested available envelope, exact verdict,\nterminal state, authoritative boolean, and exactly three distinctions."
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_RejectsExplicitEnforcement
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_RejectsExplicitEnforcement
+    package: main
+    language: go
+    doc: "9.4a must reject an explicit enforcement request rather than silently downgrade it —\nbut advisory/report-only requests pass."
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_RequiresTaskDir
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_RequiresTaskDir
+    package: main
+    language: go
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_SARIFPreservesDistinctions
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_SARIFPreservesDistinctions
+    package: main
+    language: go
+    doc: "SARIF is a single note-level result carrying all three distinctions in stable\nproperties."
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_SARIFWriteFailureStaysAdvisory
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_SARIFWriteFailureStaysAdvisory
+    package: main
+    language: go
+    doc: "An unwritable SARIF path is a warning, not a gate failure — advisory still exits 0."
+  - id: cmd/awg/cmd_gate_completion_test.go:TestGateCompletion_UnavailableReportsClassAndExitsZero
+    file: cmd/awg/cmd_gate_completion_test.go
+    symbol: TestGateCompletion_UnavailableReportsClassAndExitsZero
+    package: main
+    language: go
+    doc: "A canonical UNAVAILABLE envelope (owner could not establish the projection) reports its\ntyped class and still exits 0."
   - id: cmd/awg/cmd_gate_contracts_test.go:TestBuildContractReport_StableJSON
     file: cmd/awg/cmd_gate_contracts_test.go
     symbol: TestBuildContractReport_StableJSON
