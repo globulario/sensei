@@ -256,19 +256,6 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
-  - id: component.cmd.markerfix
-    name: _markerfix
-    kind: service
-    assertion: inferred
-    source_files:
-      - cmd/_markerfix/main.go
-    depends_on:
-      - component.golang.seedmeta
-    uml:
-      kind: Component
-      stereotype: service
-      view: structural
-      confidence: inferred
   - id: component.cmd.openapi_scan
     name: openapi-scan
     kind: service
