@@ -61,6 +61,18 @@ code_edges:
     to: globular.awareness_graph:intent.awareness.briefing_returns_explicit_status
   - from: globular.awareness_graph:code.go.server.briefing
     relation: implements
+    to: globular.awareness_graph:invariant.closure.briefing_feedback_prose_is_rendered_only_from_the_typed_projection
+  - from: globular.awareness_graph:code.go.server.briefing
+    relation: implements
+    to: globular.awareness_graph:invariant.closure.briefing_feedback_server_repository_context_is_startup_owned
+  - from: globular.awareness_graph:code.go.server.briefing
+    relation: implements
+    to: globular.awareness_graph:invariant.closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+  - from: globular.awareness_graph:code.go.server.briefing
+    relation: implements
+    to: globular.awareness_graph:invariant.closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+  - from: globular.awareness_graph:code.go.server.briefing
+    relation: implements
     to: globular.platform:intent.awareness.graph_is_compiled_context_not_authority
   - from: globular.awareness_graph:code.go.server.briefing.server_Briefing
     relation: enforces
