@@ -86,6 +86,7 @@ components:
       - cmd/awg/cmd_gate.go
       - cmd/awg/cmd_gate_completeness.go
       - cmd/awg/cmd_gate_completion.go
+      - cmd/awg/cmd_gate_completion_compose.go
       - cmd/awg/cmd_gate_completion_enforce.go
       - cmd/awg/cmd_gate_contracts.go
       - cmd/awg/cmd_gate_sarif.go
@@ -385,6 +386,8 @@ components:
       - golang/architecture/changebinding/model.go
       - golang/architecture/changebinding/parse.go
       - golang/architecture/changebinding/validate.go
+      - golang/architecture/changebindingconsumer/consume.go
+      - golang/architecture/changebindingconsumer/model.go
       - golang/architecture/changebindingproducer/github_env.go
       - golang/architecture/changebindingproducer/model.go
       - golang/architecture/changebindingproducer/produce.go
