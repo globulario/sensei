@@ -30,6 +30,7 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"closure.completion_gate_requires_explicit_identity_when_enforcement_applies",
 		// Slice 9.4c — authoritative change-to-task binding.
 		"closure.change_task_binding_is_exact_typed_and_positively_authorized",
+		"closure.change_task_binding_producer_is_authoritative_and_deterministic",
 	}
 	wantFailureModes := []string{
 		"closure.phase9_surface_manufactures_or_reinterprets_completion",
@@ -48,6 +49,7 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"phase9_gate_enforces_without_per_domain_opt_in",
 		"phase9_gate_treats_missing_required_task_identity_as_runtime_unavailability",
 		"phase9_change_task_binding_normalizes_or_infers_identity",
+		"phase9_change_task_binding_producer_failure_enters_runtime_degradation",
 	}
 
 	assertGovernedIDs(t, filepath.Join(root, "docs", "awareness", "invariants.yaml"), "invariants", wantInvariants)

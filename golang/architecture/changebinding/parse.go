@@ -82,6 +82,13 @@ func validateShape(b ChangeTaskBinding) BindingValidity {
 	return ""
 }
 
+// IsCanonicalToken, IsFullHex, and IsSHA256Hex export the exact canonical-form checks the
+// validator uses, so a producer can enforce identical canonical rules (never a second,
+// divergent spelling).
+func IsCanonicalToken(s string) bool { return isCanonicalToken(s) }
+func IsFullHex(s string) bool        { return isFullHex(s) }
+func IsSHA256Hex(s string) bool      { return isSHA256Hex(s) }
+
 // isCanonicalToken: non-empty and carrying no leading/trailing/embedded ASCII whitespace
 // (identity tokens are exact; whitespace is never trimmed away).
 func isCanonicalToken(s string) bool {

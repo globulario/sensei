@@ -42,6 +42,36 @@ inputs:
   go-version:
     description: Go toolchain version used to build Sensei.
     default: '1.25'
+  # Phase 9.4c Checkpoint 2 — authoritative change-to-task binding production. Opt-in; when
+  # off (default) the action behaves exactly as before. Producing a binding does NOT affect
+  # the enforcement result in this checkpoint (composition is Checkpoint 3).
+  produce-completion-binding:
+    description: "When 'true', produce + publish a completion.change_task_binding/v1 artifact for the given task. Does not affect enforcement."
+    default: 'false'
+  completion-task-dir:
+    description: Explicit task directory for the change-to-task binding.
+    default: ''
+  completion-task-id:
+    description: Explicit canonical task id.
+    default: ''
+  completion-session-id:
+    description: Explicit task session id.
+    default: ''
+  completion-digest:
+    description: The exact completion-result digest being evaluated.
+    default: ''
+  completion-result-task:
+    description: The task id the completion result was produced for.
+    default: ''
+  completion-result-session:
+    description: The session id the completion result was produced for.
+    default: ''
+  binding-output:
+    description: Path to write the published binding artifact.
+    default: '.sensei/change-task-binding.yaml'
+  binding-audit:
+    description: Path to write the typed binding audit record.
+    default: '.sensei/change-task-binding.audit.json'
 
 runs:
   using: composite
@@ -82,6 +112,43 @@ runs:
     - name: Compile the awareness graph
       shell: bash
       run: sensei build --input "${{ inputs.awareness-dir }}" --store-url "http://localhost:7878/store?default"
+
+    - name: Produce the change-to-task binding (Phase 9.4c)
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${{ inputs.produce-completion-binding }}" != "true" ]; then
+          echo "change-to-task binding production not requested; skipping."
+          exit 0
+        fi
+        echo "::group::Produce completion.change_task_binding/v1"
+        set +e
+        sensei produce-change-binding \
+          --repo-root . \
+          --task-dir "${{ inputs.completion-task-dir }}" \
+          --task-id "${{ inputs.completion-task-id }}" \
+          --session-id "${{ inputs.completion-session-id }}" \
+          --completion-digest "${{ inputs.completion-digest }}" \
+          --completion-task "${{ inputs.completion-result-task }}" \
+          --completion-session "${{ inputs.completion-result-session }}" \
+          --output "${{ inputs.binding-output }}" \
+          --audit "${{ inputs.binding-audit }}"
+        PCODE=$?
+        set -e
+        echo "::endgroup::"
+        {
+          echo "## Sensei change-to-task binding"
+          echo ""
+          if [ "$PCODE" = "0" ]; then
+            echo "✅ Produced + published \`${{ inputs.binding-output }}\` (audit \`${{ inputs.binding-audit }}\`)."
+          else
+            echo "❌ Binding production failed — see the typed audit \`${{ inputs.binding-audit }}\`."
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+        # Fail loudly when production was requested but could not complete. This is a
+        # PRODUCTION failure — it never feeds the 9.4b enforcement decision below, which does
+        # not consume the binding in this checkpoint (composition is Checkpoint 3).
+        exit $PCODE
 
     - name: Gate the diff + write job summary
       shell: bash

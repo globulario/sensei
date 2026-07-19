@@ -856,3 +856,18 @@ required_tests:
         - closure.change_task_binding_is_exact_typed_and_positively_authorized
       files:
         - golang/architecture/changebinding/parse.go
+  # Phase 9.4c change-to-task binding (Checkpoint 2) — the authoritative GitHub producer.
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_StagedFailures
+    title: The change-to-task producer fails in its own typed vocabulary, never a 9.4b runtime/degraded reason
+    protects:
+      invariants:
+        - closure.change_task_binding_producer_is_authoritative_and_deterministic
+      files:
+        - golang/architecture/changebindingproducer/produce.go
+  - id: golang/architecture/changebindingproducer/github_env_test.go:TestExtract_UnsupportedAndMissing
+    title: Only a supported GitHub pull_request event is authoritative; local execution is never promoted
+    protects:
+      invariants:
+        - closure.change_task_binding_producer_is_authoritative_and_deterministic
+      files:
+        - golang/architecture/changebindingproducer/github_env.go

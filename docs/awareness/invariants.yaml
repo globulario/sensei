@@ -1314,3 +1314,32 @@ invariants:
       rejected not normalized; authoritative_binding requires positive provenance authority; a
       contradictory set fails closed with no record selected; an invalid binding never receives
       runtime degradation.
+  - id: closure.change_task_binding_producer_is_authoritative_and_deterministic
+    title: The change-to-task binding producer builds only from authoritative GitHub identity and fails in its own vocabulary
+    severity: critical
+    status: active
+    description: >
+      Phase 9.4c Checkpoint 2. The authoritative producer constructs a
+      completion.change_task_binding/v1 only from the GitHub pull_request event
+      (repository/change/base/head), verified checkout correspondence (checked-out repo and
+      head equal the event, full hex, no mutation), an EXPLICIT canonical task, and the exact
+      completion-result digest whose subject matches the task/session — never inferred from
+      branch/commit/PR-metadata/nearest-directory/only-task/ambient Git state. It computes the
+      canonical digest through, and self-validates with, the SAME Checkpoint-1 package,
+      requiring authoritative_binding, and publishes one deterministic artifact (no
+      timestamps/random; reruns identical; a contradictory existing publication fails closed).
+      Producer failures are a CLOSED producer vocabulary and are NEVER expressed as
+      projection_owner_runtime_error or any 9.4b degraded-pass reason; the binding is not
+      consumed by enforcement here (composition is Checkpoint 3). Local execution is never
+      promoted to GitHub-authoritative.
+    protects:
+      files:
+        - golang/architecture/changebindingproducer/produce.go
+        - golang/architecture/changebindingproducer/publish.go
+        - .github/actions/sensei-gate/action.yml
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      The producer builds only from authoritative event + verified checkout + explicit task +
+      exact completion digest, self-validates through the Checkpoint-1 validator, publishes
+      deterministically, and fails in its own vocabulary — never a 9.4b runtime/degraded reason.
