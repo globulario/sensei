@@ -2707,6 +2707,12 @@ test_symbols:
     symbol: TestRecordProbeResultBuildsOfflineReceipt
     package: main
     language: go
+  - id: cmd/awg/cmd_produce_binding_test.go:TestProduceChangeBinding_LocalIsNotAuthoritative
+    file: cmd/awg/cmd_produce_binding_test.go
+    symbol: TestProduceChangeBinding_LocalIsNotAuthoritative
+    package: main
+    language: go
+    doc: "Without a supported GitHub pull_request event (i.e. local execution), the producer CLI\nfails loudly (exit 1) and writes a typed failed audit — local is never promoted to\nauthoritative, and the failure is a producer reason, never a 9.4b runtime reason."
   - id: cmd/awg/cmd_promote_answer_test.go:TestCLIPromoteHappyPathAndReplay
     file: cmd/awg/cmd_promote_answer_test.go
     symbol: TestCLIPromoteHappyPathAndReplay
@@ -5589,6 +5595,71 @@ test_symbols:
     symbol: TestValidate_SubjectMatching
     package: changebinding
     language: go
+  - id: golang/architecture/changebindingproducer/github_env_test.go:TestExtract_PullRequestAuthoritative
+    file: golang/architecture/changebindingproducer/github_env_test.go
+    symbol: TestExtract_PullRequestAuthoritative
+    package: changebindingproducer
+    language: go
+    doc: "1: a supported pull_request event yields typed authoritative identities."
+  - id: golang/architecture/changebindingproducer/github_env_test.go:TestExtract_UnsupportedAndMissing
+    file: golang/architecture/changebindingproducer/github_env_test.go
+    symbol: TestExtract_UnsupportedAndMissing
+    package: changebindingproducer
+    language: go
+    doc: "2-5 + 53: unsupported / missing event forms fail typed; a non-GitHub (local) context is\nunsupported, never silently promoted to authoritative."
+  - id: golang/architecture/changebindingproducer/github_env_test.go:TestOriginToDomain
+    file: golang/architecture/changebindingproducer/github_env_test.go
+    symbol: TestOriginToDomain
+    package: changebindingproducer
+    language: go
+    doc: "originToDomain is a pure lexical transform; a non-github origin stays raw and will simply\nmismatch (fail closed), never be coerced to look like the event repository."
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestAudit_NoSecrets
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestAudit_NoSecrets
+    package: changebindingproducer
+    language: go
+    doc: "45: the audit carries no secret/token/raw-event data (only typed identity + stage fields)."
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_AlteredFieldFailsDigest
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestProduce_AlteredFieldFailsDigest
+    package: changebindingproducer
+    language: go
+    doc: "37: altering any bound field after construction breaks self-validation via the digest."
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_CannotMoveCompletionToAnotherChangeWithoutCheckout
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestProduce_CannotMoveCompletionToAnotherChangeWithoutCheckout
+    package: changebindingproducer
+    language: go
+    doc: "30: a completion digest cannot be moved to another change without a matching checkout —\nthe checkout gate blocks it before construction."
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_DeterministicAndPublishable
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestProduce_DeterministicAndPublishable
+    package: changebindingproducer
+    language: go
+    doc: "38 + 46 + 41: reruns for the same subject are reproducible and identical; the artifact is\nstrictly parseable and one binding."
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_HappyPathIsAuthoritative
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestProduce_HappyPathIsAuthoritative
+    package: changebindingproducer
+    language: go
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_RepeatDeterministic
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestProduce_RepeatDeterministic
+    package: changebindingproducer
+    language: go
+    doc: "48: deterministic under repetition (race is exercised by `go test -race`)."
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestProduce_StagedFailures
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestProduce_StagedFailures
+    package: changebindingproducer
+    language: go
+    doc: "Staged producer failures, each to its own typed reason. Every mutation is one step off\nthe valid input."
+  - id: golang/architecture/changebindingproducer/producer_test.go:TestPublish_ContradictoryExistingFailsClosed
+    file: golang/architecture/changebindingproducer/producer_test.go
+    symbol: TestPublish_ContradictoryExistingFailsClosed
+    package: changebindingproducer
+    language: go
+    doc: "42 + 14: a contradictory existing publication (e.g. a force-pushed new head) fails closed;\nnever silently overwritten."
   - id: golang/architecture/claim_compaction_test.go:TestClaimCompactionIsDeterministicAndDoesNotTruncate
     file: golang/architecture/claim_compaction_test.go
     symbol: TestClaimCompactionIsDeterministicAndDoesNotTruncate

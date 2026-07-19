@@ -108,6 +108,7 @@ components:
       - cmd/awg/cmd_pattern_check.go
       - cmd/awg/cmd_plan_probes.go
       - cmd/awg/cmd_preflight.go
+      - cmd/awg/cmd_produce_binding.go
       - cmd/awg/cmd_promote.go
       - cmd/awg/cmd_promote_answer.go
       - cmd/awg/cmd_promote_realization.go
@@ -384,6 +385,11 @@ components:
       - golang/architecture/changebinding/model.go
       - golang/architecture/changebinding/parse.go
       - golang/architecture/changebinding/validate.go
+      - golang/architecture/changebindingproducer/github_env.go
+      - golang/architecture/changebindingproducer/model.go
+      - golang/architecture/changebindingproducer/produce.go
+      - golang/architecture/changebindingproducer/provenance.go
+      - golang/architecture/changebindingproducer/publish.go
       - golang/architecture/claim.go
       - golang/architecture/claim_document.go
       - golang/architecture/claimaudit/audit.go
