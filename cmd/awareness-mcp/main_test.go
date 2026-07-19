@@ -82,6 +82,19 @@ func testBridge(c awarenessClient) *bridge {
 	return &bridge{client: c, timeout: 5 * time.Second}
 }
 
+func TestTaskControlToolsAreExposedWithTypedContracts(t *testing.T) {
+	tools := testBridge(fakeClient{}).tools()
+	found := map[string]bool{}
+	for _, tool := range tools {
+		found[tool.Name] = true
+	}
+	for _, name := range []string{"task_status", "advance_task", "task_briefing"} {
+		if !found[name] {
+			t.Fatalf("missing MCP tool %s", name)
+		}
+	}
+}
+
 // callText runs a tool and returns just the human text block — the shape most
 // existing tests assert on. Structured-payload tests call callTool directly.
 func (b *bridge) callText(ctx context.Context, name string, args map[string]interface{}) (string, error) {
@@ -288,14 +301,15 @@ func TestQueryTool_MapsRequestAndFormatsRows(t *testing.T) {
 		},
 	})
 	out, err := b.callText(context.Background(), "awareness_query", map[string]interface{}{
-		"mode": "by_class", "class": "invariant", "limit": float64(10),
+		"mode": "by_class", "class": "contract", "limit": float64(10), "domain": "github.com/globulario/sensei",
 	})
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
 	if got.GetMode() != awarenesspb.QueryMode_QUERY_MODE_BY_CLASS ||
-		got.GetClass() != awarenesspb.QueryClass_QUERY_CLASS_INVARIANT ||
-		got.GetLimit() != 10 {
+		got.GetClass() != awarenesspb.QueryClass_QUERY_CLASS_CONTRACT ||
+		got.GetLimit() != 10 ||
+		got.GetDomain() != "github.com/globulario/sensei" {
 		t.Fatalf("request=%v", got)
 	}
 	if !strings.Contains(out, "rows: 1") || !strings.Contains(out, "invariant:x") || !strings.Contains(out, "critical") {
@@ -306,13 +320,111 @@ func TestQueryTool_MapsRequestAndFormatsRows(t *testing.T) {
 	}
 }
 
+func TestQueryTool_ExposesAllTypedProtoClasses(t *testing.T) {
+	for _, class := range []string{
+		"invariant",
+		"failure_mode",
+		"incident_pattern",
+		"intent",
+		"symbol",
+		"source_file",
+		"code_symbol",
+		"forbidden_fix",
+		"test",
+		"meta_principle",
+		"component",
+		"boundary",
+		"contract",
+		"decision",
+		"evidence",
+		"design_pattern",
+		"implementation_pattern",
+		"pattern_misuse",
+		"architecture_claim",
+		"open_question",
+		"architect_answer",
+		"evidence_probe",
+	} {
+		if _, err := queryClassFromString(class); err != nil {
+			t.Fatalf("query class %s not accepted: %v", class, err)
+		}
+	}
+
+	b := testBridge(fakeClient{})
+	var enumValues []string
+	for _, tdef := range b.tools() {
+		if tdef.Name != "awareness_query" {
+			continue
+		}
+		props := tdef.InputSchema["properties"].(map[string]interface{})
+		classProp := props["class"].(map[string]interface{})
+		enumValues = classProp["enum"].([]string)
+		if _, ok := props["domain"]; !ok {
+			t.Fatal("awareness_query schema missing domain")
+		}
+		break
+	}
+	if len(enumValues) == 0 {
+		t.Fatal("awareness_query schema class enum missing")
+	}
+	if len(enumValues) != len(mcpQueryClasses) {
+		t.Fatalf("schema enum length=%d, want %d", len(enumValues), len(mcpQueryClasses))
+	}
+}
+
+func TestQueryClassFromStringArchitectureClaim(t *testing.T) {
+	got, err := queryClassFromString("architecture_claim")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM {
+		t.Fatalf("class=%s, want ARCHITECTURE_CLAIM", got)
+	}
+}
+
+func TestMCPQueryClassOpenQuestion(t *testing.T) {
+	got, err := queryClassFromString("open_question")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_OPEN_QUESTION {
+		t.Fatalf("class=%s, want OPEN_QUESTION", got)
+	}
+}
+
+func TestMCPQueryClassArchitectAnswer(t *testing.T) {
+	got, err := queryClassFromString("architect_answer")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_ARCHITECT_ANSWER {
+		t.Fatalf("class=%s, want ARCHITECT_ANSWER", got)
+	}
+}
+
+func TestMCPQueryClassEvidenceProbe(t *testing.T) {
+	got, err := queryClassFromString("evidence_probe")
+	if err != nil {
+		t.Fatalf("queryClassFromString: %v", err)
+	}
+	if got != awarenesspb.QueryClass_QUERY_CLASS_EVIDENCE_PROBE {
+		t.Fatalf("class=%s, want EVIDENCE_PROBE", got)
+	}
+}
+
 func TestMetadataTool_FormatsCounts(t *testing.T) {
+	var got *awarenesspb.MetadataRequest
 	b := testBridge(fakeClient{
-		metadata: func(_ context.Context, _ *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+		metadata: func(_ context.Context, in *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+			got = in
 			return &awarenesspb.MetadataResponse{
 				ServerVersion:                       "1.2.3",
 				TripleCount:                         12062,
 				InvariantCount:                      40,
+				ArchitectureClaimCount:              6,
+				OpenQuestionCount:                   2,
+				ArchitectAnswerCount:                3,
+				EvidenceProbeCount:                  4,
 				EmbeddedSeedDigestSha256:            "abc123",
 				EmbeddedSeedMarkerIri:               "https://globular.io/awareness#seedBuild/sha256-abc123",
 				LiveStoreContainsEmbeddedSeedMarker: true,
@@ -337,9 +449,12 @@ func TestMetadataTool_FormatsCounts(t *testing.T) {
 			}, nil
 		},
 	})
-	out, err := b.callText(context.Background(), "awareness_metadata", map[string]interface{}{})
+	out, err := b.callText(context.Background(), "awareness_metadata", map[string]interface{}{"domain": "github.com/globulario/sensei"})
 	if err != nil {
 		t.Fatalf("err=%v", err)
+	}
+	if got.GetDomain() != "github.com/globulario/sensei" {
+		t.Fatalf("metadata domain not mapped: %q", got.GetDomain())
 	}
 	if !strings.Contains(out, "server_version: 1.2.3") || !strings.Contains(out, "triple_count: 12062") || !strings.Contains(out, "invariant_count: 40") {
 		t.Fatalf("out=%q", out)
@@ -354,6 +469,10 @@ func TestMetadataTool_FormatsCounts(t *testing.T) {
 		"coverage_state: COVERAGE_STATE_SUFFICIENT",
 		"seed_state: SEED_STATE_CURRENT",
 		"graph_freshness_state: GRAPH_FRESHNESS_STATE_CURRENT",
+		"architecture_claim_count: 6",
+		"open_question_count: 2",
+		"architect_answer_count: 3",
+		"evidence_probe_count: 4",
 		"candidate_queue_state: CANDIDATE_QUEUE_STATE_PRESENT",
 		"local_candidate_file_count: 2",
 		"local_candidate_entry_count: 5",
@@ -589,6 +708,9 @@ func TestServeStdio_InitializeRespondsWithProtocolVersionFramed(t *testing.T) {
 	parts := strings.SplitN(resp, "\r\n\r\n", 2)
 	if len(parts) != 2 || !strings.Contains(parts[1], `"protocolVersion":"2025-06-18"`) {
 		t.Fatalf("response = %q", resp)
+	}
+	if !strings.Contains(parts[1], `"serverInfo":{"name":"sensei","version":"0.1.0"}`) {
+		t.Fatalf("initialize serverInfo should identify Sensei, got %q", parts[1])
 	}
 }
 

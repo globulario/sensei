@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/certification-receipt.schema.json",
+  "title": "Architectural Closure v1 Certification Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "result_binding": {"type": "object"},
+    "certification_policy": {"type": "string"},
+    "scope_lane": {"$ref": "common.schema.json#/$defs/dimension_status"},
+    "authority_lane": {"$ref": "common.schema.json#/$defs/dimension_status"},
+    "proof_lane": {"$ref": "common.schema.json#/$defs/dimension_status"},
+    "evidence_lane": {"$ref": "common.schema.json#/$defs/dimension_status"},
+    "forbidden_moves": {"type": "array", "items": {"type": "string"}},
+    "unresolved_contradictions": {"type": "array", "items": {"type": "string"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "certification_verdict": {"$ref": "common.schema.json#/$defs/certification_verdict"},
+    "digest_sha256": {"type": "string"}
+  },
+  "required": ["result_binding", "certification_policy", "scope_lane", "authority_lane", "proof_lane", "evidence_lane", "certification_verdict"]
+}
+

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/evidence-profile.schema.json",
+  "title": "Architectural Closure v1 Evidence Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "profile_id": {"type": "string"},
+    "owner": {"type": "string"},
+    "legal_observation_path": {"type": "string"},
+    "evidence_kind": {"$ref": "common.schema.json#/$defs/evidence_kind"},
+    "freshness": {"type": "string"},
+    "trust": {"type": "string"},
+    "runtime_target_kind": {"type": "string"},
+    "governed_target": {"type": "string"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"}
+  },
+  "required": ["profile_id", "owner", "legal_observation_path", "evidence_kind", "status"]
+}
+

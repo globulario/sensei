@@ -18,7 +18,28 @@ This page is the operational contract. For the wire surface see
   or a replacement for tests, builds, and review. An `EMPTY` result is **not**
   proof an edit is safe.
 
-## The seven tools
+## Sensei Architect skill
+
+`sensei init` installs the built-in Sensei Architect skill by default:
+
+- `.sensei/skills/sensei-architect/` is the canonical repository-local copy.
+- `.agents/skills/sensei-architect/` is for Codex / Agent Skills discovery.
+- `.claude/skills/sensei-architect/` is for Claude Code project skill discovery.
+- `.cursor/rules/sensei.mdc` points Cursor to the canonical package.
+
+Use the skill before planning or editing architecture-sensitive work:
+contracts, ownership, state layers, lifecycle, recovery, security, convergence,
+patterns, proof, degraded coverage, audits, incidents, migrations, and PR
+review. The skill should activate proactively, but proportionally. It may block
+known contract violations, forbidden fixes, authority conflicts, security risk,
+data-loss risk, or irreversible unverified transitions. It should warn or advise
+without expanding scope for lesser findings.
+
+The skill is process guidance, not authority. Sensei's reviewed corpus remains
+the architectural memory. See [sensei-architect-skill.md](./sensei-architect-skill.md)
+for installation and update details.
+
+## The eight tools
 
 You reach these as MCP tools (`awareness_*`) or as `sensei` subcommands. Pick by
 what you're about to do — don't default to `briefing` for everything.
@@ -32,6 +53,7 @@ what you're about to do — don't default to `briefing` for everything.
 | Expand a `referenced_id` | `resolve(class=, id=)` | the full node + provenance |
 | Tell "no rule here" from "graph thin here" | `metadata` | overall coverage/freshness, once per session |
 | Operator/debug browse | `query(mode=)` | typed, whitelisted — no raw SPARQL |
+| Record durable lessons | `propose(kind=, ...)` | review-queue candidates, never active authority |
 
 ## Required pre-edit workflow
 

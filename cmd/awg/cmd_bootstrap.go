@@ -34,14 +34,16 @@ import (
 func runBootstrap(args []string) int {
 	fs := flag.NewFlagSet("sensei bootstrap", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	repo := fs.String("repo", ".", "path to the repository to bootstrap")
+	repo := "."
+	fs.StringVar(&repo, "path", ".", "path to the repository to bootstrap")
+	fs.StringVar(&repo, "repo", ".", "deprecated alias for --path")
 	skipHistory := fs.Bool("skip-history", false, "do not run coldsource/history mining")
 	skipBuild := fs.Bool("skip-build", false, "run extraction + validate, but do not build the graph")
 	check := fs.Bool("check", false, "compare generated output to committed files; exit non-zero if stale")
 	dryRun := fs.Bool("dry-run", false, "print the report without writing generated/candidate files")
 	scipPath := fs.String("scip", "", "path to a SCIP index to ingest symbol-level nodes; defaults to <repo>/index.scip when present")
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, `Usage: sensei bootstrap --repo <path> [flags]
+		fmt.Fprint(os.Stderr, `Usage: sensei bootstrap --path <checkout> [flags]
 
 Initialize AWG for an existing repository: scaffold if missing, run deterministic
 architecture extraction (proto contracts, components, code symbols, tests) into
@@ -59,7 +61,10 @@ Flags:
 		return 2
 	}
 
-	root, err := filepath.Abs(*repo)
+	warnDeprecatedRepoPathAlias(fs, "bootstrap")
+	warnIfDomainLikeExtractorPath("bootstrap", repo)
+
+	root, err := filepath.Abs(repo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei bootstrap: %v\n", err)
 		return 1
@@ -73,16 +78,13 @@ Flags:
 	if _, statErr := os.Stat(awarenessDir); os.IsNotExist(statErr) {
 		if *dryRun || *check {
 			rep.notes = append(rep.notes, "scaffold: docs/awareness/ missing — would run `sensei init` scaffold (skipped in dry-run/check)")
-		} else {
-			created, serr := scaffoldProject(root, initOptions{hooks: true, claudeMD: true, agentsMD: true, cursor: true})
-			if serr != nil {
-				fmt.Fprintf(os.Stderr, "sensei bootstrap: scaffold: %v\n", serr)
-				return 1
-			}
-			rep.scaffolded = created
 		}
 	}
 	if !*dryRun && !*check {
+		if serr := syncBootstrapScaffold(root, rep); serr != nil {
+			fmt.Fprintf(os.Stderr, "sensei bootstrap: scaffold: %v\n", serr)
+			return 1
+		}
 		refreshed, rerr := repairLegacyStarterTemplates(root)
 		if rerr != nil {
 			fmt.Fprintf(os.Stderr, "sensei bootstrap: repair starter templates: %v\n", rerr)
@@ -202,6 +204,7 @@ Flags:
 			importCfg = c
 		}
 	}
+	var igComponents []importgraph.Component // kept for boundary inference below
 	for _, lang := range importgraph.Languages() {
 		idoc, ierr := importgraph.Scan(root, lang, importCfg)
 		if ierr != nil {
@@ -212,6 +215,7 @@ Flags:
 			rep.importEdges += len(c.DependsOn)
 			rep.importEdgesClassified += len(c.ReadsFrom) + len(c.WritesTo) + len(c.ExposesContracts)
 		}
+		igComponents = append(igComponents, idoc.Components...)
 		comps = mergeImportGraphComponents(comps, idoc.Components)
 	}
 	rep.components = len(comps)
@@ -219,7 +223,8 @@ Flags:
 		generated = append(generated, genFile{filepath.Join(generatedDir, "components.yaml"), data})
 	}
 
-	// Code symbols / annotations (only when a namespaces.yaml registry exists).
+	// Code symbols / annotations. A registry enriches identities and edges; when
+	// absent, retain ordinary Go declarations as structural symbol facts.
 	if reg := findRegistry(root); reg != "" {
 		syms, serr := extractCodeSymbols(root, reg)
 		if serr != nil {
@@ -230,7 +235,18 @@ Flags:
 			generated = append(generated, genFile{filepath.Join(generatedDir, "source_edges.yaml"), syms.edgesYAML})
 		}
 	} else {
-		rep.notes = append(rep.notes, "source_symbols: skipped — no docs/awareness/namespaces.yaml registry (code-symbol extraction needs one)")
+		syms, serr := extractGoCodeSymbols(root, comps)
+		if serr != nil {
+			rep.notes = append(rep.notes, "source_symbols: structural Go scan failed: "+serr.Error())
+		} else if len(syms) > 0 {
+			rep.sourceAnchors = len(syms)
+			if data, rerr := renderGenerated("Go declarations inferred from source structure; no annotation edges were inferred.", bootstrapCodeSymbolsDoc{CodeSymbols: syms}); rerr == nil {
+				generated = append(generated, genFile{filepath.Join(generatedDir, "source_symbols.yaml"), data})
+			}
+			rep.notes = append(rep.notes, "source_symbols: used structural Go fallback (no namespaces registry)")
+		} else {
+			rep.notes = append(rep.notes, "source_symbols: no registry and no Go declarations found")
+		}
 	}
 
 	// SCIP symbol ingestion: when a SCIP index is present, map its symbols and
@@ -370,8 +386,60 @@ Flags:
 	} else {
 		rep.notes = append(rep.notes, "misuse candidates: "+cerr.Error())
 	}
-	// boundary candidates remain unimplemented (kept honest, per scope).
-	rep.notes = append(rep.notes, "boundary candidates: not implemented yet")
+	// Invariants AND authority surfaces from ONE Go-AST pass, both gated at medium
+	// confidence. The single extractor (extractGoArchitecture behind
+	// buildInvariantExtractionReport) parses each .go file once and feeds both the
+	// invariant synthesizer and the authority-surface scanner — no double parse.
+	// medium floor keeps only corroborated results: for invariants, a guard with a
+	// test / owned write path / rule-signaling test; for authority, a route,
+	// lifecycle control, or guarded mutation (bare unguarded mutations score low
+	// and drop). status: candidate, never promoted.
+	if report, ierr := buildInvariantExtractionReport(root, invariantExtractOptions{
+		Repo:              root,
+		IncludeTests:      true,
+		MinimumConfidence: "medium",
+	}); ierr != nil {
+		rep.notes = append(rep.notes, "invariant/authority extraction: "+ierr.Error())
+	} else {
+		rep.candidateInvariants = len(report.Candidates)
+		rep.candidateAuthority = len(report.AuthoritySurfaces)
+		if writeCands && len(report.Candidates) > 0 {
+			doc := struct {
+				Invariants []extractedInvariantCandidate `yaml:"invariants"`
+			}{report.Candidates}
+			if data, rerr := renderGenerated("Invariant candidates from `sensei extract-invariants` at medium confidence (corroborated only; status: candidate).", doc); rerr != nil {
+				rep.notes = append(rep.notes, "invariant candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "invariant candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "invariant_candidates.yaml"), data, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "invariant candidates: write: "+werr.Error())
+			}
+		}
+		if writeCands && len(report.AuthoritySurfaces) > 0 {
+			if out, rerr := renderAuthorityCandidates(root, report.AuthoritySurfaces); rerr != nil {
+				rep.notes = append(rep.notes, "authority candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "authority candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "authority_surface_candidates.yaml"), out, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "authority candidates: write: "+werr.Error())
+			}
+		}
+	}
+	// Boundary candidates inferred from the import graph: Go internal/ visibility
+	// boundaries (compiler-enforced) and contract-exposure API seams. Conservative,
+	// status: candidate, never promoted.
+	if bnds := extractBoundaryCandidates(igComponents); len(bnds) > 0 {
+		rep.candidateBoundaries = len(bnds)
+		if writeCands {
+			if data, rerr := renderGenerated("Boundary candidates inferred from the import graph (assertion: inferred, status: candidate).", boundaryCandidateDoc{Boundaries: bnds}); rerr != nil {
+				rep.notes = append(rep.notes, "boundary candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "boundary candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "boundary_candidates.yaml"), data, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "boundary candidates: write: "+werr.Error())
+			}
+		}
+	}
 
 	// ── Stage 7: gates ──
 	if !*check {
@@ -621,6 +689,20 @@ func distinctSourceFiles(comps []bootstrapComponent) int {
 	return len(seen)
 }
 
+func syncBootstrapScaffold(root string, rep *bootstrapReport) error {
+	report, err := scaffoldProjectWithReport(root, initOptions{
+		hooks: true, claudeMD: true, agentsMD: true, cursor: true, skills: true,
+	})
+	if err != nil {
+		return err
+	}
+	rep.scaffolded = append(rep.scaffolded, report.created...)
+	for _, notice := range report.notices {
+		rep.notes = append(rep.notes, "scaffold: "+notice)
+	}
+	return nil
+}
+
 // ── report ──
 
 type bootstrapReport struct {
@@ -640,6 +722,9 @@ type bootstrapReport struct {
 	sourceAnchors         int
 	candidatePatterns     int
 	candidateMisuses      int
+	candidateAuthority    int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
+	candidateBoundaries   int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
+	candidateInvariants   int // Invariant candidates inferred from rule-signaling test names
 	historyCandidates     int // -1 = skipped
 	validationFindings    int
 	validationByCheck     map[string]int
@@ -692,6 +777,9 @@ func (r *bootstrapReport) print(w *os.File) {
 	fmt.Fprintf(w, "  source anchors found:       %d\n", r.sourceAnchors)
 	fmt.Fprintf(w, "  candidate patterns found:   %d\n", r.candidatePatterns)
 	fmt.Fprintf(w, "  candidate misuses found:    %d\n", r.candidateMisuses)
+	fmt.Fprintf(w, "  authority surfaces found:   %d\n", r.candidateAuthority)
+	fmt.Fprintf(w, "  boundary candidates found:  %d\n", r.candidateBoundaries)
+	fmt.Fprintf(w, "  invariant candidates found: %d\n", r.candidateInvariants)
 	fmt.Fprintf(w, "  history-derived candidates: %s\n", hist)
 	fmt.Fprintf(w, "  validation findings:        %d\n", r.validationFindings)
 	if len(r.validationByCheck) > 0 {

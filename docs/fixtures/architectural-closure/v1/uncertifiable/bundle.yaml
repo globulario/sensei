@@ -1,0 +1,19 @@
+closure_protocol_fixture:
+  name: uncertifiable
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    terminally_closed: false
+    blocking_dimension: epistemic
+  dimensions:
+    - {dimension: identity, status: pass}
+    - {dimension: scope, status: pass}
+    - {dimension: direction, status: pass}
+    - {dimension: authority, status: pass}
+    - {dimension: mutation, status: pass}
+    - {dimension: protection, status: pass}
+    - {dimension: epistemic, status: conflicted, reason_codes: [evidence.owner_path.conflicted]}
+    - {dimension: proof, status: pass}
+    - {dimension: freshness, status: pass}
+    - {dimension: completion, status: pass}
+

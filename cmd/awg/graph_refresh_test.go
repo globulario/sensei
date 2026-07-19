@@ -177,6 +177,17 @@ func TestRunRebuild_PromotesSeedAndTransactionAfterLiveVerification(t *testing.T
 	if !strings.Contains(string(txBytes), "seed\tdigest_sha256\t") {
 		t.Fatalf("transaction stamp missing seed digest:\n%s", string(txBytes))
 	}
+	marker, err := seedmeta.ReadMarkerFile(seedmeta.RuntimeMarkerPath(repo))
+	if err != nil {
+		t.Fatalf("read runtime marker from ag repo: %v", err)
+	}
+	loadedMarker, ok := seedmeta.ParseMarker(loaded)
+	if !ok {
+		t.Fatal("loaded artifact missing marker")
+	}
+	if marker.Digest != loadedMarker.Digest {
+		t.Fatalf("runtime marker digest=%s, want %s", marker.Digest, loadedMarker.Digest)
+	}
 }
 
 func copyFixtureYAMLs(srcDir, dstDir string) error {

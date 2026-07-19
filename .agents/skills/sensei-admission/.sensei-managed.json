@@ -1,0 +1,14 @@
+{
+  "managed_by": "sensei init",
+  "skill": "sensei-admission",
+  "version": "2026.07.14.1",
+  "source_dir": "templates/skills/sensei-admission",
+  "files": {
+    "README.md": "6fa98f2915b5f93c6f9399e13fa1f07f22f7f9dba10c5e64758d2a7c9c950ab7",
+    "SKILL.md": "2a27c925fa6a782631902082be7ce6ff5d47db454aa9b7c56ca92e482ee2b644",
+    "references/ADMISSION-MODEL.md": "619375b3129e893a1db90af1a6f59371e6846f7769eee7c20553210c0caa119d",
+    "references/AGENT-WORKFLOW.md": "67181c95dda267a44bebf912c5d96e43109e6f4566cfdd5b584210ec654d6bba",
+    "references/DECISION-SEMANTICS.md": "2b151be047af0e75952f4c96d34ce7f0553a8e1ca97badee1a0f5fb29be4050c",
+    "references/DIFF-VERIFICATION.md": "30e25a01bfbcdda3537de00fcef8757ea1d7715a7735e9aaebded6a658513699"
+  }
+}

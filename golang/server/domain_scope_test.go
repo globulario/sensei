@@ -31,6 +31,15 @@ func factsFixture() []store.ImpactFact {
 
 const homeDom = "github.com/o/home"
 
+type fakeDomainListStore struct {
+	fakeStore
+	domains []string
+}
+
+func (f fakeDomainListStore) Domains(context.Context) ([]string, error) {
+	return f.domains, nil
+}
+
 func TestNodeDomainsFromFacts(t *testing.T) {
 	dom := nodeDomainsFromFacts(factsFixture(), homeDom)
 	want := map[string]string{

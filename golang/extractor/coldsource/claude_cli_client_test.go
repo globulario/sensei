@@ -18,6 +18,16 @@ func writeFakeClaude(t *testing.T, envelope string) string {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "claude")
 	script := "#!/bin/sh\n" +
+		"saw_tools=0\n" +
+		"prev=\n" +
+		"for arg in \"$@\"; do\n" +
+		"  if [ \"$prev\" = \"--tools\" ] && [ -z \"$arg\" ]; then saw_tools=1; fi\n" +
+		"  prev=\"$arg\"\n" +
+		"done\n" +
+		"if [ \"$saw_tools\" != 1 ]; then\n" +
+		"  printf '%s' '{\"is_error\":true,\"result\":\"TOOLS_NOT_DISABLED\"}'\n" +
+		"  exit 0\n" +
+		"fi\n" +
 		"cat >/dev/null\n" + // drain stdin (the prompt)
 		"if [ -n \"$ANTHROPIC_API_KEY\" ] || [ -n \"$ANTHROPIC_AUTH_TOKEN\" ]; then\n" +
 		"  printf '%s' '{\"is_error\":true,\"result\":\"ENV_LEAK\"}'\n" +

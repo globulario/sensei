@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/actor-binding.schema.json",
+  "title": "Architectural Closure v1 Actor Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "principal_id": {"type": "string"},
+    "actor_kind": {"$ref": "common.schema.json#/$defs/actor_kind"},
+    "roles": {"type": "array", "items": {"type": "string"}},
+    "issuer": {"type": "string"},
+    "authentication_receipt_digest_sha256": {"type": "string"},
+    "role_attestation_receipt_digests_sha256": {"type": "array", "items": {"type": "string"}},
+    "delegation_receipt_digests_sha256": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["principal_id", "actor_kind"]
+}

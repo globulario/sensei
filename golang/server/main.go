@@ -72,6 +72,13 @@ var seedTransactionStamp []byte
 // is the sentinel for an un-ldflag-ed build.
 var Version = "0.0.0-dev"
 
+func authTokenFromEnv() string {
+	if v := strings.TrimSpace(os.Getenv("SENSEI_TOKEN")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(os.Getenv("AWG_TOKEN"))
+}
+
 // Build-time provenance stamps. Set via ldflags:
 //
 //	-X main.BuildCommit=<awareness-graph SHA>
@@ -165,8 +172,8 @@ func main() {
 	homeDomain := flag.String("home-domain", defaultHomeDomain,
 		"domain key for the host project's own untagged knowledge nodes; "+
 			"cold-start non-Globular deployments should set this to their project key")
-	authToken := flag.String("auth-token", os.Getenv("AWG_TOKEN"),
-		"require this bearer token on every AwarenessGraph RPC (health/reflection exempt). Default: $AWG_TOKEN. Empty = open (trusted-network self-host default).")
+	authToken := flag.String("auth-token", authTokenFromEnv(),
+		"require this bearer token on every AwarenessGraph RPC (health/reflection exempt). Default: $SENSEI_TOKEN, then legacy $AWG_TOKEN. Empty = open (trusted-network self-host default).")
 	debug := flag.Bool("debug", false, "enable verbose startup logs")
 	describeFlag := flag.Bool("describe", false, "print service description as JSON and exit")
 	healthFlag := flag.Bool("health", false, "print service health as JSON and exit")
@@ -214,8 +221,8 @@ func main() {
 	}
 
 	// Sensei runs as a standalone sidecar, not a Globular-registered service:
-	// the listen address comes from -addr, else $AWG_ADDR, else :10120. There is
-	// no etcd service-registry authority to consult.
+	// the listen address comes from -addr, else $SENSEI_ADDR (legacy $AWG_ADDR),
+	// else :10120. There is no etcd service-registry authority to consult.
 	finalAddr := *addr
 	if finalAddr == "" {
 		finalAddr = netcfg.ServiceListenAddr()

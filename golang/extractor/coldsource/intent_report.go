@@ -50,9 +50,9 @@ func RenderIntentReport(w io.Writer, r IntentReport) {
 		}
 		fmt.Fprintf(w, "%s%-18s %d\n", tag, c, counts[c])
 	}
-	fmt.Fprintf(w, "\nRouting (>80%% rule)\n")
+	fmt.Fprintf(w, "\nDefault review routing (>80%% rule)\n")
 	fmt.Fprintf(w, "  auto-map (existing):    %d   (advisory, audited, reversible — attaches to existing only)\n", auto)
-	fmt.Fprintf(w, "  human required:         %d   (findings, <0.80, or NEW intent)\n", human)
+	fmt.Fprintf(w, "  policy decision needed: %d   (findings, <0.80, or NEW intent)\n", human)
 
 	by := func(class IntentOutputClass) []IntentGrounding {
 		var out []IntentGrounding
@@ -83,7 +83,7 @@ func RenderIntentReport(w io.Writer, r IntentReport) {
 
 	fmt.Fprintf(w, "\nTrust tiers: executable_truth > landed_behavior > maintainer_intent > docs_only > weak_hint")
 	fmt.Fprintf(w, "  (grounding bar = landed_behavior; ! = claimed symbol absent at a cited anchor)\n")
-	fmt.Fprintf(w, "The LLM proposes intent; AWG grounds it; a human approves meaning. Docs alone are not authority.\n")
+	fmt.Fprintf(w, "The LLM proposes intent; AWG grounds it; adoption policy decides whether meaning is staged, machine-adopted, or later governed. Docs alone are not authority.\n")
 }
 
 // RenderFinderHints prints the intent → coldsource hints: divergence sites where

@@ -48,9 +48,9 @@ func (e *AmbiguousScopeError) Error() string {
 //	requested  — explicit domain/repo key from the query ("" = none provided).
 //
 // Rules (matching the agreed policy: ambiguous only if >1 domain):
-//   - explicit request → use it verbatim (even if absent from the graph: the
-//     filter then yields only shared nodes, which is correct — a known repo with
-//     no repo-specific rules yet still sees shared meta-principles).
+//   - explicit request → use it verbatim. Server handlers that can enumerate
+//     domains validate existence before calling this; this pure helper only
+//     resolves the already-admitted scope.
 //   - no request, 0 selectable domains → "" (only shared exists). Not ambiguous.
 //   - no request, exactly 1 selectable domain → that domain. Trivially unambiguous,
 //     so the host project's existing single-domain briefings keep working unchanged.

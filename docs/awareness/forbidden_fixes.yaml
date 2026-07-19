@@ -53,3 +53,166 @@ forbidden_fixes:
     related_invariants:
     reason: services/dist is disposable release output — wiped and recreated each build; never authored source
     contract: services/dist is disposable release output — wiped and recreated each build; never authored source
+  - id: forbidden_fix.sensei.trust_producer_declared_freshness_or_trust_on_an_evidence_re
+    title: Trust producer-declared freshness or trust on an evidence receipt
+    summary: Never accept a receipt's self-declared freshness/trust/status as authoritative to reach PASS. The validator must recompute effective status against the proof request and binding. Producer-supplied freshness with no observed time is UNKNOWN, not PASS.
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    reason: Never accept a receipt's self-declared freshness/trust/status as authoritative to reach PASS. The validator must recompute effective status against the proof request and binding. Producer-supplied freshness with no observed time is UNKNOWN, not PASS.
+  # ── Phase 8: terminal architectural closure — forbidden fixes (Slice 8.0) ──
+  - id: phase8_direct_graph_or_projection_write
+    title: write the graph or briefing projection directly during disposition/promotion/completion
+    summary: Have a Phase-8 package write the awareness graph, seed, or a briefing/ledger projection directly instead of mutating the governed source and rebuilding through the deterministic owner path (and rebuilding ledger projections from the verified chain).
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+      - closure.completion_never_mutates_governed_or_certification_truth
+    reason: reusable truth is established only by governed-source mutation + deterministic graph rebuild; projections rebuild from the verified chain — never a direct graph/projection write
+    contract: reusable truth is established only by governed-source mutation + deterministic graph rebuild; projections rebuild from the verified chain — never a direct graph/projection write
+  - id: phase8_production_calls_cli_handler_or_duplicates_policy
+    title: call a CLI handler from a production package or duplicate CLI promotion policy
+    summary: Have a Phase-8 production package invoke a cmd/awg run* handler (e.g. runPropose) or re-implement propose/rebuild policy inline, instead of a reusable governed-promotion owner sitting beneath sensei propose that both the CLI and Phase 8 call.
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+    reason: a reusable governed-promotion owner sits beneath sensei propose; production packages call that owner, never a CLI handler, and never duplicate CLI policy
+    contract: a reusable governed-promotion owner sits beneath sensei propose; production packages call that owner, never a CLI handler, and never duplicate CLI policy
+  - id: phase8_arbitrary_actor_or_implicit_authority_reuse
+    title: use an arbitrary actor string or implicitly reuse another authority for disposition/promotion/completion
+    summary: Derive the answering actor, promotion actor, or completing actor from an arbitrary caller string, or silently reuse the certifying actor, instead of an explicit authority-bound actor verified via authority.VerifyActorBinding — with answer authority and promotion authority as separate typed operations.
+    related_invariants:
+      - closure.only_question_disposition_owner_records_question_outcomes
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+    reason: answer, promotion, and completion actors are explicit, authority-verified, and separate; never an arbitrary string and never an implicit reuse of another operation's authority
+    contract: answer, promotion, and completion actors are explicit, authority-verified, and separate; never an arbitrary string and never an implicit reuse of another operation's authority
+  - id: phase8_adoption_receipt_or_node_alone_as_promotion_proof
+    title: treat an adoption.Receipt or a graph node alone as authoritative promotion
+    summary: Accept an adoption.Receipt (candidate evidence) or the mere existence of a governed graph node as proof that a reusable answer was authorized and correctly promoted, instead of a QuestionPromotionReceipt binding the full question -> answer -> authority -> result -> governed mutation -> rebuilt graph lineage.
+    related_invariants:
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+    reason: authoritative promotion is a QuestionPromotionReceipt binding the full lineage; adoption.Receipt is upstream candidate evidence and a node's existence proves nothing about authorization or provenance
+    contract: authoritative promotion is a QuestionPromotionReceipt binding the full lineage; adoption.Receipt is upstream candidate evidence and a node's existence proves nothing about authorization or provenance
+  - id: phase8_delete_question_to_improve_closure
+    title: delete or drop an architect question to improve closure
+    summary: Remove, hide, or drop a closure-blocking architect question (or rely on a rebuild that removes its backing blocker) to make proving/certification/completion pass, instead of an explicit authorized disposition preserved as lineage.
+    related_invariants:
+      - closure.no_blocking_question_satisfied_by_omission
+    reason: a blocking question is cleared only by an explicit authorized disposition preserved as lineage; never by deletion, omission, or a rebuilt-away blocker
+    contract: a blocking question is cleared only by an explicit authorized disposition preserved as lineage; never by deletion, omission, or a rebuilt-away blocker
+  - id: phase8_convert_deferred_dismissed_to_resolved_without_disposition
+    title: convert a deferred or dismissed question into resolved without an authorized disposition
+    summary: Reclassify a deferred/dismissed question as resolved (or drop it from the resolution summary) without a new authority-verified disposition, instead of keeping deferred/dismissed questions durable and explainable.
+    related_invariants:
+      - closure.only_question_disposition_owner_records_question_outcomes
+      - closure.no_blocking_question_satisfied_by_omission
+    reason: deferred and dismissed questions stay durable and explainable; they become resolved only through a new authority-verified disposition, never by reclassification or omission
+    contract: deferred and dismissed questions stay durable and explainable; they become resolved only through a new authority-verified disposition, never by reclassification or omission
+  - id: phase8_copy_task_local_answer_into_governed_sources
+    title: copy a task-local answer into governed sources or a repository briefing
+    summary: Promote or surface a task_local disposition into docs/awareness governed sources or a repository-wide/foreign-domain briefing, instead of keeping it confined to its exact task/session/result and effective scope.
+    related_invariants:
+      - closure.task_local_answers_never_enter_repository_briefings
+    reason: task-local answers are confined to their exact task/session/result and effective scope; they never enter governed sources or repository-wide/foreign-domain briefings
+    contract: task-local answers are confined to their exact task/session/result and effective scope; they never enter governed sources or repository-wide/foreign-domain briefings
+  - id: phase8_completion_repairs_the_feedback_loop
+    title: let completion answer, promote, rebuild, re-certify, or otherwise repair the loop it verifies
+    summary: Have the completion transaction record a disposition, promote an answer, mutate governed sources, rebuild the graph, or re-run certification to make a task completable, instead of verify-only fail-closed behavior over the separate question/promotion owner and the certification receipt.
+    related_invariants:
+      - closure.completion_never_mutates_governed_or_certification_truth
+      - closure.completion_requires_closed_current_question_loop
+    reason: completion is verify-only; it fails closed when the loop is open and never answers, promotes, rebuilds, re-certifies, or otherwise repairs the loop it is supposed to verify
+    contract: completion is verify-only; it fails closed when the loop is open and never answers, promotes, rebuilds, re-certifies, or otherwise repairs the loop it is supposed to verify
+  # ── Phase 8.1b: governed promotion — forbidden fixes ──
+  - id: phase8_promotion_writes_combined_seed
+    title: promote by writing or partial-regenerating the combined embedded seed
+    summary: Have the promotion path edit, partial-regenerate, or claim convergence of golang/server/embeddata/awareness.nt (the cross-repository combined seed) instead of persisting only the repository-scoped .sensei/project/graph.nt and reporting the combined-seed obligation separately.
+    related_invariants:
+      - closure.repo_graph_and_combined_seed_identities_distinct
+    reason: promotion persists only the repository-scoped graph; the combined seed is a separate cross-repo obligation regenerated by its own owner pipeline with the services checkout
+    contract: promotion persists only the repository-scoped graph; the combined seed is a separate cross-repo obligation regenerated by its own owner pipeline with the services checkout
+  - id: phase8_rollback_by_deletion_as_recovery
+    title: recover a failed promotion by deleting the committed source mutation
+    summary: Use rollback-by-deletion of a durably committed governed-source mutation as the recovery strategy, instead of resuming and reconciling the same content-addressed attempt from its journal.
+    related_invariants:
+      - closure.promotion_retry_resumes_same_attempt
+      - closure.source_commit_without_graph_verification_is_incomplete
+    reason: a committed source mutation is durable authoring truth; recovery resumes/reconciles the same attempt, it never deletes committed source to roll back
+    contract: a committed source mutation is durable authoring truth; recovery resumes/reconciles the same attempt, it never deletes committed source to roll back
+  - id: phase8_release_lock_before_graph_verified
+    title: release the promotion lock after source commit but before graph verification
+    summary: Release the repository-scoped promotion/mutation lock after governed_source_committed and before governed_graph_verified, allowing a concurrent writer to change docs/awareness before the rebuild re-reads it from disk.
+    related_invariants:
+      - closure.graph_verification_binds_committed_manifest
+    reason: because graphbuild re-reads docs/awareness from disk, the single repository promotion lock is held continuously from source commit through graph verification; the manifest CAS is the second guard
+    contract: because graphbuild re-reads docs/awareness from disk, the single repository promotion lock is held continuously from source commit through graph verification; the manifest CAS is the second guard
+  - id: phase8_promotion_events_as_task_events
+    title: model promotion journal states as task lifecycle events
+    summary: Add the four promotion states to closureprotocol task LedgerEventTypes, project them into task phase/status, or let task-ledger reducers consume them, instead of a promotion-local typed vocabulary and validator.
+    related_invariants:
+      - closure.promotion_journal_separate_from_task_lifecycle
+    reason: the promotion journal reuses only the append-only/hash-chain/CAS primitive with a promotion-local vocabulary; it never contaminates the task-event model or task phase/status truth
+    contract: the promotion journal reuses only the append-only/hash-chain/CAS primitive with a promotion-local vocabulary; it never contaminates the task-event model or task phase/status truth
+  - id: phase8_trust_caller_governed_status_or_graph_digest
+    title: trust a caller-supplied governed status, graph digest, node IRI, or promotion status
+    summary: Accept a caller-supplied governed=true, graph digest, node IRI, source digest, provenance verdict, or promotion status as authoritative instead of recomputing every trusted value from the committed source and reloaded graph.
+    related_invariants:
+      - closure.promotion_receipt_only_after_projection_verified
+    reason: promotion recomputes all trusted values (source digest, graph digest, node IRI, provenance, status); nothing epistemic is caller-supplied
+    contract: promotion recomputes all trusted values (source digest, graph digest, node IRI, provenance, status); nothing epistemic is caller-supplied
+  - id: phase8_overwrite_contradictory_governed_record
+    title: overwrite an existing governed record to force a promotion
+    summary: Overwrite or edit-in-place an existing canonical governed record whose semantics differ, to make a promotion succeed, instead of raising a typed collision/contradiction.
+    related_invariants:
+      - closure.contradictory_canonical_id_never_overwritten
+    reason: same id + different semantics is a typed contradiction refusal; same body is replay; governed source is append-only under promotion and never overwritten
+    contract: same id + different semantics is a typed contradiction refusal; same body is replay; governed source is append-only under promotion and never overwritten
+  - id: phase8_bespoke_provenance_semantics
+    title: implement a bespoke RDF interpretation for the provenance query
+    summary: Implement the offline provenance reader with a second, divergent RDF interpretation (IRI parsing, edge direction, literal handling) instead of reusing or matching store.Store semantics with parity tests.
+    related_invariants:
+      - closure.offline_provenance_query_matches_graph_owner
+    reason: the offline provenance query mirrors normal store.Store describe/inbound semantics and is proven by parity tests; it never invents a second graph interpretation
+    contract: the offline provenance query mirrors normal store.Store describe/inbound semantics and is proven by parity tests; it never invents a second graph interpretation
+  - id: phase8_temporary_compile_reported_as_promoted
+    title: report a temporary graph compile as completed promotion
+    summary: Treat an in-memory or throwaway graph compile as graph_verified, instead of requiring the canonical persisted .sensei/project/graph.nt plus authority marker to be independently reloaded and verified against the committed manifest.
+    related_invariants:
+      - closure.source_commit_without_graph_verification_is_incomplete
+      - closure.graph_verification_binds_committed_manifest
+    reason: graph_verified requires the persisted repository graph and marker to be reloaded and verified through the normal freshness/authority semantics; a temporary compile is never completion
+    contract: graph_verified requires the persisted repository graph and marker to be reloaded and verified through the normal freshness/authority semantics; a temporary compile is never completion
+  # ── Phase 9.0: operational surfacing of completion truth ──
+  - id: phase9_surface_appends_completed_or_writes_receipt
+    title: a Phase-9 surface appends a completed event or writes a completion receipt
+    summary: Let a CLI/MCP/server/CI/editor surface append a completed ledger event or produce/replace a completion receipt instead of delegating to the completion owner.
+    related_invariants:
+      - closure.phase9_invocation_surfaces_only_delegate_to_the_owner
+    reason: the completion owner (CompleteTask) is the sole path that may append a completed fact; a surface that writes one mints a second, unverified completer
+    contract: completion is appended only by completion.CompleteTask under its authority and readiness conjunction
+  - id: phase9_reinterpret_or_rederive_completion_truth_in_a_surface
+    title: reinterpret or re-derive completion truth inside a surface
+    summary: Re-derive readiness, correctness, question resolution, or terminal cardinality in a CLI/MCP/server/CI/editor surface instead of reading the owner's reconstruction.
+    related_invariants:
+      - closure.phase9_surfaces_consume_completion_truth_never_reinterpret_it
+    reason: the completion owner reconstructs terminal truth; a surface that re-derives it creates a divergent second interpretation
+    contract: surfaces consume InspectTerminalState/VerifyCompletionClosure output; they never re-derive it
+  - id: phase9_treat_projection_or_closure_report_as_completion_authority
+    title: treat a projection or the Phase-8 closure report as completion authority
+    summary: Use a task-status view, CI gate projection, editor cockpit, or the Phase-8 closure report as if it were terminal completion authority or a task-completion fact.
+    related_invariants:
+      - closure.phase9_projections_are_not_terminal_authority
+      - closure.phase9_preserves_the_three_completion_distinctions
+    reason: projections are derived and non-authoritative; the closure report is implementation evidence; only the durable event/receipt conjunction is terminal truth
+    contract: the durable completed event plus its matching receipt is the sole terminal authority
+  - id: phase9_ship_a_surface_without_a_reviewed_slice
+    title: ship a Phase-9 surface without a reviewed slice
+    summary: Implement or enable a CLI, MCP, CI/GitHub, or editor surface without an open, reviewed Phase-9 slice carrying acceptance criteria, failure modes, and a proof matrix.
+    related_invariants:
+      - closure.phase9_surfaces_locked_until_a_reviewed_slice
+    reason: govern-first — a product surface is authorized only by its own reviewed slice, one at a time
+    contract: each Phase-9 surface is unlocked only by its reviewed slice; one slice open at a time
+  - id: phase9_invent_a_gnn_or_ml_capability_without_repository_evidence
+    title: invent a GNN or ML capability without repository evidence
+    summary: Introduce a graph-neural-network / embedding-similarity / ML memory capability that has no grounding in repository evidence.
+    related_invariants:
+      - closure.phase9_surfaces_locked_until_a_reviewed_slice
+    reason: the repository has no GNN design and argues against embedding-similarity memory; a GNN capability would be invention, not repo-grounded governance
+    contract: GNN is out of scope until new reviewed repository evidence justifies it

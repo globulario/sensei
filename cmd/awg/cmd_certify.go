@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// LEGACY BENCHMARK CERTIFICATION ADAPTER — NOT architectural-closure
+// certification.
+//
+// `sensei certify --event` scores authored benchmark learning events. It
+// evaluates caller-authored, untyped event metadata and therefore:
+//
+//   - cannot produce a closureprotocol.CertificationReceipt (its output is
+//     legacyBenchmarkCertifyResult, marked protocol "legacy_benchmark_v0");
+//   - cannot append a `certified` (or any) task-ledger event — this file has
+//     no ledger access on purpose;
+//   - cannot establish CorrectnessCertified or architectural correctness;
+//   - is unreachable from admit/verify-admission/completion paths.
+//
+// Architectural-closure certification lives in
+// golang/architecture/certification behind `sensei certify-change`.
+
 package main
 
 import (
@@ -14,7 +30,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type certifyResult struct {
+// legacyBenchmarkProtocol marks legacy benchmark output so it can never be
+// mistaken for an architectural-closure/v1 record.
+const legacyBenchmarkProtocol = "legacy_benchmark_v0"
+
+// legacyBenchmarkCertifyResult is the legacy benchmark scoring result. It is
+// NOT a certification receipt: nothing downstream may treat its verdict as
+// architectural correctness.
+type legacyBenchmarkCertifyResult struct {
+	Protocol                  string                    `json:"protocol"`
 	EventID                   string                    `json:"event_id,omitempty"`
 	Task                      string                    `json:"task,omitempty"`
 	Score                     int                       `json:"score,omitempty"`
@@ -115,8 +139,11 @@ func runCertify(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei certify [flags]
 
-Evaluate repair-governance certification from an authored benchmark learning
-event. Score may be reported, but it is never allowed to decide promotion.
+Legacy benchmark certification adapter — NOT architectural-closure
+certification. Evaluates repair-governance verdicts from an authored benchmark
+learning event. Score may be reported, but it is never allowed to decide
+promotion. This command cannot append a certified task-ledger event and cannot
+establish correctness; use 'sensei certify-change' for closure certification.
 
 Flags:
 `)
@@ -171,13 +198,14 @@ Flags:
 	return 0
 }
 
-func buildCertifyResult(event map[string]any, proofDoc proofObligationsDoc) certifyResult {
+func buildCertifyResult(event map[string]any, proofDoc proofObligationsDoc) legacyBenchmarkCertifyResult {
 	claim := parseRepairClaim(event)
 	proof := parseProofMapping(event)
 	artifacts := parseEvidenceArtifacts(event)
 	forbiddenMoves := parseDetectedForbiddenMoves(event)
 	governance := evaluateGovernance(event, claim, proof, artifacts, forbiddenMoves, proofDoc)
-	return certifyResult{
+	return legacyBenchmarkCertifyResult{
+		Protocol:                  legacyBenchmarkProtocol,
 		EventID:                   benchmarkPresentString(event["id"]),
 		Task:                      benchmarkPresentString(event["task"]),
 		Score:                     benchmarkInt(benchmarkMap(event["current"])["score"]),
@@ -801,7 +829,7 @@ func benchmarkPresentString(v any) string {
 	return s
 }
 
-func renderCertifyText(res certifyResult) string {
+func renderCertifyText(res legacyBenchmarkCertifyResult) string {
 	var b strings.Builder
 	if res.EventID != "" {
 		fmt.Fprintf(&b, "Event id: %s\n", res.EventID)

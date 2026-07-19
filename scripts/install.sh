@@ -12,7 +12,7 @@
 #   - Go1.25+ on PATH
 #
 # After install:
-#   1. ./scripts/install-awg-user-services.sh   # supervised local runtime (recommended)
+#   1. ./scripts/install-sensei-user-services.sh   # supervised local runtime (recommended)
 #   2. awareness-mcp                            # start the MCP bridge (stdio)
 #   3. sensei briefing --file <path>               # query the graph
 
@@ -65,8 +65,7 @@ echo "Building binaries..."
 mkdir -p "$BIN_DIR"
 
 go build -o "$BIN_DIR/sensei" "$REPO_ROOT/cmd/awg"
-cp "$BIN_DIR/sensei" "$BIN_DIR/awg"   # deprecated alias (one release)
-echo "  ✓ bin/sensei (with deprecated bin/awg alias)"
+echo "  ✓ bin/sensei"
 
 go build -o "$BIN_DIR/awareness-mcp" "$REPO_ROOT/cmd/awareness-mcp"
 echo "  ✓ bin/awareness-mcp"
@@ -112,7 +111,7 @@ if [ "$NO_SEED" = "false" ]; then
   else
     echo "Starting temporary local Oxigraph for graph seed..."
     mkdir -p "$OXIGRAPH_DATA_DIR"
-    "$BIN_DIR/oxigraph" serve --location "$OXIGRAPH_DATA_DIR" --bind 127.0.0.1:7878 >/tmp/awg-install-oxigraph.log 2>&1 &
+    "$BIN_DIR/oxigraph" serve --location "$OXIGRAPH_DATA_DIR" --bind 127.0.0.1:7878 >/tmp/sensei-install-oxigraph.log 2>&1 &
     TEMP_OXIGRAPH_PID="$!"
     echo "  waiting for Oxigraph to start..."
     for i in $(seq 1 20); do
@@ -123,7 +122,7 @@ if [ "$NO_SEED" = "false" ]; then
     done
     if ! check_oxigraph_health; then
       echo "  ✗ Oxigraph did not become ready."
-      echo "    Check /tmp/awg-install-oxigraph.log for startup errors."
+      echo "    Check /tmp/sensei-install-oxigraph.log for startup errors."
       exit 1
     fi
     echo "  ✓ Oxigraph running"
@@ -159,7 +158,7 @@ fi
 if [ "$USER_SERVICES" = "true" ]; then
   cleanup_temp_oxigraph
   echo "Installing supervised local user services..."
-  bash "$REPO_ROOT/scripts/install-awg-user-services.sh"
+  bash "$REPO_ROOT/scripts/install-sensei-user-services.sh"
   echo
 fi
 
@@ -168,7 +167,7 @@ cat <<EOF
 Done! Sensei is ready.
 
 Recommended local runtime:
-  bash $REPO_ROOT/scripts/install-awg-user-services.sh
+  bash $REPO_ROOT/scripts/install-sensei-user-services.sh
 
 Ad hoc local runtime:
   $BIN_DIR/awareness-graph --addr :10120 --oxigraph-url $OXIGRAPH_URL/query

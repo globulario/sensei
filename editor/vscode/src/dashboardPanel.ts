@@ -25,7 +25,7 @@ import {
   resolveNode,
 } from './grpcClient';
 import { assessMetadataAuthority } from './graphAuthority';
-import { effectiveDomain } from './projectDomain';
+import { chooseAutomaticGraphDomain, effectiveDomain } from './projectDomain';
 import {
   AwgRunResult,
   LocalOpsDisabledError,
@@ -37,10 +37,12 @@ import {
   rebuildPlan,
   restoreSeed,
   runAwg,
+  runAwgReadOnly,
   seedLineCount,
   workspaceRoot,
 } from './awgRunner';
 import { candidatePromotePlan } from './localOpsPlan';
+import { loadActiveTask, mergeTaskStatusJson, taskMatchesGraphDomain } from './taskSession';
 
 // Shared "Awareness Operations" output channel — the full, auditable log of
 // every sensei command the dashboard runs (command, cwd, exit, stdout/stderr).
@@ -68,6 +70,7 @@ const reviewKey = (id: string): string => 'sensei.review:' + id;
 // sensei ops can rebuild the seed, which takes longer than a query — give promote
 // a generous deadline independent of the per-request gRPC timeout.
 const AWG_OP_TIMEOUT_MS = 180000;
+const AWG_STATUS_TIMEOUT_MS = 30000;
 
 // Shrink guard: if a rebuild leaves the seed below this fraction of its previous
 // line count, treat it as a clobber (e.g. an AG-only build overwriting the
@@ -131,7 +134,31 @@ const RESOLVABLE = new Set([
   'design_pattern',
   'implementation_pattern',
   'pattern_misuse',
+  'architecture_claim',
+  'open_question',
+  'architect_answer',
+  'evidence_probe',
 ]);
+
+type ControlKind = 'closure' | 'convergence' | 'admission' | 'verification';
+const CONTROL_KEYS: Record<ControlKind, string> = {
+  closure: 'sensei.control.closureAssessment',
+  convergence: 'sensei.control.convergenceSession',
+  admission: 'sensei.control.admissionDecision',
+  verification: 'sensei.control.admissionVerification',
+};
+
+interface ControlArtifact {
+  kind: ControlKind;
+  configured?: string;
+  path?: string;
+  exists: boolean;
+  valid: boolean;
+  digest?: string;
+  modified?: number;
+  summary: Record<string, string>;
+  error?: string;
+}
 
 interface GraphNode {
   id: string; // class-qualified
@@ -161,6 +188,101 @@ function errText(err: unknown): string {
     return err.message;
   }
   return String(err);
+}
+
+function commandFailureMessage(res: AwgRunResult): string {
+  return (
+    res.spawnError ||
+    res.stderr.trim() ||
+    res.stdout.trim() ||
+    (res.code === null ? 'command failed' : `exit ${res.code}`)
+  );
+}
+
+function field(content: string, key: string): string {
+  const re = new RegExp(`^\\s*${key}:\\s*["']?([^"'\\n#]+)["']?\\s*(?:#.*)?$`, 'm');
+  return (re.exec(content)?.[1] || '').trim();
+}
+
+function firstField(content: string, keys: string[]): string {
+  for (const key of keys) {
+    const v = field(content, key);
+    if (v) {
+      return v;
+    }
+  }
+  return '';
+}
+
+function summarizeControlArtifact(kind: ControlKind, content: string): Record<string, string> {
+  if (kind === 'closure') {
+    return {
+      verdict: firstField(content, ['verdict', 'closure_verdict', 'status']),
+      waiting_on: firstField(content, ['waiting_on', 'wait_class', 'next_waiting_on']),
+      next_action: firstField(content, ['next_action', 'recommended_next_action']),
+      graph_digest: firstField(content, ['graph_digest', 'graph_digest_sha256']),
+    };
+  }
+  if (kind === 'convergence') {
+    return {
+      status: firstField(content, ['status', 'latest_status']),
+      iteration: firstField(content, ['iteration', 'latest_iteration']),
+      waiting_on: firstField(content, ['waiting_on', 'wait_class']),
+      budget: firstField(content, ['budget', 'max_iterations']),
+    };
+  }
+  if (kind === 'admission') {
+    return {
+      decision: firstField(content, ['decision', 'status', 'admission']),
+      inspect: firstField(content, ['inspect', 'inspect_status']),
+      modify: firstField(content, ['modify', 'modify_status']),
+      waiting_on: firstField(content, ['waiting_on', 'wait_class']),
+    };
+  }
+  return {
+    scope: firstField(content, ['scope', 'scope_status', 'verification']),
+    correctness: firstField(content, ['correctness', 'correctness_certified']),
+    extra_tracked_paths: firstField(content, ['extra_tracked_paths']),
+    extra_untracked_paths: firstField(content, ['extra_untracked_paths']),
+  };
+}
+
+function formatArtifactSummary(artifact: ControlArtifact): string {
+  const lines = [`${artifact.kind}: ${artifact.path || artifact.configured || '(none)'}`];
+  for (const [k, v] of Object.entries(artifact.summary)) {
+    if (v) {
+      lines.push(`${k}: ${v}`);
+    }
+  }
+  if (artifact.digest) {
+    lines.push(`digest: ${artifact.digest}`);
+  }
+  return lines.join('\n');
+}
+
+async function selectControlArtifactInState(
+  state: vscode.Memento,
+  kind: ControlKind
+): Promise<void> {
+  const root = workspaceRoot();
+  const choice = await vscode.window.showOpenDialog({
+    canSelectFiles: true,
+    canSelectFolders: false,
+    canSelectMany: false,
+    defaultUri: root ? vscode.Uri.file(root) : undefined,
+    filters: { 'YAML or JSON': ['yaml', 'yml', 'json'] },
+    title: `Select Sensei ${kind} artifact`,
+  });
+  const file = choice?.[0]?.fsPath;
+  if (!file || !root) {
+    return;
+  }
+  const rel = path.relative(root, file);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    void vscode.window.showWarningMessage('Sensei: control artifacts must be inside the workspace.');
+    return;
+  }
+  await state.update(CONTROL_KEYS[kind], rel);
 }
 
 // Indent multi-line command output for the operations log.
@@ -275,6 +397,21 @@ export class DashboardPanel {
   static current: DashboardPanel | undefined;
   static readonly viewType = 'sensei.dashboard';
 
+  static async selectControlArtifact(
+    context: vscode.ExtensionContext,
+    kind: ControlKind
+  ): Promise<void> {
+    await selectControlArtifactInState(context.workspaceState, kind);
+    await DashboardPanel.current?.handleControlState();
+  }
+
+  static async clearControlSelection(context: vscode.ExtensionContext): Promise<void> {
+    for (const key of Object.values(CONTROL_KEYS)) {
+      await context.workspaceState.update(key, undefined);
+    }
+    await DashboardPanel.current?.handleControlState();
+  }
+
   private readonly disposables: vscode.Disposable[] = [];
 
   static show(context: vscode.ExtensionContext): void {
@@ -312,6 +449,14 @@ export class DashboardPanel {
       this.disposables
     );
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+    this.watchActiveTaskFiles();
+    vscode.window.onDidChangeActiveTextEditor(
+      () => {
+        void this.handleControlState();
+      },
+      null,
+      this.disposables
+    );
   }
 
   private decisionFor(id: string): ReviewDecision | undefined {
@@ -342,12 +487,23 @@ export class DashboardPanel {
   // default to the current project (setting or git remote); `''` = the user
   // picked "All domains" (graph-wide).
   private selectedDomain: string | undefined;
+  private scopedGraphDomain: string | undefined;
 
   private async activeDomain(): Promise<string> {
     if (this.selectedDomain !== undefined) {
       return this.selectedDomain;
     }
     return (await effectiveDomain(this.cfg().domain)) ?? '';
+  }
+
+  private async graphDomain(): Promise<string> {
+    if (this.selectedDomain !== undefined) {
+      return this.selectedDomain;
+    }
+    if (this.scopedGraphDomain !== undefined) {
+      return this.scopedGraphDomain;
+    }
+    return (await this.scopedMetadata()).domain;
   }
 
   private post(msg: unknown): void {
@@ -363,7 +519,8 @@ export class DashboardPanel {
           // '' = All domains (graph-wide); a key = scope to it. Re-pull the
           // banner; the webview re-requests the active list under the new scope.
           this.selectedDomain = typeof msg.domain === 'string' ? msg.domain : undefined;
-          return await this.handleMetadata();
+          await this.handleMetadata();
+          return await this.handleControlState();
         case 'refresh':
           return msg.mode === 'rebuild'
             ? await this.handleRefreshRebuild()
@@ -376,6 +533,14 @@ export class DashboardPanel {
           return await this.handleGraph(msg.id, msg.label, msg.depth);
         case 'getCandidates':
           return this.handleCandidates();
+        case 'getControlState':
+          return await this.handleControlState();
+        case 'selectControlArtifact':
+          return await this.handleSelectControlArtifact(msg.kind);
+        case 'clearControlSelection':
+          return await this.handleClearControlSelection();
+        case 'controlStatus':
+          return await this.handleControlStatus(msg.kind);
         case 'candidatePreview':
           return await this.handleCandidatePreview(msg.id);
         case 'candidatePromote':
@@ -445,20 +610,44 @@ export class DashboardPanel {
   }
 
   // Fetch metadata scoped to the effective domain. Defaults the dashboard to THIS
-  // project's domain (from the git remote) so the banner, lists, and score reflect
-  // the repo — not the whole multi-repo graph. Re-evaluated every call (not
+  // project's domain (from the git remote) when the graph carries it; otherwise
+  // if the server exposes exactly one domain, prefer that home scope over an
+  // ambiguous graph-wide "All domains" view. Re-evaluated every call (not
   // one-time), so it self-corrects after a reseed:
   //   - user explicitly picked a domain (selectedDomain !== undefined) → honour it
   //   - else the project domain, IF the graph actually carries it → scope to it
+  //   - else the sole advertised graph domain, if there is one
   //   - else graph-wide (the project isn't a distinct domain in this graph)
   private async scopedMetadata(): Promise<{ domain: string; data: MetadataResponse }> {
     const { addr, timeout } = this.cfg();
     let domain = await this.activeDomain();
-    let data = await metadata(addr, timeout, domain || undefined);
-    if (this.selectedDomain === undefined && domain && !(data.available_domains ?? []).includes(domain)) {
+    const requestedDomain = domain;
+    let requestRejected = false;
+    let data: MetadataResponse;
+    try {
+      data = await metadata(addr, timeout, domain || undefined);
+    } catch (err) {
+      if (this.selectedDomain !== undefined || !domain || !errText(err).includes('unknown domain scope')) {
+        throw err;
+      }
+      requestRejected = true;
       domain = '';
       data = await metadata(addr, timeout, undefined);
     }
+    if (this.selectedDomain === undefined) {
+      const available = data.available_domains ?? [];
+      const nextDomain = chooseAutomaticGraphDomain(requestedDomain, available, requestRejected);
+      if (nextDomain && nextDomain !== domain) {
+        domain = nextDomain;
+        data = await metadata(addr, timeout, domain);
+      } else if (!nextDomain && domain) {
+        domain = '';
+        data = await metadata(addr, timeout, undefined);
+      } else {
+        domain = nextDomain;
+      }
+    }
+    this.scopedGraphDomain = domain;
     return { domain, data };
   }
 
@@ -501,7 +690,9 @@ export class DashboardPanel {
     // COMBINED graph, so we must pass --services-repo; a plain rebuild would
     // overwrite it with a single-repo seed. If the combined build can't be
     // resolved, block rather than silently shrink the seed.
-    const plan = rebuildPlan();
+    const selectedDomain = await this.graphDomain();
+    const workspaceDomain = (await effectiveDomain(this.cfg().domain)) ?? '';
+    const plan = rebuildPlan(selectedDomain, workspaceDomain);
     if (plan.mode === 'blocked') {
       const msg = plan.reason ?? 'Rebuild is unavailable for this workspace.';
       ops().appendLine('\n=== Rebuild graph — BLOCKED ===\n  ' + msg);
@@ -519,6 +710,7 @@ export class DashboardPanel {
       `Command:       ${plan.command}\n` +
       `Working dir:   ${plan.cwd ?? '(none)'}\n` +
       `Services repo: ${svcLine}\n` +
+      `Domain:        ${selectedDomain || 'All domains'}\n` +
       `Graph scope:   ${scopeLabel}\n\n` +
       'The regenerated seed changes your working tree but is NOT committed — you review the git diff and commit.';
     const choice = await vscode.window.showWarningMessage(
@@ -535,6 +727,7 @@ export class DashboardPanel {
     ch.appendLine('\n=== Rebuild graph ===');
     ch.appendLine(`$ ${plan.command}`);
     ch.appendLine(`cwd:   ${plan.cwd}`);
+    ch.appendLine(`domain: ${selectedDomain || 'All domains'}`);
     ch.appendLine(`scope: ${scopeLabel}`);
     const before = await this.countsSafe();
     const preLines = seedLineCount(plan.seedPath);
@@ -562,7 +755,7 @@ export class DashboardPanel {
       // left it untouched — restore from backup defensively all the same.
       if (restoreSeed(plan.seedPath, backup)) ch.appendLine('  restored previous seed (rebuild failed)');
       ch.appendLine(`  exit ${res.code} — rebuild failed`);
-      this.post({ type: 'refreshResult', mode: 'rebuild', ok: false, stdout: res.stdout, stderr: res.stderr, message: res.spawnError });
+      this.post({ type: 'refreshResult', mode: 'rebuild', ok: false, stdout: res.stdout, stderr: res.stderr, message: commandFailureMessage(res) });
       return;
     }
 
@@ -591,7 +784,7 @@ export class DashboardPanel {
       if (reload.stderr.trim()) ch.appendLine(indentLog(reload.stderr));
       reloadOk = reload.ok;
       if (!reload.ok) {
-        reloadErr = reload.spawnError || `exit ${reload.code}`;
+        reloadErr = commandFailureMessage(reload);
         ch.appendLine('  reload WARN: ' + reloadErr);
       }
     } catch (err) {
@@ -642,27 +835,28 @@ export class DashboardPanel {
 
   private async handleList(cls: string): Promise<void> {
     const { addr, timeout } = this.cfg();
-    const domain = await this.activeDomain();
+    const domain = await this.graphDomain();
     const resp = await queryByClass(addr, cls, 100, timeout, domain || undefined);
     this.post({ type: 'list', cls, rows: resp.rows ?? [], authority: resp.authority ?? null });
   }
 
   private async handleResolve(qid: string): Promise<void> {
-    const { addr, domain, timeout } = this.cfg();
+    const { addr, timeout } = this.cfg();
     const { token, bare } = splitQualified(qid);
     if (!RESOLVABLE.has(token)) {
       // forbidden_fix / test: no resolve endpoint — not an error, just no detail.
       this.post({ type: 'detail', id: qid, found: false, unsupported: true, klass: token });
       return;
     }
-    // Scope node detail to the current project (setting, else git-remote domain).
-    const scoped = (await effectiveDomain(domain)) ?? domain;
+    // Scope node detail to the same validated graph domain used by Metadata and lists.
+    const scoped = await this.graphDomain();
     const res = await resolveNode(addr, token, bare, scoped, timeout);
     this.post({ type: 'detail', id: qid, found: !!res.found, node: res.node ?? null, authority: res.authority ?? null });
   }
 
   private async handleGraph(qid: string, label: string, depth: number): Promise<void> {
     const { addr, timeout } = this.cfg();
+    const domain = await this.graphDomain();
     const nodes = new Map<string, GraphNode>();
     const edges: GraphEdge[] = [];
     const seenEdge = new Set<string>();
@@ -692,7 +886,7 @@ export class DashboardPanel {
     }
 
     const expand = async (id: string, level: number): Promise<string[]> => {
-      const resp = await queryRelated(addr, id, 48, timeout);
+      const resp = await queryRelated(addr, id, 48, timeout, domain || undefined);
       if (level === 1) {
         authority = resp.authority ?? null
       }
@@ -923,9 +1117,11 @@ export class DashboardPanel {
     // Reload Metadata so the banner/score reflect the just-rebuilt graph.
     let meta: MetadataResponse | null = null;
     let reloadUnavailable = false
+    let promoteDomain = ''
     try {
       const { addr, timeout } = this.cfg();
-      meta = await metadata(addr, timeout);
+      promoteDomain = await this.graphDomain();
+      meta = await metadata(addr, timeout, promoteDomain || undefined);
     } catch {
       // The seed file is rebuilt on disk, but the authority backend is down or
       // unreachable — do not report clean authority.
@@ -933,7 +1129,7 @@ export class DashboardPanel {
     }
     const authority = meta ? assessMetadataAuthority(meta) : undefined;
     if (meta) {
-      this.post({ type: 'metadata', data: meta, localOps: this.localOpsPayload() });
+      this.post({ type: 'metadata', data: meta, activeDomain: promoteDomain, localOps: this.localOpsPayload() });
     }
     const after = meta
       ? {
@@ -1160,7 +1356,8 @@ export class DashboardPanel {
   private async countsSafe(): Promise<{ meta: MetadataResponse; counts: Record<string, number> } | undefined> {
     try {
       const { addr, timeout } = this.cfg();
-      const m = await metadata(addr, timeout);
+      const domain = await this.graphDomain();
+      const m = await metadata(addr, timeout, domain || undefined);
       return {
         meta: m,
         counts: {
@@ -1274,6 +1471,163 @@ export class DashboardPanel {
     }
   }
 
+  private configOrState(key: string): string {
+    const c = vscode.workspace.getConfiguration('sensei');
+    return (this.state.get<string>(key) || c.get<string>(key, '') || '').trim();
+  }
+
+  private workspacePath(input: string): string | undefined {
+    const root = workspaceRoot();
+    if (!root || !input.trim()) {
+      return undefined;
+    }
+    const abs = path.isAbsolute(input) ? input : path.resolve(root, input);
+    const rel = path.relative(root, abs);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      return undefined;
+    }
+    return abs;
+  }
+
+  private artifact(kind: ControlKind, configured: string): ControlArtifact {
+    const file = this.workspacePath(configured);
+    if (!configured || !file) {
+      return {
+        kind,
+        configured,
+        exists: false,
+        valid: false,
+        summary: {},
+        error: configured ? 'Path is outside the workspace.' : 'No artifact selected.',
+      };
+    }
+    try {
+      const content = fs.readFileSync(file, 'utf8');
+      const stat = fs.statSync(file);
+      return {
+        kind,
+        configured,
+        path: vscode.workspace.asRelativePath(file),
+        exists: true,
+        valid: true,
+        digest: crypto.createHash('sha256').update(content).digest('hex'),
+        modified: stat.mtimeMs,
+        summary: summarizeControlArtifact(kind, content),
+      };
+    } catch (err) {
+      return {
+        kind,
+        configured,
+        path: vscode.workspace.asRelativePath(file),
+        exists: false,
+        valid: false,
+        summary: {},
+        error: errText(err),
+      };
+    }
+  }
+
+  private watchActiveTaskFiles(): void {
+    const root = workspaceRoot();
+    if (!root) {
+      return;
+    }
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(root, path.join('.sensei', 'tasks', '**'))
+    );
+    const refresh = (): void => {
+      void this.handleControlState();
+    };
+    watcher.onDidChange(refresh, null, this.disposables);
+    watcher.onDidCreate(refresh, null, this.disposables);
+    watcher.onDidDelete(refresh, null, this.disposables);
+    this.disposables.push(watcher);
+  }
+
+  private activeFileRelative(): string | undefined {
+    const root = workspaceRoot();
+    const file = vscode.window.activeTextEditor?.document.uri.fsPath;
+    if (!root || !file) {
+      return undefined;
+    }
+    const rel = path.relative(root, file);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      return undefined;
+    }
+    return rel.split(path.sep).join('/');
+  }
+
+  private async handleControlState(): Promise<void> {
+    const artifacts = Object.fromEntries(
+      (Object.keys(CONTROL_KEYS) as ControlKind[]).map((kind) => [
+        kind,
+        this.artifact(kind, this.configOrState(CONTROL_KEYS[kind])),
+      ])
+    );
+    let activeTask = loadActiveTask(workspaceRoot(), this.activeFileRelative());
+    if (activeTask.kind !== 'none') {
+      const res = await runAwgReadOnly(['task-status', '--active', '--compact', '--format', 'json'], AWG_STATUS_TIMEOUT_MS);
+      activeTask = mergeTaskStatusJson(activeTask, res.ok ? res.stdout : '', res.ok ? '' : commandFailureMessage(res));
+    }
+    const graphDomain = await this.graphDomain();
+    this.post({
+      type: 'controlState',
+      artifacts,
+      activeTask,
+      graphDomain,
+      taskScopeMatches: taskMatchesGraphDomain(activeTask.repositoryDomain, graphDomain),
+      localOps: { enabled: localOpsEnabled(), hasWorkspace: !!workspaceRoot() },
+    });
+  }
+
+  private async handleSelectControlArtifact(kind: ControlKind): Promise<void> {
+    if (!CONTROL_KEYS[kind]) {
+      return;
+    }
+    await selectControlArtifactInState(this.state, kind);
+    await this.handleControlState();
+  }
+
+  private async handleClearControlSelection(): Promise<void> {
+    for (const key of Object.values(CONTROL_KEYS)) {
+      await this.state.update(key, undefined);
+    }
+    await this.handleControlState();
+  }
+
+  private async handleControlStatus(kind: ControlKind): Promise<void> {
+    const closure = this.artifact('closure', this.configOrState(CONTROL_KEYS.closure));
+    const convergence = this.artifact('convergence', this.configOrState(CONTROL_KEYS.convergence));
+    const admission = this.artifact('admission', this.configOrState(CONTROL_KEYS.admission));
+    const verification = this.artifact('verification', this.configOrState(CONTROL_KEYS.verification));
+    const rel = (a: ControlArtifact): string | undefined => a.exists && a.path ? a.path : undefined;
+    let args: string[] | undefined;
+    if (kind === 'convergence' && rel(convergence)) {
+      args = ['convergence-status', '--session', rel(convergence)!, '--format', 'yaml'];
+    } else if ((kind === 'admission' || kind === 'verification') && rel(admission)) {
+      args = ['admission-status', '--decision', rel(admission)!];
+      if (rel(verification)) {
+        args.push('--verification', rel(verification)!);
+      }
+    } else if (kind === 'closure' && rel(closure)) {
+      this.post({ type: 'controlStatus', kind, ok: true, stdout: formatArtifactSummary(closure) });
+      return;
+    }
+    if (!args) {
+      this.post({ type: 'controlStatus', kind, ok: false, message: 'Required artifact is not selected.' });
+      return;
+    }
+    const res = await runAwgReadOnly(args, AWG_STATUS_TIMEOUT_MS);
+    this.post({
+      type: 'controlStatus',
+      kind,
+      ok: res.ok,
+      stdout: res.stdout,
+      stderr: res.stderr,
+      message: commandFailureMessage(res),
+    });
+  }
+
   private html(extensionUri: vscode.Uri, webview: vscode.Webview): string {
     const nonce = crypto.randomBytes(16).toString('hex');
     const cssUri = webview.asWebviewUri(
@@ -1306,6 +1660,15 @@ export class DashboardPanel {
     <div class="banner__stats" id="bannerStats"></div>
     <div class="banner__meta" id="bannerMeta"></div>
   </header>
+
+  <div id="phaseRail" class="phase-rail">
+    <button class="phase-btn phase-btn--on" data-phase="awareness">
+      <span>Phase 1</span><b>Project Awareness</b>
+    </button>
+    <button class="phase-btn" data-phase="control">
+      <span>Phase 2</span><b>Closure &amp; Control</b>
+    </button>
+  </div>
 
   <nav id="nav" class="nav"></nav>
 

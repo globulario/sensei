@@ -1,0 +1,49 @@
+control_plane_repair_receipt:
+  schema_version: "1"
+  recorded_at: "2026-07-14T00:22:39-04:00"
+  authorization:
+    basis: "User-authorized bounded Sensei control-plane repair despite refused admission."
+    refused_task_id: "task.active-task-sourcefile-binding-repair.be7fd8ad2927"
+    refusal_summary: "Closure/admission refused mutation because SourceFile nodes without aw:sourcePath were not represented in closure scope."
+    bypass_permanent: false
+  root_cause:
+    summary: "closure.GraphIndex only populated SourcePath from aw:sourcePath and did not resolve explicitly typed SourceFile nodes minted with the canonical Sensei SourceFile IRI encoding."
+    false_negative: true
+  changed_files:
+    - "golang/architecture/closure/model.go"
+    - "golang/architecture/closure/model_test.go"
+  boundaries:
+    ontology_changed: false
+    protobuf_changed: false
+    server_rpc_changed: false
+    embedded_seed_changed: false
+    active_graph_changed: false
+    awareness_corpus_changed: false
+    admission_semantics_changed: false
+    closure_verdict_semantics_changed: false
+    architect_answers_created: false
+    architecture_claims_created: false
+    governed_knowledge_created: false
+  behavior:
+    source_path_preserved: true
+    canonical_source_file_iri_fallback: true
+    requires_explicit_source_file_type: true
+    arbitrary_iri_heuristics: false
+    substring_or_directory_prefix_matching: false
+    escaping_paths_rejected: true
+  proof:
+    focused_closure_tests: "go test ./golang/architecture/closure: pass"
+    task_session_and_admission_tests: "go test ./golang/architecture/tasksession ./golang/architecture/admission: pass"
+    cli_focused_tests: "go test ./cmd/awg -run 'TaskSession|Admission|AssessClosure': pass"
+    full_go_tests: "go test ./...: pass"
+    awareness_validation: "./bin/sensei validate: pass"
+    graph_compilation_validation: "./bin/sensei check: pass; ./bin/sensei rebuild --check --no-runtime-reload reports pre-existing embedded seed drift and did not write seed"
+    diff_check: "git diff --check: pass"
+    edit_check:
+      - "golang/architecture/closure/model.go: pass, no advisory warnings"
+      - "golang/architecture/closure/model_test.go: pass, no advisory warnings"
+  post_repair_task:
+    task_id: "task.active-task-workflow-integration.467eb617b7f1"
+    structural_result: "Graph-anchored files cmd/awareness-mcp/main.go and cmd/awg/main.go are represented; unanchored files remain open."
+    current_admission: "refused"
+    next_action: "provide missing task input"

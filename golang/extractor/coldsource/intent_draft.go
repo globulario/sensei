@@ -22,13 +22,15 @@ import (
 //     where the rule lives, and are verified downstream by GroundIntent (symbol
 //     resolution). Fabricated/weak anchors surface as unresolved/symbol_absent.
 //
-// The drafter proposes; GroundIntent grounds; a human approves. A drafter can
-// never mint an accepted intent: status is always candidate.
+// The drafter proposes; GroundIntent grounds; adoption policy decides whether
+// the result is staged, machine-adopted, or later governed. A drafter can never
+// mint an accepted intent: status is always candidate at this boundary.
 
 // intentDraft is the raw shape a drafter emits, before routing into the
 // IntentCandidate sources/evidence split.
 type intentDraft struct {
 	IntentID              string
+	Title                 string
 	Claim                 string
 	Category              string
 	SourceCitations       []string // MUST be from the provided excerpts (cage)
@@ -63,8 +65,10 @@ func validateIntentDraft(d intentDraft, allowed map[string]string) []string {
 // source citations split by their excerpt KIND into Sources vs Evidence, and
 // inferred CodeAnchors into Evidence.Code/Tests.
 func materialize(d intentDraft, kindByCitation map[string]string) IntentCandidate {
+	scope := intentDraftScope(d)
 	c := IntentCandidate{
-		IntentID:              d.IntentID,
+		IntentID:              MintIntentID(d.Title, d.Claim, scope),
+		Title:                 d.Title,
 		Claim:                 d.Claim,
 		Category:              d.Category,
 		RelatedInvariants:     d.RelatedInvariants,
@@ -94,6 +98,24 @@ func materialize(d intentDraft, kindByCitation map[string]string) IntentCandidat
 		}
 	}
 	return c
+}
+
+func intentDraftScope(d intentDraft) []string {
+	var scope []string
+	for _, a := range d.CodeAnchors {
+		if p := citationToPath(a); strings.TrimSpace(p) != "" {
+			scope = append(scope, p)
+		}
+	}
+	if len(scope) == 0 {
+		for _, sc := range d.SourceCitations {
+			if p := citationToPath(sc); strings.TrimSpace(p) != "" {
+				scope = append(scope, p)
+			}
+		}
+	}
+	sort.Strings(scope)
+	return scope
 }
 
 // citationToPath strips a "file:" prefix and a trailing ":<line>" so a source
@@ -140,7 +162,7 @@ func (e EchoIntentDrafter) DraftIntents(_ context.Context, excerpts []IntentExce
 			break
 		}
 		d := intentDraft{
-			IntentID:        "intent." + sanitizeID(ex.Citation),
+			Title:           echoIntentTitle(ex),
 			Claim:           ex.Text,
 			Category:        "operational_deployment",
 			SourceCitations: []string{ex.Citation},
@@ -153,6 +175,17 @@ func (e EchoIntentDrafter) DraftIntents(_ context.Context, excerpts []IntentExce
 		out = append(out, d)
 	}
 	return out, nil
+}
+
+func echoIntentTitle(ex IntentExcerpt) string {
+	words := strings.Fields(ex.Text)
+	if len(words) > 10 {
+		words = words[:10]
+	}
+	if len(words) == 0 {
+		return citationToPath(ex.Citation)
+	}
+	return strings.Join(words, " ")
 }
 
 // DraftAndCageIntents runs a proposer over the excerpts, applies the intent cage

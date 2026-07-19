@@ -1,0 +1,13 @@
+delegation_policies:
+  - id: delegation_policy.repository_repair
+    label: Repository repair delegation
+    status: active
+    maximum_depth: 1
+    maximum_duration: 24h
+    allow_subdelegation: false
+    allowed_actions:
+      - read
+      - modify
+      - create
+    allowed_mechanism_ids:
+      - mutation_path.repository_edit

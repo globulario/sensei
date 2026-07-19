@@ -26,10 +26,11 @@ sensei version              # print version and exit
 
 | Group | Commands |
 |---|---|
-| [Setup & build](#setup--build) | `init` · `bootstrap` · `build` · `rebuild` · `serve` |
-| [Query (agent-facing)](#query-agent-facing) | `briefing` · `impact` · `preflight` · `resolve` · `query` · `metadata` · `edit-check` |
+| [Setup & build](#setup--build) | `init` · `import` · `bootstrap` · `build` · `rebuild` · `serve` |
+| [Query (agent-facing)](#query-agent-facing) | `briefing` · `impact` · `preflight` · `resolve` · `query` · `metadata` · `domains` · `edit-check` |
+| [Task sessions](#task-sessions) | `prepare-change` · `task-status` · `advance-task` · `task-briefing` |
 | [Authoring & feedback](#authoring--feedback) | `propose` · `feedback-check` · `promote` · `ingest` · `skill-ingest` |
-| [Validation & audit](#validation--audit) | `check` · `validate` · `validate-draft` · `audit` · `repo-eval` (+ `fix`, `draft-upgrade`) |
+| [Validation & audit](#validation--audit) | `check` · `validate` · `validate-draft` · `audit` · `repo-eval` (+ `fix`, `draft-upgrade`) · `architecture-extract` · `extract-invariants` |
 | [Gating](#gating) | `gate` · `contract-assess` · `contract-bootstrap` |
 | [Pattern & structural checks](#pattern--structural-checks) | `pattern-check` · `source-check` · `visual-audit` |
 | [Cold bootstrap & mining](#cold-bootstrap--mining) | `cold-bootstrap` · `intent-mine` · `corpus` |
@@ -50,15 +51,49 @@ Scaffold awareness for a new project **and wire up your agent tools**.
 | `--claude-md` | `true` | append the Sensei section to `CLAUDE.md` (idempotent) |
 | `--agents-md` | `true` | append the Sensei section to `AGENTS.md` (Codex/Cursor/others; idempotent) |
 | `--cursor` | `true` | write a Cursor rule at `.cursor/rules/sensei.mdc` (skipped if it exists) |
+| `--skills` | `true` | install bundled project skills under `.sensei/skills`, `.agents/skills`, and `.claude/skills` |
+| `--skills-force` | `false` | replace locally modified Sensei-managed skill copies |
 | `--mcp` | `false` | write/merge the `sensei` MCP server into `.mcp.json` (never clobbers other servers) |
 
 Creates `docs/awareness/` with templates (`invariants.yaml`,
 `failure_modes.yaml`, `incident_patterns.yaml`, `high_risk_files.yaml`,
 `activation_rules.yaml`, and the `meta_principles.yaml` pack), plus
-`.sensei/config.yaml`. Then wires the agent surfaces above — **additively and
-idempotently**: existing rules are preserved, re-running never duplicates, and an
-existing `sensei` MCP entry is left untouched. Prints created files and next
-steps.
+`.sensei/config.yaml`. Then installs the bundled `sensei-architect` skill and
+wires the agent surfaces above — **additively and idempotently**: existing rules
+are preserved, re-running never duplicates, and an existing `sensei` MCP entry
+is left untouched.
+
+Skill installation writes the canonical managed copy to
+`.sensei/skills/sensei-architect/`, plus native project skill copies to
+`.agents/skills/sensei-architect/` for Codex / Agent Skills and
+`.claude/skills/sensei-architect/` for Claude Code. Cursor uses
+`.cursor/rules/sensei.mdc` to point at the canonical skill package. Each managed
+copy has `.sensei-managed.json` with the bundled version and content digests.
+Untouched managed copies can update on a later Sensei version. Locally modified
+or manifest-less copies are preserved and reported; use `--skills-force` only
+when you intentionally want to replace them.
+
+### `sensei import` — Local (+ optional Oxigraph)
+
+Onboard or refresh a repository through the job-oriented facade. Fresh import
+accepts a git URL or path and runs the pipeline in order: clone or reuse checkout
+→ contract extraction → structural extraction → optional history mining →
+optional domain-scoped load.
+
+`--refresh` is for an existing checkout. It never clones; it re-extracts the
+checkout and optionally reloads the same domain-scoped slice.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--domain` | derived | repo domain, e.g. `github.com/gin-gonic/gin`; for paths, falls back to the git remote |
+| `--refresh` | `false` | re-extract an existing checkout; never clone |
+| `--depth` | `full` | `basic` for structure only; `full` also attempts contracts/history |
+| `--dir` | temp dir | checkout destination for URL imports; ignored for existing paths and refresh |
+| `--store-url` | — | load the domain-scoped slice into a store; empty prints the build command |
+| `--graph-marker-file` | — | runtime marker file to refresh when loading a served store |
+| `--drafter` | `llm` | contract drafter for full depth: `llm` or `echo` |
+| `--repo-slug` | derived | owner/name for PR-review history mining |
+| `--dry-run` | `false` | print the plan; run nothing |
 
 ### `sensei bootstrap` — Local
 
@@ -69,7 +104,8 @@ candidates, then validate and build.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--repo` | `.` | repository to bootstrap |
+| `--path` | `.` | repository checkout to bootstrap |
+| `--repo` | `.` | deprecated alias for `--path` |
 | `--skip-history` | `false` | skip history mining via coldsource |
 | `--skip-build` | `false` | extract + validate but don't build the graph |
 | `--check` | `false` | compare generated output to committed files; non-zero if stale (CI) |
@@ -113,9 +149,10 @@ to reuse the embedded Globular transaction stamp.
 
 ### `sensei rebuild` — Oxigraph (optional)
 
-Rebuild `awareness.nt` from YAML sources across repos and (optionally) reload
-Oxigraph. Steps: scan YAML → N-Triples → validate → update `embeddata/` → PUT to
-Oxigraph.
+Rebuild the self-only public `awareness.nt` from this repo's YAML sources and
+(optionally) reload Oxigraph. Pass `--combined` to include the paired services
+repo for an internal combined seed. Steps: scan YAML → N-Triples → validate →
+update `embeddata/` → PUT to Oxigraph.
 
 | Flag | Default | Purpose |
 |---|---|---|
@@ -124,6 +161,7 @@ Oxigraph.
 | `--oxigraph-url` | `http://localhost:7878/store?default` | Graph Store endpoint |
 | `--check` | `false` | compare only; exit 1 if stale (CI) |
 | `--no-runtime-reload` | `false` | skip the Oxigraph PUT |
+| `--combined` | `false` | include paired services awareness in the seed |
 | `--strict` | `false` | fail if Oxigraph is unavailable |
 
 > `propose`, `promote`, and `ingest` call this internally — you rarely run it by
@@ -139,6 +177,7 @@ unit. No Docker.
 | `--addr` | `:10120` | gRPC listen address |
 | `--oxigraph-bind` | `127.0.0.1:7878` | Oxigraph listen address |
 | `--no-seed` | `false` | skip the embedded Globular seed — **use this for your own project** so it builds its own graph |
+| `--graph-marker-file` | auto with `--no-seed` | runtime graph authority marker; embedded-seed mode ignores `.sensei/graph-authority.json` unless this flag is explicit |
 | `--data` | `~/.local/share/sensei/oxigraph` | Oxigraph data directory |
 | `--no-oxigraph` | `false` | don't start Oxigraph; connect to an external instance |
 | `--home-domain` | `globular` | domain key for untagged host-project nodes |
@@ -146,6 +185,13 @@ unit. No Docker.
 Searches for the `oxigraph`/`awareness-graph` binaries next to `sensei`, then in
 `./bin/`, then on `PATH`. Reuses an Oxigraph already bound to the port. SIGINT/
 SIGTERM shuts both down cleanly.
+
+With `--no-seed` and the default marker path, startup reconciles one common
+split-brain case: if the live store already carries exactly one complete
+`SeedBuild` marker whose triple count matches the live graph, but
+`.sensei/graph-authority.json` is stale, `sensei serve` refreshes the marker
+file before starting the gRPC server. Explicit `--graph-marker-file` remains
+strict and is not auto-rewritten.
 
 ---
 
@@ -231,7 +277,18 @@ JSON.
 Graph-level coverage, freshness, build provenance, and the architectural-spine
 counts. No required args. Call once per session to interpret `EMPTY` briefings.
 Returns `build_provenance_state` / `coverage_state` / `seed_state` verdicts plus
-local candidate-queue and benchmark summaries when detected.
+selectable graph domains, local candidate-queue, and benchmark summaries when
+detected.
+
+### `sensei domains`
+
+Print selectable graph domain scopes reported by Sensei Metadata, one per line.
+This is the direct CLI equivalent of the VS Code dashboard's domain filter.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--addr` | server default | Sensei gRPC server address |
+| `--json` | `false` | print `{"available_domains":[...]}` |
 
 ### `sensei edit-check`
 
@@ -248,6 +305,94 @@ a file. **Warning-only — never blocks, never edits.**
 Provide exactly one of `--content` / `--content-file`. Prints `rules_evaluated`,
 warning count, and one block per warning (severity · rule id · class · message ·
 detail · provenance). Always exits 0.
+
+---
+
+## Task sessions
+
+Task sessions are local workspace control state under `.sensei/tasks/`. They do
+not add ontology classes, query classes, Metadata fields, graph triples, source
+edits, test execution, or promotion. `advance-task` may execute only registered
+bounded `static_read` EvidenceProbes and records exact receipts.
+
+### `sensei prepare-change` — Local
+
+Create or replay one deterministic architectural task session. The command
+binds a user task to the repository revision, graph digest, exact scope, closure
+request, source artifacts, one convergence iteration, and an admission decision.
+It updates `.sensei/tasks/active.yaml` by default.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | repository checkout |
+| `--repo-domain` | — | repository domain, e.g. `github.com/gin-gonic/gin` |
+| `--description` | — | bounded user task description |
+| `--mode` | — | `inspect` or `modify` |
+| `--task-class` | — | stable task class |
+| `--risk-class` | — | closure risk class |
+| `--direction` | — | direction requirement, e.g. `preserve` |
+| `--graph-nt` | — | explicit graph snapshot N-Triples file |
+| `--file` (rep.) | — | exact scope file as `read:path` or `modify:path` |
+| `--claims` | — | optional existing `architecture_claims` YAML |
+| `--dialogue` | — | optional existing `architecture_dialogue` YAML |
+| `--evidence-state` | — | optional existing `architecture_evidence_state` YAML |
+| `--question-created-at` | deterministic default | RFC3339 timestamp for generated questions |
+| `--no-active` | `false` | write the task without replacing the active pointer |
+| `--format` | `text` | `text` \| `yaml` \| `json` |
+
+Compact output reports graph state, closure, convergence, inspect/modify
+capability, the admitted envelope when one exists, and exactly one primary next
+action.
+
+### `sensei task-status` — Local
+
+Read one task session and print the current operational status. This command is
+read-only.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | repository checkout |
+| `--active` | `false` | read `.sensei/tasks/active.yaml` |
+| `--task` | active task when omitted | explicit task directory |
+| `--verify` | `false` | verify pointer, session digest, graph digest, revision, and artifact references |
+| `--compact` | `false` | print the bounded task-control projection |
+| `--verbose` | `false` | preserve every blocker, question, probe, and group in text output |
+| `--json` | `false` | print the stable `task_control` JSON schema |
+| `--yaml` | `false` | print the stable `task_control` YAML schema |
+| `--format` | `text` | `text` \| `yaml` \| `json` |
+
+When verification fails, status is reported as stale and the primary next action
+is to prepare a new task. Scope compliance and correctness are handled by
+admission verification and external proof, not by `task-status`.
+
+### `sensei advance-task` — Local
+
+Acquire the task lock, validate all bindings, execute a bounded batch of
+eligible static source-receipt probes, ingest diagnostic ProbeResults, advance
+exactly one convergence iteration, re-evaluate admission, and atomically publish
+one content-addressed control generation. Repeating identical inputs returns
+`replay_no_new_iteration` and does not execute probes twice.
+
+```bash
+sensei advance-task --repo . --active --max-probes 32
+```
+
+The executor cannot run commands, tests, network access, runtime reads,
+mutation, paths outside the repository, or sensitive repository paths.
+
+### `sensei task-briefing` — Local
+
+Return bounded architecture and task control for one planned file: direct file
+claims, Test-backed count, governed constraints and failure modes, inspect and
+modify permissions, one primary blocker/question, and one next action.
+
+```bash
+sensei task-briefing --repo . --active --file path/to/file.go
+sensei briefing --repo . --task active --file path/to/file.go
+```
+
+The default claim budget is 12. Additional items remain in full task artifacts;
+compact briefing is context selection, not correctness proof.
 
 ---
 
@@ -415,11 +560,16 @@ Self-audit for drift across 7 checks (embeddata freshness, YAML validity,
 N-Triples validity, coverage gaps, stale file refs, test coverage, contract
 assessment).
 
+On a multi-domain graph, pass `--domain <repo-domain>` so graph-derived checks
+evaluate the selected repo plus shared knowledge instead of the whole corpus.
+Whole-seed freshness remains an unscoped artifact check.
+
 | Flag | Default | Purpose |
 |---|---|---|
 | `--verbose` | `false` | per-finding detail |
 | `--check` | `false` | exit 1 on any FAIL (CI) |
 | `--fix` | `false` | auto-repair mechanical issues (update embeddata + reload Oxigraph) |
+| `--domain` | — | scope graph-derived checks to one repo/domain plus shared knowledge |
 | `--services-repo` / `--ag-repo` | auto | repo paths |
 
 ### `sensei repo-eval` — Local
@@ -514,6 +664,73 @@ sensei repo-eval draft-upgrade --repo . --json
 | `--repo` | auto | repository to evaluate and draft against |
 | `--dry-run` | `false` | print planned draft files without writing |
 | `--json` | `false` | JSON report of draft actions |
+
+### `sensei architecture-extract` — Local
+
+Build a read-only architectural contract extraction report from evidence already
+present in a checkout. It layers the repository into observed, inferred, and
+governed contract sets, then emits the required inventory, migration,
+authority-split, direction, unknowns, promotion-candidate, and proof-obligation
+sections.
+
+This command is intentionally conservative:
+
+- generated artifacts become observed evidence
+- active authored `docs/awareness` entries and enforcing workflows become
+  governed evidence within their explicit scope
+- `docs/awareness/candidates` entries and history hints become inferred,
+  review-only candidates
+- nothing is promoted, loaded, or treated as new authority
+
+Example:
+
+```bash
+sensei architecture-extract --repo /home/dave/Documents/github.com/caddyserver/caddy \
+  --domain github.com/caddyserver/caddy --format markdown
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | checkout whose existing evidence should be layered |
+| `--domain` | git origin | repository domain key for scope labels |
+| `--format` | `markdown` | `markdown` \| `json` \| `yaml` |
+| `--out` | stdout | write report to a file |
+| `--history-limit` | `40` | recent commits to inspect for migration hints; `0` disables history |
+
+### `sensei extract-invariants` — Local
+
+Deterministically extracts normalized facts and review-only invariant candidates
+from repository evidence. This is the invariant-specific pipeline:
+
+```text
+source extraction -> normalized facts -> candidate synthesis -> confidence and contradictions
+```
+
+Increment 1 supports Go guards, write paths, schema tags, architectural test
+names, generated-artifact evidence, CI/scanner evidence, documentation claims,
+and optional recent-history facts. Candidates stay under `status: candidate`;
+they are not governed invariants and are not imported by normal awareness builds
+unless a human promotes them.
+
+Example:
+
+```bash
+sensei extract-invariants --repo /home/dave/Documents/github.com/caddyserver/caddy \
+  --format json --output /tmp/caddy-invariants.json
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | checkout to inspect |
+| `--format` | `json` | `json` \| `yaml` |
+| `--output` | stdout | write extraction artifact to a file |
+| `--include-history` | `false` | inspect recent git history for removal/forbidden-pattern facts |
+| `--include-docs` | `true` | extract normative documentation/comment facts |
+| `--include-tests` | `true` | classify architectural test facts |
+| `--include-mutation-analysis` | `false` | allocate isolated mutation workspace; bounded mutant execution is a later increment |
+| `--minimum-confidence` | `low` | `low` \| `medium` \| `high` \| `proven` candidate filter |
+| `--explain` | `false` | retained for CLI symmetry; JSON/YAML always include explanations |
+| `--check` | `false` | compare `--output` with a fresh deterministic extraction |
 
 ---
 

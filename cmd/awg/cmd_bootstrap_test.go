@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -72,6 +73,41 @@ func TestBootstrapOwnedGenerated_CoversEmittedFiles(t *testing.T) {
 		if !bootstrapOwnedGenerated[name] {
 			t.Errorf("%s is emitted by bootstrap but missing from bootstrapOwnedGenerated", name)
 		}
+	}
+}
+
+func TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs", "awareness"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	report := &bootstrapReport{}
+	if err := syncBootstrapScaffold(root, report); err != nil {
+		t.Fatalf("syncBootstrapScaffold: %v", err)
+	}
+	if len(report.scaffolded) == 0 {
+		t.Fatal("expected managed skills to be installed")
+	}
+	for _, path := range []string{
+		filepath.Join(".sensei", "skills", "sensei-import", "SKILL.md"),
+		filepath.Join(".agents", "skills", "sensei-architect", "SKILL.md"),
+		filepath.Join(".claude", "skills", "sensei-admission", "SKILL.md"),
+	} {
+		data, err := os.ReadFile(filepath.Join(root, path))
+		if err != nil {
+			t.Fatalf("read installed %s: %v", path, err)
+		}
+		text := string(data)
+		if !strings.Contains(text, "sensei prepare-change") && !strings.Contains(text, "live_loaded") {
+			t.Fatalf("installed %s lacks reconstructed-awareness workflow", path)
+		}
+	}
+	agents, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	if !strings.Contains(string(agents), "## Sensei") {
+		t.Fatal("AGENTS.md does not activate Sensei awareness")
 	}
 }
 

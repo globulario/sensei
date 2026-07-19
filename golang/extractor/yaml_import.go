@@ -41,6 +41,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/globulario/sensei/golang/architecture/adoption"
 	"github.com/globulario/sensei/golang/rdf"
 )
 
@@ -58,10 +59,10 @@ type invariantProtects struct {
 }
 
 type yamlInvariant struct {
+	adoption.Receipt    `yaml:",inline"`
 	ID                  string            `yaml:"id"`
 	Title               string            `yaml:"title"`
 	Severity            string            `yaml:"severity"`
-	Status              string            `yaml:"status"`
 	Protects            invariantProtects `yaml:"protects"`
 	ForbiddenFixes      []string          `yaml:"forbidden_fixes"`
 	RequiredTests       []string          `yaml:"required_tests"`
@@ -77,6 +78,7 @@ type failureModeProtects struct {
 }
 
 type yamlFailureMode struct {
+	adoption.Receipt  `yaml:",inline"`
 	ID                string              `yaml:"id"`
 	Title             string              `yaml:"title"`
 	Severity          string              `yaml:"severity"`
@@ -88,6 +90,7 @@ type yamlFailureMode struct {
 	ViolatesContracts []string   `yaml:"violates_contracts"`
 	RequiredTests     []string   `yaml:"required_tests"`
 	Uml               umlProfile `yaml:"uml"`
+	domainScope       `yaml:",inline"`
 }
 
 type yamlIncidentPattern struct {
@@ -161,8 +164,8 @@ func importInvariants(e *rdf.Emitter, path string) error {
 		if inv.Severity != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropSeverity), rdf.Lit(inv.Severity))
 		}
-		if inv.Status != "" {
-			e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit(inv.Status))
+		if err := emitAdoptionReceipt(e, subj, rdf.ClassInvariant, inv.ID, inv.Receipt); err != nil {
+			return fmt.Errorf("invariant %s adoption receipt: %w", inv.ID, err)
 		}
 		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 		emitUML(e, subj, inv.Uml)
@@ -287,6 +290,10 @@ func importFailureModes(e *rdf.Emitter, path string) error {
 		if fm.Severity != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropSeverity), rdf.Lit(fm.Severity))
 		}
+		if err := emitAdoptionReceipt(e, subj, rdf.ClassFailureMode, fm.ID, fm.Receipt); err != nil {
+			return fmt.Errorf("failure mode %s adoption receipt: %w", fm.ID, err)
+		}
+		emitDomainScope(e, subj, fm.domainScope)
 		emitUML(e, subj, fm.Uml)
 		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 
@@ -315,6 +322,8 @@ func importFailureModes(e *rdf.Emitter, path string) error {
 			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
 			// Reverse edge — lets briefing-by-file surface failure modes as Direct anchors.
 			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			// Closure consumes file-scoped failure surface via SourceFile -> vulnerableTo -> FailureMode.
+			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropVulnerableTo), subj)
 		}
 	}
 	return nil

@@ -79,6 +79,39 @@ func TestRenderCandidate_ParksInProposals(t *testing.T) {
 	}
 }
 
+func TestRenderCandidate_DecisionKeepsReviewStatusDistinctFromRecordStatus(t *testing.T) {
+	r := Request{
+		Kind:               "decision",
+		Title:              "Recognize enforced awareness mutations",
+		Description:        "Decision rationale.",
+		Status:             "accepted",
+		Context:            "Decision context.",
+		Consequences:       "Decision consequences.",
+		ArchitecturalPlane: "desired",
+		RelatedInvariants:  []string{"awareness.x"},
+	}
+	c, err := RenderCandidate(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc candidateDoc
+	if err := yaml.Unmarshal(c.Content, &doc); err != nil {
+		t.Fatalf("candidate is not valid YAML: %v\n%s", err, c.Content)
+	}
+	if doc.Proposal.Status != "awaiting_review" {
+		t.Fatalf("proposal status = %q, want awaiting_review", doc.Proposal.Status)
+	}
+	if doc.Proposal.RecordStatus != "accepted" {
+		t.Fatalf("proposal record_status = %q, want accepted", doc.Proposal.RecordStatus)
+	}
+	if doc.Proposal.Context != "Decision context." {
+		t.Fatalf("proposal context = %q, want decision context", doc.Proposal.Context)
+	}
+	if doc.Proposal.Consequences != "Decision consequences." {
+		t.Fatalf("proposal consequences = %q, want decision consequences", doc.Proposal.Consequences)
+	}
+}
+
 func TestDeriveID(t *testing.T) {
 	if got := DeriveID(Request{Kind: "failure_mode", Title: "Stale Seed!"}); got != "failure.stale_seed" {
 		t.Errorf("DeriveID = %q, want failure.stale_seed", got)

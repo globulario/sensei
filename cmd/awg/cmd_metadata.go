@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -22,10 +23,58 @@ var metadataRPC = func(ctx context.Context, addr, domain string) (*awarenesspb.M
 	return c.MetadataScoped(ctx, domain)
 }
 
+func runDomains(args []string) int {
+	fs := flag.NewFlagSet("sensei domains", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	asJSON := fs.Bool("json", false, "output as JSON")
+	fs.Usage = func() {
+		fmt.Fprint(os.Stderr, `Usage: sensei domains [flags]
+
+Print selectable graph domain scopes reported by Sensei Metadata, one per line.
+This is the same source used by VS Code's domain filter.
+
+Flags:
+`)
+		fs.PrintDefaults()
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	resp, err := metadataRPC(ctx, *addr, "")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei domains: %s\n", formatReadSurfaceError("metadata", err))
+		return 1
+	}
+
+	domains := append([]string(nil), resp.GetAvailableDomains()...)
+	if *asJSON {
+		b, err := json.MarshalIndent(struct {
+			AvailableDomains []string `json:"available_domains"`
+		}{AvailableDomains: domains}, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sensei domains: json: %v\n", err)
+			return 1
+		}
+		fmt.Println(string(b))
+		return 0
+	}
+
+	for _, d := range domains {
+		fmt.Println(d)
+	}
+	return 0
+}
+
 func runMetadata(args []string) int {
 	fs := flag.NewFlagSet("sensei metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	domain := fs.String("domain", "", "scope per-class counts to a domain/repo (e.g. github.com/globulario/services); empty = graph-wide")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
@@ -84,6 +133,13 @@ Flags:
 	if detail := strings.TrimSpace(resp.GetGraphFreshnessDetail()); detail != "" {
 		fmt.Printf("  Freshness detail:    %s\n", detail)
 	}
+	if domains := resp.GetAvailableDomains(); len(domains) > 0 {
+		fmt.Println()
+		fmt.Println("Selectable domains:")
+		for _, d := range domains {
+			fmt.Printf("  %s\n", d)
+		}
+	}
 	fmt.Println()
 	fmt.Println("Live counts:")
 	fmt.Printf("  Triples:             %d\n", resp.GetTripleCount())
@@ -106,6 +162,10 @@ Flags:
 	fmt.Printf("  Design patterns:     %d\n", resp.GetDesignPatternCount())
 	fmt.Printf("  Impl. patterns:      %d\n", resp.GetImplementationPatternCount())
 	fmt.Printf("  Pattern misuses:     %d\n", resp.GetPatternMisuseCount())
+	fmt.Printf("  Architecture claims: %d\n", resp.GetArchitectureClaimCount())
+	fmt.Printf("  Open questions:      %d\n", resp.GetOpenQuestionCount())
+	fmt.Printf("  Architect answers:   %d\n", resp.GetArchitectAnswerCount())
+	fmt.Printf("  Evidence probes:     %d\n", resp.GetEvidenceProbeCount())
 	fmt.Println()
 	fmt.Println("Local review surfaces:")
 	fmt.Printf("  Candidate queue:     %s\n", strings.ToLower(strings.TrimPrefix(resp.GetCandidateQueueState().String(), "CANDIDATE_QUEUE_STATE_")))

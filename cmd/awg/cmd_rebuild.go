@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"flag"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -30,6 +32,7 @@ func runRebuild(args []string) int {
 	graphMarkerFile := fs.String("graph-marker-file", "", "write verified live graph identity to this file after a successful reload (default: <project>/.sensei/graph-authority.json)")
 	checkMode := fs.Bool("check", false, "compare only, exit 1 if stale (CI mode)")
 	noReload := fs.Bool("no-runtime-reload", false, "skip Oxigraph PUT")
+	combined := fs.Bool("combined", false, "include paired services awareness corpus in the embedded seed (internal/combined build; default is self-only public seed)")
 	tagByRepo := fs.Bool("tag-by-repo", false, "tag each input repo's nodes with its own domain (from its git remote), so a multi-repo graph stays filterable per repo instead of collapsing to one home domain")
 	strict := fs.Bool("strict", false, "deprecated: rebuild now fails on reload/verification errors unless --no-runtime-reload is set")
 	fs.Usage = func() {
@@ -38,12 +41,16 @@ func runRebuild(args []string) int {
 Rebuild awareness.nt from YAML sources and optionally reload Oxigraph.
 
 Steps:
-  1. Scan YAML sources from both repos (awareness-graph + services)
+  1. Scan YAML sources from this repo (default self-only public seed)
   2. Convert to N-Triples via the extractor library
   3. Validate the output
   4. Update embeddata/awareness.nt (idempotent — only writes if changed)
-  5. Update embeddata/awareness.transaction.tsv with the certified cross-repo inputs
+  5. Update embeddata/awareness.transaction.tsv with the certified inputs
   6. PUT to Oxigraph if available
+
+Use --combined to include the paired services repo. That internal build mode is
+explicit so a standalone/self-only seed is never overwritten by combined output
+by accident.
 
 Use --check for CI: regenerate in memory, compare with committed seed, exit 1 if stale.
 
@@ -65,17 +72,29 @@ Flags:
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 
-	if svcRepo == "" && agRepo == "" {
-		fmt.Fprintln(os.Stderr, "sensei rebuild: cannot find services or awareness-graph repo")
-		fmt.Fprintln(os.Stderr, "  run from inside a checkout, or set --services-repo / --ag-repo")
+	if agRepo == "" {
+		fmt.Fprintln(os.Stderr, "sensei rebuild: cannot find awareness-graph repo")
+		fmt.Fprintln(os.Stderr, "  run from inside the checkout, or set --ag-repo")
 		return 1
 	}
-	if err := ensureCrossRepoRebuildPrereqs(agRepo, svcRepo); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
-		return 1
+	if !*combined {
+		if strings.TrimSpace(*svcRepoFlag) != "" {
+			fmt.Fprintln(os.Stderr, "  seed mode: self-only (ignoring --services-repo; pass --combined to include it)")
+		} else {
+			fmt.Fprintln(os.Stderr, "  seed mode: self-only")
+		}
+		svcRepo = ""
+	} else {
+		fmt.Fprintln(os.Stderr, "  seed mode: combined")
+	}
+	if *combined {
+		if err := ensureCrossRepoRebuildPrereqs(agRepo, svcRepo); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
+			return 1
+		}
 	}
 
-	inputDirs, intentDir, err := collectInputDirs(svcRepo, agRepo)
+	inputDirs, intentDir, err := rebuildSeedInputs(*combined, svcRepo, agRepo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
 		return 1
@@ -219,7 +238,7 @@ Flags:
 		}
 		markerPath := strings.TrimSpace(*graphMarkerFile)
 		if markerPath == "" {
-			resolved, err := defaultRuntimeMarkerFile()
+			resolved, err := runtimeMarkerFileForRoot(agRepo)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "sensei rebuild: resolve graph marker file: %v\n", err)
 				return 1
@@ -237,6 +256,17 @@ Flags:
 
 	fmt.Println("\nDone.")
 	return 0
+}
+
+func rebuildSeedInputs(combined bool, svcRepo, agRepo string) ([]string, string, error) {
+	if !combined {
+		dir := filepath.Join(agRepo, "docs", "awareness")
+		if _, err := os.Stat(dir); err != nil {
+			return nil, "", fmt.Errorf("self-only awareness corpus not found: %w", err)
+		}
+		return []string{dir}, "", nil
+	}
+	return collectInputDirs(svcRepo, agRepo)
 }
 
 func generateNT(inputDirs []string, intentDir, svcRepo, agRepo string, tagByRepo bool) ([]byte, int, int, error) {
@@ -273,14 +303,18 @@ func dirUnder(dir, root string) bool {
 	return dir == root || strings.HasPrefix(dir, root+string(filepath.Separator))
 }
 
+// generateNTWithOwnership selects the ownership-normalized source roots (staging
+// the filtered services-generated mirror when needed) and delegates all graph
+// semantics to graphbuild. Source selection, per-run staging, and its cleanup
+// stay here; compilation, canonicalization, dedup, and marker stamping live in
+// the package. The returned triple count is the true artifact total
+// (graph + 6 marker triples) — the historic "+5" undercount is not carried
+// forward.
 func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPrefixes []string, servicesOwnershipRepo string, dirDomains []string, intentDomain string) ([]byte, int, int, error) {
-	var buf bytes.Buffer
-	opts := extractor.ImportDirOptions{
-		StripPathPrefixes:   stripPathPrefixes,
-		SkipNestedGenerated: true,
-	}
+	stripPrefixes := stripPathPrefixes
 	cleanup := func() {}
-	defer cleanup()
+	// Close over cleanup so the reassigned staging cleanup actually runs.
+	defer func() { cleanup() }()
 	if servicesOwnershipRepo != "" {
 		normalized, stripPrefix, nextCleanup, err := normalizeInputDirsForOwnership(inputDirs, servicesOwnershipRepo)
 		if err != nil {
@@ -295,38 +329,43 @@ func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPref
 		// /tmp/awg-services-generated-NNNN/... path that drifts every run and
 		// keeps the embeddata-freshness gate permanently un-armable.
 		if stripPrefix != "" {
-			opts.StripPathPrefixes = append(opts.StripPathPrefixes, stripPrefix)
+			stripPrefixes = append(append([]string{}, stripPathPrefixes...), stripPrefix)
 		}
 	}
 
-	var totalTriples, yamlCount int
+	sources := make([]graphbuild.SourceRoot, 0, len(inputDirs)+1)
 	for i, dir := range inputDirs {
-		o := opts
+		domain := ""
 		if i < len(dirDomains) {
-			o.DefaultRepo = dirDomains[i] // "" → home domain (unchanged)
+			domain = dirDomains[i] // "" → home domain (unchanged)
 		}
-		emitter, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, o)
-		if err != nil {
-			return nil, 0, 0, fmt.Errorf("import %s: %w", dir, err)
-		}
-		totalTriples += emitter.Triples
-		yamlCount += len(report.Files)
+		sources = append(sources, graphbuild.SourceRoot{
+			FilesystemPath:      dir,
+			IdentityRoot:        dir,
+			StripPathPrefixes:   stripPrefixes,
+			RepositoryDomain:    domain,
+			SkipNestedGenerated: true,
+		})
 	}
 	if intentDir != "" {
-		o := opts
-		o.DefaultRepo = intentDomain
-		emitter, report, err := extractor.ImportAwarenessDirWithOpts(intentDir, &buf, o)
-		if err != nil {
-			return nil, 0, 0, fmt.Errorf("import intent %s: %w", intentDir, err)
-		}
-		totalTriples += emitter.Triples
-		yamlCount += len(report.Files)
+		sources = append(sources, graphbuild.SourceRoot{
+			FilesystemPath:      intentDir,
+			IdentityRoot:        intentDir,
+			StripPathPrefixes:   stripPrefixes,
+			RepositoryDomain:    intentDomain,
+			SkipNestedGenerated: true,
+		})
 	}
-	// Canonical dedup — same computation yaml2nt applies to the committed
-	// seed, so freshness comparisons compare like with like.
-	deduped, uniqueCount, _ := extractor.DedupNTriples(buf.Bytes())
-	stamped, _ := seedmeta.AppendMarker(deduped)
-	return stamped, uniqueCount + 5, yamlCount, nil
+
+	comp, err := graphbuild.Compile(context.Background(), graphbuild.CompileRequest{Sources: sources, Policy: graphbuild.ValidationPolicy{}})
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	art, err := graphbuild.Stamp(context.Background(), graphbuild.FinalizeRequest{Compilation: comp})
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	return art.NTriples, art.ArtifactTripleCount, len(comp.ImportReport.Files), nil
 }
 
 func normalizeInputDirsForOwnership(inputDirs []string, svcRepo string) ([]string, string, func(), error) {

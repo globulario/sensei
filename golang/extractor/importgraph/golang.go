@@ -4,6 +4,7 @@ package importgraph
 
 import (
 	"bufio"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -74,7 +75,88 @@ func parseGoImports(root string) (ParseResult, error) {
 	if walkErr != nil {
 		return ParseResult{}, walkErr
 	}
+	rootComponent, err := detectGoRootComponent(root, modules, res.Files)
+	if err != nil {
+		return ParseResult{}, err
+	}
+	res.RootComponent = rootComponent
 	return res, nil
+}
+
+// DetectGoRootComponent returns the canonical component for a Go module whose
+// package lives directly at the repository root. Repositories without both a
+// root go.mod and root production Go files have no root component.
+func DetectGoRootComponent(root string) (*RootComponent, error) {
+	res, err := parseGoImports(root)
+	if err != nil {
+		return nil, err
+	}
+	return res.RootComponent, nil
+}
+
+func detectGoRootComponent(root string, modules []goModule, files []SourceFile) (*RootComponent, error) {
+	modulePath := ""
+	for _, m := range modules {
+		if m.dir == "" {
+			modulePath = m.path
+			break
+		}
+	}
+	if modulePath == "" {
+		return nil, nil
+	}
+
+	rootFiles := make([]SourceFile, 0)
+	packageCounts := map[string]int{}
+	fset := token.NewFileSet()
+	for _, file := range files {
+		if pathDir := filepath.ToSlash(filepath.Dir(file.Path)); pathDir != "." && pathDir != "" {
+			continue
+		}
+		rootFiles = append(rootFiles, file)
+		parsed, err := parser.ParseFile(fset, filepath.Join(root, filepath.FromSlash(file.Path)), nil, parser.PackageClauseOnly)
+		if err == nil && parsed.Name != nil {
+			packageCounts[parsed.Name.Name]++
+		}
+	}
+	if len(rootFiles) == 0 {
+		return nil, nil
+	}
+	sort.Slice(rootFiles, func(i, j int) bool { return rootFiles[i].Path < rootFiles[j].Path })
+
+	name := mostCommonPackage(packageCounts)
+	if name == "" || name == "main" {
+		name = moduleBase(modulePath)
+	}
+	slug := dotSlug(name)
+	if slug == "" {
+		return nil, fmt.Errorf("importgraph: cannot derive root component identity from module %q", modulePath)
+	}
+	return &RootComponent{ID: "component." + slug, Name: name, SourceFiles: rootFiles}, nil
+}
+
+func mostCommonPackage(counts map[string]int) string {
+	bestName, bestCount := "", 0
+	for name, count := range counts {
+		if count > bestCount || (count == bestCount && (bestName == "" || name < bestName)) {
+			bestName, bestCount = name, count
+		}
+	}
+	return bestName
+}
+
+func moduleBase(modulePath string) string {
+	parts := strings.Split(strings.Trim(modulePath, "/"), "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	last := parts[len(parts)-1]
+	if len(parts) > 1 && len(last) > 1 && last[0] == 'v' {
+		if _, err := strconv.Atoi(last[1:]); err == nil {
+			return parts[len(parts)-2]
+		}
+	}
+	return last
 }
 
 // goModule is one discovered module: its declared path and the repo-root-relative

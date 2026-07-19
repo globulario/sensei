@@ -4,6 +4,9 @@ package main
 
 import (
 	"bytes"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -167,6 +170,26 @@ func extractComponents(root string) []bootstrapComponent {
 
 	var comps []bootstrapComponent
 	seen := map[string]bool{}
+	if rootComponent, err := importgraph.DetectGoRootComponent(root); err == nil && rootComponent != nil {
+		sources := make([]string, 0, len(rootComponent.SourceFiles))
+		kind := "module"
+		for _, source := range rootComponent.SourceFiles {
+			sources = append(sources, source.Path)
+			if source.IsEntrypoint {
+				kind = "service"
+			}
+		}
+		comps = append(comps, bootstrapComponent{
+			ID:          rootComponent.ID,
+			Name:        rootComponent.Name,
+			Description: "Inferred from root Go package: " + rootComponent.Name,
+			Kind:        kind,
+			Assertion:   "inferred",
+			SourceFiles: sources,
+			Uml:         &bootstrapUML{Kind: "Component", Stereotype: kind, View: "structural", Confidence: "inferred"},
+		})
+		seen[rootComponent.ID] = true
+	}
 
 	emitFor := func(dir string) {
 		rel, err := filepath.Rel(root, dir)
@@ -292,6 +315,118 @@ func mergeSortedStrings(a, b []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// bootstrapCodeSymbol is the annotation-free subset accepted by the existing
+// code_symbols importer. These declarations are structural facts only: no
+// awareness edges are inferred without explicit annotations or a registry.
+type bootstrapCodeSymbol struct {
+	ID        string `yaml:"id"`
+	Namespace string `yaml:"namespace"`
+	Language  string `yaml:"language"`
+	File      string `yaml:"file"`
+	Symbol    string `yaml:"symbol"`
+	Kind      string `yaml:"kind"`
+	Component string `yaml:"component,omitempty"`
+}
+
+type bootstrapCodeSymbolsDoc struct {
+	CodeSymbols []bootstrapCodeSymbol `yaml:"code_symbols"`
+}
+
+func extractGoCodeSymbols(root string, components []bootstrapComponent) ([]bootstrapCodeSymbol, error) {
+	componentByFile := map[string]string{}
+	for _, component := range components {
+		for _, file := range component.SourceFiles {
+			componentByFile[filepath.ToSlash(file)] = component.ID
+		}
+	}
+
+	var symbols []bootstrapCodeSymbol
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			if path != root && (bootstrapExcludedDir(entry.Name()) || strings.HasPrefix(entry.Name(), ".")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".go") || isTestFile(name) || !isSourceFile(name) {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return nil
+		}
+		pkg := file.Name.Name
+		emit := func(name, kind string) {
+			qualified := pkg + "." + name
+			symbols = append(symbols, bootstrapCodeSymbol{
+				ID:        rel + ":" + qualified,
+				Namespace: pkg,
+				Language:  "go",
+				File:      rel,
+				Symbol:    qualified,
+				Kind:      kind,
+				Component: componentByFile[rel],
+			})
+		}
+		for _, decl := range file.Decls {
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				name := decl.Name.Name
+				kind := "function"
+				if decl.Recv != nil && len(decl.Recv.List) > 0 {
+					if recv := goReceiverName(decl.Recv.List[0].Type); recv != "" {
+						name = recv + "." + name
+					}
+					kind = "method"
+				}
+				emit(name, kind)
+			case *ast.GenDecl:
+				for _, spec := range decl.Specs {
+					switch spec := spec.(type) {
+					case *ast.TypeSpec:
+						emit(spec.Name.Name, "type")
+					case *ast.ValueSpec:
+						kind := "variable"
+						if decl.Tok == token.CONST {
+							kind = "constant"
+						}
+						for _, ident := range spec.Names {
+							emit(ident.Name, kind)
+						}
+					}
+				}
+			}
+		}
+		return nil
+	})
+	sort.Slice(symbols, func(i, j int) bool { return symbols[i].ID < symbols[j].ID })
+	return symbols, err
+}
+
+func goReceiverName(expr ast.Expr) string {
+	switch expr := expr.(type) {
+	case *ast.Ident:
+		return expr.Name
+	case *ast.StarExpr:
+		return goReceiverName(expr.X)
+	case *ast.IndexExpr:
+		return goReceiverName(expr.X)
+	case *ast.IndexListExpr:
+		return goReceiverName(expr.X)
+	default:
+		return ""
+	}
 }
 
 // ── test extraction ────────────────────────────────────────────────────────

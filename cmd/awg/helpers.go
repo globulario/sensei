@@ -3,6 +3,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +17,66 @@ import (
 // All gRPC commands share this helper.
 func connectAWG(addr string) (*client.Client, error) {
 	return client.Dial(addr)
+}
+
+func flagPassed(fs *flag.FlagSet, name string) bool {
+	found := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func warnDeprecatedRepoPathAlias(fs *flag.FlagSet, command string) {
+	if flagPassed(fs, "repo") && !flagPassed(fs, "path") {
+		fmt.Fprintf(os.Stderr, "warn: sensei %s: --repo is deprecated for checkout paths; use --path instead\n", command)
+	}
+}
+
+func warnIfDomainLikeExtractorPath(command, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" || pathExists(value) || !looksLikeRepoDomain(value) {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "warn: sensei %s: %q looks like a domain; extractors take a checkout path. Use --path <checkout>.\n", command, value)
+}
+
+// rejectPathLikeBuildDomain fails the build when --repo is a real filesystem
+// path rather than a domain key. --repo names the domain a compiled slice is
+// tagged with AND writes that slice into the CONFIGURED store (--store-url,
+// which defaults to the live local store). A path here means the caller
+// confused --repo with a source path and would silently mutate whatever store
+// the config points at — the graph-authority-confusion incident. A real domain
+// key (github.com/org/repo) never exists as a local path, so this only fires on
+// the mistake, never on a legitimate scoped build.
+func rejectPathLikeBuildDomain(command, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" || !pathExists(value) {
+		return nil
+	}
+	return fmt.Errorf("sensei %s: %q is a filesystem path, not a repo domain.\n"+
+		"  --repo names the domain to tag AND writes the compiled slice into the configured store (--store-url).\n"+
+		"  To compile a repo's awareness to a file WITHOUT touching any store: sensei build --output <file.nt> --input <path>/docs/awareness\n"+
+		"  To tag a scoped build by domain, pass a domain key such as github.com/org/repo.", command, value)
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func looksLikeRepoDomain(value string) bool {
+	value = strings.TrimSpace(strings.TrimSuffix(value, ".git"))
+	if value == "" || filepath.IsAbs(value) || strings.HasPrefix(value, ".") {
+		return false
+	}
+	if strings.Contains(value, "://") || strings.Contains(value, "@") {
+		value = deriveDomain(value)
+	}
+	parts := strings.Split(strings.Trim(value, "/"), "/")
+	return len(parts) >= 3 && strings.Contains(parts[0], ".")
 }
 
 // resolveProjectRoot walks up from cwd looking for docs/awareness/ or a state

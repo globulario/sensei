@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/migration-execution-receipt.schema.json",
+  "title": "Architectural Closure v1 Migration Execution Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "migration_plan_id": {"type": "string"},
+    "step_id": {"type": "string"},
+    "source_state": {"type": "string"},
+    "target_state": {"type": "string"},
+    "mechanism": {"$ref": "common.schema.json#/$defs/mechanism_kind"},
+    "actor_id": {"type": "string"},
+    "mutation_receipt_digest_sha256": {"type": "string"},
+    "proof_discharge_digest_sha256": {"type": "string"},
+    "rollback_available": {"type": "boolean"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"}
+  },
+  "required": ["migration_plan_id", "step_id", "source_state", "target_state", "mechanism", "actor_id", "mutation_receipt_digest_sha256", "proof_discharge_digest_sha256", "rollback_available", "status"]
+}
+

@@ -218,3 +218,599 @@ failure_modes:
     evidence:
       - 'awg audit embeddata-freshness FAIL: component.scripts authoredIn /tmp/awg-services-generated-2297933849/components.yaml then .../492872674/... on the next run'
     contract: provenance (authoredIn) for staged/filtered generated inputs must be a stable repo-relative path; a per-run absolute temp path makes embeddata-freshness / 'awg rebuild --check' non-deterministic and permanently red
+  - id: failure.repo_sends_a_foreign_import_to_the_wrong_place_it_is_a_check
+    title: '--repo sends a foreign import to the wrong place: it is a checkout PATH on bootstrap/cold-bootstrap/intent-mine but a DOMAIN on build'
+    severity: warning
+    description: The --repo flag is command-scoped. On the extractors (sensei bootstrap, cold-bootstrap, intent-mine) it names a filesystem checkout path; on sensei build it names the domain tag applied to untagged nodes. Passing a domain to an extractor makes it look for a directory named after the domain; passing a path to build tags every node with a filesystem path instead of the intended domain.
+    protects:
+      files:
+        - cmd/awg/cmd_bootstrap.go
+        - cmd/awg/cmd_build.go
+        - cmd/awg/cmd_import.go
+    forbidden_fix:
+      - Passing a domain string to `sensei bootstrap`/`cold-bootstrap`/`intent-mine --repo`, or a filesystem path to `sensei build --repo`.
+    evidence:
+      - 'gin import dogfooding: the first sensei-import skill draft used `sensei bootstrap --repo github.com/gin-gonic/gin`, which bootstrap resolves as a filesystem path (a dir named after the domain), not a domain tag.'
+      - 'The one-command `sensei import` wrapper now encodes the correct split: it forwards the checkout path to the extractors and the domain to build.'
+    contract: 'The --repo flag''s meaning is command-dependent: a checkout PATH for the extractors (bootstrap/cold-bootstrap/intent-mine), a DOMAIN tag for build. A caller must never pass a domain to an extractor or a path to build.'
+  - id: failure.forwarding_graph_transaction_file_when_loading_a_foreign_onl
+    title: Forwarding --graph-transaction-file when loading a foreign-only scoped slice turns the expected uncertified transaction into a hard build failure
+    severity: warning
+    description: A foreign-only domain slice (sensei build --repo <foreign-domain>) carries no seed marker, so its runtime transaction cannot be certified. The graph marker is written BEFORE the transaction publish, so a served store stays fresh for briefing regardless. But requesting a transaction file makes the missing-seed-marker a hard error (exit 1), even though the triples loaded and the briefing serves. Omitting the transaction file makes it a soft skip (transaction=uncertified) while the load succeeds and returns 0.
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+        - cmd/awg/cmd_import.go
+    forbidden_fix:
+      - Passing --graph-transaction-file to a foreign-only scoped `sensei build --repo` load, or otherwise treating a missing seed marker on a foreign slice as a hard failure.
+    evidence:
+      - 'gin import: passing --graph-transaction-file produced ''publish runtime transaction: validated graph artifact carries no seed marker'' and exit 1, even though triples loaded and the briefing served the real intents.'
+      - Omitting the transaction file (forwarding only --graph-marker-file) gave exit 0 with the same successful briefing on context.go.
+    contract: Loading a foreign-only scoped slice must succeed and keep a served store fresh for briefing; its runtime transaction is uncertified by design (no seed marker). Only the graph marker is required for freshness; a transaction file must not be requested for a foreign-only slice, or the expected uncertified state becomes a hard failure.
+  - id: failure.globular.dashboard_domain_list_only_shows_loaded_graph_domains
+    title: Dashboard domain list only shows loaded graph domains
+    description: The VS Code dashboard domain dropdown is populated from Metadata.available_domains. If the running Oxigraph store only contains the legacy home domain, the dropdown correctly shows only globular and All domains even when local Gin, Caddy, or Sensei checkouts exist. Load each repo with sensei build --repo <domain> so aw:repo triples exist before expecting the dashboard list to include that domain.
+    protects:
+      files:
+        - editor/vscode/src/dashboardPanel.ts
+        - cmd/awg/cmd_metadata.go
+    evidence:
+      - Observed VS Code dropdown showed only globular; ./bin/sensei domains --json returned only globular.
+      - After scoped loads for github.com/globulario/sensei, github.com/gin-gonic/gin, and github.com/caddyserver/caddy, ./bin/sensei domains --json returned all four domains and the dropdown populated.
+    contract: Dashboard domain selection must reflect the running graph's selectable domain scopes from Metadata; local checkout presence alone is not graph authority.
+  - id: failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+    title: Closure control query classes rejected by stale server binary
+    description: 'The VS Code Closure & Control panel and compiled extension can know about Phase 2 QueryClass values while the live sensei serve child still runs an older bin/awareness-graph. The dashboard then reports Request failed (listClass): INVALID_ARGUMENT for open_question, architect_answer, or evidence_probe even though the source, proto, and extension payload look correct. Rebuild bin/awareness-graph and restart the serving process, then verify by_class queries for all Phase 2 classes.'
+    protects:
+      files:
+        - editor/vscode/media/dashboard.js
+        - golang/server/query.go
+        - cmd/awg/cmd_serve.go
+    required_tests:
+      - golang/server/architecture_dialogue_server_test.go:TestQueryByClassOpenQuestion
+      - golang/server/architecture_dialogue_server_test.go:TestQueryByClassArchitectAnswer
+      - golang/server/architecture_evidence_probe_server_test.go:TestQueryByClassEvidenceProbe
+    evidence:
+      - 'Observed VS Code panel errors: Request failed (listClass): 3 INVALID_ARGUMENT: invalid class for by_class.'
+      - ./bin/sensei query --mode by_class --class open_question/architect_answer/evidence_probe failed before rebuilding bin/awareness-graph, then returned zero-row authoritative responses after rebuild and restart.
+    contract: Dashboard graph class queries must be served by the same protocol/runtime version as the installed VS Code extension and CLI; rebuilt proto/client code is not sufficient if bin/awareness-graph remains stale.
+  - id: failure.import.preexisting_awareness_skips_agent_scaffold
+    title: Pre-existing awareness directory suppresses agent scaffold
+    severity: high
+    description: Contract or intent extraction can create docs/awareness before bootstrap. If bootstrap treats directory existence as proof that initialization completed, it skips managed skills, AGENTS.md, CLAUDE.md, and hooks, leaving future agents unable to encounter task-bound architectural questions.
+    protects:
+      files:
+        - cmd/awg/cmd_bootstrap.go
+    required_tests:
+      - cmd/awg/cmd_bootstrap_test.go:TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository
+    evidence:
+      - Fresh Gin full import created docs/awareness during intent mining, so bootstrap skipped scaffold and the checkout had no AGENTS.md or managed skills.
+      - After unconditional idempotent scaffold synchronization, Gin refresh installed managed skill version 2026.07.14 and AGENTS.md while preserving its domain slice.
+    contract: Every writable import and refresh must idempotently install or update Sensei-managed skills and agent instruction surfaces, regardless of whether docs/awareness already exists.
+  - id: failure.sensei.flat_task_closure_output_hides_the_load_bearing_next_action
+    title: Flat task closure output hides the load-bearing next action
+    severity: high
+    description: A task can preserve hundreds of valid blockers, questions, and probes yet remain operationally unusable when every item is presented as a competing action. Preserve every item with a deterministic disposition, group explicit duplicates and dominance, execute only registered static reads, and expose one primary next action.
+    protects:
+      files:
+        - golang/architecture/taskcontrol/project.go
+        - golang/architecture/tasksession/control.go
+    related_invariants:
+      - awareness.open_questions_remain_visible_until_resolved
+    required_tests:
+      - golang/architecture/taskcontrol/project_test.go:TestCompressionAccountingBalances
+      - golang/architecture/tasksession/session_test.go:TestAdvanceTaskRunsOneAtomicGenerationAndReplays
+    evidence:
+      - Gin pilot preserved 203 blockers and 102 questions while compact status selected one action; 99 static probes completed and identical replay executed zero probes.
+    contract: Task-control compression may reduce presentation only; every blocker, question, and probe must remain auditable and mutation must continue to follow admission.
+  - id: behavioral.task_claim_scope_blocker_explosion
+    title: Repository-wide claim debt is promoted into a local task's blocker surface by proximity instead of explainable impact
+    severity: critical
+    description: Repository-wide claim debt is promoted into a local task's must-preserve and blocker surfaces because file proximity or retrieval relevance is mistaken for architectural impact. Core architecture files become practically immutable, unrelated questions dominate task convergence, exact admission never opens, repository debt masquerades as task-local safety risk, and agents are tempted to bypass governance because legitimate work cannot converge. Prevention requires discovered, binding, blocking, and background-debt classifications; an explainable impact receipt for every binding claim; an explicit blocking reason for every blocker; deterministic selection bound to revision, graph, task envelope, and policy; and visible background debt that remains non-blocking when no explainable task impact path exists.
+    protects:
+      files:
+        - golang/architecture/tasksession/session.go
+        - golang/architecture/tasksession/control.go
+        - golang/architecture/convergence/convergence.go
+        - golang/architecture/closure/model.go
+        - golang/architecture/tasksession/briefing.go
+    related_invariants:
+      - awareness.task_claim_scoping_is_task_local_and_explainable
+    evidence:
+      - Observed neural-candidate-awareness preparation inherited 1025 must_preserve claims, 359 active root blockers, and 360 unresolved questions from repository-wide claim debt.
+      - A later bounded task-local scoping prototype reduced the same surface to 853 discovered claims, 5 binding claims, 0 blocking claims, and 848 background-debt claims, leaving only genuine intended-direction and failure-mode governance gaps.
+  - id: failure.components_owner_registry_launders_or_overclaims_authority
+    title: Canonical owner registry launders or overclaims authority
+    severity: high
+    description: 'A canonical owner entry in docs/awareness/architecture/components.yaml can fail in two directions: it may not resolve to the real subsystem that owns the bounded admission implementation surface, leaving task-local authority overlays unbound; or it may claim a broader surface than the real subsystem, causing unrelated files to inherit admission-control ownership. The reciprocal trap is to treat component ownership metadata as mutation authority, correctness proof, or task-local knowledge promotion. All three defects corrupt bounded admission governance even when the file is structurally represented.'
+    protects:
+      files:
+        - docs/awareness/architecture/components.yaml
+        - .sensei/project/knowledge/bounded_create_authority.yaml
+    related_invariants:
+      - awareness.authored_knowledge_sources_are_governable_repository_files
+      - awareness.graph.compiled_context_not_authority
+    evidence:
+      - task.define-bounded-admission-owner-component.b921967f0e4f remained blocked by closure.behavior.surface_empty until a governed failure surface for owner ambiguity and authority laundering exists
+      - validateAndProjectTaskKnowledgeOverlay rejects authority overlays unless owner_service resolves to exactly one canonical component node
+    contract: Canonical owner registry entries may represent exact governed subsystem boundaries for existing repository files, but ownership metadata must resolve to a canonical component, remain narrow to the real implementation surface, and never serve as mutation authority, correctness proof, or self-authorizing task-local knowledge by itself.
+  - id: closure.governed_knowledge_present_but_non_consumable
+    title: Governed architectural direction exists but closure cannot consume it
+    severity: high
+    description: Governed desired or intended architecture may exist in the canonical graph yet remain operationally inert when no deterministic bridge projects it into supported canonical claims, or when file-scoped failure relevance is not materialized from the governed corpus. Tasks then remain blocked on missing direction or missing failure surface even though the architecture has already been authored and governed, pressuring agents to treat dialogue or raw graph presence as authority.
+    protects:
+      files:
+        - cmd/awg/cmd_infer_claims.go
+        - golang/architecture/inference/governed_direction.go
+        - golang/architecture/inference/registry.go
+        - golang/extractor/yaml_import.go
+        - golang/architecture/closure/model.go
+        - docs/awareness/architecture/decisions.yaml
+        - docs/awareness/failure_modes.yaml
+    related_invariants:
+      - awareness.governed_direction_records_must_be_claim_consumable
+      - awareness.closure_is_revision_scope_and_task_bound
+    required_tests:
+      - cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph
+      - cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords
+      - golang/architecture/closure/model_test.go:TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode
+      - golang/extractor/yaml_import_test.go:TestImportFixture_KnownTriplesPresent
+    evidence:
+      - After stale structural extraction was repaired, the awareness-enforcement task still reported closure.direction.desired_missing, closure.direction.intended_missing, and closure.behavior.failure_mode_missing until the bridge emitted supported directional claims and SourceFile vulnerable_to FailureMode edges.
+      - The correct fix was governed record -> supported claim and failure_modes.protects.files -> vulnerable_to, not dialogue promotion or direct graph-node consumption inside closure.
+    contract: Governed architecture becomes operational closure input only through deterministic, provenance-preserving consumption paths already trusted by closure. Raw graph presence, authored YAML, and accepted dialogue must not silently substitute for supported claims or explicit failure relevance.
+  - id: behavioral.awareness_source_mutation_without_enforcement
+    title: Canonical awareness-source mutation lacks deterministic enforcement support
+    severity: high
+    description: An exact change to a canonical awareness source can be structurally scoped yet still lack a behavioral basis when no deterministic validation and graph-compilation path proves the mutation will be enforced. The dangerous repair is to treat the YAML declaration itself, or an invariant/failure mode added in the same change, as observed behavior or correctness proof.
+    protects:
+      files:
+        - golang/architecture/admission/admission.go
+        - golang/architecture/admission/admission_test.go
+        - golang/architecture/closure/model.go
+        - golang/architecture/closure/model_test.go
+        - golang/architecture/closure/util.go
+        - golang/architecture/tasksession/session.go
+        - golang/architecture/tasksession/session_test.go
+        - golang/extractor/yaml_import_dir.go
+        - golang/extractor/yaml_import_dir_test.go
+    related_invariants:
+      - awareness.authored_knowledge_sources_are_governable_repository_files
+      - awareness.governed_direction_records_must_be_claim_consumable
+    evidence:
+      - The awareness-enforcement port moved from false structural blockers to true desired, intended, and behavioral blockers once fresh source representation restored golang/architecture/closure/util.go.
+      - That progression showed the remaining gap was not missing files but the absence of a deterministic enforcement basis for governed awareness-source mutation.
+    contract: Canonical awareness-source mutation may receive only conditional behavioral support from a closed validation and graph-compilation path. Representation alone is insufficient, and enforcement support does not prove design correctness.
+  - id: closure.certification_profile_erases_governed_runtime_mandate
+    title: Certification profile erases a governed runtime proof requirement
+    category: closure
+    severity: critical
+    summary: >
+      A broad certification profile default converts a mandatory runtime slot to
+      not_applicable before considering the applicable proof obligation. The
+      result can falsely certify behavior that static analysis and tests cannot
+      establish.
+    description: >
+      The initial Phase 5 slot-disposition rule relaxed every required
+      runtime-owner-path slot to not_applicable whenever the static_test profile
+      was selected, without consulting the governed obligation. A repository
+      implementing leader election, storage durability, failover, or distributed
+      membership truth has behavioral claims that static and test evidence cannot
+      honestly establish; the blanket relaxation would have certified them
+      anyway. Caught in design review before merge; the resolver was corrected to
+      consult ProofObligation.RequiresRuntimeEvidence before the profile default.
+    protects:
+      files:
+        - golang/architecture/proofdischarge/coverage.go
+        - golang/architecture/proofdischarge/discharge.go
+        - golang/architecture/evidencereceipt/coverage.go
+    related_invariants:
+      - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+    forbidden_fixes:
+      - 'Blanket rule: profile static_test means every runtime slot is not_applicable.'
+    evidence:
+      - ResolveSlotDisposition initially returned SlotNotApplicableUnderProfile for every required runtime-owner-path slot under static_test, regardless of the obligation.
+      - Regression tests discharge_test.go:TestRow9a/9b/9c now pin the obligation-driven behavior.
+    contract: >
+      Resolve applicability per proof obligation. A governed runtime mandate
+      takes precedence over the profile default; a mandated runtime slot without
+      compatible evidence remains required and unresolved, never not_applicable.
+  # ── Phase 8: terminal architectural closure — failure modes (Slice 8.0) ──
+  - id: closure.accepted_answer_stranded_outside_governed_promotion
+    title: An accepted reusable answer is stranded outside governed promotion
+    severity: critical
+    description: >
+      An architect answer is adjudicated accepted_for_question in the offline dialogue
+      but never flows through the governed-knowledge promotion owner, so the reusable
+      truth never becomes a governed record and never reaches future briefings. The task
+      appears answered while the knowledge stays trapped in one task's dialogue.
+    protects:
+      files:
+        - golang/architecture/questiongen/dialogue_ops.go
+        - cmd/awg/cmd_propose.go
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+  - id: closure.dialogue_answer_mistaken_for_governed_truth
+    title: A dialogue or ledger answer is mistaken for governed truth
+    severity: critical
+    description: >
+      Code treats an ArchitectAnswer's existence or GovernanceStatus (or a raw ledger
+      payload) as authoritative reusable truth without a verified disposition or a
+      completed governed promotion bound to the current graph.
+    protects:
+      files:
+        - golang/architecture/dialogue.go
+    related_invariants:
+      - closure.dialogue_answer_is_not_authoritative_by_existence
+  - id: closure.unauthorized_stale_or_contradictory_promotion
+    title: Unauthorized, stale, or contradictory governed promotion
+    severity: critical
+    description: >
+      A promotion is accepted without a verified promotion actor, or its
+      QuestionPromotionReceipt binds a stale graph digest, or it asserts a claim that
+      contradicts an existing contested governed record. Reusable truth is corrupted.
+    protects:
+      files:
+        - golang/architecture/adoption/receipt.go
+        - golang/architecture/knowledgeadoption/engine.go
+    related_invariants:
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+      - closure.only_promotion_owner_establishes_reusable_truth
+  - id: closure.task_local_answer_leaks_into_global_briefing
+    title: A task-local answer leaks into a repository-wide or foreign-domain briefing
+    severity: critical
+    description: >
+      A disposition recorded as task_local is surfaced beyond its exact task/session/result
+      and effective scope, entering a repository-wide or unrelated-domain briefing and
+      masquerading as reusable governed truth.
+    protects:
+      files:
+        - golang/server/briefing.go
+        - golang/server/scope.go
+    related_invariants:
+      - closure.task_local_answers_never_enter_repository_briefings
+  - id: closure.graph_rebuilt_without_question_answer_provenance
+    title: The graph is rebuilt without question/answer provenance
+    severity: high
+    description: >
+      A promotion mutates governed sources and rebuilds the graph but the promoted node
+      carries no provenance back to the QuestionPromotionReceipt, originating question,
+      or accepted answer, so future briefings cannot explain why the knowledge exists.
+    protects:
+      files:
+        - golang/server/briefing.go
+        - cmd/awg/cmd_rebuild.go
+    related_invariants:
+      - closure.reusable_promotion_binds_full_question_answer_lineage
+  - id: closure.status_blind_unresolved_question_computation
+    title: A status-blind unresolved-question computation satisfies a blocking question by omission
+    severity: critical
+    description: >
+      Resolution is computed only from whether a backing closure blocker still exists, so
+      answering a question appears to unblock proving merely because a rebuild removed the
+      blocker — without preserving evidence that the question was authorized and correctly
+      disposed. The originating question's authorized answer is not required.
+    protects:
+      files:
+        - golang/architecture/resultpipeline/build.go
+        - golang/architecture/proofrequirements/compose.go
+    related_invariants:
+      - closure.no_blocking_question_satisfied_by_omission
+  - id: closure.certification_or_completion_over_unresolved_or_stale_promotion
+    title: Certification or completion proceeds over an unresolved or stale promotion
+    severity: critical
+    description: >
+      A certifying or completing verdict is reached while a blocking architect question
+      is unresolved, or while an accepted reusable answer's promotion is incomplete or
+      bound to a stale graph digest, or while a contradictory promotion is contested.
+    protects:
+      files:
+        - golang/architecture/certification/evaluate.go
+        - docs/design/phase8-discovery.md
+    related_invariants:
+      - closure.certification_requires_verified_question_resolution_summary
+      - closure.completion_requires_closed_current_question_loop
+  - id: closure.duplicate_promotion_or_duplicate_completion
+    title: Duplicate promotion or duplicate completion
+    severity: high
+    description: >
+      An exact re-run of a promotion mints a second governed node or a second promotion
+      receipt, or an exact re-completion appends a second completed event, instead of
+      being idempotent and reporting the current state.
+    protects:
+      files:
+        - docs/design/phase8-discovery.md
+    related_invariants:
+      - closure.completed_tasks_are_terminal_and_replay_idempotent
+      - closure.only_promotion_owner_establishes_reusable_truth
+  - id: closure.partial_governed_source_or_graph_commit
+    title: A partial governed-source or graph commit leaves an inconsistent world
+    severity: critical
+    description: >
+      A promotion mutates the governed source but the deterministic rebuild fails (or vice
+      versa), leaving governed sources, the seed/graph, the promotion receipt, and the
+      ledger inconsistent — a partially-promoted world rather than an atomic, retryable
+      transaction.
+    protects:
+      files:
+        - cmd/awg/cmd_rebuild.go
+        - cmd/awg/cmd_propose.go
+    related_invariants:
+      - closure.only_promotion_owner_establishes_reusable_truth
+  - id: closure.caller_supplied_disposition_terminal_status_or_correctness
+    title: Caller-supplied disposition, terminal status, or correctness truth
+    severity: critical
+    description: >
+      A caller supplies the question disposition, the terminal status, or a correctness
+      claim directly (a boolean, string, or verdict), bypassing the authority-verified
+      disposition owner, the completion engine's evaluation, and the sole certification
+      writer.
+    protects:
+      files:
+        - golang/architecture/tasksession/advance_result.go
+        - docs/design/phase8-discovery.md
+    related_invariants:
+      - closure.only_question_disposition_owner_records_question_outcomes
+      - closure.completion_never_mutates_governed_or_certification_truth
+  # ── Phase 8.1b: governed promotion failure surface ──
+  - id: closure.promotion_journal_mistaken_for_governed_truth
+    title: A promotion attempt journal is treated as governed truth
+    severity: critical
+    description: >
+      A journal entry, source file, graph node, authority marker, or adoption.Receipt is
+      accepted as promotion proof instead of a verified question_promotion_committed receipt.
+    protects:
+      files:
+        - golang/architecture/ledger/lock.go
+    related_invariants:
+      - closure.promotion_journal_is_not_governed_truth
+      - closure.promotion_receipt_only_after_projection_verified
+    evidence: Phase 8.1b govern-first; recovery metadata is not authority.
+  - id: closure.incomplete_source_commit_reported_governed
+    title: A committed source mutation is reported governed before graph verification
+    severity: critical
+    description: >
+      Filesystem success at governed_source_committed is reported as completed promotion
+      without independently reloading and verifying the persisted repository graph and marker.
+    protects:
+      files:
+        - golang/architecture/graphbuild/graphbuild.go
+    related_invariants:
+      - closure.source_commit_without_graph_verification_is_incomplete
+    evidence: Phase 8.1b govern-first; source_committed is promotion_incomplete.
+  - id: closure.graph_verified_against_wrong_source_world
+    title: The graph is verified against a different source world than was committed
+    severity: critical
+    description: >
+      A concurrent writer changes docs/awareness between source commit and rebuild, so the
+      graph is compiled from a foreign source set yet the attempt claims its own promotion
+      (the writer-A/writer-B chimera).
+    protects:
+      files:
+        - golang/architecture/graphbuild/graphbuild.go
+        - golang/architecture/graphsnapshot/graphsnapshot.go
+    related_invariants:
+      - closure.graph_verification_binds_committed_manifest
+    evidence: Phase 8.1b govern-first; lock + manifest CAS prevent the chimera.
+  - id: closure.duplicate_attempt_or_record_on_retry
+    title: Retry mints a second attempt, record, receipt, or node
+    severity: critical
+    description: >
+      Identical frozen inputs produce more than one attempt id, or promotion writes a
+      duplicate governed record / second receipt / duplicate node instead of resuming.
+    protects:
+      files:
+        - golang/architecture/ledger/lock.go
+    related_invariants:
+      - closure.promotion_retry_resumes_same_attempt
+    evidence: Phase 8.1b govern-first; content-addressed attempt id + replay.
+  - id: closure.contradictory_canonical_id_overwritten
+    title: A contradictory canonical governed record is overwritten
+    severity: critical
+    description: >
+      A same-ID different-semantics governed record is silently overwritten instead of
+      raising a typed collision/contradiction.
+    protects:
+      files:
+        - cmd/awg/cmd_propose.go
+    related_invariants:
+      - closure.contradictory_canonical_id_never_overwritten
+    evidence: Phase 8.1b govern-first; governed source is append-only under promotion.
+  - id: closure.receipt_authoritative_before_projection_verified
+    title: The promotion receipt is made authoritative before projection verification
+    severity: critical
+    description: >
+      A QuestionPromotionReceipt is written or trusted before the persisted graph and marker
+      are reloaded and verified, or trusts a caller-supplied governed status/graph digest/node IRI.
+    protects:
+      files:
+        - golang/architecture/adoption/receipt.go
+    related_invariants:
+      - closure.promotion_receipt_only_after_projection_verified
+    evidence: Phase 8.1b govern-first; recompute all trusted values.
+  - id: closure.repo_graph_confused_with_combined_seed
+    title: The repository graph is confused with the combined embedded seed
+    severity: critical
+    description: >
+      Promotion edits or partially regenerates golang/server/embeddata/awareness.nt, or claims
+      combined-seed convergence from a repository-scoped compile without the services checkout.
+    protects:
+      files:
+        - golang/server/embeddata/awareness.nt
+    related_invariants:
+      - closure.repo_graph_and_combined_seed_identities_distinct
+    evidence: Phase 8.1b govern-first; combined seed is a separate obligation.
+  - id: closure.promotion_event_leaks_into_task_projection
+    title: A promotion journal event leaks into task phase/status truth
+    severity: critical
+    description: >
+      A promotion state is modeled as a task event, added to task LedgerEventTypes, projected
+      into task phase/status, or consumed by task-ledger reducers.
+    protects:
+      files:
+        - golang/architecture/closureprotocol/vocabulary.go
+    related_invariants:
+      - closure.promotion_journal_separate_from_task_lifecycle
+    evidence: Phase 8.1b govern-first; promotion vocabulary is promotion-local.
+  - id: closure.offline_query_diverges_from_graph_owner
+    title: The offline provenance query diverges from normal graph-owner semantics
+    severity: critical
+    description: >
+      The offline reader invents a second RDF interpretation (IRI parsing, edge direction,
+      literal handling, results) that does not match store.Store, with no parity test.
+    protects:
+      files:
+        - golang/architecture/graphsnapshot/graphsnapshot.go
+    related_invariants:
+      - closure.offline_provenance_query_matches_graph_owner
+    evidence: Phase 8.1b govern-first; parity with the graph owner is required.
+  # ── Phase 8.2a: read-only terminal-completion readiness evaluator ──
+  - id: closure.readiness_evaluation_asserts_or_performs_completion
+    title: The readiness evaluator asserted or performed terminal completion, or reported ready on incomplete evidence
+    severity: high
+    root_cause: |
+      A read-only completion-readiness projection was allowed to persist a completion
+      receipt, append a completed ledger event, mutate governed/certification/ledger
+      state, trust a caller-supplied status or receipt path, or report ready while
+      required evidence was missing, stale, tampered, contradictory, or wrong-bound.
+      Readiness is then mistaken for completion and the terminal key is turned without
+      the full authoritative conjunction.
+    symptoms:
+      - a completed event or completion receipt produced by the readiness evaluator
+      - readiness=ready while a required obligation is not satisfied
+      - the evaluator trusting a caller boolean or receipt path instead of re-proving
+      - the assessment changing without any change in durable evidence
+    forbidden_fixes:
+      - report_readiness_as_completion_or_emit_a_completed_event_from_the_evaluator
+      - trust_a_caller_supplied_status_or_receipt_path_instead_of_re_proving
+    related_invariants:
+      - closure.completion_readiness_is_read_only_evidence_conjunction
+      - closure.completion_requires_closed_current_question_loop
+    evidence: Phase 8.2a govern-first; the readiness projection is read-only and asserts no completion.
+  # ── Phase 8.2c: durable terminal-state reconstruction and recovery ──
+  - id: closure.recovery_blesses_residue_or_normalizes_contradiction
+    title: Terminal reconstruction or recovery blessed residue, accepted a broken completion, or normalized contradictory history
+    severity: critical
+    root_cause: |
+      A restart/inspection/recovery path treated a receipt-only artifact or a completed
+      event without a valid receipt as a completion, chose one of multiple completed
+      facts (or ignored a revoked fact) to "repair" terminal history, synthesized an
+      expected pre-completion head, or let a projection rebuild append a completed event
+      or rewrite a receipt. Derived projection state was mistaken for terminal authority.
+    symptoms:
+      - receipt-only residue reported as a valid completion
+      - a completed event with a missing/tampered receipt reported as completion
+      - multiple completed facts (or completed plus revoked) normalized to one
+      - a projection rebuild that appended a ledger event or rewrote a receipt
+      - governed drift after completion reported as corruption or altering the receipt
+    forbidden_fixes:
+      - bless_receipt_only_residue_or_event_without_receipt_as_completion
+      - normalize_contradictory_terminal_history_by_choosing_one_fact
+      - let_projection_rebuild_append_or_rewrite_a_terminal_fact
+    related_invariants:
+      - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      - closure.terminal_recovery_rebuilds_derived_state_only
+    evidence: Phase 8.2c govern-first; reconstruction is read-only and recovery is derived-state maintenance only.
+  # ── Phase 8.2d: end-to-end completion closure ──
+  - id: closure.phase8_report_or_integration_treated_as_completion_authority
+    title: The Phase-8 closure report or integration verifier was treated as completion authority, or collapsed the three closure claims
+    severity: critical
+    root_cause: |
+      A Phase-8 implementation-closure report or the end-to-end integration verifier
+      was used as if it completed a task, was allowed to append/repair/promote/certify/
+      mutate, reported authoritative completion without the whole durable conjunction
+      re-verifying, or collapsed implementation closure, completion of one task, and
+      repository-wide perfection into a single claim.
+    symptoms:
+      - the closure report used as runtime completion authority
+      - the integration verifier appending a completed event or repairing upstream truth
+      - authoritative_completion reported while a bound component fails re-verification
+      - implementation closure conflated with task completion or repository perfection
+    forbidden_fixes:
+      - use_the_phase8_report_or_integration_verifier_as_completion_authority
+      - let_the_integration_verifier_append_repair_or_mutate
+      - collapse_implementation_closure_task_completion_and_repository_perfection
+    related_invariants:
+      - closure.authoritative_completion_iff_whole_durable_conjunction
+      - closure.completion_never_mutates_governed_or_certification_truth
+    evidence: Phase 8.2d govern-first; the integration verifier and closure report are read-only evidence, never completion authority.
+  # ── Phase 9.0: operational surfacing of completion truth ──
+  - id: closure.phase9_surface_manufactures_or_reinterprets_completion
+    title: A Phase-9 surface manufactured or reinterpreted completion truth
+    severity: critical
+    root_cause: |
+      A CLI, MCP, server, CI gate, or editor surface appended a completed event,
+      produced/replaced a completion receipt, re-derived readiness/correctness/
+      question-resolution/terminal cardinality, normalized contradictory terminal
+      history, or claimed completed from a projection or residue — instead of
+      delegating to, and read-only consuming, the completion owner.
+    symptoms:
+      - a surface writing a completed event or a completion receipt
+      - a CLI/MCP re-implementing completion logic instead of calling CompleteTask
+      - a read model claiming completed without the durable event/receipt conjunction
+      - a surface normalizing duplicate/revoked terminal history
+    forbidden_fixes:
+      - phase9_surface_appends_completed_or_writes_receipt
+      - phase9_reinterpret_or_rederive_completion_truth_in_a_surface
+    related_invariants:
+      - closure.phase9_surfaces_consume_completion_truth_never_reinterpret_it
+      - closure.phase9_invocation_surfaces_only_delegate_to_the_owner
+    evidence: Phase 9.0 govern-first; surfaces are thin clients over the completion owner.
+  - id: closure.phase9_projection_or_report_treated_as_terminal_authority
+    title: A Phase-9 projection or the closure report was treated as terminal completion authority
+    severity: critical
+    root_cause: |
+      A Phase-9 read model, task-status view, CI gate, or editor cockpit treated its
+      projection as terminal truth, or the Phase-8 closure report was used as runtime
+      completion authority, or the three closure distinctions were collapsed into one.
+    symptoms:
+      - a gate/editor treating a projection as the terminal fact
+      - the closure report used to authorize completion or merge
+      - implementation closure conflated with task completion or repository perfection
+    forbidden_fixes:
+      - phase9_treat_projection_or_closure_report_as_completion_authority
+    related_invariants:
+      - closure.phase9_projections_are_not_terminal_authority
+      - closure.phase9_preserves_the_three_completion_distinctions
+    evidence: Phase 9.0 govern-first; the durable event/receipt conjunction is the sole terminal truth.
+  - id: closure.phase9_surface_shipped_without_a_reviewed_slice
+    title: A Phase-9 surface shipped without its own reviewed slice
+    severity: high
+    root_cause: |
+      A CLI, MCP, CI/GitHub, editor, or GNN surface was implemented or enabled without
+      an open, reviewed Phase-9 slice carrying its acceptance criteria, failure modes,
+      and proof matrix — or a GNN/ML capability was introduced without repository
+      evidence.
+    symptoms:
+      - a product surface landing outside a reviewed slice
+      - more than one Phase-9 slice open at once
+      - a GNN/embedding capability with no grounding evidence
+    forbidden_fixes:
+      - phase9_ship_a_surface_without_a_reviewed_slice
+      - phase9_invent_a_gnn_or_ml_capability_without_repository_evidence
+    related_invariants:
+      - closure.phase9_surfaces_locked_until_a_reviewed_slice
+    evidence: Phase 9.0 govern-first; one slice open at a time, GNN out of scope.
+  # ── Phase 9.1: canonical read-only completion projection ──
+  - id: closure.completion_surface_collapses_or_remaps_terminal_state
+    title: A surface collapsed or independently re-mapped completion terminal state
+    severity: high
+    root_cause: |
+      A server/CLI/briefing surface translated broken, contradictory, or unsupported
+      terminal state into a generic incomplete state, re-mapped terminal state or
+      closure verdict separately from the one canonical projection, showed a
+      non-authoritative projection as terminal truth, or derived authoritative_completion
+      from something other than ClosureAuthoritativeCompletion.
+    symptoms:
+      - broken/contradictory/unsupported collapsed to a generic incomplete
+      - duplicate state mapping in server, CLI, and briefing code
+      - a projection displayed as the terminal fact
+      - authoritative_completion inferred from a phase/status heuristic
+    forbidden_fixes:
+      - phase9_reinterpret_or_rederive_completion_truth_in_a_surface
+      - phase9_treat_projection_or_closure_report_as_completion_authority
+    related_invariants:
+      - closure.completion_projection_is_the_single_canonical_read_view
+      - closure.phase9_projections_are_not_terminal_authority
+    evidence: Phase 9.1 govern-first; one canonical projection, no fallback collapse.

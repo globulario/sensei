@@ -1,0 +1,17 @@
+closure_protocol_fixture:
+  name: rename-without-explicit-endpoints
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    # rename is a reserved but unsupported operation kind in v1: ChangeOperation
+    # has a single Target and cannot encode distinct source and destination.
+    validation_error_contains: protocol.rename_requires_explicit_source_and_destination
+  records:
+    change_plan:
+      plan_id: plan.rename
+      operations:
+        - operation_id: op.rename
+          kind: rename
+          target_kind: source_file
+          target: internal/owner.go
+          selected_mechanism: repository_edit

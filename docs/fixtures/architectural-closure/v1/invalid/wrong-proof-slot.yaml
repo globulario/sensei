@@ -1,0 +1,14 @@
+closure_protocol_fixture:
+  name: wrong-proof-slot
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    validation_error_contains: pass proof slot must map at least one receipt
+  records:
+    proof_discharge:
+      obligation_id: proof.invalid
+      status: valid
+      slot_results:
+        - slot_id: slot.test
+          status: pass
+

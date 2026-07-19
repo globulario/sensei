@@ -1,0 +1,28 @@
+closure_protocol_fixture:
+  name: revoked
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    terminally_closed: false
+    terminal_status: revoked
+  dimensions:
+    - {dimension: identity, status: pass}
+    - {dimension: scope, status: pass}
+    - {dimension: direction, status: pass}
+    - {dimension: authority, status: pass}
+    - {dimension: mutation, status: pass}
+    - {dimension: protection, status: pass}
+    - {dimension: epistemic, status: pass}
+    - {dimension: proof, status: pass}
+    - {dimension: freshness, status: pass}
+    - {dimension: completion, status: blocked, reason_codes: [completion.revoked]}
+  records:
+    revocation_receipt:
+      revocation_id: revocation.1
+      revoked_target_id: completion.receipt.1
+      prior_digest_sha256: prior123
+      revocation_reason: required test removed
+      policy_id: revocation.architectural_closure.v1
+      actor_id: actor.dave
+      revoked_at: "2026-07-16T00:00:00Z"
+

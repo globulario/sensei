@@ -7,8 +7,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/tasksession"
 	"github.com/globulario/sensei/golang/client"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
@@ -20,8 +22,9 @@ func runBriefing(args []string) int {
 	task := fs.String("task", "", "task description")
 	depth := fs.String("depth", "standard", "briefing depth: agent_compact | compact | standard | deep")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", defaultServiceAddr(), "AWG gRPC server address")
+	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
+	repo := fs.String("repo", ".", "repository checkout for --task active")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei briefing [--file <path>] [--task "description"] [flags]
 
@@ -41,6 +44,26 @@ Flags:
 	if *file == "" && *task == "" {
 		fmt.Fprintln(os.Stderr, "sensei briefing: provide --file and/or --task")
 		return 2
+	}
+	if strings.TrimSpace(*task) == "active" {
+		if strings.TrimSpace(*file) == "" {
+			fmt.Fprintln(os.Stderr, "sensei briefing: --task active requires --file")
+			return 2
+		}
+		brief, err := tasksession.BuildTaskBriefing(*repo, "", *file, true)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sensei briefing: %v\n", err)
+			return 1
+		}
+		format := "text"
+		if *asJSON {
+			format = "json"
+		}
+		if err := printTaskBriefing(brief, format); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei briefing: %v\n", err)
+			return 2
+		}
+		return 0
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
