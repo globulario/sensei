@@ -71,11 +71,7 @@ func seedOrphanReceipt(t *testing.T, taskDir string) {
 // Proof 1: a successful completion is reconstructed as committed from durable state
 // alone (a fresh Inspect call reads only disk — the restart proof).
 func TestInspectCommittedAfterRestart(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	a := w.inspect(t)
 	if a.State != TerminalCommitted {
 		t.Fatalf("state = %s (%s), want committed", a.State, a.Detail)
@@ -88,11 +84,7 @@ func TestInspectCommittedAfterRestart(t *testing.T) {
 // Proof 2: deleted projections are reconstructed as projection_stale_or_missing, and
 // a bounded rebuild restores committed — appending no ledger event or receipt.
 func TestInspectAndRecoverProjectionLoss(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	deleteProjections(t, w.TaskDir)
 	if a := w.inspect(t); a.State != TerminalProjectionStaleOrMissing {
 		t.Fatalf("state = %s, want projection_stale_or_missing", a.State)
@@ -112,7 +104,7 @@ func TestInspectAndRecoverProjectionLoss(t *testing.T) {
 
 // Proof 3: a receipt persisted without a completed event is residue, not completion.
 func TestInspectReceiptWithoutEvent(t *testing.T) {
-	w := seedWorld(t)
+	w := cloneNotCompleted(t)
 	seedOrphanReceipt(t, w.TaskDir)
 	a := w.inspect(t)
 	if a.State != TerminalReceiptWithoutEvent {
@@ -130,11 +122,7 @@ func TestInspectReceiptWithoutEvent(t *testing.T) {
 // Proof 4: a completed event whose receipt artifact is missing is broken, not
 // completion.
 func TestInspectEventWithoutReceipt(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	deleteReceiptArtifact(t, w.TaskDir)
 	if a := w.inspect(t); a.State != TerminalEventWithoutValidReceipt {
 		t.Fatalf("state = %s, want event_without_valid_receipt", a.State)
@@ -146,11 +134,7 @@ func TestInspectEventWithoutReceipt(t *testing.T) {
 
 // Proof 5: tampered receipt bytes are an integrity failure.
 func TestInspectTamperedReceipt(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	tamperCompletionReceipt(t, w.TaskDir)
 	if a := w.inspect(t); a.State != TerminalIntegrityFailure {
 		t.Fatalf("state = %s, want integrity_failure", a.State)
@@ -159,11 +143,7 @@ func TestInspectTamperedReceipt(t *testing.T) {
 
 // Proof 6: duplicate completed facts are contradictory history, never normalized.
 func TestInspectDuplicateCompleted(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	seedCompletedEvent(t, w.TaskDir)
 	if a := w.inspect(t); a.State != TerminalContradictoryHistory {
 		t.Fatalf("state = %s, want contradictory_terminal_history", a.State)
@@ -179,11 +159,7 @@ func TestInspectDuplicateCompleted(t *testing.T) {
 
 // Proof 7: completed plus revoked is contradictory history.
 func TestInspectCompletedPlusRevoked(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	w.appendRevoked(t)
 	if a := w.inspect(t); a.State != TerminalContradictoryHistory {
 		t.Fatalf("state = %s, want contradictory_terminal_history", a.State)
@@ -192,11 +168,7 @@ func TestInspectCompletedPlusRevoked(t *testing.T) {
 
 // Proof 8: a completion bound to a result other than the current one is wrong-bound.
 func TestInspectWrongResultBinding(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	rb := currentResultBinding(t, w.TaskDir)
 	newer := rb
 	newer.ResultTreeDigestSHA256 = "7777777777777777777777777777777777777777777777777777777777777777"
@@ -209,11 +181,7 @@ func TestInspectWrongResultBinding(t *testing.T) {
 // Proof 9: governed drift after completion is reported distinctly from corruption —
 // the completion remains committed and the historical receipt is unaltered.
 func TestInspectGovernedDriftAfterCompletion(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	recordedDigest := w.inspect(t).Committed.ReceiptDigestSHA256
 	changeGoverned(t, w.Repo)
 	a := w.inspect(t)
@@ -231,11 +199,7 @@ func TestInspectGovernedDriftAfterCompletion(t *testing.T) {
 // Proof 10: repeated inspection is deterministic; inspection and already-current
 // recovery write no authoritative truth.
 func TestInspectDeterministicAndSideEffectFree(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	before := treeDigest(t, w.Repo)
 	a1 := w.inspect(t)
 	a2 := w.inspect(t)
@@ -261,11 +225,7 @@ func TestInspectDeterministicAndSideEffectFree(t *testing.T) {
 // never report committed, is never projection-recoverable, and recovery refuses
 // without writing anything. Absence of a mismatch is not proof of a match.
 func TestInspectNoCurrentResultNotCommitted(t *testing.T) {
-	w := seedWorld(t)
-	head := w.ready(t)
-	if w.complete(t, head).Outcome != OutcomeCommitted {
-		t.Fatal("setup completion failed")
-	}
+	w := cloneCommitted(t)
 	// Lose the current result identity (latest transition carries no binding).
 	w.appendEmptyResultTransition(t)
 
@@ -289,7 +249,7 @@ func TestInspectNoCurrentResultNotCommitted(t *testing.T) {
 
 // A not-completed task is reconstructed as not_completed with nothing to recover.
 func TestInspectNotCompleted(t *testing.T) {
-	w := seedWorld(t)
+	w := cloneNotCompleted(t)
 	if a := w.inspect(t); a.State != TerminalNotCompleted {
 		t.Fatalf("state = %s, want not_completed", a.State)
 	}
