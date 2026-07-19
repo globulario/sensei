@@ -76,7 +76,8 @@ func VerifyCompletionClosure(ctx context.Context, req Request) (CompletionClosur
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
 	if root == "" || taskDir == "" {
-		return CompletionClosureAssessment{}, fmt.Errorf("repository root and task directory are required")
+		// Absent identity is an identity failure (typed), never a runtime outage.
+		return CompletionClosureAssessment{}, identityError("identity_absent", fmt.Errorf("repository root and task directory are required"))
 	}
 	terminal, ierr := InspectTerminalState(ctx, req)
 	if ierr != nil {
