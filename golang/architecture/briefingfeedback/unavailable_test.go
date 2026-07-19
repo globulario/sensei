@@ -129,3 +129,48 @@ func TestBuildInvalid_SerializesNoRawUnsafeIdentity(t *testing.T) {
 		t.Fatalf("unsafe raw identity leaked: files=%v domain=%q", p.RequestedFiles, p.RequestedDomain)
 	}
 }
+
+// The unavailable identity matrix: only repository_context_absent may blank the identity.
+func TestValidateProjection_UnavailableIdentityMatrix(t *testing.T) {
+	// Positive: the exact repository_context_absent carrier (blank identity) is valid.
+	absent, err := BuildUnavailable(Scope{RequestedDomain: testDomain}, RepositoryContextAbsent)
+	if err != nil {
+		t.Fatalf("repository_context_absent carrier must be valid: %v", err)
+	}
+	if absent.RepositoryIdentity != "" {
+		t.Fatalf("absent carrier should blank identity")
+	}
+
+	// Positive: every other unavailable reason with a canonical non-empty identity is valid.
+	for _, reason := range []UnavailableReason{RepositoryContextDomainMismatch, CanonicalTaskScopeNotEstablished, FeedbackProjectionInternalUnavailable} {
+		p, err := BuildUnavailable(Scope{RepositoryIdentity: testDomain, RequestedDomain: testDomain}, reason)
+		if err != nil {
+			t.Fatalf("%s with identity must be valid: %v", reason, err)
+		}
+		if p.RepositoryIdentity != testDomain {
+			t.Fatalf("%s must keep the established identity", reason)
+		}
+	}
+
+	// Negative: an unavailable projection with a blank identity but a NON-absent reason is
+	// rejected (a manually assembled projection cannot erase established identity).
+	bad := absent
+	bad.Findings = append([]Finding(nil), absent.Findings...)
+	bad.Findings[0].ReasonCode = string(RepositoryContextDomainMismatch)
+	bad.DigestSHA256 = ""
+	dig, _ := ComputeDigest(bad)
+	bad.DigestSHA256 = dig
+	if ValidateProjection(bad) == nil {
+		t.Fatal("blank-identity unavailable with a non-absent reason must be rejected")
+	}
+
+	// Negative: an unavailable projection with a blank identity carrying a verified record is rejected.
+	bad2 := absent
+	bad2.Records = []VerifiedRecord{{PromotionLineageID: "x", GovernedNodeIRI: "aw:x", VerificationClass: PromotionVerified, ProvenanceInterpretation: provenanceInterpretation, EffectiveFileScope: []string{"a/b.go"}, CanonicalRecordID: "r", PromotionReceiptDigestSHA256: "d", QuestionID: "q", AnswerID: "a", DispositionReceiptDigestSHA256: "dd", OriginatingTaskID: "t", OriginatingSessionID: "s"}}
+	bad2.DigestSHA256 = ""
+	dig2, _ := ComputeDigest(bad2)
+	bad2.DigestSHA256 = dig2
+	if ValidateProjection(bad2) == nil {
+		t.Fatal("blank-identity unavailable with a record must be rejected")
+	}
+}

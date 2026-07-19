@@ -18,7 +18,7 @@ import (
 )
 
 func testFeedbackServer(repo *briefingRepositoryContext) *server {
-	return &server{logger: log.New(io.Discard, "", 0), briefingRepo: repo}
+	return &server{logger: log.New(io.Discard, "", 0), briefingRepo: repo, feedbackMapper: briefingFeedbackToProto}
 }
 
 // The frozen combined-status table (every row).
@@ -271,19 +271,16 @@ func TestResolveBriefingFeedback_AtomicPair(t *testing.T) {
 // Injected primary adapter failure → the resolver falls back to a canonical internal-unavailable
 // projection, mapped consistently (field 7 + projection agree). A double failure → error.
 func TestResolveBriefingFeedback_AdapterFallback(t *testing.T) {
-	orig := briefingFeedbackMapper
-	defer func() { briefingFeedbackMapper = orig }()
-
-	// Fail only the FIRST mapping; the fallback maps normally.
+	// Fail only the FIRST mapping; the fallback maps normally. Injected per-server (no global).
 	calls := 0
-	briefingFeedbackMapper = func(p briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
+	s := testFeedbackServer(&briefingRepositoryContext{Root: "/nonexistent", Domain: "github.com/x/y"})
+	s.feedbackMapper = func(p briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
 		calls++
 		if calls == 1 {
 			return nil, errBoom
 		}
-		return orig(p)
+		return briefingFeedbackToProto(p)
 	}
-	s := testFeedbackServer(&briefingRepositoryContext{Root: "/nonexistent", Domain: "github.com/x/y"})
 	resolved, err := s.resolveBriefingFeedback(context.Background(), feedbackBriefingScope{taskOnly: true, effectiveDomain: "github.com/x/y", rawDomain: "github.com/x/y"})
 	if err != nil {
 		t.Fatalf("single adapter failure should fall back, got %v", err)
@@ -297,7 +294,7 @@ func TestResolveBriefingFeedback_AdapterFallback(t *testing.T) {
 	}
 
 	// Fail ALL mappings → resolver returns an error (RPC translates to gRPC internal).
-	briefingFeedbackMapper = func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
+	s.feedbackMapper = func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
 		return nil, errBoom
 	}
 	if _, err := s.resolveBriefingFeedback(context.Background(), feedbackBriefingScope{taskOnly: true, effectiveDomain: "github.com/x/y", rawDomain: "github.com/x/y"}); err == nil {
@@ -310,13 +307,11 @@ var errBoom = fmt.Errorf("injected adapter failure")
 // When even the fallback cannot map, the RPC returns a typed gRPC internal error rather than a
 // divergent response (prose/status without field 7).
 func TestBriefing_DoubleAdapterFailureReturnsInternal(t *testing.T) {
-	orig := briefingFeedbackMapper
-	defer func() { briefingFeedbackMapper = orig }()
-	briefingFeedbackMapper = func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
-		return nil, errBoom
-	}
 	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
 	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
+	s.feedbackMapper = func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
+		return nil, errBoom
+	}
 	_, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
 	if status.Code(err) != codes.Internal {
 		t.Fatalf("double adapter failure must yield gRPC Internal, got %v", err)

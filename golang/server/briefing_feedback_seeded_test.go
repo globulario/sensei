@@ -26,6 +26,12 @@ const feedbackTestDomain = "github.com/globulario/sensei"
 // seedServerPromotion produces a repository with one committed governed promotion scoped to
 // scopeFiles, mirroring the tasksession seed so the server test drives the REAL owner.
 func seedServerPromotion(t *testing.T, scopeFiles []string) string {
+	return seedServerPromotionWithAnswer(t, scopeFiles, "basis X")
+}
+
+// seedServerPromotionWithAnswer is seedServerPromotion with an explicit answer/rationale text
+// (used by the privacy proof to plant a sentinel that must never reach a feedback surface).
+func seedServerPromotionWithAnswer(t *testing.T, scopeFiles []string, answer string) string {
 	t.Helper()
 	epoch := time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC)
 	enroll := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
@@ -64,7 +70,7 @@ func seedServerPromotion(t *testing.T, scopeFiles []string) string {
 	cand, err := qd.Prepare(qd.PrepareRequest{
 		TaskDirectory: r.TaskDir, RepositoryRoot: r.Repo, IdentityRoot: identity.Root(r.Repo),
 		QuestionID: qs[0].QuestionID, Disposition: qd.DispositionAnswered, Reusability: qd.ReusabilityReusableCandidate,
-		Rationale: "basis X", AnswerID: "answer.1", AnswerBytes: []byte("basis X"),
+		Rationale: answer, AnswerID: "answer.1", AnswerBytes: []byte(answer),
 		EffectiveScopeDomain: feedbackTestDomain, EffectiveScopeFiles: scopeFiles,
 	})
 	if err != nil {
@@ -167,5 +173,38 @@ func TestBriefingFeedback_OutOfScopeIsEmpty(t *testing.T) {
 	// An empty projection renders no feedback prose section.
 	if briefingFeedbackProse(p) != "" {
 		t.Fatalf("empty feedback must render no prose section")
+	}
+}
+
+// Backslash and slash spellings of the same file produce one canonical slash identity and the
+// same feedback result — the graph and feedback legs never reason about different spellings.
+func TestBriefingFeedback_SlashIdentityParity(t *testing.T) {
+	file := "golang/server/reload.go"
+	repo := seedServerPromotion(t, []string{file})
+	s := testFeedbackServer(&briefingRepositoryContext{Root: repo, Domain: feedbackTestDomain})
+
+	// The RPC computes scope.file via filepath.ToSlash; both spellings collapse to the same.
+	slash, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{
+		effectiveDomain: feedbackTestDomain, file: "golang/server/reload.go",
+		rawFile: "golang/server/reload.go", rawDomain: feedbackTestDomain,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := s.briefingFeedback(context.Background(), feedbackBriefingScope{
+		effectiveDomain: feedbackTestDomain, file: filepath.ToSlash(`golang\server\reload.go`),
+		rawFile: `golang\server\reload.go`, rawDomain: feedbackTestDomain,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slash.Availability != briefingfeedback.FeedbackAvailable || back.Availability != briefingfeedback.FeedbackAvailable {
+		t.Fatalf("both spellings must admit: %q / %q", slash.Availability, back.Availability)
+	}
+	if slash.DigestSHA256 != back.DigestSHA256 {
+		t.Fatalf("backslash and slash spellings produced different feedback digests")
+	}
+	if len(slash.RequestedFiles) != 1 || slash.RequestedFiles[0] != file {
+		t.Fatalf("requested file identity is not slash-canonical: %v", slash.RequestedFiles)
 	}
 }

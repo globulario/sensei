@@ -150,6 +150,30 @@ func ValidateProjection(p Projection) error {
 	if established && p.RepositoryIdentity == "" {
 		return fmt.Errorf("feedback projection repository identity is empty")
 	}
+	// An unavailable projection may blank the repository identity ONLY for the exact
+	// repository_context_absent carrier (no repository was ever established). Every other
+	// unavailable case (domain mismatch, task scope not established, discovery/facility outage,
+	// internal unavailability) requires a canonical non-empty identity, so a manually assembled
+	// unavailable projection can never erase an established repository identity.
+	if p.Availability == FeedbackUnavailable && p.RepositoryIdentity == "" {
+		absent := len(p.Records) == 0 && p.TaskID == "" && p.SessionID == "" &&
+			len(p.Findings) == 1 &&
+			p.Findings[0].Class == PromotionDiscoveryUnavailable &&
+			p.Findings[0].ReasonCode == string(RepositoryContextAbsent) &&
+			p.Findings[0].Disposition == DispositionUnavailable
+		if !absent {
+			return fmt.Errorf("only a repository_context_absent carrier may blank an unavailable projection's repository identity")
+		}
+	}
+	// An invalid projection likewise requires a canonical identity unless it is the
+	// scope-identity carrier whose own identity could not be established.
+	if p.Availability == FeedbackInvalid && p.RepositoryIdentity == "" {
+		invalidCarrier := len(p.Records) == 0 && len(p.Findings) == 1 &&
+			(p.Findings[0].Class == PromotionScopeIdentityInvalid)
+		if !invalidCarrier {
+			return fmt.Errorf("only a scope-identity-invalid carrier may blank an invalid projection's repository identity")
+		}
+	}
 	if p.RequestedDomain != "" {
 		if hasWhitespace(p.RequestedDomain) {
 			return fmt.Errorf("feedback projection requested domain is padded/noncanonical")

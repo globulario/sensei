@@ -10,6 +10,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -35,7 +36,11 @@ import (
 func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest) (*awarenesspb.BriefingResponse, error) {
 	rawFile := req.GetFile()
 	rawDomain := req.GetDomain()
-	file := strings.TrimSpace(req.GetFile())
+	// One repository-relative slash identity for the file, used by BOTH the graph impact leg
+	// and the feedback leg, so they never reason about different spellings of the same file.
+	// Backslash input is accepted for Windows interoperability (canonicality is judged on the
+	// RAW value); it is never repaired with filepath.Clean.
+	file := filepath.ToSlash(strings.TrimSpace(req.GetFile()))
 	task := strings.TrimSpace(req.GetTask())
 	profile := briefingProfileForDepth(strings.TrimSpace(req.GetDepth()))
 	if file == "" && task == "" {
