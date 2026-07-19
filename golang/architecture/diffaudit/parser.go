@@ -86,7 +86,6 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		return nil, fmt.Errorf("diff payload is empty")
 	}
 
-	// Check for invalid NUL bytes
 	if strings.ContainsRune(diffText, 0) {
 		return nil, fmt.Errorf("diff payload contains invalid NUL byte")
 	}
@@ -102,7 +101,6 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 
 	finishCurrentHunk := func() error {
 		if currentHunk != nil {
-			// Validate declared line counts match actual lines in hunk
 			actualOld := currentHunk.DeletedLines + (len(currentHunk.Lines) - currentHunk.AddedLines - currentHunk.DeletedLines)
 			actualNew := currentHunk.AddedLines + (len(currentHunk.Lines) - currentHunk.AddedLines - currentHunk.DeletedLines)
 
@@ -122,7 +120,6 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 			return err
 		}
 		if current != nil {
-			// Reject header-only incomplete patches without hunks, binary marker, rename, or mode change
 			if len(current.Hunks) == 0 && !current.IsBinary && current.Kind != ChangeRename && current.Kind != ChangeModeChange {
 				return fmt.Errorf("file %q has an incomplete header-only patch with no hunks or metadata", current.Path)
 			}
@@ -206,9 +203,10 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		if strings.HasPrefix(line, "rename to ") {
 			current.Kind = ChangeRename
 			newP, err := sanitizePath(line[10:])
-			if err == nil && newP != "" {
-				current.Path = newP
+			if err != nil || newP == "" {
+				return nil, fmt.Errorf("line %d: invalid rename to path: %w", lineNum, err)
 			}
+			current.Path = newP
 			continue
 		}
 		if strings.HasPrefix(line, "old mode ") {
@@ -230,10 +228,12 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		if strings.HasPrefix(line, "--- ") {
 			headerOld := parseQuotedPath(line[4:])
 			if headerOld != "/dev/null" {
-				if cleanOld, err := sanitizePath(headerOld); err == nil && cleanOld != "" {
-					if current.OldPath != "" && cleanOld != current.OldPath && cleanOld != current.Path {
-						return nil, fmt.Errorf("line %d: --- header path %q conflicts with diff header path %q", lineNum, cleanOld, current.OldPath)
-					}
+				cleanOld, err := sanitizePath(headerOld)
+				if err != nil {
+					return nil, fmt.Errorf("line %d: invalid --- header path: %w", lineNum, err)
+				}
+				if current.OldPath != "" && cleanOld != current.OldPath && cleanOld != current.Path {
+					return nil, fmt.Errorf("line %d: --- header path %q conflicts with diff header path %q", lineNum, cleanOld, current.OldPath)
 				}
 			}
 			continue
@@ -241,12 +241,18 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		if strings.HasPrefix(line, "+++ ") {
 			headerNew := parseQuotedPath(line[4:])
 			if headerNew != "/dev/null" {
-				if cleanNew, err := sanitizePath(headerNew); err == nil && cleanNew != "" {
-					if cleanNew != current.Path {
-						return nil, fmt.Errorf("line %d: +++ header path %q conflicts with diff header path %q", lineNum, cleanNew, current.Path)
-					}
+				cleanNew, err := sanitizePath(headerNew)
+				if err != nil {
+					return nil, fmt.Errorf("line %d: invalid +++ header path: %w", lineNum, err)
+				}
+				if cleanNew != current.Path {
+					return nil, fmt.Errorf("line %d: +++ header path %q conflicts with diff header path %q", lineNum, cleanNew, current.Path)
 				}
 			}
+			continue
+		}
+		if strings.HasPrefix(line, "\\ No newline at end of file") {
+			// Ignore standard git diff newline marker line
 			continue
 		}
 		if strings.HasPrefix(line, "@@ ") {
@@ -305,7 +311,6 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 func parseGitDiffHeader(line string) (oldPath, newPath string, err error) {
 	line = strings.TrimSpace(line)
 	if strings.HasPrefix(line, "\"") {
-		// Handles quoted paths e.g. "a/foo bar" "b/foo bar"
 		idx := strings.Index(line[1:], "\"")
 		if idx == -1 {
 			return "", "", fmt.Errorf("unclosed quote in path")
