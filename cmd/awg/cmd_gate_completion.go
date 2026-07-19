@@ -46,8 +46,9 @@ func runGateCompletion(repoRoot, taskDir string, asJSON bool, sarifPath string) 
 
 	if sarifPath != "" {
 		if werr := writeCompletionGateSARIF(sarifPath, absTask, pub, pubInvalid); werr != nil {
-			fmt.Fprintf(os.Stderr, "sensei gate --completion: %v\n", werr)
-			return 2
+			// Advisory: an optional SARIF write failure is a warning, never a gate
+			// failure — the text/JSON report is still produced and the gate exits 0.
+			fmt.Fprintf(os.Stderr, "sensei gate --completion: warning: could not write SARIF %q: %v\n", sarifPath, werr)
 		}
 	}
 	if asJSON {
@@ -110,7 +111,11 @@ func renderCompletionGateText(taskDir string, pub completion.CompletionProjectio
 // result at severity "note" — advisory never surfaces as an error/warning alert. It
 // anchors to the task directory. It reuses the gate's SARIF vocabulary.
 func writeCompletionGateSARIF(path, taskDir string, pub completion.CompletionProjectionPublication, pubInvalid bool) error {
-	avail, head, _ := completionGateReport(pub, pubInvalid)
+	avail, head, detail := completionGateReport(pub, pubInvalid)
+	msg := fmt.Sprintf("completion gate (advisory): availability=%s %s", avail, head)
+	if len(detail) > 0 {
+		msg += "\ndistinctions:\n- " + strings.Join(detail, "\n- ")
+	}
 	rule := sarifRule{
 		ID:                   "sensei.completion_gate.advisory",
 		Name:                 "SenseiCompletionGateAdvisory",
@@ -120,11 +125,18 @@ func writeCompletionGateSARIF(path, taskDir string, pub completion.CompletionPro
 	result := sarifResult{
 		RuleID:  rule.ID,
 		Level:   "note",
-		Message: sarifText{Text: fmt.Sprintf("completion gate (advisory): availability=%s %s", avail, head)},
+		Message: sarifText{Text: msg},
 		Locations: []sarifLocation{{PhysicalLocation: sarifPhysical{
 			ArtifactLocation: sarifArtifact{URI: filepath.ToSlash(taskDir)},
 			Region:           sarifRegion{StartLine: 1},
 		}}},
+		// The three distinctions are preserved verbatim as stable structured properties
+		// (in addition to the message) so code-scanning consumers never lose them.
+		Properties: map[string]interface{}{
+			"availability": avail,
+			"headline":     head,
+			"distinctions": detail,
+		},
 	}
 	log := sarifLog{
 		Schema:  "https://json.schemastore.org/sarif-2.1.0.json",

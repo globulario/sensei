@@ -85,6 +85,7 @@ components:
       - cmd/awg/cmd_feedback_check.go
       - cmd/awg/cmd_gate.go
       - cmd/awg/cmd_gate_completeness.go
+      - cmd/awg/cmd_gate_completion.go
       - cmd/awg/cmd_gate_contracts.go
       - cmd/awg/cmd_gate_sarif.go
       - cmd/awg/cmd_generate_questions.go
