@@ -62,6 +62,9 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		// Task-only mode has no file to resolve a domain from, so the scope is
 		// the explicit request or the home domain — never another repo's rules.
 		scope := briefingScope(requestedDomain, "", s.homeDomain)
+		// Task text is natural language, not canonical task identity: the feedback path is
+		// typed-unavailable (canonical_task_scope_not_established) and touches no filesystem.
+		feedbackProj := s.resolveBriefingFeedback(ctx, feedbackBriefingScope{taskOnly: true, effectiveDomain: scope})
 		var implPatterns []*awarenesspb.MatchedImplementationPattern
 		if loaded, err := s.loadImplementationPatterns(ctx); err == nil {
 			implPatterns = matchPatternsForBriefing(task, "", inScopePatterns(loaded, scope))
@@ -81,14 +84,23 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		for _, in := range matchedIntents {
 			referenced = append(referenced, "intent:"+in.GetId())
 		}
+		if feedbackProj != nil {
+			referenced = append(referenced, feedbackReferencedIDs(*feedbackProj)...)
+		}
 		referenced = compactReferencedIDsWithCap(referenced, profile.referencedIDs)
 		statusVal := awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY
 		if len(implPatterns) > 0 || len(matchedIntents) > 0 {
 			statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_OK
 		}
+		if feedbackProj != nil {
+			statusVal = combineBriefingStatus(statusVal, feedbackProj.Availability)
+		}
 		var pb strings.Builder
 		pb.WriteString(composeTaskOnlyBriefingProse(task, implPatterns))
 		appendMatchedIntentsSection(&pb, matchedIntents)
+		if feedbackProj != nil {
+			pb.WriteString(briefingFeedbackProse(*feedbackProj))
+		}
 		out := &awarenesspb.BriefingResponse{
 			Prose:                  pb.String(),
 			GeneratedInMs:          time.Since(start).Milliseconds(),
@@ -96,6 +108,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 			Status:                 statusVal,
 			ImplementationPatterns: implPatterns,
 			Authority:              s.graphAuthority(ctx),
+			Feedback:               s.feedbackWire(feedbackProj),
 		}
 		s.logBriefingUsage(req, out, profile)
 		return out, nil
@@ -137,6 +150,11 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	// implementation patterns or intent triggers (shared nodes always pass).
 	// An unanchored file resolves to "", so fall back to the home domain.
 	sectionScope := briefingScope(requestedDomain, resolvedScope, s.homeDomain)
+
+	// Governed briefing feedback (Phase 9.6): file-scoped against the exact resolved domain.
+	// The selector invokes the canonical owner only when the domain matches the configured
+	// repository; every other case is typed-unavailable with no filesystem access.
+	feedbackProj := s.resolveBriefingFeedback(ctx, feedbackBriefingScope{effectiveDomain: sectionScope, file: file})
 
 	// Implementation patterns — task/file-shape matched, bounded to 3.
 	// A failure here degrades the patterns section only, never the whole
@@ -207,6 +225,13 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 			}
 		}
 	}
+	// Fold governed feedback record ids into referenced (pre-cap) and combine status. The
+	// base graph status above reflects the graph briefing only; feedback composes separately
+	// so it never lifts a genuinely empty graph briefing except via the frozen table.
+	if feedbackProj != nil {
+		referenced = append(referenced, feedbackReferencedIDs(*feedbackProj)...)
+		statusVal = combineBriefingStatus(statusVal, feedbackProj.Availability)
+	}
 	referenced = compactReferencedIDsWithCap(referenced, profile.referencedIDs)
 
 	// Rendering groups — cross-file visual consistency contracts.
@@ -231,6 +256,12 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	prose += spineProse
 	referenced = append(referenced, spineRefs...)
 
+	// Governed feedback prose — rendered ONLY from the same validated projection mapped to the
+	// wire, appended after the base graph briefing so a feedback outage never erases it.
+	if feedbackProj != nil {
+		prose += briefingFeedbackProse(*feedbackProj)
+	}
+
 	out := &awarenesspb.BriefingResponse{
 		Prose:                  prose,
 		GeneratedInMs:          time.Since(start).Milliseconds(),
@@ -238,6 +269,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		Status:                 statusVal,
 		ImplementationPatterns: implPatterns,
 		Authority:              s.graphAuthority(ctx),
+		Feedback:               s.feedbackWire(feedbackProj),
 	}
 	s.logBriefingUsage(req, out, profile)
 	return out, nil
