@@ -198,7 +198,8 @@ func TestGateCompletion_UnavailableReportsClassAndExitsZero(t *testing.T) {
 		t.Fatalf("seed b: %v", err)
 	}
 	// Repo A paired with repo B's task directory: the owner refuses (one-world law), so
-	// the envelope is a typed unavailable projection_owner_error.
+	// the envelope is a typed unavailable projection_owner_identity_error (an identity
+	// cause). Advisory still exits 0 and reports the class.
 	var code int
 	out := captureStdout(t, func() {
 		code = runGate([]string{"--completion", "--repo-root", a.Repo, "--task-dir", b.TaskDir})
@@ -206,7 +207,7 @@ func TestGateCompletion_UnavailableReportsClassAndExitsZero(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("unavailable must still exit 0 (advisory), got %d", code)
 	}
-	if !strings.Contains(out, "Availability: unavailable") || !strings.Contains(out, "projection_owner_error") {
+	if !strings.Contains(out, "Availability: unavailable") || !strings.Contains(out, "projection_owner_identity_error") {
 		t.Fatalf("must report the typed unavailable class: %q", out)
 	}
 }
@@ -223,21 +224,33 @@ func TestGateCompletion_SARIFWriteFailureStaysAdvisory(t *testing.T) {
 	}
 }
 
-// 9.4a must reject an explicit enforcement request rather than silently downgrade it —
-// but advisory/report-only requests pass.
-func TestGateCompletion_RejectsExplicitEnforcement(t *testing.T) {
+// 9.4b routing: enforce requests reach the enforce path (and, with no completion policy
+// adopted, pass — enforcement never activates without opt-in); advisory requests are
+// unchanged and still consult no policy.
+func TestGateCompletion_EnforceRoutingAndPolicyGuards(t *testing.T) {
 	repo := t.TempDir()
 	td := filepath.Join(repo, ".sensei", "tasks", "task.x")
 	if err := os.MkdirAll(td, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	base := []string{"--completion", "--repo-root", repo, "--task-dir", td}
-	for _, extra := range [][]string{{"--enforce"}, {"--mode", "enforce"}, {"--mode", "block"}, {"--policy", "x.yaml"}} {
-		if code := runGate(append(append([]string{}, base...), extra...)); code != 2 {
-			t.Fatalf("explicit enforcement/policy %v must be an invocation error (exit 2), got %d", extra, code)
+
+	// Enforce variants with NO completion policy adopted → not enforced → exit 0.
+	for _, extra := range [][]string{{"--enforce"}, {"--mode", "enforce"}, {"--mode", "block"}} {
+		if code := runGate(append(append([]string{}, base...), extra...)); code != 0 {
+			t.Fatalf("enforce with no adopted policy %v must pass (exit 0), got %d", extra, code)
 		}
 	}
-	// Advisory-shaped requests are allowed (exit 0 on an evaluated outcome).
+	// Enforce with a missing EXPLICIT policy path is a loud config error (exit 2), never
+	// silently treated as absent/advisory.
+	if code := runGate(append(append([]string{}, base...), "--enforce", "--policy", filepath.Join(repo, "nope.yaml"))); code != 2 {
+		t.Fatalf("enforce with a missing explicit policy must exit 2, got %d", code)
+	}
+	// Advisory (no --enforce) still rejects --policy — advisory consults no policy.
+	if code := runGate(append(append([]string{}, base...), "--policy", "x.yaml")); code != 2 {
+		t.Fatalf("advisory --completion --policy must exit 2, got %d", code)
+	}
+	// Advisory-shaped requests are unchanged (exit 0 on an evaluated outcome).
 	for _, extra := range [][]string{{}, {"--report-only"}, {"--mode", "advisory"}} {
 		if code := runGate(append(append([]string{}, base...), extra...)); code != 0 {
 			t.Fatalf("advisory request %v must exit 0, got %d", extra, code)

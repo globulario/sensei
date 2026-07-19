@@ -287,20 +287,21 @@ Flags:
 		return 2
 	}
 
-	// Phase 9.4a: the advisory completion gate is a distinct read path — it consumes a
-	// task's completion projection envelope, not a diff, and always exits 0 on an
-	// evaluated outcome. It is ADVISORY ONLY. An explicit enforcement request must be a
-	// hard invocation error, never a silently-downgraded advisory pass — otherwise a
-	// caller who asked to "lock it" would get a counterfeit green. Enforcement and the
-	// completion policy are locked to Phase 9.4b.
+	// Phase 9.4a/9.4b: the completion gate is a distinct read path — it consumes a task's
+	// completion projection envelope, not a diff. WITHOUT enforcement it is advisory only
+	// and always exits 0 (9.4a). WITH --enforce / --mode enforce it applies the 9.4b
+	// enforce decision for the domain's completion policy (block on a computed pathological
+	// verdict or an invalid identity; degraded pass on a runtime outage; exit 0 otherwise).
+	// The explicit --task-dir is the identity source in both modes; no fallback.
 	if *gateCompletion {
 		modeLower := strings.ToLower(strings.TrimSpace(*mode))
 		if *enforce || modeLower == "enforce" || modeLower == "block" {
-			fmt.Fprintln(os.Stderr, "sensei gate --completion: completion enforcement is unavailable until Phase 9.4b; 9.4a is advisory-only (remove --enforce / --mode enforce)")
-			return 2
+			return runGateCompletionEnforce(*repoRoot, *gateTaskDir, *domain, *policyPath, *asJSON, *sarifPath)
 		}
+		// Advisory (9.4a) — unchanged. A completion policy applies only under --enforce, so
+		// supplying --policy here is a no-op the gate rejects rather than silently ignore.
 		if strings.TrimSpace(*policyPath) != "" {
-			fmt.Fprintln(os.Stderr, "sensei gate --completion: a completion gate policy is unavailable until Phase 9.4b; do not supply --policy with --completion")
+			fmt.Fprintln(os.Stderr, "sensei gate --completion: a completion policy applies only with --enforce; advisory --completion consults no policy")
 			return 2
 		}
 		return runGateCompletion(*repoRoot, *gateTaskDir, *asJSON, *sarifPath)
