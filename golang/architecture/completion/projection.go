@@ -200,14 +200,30 @@ type CompletionUnavailableClass string
 
 const (
 	// UnavailableTaskDirectoryUnresolved: the surface could not resolve a task
-	// directory (no active pointer / unreadable repository path).
+	// directory (no active pointer / unreadable repository path). This is an IDENTITY
+	// cause — an absent task identity, not an outage.
 	UnavailableTaskDirectoryUnresolved CompletionUnavailableClass = "task_directory_unresolved"
-	// UnavailableProjectionOwnerError: the projection owner returned an error.
+	// UnavailableProjectionOwnerError: the projection owner returned an error, cause
+	// unspecified. Retained for internal callers that do not classify; the projection
+	// ENVELOPE builder never emits this — it splits the cause below.
 	UnavailableProjectionOwnerError CompletionUnavailableClass = "projection_owner_error"
+	// UnavailableProjectionOwnerIdentityError: the owner could not be selected or
+	// trusted because the task identity was absent/malformed/noncanonical/out-of-scope/
+	// contradictory BEFORE a legitimate owner invocation began. An IDENTITY cause.
+	UnavailableProjectionOwnerIdentityError CompletionUnavailableClass = "projection_owner_identity_error"
+	// UnavailableProjectionOwnerRuntimeError: task identity was valid and the canonical
+	// owner was resolved and invoked, but the owner failed at runtime (execution,
+	// transport, I/O, timeout, decoding). A RUNTIME cause.
+	UnavailableProjectionOwnerRuntimeError CompletionUnavailableClass = "projection_owner_runtime_error"
 )
 
 func validUnavailableClass(c CompletionUnavailableClass) bool {
-	return c == UnavailableTaskDirectoryUnresolved || c == UnavailableProjectionOwnerError
+	switch c {
+	case UnavailableTaskDirectoryUnresolved, UnavailableProjectionOwnerError,
+		UnavailableProjectionOwnerIdentityError, UnavailableProjectionOwnerRuntimeError:
+		return true
+	}
+	return false
 }
 
 // CompletionProjectionEnvelope makes projection availability explicit and typed. When
@@ -360,22 +376,62 @@ func UnavailableTaskDirectoryEnvelope(detail string) CompletionProjectionEnvelop
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: UnavailableTaskDirectoryUnresolved, UnavailableDetail: detail})
 }
 
-// UnavailableProjectionOwnerEnvelope is the ONLY constructor for a
-// projection_owner_error envelope.
+// UnavailableProjectionOwnerEnvelope is the ONLY constructor for a generic (unclassified)
+// projection_owner_error envelope. The projection ENVELOPE builder does not use it — it
+// classifies the cause via UnavailableProjectionOwnerCauseEnvelope. It remains for
+// internal callers that surface a non-canonical envelope without classifying a cause.
 func UnavailableProjectionOwnerEnvelope(detail string) CompletionProjectionEnvelope {
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionUnavailable, UnavailableClass: UnavailableProjectionOwnerError, UnavailableDetail: detail})
+}
+
+// UnavailableProjectionOwnerCauseEnvelope constructs an unavailable envelope whose class
+// is the TYPED cause of err — identity vs runtime — classified at this boundary from the
+// error's type (see ProjectionOwnerErrorClass), never from its text.
+func UnavailableProjectionOwnerCauseEnvelope(err error) CompletionProjectionEnvelope {
+	return stampEnvelope(CompletionProjectionEnvelope{
+		Availability:      CompletionUnavailable,
+		UnavailableClass:  ProjectionOwnerErrorClass(err),
+		UnavailableDetail: err.Error(),
+	})
 }
 
 // BuildCompletionProjectionEnvelope builds the canonical projection and wraps it in a
 // typed availability envelope. It never errors: a projection-owner error becomes an
 // explicit `unavailable` envelope rather than silence. Read-only, mutates nothing.
 func BuildCompletionProjectionEnvelope(ctx context.Context, req Request) CompletionProjectionEnvelope {
-	p, err := BuildCompletionProjection(ctx, req)
+	// Positive identity gate at THIS boundary, before any owner invocation. An absent,
+	// unresolvable, out-of-scope, or otherwise invalid task identity fails here as a
+	// typed identity error and the owner is never invoked — so the runtime lane below is
+	// structurally unreachable for an identity failure.
+	if err := validateRepositoryTaskBinding(req.RepositoryRoot, req.TaskDirectory); err != nil {
+		return UnavailableProjectionOwnerCauseEnvelope(err)
+	}
+	// Identity established. Invoke the canonical owner. Any error from the invocation is
+	// tagged with POSITIVE runtime evidence (invokeCompletionOwner IS the invocation
+	// boundary) — the only way to earn the runtime class.
+	p, err := invokeCompletionOwner(ctx, req)
 	if err != nil {
-		return UnavailableProjectionOwnerEnvelope(err.Error())
+		return UnavailableProjectionOwnerCauseEnvelope(err)
 	}
 	return stampEnvelope(CompletionProjectionEnvelope{Availability: CompletionAvailable, Projection: &p})
 }
+
+// invokeCompletionOwner is the owner-invocation boundary: reaching it proves identity
+// was validated and the owner is being invoked, so ANY error it returns is positive
+// runtime evidence (runtimeError keeps a stray identity error as identity). This
+// placement — not the mere absence of an identity error — is what earns the runtime
+// class.
+func invokeCompletionOwner(ctx context.Context, req Request) (CompletionProjection, error) {
+	p, err := buildProjectionForEnvelope(ctx, req)
+	return p, runtimeError(err)
+}
+
+// buildProjectionForEnvelope is the projection builder invokeCompletionOwner runs. It is
+// a package var ONLY so a test can simulate a post-identity runtime failure of the
+// resolved owner — which the in-process owner does not otherwise surface — to prove the
+// runtime cause is classified distinctly from identity. Production always uses
+// BuildCompletionProjection.
+var buildProjectionForEnvelope = BuildCompletionProjection
 
 // Summary renders the envelope as one deterministic line. It requires CANONICAL
 // publication validity — not merely the structural conjunction — so an envelope altered

@@ -86,6 +86,7 @@ components:
       - cmd/awg/cmd_gate.go
       - cmd/awg/cmd_gate_completeness.go
       - cmd/awg/cmd_gate_completion.go
+      - cmd/awg/cmd_gate_completion_enforce.go
       - cmd/awg/cmd_gate_contracts.go
       - cmd/awg/cmd_gate_sarif.go
       - cmd/awg/cmd_generate_questions.go
@@ -138,6 +139,8 @@ components:
       - cmd/awg/cmd_validate.go
       - cmd/awg/cmd_validate_draft.go
       - cmd/awg/cmd_visual_audit.go
+      - cmd/awg/completion_decision.go
+      - cmd/awg/completion_policy.go
       - cmd/awg/cross_repo_atomic.go
       - cmd/awg/cross_repo_guard.go
       - cmd/awg/defaults.go
@@ -394,6 +397,7 @@ components:
       - golang/architecture/completion/integration.go
       - golang/architecture/completion/load.go
       - golang/architecture/completion/model.go
+      - golang/architecture/completion/ownererror.go
       - golang/architecture/completion/projection.go
       - golang/architecture/completion/readiness.go
       - golang/architecture/completion/receipt.go
