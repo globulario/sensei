@@ -307,3 +307,10 @@ forbidden_fixes:
       - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
     reason: feedback is additive; a feedback outage must never erase the base briefing or mask itself as OK
     contract: the base graph briefing is always preserved and combined status never upgrades to OK on degraded/unavailable/invalid feedback
+  - id: forbidden_fix.sensei.use_ambient_admission_to_judge_a_caller_supplied_diff
+    title: Use ambient admission to judge a caller-supplied diff
+    summary: awareness_audit_diff evaluates only the caller-supplied diff as a read-only, non-authoritative projection. It must not invoke repository admission or inspect ambient working-tree mutations, because those represent a different change subject and can produce a verdict unrelated to the submitted evidence.
+    related_invariants:
+      - closure.only_certification_engine_establishes_correctness
+    reason: awareness_audit_diff is a read-only, non-authoritative projection whose only change subject is the caller-supplied diff; it must not invoke repository admission or read ambient working-tree state, which represent a different change subject.
+    contract: awareness_audit_diff is a read-only, non-authoritative projection whose only change subject is the caller-supplied diff; it must not invoke repository admission or read ambient working-tree state, which represent a different change subject.
