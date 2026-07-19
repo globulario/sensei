@@ -272,3 +272,38 @@ forbidden_fixes:
       - closure.briefing_feedback_is_verified_scoped_and_single_owner
     reason: exact verified scope is the only admission authority; unrelated debris and task-local dialogue must never enter reusable governed briefing context; the canonical owner (not the server or editor) decides feedback
     contract: admission requires exact VERIFIED domain+file scope; untrusted claims only route relevance; unrelated debris never poisons scope; raw answer text is never governed knowledge; a feedback outage is typed-unavailable, not emptiness; briefingfeedback is the sole owner
+  - id: phase9_briefing_feedback_add_repository_root_to_request
+    title: add a filesystem repository root (or repo selector) to BriefingRequest
+    summary: Add a repository-root or filesystem-path field to BriefingRequest, or otherwise let a remote caller select which repository's promotions the server verifies.
+    related_invariants:
+      - closure.briefing_feedback_server_repository_context_is_startup_owned
+    reason: the filesystem feedback context is one immutable startup-owned pair; a caller-selected root lets a remote client choose which repository is verified
+    contract: the repository root+domain is startup-owned and never supplied by BriefingRequest
+  - id: phase9_briefing_feedback_use_home_or_requested_domain_as_repository_proof
+    title: use homeDomain or the requested domain as proof of filesystem repository identity
+    summary: Treat homeDomain, the requested domain, cwd, a basename, or the first checkout as proof of which filesystem repository to verify, or verify promotions for a request whose exact resolved graph domain is not the configured repository domain.
+    related_invariants:
+      - closure.briefing_feedback_server_repository_context_is_startup_owned
+    reason: homeDomain is graph scope for untagged nodes, not repository identity; only the configured repoDomain (exactly matched) authorizes filesystem verification
+    contract: only an exact match between the resolved graph domain and the configured repoDomain authorizes filesystem feedback; a mismatch is typed-unavailable
+  - id: phase9_briefing_feedback_infer_active_task_for_task_only_feedback
+    title: infer an active task (or task directory) for task-only server feedback
+    summary: For a task-only server briefing, manufacture a task binding — call a tasksession active-task fallback, read the only task directory, or emit a fabricated task id/session — instead of returning typed feedback_unavailable (canonical_task_scope_not_established).
+    related_invariants:
+      - closure.briefing_feedback_task_text_is_not_task_identity
+    reason: natural-language task text is not canonical task identity; the exact task-scoped path exists only through TaskBriefing.FeedbackProjection
+    contract: task-only server feedback is typed-unavailable (canonical_task_scope_not_established), never a manufactured or inferred task binding
+  - id: phase9_briefing_feedback_server_constructs_authoritative_projection
+    title: manually construct an authoritative-looking feedback projection in the server
+    summary: Hand-build a briefingfeedback.Projection (records or availability) in the server instead of obtaining it from briefingfeedback.Build or the narrow canonical unavailable-projection constructor, or map an unvalidated projection to the wire.
+    related_invariants:
+      - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+    reason: the projection has one canonical owner; a server-built projection drifts from verified truth and bypasses ValidateProjection
+    contract: the server obtains every projection from the canonical owner (Build or the unavailable constructor) and maps only validated projections to the wire
+  - id: phase9_briefing_feedback_erase_graph_prose_on_degraded_or_unavailable
+    title: erase the base graph briefing when feedback is degraded or unavailable
+    summary: Drop or blank the existing graph/intent/implementation-pattern briefing, or upgrade combined status to OK, when feedback is degraded, unavailable, or invalid — instead of preserving the base briefing and composing status by the frozen table.
+    related_invariants:
+      - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+    reason: feedback is additive; a feedback outage must never erase the base briefing or mask itself as OK
+    contract: the base graph briefing is always preserved and combined status never upgrades to OK on degraded/unavailable/invalid feedback

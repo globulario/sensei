@@ -1409,3 +1409,96 @@ invariants:
       exact verified domain+file scope, preserves exact lineage provenance, is non-authoritative,
       classifies failures by typed cause not text, isolates unrelated debris, and is produced by one
       canonical owner both task and server briefing consume.
+
+  - id: closure.briefing_feedback_server_repository_context_is_startup_owned
+    title: The server briefing-feedback repository context is one immutable startup-owned root+domain pair
+    severity: critical
+    status: active
+    description: >
+      Phase 9.6 Checkpoint 2. The server may verify committed promotions for exactly ONE
+      repository, identified by an immutable startup-owned pair (repository root + repository
+      domain) configured together via `sensei serve --repo-root/--repo-domain` and forwarded to
+      the awareness-graph binary as `-repo-root/-repo-domain`. Neither value is ever supplied by
+      BriefingRequest; both must be configured together; the root is resolved (symlinks once) and
+      verified as an existing directory once at startup (the direct binary never calls
+      filepath.Abs on the supplied root — a relative root fails startup); the domain is exact,
+      unpadded, and whitespace-free. The context is constructed before RPC traffic is accepted and
+      no request handler mutates it. homeDomain is NOT repository identity (it remains graph scope
+      for untagged nodes); repoDomain identifies the filesystem repository whose promotions may be
+      verified. Absent configuration ⇒ feedback_unavailable while the graph briefing stays usable;
+      never inferred from cwd, the requested file, the requested/home domain, the only task
+      directory, or a promotion artifact.
+    contract: >
+      The filesystem feedback context is one immutable startup-owned root+domain pair, validated
+      once before serving, never caller-selected and never inferred from ambient context.
+
+  - id: closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+    title: The briefing-feedback wire contract is additive, typed, and mapped only from the validated canonical projection
+    severity: high
+    status: active
+    description: >
+      Phase 9.6 Checkpoint 2. BriefingResponse gains an ADDITIVE field 7 (feedback) carrying the
+      canonical briefing.feedback_projection/v1 mirrored as closed typed wire messages/enums; no
+      existing field number is renumbered and clients that ignore field 7 keep working. The
+      projection-to-wire adapter validates via briefingfeedback.ValidateProjection first, maps
+      every closed enum explicitly (no default mapping; an unknown enum or impossible state is an
+      internal adapter failure, never a partial projection), preserves ordering and every identity
+      exactly, preserves the canonical digest, never recomputes availability, never inspects error
+      text, never mutates the source, and never places a filesystem repository root on the wire.
+      The server is a thin consumer: it does not rediscover promotions, reimplement verification,
+      calculate availability, or reinterpret findings — it delegates to the canonical owner and the
+      pure adapter.
+    contract: >
+      Feedback rides an additive typed field 7 mapped only from a validated canonical projection
+      with explicit closed-enum mapping, preserved digest, and no filesystem root on the wire.
+
+  - id: closure.briefing_feedback_prose_is_rendered_only_from_the_typed_projection
+    title: Server briefing-feedback prose is rendered only from the validated canonical projection
+    severity: high
+    status: active
+    description: >
+      Phase 9.6 Checkpoint 2. Feedback prose is derived ONLY from the same validated canonical
+      projection that is mapped to the wire — never from protobuf values independently, graph
+      adjacency, promotion directories, task-session limitations, or a server-specific
+      classification. Prose renders only governed-record information (kind, canonical record id,
+      source document); question/answer/receipt/task/session/promotion-lineage identities remain
+      structured provenance and raw answer text is never rendered. Every governed record rendered
+      in prose exists in the structured projection, and no failed candidate is ever rendered as
+      governed truth.
+    contract: >
+      Prose and structured feedback derive from one validated canonical projection; prose renders
+      only governed-record identity, never raw answer text or a failed candidate as truth.
+
+  - id: closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+    title: Degraded/unavailable/invalid feedback never erases the base graph briefing or upgrades combined status
+    severity: high
+    status: active
+    description: >
+      Phase 9.6 Checkpoint 2. Combined briefing status is one pure function of base ⊕ feedback,
+      frozen so feedback never converts a degraded/unavailable/invalid state into OK: base OK +
+      feedback available/empty ⇒ OK; base OK + feedback degraded/unavailable/invalid ⇒ DEGRADED;
+      base EMPTY + feedback available ⇒ OK; base EMPTY + feedback empty ⇒ EMPTY; base EMPTY +
+      feedback degraded/unavailable/invalid ⇒ DEGRADED. The base graph briefing content is always
+      preserved when feedback is degraded, unavailable, or invalid, and a feedback failure never
+      aborts an otherwise usable graph briefing (a valid typed unavailable projection is emitted
+      instead).
+    contract: >
+      Combined status composes base and feedback by a frozen table that never upgrades to OK, and
+      the base graph briefing is always preserved when feedback degrades.
+
+  - id: closure.briefing_feedback_task_text_is_not_task_identity
+    title: Natural-language task text is never treated as canonical task identity for server feedback
+    severity: high
+    status: active
+    description: >
+      Phase 9.6 Checkpoint 2. BriefingRequest.task is natural-language pattern-matching text, not a
+      canonical task id, session, verified binding, or file set. A task-only server briefing never
+      manufactures a task binding, calls a tasksession active-task fallback, infers a task from the
+      only task directory, or adds caller-supplied task identity; it returns typed
+      feedback_unavailable with reason canonical_task_scope_not_established while its existing
+      graph/intent/implementation-pattern briefing remains present. The exact task-scoped feedback
+      path exists only through TaskBriefing.FeedbackProjection; the generic server briefing creates
+      no second task-resolution surface.
+    contract: >
+      Task text is pattern-matching input, never canonical task identity; task-only feedback is
+      typed-unavailable (canonical_task_scope_not_established), never a manufactured binding.

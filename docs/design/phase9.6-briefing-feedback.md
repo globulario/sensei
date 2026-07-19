@@ -365,9 +365,60 @@ outage is `feedback_unavailable` (reported once, discovery-order independent, di
 malformed identity and candidate invalidity). `briefingfeedback` classifies from the typed
 impact only — never by parsing error text or matching reason-code strings.
 
+## 17. Checkpoint-2 design rulings (frozen)
+
+### 17.1 Server repository-context identity
+The server feedback context is one immutable startup-owned pair: **repository root +
+repository domain**. It is configured together through explicit startup configuration
+equivalent to `sensei serve --repo-root <path> --repo-domain <canonical-domain>` (exact
+spellings may follow repository conventions; the two pieces form ONE context). Frozen rules:
+- neither value is ever supplied by `BriefingRequest`;
+- both must be configured together — one without the other is a configuration error;
+- neither configured ⇒ feedback is `feedback_unavailable` while the graph briefing stays
+  fully usable; only ONE repository is supported;
+- the root is resolved (symlinks once) and validated as an existing directory once at
+  startup; the domain is exact, unpadded, whitespace-free, and immutable;
+- a request whose exact resolved graph domain is not the configured repository domain may
+  still receive its graph briefing, but cannot consume the configured filesystem feedback
+  context (`feedback_unavailable`, reason `repository_context_domain_mismatch`);
+- no domain fallback, basename inference, first-checkout inference, or current-directory
+  inference is ever allowed.
+
+`homeDomain` is NOT overloaded as repository identity — it remains the graph scope key for
+untagged nodes. `repoDomain` identifies the filesystem repository whose promotions may be
+verified.
+
+### 17.2 Task-only honesty
+`BriefingRequest.task` is natural-language task text used for pattern matching. It is NOT a
+canonical task id, a task session, a verified task binding, or a task file set. Therefore in
+the generic server briefing a task-only request:
+- must not manufacture an exact task binding, call a `tasksession` active-task fallback,
+  infer a task from the only task directory, or add caller-supplied task identity fields;
+- reports typed `feedback_unavailable` with reason `canonical_task_scope_not_established`,
+  while its existing graph/intent/implementation-pattern briefing remains present.
+
+The exact task-scoped feedback path already exists through `TaskBriefing.FeedbackProjection`
+(Checkpoint 1); Checkpoint 2 creates no second task-resolution surface inside the generic
+server briefing.
+
+### 17.3 Additive typed wire + prose parity (frozen)
+The server is a thin consumer: it never rediscovers promotion artifacts, reimplements
+verification, calculates availability, reinterprets findings, accepts caller-selected
+filesystem roots, or treats task text as canonical task identity. `BriefingResponse` gains an
+ADDITIVE field 7 carrying the canonical projection mirrored as closed typed wire messages
+(no existing field renumbered; the canonical digest is preserved; no filesystem repository
+root appears on the wire). Prose is rendered ONLY from the same validated canonical
+projection that is mapped to the wire — never from protobuf values independently, graph
+adjacency, promotion directories, task-session limitations, or server-specific
+classification. Combined status composes base ⊕ feedback by a frozen table: feedback never
+converts a degraded/unavailable/invalid state into OK, and the base graph briefing content is
+always preserved when feedback is degraded, unavailable, or invalid.
+
 ---
 
-This document opens Phase 9.6 and freezes the Checkpoint-1 review rulings. The opening
-commit wrote no implementation code; Checkpoint 1 implements the canonical owner + the
-typed `questionpromotion` seams + the tasksession migration, and adds NO server, protobuf,
-editor, GitHub, certification, or completion behavior. Phase 9.5 remains locked.
+This document opens Phase 9.6 and freezes the Checkpoint-1 and Checkpoint-2 review rulings.
+Checkpoint 1 implemented the canonical owner + typed `questionpromotion` seams + the
+tasksession migration; Checkpoint 2 integrates the canonical projection into the server
+`Briefing` RPC through an additive typed wire contract + startup-owned repository context,
+adding NO editor, GitHub, certification, completion, or Phase 9.5 behavior. Phase 9.5 remains
+locked; `CorrectnessCertified` untouched.
