@@ -1985,6 +1985,16 @@ func main() {
 	}
 }
 
+func isSubpath(root, target string) bool {
+	if root == target {
+		return true
+	}
+	if !strings.HasSuffix(root, string(filepath.Separator)) {
+		root += string(filepath.Separator)
+	}
+	return strings.HasPrefix(target, root)
+}
+
 type mcpSingleFileChecker struct {
 	bridge       *bridge
 	ctx          context.Context
@@ -2010,12 +2020,12 @@ func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (s
 	if err != nil {
 		return "", false, fmt.Errorf("failed to get absolute target path: %w", err)
 	}
-	if !strings.HasPrefix(absTarget, absRoot) {
+	if !isSubpath(absRoot, absTarget) {
 		return "", false, fmt.Errorf("path escapes repository boundary: resolved %s outside %s", absTarget, absRoot)
 	}
 
 	if resolvedTarget, err := filepath.EvalSymlinks(absTarget); err == nil {
-		if !strings.HasPrefix(resolvedTarget, absRoot) {
+		if !isSubpath(absRoot, resolvedTarget) {
 			return "", false, fmt.Errorf("symlink target escapes repository boundary: resolved %s outside %s", resolvedTarget, absRoot)
 		}
 	}
@@ -2081,27 +2091,50 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
+	// 1. Inspect graph authority stamp. A stale or unverified graph must fail closed!
+	if resp.GetAuthority() == nil || !resp.GetAuthority().GetAuthoritative() {
+		state := awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_UNKNOWN
+		if resp.GetAuthority() != nil {
+			state = resp.GetAuthority().GetGraphFreshnessState()
+		}
+		return nil, nil, nil, fmt.Errorf("graph is not authoritative: freshness state %v", state)
+	}
+
+	// 2. Map required tests
 	var tests []diffaudit.Requirement
 	for _, t := range resp.GetRequiredTests() {
 		testPath := ""
-		if t.GetAnchor() != nil && t.GetAnchor().GetFile() != "" {
+		if idx := strings.Index(t.GetId(), "::"); idx != -1 {
+			testPath = t.GetId()[:idx]
+		} else if t.GetAnchor() != nil && t.GetAnchor().GetFile() != "" {
 			testPath = t.GetAnchor().GetFile()
+		} else if t.GetAnchor() != nil && t.GetAnchor().GetSourceYaml() != "" {
+			testPath = t.GetAnchor().GetSourceYaml()
 		}
 		tests = append(tests, diffaudit.Requirement{
 			ID:   t.GetId(),
 			Path: testPath,
 		})
 	}
+
+	// 3. Sourced contracts: actual contracts live in direct_architecture, NOT direct_intents!
 	var contracts []diffaudit.Requirement
-	for _, ct := range resp.GetDirectIntents() {
-		testPath := ""
-		if ct.GetAnchor() != nil && ct.GetAnchor().GetFile() != "" {
-			testPath = ct.GetAnchor().GetFile()
+	for _, ct := range resp.GetDirectArchitecture() {
+		if strings.ToLower(ct.GetClass()) == "contract" {
+			testPath := ""
+			if idx := strings.Index(ct.GetId(), "::"); idx != -1 {
+				testPath = ct.GetId()[:idx]
+			} else if ct.GetAnchor() != nil && ct.GetAnchor().GetFile() != "" {
+				testPath = ct.GetAnchor().GetFile()
+			} else if ct.GetAnchor() != nil && ct.GetAnchor().GetSourceYaml() != "" {
+				testPath = ct.GetAnchor().GetSourceYaml()
+			}
+			contracts = append(contracts, diffaudit.Requirement{
+				ID:   ct.GetId(),
+				Path: testPath,
+			})
 		}
-		contracts = append(contracts, diffaudit.Requirement{
-			ID:   ct.GetId(),
-			Path: testPath,
-		})
 	}
 
 	var rules []string
@@ -2130,11 +2163,27 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 	}
 	task := argString(args, "task")
 	expectedHead := strings.TrimSpace(argString(args, "expected_head"))
-	if expectedHead != "" && !diffaudit.IsHexSHA(expectedHead) {
-		return nil, fmt.Errorf("expected_head, when supplied, must be an exact 40-character hex commit SHA: got %q", expectedHead)
-	}
-
 	domain := strings.TrimSpace(argString(args, "domain"))
+
+	root, _ := os.Getwd()
+
+	// Automatically resolve HEAD if expected_head is empty to bind to a canonical snapshot
+	if expectedHead == "" {
+		cmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+		cmd.Dir = root
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve repository HEAD commit: %w", err)
+		}
+		expectedHead = strings.TrimSpace(string(out))
+	} else {
+		// Prove that expectedHead is an actual valid commit object in the repository
+		cmd := exec.CommandContext(ctx, "git", "rev-parse", "--quiet", "--verify", fmt.Sprintf("%s^{commit}", expectedHead))
+		cmd.Dir = root
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("expected_head %q is not a valid commit in this repository: %w", expectedHead, err)
+		}
+	}
 
 	parsed, err := diffaudit.ParseDiff(diffText, diffaudit.DefaultParseOptions())
 	if err != nil {
@@ -2155,7 +2204,7 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 		}, nil
 	}
 
-	root, _ := os.Getwd()
+	root, _ = os.Getwd()
 	checker := &mcpSingleFileChecker{
 		bridge:       b,
 		ctx:          ctx,
@@ -2166,6 +2215,7 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 		Task:         task,
 		ExpectedHead: expectedHead,
 		Domain:       domain,
+		RepoRoot:     root,
 	})
 	if err != nil {
 		return nil, toolRPCError("audit_diff", err)
