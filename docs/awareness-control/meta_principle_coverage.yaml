@@ -55,7 +55,10 @@ enforcement_ratchet:
   # review_only — a cross-language (etcd/Go + vite/TS) identity/aliasing
   # principle that is design judgement, not yet a scannable property. Conscious
   # bump; revisit if a copylock-style scanner is later wired (→ behavioral).
-  max_review_only: 43
+  # 43 → 46: added meta.existence_checks_must_not_substitute_for_cardinality_proofs,
+  # meta.omission_is_an_invisible_state_mapping, and
+  # meta.validation_must_govern_construction_not_merely_detect as review_only.
+  max_review_only: 46
 
 meta_principle_coverage:
 
@@ -1205,3 +1208,12 @@ meta_principle_coverage:
       invalid or a legitimate defensive copy. Corroborated independently in
       Go/etcd and TypeScript/Vite. Candidate pending review and future
       mechanization strategy.
+  - principle: meta.existence_checks_must_not_substitute_for_cardinality_proofs
+    tier: review_only
+    reason: Checking whether a record exists does not prove that its cardinality is exactly one; requires mathematical or state-flow proof.
+  - principle: meta.omission_is_an_invisible_state_mapping
+    tier: review_only
+    reason: Designing around what is omitted requires design review to ensure unstated assumptions do not cause semantic drifts.
+  - principle: meta.validation_must_govern_construction_not_merely_detect
+    tier: review_only
+    reason: Constructors must enforce validation rules rather than relying on external downstream validation checkers.

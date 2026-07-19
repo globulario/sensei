@@ -34,6 +34,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -45,6 +46,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/completion"
+	"github.com/globulario/sensei/golang/architecture/diffaudit"
 	"github.com/globulario/sensei/golang/architecture/probeexec"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/architecture/tasksession"
@@ -241,6 +243,21 @@ func (b *bridge) tools() []tool {
 					"domain":             map[string]interface{}{"type": "string"},
 				},
 				"required": []string{"kind"},
+			},
+		},
+		{
+			Name:        "awareness_audit_diff",
+			Description: "Deterministic read-only audit of a unified Git diff across touched files against active invariants, forbidden fixes, and contracts. Returns awareness.diff_audit/v1.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"diff":          map[string]interface{}{"type": "string", "description": "the raw unified Git diff payload"},
+					"task":          map[string]interface{}{"type": "string", "description": "optional human task description"},
+					"expected_head": map[string]interface{}{"type": "string", "description": "optional exact commit SHA"},
+					"domain":        map[string]interface{}{"type": "string", "description": "optional repo/domain scope"},
+				},
+				"required":             []string{"diff"},
+				"additionalProperties": false,
 			},
 		},
 		{
@@ -556,6 +573,9 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 
 	case "awareness_propose":
 		return b.callPropose(ctx, args)
+
+	case "awareness_audit_diff":
+		return b.callAuditDiff(ctx, args)
 
 	case "task_status":
 		repo, _ := args["repo"].(string)
@@ -1963,4 +1983,318 @@ func main() {
 		fmt.Fprintf(os.Stderr, "awareness-mcp: serve: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func isSubpath(root, target string) bool {
+	if root == target {
+		return true
+	}
+	if !strings.HasSuffix(root, string(filepath.Separator)) {
+		root += string(filepath.Separator)
+	}
+	return strings.HasPrefix(target, root)
+}
+
+type mcpSingleFileChecker struct {
+	bridge       *bridge
+	ctx          context.Context
+	root         string
+	expectedHead string
+}
+
+func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
+	if c.root == "" {
+		return "", false, nil
+	}
+
+	cleanP := filepath.Clean(path)
+	if strings.HasPrefix(cleanP, "..") || filepath.IsAbs(cleanP) {
+		return "", false, fmt.Errorf("path escapes repository boundary: %s", path)
+	}
+
+	absRoot, err := filepath.Abs(c.root)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get absolute repository root: %w", err)
+	}
+	absTarget, err := filepath.Abs(filepath.Join(absRoot, cleanP))
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get absolute target path: %w", err)
+	}
+	if !isSubpath(absRoot, absTarget) {
+		return "", false, fmt.Errorf("path escapes repository boundary: resolved %s outside %s", absTarget, absRoot)
+	}
+
+	if resolvedTarget, err := filepath.EvalSymlinks(absTarget); err == nil {
+		if !isSubpath(absRoot, resolvedTarget) {
+			return "", false, fmt.Errorf("symlink target escapes repository boundary: resolved %s outside %s", resolvedTarget, absRoot)
+		}
+	}
+
+	// Base content is read only from the caller-attested commit (expected_head).
+	// Without an explicit pinned SHA the tool must NOT fall back to ambient
+	// working-tree state (governing contract §2); it reports the base as
+	// unavailable so modify hunks degrade to cannot_verify instead of being
+	// reconstructed against whatever happens to be on disk.
+	if c.expectedHead == "" || !diffaudit.IsHexSHA(c.expectedHead) {
+		return "", false, nil
+	}
+	cmd := exec.CommandContext(ctx, "git", "show", fmt.Sprintf("%s:%s", c.expectedHead, cleanP))
+	cmd.Dir = c.root
+	data, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitErr.Stderr)
+			if strings.Contains(stderr, "exists on disk, but not in") || strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "invalid object name") {
+				return "", false, nil
+			}
+		}
+		return "", false, fmt.Errorf("failed to read base file from commit %s: %w", c.expectedHead, err)
+	}
+	return string(data), true, nil
+}
+
+func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, content string, domain string) ([]diffaudit.AuditFinding, error) {
+	resp, err := c.bridge.client.EditCheck(ctx, &awarenesspb.EditCheckRequest{
+		File:            file,
+		ProposedContent: content,
+		Domain:          domain,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var findings []diffaudit.AuditFinding
+	for _, w := range resp.GetWarnings() {
+		disp := "review"
+		if w.GetEnforcement() == "block" || w.GetSeverity() == "block" {
+			disp = "block"
+		}
+		findings = append(findings, diffaudit.AuditFinding{
+			RecordID:    w.GetRuleId(),
+			RecordClass: w.GetClass(),
+			Disposition: disp,
+			FilePath:    file,
+			Explanation: w.GetMessage(),
+			Provenance:  w.GetProvenance(),
+		})
+	}
+	return findings, nil
+}
+
+// requiredTestPathFromID grounds a required_test's obligation file path from its
+// canonical node identity ("<relative/test/file>:<TestName>"). It returns an
+// empty string when the ID does not encode a file-shaped path, so the caller
+// never raises an omitted-test finding against a guessed or IRI-shaped token.
+func requiredTestPathFromID(id string) string {
+	raw := strings.ReplaceAll(strings.TrimSpace(id), "%2F", "/")
+	if raw == "" {
+		return ""
+	}
+	path := raw
+	if i := strings.LastIndex(raw, ":"); i > 0 {
+		path = raw[:i]
+	}
+	// Require a file-shaped path (a base name carrying an extension). A bare
+	// token or IRI-shaped identifier is not a usable obligation path.
+	if !strings.Contains(filepath.Base(path), ".") {
+		return ""
+	}
+	return path
+}
+
+func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, string, error) {
+	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
+		File:   file,
+		Domain: domain,
+	})
+	if err != nil {
+		return nil, nil, nil, "", err
+	}
+
+	// 1. Inspect graph authority stamp. A stale or unverified graph must fail closed!
+	if resp.GetAuthority() == nil || !resp.GetAuthority().GetAuthoritative() {
+		state := awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_UNKNOWN
+		if resp.GetAuthority() != nil {
+			state = resp.GetAuthority().GetGraphFreshnessState()
+		}
+		return nil, nil, nil, "", fmt.Errorf("graph is not authoritative: freshness state %v", state)
+	}
+
+	// 2. Bind the graph to an exact commit identity. Any authoritative graph MUST
+	//    expose a source/build commit — without it a verdict cannot be tied to the
+	//    rule snapshot that produced it — so fail closed regardless of whether
+	//    expected_head was supplied. The commit is returned so it enters the
+	//    result digest. Compare it against expected_head only when the caller
+	//    pinned one; a divergence means the graph was compiled from a different
+	//    snapshot and its rules may not apply.
+	graphCommit := resp.GetAuthority().GetSourceRepoCommit()
+	if graphCommit == "" {
+		graphCommit = resp.GetAuthority().GetGraphBuildCommit()
+	}
+	if graphCommit == "" {
+		return nil, nil, nil, "", fmt.Errorf(
+			"graph claims authority but exposes no source/build commit identity to bind the audit to a rule snapshot",
+		)
+	}
+	if c.expectedHead != "" && graphCommit != c.expectedHead {
+		return nil, nil, nil, "", fmt.Errorf(
+			"graph authority commit %s does not match expected_head %s: the awareness graph was compiled from a different snapshot",
+			graphCommit, c.expectedHead,
+		)
+	}
+
+	// 3. Map required tests. A required_test node's canonical ID is its own
+	//    identity, "<relative/test/file>:<TestName>", so the obligation path is
+	//    grounded by reading the ID — never inferred from the authoring anchor.
+	//    anchor.source_yaml/anchor.file record where the record was written (e.g.
+	//    docs/awareness/required_tests.yaml), not the test file that must change,
+	//    so using them keyed omitted-test findings on the wrong path.
+	var tests []diffaudit.Requirement
+	for _, t := range resp.GetRequiredTests() {
+		tests = append(tests, diffaudit.Requirement{
+			ID:   t.GetId(),
+			Path: requiredTestPathFromID(t.GetId()),
+		})
+	}
+
+	// 4. Sourced contracts live in direct_architecture with class "contract". The
+	//    contract's own governed file is grounded from its authoring YAML path.
+	//    Companion implementation/test roles are deliberately NOT inferred:
+	//    related_ids are IRI-shaped node references (see proto KnowledgeNode
+	//    related_ids), never file paths, so string-matching them into companion
+	//    paths fabricates obligations. Whole-change companion checks therefore
+	//    stay dormant until the graph owner returns typed companion file roles
+	//    (the Phase 2 Impact-contract extension); a read-only projection must not
+	//    raise block findings on guessed paths.
+	var contracts []diffaudit.Requirement
+	for _, ct := range resp.GetDirectArchitecture() {
+		if strings.ToLower(ct.GetClass()) != "contract" {
+			continue
+		}
+		contractPath := ""
+		if ct.GetAnchor() != nil && ct.GetAnchor().GetSourceYaml() != "" {
+			contractPath = ct.GetAnchor().GetSourceYaml()
+		} else if ct.GetAnchor() != nil && ct.GetAnchor().GetFile() != "" {
+			contractPath = ct.GetAnchor().GetFile()
+		}
+		contracts = append(contracts, diffaudit.Requirement{
+			ID:   ct.GetId(),
+			Path: contractPath,
+		})
+	}
+
+	var rules []string
+	for _, ff := range resp.GetForbiddenFixes() {
+		rules = append(rules, ff.GetId())
+	}
+	return tests, contracts, rules, graphCommit, nil
+}
+
+func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{}) (*toolResult, error) {
+	allowed := map[string]bool{
+		"diff":          true,
+		"task":          true,
+		"expected_head": true,
+		"domain":        true,
+	}
+	for k := range args {
+		if !allowed[k] {
+			return nil, fmt.Errorf("unknown property in awareness_audit_diff request: %s", k)
+		}
+	}
+
+	diffText := argString(args, "diff")
+	if strings.TrimSpace(diffText) == "" {
+		return nil, fmt.Errorf("diff is required and must be non-empty")
+	}
+	task := argString(args, "task")
+	expectedHead := strings.TrimSpace(argString(args, "expected_head"))
+	domain := strings.TrimSpace(argString(args, "domain"))
+
+	// Discover canonical repository root via git, not the ambient working directory.
+	var root string
+	{
+		cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover canonical repository root: %w", err)
+		}
+		root = strings.TrimSpace(string(out))
+	}
+
+	// expected_head is OPTIONAL (governing contract §3): the diff is caller-
+	// supplied evidence. When supplied it is exact identity evidence only — never
+	// guessed, shortened, or replaced by the current branch — so validate it
+	// strictly. When omitted, base content cannot be bound to a canonical
+	// snapshot and modify hunks degrade to cannot_verify rather than being
+	// reconstructed against ambient working-tree state.
+	if expectedHead != "" {
+		if !diffaudit.IsHexSHA(expectedHead) {
+			return nil, fmt.Errorf("expected_head %q is not a valid hex SHA", expectedHead)
+		}
+		cmd := exec.CommandContext(ctx, "git", "rev-parse", "--quiet", "--verify", fmt.Sprintf("%s^{commit}", expectedHead))
+		cmd.Dir = root
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("expected_head %q is not a valid commit in this repository: %w", expectedHead, err)
+		}
+	}
+
+	parsed, err := diffaudit.ParseDiff(diffText, diffaudit.DefaultParseOptions())
+	if err != nil {
+		res := &diffaudit.AuditResult{
+			Schema:       diffaudit.SchemaV1,
+			InputTrust:   diffaudit.TrustCaller,
+			Availability: diffaudit.AvailabilityUnsupported,
+			Decision:     diffaudit.DecisionCannotVerify,
+			ExpectedHead: expectedHead,
+			ReasonCodes:  []diffaudit.ReasonCode{diffaudit.ReasonMalformedDiff},
+			Limitations:  []string{err.Error()},
+		}
+		digest, _ := res.ComputeDigest()
+		res.Digest = digest
+		return &toolResult{
+			Text:       fmt.Sprintf("decision: cannot_verify\navailability: unsupported\nreason: malformed_diff (%v)", err),
+			Structured: res,
+		}, nil
+	}
+
+	checker := &mcpSingleFileChecker{
+		bridge:       b,
+		ctx:          ctx,
+		root:         root,
+		expectedHead: expectedHead,
+	}
+	res, err := diffaudit.EvaluateDiff(ctx, parsed, checker, diffaudit.AuditOptions{
+		Task:         task,
+		ExpectedHead: expectedHead,
+		Domain:       domain,
+	})
+	if err != nil {
+		return nil, toolRPCError("audit_diff", err)
+	}
+
+	return &toolResult{
+		Text:       formatAuditDiff(res),
+		Structured: res,
+	}, nil
+}
+
+func formatAuditDiff(res *diffaudit.AuditResult) string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "schema: %s\n", res.Schema)
+	fmt.Fprintf(&sb, "decision: %s\n", res.Decision)
+	fmt.Fprintf(&sb, "availability: %s\n", res.Availability)
+	fmt.Fprintf(&sb, "input_trust: %s\n", res.InputTrust)
+	fmt.Fprintf(&sb, "digest: %s\n", res.Digest)
+	fmt.Fprintf(&sb, "changed_files_count: %d\n", len(res.ChangedFiles))
+	fmt.Fprintf(&sb, "findings_count: %d\n\n", len(res.Findings))
+
+	if len(res.Findings) > 0 {
+		sb.WriteString("Findings:\n")
+		for _, f := range res.Findings {
+			fmt.Fprintf(&sb, "- [%s] %s (%s): %s\n", f.Disposition, f.RecordID, f.FilePath, f.Explanation)
+		}
+	} else {
+		sb.WriteString("No blocking findings found in supplied diff.")
+	}
+	return sb.String()
 }
