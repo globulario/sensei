@@ -858,3 +858,109 @@ failure_modes:
     related_invariants:
       - closure.change_task_binding_is_exact_typed_and_positively_authorized
     evidence: Phase 9.4c govern-first; exact typed identity + positive provenance + fail-closed contradiction prevent completion laundering.
+  - id: closure.briefing_feedback_reimplements_or_broadens_or_leaks_promotion
+    title: Briefing feedback reimplemented verification, trusted graph/claim metadata, broadened scope, leaked task-local answers, or let debris poison scope
+    severity: high
+    root_cause: |
+      A briefing-feedback surface reimplemented committed-promotion verification (in the server or
+      task briefing) instead of the one canonical owner; treated graph adjacency, a candidate path,
+      a claimed scope, an issuer string, or a claimed status as promotion authority; broadened
+      promotion scope through domain/file normalization or fallback; let one unrelated broken
+      promotion degrade every briefing; leaked task-local answer content into reusable governed
+      context; derived feedback availability from untyped error text; or included raw platform error
+      details / raw answer text, making the projection nondeterministic or a dialogue replay.
+    symptoms:
+      - the server or task briefing re-proving promotions instead of calling the canonical owner
+      - a candidate admitted on graph adjacency / claimed scope / issuer / status alone
+      - a domain/file fallback admitting an out-of-scope promotion
+      - one unrelated broken promotion degrading unrelated briefings
+      - a task-local answer surfaced as governed knowledge
+      - availability or class derived from parsing an error string
+    forbidden_fixes:
+      - phase9_briefing_feedback_parses_promotion_error_text_or_reimplements_verification
+      - phase9_briefing_feedback_infers_scope_or_leaks_or_owns_feedback_elsewhere
+    related_invariants:
+      - closure.briefing_feedback_is_verified_scoped_and_single_owner
+    evidence: Phase 9.6 implemented + tested (golang/architecture/briefingfeedback); one verified, typed, scope-exact, debris-isolated, single-owner feedback projection, proven by the adversarial ledger in docs/design/phase9.6-briefing-feedback.md §18.4.
+
+  - id: closure.briefing_feedback_server_selects_filesystem_repository_from_request_or_cwd
+    title: The server selected a filesystem repository from the caller, cwd, or a foreign-domain request
+    severity: critical
+    root_cause: |
+      The server briefing established filesystem feedback context from something other than the
+      immutable startup-owned root+domain pair: it honored a caller-supplied repository root,
+      derived the root from the process working directory, or let a request whose exact resolved
+      graph domain differs from the configured repository domain still consume the configured
+      filesystem root to verify promotions. Any of these lets a remote caller or ambient
+      environment choose which repository's promotions are verified.
+    symptoms:
+      - a BriefingRequest field selecting a filesystem root
+      - the server resolving a repo root from cwd or the launch directory
+      - a foreign-domain graph request invoking briefingfeedback.Build against the configured root
+    forbidden_fixes:
+      - phase9_briefing_feedback_add_repository_root_to_request
+      - phase9_briefing_feedback_use_home_or_requested_domain_as_repository_proof
+    related_invariants:
+      - closure.briefing_feedback_server_repository_context_is_startup_owned
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested (golang/server startup context + selector); the feedback context is one immutable startup-owned pair, and a domain mismatch is typed-unavailable without owner invocation.
+
+  - id: closure.briefing_feedback_server_treats_task_text_as_canonical_identity
+    title: The server treated natural-language task text as canonical task identity
+    severity: high
+    root_cause: |
+      A task-only server briefing manufactured an exact task binding from natural-language task
+      text — calling a tasksession active-task fallback, inferring a task from the only task
+      directory, or emitting a fabricated task id/session — instead of reporting typed
+      feedback_unavailable (canonical_task_scope_not_established). This launders keyword text into
+      an authoritative-looking task-scoped feedback projection.
+    symptoms:
+      - a task-only feedback projection carrying a task id/session
+      - the generic server briefing reading a task directory or inferring an active task
+      - task text producing verified promoted feedback with no canonical task scope
+    forbidden_fixes:
+      - phase9_briefing_feedback_infer_active_task_for_task_only_feedback
+    related_invariants:
+      - closure.briefing_feedback_task_text_is_not_task_identity
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested; task-only feedback is typed-unavailable (canonical_task_scope_not_established) and reads no task directory.
+
+  - id: closure.briefing_feedback_structured_and_prose_diverge_or_unavailability_disappears
+    title: Structured feedback and prose diverged, or unavailable feedback silently disappeared
+    severity: high
+    root_cause: |
+      The server rendered feedback prose from a different source than the structured projection
+      (protobuf values independently, graph adjacency, promotion directories, task-session
+      limitations, or a server-specific classification), or dropped a degraded/unavailable/invalid
+      feedback state so it silently vanished and combined status read OK. Either divergence makes
+      the prose and the typed section disagree, or hides a real feedback outage.
+    symptoms:
+      - a governed record in prose that is absent from the structured projection
+      - feedback prose built from promotion directories or graph adjacency
+      - unavailable/degraded feedback that leaves combined status OK
+      - a failed candidate rendered as governed truth
+    forbidden_fixes:
+      - phase9_briefing_feedback_erase_graph_prose_on_degraded_or_unavailable
+    related_invariants:
+      - closure.briefing_feedback_prose_is_rendered_only_from_the_typed_projection
+      - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested; prose and wire derive from one atomic validated-projection pair and status composes by a frozen table.
+
+  - id: closure.briefing_feedback_server_reconstructs_promotion_verification
+    title: The server reconstructed promotion verification or owner policy from graph or filesystem artifacts
+    severity: high
+    root_cause: |
+      The server rebuilt promotion verification or feedback availability itself — re-proving
+      promotions from graph or filesystem artifacts, calculating availability, reinterpreting
+      findings, or parsing feedback reason codes/errors to recreate the owner's policy — instead of
+      delegating to the canonical owner and mapping its validated projection through the pure
+      adapter.
+    symptoms:
+      - server-side re-derivation of promotion verification
+      - server-side availability computation or finding reinterpretation
+      - parsing feedback reason codes to reconstruct owner classification
+    forbidden_fixes:
+      - phase9_briefing_feedback_parses_promotion_error_text_or_reimplements_verification
+      - phase9_briefing_feedback_server_constructs_authoritative_projection
+    related_invariants:
+      - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+      - closure.briefing_feedback_is_verified_scoped_and_single_owner
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested; the server is a thin consumer of the canonical owner + pure adapter (coverage.TestBriefingFeedbackOwnershipBoundary) and never reconstructs verification.

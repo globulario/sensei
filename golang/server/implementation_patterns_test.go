@@ -61,7 +61,7 @@ func newPatternTestServer(t *testing.T) *server {
 	t.Helper()
 	invalidateImplementationPatternCacheForTest()
 	invalidateIntentTriggerCacheForTest()
-	return newServer(fakeStore{
+	s := newServer(fakeStore{
 		classFacts: func(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error) {
 			if classIRI == rdf.ClassImplementationPattern {
 				return grpcClientStandardFacts(), nil
@@ -72,6 +72,10 @@ func newPatternTestServer(t *testing.T) *server {
 			return nil, nil // no file-anchored impact for these tests
 		},
 	})
+	// Configure a matching empty repository so FILE-scoped briefings get feedback_empty and
+	// preserve their base status; task-only briefings remain feedback_unavailable (DEGRADED).
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
+	return s
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -287,8 +291,10 @@ func TestBriefing_ImplementationPattern_TaskOnlyStillMatches(t *testing.T) {
 	if pats[0].GetMatchStrength() != "strong" {
 		t.Errorf("task-only mode strength: want strong, got %q", pats[0].GetMatchStrength())
 	}
-	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
-		t.Errorf("status: want OK when pattern matches in task-only mode, got %v", resp.GetStatus())
+	// Task-only feedback can never be established (task text is not canonical task identity),
+	// so the combined status is DEGRADED even though patterns matched.
+	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_DEGRADED {
+		t.Errorf("status: want DEGRADED (task-only feedback unavailable), got %v", resp.GetStatus())
 	}
 	if !strings.Contains(resp.GetProse(), "Implementation patterns:") {
 		t.Errorf("task-only prose missing Implementation patterns section:\n%s", resp.GetProse())
@@ -356,6 +362,7 @@ func TestBriefing_ImplementationPattern_FileFactsAndTaskPatternsUnion(t *testing
 			}, nil
 		},
 	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{
 		File: "golang/anchored/example.go",
 		Task: "create a new Go client for a Globular gRPC service",
@@ -389,8 +396,9 @@ func TestBriefing_ImplementationPattern_TaskOnlyNoMatchReturnsEmpty(t *testing.T
 	if len(resp.GetImplementationPatterns()) != 0 {
 		t.Errorf("unrelated task: want 0 patterns, got %d", len(resp.GetImplementationPatterns()))
 	}
-	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
-		t.Errorf("status: want EMPTY for unrelated task, got %v", resp.GetStatus())
+	// Task-only feedback is unavailable, so an unmatched task-only briefing is DEGRADED.
+	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_DEGRADED {
+		t.Errorf("status: want DEGRADED for unrelated task-only briefing, got %v", resp.GetStatus())
 	}
 }
 
