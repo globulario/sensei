@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/evidence-receipt.schema.json",
+  "title": "Architectural Closure v1 Evidence Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "receipt_id": {"type": "string"},
+    "evidence_kind": {"$ref": "common.schema.json#/$defs/evidence_kind"},
+    "profile_id": {"type": "string"},
+    "result_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base_revision": {"type": "string"},
+        "patch_digest_sha256": {"type": "string"},
+        "result_tree_digest_sha256": {"type": "string"},
+        "result_revision": {"type": "string"},
+        "graph_digest_sha256": {"type": "string"},
+        "generated_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "path": {"type": "string"},
+              "digest_sha256": {"type": "string"}
+            },
+            "required": ["path", "digest_sha256"]
+          }
+        }
+      },
+      "required": ["base_revision", "patch_digest_sha256", "result_tree_digest_sha256", "graph_digest_sha256"]
+    },
+    "runtime_target": {"type": "object"},
+    "producer": {"type": "string"},
+    "observation_path": {"type": "string"},
+    "observed_at": {"type": "string"},
+    "expires_at": {"type": "string"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+    "trust": {"type": "string"},
+    "payload_digest_sha256": {"type": "string"},
+    "conflicts": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["receipt_id", "evidence_kind", "profile_id", "result_binding", "producer", "observation_path", "observed_at", "status", "payload_digest_sha256"]
+}
+

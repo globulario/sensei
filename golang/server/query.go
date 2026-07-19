@@ -48,18 +48,22 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 	}
 	start := time.Now()
 	limit := normalizeQueryLimit(int(req.GetLimit()))
+	requestedDomain := strings.TrimSpace(req.GetDomain())
+	if err := s.requireDomainWhenAmbiguous(ctx, requestedDomain); err != nil {
+		return nil, err
+	}
 
 	var rows []*awarenesspb.QueryRow
 	var err error
 	switch req.GetMode() {
 	case awarenesspb.QueryMode_QUERY_MODE_BY_FILE:
-		rows, err = s.queryByFile(ctx, strings.TrimSpace(req.GetFile()))
+		rows, err = s.queryByFile(ctx, strings.TrimSpace(req.GetFile()), requestedDomain)
 	case awarenesspb.QueryMode_QUERY_MODE_BY_ID:
-		rows, err = s.queryByID(ctx, strings.TrimSpace(req.GetId()))
+		rows, err = s.queryByID(ctx, strings.TrimSpace(req.GetId()), requestedDomain)
 	case awarenesspb.QueryMode_QUERY_MODE_BY_CLASS:
-		rows, err = s.queryByClass(ctx, req.GetClass(), limit, strings.TrimSpace(req.GetDomain()))
+		rows, err = s.queryByClass(ctx, req.GetClass(), limit, requestedDomain)
 	case awarenesspb.QueryMode_QUERY_MODE_RELATED:
-		rows, err = s.queryRelated(ctx, strings.TrimSpace(req.GetId()), limit)
+		rows, err = s.queryRelated(ctx, strings.TrimSpace(req.GetId()), limit, requestedDomain)
 	default:
 		return nil, status.Error(codes.InvalidArgument, "unsupported query mode")
 	}
@@ -74,12 +78,15 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 	}, nil
 }
 
-func (s *server) queryByFile(ctx context.Context, file string) ([]*awarenesspb.QueryRow, error) {
+func (s *server) queryByFile(ctx context.Context, file, domain string) ([]*awarenesspb.QueryRow, error) {
 	if file == "" {
 		return nil, status.Error(codes.InvalidArgument, "file is required for by_file")
 	}
-	impact, _, _, err := s.collectImpact(ctx, file, "")
+	impact, _, _, err := s.collectImpact(ctx, file, domain)
 	if err != nil {
+		if _, ok := status.FromError(err); ok && status.Code(err) != codes.Unknown {
+			return nil, err
+		}
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}
 	rows := make([]*awarenesspb.QueryRow, 0)
@@ -91,7 +98,7 @@ func (s *server) queryByFile(ctx context.Context, file string) ([]*awarenesspb.Q
 	return rows, nil
 }
 
-func (s *server) queryByID(ctx context.Context, qualifiedID string) ([]*awarenesspb.QueryRow, error) {
+func (s *server) queryByID(ctx context.Context, qualifiedID, domain string) ([]*awarenesspb.QueryRow, error) {
 	class, id, err := parseQualifiedID(qualifiedID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -105,6 +112,9 @@ func (s *server) queryByID(ctx context.Context, qualifiedID string) ([]*awarenes
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}
 	if len(triples) == 0 {
+		return nil, nil
+	}
+	if domain != "" && !nodeInScopeFromTriples(triples, s.homeDomain, domain) {
 		return nil, nil
 	}
 	n := &awarenesspb.KnowledgeNode{Iri: iri, Id: id, Class: canonicalClass}
@@ -172,7 +182,7 @@ func (s *server) queryByClass(ctx context.Context, queryClass awarenesspb.QueryC
 // unlinked. Inbound edges are labelled from the queried node's perspective
 // (requiresTest → verifies, definedInFile → defines). Outgoing is traversed
 // first; results are de-duplicated by related IRI and capped at limit.
-func (s *server) queryRelated(ctx context.Context, qualifiedID string, limit int) ([]*awarenesspb.QueryRow, error) {
+func (s *server) queryRelated(ctx context.Context, qualifiedID string, limit int, domain string) ([]*awarenesspb.QueryRow, error) {
 	class, id, err := parseQualifiedID(qualifiedID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -208,6 +218,9 @@ func (s *server) queryRelated(ctx context.Context, qualifiedID string, limit int
 		if derr != nil {
 			return false, status.Errorf(codes.Unavailable, "backend query failed: %v", derr)
 		}
+		if domain != "" && !nodeInScopeFromTriples(relTriples, s.homeDomain, domain) {
+			return true, nil
+		}
 		n := &awarenesspb.KnowledgeNode{Iri: relIRI, Id: relBareID, Class: relCanonicalClass}
 		for _, rt := range relTriples {
 			applyNodeFact(n, rt)
@@ -220,6 +233,9 @@ func (s *server) queryRelated(ctx context.Context, qualifiedID string, limit int
 	out, err := s.store.Describe(ctx, iri)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+	}
+	if domain != "" && !nodeInScopeFromTriples(out, s.homeDomain, domain) {
+		return nil, nil
 	}
 	for _, t := range out {
 		if !t.ObjectIsIRI {
@@ -367,6 +383,14 @@ func queryClassSpec(queryClass awarenesspb.QueryClass) (className, classIRI stri
 		return "implementation_pattern", rdf.ClassImplementationPattern, true
 	case awarenesspb.QueryClass_QUERY_CLASS_PATTERN_MISUSE:
 		return "pattern_misuse", rdf.ClassPatternMisuse, true
+	case awarenesspb.QueryClass_QUERY_CLASS_ARCHITECTURE_CLAIM:
+		return "architecture_claim", rdf.ClassArchitectureClaim, true
+	case awarenesspb.QueryClass_QUERY_CLASS_OPEN_QUESTION:
+		return "open_question", rdf.ClassOpenQuestion, true
+	case awarenesspb.QueryClass_QUERY_CLASS_ARCHITECT_ANSWER:
+		return "architect_answer", rdf.ClassArchitectAnswer, true
+	case awarenesspb.QueryClass_QUERY_CLASS_EVIDENCE_PROBE:
+		return "evidence_probe", rdf.ClassEvidenceProbe, true
 	default:
 		return "", "", false
 	}

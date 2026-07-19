@@ -1,0 +1,161 @@
+authority_domains:
+  - id: authority.sensei_repository_mutation
+    label: Sensei repository mutation
+    status: active
+    truth_layer: repository
+    owner_service: service.sensei.repository_governance
+    evidence_freshness: repository revision must remain bound to the active task snapshot
+    covers_paths:
+      - cmd/awg/
+      - docs/awareness/
+      - golang/architecture/
+      - golang/extractor/
+      - golang/rdf/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed repository edit
+    must_mutate_via_ids:
+      - mutation_path.repository_edit
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read
+
+  # ── Phase 8.1a: architect-question disposition authority (task truth layer) ──
+  - id: authority.sensei_question_disposition
+    label: Sensei architect-question disposition
+    status: active
+    truth_layer: task
+    owner_service: service.sensei.question_disposition
+    evidence_freshness: disposition binds the exact task result and architect-questions bundle by digest
+    covers_paths:
+      - cmd/awg/
+      - docs/awareness/
+      - golang/architecture/
+      - golang/extractor/
+      - golang/rdf/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed question disposition
+    must_mutate_via_ids:
+      - mutation_path.question_disposition
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read
+
+  # ── Phase 8.1b: governed-promotion authority (repository governed truth) ──
+  - id: authority.sensei_governed_promotion
+    label: Sensei governed reusable-knowledge promotion
+    status: active
+    truth_layer: repository
+    owner_service: service.sensei.question_promotion
+    evidence_freshness: promotion binds the exact disposition receipt, committed source manifest, and rebuilt repository graph by digest
+    covers_paths:
+      - docs/awareness/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed promotion
+    must_mutate_via_ids:
+      - mutation_path.governed_promotion
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read
+
+  # ── Phase 8.1d: bounded question-resolution certification (NOT correctness) ──
+  # An isolated owner path, distinct from question disposition, governed
+  # promotion, correctness certification, and completion. It authorizes the
+  # production of a bounded question-resolution certificate that attests ONLY
+  # that every binding architect question has an admissible terminal disposition
+  # and every reusable answer claimed as governed truth has a valid committed
+  # promotion. It mutates no governed source; the owner-RPC mechanism governs the
+  # emission of the read-only attestation artifact.
+  - id: authority.sensei_question_resolution_certification
+    label: Sensei bounded question-resolution certification
+    status: active
+    truth_layer: task
+    owner_service: service.sensei.question_resolution
+    evidence_freshness: the certificate binds the task ledger head, each question's disposition receipt, each satisfying promotion receipt, and the governed source manifest by digest
+    covers_paths:
+      - cmd/awg/
+      - docs/awareness/
+      - golang/architecture/
+      - golang/extractor/
+      - golang/rdf/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - bounded question-resolution certification
+    must_mutate_via_ids:
+      - mutation_path.question_resolution_certification
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read
+
+  # ── Phase 8.2b: terminal completion (the sole authoritative completed fact) ──
+  # Distinct from correctness certification, question disposition, governed
+  # promotion, and question-resolution certification. Only the completion owner may
+  # append the terminal `completed` fact, and only by re-proving the full readiness
+  # conjunction under one transaction boundary.
+  - id: authority.sensei_terminal_completion
+    label: Sensei terminal task completion
+    status: active
+    truth_layer: task
+    owner_service: service.sensei.completion
+    evidence_freshness: completion binds the exact task, current result, pre-completion ledger head, readiness assessment, correctness receipt, question-resolution certificate, and governed manifest by digest under one lock
+    covers_paths:
+      - cmd/awg/
+      - docs/awareness/
+      - golang/architecture/
+      - golang/extractor/
+      - golang/rdf/
+    may_write:
+      - repository repair agent
+    may_write_role_ids:
+      - role.repository_repair_agent
+    may_read:
+      - repository maintainer
+    may_read_role_ids:
+      - role.repository_maintainer
+      - role.repository_repair_agent
+    must_mutate_via:
+      - governed terminal completion
+    must_mutate_via_ids:
+      - mutation_path.terminal_completion
+    must_read_via:
+      - bound repository read
+    must_read_via_ids:
+      - observation_path.repository_read

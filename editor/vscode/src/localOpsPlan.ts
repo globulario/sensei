@@ -26,6 +26,33 @@ export interface AwgCommandStep {
   command: string;
 }
 
+export interface RebuildPlanContext {
+  selectedDomain?: string;
+  workspaceDomain?: string;
+}
+
+const READ_ONLY_COMMANDS = new Set([
+  'assess-closure',
+  'convergence-status',
+  'admission-status',
+  'benchmark-status',
+  'task-status',
+]);
+
+export function validateReadOnlySenseiArgs(args: string[]): string | undefined {
+  const cmd = args[0] || '';
+  if (!READ_ONLY_COMMANDS.has(cmd)) {
+    return `Read-only sensei command is not allowed: ${cmd || '(empty)'}`;
+  }
+  if (args.some((a) => /[;&|`$<>]/.test(a))) {
+    return 'Read-only sensei command arguments must be literal argv values.';
+  }
+  if (cmd === 'assess-closure' && (!args.includes('--request') || !args.includes('--claims'))) {
+    return 'assess-closure requires explicit --request and --claims inputs.';
+  }
+  return undefined;
+}
+
 /** The guarded single-candidate promote flow.
  * Promote must not trigger its own implicit rebuild because the correct rebuild
  * shape depends on the current workspace (single repo vs combined AG+services). */
@@ -71,11 +98,39 @@ export function findAwarenessGraphRoot(start: string): string | undefined {
   }
 }
 
+/** Ordered binary candidates for a workspace.
+ *
+ * VS Code users often open the extension folder itself (`editor/vscode`), while
+ * the locally-built binary lives at the parent Sensei repo root (`bin/sensei`).
+ * Keep this pure so the runner can probe the list without importing vscode.
+ */
+export function resolveSenseiBinaryCandidates(cwd: string, configured: string): string[] {
+  const trimmed = configured.trim();
+  const cands: string[] = [];
+  if (trimmed && trimmed !== 'sensei') {
+    cands.push(trimmed);
+  }
+
+  const agRoot = findAwarenessGraphRoot(cwd);
+  if (agRoot) {
+    cands.push(path.join(agRoot, 'bin', 'sensei'));
+  }
+  cands.push(path.join(cwd, 'bin', 'sensei'));
+  cands.push('sensei');
+  if (agRoot) {
+    cands.push(path.join(agRoot, 'bin', 'awg'));
+  }
+  cands.push(path.join(cwd, 'bin', 'awg'));
+  cands.push('awg');
+  return [...new Set(cands)];
+}
+
 /** Work out the correct rebuild command for the current workspace/repo shape. */
 export function resolveRebuildPlan(
   senseiPath: string,
   cwd: string | undefined,
-  servicesRepoSetting: string
+  servicesRepoSetting: string,
+  context: RebuildPlanContext = {}
 ): RebuildPlan {
   const single: RebuildPlan = {
     mode: 'single',
@@ -96,6 +151,22 @@ export function resolveRebuildPlan(
   const seedPath = fs.existsSync(path.join(agRoot, SEED_REL))
     ? path.join(agRoot, SEED_REL)
     : undefined;
+  const singleWithSeed: RebuildPlan = { ...single, seedPath };
+
+  const selectedDomain = (context.selectedDomain ?? '').trim();
+  const workspaceDomain = (context.workspaceDomain ?? '').trim();
+  if (selectedDomain && workspaceDomain && selectedDomain === workspaceDomain) {
+    return singleWithSeed;
+  }
+  if (selectedDomain && workspaceDomain && selectedDomain !== workspaceDomain) {
+    return {
+      ...singleWithSeed,
+      mode: 'blocked',
+      reason:
+        `Selected domain "${selectedDomain}" is not rebuildable from this workspace ` +
+        `("${workspaceDomain}"). Open that repository, select "${workspaceDomain}", or choose All domains.`,
+    };
+  }
 
   const configured = servicesRepoSetting.trim();
   let svc: string | undefined;
@@ -142,7 +213,10 @@ export function resolveRebuildPlan(
     seedPath,
     servicesRepoPath: svc,
     servicesDetected: detected,
-    args: ['rebuild', '--services-repo', svc, '--tag-by-repo'],
-    command: `${senseiPath} rebuild --services-repo ${svc} --tag-by-repo`,
+    // --combined: rebuild now defaults to the self-only public seed and IGNORES
+    // --services-repo unless --combined is set. Without it the combined plan
+    // would silently build a self-only graph and the store reload would mismatch.
+    args: ['rebuild', '--combined', '--services-repo', svc, '--tag-by-repo'],
+    command: `${senseiPath} rebuild --combined --services-repo ${svc} --tag-by-repo`,
   };
 }

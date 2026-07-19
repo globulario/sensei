@@ -39,14 +39,17 @@ service AwarenessGraph {
   // analysis package contract.
   rpc Impact(ImpactRequest) returns (ImpactResponse);
 
-  // Query forwards raw SPARQL to the backend store. RBAC-gated to the
-  // awareness.admin role. Not for agent consumption — debugging and
-  // operator workflows only.
+  // Query exposes constrained typed graph browsing only. ArchitectureClaim,
+  // OpenQuestion, and ArchitectAnswer are available here only when explicitly
+  // requested; they remain non-authoritative and are not surfaced through
+  // Briefing, Impact, or Preflight.
   rpc Query(QueryRequest) returns (QueryResponse);
 
   // Resolve fetches a single node by its annotation ID (e.g. "invariant:foo",
   // "pat.bar"). Returns the node's triples plus any code-anchor provenance.
-  // This is the tool agents call after reading a // @invariant: X comment.
+  // This is the tool agents call after reading a // @invariant: X comment, or
+  // when explicitly inspecting a non-authoritative architecture_claim,
+  // open_question, or architect_answer.
   rpc Resolve(ResolveRequest) returns (ResolveResponse);
 
   // Metadata returns coverage and freshness signals about the graph itself
@@ -349,6 +352,16 @@ enum QueryClass {
   QUERY_CLASS_DESIGN_PATTERN = 16;
   QUERY_CLASS_IMPLEMENTATION_PATTERN = 17;
   QUERY_CLASS_PATTERN_MISUSE = 18;
+  // Non-authoritative generated propositions; explicit query only.
+  QUERY_CLASS_ARCHITECTURE_CLAIM = 19;
+  // Non-authoritative closure questions; explicit query only.
+  QUERY_CLASS_OPEN_QUESTION = 20;
+  // Typed architect statements; not observed truth or governed architecture.
+  // Explicit query only.
+  QUERY_CLASS_ARCHITECT_ANSWER = 21;
+  // Non-authoritative evidence-gathering plans; explicit query only.
+  // Presence is not proof and never authorizes execution.
+  QUERY_CLASS_EVIDENCE_PROBE = 22;
 }
 
 message QueryRequest {
@@ -700,6 +713,26 @@ message MetadataResponse {
   // excludes shared meta-principles). Lets a client offer a domain filter and
   // scope subsequent Metadata/Query calls. Empty on a single-domain graph.
   repeated string available_domains = 62;
+
+  // Count of non-authoritative ArchitectureClaim propositions. This is a
+  // visibility count only; it is excluded from coverage, readiness, and
+  // governed-architecture verdicts.
+  int64 architecture_claim_count = 63;
+
+  // Count of non-authoritative OpenQuestion closure-gap artifacts. This is a
+  // visibility count only; it is excluded from coverage, readiness, freshness,
+  // and governed-architecture verdicts.
+  int64 open_question_count = 64;
+
+  // Count of ArchitectAnswer records. This is a visibility count only; answers
+  // are not observed truth and do not affect coverage, readiness, freshness, or
+  // governed-architecture verdicts.
+  int64 architect_answer_count = 65;
+
+  // Count of EvidenceProbe plans. This is a visibility count only; probes are
+  // non-authoritative, explicit-query-only, and do not affect coverage,
+  // readiness, freshness, risk, or governed-architecture verdicts.
+  int64 evidence_probe_count = 66;
 }
 
 // ─── Governance Graph Phase-1 schema ───────────────────────────────────────

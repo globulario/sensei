@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/globulario/sensei/golang/extractor"
+	"github.com/globulario/sensei/golang/extractor/coldsource"
 )
 
 func runValidate(args []string) int {
@@ -82,6 +83,7 @@ Flags:
 		}
 	}
 	var extraDefDirs []string
+	sourceRoots := []string{root}
 	if agRoot != "" {
 		agAwareness := filepath.Join(agRoot, "docs/awareness")
 		// Only add it when it is a DIFFERENT tree than what we are validating,
@@ -89,10 +91,12 @@ Flags:
 		if absA, _ := filepath.Abs(agAwareness); absA != "" {
 			if absRoot, _ := filepath.Abs(root); !strings.HasPrefix(absA, absRoot+string(filepath.Separator)) && absA != filepath.Join(absRoot, "docs/awareness") {
 				extraDefDirs = append(extraDefDirs, agAwareness)
+				if absAG, aerr := filepath.Abs(agRoot); aerr == nil && absAG != absRoot {
+					sourceRoots = append(sourceRoots, absAG)
+				}
 			}
 		}
 	}
-	sourceRoots := []string{root}
 	if servicesRoot, _ := resolveServicesRepo(""); servicesRoot != "" {
 		if absSvc, _ := filepath.Abs(servicesRoot); absSvc != "" {
 			if absRoot, _ := filepath.Abs(root); absSvc != absRoot {
@@ -374,6 +378,9 @@ func doValidate(repoRoot string, dirs []string, extraDefDirs []string, sourceRoo
 	for class, ids := range index.byClass {
 		for id, sources := range ids {
 			if len(sources) > 1 {
+				if localGenericDuplicate(scope, sources) {
+					continue
+				}
 				// Generated files intentionally overlap: bootstrap emits component
 				// nodes, import-scan enriches the same IDs with dependency edges.
 				// In the RDF layer these merge cleanly. Only flag when at least one
@@ -409,8 +416,31 @@ func doValidate(repoRoot string, dirs []string, extraDefDirs []string, sourceRoo
 
 func validateEntity(report *validateReport, idx *valIDIndex, sourceRoots []string, file string, scope validateScope, e valEntity) {
 	owner := classifyValidateOwner(file)
+	if e.class == "intent" {
+		if strings.TrimSpace(e.id) == "" || (strings.HasPrefix(e.id, "intent.") && !coldsource.ValidIntentID(e.id)) {
+			report.Findings = append(report.Findings, validateFinding{
+				Severity: "error", Check: "invalid_intent_id",
+				Owner: string(owner), File: file, EntityID: e.id, Ref: e.id,
+				Message: fmt.Sprintf("intent id %q is malformed; expected intent.<non-empty-segments>", e.id),
+			})
+		}
+		if strings.TrimSpace(e.title) == "" {
+			report.Findings = append(report.Findings, validateFinding{
+				Severity: "error", Check: "intent_title_empty",
+				Owner: string(owner), File: file, EntityID: e.id,
+				Message: "intent title must be non-empty",
+			})
+		}
+		if strings.TrimSpace(e.statement) == "" {
+			report.Findings = append(report.Findings, validateFinding{
+				Severity: "error", Check: "intent_statement_empty",
+				Owner: string(owner), File: file, EntityID: e.id,
+				Message: "intent statement must be non-empty",
+			})
+		}
+	}
 	for _, ref := range e.relatedInvariants {
-		if !idx.has("invariant", ref) {
+		if !idx.has("invariant", ref) && !idx.has("intent", ref) {
 			appendValidateFinding(report, scope, owner, "dangling_invariant_ref", "external_dangling_invariant_ref",
 				file, e.id, ref, fmt.Sprintf("related_invariants references invariant %q which does not exist", ref))
 		}
@@ -577,6 +607,8 @@ func siblingRepo(root, name string) string {
 type valEntity struct {
 	class               string
 	id                  string
+	title               string
+	statement           string
 	severity            string
 	relatedInvariants   []string
 	relatedFailureModes []string
@@ -698,6 +730,23 @@ func parseValYAMLDoc(path, repoRoot string) (*valYAMLDoc, error) {
 		}
 	}
 
+	if v, ok := raw["candidates"].([]interface{}); ok {
+		for _, item := range v {
+			m, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			class := normalizeCandidateClass(strField(m, "class"))
+			if class == "" {
+				continue
+			}
+			e := extractValEntity(item, class)
+			if e.id != "" || e.class == "intent" || len(e.relatedInvariants) > 0 || len(e.relatedFailureModes) > 0 || len(e.referencedFiles) > 0 {
+				doc.entities = append(doc.entities, e)
+			}
+		}
+	}
+
 	// uml_profiles overlay: each entry carries a target node id + uml fields.
 	// Validate the kind/view enums (refs are checked at the RDF layer).
 	if v, ok := raw["uml_profiles"].([]interface{}); ok {
@@ -738,7 +787,9 @@ func parseValYAMLDoc(path, repoRoot string) (*valYAMLDoc, error) {
 		if class != "" {
 			e := extractValEntity(raw, class)
 			e.id = id
-			doc.entities = append(doc.entities, e)
+			if e.id != "" || e.class == "intent" || len(e.relatedInvariants) > 0 || len(e.relatedFailureModes) > 0 || len(e.referencedFiles) > 0 {
+				doc.entities = append(doc.entities, e)
+			}
 		}
 	}
 
@@ -752,8 +803,10 @@ func extractValEntity(node interface{}, class string) valEntity {
 	}
 	e := valEntity{class: class}
 	if id, ok := m["id"].(string); ok {
-		e.id = id
+		e.id = strings.TrimSpace(id)
 	}
+	e.title = firstStringField(m, "title", "label")
+	e.statement = firstStringField(m, "intent", "statement", "claim", "summary")
 	e.severity = strField(m, "severity")
 	e.relatedInvariants = stringsField(m, "related_invariants")
 	e.relatedFailureModes = stringsField(m, "related_failure_modes")
@@ -817,9 +870,42 @@ func extractValEntity(node interface{}, class string) valEntity {
 	return e
 }
 
+func normalizeCandidateClass(class string) string {
+	switch strings.TrimSpace(class) {
+	case "intent":
+		return "intent"
+	case "invariant":
+		return "invariant"
+	case "failure_mode":
+		return "failure_mode"
+	case "forbidden_fix":
+		return "forbidden_fix"
+	case "required_test":
+		return "required_test"
+	case "boundary":
+		return "boundary"
+	case "component":
+		return "component"
+	case "contract":
+		return "contract"
+	default:
+		return ""
+	}
+}
+
+func firstStringField(m map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		if s := strField(m, k); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
 func valPathExists(sourceRoots []string, path string) bool {
 	seen := map[string]bool{}
 	var candidates []string
+	cleanPath := filepath.ToSlash(filepath.Clean(path))
 	for _, root := range sourceRoots {
 		if strings.TrimSpace(root) == "" {
 			continue
@@ -828,6 +914,11 @@ func valPathExists(sourceRoots []string, path string) bool {
 			filepath.Join(root, path),
 			filepath.Join(root, strings.TrimPrefix(path, "services/")),
 		)
+		for _, alias := range []string{"../awareness-graph/", "../services/"} {
+			if strings.HasPrefix(cleanPath, alias) {
+				candidates = append(candidates, filepath.Join(root, strings.TrimPrefix(cleanPath, alias)))
+			}
+		}
 	}
 	for _, c := range candidates {
 		if seen[c] {
@@ -865,6 +956,18 @@ func allGeneratedPaths(sources []string) bool {
 		}
 	}
 	return true
+}
+
+func localGenericDuplicate(scope validateScope, sources []string) bool {
+	if scope != validateScopeLocal {
+		return false
+	}
+	for _, s := range sources {
+		if classifyValidateOwner(s) == validateOwnerSharedGeneric {
+			return true
+		}
+	}
+	return false
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────

@@ -30,6 +30,54 @@ func TestResolvePromoteTarget_MetaPrinciple(t *testing.T) {
 	}
 }
 
+func TestArchitectureClaimCannotBePromotionTarget(t *testing.T) {
+	if _, ok := promoteClassToTarget["architecture_claim"]; ok {
+		t.Fatal("architecture_claim must not be a promotable candidate class")
+	}
+	if _, ok := promoteTargetToClass["architecture_claims.yaml"]; ok {
+		t.Fatal("architecture_claims.yaml must not be a promotion target")
+	}
+	if _, err := resolvePromoteTarget("", map[string]interface{}{"class": "architecture_claim"}); err == nil {
+		t.Fatal("architecture_claim promotion target unexpectedly resolved")
+	}
+}
+
+func TestOpenQuestionCannotBePromotionTarget(t *testing.T) {
+	if _, ok := promoteClassToTarget["open_question"]; ok {
+		t.Fatal("open_question must not be a promotable candidate class")
+	}
+	if _, ok := promoteTargetToClass["open_questions.yaml"]; ok {
+		t.Fatal("open_questions.yaml must not be a promotion target")
+	}
+	if _, err := resolvePromoteTarget("", map[string]interface{}{"class": "open_question"}); err == nil {
+		t.Fatal("open_question promotion target unexpectedly resolved")
+	}
+}
+
+func TestArchitectAnswerCannotBePromotionTarget(t *testing.T) {
+	if _, ok := promoteClassToTarget["architect_answer"]; ok {
+		t.Fatal("architect_answer must not be a promotable candidate class")
+	}
+	if _, ok := promoteTargetToClass["architect_answers.yaml"]; ok {
+		t.Fatal("architect_answers.yaml must not be a promotion target")
+	}
+	if _, err := resolvePromoteTarget("", map[string]interface{}{"class": "architect_answer"}); err == nil {
+		t.Fatal("architect_answer promotion target unexpectedly resolved")
+	}
+}
+
+func TestEvidenceProbeCannotBePromotionTarget(t *testing.T) {
+	if _, ok := promoteClassToTarget["evidence_probe"]; ok {
+		t.Fatal("evidence_probe must not be a promotable candidate class")
+	}
+	if _, ok := promoteTargetToClass["evidence_probes.yaml"]; ok {
+		t.Fatal("evidence_probes.yaml must not be a promotion target")
+	}
+	if _, err := resolvePromoteTarget("", map[string]interface{}{"class": "evidence_probe"}); err == nil {
+		t.Fatal("evidence_probe promotion target unexpectedly resolved")
+	}
+}
+
 // Only a meta.* id is dual-typed MetaPrinciple by the importer, so a
 // meta_principle candidate with any other id must be rejected before it can
 // land in the portable pack as a disguised invariant.

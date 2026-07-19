@@ -1,0 +1,19 @@
+closure_protocol_fixture:
+  name: stale
+  completion_policy:
+    policy_id: completion.architectural_closure.v1
+  expected:
+    terminally_closed: false
+    blocking_dimension: freshness
+  dimensions:
+    - {dimension: identity, status: pass}
+    - {dimension: scope, status: pass}
+    - {dimension: direction, status: pass}
+    - {dimension: authority, status: pass}
+    - {dimension: mutation, status: pass}
+    - {dimension: protection, status: pass}
+    - {dimension: epistemic, status: pass}
+    - {dimension: proof, status: pass}
+    - {dimension: freshness, status: stale, reason_codes: [evidence.receipt.expired]}
+    - {dimension: completion, status: pass}
+

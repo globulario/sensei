@@ -112,6 +112,66 @@ func TestPreflight_StoreUnavailableReturnsDegradedUnknownImpact(t *testing.T) {
 	}
 }
 
+func TestPreflight_UnknownRequestedDomainReturnsDegradedUnknownImpact(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return invariantFacts("known.rule", "Known rule", "high"), nil
+			},
+		},
+		domains: []string{"github.com/globulario/sensei"},
+	})
+	s.homeDomain = "github.com/globulario/sensei"
+
+	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+		Task:   "change audit",
+		Files:  []string{"cmd/awg/cmd_audit.go"},
+		Domain: "github.com/example/missing",
+	})
+	if err != nil {
+		t.Fatalf("Preflight should degrade, not hard-error: %v", err)
+	}
+	if resp.GetStatus() != awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED {
+		t.Fatalf("status=%s, want DEGRADED", resp.GetStatus())
+	}
+	if resp.GetRiskClass() != awarenesspb.RiskClass_UNKNOWN_IMPACT {
+		t.Fatalf("risk=%s, want UNKNOWN_IMPACT", resp.GetRiskClass())
+	}
+	if resp.GetConfidence() != awarenesspb.Confidence_CONFIDENCE_LOW {
+		t.Fatalf("confidence=%s, want LOW", resp.GetConfidence())
+	}
+	if !strings.Contains(strings.Join(resp.GetBlindSpots(), "\n"), "domain_scope_unverified") {
+		t.Fatalf("blind spots missing domain_scope_unverified: %v", resp.GetBlindSpots())
+	}
+}
+
+func TestPreflight_MissingDomainInMultiDomainGraphReturnsDegradedUnknownImpact(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		fakeStore: fakeStore{
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return invariantFacts("known.rule", "Known rule", "high"), nil
+			},
+		},
+		domains: []string{"github.com/globulario/sensei", "github.com/globulario/services"},
+	})
+	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+		Task:  "change audit",
+		Files: []string{"cmd/awg/cmd_audit.go"},
+	})
+	if err != nil {
+		t.Fatalf("Preflight should degrade, not hard-error: %v", err)
+	}
+	if resp.GetStatus() != awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED {
+		t.Fatalf("status=%s, want DEGRADED", resp.GetStatus())
+	}
+	if resp.GetRiskClass() != awarenesspb.RiskClass_UNKNOWN_IMPACT {
+		t.Fatalf("risk=%s, want UNKNOWN_IMPACT", resp.GetRiskClass())
+	}
+	if !strings.Contains(strings.Join(resp.GetBlindSpots(), "\n"), "domain_scope_unverified") {
+		t.Fatalf("blind spots missing domain_scope_unverified: %v", resp.GetBlindSpots())
+	}
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // 2. Task-only client task fires required_actions from pattern
 // ────────────────────────────────────────────────────────────────────────

@@ -45,7 +45,7 @@ code --install-extension globulario.sensei-awareness
 Or install a packaged build directly:
 
 ```sh
-code --install-extension sensei-awareness-0.1.0.vsix
+code --install-extension sensei-awareness-0.1.6.vsix
 ```
 
 You'll also need the `sensei` CLI itself — see the

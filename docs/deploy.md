@@ -24,7 +24,7 @@ lives in the `awg-oxigraph` volume and survives restarts.
 Verify it:
 
 ```bash
-AWG_ADDR=localhost:10120 sensei metadata     # coverage + freshness
+SENSEI_ADDR=localhost:10120 sensei metadata  # coverage + freshness
 ```
 
 ## 2. Install the client tools
@@ -35,22 +35,22 @@ curl -fsSL https://raw.githubusercontent.com/globulario/sensei/master/deploy/ins
 ```
 
 This installs `sensei` and `awareness-mcp` with Go into `$(go env GOBIN)` (or
-`$GOPATH/bin`). Point every client at the service with `AWG_ADDR` (or each
-command's `--addr`).
+`$GOPATH/bin`). Point every client at the service with `SENSEI_ADDR` (or each
+command's `--addr`). Legacy `AWG_ADDR` still works as a fallback.
 
 ## 3. Enable auth (optional, opt-in)
 
 By default the service is **open** — correct for a trusted local network or a
-single-host dev setup. To require a bearer token, set `AWG_TOKEN` for the
+single-host dev setup. To require a bearer token, set `SENSEI_TOKEN` for the
 service and give clients the **same** token:
 
 ```bash
 # service (deploy/.env or the environment):
-echo "AWG_TOKEN=$(openssl rand -hex 24)" > deploy/.env
+echo "SENSEI_TOKEN=$(openssl rand -hex 24)" > deploy/.env
 docker compose up -d
 
 # clients:
-export AWG_TOKEN=<the same token>
+export SENSEI_TOKEN=<the same token>
 sensei metadata                       # now authenticated
 ```
 
@@ -65,10 +65,10 @@ sensei metadata                       # now authenticated
 ## 4. Wire it to an agent
 
 - **CI gate:** see `docs/awg-gate.example.yml` (`sensei gate --enforce`), and
-  `AWG_EVENT_LOG` + `sensei evidence` for outcome tracking (`docs/awg-gate.example.yml`).
+  `SENSEI_EVENT_LOG` + `sensei evidence` for outcome tracking (`docs/awg-gate.example.yml`).
 - **Any agent over MCP:** run `awareness-mcp --awareness-addr localhost:10120`;
   every tool returns structured `structuredContent` (see Pillar 3.1).
 - **Pre-edit guard, any agent:** `sensei edit-guard --format exit-code`
   (`docs/awg-edit-guard-neutral.example.md`).
 
-All three honor `AWG_TOKEN`, so enabling auth secures the whole surface at once.
+All three honor `SENSEI_TOKEN`, so enabling auth secures the whole surface at once.

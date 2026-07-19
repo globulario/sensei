@@ -1,0 +1,50 @@
+mutation_paths:
+  - id: mutation_path.repository_edit
+    label: Governed repository edit
+    status: active
+    mechanism_kind: repository_edit
+    target_kinds:
+      - source_file
+      - governed_source
+
+  - id: mutation_path.generated_artifact_rebuild
+    label: Deterministic generated artifact rebuild
+    status: active
+    mechanism_kind: generated_artifact_rebuild
+    target_kinds:
+      - generated_artifact
+
+  # ── Phase 8.1a: architect-question disposition (owner transaction, not a file edit) ──
+  - id: mutation_path.question_disposition
+    label: Governed architect-question disposition
+    status: active
+    mechanism_kind: owner_rpc
+    target_kinds:
+      - architect_question
+
+  # ── Phase 8.1b: governed promotion (source mutation + deterministic rebuild) ──
+  - id: mutation_path.governed_promotion
+    label: Governed reusable-knowledge promotion
+    status: active
+    mechanism_kind: governed_workflow
+    target_kinds:
+      - governed_record
+
+  # ── Phase 8.1d: bounded question-resolution certification (owner RPC) ──
+  # Governs the owner-RPC emission of the read-only question-resolution
+  # certificate. It does not mutate governed source; it authorizes the isolated
+  # certification owner to write its bounded attestation artifact.
+  - id: mutation_path.question_resolution_certification
+    label: Bounded question-resolution certification
+    status: active
+    mechanism_kind: owner_rpc
+    target_kinds:
+      - question_resolution_certificate
+
+  # ── Phase 8.2b: terminal completion (governed workflow) ──
+  - id: mutation_path.terminal_completion
+    label: Governed terminal task completion
+    status: active
+    mechanism_kind: governed_workflow
+    target_kinds:
+      - task_completion

@@ -24,7 +24,14 @@ go run ./cmd/awareness-mcp -awareness-addr localhost:10120
 
 `sensei init --mcp` writes or merges the `sensei` MCP server into `.mcp.json` at
 your repo root, resolving the `awareness-mcp` bridge path for you. It never
-clobbers other servers or an existing `sensei` entry, so it is safe to re-run.
+clobbers other servers or an existing `sensei` entry, and it removes stale
+legacy `awg` / `awareness-graph` server entries so strict MCP clients do not
+keep trying the old client name. It is safe to re-run.
+
+`sensei init --mcp` also installs the built-in Sensei Architect skill unless you
+explicitly opt out with `--skills=false`. The skill uses MCP tools when this
+bridge is configured and falls back to equivalent `sensei` CLI commands when it
+is not.
 
 ## Generic MCP config snippet
 
@@ -34,7 +41,7 @@ launches stdio servers:
 ```json
 {
   "mcpServers": {
-    "awareness-graph": {
+    "sensei": {
       "command": "go",
       "args": [
         "run",
@@ -61,8 +68,8 @@ Notes:
 ## Tools exposed
 
 The bridge speaks JSON-RPC 2.0 over stdio using MCP-compatible
-`Content-Length` framing and exposes seven tools, one per gRPC
-RPC. Arguments mirror the request messages — see
+`Content-Length` framing and exposes eight tools. Arguments mirror the request
+messages — see
 [api-reference.md](./api-reference.md#mcp-bridge-awareness-mcp) for the full
 argument tables.
 
@@ -73,8 +80,9 @@ argument tables.
 | `awareness_preflight` | `task` | `files[]`, `mode`, `domain` |
 | `awareness_edit_check` | `file`, `proposed_content` | `domain` |
 | `awareness_resolve` | `class`, `id` | `domain` |
-| `awareness_query` | `mode` | `file`/`id`/`class`, `limit` |
-| `awareness_metadata` | — | — |
+| `awareness_query` | `mode` | `file`/`id`/`class`, `limit`, `domain` |
+| `awareness_metadata` | — | `domain` |
+| `awareness_propose` | `kind` | `title`, `contract`, `evidence[]`, `source_files[]`, related ids |
 
 `awareness_query` is typed/whitelisted only — there is no path to send raw
 SPARQL. Under Globular, the platform MCP server withholds `awareness_query`

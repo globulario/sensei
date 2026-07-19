@@ -213,7 +213,7 @@ Flags:
 		return 1
 	}
 	fmt.Println("\nTriggering rebuild...")
-	var rebuildArgs []string
+	rebuildArgs := []string{"--combined"}
 	if svcRepo != "" {
 		rebuildArgs = append(rebuildArgs, "--services-repo", svcRepo)
 	}
@@ -235,7 +235,7 @@ Flags:
 
 // runPromotionChecks fires the coherence gate after a promotion's rebuild so
 // "promotion -> rebuild -> checks" is one automatic action (WB-1): validate
-// (dangling refs / dup ids / missing sources) then audit -check (freshness +
+// (dangling refs / dup ids / missing sources) then audit --check (freshness +
 // coherence, incl. the seed-orphans gate). Mirrors the sensei learn harness so a
 // promoter gets the same fail-closed verdict without remembering separate
 // commands. Returns the first non-zero check code, or 0 when coherent.

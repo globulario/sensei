@@ -1,7 +1,38 @@
 # Changelog
 
+## 0.1.6
+
+- **Adds Phase 2: Closure & Control.** The project dashboard now separates
+  Project Awareness from architectural closure, dialogue, Evidence,
+  convergence, and admission state.
+- **Surfaces closure/control artifacts honestly.** Closure assessments,
+  convergence sessions, admission decisions, and verification receipts can be
+  selected from the workspace and rendered without treating missing artifacts as
+  safety.
+- **Adds Phase 2 graph browsing.** Architecture claims, open questions,
+  architect answers, and Evidence probes are visible through explicit graph
+  queries with non-authority / non-probative warnings.
+- **Keeps local operations guarded.** Read-only status commands are allowlisted;
+  no probe execution, test execution, automatic answers, automatic adjudication,
+  automatic convergence loops, graph mutation, or source mutation is added.
+
+## 0.1.5
+
+- **Rebuild follows the selected domain.** The dashboard rebuild action now
+  rebuilds the selected workspace domain as a single-repo graph, keeps combined
+  rebuilds for "All domains", and blocks selected foreign domains instead of
+  rebuilding the wrong graph.
+- **Rebuild finds the local Sensei binary from nested workspaces.** Opening
+  `editor/vscode` directly now still resolves the repo-root `bin/sensei`.
+- **Rebuild failures show the actual command error.** Non-zero CLI exits surface
+  stdout/stderr in the dashboard instead of only saying to check the log.
+
 ## 0.1.4
 
+- **Counts stay scoped after Rebuild/Promote.** The post-operation banner refresh
+  (and the before/after count summary) now query the same project domain as the
+  main banner, so a Rebuild or candidate Promote no longer flashes the counts
+  back to the whole multi-repo graph — they stay scoped to this repo.
 - **Rebuild rebuilds THIS repo's view, not a flattened graph.** The dashboard's
   Rebuild (combined mode) now passes `--tag-by-repo`, so a multi-repo rebuild
   tags each repo's nodes with its own domain (from its git remote) and the graph

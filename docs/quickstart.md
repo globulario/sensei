@@ -51,17 +51,25 @@ docs/awareness/
   activation_rules.yaml     # When briefing is required
   meta_principles.yaml      # 134 portable principles, 8 categories (seed)
 .sensei/config.yaml         # Sensei configuration
+.sensei/skills/sensei-architect/
+                            # Canonical bundled Sensei Architect skill
+.agents/skills/sensei-architect/
+                            # Codex / Agent Skills project skill
+.claude/skills/sensei-architect/
+                            # Claude Code project skill
 .claude/hooks/              # Claude Code enforcement + push hooks
 CLAUDE.md                   # Sensei section appended (existing content kept)
 AGENTS.md                   # Sensei section appended (Codex/Cursor/others)
-.cursor/rules/sensei.mdc    # Cursor rule
+.cursor/rules/sensei.mdc    # Cursor rule pointing to the canonical skill
 .mcp.json                   # Sensei MCP server merged in (only with --mcp)
 ```
 
 It's **additive and idempotent** — existing rules are preserved, re-running
 never duplicates, and other MCP servers are never clobbered. Toggle any surface
-with `--claude-md` / `--agents-md` / `--cursor` / `--hooks` (default on); `--mcp`
-is opt-in. Drop it to skip touching `.mcp.json`.
+with `--skills` / `--claude-md` / `--agents-md` / `--cursor` / `--hooks`
+(default on); `--mcp` is opt-in. Drop `--mcp` to skip touching `.mcp.json`.
+Use `--skills=false` to opt out. Local edits to managed skill copies are
+preserved with a notice unless you explicitly run `--skills-force`.
 
 ## Step 3: Define your high-risk files
 
@@ -181,6 +189,11 @@ example, but it would mix Sensei's own invariants into your briefings. With
 what `sensei build` compiled from your `docs/awareness/`, and the runtime marker +
 transaction pair tell Sensei that this local graph is the authoritative one to
 judge against.
+
+For Sensei's own embedded seed, `sensei serve` ignores a stray
+`.sensei/graph-authority.json` unless you pass `--graph-marker-file` explicitly.
+That keeps an old local runtime marker from overriding the embedded graph and
+making decision-support calls look stale.
 
 If you later reload a built `.nt` into a long-lived Oxigraph store, verify the
 store actually picked up the new graph:

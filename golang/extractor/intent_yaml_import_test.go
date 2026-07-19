@@ -93,6 +93,92 @@ status: extracted_candidate
 	}
 }
 
+func TestIntentUsesExplicitAdoptionProperties(t *testing.T) {
+	out, report := intentDir(t, map[string]string{
+		"intent_machine.yaml": `
+id: intent.router_middleware_order.abc123def0
+level: constraint
+title: Router middleware order
+intent: Router middleware order must be preserved.
+status: machine_adopted
+promotion_status: machine_adopted
+assertion_origin: model_inferred
+epistemic_status: supported
+architectural_plane: intended
+review_status: not_human_reviewed
+decision_actor: sensei.intent_mine
+decision_context: delegated_machine_adoption
+decision_policy: valid_strong_intent_v1
+decision_timestamp: "2026-07-14T05:00:00Z"
+valid_for_revision: "34dac209ffb6ef85cc78c5d217bbb7ad001d68fd"
+valid_for_graph_digest: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+adoption_basis:
+  - explicit test and source agreement
+source_receipts:
+  - file:router.go
+corroboration_kinds:
+  - source_file
+  - test
+revocation_conditions:
+  - router behavior changes
+`,
+	})
+
+	assertValidNT(t, out)
+	if len(report.Imported()) != 1 {
+		t.Fatalf("expected 1 imported file, got %d", len(report.Imported()))
+	}
+	for _, want := range []string{
+		rdf.IRI(rdf.PropStatus) + ` "machine_adopted"`,
+		rdf.IRI(rdf.PropPromotionStatus) + ` "machine_adopted"`,
+		rdf.IRI(rdf.PropAssertionOrigin) + ` "model_inferred"`,
+		rdf.IRI(rdf.PropEpistemicStatus) + ` "supported"`,
+		rdf.IRI(rdf.PropArchitecturalPlane) + ` "intended"`,
+		rdf.IRI(rdf.PropDecisionActor) + ` "sensei.intent_mine"`,
+		rdf.IRI(rdf.PropDecisionContext) + ` "delegated_machine_adoption"`,
+		rdf.IRI(rdf.PropDecisionPolicy) + ` "valid_strong_intent_v1"`,
+		rdf.IRI(rdf.PropDecisionTimestamp) + ` "2026-07-14T05:00:00Z"`,
+		rdf.IRI(rdf.PropReviewStatus) + ` "not_human_reviewed"`,
+		rdf.IRI(rdf.PropAdoptionBasis) + ` "explicit test and source agreement"`,
+		rdf.IRI(rdf.PropSourcePath) + ` "file:router.go"`,
+		rdf.IRI(rdf.PropCorroborationKind) + ` "test"`,
+		rdf.IRI(rdf.PropRevocationCondition) + ` "router behavior changes"`,
+		rdf.IRI(rdf.PropValidForCommit) + ` "34dac209ffb6ef85cc78c5d217bbb7ad001d68fd"`,
+		rdf.IRI(rdf.PropValidForGraphDigest) + ` "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing machine adoption receipt triple %s in:\n%s", want, out)
+		}
+	}
+	for _, forbidden := range []string{
+		rdf.IRI(rdf.PropDecision) + ` "delegated_machine_adoption"`,
+		rdf.IRI(rdf.PropSourceKind) + ` "valid_strong_intent_v1"`,
+		rdf.IRI(rdf.PropAcceptedBy) + ` "sensei.intent_mine"`,
+	} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("receipt leaked through unrelated legacy property %s in:\n%s", forbidden, out)
+		}
+	}
+}
+
+func TestDecisionContextIsNotEmittedThroughUnrelatedProperty(t *testing.T) {
+	out, _ := intentDir(t, map[string]string{
+		"intent.yaml": `
+id: intent.explicit_receipt
+level: constraint
+title: Explicit receipt
+intent: Receipt fields remain semantically typed.
+decision_context: project_reconstruction
+`,
+	})
+	if strings.Contains(out, rdf.IRI(rdf.PropDecision)+` "project_reconstruction"`) {
+		t.Fatalf("decision context was emitted through aw:decision:\n%s", out)
+	}
+	if !strings.Contains(out, rdf.IRI(rdf.PropDecisionContext)+` "project_reconstruction"`) {
+		t.Fatalf("explicit decision context triple missing:\n%s", out)
+	}
+}
+
 // TestPhaseC_Intent_HierarchyLinks pins that zooms_out_to, zooms_in_to, and
 // related_to produce object-property edges between intent nodes.
 func TestPhaseC_Intent_HierarchyLinks(t *testing.T) {

@@ -107,6 +107,8 @@ func TestImportFixture_KnownTriplesPresent(t *testing.T) {
 			"invariant must protect the named file (slash percent-encoded)"},
 		{`<https://globular.io/awareness#sourceFile/test%2Fexample.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/test.example.invariant>`,
 			"reverse implements edge must exist so impact can find invariants from a file"},
+		{`<https://globular.io/awareness#sourceFile/test%2Fexample.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/test.example.failure_mode>`,
+			"failure mode protects.files must materialize a direct source-file vulnerability edge for closure relevance"},
 
 		// {template} placeholder in etcd key — regression guard for the
 		// percent-encoding bug. The braces must be encoded as %7B / %7D.

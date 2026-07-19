@@ -41,13 +41,13 @@ code_edges:
   - from: globular.awareness_graph:code.go.extractor.ImportAwarenessYAMLs
     relation: tested_by
     to: golang/extractor/yaml_import_dir_test.go:TestImportDir_NoSilentSkip
-  - from: globular.awareness_graph:code.go.mcp.bridge.bridge_callTool
+  - from: globular.awareness_graph:code.go.mcp.bridge.completeTaskDelegate
     relation: enforces
     to: globular.awareness_graph:invariant.awareness.query.no_arbitrary_sparql
-  - from: globular.awareness_graph:code.go.mcp.bridge.bridge_callTool
+  - from: globular.awareness_graph:code.go.mcp.bridge.completeTaskDelegate
     relation: implements
     to: globular.awareness_graph:intent.awareness.mcp_bridge_exposes_safe_tools_only
-  - from: globular.awareness_graph:code.go.mcp.bridge.bridge_callTool
+  - from: globular.awareness_graph:code.go.mcp.bridge.completeTaskDelegate
     relation: protects
     to: globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
   - from: globular.awareness_graph:code.go.mcp.bridge.main

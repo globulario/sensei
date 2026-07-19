@@ -38,11 +38,41 @@ var ruleLang = regexp.MustCompile(`(?i)\b(must not|must|never|always|shall|do no
 var commentExts = map[string]bool{".go": true, ".ts": true, ".tsx": true, ".js": true, ".py": true, ".rs": true, ".java": true}
 var schemaExts = map[string]bool{".proto": true}
 
-// excerptSkipDirs are never walked (noise / vendored / generated).
+// excerptSkipDirs are never walked (noise / vendored / generated / Sensei's own
+// scaffolding). The `.sensei`/`.claude`/`.agents`/`.cursor` trees hold Sensei's
+// skill and rule surfaces — reading them would mine Sensei's own charter back as
+// if the target repo authored it.
 var excerptSkipDirs = map[string]bool{
 	".git": true, "vendor": true, "node_modules": true, "dist": true,
 	"build": true, "testdata": true, "third_party": true, "generated": true,
+	".sensei": true, ".claude": true, ".agents": true, ".cursor": true,
 }
+
+// senseiCorpusDirs are Sensei's own awareness/intent corpus, scaffolded into a
+// repo by `sensei bootstrap`. They are never the target repo's authored charter.
+var senseiCorpusDirs = map[string]bool{
+	"docs/awareness": true, "docs/intent": true,
+}
+
+// isSenseiCorpusDir reports whether rel is (or is under) a Sensei corpus dir.
+func isSenseiCorpusDir(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	for d := range senseiCorpusDirs {
+		if rel == d || strings.HasPrefix(rel, d+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// senseiSectionHeading matches the `## Sensei` heading that `appendSnippet` adds
+// to a repo's CLAUDE.md/AGENTS.md. Everything from it to the next same-or-higher
+// markdown heading is Sensei's appended charter, not the repo's own.
+var senseiSectionHeading = regexp.MustCompile(`(?i)^#{1,2}\s+Sensei\b`)
+
+// markdownH1OrH2 matches a level-1 or level-2 markdown heading (`# ` or `## `),
+// which closes a `## Sensei` section. Deeper headings (`### `) stay inside it.
+var markdownH1OrH2 = regexp.MustCompile(`^#{1,2}\s+\S`)
 
 const maxExcerptLen = 240
 
@@ -73,6 +103,9 @@ func GatherIntentExcerpts(repoRoot string, kinds []string, prComments []ReviewCo
 			}
 			if d.IsDir() {
 				if excerptSkipDirs[d.Name()] {
+					return filepath.SkipDir
+				}
+				if r, _ := filepath.Rel(repoRoot, path); isSenseiCorpusDir(r) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -113,11 +146,28 @@ func scanFile(path, rel, kind string) []IntentExcerpt {
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
 	line := 0
+	inSenseiSection := false
 	for sc.Scan() {
 		line++
 		t := strings.TrimSpace(sc.Text())
 		if t == "" {
 			continue
+		}
+		// In markdown, skip the `## Sensei` section that `sensei init` appends —
+		// it is Sensei's charter, not the repo's. Everything from that heading to
+		// the next H1/H2 heading (or EOF) is excluded.
+		if kind == "docs" {
+			if senseiSectionHeading.MatchString(t) {
+				inSenseiSection = true
+				continue
+			}
+			if inSenseiSection {
+				if markdownH1OrH2.MatchString(t) {
+					inSenseiSection = false
+				} else {
+					continue
+				}
+			}
 		}
 		if (kind == "comments" || kind == "schemas") && !isCommentLine(t) {
 			continue

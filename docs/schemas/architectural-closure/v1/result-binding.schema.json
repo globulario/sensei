@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/result-binding.schema.json",
+  "title": "Architectural Closure v1 Result Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "base_revision": {"type": "string"},
+    "patch_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result_tree_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result_revision": {"type": "string"},
+    "graph_digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "generated_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {"type": "string"},
+          "digest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "required": ["path", "digest_sha256"]
+      }
+    }
+  },
+  "required": ["base_revision", "patch_digest_sha256", "result_tree_digest_sha256", "graph_digest_sha256"]
+}

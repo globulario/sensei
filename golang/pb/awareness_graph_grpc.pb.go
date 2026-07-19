@@ -63,13 +63,16 @@ type AwarenessGraphClient interface {
 	// package/symbol walks) partition matches the existing services-repo
 	// analysis package contract.
 	Impact(ctx context.Context, in *ImpactRequest, opts ...grpc.CallOption) (*ImpactResponse, error)
-	// Query forwards raw SPARQL to the backend store. RBAC-gated to the
-	// awareness.admin role. Not for agent consumption — debugging and
-	// operator workflows only.
+	// Query exposes constrained typed graph browsing only. ArchitectureClaim,
+	// OpenQuestion, and ArchitectAnswer are available here only when explicitly
+	// requested; they remain non-authoritative and are not surfaced through
+	// Briefing, Impact, or Preflight.
 	Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error)
 	// Resolve fetches a single node by its annotation ID (e.g. "invariant:foo",
 	// "pat.bar"). Returns the node's triples plus any code-anchor provenance.
-	// This is the tool agents call after reading a // @invariant: X comment.
+	// This is the tool agents call after reading a // @invariant: X comment, or
+	// when explicitly inspecting a non-authoritative architecture_claim,
+	// open_question, or architect_answer.
 	Resolve(ctx context.Context, in *ResolveRequest, opts ...grpc.CallOption) (*ResolveResponse, error)
 	// Metadata returns coverage and freshness signals about the graph itself
 	// — not about any specific file. Agents call this at session start so
@@ -242,13 +245,16 @@ type AwarenessGraphServer interface {
 	// package/symbol walks) partition matches the existing services-repo
 	// analysis package contract.
 	Impact(context.Context, *ImpactRequest) (*ImpactResponse, error)
-	// Query forwards raw SPARQL to the backend store. RBAC-gated to the
-	// awareness.admin role. Not for agent consumption — debugging and
-	// operator workflows only.
+	// Query exposes constrained typed graph browsing only. ArchitectureClaim,
+	// OpenQuestion, and ArchitectAnswer are available here only when explicitly
+	// requested; they remain non-authoritative and are not surfaced through
+	// Briefing, Impact, or Preflight.
 	Query(context.Context, *QueryRequest) (*QueryResponse, error)
 	// Resolve fetches a single node by its annotation ID (e.g. "invariant:foo",
 	// "pat.bar"). Returns the node's triples plus any code-anchor provenance.
-	// This is the tool agents call after reading a // @invariant: X comment.
+	// This is the tool agents call after reading a // @invariant: X comment, or
+	// when explicitly inspecting a non-authoritative architecture_claim,
+	// open_question, or architect_answer.
 	Resolve(context.Context, *ResolveRequest) (*ResolveResponse, error)
 	// Metadata returns coverage and freshness signals about the graph itself
 	// — not about any specific file. Agents call this at session start so

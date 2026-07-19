@@ -7,7 +7,11 @@ package extractor
 // asserting the gate flags the shapes that would dilute the graph and passes
 // the ones that earn promotion.
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/globulario/sensei/golang/architecture/adoption"
+)
 
 func ruleSet(vs []PromotionViolation) map[string]bool {
 	out := map[string]bool{}
@@ -21,10 +25,10 @@ func ruleSet(vs []PromotionViolation) map[string]bool {
 // fails validation.
 func TestIntentPromotion_ActiveMissingLinksFails(t *testing.T) {
 	i := yamlIntent{
-		ID:     "x.candidate",
-		Level:  "principle",
-		Title:  "Some principle",
-		Status: "active",
+		ID:      "x.candidate",
+		Level:   "principle",
+		Title:   "Some principle",
+		Receipt: adoption.Receipt{Status: "active"},
 		// no activation_triggers, no bad_smells, no related links
 	}
 	got := ruleSet(validateIntentPromotion(i, "docs/intent/x.yaml"))
@@ -42,7 +46,7 @@ func TestIntentPromotion_WellFormedActivePasses(t *testing.T) {
 		ID:                 "x.good",
 		Level:              "principle",
 		Title:              "A grounded principle",
-		Status:             "active",
+		Receipt:            adoption.Receipt{Status: "active"},
 		ActivationTriggers: []string{"editing the thing"},
 		RelatedInvariants:  []string{"some.invariant"},
 	}
@@ -58,7 +62,7 @@ func TestIntentPromotion_BadSmellAndZoomEdgeSatisfy(t *testing.T) {
 		ID:         "x.smell",
 		Level:      "principle",
 		Title:      "Smell-driven",
-		Status:     "accepted",
+		Receipt:    adoption.Receipt{Status: "accepted"},
 		BadSmells:  []string{"the bad thing happens"},
 		ZoomsOutTo: []string{"x.parent"},
 	}
@@ -70,7 +74,7 @@ func TestIntentPromotion_BadSmellAndZoomEdgeSatisfy(t *testing.T) {
 // Candidate / seed status is not gated — those are deliberately un-promoted.
 func TestIntentPromotion_CandidateStatusNotGated(t *testing.T) {
 	for _, st := range []string{"extracted_candidate", "seed", "proposed", "learned_from_incident"} {
-		i := yamlIntent{ID: "x", Level: "principle", Title: "t", Status: st}
+		i := yamlIntent{ID: "x", Level: "principle", Title: "t", Receipt: adoption.Receipt{Status: st}}
 		if vs := validateIntentPromotion(i, "p.yaml"); len(vs) != 0 {
 			t.Errorf("status %q must not be gated, got %v", st, vs)
 		}
@@ -161,7 +165,7 @@ func TestPromotion_RetiredAllowedIncompleteButNotedWhenEmpty(t *testing.T) {
 		t.Errorf("deprecated pattern with a note should be allowed incomplete, got %v", vs)
 	}
 	// Deprecated intent that links a successor is allowed incomplete.
-	dep := yamlIntent{ID: "x.old", Level: "principle", Status: "deprecated", RelatedTo: []string{"x.new"}}
+	dep := yamlIntent{ID: "x.old", Level: "principle", Receipt: adoption.Receipt{Status: "deprecated"}, RelatedTo: []string{"x.new"}}
 	if vs := validateIntentPromotion(dep, "p.yaml"); len(vs) != 0 {
 		t.Errorf("deprecated intent linking a successor should pass, got %v", vs)
 	}

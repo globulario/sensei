@@ -84,9 +84,10 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 	} else {
 		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
-	// Attach the bearer token from $AWG_TOKEN when set, so every command that
-	// dials through this helper authenticates to an auth-enabled server with no
-	// per-command wiring. No-op when unset (trusted-network default).
+	// Attach the bearer token from $SENSEI_TOKEN, or legacy $AWG_TOKEN, when set
+	// so every command that dials through this helper authenticates to an
+	// auth-enabled server with no per-command wiring. No-op when unset
+	// (trusted-network default).
 	if cred := BearerToken(TokenFromEnv()); cred != nil {
 		grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(cred))
 	}

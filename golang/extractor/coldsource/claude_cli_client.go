@@ -36,12 +36,14 @@ type ClaudeCLIClient struct {
 // NewClaudeCLIClient locates the CLI and returns a client. model may be an awg
 // model id (e.g. "claude-opus-4-8"); it is mapped to a CLI-friendly value.
 func NewClaudeCLIClient(model string) (*ClaudeCLIClient, error) {
-	bin := findClaudeCLIBinary()
+	bin := findClaudeCLI()
 	if bin == "" {
 		return nil, ErrNoClaudeCLI
 	}
 	return &ClaudeCLIClient{Binary: bin, Model: mapModelForCLI(model)}, nil
 }
+
+var findClaudeCLI = findClaudeCLIBinary
 
 // findClaudeCLIBinary resolves the `claude` binary from PATH, then the same
 // well-known install locations ai-executor checks.
@@ -94,6 +96,7 @@ func (c *ClaudeCLIClient) Complete(ctx context.Context, req LLMRequest) (string,
 		"--print",
 		"--output-format", "json",
 		"--no-session-persistence",
+		"--tools", "",
 		"--model", c.Model,
 	}
 	if s := strings.TrimSpace(req.System); s != "" {

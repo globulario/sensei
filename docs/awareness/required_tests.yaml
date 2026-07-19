@@ -70,3 +70,734 @@ required_tests:
         - golang/server/preflight.go
         - golang/server/implementation_patterns.go
         - golang/server/briefing.go
+
+  - id: golang/extractor/promotion_proposal_test.go:TestPromotionDoesNotAutoActivate
+    title: Generated promotion proposals stay candidates and never become active automatically
+    protects:
+      invariants:
+        - awareness.architecture_claims_non_authoritative_until_promoted
+      files:
+        - golang/extractor/promotion_proposal.go
+
+  - id: golang/server/realized_contracts_test.go:TestBriefingSpine_CandidateIsReviewOnlyNeverAuthority
+    title: Briefing spine reports candidates as review-only and never as authority
+    protects:
+      invariants:
+        - awareness.architecture_claims_non_authoritative_until_promoted
+      files:
+        - golang/server/realized_contracts.go
+
+  - id: golang/extractor/coldsource/draft_llm_test.go:TestLLMDrafter_FabricatedCitationRejected
+    title: LLM drafted candidates with fabricated citations are rejected
+    protects:
+      invariants:
+        - awareness.inference_requires_addressable_evidence
+      files:
+        - golang/extractor/coldsource/draft_llm.go
+
+  - id: golang/extractor/coldsource/intent_extract_test.go:TestIntentCage_RejectsFabricated
+    title: Intent extraction rejects fabricated evidence references
+    protects:
+      invariants:
+        - awareness.inference_requires_addressable_evidence
+      files:
+        - golang/extractor/coldsource/intent_grounding.go
+
+  - id: golang/extractor/coldsource/intent_grounding_test.go:TestIntent_UngroundedClaim
+    title: Ungrounded intent claims remain visible as ungrounded rather than becoming authority
+    protects:
+      invariants:
+        - awareness.inference_requires_addressable_evidence
+      files:
+        - golang/extractor/coldsource/intent_grounding.go
+
+  - id: golang/server/preflight_test.go:TestPreflight_StoreUnavailableReturnsDegradedUnknownImpact
+    title: Preflight reports store unavailability as degraded unknown impact
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      files:
+        - golang/server/preflight.go
+
+  - id: golang/server/risk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown
+    title: Insufficient coverage classifies risk as unknown instead of safe
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      files:
+        - golang/server/risk_classify.go
+
+  - id: golang/extractor/runtime_evidence_yaml_import_test.go:TestRuntimeEvidenceRequiresFreshness
+    title: Runtime evidence import requires freshness metadata
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      files:
+        - golang/extractor/runtime_evidence_yaml_import.go
+
+  - id: golang/server/metadata_domain_test.go:TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount
+    title: Domain-scoped metadata does not fall back to graph-wide counts
+    protects:
+      invariants:
+        - awareness.closure_is_revision_scope_and_task_bound
+      files:
+        - golang/server/metadata.go
+
+  - id: golang/server/main_test.go:TestGraphBackedRPCs_SuccessResponsesCarryCurrentAuthority
+    title: Graph-backed RPC success responses carry current graph authority
+    protects:
+      invariants:
+        - awareness.closure_is_revision_scope_and_task_bound
+      files:
+        - golang/server/main.go
+
+  - id: cmd/awg/graph_refresh_test.go:TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
+    title: Reloading the graph replaces stale triples rather than preserving them
+    protects:
+      invariants:
+        - awareness.closure_is_revision_scope_and_task_bound
+      files:
+        - cmd/awg/graph_refresh_test.go
+
+  - id: cmd/awg/cmd_propose_test.go:TestApplyProposal_ContractUnknownGoesToCandidatesNoRebuild
+    title: Contract unknown proposals go to candidates without rebuilding active awareness
+    protects:
+      invariants:
+        - awareness.architect_answers_are_typed_scoped_candidates
+      files:
+        - cmd/awg/cmd_propose.go
+
+  - id: golang/extractor/coldsource/harness_review_test.go:TestEmitCandidate_ForcesCandidateStatus
+    title: Cold-source candidate emission forces candidate status
+    protects:
+      invariants:
+        - awareness.architect_answers_are_typed_scoped_candidates
+      files:
+        - golang/extractor/coldsource/emit.go
+
+  - id: golang/extractor/runtime_evidence_yaml_import_test.go:TestRuntimeEvidenceDoesNotBecomeAuthority
+    title: Runtime evidence does not become active authority
+    protects:
+      invariants:
+        - awareness.architect_answers_are_typed_scoped_candidates
+      files:
+        - golang/extractor/runtime_evidence_yaml_import.go
+
+  - id: cmd/awg/cmd_propose_test.go:TestValidateProposal_ContractUnknownRequiresProposalOrRevision
+    title: Contract unknown proposals require proposed contract text or a revision
+    protects:
+      invariants:
+        - awareness.open_questions_remain_visible_until_resolved
+      files:
+        - cmd/awg/cmd_propose.go
+
+  - id: cmd/awg/cmd_feedback_check_test.go:TestEvaluateFeedbackGap_ContractUnknownCountsAsFeedback
+    title: Contract unknown proposals count as feedback for unresolved gaps
+    protects:
+      invariants:
+        - awareness.open_questions_remain_visible_until_resolved
+      files:
+        - cmd/awg/cmd_feedback_check.go
+
+  - id: golang/server/change_impact_test.go:TestImpactPlanningReportsUnknowns
+    title: Impact planning reports unresolved unknowns
+    protects:
+      invariants:
+        - awareness.open_questions_remain_visible_until_resolved
+      files:
+        - golang/server/change_impact.go
+  # ── Phase 8: terminal architectural closure — govern-first structural test (Slice 8.0) ──
+  - id: golang/coverage/phase8_contract_test.go:TestPhase8GovernedContractPresent
+    title: The Phase-8 terminal-architectural-closure governed contract is present, schema-valid, and coverage-bound
+    protects:
+      failure_modes:
+        - closure.accepted_answer_stranded_outside_governed_promotion
+        - closure.dialogue_answer_mistaken_for_governed_truth
+        - closure.unauthorized_stale_or_contradictory_promotion
+        - closure.task_local_answer_leaks_into_global_briefing
+        - closure.graph_rebuilt_without_question_answer_provenance
+        - closure.status_blind_unresolved_question_computation
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+        - closure.duplicate_promotion_or_duplicate_completion
+        - closure.partial_governed_source_or_graph_commit
+        - closure.caller_supplied_disposition_terminal_status_or_correctness
+      files:
+        - docs/awareness/invariants.yaml
+        - docs/awareness/failure_modes.yaml
+        - docs/awareness/forbidden_fixes.yaml
+  # ── Phase 8.1a: behavioral bindings for the question-disposition owner ──
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestBoundaryProofNoLaterPhaseOrGovernedMutation
+    title: A recorded disposition advances no lifecycle phase and mutates no governed or certification truth
+    protects:
+      failure_modes:
+        - closure.caller_supplied_disposition_terminal_status_or_correctness
+        - closure.task_local_answer_leaks_into_global_briefing
+      files:
+        - golang/architecture/questiondisposition/record.go
+        - golang/architecture/questiondisposition/payload.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestMissingDispositionGrantFailsClosed
+    title: A disposition requires a resolved question-disposition grant, not a dialogue answer's existence
+    protects:
+      failure_modes:
+        - closure.dialogue_answer_mistaken_for_governed_truth
+      files:
+        - golang/architecture/questiondisposition/prepare.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestAnsweredTaskLocalReevaluatesAndContains
+    title: A task-local answer is confined to its task and never enters governed sources
+    protects:
+      failure_modes:
+        - closure.task_local_answer_leaks_into_global_briefing
+      files:
+        - golang/architecture/questiondisposition/prepare.go
+        - golang/architecture/questiondisposition/state.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestConflictingSecondIsContestedNeverOverwrites
+    title: A conflicting second disposition is contested with both immutable records preserved, computed status-aware
+    protects:
+      failure_modes:
+        - closure.status_blind_unresolved_question_computation
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/questiondisposition/record.go
+        - golang/architecture/questiondisposition/state.go
+  - id: golang/architecture/questiondisposition/fault_test.go:TestPostCommitErrorThenRetryRecovers
+    title: A durable disposition entry with a failed projection recovers with no second event
+    protects:
+      failure_modes:
+        - closure.partial_governed_source_or_graph_commit
+      files:
+        - golang/architecture/questiondisposition/record.go
+  # ── Phase 8.1b: govern-first structural gate ──
+  - id: golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
+    title: The Phase-8.1b governed-promotion contract is present, schema-valid, and coverage-bound
+    protects:
+      failure_modes:
+        - closure.promotion_journal_mistaken_for_governed_truth
+        - closure.incomplete_source_commit_reported_governed
+        - closure.graph_verified_against_wrong_source_world
+        - closure.duplicate_attempt_or_record_on_retry
+        - closure.contradictory_canonical_id_overwritten
+        - closure.receipt_authoritative_before_projection_verified
+        - closure.repo_graph_confused_with_combined_seed
+        - closure.promotion_event_leaks_into_task_projection
+        - closure.offline_query_diverges_from_graph_owner
+      files:
+        - docs/awareness/invariants.yaml
+        - docs/awareness/failure_modes.yaml
+        - docs/awareness/forbidden_fixes.yaml
+        - docs/awareness/authority_grants.yaml
+  # ── Phase 8.1b: behavioral bindings for the governed-promotion transaction ──
+  - id: golang/architecture/questionpromotion/final_test.go:TestAuthorityNonCollapse
+    title: No single durable artifact (journal, source, graph, marker, receipt) establishes reusable truth alone
+    protects:
+      failure_modes:
+        - closure.promotion_journal_mistaken_for_governed_truth
+        - closure.receipt_authoritative_before_projection_verified
+      files:
+        - golang/architecture/questionpromotion/conjunctive.go
+        - golang/architecture/questionpromotion/drive.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestCrashWindow3_SourceEventDurableGraphAbsent
+    title: A durable source mutation without verified graph is promotion_incomplete and recovers, never reported governed
+    protects:
+      failure_modes:
+        - closure.incomplete_source_commit_reported_governed
+      files:
+        - golang/architecture/questionpromotion/drive.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestGraphTamperFailsClosedOnReplay
+    title: A graph built from a different or tampered source world fails closed, never promoted
+    protects:
+      failure_modes:
+        - closure.graph_verified_against_wrong_source_world
+      files:
+        - golang/architecture/repograph/build.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestConcurrentIdenticalSingleCommit
+    title: Retry and concurrent identical promotions resume one attempt and record exactly one commit
+    protects:
+      failure_modes:
+        - closure.duplicate_attempt_or_record_on_retry
+      files:
+        - golang/architecture/questionpromotion/promote.go
+        - golang/architecture/questionpromotion/journal.go
+  - id: golang/architecture/questionpromotion/matrix_test.go:TestContradictoryProposalRefused
+    title: A same-id different-semantics governed record is a typed contradiction, never overwritten
+    protects:
+      failure_modes:
+        - closure.contradictory_canonical_id_overwritten
+      files:
+        - golang/architecture/governedmutation/apply.go
+  - id: golang/architecture/repograph/repograph_test.go:TestNoEmbeddedSeedMutation
+    title: The repository-scoped graph owner never writes the combined embedded seed
+    protects:
+      failure_modes:
+        - closure.repo_graph_confused_with_combined_seed
+      files:
+        - golang/architecture/repograph/build.go
+  - id: golang/architecture/questionpromotion/final_test.go:TestPromotionWritesNoCertificationOrCompletion
+    title: The promotion journal never enters task phase/status/certification/completion truth
+    protects:
+      failure_modes:
+        - closure.promotion_event_leaks_into_task_projection
+      files:
+        - golang/architecture/questionpromotion/journal.go
+  - id: golang/architecture/repograph/repograph_test.go:TestStoreAdapterParityWithGraphsnapshot
+    title: The offline provenance query matches the canonical graph-reader semantics
+    protects:
+      failure_modes:
+        - closure.offline_query_diverges_from_graph_owner
+      files:
+        - golang/architecture/repograph/store_adapter.go
+  # ── Phase 8.1c: only re-proven committed promotions enter binding briefing context ──
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingConsumesRelevantPromotion
+    title: A task briefing surfaces only independently re-proven, scope-relevant committed governed promotions
+    protects:
+      failure_modes:
+        - closure.task_local_answer_leaks_into_global_briefing
+        - closure.promotion_journal_mistaken_for_governed_truth
+      files:
+        - golang/architecture/tasksession/briefing_promotion.go
+        - golang/architecture/questionpromotion/consume.go
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesTamperedPromotionWithFinding
+    title: A stale/tampered/incomplete promotion is excluded from binding briefing context with a typed integrity finding
+    protects:
+      failure_modes:
+        - closure.receipt_authoritative_before_projection_verified
+        - closure.graph_verified_against_wrong_source_world
+      files:
+        - golang/architecture/questionpromotion/consume.go
+        - golang/architecture/questionpromotion/conjunctive.go
+  # ── Phase 8.1d: bounded question-resolution summary + certification gate ──
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateBlockedOnReusableWithoutPromotion
+    title: The bounded gate fails closed when a reusable answer lacks a valid committed promotion or a binding question is unresolved
+    protects:
+      invariants:
+        - closure.certification_requires_verified_question_resolution_summary
+        - closure.no_blocking_question_satisfied_by_omission
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/questionresolution/certify.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateBlockedOnTamperedPromotion
+    title: The bounded gate excludes a tampered promotion with a typed integrity finding and fails closed
+    protects:
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+        - closure.unauthorized_stale_or_contradictory_promotion
+      files:
+        - golang/architecture/questionresolution/summarize.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateNeverAssertsCorrectnessOrCompletion
+    title: The bounded certificate never asserts correctness or completion and appends no Phase-6 certified/completed event
+    protects:
+      failure_modes:
+        - closure.caller_supplied_disposition_terminal_status_or_correctness
+      files:
+        - golang/architecture/questionresolution/model.go
+        - golang/architecture/questionresolution/certify.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestCertifyIsDeterministicAndIdempotent
+    title: The bounded gate is deterministic and replay-idempotent on an unchanged world, appending no additional file or ledger event
+    protects:
+      failure_modes:
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/questionresolution/persist.go
+  - id: golang/architecture/questionresolution/summarize_test.go:TestSummaryExactPerQuestionStates
+    title: The question-resolution summary computes exact typed per-question states with preserved provenance, never a blind status
+    protects:
+      failure_modes:
+        - closure.status_blind_unresolved_question_computation
+      files:
+        - golang/architecture/questionresolution/summarize.go
+  # ── Phase 8.2a: read-only terminal-completion readiness evaluator ──
+  - id: golang/architecture/completion/readiness_test.go:TestAssessReadyWhenBothCertificatesPresent
+    title: Readiness is ready only when correctness and question-resolution evidence and freshness all hold
+    protects:
+      invariants:
+        - closure.completion_readiness_is_read_only_evidence_conjunction
+      files:
+        - golang/architecture/completion/readiness.go
+  - id: golang/architecture/completion/readiness_test.go:TestAssessDoesNotAssertCompletion
+    title: The readiness evaluator asserts no terminal completion and appends no completed event
+    protects:
+      invariants:
+        - closure.completion_readiness_is_read_only_evidence_conjunction
+      failure_modes:
+        - closure.readiness_evaluation_asserts_or_performs_completion
+      files:
+        - golang/architecture/completion/readiness.go
+  - id: golang/architecture/completion/assess_test.go:TestAssessReadyRequiresEveryObligation
+    title: Readiness fails closed unless every required completion obligation is satisfied
+    protects:
+      failure_modes:
+        - closure.readiness_evaluation_asserts_or_performs_completion
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/completion/readiness.go
+  # ── Phase 8.2b: authoritative terminal-completion mutation ──
+  - id: golang/architecture/completion/complete_test.go:TestCompleteExactReplay
+    title: An exact re-completion appends no second completed event and reports the terminal state
+    protects:
+      invariants:
+        - closure.completed_tasks_are_terminal_and_replay_idempotent
+      failure_modes:
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/completion/complete.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteConcurrentSingleWinner
+    title: Concurrent completion attempts yield at most one authoritative completion
+    protects:
+      failure_modes:
+        - closure.duplicate_promotion_or_duplicate_completion
+      files:
+        - golang/architecture/completion/complete.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteRefusesMissingQR
+    title: Completion fails closed when the readiness conjunction is unsatisfied, writing nothing
+    protects:
+      invariants:
+        - closure.completion_requires_closed_current_question_loop
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/completion/complete.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteTamperedReceiptFailsVerification
+    title: A completed event whose receipt is tampered fails verification; a receipt alone is not completion
+    protects:
+      failure_modes:
+        - closure.certification_or_completion_over_unresolved_or_stale_promotion
+      files:
+        - golang/architecture/completion/complete.go
+  # ── Phase 8.2c: durable terminal-state reconstruction and recovery ──
+  - id: golang/architecture/completion/inspect_test.go:TestInspectTamperedReceipt
+    title: A tampered receipt is reconstructed as an integrity failure, never a completion
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      failure_modes:
+        - closure.recovery_blesses_residue_or_normalizes_contradiction
+      files:
+        - golang/architecture/completion/inspect.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectGovernedDriftAfterCompletion
+    title: Governed drift after completion is reported distinctly and never alters the historical receipt
+    protects:
+      failure_modes:
+        - closure.recovery_blesses_residue_or_normalizes_contradiction
+      files:
+        - golang/architecture/completion/inspect.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectDeterministicAndSideEffectFree
+    title: Reconstruction is deterministic and writes no authoritative truth
+    protects:
+      invariants:
+        - closure.terminal_recovery_rebuilds_derived_state_only
+      files:
+        - golang/architecture/completion/inspect.go
+        - golang/architecture/completion/recover.go
+  # ── Phase 8.2d: end-to-end completion closure ──
+  - id: golang/architecture/completion/integration_test.go:TestClosureTamperingBreaksClosure
+    title: Tampering any bound component cannot produce authoritative end-to-end closure
+    protects:
+      invariants:
+        - closure.authoritative_completion_iff_whole_durable_conjunction
+      failure_modes:
+        - closure.phase8_report_or_integration_treated_as_completion_authority
+      files:
+        - golang/architecture/completion/integration.go
+  - id: golang/architecture/completion/integration_test.go:TestClosureAuthoritySeparation
+    title: Completion authority is disjoint and projection recovery never appends a completed fact
+    protects:
+      failure_modes:
+        - closure.phase8_report_or_integration_treated_as_completion_authority
+      files:
+        - golang/architecture/completion/integration.go
+  - id: golang/architecture/completion/integration_test.go:TestPhase8ClosureReportContract
+    title: The Phase-8 closure report enumerates all owners and terminal states and keeps the three closure claims distinct
+    protects:
+      invariants:
+        - closure.authoritative_completion_iff_whole_durable_conjunction
+      files:
+        - golang/architecture/completion/closure_report.go
+  # ── Phase 9.1: canonical read-only completion projection ──
+  - id: golang/architecture/completion/projection_test.go:TestProjectionSummaryPreservesAllStatesAndVerdicts
+    title: The canonical completion rendering preserves every terminal state and closure verdict without fallback collapse
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      failure_modes:
+        - closure.completion_surface_collapses_or_remaps_terminal_state
+      files:
+        - golang/architecture/completion/projection.go
+  - id: golang/architecture/completion/projection_test.go:TestProjectionZeroMutation
+    title: Building the canonical completion projection performs zero mutation
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      files:
+        - golang/architecture/completion/projection.go
+
+  # ── Phase 8/9 architectural-closure proof obligations ──────────────────────
+  # Canonical anchors for the closure invariants' cited required_tests. Defined
+  # here (not allowlisted in dangling_refs_baseline.tsv) because they are
+  # executable internal proof obligations, not cite-only external references.
+  - id: golang/architecture/certification/evaluate_test.go:TestEvaluate_ForgedRecordIsRefusedNotScored
+    title: A forged certification record is refused, never scored
+    protects:
+      invariants:
+        - closure.only_certification_engine_establishes_correctness
+      files:
+        - golang/architecture/certification/evaluate_test.go
+  - id: cmd/awg/cmd_bootstrap_test.go:TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository
+    title: sync-bootstrap installs agent awareness scaffolding for a pre-existing repository
+    protects:
+      failure_modes:
+        - failure.import.preexisting_awareness_skips_agent_scaffold
+      files:
+        - cmd/awg/cmd_bootstrap_test.go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSkipsDraftGovernedDirectionalRecords
+    title: infer-claims skips draft governed directional records
+    protects:
+      invariants:
+        - awareness.governed_direction_records_must_be_claim_consumable
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - cmd/awg/cmd_infer_claims_test.go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph
+    title: infer-claims synthesizes governed directional claims from the graph
+    protects:
+      invariants:
+        - awareness.governed_direction_records_must_be_claim_consumable
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - cmd/awg/cmd_infer_claims_test.go
+  - id: golang/architecture/evidencereceipt/coverage_test.go:TestEvaluateCoverage
+    title: Evidence coverage evaluation is deterministic across profiles
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/evidencereceipt/coverage_test.go
+  - id: golang/architecture/proofdischarge/discharge_test.go:TestRow9a_MandatedRuntimeStaticTestNoReceipt
+    title: Mandated runtime evidence with a static test and no receipt does not discharge
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/proofdischarge/discharge_test.go
+  - id: golang/architecture/proofdischarge/discharge_test.go:TestRow9b_MandatedRuntimeStaticTestWithReceipt
+    title: Mandated runtime evidence with a static test and a receipt discharges
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/proofdischarge/discharge_test.go
+  - id: golang/architecture/proofdischarge/discharge_test.go:TestRow9c_NonMandatedRuntimeStaticTestNotApplicable
+    title: Non-mandated runtime evidence for a static test is not-applicable, not a failure
+    protects:
+      invariants:
+        - closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate
+      files:
+        - golang/architecture/proofdischarge/discharge_test.go
+  - id: golang/architecture/closure/model_test.go:TestClosureRequestFileRepresentedByCanonicalSourceFileIRI
+    title: A closure request file is represented by its canonical source-file IRI
+    protects:
+      invariants:
+        - awareness.authored_knowledge_sources_are_governable_repository_files
+      files:
+        - golang/architecture/closure/model_test.go
+  - id: golang/architecture/closure/model_test.go:TestFailureModeBlockerClearsWhenSourceFileIsVulnerableToFailureMode
+    title: A failure-mode blocker clears only when the source file is genuinely vulnerable
+    protects:
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - golang/architecture/closure/model_test.go
+  - id: golang/architecture/closure/model_test.go:TestUnrepresentedFileRemainsOpen
+    title: An unrepresented file remains open, never silently closed
+    protects:
+      invariants:
+        - awareness.authored_knowledge_sources_are_governable_repository_files
+      files:
+        - golang/architecture/closure/model_test.go
+  - id: golang/architecture/closureprotocol/fixtures_test.go:TestFixtures
+    title: Closure-protocol golden fixtures round-trip and validate
+    protects:
+      invariants:
+        - closure.no_verdict_improves_by_omitting_a_weakening_computation
+      files:
+        - golang/architecture/closureprotocol/fixtures_test.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteHappyPath
+    title: Terminal completion commits when the whole durable conjunction holds
+    protects:
+      invariants:
+        - closure.completion_requires_closed_current_question_loop
+      files:
+        - golang/architecture/completion/complete_test.go
+  - id: golang/architecture/completion/complete_test.go:TestCompleteMutatesNoUpstreamTruth
+    title: Terminal completion mutates no governed, certification, or dialogue truth
+    protects:
+      invariants:
+        - closure.completion_never_mutates_governed_or_certification_truth
+      files:
+        - golang/architecture/completion/complete_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectAndRecoverProjectionLoss
+    title: Recovery rebuilds a lost projection from the valid durable conjunction only
+    protects:
+      invariants:
+        - closure.terminal_recovery_rebuilds_derived_state_only
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectCommittedAfterRestart
+    title: Committed terminal state is reconstructed from durable owners after restart
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectDuplicateCompleted
+    title: Duplicate completed events reconstruct as contradictory terminal history, never committed
+    protects:
+      invariants:
+        - closure.terminal_recovery_rebuilds_derived_state_only
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectEventWithoutReceipt
+    title: A completed event without a valid receipt reconstructs as broken, not completed
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/inspect_test.go:TestInspectReceiptWithoutEvent
+    title: A receipt without a completed event reconstructs as residue, not completion
+    protects:
+      invariants:
+        - closure.terminal_state_reconstructed_only_from_durable_conjunction
+      files:
+        - golang/architecture/completion/inspect_test.go
+  - id: golang/architecture/completion/integration_test.go:TestClosureHappyPath
+    title: End-to-end authoritative completion holds iff the whole durable conjunction re-verifies
+    protects:
+      invariants:
+        - closure.authoritative_completion_iff_whole_durable_conjunction
+      files:
+        - golang/architecture/completion/integration_test.go
+  - id: golang/architecture/completion/projection_test.go:TestProjectionDisclaimsAuthority
+    title: The completion projection disclaims terminal authority and repository-wide perfection
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      files:
+        - golang/architecture/completion/projection_test.go
+  - id: golang/architecture/completion/projection_test.go:TestProjectionNonAuthoritativeWorlds
+    title: The completion projection stays non-authoritative across all terminal-state worlds
+    protects:
+      invariants:
+        - closure.completion_projection_is_the_single_canonical_read_view
+      files:
+        - golang/architecture/completion/projection_test.go
+  - id: golang/architecture/completion/readiness_test.go:TestAssessDeterministicAndNoSideEffects
+    title: Readiness assessment is deterministic and free of side effects
+    protects:
+      invariants:
+        - closure.completion_readiness_is_read_only_evidence_conjunction
+      files:
+        - golang/architecture/completion/readiness_test.go
+  - id: golang/architecture/questiondisposition/e2e_test.go:TestE2EAnsweredReusableRecordsAndProjects
+    title: An answered reusable question is recorded and projected by its disposition owner
+    protects:
+      invariants:
+        - closure.only_question_disposition_owner_records_question_outcomes
+      files:
+        - golang/architecture/questiondisposition/e2e_test.go
+  - id: golang/architecture/questiondisposition/matrix_test.go:TestDismissedIsDurableAndDoesNotEraseQuestion
+    title: A dismissed question is durable and is never erased by omission
+    protects:
+      invariants:
+        - closure.no_blocking_question_satisfied_by_omission
+      files:
+        - golang/architecture/questiondisposition/matrix_test.go
+  - id: golang/architecture/questionpromotion/final_test.go:TestEndToEndIdentityCrosslinks
+    title: Promotion identity cross-links hold end-to-end; the receipt is written only after the projection verifies
+    protects:
+      invariants:
+        - closure.promotion_receipt_only_after_projection_verified
+      files:
+        - golang/architecture/questionpromotion/final_test.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateBlockedOnUnresolvedBindingQuestion
+    title: The certification gate is blocked while a binding question is unresolved
+    protects:
+      invariants:
+        - closure.certification_requires_verified_question_resolution_summary
+      files:
+        - golang/architecture/questionresolution/certify_test.go
+  - id: golang/architecture/questionresolution/certify_test.go:TestGateSatisfiedByPromotionAndTaskLocal
+    title: The certification gate is satisfied by committed promotion plus task-local resolution
+    protects:
+      invariants:
+        - closure.certification_requires_verified_question_resolution_summary
+      files:
+        - golang/architecture/questionresolution/certify_test.go
+  - id: golang/architecture/taskcontrol/project_test.go:TestCompressionAccountingBalances
+    title: Task-control projection compression accounting balances
+    protects:
+      failure_modes:
+        - failure.sensei.flat_task_closure_output_hides_the_load_bearing_next_action
+      files:
+        - golang/architecture/taskcontrol/project_test.go
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingNeverSurfacesTaskLocal
+    title: Repository briefings never surface task-local answers
+    protects:
+      invariants:
+        - closure.task_local_answers_never_enter_repository_briefings
+      files:
+        - golang/architecture/tasksession/briefing_promotion_test.go
+  - id: golang/architecture/tasksession/session_test.go:TestAdvanceTaskRunsOneAtomicGenerationAndReplays
+    title: advance-task runs one atomic generation and replays idempotently
+    protects:
+      failure_modes:
+        - failure.sensei.flat_task_closure_output_hides_the_load_bearing_next_action
+      files:
+        - golang/architecture/tasksession/session_test.go
+  - id: golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    title: The Phase-9 governed contract (invariants, failure modes, forbidden fixes, high-risk coverage) is present
+    protects:
+      invariants:
+        - closure.phase9_surfaces_consume_completion_truth_never_reinterpret_it
+        - closure.phase9_invocation_surfaces_only_delegate_to_the_owner
+        - closure.phase9_projections_are_not_terminal_authority
+        - closure.phase9_preserves_the_three_completion_distinctions
+        - closure.phase9_surfaces_locked_until_a_reviewed_slice
+      files:
+        - golang/coverage/phase9_contract_test.go
+  - id: golang/extractor/yaml_import_test.go:TestImportFixture_KnownTriplesPresent
+    title: YAML import emits the known triples for the fixture corpus
+    protects:
+      failure_modes:
+        - closure.governed_knowledge_present_but_non_consumable
+      files:
+        - golang/extractor/yaml_import_test.go
+  - id: golang/server/architecture_dialogue_server_test.go:TestQueryByClassArchitectAnswer
+    title: The server resolves ArchitectAnswer nodes by class query
+    protects:
+      failure_modes:
+        - failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+      files:
+        - golang/server/architecture_dialogue_server_test.go
+  - id: golang/server/architecture_dialogue_server_test.go:TestQueryByClassOpenQuestion
+    title: The server resolves OpenQuestion nodes by class query
+    protects:
+      failure_modes:
+        - failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+      files:
+        - golang/server/architecture_dialogue_server_test.go
+  - id: golang/server/architecture_evidence_probe_server_test.go:TestQueryByClassEvidenceProbe
+    title: The server resolves EvidenceProbe nodes by class query
+    protects:
+      failure_modes:
+        - failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar
+      files:
+        - golang/server/architecture_evidence_probe_server_test.go
+  - id: golang/architecture/evidencereceipt/validate_test.go:TestValidate
+    title: Evidence receipts are validated, not self-certified
+    protects:
+      invariants:
+        - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+      files:
+        - golang/architecture/evidencereceipt/validate_test.go

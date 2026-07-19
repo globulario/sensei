@@ -4,6 +4,7 @@ package coldsource
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -90,6 +91,7 @@ func TestMaterialize_RoutesByKind(t *testing.T) {
 		"pr:42:7":          "prs",
 	}
 	d := intentDraft{
+		Title:           "Preserve desired ownership",
 		Claim:           "x",
 		SourceCitations: []string{"file:docs/a.md:1", "file:b.go:2", "file:c_test.go:3", "commit:deadbeef", "pr:42:7"},
 		CodeAnchors:     []string{"file:impl.go", "file:impl_test.go"},
@@ -105,6 +107,76 @@ func TestMaterialize_RoutesByKind(t *testing.T) {
 	}
 	if c.Status != "candidate" || !c.ExtractedByLLM {
 		t.Errorf("materialized candidate must be status=candidate, extracted")
+	}
+}
+
+func TestMaterialize_MintsHostOwnedIntentID(t *testing.T) {
+	kind := map[string]string{"file:README.md:1": "docs"}
+	d := intentDraft{
+		IntentID:        "intent.",
+		Title:           "Preserve route tree consistency across serving paths",
+		Claim:           "The route tree must stay consistent across serving paths.",
+		Category:        "api-contract",
+		SourceCitations: []string{"file:README.md:1"},
+		CodeAnchors:     []string{"file:gin.go", "file:tree.go"},
+	}
+	c1 := materialize(d, kind)
+	c2 := materialize(d, kind)
+	if c1.IntentID == "intent." {
+		t.Fatalf("materialize reused model-provided id: %q", c1.IntentID)
+	}
+	if !ValidIntentID(c1.IntentID) {
+		t.Fatalf("minted id is invalid: %q", c1.IntentID)
+	}
+	if !strings.HasPrefix(c1.IntentID, "intent.preserve_route_tree_consistency_across_serving_paths.") {
+		t.Fatalf("minted id lost readable title slug: %q", c1.IntentID)
+	}
+	if c1.IntentID != c2.IntentID {
+		t.Fatalf("same candidate minted different ids: %q vs %q", c1.IntentID, c2.IntentID)
+	}
+
+	d.Claim = "A different semantic proposition must not reuse the old id."
+	c3 := materialize(d, kind)
+	if c3.IntentID == c1.IntentID {
+		t.Fatalf("changed semantic proposition reused id %q", c1.IntentID)
+	}
+}
+
+func TestLLMIntentDrafter_AcceptsTopLevelCandidateArray(t *testing.T) {
+	ex := []IntentExcerpt{{
+		Kind:     "docs",
+		Citation: "file:README.md:1",
+		Text:     "Router middleware order must be preserved.",
+	}}
+	reply := `[{"intent_id":"model-owned","title":"Router middleware order","claim":"Router middleware order must be preserved.","category":"api-contract","source_citations":["file:README.md:1"],"code_anchors":["file:README.md"]}]`
+
+	drafts, err := LLMIntentDrafter{Client: fakeLLM{reply: reply}, Max: 1}.DraftIntents(context.Background(), ex)
+	if err != nil {
+		t.Fatalf("DraftIntents: %v", err)
+	}
+	if len(drafts) != 1 {
+		t.Fatalf("drafts=%d, want 1", len(drafts))
+	}
+	cands, rejected, err := DraftAndCageIntents(context.Background(), LLMIntentDrafter{Client: fakeLLM{reply: reply}, Max: 1}, ex, 1)
+	if err != nil {
+		t.Fatalf("DraftAndCageIntents: %v", err)
+	}
+	if rejected != 0 || len(cands) != 1 {
+		t.Fatalf("rejected=%d cands=%d, want 0/1", rejected, len(cands))
+	}
+	if cands[0].IntentID == "model-owned" || !strings.HasPrefix(cands[0].IntentID, "intent.router_middleware_order.") {
+		t.Fatalf("candidate id was not host-owned: %q", cands[0].IntentID)
+	}
+}
+
+func TestValidIntentIDRejectsMalformedPrefixIDs(t *testing.T) {
+	for _, id := range []string{"intent.", "intent..router", "intent.-router", "intent.router.", "intent._router"} {
+		if ValidIntentID(id) {
+			t.Fatalf("ValidIntentID(%q) = true, want false", id)
+		}
+	}
+	if !ValidIntentID("intent.router_consistency.a1b2c3d4e5") {
+		t.Fatal("valid intent id was rejected")
 	}
 }
 
@@ -147,5 +219,51 @@ func TestExtract_EndToEnd_Echo(t *testing.T) {
 	}
 	if !sawGrounded {
 		t.Error("expected at least one candidate to ground at >= landed_behavior (real code/proto/test anchors exist)")
+	}
+}
+
+// TestGatherExcludesSenseiScaffolding proves the intent gatherer never mines
+// Sensei's own scaffolded charter as if the target repo authored it: the
+// `## Sensei` section appended to CLAUDE.md/AGENTS.md, the awareness/intent
+// corpus, and the .sensei/.claude/.agents/.cursor skill trees are all excluded,
+// while the repo's own charter in those same files is still read.
+func TestGatherExcludesSenseiScaffolding(t *testing.T) {
+	dir := t.TempDir()
+
+	// A repo CLAUDE.md with the repo's OWN rule, then Sensei's appended section.
+	writeFile(t, dir, "CLAUDE.md",
+		"# Project\nThe scheduler must never run two jobs for one lease.\n\n"+
+			"## Sensei\n\nChanges must be surgical: touch only what the task requires.\n"+
+			"### Rules\nRequired tests must pass before commit.\n")
+	// AGENTS.md that is ONLY Sensei's section (as `sensei init` creates it fresh).
+	writeFile(t, dir, "AGENTS.md",
+		"## Sensei\nYou must consult the awareness graph. Never bypass authority.\n")
+	// Sensei's scaffolded corpus + a skill file, all rule-dense.
+	writeFile(t, dir, "docs/awareness/invariants.yaml",
+		"# invariants\n- title: must never drop the seed\n")
+	writeFile(t, dir, ".claude/skills/sensei-architect/SKILL.md",
+		"You must block on contract violations. Never treat EMPTY as safe.\n")
+
+	ex := GatherIntentExcerpts(dir, []string{"docs", "comments", "schemas", "tests"}, nil, 0)
+
+	var repoOwn bool
+	for _, e := range ex {
+		if strings.Contains(e.Text, "scheduler must never run two jobs") {
+			repoOwn = true
+		}
+		for _, leak := range []string{
+			"Changes must be surgical",
+			"Required tests must pass",
+			"consult the awareness graph",
+			"must never drop the seed",
+			"block on contract violations",
+		} {
+			if strings.Contains(e.Text, leak) {
+				t.Errorf("Sensei scaffolding leaked into intent excerpts via %s: %q", e.Citation, e.Text)
+			}
+		}
+	}
+	if !repoOwn {
+		t.Fatal("repo's own charter line (before the ## Sensei section) was not gathered")
 	}
 }

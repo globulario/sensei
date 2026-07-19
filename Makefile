@@ -362,12 +362,9 @@ principle-check-all: principle-check principle-check-workflow-service principle-
 
 # ── Sensei standalone CLI ───────────────────────────────────────────
 
-# Build the standalone sensei CLI binary. Also installs the deprecated `awg`
-# alias (same binary; invoking it as awg prints a deprecation notice) so CI
-# scripts and muscle memory keep working for one release.
+# Build the standalone sensei CLI binary.
 sensei-cli:
 	go build -ldflags "-X main.Version=$(SERVICE_VERSION)" -o ./bin/sensei ./cmd/awg
-	cp ./bin/sensei ./bin/awg
 
 # Backwards-compatible alias for the CLI-only build.
 awg-cli: sensei-cli
@@ -405,14 +402,14 @@ awg-smoke: sensei-smoke
 # drops *_test.go symbols, which are already modeled as Test nodes and would
 # otherwise collide with the curated code_symbols.
 #
-# scip-go is used from PATH when present, else fetched via `go run`. Non-Go
-# repos: run the matching indexer to produce index.scip, then `make scip`
-# (SKIP_INDEX=1 reuses an existing index).
+# scip-go is invoked through `go run` so generation is not affected by a stale
+# or incompatible PATH binary. Non-Go repos: run the matching indexer to produce
+# index.scip, then `make scip` (SKIP_INDEX=1 reuses an existing index).
 SCIP_REPO ?= .
 SCIP_GO ?= go run github.com/scip-code/scip-go/cmd/scip-go@latest
 scip: sensei-cli
 ifneq ($(SKIP_INDEX),1)
-	cd $(SCIP_REPO) && ( command -v scip-go >/dev/null 2>&1 && scip-go --output index.scip || $(SCIP_GO) --output index.scip )
+	cd $(SCIP_REPO) && $(SCIP_GO) index --output index.scip
 endif
 	./bin/sensei scip-ingest --scip $(SCIP_REPO)/index.scip --exclude-tests --out $(SCIP_REPO)/docs/awareness/generated
 	mv $(SCIP_REPO)/docs/awareness/generated/code_symbols.yaml $(SCIP_REPO)/docs/awareness/generated/awareness_graph_scip_symbols.yaml

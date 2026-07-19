@@ -134,6 +134,40 @@ code_symbols:
 	}
 }
 
+func TestDescribeAwarenessSourceAcceptsCanonicalComponentRegistry(t *testing.T) {
+	root := makeDir(t, map[string]string{
+		"docs/awareness/architecture/components.yaml": "components:\n  - id: component.demo\n    name: Demo\n",
+	})
+	desc, ok, err := extractor.DescribeAwarenessSource(filepath.Join(root, "docs/awareness/architecture/components.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !desc.CanonicalMutationEligible {
+		t.Fatalf("descriptor=%+v ok=%v", desc, ok)
+	}
+	if desc.SourceClass != "canonical_awareness_component_registry" || desc.ImporterID != "awareness.component_yaml_import.v1" {
+		t.Fatalf("descriptor=%+v", desc)
+	}
+}
+
+func TestDescribeAwarenessSourceRejectsGeneratedComponents(t *testing.T) {
+	root := makeDir(t, map[string]string{
+		"docs/awareness/generated/components.yaml": "components:\n  - id: component.generated\n    name: Generated\n",
+	})
+	if _, ok, err := extractor.DescribeAwarenessSource(filepath.Join(root, "docs/awareness/generated/components.yaml")); err != nil || ok {
+		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+}
+
+func TestDescribeAwarenessSourceRejectsTaskLocalKnowledge(t *testing.T) {
+	root := makeDir(t, map[string]string{
+		".sensei/project/knowledge/local.yaml": "authority_domains:\n  - id: authority.local\n    label: Local\n",
+	})
+	if _, ok, err := extractor.DescribeAwarenessSource(filepath.Join(root, ".sensei/project/knowledge/local.yaml")); err != nil || ok {
+		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+}
+
 // TestImportDir_KnownUnsupportedReported verifies that files with recognized
 // but not-yet-implemented schemas appear in the report with StatusKnownUnsupported
 // and a non-empty reason, and do NOT produce any triples.

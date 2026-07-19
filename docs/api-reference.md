@@ -58,7 +58,7 @@ rely on them:
 
 ## Service: `AwarenessGraph`
 
-Seven RPCs. Default listen address `:10120` (gRPC). In standalone mode the
+Nine RPCs. Default listen address `:10120` (gRPC). In standalone mode the
 transport is plaintext gRPC; under Globular it is cluster mTLS with etcd
 service discovery.
 
@@ -71,6 +71,8 @@ service discovery.
 | [`Resolve`](#resolve) | one node | follow a referenced id | yes |
 | [`Query`](#query) | typed rows | operator/debug browse | yes |
 | [`Metadata`](#metadata) | graph-level counts | session bootstrap | yes |
+| [`Propose`](#propose) | review-queue candidate | durable agent feedback | yes |
+| `ReferenceSites` | inbound code-symbol references | completeness tooling | yes |
 
 ---
 
@@ -242,10 +244,11 @@ Accepted `class` values (authoritative whitelist is `resolveIRIForClassAndID`
 in `golang/server/resolve.go`): `invariant`, `failure_mode`,
 `incident_pattern`, `intent`, `source_file`, `symbol`, `code_symbol`,
 `forbidden_fix`, `test`, `meta_principle`, `component`, `boundary`, `contract`,
-`decision`, `evidence`. A class outside the list returns `InvalidArgument`
-rather than guessing. `meta_principle` resolves the dual-typed `meta.*`
-invariant node. These are the same tokens `QueryRow.class` returns, so a
-class-qualified id like `incident_pattern:pat.foo` splits directly into
+`decision`, `evidence`, `proof_obligation`, `proof_slot`, `design_pattern`,
+`implementation_pattern`, `pattern_misuse`. A class outside the list returns
+`InvalidArgument` rather than guessing. `meta_principle` resolves the dual-typed
+`meta.*` invariant node. These are the same tokens `QueryRow.class` returns, so
+a class-qualified id like `incident_pattern:pat.foo` splits directly into
 `(class, id)`.
 
 **`ResolveResponse`**: `node` (`KnowledgeNode`, set when `found`) · `found`
@@ -267,6 +270,7 @@ awareness.admin role under Globular; intended for operator/debug workflows.
 | `id` | string | class-qualified; required for `BY_ID` and `RELATED` |
 | `class` | `QueryClass` | required for `BY_CLASS` |
 | `limit` | int32 | optional; server enforces bounds |
+| `domain` | string | optional repo/domain scope for `BY_CLASS` / `BY_FILE`; empty follows server scope rules |
 
 (The old `sparql` and `accept` fields are **reserved** — they cannot appear on
 the wire.)
@@ -278,7 +282,15 @@ the id points at).
 **`QueryClass`**: `INVARIANT`, `FAILURE_MODE`, `INCIDENT_PATTERN`, `INTENT`,
 `SYMBOL`, `SOURCE_FILE`, `CODE_SYMBOL`, `FORBIDDEN_FIX`, `TEST`,
 `META_PRINCIPLE`, `COMPONENT`, `BOUNDARY`, `CONTRACT`, `DECISION`, `EVIDENCE`,
-`DESIGN_PATTERN`, `IMPLEMENTATION_PATTERN`, `PATTERN_MISUSE`.
+`DESIGN_PATTERN`, `IMPLEMENTATION_PATTERN`, `PATTERN_MISUSE`,
+`ARCHITECTURE_CLAIM`, `OPEN_QUESTION`, `ARCHITECT_ANSWER`.
+
+`ARCHITECTURE_CLAIM`, `OPEN_QUESTION`, and `ARCHITECT_ANSWER` are
+non-authoritative and explicit-query-only. An OpenQuestion records uncertainty,
+not truth or closure. An ArchitectAnswer records exact human input, not observed
+behavior or governed architecture; `accepted_for_question` only resolves the
+question artifact and does not promote architecture. Evidence pointers are
+unverified literals until converted to Evidence.
 
 **`QueryResponse`**: `rows` (`QueryRow`[]) · `generated_in_ms`. Each `QueryRow`
 carries `id`, `class`, `label`, `severity`, `status`, `relation` (set in
@@ -294,7 +306,8 @@ once at session start to disambiguate an `EMPTY` briefing: "graph well-covered,
 no rule here" vs "graph thin everywhere, empty means nothing." Cheap (bounded
 SPARQL).
 
-**`MetadataRequest`**: empty.
+**`MetadataRequest`**: optional `domain` scope for per-class counts. Empty
+returns graph-wide totals.
 
 **`MetadataResponse`** (selected fields):
 
@@ -330,6 +343,27 @@ project root): `candidate_queue_state` + `local_candidate_file_count` /
 `local_candidate_entry_count` (from `docs/awareness/candidates/`);
 `benchmark_state` + `benchmark_contract_count` / `benchmark_learning_event_count`
 / `benchmark_latest_*` (from `eval/multi-swe-bench/`).
+
+---
+
+### Propose
+
+Submits one typed feedback entry to the review queue. It is the agent write
+path, but it is a safe write: it validates the proposal and writes a candidate
+under `docs/awareness/candidates/`; it does not mutate the live graph and does
+not promote candidate knowledge into active authority.
+
+**`ProposeRequest`** selected fields: `kind` (`failure_mode`, `invariant`,
+`required_test`, `forbidden_fix`, `contract_unknown`), `id`, `title`,
+`description`, `severity`, `source_files[]`, `related_invariants[]`,
+`related_failures[]`, `required_tests[]`, `forbidden_fixes[]`, `evidence[]`,
+`repo`, `domain`, `contract`, `proposed_contract`, `revision_request`.
+
+**`ProposeResponse`**: `status`, `candidate_path`, `node_ids[]`,
+`validation_errors[]`, `note`, `generated_in_ms`.
+
+Servers without a configured candidates directory return Unavailable. Treat that
+as unavailable feedback, not as "no lesson needed."
 
 ---
 
@@ -384,7 +418,7 @@ The standalone bridge connects with **plaintext gRPC** (no mTLS). MCP protocol:
 `initialize` handshake → `tools/list` → `tools/call` (`name` + `arguments`).
 JSON-RPC notifications (no `id`) are ignored per spec.
 
-**Tools** — one per gRPC RPC; arguments mirror the request messages:
+**Tools** — safe agent-facing tools; arguments mirror the request messages:
 
 | MCP tool | gRPC RPC | Required args | Optional args |
 |---|---|---|---|
@@ -393,8 +427,19 @@ JSON-RPC notifications (no `id`) are ignored per spec.
 | `awareness_preflight` | `Preflight` | `task` | `files[]`, `mode` (`compact`/`standard`), `domain` |
 | `awareness_edit_check` | `EditCheck` | `file`, `proposed_content` | `domain` |
 | `awareness_resolve` | `Resolve` | `class`, `id` | `domain` |
-| `awareness_query` | `Query` | `mode` | `file`/`id`/`class` (per mode), `limit` |
-| `awareness_metadata` | `Metadata` | — | — |
+| `awareness_query` | `Query` | `mode` | `file`/`id`/`class` (per mode), `limit`, `domain` |
+| `awareness_metadata` | `Metadata` | — | `domain` |
+| `awareness_propose` | `Propose` | `kind` | `title`, `contract`, `evidence[]`, `source_files[]`, related ids |
+| `task_status` | local task artifacts | `repo` | `task`, `detail` (`compact`/`full`) |
+| `advance_task` | local task artifacts | `repo` | `task`, `observed_at`, `max_probes` |
+| `task_briefing` | local task artifacts | `repo`, `file` | `task` |
+| `admit_change` | local convergence bundle | `bundle_dir`, `request_path`, `graph_nt`, `repo` | `policy`, `detail` |
+| `verify_admission` | local admission bundle | `decision_path`, `bundle_dir`, `repo` | `detail` |
+
+The task tools do not call the gRPC service. They use the same typed local
+packages as the CLI. `advance_task` is the only state-changing task tool and is
+restricted to the closed static-read probe registry plus one convergence
+iteration.
 
 The bridge enforces a **safe-tools-only whitelist** in `callTool()` and
 validates `awareness_query`'s `mode`/`class` against fixed enums — there is no

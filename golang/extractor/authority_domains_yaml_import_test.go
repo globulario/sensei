@@ -60,14 +60,24 @@ authority_domains:
       - example manifest
     may_write:
       - example service via workflow
+    may_write_role_ids:
+      - role.repository_repair_agent
     may_read:
       - controller
+    may_read_role_ids:
+      - role.repository_reader
     must_mutate_via:
       - example typed RPC
+    must_mutate_via_ids:
+      - mutation_path.repository_edit
     must_read_via:
       - example resolver RPC
+    must_read_via_ids:
+      - observation_path.repository_read
     observes_via:
       - example probe
+    observes_via_ids:
+      - observation_path.repository_probe
     forbids_bypass:
       - object presence as truth
     evidence_freshness: must be fresher than one sweep
@@ -85,10 +95,15 @@ authority_domains:
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropCoversPath)+` "golang/example/example_server/"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropOwnsState)+` "example manifest"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMayWrite)+` "example service via workflow"`)
+	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMayWriteRoleID)+` "role.repository_repair_agent"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMayRead)+` "controller"`)
+	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMayReadRoleID)+` "role.repository_reader"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMustMutateVia)+` "example typed RPC"`)
+	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMustMutateViaID)+` "mutation_path.repository_edit"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMustReadVia)+` "example resolver RPC"`)
+	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMustReadViaID)+` "observation_path.repository_read"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropObservesVia)+` "example probe"`)
+	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropObservesViaID)+` "observation_path.repository_probe"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropForbidsBypass)+` "object presence as truth"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropHasEvidenceFreshnessWindow)+` "must be fresher than one sweep"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropComment)+` "Context line."`)

@@ -99,6 +99,7 @@ const (
 // human, or a YAML file) and must be grounded before it is trusted.
 type IntentCandidate struct {
 	IntentID              string   `yaml:"intent_id"`
+	Title                 string   `yaml:"title,omitempty"`
 	Claim                 string   `yaml:"claim"`
 	Category              string   `yaml:"category"`
 	Sources               Sources  `yaml:"sources"`  // WHERE it was stated (T3–T5)

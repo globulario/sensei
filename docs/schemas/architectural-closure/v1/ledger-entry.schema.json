@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/ledger-entry.schema.json",
+  "title": "Architectural Closure v1 Ledger Entry",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sequence": {"type": "integer"},
+    "previous_entry_digest_sha256": {"type": "string"},
+    "event_type": {"$ref": "common.schema.json#/$defs/ledger_event_type"},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "session_id": {"type": "string"},
+        "iteration_digest_sha256": {"type": "string"}
+      },
+      "required": ["id", "session_id"]
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "media_type": {"type": "string"},
+        "digest_sha256": {"type": "string"}
+      },
+      "required": ["path", "media_type", "digest_sha256"]
+    },
+    "producer": {"type": "string"},
+    "produced_at": {"type": "string"},
+    "entry_digest_sha256": {"type": "string"}
+  },
+  "required": ["sequence", "event_type", "task", "payload", "producer", "produced_at"]
+}

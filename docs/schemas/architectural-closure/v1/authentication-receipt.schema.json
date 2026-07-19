@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globular.io/sensei/schemas/architectural-closure/v1/authentication-receipt.schema.json",
+  "title": "Architectural Closure v1 Authentication Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "receipt_id": {"type": "string"},
+    "principal_id": {"type": "string"},
+    "issuer": {"type": "string"},
+    "authentication_artifact": {"$ref": "common.schema.json#/$defs/artifact_ref"},
+    "authenticated_at": {"type": "string"},
+    "expires_at": {"type": "string"},
+    "status": {"$ref": "common.schema.json#/$defs/receipt_status"},
+    "receipt_digest_sha256": {"type": "string"}
+  },
+  "required": [
+    "receipt_id",
+    "principal_id",
+    "issuer",
+    "authentication_artifact",
+    "authenticated_at",
+    "status"
+  ]
+}
