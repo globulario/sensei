@@ -1240,11 +1240,14 @@
 <https://globular.io/awareness#forbiddenFix/add_second_package_identity_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
 <https://globular.io/awareness#forbiddenFix/aggregate_scoped_value_into_global_without_aggregation_function> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/alias_bundle_sha_into_entrypoint_sha_variable> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/allow_a_caller_supplied_class_or_enum_where_a_closed_constructor_belongs> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/approval_token_replayed_after_successful_execution> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/approval_validity_assumed_durable_across_failover> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/assign_identity_digest_or_render_before_validating> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/assume_installed_means_running> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/bootstrap_flag_persists_without_clearing_path> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/cli_bulk_apply_state_via_direct_etcd_writes> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/collapse_distinct_failure_conditions_into_one_empty_observable> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <http://www.w3.org/2000/01/rdf-schema#comment> "generated/ is a derived workspace validated against registry/metadata; authority stays in packages" .
 <https://globular.io/awareness#forbiddenFix/consume_generated_workspace_as_release_authority> <http://www.w3.org/2000/01/rdf-schema#label> "consume the generated workspace as release authority" .
@@ -1254,7 +1257,9 @@
 <https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <http://www.w3.org/2000/01/rdf-schema#comment> "regenerate generated/ at the sanctioned boundary (regenerate-release-inputs.sh / --full-regenerate); never delete mid-flow" .
 <https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <http://www.w3.org/2000/01/rdf-schema#label> "delete generated/ mid-flow without regenerating" .
 <https://globular.io/awareness#forbiddenFix/delete_generated_mid_flow_without_regeneration> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/drop_or_nil_a_field_on_error_instead_of_returning_a_typed_unavailable_result> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/escalation_state_kept_in_memory_only> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/fabricate_a_real_or_terminal_state_to_avoid_reporting_unavailable> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/fall_back_to_alternative_action_on_workflow_step_failure> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/filter_out_vip_in_node_identity_ips> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.absorb_tls_error_into_timeout> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
@@ -1311,12 +1316,15 @@
 <https://globular.io/awareness#forbiddenFix/forbidden.fabricate_identity_from_secondary_observation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.fast_decision_on_slow_signal_without_staleness_check> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.feature_with_only_platform_native_mode> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden.find_first_as_uniqueness_proof> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden.find_latest_as_cardinality_proof> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.fire_and_forget_goroutine_on_error_path> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.handler_reads_workflow_runs_to_reconstruct_engine_state> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.hardcoded_string_translation_between_name_forms> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.high_cardinality_metric_labels_to_compensate_for_missing_events> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.high_volume_emit_without_consumer_for_full_rate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.hot_deploy_local_binary_as_break_glass> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden.ignore_duplicate_authoritative_facts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.infer_coverage_from_result_count> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.jwt_verified_once_per_connection_for_persistent_streams> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.last_write_wins_by_physical_timestamp_without_version_vector> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
@@ -1518,6 +1526,7 @@
 <https://globular.io/awareness#forbiddenFix/phase9_treat_projection_or_closure_report_as_completion_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/closure.phase9_projections_are_not_terminal_authority> .
 <https://globular.io/awareness#forbiddenFix/phase9_treat_projection_or_closure_report_as_completion_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
 <https://globular.io/awareness#forbiddenFix/read_per_instance_metric_as_global_without_label_filter> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/rely_on_an_optional_validate_helper_instead_of_enforcing_at_construction> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <http://www.w3.org/2000/01/rdf-schema#comment> "dist/bin is transient staging; binaries are compiled fresh each build" .
 <https://globular.io/awareness#forbiddenFix/restore_dist_bin_as_long_lived_authority_path> <http://www.w3.org/2000/01/rdf-schema#label> "restore dist/bin as a long-lived authority path" .
@@ -3265,6 +3274,17 @@
 <https://globular.io/awareness#invariant/meta.exception_must_have_reason_owner_and_expiry> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.fail_safe_defaults_when_authority_is_uncertain> .
 <https://globular.io/awareness#invariant/meta.exception_must_have_reason_owner_and_expiry> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.exception_must_have_reason_owner_and_expiry> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <http://www.w3.org/2000/01/rdf-schema#label> "Existence does not prove cardinality — finding one matching fact is not proof that exactly one exists" .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.find_first_as_uniqueness_proof> .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.find_latest_as_cardinality_proof> .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.ignore_duplicate_authoritative_facts> .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.identity_computation_must_be_invariant> .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.fail_safe_defaults_when_authority_is_uncertain> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.fail_safe_defaults_when_authority_is_uncertain> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.fail_safe_defaults_when_authority_is_uncertain> <http://www.w3.org/2000/01/rdf-schema#label> "When the authority decision cannot be made, the default is REFUSE — never 'allow because we could not check'" .
@@ -3545,6 +3565,18 @@
 <https://globular.io/awareness#invariant/meta.observability_must_match_decision_horizon> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.metric_aggregation_destroys_actionable_signal> .
 <https://globular.io/awareness#invariant/meta.observability_must_match_decision_horizon> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.observability_must_match_decision_horizon> <https://globular.io/awareness#status> "candidate" .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <http://www.w3.org/2000/01/rdf-schema#label> "Absence is still a mapping — omitting a field after a failure silently collapses distinct states into one" .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/collapse_distinct_failure_conditions_into_one_empty_observable> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/drop_or_nil_a_field_on_error_instead_of_returning_a_typed_unavailable_result> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/fabricate_a_real_or_terminal_state_to_avoid_reporting_unavailable> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.absence_scope_must_be_explicit> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.fallback_must_degrade_semantics> .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.partition_response_must_be_predeclared> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.partition_response_must_be_predeclared> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.partition_response_must_be_predeclared> <http://www.w3.org/2000/01/rdf-schema#label> "An actor's response to network partition must be decided BEFORE the partition occurs — choosing in the moment is the bug" .
@@ -4222,6 +4254,18 @@
 <https://globular.io/awareness#invariant/meta.uniform_naming_reduces_conceptual_load> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.storage_is_not_semantic_authority> .
 <https://globular.io/awareness#invariant/meta.uniform_naming_reduces_conceptual_load> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.uniform_naming_reduces_conceptual_load> <https://globular.io/awareness#status> "candidate" .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <http://www.w3.org/2000/01/rdf-schema#label> "Detectable invalidity is not enforced validity — a validator is advisory until every construction and output path is forced through it" .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/allow_a_caller_supplied_class_or_enum_where_a_closed_constructor_belongs> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/assign_identity_digest_or_render_before_validating> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/rely_on_an_optional_validate_helper_instead_of_enforcing_at_construction> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.code.contract_must_outlive_implementation_fashion> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.existence_checks_must_not_substitute_for_cardinality_proofs> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.omission_is_an_invisible_state_mapping> .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/meta.validation_must_govern_construction_not_merely_detect> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/meta.workflow.boundary_commands_are_idempotent> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.workflow.boundary_commands_are_idempotent> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.workflow.boundary_commands_are_idempotent> <http://www.w3.org/2000/01/rdf-schema#label> "Every command/callback at a boundary is idempotent — any external signal can arrive twice" .
@@ -6095,9 +6139,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 0a7f4f92ae29" .
-<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#seedDigestSha256> "0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830" .
-<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#seedTripleCount> "6103" .
-<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-0a7f4f92ae29d069a25b29be6efb60ee4b91a9ce53618097f182356e0d1f1830> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-f672b64154b37230498c854dc68934e33a4a93f2ccd310ad6212b652173c58eb> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-f672b64154b37230498c854dc68934e33a4a93f2ccd310ad6212b652173c58eb> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 f672b64154b3" .
+<https://globular.io/awareness#seedBuild/sha256-f672b64154b37230498c854dc68934e33a4a93f2ccd310ad6212b652173c58eb> <https://globular.io/awareness#seedDigestSha256> "f672b64154b37230498c854dc68934e33a4a93f2ccd310ad6212b652173c58eb" .
+<https://globular.io/awareness#seedBuild/sha256-f672b64154b37230498c854dc68934e33a4a93f2ccd310ad6212b652173c58eb> <https://globular.io/awareness#seedTripleCount> "6147" .
+<https://globular.io/awareness#seedBuild/sha256-f672b64154b37230498c854dc68934e33a4a93f2ccd310ad6212b652173c58eb> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-f672b64154b37230498c854dc68934e33a4a93f2ccd310ad6212b652173c58eb> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
