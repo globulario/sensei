@@ -230,3 +230,10 @@ forbidden_fixes:
       - closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict
     reason: hard-gate is opt-in per repo-owner, per-domain, never imposed; a foreign-domain verdict never gates another repo's CI
     contract: enforce mode is opt-in per repo/domain via the gate policy; advisory is the default
+  - id: phase9_gate_treats_missing_required_task_identity_as_runtime_unavailability
+    title: treat missing required task identity as runtime unavailability
+    summary: Under enforce, classify an absent, ambiguous, malformed, or mismatched required task binding as "unavailable" and return a degraded pass, instead of failing closed as cannot-verify.
+    related_invariants:
+      - closure.completion_gate_requires_explicit_identity_when_enforcement_applies
+    reason: an absent identity is a caller failure, not a Sensei outage; conflating them lets a repo that opted into enforcement bypass the gate by breaking its task binding
+    contract: missing/invalid required identity is cannot-verify and blocks under enforce; only a runtime outage after identity was established degrades
