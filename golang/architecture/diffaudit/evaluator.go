@@ -5,11 +5,7 @@ package diffaudit
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-
-	"github.com/globulario/sensei/golang/architecture/admission"
 )
 
 // Requirement represents an obligated contract or test target from the graph.
@@ -31,11 +27,18 @@ type BaseFileReader interface {
 }
 
 // AuditOptions configures the diff audit run.
+//
+// awareness_audit_diff is a read-only projection over the caller-supplied diff
+// (see docs/design/frontier-awareness-audit-diff.md §2). It is never an
+// admission authority and must never observe ambient repository state. Working
+// -tree admission verification is a separate, explicitly governed surface — the
+// verify_admission tool — not a step composed here. Task and Domain participate
+// only in the result's identity; neither is ever interpolated into a filesystem
+// path.
 type AuditOptions struct {
 	Task         string
 	ExpectedHead string
 	Domain       string
-	RepoRoot     string
 }
 
 // EvaluateDiff orchestrates single-file checks and cross-file obligation analysis over a ParsedDiff.
@@ -70,47 +73,12 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		return result, nil
 	}
 
-	// Admission verification: delegate to the canonical admission.Verify owner
-	// if the required decision artifact exists on disk. Do NOT reimplement
-	// envelope, capability, or operation checks locally — that duplicates and
-	// diverges from the canonical admission protocol.
-	if opts.Task != "" && opts.RepoRoot != "" {
-		decisionPaths := []string{
-			filepath.Join(opts.RepoRoot, ".sensei", "tasks", opts.Task, "decision.yaml"),
-			filepath.Join(opts.RepoRoot, ".sensei", "tasks", opts.Task, "source", "architecture-admission-decision.yaml"),
-		}
-		var foundDecisionPath string
-		for _, p := range decisionPaths {
-			if _, err := os.Stat(p); err == nil {
-				foundDecisionPath = p
-				break
-			}
-		}
-
-		if foundDecisionPath != "" {
-			bundleDir := filepath.Join(opts.RepoRoot, ".sensei", "tasks", opts.Task)
-			verification, err := admission.Verify(admission.VerifyOptions{
-				DecisionPath: foundDecisionPath,
-				BundleDir:    bundleDir,
-				Repo:         opts.RepoRoot,
-			})
-			if err != nil {
-				result.Findings = append(result.Findings, AuditFinding{
-					RecordID:    "admission.verify_error",
-					RecordClass: "admission",
-					Disposition: "cannot_verify",
-					Explanation: fmt.Sprintf("admission verification failed: %v", err),
-				})
-			} else if verification.Status != admission.VerificationScopeCompliant {
-				result.Findings = append(result.Findings, AuditFinding{
-					RecordID:    "admission.scope_violated",
-					RecordClass: "admission",
-					Disposition: "block",
-					Explanation: fmt.Sprintf("admission verification returned status %s: the change does not comply with its admitted scope", verification.Status),
-				})
-			}
-		}
-	}
+	// This evaluator does NOT call admission verification. Admission observes
+	// ambient repository/working-tree state against an admitted scope, which is a
+	// different subject than the caller-supplied diff this projection audits, and
+	// composing it here would make the read-only tool an admission authority that
+	// reads ambient Git state — both forbidden by the governing contract §2.
+	// Working-tree admission is the separate verify_admission tool.
 
 	changedPathSet := make(map[string]bool)
 	hasBinary := false
