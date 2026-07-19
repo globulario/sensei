@@ -28,9 +28,10 @@ type PromotedGovernedRecord struct {
 }
 
 // promotedKnowledgeResult carries the exact canonical feedback projection alongside the
-// mechanically-derived compatibility surfaces. The projection is authoritative; Records and
-// Limitations are pure projections of it, so old consumers keep the two legacy surfaces while
-// new consumers read the typed projection (availability, typed findings) without parsing prose.
+// mechanically-derived compatibility surfaces. The projection is canonical (and explicitly
+// non-authoritative); Records and Limitations are pure projections of it, so old consumers keep
+// the two legacy surfaces while new consumers read the typed projection (availability, typed
+// findings) without parsing prose.
 type promotedKnowledgeResult struct {
 	Projection  briefingfeedback.Projection
 	Records     []PromotedGovernedRecord
