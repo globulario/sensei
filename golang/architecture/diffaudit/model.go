@@ -119,6 +119,61 @@ func (r *AuditResult) Validate() error {
 		return fmt.Errorf("digest is required")
 	}
 
+	// Validate closed vocabularies
+	switch r.Availability {
+	case AvailabilityAvailable, AvailabilityCannotVerify, AvailabilityUnsupported:
+	default:
+		return fmt.Errorf("invalid availability: %q", r.Availability)
+	}
+
+	switch r.Decision {
+	case DecisionPass, DecisionReview, DecisionBlock, DecisionCannotVerify:
+	default:
+		return fmt.Errorf("invalid decision: %q", r.Decision)
+	}
+
+	for _, f := range r.Findings {
+		if f.RecordID == "" {
+			return fmt.Errorf("finding record_id is empty")
+		}
+		if f.RecordClass == "" {
+			return fmt.Errorf("finding record_class is empty")
+		}
+		switch f.Disposition {
+		case "block", "review", "advisory", "cannot_verify":
+		default:
+			return fmt.Errorf("invalid finding disposition: %q", f.Disposition)
+		}
+	}
+
+	// Decision consistency checks
+	hasBlock := false
+	hasReview := false
+	hasCannotVerify := false
+	for _, f := range r.Findings {
+		if f.Disposition == "block" {
+			hasBlock = true
+		} else if f.Disposition == "review" {
+			hasReview = true
+		} else if f.Disposition == "cannot_verify" {
+			hasCannotVerify = true
+		}
+	}
+
+	if (r.Availability != AvailabilityAvailable || len(r.ReasonCodes) > 0) && r.Decision == DecisionPass {
+		return fmt.Errorf("invalid state: decision cannot be pass when availability is %s or reason codes are present", r.Availability)
+	}
+
+	if hasBlock && r.Decision != DecisionBlock {
+		return fmt.Errorf("decision mismatch: expected block, got %s", r.Decision)
+	}
+	if !hasBlock && hasReview && r.Decision != DecisionReview && r.Decision != DecisionCannotVerify {
+		return fmt.Errorf("decision mismatch: expected review or cannot_verify, got %s", r.Decision)
+	}
+	if hasCannotVerify && r.Decision != DecisionCannotVerify {
+		return fmt.Errorf("decision mismatch: expected cannot_verify, got %s", r.Decision)
+	}
+
 	computed, err := r.ComputeDigest()
 	if err != nil {
 		return fmt.Errorf("failed to compute validation digest: %w", err)
@@ -127,10 +182,6 @@ func (r *AuditResult) Validate() error {
 		return fmt.Errorf("result digest mismatch: calculated %s != stored %s", computed, r.Digest)
 	}
 
-	// Safety rule: unavailable or errored execution can NEVER claim DecisionPass!
-	if (r.Availability != AvailabilityAvailable || len(r.ReasonCodes) > 0) && r.Decision == DecisionPass {
-		return fmt.Errorf("invalid state: decision cannot be pass when availability is %s or reason codes are present", r.Availability)
-	}
 	return nil
 }
 

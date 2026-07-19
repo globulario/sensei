@@ -9,7 +9,7 @@ import (
 
 type fakeChecker struct {
 	checkFileFunc     func(ctx context.Context, file, content, domain string) ([]AuditFinding, error)
-	getFileImpactFunc func(ctx context.Context, file, domain string) ([]string, []string, []string, error)
+	getFileImpactFunc func(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, error)
 	readBaseFileFunc  func(ctx context.Context, path string) (string, bool, error)
 }
 
@@ -20,7 +20,7 @@ func (f *fakeChecker) CheckFile(ctx context.Context, file, content, domain strin
 	return nil, nil
 }
 
-func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([]string, []string, []string, error) {
+func (f *fakeChecker) GetFileImpact(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, error) {
 	if f.getFileImpactFunc != nil {
 		return f.getFileImpactFunc(ctx, file, domain)
 	}
@@ -31,7 +31,7 @@ func (f *fakeChecker) ReadBaseFile(ctx context.Context, path string) (string, bo
 	if f.readBaseFileFunc != nil {
 		return f.readBaseFileFunc(ctx, path)
 	}
-	return " func main() {}\n fmt.Println(\"hello\")\n }\n", true, nil
+	return "1\n2\n3\n4\n5\n6\n7\n8\n9\n func main() {\n \tfmt.Println(\"hello\")\n }", true, nil
 }
 
 func TestEvaluateDiff_PassesCleanDiff(t *testing.T) {
@@ -45,7 +45,7 @@ func TestEvaluateDiff_PassesCleanDiff(t *testing.T) {
 		t.Fatalf("EvaluateDiff: %v", err)
 	}
 	if res.Decision != DecisionPass {
-		t.Errorf("expected DecisionPass, got %s", res.Decision)
+		t.Errorf("expected DecisionPass, got %s. ReasonCodes: %+v, Limitations: %+v, Findings: %+v", res.Decision, res.ReasonCodes, res.Limitations, res.Findings)
 	}
 	if res.Digest == "" {
 		t.Error("digest is empty")
@@ -80,9 +80,9 @@ func TestEvaluateDiff_OmittedCompanionFileObligation(t *testing.T) {
 	}
 
 	checker := &fakeChecker{
-		getFileImpactFunc: func(_ context.Context, file, domain string) ([]string, []string, []string, error) {
+		getFileImpactFunc: func(_ context.Context, file, domain string) ([]Requirement, []Requirement, []string, error) {
 			if file == "cmd/main.go" {
-				return []string{"cmd/main_test.go"}, nil, nil, nil
+				return []Requirement{{ID: "test-1", Path: "cmd/main_test.go"}}, nil, nil, nil
 			}
 			return nil, nil, nil, nil
 		},
@@ -100,5 +100,36 @@ func TestEvaluateDiff_OmittedCompanionFileObligation(t *testing.T) {
 	}
 	if err := res.Validate(); err != nil {
 		t.Errorf("Validate() failed: %v", err)
+	}
+}
+
+func TestEvaluateDiff_HunkOverlapError(t *testing.T) {
+	diff := `diff --git a/main.go b/main.go
+--- a/main.go
++++ b/main.go
+@@ -1,1 +1,1 @@
+-old1
++new1
+@@ -1,1 +1,1 @@
+-old1
++new2
+`
+	parsed, err := ParseDiff(diff, DefaultParseOptions())
+	if err != nil {
+		t.Fatalf("ParseDiff: %v", err)
+	}
+
+	checker := &fakeChecker{
+		readBaseFileFunc: func(_ context.Context, _ string) (string, bool, error) {
+			return "old1\n", true, nil
+		},
+	}
+
+	res, err := EvaluateDiff(context.Background(), parsed, checker, AuditOptions{})
+	if err != nil {
+		t.Fatalf("EvaluateDiff: %v", err)
+	}
+	if res.Decision != DecisionCannotVerify || res.Availability != AvailabilityCannotVerify {
+		t.Errorf("expected cannot_verify due to hunk overlap, got decision=%s, availability=%s", res.Decision, res.Availability)
 	}
 }

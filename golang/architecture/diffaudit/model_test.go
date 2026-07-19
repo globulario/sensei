@@ -12,14 +12,14 @@ func TestAuditResult_ComputeDigest_Deterministic(t *testing.T) {
 		InputDiffDigest: "abc123sha256",
 		InputTrust:      TrustCaller,
 		Availability:    AvailabilityAvailable,
-		Decision:        DecisionPass,
+		Decision:        DecisionReview,
 		ChangedFiles: []ChangedFileSummary{
 			{Path: "src/b.go", Kind: ChangeModify, LinesAdded: 5, LinesDeleted: 2},
 			{Path: "src/a.go", Kind: ChangeAdd, LinesAdded: 10},
 		},
 		Findings: []AuditFinding{
-			{RecordID: "inv-2", FilePath: "src/b.go", Explanation: "rule 2"},
-			{RecordID: "inv-1", FilePath: "src/a.go", Explanation: "rule 1"},
+			{RecordID: "inv-2", FilePath: "src/b.go", Explanation: "rule 2", RecordClass: "invariant", Disposition: "review"},
+			{RecordID: "inv-1", FilePath: "src/a.go", Explanation: "rule 1", RecordClass: "invariant", Disposition: "review"},
 		},
 		ReasonCodes: []ReasonCode{},
 	}
@@ -29,14 +29,14 @@ func TestAuditResult_ComputeDigest_Deterministic(t *testing.T) {
 		InputDiffDigest: "abc123sha256",
 		InputTrust:      TrustCaller,
 		Availability:    AvailabilityAvailable,
-		Decision:        DecisionPass,
+		Decision:        DecisionReview,
 		ChangedFiles: []ChangedFileSummary{
 			{Path: "src/a.go", Kind: ChangeAdd, LinesAdded: 10},
 			{Path: "src/b.go", Kind: ChangeModify, LinesAdded: 5, LinesDeleted: 2},
 		},
 		Findings: []AuditFinding{
-			{RecordID: "inv-1", FilePath: "src/a.go", Explanation: "rule 1"},
-			{RecordID: "inv-2", FilePath: "src/b.go", Explanation: "rule 2"},
+			{RecordID: "inv-1", FilePath: "src/a.go", Explanation: "rule 1", RecordClass: "invariant", Disposition: "review"},
+			{RecordID: "inv-2", FilePath: "src/b.go", Explanation: "rule 2", RecordClass: "invariant", Disposition: "review"},
 		},
 		ReasonCodes: []ReasonCode{},
 	}
@@ -63,8 +63,14 @@ func TestAuditResult_ComputeDigest_Deterministic(t *testing.T) {
 	}
 
 	resInvalid := res1
+	resInvalid.Findings = nil
 	resInvalid.Decision = DecisionPass
 	resInvalid.Availability = AvailabilityCannotVerify
+	dig, err := resInvalid.ComputeDigest()
+	if err != nil {
+		t.Fatalf("failed to compute resInvalid digest: %v", err)
+	}
+	resInvalid.Digest = dig
 	if err := resInvalid.Validate(); err == nil {
 		t.Fatal("expected validation error for DecisionPass when Availability is CannotVerify")
 	}

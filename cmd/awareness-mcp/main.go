@@ -34,6 +34,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -255,7 +256,8 @@ func (b *bridge) tools() []tool {
 					"expected_head": map[string]interface{}{"type": "string", "description": "optional exact commit SHA"},
 					"domain":        map[string]interface{}{"type": "string", "description": "optional repo/domain scope"},
 				},
-				"required": []string{"diff"},
+				"required":             []string{"diff"},
+				"additionalProperties": false,
 			},
 		},
 		{
@@ -1984,18 +1986,57 @@ func main() {
 }
 
 type mcpSingleFileChecker struct {
-	bridge *bridge
-	ctx    context.Context
-	root   string
+	bridge       *bridge
+	ctx          context.Context
+	root         string
+	expectedHead string
 }
 
 func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
 	if c.root == "" {
 		return "", false, nil
 	}
+
 	cleanP := filepath.Clean(path)
-	fullP := filepath.Join(c.root, cleanP)
-	data, err := os.ReadFile(fullP)
+	if strings.HasPrefix(cleanP, "..") || filepath.IsAbs(cleanP) {
+		return "", false, fmt.Errorf("path escapes repository boundary: %s", path)
+	}
+
+	absRoot, err := filepath.Abs(c.root)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get absolute repository root: %w", err)
+	}
+	absTarget, err := filepath.Abs(filepath.Join(absRoot, cleanP))
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get absolute target path: %w", err)
+	}
+	if !strings.HasPrefix(absTarget, absRoot) {
+		return "", false, fmt.Errorf("path escapes repository boundary: resolved %s outside %s", absTarget, absRoot)
+	}
+
+	if resolvedTarget, err := filepath.EvalSymlinks(absTarget); err == nil {
+		if !strings.HasPrefix(resolvedTarget, absRoot) {
+			return "", false, fmt.Errorf("symlink target escapes repository boundary: resolved %s outside %s", resolvedTarget, absRoot)
+		}
+	}
+
+	if c.expectedHead != "" && diffaudit.IsHexSHA(c.expectedHead) {
+		cmd := exec.CommandContext(ctx, "git", "show", fmt.Sprintf("%s:%s", c.expectedHead, cleanP))
+		cmd.Dir = c.root
+		data, err := cmd.Output()
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				stderr := string(exitErr.Stderr)
+				if strings.Contains(stderr, "exists on disk, but not in") || strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "invalid object name") {
+					return "", false, nil
+				}
+			}
+			return "", false, fmt.Errorf("failed to read base file from commit %s: %w", c.expectedHead, err)
+		}
+		return string(data), true, nil
+	}
+
+	data, err := os.ReadFile(absTarget)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", false, nil
@@ -2032,7 +2073,7 @@ func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, conte
 	return findings, nil
 }
 
-func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]string, []string, []string, error) {
+func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, error) {
 	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
 		File:   file,
 		Domain: domain,
@@ -2040,13 +2081,27 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	var tests []string
+	var tests []diffaudit.Requirement
 	for _, t := range resp.GetRequiredTests() {
-		tests = append(tests, t.GetId())
+		testPath := ""
+		if t.GetAnchor() != nil && t.GetAnchor().GetFile() != "" {
+			testPath = t.GetAnchor().GetFile()
+		}
+		tests = append(tests, diffaudit.Requirement{
+			ID:   t.GetId(),
+			Path: testPath,
+		})
 	}
-	var contracts []string
+	var contracts []diffaudit.Requirement
 	for _, ct := range resp.GetDirectIntents() {
-		contracts = append(contracts, ct.GetId())
+		testPath := ""
+		if ct.GetAnchor() != nil && ct.GetAnchor().GetFile() != "" {
+			testPath = ct.GetAnchor().GetFile()
+		}
+		contracts = append(contracts, diffaudit.Requirement{
+			ID:   ct.GetId(),
+			Path: testPath,
+		})
 	}
 
 	var rules []string
@@ -2101,7 +2156,12 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 	}
 
 	root, _ := os.Getwd()
-	checker := &mcpSingleFileChecker{bridge: b, ctx: ctx, root: root}
+	checker := &mcpSingleFileChecker{
+		bridge:       b,
+		ctx:          ctx,
+		root:         root,
+		expectedHead: expectedHead,
+	}
 	res, err := diffaudit.EvaluateDiff(ctx, parsed, checker, diffaudit.AuditOptions{
 		Task:         task,
 		ExpectedHead: expectedHead,

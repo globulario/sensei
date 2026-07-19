@@ -8,10 +8,16 @@ import (
 	"strings"
 )
 
+// Requirement represents an obligated contract or test target from the graph.
+type Requirement struct {
+	ID   string `json:"id"`
+	Path string `json:"path,omitempty"`
+}
+
 // SingleFileChecker evaluates single file content and graph impact.
 type SingleFileChecker interface {
 	CheckFile(ctx context.Context, file string, content string, domain string) ([]AuditFinding, error)
-	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []string, contracts []string, RelevantRules []string, err error)
+	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []Requirement, contracts []Requirement, RelevantRules []string, err error)
 }
 
 // BaseFileReader optionally reads the un-edited base content of a file from the repository.
@@ -46,13 +52,13 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		ReasonCodes:         append([]ReasonCode{}, parsed.ReasonCodes...),
 	}
 
-	// Rule: nil checker cannot prove verification -> cannot_verify
 	if checker == nil {
 		result.Availability = AvailabilityCannotVerify
 		result.Decision = DecisionCannotVerify
 		result.ReasonCodes = append(result.ReasonCodes, ReasonEvaluatorUnavailable)
 		digest, _ := result.ComputeDigest()
 		result.Digest = digest
+		_ = result.Validate()
 		return result, nil
 	}
 
@@ -109,18 +115,22 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 			result.Availability = AvailabilityCannotVerify
 			result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
 		} else {
-			result.ImplicatedTests = append(result.ImplicatedTests, tests...)
-			result.ImplicatedContracts = append(result.ImplicatedContracts, contracts...)
+			for _, t := range tests {
+				result.ImplicatedTests = append(result.ImplicatedTests, t.ID)
+			}
+			for _, c := range contracts {
+				result.ImplicatedContracts = append(result.ImplicatedContracts, c.ID)
+			}
 
 			// Cross-file obligation check: required test file omitted from changed path set
-			for _, testPath := range tests {
-				if strings.Contains(testPath, "/") && !changedPathSet[testPath] {
+			for _, reqTest := range tests {
+				if reqTest.Path != "" && !changedPathSet[reqTest.Path] {
 					result.Findings = append(result.Findings, AuditFinding{
 						RecordID:    "obligation.omitted_required_test",
 						RecordClass: "required_test",
 						Disposition: "review",
 						FilePath:    patch.Path,
-						Explanation: fmt.Sprintf("file %s requires test %s which is omitted from the supplied diff", patch.Path, testPath),
+						Explanation: fmt.Sprintf("file %s requires test %s which is omitted from the supplied diff", patch.Path, reqTest.Path),
 					})
 				}
 			}
@@ -134,27 +144,35 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 			if baseReader != nil {
 				baseContent, ok, err := baseReader.ReadBaseFile(ctx, readPath)
 				if err == nil && ok {
-					reconstructed, err := applyHunks(baseContent, patch.Hunks)
+					reconstructed, err := applyHunks(baseContent, patch.Hunks, patch.Kind == ChangeAdd)
 					if err == nil {
 						proposedContent = reconstructed
 						contentLoaded = true
+					} else {
+						result.Availability = AvailabilityCannotVerify
+						result.ReasonCodes = append(result.ReasonCodes, ReasonMalformedDiff)
+						result.Limitations = append(result.Limitations, err.Error())
 					}
 				}
 			}
 
 			if !contentLoaded && patch.Kind == ChangeAdd {
-				// For new files (adds), reconstruction from empty base is exact
-				reconstructed, err := applyHunks("", patch.Hunks)
+				reconstructed, err := applyHunks("", patch.Hunks, true)
 				if err == nil {
 					proposedContent = reconstructed
 					contentLoaded = true
+				} else {
+					result.Availability = AvailabilityCannotVerify
+					result.ReasonCodes = append(result.ReasonCodes, ReasonMalformedDiff)
+					result.Limitations = append(result.Limitations, err.Error())
 				}
 			}
 
 			if !contentLoaded {
-				// Unverifiable base -> set cannot_verify
 				result.Availability = AvailabilityCannotVerify
-				result.ReasonCodes = append(result.ReasonCodes, ReasonRepoContextUnavailable)
+				if len(result.ReasonCodes) == 0 {
+					result.ReasonCodes = append(result.ReasonCodes, ReasonRepoContextUnavailable)
+				}
 			} else if proposedContent != "" {
 				fileFindings, err := checker.CheckFile(ctx, patch.Path, proposedContent, opts.Domain)
 				if err != nil {
@@ -167,7 +185,6 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		}
 	}
 
-	// Deduplicate findings monotonically
 	result.Findings = deduplicateFindings(result.Findings)
 
 	// Compute overall decision
@@ -186,12 +203,20 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		}
 	}
 
-	// Calculate self-excluding digest
 	digest, err := result.ComputeDigest()
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute result digest: %w", err)
 	}
 	result.Digest = digest
+
+	// Enforce Validate() checks before returning
+	if err := result.Validate(); err != nil {
+		result.Decision = DecisionCannotVerify
+		result.ReasonCodes = append(result.ReasonCodes, ReasonResultValidationFail)
+		result.Limitations = append(result.Limitations, fmt.Sprintf("validation failed: %v", err))
+		digest, _ := result.ComputeDigest()
+		result.Digest = digest
+	}
 
 	return result, nil
 }
@@ -203,7 +228,7 @@ func deduplicateFindings(in []AuditFinding) []AuditFinding {
 	seen := make(map[string]bool)
 	out := make([]AuditFinding, 0, len(in))
 	for _, f := range in {
-		key := fmt.Sprintf("%s|%s|%s|%s", f.FilePath, f.RecordID, f.RecordClass, f.Explanation)
+		key := fmt.Sprintf("%s|%s|%s|%d", f.FilePath, f.RecordID, f.RecordClass, f.HunkIndex)
 		if !seen[key] {
 			seen[key] = true
 			out = append(out, f)
@@ -212,14 +237,22 @@ func deduplicateFindings(in []AuditFinding) []AuditFinding {
 	return out
 }
 
-func applyHunks(base string, hunks []DiffHunk) (string, error) {
-	if base == "" {
+func applyHunks(base string, hunks []DiffHunk, isAdd bool) (string, error) {
+	if len(hunks) == 0 {
+		return base, nil
+	}
+
+	if isAdd {
 		var out []string
 		for _, hunk := range hunks {
+			if hunk.OldLines != 0 {
+				return "", fmt.Errorf("invalid add hunk header: old lines count must be 0, got %d", hunk.OldLines)
+			}
 			for _, line := range hunk.Lines {
-				if strings.HasPrefix(line, "+") {
-					out = append(out, strings.TrimPrefix(line, "+"))
+				if !strings.HasPrefix(line, "+") {
+					return "", fmt.Errorf("invalid line in add hunk: new files can only contain additions (+), got %q", line)
 				}
+				out = append(out, strings.TrimPrefix(line, "+"))
 			}
 		}
 		return strings.Join(out, "\n"), nil
@@ -228,12 +261,17 @@ func applyHunks(base string, hunks []DiffHunk) (string, error) {
 	baseLines := strings.Split(base, "\n")
 	var out []string
 	baseIdx := 0
+	lastOldEnd := 0
 
 	for _, hunk := range hunks {
-		targetIdx := hunk.OldStart - 1
-		if targetIdx < 0 {
-			targetIdx = 0
+		if hunk.OldStart <= lastOldEnd {
+			return "", fmt.Errorf("out-of-order or overlapping hunk: start line %d <= last old end %d", hunk.OldStart, lastOldEnd)
 		}
+		if hunk.OldStart-1 > len(baseLines) {
+			return "", fmt.Errorf("hunk starts beyond base EOF: start line %d > base lines %d", hunk.OldStart, len(baseLines))
+		}
+
+		targetIdx := hunk.OldStart - 1
 		for baseIdx < targetIdx && baseIdx < len(baseLines) {
 			out = append(out, baseLines[baseIdx])
 			baseIdx++
@@ -244,23 +282,27 @@ func applyHunks(base string, hunks []DiffHunk) (string, error) {
 				out = append(out, strings.TrimPrefix(line, "+"))
 			} else if strings.HasPrefix(line, "-") {
 				expectedDel := strings.TrimPrefix(line, "-")
-				if baseIdx < len(baseLines) {
-					if strings.TrimSpace(baseLines[baseIdx]) != strings.TrimSpace(expectedDel) {
-						return "", fmt.Errorf("hunk line mismatch on deleted line: base %q != patch %q", baseLines[baseIdx], expectedDel)
-					}
+				if baseIdx >= len(baseLines) {
+					return "", fmt.Errorf("deletion beyond base EOF at base line %d", baseIdx+1)
+				}
+				if baseLines[baseIdx] != expectedDel {
+					return "", fmt.Errorf("hunk line mismatch on deleted line at base line %d: base %q != patch %q", baseIdx+1, baseLines[baseIdx], expectedDel)
 				}
 				baseIdx++
 			} else {
 				contextLine := strings.TrimPrefix(line, " ")
-				if baseIdx < len(baseLines) {
-					if strings.TrimSpace(baseLines[baseIdx]) != strings.TrimSpace(contextLine) {
-						return "", fmt.Errorf("hunk line mismatch on context line: base %q != patch %q", baseLines[baseIdx], contextLine)
-					}
-					out = append(out, baseLines[baseIdx])
-					baseIdx++
+				if baseIdx >= len(baseLines) {
+					return "", fmt.Errorf("context match beyond base EOF at base line %d", baseIdx+1)
 				}
+				if baseLines[baseIdx] != contextLine {
+					return "", fmt.Errorf("hunk line mismatch on context line at base line %d: base %q != patch %q", baseIdx+1, baseLines[baseIdx], contextLine)
+				}
+				out = append(out, baseLines[baseIdx])
+				baseIdx++
 			}
 		}
+
+		lastOldEnd = hunk.OldStart + hunk.OldLines - 1
 	}
 
 	for baseIdx < len(baseLines) {
