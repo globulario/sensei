@@ -774,7 +774,9 @@ func TestAwarenessAuditDiffTool_EvaluatesDiff(t *testing.T) {
 			return &awarenesspb.EditCheckResponse{}, nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
-			return &awarenesspb.ImpactResponse{}, nil
+			return &awarenesspb.ImpactResponse{
+				Authority: testCurrentAuthority(),
+			}, nil
 		},
 	}
 	br := testBridge(fake)
@@ -797,5 +799,36 @@ new file mode 100644
 	}
 	if !strings.Contains(res.Text, "decision: pass") {
 		t.Fatalf("expected decision: pass, got text: %s", res.Text)
+	}
+}
+
+func TestAwarenessAuditDiffTool_FailsOnStaleOrNilAuthority(t *testing.T) {
+	fake := fakeClient{
+		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{
+				Authority: nil,
+			}, nil
+		},
+	}
+	br := testBridge(fake)
+	validDiff := `diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null
++++ b/main.go
+@@ -0,0 +1,2 @@
++package main
++func main() {}
+`
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff": validDiff,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if !strings.Contains(res.Text, "decision: cannot_verify") {
+		t.Fatalf("expected cannot_verify on nil authority, got text: %s", res.Text)
 	}
 }
