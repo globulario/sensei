@@ -376,6 +376,7 @@ components:
       - golang/architecture/briefingfeedback/digest.go
       - golang/architecture/briefingfeedback/model.go
       - golang/architecture/briefingfeedback/scope.go
+      - golang/architecture/briefingfeedback/unavailable.go
       - golang/architecture/buildtransaction/result_manifest.go
       - golang/architecture/certification/errors.go
       - golang/architecture/certification/evaluate.go
@@ -865,6 +866,9 @@ components:
       - golang/server/authority_domains.go
       - golang/server/blast_radius.go
       - golang/server/briefing.go
+      - golang/server/briefing_feedback.go
+      - golang/server/briefing_feedback_adapter.go
+      - golang/server/briefing_repo_context.go
       - golang/server/change_impact.go
       - golang/server/code_symbol.go
       - golang/server/config.go
@@ -897,6 +901,7 @@ components:
       - golang/server/surface_limits.go
       - golang/server/surface_observability.go
     depends_on:
+      - component.golang.architecture
       - component.golang.coverage
       - component.golang.governancepack
       - component.golang.netcfg

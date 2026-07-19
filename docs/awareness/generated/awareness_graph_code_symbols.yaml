@@ -142,6 +142,31 @@ code_symbols:
       implements:
         - globular.awareness_graph:intent.awareness.briefing_returns_explicit_status
         - globular.platform:intent.awareness.graph_is_compiled_context_not_authority
+  - id: globular.awareness_graph:code.go.server.briefing
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/briefing_feedback.go
+    component: server.briefing
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.closure.briefing_feedback_prose_is_rendered_only_from_the_typed_projection
+        - globular.awareness_graph:invariant.closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+  - id: globular.awareness_graph:code.go.server.briefing
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/briefing_feedback_adapter.go
+    component: server.briefing
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+  - id: globular.awareness_graph:code.go.server.briefing
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/briefing_repo_context.go
+    component: server.briefing
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.closure.briefing_feedback_server_repository_context_is_startup_owned
   - id: globular.awareness_graph:code.go.server.briefing.server_Briefing
     namespace: globular.awareness_graph
     language: go
@@ -3402,6 +3427,11 @@ test_symbols:
     symbol: TestReconcileRuntimeTransactionStamp_KeepsMatchingStamp
     package: main
     language: go
+  - id: cmd/awg/cmd_serve_test.go:TestResolveServeRepoContext
+    file: cmd/awg/cmd_serve_test.go
+    symbol: TestResolveServeRepoContext
+    package: main
+    language: go
   - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_ConfiguredPathWins
     file: cmd/awg/cmd_serve_test.go
     symbol: TestSelectServeGraphMarkerFile_ConfiguredPathWins
@@ -5173,6 +5203,12 @@ test_symbols:
     symbol: TestBuild_BackslashPathParity
     package: briefingfeedback
     language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_CandidateLocalVsFacilityImpact
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_CandidateLocalVsFacilityImpact
+    package: briefingfeedback
+    language: go
+    doc: "A candidate-local unverifiable result degrades (excluded); a shared-facility outage is\nunavailable — the two are distinct."
   - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_ConflictingRelevantDescriptorsAreContradictory
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestBuild_ConflictingRelevantDescriptorsAreContradictory
@@ -5218,16 +5254,40 @@ test_symbols:
     symbol: TestBuild_EmptyDomainIsNotMalformed
     package: briefingfeedback
     language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_FacilityOutageOrderIndependent
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_FacilityOutageOrderIndependent
+    package: briefingfeedback
+    language: go
+    doc: "A global facility outage classifies as unavailable regardless of discovery order and is\nreported exactly once."
   - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_MalformedRequest
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestBuild_MalformedRequest
     package: briefingfeedback
     language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_MissingTaskIdentityFailsClosed
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_MissingTaskIdentityFailsClosed
+    package: briefingfeedback
+    language: go
+    doc: "A task-scoped request missing task id or session id fails closed as feedback_invalid."
   - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_NoPromotionsIsEmpty
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestBuild_NoPromotionsIsEmpty
     package: briefingfeedback
     language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_NoRawTextSerialized
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_NoRawTextSerialized
+    package: briefingfeedback
+    language: go
+    doc: "No raw verification error text or answer text is serialized into the projection."
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_PaddedFileIdentityRejected
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_PaddedFileIdentityRejected
+    package: briefingfeedback
+    language: go
+    doc: "A padded file identity is rejected, never trimmed into a distinct canonical path."
   - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_ProjectionOmitsRepositoryRoot
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestBuild_ProjectionOmitsRepositoryRoot
@@ -5238,6 +5298,18 @@ test_symbols:
     symbol: TestBuild_RelevantAndUnrelatedFailuresCoexist
     package: briefingfeedback
     language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_RepositoryDomainMismatchFailsClosed
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_RepositoryDomainMismatchFailsClosed
+    package: briefingfeedback
+    language: go
+    doc: "A task/repository domain mismatch fails closed (no fallback, no case/prefix repair)."
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_RepositoryRootIdentity
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_RepositoryRootIdentity
+    package: briefingfeedback
+    language: go
+    doc: "Relative, padded, and absent repository roots are rejected at the owner boundary — never\nresolved against the process working directory."
   - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_ScopeAdmissionLaw
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestBuild_ScopeAdmissionLaw
@@ -5258,6 +5330,12 @@ test_symbols:
     symbol: TestBuild_UnrelatedFailureIsDroppedNotDegraded
     package: briefingfeedback
     language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_UnresolvableRootIsInvalid
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestBuild_UnresolvableRootIsInvalid
+    package: briefingfeedback
+    language: go
+    doc: "An absolute-but-unresolvable root (does not exist / not a directory) is feedback_invalid."
   - id: golang/architecture/briefingfeedback/build_test.go:TestBuild_UntypedFailureIsUnknownClassificationAndInvalid
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestBuild_UntypedFailureIsUnknownClassificationAndInvalid
@@ -5268,6 +5346,18 @@ test_symbols:
     symbol: TestBuild_VerifiedAdmittedRecord
     package: briefingfeedback
     language: go
+  - id: golang/architecture/briefingfeedback/build_test.go:TestResolveRepoRoot_RealFilesystem
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestResolveRepoRoot_RealFilesystem
+    package: briefingfeedback
+    language: go
+    doc: "resolveRepoRoot (the production resolver) resolves symlinks once, requires a directory, and\nnever calls filepath.Abs."
+  - id: golang/architecture/briefingfeedback/build_test.go:TestValidateProjection_DuplicateFindingRefused
+    file: golang/architecture/briefingfeedback/build_test.go
+    symbol: TestValidateProjection_DuplicateFindingRefused
+    package: briefingfeedback
+    language: go
+    doc: "ValidateProjection refuses a duplicate finding identity; finalize deduplicates."
   - id: golang/architecture/briefingfeedback/build_test.go:TestValidateProjection_OffVocabularyFails
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestValidateProjection_OffVocabularyFails
@@ -5276,6 +5366,31 @@ test_symbols:
   - id: golang/architecture/briefingfeedback/build_test.go:TestValidateProjection_ZeroValueFails
     file: golang/architecture/briefingfeedback/build_test.go
     symbol: TestValidateProjection_ZeroValueFails
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/unavailable_test.go:TestBuildUnavailable_AbsentRepositoryContextBlanksIdentity
+    file: golang/architecture/briefingfeedback/unavailable_test.go
+    symbol: TestBuildUnavailable_AbsentRepositoryContextBlanksIdentity
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/unavailable_test.go:TestBuildUnavailable_AllReasonsAreValidProjections
+    file: golang/architecture/briefingfeedback/unavailable_test.go
+    symbol: TestBuildUnavailable_AllReasonsAreValidProjections
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/unavailable_test.go:TestBuildUnavailable_DeterministicAndNoLeaks
+    file: golang/architecture/briefingfeedback/unavailable_test.go
+    symbol: TestBuildUnavailable_DeterministicAndNoLeaks
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/unavailable_test.go:TestBuildUnavailable_TaskHonoredOnlyWhenCoherent
+    file: golang/architecture/briefingfeedback/unavailable_test.go
+    symbol: TestBuildUnavailable_TaskHonoredOnlyWhenCoherent
+    package: briefingfeedback
+    language: go
+  - id: golang/architecture/briefingfeedback/unavailable_test.go:TestBuildUnavailable_UnknownReasonFailsClosed
+    file: golang/architecture/briefingfeedback/unavailable_test.go
+    symbol: TestBuildUnavailable_UnknownReasonFailsClosed
     package: briefingfeedback
     language: go
   - id: golang/architecture/buildtransaction/result_manifest_test.go:TestResultManifestContainsRequiredIdentities
@@ -9990,6 +10105,12 @@ test_symbols:
     package: questionpromotion
     language: go
     doc: "The typed verification failure exposes a closed class + reason via AsVerificationError,\npreserves the human-readable message, and survives wrapping — so a consumer classifies by\ntype, never by text."
+  - id: golang/architecture/questionpromotion/verification_error_test.go:TestVerificationError_TypedImpact
+    file: golang/architecture/questionpromotion/verification_error_test.go
+    symbol: TestVerificationError_TypedImpact
+    package: questionpromotion
+    language: go
+    doc: "The typed verification failure exposes a closed IMPACT distinct from its cause: an ordinary\nfailure is candidate-local; a shared-facility outage is facility-unavailable — so a consumer\ndegrades one candidate versus reporting a global outage without parsing text."
   - id: golang/architecture/questionresolution/certify_test.go:TestCertifyIsDeterministicAndIdempotent
     file: golang/architecture/questionresolution/certify_test.go
     symbol: TestCertifyIsDeterministicAndIdempotent
@@ -11079,6 +11200,18 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestNextActionTableIsSingleStep asserts that every machine action identity the\norchestrator can emit has a summary, and that no summary smuggles a second action\n(no \" then \" / \" and \" connective that would recreate the flat-output failure)."
+  - id: golang/architecture/tasksession/briefing_feedback_test.go:TestPromotedKnowledgeDerivedFromProjection
+    file: golang/architecture/tasksession/briefing_feedback_test.go
+    symbol: TestPromotedKnowledgeDerivedFromProjection
+    package: tasksession
+    language: go
+    doc: "The compatibility records and limitations equal the projection's records and typed findings\n(mechanical derivation, no raw error text), and the availability is distinguishable across\nscenarios — exercised at the adapter over a seeded committed promotion."
+  - id: golang/architecture/tasksession/briefing_feedback_test.go:TestTaskBriefingExposesCanonicalProjection
+    file: golang/architecture/tasksession/briefing_feedback_test.go
+    symbol: TestTaskBriefingExposesCanonicalProjection
+    package: tasksession
+    language: go
+    doc: "TaskBriefing exposes the EXACT canonical feedback projection, bound to the exact task\nidentity established by control, with the compatibility surfaces mechanically derived from\nit (§2/§3 review repair)."
   - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingConsumesRelevantPromotion
     file: golang/architecture/tasksession/briefing_promotion_test.go
     symbol: TestBriefingConsumesRelevantPromotion
@@ -11109,12 +11242,6 @@ test_symbols:
     package: tasksession
     language: go
     doc: "A domain-scoped promotion is excluded when the briefing domain is unknown\n(empty) — unknown domain must not fail open."
-  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesTamperedPromotionWithFinding
-    file: golang/architecture/tasksession/briefing_promotion_test.go
-    symbol: TestBriefingExcludesTamperedPromotionWithFinding
-    package: tasksession
-    language: go
-    doc: "A broken conjunct excludes the promotion and reports a typed integrity finding."
   - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesUnrelatedPromotion
     file: golang/architecture/tasksession/briefing_promotion_test.go
     symbol: TestBriefingExcludesUnrelatedPromotion
@@ -11133,6 +11260,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "Deterministic replay: an unchanged world yields identical promoted-knowledge."
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingUnavailableOnTamperedSharedGraph
+    file: golang/architecture/tasksession/briefing_promotion_test.go
+    symbol: TestBriefingUnavailableOnTamperedSharedGraph
+    package: tasksession
+    language: go
+    doc: "Tampering the SHARED persisted graph breaks the marker↔graph cross-check for every\ncandidate: it is a shared verification-facility outage (graph_reverify_failed), not a\ncandidate-local defect. The promotion is excluded and the whole feedback is unavailable\n(honestly stronger than degrading a single candidate). The candidate-local degrade path is\nproven by the incomplete-promotion test."
   - id: golang/architecture/tasksession/consume_workflow_test.go:TestGovernedNextActionSurfacesConsumeThenVerify
     file: golang/architecture/tasksession/consume_workflow_test.go
     symbol: TestGovernedNextActionSurfacesConsumeThenVerify
@@ -14336,6 +14469,107 @@ test_symbols:
   - id: golang/server/blast_radius_test.go:TestUnknownAuthorityEscalatesApproval
     file: golang/server/blast_radius_test.go
     symbol: TestUnknownAuthorityEscalatesApproval
+    package: main
+    language: go
+  - id: golang/server/briefing_feedback_adapter_test.go:TestBriefingFeedbackToProto_PreservesAndRefuses
+    file: golang/server/briefing_feedback_adapter_test.go
+    symbol: TestBriefingFeedbackToProto_PreservesAndRefuses
+    package: main
+    language: go
+    doc: "The adapter preserves the canonical digest + identity, never leaks a filesystem root, and\nrefuses a non-canonical projection."
+  - id: golang/server/briefing_feedback_adapter_test.go:TestBriefingResponse_FeedbackIsAdditiveFieldSeven
+    file: golang/server/briefing_feedback_adapter_test.go
+    symbol: TestBriefingResponse_FeedbackIsAdditiveFieldSeven
+    package: main
+    language: go
+    doc: "Existing BriefingResponse field numbers are unchanged and feedback is field 7."
+  - id: golang/server/briefing_feedback_adapter_test.go:TestFeedbackAvailabilityMapsExplicitly
+    file: golang/server/briefing_feedback_adapter_test.go
+    symbol: TestFeedbackAvailabilityMapsExplicitly
+    package: main
+    language: go
+    doc: "Every canonical availability maps explicitly to a distinct non-unspecified enum."
+  - id: golang/server/briefing_feedback_adapter_test.go:TestFeedbackDispositionMapsExplicitly
+    file: golang/server/briefing_feedback_adapter_test.go
+    symbol: TestFeedbackDispositionMapsExplicitly
+    package: main
+    language: go
+    doc: "Every disposition maps explicitly; unknown fails."
+  - id: golang/server/briefing_feedback_adapter_test.go:TestFeedbackFindingClassMapsExplicitly
+    file: golang/server/briefing_feedback_adapter_test.go
+    symbol: TestFeedbackFindingClassMapsExplicitly
+    package: main
+    language: go
+    doc: "Every canonical finding class maps explicitly; unknown fails."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedbackProse_PrivacyAndParity
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestBriefingFeedbackProse_PrivacyAndParity
+    package: main
+    language: go
+    doc: "Prose is rendered only from the projection: unavailable/invalid show the typed reason and no\nraw error; a failed candidate is never rendered as a governed record."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedback_ForeignDomainNoOwnerInvocation
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestBriefingFeedback_ForeignDomainNoOwnerInvocation
+    package: main
+    language: go
+    doc: "Foreign-domain request → unavailable WITHOUT owner invocation (root never read: a\nnon-existent root still yields a clean domain-mismatch projection, not an internal error)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedback_RepositoryContextAbsent
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestBriefingFeedback_RepositoryContextAbsent
+    package: main
+    language: go
+    doc: "Repository context absent → unavailable, no filesystem access, no owner invocation."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedback_TaskOnlyUnavailable
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestBriefingFeedback_TaskOnlyUnavailable
+    package: main
+    language: go
+    doc: "Task-only server briefing → canonical-task-scope unavailable, no filesystem read."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefing_ConfiguredEmptyFeedbackComposes
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestBriefing_ConfiguredEmptyFeedbackComposes
+    package: main
+    language: go
+    doc: "Configured server, matching domain, empty repo: field 7 present with feedback_empty; an OK\nbase stays OK (OK + empty = OK)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefing_ForeignDomainDegradesButKeepsBase
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestBriefing_ForeignDomainDegradesButKeepsBase
+    package: main
+    language: go
+    doc: "Configured server, foreign domain: feedback unavailable (domain mismatch) → DEGRADED, but the\nbase graph briefing prose is preserved (never erased)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefing_UnconfiguredOmitsFeedback
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestBriefing_UnconfiguredOmitsFeedback
+    package: main
+    language: go
+    doc: "Unconfigured server: feedback is OMITTED entirely — field 7 nil, status/prose unchanged\n(backward compatible; old clients and the pre-9.6 contract are preserved)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestCombineBriefingStatus_FrozenTable
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestCombineBriefingStatus_FrozenTable
+    package: main
+    language: go
+    doc: "The frozen combined-status table (every row)."
+  - id: golang/server/briefing_feedback_seeded_test.go:TestBriefingFeedback_OutOfScopeIsEmpty
+    file: golang/server/briefing_feedback_seeded_test.go
+    symbol: TestBriefingFeedback_OutOfScopeIsEmpty
+    package: main
+    language: go
+    doc: "Out-of-scope verified promotion yields empty feedback; a foreign-domain request yields\nunavailable without invoking the owner against the configured root."
+  - id: golang/server/briefing_feedback_seeded_test.go:TestBriefingFeedback_VerifiedPromotionEndToEnd
+    file: golang/server/briefing_feedback_seeded_test.go
+    symbol: TestBriefingFeedback_VerifiedPromotionEndToEnd
+    package: main
+    language: go
+    doc: "File-scoped, matching repository: the verified promotion appears as a structured record with\nexact provenance, its governed identity is a referenced id, prose matches the structured set,\nand no raw answer text / verification error / absolute root leaks."
+  - id: golang/server/briefing_repo_context_test.go:TestBriefingRequest_HasNoFilesystemRootField
+    file: golang/server/briefing_repo_context_test.go
+    symbol: TestBriefingRequest_HasNoFilesystemRootField
+    package: main
+    language: go
+    doc: "BriefingRequest carries no filesystem-root field — a caller can never select which\nrepository the server verifies."
+  - id: golang/server/briefing_repo_context_test.go:TestEstablishBriefingRepositoryContext
+    file: golang/server/briefing_repo_context_test.go
+    symbol: TestEstablishBriefingRepositoryContext
     package: main
     language: go
   - id: golang/server/briefing_scope_test.go:TestBriefingScope_Precedence
