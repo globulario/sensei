@@ -13,6 +13,7 @@ func TestAuditResult_ComputeDigest_Deterministic(t *testing.T) {
 		InputTrust:      TrustCaller,
 		Availability:    AvailabilityAvailable,
 		Decision:        DecisionReview,
+		GraphCommit:     "snap1",
 		ChangedFiles: []ChangedFileSummary{
 			{Path: "src/b.go", Kind: ChangeModify, LinesAdded: 5, LinesDeleted: 2},
 			{Path: "src/a.go", Kind: ChangeAdd, LinesAdded: 10},
@@ -30,6 +31,7 @@ func TestAuditResult_ComputeDigest_Deterministic(t *testing.T) {
 		InputTrust:      TrustCaller,
 		Availability:    AvailabilityAvailable,
 		Decision:        DecisionReview,
+		GraphCommit:     "snap1",
 		ChangedFiles: []ChangedFileSummary{
 			{Path: "src/a.go", Kind: ChangeAdd, LinesAdded: 10},
 			{Path: "src/b.go", Kind: ChangeModify, LinesAdded: 5, LinesDeleted: 2},
