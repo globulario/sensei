@@ -1227,3 +1227,61 @@ invariants:
       The completion projection is a read-only, non-authoritative composition of the
       Phase-8 read owners; it is the single canonical mapping and the sole terminal
       truth remains the durable event/receipt conjunction.
+  # ── Phase 9.4: CI/GitHub completion gate ──
+  - id: closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict
+    title: The completion gate degrades on unavailability but blocks on a computed pathological verdict
+    severity: critical
+    status: active
+    description: >
+      Phase 9.4. The CI/GitHub completion gate consumes the typed availability envelope
+      (BuildCompletionProjectionEnvelope) and validates its canonical publication form,
+      never raw ledger/receipts and never rebuilding availability or verdict semantics from
+      errors; it adds only advisory/enforce policy — re-derives nothing, mutates authoritative
+      state nothing, is never terminal authority. THREE outcome classes are distinct: (1)
+      runtime unavailable AFTER identity was established (Sensei/store/owner unreachable) →
+      fail OPEN, degraded, since AI is supplementary and never required; (2) a computed
+      pathological verdict (broken_completion, contradictory_terminal_history, unsupported)
+      → fail CLOSED under enforce; (3) authoritative_completion passes, not_completed passes
+      by default and blocks only under an explicit require_completion policy. Enforce is
+      opt-in per repo/domain via an explicit completion policy section, never imposed and
+      never reached through EditCheck rule inheritance. (Missing/invalid identity is a
+      SEPARATE class governed by
+      closure.completion_gate_requires_explicit_identity_when_enforcement_applies.)
+    protects:
+      files:
+        - docs/design/phase9.4-contract.md
+        - cmd/awg/cmd_gate.go
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      The completion gate consumes the typed projection envelope, degrades (fail-open) on a
+      runtime outage after identity, and blocks (fail-closed, under enforce) on a computed
+      broken/contradictory/unsupported verdict; it is read-only WRT authoritative state,
+      opt-in per domain, and never terminal authority.
+  - id: closure.completion_gate_requires_explicit_identity_when_enforcement_applies
+    title: The completion gate requires explicit verified task identity where enforcement applies
+    severity: critical
+    status: active
+    description: >
+      Phase 9.4. A missing or invalid required task identity is NOT a runtime outage and must
+      never become a degraded pass — otherwise a repo that opted into enforcement could bypass
+      the gate by omitting or breaking its task binding. Where completion enforcement applies,
+      the gate resolves identity from a typed, verified change-to-task binding
+      (completion.change_task_binding) — binding repository == CI repository, change id ==
+      current PR, head sha == checked-out PR head, task directory within the repository, task
+      id/session id matching the verified ledger, exactly one task selected, result binding
+      corresponding to this change. Identity that is absent, ambiguous, malformed, or
+      mismatched is CANNOT-VERIFY and blocks under enforce (a degraded report in advisory).
+      The gate never infers identity from branch name, PR title/body prose, directory scanning,
+      "latest"/first-matching task, or the active pointer alone. The mapping selects the task;
+      the completion projection remains solely responsible for the verdict.
+    protects:
+      files:
+        - docs/design/phase9.4-contract.md
+        - cmd/awg/cmd_gate.go
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      Under enforce, an unresolved or mismatched required task identity is cannot-verify and
+      blocks; it is never conflated with runtime unavailability, and identity is never inferred
+      by convenience.

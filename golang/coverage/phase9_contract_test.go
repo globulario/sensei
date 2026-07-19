@@ -25,11 +25,15 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"closure.phase9_projections_are_not_terminal_authority",
 		"closure.phase9_preserves_the_three_completion_distinctions",
 		"closure.phase9_surfaces_locked_until_a_reviewed_slice",
+		// Slice 9.4 — CI/GitHub completion gate.
+		"closure.completion_gate_fails_open_on_unavailability_and_closed_on_a_computed_verdict",
+		"closure.completion_gate_requires_explicit_identity_when_enforcement_applies",
 	}
 	wantFailureModes := []string{
 		"closure.phase9_surface_manufactures_or_reinterprets_completion",
 		"closure.phase9_projection_or_report_treated_as_terminal_authority",
 		"closure.phase9_surface_shipped_without_a_reviewed_slice",
+		"closure.completion_gate_conflates_unavailability_with_a_broken_verdict",
 	}
 	wantForbiddenFixes := []string{
 		"phase9_surface_appends_completed_or_writes_receipt",
@@ -37,15 +41,20 @@ func TestPhase9GovernedContractPresent(t *testing.T) {
 		"phase9_treat_projection_or_closure_report_as_completion_authority",
 		"phase9_ship_a_surface_without_a_reviewed_slice",
 		"phase9_invent_a_gnn_or_ml_capability_without_repository_evidence",
+		"phase9_gate_fails_closed_on_sensei_unavailability",
+		"phase9_gate_enforces_without_per_domain_opt_in",
+		"phase9_gate_treats_missing_required_task_identity_as_runtime_unavailability",
 	}
 
 	assertGovernedIDs(t, filepath.Join(root, "docs", "awareness", "invariants.yaml"), "invariants", wantInvariants)
 	assertGovernedIDs(t, filepath.Join(root, "docs", "awareness", "failure_modes.yaml"), "failure_modes", wantFailureModes)
 	assertGovernedIDs(t, filepath.Join(root, "docs", "awareness", "forbidden_fixes.yaml"), "forbidden_fixes", wantForbiddenFixes)
 
-	// The governed roadmap itself must be authored.
-	if _, err := os.Stat(filepath.Join(root, "docs", "design", "phase9-contract.md")); err != nil {
-		t.Fatalf("Phase-9 governed roadmap docs/design/phase9-contract.md is missing: %v", err)
+	// The governed roadmap and the opened slice contracts must be authored.
+	for _, doc := range []string{"phase9-contract.md", "phase9.4-contract.md"} {
+		if _, err := os.Stat(filepath.Join(root, "docs", "design", doc)); err != nil {
+			t.Fatalf("Phase-9 governed contract docs/design/%s is missing: %v", doc, err)
+		}
 	}
 
 	// The Phase-9 surfaces the roadmap governs (the completion owner it consumes, and
