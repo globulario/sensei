@@ -3,13 +3,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/completion"
 	"github.com/globulario/sensei/golang/architecture/probeexec"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/architecture/tasksession"
@@ -157,11 +160,48 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei task-status: %v\n", err)
 		return 1
 	}
-	if err := printTaskStatus(res, format); err != nil {
+	// Read-only: surface the ONE canonical completion projection (Phase 9.1). This
+	// consumes the completion owner's reconstruction; it re-derives nothing and
+	// mutates nothing. A task without a completion-relevant ledger simply yields the
+	// projection's `unsupported`/`not_completed` state.
+	env := completionProjectionEnvelope(opts)
+	if err := printTaskStatus(res, env, format); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei task-status: %v\n", err)
 		return 2
 	}
 	return 0
+}
+
+// completionProjectionEnvelope resolves the same task directory tasksession.Status
+// uses, then builds the canonical completion projection wrapped in a typed
+// availability envelope. It NEVER omits: a resolution or owner failure becomes an
+// explicit `unavailable` envelope with a typed class/detail, never silence, and never
+// a fabricated terminal state. It never fails the status command and mutates nothing.
+func completionProjectionEnvelope(opts tasksession.StatusOptions) completion.CompletionProjectionEnvelope {
+	abs, err := filepath.Abs(strings.TrimSpace(opts.RepoRoot))
+	if err != nil {
+		return completion.UnavailableTaskDirectoryEnvelope("repository path: " + err.Error())
+	}
+	taskDir := strings.TrimSpace(opts.TaskDir)
+	if opts.Active || taskDir == "" {
+		p, perr := tasksession.LoadActivePointer(abs)
+		if perr != nil {
+			return completion.UnavailableTaskDirectoryEnvelope("active task pointer: " + perr.Error())
+		}
+		taskDir = filepath.Dir(filepath.Join(abs, filepath.FromSlash(p.SessionPath)))
+	}
+	if strings.TrimSpace(taskDir) == "" {
+		return completion.UnavailableTaskDirectoryEnvelope("no task directory resolved")
+	}
+	env := completion.BuildCompletionProjectionEnvelope(context.Background(), completion.Request{RepositoryRoot: abs, TaskDirectory: taskDir})
+	// The task-status path receives only a canonically valid envelope: structure plus
+	// exact schema and a verified self-excluding digest. A freshly built envelope always
+	// passes; the check guards against an internal build that failed to stamp canonical
+	// identity, which would otherwise reach publication.
+	if completion.ValidateCanonicalCompletionEnvelope(env) != nil {
+		return completion.UnavailableProjectionOwnerEnvelope("internal: non-canonical completion envelope")
+	}
+	return env
 }
 
 func runAdvanceTask(args []string) int {
@@ -442,7 +482,7 @@ func printPrepareChange(res tasksession.PrepareResult, format string) error {
 	}
 }
 
-func printTaskStatus(res tasksession.StatusResult, format string) error {
+func printTaskStatus(res tasksession.StatusResult, env completion.CompletionProjectionEnvelope, format string) error {
 	switch strings.TrimSpace(format) {
 	case "", "text":
 		fmt.Printf("Task: %s\n", res.TaskID)
@@ -466,16 +506,19 @@ func printTaskStatus(res tasksession.StatusResult, format string) error {
 		} else if len(res.VerifyErrors) > 0 {
 			fmt.Printf("Verified: false (%s)\n", strings.Join(res.VerifyErrors, "; "))
 		}
+		// The single canonical completion mapping — always shown, never omitted; an
+		// unavailable projection is reported explicitly, not as silence.
+		fmt.Printf("Completion: %s\n", env.Summary())
 		return nil
 	case "yaml", "yml":
-		data, err := yaml.Marshal(map[string]tasksession.StatusResult{"architecture_task_status": res})
+		data, err := yaml.Marshal(taskStatusEnvelope(res, env))
 		if err != nil {
 			return err
 		}
 		fmt.Print(string(data))
 		return nil
 	case "json":
-		data, err := json.MarshalIndent(map[string]tasksession.StatusResult{"architecture_task_status": res}, "", "  ")
+		data, err := json.MarshalIndent(taskStatusEnvelope(res, env), "", "  ")
 		if err != nil {
 			return err
 		}
@@ -483,5 +526,18 @@ func printTaskStatus(res tasksession.StatusResult, format string) error {
 		return nil
 	default:
 		return fmt.Errorf("--format must be text, yaml, or json")
+	}
+}
+
+// taskStatusEnvelope carries the task status plus the canonical, non-authoritative
+// completion projection ENVELOPE under a distinct key. The envelope is always present
+// (available or unavailable), so structured output never silently omits completion.
+func taskStatusEnvelope(res tasksession.StatusResult, env completion.CompletionProjectionEnvelope) map[string]any {
+	return map[string]any{
+		"architecture_task_status": res,
+		// Publish the stable typed publication union: one schema, one outer shape for both
+		// canonical and non-canonical outcomes, so a post-stamp tampered envelope is
+		// reported as canonical:false rather than presented as if it were canonical.
+		"completion_projection": env.PublicationView(),
 	}
 }
