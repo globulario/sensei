@@ -2040,12 +2040,28 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 }
 
 func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{}) (*toolResult, error) {
+	allowed := map[string]bool{
+		"diff":          true,
+		"task":          true,
+		"expected_head": true,
+		"domain":        true,
+	}
+	for k := range args {
+		if !allowed[k] {
+			return nil, fmt.Errorf("unknown property in awareness_audit_diff request: %s", k)
+		}
+	}
+
 	diffText := argString(args, "diff")
 	if strings.TrimSpace(diffText) == "" {
-		return nil, fmt.Errorf("diff is required")
+		return nil, fmt.Errorf("diff is required and must be non-empty")
 	}
 	task := argString(args, "task")
-	expectedHead := argString(args, "expected_head")
+	expectedHead := strings.TrimSpace(argString(args, "expected_head"))
+	if expectedHead != "" && len(expectedHead) != 40 {
+		return nil, fmt.Errorf("expected_head, when supplied, must be an exact 40-character hex commit SHA: got %q", expectedHead)
+	}
+
 	domain := strings.TrimSpace(argString(args, "domain"))
 
 	parsed, err := diffaudit.ParseDiff(diffText, diffaudit.DefaultParseOptions())

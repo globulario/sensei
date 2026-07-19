@@ -4,7 +4,6 @@ package diffaudit
 
 import (
 	"context"
-	"fmt"
 	"testing"
 )
 
@@ -45,42 +44,22 @@ func TestEvaluateDiff_PassesCleanDiff(t *testing.T) {
 	}
 }
 
-func TestEvaluateDiff_BlocksOnForbiddenFix(t *testing.T) {
+func TestEvaluateDiff_NilCheckerForcesCannotVerify(t *testing.T) {
 	parsed, err := ParseDiff(sampleValidDiff, DefaultParseOptions())
 	if err != nil {
 		t.Fatalf("ParseDiff: %v", err)
 	}
 
-	checker := &fakeChecker{
-		checkFileFunc: func(_ context.Context, file, content, _ string) ([]AuditFinding, error) {
-			if file == "cmd/main.go" {
-				return []AuditFinding{
-					{
-						RecordID:    "ff-1",
-						RecordClass: "forbidden_fix",
-						Disposition: "block",
-						FilePath:    file,
-						Explanation: "forbidden pattern detected",
-					},
-				}, nil
-			}
-			return nil, nil
-		},
-	}
-
-	res, err := EvaluateDiff(context.Background(), parsed, checker, AuditOptions{})
+	res, err := EvaluateDiff(context.Background(), parsed, nil, AuditOptions{})
 	if err != nil {
 		t.Fatalf("EvaluateDiff: %v", err)
 	}
-	if res.Decision != DecisionBlock {
-		t.Errorf("expected DecisionBlock, got %s", res.Decision)
-	}
-	if len(res.Findings) != 1 || res.Findings[0].RecordID != "ff-1" {
-		t.Errorf("unexpected findings: %+v", res.Findings)
+	if res.Decision != DecisionCannotVerify || res.Availability != AvailabilityCannotVerify {
+		t.Errorf("expected cannot_verify for nil checker, got decision=%s, availability=%s", res.Decision, res.Availability)
 	}
 }
 
-func TestEvaluateDiff_GraphUnavailableForcesCannotVerify(t *testing.T) {
+func TestEvaluateDiff_OmittedCompanionFileObligation(t *testing.T) {
 	parsed, err := ParseDiff(sampleValidDiff, DefaultParseOptions())
 	if err != nil {
 		t.Fatalf("ParseDiff: %v", err)
@@ -88,7 +67,10 @@ func TestEvaluateDiff_GraphUnavailableForcesCannotVerify(t *testing.T) {
 
 	checker := &fakeChecker{
 		getFileImpactFunc: func(_ context.Context, file, domain string) ([]string, []string, []string, error) {
-			return nil, nil, nil, fmt.Errorf("impact query error")
+			if file == "cmd/main.go" {
+				return []string{"cmd/main_test.go"}, nil, nil, nil
+			}
+			return nil, nil, nil, nil
 		},
 	}
 
@@ -96,10 +78,10 @@ func TestEvaluateDiff_GraphUnavailableForcesCannotVerify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EvaluateDiff: %v", err)
 	}
-	if res.Decision != DecisionCannotVerify {
-		t.Errorf("expected DecisionCannotVerify when graph is unavailable, got %s", res.Decision)
+	if res.Decision != DecisionReview {
+		t.Errorf("expected DecisionReview for missing companion test file, got %s", res.Decision)
 	}
-	if res.Availability != AvailabilityCannotVerify {
-		t.Errorf("expected AvailabilityCannotVerify, got %s", res.Availability)
+	if len(res.Findings) == 0 || res.Findings[0].RecordID != "obligation.omitted_required_test" {
+		t.Errorf("expected obligation.omitted_required_test finding, got %+v", res.Findings)
 	}
 }
