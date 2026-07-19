@@ -740,6 +740,7 @@ func TestBriefing_EmptyStatusWhenNoNodes(t *testing.T) {
 			return nil, nil
 		},
 	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
 	if err != nil {
 		t.Fatalf("Briefing: %v", err)
@@ -761,6 +762,7 @@ func TestBriefing_OKWithReferencedIDsAndTask(t *testing.T) {
 			}, nil
 		},
 	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{
 		File: "test/example.go",
 		Task: "touch only parser",
@@ -854,6 +856,7 @@ func TestBriefing_DirectFailureModeOnly(t *testing.T) {
 			}, nil
 		},
 	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
 	if err != nil {
 		t.Fatalf("Briefing: %v", err)
@@ -1473,6 +1476,7 @@ func TestBriefing_CodeSymbols_OKWhenOnlySymbols(t *testing.T) {
 			}, nil
 		},
 	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "golang/server/briefing.go"})
 	if err != nil {
 		t.Fatalf("Briefing: %v", err)
@@ -1617,6 +1621,7 @@ func TestBriefing_UnknownFile_StillEmpty(t *testing.T) {
 			return nil, nil
 		},
 	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "golang/no/such/file.go"})
 	if err != nil {
 		t.Fatalf("Briefing: %v", err)
