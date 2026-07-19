@@ -1285,3 +1285,32 @@ invariants:
       Under enforce, an unresolved or mismatched required task identity is cannot-verify and
       blocks; it is never conflated with runtime unavailability, and identity is never inferred
       by convenience.
+  - id: closure.change_task_binding_is_exact_typed_and_positively_authorized
+    title: A change-to-task binding is an exact, typed, self-digested identity requiring positive provenance authority
+    severity: critical
+    status: active
+    description: >
+      Phase 9.4c. The completion.change_task_binding/v1 publication binds the exact evaluated
+      change (repository + bounded base..head + head SHA + change id) to the exact canonical
+      task, so a valid completion for one task cannot be laundered onto an unrelated change.
+      It is validated by EXACT typed comparison over a self-excluding canonical digest:
+      identity-bearing strings are never trimmed, case-folded, shortened, path-cleaned, or
+      otherwise normalized — noncanonical input is REJECTED, not converted. A populated issuer
+      is never sufficient; authoritative_binding requires POSITIVE provenance verification. A
+      contradictory publication set (more than one for one evaluated change) fails closed and
+      is never resolved by selecting a record. An invalid binding identity is identity-invalid
+      (block under enforce), never a runtime degraded pass. Enforcement composition with the
+      9.4b decision is Phase 9.4c Checkpoint 3; this establishes the typed identity object, its
+      canonical digest, a strict parser, and a pure validator.
+    protects:
+      files:
+        - docs/design/phase9.4c-change-task-binding.md
+        - golang/architecture/changebinding/model.go
+        - golang/architecture/changebinding/validate.go
+    required_tests:
+      - golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
+    contract: >
+      The change-to-task binding is exact, typed, and self-digested; noncanonical identity is
+      rejected not normalized; authoritative_binding requires positive provenance authority; a
+      contradictory set fails closed with no record selected; an invalid binding never receives
+      runtime degradation.

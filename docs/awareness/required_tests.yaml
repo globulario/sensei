@@ -830,3 +830,29 @@ required_tests:
         - closure.completion_gate_conflates_unavailability_with_a_broken_verdict
       files:
         - cmd/awg/completion_decision.go
+  # Phase 9.4c change-to-task binding (Checkpoint 1) — the typed identity object, its
+  # canonical digest, strict parser, and pure validator realize the 9.4c governing records.
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidate_SubjectMatching
+    title: A change-to-task binding validates by exact typed subject match and fails closed per typed class
+    protects:
+      invariants:
+        - closure.change_task_binding_is_exact_typed_and_positively_authorized
+      failure_modes:
+        - closure.change_task_binding_launders_a_completion_onto_an_unrelated_change
+      files:
+        - golang/architecture/changebinding/validate.go
+        - golang/architecture/changebinding/model.go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestValidateSet_Contradictions
+    title: A contradictory change-to-task publication set fails closed and no record is ever selected
+    protects:
+      invariants:
+        - closure.change_task_binding_is_exact_typed_and_positively_authorized
+      files:
+        - golang/architecture/changebinding/validate.go
+  - id: golang/architecture/changebinding/changebinding_test.go:TestParse_RejectsNoncanonicalIdentities
+    title: Noncanonical change-to-task identity is rejected, never normalized
+    protects:
+      invariants:
+        - closure.change_task_binding_is_exact_typed_and_positively_authorized
+      files:
+        - golang/architecture/changebinding/parse.go
