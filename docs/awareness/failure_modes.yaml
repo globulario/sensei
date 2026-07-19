@@ -881,7 +881,7 @@ failure_modes:
       - phase9_briefing_feedback_infers_scope_or_leaks_or_owns_feedback_elsewhere
     related_invariants:
       - closure.briefing_feedback_is_verified_scoped_and_single_owner
-    evidence: Phase 9.6 govern-first; one verified, typed, scope-exact, debris-isolated, single-owner feedback projection.
+    evidence: Phase 9.6 implemented + tested (golang/architecture/briefingfeedback); one verified, typed, scope-exact, debris-isolated, single-owner feedback projection, proven by the adversarial ledger in docs/design/phase9.6-briefing-feedback.md §18.4.
 
   - id: closure.briefing_feedback_server_selects_filesystem_repository_from_request_or_cwd
     title: The server selected a filesystem repository from the caller, cwd, or a foreign-domain request
@@ -902,7 +902,7 @@ failure_modes:
       - phase9_briefing_feedback_use_home_or_requested_domain_as_repository_proof
     related_invariants:
       - closure.briefing_feedback_server_repository_context_is_startup_owned
-    evidence: Phase 9.6 Checkpoint 2 govern-first; the feedback context is one immutable startup-owned pair, and a domain mismatch is typed-unavailable without owner invocation.
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested (golang/server startup context + selector); the feedback context is one immutable startup-owned pair, and a domain mismatch is typed-unavailable without owner invocation.
 
   - id: closure.briefing_feedback_server_treats_task_text_as_canonical_identity
     title: The server treated natural-language task text as canonical task identity
@@ -921,7 +921,7 @@ failure_modes:
       - phase9_briefing_feedback_infer_active_task_for_task_only_feedback
     related_invariants:
       - closure.briefing_feedback_task_text_is_not_task_identity
-    evidence: Phase 9.6 Checkpoint 2 govern-first; task-only feedback is typed-unavailable and reads no task directory.
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested; task-only feedback is typed-unavailable (canonical_task_scope_not_established) and reads no task directory.
 
   - id: closure.briefing_feedback_structured_and_prose_diverge_or_unavailability_disappears
     title: Structured feedback and prose diverged, or unavailable feedback silently disappeared
@@ -942,7 +942,7 @@ failure_modes:
     related_invariants:
       - closure.briefing_feedback_prose_is_rendered_only_from_the_typed_projection
       - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
-    evidence: Phase 9.6 Checkpoint 2 govern-first; prose and wire derive from one validated projection and status composes by a frozen table.
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested; prose and wire derive from one atomic validated-projection pair and status composes by a frozen table.
 
   - id: closure.briefing_feedback_server_reconstructs_promotion_verification
     title: The server reconstructed promotion verification or owner policy from graph or filesystem artifacts
@@ -963,4 +963,4 @@ failure_modes:
     related_invariants:
       - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
       - closure.briefing_feedback_is_verified_scoped_and_single_owner
-    evidence: Phase 9.6 Checkpoint 2 govern-first; the server is a thin consumer of the canonical owner + pure adapter and never reconstructs verification.
+    evidence: Phase 9.6 Checkpoint 2 implemented + tested; the server is a thin consumer of the canonical owner + pure adapter (coverage.TestBriefingFeedbackOwnershipBoundary) and never reconstructs verification.
