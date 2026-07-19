@@ -44,8 +44,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
-	"github.com/globulario/sensei/golang/architecture/diffaudit"
 	"github.com/globulario/sensei/golang/architecture/completion"
+	"github.com/globulario/sensei/golang/architecture/diffaudit"
 	"github.com/globulario/sensei/golang/architecture/probeexec"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/architecture/tasksession"
@@ -2015,7 +2015,7 @@ func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, conte
 	return findings, nil
 }
 
-func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]string, []string, []diffaudit.AuditFinding, error) {
+func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]string, []string, []string, error) {
 	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
 		File:   file,
 		Domain: domain,
@@ -2032,17 +2032,11 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 		contracts = append(contracts, ct.GetId())
 	}
 
-	var findings []diffaudit.AuditFinding
+	var rules []string
 	for _, ff := range resp.GetForbiddenFixes() {
-		findings = append(findings, diffaudit.AuditFinding{
-			RecordID:    ff.GetId(),
-			RecordClass: "forbidden_fix",
-			Disposition: "block",
-			FilePath:    file,
-			Explanation: ff.GetLabel(),
-		})
+		rules = append(rules, ff.GetId())
 	}
-	return tests, contracts, findings, nil
+	return tests, contracts, rules, nil
 }
 
 func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{}) (*toolResult, error) {

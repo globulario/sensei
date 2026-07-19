@@ -66,45 +66,45 @@ const (
 
 // AuditFinding represents one governed record finding for a diff.
 type AuditFinding struct {
-	RecordID     string   `json:"record_id"`
-	RecordClass  string   `json:"record_class"`  // invariant, failure_mode, forbidden_fix, required_test, contract
-	Disposition  string   `json:"disposition"`   // block, review, advisory
-	FilePath     string   `json:"file_path"`     // relative path
-	HunkIndex    int      `json:"hunk_index,omitempty"`
-	StartLine    int      `json:"start_line,omitempty"`
-	EndLine      int      `json:"end_line,omitempty"`
-	Provenance   string   `json:"provenance,omitempty"`
-	Explanation  string   `json:"explanation"`
-	RelatedIDs   []string `json:"related_ids,omitempty"`
+	RecordID    string   `json:"record_id"`
+	RecordClass string   `json:"record_class"` // invariant, failure_mode, forbidden_fix, required_test, contract
+	Disposition string   `json:"disposition"`  // block, review, advisory
+	FilePath    string   `json:"file_path"`    // relative path
+	HunkIndex   int      `json:"hunk_index,omitempty"`
+	StartLine   int      `json:"start_line,omitempty"`
+	EndLine     int      `json:"end_line,omitempty"`
+	Provenance  string   `json:"provenance,omitempty"`
+	Explanation string   `json:"explanation"`
+	RelatedIDs  []string `json:"related_ids,omitempty"`
 }
 
 // ChangedFileSummary describes one touched file in the audited diff.
 type ChangedFileSummary struct {
-	Path        string     `json:"path"`
-	OldPath     string     `json:"old_path,omitempty"`
-	Kind        ChangeKind `json:"kind"`
-	OldMode     string     `json:"old_mode,omitempty"`
-	NewMode     string     `json:"new_mode,omitempty"`
-	HunkCount   int        `json:"hunk_count"`
-	LinesAdded  int        `json:"lines_added"`
-	LinesDeleted int       `json:"lines_deleted"`
+	Path         string     `json:"path"`
+	OldPath      string     `json:"old_path,omitempty"`
+	Kind         ChangeKind `json:"kind"`
+	OldMode      string     `json:"old_mode,omitempty"`
+	NewMode      string     `json:"new_mode,omitempty"`
+	HunkCount    int        `json:"hunk_count"`
+	LinesAdded   int        `json:"lines_added"`
+	LinesDeleted int        `json:"lines_deleted"`
 }
 
 // AuditResult represents the canonical v1 result schema ("awareness.diff_audit/v1").
 type AuditResult struct {
-	Schema           string               `json:"schema"`
-	Digest           string               `json:"digest"`             // Self-excluding SHA256 hex digest
-	InputDiffDigest  string               `json:"input_diff_digest"`  // SHA256 hex of raw diff payload
-	InputTrust       string               `json:"input_trust"`        // "caller_supplied"
-	Availability     Availability         `json:"availability"`
-	Decision         Decision             `json:"decision"`
-	ExpectedHead     string               `json:"expected_head,omitempty"`
-	ChangedFiles     []ChangedFileSummary `json:"changed_files"`
-	Findings         []AuditFinding       `json:"findings"`
-	ImplicatedTests  []string             `json:"implicated_tests,omitempty"`
-	ImplicatedContracts []string          `json:"implicated_contracts,omitempty"`
-	ReasonCodes      []ReasonCode         `json:"reason_codes,omitempty"`
-	Limitations      []string             `json:"limitations,omitempty"`
+	Schema              string               `json:"schema"`
+	Digest              string               `json:"digest"`            // Self-excluding SHA256 hex digest
+	InputDiffDigest     string               `json:"input_diff_digest"` // SHA256 hex of raw diff payload
+	InputTrust          string               `json:"input_trust"`       // "caller_supplied"
+	Availability        Availability         `json:"availability"`
+	Decision            Decision             `json:"decision"`
+	ExpectedHead        string               `json:"expected_head,omitempty"`
+	ChangedFiles        []ChangedFileSummary `json:"changed_files"`
+	Findings            []AuditFinding       `json:"findings"`
+	ImplicatedTests     []string             `json:"implicated_tests,omitempty"`
+	ImplicatedContracts []string             `json:"implicated_contracts,omitempty"`
+	ReasonCodes         []ReasonCode         `json:"reason_codes,omitempty"`
+	Limitations         []string             `json:"limitations,omitempty"`
 }
 
 // ComputeDigest calculates the canonical self-excluding SHA-256 digest of an AuditResult.

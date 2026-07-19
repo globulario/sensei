@@ -1,8 +1,8 @@
 # Frontier A — Governed Multi-File Diff Audit
 
-> **Status: opening contract only.** This document authorizes design review, not implementation.
-> The implementation must remain a thin MCP/CLI surface over existing Sensei graph,
-> edit-check, admission, and policy owners. It must not create a second rule evaluator.
+> **Status: Active implementation.** This document governs the `awareness_audit_diff` MCP tool.
+> The implementation remains a thin MCP/CLI surface over existing Sensei graph,
+> edit-check, admission, and policy owners without creating a second rule evaluator.
 
 ## 1. Objective
 

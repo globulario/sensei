@@ -8,10 +8,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 )
 
-// ParsedDiff Hunk represents one line-range hunk in a file patch.
+// DiffHunk represents one line-range hunk in a file patch.
 type DiffHunk struct {
 	Index        int      `json:"index"`
 	OldStart     int      `json:"old_start"`
@@ -85,7 +86,7 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		return nil, fmt.Errorf("diff payload is empty")
 	}
 
-	// Check for invalid NUL bytes or unprintable control characters
+	// Check for invalid NUL bytes
 	if strings.ContainsRune(diffText, 0) {
 		return nil, fmt.Errorf("diff payload contains invalid NUL byte")
 	}
@@ -95,27 +96,50 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 	var current *ParsedFilePatch
 	var currentHunk *DiffHunk
 	var reasons []ReasonCode
-	var errs []string
 
-	pathSeen := make(map[string]bool)
+	pathSeenExact := make(map[string]bool)
+	pathSeenLower := make(map[string]string)
 
-	finishCurrentHunk := func() {
-		if current != nil && currentHunk != nil {
+	finishCurrentHunk := func() error {
+		if currentHunk != nil {
+			// Validate declared line counts match actual lines in hunk
+			actualOld := currentHunk.DeletedLines + (len(currentHunk.Lines) - currentHunk.AddedLines - currentHunk.DeletedLines)
+			actualNew := currentHunk.AddedLines + (len(currentHunk.Lines) - currentHunk.AddedLines - currentHunk.DeletedLines)
+
+			if currentHunk.OldLines != actualOld || currentHunk.NewLines != actualNew {
+				return fmt.Errorf("hunk %d in file %q line count mismatch: declared old=%d/new=%d, actual old=%d/new=%d",
+					currentHunk.Index, current.Path, currentHunk.OldLines, currentHunk.NewLines, actualOld, actualNew)
+			}
+
 			current.Hunks = append(current.Hunks, *currentHunk)
 			currentHunk = nil
 		}
+		return nil
 	}
 
 	finishCurrentFile := func() error {
-		finishCurrentHunk()
+		if err := finishCurrentHunk(); err != nil {
+			return err
+		}
 		if current != nil {
+			// Reject header-only incomplete patches without hunks, binary marker, rename, or mode change
+			if len(current.Hunks) == 0 && !current.IsBinary && current.Kind != ChangeRename && current.Kind != ChangeModeChange {
+				return fmt.Errorf("file %q has an incomplete header-only patch with no hunks or metadata", current.Path)
+			}
+
 			if len(current.Hunks) > opts.MaxHunks {
 				return fmt.Errorf("file %q exceeds maximum hunk limit of %d", current.Path, opts.MaxHunks)
 			}
-			if pathSeen[current.Path] {
-				return fmt.Errorf("duplicate or ambiguous file path in diff: %q", current.Path)
+			if pathSeenExact[current.Path] {
+				return fmt.Errorf("duplicate logical file path in diff: %q", current.Path)
 			}
-			pathSeen[current.Path] = true
+			lowerPath := strings.ToLower(current.Path)
+			if existing, collide := pathSeenLower[lowerPath]; collide && existing != current.Path {
+				return fmt.Errorf("case-collision path ambiguity in diff: %q vs %q", current.Path, existing)
+			}
+
+			pathSeenExact[current.Path] = true
+			pathSeenLower[lowerPath] = current.Path
 			patches = append(patches, *current)
 			current = nil
 		}
@@ -135,17 +159,13 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 				return nil, fmt.Errorf("diff payload exceeds maximum file count of %d", opts.MaxFiles)
 			}
 
-			parts := strings.Split(line[11:], " ")
-			if len(parts) < 2 {
-				return nil, fmt.Errorf("line %d: malformed diff --git header: %s", lineNum, line)
+			oldPath, newPath, err := parseGitDiffHeader(line[11:])
+			if err != nil {
+				return nil, fmt.Errorf("line %d: malformed diff --git header: %w", lineNum, err)
 			}
-
-			oldPath := cleanDiffPath(parts[0])
-			newPath := cleanDiffPath(parts[len(parts)-1])
 
 			p, err := sanitizePath(newPath)
 			if err != nil {
-				// Try oldPath if newPath is /dev/null (deleted file)
 				if oldP, oldErr := sanitizePath(oldPath); oldErr == nil && oldP != "" {
 					p = oldP
 				} else {
@@ -162,7 +182,6 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		}
 
 		if current == nil {
-			// Skip unparsed preamble lines before first diff header
 			continue
 		}
 
@@ -181,12 +200,12 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 		}
 		if strings.HasPrefix(line, "rename from ") {
 			current.Kind = ChangeRename
-			current.OldPath = strings.TrimSpace(line[12:])
+			current.OldPath = parseQuotedPath(line[12:])
 			continue
 		}
 		if strings.HasPrefix(line, "rename to ") {
 			current.Kind = ChangeRename
-			newP, err := sanitizePath(strings.TrimSpace(line[10:]))
+			newP, err := sanitizePath(line[10:])
 			if err == nil && newP != "" {
 				current.Path = newP
 			}
@@ -208,11 +227,32 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 			reasons = append(reasons, ReasonUnsupportedDiffFeature)
 			continue
 		}
-		if strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "+++ ") {
+		if strings.HasPrefix(line, "--- ") {
+			headerOld := parseQuotedPath(line[4:])
+			if headerOld != "/dev/null" {
+				if cleanOld, err := sanitizePath(headerOld); err == nil && cleanOld != "" {
+					if current.OldPath != "" && cleanOld != current.OldPath && cleanOld != current.Path {
+						return nil, fmt.Errorf("line %d: --- header path %q conflicts with diff header path %q", lineNum, cleanOld, current.OldPath)
+					}
+				}
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "+++ ") {
+			headerNew := parseQuotedPath(line[4:])
+			if headerNew != "/dev/null" {
+				if cleanNew, err := sanitizePath(headerNew); err == nil && cleanNew != "" {
+					if cleanNew != current.Path {
+						return nil, fmt.Errorf("line %d: +++ header path %q conflicts with diff header path %q", lineNum, cleanNew, current.Path)
+					}
+				}
+			}
 			continue
 		}
 		if strings.HasPrefix(line, "@@ ") {
-			finishCurrentHunk()
+			if err := finishCurrentHunk(); err != nil {
+				return nil, err
+			}
 			oldStart, oldLines, newStart, newLines, err := parseHunkHeader(line)
 			if err != nil {
 				return nil, fmt.Errorf("line %d: malformed hunk header: %w", lineNum, err)
@@ -237,7 +277,7 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 				currentHunk.DeletedLines++
 				current.TotalDeleted++
 				currentHunk.Lines = append(currentHunk.Lines, line)
-			} else if strings.HasPrefix(line, " ") || line == "" {
+			} else {
 				currentHunk.Lines = append(currentHunk.Lines, line)
 			}
 		}
@@ -258,30 +298,53 @@ func ParseDiff(diffText string, opts ParseOptions) (*ParsedDiff, error) {
 	return &ParsedDiff{
 		InputDigest: digest,
 		Files:       patches,
-		ReasonCodes: reasons,
-		Errors:      errs,
+		ReasonCodes: deduplicateReasonCodes(reasons),
 	}, nil
 }
 
-func cleanDiffPath(p string) string {
+func parseGitDiffHeader(line string) (oldPath, newPath string, err error) {
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "\"") {
+		// Handles quoted paths e.g. "a/foo bar" "b/foo bar"
+		idx := strings.Index(line[1:], "\"")
+		if idx == -1 {
+			return "", "", fmt.Errorf("unclosed quote in path")
+		}
+		oldPath = line[:idx+2]
+		rest := strings.TrimSpace(line[idx+2:])
+		newPath = rest
+	} else {
+		parts := strings.Split(line, " ")
+		if len(parts) < 2 {
+			return "", "", fmt.Errorf("invalid header tokens")
+		}
+		oldPath = parts[0]
+		newPath = parts[len(parts)-1]
+	}
+	return parseQuotedPath(oldPath), parseQuotedPath(newPath), nil
+}
+
+func parseQuotedPath(p string) string {
 	p = strings.TrimSpace(p)
-	p = strings.Trim(p, "\"")
+	if strings.HasPrefix(p, "\"") && strings.HasSuffix(p, "\"") {
+		if unquoted, err := strconv.Unquote(p); err == nil {
+			p = unquoted
+		}
+	}
 	if strings.HasPrefix(p, "a/") || strings.HasPrefix(p, "b/") {
 		return p[2:]
 	}
 	return p
 }
 
-// sanitizePath validates and cleans a file path, rejecting traversal attacks.
 func sanitizePath(p string) (string, error) {
-	p = cleanDiffPath(p)
+	p = parseQuotedPath(p)
 	if p == "" || p == "/dev/null" {
 		return "", nil
 	}
 	if strings.HasPrefix(p, "/") || strings.HasPrefix(p, "\\") {
 		return "", fmt.Errorf("absolute path forbidden: %s", p)
 	}
-	// Check for windows drive letters e.g. C:
 	if len(p) >= 2 && p[1] == ':' {
 		return "", fmt.Errorf("windows drive path forbidden: %s", p)
 	}
@@ -292,7 +355,6 @@ func sanitizePath(p string) (string, error) {
 	return clean, nil
 }
 
-// parseHunkHeader parses @@ -oldStart,oldLines +newStart,newLines @@
 func parseHunkHeader(line string) (oldStart, oldLines, newStart, newLines int, err error) {
 	parts := strings.Split(line, "@@")
 	if len(parts) < 3 {
@@ -321,4 +383,19 @@ func parseRange(spec string) (start, count int) {
 		count = 1
 	}
 	return start, count
+}
+
+func deduplicateReasonCodes(in []ReasonCode) []ReasonCode {
+	if len(in) == 0 {
+		return nil
+	}
+	m := make(map[ReasonCode]bool)
+	for _, r := range in {
+		m[r] = true
+	}
+	out := make([]ReasonCode, 0, len(m))
+	for r := range m {
+		out = append(out, r)
+	}
+	return out
 }
