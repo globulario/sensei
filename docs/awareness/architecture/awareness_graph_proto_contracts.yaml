@@ -4,7 +4,7 @@
 contracts:
   - id: contract.awareness_graph
     name: AwarenessGraph
-    description: 'gRPC service AwarenessGraph with 9 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites.'
+    description: 'gRPC service AwarenessGraph with 13 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor.'
     kind: grpc
     stability: stable
     read_or_write: read
@@ -152,6 +152,70 @@ contracts:
     kind: grpc
     stability: stable
     read_or_write: unknown
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.get_architecture_control_snapshot
+    name: AwarenessGraph.GetArchitectureControlSnapshot
+    description: GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 — the bounded repository overview (typed counts, attention, authority). — rpc GetArchitectureControlSnapshot(GetArchitectureControlSnapshotRequest) returns (GetArchitectureControlSnapshotResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.list_architecture_artifacts
+    name: AwarenessGraph.ListArchitectureArtifacts
+    description: 'ListArchitectureArtifacts returns one page of architecture.artifact_index/v1. The cursor is OPAQUE: produced and validated only by the controlstate owner, bound to snapshot/registry/filter identity, rejected on mismatch. — rpc ListArchitectureArtifacts(ListArchitectureArtifactsRequest) returns (ListArchitectureArtifactsResponse)'
+    kind: grpc
+    stability: stable
+    read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.get_architecture_artifact_state
+    name: AwarenessGraph.GetArchitectureArtifactState
+    description: GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE exact node IRI. The canonical class is resolved by the controlstate registry from observed graph classes — never supplied by the caller. — rpc GetArchitectureArtifactState(GetArchitectureArtifactStateRequest) returns (GetArchitectureArtifactStateResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.get_ontology_navigation_descriptor
+    name: AwarenessGraph.GetOntologyNavigationDescriptor
+    description: GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 — registry-derived, repository-independent; requires no filesystem context. — rpc GetOntologyNavigationDescriptor(GetOntologyNavigationDescriptorRequest) returns (GetOntologyNavigationDescriptorResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: read
     assertion: inferred
     exposed_by:
       - component.awareness_graph_service

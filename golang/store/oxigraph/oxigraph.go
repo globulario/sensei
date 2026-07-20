@@ -33,6 +33,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -127,6 +128,10 @@ func (c *Client) Health(ctx context.Context) error {
 
 // Describe returns direct outgoing triples for one subject IRI.
 func (c *Client) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
+	// Defense in depth: an unvalidated caller value must never reach SPARQL text.
+	if err := store.ValidateQueryIRI(iri); err != nil {
+		return nil, fmt.Errorf("oxigraph describe: %w", err)
+	}
 	q := fmt.Sprintf("SELECT ?p ?o WHERE { <%s> ?p ?o . }", iri)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {
@@ -167,6 +172,10 @@ func (c *Client) Describe(ctx context.Context, iri string) ([]store.Triple, erro
 // whose object is the given IRI. Literal subjects cannot exist, but we filter
 // to IRI subjects defensively so a malformed store cannot inject one.
 func (c *Client) DescribeInbound(ctx context.Context, iri string) ([]store.InboundTriple, error) {
+	// Defense in depth: an unvalidated caller value must never reach SPARQL text.
+	if err := store.ValidateQueryIRI(iri); err != nil {
+		return nil, fmt.Errorf("oxigraph describe-inbound: %w", err)
+	}
 	q := fmt.Sprintf("SELECT ?s ?p WHERE { ?s ?p <%s> . FILTER(isIRI(?s)) }", iri)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {
@@ -1097,3 +1106,68 @@ func (c *Client) RenderingGroupsForFile(ctx context.Context, sourceFileIRI strin
 // interface acquires a method *Client doesn't implement, the build
 // fails here with a clear "missing method" error.
 var _ store.Store = (*Client)(nil)
+
+// TypedNodeFactsPage enumerates ONE deterministic bounded page of typed nodes (nodes carrying at
+// least one rdf:type) whose IRI sorts strictly after afterIRI, together with their identity-
+// relevant facts only: rdf:type, rdfs:label, aw:status, aw:repo, aw:domain. It is the
+// unknown-class discovery primitive for the Phase 9.5 catalog — known and unknown classes flow
+// through one canonical path, ordered by node IRI so pagination is deterministic.
+//
+// Returns (facts, nextAfter, error): nextAfter is the last node IRI of the page ("" when the
+// enumeration is exhausted — completeness is explicit, never inferred).
+func (c *Client) TypedNodeFactsPage(ctx context.Context, afterIRI string, limit int) ([]store.ImpactFact, string, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 300 {
+		limit = 300
+	}
+	filter := ""
+	if afterIRI != "" {
+		// afterIRI originates from graph node IRIs; validate anyway (defense in depth) so no
+		// unvalidated value is interpolated into the SPARQL string literal.
+		if err := store.ValidateQueryIRI(afterIRI); err != nil {
+			return nil, "", fmt.Errorf("oxigraph typed nodes: cursor: %w", err)
+		}
+		filter = fmt.Sprintf("FILTER(STR(?node) > \"%s\")", afterIRI)
+	}
+	q := fmt.Sprintf(
+		`SELECT ?node ?p ?o WHERE {
+  {
+    SELECT DISTINCT ?node WHERE {
+      ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?t .
+      %s
+    }
+    ORDER BY ?node
+    LIMIT %d
+  }
+  ?node ?p ?o .
+  FILTER(?p IN (
+    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>,
+    <http://www.w3.org/2000/01/rdf-schema#label>,
+    <https://globular.io/awareness#status>,
+    <https://globular.io/awareness#repo>,
+    <https://globular.io/awareness#domain>
+  ))
+}`,
+		filter, limit,
+	)
+	facts, err := c.classFactsFromQuery(ctx, q, "")
+	if err != nil {
+		return nil, "", err
+	}
+	// Deterministic page order + explicit next cursor.
+	sort.SliceStable(facts, func(i, j int) bool { return facts[i].NodeIRI < facts[j].NodeIRI })
+	distinct := map[string]bool{}
+	last := ""
+	for _, f := range facts {
+		distinct[f.NodeIRI] = true
+		if f.NodeIRI > last {
+			last = f.NodeIRI
+		}
+	}
+	if len(distinct) < limit {
+		return facts, "", nil // exhausted: explicit completeness
+	}
+	return facts, last, nil
+}

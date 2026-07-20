@@ -421,6 +421,19 @@ components:
       - golang/architecture/completion/receipt.go
       - golang/architecture/completion/recover.go
       - golang/architecture/completion/worldbinding.go
+      - golang/architecture/controlstate/artifactstate.go
+      - golang/architecture/controlstate/attention.go
+      - golang/architecture/controlstate/catalog.go
+      - golang/architecture/controlstate/common.go
+      - golang/architecture/controlstate/identity.go
+      - golang/architecture/controlstate/index.go
+      - golang/architecture/controlstate/lifecycle.go
+      - golang/architecture/controlstate/navigation.go
+      - golang/architecture/controlstate/policy.go
+      - golang/architecture/controlstate/registry.go
+      - golang/architecture/controlstate/snapshot.go
+      - golang/architecture/controlstate/types_closure.go
+      - golang/architecture/controlstate/util.go
       - golang/architecture/convergence/convergence.go
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
@@ -848,6 +861,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/seedmeta/authority.go
       - golang/seedmeta/markerfile.go
       - golang/seedmeta/seedmeta.go
       - golang/seedmeta/transaction.go
@@ -875,6 +889,11 @@ components:
       - golang/server/change_impact.go
       - golang/server/code_symbol.go
       - golang/server/config.go
+      - golang/server/controlstate_mutation_provider.go
+      - golang/server/controlstate_mutation_rpcs.go
+      - golang/server/controlstate_provider.go
+      - golang/server/controlstate_rpcs.go
+      - golang/server/controlstateproto/mapper.go
       - golang/server/domain_scope.go
       - golang/server/edit_check.go
       - golang/server/embedded_seed.go

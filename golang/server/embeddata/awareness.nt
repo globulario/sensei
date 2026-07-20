@@ -394,6 +394,48 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.edit_check> <https://globular.io/awareness#umlKind> "Operation" .
 <https://globular.io/awareness#contract/contract.awareness_graph.edit_check> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.edit_check> <https://globular.io/awareness#umlView> "interaction" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <http://www.w3.org/2000/01/rdf-schema#comment> "GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE exact node IRI. The canonical class is resolved by the controlstate registry from observed graph classes — never supplied by the caller. — rpc GetArchitectureArtifactState(GetArchitectureArtifactStateRequest) returns (GetArchitectureArtifactStateResponse)" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.GetArchitectureArtifactState" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#assertionMethod> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/awareness_graph_proto_contracts.yaml" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#exposedBy> <https://globular.io/awareness#component/component.awareness_graph_service> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#kind> "grpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#readOrWrite> "read" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#stability> "stable" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#umlConfidence> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#umlKind> "Operation" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#umlStereotype> "rpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> <https://globular.io/awareness#umlView> "interaction" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <http://www.w3.org/2000/01/rdf-schema#comment> "GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 — the bounded repository overview (typed counts, attention, authority). — rpc GetArchitectureControlSnapshot(GetArchitectureControlSnapshotRequest) returns (GetArchitectureControlSnapshotResponse)" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.GetArchitectureControlSnapshot" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#assertionMethod> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/awareness_graph_proto_contracts.yaml" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#exposedBy> <https://globular.io/awareness#component/component.awareness_graph_service> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#kind> "grpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#readOrWrite> "read" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#stability> "stable" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#umlConfidence> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#umlKind> "Operation" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#umlStereotype> "rpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#umlView> "interaction" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <http://www.w3.org/2000/01/rdf-schema#comment> "GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 — registry-derived, repository-independent; requires no filesystem context. — rpc GetOntologyNavigationDescriptor(GetOntologyNavigationDescriptorRequest) returns (GetOntologyNavigationDescriptorResponse)" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.GetOntologyNavigationDescriptor" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#assertionMethod> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/awareness_graph_proto_contracts.yaml" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#exposedBy> <https://globular.io/awareness#component/component.awareness_graph_service> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#kind> "grpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#readOrWrite> "read" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#stability> "stable" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#umlConfidence> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#umlKind> "Operation" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#umlStereotype> "rpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph.impact> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
 <https://globular.io/awareness#contract/contract.awareness_graph.impact> <http://www.w3.org/2000/01/rdf-schema#comment> "Impact returns the structured data the Briefing composer uses. Direct (file is the explicit subject of the node) vs Inferred (reached via package/symbol walks) partition matches the existing services-repo analysis package contract. — rpc Impact(ImpactRequest) returns (ImpactResponse)" .
 <https://globular.io/awareness#contract/contract.awareness_graph.impact> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.Impact" .
@@ -408,6 +450,20 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.impact> <https://globular.io/awareness#umlKind> "Operation" .
 <https://globular.io/awareness#contract/contract.awareness_graph.impact> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.impact> <https://globular.io/awareness#umlView> "interaction" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <http://www.w3.org/2000/01/rdf-schema#comment> "ListArchitectureArtifacts returns one page of architecture.artifact_index/v1. The cursor is OPAQUE: produced and validated only by the controlstate owner, bound to snapshot/registry/filter identity, rejected on mismatch. — rpc ListArchitectureArtifacts(ListArchitectureArtifactsRequest) returns (ListArchitectureArtifactsResponse)" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.ListArchitectureArtifacts" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#assertionMethod> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/awareness_graph_proto_contracts.yaml" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#exposedBy> <https://globular.io/awareness#component/component.awareness_graph_service> .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#kind> "grpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#readOrWrite> "read" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#stability> "stable" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#umlConfidence> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#umlKind> "Operation" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#umlStereotype> "rpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph.metadata> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
 <https://globular.io/awareness#contract/contract.awareness_graph.metadata> <http://www.w3.org/2000/01/rdf-schema#comment> "Metadata returns coverage and freshness signals about the graph itself — not about any specific file. Agents call this at session start so they can tell whether an EMPTY briefing means \"no rules apply here\" (graph is well-covered) vs \"this area is unannotated\" (graph coverage is thin in this domain).  Cheap: counts are computed live via SPARQL but the queries are bounded and small. Safe to call once per session or per task. — rpc Metadata(MetadataRequest) returns (MetadataResponse)" .
 <https://globular.io/awareness#contract/contract.awareness_graph.metadata> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.Metadata" .
@@ -499,7 +555,7 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "gRPC service AwarenessGraph with 9 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites." .
+<https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "gRPC service AwarenessGraph with 13 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor." .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#assertionMethod> "inferred" .
@@ -1138,6 +1194,92 @@
 <https://globular.io/awareness#failureMode/closure.unauthorized_stale_or_contradictory_promotion> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fadoption%2Freceipt.go> .
 <https://globular.io/awareness#failureMode/closure.unauthorized_stale_or_contradictory_promotion> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fknowledgeadoption%2Fengine.go> .
 <https://globular.io/awareness#failureMode/closure.unauthorized_stale_or_contradictory_promotion> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.attention_severity_derived_from_text_or_color> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.attention_severity_derived_from_text_or_color> <http://www.w3.org/2000/01/rdf-schema#label> "Attention severity was derived from text or color" .
+<https://globular.io/awareness#failureMode/controlstate.attention_severity_derived_from_text_or_color> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.attention_severity_is_typed_owner_assigned_and_deterministic> .
+<https://globular.io/awareness#failureMode/controlstate.attention_severity_derived_from_text_or_color> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.attention_severity_derived_from_text_or_color> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/controlstate.client_supplied_class_treated_as_artifact_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.client_supplied_class_treated_as_artifact_authority> <http://www.w3.org/2000/01/rdf-schema#label> "A client-supplied class was treated as artifact class authority" .
+<https://globular.io/awareness#failureMode/controlstate.client_supplied_class_treated_as_artifact_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.artifact_class_must_not_be_caller_selected> .
+<https://globular.io/awareness#failureMode/controlstate.client_supplied_class_treated_as_artifact_authority> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.client_supplied_class_treated_as_artifact_authority> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.graph_adjacency_treated_as_closure_evidence> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.graph_adjacency_treated_as_closure_evidence> <http://www.w3.org/2000/01/rdf-schema#label> "Graph adjacency was treated as closure or feedback evidence" .
+<https://globular.io/awareness#failureMode/controlstate.graph_adjacency_treated_as_closure_evidence> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> .
+<https://globular.io/awareness#failureMode/controlstate.graph_adjacency_treated_as_closure_evidence> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> .
+<https://globular.io/awareness#failureMode/controlstate.graph_adjacency_treated_as_closure_evidence> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.graph_adjacency_treated_as_closure_evidence> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/controlstate.handler_infers_dimension_state_from_raw_graph_edges> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.handler_infers_dimension_state_from_raw_graph_edges> <http://www.w3.org/2000/01/rdf-schema#label> "A handler inferred dimension state from raw graph edges" .
+<https://globular.io/awareness#failureMode/controlstate.handler_infers_dimension_state_from_raw_graph_edges> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.server_read_handler_must_consume_canonical_projection> .
+<https://globular.io/awareness#failureMode/controlstate.handler_infers_dimension_state_from_raw_graph_edges> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.handler_infers_dimension_state_from_raw_graph_edges> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.lifecycle_defaulted_to_active> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.lifecycle_defaulted_to_active> <http://www.w3.org/2000/01/rdf-schema#label> "Lifecycle defaulted to active from absent evidence" .
+<https://globular.io/awareness#failureMode/controlstate.lifecycle_defaulted_to_active> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.lifecycle_absence_must_not_synthesize_active> .
+<https://globular.io/awareness#failureMode/controlstate.lifecycle_defaulted_to_active> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.lifecycle_defaulted_to_active> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/controlstate.missing_source_rendered_as_zero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.missing_source_rendered_as_zero> <http://www.w3.org/2000/01/rdf-schema#label> "A missing source was rendered as zero instead of unavailable" .
+<https://globular.io/awareness#failureMode/controlstate.missing_source_rendered_as_zero> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.missing_source_must_not_synthesize_zero_or_closed> .
+<https://globular.io/awareness#failureMode/controlstate.missing_source_rendered_as_zero> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.missing_source_rendered_as_zero> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.pagination_cursor_reused_against_another_snapshot> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.pagination_cursor_reused_against_another_snapshot> <http://www.w3.org/2000/01/rdf-schema#label> "A pagination cursor was reused against a different snapshot" .
+<https://globular.io/awareness#failureMode/controlstate.pagination_cursor_reused_against_another_snapshot> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.artifact_index_cursor_is_bound_to_snapshot_identity> .
+<https://globular.io/awareness#failureMode/controlstate.pagination_cursor_reused_against_another_snapshot> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.pagination_cursor_reused_against_another_snapshot> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/controlstate.partial_projection_returned_as_transport_failure> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.partial_projection_returned_as_transport_failure> <http://www.w3.org/2000/01/rdf-schema#label> "A partial projection was returned as a transport failure" .
+<https://globular.io/awareness#failureMode/controlstate.partial_projection_returned_as_transport_failure> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.semantic_unavailability_must_remain_response_data> .
+<https://globular.io/awareness#failureMode/controlstate.partial_projection_returned_as_transport_failure> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.partial_projection_returned_as_transport_failure> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.proto_field_renumbering_breaks_existing_consumers> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.proto_field_renumbering_breaks_existing_consumers> <http://www.w3.org/2000/01/rdf-schema#label> "Protobuf field renumbering broke existing consumers" .
+<https://globular.io/awareness#failureMode/controlstate.proto_field_renumbering_breaks_existing_consumers> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.proto_evolution_must_be_additive> .
+<https://globular.io/awareness#failureMode/controlstate.proto_field_renumbering_breaks_existing_consumers> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.proto_field_renumbering_breaks_existing_consumers> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.protobuf_mapping_collapses_unknown_to_zero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.protobuf_mapping_collapses_unknown_to_zero> <http://www.w3.org/2000/01/rdf-schema#label> "The protobuf mapping collapsed unknown into zero" .
+<https://globular.io/awareness#failureMode/controlstate.protobuf_mapping_collapses_unknown_to_zero> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.transport_must_preserve_unknown_distinct_from_zero> .
+<https://globular.io/awareness#failureMode/controlstate.protobuf_mapping_collapses_unknown_to_zero> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.protobuf_mapping_collapses_unknown_to_zero> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.read_rpc_mutates_dialogue_or_completion_state> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.read_rpc_mutates_dialogue_or_completion_state> <http://www.w3.org/2000/01/rdf-schema#label> "A read RPC mutated dialogue or completion state" .
+<https://globular.io/awareness#failureMode/controlstate.read_rpc_mutates_dialogue_or_completion_state> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.read_surfaces_must_be_structurally_non_mutating> .
+<https://globular.io/awareness#failureMode/controlstate.read_rpc_mutates_dialogue_or_completion_state> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.read_rpc_mutates_dialogue_or_completion_state> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.repository_wide_feedback_scan_invented> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.repository_wide_feedback_scan_invented> <http://www.w3.org/2000/01/rdf-schema#label> "A repository-wide feedback scan was invented" .
+<https://globular.io/awareness#failureMode/controlstate.repository_wide_feedback_scan_invented> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> .
+<https://globular.io/awareness#failureMode/controlstate.repository_wide_feedback_scan_invented> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.repository_wide_feedback_scan_invented> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/controlstate.rpc_accepts_caller_selected_filesystem_root> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.rpc_accepts_caller_selected_filesystem_root> <http://www.w3.org/2000/01/rdf-schema#label> "An RPC accepted a caller-selected filesystem root" .
+<https://globular.io/awareness#failureMode/controlstate.rpc_accepts_caller_selected_filesystem_root> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.repository_context_must_not_be_derived_from_cwd> .
+<https://globular.io/awareness#failureMode/controlstate.rpc_accepts_caller_selected_filesystem_root> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.rpc_accepts_caller_selected_filesystem_root> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.server_or_editor_reclassifies_control_state> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.server_or_editor_reclassifies_control_state> <http://www.w3.org/2000/01/rdf-schema#label> "The server or editor reclassified control state instead of consuming the owner" .
+<https://globular.io/awareness#failureMode/controlstate.server_or_editor_reclassifies_control_state> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.semantic_projection_has_one_transport_neutral_owner> .
+<https://globular.io/awareness#failureMode/controlstate.server_or_editor_reclassifies_control_state> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.server_or_editor_reclassifies_control_state> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.task_verdict_copied_to_arbitrary_artifact> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.task_verdict_copied_to_arbitrary_artifact> <http://www.w3.org/2000/01/rdf-schema#label> "A task/scope closure verdict was copied onto an arbitrary artifact" .
+<https://globular.io/awareness#failureMode/controlstate.task_verdict_copied_to_arbitrary_artifact> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.task_closure_must_not_be_projected_as_artifact_closure> .
+<https://globular.io/awareness#failureMode/controlstate.task_verdict_copied_to_arbitrary_artifact> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.task_verdict_copied_to_arbitrary_artifact> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#failureMode/controlstate.transport_recomputes_a_different_digest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.transport_recomputes_a_different_digest> <http://www.w3.org/2000/01/rdf-schema#label> "The transport recomputed a different projection digest" .
+<https://globular.io/awareness#failureMode/controlstate.transport_recomputes_a_different_digest> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.transport_must_not_recompute_projection_digest> .
+<https://globular.io/awareness#failureMode/controlstate.transport_recomputes_a_different_digest> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.transport_recomputes_a_different_digest> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <http://www.w3.org/2000/01/rdf-schema#label> "An unsupported or unknown class was hidden or marked closed/not_applicable" .
+<https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> .
+<https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#failureMode/failure.components_owner_registry_launders_or_overclaims_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.components_owner_registry_launders_or_overclaims_authority> <http://www.w3.org/2000/01/rdf-schema#label> "Canonical owner registry launders or overclaims authority" .
 <https://globular.io/awareness#failureMode/failure.components_owner_registry_launders_or_overclaims_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/awareness.authored_knowledge_sources_are_governable_repository_files> .
@@ -1429,6 +1571,36 @@
 <https://globular.io/awareness#forbiddenFix/forbidden.workaround_frozen_shape_with_side_channel> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.workflow_step_inherits_workflow_service_authority_without_originator> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden.write_blocking_record_without_cleanup> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.hardcode_ontology_class_membership_capabilities_or_families> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.hardcode_ontology_class_membership_capabilities_or_families> <http://www.w3.org/2000/01/rdf-schema#comment> "Navigation families, class membership, capabilities, and default visibility come only from the ontology navigation descriptor. A client-side ASPECTS/CLASS_COLOR/capability/family table drifts from the owner registry." .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.hardcode_ontology_class_membership_capabilities_or_families> <http://www.w3.org/2000/01/rdf-schema#label> "Hardcode ontology class membership capabilities or families in the editor" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.hardcode_ontology_class_membership_capabilities_or_families> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.hardcode_ontology_class_membership_capabilities_or_families> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.infer_question_state_next_action_closure_or_lifecycle_in_the> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.infer_question_state_next_action_closure_or_lifecycle_in_the> <http://www.w3.org/2000/01/rdf-schema#comment> "The inspector must render artifact_state fields verbatim; questions/evidence/next-action are owner ids with no state, and closure/lifecycle/severity come from the owner. Any client inference fabricates architectural truth." .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.infer_question_state_next_action_closure_or_lifecycle_in_the> <http://www.w3.org/2000/01/rdf-schema#label> "Infer question-state next-action closure or lifecycle in the inspector" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.infer_question_state_next_action_closure_or_lifecycle_in_the> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.infer_question_state_next_action_closure_or_lifecycle_in_the> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.map_an_absent_optional_count_to_zero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.map_an_absent_optional_count_to_zero> <http://www.w3.org/2000/01/rdf-schema#comment> "proto3 optional counts decode to undefined when unobserved; rendering absence as 0 (e.g. Number(x||0)) launders unknown state into a false healthy zero. Presence must be read via the synthetic-oneof marker." .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.map_an_absent_optional_count_to_zero> <http://www.w3.org/2000/01/rdf-schema#label> "Map an absent optional count to zero" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.map_an_absent_optional_count_to_zero> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.map_an_absent_optional_count_to_zero> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.re_derive_graph_authority_or_severity_in_the_webview> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.re_derive_graph_authority_or_severity_in_the_webview> <http://www.w3.org/2000/01/rdf-schema#comment> "The CP3 control panel must read authority (observed/current/integrity) and severity from the control snapshot verbatim. Re-deriving them client-side (the pre-CP3 graphAuthority.ts/dashboard.js cockpit derivation) reintroduces the drift the migration removed." .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.re_derive_graph_authority_or_severity_in_the_webview> <http://www.w3.org/2000/01/rdf-schema#label> "Re-derive graph authority or severity in the webview" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.re_derive_graph_authority_or_severity_in_the_webview> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.re_derive_graph_authority_or_severity_in_the_webview> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.render_a_non_applicable_dimension_as_open> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.render_a_non_applicable_dimension_as_open> <http://www.w3.org/2000/01/rdf-schema#comment> "Only owner-marked applicable dimensions are shown; a non-applicable dimension must never appear or count as open (missing non-applicable dimensions do not open an artifact)." .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.render_a_non_applicable_dimension_as_open> <http://www.w3.org/2000/01/rdf-schema#label> "Render a non-applicable dimension as open" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.render_a_non_applicable_dimension_as_open> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.render_a_non_applicable_dimension_as_open> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control> <http://www.w3.org/2000/01/rdf-schema#comment> "No owner projection carries relationship/edge data. Relationships and the focus graph must render honestly unavailable, never fall back to legacy graph adjacency / CLASS_COLOR / DIR (which stay quarantined in dashboard.js)." .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control> <http://www.w3.org/2000/01/rdf-schema#label> "Reuse legacy graph-adjacency as relationships in the control panel" .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> .
+<https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
 <https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.trust_producer_declared_freshness_or_trust_on_an_evidence_re> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.trust_producer_declared_freshness_or_trust_on_an_evidence_re> <http://www.w3.org/2000/01/rdf-schema#comment> "Never accept a receipt's self-declared freshness/trust/status as authoritative to reach PASS. The validator must recompute effective status against the proof request and binding. Producer-supplied freshness with no observed time is UNKNOWN, not PASS." .
 <https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.trust_producer_declared_freshness_or_trust_on_an_evidence_re> <http://www.w3.org/2000/01/rdf-schema#label> "Trust producer-declared freshness or trust on an evidence receipt" .
@@ -1541,6 +1713,85 @@
 <https://globular.io/awareness#forbiddenFix/phase8_trust_caller_governed_status_or_graph_digest> <http://www.w3.org/2000/01/rdf-schema#label> "trust a caller-supplied governed status, graph digest, node IRI, or promotion status" .
 <https://globular.io/awareness#forbiddenFix/phase8_trust_caller_governed_status_or_graph_digest> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/closure.promotion_receipt_only_after_projection_verified> .
 <https://globular.io/awareness#forbiddenFix/phase8_trust_caller_governed_status_or_graph_digest> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_accept_artifact_class_from_client> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_accept_artifact_class_from_client> <http://www.w3.org/2000/01/rdf-schema#comment> "caller-selected classes bypass registry resolution and let a client choose the policy that judges the artifact" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_accept_artifact_class_from_client> <http://www.w3.org/2000/01/rdf-schema#label> "accept an artifact class from the client" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_accept_artifact_class_from_client> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.artifact_class_must_not_be_caller_selected> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_accept_artifact_class_from_client> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_convert_missing_optional_counts_to_zero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_convert_missing_optional_counts_to_zero> <http://www.w3.org/2000/01/rdf-schema#comment> "zero is data only when the source is available; manufactured zeros launder missing sources into healthy metrics" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_convert_missing_optional_counts_to_zero> <http://www.w3.org/2000/01/rdf-schema#label> "convert missing optional counts to zero" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_convert_missing_optional_counts_to_zero> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.transport_must_preserve_unknown_distinct_from_zero> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_convert_missing_optional_counts_to_zero> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_derive_repository_identity_from_cwd_or_workspace> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_derive_repository_identity_from_cwd_or_workspace> <http://www.w3.org/2000/01/rdf-schema#comment> "repository identity must be the immutable startup-owned context; cwd/workspace guessing lets ambient state choose the repo" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_derive_repository_identity_from_cwd_or_workspace> <http://www.w3.org/2000/01/rdf-schema#label> "derive repository identity from cwd or workspace folder" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_derive_repository_identity_from_cwd_or_workspace> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.semantic_projection_has_one_transport_neutral_owner> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_derive_repository_identity_from_cwd_or_workspace> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_duplicate_closure_or_severity_tables_in_server> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_duplicate_closure_or_severity_tables_in_server> <http://www.w3.org/2000/01/rdf-schema#comment> "a second semantic table drifts from the owner and silently reclassifies control state below it" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_duplicate_closure_or_severity_tables_in_server> <http://www.w3.org/2000/01/rdf-schema#label> "duplicate closure or severity tables in the server" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_duplicate_closure_or_severity_tables_in_server> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.server_read_handler_must_consume_canonical_projection> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_duplicate_closure_or_severity_tables_in_server> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_expose_raw_errors_or_absolute_paths> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_expose_raw_errors_or_absolute_paths> <http://www.w3.org/2000/01/rdf-schema#comment> "raw errors and absolute paths leak infrastructure into the wire contract and clients start depending on them" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_expose_raw_errors_or_absolute_paths> <http://www.w3.org/2000/01/rdf-schema#label> "expose raw internal errors or absolute repository paths" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_expose_raw_errors_or_absolute_paths> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.proto_evolution_must_be_additive> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_expose_raw_errors_or_absolute_paths> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.repository_context_must_not_be_derived_from_cwd> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_expose_raw_errors_or_absolute_paths> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_hardcode_semantic_class_membership_in_editor> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_hardcode_semantic_class_membership_in_editor> <http://www.w3.org/2000/01/rdf-schema#comment> "class membership/capabilities/grouping/visibility are owner policy; a client table drifts from the canonical registry" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_hardcode_semantic_class_membership_in_editor> <http://www.w3.org/2000/01/rdf-schema#label> "hardcode semantic class membership or capabilities in the editor" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_hardcode_semantic_class_membership_in_editor> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.navigation_descriptor_is_derived_from_the_canonical_registry> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_hardcode_semantic_class_membership_in_editor> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_active_from_absent_lifecycle> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_active_from_absent_lifecycle> <http://www.w3.org/2000/01/rdf-schema#comment> "absence is unknown, not active; lifecycle must come from an authoritative typed source" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_active_from_absent_lifecycle> <http://www.w3.org/2000/01/rdf-schema#label> "infer an active lifecycle from absent lifecycle evidence" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_active_from_absent_lifecycle> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.lifecycle_absence_must_not_synthesize_active> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_active_from_absent_lifecycle> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_closure_from_edge_counts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_closure_from_edge_counts> <http://www.w3.org/2000/01/rdf-schema#comment> "an edge is candidate evidence, not admissibility; closure requires an explicit owner rule" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_closure_from_edge_counts> <http://www.w3.org/2000/01/rdf-schema#label> "infer closure (or a satisfied dimension) from graph edge counts" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_closure_from_edge_counts> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_closure_from_edge_counts> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_not_applicable_from_missing_policy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_not_applicable_from_missing_policy> <http://www.w3.org/2000/01/rdf-schema#comment> "not_applicable is an explicit policy statement; absence of rules is unknown" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_not_applicable_from_missing_policy> <http://www.w3.org/2000/01/rdf-schema#label> "infer not_applicable from a missing assessment policy" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_not_applicable_from_missing_policy> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_infer_not_applicable_from_missing_policy> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_error_text_for_attention_severity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_error_text_for_attention_severity> <http://www.w3.org/2000/01/rdf-schema#comment> "severity must come from a governed typed source-condition mapping; text/color/client derivation drifts and hides critical conditions" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_error_text_for_attention_severity> <http://www.w3.org/2000/01/rdf-schema#label> "parse error text (or a label/color) to assign attention severity" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_error_text_for_attention_severity> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.attention_severity_is_typed_owner_assigned_and_deterministic> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_error_text_for_attention_severity> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_reason_prose_to_choose_proto_enum> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_reason_prose_to_choose_proto_enum> <http://www.w3.org/2000/01/rdf-schema#comment> "reason text is provenance, not vocabulary; parsing it makes prose a hidden semantic authority" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_reason_prose_to_choose_proto_enum> <http://www.w3.org/2000/01/rdf-schema#label> "parse reason prose to choose a protobuf enum" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_reason_prose_to_choose_proto_enum> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.protobuf_is_lossless_transport_not_semantic_owner> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_parse_reason_prose_to_choose_proto_enum> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_reconstruct_models_from_labels_or_colors> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_reconstruct_models_from_labels_or_colors> <http://www.w3.org/2000/01/rdf-schema#comment> "display artifacts are derived output; reconstructing state from them inverts the dependency direction and recreates semantics outside the owner" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_reconstruct_models_from_labels_or_colors> <http://www.w3.org/2000/01/rdf-schema#label> "reconstruct controlstate models from labels or colors" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_reconstruct_models_from_labels_or_colors> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.protobuf_is_lossless_transport_not_semantic_owner> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_reconstruct_models_from_labels_or_colors> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.transport_must_not_recompute_projection_digest> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_reconstruct_models_from_labels_or_colors> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_replace_unknown_with_friendly_closed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_replace_unknown_with_friendly_closed> <http://www.w3.org/2000/01/rdf-schema#comment> "unknown must stay unknown; hiding it behind green conceals real gaps" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_replace_unknown_with_friendly_closed> <http://www.w3.org/2000/01/rdf-schema#label> "replace unknown/unavailable state with a friendly closed or zero state" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_replace_unknown_with_friendly_closed> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.missing_source_must_not_synthesize_zero_or_closed> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_replace_unknown_with_friendly_closed> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_replace_unknown_with_friendly_closed> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_treat_partial_projection_as_empty_success> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_treat_partial_projection_as_empty_success> <http://www.w3.org/2000/01/rdf-schema#comment> "an empty success erases the typed unavailability the panel must render; a transport error hides it entirely" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_treat_partial_projection_as_empty_success> <http://www.w3.org/2000/01/rdf-schema#label> "treat partial or unavailable projections as empty success objects" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_treat_partial_projection_as_empty_success> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.semantic_unavailability_must_remain_response_data> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_treat_partial_projection_as_empty_success> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_use_closure_report_verdict_as_artifact_closure> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_use_closure_report_verdict_as_artifact_closure> <http://www.w3.org/2000/01/rdf-schema#comment> "task/scope closure and artifact closure are independent; feedback is exact-scope, not graph-adjacent" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_use_closure_report_verdict_as_artifact_closure> <http://www.w3.org/2000/01/rdf-schema#label> "use closure.Report.Verdict as artifact closure" .
+<https://globular.io/awareness#forbiddenFix/phase9_5_use_closure_report_verdict_as_artifact_closure> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_use_closure_report_verdict_as_artifact_closure> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.task_closure_must_not_be_projected_as_artifact_closure> .
+<https://globular.io/awareness#forbiddenFix/phase9_5_use_closure_report_verdict_as_artifact_closure> <https://globular.io/awareness#authoredIn> "docs/awareness/forbidden_fixes.yaml" .
 <https://globular.io/awareness#forbiddenFix/phase9_briefing_feedback_add_repository_root_to_request> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ForbiddenFix> .
 <https://globular.io/awareness#forbiddenFix/phase9_briefing_feedback_add_repository_root_to_request> <http://www.w3.org/2000/01/rdf-schema#comment> "the filesystem feedback context is one immutable startup-owned pair; a caller-selected root lets a remote client choose which repository is verified" .
 <https://globular.io/awareness#forbiddenFix/phase9_briefing_feedback_add_repository_root_to_request> <http://www.w3.org/2000/01/rdf-schema#label> "add a filesystem repository root (or repo selector) to BriefingRequest" .
@@ -2951,6 +3202,106 @@
 <https://globular.io/awareness#invariant/closure.terminal_state_reconstructed_only_from_durable_conjunction> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Finspect_test.go:TestInspectReceiptWithoutEvent> .
 <https://globular.io/awareness#invariant/closure.terminal_state_reconstructed_only_from_durable_conjunction> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/closure.terminal_state_reconstructed_only_from_durable_conjunction> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.artifact_class_must_not_be_caller_selected> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.artifact_class_must_not_be_caller_selected> <http://www.w3.org/2000/01/rdf-schema#label> "Artifact class authority is never caller-selected" .
+<https://globular.io/awareness#invariant/controlstate.artifact_class_must_not_be_caller_selected> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.artifact_class_must_not_be_caller_selected> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.artifact_class_must_not_be_caller_selected> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> <http://www.w3.org/2000/01/rdf-schema#label> "Artifact closure requires an explicit reviewed per-class policy" .
+<https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.artifact_closure_requires_explicit_class_policy> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.artifact_index_cursor_is_bound_to_snapshot_identity> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.artifact_index_cursor_is_bound_to_snapshot_identity> <http://www.w3.org/2000/01/rdf-schema#label> "The artifact-index cursor is bound to repository/domain/snapshot/registry/filter identity" .
+<https://globular.io/awareness#invariant/controlstate.artifact_index_cursor_is_bound_to_snapshot_identity> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.artifact_index_cursor_is_bound_to_snapshot_identity> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.artifact_index_cursor_is_bound_to_snapshot_identity> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.attention_severity_is_typed_owner_assigned_and_deterministic> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.attention_severity_is_typed_owner_assigned_and_deterministic> <http://www.w3.org/2000/01/rdf-schema#label> "Attention class and severity are typed, owner-assigned, and deterministic" .
+<https://globular.io/awareness#invariant/controlstate.attention_severity_is_typed_owner_assigned_and_deterministic> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.attention_severity_is_typed_owner_assigned_and_deterministic> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.attention_severity_is_typed_owner_assigned_and_deterministic> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.cursor_must_remain_opaque_and_owner_validated> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.cursor_must_remain_opaque_and_owner_validated> <http://www.w3.org/2000/01/rdf-schema#label> "The index cursor stays opaque on the wire and owner-validated" .
+<https://globular.io/awareness#invariant/controlstate.cursor_must_remain_opaque_and_owner_validated> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.cursor_must_remain_opaque_and_owner_validated> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.cursor_must_remain_opaque_and_owner_validated> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> <http://www.w3.org/2000/01/rdf-schema#label> "Phase 9.6 feedback is consumed only at exact verified scope" .
+<https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.feedback_is_consumed_only_at_exact_verified_scope> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.lifecycle_absence_must_not_synthesize_active> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.lifecycle_absence_must_not_synthesize_active> <http://www.w3.org/2000/01/rdf-schema#label> "Absent lifecycle evidence never synthesizes an active state" .
+<https://globular.io/awareness#invariant/controlstate.lifecycle_absence_must_not_synthesize_active> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.lifecycle_absence_must_not_synthesize_active> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.lifecycle_absence_must_not_synthesize_active> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.missing_source_must_not_synthesize_zero_or_closed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.missing_source_must_not_synthesize_zero_or_closed> <http://www.w3.org/2000/01/rdf-schema#label> "A missing or degraded source never synthesizes zero or closed" .
+<https://globular.io/awareness#invariant/controlstate.missing_source_must_not_synthesize_zero_or_closed> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.missing_source_must_not_synthesize_zero_or_closed> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.missing_source_must_not_synthesize_zero_or_closed> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.navigation_descriptor_is_derived_from_the_canonical_registry> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.navigation_descriptor_is_derived_from_the_canonical_registry> <http://www.w3.org/2000/01/rdf-schema#label> "The navigation descriptor is mechanically derived from the canonical registry" .
+<https://globular.io/awareness#invariant/controlstate.navigation_descriptor_is_derived_from_the_canonical_registry> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.navigation_descriptor_is_derived_from_the_canonical_registry> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.navigation_descriptor_is_derived_from_the_canonical_registry> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.proto_evolution_must_be_additive> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.proto_evolution_must_be_additive> <http://www.w3.org/2000/01/rdf-schema#label> "Control-panel protobuf evolution is additive only" .
+<https://globular.io/awareness#invariant/controlstate.proto_evolution_must_be_additive> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.proto_evolution_must_be_additive> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.proto_evolution_must_be_additive> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.protobuf_is_lossless_transport_not_semantic_owner> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.protobuf_is_lossless_transport_not_semantic_owner> <http://www.w3.org/2000/01/rdf-schema#label> "The control-panel protobuf layer is lossless transport, never a semantic owner" .
+<https://globular.io/awareness#invariant/controlstate.protobuf_is_lossless_transport_not_semantic_owner> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.protobuf_is_lossless_transport_not_semantic_owner> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.protobuf_is_lossless_transport_not_semantic_owner> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.read_surfaces_must_be_structurally_non_mutating> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.read_surfaces_must_be_structurally_non_mutating> <http://www.w3.org/2000/01/rdf-schema#label> "Control-panel read surfaces are structurally non-mutating" .
+<https://globular.io/awareness#invariant/controlstate.read_surfaces_must_be_structurally_non_mutating> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.read_surfaces_must_be_structurally_non_mutating> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.read_surfaces_must_be_structurally_non_mutating> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.repository_context_must_not_be_derived_from_cwd> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.repository_context_must_not_be_derived_from_cwd> <http://www.w3.org/2000/01/rdf-schema#label> "Control-panel repository context is startup-owned, never derived from cwd" .
+<https://globular.io/awareness#invariant/controlstate.repository_context_must_not_be_derived_from_cwd> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.repository_context_must_not_be_derived_from_cwd> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.repository_context_must_not_be_derived_from_cwd> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.semantic_projection_has_one_transport_neutral_owner> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.semantic_projection_has_one_transport_neutral_owner> <http://www.w3.org/2000/01/rdf-schema#label> "Phase 9.5 architectural-state projections have one transport-neutral composition owner" .
+<https://globular.io/awareness#invariant/controlstate.semantic_projection_has_one_transport_neutral_owner> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.semantic_projection_has_one_transport_neutral_owner> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.semantic_projection_has_one_transport_neutral_owner> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.semantic_unavailability_must_remain_response_data> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.semantic_unavailability_must_remain_response_data> <http://www.w3.org/2000/01/rdf-schema#label> "Semantic unavailability is response data, never a transport failure" .
+<https://globular.io/awareness#invariant/controlstate.semantic_unavailability_must_remain_response_data> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.semantic_unavailability_must_remain_response_data> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.semantic_unavailability_must_remain_response_data> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.server_read_handler_must_consume_canonical_projection> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.server_read_handler_must_consume_canonical_projection> <http://www.w3.org/2000/01/rdf-schema#label> "Server read handlers consume canonical controlstate projections only" .
+<https://globular.io/awareness#invariant/controlstate.server_read_handler_must_consume_canonical_projection> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.server_read_handler_must_consume_canonical_projection> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.server_read_handler_must_consume_canonical_projection> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.task_closure_must_not_be_projected_as_artifact_closure> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.task_closure_must_not_be_projected_as_artifact_closure> <http://www.w3.org/2000/01/rdf-schema#label> "Task/scope closure is never copied onto an arbitrary artifact" .
+<https://globular.io/awareness#invariant/controlstate.task_closure_must_not_be_projected_as_artifact_closure> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.task_closure_must_not_be_projected_as_artifact_closure> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.task_closure_must_not_be_projected_as_artifact_closure> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_not_recompute_projection_digest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.transport_must_not_recompute_projection_digest> <http://www.w3.org/2000/01/rdf-schema#label> "The transport copies the canonical projection digest and never recomputes it" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_not_recompute_projection_digest> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_not_recompute_projection_digest> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_not_recompute_projection_digest> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_preserve_unknown_distinct_from_zero> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.transport_must_preserve_unknown_distinct_from_zero> <http://www.w3.org/2000/01/rdf-schema#label> "The transport preserves unknown as distinct from zero" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_preserve_unknown_distinct_from_zero> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_preserve_unknown_distinct_from_zero> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/controlstate.transport_must_preserve_unknown_distinct_from_zero> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> <http://www.w3.org/2000/01/rdf-schema#label> "Unknown and unsupported classes remain visible and unknown" .
+<https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <http://www.w3.org/2000/01/rdf-schema#label> "Missing evidence must not be treated as evidence of failure unless the contract explicitly says absence proves failure" .
 <https://globular.io/awareness#invariant/evidence.missing_is_not_known_bad> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/fm.industry.missing_inventory_misclassified_as_down> .
@@ -2975,6 +3326,18 @@
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/TestStableIP_ExcludesVIP> .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/identity.stable_node_identity_not_floating_vip> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> <http://www.w3.org/2000/01/rdf-schema#label> "Artifact inspector renders owner-derived state only" .
+<https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.render_a_non_applicable_dimension_as_open> .
+<https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control> .
+<https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2FcontrolPanel.js> .
+<https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> <http://www.w3.org/2000/01/rdf-schema#label> "Editor renders owner projections verbatim" .
+<https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2FcontrolPanel.js> .
+<https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/invariant.sensei.evidence_receipts_are_validated_not_self_certified> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/invariant.sensei.evidence_receipts_are_validated_not_self_certified> <http://www.w3.org/2000/01/rdf-schema#label> "Evidence receipts are validated, not self-certified" .
 <https://globular.io/awareness#invariant/invariant.sensei.evidence_receipts_are_validated_not_self_certified> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
@@ -5188,6 +5551,9 @@
 <https://globular.io/awareness#sourceFile/docs%2Fintent%2Fawg.bounded_architectural_closure.yaml> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/awareness.open_questions_remain_visible_until_resolved> .
 <https://globular.io/awareness#sourceFile/docs%2Fschemas%2Farchitectural-closure%2Fv1%2Fresult-transition-receipt.schema.json> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/docs%2Fschemas%2Farchitectural-closure%2Fv1%2Fresult-transition-receipt.schema.json> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/closure.no_verdict_improves_by_omitting_a_weakening_computation> .
+<https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2FcontrolPanel.js> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
+<https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2FcontrolPanel.js> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.sensei.artifact_inspector_renders_owner_derived_state_only> .
+<https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2FcontrolPanel.js> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.sensei.editor_renders_owner_projections_verbatim> .
 <https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2Fdashboard.js> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2Fdashboard.js> <https://globular.io/awareness#implements> <https://globular.io/awareness#component/component.dashboard_architecture_view> .
 <https://globular.io/awareness#sourceFile/editor%2Fvscode%2Fmedia%2Fdashboard.js> <https://globular.io/awareness#implements> <https://globular.io/awareness#decision/decision.focus_graph_local_neighborhood_only> .
@@ -5728,7 +6094,11 @@
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#component/component.golang.pb> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.briefing> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.edit_check> .
+<https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> .
+<https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> .
+<https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.impact> .
+<https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.metadata> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.preflight> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.propose> .
@@ -6428,9 +6798,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-aeefc62c25b043586ea6d291cf43dada871d4d5e2981105d3f07fd5d9c308736> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-aeefc62c25b043586ea6d291cf43dada871d4d5e2981105d3f07fd5d9c308736> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 aeefc62c25b0" .
-<https://globular.io/awareness#seedBuild/sha256-aeefc62c25b043586ea6d291cf43dada871d4d5e2981105d3f07fd5d9c308736> <https://globular.io/awareness#seedDigestSha256> "aeefc62c25b043586ea6d291cf43dada871d4d5e2981105d3f07fd5d9c308736" .
-<https://globular.io/awareness#seedBuild/sha256-aeefc62c25b043586ea6d291cf43dada871d4d5e2981105d3f07fd5d9c308736> <https://globular.io/awareness#seedTripleCount> "6436" .
-<https://globular.io/awareness#seedBuild/sha256-aeefc62c25b043586ea6d291cf43dada871d4d5e2981105d3f07fd5d9c308736> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-aeefc62c25b043586ea6d291cf43dada871d4d5e2981105d3f07fd5d9c308736> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-c558e235b8eeea75032bc228566c7effd30bf27b9f8493837e3213e6339bbaed> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-c558e235b8eeea75032bc228566c7effd30bf27b9f8493837e3213e6339bbaed> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 c558e235b8ee" .
+<https://globular.io/awareness#seedBuild/sha256-c558e235b8eeea75032bc228566c7effd30bf27b9f8493837e3213e6339bbaed> <https://globular.io/awareness#seedDigestSha256> "c558e235b8eeea75032bc228566c7effd30bf27b9f8493837e3213e6339bbaed" .
+<https://globular.io/awareness#seedBuild/sha256-c558e235b8eeea75032bc228566c7effd30bf27b9f8493837e3213e6339bbaed> <https://globular.io/awareness#seedTripleCount> "6806" .
+<https://globular.io/awareness#seedBuild/sha256-c558e235b8eeea75032bc228566c7effd30bf27b9f8493837e3213e6339bbaed> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-c558e235b8eeea75032bc228566c7effd30bf27b9f8493837e3213e6339bbaed> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .

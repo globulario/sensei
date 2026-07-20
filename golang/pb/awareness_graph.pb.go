@@ -1273,6 +1273,717 @@ func (ProposeStatus) EnumDescriptor() ([]byte, []int) {
 	return file_awareness_graph_proto_rawDescGZIP(), []int{20}
 }
 
+// ArchitectureAvailability mirrors controlstate.Availability.
+type ArchitectureAvailability int32
+
+const (
+	ArchitectureAvailability_ARCHITECTURE_AVAILABILITY_UNSPECIFIED ArchitectureAvailability = 0 // always invalid on the wire
+	ArchitectureAvailability_ARCHITECTURE_AVAILABILITY_AVAILABLE   ArchitectureAvailability = 1
+	ArchitectureAvailability_ARCHITECTURE_AVAILABILITY_PARTIAL     ArchitectureAvailability = 2
+	ArchitectureAvailability_ARCHITECTURE_AVAILABILITY_UNAVAILABLE ArchitectureAvailability = 3
+	ArchitectureAvailability_ARCHITECTURE_AVAILABILITY_INVALID     ArchitectureAvailability = 4
+)
+
+// Enum value maps for ArchitectureAvailability.
+var (
+	ArchitectureAvailability_name = map[int32]string{
+		0: "ARCHITECTURE_AVAILABILITY_UNSPECIFIED",
+		1: "ARCHITECTURE_AVAILABILITY_AVAILABLE",
+		2: "ARCHITECTURE_AVAILABILITY_PARTIAL",
+		3: "ARCHITECTURE_AVAILABILITY_UNAVAILABLE",
+		4: "ARCHITECTURE_AVAILABILITY_INVALID",
+	}
+	ArchitectureAvailability_value = map[string]int32{
+		"ARCHITECTURE_AVAILABILITY_UNSPECIFIED": 0,
+		"ARCHITECTURE_AVAILABILITY_AVAILABLE":   1,
+		"ARCHITECTURE_AVAILABILITY_PARTIAL":     2,
+		"ARCHITECTURE_AVAILABILITY_UNAVAILABLE": 3,
+		"ARCHITECTURE_AVAILABILITY_INVALID":     4,
+	}
+)
+
+func (x ArchitectureAvailability) Enum() *ArchitectureAvailability {
+	p := new(ArchitectureAvailability)
+	*p = x
+	return p
+}
+
+func (x ArchitectureAvailability) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureAvailability) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[21].Descriptor()
+}
+
+func (ArchitectureAvailability) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[21]
+}
+
+func (x ArchitectureAvailability) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureAvailability.Descriptor instead.
+func (ArchitectureAvailability) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{21}
+}
+
+// ArchitectureSourceAvailability mirrors controlstate.SourceAvailability.
+type ArchitectureSourceAvailability int32
+
+const (
+	ArchitectureSourceAvailability_ARCHITECTURE_SOURCE_AVAILABILITY_UNSPECIFIED ArchitectureSourceAvailability = 0 // always invalid
+	ArchitectureSourceAvailability_ARCHITECTURE_SOURCE_AVAILABILITY_AVAILABLE   ArchitectureSourceAvailability = 1
+	ArchitectureSourceAvailability_ARCHITECTURE_SOURCE_AVAILABILITY_DEGRADED    ArchitectureSourceAvailability = 2
+	ArchitectureSourceAvailability_ARCHITECTURE_SOURCE_AVAILABILITY_UNAVAILABLE ArchitectureSourceAvailability = 3
+	ArchitectureSourceAvailability_ARCHITECTURE_SOURCE_AVAILABILITY_INVALID     ArchitectureSourceAvailability = 4
+)
+
+// Enum value maps for ArchitectureSourceAvailability.
+var (
+	ArchitectureSourceAvailability_name = map[int32]string{
+		0: "ARCHITECTURE_SOURCE_AVAILABILITY_UNSPECIFIED",
+		1: "ARCHITECTURE_SOURCE_AVAILABILITY_AVAILABLE",
+		2: "ARCHITECTURE_SOURCE_AVAILABILITY_DEGRADED",
+		3: "ARCHITECTURE_SOURCE_AVAILABILITY_UNAVAILABLE",
+		4: "ARCHITECTURE_SOURCE_AVAILABILITY_INVALID",
+	}
+	ArchitectureSourceAvailability_value = map[string]int32{
+		"ARCHITECTURE_SOURCE_AVAILABILITY_UNSPECIFIED": 0,
+		"ARCHITECTURE_SOURCE_AVAILABILITY_AVAILABLE":   1,
+		"ARCHITECTURE_SOURCE_AVAILABILITY_DEGRADED":    2,
+		"ARCHITECTURE_SOURCE_AVAILABILITY_UNAVAILABLE": 3,
+		"ARCHITECTURE_SOURCE_AVAILABILITY_INVALID":     4,
+	}
+)
+
+func (x ArchitectureSourceAvailability) Enum() *ArchitectureSourceAvailability {
+	p := new(ArchitectureSourceAvailability)
+	*p = x
+	return p
+}
+
+func (x ArchitectureSourceAvailability) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureSourceAvailability) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[22].Descriptor()
+}
+
+func (ArchitectureSourceAvailability) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[22]
+}
+
+func (x ArchitectureSourceAvailability) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureSourceAvailability.Descriptor instead.
+func (ArchitectureSourceAvailability) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{22}
+}
+
+// ArchitectureSourceImpact mirrors controlstate.SourceImpact.
+type ArchitectureSourceImpact int32
+
+const (
+	ArchitectureSourceImpact_ARCHITECTURE_SOURCE_IMPACT_UNSPECIFIED ArchitectureSourceImpact = 0 // always invalid
+	ArchitectureSourceImpact_ARCHITECTURE_SOURCE_IMPACT_PRIMARY     ArchitectureSourceImpact = 1
+	ArchitectureSourceImpact_ARCHITECTURE_SOURCE_IMPACT_REQUIRED    ArchitectureSourceImpact = 2
+	ArchitectureSourceImpact_ARCHITECTURE_SOURCE_IMPACT_RELEVANT    ArchitectureSourceImpact = 3
+	ArchitectureSourceImpact_ARCHITECTURE_SOURCE_IMPACT_OPTIONAL    ArchitectureSourceImpact = 4
+)
+
+// Enum value maps for ArchitectureSourceImpact.
+var (
+	ArchitectureSourceImpact_name = map[int32]string{
+		0: "ARCHITECTURE_SOURCE_IMPACT_UNSPECIFIED",
+		1: "ARCHITECTURE_SOURCE_IMPACT_PRIMARY",
+		2: "ARCHITECTURE_SOURCE_IMPACT_REQUIRED",
+		3: "ARCHITECTURE_SOURCE_IMPACT_RELEVANT",
+		4: "ARCHITECTURE_SOURCE_IMPACT_OPTIONAL",
+	}
+	ArchitectureSourceImpact_value = map[string]int32{
+		"ARCHITECTURE_SOURCE_IMPACT_UNSPECIFIED": 0,
+		"ARCHITECTURE_SOURCE_IMPACT_PRIMARY":     1,
+		"ARCHITECTURE_SOURCE_IMPACT_REQUIRED":    2,
+		"ARCHITECTURE_SOURCE_IMPACT_RELEVANT":    3,
+		"ARCHITECTURE_SOURCE_IMPACT_OPTIONAL":    4,
+	}
+)
+
+func (x ArchitectureSourceImpact) Enum() *ArchitectureSourceImpact {
+	p := new(ArchitectureSourceImpact)
+	*p = x
+	return p
+}
+
+func (x ArchitectureSourceImpact) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureSourceImpact) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[23].Descriptor()
+}
+
+func (ArchitectureSourceImpact) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[23]
+}
+
+func (x ArchitectureSourceImpact) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureSourceImpact.Descriptor instead.
+func (ArchitectureSourceImpact) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{23}
+}
+
+// ArchitectureArtifactClosure mirrors controlstate.ArtifactClosure. UNKNOWN is
+// an explicit honest state — it is NEVER encoded as UNSPECIFIED.
+type ArchitectureArtifactClosure int32
+
+const (
+	ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED    ArchitectureArtifactClosure = 0 // always invalid
+	ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_CLOSED         ArchitectureArtifactClosure = 1
+	ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_OPEN           ArchitectureArtifactClosure = 2
+	ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_DEGRADED       ArchitectureArtifactClosure = 3
+	ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_UNKNOWN        ArchitectureArtifactClosure = 4
+	ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_NOT_APPLICABLE ArchitectureArtifactClosure = 5
+)
+
+// Enum value maps for ArchitectureArtifactClosure.
+var (
+	ArchitectureArtifactClosure_name = map[int32]string{
+		0: "ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED",
+		1: "ARCHITECTURE_ARTIFACT_CLOSURE_CLOSED",
+		2: "ARCHITECTURE_ARTIFACT_CLOSURE_OPEN",
+		3: "ARCHITECTURE_ARTIFACT_CLOSURE_DEGRADED",
+		4: "ARCHITECTURE_ARTIFACT_CLOSURE_UNKNOWN",
+		5: "ARCHITECTURE_ARTIFACT_CLOSURE_NOT_APPLICABLE",
+	}
+	ArchitectureArtifactClosure_value = map[string]int32{
+		"ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED":    0,
+		"ARCHITECTURE_ARTIFACT_CLOSURE_CLOSED":         1,
+		"ARCHITECTURE_ARTIFACT_CLOSURE_OPEN":           2,
+		"ARCHITECTURE_ARTIFACT_CLOSURE_DEGRADED":       3,
+		"ARCHITECTURE_ARTIFACT_CLOSURE_UNKNOWN":        4,
+		"ARCHITECTURE_ARTIFACT_CLOSURE_NOT_APPLICABLE": 5,
+	}
+)
+
+func (x ArchitectureArtifactClosure) Enum() *ArchitectureArtifactClosure {
+	p := new(ArchitectureArtifactClosure)
+	*p = x
+	return p
+}
+
+func (x ArchitectureArtifactClosure) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureArtifactClosure) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[24].Descriptor()
+}
+
+func (ArchitectureArtifactClosure) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[24]
+}
+
+func (x ArchitectureArtifactClosure) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureArtifactClosure.Descriptor instead.
+func (ArchitectureArtifactClosure) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{24}
+}
+
+// ArchitectureDimensionState mirrors controlstate.DimensionState.
+type ArchitectureDimensionState int32
+
+const (
+	ArchitectureDimensionState_ARCHITECTURE_DIMENSION_STATE_UNSPECIFIED    ArchitectureDimensionState = 0 // always invalid
+	ArchitectureDimensionState_ARCHITECTURE_DIMENSION_STATE_SATISFIED      ArchitectureDimensionState = 1
+	ArchitectureDimensionState_ARCHITECTURE_DIMENSION_STATE_OPEN           ArchitectureDimensionState = 2
+	ArchitectureDimensionState_ARCHITECTURE_DIMENSION_STATE_DEGRADED       ArchitectureDimensionState = 3
+	ArchitectureDimensionState_ARCHITECTURE_DIMENSION_STATE_UNKNOWN        ArchitectureDimensionState = 4
+	ArchitectureDimensionState_ARCHITECTURE_DIMENSION_STATE_NOT_APPLICABLE ArchitectureDimensionState = 5
+)
+
+// Enum value maps for ArchitectureDimensionState.
+var (
+	ArchitectureDimensionState_name = map[int32]string{
+		0: "ARCHITECTURE_DIMENSION_STATE_UNSPECIFIED",
+		1: "ARCHITECTURE_DIMENSION_STATE_SATISFIED",
+		2: "ARCHITECTURE_DIMENSION_STATE_OPEN",
+		3: "ARCHITECTURE_DIMENSION_STATE_DEGRADED",
+		4: "ARCHITECTURE_DIMENSION_STATE_UNKNOWN",
+		5: "ARCHITECTURE_DIMENSION_STATE_NOT_APPLICABLE",
+	}
+	ArchitectureDimensionState_value = map[string]int32{
+		"ARCHITECTURE_DIMENSION_STATE_UNSPECIFIED":    0,
+		"ARCHITECTURE_DIMENSION_STATE_SATISFIED":      1,
+		"ARCHITECTURE_DIMENSION_STATE_OPEN":           2,
+		"ARCHITECTURE_DIMENSION_STATE_DEGRADED":       3,
+		"ARCHITECTURE_DIMENSION_STATE_UNKNOWN":        4,
+		"ARCHITECTURE_DIMENSION_STATE_NOT_APPLICABLE": 5,
+	}
+)
+
+func (x ArchitectureDimensionState) Enum() *ArchitectureDimensionState {
+	p := new(ArchitectureDimensionState)
+	*p = x
+	return p
+}
+
+func (x ArchitectureDimensionState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureDimensionState) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[25].Descriptor()
+}
+
+func (ArchitectureDimensionState) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[25]
+}
+
+func (x ArchitectureDimensionState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureDimensionState.Descriptor instead.
+func (ArchitectureDimensionState) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{25}
+}
+
+// ArchitectureLifecycleState mirrors controlstate.LifecycleState. Absence of a
+// lifecycle source is UNKNOWN (typed) — never silently ACTIVE.
+type ArchitectureLifecycleState int32
+
+const (
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_UNSPECIFIED    ArchitectureLifecycleState = 0 // always invalid
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_ACTIVE         ArchitectureLifecycleState = 1
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_PROPOSED       ArchitectureLifecycleState = 2
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_DEPRECATED     ArchitectureLifecycleState = 3
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_SUPERSEDED     ArchitectureLifecycleState = 4
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_REVOKED        ArchitectureLifecycleState = 5
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_UNKNOWN        ArchitectureLifecycleState = 6
+	ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_NOT_APPLICABLE ArchitectureLifecycleState = 7
+)
+
+// Enum value maps for ArchitectureLifecycleState.
+var (
+	ArchitectureLifecycleState_name = map[int32]string{
+		0: "ARCHITECTURE_LIFECYCLE_STATE_UNSPECIFIED",
+		1: "ARCHITECTURE_LIFECYCLE_STATE_ACTIVE",
+		2: "ARCHITECTURE_LIFECYCLE_STATE_PROPOSED",
+		3: "ARCHITECTURE_LIFECYCLE_STATE_DEPRECATED",
+		4: "ARCHITECTURE_LIFECYCLE_STATE_SUPERSEDED",
+		5: "ARCHITECTURE_LIFECYCLE_STATE_REVOKED",
+		6: "ARCHITECTURE_LIFECYCLE_STATE_UNKNOWN",
+		7: "ARCHITECTURE_LIFECYCLE_STATE_NOT_APPLICABLE",
+	}
+	ArchitectureLifecycleState_value = map[string]int32{
+		"ARCHITECTURE_LIFECYCLE_STATE_UNSPECIFIED":    0,
+		"ARCHITECTURE_LIFECYCLE_STATE_ACTIVE":         1,
+		"ARCHITECTURE_LIFECYCLE_STATE_PROPOSED":       2,
+		"ARCHITECTURE_LIFECYCLE_STATE_DEPRECATED":     3,
+		"ARCHITECTURE_LIFECYCLE_STATE_SUPERSEDED":     4,
+		"ARCHITECTURE_LIFECYCLE_STATE_REVOKED":        5,
+		"ARCHITECTURE_LIFECYCLE_STATE_UNKNOWN":        6,
+		"ARCHITECTURE_LIFECYCLE_STATE_NOT_APPLICABLE": 7,
+	}
+)
+
+func (x ArchitectureLifecycleState) Enum() *ArchitectureLifecycleState {
+	p := new(ArchitectureLifecycleState)
+	*p = x
+	return p
+}
+
+func (x ArchitectureLifecycleState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureLifecycleState) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[26].Descriptor()
+}
+
+func (ArchitectureLifecycleState) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[26]
+}
+
+func (x ArchitectureLifecycleState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureLifecycleState.Descriptor instead.
+func (ArchitectureLifecycleState) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{26}
+}
+
+// ArchitectureAttentionSeverity mirrors controlstate.AttentionSeverity — the
+// governed owner-assigned severity. Transport never derives severity from
+// text, color, or reason prose.
+type ArchitectureAttentionSeverity int32
+
+const (
+	ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED   ArchitectureAttentionSeverity = 0 // always invalid
+	ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_INFORMATIONAL ArchitectureAttentionSeverity = 1
+	ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_ATTENTION     ArchitectureAttentionSeverity = 2
+	ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_WARNING       ArchitectureAttentionSeverity = 3
+	ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_CRITICAL      ArchitectureAttentionSeverity = 4
+)
+
+// Enum value maps for ArchitectureAttentionSeverity.
+var (
+	ArchitectureAttentionSeverity_name = map[int32]string{
+		0: "ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED",
+		1: "ARCHITECTURE_ATTENTION_SEVERITY_INFORMATIONAL",
+		2: "ARCHITECTURE_ATTENTION_SEVERITY_ATTENTION",
+		3: "ARCHITECTURE_ATTENTION_SEVERITY_WARNING",
+		4: "ARCHITECTURE_ATTENTION_SEVERITY_CRITICAL",
+	}
+	ArchitectureAttentionSeverity_value = map[string]int32{
+		"ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED":   0,
+		"ARCHITECTURE_ATTENTION_SEVERITY_INFORMATIONAL": 1,
+		"ARCHITECTURE_ATTENTION_SEVERITY_ATTENTION":     2,
+		"ARCHITECTURE_ATTENTION_SEVERITY_WARNING":       3,
+		"ARCHITECTURE_ATTENTION_SEVERITY_CRITICAL":      4,
+	}
+)
+
+func (x ArchitectureAttentionSeverity) Enum() *ArchitectureAttentionSeverity {
+	p := new(ArchitectureAttentionSeverity)
+	*p = x
+	return p
+}
+
+func (x ArchitectureAttentionSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureAttentionSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[27].Descriptor()
+}
+
+func (ArchitectureAttentionSeverity) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[27]
+}
+
+func (x ArchitectureAttentionSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureAttentionSeverity.Descriptor instead.
+func (ArchitectureAttentionSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{27}
+}
+
+// ArchitectureAssessmentCoverage mirrors controlstate.AssessmentCoverage.
+type ArchitectureAssessmentCoverage int32
+
+const (
+	ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED               ArchitectureAssessmentCoverage = 0 // always invalid
+	ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_ASSESSABLE                ArchitectureAssessmentCoverage = 1
+	ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_EXPLICITLY_NOT_APPLICABLE ArchitectureAssessmentCoverage = 2
+	ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_UNSUPPORTED               ArchitectureAssessmentCoverage = 3
+	ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_UNKNOWN                   ArchitectureAssessmentCoverage = 4
+)
+
+// Enum value maps for ArchitectureAssessmentCoverage.
+var (
+	ArchitectureAssessmentCoverage_name = map[int32]string{
+		0: "ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED",
+		1: "ARCHITECTURE_ASSESSMENT_COVERAGE_ASSESSABLE",
+		2: "ARCHITECTURE_ASSESSMENT_COVERAGE_EXPLICITLY_NOT_APPLICABLE",
+		3: "ARCHITECTURE_ASSESSMENT_COVERAGE_UNSUPPORTED",
+		4: "ARCHITECTURE_ASSESSMENT_COVERAGE_UNKNOWN",
+	}
+	ArchitectureAssessmentCoverage_value = map[string]int32{
+		"ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED":               0,
+		"ARCHITECTURE_ASSESSMENT_COVERAGE_ASSESSABLE":                1,
+		"ARCHITECTURE_ASSESSMENT_COVERAGE_EXPLICITLY_NOT_APPLICABLE": 2,
+		"ARCHITECTURE_ASSESSMENT_COVERAGE_UNSUPPORTED":               3,
+		"ARCHITECTURE_ASSESSMENT_COVERAGE_UNKNOWN":                   4,
+	}
+)
+
+func (x ArchitectureAssessmentCoverage) Enum() *ArchitectureAssessmentCoverage {
+	p := new(ArchitectureAssessmentCoverage)
+	*p = x
+	return p
+}
+
+func (x ArchitectureAssessmentCoverage) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureAssessmentCoverage) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[28].Descriptor()
+}
+
+func (ArchitectureAssessmentCoverage) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[28]
+}
+
+func (x ArchitectureAssessmentCoverage) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureAssessmentCoverage.Descriptor instead.
+func (ArchitectureAssessmentCoverage) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{28}
+}
+
+type ArchitectureDisposition int32
+
+const (
+	ArchitectureDisposition_ARCHITECTURE_DISPOSITION_UNSPECIFIED ArchitectureDisposition = 0 // always invalid
+	ArchitectureDisposition_ARCHITECTURE_DISPOSITION_ANSWERED    ArchitectureDisposition = 1
+	ArchitectureDisposition_ARCHITECTURE_DISPOSITION_DISMISSED   ArchitectureDisposition = 2
+	ArchitectureDisposition_ARCHITECTURE_DISPOSITION_DEFERRED    ArchitectureDisposition = 3
+	ArchitectureDisposition_ARCHITECTURE_DISPOSITION_TASK_LOCAL  ArchitectureDisposition = 4
+)
+
+// Enum value maps for ArchitectureDisposition.
+var (
+	ArchitectureDisposition_name = map[int32]string{
+		0: "ARCHITECTURE_DISPOSITION_UNSPECIFIED",
+		1: "ARCHITECTURE_DISPOSITION_ANSWERED",
+		2: "ARCHITECTURE_DISPOSITION_DISMISSED",
+		3: "ARCHITECTURE_DISPOSITION_DEFERRED",
+		4: "ARCHITECTURE_DISPOSITION_TASK_LOCAL",
+	}
+	ArchitectureDisposition_value = map[string]int32{
+		"ARCHITECTURE_DISPOSITION_UNSPECIFIED": 0,
+		"ARCHITECTURE_DISPOSITION_ANSWERED":    1,
+		"ARCHITECTURE_DISPOSITION_DISMISSED":   2,
+		"ARCHITECTURE_DISPOSITION_DEFERRED":    3,
+		"ARCHITECTURE_DISPOSITION_TASK_LOCAL":  4,
+	}
+)
+
+func (x ArchitectureDisposition) Enum() *ArchitectureDisposition {
+	p := new(ArchitectureDisposition)
+	*p = x
+	return p
+}
+
+func (x ArchitectureDisposition) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureDisposition) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[29].Descriptor()
+}
+
+func (ArchitectureDisposition) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[29]
+}
+
+func (x ArchitectureDisposition) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureDisposition.Descriptor instead.
+func (ArchitectureDisposition) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{29}
+}
+
+type ArchitectureReusability int32
+
+const (
+	ArchitectureReusability_ARCHITECTURE_REUSABILITY_UNSPECIFIED        ArchitectureReusability = 0 // always invalid
+	ArchitectureReusability_ARCHITECTURE_REUSABILITY_NONE               ArchitectureReusability = 1 // maps to "" (dismissed/deferred)
+	ArchitectureReusability_ARCHITECTURE_REUSABILITY_REUSABLE_CANDIDATE ArchitectureReusability = 2
+	ArchitectureReusability_ARCHITECTURE_REUSABILITY_TASK_LOCAL         ArchitectureReusability = 3
+)
+
+// Enum value maps for ArchitectureReusability.
+var (
+	ArchitectureReusability_name = map[int32]string{
+		0: "ARCHITECTURE_REUSABILITY_UNSPECIFIED",
+		1: "ARCHITECTURE_REUSABILITY_NONE",
+		2: "ARCHITECTURE_REUSABILITY_REUSABLE_CANDIDATE",
+		3: "ARCHITECTURE_REUSABILITY_TASK_LOCAL",
+	}
+	ArchitectureReusability_value = map[string]int32{
+		"ARCHITECTURE_REUSABILITY_UNSPECIFIED":        0,
+		"ARCHITECTURE_REUSABILITY_NONE":               1,
+		"ARCHITECTURE_REUSABILITY_REUSABLE_CANDIDATE": 2,
+		"ARCHITECTURE_REUSABILITY_TASK_LOCAL":         3,
+	}
+)
+
+func (x ArchitectureReusability) Enum() *ArchitectureReusability {
+	p := new(ArchitectureReusability)
+	*p = x
+	return p
+}
+
+func (x ArchitectureReusability) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureReusability) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[30].Descriptor()
+}
+
+func (ArchitectureReusability) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[30]
+}
+
+func (x ArchitectureReusability) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureReusability.Descriptor instead.
+func (ArchitectureReusability) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{30}
+}
+
+type ArchitectureDispositionOutcome int32
+
+const (
+	ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_UNSPECIFIED ArchitectureDispositionOutcome = 0 // always invalid
+	ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_RECORDED    ArchitectureDispositionOutcome = 1
+	ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_REPLAYED    ArchitectureDispositionOutcome = 2
+	ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_RECONCILED  ArchitectureDispositionOutcome = 3
+	ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED   ArchitectureDispositionOutcome = 4
+)
+
+// Enum value maps for ArchitectureDispositionOutcome.
+var (
+	ArchitectureDispositionOutcome_name = map[int32]string{
+		0: "ARCHITECTURE_DISPOSITION_OUTCOME_UNSPECIFIED",
+		1: "ARCHITECTURE_DISPOSITION_OUTCOME_RECORDED",
+		2: "ARCHITECTURE_DISPOSITION_OUTCOME_REPLAYED",
+		3: "ARCHITECTURE_DISPOSITION_OUTCOME_RECONCILED",
+		4: "ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED",
+	}
+	ArchitectureDispositionOutcome_value = map[string]int32{
+		"ARCHITECTURE_DISPOSITION_OUTCOME_UNSPECIFIED": 0,
+		"ARCHITECTURE_DISPOSITION_OUTCOME_RECORDED":    1,
+		"ARCHITECTURE_DISPOSITION_OUTCOME_REPLAYED":    2,
+		"ARCHITECTURE_DISPOSITION_OUTCOME_RECONCILED":  3,
+		"ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED":   4,
+	}
+)
+
+func (x ArchitectureDispositionOutcome) Enum() *ArchitectureDispositionOutcome {
+	p := new(ArchitectureDispositionOutcome)
+	*p = x
+	return p
+}
+
+func (x ArchitectureDispositionOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitectureDispositionOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[31].Descriptor()
+}
+
+func (ArchitectureDispositionOutcome) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[31]
+}
+
+func (x ArchitectureDispositionOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitectureDispositionOutcome.Descriptor instead.
+func (ArchitectureDispositionOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{31}
+}
+
+type ArchitecturePromotionOutcome int32
+
+const (
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_UNSPECIFIED                  ArchitecturePromotionOutcome = 0 // always invalid
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_COMMITTED                    ArchitecturePromotionOutcome = 1
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_EXACT_REPLAY                 ArchitecturePromotionOutcome = 2
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_SOURCE         ArchitecturePromotionOutcome = 3
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_GRAPH          ArchitecturePromotionOutcome = 4
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_COMMIT         ArchitecturePromotionOutcome = 5
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INELIGIBLE_DISPOSITION       ArchitecturePromotionOutcome = 6
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_STALE_OR_SUPERSEDED_INPUT    ArchitecturePromotionOutcome = 7
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_AUTHORITY_REFUSAL            ArchitecturePromotionOutcome = 8
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_SCOPE_REFUSAL                ArchitecturePromotionOutcome = 9
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_CONTRADICTION_OR_COLLISION   ArchitecturePromotionOutcome = 10
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_MANIFEST_CAS_FAILURE         ArchitecturePromotionOutcome = 11
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_GRAPH_VERIFICATION_FAILURE   ArchitecturePromotionOutcome = 12
+	ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_TAMPERED_JOURNAL_OR_ARTIFACT ArchitecturePromotionOutcome = 13
+)
+
+// Enum value maps for ArchitecturePromotionOutcome.
+var (
+	ArchitecturePromotionOutcome_name = map[int32]string{
+		0:  "ARCHITECTURE_PROMOTION_OUTCOME_UNSPECIFIED",
+		1:  "ARCHITECTURE_PROMOTION_OUTCOME_COMMITTED",
+		2:  "ARCHITECTURE_PROMOTION_OUTCOME_EXACT_REPLAY",
+		3:  "ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_SOURCE",
+		4:  "ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_GRAPH",
+		5:  "ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_COMMIT",
+		6:  "ARCHITECTURE_PROMOTION_OUTCOME_INELIGIBLE_DISPOSITION",
+		7:  "ARCHITECTURE_PROMOTION_OUTCOME_STALE_OR_SUPERSEDED_INPUT",
+		8:  "ARCHITECTURE_PROMOTION_OUTCOME_AUTHORITY_REFUSAL",
+		9:  "ARCHITECTURE_PROMOTION_OUTCOME_SCOPE_REFUSAL",
+		10: "ARCHITECTURE_PROMOTION_OUTCOME_CONTRADICTION_OR_COLLISION",
+		11: "ARCHITECTURE_PROMOTION_OUTCOME_MANIFEST_CAS_FAILURE",
+		12: "ARCHITECTURE_PROMOTION_OUTCOME_GRAPH_VERIFICATION_FAILURE",
+		13: "ARCHITECTURE_PROMOTION_OUTCOME_TAMPERED_JOURNAL_OR_ARTIFACT",
+	}
+	ArchitecturePromotionOutcome_value = map[string]int32{
+		"ARCHITECTURE_PROMOTION_OUTCOME_UNSPECIFIED":                  0,
+		"ARCHITECTURE_PROMOTION_OUTCOME_COMMITTED":                    1,
+		"ARCHITECTURE_PROMOTION_OUTCOME_EXACT_REPLAY":                 2,
+		"ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_SOURCE":         3,
+		"ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_GRAPH":          4,
+		"ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_COMMIT":         5,
+		"ARCHITECTURE_PROMOTION_OUTCOME_INELIGIBLE_DISPOSITION":       6,
+		"ARCHITECTURE_PROMOTION_OUTCOME_STALE_OR_SUPERSEDED_INPUT":    7,
+		"ARCHITECTURE_PROMOTION_OUTCOME_AUTHORITY_REFUSAL":            8,
+		"ARCHITECTURE_PROMOTION_OUTCOME_SCOPE_REFUSAL":                9,
+		"ARCHITECTURE_PROMOTION_OUTCOME_CONTRADICTION_OR_COLLISION":   10,
+		"ARCHITECTURE_PROMOTION_OUTCOME_MANIFEST_CAS_FAILURE":         11,
+		"ARCHITECTURE_PROMOTION_OUTCOME_GRAPH_VERIFICATION_FAILURE":   12,
+		"ARCHITECTURE_PROMOTION_OUTCOME_TAMPERED_JOURNAL_OR_ARTIFACT": 13,
+	}
+)
+
+func (x ArchitecturePromotionOutcome) Enum() *ArchitecturePromotionOutcome {
+	p := new(ArchitecturePromotionOutcome)
+	*p = x
+	return p
+}
+
+func (x ArchitecturePromotionOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchitecturePromotionOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[32].Descriptor()
+}
+
+func (ArchitecturePromotionOutcome) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[32]
+}
+
+func (x ArchitecturePromotionOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchitecturePromotionOutcome.Descriptor instead.
+func (ArchitecturePromotionOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{32}
+}
+
 type BriefingRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Either file XOR task must be set.
@@ -5679,6 +6390,3419 @@ func (x *ReferenceSitesResponse) GetGeneratedInMs() int64 {
 	return 0
 }
 
+// ArchitectureSourceStatus mirrors controlstate.SourceStatus: one typed source
+// contribution in a projection's evidence ledger. reason_code is a typed code
+// copied verbatim — it is provenance, never parsed to choose a vocabulary.
+type ArchitectureSourceStatus struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Owner         string                         `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Schema        string                         `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
+	Availability  ArchitectureSourceAvailability `protobuf:"varint,3,opt,name=availability,proto3,enum=globular.awareness_graph.ArchitectureSourceAvailability" json:"availability,omitempty"`
+	Impact        ArchitectureSourceImpact       `protobuf:"varint,4,opt,name=impact,proto3,enum=globular.awareness_graph.ArchitectureSourceImpact" json:"impact,omitempty"`
+	ReasonCode    string                         `protobuf:"bytes,5,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Identity      string                         `protobuf:"bytes,6,opt,name=identity,proto3" json:"identity,omitempty"`
+	Digest        string                         `protobuf:"bytes,7,opt,name=digest,proto3" json:"digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureSourceStatus) Reset() {
+	*x = ArchitectureSourceStatus{}
+	mi := &file_awareness_graph_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureSourceStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureSourceStatus) ProtoMessage() {}
+
+func (x *ArchitectureSourceStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureSourceStatus.ProtoReflect.Descriptor instead.
+func (*ArchitectureSourceStatus) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ArchitectureSourceStatus) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *ArchitectureSourceStatus) GetSchema() string {
+	if x != nil {
+		return x.Schema
+	}
+	return ""
+}
+
+func (x *ArchitectureSourceStatus) GetAvailability() ArchitectureSourceAvailability {
+	if x != nil {
+		return x.Availability
+	}
+	return ArchitectureSourceAvailability_ARCHITECTURE_SOURCE_AVAILABILITY_UNSPECIFIED
+}
+
+func (x *ArchitectureSourceStatus) GetImpact() ArchitectureSourceImpact {
+	if x != nil {
+		return x.Impact
+	}
+	return ArchitectureSourceImpact_ARCHITECTURE_SOURCE_IMPACT_UNSPECIFIED
+}
+
+func (x *ArchitectureSourceStatus) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *ArchitectureSourceStatus) GetIdentity() string {
+	if x != nil {
+		return x.Identity
+	}
+	return ""
+}
+
+func (x *ArchitectureSourceStatus) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+// ArchitectureProjectionMeta mirrors controlstate.ProjectionMeta — the shared
+// self-describing envelope every projection carries. non_authoritative_projection
+// is always true: these are read models, never graph/governance authority.
+type ArchitectureProjectionMeta struct {
+	state                      protoimpl.MessageState      `protogen:"open.v1"`
+	SchemaVersion              string                      `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	ProducerName               string                      `protobuf:"bytes,2,opt,name=producer_name,json=producerName,proto3" json:"producer_name,omitempty"`
+	ProducerVersion            string                      `protobuf:"bytes,3,opt,name=producer_version,json=producerVersion,proto3" json:"producer_version,omitempty"`
+	RepositoryIdentity         string                      `protobuf:"bytes,4,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"` // logical identity, never a filesystem path
+	RequestedDomain            string                      `protobuf:"bytes,5,opt,name=requested_domain,json=requestedDomain,proto3" json:"requested_domain,omitempty"`
+	Availability               ArchitectureAvailability    `protobuf:"varint,6,opt,name=availability,proto3,enum=globular.awareness_graph.ArchitectureAvailability" json:"availability,omitempty"`
+	Sources                    []*ArchitectureSourceStatus `protobuf:"bytes,7,rep,name=sources,proto3" json:"sources,omitempty"` // canonical controlstate order
+	NonAuthoritativeProjection bool                        `protobuf:"varint,8,opt,name=non_authoritative_projection,json=nonAuthoritativeProjection,proto3" json:"non_authoritative_projection,omitempty"`
+	Limitations                []string                    `protobuf:"bytes,9,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	DigestSha256               string                      `protobuf:"bytes,10,opt,name=digest_sha256,json=digestSha256,proto3" json:"digest_sha256,omitempty"` // canonical controlstate digest, copied verbatim
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *ArchitectureProjectionMeta) Reset() {
+	*x = ArchitectureProjectionMeta{}
+	mi := &file_awareness_graph_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureProjectionMeta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureProjectionMeta) ProtoMessage() {}
+
+func (x *ArchitectureProjectionMeta) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureProjectionMeta.ProtoReflect.Descriptor instead.
+func (*ArchitectureProjectionMeta) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ArchitectureProjectionMeta) GetSchemaVersion() string {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return ""
+}
+
+func (x *ArchitectureProjectionMeta) GetProducerName() string {
+	if x != nil {
+		return x.ProducerName
+	}
+	return ""
+}
+
+func (x *ArchitectureProjectionMeta) GetProducerVersion() string {
+	if x != nil {
+		return x.ProducerVersion
+	}
+	return ""
+}
+
+func (x *ArchitectureProjectionMeta) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureProjectionMeta) GetRequestedDomain() string {
+	if x != nil {
+		return x.RequestedDomain
+	}
+	return ""
+}
+
+func (x *ArchitectureProjectionMeta) GetAvailability() ArchitectureAvailability {
+	if x != nil {
+		return x.Availability
+	}
+	return ArchitectureAvailability_ARCHITECTURE_AVAILABILITY_UNSPECIFIED
+}
+
+func (x *ArchitectureProjectionMeta) GetSources() []*ArchitectureSourceStatus {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *ArchitectureProjectionMeta) GetNonAuthoritativeProjection() bool {
+	if x != nil {
+		return x.NonAuthoritativeProjection
+	}
+	return false
+}
+
+func (x *ArchitectureProjectionMeta) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+func (x *ArchitectureProjectionMeta) GetDigestSha256() string {
+	if x != nil {
+		return x.DigestSha256
+	}
+	return ""
+}
+
+// ArchitectureArtifactIdentity mirrors controlstate.ArtifactIdentity. The
+// canonical class is registry-resolved from observed classes — a client can
+// read it but never supplies it.
+type ArchitectureArtifactIdentity struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	NodeIri                string                 `protobuf:"bytes,1,opt,name=node_iri,json=nodeIri,proto3" json:"node_iri,omitempty"`
+	CanonicalClass         string                 `protobuf:"bytes,2,opt,name=canonical_class,json=canonicalClass,proto3" json:"canonical_class,omitempty"`
+	ObservedClasses        []string               `protobuf:"bytes,3,rep,name=observed_classes,json=observedClasses,proto3" json:"observed_classes,omitempty"` // canonical sorted+unique
+	RepositoryIdentity     string                 `protobuf:"bytes,4,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"`
+	DomainIdentity         string                 `protobuf:"bytes,5,opt,name=domain_identity,json=domainIdentity,proto3" json:"domain_identity,omitempty"`
+	GraphAuthorityIdentity string                 `protobuf:"bytes,6,opt,name=graph_authority_identity,json=graphAuthorityIdentity,proto3" json:"graph_authority_identity,omitempty"`
+	ProvenanceIdentities   []string               `protobuf:"bytes,7,rep,name=provenance_identities,json=provenanceIdentities,proto3" json:"provenance_identities,omitempty"` // canonical sorted+unique
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ArchitectureArtifactIdentity) Reset() {
+	*x = ArchitectureArtifactIdentity{}
+	mi := &file_awareness_graph_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureArtifactIdentity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureArtifactIdentity) ProtoMessage() {}
+
+func (x *ArchitectureArtifactIdentity) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureArtifactIdentity.ProtoReflect.Descriptor instead.
+func (*ArchitectureArtifactIdentity) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ArchitectureArtifactIdentity) GetNodeIri() string {
+	if x != nil {
+		return x.NodeIri
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactIdentity) GetCanonicalClass() string {
+	if x != nil {
+		return x.CanonicalClass
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactIdentity) GetObservedClasses() []string {
+	if x != nil {
+		return x.ObservedClasses
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactIdentity) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactIdentity) GetDomainIdentity() string {
+	if x != nil {
+		return x.DomainIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactIdentity) GetGraphAuthorityIdentity() string {
+	if x != nil {
+		return x.GraphAuthorityIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactIdentity) GetProvenanceIdentities() []string {
+	if x != nil {
+		return x.ProvenanceIdentities
+	}
+	return nil
+}
+
+// ArchitectureLifecycleAssessment mirrors controlstate.LifecycleAssessment.
+type ArchitectureLifecycleAssessment struct {
+	state              protoimpl.MessageState         `protogen:"open.v1"`
+	Applicable         bool                           `protobuf:"varint,1,opt,name=applicable,proto3" json:"applicable,omitempty"`
+	Vocabulary         string                         `protobuf:"bytes,2,opt,name=vocabulary,proto3" json:"vocabulary,omitempty"`
+	State              ArchitectureLifecycleState     `protobuf:"varint,3,opt,name=state,proto3,enum=globular.awareness_graph.ArchitectureLifecycleState" json:"state,omitempty"`
+	SourceOwner        string                         `protobuf:"bytes,4,opt,name=source_owner,json=sourceOwner,proto3" json:"source_owner,omitempty"`
+	SourceIdentity     string                         `protobuf:"bytes,5,opt,name=source_identity,json=sourceIdentity,proto3" json:"source_identity,omitempty"`
+	SourceAvailability ArchitectureSourceAvailability `protobuf:"varint,6,opt,name=source_availability,json=sourceAvailability,proto3,enum=globular.awareness_graph.ArchitectureSourceAvailability" json:"source_availability,omitempty"`
+	ReasonCode         string                         `protobuf:"bytes,7,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ArchitectureLifecycleAssessment) Reset() {
+	*x = ArchitectureLifecycleAssessment{}
+	mi := &file_awareness_graph_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureLifecycleAssessment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureLifecycleAssessment) ProtoMessage() {}
+
+func (x *ArchitectureLifecycleAssessment) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureLifecycleAssessment.ProtoReflect.Descriptor instead.
+func (*ArchitectureLifecycleAssessment) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ArchitectureLifecycleAssessment) GetApplicable() bool {
+	if x != nil {
+		return x.Applicable
+	}
+	return false
+}
+
+func (x *ArchitectureLifecycleAssessment) GetVocabulary() string {
+	if x != nil {
+		return x.Vocabulary
+	}
+	return ""
+}
+
+func (x *ArchitectureLifecycleAssessment) GetState() ArchitectureLifecycleState {
+	if x != nil {
+		return x.State
+	}
+	return ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_UNSPECIFIED
+}
+
+func (x *ArchitectureLifecycleAssessment) GetSourceOwner() string {
+	if x != nil {
+		return x.SourceOwner
+	}
+	return ""
+}
+
+func (x *ArchitectureLifecycleAssessment) GetSourceIdentity() string {
+	if x != nil {
+		return x.SourceIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureLifecycleAssessment) GetSourceAvailability() ArchitectureSourceAvailability {
+	if x != nil {
+		return x.SourceAvailability
+	}
+	return ArchitectureSourceAvailability_ARCHITECTURE_SOURCE_AVAILABILITY_UNSPECIFIED
+}
+
+func (x *ArchitectureLifecycleAssessment) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+// ArchitectureDimensionAssessment mirrors controlstate.DimensionAssessment.
+type ArchitectureDimensionAssessment struct {
+	state           protoimpl.MessageState     `protogen:"open.v1"`
+	Dimension       string                     `protobuf:"bytes,1,opt,name=dimension,proto3" json:"dimension,omitempty"`
+	Label           string                     `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Applicable      bool                       `protobuf:"varint,3,opt,name=applicable,proto3" json:"applicable,omitempty"`
+	Required        bool                       `protobuf:"varint,4,opt,name=required,proto3" json:"required,omitempty"`
+	State           ArchitectureDimensionState `protobuf:"varint,5,opt,name=state,proto3,enum=globular.awareness_graph.ArchitectureDimensionState" json:"state,omitempty"`
+	ReasonCode      string                     `protobuf:"bytes,6,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Blockers        []string                   `protobuf:"bytes,7,rep,name=blockers,proto3" json:"blockers,omitempty"`   // canonical sorted+unique
+	Evidence        []string                   `protobuf:"bytes,8,rep,name=evidence,proto3" json:"evidence,omitempty"`   // canonical sorted+unique
+	Questions       []string                   `protobuf:"bytes,9,rep,name=questions,proto3" json:"questions,omitempty"` // canonical sorted+unique
+	Owner           string                     `protobuf:"bytes,10,opt,name=owner,proto3" json:"owner,omitempty"`
+	NextActionOwner string                     `protobuf:"bytes,11,opt,name=next_action_owner,json=nextActionOwner,proto3" json:"next_action_owner,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ArchitectureDimensionAssessment) Reset() {
+	*x = ArchitectureDimensionAssessment{}
+	mi := &file_awareness_graph_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureDimensionAssessment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureDimensionAssessment) ProtoMessage() {}
+
+func (x *ArchitectureDimensionAssessment) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureDimensionAssessment.ProtoReflect.Descriptor instead.
+func (*ArchitectureDimensionAssessment) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ArchitectureDimensionAssessment) GetDimension() string {
+	if x != nil {
+		return x.Dimension
+	}
+	return ""
+}
+
+func (x *ArchitectureDimensionAssessment) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ArchitectureDimensionAssessment) GetApplicable() bool {
+	if x != nil {
+		return x.Applicable
+	}
+	return false
+}
+
+func (x *ArchitectureDimensionAssessment) GetRequired() bool {
+	if x != nil {
+		return x.Required
+	}
+	return false
+}
+
+func (x *ArchitectureDimensionAssessment) GetState() ArchitectureDimensionState {
+	if x != nil {
+		return x.State
+	}
+	return ArchitectureDimensionState_ARCHITECTURE_DIMENSION_STATE_UNSPECIFIED
+}
+
+func (x *ArchitectureDimensionAssessment) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *ArchitectureDimensionAssessment) GetBlockers() []string {
+	if x != nil {
+		return x.Blockers
+	}
+	return nil
+}
+
+func (x *ArchitectureDimensionAssessment) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ArchitectureDimensionAssessment) GetQuestions() []string {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *ArchitectureDimensionAssessment) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *ArchitectureDimensionAssessment) GetNextActionOwner() string {
+	if x != nil {
+		return x.NextActionOwner
+	}
+	return ""
+}
+
+// ArchitectureAttentionItem is architecture.attention_item/v1 — the ONE shared
+// canonical attention record, embedded in snapshot and artifact-state
+// responses. It is OUTPUT-ONLY: no inbound RPC accepts an attention item or
+// any other client-supplied semantic verdict.
+type ArchitectureAttentionItem struct {
+	state                  protoimpl.MessageState        `protogen:"open.v1"`
+	Id                     string                        `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // deterministic canonical identity digest
+	SourceOwner            string                        `protobuf:"bytes,2,opt,name=source_owner,json=sourceOwner,proto3" json:"source_owner,omitempty"`
+	SourceSchema           string                        `protobuf:"bytes,3,opt,name=source_schema,json=sourceSchema,proto3" json:"source_schema,omitempty"`
+	SourceIdentity         string                        `protobuf:"bytes,4,opt,name=source_identity,json=sourceIdentity,proto3" json:"source_identity,omitempty"`
+	AttentionClass         string                        `protobuf:"bytes,5,opt,name=attention_class,json=attentionClass,proto3" json:"attention_class,omitempty"` // governed class vocabulary, copied verbatim
+	ReasonCode             string                        `protobuf:"bytes,6,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Severity               ArchitectureAttentionSeverity `protobuf:"varint,7,opt,name=severity,proto3,enum=globular.awareness_graph.ArchitectureAttentionSeverity" json:"severity,omitempty"`
+	SeverityBasis          string                        `protobuf:"bytes,8,opt,name=severity_basis,json=severityBasis,proto3" json:"severity_basis,omitempty"` // governed-mapping basis, copied verbatim
+	SourceDigest           string                        `protobuf:"bytes,9,opt,name=source_digest,json=sourceDigest,proto3" json:"source_digest,omitempty"`
+	AffectedArtifacts      []string                      `protobuf:"bytes,10,rep,name=affected_artifacts,json=affectedArtifacts,proto3" json:"affected_artifacts,omitempty"` // canonical sorted+unique
+	Blocking               bool                          `protobuf:"varint,11,opt,name=blocking,proto3" json:"blocking,omitempty"`
+	Evidence               []string                      `protobuf:"bytes,12,rep,name=evidence,proto3" json:"evidence,omitempty"` // canonical sorted+unique
+	NextActionOwner        string                        `protobuf:"bytes,13,opt,name=next_action_owner,json=nextActionOwner,proto3" json:"next_action_owner,omitempty"`
+	ArchitectInputRequired bool                          `protobuf:"varint,14,opt,name=architect_input_required,json=architectInputRequired,proto3" json:"architect_input_required,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ArchitectureAttentionItem) Reset() {
+	*x = ArchitectureAttentionItem{}
+	mi := &file_awareness_graph_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureAttentionItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureAttentionItem) ProtoMessage() {}
+
+func (x *ArchitectureAttentionItem) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureAttentionItem.ProtoReflect.Descriptor instead.
+func (*ArchitectureAttentionItem) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ArchitectureAttentionItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetSourceOwner() string {
+	if x != nil {
+		return x.SourceOwner
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetSourceSchema() string {
+	if x != nil {
+		return x.SourceSchema
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetSourceIdentity() string {
+	if x != nil {
+		return x.SourceIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetAttentionClass() string {
+	if x != nil {
+		return x.AttentionClass
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetSeverity() ArchitectureAttentionSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED
+}
+
+func (x *ArchitectureAttentionItem) GetSeverityBasis() string {
+	if x != nil {
+		return x.SeverityBasis
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetSourceDigest() string {
+	if x != nil {
+		return x.SourceDigest
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetAffectedArtifacts() []string {
+	if x != nil {
+		return x.AffectedArtifacts
+	}
+	return nil
+}
+
+func (x *ArchitectureAttentionItem) GetBlocking() bool {
+	if x != nil {
+		return x.Blocking
+	}
+	return false
+}
+
+func (x *ArchitectureAttentionItem) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ArchitectureAttentionItem) GetNextActionOwner() string {
+	if x != nil {
+		return x.NextActionOwner
+	}
+	return ""
+}
+
+func (x *ArchitectureAttentionItem) GetArchitectInputRequired() bool {
+	if x != nil {
+		return x.ArchitectInputRequired
+	}
+	return false
+}
+
+// ArchitectureKeyedCount mirrors controlstate.KeyedCount — deterministic
+// (key, count) pairs used instead of maps for stable canonical output.
+type ArchitectureKeyedCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Count         int64                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureKeyedCount) Reset() {
+	*x = ArchitectureKeyedCount{}
+	mi := &file_awareness_graph_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureKeyedCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureKeyedCount) ProtoMessage() {}
+
+func (x *ArchitectureKeyedCount) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureKeyedCount.ProtoReflect.Descriptor instead.
+func (*ArchitectureKeyedCount) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ArchitectureKeyedCount) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ArchitectureKeyedCount) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+// ArchitectureGraphAuthoritySummary mirrors controlstate.GraphAuthoritySummary
+// (typed authority state, never recomputed by transport).
+type ArchitectureGraphAuthoritySummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Observed      bool                   `protobuf:"varint,1,opt,name=observed,proto3" json:"observed,omitempty"`
+	Current       bool                   `protobuf:"varint,2,opt,name=current,proto3" json:"current,omitempty"`
+	Integrity     bool                   `protobuf:"varint,3,opt,name=integrity,proto3" json:"integrity,omitempty"`
+	Identity      string                 `protobuf:"bytes,4,opt,name=identity,proto3" json:"identity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureGraphAuthoritySummary) Reset() {
+	*x = ArchitectureGraphAuthoritySummary{}
+	mi := &file_awareness_graph_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureGraphAuthoritySummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureGraphAuthoritySummary) ProtoMessage() {}
+
+func (x *ArchitectureGraphAuthoritySummary) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureGraphAuthoritySummary.ProtoReflect.Descriptor instead.
+func (*ArchitectureGraphAuthoritySummary) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ArchitectureGraphAuthoritySummary) GetObserved() bool {
+	if x != nil {
+		return x.Observed
+	}
+	return false
+}
+
+func (x *ArchitectureGraphAuthoritySummary) GetCurrent() bool {
+	if x != nil {
+		return x.Current
+	}
+	return false
+}
+
+func (x *ArchitectureGraphAuthoritySummary) GetIntegrity() bool {
+	if x != nil {
+		return x.Integrity
+	}
+	return false
+}
+
+func (x *ArchitectureGraphAuthoritySummary) GetIdentity() string {
+	if x != nil {
+		return x.Identity
+	}
+	return ""
+}
+
+// ArchitectureCoverageSummary mirrors controlstate.CoverageSummary.
+type ArchitectureCoverageSummary struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Sufficient             bool                   `protobuf:"varint,1,opt,name=sufficient,proto3" json:"sufficient,omitempty"`
+	BlindSpotCount         int64                  `protobuf:"varint,2,opt,name=blind_spot_count,json=blindSpotCount,proto3" json:"blind_spot_count,omitempty"`
+	HighRiskBlindSpotCount int64                  `protobuf:"varint,3,opt,name=high_risk_blind_spot_count,json=highRiskBlindSpotCount,proto3" json:"high_risk_blind_spot_count,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ArchitectureCoverageSummary) Reset() {
+	*x = ArchitectureCoverageSummary{}
+	mi := &file_awareness_graph_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureCoverageSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureCoverageSummary) ProtoMessage() {}
+
+func (x *ArchitectureCoverageSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureCoverageSummary.ProtoReflect.Descriptor instead.
+func (*ArchitectureCoverageSummary) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ArchitectureCoverageSummary) GetSufficient() bool {
+	if x != nil {
+		return x.Sufficient
+	}
+	return false
+}
+
+func (x *ArchitectureCoverageSummary) GetBlindSpotCount() int64 {
+	if x != nil {
+		return x.BlindSpotCount
+	}
+	return 0
+}
+
+func (x *ArchitectureCoverageSummary) GetHighRiskBlindSpotCount() int64 {
+	if x != nil {
+		return x.HighRiskBlindSpotCount
+	}
+	return 0
+}
+
+// ArchitectureTaskSummary mirrors controlstate.TaskSummary (bounded; no raw
+// dialogue, no answers, no certification claims).
+type ArchitectureTaskSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Closure       string                 `protobuf:"bytes,3,opt,name=closure,proto3" json:"closure,omitempty"`
+	Admission     string                 `protobuf:"bytes,4,opt,name=admission,proto3" json:"admission,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureTaskSummary) Reset() {
+	*x = ArchitectureTaskSummary{}
+	mi := &file_awareness_graph_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureTaskSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureTaskSummary) ProtoMessage() {}
+
+func (x *ArchitectureTaskSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureTaskSummary.ProtoReflect.Descriptor instead.
+func (*ArchitectureTaskSummary) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *ArchitectureTaskSummary) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ArchitectureTaskSummary) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ArchitectureTaskSummary) GetClosure() string {
+	if x != nil {
+		return x.Closure
+	}
+	return ""
+}
+
+func (x *ArchitectureTaskSummary) GetAdmission() string {
+	if x != nil {
+		return x.Admission
+	}
+	return ""
+}
+
+// ArchitectureCompletionSummary mirrors controlstate.CompletionSummary.
+// Phase 6 remains the sole correctness certifier; nothing here certifies.
+type ArchitectureCompletionSummary struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	TerminalState           string                 `protobuf:"bytes,1,opt,name=terminal_state,json=terminalState,proto3" json:"terminal_state,omitempty"`
+	AuthoritativeCompletion bool                   `protobuf:"varint,2,opt,name=authoritative_completion,json=authoritativeCompletion,proto3" json:"authoritative_completion,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *ArchitectureCompletionSummary) Reset() {
+	*x = ArchitectureCompletionSummary{}
+	mi := &file_awareness_graph_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureCompletionSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureCompletionSummary) ProtoMessage() {}
+
+func (x *ArchitectureCompletionSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureCompletionSummary.ProtoReflect.Descriptor instead.
+func (*ArchitectureCompletionSummary) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *ArchitectureCompletionSummary) GetTerminalState() string {
+	if x != nil {
+		return x.TerminalState
+	}
+	return ""
+}
+
+func (x *ArchitectureCompletionSummary) GetAuthoritativeCompletion() bool {
+	if x != nil {
+		return x.AuthoritativeCompletion
+	}
+	return false
+}
+
+// ArchitectureFeedbackContext mirrors controlstate.FeedbackContext — feedback
+// CAPABILITY/availability only, never repository-wide feedback records.
+// availability uses the Phase 9.6 vocabulary (feedback_available /
+// feedback_empty / feedback_degraded / feedback_unavailable / feedback_invalid).
+type ArchitectureFeedbackContext struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Capable       bool                   `protobuf:"varint,1,opt,name=capable,proto3" json:"capable,omitempty"`
+	Availability  string                 `protobuf:"bytes,2,opt,name=availability,proto3" json:"availability,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureFeedbackContext) Reset() {
+	*x = ArchitectureFeedbackContext{}
+	mi := &file_awareness_graph_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureFeedbackContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureFeedbackContext) ProtoMessage() {}
+
+func (x *ArchitectureFeedbackContext) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureFeedbackContext.ProtoReflect.Descriptor instead.
+func (*ArchitectureFeedbackContext) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *ArchitectureFeedbackContext) GetCapable() bool {
+	if x != nil {
+		return x.Capable
+	}
+	return false
+}
+
+func (x *ArchitectureFeedbackContext) GetAvailability() string {
+	if x != nil {
+		return x.Availability
+	}
+	return ""
+}
+
+// ArchitectureScopedFeedbackRef mirrors controlstate.ScopedFeedbackRef — an
+// exact-scope Phase 9.6 feedback reference (never a repo-wide scan).
+type ArchitectureScopedFeedbackRef struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ScopeIdentity     string                 `protobuf:"bytes,1,opt,name=scope_identity,json=scopeIdentity,proto3" json:"scope_identity,omitempty"`
+	ProjectionDigest  string                 `protobuf:"bytes,2,opt,name=projection_digest,json=projectionDigest,proto3" json:"projection_digest,omitempty"`
+	Availability      string                 `protobuf:"bytes,3,opt,name=availability,proto3" json:"availability,omitempty"`                                      // Phase 9.6 vocabulary, validated upstream
+	VerifiedRecordIds []string               `protobuf:"bytes,4,rep,name=verified_record_ids,json=verifiedRecordIds,proto3" json:"verified_record_ids,omitempty"` // canonical sorted+unique
+	LineageIds        []string               `protobuf:"bytes,5,rep,name=lineage_ids,json=lineageIds,proto3" json:"lineage_ids,omitempty"`                        // canonical sorted+unique
+	Limitations       []string               `protobuf:"bytes,6,rep,name=limitations,proto3" json:"limitations,omitempty"`                                        // canonical sorted+unique
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ArchitectureScopedFeedbackRef) Reset() {
+	*x = ArchitectureScopedFeedbackRef{}
+	mi := &file_awareness_graph_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureScopedFeedbackRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureScopedFeedbackRef) ProtoMessage() {}
+
+func (x *ArchitectureScopedFeedbackRef) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureScopedFeedbackRef.ProtoReflect.Descriptor instead.
+func (*ArchitectureScopedFeedbackRef) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ArchitectureScopedFeedbackRef) GetScopeIdentity() string {
+	if x != nil {
+		return x.ScopeIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureScopedFeedbackRef) GetProjectionDigest() string {
+	if x != nil {
+		return x.ProjectionDigest
+	}
+	return ""
+}
+
+func (x *ArchitectureScopedFeedbackRef) GetAvailability() string {
+	if x != nil {
+		return x.Availability
+	}
+	return ""
+}
+
+func (x *ArchitectureScopedFeedbackRef) GetVerifiedRecordIds() []string {
+	if x != nil {
+		return x.VerifiedRecordIds
+	}
+	return nil
+}
+
+func (x *ArchitectureScopedFeedbackRef) GetLineageIds() []string {
+	if x != nil {
+		return x.LineageIds
+	}
+	return nil
+}
+
+func (x *ArchitectureScopedFeedbackRef) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+// ArchitectureControlSnapshot is architecture.control_snapshot/v1. Optional
+// counts preserve unknown-versus-zero: an UNSET count means the source was
+// not available (unknown); a SET zero is observed data.
+type ArchitectureControlSnapshot struct {
+	state                     protoimpl.MessageState             `protogen:"open.v1"`
+	Meta                      *ArchitectureProjectionMeta        `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
+	RegistryDigest            string                             `protobuf:"bytes,2,opt,name=registry_digest,json=registryDigest,proto3" json:"registry_digest,omitempty"`
+	GraphAuthority            *ArchitectureGraphAuthoritySummary `protobuf:"bytes,3,opt,name=graph_authority,json=graphAuthority,proto3" json:"graph_authority,omitempty"`
+	CountsByClass             []*ArchitectureKeyedCount          `protobuf:"bytes,4,rep,name=counts_by_class,json=countsByClass,proto3" json:"counts_by_class,omitempty"`
+	AssessmentCoverageCounts  []*ArchitectureKeyedCount          `protobuf:"bytes,5,rep,name=assessment_coverage_counts,json=assessmentCoverageCounts,proto3" json:"assessment_coverage_counts,omitempty"`
+	ClosureCounts             []*ArchitectureKeyedCount          `protobuf:"bytes,6,rep,name=closure_counts,json=closureCounts,proto3" json:"closure_counts,omitempty"`
+	LifecycleUnknownCount     *int64                             `protobuf:"varint,7,opt,name=lifecycle_unknown_count,json=lifecycleUnknownCount,proto3,oneof" json:"lifecycle_unknown_count,omitempty"`
+	AttentionCountsBySeverity []*ArchitectureKeyedCount          `protobuf:"bytes,8,rep,name=attention_counts_by_severity,json=attentionCountsBySeverity,proto3" json:"attention_counts_by_severity,omitempty"`
+	TopAttention              []*ArchitectureAttentionItem       `protobuf:"bytes,9,rep,name=top_attention,json=topAttention,proto3" json:"top_attention,omitempty"` // bounded, canonical order
+	OpenQuestionCount         *int64                             `protobuf:"varint,10,opt,name=open_question_count,json=openQuestionCount,proto3,oneof" json:"open_question_count,omitempty"`
+	ContradictionCount        *int64                             `protobuf:"varint,11,opt,name=contradiction_count,json=contradictionCount,proto3,oneof" json:"contradiction_count,omitempty"`
+	MissingEvidenceCount      *int64                             `protobuf:"varint,12,opt,name=missing_evidence_count,json=missingEvidenceCount,proto3,oneof" json:"missing_evidence_count,omitempty"`
+	MissingTestCount          *int64                             `protobuf:"varint,13,opt,name=missing_test_count,json=missingTestCount,proto3,oneof" json:"missing_test_count,omitempty"`
+	MissingEnforcementCount   *int64                             `protobuf:"varint,14,opt,name=missing_enforcement_count,json=missingEnforcementCount,proto3,oneof" json:"missing_enforcement_count,omitempty"`
+	Coverage                  *ArchitectureCoverageSummary       `protobuf:"bytes,15,opt,name=coverage,proto3" json:"coverage,omitempty"`                                      // absent when unobserved
+	ActiveTask                *ArchitectureTaskSummary           `protobuf:"bytes,16,opt,name=active_task,json=activeTask,proto3" json:"active_task,omitempty"`                // absent when unobserved
+	Completion                *ArchitectureCompletionSummary     `protobuf:"bytes,17,opt,name=completion,proto3" json:"completion,omitempty"`                                  // absent when unobserved
+	FeedbackContext           *ArchitectureFeedbackContext       `protobuf:"bytes,18,opt,name=feedback_context,json=feedbackContext,proto3" json:"feedback_context,omitempty"` // absent when source not available
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *ArchitectureControlSnapshot) Reset() {
+	*x = ArchitectureControlSnapshot{}
+	mi := &file_awareness_graph_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureControlSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureControlSnapshot) ProtoMessage() {}
+
+func (x *ArchitectureControlSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureControlSnapshot.ProtoReflect.Descriptor instead.
+func (*ArchitectureControlSnapshot) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ArchitectureControlSnapshot) GetMeta() *ArchitectureProjectionMeta {
+	if x != nil {
+		return x.Meta
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetRegistryDigest() string {
+	if x != nil {
+		return x.RegistryDigest
+	}
+	return ""
+}
+
+func (x *ArchitectureControlSnapshot) GetGraphAuthority() *ArchitectureGraphAuthoritySummary {
+	if x != nil {
+		return x.GraphAuthority
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetCountsByClass() []*ArchitectureKeyedCount {
+	if x != nil {
+		return x.CountsByClass
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetAssessmentCoverageCounts() []*ArchitectureKeyedCount {
+	if x != nil {
+		return x.AssessmentCoverageCounts
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetClosureCounts() []*ArchitectureKeyedCount {
+	if x != nil {
+		return x.ClosureCounts
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetLifecycleUnknownCount() int64 {
+	if x != nil && x.LifecycleUnknownCount != nil {
+		return *x.LifecycleUnknownCount
+	}
+	return 0
+}
+
+func (x *ArchitectureControlSnapshot) GetAttentionCountsBySeverity() []*ArchitectureKeyedCount {
+	if x != nil {
+		return x.AttentionCountsBySeverity
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetTopAttention() []*ArchitectureAttentionItem {
+	if x != nil {
+		return x.TopAttention
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetOpenQuestionCount() int64 {
+	if x != nil && x.OpenQuestionCount != nil {
+		return *x.OpenQuestionCount
+	}
+	return 0
+}
+
+func (x *ArchitectureControlSnapshot) GetContradictionCount() int64 {
+	if x != nil && x.ContradictionCount != nil {
+		return *x.ContradictionCount
+	}
+	return 0
+}
+
+func (x *ArchitectureControlSnapshot) GetMissingEvidenceCount() int64 {
+	if x != nil && x.MissingEvidenceCount != nil {
+		return *x.MissingEvidenceCount
+	}
+	return 0
+}
+
+func (x *ArchitectureControlSnapshot) GetMissingTestCount() int64 {
+	if x != nil && x.MissingTestCount != nil {
+		return *x.MissingTestCount
+	}
+	return 0
+}
+
+func (x *ArchitectureControlSnapshot) GetMissingEnforcementCount() int64 {
+	if x != nil && x.MissingEnforcementCount != nil {
+		return *x.MissingEnforcementCount
+	}
+	return 0
+}
+
+func (x *ArchitectureControlSnapshot) GetCoverage() *ArchitectureCoverageSummary {
+	if x != nil {
+		return x.Coverage
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetActiveTask() *ArchitectureTaskSummary {
+	if x != nil {
+		return x.ActiveTask
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetCompletion() *ArchitectureCompletionSummary {
+	if x != nil {
+		return x.Completion
+	}
+	return nil
+}
+
+func (x *ArchitectureControlSnapshot) GetFeedbackContext() *ArchitectureFeedbackContext {
+	if x != nil {
+		return x.FeedbackContext
+	}
+	return nil
+}
+
+// ArchitectureArtifactSummary mirrors controlstate.ArtifactSummary — one
+// bounded index row (never a full artifact state).
+type ArchitectureArtifactSummary struct {
+	state                  protoimpl.MessageState         `protogen:"open.v1"`
+	Identity               *ArchitectureArtifactIdentity  `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Label                  string                         `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Family                 string                         `protobuf:"bytes,3,opt,name=family,proto3" json:"family,omitempty"`
+	Class                  string                         `protobuf:"bytes,4,opt,name=class,proto3" json:"class,omitempty"`
+	AssessmentCoverage     ArchitectureAssessmentCoverage `protobuf:"varint,5,opt,name=assessment_coverage,json=assessmentCoverage,proto3,enum=globular.awareness_graph.ArchitectureAssessmentCoverage" json:"assessment_coverage,omitempty"`
+	Lifecycle              ArchitectureLifecycleState     `protobuf:"varint,6,opt,name=lifecycle,proto3,enum=globular.awareness_graph.ArchitectureLifecycleState" json:"lifecycle,omitempty"`
+	Closure                ArchitectureArtifactClosure    `protobuf:"varint,7,opt,name=closure,proto3,enum=globular.awareness_graph.ArchitectureArtifactClosure" json:"closure,omitempty"`
+	OpenRequiredDimensions int64                          `protobuf:"varint,8,opt,name=open_required_dimensions,json=openRequiredDimensions,proto3" json:"open_required_dimensions,omitempty"`
+	// highest_severity is ABSENT when the artifact has zero attention items;
+	// when present it must be a non-UNSPECIFIED severity.
+	HighestSeverity *ArchitectureAttentionSeverity `protobuf:"varint,9,opt,name=highest_severity,json=highestSeverity,proto3,enum=globular.awareness_graph.ArchitectureAttentionSeverity,oneof" json:"highest_severity,omitempty"`
+	AttentionCount  int64                          `protobuf:"varint,10,opt,name=attention_count,json=attentionCount,proto3" json:"attention_count,omitempty"`
+	OwnerSummary    string                         `protobuf:"bytes,11,opt,name=owner_summary,json=ownerSummary,proto3" json:"owner_summary,omitempty"`
+	Availability    ArchitectureAvailability       `protobuf:"varint,12,opt,name=availability,proto3,enum=globular.awareness_graph.ArchitectureAvailability" json:"availability,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ArchitectureArtifactSummary) Reset() {
+	*x = ArchitectureArtifactSummary{}
+	mi := &file_awareness_graph_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureArtifactSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureArtifactSummary) ProtoMessage() {}
+
+func (x *ArchitectureArtifactSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureArtifactSummary.ProtoReflect.Descriptor instead.
+func (*ArchitectureArtifactSummary) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *ArchitectureArtifactSummary) GetIdentity() *ArchitectureArtifactIdentity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactSummary) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactSummary) GetFamily() string {
+	if x != nil {
+		return x.Family
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactSummary) GetClass() string {
+	if x != nil {
+		return x.Class
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactSummary) GetAssessmentCoverage() ArchitectureAssessmentCoverage {
+	if x != nil {
+		return x.AssessmentCoverage
+	}
+	return ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED
+}
+
+func (x *ArchitectureArtifactSummary) GetLifecycle() ArchitectureLifecycleState {
+	if x != nil {
+		return x.Lifecycle
+	}
+	return ArchitectureLifecycleState_ARCHITECTURE_LIFECYCLE_STATE_UNSPECIFIED
+}
+
+func (x *ArchitectureArtifactSummary) GetClosure() ArchitectureArtifactClosure {
+	if x != nil {
+		return x.Closure
+	}
+	return ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED
+}
+
+func (x *ArchitectureArtifactSummary) GetOpenRequiredDimensions() int64 {
+	if x != nil {
+		return x.OpenRequiredDimensions
+	}
+	return 0
+}
+
+func (x *ArchitectureArtifactSummary) GetHighestSeverity() ArchitectureAttentionSeverity {
+	if x != nil && x.HighestSeverity != nil {
+		return *x.HighestSeverity
+	}
+	return ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED
+}
+
+func (x *ArchitectureArtifactSummary) GetAttentionCount() int64 {
+	if x != nil {
+		return x.AttentionCount
+	}
+	return 0
+}
+
+func (x *ArchitectureArtifactSummary) GetOwnerSummary() string {
+	if x != nil {
+		return x.OwnerSummary
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactSummary) GetAvailability() ArchitectureAvailability {
+	if x != nil {
+		return x.Availability
+	}
+	return ArchitectureAvailability_ARCHITECTURE_AVAILABILITY_UNSPECIFIED
+}
+
+// ArchitectureArtifactIndex is architecture.artifact_index/v1 — one stable
+// page. next_cursor is OPAQUE: owner-produced, owner-validated, bound to
+// snapshot/registry/filter identity; clients echo it back unchanged.
+type ArchitectureArtifactIndex struct {
+	state          protoimpl.MessageState         `protogen:"open.v1"`
+	Meta           *ArchitectureProjectionMeta    `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
+	RegistryDigest string                         `protobuf:"bytes,2,opt,name=registry_digest,json=registryDigest,proto3" json:"registry_digest,omitempty"`
+	Page           []*ArchitectureArtifactSummary `protobuf:"bytes,3,rep,name=page,proto3" json:"page,omitempty"` // canonical complete-sort-key order
+	NextCursor     string                         `protobuf:"bytes,4,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	Truncated      bool                           `protobuf:"varint,5,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ArchitectureArtifactIndex) Reset() {
+	*x = ArchitectureArtifactIndex{}
+	mi := &file_awareness_graph_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureArtifactIndex) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureArtifactIndex) ProtoMessage() {}
+
+func (x *ArchitectureArtifactIndex) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureArtifactIndex.ProtoReflect.Descriptor instead.
+func (*ArchitectureArtifactIndex) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *ArchitectureArtifactIndex) GetMeta() *ArchitectureProjectionMeta {
+	if x != nil {
+		return x.Meta
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactIndex) GetRegistryDigest() string {
+	if x != nil {
+		return x.RegistryDigest
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactIndex) GetPage() []*ArchitectureArtifactSummary {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactIndex) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactIndex) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+// ArchitectureArtifactState is architecture.artifact_state/v1 — the full typed
+// state for ONE exact artifact identity.
+type ArchitectureArtifactState struct {
+	state              protoimpl.MessageState             `protogen:"open.v1"`
+	Meta               *ArchitectureProjectionMeta        `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
+	Identity           *ArchitectureArtifactIdentity      `protobuf:"bytes,2,opt,name=identity,proto3" json:"identity,omitempty"`
+	CanonicalClass     string                             `protobuf:"bytes,3,opt,name=canonical_class,json=canonicalClass,proto3" json:"canonical_class,omitempty"`
+	AssessmentCoverage ArchitectureAssessmentCoverage     `protobuf:"varint,4,opt,name=assessment_coverage,json=assessmentCoverage,proto3,enum=globular.awareness_graph.ArchitectureAssessmentCoverage" json:"assessment_coverage,omitempty"`
+	Closure            ArchitectureArtifactClosure        `protobuf:"varint,5,opt,name=closure,proto3,enum=globular.awareness_graph.ArchitectureArtifactClosure" json:"closure,omitempty"`
+	ClosureReason      string                             `protobuf:"bytes,6,opt,name=closure_reason,json=closureReason,proto3" json:"closure_reason,omitempty"`
+	Lifecycle          *ArchitectureLifecycleAssessment   `protobuf:"bytes,7,opt,name=lifecycle,proto3" json:"lifecycle,omitempty"`
+	Dimensions         []*ArchitectureDimensionAssessment `protobuf:"bytes,8,rep,name=dimensions,proto3" json:"dimensions,omitempty"` // canonical order
+	Attention          []*ArchitectureAttentionItem       `protobuf:"bytes,9,rep,name=attention,proto3" json:"attention,omitempty"`   // canonical order
+	Questions          []string                           `protobuf:"bytes,10,rep,name=questions,proto3" json:"questions,omitempty"`  // canonical sorted+unique
+	Evidence           []string                           `protobuf:"bytes,11,rep,name=evidence,proto3" json:"evidence,omitempty"`    // canonical sorted+unique
+	Feedback           *ArchitectureScopedFeedbackRef     `protobuf:"bytes,12,opt,name=feedback,proto3" json:"feedback,omitempty"`    // absent when no exact-scope feedback
+	NextActionOwner    string                             `protobuf:"bytes,13,opt,name=next_action_owner,json=nextActionOwner,proto3" json:"next_action_owner,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ArchitectureArtifactState) Reset() {
+	*x = ArchitectureArtifactState{}
+	mi := &file_awareness_graph_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureArtifactState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureArtifactState) ProtoMessage() {}
+
+func (x *ArchitectureArtifactState) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureArtifactState.ProtoReflect.Descriptor instead.
+func (*ArchitectureArtifactState) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *ArchitectureArtifactState) GetMeta() *ArchitectureProjectionMeta {
+	if x != nil {
+		return x.Meta
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetIdentity() *ArchitectureArtifactIdentity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetCanonicalClass() string {
+	if x != nil {
+		return x.CanonicalClass
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactState) GetAssessmentCoverage() ArchitectureAssessmentCoverage {
+	if x != nil {
+		return x.AssessmentCoverage
+	}
+	return ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED
+}
+
+func (x *ArchitectureArtifactState) GetClosure() ArchitectureArtifactClosure {
+	if x != nil {
+		return x.Closure
+	}
+	return ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED
+}
+
+func (x *ArchitectureArtifactState) GetClosureReason() string {
+	if x != nil {
+		return x.ClosureReason
+	}
+	return ""
+}
+
+func (x *ArchitectureArtifactState) GetLifecycle() *ArchitectureLifecycleAssessment {
+	if x != nil {
+		return x.Lifecycle
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetDimensions() []*ArchitectureDimensionAssessment {
+	if x != nil {
+		return x.Dimensions
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetAttention() []*ArchitectureAttentionItem {
+	if x != nil {
+		return x.Attention
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetQuestions() []string {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetFeedback() *ArchitectureScopedFeedbackRef {
+	if x != nil {
+		return x.Feedback
+	}
+	return nil
+}
+
+func (x *ArchitectureArtifactState) GetNextActionOwner() string {
+	if x != nil {
+		return x.NextActionOwner
+	}
+	return ""
+}
+
+// ArchitectureNavigationClass mirrors controlstate.NavigationClass — copied
+// from the canonical registry, never invented during projection.
+type ArchitectureNavigationClass struct {
+	state              protoimpl.MessageState         `protogen:"open.v1"`
+	ClassIri           string                         `protobuf:"bytes,1,opt,name=class_iri,json=classIri,proto3" json:"class_iri,omitempty"`
+	Label              string                         `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Order              int32                          `protobuf:"varint,3,opt,name=order,proto3" json:"order,omitempty"`
+	Coverage           ArchitectureAssessmentCoverage `protobuf:"varint,4,opt,name=coverage,proto3,enum=globular.awareness_graph.ArchitectureAssessmentCoverage" json:"coverage,omitempty"`
+	AssessableArtifact bool                           `protobuf:"varint,5,opt,name=assessable_artifact,json=assessableArtifact,proto3" json:"assessable_artifact,omitempty"`
+	QueryCapable       bool                           `protobuf:"varint,6,opt,name=query_capable,json=queryCapable,proto3" json:"query_capable,omitempty"`
+	ResolveCapable     bool                           `protobuf:"varint,7,opt,name=resolve_capable,json=resolveCapable,proto3" json:"resolve_capable,omitempty"`
+	InspectorCapable   bool                           `protobuf:"varint,8,opt,name=inspector_capable,json=inspectorCapable,proto3" json:"inspector_capable,omitempty"`
+	QuestionCapable    bool                           `protobuf:"varint,9,opt,name=question_capable,json=questionCapable,proto3" json:"question_capable,omitempty"`
+	DefaultVisible     bool                           `protobuf:"varint,10,opt,name=default_visible,json=defaultVisible,proto3" json:"default_visible,omitempty"`
+	OverviewVisible    bool                           `protobuf:"varint,11,opt,name=overview_visible,json=overviewVisible,proto3" json:"overview_visible,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ArchitectureNavigationClass) Reset() {
+	*x = ArchitectureNavigationClass{}
+	mi := &file_awareness_graph_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureNavigationClass) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureNavigationClass) ProtoMessage() {}
+
+func (x *ArchitectureNavigationClass) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureNavigationClass.ProtoReflect.Descriptor instead.
+func (*ArchitectureNavigationClass) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *ArchitectureNavigationClass) GetClassIri() string {
+	if x != nil {
+		return x.ClassIri
+	}
+	return ""
+}
+
+func (x *ArchitectureNavigationClass) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ArchitectureNavigationClass) GetOrder() int32 {
+	if x != nil {
+		return x.Order
+	}
+	return 0
+}
+
+func (x *ArchitectureNavigationClass) GetCoverage() ArchitectureAssessmentCoverage {
+	if x != nil {
+		return x.Coverage
+	}
+	return ArchitectureAssessmentCoverage_ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED
+}
+
+func (x *ArchitectureNavigationClass) GetAssessableArtifact() bool {
+	if x != nil {
+		return x.AssessableArtifact
+	}
+	return false
+}
+
+func (x *ArchitectureNavigationClass) GetQueryCapable() bool {
+	if x != nil {
+		return x.QueryCapable
+	}
+	return false
+}
+
+func (x *ArchitectureNavigationClass) GetResolveCapable() bool {
+	if x != nil {
+		return x.ResolveCapable
+	}
+	return false
+}
+
+func (x *ArchitectureNavigationClass) GetInspectorCapable() bool {
+	if x != nil {
+		return x.InspectorCapable
+	}
+	return false
+}
+
+func (x *ArchitectureNavigationClass) GetQuestionCapable() bool {
+	if x != nil {
+		return x.QuestionCapable
+	}
+	return false
+}
+
+func (x *ArchitectureNavigationClass) GetDefaultVisible() bool {
+	if x != nil {
+		return x.DefaultVisible
+	}
+	return false
+}
+
+func (x *ArchitectureNavigationClass) GetOverviewVisible() bool {
+	if x != nil {
+		return x.OverviewVisible
+	}
+	return false
+}
+
+// ArchitectureNavigationFamily mirrors controlstate.NavigationFamily.
+type ArchitectureNavigationFamily struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Id            string                         `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label         string                         `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Order         int32                          `protobuf:"varint,3,opt,name=order,proto3" json:"order,omitempty"`
+	Classes       []*ArchitectureNavigationClass `protobuf:"bytes,4,rep,name=classes,proto3" json:"classes,omitempty"` // canonical order
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureNavigationFamily) Reset() {
+	*x = ArchitectureNavigationFamily{}
+	mi := &file_awareness_graph_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureNavigationFamily) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureNavigationFamily) ProtoMessage() {}
+
+func (x *ArchitectureNavigationFamily) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureNavigationFamily.ProtoReflect.Descriptor instead.
+func (*ArchitectureNavigationFamily) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ArchitectureNavigationFamily) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ArchitectureNavigationFamily) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ArchitectureNavigationFamily) GetOrder() int32 {
+	if x != nil {
+		return x.Order
+	}
+	return 0
+}
+
+func (x *ArchitectureNavigationFamily) GetClasses() []*ArchitectureNavigationClass {
+	if x != nil {
+		return x.Classes
+	}
+	return nil
+}
+
+// OntologyNavigationDescriptor is ontology.navigation_descriptor/v1 —
+// mechanically derived from the canonical Go-owned registry.
+type OntologyNavigationDescriptor struct {
+	state                protoimpl.MessageState          `protogen:"open.v1"`
+	Meta                 *ArchitectureProjectionMeta     `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
+	RegistryDigest       string                          `protobuf:"bytes,2,opt,name=registry_digest,json=registryDigest,proto3" json:"registry_digest,omitempty"`
+	Families             []*ArchitectureNavigationFamily `protobuf:"bytes,3,rep,name=families,proto3" json:"families,omitempty"` // canonical order
+	UnknownClassFallback *ArchitectureNavigationClass    `protobuf:"bytes,4,opt,name=unknown_class_fallback,json=unknownClassFallback,proto3" json:"unknown_class_fallback,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *OntologyNavigationDescriptor) Reset() {
+	*x = OntologyNavigationDescriptor{}
+	mi := &file_awareness_graph_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OntologyNavigationDescriptor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OntologyNavigationDescriptor) ProtoMessage() {}
+
+func (x *OntologyNavigationDescriptor) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OntologyNavigationDescriptor.ProtoReflect.Descriptor instead.
+func (*OntologyNavigationDescriptor) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *OntologyNavigationDescriptor) GetMeta() *ArchitectureProjectionMeta {
+	if x != nil {
+		return x.Meta
+	}
+	return nil
+}
+
+func (x *OntologyNavigationDescriptor) GetRegistryDigest() string {
+	if x != nil {
+		return x.RegistryDigest
+	}
+	return ""
+}
+
+func (x *OntologyNavigationDescriptor) GetFamilies() []*ArchitectureNavigationFamily {
+	if x != nil {
+		return x.Families
+	}
+	return nil
+}
+
+func (x *OntologyNavigationDescriptor) GetUnknownClassFallback() *ArchitectureNavigationClass {
+	if x != nil {
+		return x.UnknownClassFallback
+	}
+	return nil
+}
+
+type GetArchitectureControlSnapshotRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryIdentity string                 `protobuf:"bytes,1,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"` // logical repository identity (not a path)
+	Domain             string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`                                                   // graph domain scope
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *GetArchitectureControlSnapshotRequest) Reset() {
+	*x = GetArchitectureControlSnapshotRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetArchitectureControlSnapshotRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetArchitectureControlSnapshotRequest) ProtoMessage() {}
+
+func (x *GetArchitectureControlSnapshotRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetArchitectureControlSnapshotRequest.ProtoReflect.Descriptor instead.
+func (*GetArchitectureControlSnapshotRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *GetArchitectureControlSnapshotRequest) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *GetArchitectureControlSnapshotRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+type GetArchitectureControlSnapshotResponse struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Snapshot      *ArchitectureControlSnapshot `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetArchitectureControlSnapshotResponse) Reset() {
+	*x = GetArchitectureControlSnapshotResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetArchitectureControlSnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetArchitectureControlSnapshotResponse) ProtoMessage() {}
+
+func (x *GetArchitectureControlSnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetArchitectureControlSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*GetArchitectureControlSnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *GetArchitectureControlSnapshotResponse) GetSnapshot() *ArchitectureControlSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+type ListArchitectureArtifactsRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryIdentity string                 `protobuf:"bytes,1,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"`
+	Domain             string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	PageSize           int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // bounded by the controlstate owner (default 100, max 250)
+	Cursor             string                 `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`                      // opaque; echoed back from a previous response
+	// Optional visibility filters over already-resolved rows. A filter never
+	// changes an artifact's resolved class. When a filter enum field is present
+	// it must be a non-UNSPECIFIED value.
+	FamilyFilter   string                         `protobuf:"bytes,5,opt,name=family_filter,json=familyFilter,proto3" json:"family_filter,omitempty"`
+	ClassFilter    string                         `protobuf:"bytes,6,opt,name=class_filter,json=classFilter,proto3" json:"class_filter,omitempty"` // exact class IRI visibility filter
+	ClosureFilter  *ArchitectureArtifactClosure   `protobuf:"varint,7,opt,name=closure_filter,json=closureFilter,proto3,enum=globular.awareness_graph.ArchitectureArtifactClosure,oneof" json:"closure_filter,omitempty"`
+	SeverityFilter *ArchitectureAttentionSeverity `protobuf:"varint,8,opt,name=severity_filter,json=severityFilter,proto3,enum=globular.awareness_graph.ArchitectureAttentionSeverity,oneof" json:"severity_filter,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListArchitectureArtifactsRequest) Reset() {
+	*x = ListArchitectureArtifactsRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListArchitectureArtifactsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListArchitectureArtifactsRequest) ProtoMessage() {}
+
+func (x *ListArchitectureArtifactsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListArchitectureArtifactsRequest.ProtoReflect.Descriptor instead.
+func (*ListArchitectureArtifactsRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *ListArchitectureArtifactsRequest) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *ListArchitectureArtifactsRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *ListArchitectureArtifactsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListArchitectureArtifactsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *ListArchitectureArtifactsRequest) GetFamilyFilter() string {
+	if x != nil {
+		return x.FamilyFilter
+	}
+	return ""
+}
+
+func (x *ListArchitectureArtifactsRequest) GetClassFilter() string {
+	if x != nil {
+		return x.ClassFilter
+	}
+	return ""
+}
+
+func (x *ListArchitectureArtifactsRequest) GetClosureFilter() ArchitectureArtifactClosure {
+	if x != nil && x.ClosureFilter != nil {
+		return *x.ClosureFilter
+	}
+	return ArchitectureArtifactClosure_ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED
+}
+
+func (x *ListArchitectureArtifactsRequest) GetSeverityFilter() ArchitectureAttentionSeverity {
+	if x != nil && x.SeverityFilter != nil {
+		return *x.SeverityFilter
+	}
+	return ArchitectureAttentionSeverity_ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED
+}
+
+type ListArchitectureArtifactsResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Index         *ArchitectureArtifactIndex `protobuf:"bytes,1,opt,name=index,proto3" json:"index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListArchitectureArtifactsResponse) Reset() {
+	*x = ListArchitectureArtifactsResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListArchitectureArtifactsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListArchitectureArtifactsResponse) ProtoMessage() {}
+
+func (x *ListArchitectureArtifactsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListArchitectureArtifactsResponse.ProtoReflect.Descriptor instead.
+func (*ListArchitectureArtifactsResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *ListArchitectureArtifactsResponse) GetIndex() *ArchitectureArtifactIndex {
+	if x != nil {
+		return x.Index
+	}
+	return nil
+}
+
+type GetArchitectureArtifactStateRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryIdentity string                 `protobuf:"bytes,1,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"`
+	Domain             string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	NodeIri            string                 `protobuf:"bytes,3,opt,name=node_iri,json=nodeIri,proto3" json:"node_iri,omitempty"` // exact node IRI; the ONLY artifact selector
+	// Preconditions, NOT alternate authorities: when set and mismatched against
+	// the server's authoritative values the RPC fails with FailedPrecondition.
+	ExpectedGraphAuthorityIdentity string `protobuf:"bytes,4,opt,name=expected_graph_authority_identity,json=expectedGraphAuthorityIdentity,proto3" json:"expected_graph_authority_identity,omitempty"`
+	ExpectedRegistryDigest         string `protobuf:"bytes,5,opt,name=expected_registry_digest,json=expectedRegistryDigest,proto3" json:"expected_registry_digest,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *GetArchitectureArtifactStateRequest) Reset() {
+	*x = GetArchitectureArtifactStateRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetArchitectureArtifactStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetArchitectureArtifactStateRequest) ProtoMessage() {}
+
+func (x *GetArchitectureArtifactStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetArchitectureArtifactStateRequest.ProtoReflect.Descriptor instead.
+func (*GetArchitectureArtifactStateRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *GetArchitectureArtifactStateRequest) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *GetArchitectureArtifactStateRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *GetArchitectureArtifactStateRequest) GetNodeIri() string {
+	if x != nil {
+		return x.NodeIri
+	}
+	return ""
+}
+
+func (x *GetArchitectureArtifactStateRequest) GetExpectedGraphAuthorityIdentity() string {
+	if x != nil {
+		return x.ExpectedGraphAuthorityIdentity
+	}
+	return ""
+}
+
+func (x *GetArchitectureArtifactStateRequest) GetExpectedRegistryDigest() string {
+	if x != nil {
+		return x.ExpectedRegistryDigest
+	}
+	return ""
+}
+
+type GetArchitectureArtifactStateResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	State         *ArchitectureArtifactState `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetArchitectureArtifactStateResponse) Reset() {
+	*x = GetArchitectureArtifactStateResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetArchitectureArtifactStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetArchitectureArtifactStateResponse) ProtoMessage() {}
+
+func (x *GetArchitectureArtifactStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetArchitectureArtifactStateResponse.ProtoReflect.Descriptor instead.
+func (*GetArchitectureArtifactStateResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *GetArchitectureArtifactStateResponse) GetState() *ArchitectureArtifactState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+// GetOntologyNavigationDescriptorRequest is intentionally EMPTY: the
+// descriptor is registry-derived and requires no filesystem or repository
+// argument.
+type GetOntologyNavigationDescriptorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOntologyNavigationDescriptorRequest) Reset() {
+	*x = GetOntologyNavigationDescriptorRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOntologyNavigationDescriptorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOntologyNavigationDescriptorRequest) ProtoMessage() {}
+
+func (x *GetOntologyNavigationDescriptorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOntologyNavigationDescriptorRequest.ProtoReflect.Descriptor instead.
+func (*GetOntologyNavigationDescriptorRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{67}
+}
+
+type GetOntologyNavigationDescriptorResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Descriptor_   *OntologyNavigationDescriptor `protobuf:"bytes,1,opt,name=descriptor,proto3" json:"descriptor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOntologyNavigationDescriptorResponse) Reset() {
+	*x = GetOntologyNavigationDescriptorResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOntologyNavigationDescriptorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOntologyNavigationDescriptorResponse) ProtoMessage() {}
+
+func (x *GetOntologyNavigationDescriptorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOntologyNavigationDescriptorResponse.ProtoReflect.Descriptor instead.
+func (*GetOntologyNavigationDescriptorResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *GetOntologyNavigationDescriptorResponse) GetDescriptor_() *OntologyNavigationDescriptor {
+	if x != nil {
+		return x.Descriptor_
+	}
+	return nil
+}
+
+// ArchitectureMutationRefusal is a pre-write refusal from the owner (unenrolled/
+// unverified/ungranted actor, broadened scope, ineligible input). It is response
+// DATA and guarantees NOTHING was written. reason_code is the owner error code
+// verbatim; owner is the owner identity that refused; detail is sanitized (no
+// filesystem paths, no raw errors, and NEVER the raw answer text).
+type ArchitectureMutationRefusal struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ReasonCode      string                 `protobuf:"bytes,1,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Detail          string                 `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	Owner           string                 `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	MutationApplied bool                   `protobuf:"varint,4,opt,name=mutation_applied,json=mutationApplied,proto3" json:"mutation_applied,omitempty"` // always false — a refusal writes nothing
+	// audit exposes the UNCHANGED ledger identity (previous == resulting head) and
+	// the resolved bindings, so a refusal can never be mistaken for a mutation.
+	Audit         *ArchitectureMutationAudit `protobuf:"bytes,5,opt,name=audit,proto3" json:"audit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureMutationRefusal) Reset() {
+	*x = ArchitectureMutationRefusal{}
+	mi := &file_awareness_graph_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureMutationRefusal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureMutationRefusal) ProtoMessage() {}
+
+func (x *ArchitectureMutationRefusal) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureMutationRefusal.ProtoReflect.Descriptor instead.
+func (*ArchitectureMutationRefusal) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *ArchitectureMutationRefusal) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationRefusal) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationRefusal) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationRefusal) GetMutationApplied() bool {
+	if x != nil {
+		return x.MutationApplied
+	}
+	return false
+}
+
+func (x *ArchitectureMutationRefusal) GetAudit() *ArchitectureMutationAudit {
+	if x != nil {
+		return x.Audit
+	}
+	return nil
+}
+
+// ArchitectureMutationAudit is the typed audit envelope on every successful
+// receipt: enough to audit the operation WITHOUT echoing unsafe content (no raw
+// answer text, ever). operation_identity is the canonical mutation identity
+// (the content-addressed receipt digest binding kind+actor+task/session+question
+// +expected head+payload).
+type ArchitectureMutationAudit struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	OperationIdentity         string                 `protobuf:"bytes,1,opt,name=operation_identity,json=operationIdentity,proto3" json:"operation_identity,omitempty"`
+	OperationKind             string                 `protobuf:"bytes,2,opt,name=operation_kind,json=operationKind,proto3" json:"operation_kind,omitempty"` // "disposition" | "promotion"
+	ActorIdentity             string                 `protobuf:"bytes,3,opt,name=actor_identity,json=actorIdentity,proto3" json:"actor_identity,omitempty"`
+	RepositoryIdentity        string                 `protobuf:"bytes,4,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"`
+	Domain                    string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	TaskId                    string                 `protobuf:"bytes,6,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	SessionId                 string                 `protobuf:"bytes,7,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	QuestionId                string                 `protobuf:"bytes,8,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
+	PreviousLedgerHeadSha256  string                 `protobuf:"bytes,9,opt,name=previous_ledger_head_sha256,json=previousLedgerHeadSha256,proto3" json:"previous_ledger_head_sha256,omitempty"`
+	ResultingLedgerHeadSha256 string                 `protobuf:"bytes,10,opt,name=resulting_ledger_head_sha256,json=resultingLedgerHeadSha256,proto3" json:"resulting_ledger_head_sha256,omitempty"`
+	OwnerOutcome              string                 `protobuf:"bytes,11,opt,name=owner_outcome,json=ownerOutcome,proto3" json:"owner_outcome,omitempty"` // owner outcome string, verbatim
+	ReplayStatus              string                 `protobuf:"bytes,12,opt,name=replay_status,json=replayStatus,proto3" json:"replay_status,omitempty"` // applied | replay | reconciled | contested | none
+	MutationApplied           bool                   `protobuf:"varint,13,opt,name=mutation_applied,json=mutationApplied,proto3" json:"mutation_applied,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *ArchitectureMutationAudit) Reset() {
+	*x = ArchitectureMutationAudit{}
+	mi := &file_awareness_graph_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureMutationAudit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureMutationAudit) ProtoMessage() {}
+
+func (x *ArchitectureMutationAudit) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureMutationAudit.ProtoReflect.Descriptor instead.
+func (*ArchitectureMutationAudit) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *ArchitectureMutationAudit) GetOperationIdentity() string {
+	if x != nil {
+		return x.OperationIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetOperationKind() string {
+	if x != nil {
+		return x.OperationKind
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetActorIdentity() string {
+	if x != nil {
+		return x.ActorIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetQuestionId() string {
+	if x != nil {
+		return x.QuestionId
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetPreviousLedgerHeadSha256() string {
+	if x != nil {
+		return x.PreviousLedgerHeadSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetResultingLedgerHeadSha256() string {
+	if x != nil {
+		return x.ResultingLedgerHeadSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetOwnerOutcome() string {
+	if x != nil {
+		return x.OwnerOutcome
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetReplayStatus() string {
+	if x != nil {
+		return x.ReplayStatus
+	}
+	return ""
+}
+
+func (x *ArchitectureMutationAudit) GetMutationApplied() bool {
+	if x != nil {
+		return x.MutationApplied
+	}
+	return false
+}
+
+// ArchitectureDispositionInput carries logical identities + the actor + the
+// answer bytes. There is NO filesystem root here; the server resolves the
+// repository/task/identity roots from its startup-owned context.
+type ArchitectureDispositionInput struct {
+	state                protoimpl.MessageState  `protogen:"open.v1"`
+	RepositoryIdentity   string                  `protobuf:"bytes,1,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"`
+	Domain               string                  `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	TaskId               string                  `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	SessionId            string                  `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	QuestionId           string                  `protobuf:"bytes,5,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
+	ActorIdentity        string                  `protobuf:"bytes,6,opt,name=actor_identity,json=actorIdentity,proto3" json:"actor_identity,omitempty"`
+	Disposition          ArchitectureDisposition `protobuf:"varint,7,opt,name=disposition,proto3,enum=globular.awareness_graph.ArchitectureDisposition" json:"disposition,omitempty"`
+	Reusability          ArchitectureReusability `protobuf:"varint,8,opt,name=reusability,proto3,enum=globular.awareness_graph.ArchitectureReusability" json:"reusability,omitempty"`
+	Rationale            string                  `protobuf:"bytes,9,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	AnswerId             string                  `protobuf:"bytes,10,opt,name=answer_id,json=answerId,proto3" json:"answer_id,omitempty"`
+	AnswerBytes          []byte                  `protobuf:"bytes,11,opt,name=answer_bytes,json=answerBytes,proto3" json:"answer_bytes,omitempty"` // opaque; hashed by the owner, never stored as prose
+	EffectiveScopeDomain string                  `protobuf:"bytes,12,opt,name=effective_scope_domain,json=effectiveScopeDomain,proto3" json:"effective_scope_domain,omitempty"`
+	EffectiveScopeFiles  []string                `protobuf:"bytes,13,rep,name=effective_scope_files,json=effectiveScopeFiles,proto3" json:"effective_scope_files,omitempty"`
+	EvidenceRefs         []string                `protobuf:"bytes,14,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ArchitectureDispositionInput) Reset() {
+	*x = ArchitectureDispositionInput{}
+	mi := &file_awareness_graph_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureDispositionInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureDispositionInput) ProtoMessage() {}
+
+func (x *ArchitectureDispositionInput) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureDispositionInput.ProtoReflect.Descriptor instead.
+func (*ArchitectureDispositionInput) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *ArchitectureDispositionInput) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetQuestionId() string {
+	if x != nil {
+		return x.QuestionId
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetActorIdentity() string {
+	if x != nil {
+		return x.ActorIdentity
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetDisposition() ArchitectureDisposition {
+	if x != nil {
+		return x.Disposition
+	}
+	return ArchitectureDisposition_ARCHITECTURE_DISPOSITION_UNSPECIFIED
+}
+
+func (x *ArchitectureDispositionInput) GetReusability() ArchitectureReusability {
+	if x != nil {
+		return x.Reusability
+	}
+	return ArchitectureReusability_ARCHITECTURE_REUSABILITY_UNSPECIFIED
+}
+
+func (x *ArchitectureDispositionInput) GetRationale() string {
+	if x != nil {
+		return x.Rationale
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetAnswerId() string {
+	if x != nil {
+		return x.AnswerId
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetAnswerBytes() []byte {
+	if x != nil {
+		return x.AnswerBytes
+	}
+	return nil
+}
+
+func (x *ArchitectureDispositionInput) GetEffectiveScopeDomain() string {
+	if x != nil {
+		return x.EffectiveScopeDomain
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionInput) GetEffectiveScopeFiles() []string {
+	if x != nil {
+		return x.EffectiveScopeFiles
+	}
+	return nil
+}
+
+func (x *ArchitectureDispositionInput) GetEvidenceRefs() []string {
+	if x != nil {
+		return x.EvidenceRefs
+	}
+	return nil
+}
+
+// ArchitectureDispositionCandidate is the PURE prepared candidate (writes
+// nothing): the receipt identity and the expected ledger head the commit will
+// CAS against.
+type ArchitectureDispositionCandidate struct {
+	state                          protoimpl.MessageState `protogen:"open.v1"`
+	QuestionId                     string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
+	ReceiptDigestSha256            string                 `protobuf:"bytes,2,opt,name=receipt_digest_sha256,json=receiptDigestSha256,proto3" json:"receipt_digest_sha256,omitempty"`
+	ReceiptByteDigestSha256        string                 `protobuf:"bytes,3,opt,name=receipt_byte_digest_sha256,json=receiptByteDigestSha256,proto3" json:"receipt_byte_digest_sha256,omitempty"`
+	ExpectedLedgerHeadDigestSha256 string                 `protobuf:"bytes,4,opt,name=expected_ledger_head_digest_sha256,json=expectedLedgerHeadDigestSha256,proto3" json:"expected_ledger_head_digest_sha256,omitempty"`
+	AnchorEntryDigestSha256        string                 `protobuf:"bytes,5,opt,name=anchor_entry_digest_sha256,json=anchorEntryDigestSha256,proto3" json:"anchor_entry_digest_sha256,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *ArchitectureDispositionCandidate) Reset() {
+	*x = ArchitectureDispositionCandidate{}
+	mi := &file_awareness_graph_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureDispositionCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureDispositionCandidate) ProtoMessage() {}
+
+func (x *ArchitectureDispositionCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureDispositionCandidate.ProtoReflect.Descriptor instead.
+func (*ArchitectureDispositionCandidate) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *ArchitectureDispositionCandidate) GetQuestionId() string {
+	if x != nil {
+		return x.QuestionId
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionCandidate) GetReceiptDigestSha256() string {
+	if x != nil {
+		return x.ReceiptDigestSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionCandidate) GetReceiptByteDigestSha256() string {
+	if x != nil {
+		return x.ReceiptByteDigestSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionCandidate) GetExpectedLedgerHeadDigestSha256() string {
+	if x != nil {
+		return x.ExpectedLedgerHeadDigestSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionCandidate) GetAnchorEntryDigestSha256() string {
+	if x != nil {
+		return x.AnchorEntryDigestSha256
+	}
+	return ""
+}
+
+type PrepareArchitectAnswerDispositionRequest struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Input         *ArchitectureDispositionInput `protobuf:"bytes,1,opt,name=input,proto3" json:"input,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareArchitectAnswerDispositionRequest) Reset() {
+	*x = PrepareArchitectAnswerDispositionRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareArchitectAnswerDispositionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareArchitectAnswerDispositionRequest) ProtoMessage() {}
+
+func (x *PrepareArchitectAnswerDispositionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareArchitectAnswerDispositionRequest.ProtoReflect.Descriptor instead.
+func (*PrepareArchitectAnswerDispositionRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *PrepareArchitectAnswerDispositionRequest) GetInput() *ArchitectureDispositionInput {
+	if x != nil {
+		return x.Input
+	}
+	return nil
+}
+
+// Exactly one of candidate / refusal is set. A refusal wrote nothing.
+type PrepareArchitectAnswerDispositionResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Candidate     *ArchitectureDispositionCandidate `protobuf:"bytes,1,opt,name=candidate,proto3" json:"candidate,omitempty"`
+	Refusal       *ArchitectureMutationRefusal      `protobuf:"bytes,2,opt,name=refusal,proto3" json:"refusal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareArchitectAnswerDispositionResponse) Reset() {
+	*x = PrepareArchitectAnswerDispositionResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareArchitectAnswerDispositionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareArchitectAnswerDispositionResponse) ProtoMessage() {}
+
+func (x *PrepareArchitectAnswerDispositionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareArchitectAnswerDispositionResponse.ProtoReflect.Descriptor instead.
+func (*PrepareArchitectAnswerDispositionResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *PrepareArchitectAnswerDispositionResponse) GetCandidate() *ArchitectureDispositionCandidate {
+	if x != nil {
+		return x.Candidate
+	}
+	return nil
+}
+
+func (x *PrepareArchitectAnswerDispositionResponse) GetRefusal() *ArchitectureMutationRefusal {
+	if x != nil {
+		return x.Refusal
+	}
+	return nil
+}
+
+// ArchitectureDispositionReceipt mirrors questiondisposition.RecordResult. The
+// architect answer appears only as answer_id + digest upstream — never here.
+type ArchitectureDispositionReceipt struct {
+	state                    protoimpl.MessageState         `protogen:"open.v1"`
+	Outcome                  ArchitectureDispositionOutcome `protobuf:"varint,1,opt,name=outcome,proto3,enum=globular.awareness_graph.ArchitectureDispositionOutcome" json:"outcome,omitempty"`
+	QuestionId               string                         `protobuf:"bytes,2,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
+	ReceiptDigestSha256      string                         `protobuf:"bytes,3,opt,name=receipt_digest_sha256,json=receiptDigestSha256,proto3" json:"receipt_digest_sha256,omitempty"`
+	EntryDigestSha256        string                         `protobuf:"bytes,4,opt,name=entry_digest_sha256,json=entryDigestSha256,proto3" json:"entry_digest_sha256,omitempty"`
+	PreviousLedgerHeadSha256 string                         `protobuf:"bytes,5,opt,name=previous_ledger_head_sha256,json=previousLedgerHeadSha256,proto3" json:"previous_ledger_head_sha256,omitempty"`
+	CurrentLedgerHeadSha256  string                         `protobuf:"bytes,6,opt,name=current_ledger_head_sha256,json=currentLedgerHeadSha256,proto3" json:"current_ledger_head_sha256,omitempty"`
+	LedgerSequence           int64                          `protobuf:"varint,7,opt,name=ledger_sequence,json=ledgerSequence,proto3" json:"ledger_sequence,omitempty"`
+	ContestedPriorDigests    []string                       `protobuf:"bytes,8,rep,name=contested_prior_digests,json=contestedPriorDigests,proto3" json:"contested_prior_digests,omitempty"`
+	ProjectionState          string                         `protobuf:"bytes,9,opt,name=projection_state,json=projectionState,proto3" json:"projection_state,omitempty"`
+	Audit                    *ArchitectureMutationAudit     `protobuf:"bytes,10,opt,name=audit,proto3" json:"audit,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ArchitectureDispositionReceipt) Reset() {
+	*x = ArchitectureDispositionReceipt{}
+	mi := &file_awareness_graph_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureDispositionReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureDispositionReceipt) ProtoMessage() {}
+
+func (x *ArchitectureDispositionReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureDispositionReceipt.ProtoReflect.Descriptor instead.
+func (*ArchitectureDispositionReceipt) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *ArchitectureDispositionReceipt) GetOutcome() ArchitectureDispositionOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_UNSPECIFIED
+}
+
+func (x *ArchitectureDispositionReceipt) GetQuestionId() string {
+	if x != nil {
+		return x.QuestionId
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionReceipt) GetReceiptDigestSha256() string {
+	if x != nil {
+		return x.ReceiptDigestSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionReceipt) GetEntryDigestSha256() string {
+	if x != nil {
+		return x.EntryDigestSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionReceipt) GetPreviousLedgerHeadSha256() string {
+	if x != nil {
+		return x.PreviousLedgerHeadSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionReceipt) GetCurrentLedgerHeadSha256() string {
+	if x != nil {
+		return x.CurrentLedgerHeadSha256
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionReceipt) GetLedgerSequence() int64 {
+	if x != nil {
+		return x.LedgerSequence
+	}
+	return 0
+}
+
+func (x *ArchitectureDispositionReceipt) GetContestedPriorDigests() []string {
+	if x != nil {
+		return x.ContestedPriorDigests
+	}
+	return nil
+}
+
+func (x *ArchitectureDispositionReceipt) GetProjectionState() string {
+	if x != nil {
+		return x.ProjectionState
+	}
+	return ""
+}
+
+func (x *ArchitectureDispositionReceipt) GetAudit() *ArchitectureMutationAudit {
+	if x != nil {
+		return x.Audit
+	}
+	return nil
+}
+
+type RecordArchitectAnswerDispositionRequest struct {
+	state protoimpl.MessageState        `protogen:"open.v1"`
+	Input *ArchitectureDispositionInput `protobuf:"bytes,1,opt,name=input,proto3" json:"input,omitempty"`
+	// Precondition (from a prior prepare): FailedPrecondition if the live head moved.
+	ExpectedLedgerHeadDigestSha256 string `protobuf:"bytes,2,opt,name=expected_ledger_head_digest_sha256,json=expectedLedgerHeadDigestSha256,proto3" json:"expected_ledger_head_digest_sha256,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *RecordArchitectAnswerDispositionRequest) Reset() {
+	*x = RecordArchitectAnswerDispositionRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordArchitectAnswerDispositionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordArchitectAnswerDispositionRequest) ProtoMessage() {}
+
+func (x *RecordArchitectAnswerDispositionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordArchitectAnswerDispositionRequest.ProtoReflect.Descriptor instead.
+func (*RecordArchitectAnswerDispositionRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *RecordArchitectAnswerDispositionRequest) GetInput() *ArchitectureDispositionInput {
+	if x != nil {
+		return x.Input
+	}
+	return nil
+}
+
+func (x *RecordArchitectAnswerDispositionRequest) GetExpectedLedgerHeadDigestSha256() string {
+	if x != nil {
+		return x.ExpectedLedgerHeadDigestSha256
+	}
+	return ""
+}
+
+// Exactly one of receipt / refusal is set. A refusal wrote nothing.
+type RecordArchitectAnswerDispositionResponse struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Receipt       *ArchitectureDispositionReceipt `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	Refusal       *ArchitectureMutationRefusal    `protobuf:"bytes,2,opt,name=refusal,proto3" json:"refusal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordArchitectAnswerDispositionResponse) Reset() {
+	*x = RecordArchitectAnswerDispositionResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordArchitectAnswerDispositionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordArchitectAnswerDispositionResponse) ProtoMessage() {}
+
+func (x *RecordArchitectAnswerDispositionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordArchitectAnswerDispositionResponse.ProtoReflect.Descriptor instead.
+func (*RecordArchitectAnswerDispositionResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *RecordArchitectAnswerDispositionResponse) GetReceipt() *ArchitectureDispositionReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
+func (x *RecordArchitectAnswerDispositionResponse) GetRefusal() *ArchitectureMutationRefusal {
+	if x != nil {
+		return x.Refusal
+	}
+	return nil
+}
+
+// ArchitecturePromotionReceipt mirrors questionpromotion.PromoteResult.
+type ArchitecturePromotionReceipt struct {
+	state                         protoimpl.MessageState       `protogen:"open.v1"`
+	Outcome                       ArchitecturePromotionOutcome `protobuf:"varint,1,opt,name=outcome,proto3,enum=globular.awareness_graph.ArchitecturePromotionOutcome" json:"outcome,omitempty"`
+	PromotionLineageId            string                       `protobuf:"bytes,2,opt,name=promotion_lineage_id,json=promotionLineageId,proto3" json:"promotion_lineage_id,omitempty"`
+	ReceiptDigestSha256           string                       `protobuf:"bytes,3,opt,name=receipt_digest_sha256,json=receiptDigestSha256,proto3" json:"receipt_digest_sha256,omitempty"`
+	CommittedCausalIdentitySha256 string                       `protobuf:"bytes,4,opt,name=committed_causal_identity_sha256,json=committedCausalIdentitySha256,proto3" json:"committed_causal_identity_sha256,omitempty"`
+	Detail                        string                       `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	Audit                         *ArchitectureMutationAudit   `protobuf:"bytes,6,opt,name=audit,proto3" json:"audit,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
+}
+
+func (x *ArchitecturePromotionReceipt) Reset() {
+	*x = ArchitecturePromotionReceipt{}
+	mi := &file_awareness_graph_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitecturePromotionReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitecturePromotionReceipt) ProtoMessage() {}
+
+func (x *ArchitecturePromotionReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitecturePromotionReceipt.ProtoReflect.Descriptor instead.
+func (*ArchitecturePromotionReceipt) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *ArchitecturePromotionReceipt) GetOutcome() ArchitecturePromotionOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_UNSPECIFIED
+}
+
+func (x *ArchitecturePromotionReceipt) GetPromotionLineageId() string {
+	if x != nil {
+		return x.PromotionLineageId
+	}
+	return ""
+}
+
+func (x *ArchitecturePromotionReceipt) GetReceiptDigestSha256() string {
+	if x != nil {
+		return x.ReceiptDigestSha256
+	}
+	return ""
+}
+
+func (x *ArchitecturePromotionReceipt) GetCommittedCausalIdentitySha256() string {
+	if x != nil {
+		return x.CommittedCausalIdentitySha256
+	}
+	return ""
+}
+
+func (x *ArchitecturePromotionReceipt) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *ArchitecturePromotionReceipt) GetAudit() *ArchitectureMutationAudit {
+	if x != nil {
+		return x.Audit
+	}
+	return nil
+}
+
+// PromoteArchitectAnswer promotes an already-accepted (answered + reusable
+// candidate, uncontested) disposition to a governed record. The governed record
+// is an ALREADY-AUTHORED ProposeRequest (the existing propose path) — never the
+// raw answer. A DISTINCT promotion actor + grant are required (enforced by the
+// owner).
+type PromoteArchitectAnswerRequest struct {
+	state                          protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryIdentity             string                 `protobuf:"bytes,1,opt,name=repository_identity,json=repositoryIdentity,proto3" json:"repository_identity,omitempty"`
+	Domain                         string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	TaskId                         string                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	PromotionActorIdentity         string                 `protobuf:"bytes,4,opt,name=promotion_actor_identity,json=promotionActorIdentity,proto3" json:"promotion_actor_identity,omitempty"`
+	DispositionReceiptDigestSha256 string                 `protobuf:"bytes,5,opt,name=disposition_receipt_digest_sha256,json=dispositionReceiptDigestSha256,proto3" json:"disposition_receipt_digest_sha256,omitempty"` // which accepted answer
+	Proposal                       *ProposeRequest        `protobuf:"bytes,6,opt,name=proposal,proto3" json:"proposal,omitempty"`                                                                                       // governed record, authored separately
+	EffectiveScopeDomain           string                 `protobuf:"bytes,7,opt,name=effective_scope_domain,json=effectiveScopeDomain,proto3" json:"effective_scope_domain,omitempty"`
+	EffectiveScopeFiles            []string               `protobuf:"bytes,8,rep,name=effective_scope_files,json=effectiveScopeFiles,proto3" json:"effective_scope_files,omitempty"`
+	ExpectedManifestDigestSha256   string                 `protobuf:"bytes,9,opt,name=expected_manifest_digest_sha256,json=expectedManifestDigestSha256,proto3" json:"expected_manifest_digest_sha256,omitempty"` // precondition
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *PromoteArchitectAnswerRequest) Reset() {
+	*x = PromoteArchitectAnswerRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteArchitectAnswerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteArchitectAnswerRequest) ProtoMessage() {}
+
+func (x *PromoteArchitectAnswerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteArchitectAnswerRequest.ProtoReflect.Descriptor instead.
+func (*PromoteArchitectAnswerRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *PromoteArchitectAnswerRequest) GetRepositoryIdentity() string {
+	if x != nil {
+		return x.RepositoryIdentity
+	}
+	return ""
+}
+
+func (x *PromoteArchitectAnswerRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *PromoteArchitectAnswerRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *PromoteArchitectAnswerRequest) GetPromotionActorIdentity() string {
+	if x != nil {
+		return x.PromotionActorIdentity
+	}
+	return ""
+}
+
+func (x *PromoteArchitectAnswerRequest) GetDispositionReceiptDigestSha256() string {
+	if x != nil {
+		return x.DispositionReceiptDigestSha256
+	}
+	return ""
+}
+
+func (x *PromoteArchitectAnswerRequest) GetProposal() *ProposeRequest {
+	if x != nil {
+		return x.Proposal
+	}
+	return nil
+}
+
+func (x *PromoteArchitectAnswerRequest) GetEffectiveScopeDomain() string {
+	if x != nil {
+		return x.EffectiveScopeDomain
+	}
+	return ""
+}
+
+func (x *PromoteArchitectAnswerRequest) GetEffectiveScopeFiles() []string {
+	if x != nil {
+		return x.EffectiveScopeFiles
+	}
+	return nil
+}
+
+func (x *PromoteArchitectAnswerRequest) GetExpectedManifestDigestSha256() string {
+	if x != nil {
+		return x.ExpectedManifestDigestSha256
+	}
+	return ""
+}
+
+// Exactly one of receipt / refusal is set. A refusal wrote nothing.
+type PromoteArchitectAnswerResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Receipt       *ArchitecturePromotionReceipt `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	Refusal       *ArchitectureMutationRefusal  `protobuf:"bytes,2,opt,name=refusal,proto3" json:"refusal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteArchitectAnswerResponse) Reset() {
+	*x = PromoteArchitectAnswerResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteArchitectAnswerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteArchitectAnswerResponse) ProtoMessage() {}
+
+func (x *PromoteArchitectAnswerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteArchitectAnswerResponse.ProtoReflect.Descriptor instead.
+func (*PromoteArchitectAnswerResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *PromoteArchitectAnswerResponse) GetReceipt() *ArchitecturePromotionReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
+func (x *PromoteArchitectAnswerResponse) GetRefusal() *ArchitectureMutationRefusal {
+	if x != nil {
+		return x.Refusal
+	}
+	return nil
+}
+
 var File_awareness_graph_proto protoreflect.FileDescriptor
 
 const file_awareness_graph_proto_rawDesc = "" +
@@ -6094,7 +10218,331 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x16ReferenceSitesResponse\x12E\n" +
 	"\bfamilies\x18\x01 \x03(\v2).globular.awareness_graph.ReferenceFamilyR\bfamilies\x12F\n" +
 	"\tauthority\x18\x02 \x01(\v2(.globular.awareness_graph.GraphAuthorityR\tauthority\x12&\n" +
-	"\x0fgenerated_in_ms\x18\x03 \x01(\x03R\rgeneratedInMs*a\n" +
+	"\x0fgenerated_in_ms\x18\x03 \x01(\x03R\rgeneratedInMs\"\xc7\x02\n" +
+	"\x18ArchitectureSourceStatus\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x16\n" +
+	"\x06schema\x18\x02 \x01(\tR\x06schema\x12\\\n" +
+	"\favailability\x18\x03 \x01(\x0e28.globular.awareness_graph.ArchitectureSourceAvailabilityR\favailability\x12J\n" +
+	"\x06impact\x18\x04 \x01(\x0e22.globular.awareness_graph.ArchitectureSourceImpactR\x06impact\x12\x1f\n" +
+	"\vreason_code\x18\x05 \x01(\tR\n" +
+	"reasonCode\x12\x1a\n" +
+	"\bidentity\x18\x06 \x01(\tR\bidentity\x12\x16\n" +
+	"\x06digest\x18\a \x01(\tR\x06digest\"\x9e\x04\n" +
+	"\x1aArchitectureProjectionMeta\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12#\n" +
+	"\rproducer_name\x18\x02 \x01(\tR\fproducerName\x12)\n" +
+	"\x10producer_version\x18\x03 \x01(\tR\x0fproducerVersion\x12/\n" +
+	"\x13repository_identity\x18\x04 \x01(\tR\x12repositoryIdentity\x12)\n" +
+	"\x10requested_domain\x18\x05 \x01(\tR\x0frequestedDomain\x12V\n" +
+	"\favailability\x18\x06 \x01(\x0e22.globular.awareness_graph.ArchitectureAvailabilityR\favailability\x12L\n" +
+	"\asources\x18\a \x03(\v22.globular.awareness_graph.ArchitectureSourceStatusR\asources\x12@\n" +
+	"\x1cnon_authoritative_projection\x18\b \x01(\bR\x1anonAuthoritativeProjection\x12 \n" +
+	"\vlimitations\x18\t \x03(\tR\vlimitations\x12#\n" +
+	"\rdigest_sha256\x18\n" +
+	" \x01(\tR\fdigestSha256\"\xd6\x02\n" +
+	"\x1cArchitectureArtifactIdentity\x12\x19\n" +
+	"\bnode_iri\x18\x01 \x01(\tR\anodeIri\x12'\n" +
+	"\x0fcanonical_class\x18\x02 \x01(\tR\x0ecanonicalClass\x12)\n" +
+	"\x10observed_classes\x18\x03 \x03(\tR\x0fobservedClasses\x12/\n" +
+	"\x13repository_identity\x18\x04 \x01(\tR\x12repositoryIdentity\x12'\n" +
+	"\x0fdomain_identity\x18\x05 \x01(\tR\x0edomainIdentity\x128\n" +
+	"\x18graph_authority_identity\x18\x06 \x01(\tR\x16graphAuthorityIdentity\x123\n" +
+	"\x15provenance_identities\x18\a \x03(\tR\x14provenanceIdentities\"\x85\x03\n" +
+	"\x1fArchitectureLifecycleAssessment\x12\x1e\n" +
+	"\n" +
+	"applicable\x18\x01 \x01(\bR\n" +
+	"applicable\x12\x1e\n" +
+	"\n" +
+	"vocabulary\x18\x02 \x01(\tR\n" +
+	"vocabulary\x12J\n" +
+	"\x05state\x18\x03 \x01(\x0e24.globular.awareness_graph.ArchitectureLifecycleStateR\x05state\x12!\n" +
+	"\fsource_owner\x18\x04 \x01(\tR\vsourceOwner\x12'\n" +
+	"\x0fsource_identity\x18\x05 \x01(\tR\x0esourceIdentity\x12i\n" +
+	"\x13source_availability\x18\x06 \x01(\x0e28.globular.awareness_graph.ArchitectureSourceAvailabilityR\x12sourceAvailability\x12\x1f\n" +
+	"\vreason_code\x18\a \x01(\tR\n" +
+	"reasonCode\"\x96\x03\n" +
+	"\x1fArchitectureDimensionAssessment\x12\x1c\n" +
+	"\tdimension\x18\x01 \x01(\tR\tdimension\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1e\n" +
+	"\n" +
+	"applicable\x18\x03 \x01(\bR\n" +
+	"applicable\x12\x1a\n" +
+	"\brequired\x18\x04 \x01(\bR\brequired\x12J\n" +
+	"\x05state\x18\x05 \x01(\x0e24.globular.awareness_graph.ArchitectureDimensionStateR\x05state\x12\x1f\n" +
+	"\vreason_code\x18\x06 \x01(\tR\n" +
+	"reasonCode\x12\x1a\n" +
+	"\bblockers\x18\a \x03(\tR\bblockers\x12\x1a\n" +
+	"\bevidence\x18\b \x03(\tR\bevidence\x12\x1c\n" +
+	"\tquestions\x18\t \x03(\tR\tquestions\x12\x14\n" +
+	"\x05owner\x18\n" +
+	" \x01(\tR\x05owner\x12*\n" +
+	"\x11next_action_owner\x18\v \x01(\tR\x0fnextActionOwner\"\xd4\x04\n" +
+	"\x19ArchitectureAttentionItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fsource_owner\x18\x02 \x01(\tR\vsourceOwner\x12#\n" +
+	"\rsource_schema\x18\x03 \x01(\tR\fsourceSchema\x12'\n" +
+	"\x0fsource_identity\x18\x04 \x01(\tR\x0esourceIdentity\x12'\n" +
+	"\x0fattention_class\x18\x05 \x01(\tR\x0eattentionClass\x12\x1f\n" +
+	"\vreason_code\x18\x06 \x01(\tR\n" +
+	"reasonCode\x12S\n" +
+	"\bseverity\x18\a \x01(\x0e27.globular.awareness_graph.ArchitectureAttentionSeverityR\bseverity\x12%\n" +
+	"\x0eseverity_basis\x18\b \x01(\tR\rseverityBasis\x12#\n" +
+	"\rsource_digest\x18\t \x01(\tR\fsourceDigest\x12-\n" +
+	"\x12affected_artifacts\x18\n" +
+	" \x03(\tR\x11affectedArtifacts\x12\x1a\n" +
+	"\bblocking\x18\v \x01(\bR\bblocking\x12\x1a\n" +
+	"\bevidence\x18\f \x03(\tR\bevidence\x12*\n" +
+	"\x11next_action_owner\x18\r \x01(\tR\x0fnextActionOwner\x128\n" +
+	"\x18architect_input_required\x18\x0e \x01(\bR\x16architectInputRequired\"@\n" +
+	"\x16ArchitectureKeyedCount\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"\x93\x01\n" +
+	"!ArchitectureGraphAuthoritySummary\x12\x1a\n" +
+	"\bobserved\x18\x01 \x01(\bR\bobserved\x12\x18\n" +
+	"\acurrent\x18\x02 \x01(\bR\acurrent\x12\x1c\n" +
+	"\tintegrity\x18\x03 \x01(\bR\tintegrity\x12\x1a\n" +
+	"\bidentity\x18\x04 \x01(\tR\bidentity\"\xa3\x01\n" +
+	"\x1bArchitectureCoverageSummary\x12\x1e\n" +
+	"\n" +
+	"sufficient\x18\x01 \x01(\bR\n" +
+	"sufficient\x12(\n" +
+	"\x10blind_spot_count\x18\x02 \x01(\x03R\x0eblindSpotCount\x12:\n" +
+	"\x1ahigh_risk_blind_spot_count\x18\x03 \x01(\x03R\x16highRiskBlindSpotCount\"\x89\x01\n" +
+	"\x17ArchitectureTaskSummary\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x18\n" +
+	"\aclosure\x18\x03 \x01(\tR\aclosure\x12\x1c\n" +
+	"\tadmission\x18\x04 \x01(\tR\tadmission\"\x81\x01\n" +
+	"\x1dArchitectureCompletionSummary\x12%\n" +
+	"\x0eterminal_state\x18\x01 \x01(\tR\rterminalState\x129\n" +
+	"\x18authoritative_completion\x18\x02 \x01(\bR\x17authoritativeCompletion\"[\n" +
+	"\x1bArchitectureFeedbackContext\x12\x18\n" +
+	"\acapable\x18\x01 \x01(\bR\acapable\x12\"\n" +
+	"\favailability\x18\x02 \x01(\tR\favailability\"\x8a\x02\n" +
+	"\x1dArchitectureScopedFeedbackRef\x12%\n" +
+	"\x0escope_identity\x18\x01 \x01(\tR\rscopeIdentity\x12+\n" +
+	"\x11projection_digest\x18\x02 \x01(\tR\x10projectionDigest\x12\"\n" +
+	"\favailability\x18\x03 \x01(\tR\favailability\x12.\n" +
+	"\x13verified_record_ids\x18\x04 \x03(\tR\x11verifiedRecordIds\x12\x1f\n" +
+	"\vlineage_ids\x18\x05 \x03(\tR\n" +
+	"lineageIds\x12 \n" +
+	"\vlimitations\x18\x06 \x03(\tR\vlimitations\"\xbb\f\n" +
+	"\x1bArchitectureControlSnapshot\x12H\n" +
+	"\x04meta\x18\x01 \x01(\v24.globular.awareness_graph.ArchitectureProjectionMetaR\x04meta\x12'\n" +
+	"\x0fregistry_digest\x18\x02 \x01(\tR\x0eregistryDigest\x12d\n" +
+	"\x0fgraph_authority\x18\x03 \x01(\v2;.globular.awareness_graph.ArchitectureGraphAuthoritySummaryR\x0egraphAuthority\x12X\n" +
+	"\x0fcounts_by_class\x18\x04 \x03(\v20.globular.awareness_graph.ArchitectureKeyedCountR\rcountsByClass\x12n\n" +
+	"\x1aassessment_coverage_counts\x18\x05 \x03(\v20.globular.awareness_graph.ArchitectureKeyedCountR\x18assessmentCoverageCounts\x12W\n" +
+	"\x0eclosure_counts\x18\x06 \x03(\v20.globular.awareness_graph.ArchitectureKeyedCountR\rclosureCounts\x12;\n" +
+	"\x17lifecycle_unknown_count\x18\a \x01(\x03H\x00R\x15lifecycleUnknownCount\x88\x01\x01\x12q\n" +
+	"\x1cattention_counts_by_severity\x18\b \x03(\v20.globular.awareness_graph.ArchitectureKeyedCountR\x19attentionCountsBySeverity\x12X\n" +
+	"\rtop_attention\x18\t \x03(\v23.globular.awareness_graph.ArchitectureAttentionItemR\ftopAttention\x123\n" +
+	"\x13open_question_count\x18\n" +
+	" \x01(\x03H\x01R\x11openQuestionCount\x88\x01\x01\x124\n" +
+	"\x13contradiction_count\x18\v \x01(\x03H\x02R\x12contradictionCount\x88\x01\x01\x129\n" +
+	"\x16missing_evidence_count\x18\f \x01(\x03H\x03R\x14missingEvidenceCount\x88\x01\x01\x121\n" +
+	"\x12missing_test_count\x18\r \x01(\x03H\x04R\x10missingTestCount\x88\x01\x01\x12?\n" +
+	"\x19missing_enforcement_count\x18\x0e \x01(\x03H\x05R\x17missingEnforcementCount\x88\x01\x01\x12Q\n" +
+	"\bcoverage\x18\x0f \x01(\v25.globular.awareness_graph.ArchitectureCoverageSummaryR\bcoverage\x12R\n" +
+	"\vactive_task\x18\x10 \x01(\v21.globular.awareness_graph.ArchitectureTaskSummaryR\n" +
+	"activeTask\x12W\n" +
+	"\n" +
+	"completion\x18\x11 \x01(\v27.globular.awareness_graph.ArchitectureCompletionSummaryR\n" +
+	"completion\x12`\n" +
+	"\x10feedback_context\x18\x12 \x01(\v25.globular.awareness_graph.ArchitectureFeedbackContextR\x0ffeedbackContextB\x1a\n" +
+	"\x18_lifecycle_unknown_countB\x16\n" +
+	"\x14_open_question_countB\x16\n" +
+	"\x14_contradiction_countB\x19\n" +
+	"\x17_missing_evidence_countB\x15\n" +
+	"\x13_missing_test_countB\x1c\n" +
+	"\x1a_missing_enforcement_count\"\xa3\x06\n" +
+	"\x1bArchitectureArtifactSummary\x12R\n" +
+	"\bidentity\x18\x01 \x01(\v26.globular.awareness_graph.ArchitectureArtifactIdentityR\bidentity\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x16\n" +
+	"\x06family\x18\x03 \x01(\tR\x06family\x12\x14\n" +
+	"\x05class\x18\x04 \x01(\tR\x05class\x12i\n" +
+	"\x13assessment_coverage\x18\x05 \x01(\x0e28.globular.awareness_graph.ArchitectureAssessmentCoverageR\x12assessmentCoverage\x12R\n" +
+	"\tlifecycle\x18\x06 \x01(\x0e24.globular.awareness_graph.ArchitectureLifecycleStateR\tlifecycle\x12O\n" +
+	"\aclosure\x18\a \x01(\x0e25.globular.awareness_graph.ArchitectureArtifactClosureR\aclosure\x128\n" +
+	"\x18open_required_dimensions\x18\b \x01(\x03R\x16openRequiredDimensions\x12g\n" +
+	"\x10highest_severity\x18\t \x01(\x0e27.globular.awareness_graph.ArchitectureAttentionSeverityH\x00R\x0fhighestSeverity\x88\x01\x01\x12'\n" +
+	"\x0fattention_count\x18\n" +
+	" \x01(\x03R\x0eattentionCount\x12#\n" +
+	"\rowner_summary\x18\v \x01(\tR\fownerSummary\x12V\n" +
+	"\favailability\x18\f \x01(\x0e22.globular.awareness_graph.ArchitectureAvailabilityR\favailabilityB\x13\n" +
+	"\x11_highest_severity\"\x98\x02\n" +
+	"\x19ArchitectureArtifactIndex\x12H\n" +
+	"\x04meta\x18\x01 \x01(\v24.globular.awareness_graph.ArchitectureProjectionMetaR\x04meta\x12'\n" +
+	"\x0fregistry_digest\x18\x02 \x01(\tR\x0eregistryDigest\x12I\n" +
+	"\x04page\x18\x03 \x03(\v25.globular.awareness_graph.ArchitectureArtifactSummaryR\x04page\x12\x1f\n" +
+	"\vnext_cursor\x18\x04 \x01(\tR\n" +
+	"nextCursor\x12\x1c\n" +
+	"\ttruncated\x18\x05 \x01(\bR\ttruncated\"\x87\a\n" +
+	"\x19ArchitectureArtifactState\x12H\n" +
+	"\x04meta\x18\x01 \x01(\v24.globular.awareness_graph.ArchitectureProjectionMetaR\x04meta\x12R\n" +
+	"\bidentity\x18\x02 \x01(\v26.globular.awareness_graph.ArchitectureArtifactIdentityR\bidentity\x12'\n" +
+	"\x0fcanonical_class\x18\x03 \x01(\tR\x0ecanonicalClass\x12i\n" +
+	"\x13assessment_coverage\x18\x04 \x01(\x0e28.globular.awareness_graph.ArchitectureAssessmentCoverageR\x12assessmentCoverage\x12O\n" +
+	"\aclosure\x18\x05 \x01(\x0e25.globular.awareness_graph.ArchitectureArtifactClosureR\aclosure\x12%\n" +
+	"\x0eclosure_reason\x18\x06 \x01(\tR\rclosureReason\x12W\n" +
+	"\tlifecycle\x18\a \x01(\v29.globular.awareness_graph.ArchitectureLifecycleAssessmentR\tlifecycle\x12Y\n" +
+	"\n" +
+	"dimensions\x18\b \x03(\v29.globular.awareness_graph.ArchitectureDimensionAssessmentR\n" +
+	"dimensions\x12Q\n" +
+	"\tattention\x18\t \x03(\v23.globular.awareness_graph.ArchitectureAttentionItemR\tattention\x12\x1c\n" +
+	"\tquestions\x18\n" +
+	" \x03(\tR\tquestions\x12\x1a\n" +
+	"\bevidence\x18\v \x03(\tR\bevidence\x12S\n" +
+	"\bfeedback\x18\f \x01(\v27.globular.awareness_graph.ArchitectureScopedFeedbackRefR\bfeedback\x12*\n" +
+	"\x11next_action_owner\x18\r \x01(\tR\x0fnextActionOwner\"\xe7\x03\n" +
+	"\x1bArchitectureNavigationClass\x12\x1b\n" +
+	"\tclass_iri\x18\x01 \x01(\tR\bclassIri\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x14\n" +
+	"\x05order\x18\x03 \x01(\x05R\x05order\x12T\n" +
+	"\bcoverage\x18\x04 \x01(\x0e28.globular.awareness_graph.ArchitectureAssessmentCoverageR\bcoverage\x12/\n" +
+	"\x13assessable_artifact\x18\x05 \x01(\bR\x12assessableArtifact\x12#\n" +
+	"\rquery_capable\x18\x06 \x01(\bR\fqueryCapable\x12'\n" +
+	"\x0fresolve_capable\x18\a \x01(\bR\x0eresolveCapable\x12+\n" +
+	"\x11inspector_capable\x18\b \x01(\bR\x10inspectorCapable\x12)\n" +
+	"\x10question_capable\x18\t \x01(\bR\x0fquestionCapable\x12'\n" +
+	"\x0fdefault_visible\x18\n" +
+	" \x01(\bR\x0edefaultVisible\x12)\n" +
+	"\x10overview_visible\x18\v \x01(\bR\x0foverviewVisible\"\xab\x01\n" +
+	"\x1cArchitectureNavigationFamily\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x14\n" +
+	"\x05order\x18\x03 \x01(\x05R\x05order\x12O\n" +
+	"\aclasses\x18\x04 \x03(\v25.globular.awareness_graph.ArchitectureNavigationClassR\aclasses\"\xd2\x02\n" +
+	"\x1cOntologyNavigationDescriptor\x12H\n" +
+	"\x04meta\x18\x01 \x01(\v24.globular.awareness_graph.ArchitectureProjectionMetaR\x04meta\x12'\n" +
+	"\x0fregistry_digest\x18\x02 \x01(\tR\x0eregistryDigest\x12R\n" +
+	"\bfamilies\x18\x03 \x03(\v26.globular.awareness_graph.ArchitectureNavigationFamilyR\bfamilies\x12k\n" +
+	"\x16unknown_class_fallback\x18\x04 \x01(\v25.globular.awareness_graph.ArchitectureNavigationClassR\x14unknownClassFallback\"p\n" +
+	"%GetArchitectureControlSnapshotRequest\x12/\n" +
+	"\x13repository_identity\x18\x01 \x01(\tR\x12repositoryIdentity\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\"{\n" +
+	"&GetArchitectureControlSnapshotResponse\x12Q\n" +
+	"\bsnapshot\x18\x01 \x01(\v25.globular.awareness_graph.ArchitectureControlSnapshotR\bsnapshot\"\xd9\x03\n" +
+	" ListArchitectureArtifactsRequest\x12/\n" +
+	"\x13repository_identity\x18\x01 \x01(\tR\x12repositoryIdentity\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursor\x12#\n" +
+	"\rfamily_filter\x18\x05 \x01(\tR\ffamilyFilter\x12!\n" +
+	"\fclass_filter\x18\x06 \x01(\tR\vclassFilter\x12a\n" +
+	"\x0eclosure_filter\x18\a \x01(\x0e25.globular.awareness_graph.ArchitectureArtifactClosureH\x00R\rclosureFilter\x88\x01\x01\x12e\n" +
+	"\x0fseverity_filter\x18\b \x01(\x0e27.globular.awareness_graph.ArchitectureAttentionSeverityH\x01R\x0eseverityFilter\x88\x01\x01B\x11\n" +
+	"\x0f_closure_filterB\x12\n" +
+	"\x10_severity_filter\"n\n" +
+	"!ListArchitectureArtifactsResponse\x12I\n" +
+	"\x05index\x18\x01 \x01(\v23.globular.awareness_graph.ArchitectureArtifactIndexR\x05index\"\x8e\x02\n" +
+	"#GetArchitectureArtifactStateRequest\x12/\n" +
+	"\x13repository_identity\x18\x01 \x01(\tR\x12repositoryIdentity\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x19\n" +
+	"\bnode_iri\x18\x03 \x01(\tR\anodeIri\x12I\n" +
+	"!expected_graph_authority_identity\x18\x04 \x01(\tR\x1eexpectedGraphAuthorityIdentity\x128\n" +
+	"\x18expected_registry_digest\x18\x05 \x01(\tR\x16expectedRegistryDigest\"q\n" +
+	"$GetArchitectureArtifactStateResponse\x12I\n" +
+	"\x05state\x18\x01 \x01(\v23.globular.awareness_graph.ArchitectureArtifactStateR\x05state\"(\n" +
+	"&GetOntologyNavigationDescriptorRequest\"\x81\x01\n" +
+	"'GetOntologyNavigationDescriptorResponse\x12V\n" +
+	"\n" +
+	"descriptor\x18\x01 \x01(\v26.globular.awareness_graph.OntologyNavigationDescriptorR\n" +
+	"descriptor\"\xe2\x01\n" +
+	"\x1bArchitectureMutationRefusal\x12\x1f\n" +
+	"\vreason_code\x18\x01 \x01(\tR\n" +
+	"reasonCode\x12\x16\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\x12\x14\n" +
+	"\x05owner\x18\x03 \x01(\tR\x05owner\x12)\n" +
+	"\x10mutation_applied\x18\x04 \x01(\bR\x0fmutationApplied\x12I\n" +
+	"\x05audit\x18\x05 \x01(\v23.globular.awareness_graph.ArchitectureMutationAuditR\x05audit\"\xaf\x04\n" +
+	"\x19ArchitectureMutationAudit\x12-\n" +
+	"\x12operation_identity\x18\x01 \x01(\tR\x11operationIdentity\x12%\n" +
+	"\x0eoperation_kind\x18\x02 \x01(\tR\roperationKind\x12%\n" +
+	"\x0eactor_identity\x18\x03 \x01(\tR\ractorIdentity\x12/\n" +
+	"\x13repository_identity\x18\x04 \x01(\tR\x12repositoryIdentity\x12\x16\n" +
+	"\x06domain\x18\x05 \x01(\tR\x06domain\x12\x17\n" +
+	"\atask_id\x18\x06 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\a \x01(\tR\tsessionId\x12\x1f\n" +
+	"\vquestion_id\x18\b \x01(\tR\n" +
+	"questionId\x12=\n" +
+	"\x1bprevious_ledger_head_sha256\x18\t \x01(\tR\x18previousLedgerHeadSha256\x12?\n" +
+	"\x1cresulting_ledger_head_sha256\x18\n" +
+	" \x01(\tR\x19resultingLedgerHeadSha256\x12#\n" +
+	"\rowner_outcome\x18\v \x01(\tR\fownerOutcome\x12#\n" +
+	"\rreplay_status\x18\f \x01(\tR\freplayStatus\x12)\n" +
+	"\x10mutation_applied\x18\r \x01(\bR\x0fmutationApplied\"\xfe\x04\n" +
+	"\x1cArchitectureDispositionInput\x12/\n" +
+	"\x13repository_identity\x18\x01 \x01(\tR\x12repositoryIdentity\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x04 \x01(\tR\tsessionId\x12\x1f\n" +
+	"\vquestion_id\x18\x05 \x01(\tR\n" +
+	"questionId\x12%\n" +
+	"\x0eactor_identity\x18\x06 \x01(\tR\ractorIdentity\x12S\n" +
+	"\vdisposition\x18\a \x01(\x0e21.globular.awareness_graph.ArchitectureDispositionR\vdisposition\x12S\n" +
+	"\vreusability\x18\b \x01(\x0e21.globular.awareness_graph.ArchitectureReusabilityR\vreusability\x12\x1c\n" +
+	"\trationale\x18\t \x01(\tR\trationale\x12\x1b\n" +
+	"\tanswer_id\x18\n" +
+	" \x01(\tR\banswerId\x12!\n" +
+	"\fanswer_bytes\x18\v \x01(\fR\vanswerBytes\x124\n" +
+	"\x16effective_scope_domain\x18\f \x01(\tR\x14effectiveScopeDomain\x122\n" +
+	"\x15effective_scope_files\x18\r \x03(\tR\x13effectiveScopeFiles\x12#\n" +
+	"\revidence_refs\x18\x0e \x03(\tR\fevidenceRefs\"\xbd\x02\n" +
+	" ArchitectureDispositionCandidate\x12\x1f\n" +
+	"\vquestion_id\x18\x01 \x01(\tR\n" +
+	"questionId\x122\n" +
+	"\x15receipt_digest_sha256\x18\x02 \x01(\tR\x13receiptDigestSha256\x12;\n" +
+	"\x1areceipt_byte_digest_sha256\x18\x03 \x01(\tR\x17receiptByteDigestSha256\x12J\n" +
+	"\"expected_ledger_head_digest_sha256\x18\x04 \x01(\tR\x1eexpectedLedgerHeadDigestSha256\x12;\n" +
+	"\x1aanchor_entry_digest_sha256\x18\x05 \x01(\tR\x17anchorEntryDigestSha256\"x\n" +
+	"(PrepareArchitectAnswerDispositionRequest\x12L\n" +
+	"\x05input\x18\x01 \x01(\v26.globular.awareness_graph.ArchitectureDispositionInputR\x05input\"\xd6\x01\n" +
+	")PrepareArchitectAnswerDispositionResponse\x12X\n" +
+	"\tcandidate\x18\x01 \x01(\v2:.globular.awareness_graph.ArchitectureDispositionCandidateR\tcandidate\x12O\n" +
+	"\arefusal\x18\x02 \x01(\v25.globular.awareness_graph.ArchitectureMutationRefusalR\arefusal\"\xcc\x04\n" +
+	"\x1eArchitectureDispositionReceipt\x12R\n" +
+	"\aoutcome\x18\x01 \x01(\x0e28.globular.awareness_graph.ArchitectureDispositionOutcomeR\aoutcome\x12\x1f\n" +
+	"\vquestion_id\x18\x02 \x01(\tR\n" +
+	"questionId\x122\n" +
+	"\x15receipt_digest_sha256\x18\x03 \x01(\tR\x13receiptDigestSha256\x12.\n" +
+	"\x13entry_digest_sha256\x18\x04 \x01(\tR\x11entryDigestSha256\x12=\n" +
+	"\x1bprevious_ledger_head_sha256\x18\x05 \x01(\tR\x18previousLedgerHeadSha256\x12;\n" +
+	"\x1acurrent_ledger_head_sha256\x18\x06 \x01(\tR\x17currentLedgerHeadSha256\x12'\n" +
+	"\x0fledger_sequence\x18\a \x01(\x03R\x0eledgerSequence\x126\n" +
+	"\x17contested_prior_digests\x18\b \x03(\tR\x15contestedPriorDigests\x12)\n" +
+	"\x10projection_state\x18\t \x01(\tR\x0fprojectionState\x12I\n" +
+	"\x05audit\x18\n" +
+	" \x01(\v23.globular.awareness_graph.ArchitectureMutationAuditR\x05audit\"\xc3\x01\n" +
+	"'RecordArchitectAnswerDispositionRequest\x12L\n" +
+	"\x05input\x18\x01 \x01(\v26.globular.awareness_graph.ArchitectureDispositionInputR\x05input\x12J\n" +
+	"\"expected_ledger_head_digest_sha256\x18\x02 \x01(\tR\x1eexpectedLedgerHeadDigestSha256\"\xcf\x01\n" +
+	"(RecordArchitectAnswerDispositionResponse\x12R\n" +
+	"\areceipt\x18\x01 \x01(\v28.globular.awareness_graph.ArchitectureDispositionReceiptR\areceipt\x12O\n" +
+	"\arefusal\x18\x02 \x01(\v25.globular.awareness_graph.ArchitectureMutationRefusalR\arefusal\"\x82\x03\n" +
+	"\x1cArchitecturePromotionReceipt\x12P\n" +
+	"\aoutcome\x18\x01 \x01(\x0e26.globular.awareness_graph.ArchitecturePromotionOutcomeR\aoutcome\x120\n" +
+	"\x14promotion_lineage_id\x18\x02 \x01(\tR\x12promotionLineageId\x122\n" +
+	"\x15receipt_digest_sha256\x18\x03 \x01(\tR\x13receiptDigestSha256\x12G\n" +
+	" committed_causal_identity_sha256\x18\x04 \x01(\tR\x1dcommittedCausalIdentitySha256\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12I\n" +
+	"\x05audit\x18\x06 \x01(\v23.globular.awareness_graph.ArchitectureMutationAuditR\x05audit\"\xfd\x03\n" +
+	"\x1dPromoteArchitectAnswerRequest\x12/\n" +
+	"\x13repository_identity\x18\x01 \x01(\tR\x12repositoryIdentity\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\x128\n" +
+	"\x18promotion_actor_identity\x18\x04 \x01(\tR\x16promotionActorIdentity\x12I\n" +
+	"!disposition_receipt_digest_sha256\x18\x05 \x01(\tR\x1edispositionReceiptDigestSha256\x12D\n" +
+	"\bproposal\x18\x06 \x01(\v2(.globular.awareness_graph.ProposeRequestR\bproposal\x124\n" +
+	"\x16effective_scope_domain\x18\a \x01(\tR\x14effectiveScopeDomain\x122\n" +
+	"\x15effective_scope_files\x18\b \x03(\tR\x13effectiveScopeFiles\x12E\n" +
+	"\x1fexpected_manifest_digest_sha256\x18\t \x01(\tR\x1cexpectedManifestDigestSha256\"\xc3\x01\n" +
+	"\x1ePromoteArchitectAnswerResponse\x12P\n" +
+	"\areceipt\x18\x01 \x01(\v26.globular.awareness_graph.ArchitecturePromotionReceiptR\areceipt\x12O\n" +
+	"\arefusal\x18\x02 \x01(\v25.globular.awareness_graph.ArchitectureMutationRefusalR\arefusal*a\n" +
 	"\x0eBriefingStatus\x12\x16\n" +
 	"\x12BRIEFING_STATUS_OK\x10\x00\x12\x19\n" +
 	"\x15BRIEFING_STATUS_EMPTY\x10\x01\x12\x1c\n" +
@@ -6245,7 +10693,93 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\rProposeStatus\x12\x1e\n" +
 	"\x1aPROPOSE_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17PROPOSE_STATUS_ACCEPTED\x10\x01\x12\x1b\n" +
-	"\x17PROPOSE_STATUS_REJECTED\x10\x022\x8e\a\n" +
+	"\x17PROPOSE_STATUS_REJECTED\x10\x02*\xe7\x01\n" +
+	"\x18ArchitectureAvailability\x12)\n" +
+	"%ARCHITECTURE_AVAILABILITY_UNSPECIFIED\x10\x00\x12'\n" +
+	"#ARCHITECTURE_AVAILABILITY_AVAILABLE\x10\x01\x12%\n" +
+	"!ARCHITECTURE_AVAILABILITY_PARTIAL\x10\x02\x12)\n" +
+	"%ARCHITECTURE_AVAILABILITY_UNAVAILABLE\x10\x03\x12%\n" +
+	"!ARCHITECTURE_AVAILABILITY_INVALID\x10\x04*\x91\x02\n" +
+	"\x1eArchitectureSourceAvailability\x120\n" +
+	",ARCHITECTURE_SOURCE_AVAILABILITY_UNSPECIFIED\x10\x00\x12.\n" +
+	"*ARCHITECTURE_SOURCE_AVAILABILITY_AVAILABLE\x10\x01\x12-\n" +
+	")ARCHITECTURE_SOURCE_AVAILABILITY_DEGRADED\x10\x02\x120\n" +
+	",ARCHITECTURE_SOURCE_AVAILABILITY_UNAVAILABLE\x10\x03\x12,\n" +
+	"(ARCHITECTURE_SOURCE_AVAILABILITY_INVALID\x10\x04*\xe9\x01\n" +
+	"\x18ArchitectureSourceImpact\x12*\n" +
+	"&ARCHITECTURE_SOURCE_IMPACT_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"ARCHITECTURE_SOURCE_IMPACT_PRIMARY\x10\x01\x12'\n" +
+	"#ARCHITECTURE_SOURCE_IMPACT_REQUIRED\x10\x02\x12'\n" +
+	"#ARCHITECTURE_SOURCE_IMPACT_RELEVANT\x10\x03\x12'\n" +
+	"#ARCHITECTURE_SOURCE_IMPACT_OPTIONAL\x10\x04*\xa7\x02\n" +
+	"\x1bArchitectureArtifactClosure\x12-\n" +
+	")ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED\x10\x00\x12(\n" +
+	"$ARCHITECTURE_ARTIFACT_CLOSURE_CLOSED\x10\x01\x12&\n" +
+	"\"ARCHITECTURE_ARTIFACT_CLOSURE_OPEN\x10\x02\x12*\n" +
+	"&ARCHITECTURE_ARTIFACT_CLOSURE_DEGRADED\x10\x03\x12)\n" +
+	"%ARCHITECTURE_ARTIFACT_CLOSURE_UNKNOWN\x10\x04\x120\n" +
+	",ARCHITECTURE_ARTIFACT_CLOSURE_NOT_APPLICABLE\x10\x05*\xa3\x02\n" +
+	"\x1aArchitectureDimensionState\x12,\n" +
+	"(ARCHITECTURE_DIMENSION_STATE_UNSPECIFIED\x10\x00\x12*\n" +
+	"&ARCHITECTURE_DIMENSION_STATE_SATISFIED\x10\x01\x12%\n" +
+	"!ARCHITECTURE_DIMENSION_STATE_OPEN\x10\x02\x12)\n" +
+	"%ARCHITECTURE_DIMENSION_STATE_DEGRADED\x10\x03\x12(\n" +
+	"$ARCHITECTURE_DIMENSION_STATE_UNKNOWN\x10\x04\x12/\n" +
+	"+ARCHITECTURE_DIMENSION_STATE_NOT_APPLICABLE\x10\x05*\xfd\x02\n" +
+	"\x1aArchitectureLifecycleState\x12,\n" +
+	"(ARCHITECTURE_LIFECYCLE_STATE_UNSPECIFIED\x10\x00\x12'\n" +
+	"#ARCHITECTURE_LIFECYCLE_STATE_ACTIVE\x10\x01\x12)\n" +
+	"%ARCHITECTURE_LIFECYCLE_STATE_PROPOSED\x10\x02\x12+\n" +
+	"'ARCHITECTURE_LIFECYCLE_STATE_DEPRECATED\x10\x03\x12+\n" +
+	"'ARCHITECTURE_LIFECYCLE_STATE_SUPERSEDED\x10\x04\x12(\n" +
+	"$ARCHITECTURE_LIFECYCLE_STATE_REVOKED\x10\x05\x12(\n" +
+	"$ARCHITECTURE_LIFECYCLE_STATE_UNKNOWN\x10\x06\x12/\n" +
+	"+ARCHITECTURE_LIFECYCLE_STATE_NOT_APPLICABLE\x10\a*\x8d\x02\n" +
+	"\x1dArchitectureAttentionSeverity\x12/\n" +
+	"+ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED\x10\x00\x121\n" +
+	"-ARCHITECTURE_ATTENTION_SEVERITY_INFORMATIONAL\x10\x01\x12-\n" +
+	")ARCHITECTURE_ATTENTION_SEVERITY_ATTENTION\x10\x02\x12+\n" +
+	"'ARCHITECTURE_ATTENTION_SEVERITY_WARNING\x10\x03\x12,\n" +
+	"(ARCHITECTURE_ATTENTION_SEVERITY_CRITICAL\x10\x04*\xa3\x02\n" +
+	"\x1eArchitectureAssessmentCoverage\x120\n" +
+	",ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED\x10\x00\x12/\n" +
+	"+ARCHITECTURE_ASSESSMENT_COVERAGE_ASSESSABLE\x10\x01\x12>\n" +
+	":ARCHITECTURE_ASSESSMENT_COVERAGE_EXPLICITLY_NOT_APPLICABLE\x10\x02\x120\n" +
+	",ARCHITECTURE_ASSESSMENT_COVERAGE_UNSUPPORTED\x10\x03\x12,\n" +
+	"(ARCHITECTURE_ASSESSMENT_COVERAGE_UNKNOWN\x10\x04*\xe2\x01\n" +
+	"\x17ArchitectureDisposition\x12(\n" +
+	"$ARCHITECTURE_DISPOSITION_UNSPECIFIED\x10\x00\x12%\n" +
+	"!ARCHITECTURE_DISPOSITION_ANSWERED\x10\x01\x12&\n" +
+	"\"ARCHITECTURE_DISPOSITION_DISMISSED\x10\x02\x12%\n" +
+	"!ARCHITECTURE_DISPOSITION_DEFERRED\x10\x03\x12'\n" +
+	"#ARCHITECTURE_DISPOSITION_TASK_LOCAL\x10\x04*\xc0\x01\n" +
+	"\x17ArchitectureReusability\x12(\n" +
+	"$ARCHITECTURE_REUSABILITY_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dARCHITECTURE_REUSABILITY_NONE\x10\x01\x12/\n" +
+	"+ARCHITECTURE_REUSABILITY_REUSABLE_CANDIDATE\x10\x02\x12'\n" +
+	"#ARCHITECTURE_REUSABILITY_TASK_LOCAL\x10\x03*\x91\x02\n" +
+	"\x1eArchitectureDispositionOutcome\x120\n" +
+	",ARCHITECTURE_DISPOSITION_OUTCOME_UNSPECIFIED\x10\x00\x12-\n" +
+	")ARCHITECTURE_DISPOSITION_OUTCOME_RECORDED\x10\x01\x12-\n" +
+	")ARCHITECTURE_DISPOSITION_OUTCOME_REPLAYED\x10\x02\x12/\n" +
+	"+ARCHITECTURE_DISPOSITION_OUTCOME_RECONCILED\x10\x03\x12.\n" +
+	"*ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED\x10\x04*\xb0\x06\n" +
+	"\x1cArchitecturePromotionOutcome\x12.\n" +
+	"*ARCHITECTURE_PROMOTION_OUTCOME_UNSPECIFIED\x10\x00\x12,\n" +
+	"(ARCHITECTURE_PROMOTION_OUTCOME_COMMITTED\x10\x01\x12/\n" +
+	"+ARCHITECTURE_PROMOTION_OUTCOME_EXACT_REPLAY\x10\x02\x127\n" +
+	"3ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_SOURCE\x10\x03\x126\n" +
+	"2ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_GRAPH\x10\x04\x127\n" +
+	"3ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_COMMIT\x10\x05\x129\n" +
+	"5ARCHITECTURE_PROMOTION_OUTCOME_INELIGIBLE_DISPOSITION\x10\x06\x12<\n" +
+	"8ARCHITECTURE_PROMOTION_OUTCOME_STALE_OR_SUPERSEDED_INPUT\x10\a\x124\n" +
+	"0ARCHITECTURE_PROMOTION_OUTCOME_AUTHORITY_REFUSAL\x10\b\x120\n" +
+	",ARCHITECTURE_PROMOTION_OUTCOME_SCOPE_REFUSAL\x10\t\x12=\n" +
+	"9ARCHITECTURE_PROMOTION_OUTCOME_CONTRADICTION_OR_COLLISION\x10\n" +
+	"\x127\n" +
+	"3ARCHITECTURE_PROMOTION_OUTCOME_MANIFEST_CAS_FAILURE\x10\v\x12=\n" +
+	"9ARCHITECTURE_PROMOTION_OUTCOME_GRAPH_VERIFICATION_FAILURE\x10\f\x12?\n" +
+	";ARCHITECTURE_PROMOTION_OUTCOME_TAMPERED_JOURNAL_OR_ARTIFACT\x10\r2\xfd\x0f\n" +
 	"\x0eAwarenessGraph\x12a\n" +
 	"\bBriefing\x12).globular.awareness_graph.BriefingRequest\x1a*.globular.awareness_graph.BriefingResponse\x12[\n" +
 	"\x06Impact\x12'.globular.awareness_graph.ImpactRequest\x1a(.globular.awareness_graph.ImpactResponse\x12X\n" +
@@ -6255,7 +10789,14 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\tPreflight\x12*.globular.awareness_graph.PreflightRequest\x1a+.globular.awareness_graph.PreflightResponse\x12d\n" +
 	"\tEditCheck\x12*.globular.awareness_graph.EditCheckRequest\x1a+.globular.awareness_graph.EditCheckResponse\x12^\n" +
 	"\aPropose\x12(.globular.awareness_graph.ProposeRequest\x1a).globular.awareness_graph.ProposeResponse\x12s\n" +
-	"\x0eReferenceSites\x12/.globular.awareness_graph.ReferenceSitesRequest\x1a0.globular.awareness_graph.ReferenceSitesResponseB4Z2github.com/globulario/sensei/golang/pb;awarenesspbb\x06proto3"
+	"\x0eReferenceSites\x12/.globular.awareness_graph.ReferenceSitesRequest\x1a0.globular.awareness_graph.ReferenceSitesResponse\x12\xa3\x01\n" +
+	"\x1eGetArchitectureControlSnapshot\x12?.globular.awareness_graph.GetArchitectureControlSnapshotRequest\x1a@.globular.awareness_graph.GetArchitectureControlSnapshotResponse\x12\x94\x01\n" +
+	"\x19ListArchitectureArtifacts\x12:.globular.awareness_graph.ListArchitectureArtifactsRequest\x1a;.globular.awareness_graph.ListArchitectureArtifactsResponse\x12\x9d\x01\n" +
+	"\x1cGetArchitectureArtifactState\x12=.globular.awareness_graph.GetArchitectureArtifactStateRequest\x1a>.globular.awareness_graph.GetArchitectureArtifactStateResponse\x12\xa6\x01\n" +
+	"\x1fGetOntologyNavigationDescriptor\x12@.globular.awareness_graph.GetOntologyNavigationDescriptorRequest\x1aA.globular.awareness_graph.GetOntologyNavigationDescriptorResponse\x12\xac\x01\n" +
+	"!PrepareArchitectAnswerDisposition\x12B.globular.awareness_graph.PrepareArchitectAnswerDispositionRequest\x1aC.globular.awareness_graph.PrepareArchitectAnswerDispositionResponse\x12\xa9\x01\n" +
+	" RecordArchitectAnswerDisposition\x12A.globular.awareness_graph.RecordArchitectAnswerDispositionRequest\x1aB.globular.awareness_graph.RecordArchitectAnswerDispositionResponse\x12\x8b\x01\n" +
+	"\x16PromoteArchitectAnswer\x127.globular.awareness_graph.PromoteArchitectAnswerRequest\x1a8.globular.awareness_graph.PromoteArchitectAnswerResponseB4Z2github.com/globulario/sensei/golang/pb;awarenesspbb\x06proto3"
 
 var (
 	file_awareness_graph_proto_rawDescOnce sync.Once
@@ -6269,161 +10810,289 @@ func file_awareness_graph_proto_rawDescGZIP() []byte {
 	return file_awareness_graph_proto_rawDescData
 }
 
-var file_awareness_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 21)
-var file_awareness_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_awareness_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 33)
+var file_awareness_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 81)
 var file_awareness_graph_proto_goTypes = []any{
-	(BriefingStatus)(0),                    // 0: globular.awareness_graph.BriefingStatus
-	(BriefingFeedbackAvailability)(0),      // 1: globular.awareness_graph.BriefingFeedbackAvailability
-	(BriefingFeedbackFindingClass)(0),      // 2: globular.awareness_graph.BriefingFeedbackFindingClass
-	(BriefingFeedbackDisposition)(0),       // 3: globular.awareness_graph.BriefingFeedbackDisposition
-	(QueryMode)(0),                         // 4: globular.awareness_graph.QueryMode
-	(QueryClass)(0),                        // 5: globular.awareness_graph.QueryClass
-	(BuildProvenanceState)(0),              // 6: globular.awareness_graph.BuildProvenanceState
-	(CoverageState)(0),                     // 7: globular.awareness_graph.CoverageState
-	(SeedState)(0),                         // 8: globular.awareness_graph.SeedState
-	(GraphFreshnessState)(0),               // 9: globular.awareness_graph.GraphFreshnessState
-	(CandidateQueueState)(0),               // 10: globular.awareness_graph.CandidateQueueState
-	(BenchmarkState)(0),                    // 11: globular.awareness_graph.BenchmarkState
-	(GovernancePackState)(0),               // 12: globular.awareness_graph.GovernancePackState
-	(EvidenceLaneMode)(0),                  // 13: globular.awareness_graph.EvidenceLaneMode
-	(CertificationVerdict)(0),              // 14: globular.awareness_graph.CertificationVerdict
-	(PromotionDecision)(0),                 // 15: globular.awareness_graph.PromotionDecision
-	(PreflightMode)(0),                     // 16: globular.awareness_graph.PreflightMode
-	(PreflightStatus)(0),                   // 17: globular.awareness_graph.PreflightStatus
-	(RiskClass)(0),                         // 18: globular.awareness_graph.RiskClass
-	(Confidence)(0),                        // 19: globular.awareness_graph.Confidence
-	(ProposeStatus)(0),                     // 20: globular.awareness_graph.ProposeStatus
-	(*BriefingRequest)(nil),                // 21: globular.awareness_graph.BriefingRequest
-	(*BriefingResponse)(nil),               // 22: globular.awareness_graph.BriefingResponse
-	(*BriefingFeedbackVerifiedRecord)(nil), // 23: globular.awareness_graph.BriefingFeedbackVerifiedRecord
-	(*BriefingFeedbackFinding)(nil),        // 24: globular.awareness_graph.BriefingFeedbackFinding
-	(*BriefingFeedbackProjection)(nil),     // 25: globular.awareness_graph.BriefingFeedbackProjection
-	(*MatchedImplementationPattern)(nil),   // 26: globular.awareness_graph.MatchedImplementationPattern
-	(*ImpactRequest)(nil),                  // 27: globular.awareness_graph.ImpactRequest
-	(*ImpactResponse)(nil),                 // 28: globular.awareness_graph.ImpactResponse
-	(*CodeSymbolNode)(nil),                 // 29: globular.awareness_graph.CodeSymbolNode
-	(*KnowledgeNode)(nil),                  // 30: globular.awareness_graph.KnowledgeNode
-	(*NodeFact)(nil),                       // 31: globular.awareness_graph.NodeFact
-	(*CodeAnchor)(nil),                     // 32: globular.awareness_graph.CodeAnchor
-	(*QueryRequest)(nil),                   // 33: globular.awareness_graph.QueryRequest
-	(*QueryRow)(nil),                       // 34: globular.awareness_graph.QueryRow
-	(*QueryResponse)(nil),                  // 35: globular.awareness_graph.QueryResponse
-	(*ResolveRequest)(nil),                 // 36: globular.awareness_graph.ResolveRequest
-	(*ResolveResponse)(nil),                // 37: globular.awareness_graph.ResolveResponse
-	(*MetadataRequest)(nil),                // 38: globular.awareness_graph.MetadataRequest
-	(*GraphAuthority)(nil),                 // 39: globular.awareness_graph.GraphAuthority
-	(*MetadataResponse)(nil),               // 40: globular.awareness_graph.MetadataResponse
-	(*AuthoritySurface)(nil),               // 41: globular.awareness_graph.AuthoritySurface
-	(*ProofSlot)(nil),                      // 42: globular.awareness_graph.ProofSlot
-	(*ProofObligation)(nil),                // 43: globular.awareness_graph.ProofObligation
-	(*ForbiddenRepairMove)(nil),            // 44: globular.awareness_graph.ForbiddenRepairMove
-	(*ForbiddenMoveEvidence)(nil),          // 45: globular.awareness_graph.ForbiddenMoveEvidence
-	(*DetectedForbiddenMove)(nil),          // 46: globular.awareness_graph.DetectedForbiddenMove
-	(*RepairClaim)(nil),                    // 47: globular.awareness_graph.RepairClaim
-	(*CertificationRequirement)(nil),       // 48: globular.awareness_graph.CertificationRequirement
-	(*CertificationLaneResult)(nil),        // 49: globular.awareness_graph.CertificationLaneResult
-	(*GovernanceCertification)(nil),        // 50: globular.awareness_graph.GovernanceCertification
-	(*PreflightRequest)(nil),               // 51: globular.awareness_graph.PreflightRequest
-	(*PreflightResponse)(nil),              // 52: globular.awareness_graph.PreflightResponse
-	(*CoverageSummary)(nil),                // 53: globular.awareness_graph.CoverageSummary
-	(*EditCheckRequest)(nil),               // 54: globular.awareness_graph.EditCheckRequest
-	(*EditWarning)(nil),                    // 55: globular.awareness_graph.EditWarning
-	(*EditCheckResponse)(nil),              // 56: globular.awareness_graph.EditCheckResponse
-	(*ProposeRequest)(nil),                 // 57: globular.awareness_graph.ProposeRequest
-	(*ProposeResponse)(nil),                // 58: globular.awareness_graph.ProposeResponse
-	(*ReferenceSitesRequest)(nil),          // 59: globular.awareness_graph.ReferenceSitesRequest
-	(*ReferenceFamily)(nil),                // 60: globular.awareness_graph.ReferenceFamily
-	(*ReferenceSitesResponse)(nil),         // 61: globular.awareness_graph.ReferenceSitesResponse
+	(BriefingStatus)(0),                               // 0: globular.awareness_graph.BriefingStatus
+	(BriefingFeedbackAvailability)(0),                 // 1: globular.awareness_graph.BriefingFeedbackAvailability
+	(BriefingFeedbackFindingClass)(0),                 // 2: globular.awareness_graph.BriefingFeedbackFindingClass
+	(BriefingFeedbackDisposition)(0),                  // 3: globular.awareness_graph.BriefingFeedbackDisposition
+	(QueryMode)(0),                                    // 4: globular.awareness_graph.QueryMode
+	(QueryClass)(0),                                   // 5: globular.awareness_graph.QueryClass
+	(BuildProvenanceState)(0),                         // 6: globular.awareness_graph.BuildProvenanceState
+	(CoverageState)(0),                                // 7: globular.awareness_graph.CoverageState
+	(SeedState)(0),                                    // 8: globular.awareness_graph.SeedState
+	(GraphFreshnessState)(0),                          // 9: globular.awareness_graph.GraphFreshnessState
+	(CandidateQueueState)(0),                          // 10: globular.awareness_graph.CandidateQueueState
+	(BenchmarkState)(0),                               // 11: globular.awareness_graph.BenchmarkState
+	(GovernancePackState)(0),                          // 12: globular.awareness_graph.GovernancePackState
+	(EvidenceLaneMode)(0),                             // 13: globular.awareness_graph.EvidenceLaneMode
+	(CertificationVerdict)(0),                         // 14: globular.awareness_graph.CertificationVerdict
+	(PromotionDecision)(0),                            // 15: globular.awareness_graph.PromotionDecision
+	(PreflightMode)(0),                                // 16: globular.awareness_graph.PreflightMode
+	(PreflightStatus)(0),                              // 17: globular.awareness_graph.PreflightStatus
+	(RiskClass)(0),                                    // 18: globular.awareness_graph.RiskClass
+	(Confidence)(0),                                   // 19: globular.awareness_graph.Confidence
+	(ProposeStatus)(0),                                // 20: globular.awareness_graph.ProposeStatus
+	(ArchitectureAvailability)(0),                     // 21: globular.awareness_graph.ArchitectureAvailability
+	(ArchitectureSourceAvailability)(0),               // 22: globular.awareness_graph.ArchitectureSourceAvailability
+	(ArchitectureSourceImpact)(0),                     // 23: globular.awareness_graph.ArchitectureSourceImpact
+	(ArchitectureArtifactClosure)(0),                  // 24: globular.awareness_graph.ArchitectureArtifactClosure
+	(ArchitectureDimensionState)(0),                   // 25: globular.awareness_graph.ArchitectureDimensionState
+	(ArchitectureLifecycleState)(0),                   // 26: globular.awareness_graph.ArchitectureLifecycleState
+	(ArchitectureAttentionSeverity)(0),                // 27: globular.awareness_graph.ArchitectureAttentionSeverity
+	(ArchitectureAssessmentCoverage)(0),               // 28: globular.awareness_graph.ArchitectureAssessmentCoverage
+	(ArchitectureDisposition)(0),                      // 29: globular.awareness_graph.ArchitectureDisposition
+	(ArchitectureReusability)(0),                      // 30: globular.awareness_graph.ArchitectureReusability
+	(ArchitectureDispositionOutcome)(0),               // 31: globular.awareness_graph.ArchitectureDispositionOutcome
+	(ArchitecturePromotionOutcome)(0),                 // 32: globular.awareness_graph.ArchitecturePromotionOutcome
+	(*BriefingRequest)(nil),                           // 33: globular.awareness_graph.BriefingRequest
+	(*BriefingResponse)(nil),                          // 34: globular.awareness_graph.BriefingResponse
+	(*BriefingFeedbackVerifiedRecord)(nil),            // 35: globular.awareness_graph.BriefingFeedbackVerifiedRecord
+	(*BriefingFeedbackFinding)(nil),                   // 36: globular.awareness_graph.BriefingFeedbackFinding
+	(*BriefingFeedbackProjection)(nil),                // 37: globular.awareness_graph.BriefingFeedbackProjection
+	(*MatchedImplementationPattern)(nil),              // 38: globular.awareness_graph.MatchedImplementationPattern
+	(*ImpactRequest)(nil),                             // 39: globular.awareness_graph.ImpactRequest
+	(*ImpactResponse)(nil),                            // 40: globular.awareness_graph.ImpactResponse
+	(*CodeSymbolNode)(nil),                            // 41: globular.awareness_graph.CodeSymbolNode
+	(*KnowledgeNode)(nil),                             // 42: globular.awareness_graph.KnowledgeNode
+	(*NodeFact)(nil),                                  // 43: globular.awareness_graph.NodeFact
+	(*CodeAnchor)(nil),                                // 44: globular.awareness_graph.CodeAnchor
+	(*QueryRequest)(nil),                              // 45: globular.awareness_graph.QueryRequest
+	(*QueryRow)(nil),                                  // 46: globular.awareness_graph.QueryRow
+	(*QueryResponse)(nil),                             // 47: globular.awareness_graph.QueryResponse
+	(*ResolveRequest)(nil),                            // 48: globular.awareness_graph.ResolveRequest
+	(*ResolveResponse)(nil),                           // 49: globular.awareness_graph.ResolveResponse
+	(*MetadataRequest)(nil),                           // 50: globular.awareness_graph.MetadataRequest
+	(*GraphAuthority)(nil),                            // 51: globular.awareness_graph.GraphAuthority
+	(*MetadataResponse)(nil),                          // 52: globular.awareness_graph.MetadataResponse
+	(*AuthoritySurface)(nil),                          // 53: globular.awareness_graph.AuthoritySurface
+	(*ProofSlot)(nil),                                 // 54: globular.awareness_graph.ProofSlot
+	(*ProofObligation)(nil),                           // 55: globular.awareness_graph.ProofObligation
+	(*ForbiddenRepairMove)(nil),                       // 56: globular.awareness_graph.ForbiddenRepairMove
+	(*ForbiddenMoveEvidence)(nil),                     // 57: globular.awareness_graph.ForbiddenMoveEvidence
+	(*DetectedForbiddenMove)(nil),                     // 58: globular.awareness_graph.DetectedForbiddenMove
+	(*RepairClaim)(nil),                               // 59: globular.awareness_graph.RepairClaim
+	(*CertificationRequirement)(nil),                  // 60: globular.awareness_graph.CertificationRequirement
+	(*CertificationLaneResult)(nil),                   // 61: globular.awareness_graph.CertificationLaneResult
+	(*GovernanceCertification)(nil),                   // 62: globular.awareness_graph.GovernanceCertification
+	(*PreflightRequest)(nil),                          // 63: globular.awareness_graph.PreflightRequest
+	(*PreflightResponse)(nil),                         // 64: globular.awareness_graph.PreflightResponse
+	(*CoverageSummary)(nil),                           // 65: globular.awareness_graph.CoverageSummary
+	(*EditCheckRequest)(nil),                          // 66: globular.awareness_graph.EditCheckRequest
+	(*EditWarning)(nil),                               // 67: globular.awareness_graph.EditWarning
+	(*EditCheckResponse)(nil),                         // 68: globular.awareness_graph.EditCheckResponse
+	(*ProposeRequest)(nil),                            // 69: globular.awareness_graph.ProposeRequest
+	(*ProposeResponse)(nil),                           // 70: globular.awareness_graph.ProposeResponse
+	(*ReferenceSitesRequest)(nil),                     // 71: globular.awareness_graph.ReferenceSitesRequest
+	(*ReferenceFamily)(nil),                           // 72: globular.awareness_graph.ReferenceFamily
+	(*ReferenceSitesResponse)(nil),                    // 73: globular.awareness_graph.ReferenceSitesResponse
+	(*ArchitectureSourceStatus)(nil),                  // 74: globular.awareness_graph.ArchitectureSourceStatus
+	(*ArchitectureProjectionMeta)(nil),                // 75: globular.awareness_graph.ArchitectureProjectionMeta
+	(*ArchitectureArtifactIdentity)(nil),              // 76: globular.awareness_graph.ArchitectureArtifactIdentity
+	(*ArchitectureLifecycleAssessment)(nil),           // 77: globular.awareness_graph.ArchitectureLifecycleAssessment
+	(*ArchitectureDimensionAssessment)(nil),           // 78: globular.awareness_graph.ArchitectureDimensionAssessment
+	(*ArchitectureAttentionItem)(nil),                 // 79: globular.awareness_graph.ArchitectureAttentionItem
+	(*ArchitectureKeyedCount)(nil),                    // 80: globular.awareness_graph.ArchitectureKeyedCount
+	(*ArchitectureGraphAuthoritySummary)(nil),         // 81: globular.awareness_graph.ArchitectureGraphAuthoritySummary
+	(*ArchitectureCoverageSummary)(nil),               // 82: globular.awareness_graph.ArchitectureCoverageSummary
+	(*ArchitectureTaskSummary)(nil),                   // 83: globular.awareness_graph.ArchitectureTaskSummary
+	(*ArchitectureCompletionSummary)(nil),             // 84: globular.awareness_graph.ArchitectureCompletionSummary
+	(*ArchitectureFeedbackContext)(nil),               // 85: globular.awareness_graph.ArchitectureFeedbackContext
+	(*ArchitectureScopedFeedbackRef)(nil),             // 86: globular.awareness_graph.ArchitectureScopedFeedbackRef
+	(*ArchitectureControlSnapshot)(nil),               // 87: globular.awareness_graph.ArchitectureControlSnapshot
+	(*ArchitectureArtifactSummary)(nil),               // 88: globular.awareness_graph.ArchitectureArtifactSummary
+	(*ArchitectureArtifactIndex)(nil),                 // 89: globular.awareness_graph.ArchitectureArtifactIndex
+	(*ArchitectureArtifactState)(nil),                 // 90: globular.awareness_graph.ArchitectureArtifactState
+	(*ArchitectureNavigationClass)(nil),               // 91: globular.awareness_graph.ArchitectureNavigationClass
+	(*ArchitectureNavigationFamily)(nil),              // 92: globular.awareness_graph.ArchitectureNavigationFamily
+	(*OntologyNavigationDescriptor)(nil),              // 93: globular.awareness_graph.OntologyNavigationDescriptor
+	(*GetArchitectureControlSnapshotRequest)(nil),     // 94: globular.awareness_graph.GetArchitectureControlSnapshotRequest
+	(*GetArchitectureControlSnapshotResponse)(nil),    // 95: globular.awareness_graph.GetArchitectureControlSnapshotResponse
+	(*ListArchitectureArtifactsRequest)(nil),          // 96: globular.awareness_graph.ListArchitectureArtifactsRequest
+	(*ListArchitectureArtifactsResponse)(nil),         // 97: globular.awareness_graph.ListArchitectureArtifactsResponse
+	(*GetArchitectureArtifactStateRequest)(nil),       // 98: globular.awareness_graph.GetArchitectureArtifactStateRequest
+	(*GetArchitectureArtifactStateResponse)(nil),      // 99: globular.awareness_graph.GetArchitectureArtifactStateResponse
+	(*GetOntologyNavigationDescriptorRequest)(nil),    // 100: globular.awareness_graph.GetOntologyNavigationDescriptorRequest
+	(*GetOntologyNavigationDescriptorResponse)(nil),   // 101: globular.awareness_graph.GetOntologyNavigationDescriptorResponse
+	(*ArchitectureMutationRefusal)(nil),               // 102: globular.awareness_graph.ArchitectureMutationRefusal
+	(*ArchitectureMutationAudit)(nil),                 // 103: globular.awareness_graph.ArchitectureMutationAudit
+	(*ArchitectureDispositionInput)(nil),              // 104: globular.awareness_graph.ArchitectureDispositionInput
+	(*ArchitectureDispositionCandidate)(nil),          // 105: globular.awareness_graph.ArchitectureDispositionCandidate
+	(*PrepareArchitectAnswerDispositionRequest)(nil),  // 106: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
+	(*PrepareArchitectAnswerDispositionResponse)(nil), // 107: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
+	(*ArchitectureDispositionReceipt)(nil),            // 108: globular.awareness_graph.ArchitectureDispositionReceipt
+	(*RecordArchitectAnswerDispositionRequest)(nil),   // 109: globular.awareness_graph.RecordArchitectAnswerDispositionRequest
+	(*RecordArchitectAnswerDispositionResponse)(nil),  // 110: globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	(*ArchitecturePromotionReceipt)(nil),              // 111: globular.awareness_graph.ArchitecturePromotionReceipt
+	(*PromoteArchitectAnswerRequest)(nil),             // 112: globular.awareness_graph.PromoteArchitectAnswerRequest
+	(*PromoteArchitectAnswerResponse)(nil),            // 113: globular.awareness_graph.PromoteArchitectAnswerResponse
 }
 var file_awareness_graph_proto_depIdxs = []int32{
-	0,  // 0: globular.awareness_graph.BriefingResponse.status:type_name -> globular.awareness_graph.BriefingStatus
-	26, // 1: globular.awareness_graph.BriefingResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
-	39, // 2: globular.awareness_graph.BriefingResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	25, // 3: globular.awareness_graph.BriefingResponse.feedback:type_name -> globular.awareness_graph.BriefingFeedbackProjection
-	2,  // 4: globular.awareness_graph.BriefingFeedbackVerifiedRecord.verification_class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
-	2,  // 5: globular.awareness_graph.BriefingFeedbackFinding.class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
-	3,  // 6: globular.awareness_graph.BriefingFeedbackFinding.disposition:type_name -> globular.awareness_graph.BriefingFeedbackDisposition
-	1,  // 7: globular.awareness_graph.BriefingFeedbackProjection.availability:type_name -> globular.awareness_graph.BriefingFeedbackAvailability
-	23, // 8: globular.awareness_graph.BriefingFeedbackProjection.records:type_name -> globular.awareness_graph.BriefingFeedbackVerifiedRecord
-	24, // 9: globular.awareness_graph.BriefingFeedbackProjection.findings:type_name -> globular.awareness_graph.BriefingFeedbackFinding
-	30, // 10: globular.awareness_graph.ImpactResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 11: globular.awareness_graph.ImpactResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 12: globular.awareness_graph.ImpactResponse.direct_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 13: globular.awareness_graph.ImpactResponse.inferred_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 14: globular.awareness_graph.ImpactResponse.inferred_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 15: globular.awareness_graph.ImpactResponse.inferred_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 16: globular.awareness_graph.ImpactResponse.required_tests:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 17: globular.awareness_graph.ImpactResponse.forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 18: globular.awareness_graph.ImpactResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 19: globular.awareness_graph.ImpactResponse.inferred_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 20: globular.awareness_graph.ImpactResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
-	39, // 21: globular.awareness_graph.ImpactResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	29, // 22: globular.awareness_graph.ImpactResponse.symbols:type_name -> globular.awareness_graph.CodeSymbolNode
-	32, // 23: globular.awareness_graph.KnowledgeNode.anchor:type_name -> globular.awareness_graph.CodeAnchor
-	31, // 24: globular.awareness_graph.KnowledgeNode.facts:type_name -> globular.awareness_graph.NodeFact
-	4,  // 25: globular.awareness_graph.QueryRequest.mode:type_name -> globular.awareness_graph.QueryMode
-	5,  // 26: globular.awareness_graph.QueryRequest.class:type_name -> globular.awareness_graph.QueryClass
-	34, // 27: globular.awareness_graph.QueryResponse.rows:type_name -> globular.awareness_graph.QueryRow
-	39, // 28: globular.awareness_graph.QueryResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	30, // 29: globular.awareness_graph.ResolveResponse.node:type_name -> globular.awareness_graph.KnowledgeNode
-	39, // 30: globular.awareness_graph.ResolveResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	9,  // 31: globular.awareness_graph.GraphAuthority.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
-	6,  // 32: globular.awareness_graph.GraphAuthority.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
-	8,  // 33: globular.awareness_graph.GraphAuthority.seed_state:type_name -> globular.awareness_graph.SeedState
-	6,  // 34: globular.awareness_graph.MetadataResponse.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
-	7,  // 35: globular.awareness_graph.MetadataResponse.coverage_state:type_name -> globular.awareness_graph.CoverageState
-	8,  // 36: globular.awareness_graph.MetadataResponse.seed_state:type_name -> globular.awareness_graph.SeedState
-	9,  // 37: globular.awareness_graph.MetadataResponse.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
-	10, // 38: globular.awareness_graph.MetadataResponse.candidate_queue_state:type_name -> globular.awareness_graph.CandidateQueueState
-	11, // 39: globular.awareness_graph.MetadataResponse.benchmark_state:type_name -> globular.awareness_graph.BenchmarkState
-	12, // 40: globular.awareness_graph.MetadataResponse.governance_pack_state:type_name -> globular.awareness_graph.GovernancePackState
-	13, // 41: globular.awareness_graph.ProofObligation.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
-	42, // 42: globular.awareness_graph.ProofObligation.required_slots:type_name -> globular.awareness_graph.ProofSlot
-	45, // 43: globular.awareness_graph.DetectedForbiddenMove.evidence:type_name -> globular.awareness_graph.ForbiddenMoveEvidence
-	13, // 44: globular.awareness_graph.CertificationRequirement.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
-	49, // 45: globular.awareness_graph.GovernanceCertification.lanes:type_name -> globular.awareness_graph.CertificationLaneResult
-	14, // 46: globular.awareness_graph.GovernanceCertification.verdict:type_name -> globular.awareness_graph.CertificationVerdict
-	15, // 47: globular.awareness_graph.GovernanceCertification.promotion:type_name -> globular.awareness_graph.PromotionDecision
-	16, // 48: globular.awareness_graph.PreflightRequest.mode:type_name -> globular.awareness_graph.PreflightMode
-	17, // 49: globular.awareness_graph.PreflightResponse.status:type_name -> globular.awareness_graph.PreflightStatus
-	18, // 50: globular.awareness_graph.PreflightResponse.risk_class:type_name -> globular.awareness_graph.RiskClass
-	19, // 51: globular.awareness_graph.PreflightResponse.confidence:type_name -> globular.awareness_graph.Confidence
-	30, // 52: globular.awareness_graph.PreflightResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 53: globular.awareness_graph.PreflightResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 54: globular.awareness_graph.PreflightResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 55: globular.awareness_graph.PreflightResponse.direct_forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
-	30, // 56: globular.awareness_graph.PreflightResponse.direct_required_tests:type_name -> globular.awareness_graph.KnowledgeNode
-	26, // 57: globular.awareness_graph.PreflightResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
-	53, // 58: globular.awareness_graph.PreflightResponse.coverage:type_name -> globular.awareness_graph.CoverageSummary
-	30, // 59: globular.awareness_graph.PreflightResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
-	39, // 60: globular.awareness_graph.PreflightResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	55, // 61: globular.awareness_graph.EditCheckResponse.warnings:type_name -> globular.awareness_graph.EditWarning
-	20, // 62: globular.awareness_graph.ProposeResponse.status:type_name -> globular.awareness_graph.ProposeStatus
-	60, // 63: globular.awareness_graph.ReferenceSitesResponse.families:type_name -> globular.awareness_graph.ReferenceFamily
-	39, // 64: globular.awareness_graph.ReferenceSitesResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	21, // 65: globular.awareness_graph.AwarenessGraph.Briefing:input_type -> globular.awareness_graph.BriefingRequest
-	27, // 66: globular.awareness_graph.AwarenessGraph.Impact:input_type -> globular.awareness_graph.ImpactRequest
-	33, // 67: globular.awareness_graph.AwarenessGraph.Query:input_type -> globular.awareness_graph.QueryRequest
-	36, // 68: globular.awareness_graph.AwarenessGraph.Resolve:input_type -> globular.awareness_graph.ResolveRequest
-	38, // 69: globular.awareness_graph.AwarenessGraph.Metadata:input_type -> globular.awareness_graph.MetadataRequest
-	51, // 70: globular.awareness_graph.AwarenessGraph.Preflight:input_type -> globular.awareness_graph.PreflightRequest
-	54, // 71: globular.awareness_graph.AwarenessGraph.EditCheck:input_type -> globular.awareness_graph.EditCheckRequest
-	57, // 72: globular.awareness_graph.AwarenessGraph.Propose:input_type -> globular.awareness_graph.ProposeRequest
-	59, // 73: globular.awareness_graph.AwarenessGraph.ReferenceSites:input_type -> globular.awareness_graph.ReferenceSitesRequest
-	22, // 74: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
-	28, // 75: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
-	35, // 76: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
-	37, // 77: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
-	40, // 78: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
-	52, // 79: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
-	56, // 80: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
-	58, // 81: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
-	61, // 82: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
-	74, // [74:83] is the sub-list for method output_type
-	65, // [65:74] is the sub-list for method input_type
-	65, // [65:65] is the sub-list for extension type_name
-	65, // [65:65] is the sub-list for extension extendee
-	0,  // [0:65] is the sub-list for field type_name
+	0,   // 0: globular.awareness_graph.BriefingResponse.status:type_name -> globular.awareness_graph.BriefingStatus
+	38,  // 1: globular.awareness_graph.BriefingResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
+	51,  // 2: globular.awareness_graph.BriefingResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	37,  // 3: globular.awareness_graph.BriefingResponse.feedback:type_name -> globular.awareness_graph.BriefingFeedbackProjection
+	2,   // 4: globular.awareness_graph.BriefingFeedbackVerifiedRecord.verification_class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
+	2,   // 5: globular.awareness_graph.BriefingFeedbackFinding.class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
+	3,   // 6: globular.awareness_graph.BriefingFeedbackFinding.disposition:type_name -> globular.awareness_graph.BriefingFeedbackDisposition
+	1,   // 7: globular.awareness_graph.BriefingFeedbackProjection.availability:type_name -> globular.awareness_graph.BriefingFeedbackAvailability
+	35,  // 8: globular.awareness_graph.BriefingFeedbackProjection.records:type_name -> globular.awareness_graph.BriefingFeedbackVerifiedRecord
+	36,  // 9: globular.awareness_graph.BriefingFeedbackProjection.findings:type_name -> globular.awareness_graph.BriefingFeedbackFinding
+	42,  // 10: globular.awareness_graph.ImpactResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 11: globular.awareness_graph.ImpactResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 12: globular.awareness_graph.ImpactResponse.direct_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 13: globular.awareness_graph.ImpactResponse.inferred_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 14: globular.awareness_graph.ImpactResponse.inferred_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 15: globular.awareness_graph.ImpactResponse.inferred_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 16: globular.awareness_graph.ImpactResponse.required_tests:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 17: globular.awareness_graph.ImpactResponse.forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 18: globular.awareness_graph.ImpactResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 19: globular.awareness_graph.ImpactResponse.inferred_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 20: globular.awareness_graph.ImpactResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
+	51,  // 21: globular.awareness_graph.ImpactResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	41,  // 22: globular.awareness_graph.ImpactResponse.symbols:type_name -> globular.awareness_graph.CodeSymbolNode
+	44,  // 23: globular.awareness_graph.KnowledgeNode.anchor:type_name -> globular.awareness_graph.CodeAnchor
+	43,  // 24: globular.awareness_graph.KnowledgeNode.facts:type_name -> globular.awareness_graph.NodeFact
+	4,   // 25: globular.awareness_graph.QueryRequest.mode:type_name -> globular.awareness_graph.QueryMode
+	5,   // 26: globular.awareness_graph.QueryRequest.class:type_name -> globular.awareness_graph.QueryClass
+	46,  // 27: globular.awareness_graph.QueryResponse.rows:type_name -> globular.awareness_graph.QueryRow
+	51,  // 28: globular.awareness_graph.QueryResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	42,  // 29: globular.awareness_graph.ResolveResponse.node:type_name -> globular.awareness_graph.KnowledgeNode
+	51,  // 30: globular.awareness_graph.ResolveResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	9,   // 31: globular.awareness_graph.GraphAuthority.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
+	6,   // 32: globular.awareness_graph.GraphAuthority.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
+	8,   // 33: globular.awareness_graph.GraphAuthority.seed_state:type_name -> globular.awareness_graph.SeedState
+	6,   // 34: globular.awareness_graph.MetadataResponse.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
+	7,   // 35: globular.awareness_graph.MetadataResponse.coverage_state:type_name -> globular.awareness_graph.CoverageState
+	8,   // 36: globular.awareness_graph.MetadataResponse.seed_state:type_name -> globular.awareness_graph.SeedState
+	9,   // 37: globular.awareness_graph.MetadataResponse.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
+	10,  // 38: globular.awareness_graph.MetadataResponse.candidate_queue_state:type_name -> globular.awareness_graph.CandidateQueueState
+	11,  // 39: globular.awareness_graph.MetadataResponse.benchmark_state:type_name -> globular.awareness_graph.BenchmarkState
+	12,  // 40: globular.awareness_graph.MetadataResponse.governance_pack_state:type_name -> globular.awareness_graph.GovernancePackState
+	13,  // 41: globular.awareness_graph.ProofObligation.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
+	54,  // 42: globular.awareness_graph.ProofObligation.required_slots:type_name -> globular.awareness_graph.ProofSlot
+	57,  // 43: globular.awareness_graph.DetectedForbiddenMove.evidence:type_name -> globular.awareness_graph.ForbiddenMoveEvidence
+	13,  // 44: globular.awareness_graph.CertificationRequirement.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
+	61,  // 45: globular.awareness_graph.GovernanceCertification.lanes:type_name -> globular.awareness_graph.CertificationLaneResult
+	14,  // 46: globular.awareness_graph.GovernanceCertification.verdict:type_name -> globular.awareness_graph.CertificationVerdict
+	15,  // 47: globular.awareness_graph.GovernanceCertification.promotion:type_name -> globular.awareness_graph.PromotionDecision
+	16,  // 48: globular.awareness_graph.PreflightRequest.mode:type_name -> globular.awareness_graph.PreflightMode
+	17,  // 49: globular.awareness_graph.PreflightResponse.status:type_name -> globular.awareness_graph.PreflightStatus
+	18,  // 50: globular.awareness_graph.PreflightResponse.risk_class:type_name -> globular.awareness_graph.RiskClass
+	19,  // 51: globular.awareness_graph.PreflightResponse.confidence:type_name -> globular.awareness_graph.Confidence
+	42,  // 52: globular.awareness_graph.PreflightResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 53: globular.awareness_graph.PreflightResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 54: globular.awareness_graph.PreflightResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 55: globular.awareness_graph.PreflightResponse.direct_forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 56: globular.awareness_graph.PreflightResponse.direct_required_tests:type_name -> globular.awareness_graph.KnowledgeNode
+	38,  // 57: globular.awareness_graph.PreflightResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
+	65,  // 58: globular.awareness_graph.PreflightResponse.coverage:type_name -> globular.awareness_graph.CoverageSummary
+	42,  // 59: globular.awareness_graph.PreflightResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
+	51,  // 60: globular.awareness_graph.PreflightResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	67,  // 61: globular.awareness_graph.EditCheckResponse.warnings:type_name -> globular.awareness_graph.EditWarning
+	20,  // 62: globular.awareness_graph.ProposeResponse.status:type_name -> globular.awareness_graph.ProposeStatus
+	72,  // 63: globular.awareness_graph.ReferenceSitesResponse.families:type_name -> globular.awareness_graph.ReferenceFamily
+	51,  // 64: globular.awareness_graph.ReferenceSitesResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	22,  // 65: globular.awareness_graph.ArchitectureSourceStatus.availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
+	23,  // 66: globular.awareness_graph.ArchitectureSourceStatus.impact:type_name -> globular.awareness_graph.ArchitectureSourceImpact
+	21,  // 67: globular.awareness_graph.ArchitectureProjectionMeta.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
+	74,  // 68: globular.awareness_graph.ArchitectureProjectionMeta.sources:type_name -> globular.awareness_graph.ArchitectureSourceStatus
+	26,  // 69: globular.awareness_graph.ArchitectureLifecycleAssessment.state:type_name -> globular.awareness_graph.ArchitectureLifecycleState
+	22,  // 70: globular.awareness_graph.ArchitectureLifecycleAssessment.source_availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
+	25,  // 71: globular.awareness_graph.ArchitectureDimensionAssessment.state:type_name -> globular.awareness_graph.ArchitectureDimensionState
+	27,  // 72: globular.awareness_graph.ArchitectureAttentionItem.severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	75,  // 73: globular.awareness_graph.ArchitectureControlSnapshot.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	81,  // 74: globular.awareness_graph.ArchitectureControlSnapshot.graph_authority:type_name -> globular.awareness_graph.ArchitectureGraphAuthoritySummary
+	80,  // 75: globular.awareness_graph.ArchitectureControlSnapshot.counts_by_class:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	80,  // 76: globular.awareness_graph.ArchitectureControlSnapshot.assessment_coverage_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	80,  // 77: globular.awareness_graph.ArchitectureControlSnapshot.closure_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	80,  // 78: globular.awareness_graph.ArchitectureControlSnapshot.attention_counts_by_severity:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	79,  // 79: globular.awareness_graph.ArchitectureControlSnapshot.top_attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
+	82,  // 80: globular.awareness_graph.ArchitectureControlSnapshot.coverage:type_name -> globular.awareness_graph.ArchitectureCoverageSummary
+	83,  // 81: globular.awareness_graph.ArchitectureControlSnapshot.active_task:type_name -> globular.awareness_graph.ArchitectureTaskSummary
+	84,  // 82: globular.awareness_graph.ArchitectureControlSnapshot.completion:type_name -> globular.awareness_graph.ArchitectureCompletionSummary
+	85,  // 83: globular.awareness_graph.ArchitectureControlSnapshot.feedback_context:type_name -> globular.awareness_graph.ArchitectureFeedbackContext
+	76,  // 84: globular.awareness_graph.ArchitectureArtifactSummary.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
+	28,  // 85: globular.awareness_graph.ArchitectureArtifactSummary.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	26,  // 86: globular.awareness_graph.ArchitectureArtifactSummary.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleState
+	24,  // 87: globular.awareness_graph.ArchitectureArtifactSummary.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	27,  // 88: globular.awareness_graph.ArchitectureArtifactSummary.highest_severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	21,  // 89: globular.awareness_graph.ArchitectureArtifactSummary.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
+	75,  // 90: globular.awareness_graph.ArchitectureArtifactIndex.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	88,  // 91: globular.awareness_graph.ArchitectureArtifactIndex.page:type_name -> globular.awareness_graph.ArchitectureArtifactSummary
+	75,  // 92: globular.awareness_graph.ArchitectureArtifactState.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	76,  // 93: globular.awareness_graph.ArchitectureArtifactState.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
+	28,  // 94: globular.awareness_graph.ArchitectureArtifactState.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	24,  // 95: globular.awareness_graph.ArchitectureArtifactState.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	77,  // 96: globular.awareness_graph.ArchitectureArtifactState.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleAssessment
+	78,  // 97: globular.awareness_graph.ArchitectureArtifactState.dimensions:type_name -> globular.awareness_graph.ArchitectureDimensionAssessment
+	79,  // 98: globular.awareness_graph.ArchitectureArtifactState.attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
+	86,  // 99: globular.awareness_graph.ArchitectureArtifactState.feedback:type_name -> globular.awareness_graph.ArchitectureScopedFeedbackRef
+	28,  // 100: globular.awareness_graph.ArchitectureNavigationClass.coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	91,  // 101: globular.awareness_graph.ArchitectureNavigationFamily.classes:type_name -> globular.awareness_graph.ArchitectureNavigationClass
+	75,  // 102: globular.awareness_graph.OntologyNavigationDescriptor.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	92,  // 103: globular.awareness_graph.OntologyNavigationDescriptor.families:type_name -> globular.awareness_graph.ArchitectureNavigationFamily
+	91,  // 104: globular.awareness_graph.OntologyNavigationDescriptor.unknown_class_fallback:type_name -> globular.awareness_graph.ArchitectureNavigationClass
+	87,  // 105: globular.awareness_graph.GetArchitectureControlSnapshotResponse.snapshot:type_name -> globular.awareness_graph.ArchitectureControlSnapshot
+	24,  // 106: globular.awareness_graph.ListArchitectureArtifactsRequest.closure_filter:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	27,  // 107: globular.awareness_graph.ListArchitectureArtifactsRequest.severity_filter:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	89,  // 108: globular.awareness_graph.ListArchitectureArtifactsResponse.index:type_name -> globular.awareness_graph.ArchitectureArtifactIndex
+	90,  // 109: globular.awareness_graph.GetArchitectureArtifactStateResponse.state:type_name -> globular.awareness_graph.ArchitectureArtifactState
+	93,  // 110: globular.awareness_graph.GetOntologyNavigationDescriptorResponse.descriptor:type_name -> globular.awareness_graph.OntologyNavigationDescriptor
+	103, // 111: globular.awareness_graph.ArchitectureMutationRefusal.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
+	29,  // 112: globular.awareness_graph.ArchitectureDispositionInput.disposition:type_name -> globular.awareness_graph.ArchitectureDisposition
+	30,  // 113: globular.awareness_graph.ArchitectureDispositionInput.reusability:type_name -> globular.awareness_graph.ArchitectureReusability
+	104, // 114: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
+	105, // 115: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.candidate:type_name -> globular.awareness_graph.ArchitectureDispositionCandidate
+	102, // 116: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
+	31,  // 117: globular.awareness_graph.ArchitectureDispositionReceipt.outcome:type_name -> globular.awareness_graph.ArchitectureDispositionOutcome
+	103, // 118: globular.awareness_graph.ArchitectureDispositionReceipt.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
+	104, // 119: globular.awareness_graph.RecordArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
+	108, // 120: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.receipt:type_name -> globular.awareness_graph.ArchitectureDispositionReceipt
+	102, // 121: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
+	32,  // 122: globular.awareness_graph.ArchitecturePromotionReceipt.outcome:type_name -> globular.awareness_graph.ArchitecturePromotionOutcome
+	103, // 123: globular.awareness_graph.ArchitecturePromotionReceipt.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
+	69,  // 124: globular.awareness_graph.PromoteArchitectAnswerRequest.proposal:type_name -> globular.awareness_graph.ProposeRequest
+	111, // 125: globular.awareness_graph.PromoteArchitectAnswerResponse.receipt:type_name -> globular.awareness_graph.ArchitecturePromotionReceipt
+	102, // 126: globular.awareness_graph.PromoteArchitectAnswerResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
+	33,  // 127: globular.awareness_graph.AwarenessGraph.Briefing:input_type -> globular.awareness_graph.BriefingRequest
+	39,  // 128: globular.awareness_graph.AwarenessGraph.Impact:input_type -> globular.awareness_graph.ImpactRequest
+	45,  // 129: globular.awareness_graph.AwarenessGraph.Query:input_type -> globular.awareness_graph.QueryRequest
+	48,  // 130: globular.awareness_graph.AwarenessGraph.Resolve:input_type -> globular.awareness_graph.ResolveRequest
+	50,  // 131: globular.awareness_graph.AwarenessGraph.Metadata:input_type -> globular.awareness_graph.MetadataRequest
+	63,  // 132: globular.awareness_graph.AwarenessGraph.Preflight:input_type -> globular.awareness_graph.PreflightRequest
+	66,  // 133: globular.awareness_graph.AwarenessGraph.EditCheck:input_type -> globular.awareness_graph.EditCheckRequest
+	69,  // 134: globular.awareness_graph.AwarenessGraph.Propose:input_type -> globular.awareness_graph.ProposeRequest
+	71,  // 135: globular.awareness_graph.AwarenessGraph.ReferenceSites:input_type -> globular.awareness_graph.ReferenceSitesRequest
+	94,  // 136: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:input_type -> globular.awareness_graph.GetArchitectureControlSnapshotRequest
+	96,  // 137: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:input_type -> globular.awareness_graph.ListArchitectureArtifactsRequest
+	98,  // 138: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:input_type -> globular.awareness_graph.GetArchitectureArtifactStateRequest
+	100, // 139: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:input_type -> globular.awareness_graph.GetOntologyNavigationDescriptorRequest
+	106, // 140: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:input_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
+	109, // 141: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:input_type -> globular.awareness_graph.RecordArchitectAnswerDispositionRequest
+	112, // 142: globular.awareness_graph.AwarenessGraph.PromoteArchitectAnswer:input_type -> globular.awareness_graph.PromoteArchitectAnswerRequest
+	34,  // 143: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
+	40,  // 144: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
+	47,  // 145: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
+	49,  // 146: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
+	52,  // 147: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
+	64,  // 148: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
+	68,  // 149: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
+	70,  // 150: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
+	73,  // 151: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
+	95,  // 152: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:output_type -> globular.awareness_graph.GetArchitectureControlSnapshotResponse
+	97,  // 153: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:output_type -> globular.awareness_graph.ListArchitectureArtifactsResponse
+	99,  // 154: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:output_type -> globular.awareness_graph.GetArchitectureArtifactStateResponse
+	101, // 155: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:output_type -> globular.awareness_graph.GetOntologyNavigationDescriptorResponse
+	107, // 156: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:output_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
+	110, // 157: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:output_type -> globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	113, // 158: globular.awareness_graph.AwarenessGraph.PromoteArchitectAnswer:output_type -> globular.awareness_graph.PromoteArchitectAnswerResponse
+	143, // [143:159] is the sub-list for method output_type
+	127, // [127:143] is the sub-list for method input_type
+	127, // [127:127] is the sub-list for extension type_name
+	127, // [127:127] is the sub-list for extension extendee
+	0,   // [0:127] is the sub-list for field type_name
 }
 
 func init() { file_awareness_graph_proto_init() }
@@ -6431,13 +11100,16 @@ func file_awareness_graph_proto_init() {
 	if File_awareness_graph_proto != nil {
 		return
 	}
+	file_awareness_graph_proto_msgTypes[54].OneofWrappers = []any{}
+	file_awareness_graph_proto_msgTypes[55].OneofWrappers = []any{}
+	file_awareness_graph_proto_msgTypes[63].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_awareness_graph_proto_rawDesc), len(file_awareness_graph_proto_rawDesc)),
-			NumEnums:      21,
-			NumMessages:   41,
+			NumEnums:      33,
+			NumMessages:   81,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

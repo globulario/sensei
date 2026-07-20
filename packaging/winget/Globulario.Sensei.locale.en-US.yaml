@@ -6,7 +6,7 @@ PublisherUrl: https://github.com/globulario
 PublisherSupportUrl: https://github.com/globulario/sensei/issues
 PackageName: Sensei
 PackageUrl: https://github.com/globulario/sensei
-License: Apache-2.0
+License: AGPL-3.0-only
 LicenseUrl: https://github.com/globulario/sensei/blob/main/LICENSE
 ShortDescription: Architectural memory for AI coding agents — invariants, forbidden fixes, and contracts.
 Description: |-

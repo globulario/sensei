@@ -198,6 +198,79 @@ code_symbols:
     language: go
     file: golang/server/code_symbol.go
     component: server.code_symbol
+  - id: globular.awareness_graph:code.go.server.controlstate
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/controlstate_rpcs.go
+    component: server.controlstate
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.controlstate.server_read_handler_must_consume_canonical_projection
+        - globular.awareness_graph:invariant.controlstate.semantic_unavailability_must_remain_response_data
+        - globular.awareness_graph:invariant.controlstate.read_surfaces_must_be_structurally_non_mutating
+  - id: globular.awareness_graph:code.go.server.controlstate
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/controlstate_provider.go
+    component: server.controlstate
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.controlstate.server_read_handler_must_consume_canonical_projection
+        - globular.awareness_graph:invariant.controlstate.repository_context_must_not_be_derived_from_cwd
+  - id: globular.awareness_graph:code.go.server.controlstate.server_GetArchitectureArtifactState
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/controlstate_rpcs.go
+    symbol: server.GetArchitectureArtifactState
+    kind: method
+    component: server.controlstate
+    risk: high
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.controlstate.artifact_class_must_not_be_caller_selected
+      tested_by:
+        - golang/server/controlstate_rpcs_test.go:TestArtifactStateRPC_PreconditionsAndNotFound
+  - id: globular.awareness_graph:code.go.server.controlstate.server_GetArchitectureControlSnapshot
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/controlstate_rpcs.go
+    symbol: server.GetArchitectureControlSnapshot
+    kind: method
+    component: server.controlstate
+    risk: high
+    annotations:
+      enforces:
+        - globular.awareness_graph:invariant.controlstate.semantic_unavailability_must_remain_response_data
+      implements:
+        - globular.awareness_graph:invariant.controlstate.server_read_handler_must_consume_canonical_projection
+      tested_by:
+        - golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_PartialIsSuccess
+  - id: globular.awareness_graph:code.go.server.controlstate.server_GetOntologyNavigationDescriptor
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/controlstate_rpcs.go
+    symbol: server.GetOntologyNavigationDescriptor
+    kind: method
+    component: server.controlstate
+    risk: medium
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.controlstate.navigation_descriptor_is_derived_from_the_canonical_registry
+      tested_by:
+        - golang/server/controlstate_rpcs_test.go:TestNavigationDescriptorRPC_NoRepositoryContextNeeded
+  - id: globular.awareness_graph:code.go.server.controlstate.server_ListArchitectureArtifacts
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/controlstate_rpcs.go
+    symbol: server.ListArchitectureArtifacts
+    kind: method
+    component: server.controlstate
+    risk: high
+    annotations:
+      implements:
+        - globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
+      tested_by:
+        - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaque
   - id: globular.awareness_graph:code.go.server.impact
     namespace: globular.awareness_graph
     language: go
@@ -4418,6 +4491,171 @@ test_symbols:
     symbol: TestRun_SummaryShowsIgnoredNonAuthority
     package: main
     language: go
+  - id: editor/vscode/src/controlPanelDecode.test.ts:SpecTitle_an_absent_optional_count_decodes_to_undefined_never_0
+    file: editor/vscode/src/controlPanelDecode.test.ts
+    symbol: SpecTitle_an_absent_optional_count_decodes_to_undefined_never_0
+    language: typescript
+    doc: "title: an absent optional count decodes to undefined, never 0"
+  - id: editor/vscode/src/controlPanelDecode.test.ts:SpecTitle_an_absent_sub_message_decodes_to_null_source_unavailable_not_an_empty_object
+    file: editor/vscode/src/controlPanelDecode.test.ts
+    symbol: SpecTitle_an_absent_sub_message_decodes_to_null_source_unavailable_not_an_empty_object
+    language: typescript
+    doc: "title: an absent sub-message decodes to null (source unavailable), not an empty object"
+  - id: editor/vscode/src/controlPanelDecode.test.ts:SpecTitle_closed_enums_decode_to_their_full_proto_name_strings
+    file: editor/vscode/src/controlPanelDecode.test.ts
+    symbol: SpecTitle_closed_enums_decode_to_their_full_proto_name_strings
+    language: typescript
+    doc: "title: closed enums decode to their full proto-name strings"
+  - id: editor/vscode/src/controlPanelDecode.test.ts:SpecTitle_proto3_optional_int64_counts_are_modeled_with_explicit_presence
+    file: editor/vscode/src/controlPanelDecode.test.ts
+    symbol: SpecTitle_proto3_optional_int64_counts_are_modeled_with_explicit_presence
+    language: typescript
+    doc: "title: proto3 optional int64 counts are modeled with explicit presence"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpBadge_renders_UNSPECIFIED_missing_as_an_explicit_Invalid_badge_never_neutral_OK
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpBadge_renders_UNSPECIFIED_missing_as_an_explicit_Invalid_badge_never_neutral_OK
+    language: typescript
+    doc: "title: cpBadge renders UNSPECIFIED/missing as an explicit Invalid badge, never neutral/OK"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpBadge_renders_the_enum_verbatim_token_class_text_label_always_present
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpBadge_renders_the_enum_verbatim_token_class_text_label_always_present
+    language: typescript
+    doc: "title: cpBadge renders the enum verbatim: token class + text label always present"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpCountText_renders_unknown_as_an_em_dash_and_observed_zero_as_0
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpCountText_renders_unknown_as_an_em_dash_and_observed_zero_as_0
+    language: typescript
+    doc: "title: cpCountText renders unknown as an em dash and observed zero as 0"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpCount_preserves_unknown_versus_zero
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpCount_preserves_unknown_versus_zero
+    language: typescript
+    doc: "title: cpCount preserves unknown-versus-zero"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpEnumLabel_gives_every_badge_a_human_text_label_color_never_sole_carrier
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpEnumLabel_gives_every_badge_a_human_text_label_color_never_sole_carrier
+    language: typescript
+    doc: "title: cpEnumLabel gives every badge a human text label (color never sole carrier)"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpEnumToken_strips_the_known_prefixes_to_a_bare_CSS_token
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpEnumToken_strips_the_known_prefixes_to_a_bare_CSS_token
+    language: typescript
+    doc: "title: cpEnumToken strips the known prefixes to a bare CSS token"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpIsUnspecified_flags_missing_and_UNSPECIFIED_values_as_invalid
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpIsUnspecified_flags_missing_and_UNSPECIFIED_values_as_invalid
+    language: typescript
+    doc: "title: cpIsUnspecified flags missing and *_UNSPECIFIED values as invalid"
+  - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpSeverityCount_unknown_when_the_source_was_not_observed_real_0_when_observed
+    file: editor/vscode/src/controlPanelFmt.test.ts
+    symbol: SpecTitle_cpSeverityCount_unknown_when_the_source_was_not_observed_real_0_when_observed
+    language: typescript
+    doc: "title: cpSeverityCount: unknown when the source was not observed, real 0 when observed"
+  - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_a_dimension_with_an_UNSPECIFIED_missing_state_renders_Invalid_never_neutral_OK
+    file: editor/vscode/src/controlPanelInspector.test.ts
+    symbol: SpecTitle_a_dimension_with_an_UNSPECIFIED_missing_state_renders_Invalid_never_neutral_OK
+    language: typescript
+    doc: "title: a dimension with an UNSPECIFIED/missing state renders Invalid, never neutral/OK"
+  - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_a_non_applicable_dimension_is_NEVER_rendered_applicable_only
+    file: editor/vscode/src/controlPanelInspector.test.ts
+    symbol: SpecTitle_a_non_applicable_dimension_is_NEVER_rendered_applicable_only
+    language: typescript
+    doc: "title: a non-applicable dimension is NEVER rendered (applicable-only)"
+  - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_an_applicable_dimension_renders_owner_fields_verbatim_state_from_the_enum
+    file: editor/vscode/src/controlPanelInspector.test.ts
+    symbol: SpecTitle_an_applicable_dimension_renders_owner_fields_verbatim_state_from_the_enum
+    language: typescript
+    doc: "title: an applicable dimension renders owner fields verbatim, state from the enum"
+  - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_cpIdList_renders_ids_verbatim_empty_is_none_observed_never_a_synthesized_value
+    file: editor/vscode/src/controlPanelInspector.test.ts
+    symbol: SpecTitle_cpIdList_renders_ids_verbatim_empty_is_none_observed_never_a_synthesized_value
+    language: typescript
+    doc: "title: cpIdList renders ids verbatim; empty is \"none observed\", never a synthesized value"
+  - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_feedback_renders_EXACT_SCOPE_provenance_only_never_a_repo_wide_scan_or_authority
+    file: editor/vscode/src/controlPanelInspector.test.ts
+    symbol: SpecTitle_feedback_renders_EXACT_SCOPE_provenance_only_never_a_repo_wide_scan_or_authority
+    language: typescript
+    doc: "title: feedback renders EXACT-SCOPE provenance only, never a repo-wide scan or authority"
+  - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_relationships_focus_graph_render_an_honest_unavailable_placeholder_no_legacy_graph
+    file: editor/vscode/src/controlPanelInspector.test.ts
+    symbol: SpecTitle_relationships_focus_graph_render_an_honest_unavailable_placeholder_no_legacy_graph
+    language: typescript
+    doc: "title: relationships / focus graph render an honest unavailable placeholder (no legacy graph)"
+  - id: editor/vscode/src/controlPanelMutation.test.ts:SpecTitle_a_receipt_NEVER_produces_an_optimistic_lifecycle_only_the_owner_refresh_does
+    file: editor/vscode/src/controlPanelMutation.test.ts
+    symbol: SpecTitle_a_receipt_NEVER_produces_an_optimistic_lifecycle_only_the_owner_refresh_does
+    language: typescript
+    doc: "title: a receipt NEVER produces an optimistic lifecycle — only the owner refresh does"
+  - id: editor/vscode/src/controlPanelMutation.test.ts:SpecTitle_a_refusal_never_yields_a_committed_state_and_is_never_optimistic
+    file: editor/vscode/src/controlPanelMutation.test.ts
+    symbol: SpecTitle_a_refusal_never_yields_a_committed_state_and_is_never_optimistic
+    language: typescript
+    doc: "title: a refusal never yields a committed state and is never optimistic"
+  - id: editor/vscode/src/controlPanelMutation.test.ts:SpecTitle_a_stale_unavailable_owner_refresh_after_a_successful_commit_is_shown_honestly_not_optimistically
+    file: editor/vscode/src/controlPanelMutation.test.ts
+    symbol: SpecTitle_a_stale_unavailable_owner_refresh_after_a_successful_commit_is_shown_honestly_not_optimistically
+    language: typescript
+    doc: "title: a stale/unavailable owner refresh after a successful commit is shown honestly, not optimistically"
+  - id: editor/vscode/src/controlPanelMutation.test.ts:SpecTitle_commit_requires_an_explicit_confirmation_and_happens_exactly_once
+    file: editor/vscode/src/controlPanelMutation.test.ts
+    symbol: SpecTitle_commit_requires_an_explicit_confirmation_and_happens_exactly_once
+    language: typescript
+    doc: "title: commit requires an explicit confirmation and happens exactly once"
+  - id: editor/vscode/src/controlPanelMutation.test.ts:SpecTitle_exact_replay_is_the_server_truth_mutation_applied_false_reflected_verbatim
+    file: editor/vscode/src/controlPanelMutation.test.ts
+    symbol: SpecTitle_exact_replay_is_the_server_truth_mutation_applied_false_reflected_verbatim
+    language: typescript
+    doc: "title: exact replay is the server truth (mutation_applied=false), reflected verbatim"
+  - id: editor/vscode/src/controlPanelMutation.test.ts:SpecTitle_the_displayed_lifecycle_comes_from_the_refreshed_owner_projection
+    file: editor/vscode/src/controlPanelMutation.test.ts
+    symbol: SpecTitle_the_displayed_lifecycle_comes_from_the_refreshed_owner_projection
+    language: typescript
+    doc: "title: the displayed lifecycle comes from the refreshed owner projection"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_Phase_9_4_authority_path_is_unchanged_existing_consumers_compatible
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_Phase_9_4_authority_path_is_unchanged_existing_consumers_compatible
+    language: typescript
+    doc: "title: Phase 9.4 authority path is unchanged (existing consumers compatible)"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_legacy_semantic_tables_remain_quarantined_to_the_legacy_dashboard_module
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_legacy_semantic_tables_remain_quarantined_to_the_legacy_dashboard_module
+    language: typescript
+    doc: "title: legacy semantic tables remain quarantined to the legacy dashboard module"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_the_control_panel_imposes_no_client_severity_or_closure_ordering
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_the_control_panel_imposes_no_client_severity_or_closure_ordering
+    language: typescript
+    doc: "title: the control panel imposes no client severity or closure ordering"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_the_control_panel_is_read_only_EXCEPT_the_single_guarded_mutation_family_CP5
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_the_control_panel_is_read_only_EXCEPT_the_single_guarded_mutation_family_CP5
+    language: typescript
+    doc: "title: the control panel is read-only EXCEPT the single guarded mutation family (CP5)"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_the_control_panel_maintains_no_ontology_family_table_families_come_from_the_descriptor
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_the_control_panel_maintains_no_ontology_family_table_families_come_from_the_descriptor
+    language: typescript
+    doc: "title: the control panel maintains no ontology-family table (families come from the descriptor)"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_the_control_panel_navigation_is_descriptor_driven_and_state_is_server_sourced
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_the_control_panel_navigation_is_descriptor_driven_and_state_is_server_sourced
+    language: typescript
+    doc: "title: the control panel navigation is descriptor-driven, and state is server-sourced"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_the_control_panel_re_introduces_no_legacy_semantic_table
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_the_control_panel_re_introduces_no_legacy_semantic_table
+    language: typescript
+    doc: "title: the control panel re-introduces no legacy semantic table"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_the_guarded_workflow_is_literal_prepare_then_a_SEPARATE_confirmed_commit_no_auto_chaining
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_the_guarded_workflow_is_literal_prepare_then_a_SEPARATE_confirmed_commit_no_auto_chaining
+    language: typescript
+    doc: "title: the guarded workflow is literal: prepare then a SEPARATE confirmed commit, no auto-chaining"
+  - id: editor/vscode/src/controlPanelTables.test.ts:SpecTitle_the_inspector_renders_owner_ArtifactState_fields_applicable_only_with_no_client_inference
+    file: editor/vscode/src/controlPanelTables.test.ts
+    symbol: SpecTitle_the_inspector_renders_owner_ArtifactState_fields_applicable_only_with_no_client_inference
+    language: typescript
+    doc: "title: the inspector renders owner ArtifactState fields, applicable-only, with no client inference"
   - id: editor/vscode/src/graphAuthority.test.ts:SpecTitle_assessMetadataAuthority_marks_empty_graph_non_authoritative
     file: editor/vscode/src/graphAuthority.test.ts
     symbol: SpecTitle_assessMetadataAuthority_marks_empty_graph_non_authoritative
@@ -4528,6 +4766,11 @@ test_symbols:
     symbol: SpecTitle_vendored_proto_includes_Phase_2_query_classes_and_metadata_counts
     language: typescript
     doc: "title: vendored proto includes Phase 2 query classes and metadata counts"
+  - id: editor/vscode/src/protoContract.test.ts:SpecTitle_vendored_proto_includes_the_Phase_9_5_control_panel_read_surface
+    file: editor/vscode/src/protoContract.test.ts
+    symbol: SpecTitle_vendored_proto_includes_the_Phase_9_5_control_panel_read_surface
+    language: typescript
+    doc: "title: vendored proto includes the Phase 9.5 control-panel read surface"
   - id: editor/vscode/src/protoContract.test.ts:SpecTitle_vendored_proto_matches_canonical_proto
     file: editor/vscode/src/protoContract.test.ts
     symbol: SpecTitle_vendored_proto_matches_canonical_proto
@@ -7370,6 +7613,426 @@ test_symbols:
     symbol: TestValidateRepositoryTaskBinding
     package: completion
     language: go
+  - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_AttentionFailClosed
+    file: golang/architecture/controlstate/acceptance_repair_test.go
+    symbol: TestAccept_AttentionFailClosed
+    package: controlstate
+    language: go
+    doc: "Item 5 — a graph-authority attention construction error propagates through BuildArtifactState; an\nabsolute attention identity is rejected at construction."
+  - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_AuthorityAndCatalogBinding
+    file: golang/architecture/controlstate/acceptance_repair_test.go
+    symbol: TestAccept_AuthorityAndCatalogBinding
+    package: controlstate
+    language: go
+    doc: "Item 3 — a snapshot authority/catalog identity mismatch is rejected before tallying; a degraded\ncatalog source whose identity is not the snapshot identity is rejected."
+  - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_CatalogArtifactIdentityCoherence
+    file: golang/architecture/controlstate/acceptance_repair_test.go
+    symbol: TestAccept_CatalogArtifactIdentityCoherence
+    package: controlstate
+    language: go
+    doc: "Item 2 — a fabricated summary canonical class is rejected; an empty summary availability is\nrejected; an ambiguous observed-class set stays unclassified/unknown (and is accepted only under\nthe unclassified class)."
+  - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_DegradedBlockerCannotRedirectNextAction
+    file: golang/architecture/controlstate/acceptance_repair_test.go
+    symbol: TestAccept_DegradedBlockerCannotRedirectNextAction
+    package: controlstate
+    language: go
+    doc: "Item 1 — a degraded definitive blocker cannot redirect the next action away from the reviewed\npolicy owner."
+  - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_DeterminismNoMutationNoCertification
+    file: golang/architecture/controlstate/acceptance_repair_test.go
+    symbol: TestAccept_DeterminismNoMutationNoCertification
+    package: controlstate
+    language: go
+    doc: "Item 6 — determinism and no-mutation remain intact; controlstate never certifies (Phase 9.4 /\nCorrectnessCertified unchanged: projections stay non-authoritative and carry no certification)."
+  - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_FeedbackPayloadCoherence
+    file: golang/architecture/controlstate/acceptance_repair_test.go
+    symbol: TestAccept_FeedbackPayloadCoherence
+    package: controlstate
+    language: go
+    doc: "Item 4 — an unavailable feedback source is retained in the ledger but its payload is withheld; an\nunavailable source cannot claim feedback_available."
+  - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_UnavailableDimensionAdmitsNothing
+    file: golang/architecture/controlstate/acceptance_repair_test.go
+    symbol: TestAccept_UnavailableDimensionAdmitsNothing
+    package: controlstate
+    language: go
+    doc: "Item 1 — an untrustworthy (unavailable) dimension source may admit no evidence, question, or\nnext-action; a degraded source may not redirect the next action."
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_AssessableClosesWhenAllSatisfied
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_AssessableClosesWhenAllSatisfied
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_ExplicitlyNotApplicable
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_ExplicitlyNotApplicable
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_LifecycleNeverDefaultsActive
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_LifecycleNeverDefaultsActive
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_MissingSourceIsUnknownNotClosed
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_MissingSourceIsUnknownNotClosed
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_OpenBlockerDominatesDegraded
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_OpenBlockerDominatesDegraded
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_StaleAuthorityCannotClose
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_StaleAuthorityCannotClose
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_UnknownAndAmbiguousClassesVisibleUnknown
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_UnknownAndAmbiguousClassesVisibleUnknown
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_UnsupportedIsUnknownNotNotApplicable
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestArtifactState_UnsupportedIsUnknownNotNotApplicable
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestResolveCanonicalClass_CompatibleMostSpecificWins
+    file: golang/architecture/controlstate/artifactstate_test.go
+    symbol: TestResolveCanonicalClass_CompatibleMostSpecificWins
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_AllFamiliesConstructable
+    file: golang/architecture/controlstate/attention_test.go
+    symbol: TestAttention_AllFamiliesConstructable
+    package: controlstate
+    language: go
+    doc: "Every frozen attention family has an executable typed construction path."
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_CriticalNeverDowngraded
+    file: golang/architecture/controlstate/attention_test.go
+    symbol: TestAttention_CriticalNeverDowngraded
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_DeterministicDedup
+    file: golang/architecture/controlstate/attention_test.go
+    symbol: TestAttention_DeterministicDedup
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_DeterministicIdentityAndOrder
+    file: golang/architecture/controlstate/attention_test.go
+    symbol: TestAttention_DeterministicIdentityAndOrder
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_DimensionPreservesSourceProvenance
+    file: golang/architecture/controlstate/attention_test.go
+    symbol: TestAttention_DimensionPreservesSourceProvenance
+    package: controlstate
+    language: go
+    doc: "Dimension attention preserves the underlying dimension source provenance (not synthetic)."
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_UnknownClassificationVisibleFailClosed
+    file: golang/architecture/controlstate/attention_test.go
+    symbol: TestAttention_UnknownClassificationVisibleFailClosed
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/authority_ledger_test.go:TestLedger_IntegrityFailedExposesNoTrustedRows
+    file: golang/architecture/controlstate/authority_ledger_test.go
+    symbol: TestLedger_IntegrityFailedExposesNoTrustedRows
+    package: controlstate
+    language: go
+    doc: "Proof: an INTEGRITY-FAILED authority can never back an available enumeration; with the\nenumeration invalid, no rows are exposed and the index is not available."
+  - id: golang/architecture/controlstate/authority_ledger_test.go:TestLedger_StaleAuthorityPartialWithRows
+    file: golang/architecture/controlstate/authority_ledger_test.go
+    symbol: TestLedger_StaleAuthorityPartialWithRows
+    package: controlstate
+    language: go
+    doc: "Proof: a STALE authority (degraded required source) yields a PARTIAL index that still exposes\nthe known rows — never AVAILABLE, and never an empty page that discards known rows."
+  - id: golang/architecture/controlstate/authority_ledger_test.go:TestLedger_TruncatedDiscoveryKeepsKnownRows
+    file: golang/architecture/controlstate/authority_ledger_test.go
+    symbol: TestLedger_TruncatedDiscoveryKeepsKnownRows
+    package: controlstate
+    language: go
+    doc: "Proof: a degraded unknown-class discovery (truncation) keeps known rows visible with a PARTIAL\nprojection and the explicit typed reason."
+  - id: golang/architecture/controlstate/authority_ledger_test.go:TestLedger_UnobservedAuthorityNeverAvailable
+    file: golang/architecture/controlstate/authority_ledger_test.go
+    symbol: TestLedger_UnobservedAuthorityNeverAvailable
+    package: controlstate
+    language: go
+    doc: "Proof: an UNOBSERVED authority can never produce an available catalog/index, and the expected\nseed digest never becomes an observed catalog authority identity."
+  - id: golang/architecture/controlstate/catalog_test.go:TestBuildCatalogSnapshot_ComposesFromTypedObservations
+    file: golang/architecture/controlstate/catalog_test.go
+    symbol: TestBuildCatalogSnapshot_ComposesFromTypedObservations
+    package: controlstate
+    language: go
+    doc: "The catalog builder composes registry-resolved rows from typed observations: canonical class\nfrom OBSERVED classes, lifecycle via the canonical vocabulary, honest closure per coverage."
+  - id: golang/architecture/controlstate/catalog_test.go:TestBuildCatalogSnapshot_FailClosedAndDeterministic
+    file: golang/architecture/controlstate/catalog_test.go
+    symbol: TestBuildCatalogSnapshot_FailClosedAndDeterministic
+    package: controlstate
+    language: go
+    doc: "The builder fails closed: an empty node IRI, a missing scope identity, and a duplicate node\nare rejected; determinism holds across rebuilds."
+  - id: golang/architecture/controlstate/catalog_test.go:TestBuildCatalogSnapshot_ResolutionStaysInRegistry
+    file: golang/architecture/controlstate/catalog_test.go
+    symbol: TestBuildCatalogSnapshot_ResolutionStaysInRegistry
+    package: controlstate
+    language: go
+    doc: "An ambiguous observed-class pair resolves to the unclassified sentinel (never a fabricated\nconcrete class), and a dual-typed meta principle resolves by precedence — both via the\nregistry, never via the observer."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_AnonymousSourceRejected
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_AnonymousSourceRejected
+    package: controlstate
+    language: go
+    doc: "Item 1 — an anonymous available/degraded SourceStatus is rejected; a degraded source without a\ntyped reason is rejected; an available source with an identity and no reason is accepted."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_AttentionBuilderFailsClosed
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_AttentionBuilderFailsClosed
+    package: controlstate
+    language: go
+    doc: "Item 7 — the attention builder is error-returning and fails closed: a relevant contradiction\nfinding with no identity fails construction rather than being silently omitted. BuildArtifactState\nwires this error through (see line 202: `return ArtifactState{}, fmt.Errorf(\"attention ...\")`)."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_AuthorityIdentityOmission
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_AuthorityIdentityOmission
+    package: controlstate
+    language: go
+    doc: "Item 2 — an observed authority missing its identity is rejected."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_CatalogSourceIdentityMismatch
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_CatalogSourceIdentityMismatch
+    package: controlstate
+    language: go
+    doc: "Item 5 — a catalog source whose identity is not the snapshot identity is rejected."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_ContradictionOwnerMismatch
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_ContradictionOwnerMismatch
+    package: controlstate
+    language: go
+    doc: "Item 3 — a contradiction source whose owner is not the policy owner is rejected (no fallback)."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_DegradedRelevantContradictionOpenPartial
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_DegradedRelevantContradictionOpenPartial
+    package: controlstate
+    language: go
+    doc: "Item 3 — a degraded contradiction source carrying a relevant finding stays OPEN while the\nprojection is PARTIAL (a degraded relevant contradiction is a definitive blocker)."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_IdentityColonFormsAcceptedAbsoluteRejected
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_IdentityColonFormsAcceptedAbsoluteRejected
+    package: controlstate
+    language: go
+    doc: "Item 8 — colon-bearing identities are accepted; Unix/Windows-drive/UNC absolute forms rejected."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_InvalidAttentionAfter50Rejected
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_InvalidAttentionAfter50Rejected
+    package: controlstate
+    language: go
+    doc: "Item 6/7 — a malformed attention item after the truncation cap (index 50) still rejects the\nsnapshot (validated before dedup/truncation, never silently dropped)."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_RegistryPolicyClosure
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_RegistryPolicyClosure
+    package: controlstate
+    language: go
+    doc: "Item 4 — registry policy closure: duplicate policy id, unknown lifecycle policy, and per-policy\nclosure (duplicate dimensions, missing owner/next-action, exactly one contradiction dimension)."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_UnavailableCatalogRowsNotTallied
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_UnavailableCatalogRowsNotTallied
+    package: controlstate
+    language: go
+    doc: "Item 5 — a degraded/unavailable catalog is never trusted to expose or tally rows."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_UnavailableOptionalSourceRetained
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_UnavailableOptionalSourceRetained
+    package: controlstate
+    language: go
+    doc: "Item 6 — a supplied but unavailable optional (task/completion) source is retained in the ledger\neven though its payload is withheld."
+  - id: golang/architecture/controlstate/closure_repair_test.go:TestClosure_UnobservedAuthorityRejected
+    file: golang/architecture/controlstate/closure_repair_test.go
+    symbol: TestClosure_UnobservedAuthorityRejected
+    package: controlstate
+    language: go
+    doc: "Item 2 — Current/Integrity cannot be asserted while unobserved (artifact bundle + snapshot)."
+  - id: golang/architecture/controlstate/determinism_test.go:TestDeterminism_ShuffledInputs
+    file: golang/architecture/controlstate/determinism_test.go
+    symbol: TestDeterminism_ShuffledInputs
+    package: controlstate
+    language: go
+    doc: "Shuffling every input-order axis must not change any projection digest."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_AbsoluteFeedbackIdentityRefused
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_AbsoluteFeedbackIdentityRefused
+    package: controlstate
+    language: go
+    doc: "Absolute feedback identities are refused across Windows, UNC, and Unix."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_AssessmentPolicyBinding
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_AssessmentPolicyBinding
+    package: controlstate
+    language: go
+    doc: "Assessment-policy existence + class binding is enforced by the registry validator."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_CatalogPrimaryAndDigest
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_CatalogPrimaryAndDigest
+    package: controlstate
+    language: go
+    doc: "The catalog must carry a primary source and the exact registry digest."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_CentralSourceValidation
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_CentralSourceValidation
+    package: controlstate
+    language: go
+    doc: "Central SourceStatus validation: an off-vocabulary impact/availability is rejected everywhere."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_ContradictionMatrix
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_ContradictionMatrix
+    package: controlstate
+    language: go
+    doc: "Contradiction owner + availability matrix."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_DegradedDefinitiveBlockerStaysOpen
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_DegradedDefinitiveBlockerStaysOpen
+    package: controlstate
+    language: go
+    doc: "A degraded source carrying a definitive blocker stays OPEN (never downgraded to degraded)."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_FailClosedAttentionAndSeed
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_FailClosedAttentionAndSeed
+    package: controlstate
+    language: go
+    doc: "Attention construction fails closed on a missing field; the seed-verification family exists."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_GraphAuthorityIdentityCoherence
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_GraphAuthorityIdentityCoherence
+    package: controlstate
+    language: go
+    doc: "Graph-authority identity coherence: the observation's authority identity must equal the\nartifact's graph-authority identity."
+  - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_SnapshotEnvelopeValidation
+    file: golang/architecture/controlstate/final_repair_test.go
+    symbol: TestFinal_SnapshotEnvelopeValidation
+    package: controlstate
+    language: go
+    doc: "Snapshot envelope validation: an observed envelope missing owner/schema, or a negative\navailable count, is rejected."
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_CursorReplayAgainstDifferentSnapshotFails
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestArtifactIndex_CursorReplayAgainstDifferentSnapshotFails
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_GlobalDuplicateSplitAcrossPageBoundary
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestArtifactIndex_GlobalDuplicateSplitAcrossPageBoundary
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_PageSizeFailsClosedAboveMax
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestArtifactIndex_PageSizeFailsClosedAboveMax
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_ScopeAndFilterValidation
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestArtifactIndex_ScopeAndFilterValidation
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_StablePaginationAndCursor
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestArtifactIndex_StablePaginationAndCursor
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestControlSnapshot_MissingAuthoritySourceDegradesAvailability
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestControlSnapshot_MissingAuthoritySourceDegradesAvailability
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestControlSnapshot_MissingSourceIsUnknownNotZero
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestControlSnapshot_MissingSourceIsUnknownNotZero
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestControlSnapshot_NoFeedbackCollectionNoScore
+    file: golang/architecture/controlstate/index_snapshot_test.go
+    symbol: TestControlSnapshot_NoFeedbackCollectionNoScore
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_Deterministic
+    file: golang/architecture/controlstate/navigation_test.go
+    symbol: TestBuildNavigationDescriptor_Deterministic
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_MechanicallyDerived
+    file: golang/architecture/controlstate/navigation_test.go
+    symbol: TestBuildNavigationDescriptor_MechanicallyDerived
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_MetaPrincipleUnderPatterns
+    file: golang/architecture/controlstate/navigation_test.go
+    symbol: TestBuildNavigationDescriptor_MetaPrincipleUnderPatterns
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_UnknownFallbackVisibleAndUnknown
+    file: golang/architecture/controlstate/navigation_test.go
+    symbol: TestBuildNavigationDescriptor_UnknownFallbackVisibleAndUnknown
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/registry_test.go:TestDefaultRegistry_ValidAndDeterministic
+    file: golang/architecture/controlstate/registry_test.go
+    symbol: TestDefaultRegistry_ValidAndDeterministic
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/registry_test.go:TestRegistry_AllDashboardClassesRegistered
+    file: golang/architecture/controlstate/registry_test.go
+    symbol: TestRegistry_AllDashboardClassesRegistered
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/registry_test.go:TestRegistry_ExactlyFourAssessableClasses
+    file: golang/architecture/controlstate/registry_test.go
+    symbol: TestRegistry_ExactlyFourAssessableClasses
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/registry_test.go:TestRegistry_UnsupportedIsNotNotApplicable
+    file: golang/architecture/controlstate/registry_test.go
+    symbol: TestRegistry_UnsupportedIsNotNotApplicable
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/registry_test.go:TestRegistry_ValidationRejectsMalformed
+    file: golang/architecture/controlstate/registry_test.go
+    symbol: TestRegistry_ValidationRejectsMalformed
+    package: controlstate
+    language: go
+  - id: golang/architecture/controlstate/repair_test.go:TestRepair_CatalogScopeIsolation
+    file: golang/architecture/controlstate/repair_test.go
+    symbol: TestRepair_CatalogScopeIsolation
+    package: controlstate
+    language: go
+    doc: "§12.16-.19 — catalog scope isolation."
+  - id: golang/architecture/controlstate/repair_test.go:TestRepair_ContradictionSourceHonesty
+    file: golang/architecture/controlstate/repair_test.go
+    symbol: TestRepair_ContradictionSourceHonesty
+    package: controlstate
+    language: go
+    doc: "§12.6-.8 — contradiction absence is honest."
+  - id: golang/architecture/controlstate/repair_test.go:TestRepair_DimensionSourceContract
+    file: golang/architecture/controlstate/repair_test.go
+    symbol: TestRepair_DimensionSourceContract
+    package: controlstate
+    language: go
+    doc: "§12.1-.4 — the source-bound dimension contract rejects ownerless/mismatched/contradictory\nobservations, and a degraded/unavailable source can never close."
+  - id: golang/architecture/controlstate/repair_test.go:TestRepair_IdentityCoherence
+    file: golang/architecture/controlstate/repair_test.go
+    symbol: TestRepair_IdentityCoherence
+    package: controlstate
+    language: go
+    doc: "§12.14-.15 — identity/class-resolution mismatch + padded identity are rejected."
+  - id: golang/architecture/controlstate/repair_test.go:TestRepair_NoLeaks
+    file: golang/architecture/controlstate/repair_test.go
+    symbol: TestRepair_NoLeaks
+    package: controlstate
+    language: go
+    doc: "§12.31-.32 — no raw error or answer text, and no absolute repository root, is serialized."
+  - id: golang/architecture/controlstate/repair_test.go:TestRepair_SecondaryFailureCannotManufactureUnavailable
+    file: golang/architecture/controlstate/repair_test.go
+    symbol: TestRepair_SecondaryFailureCannotManufactureUnavailable
+    package: controlstate
+    language: go
+    doc: "§12.13 — an arbitrary secondary failure cannot manufacture unavailable (only a bad primary can)."
+  - id: golang/architecture/controlstate/repair_test.go:TestRepair_SourceLedgerCompleteness
+    file: golang/architecture/controlstate/repair_test.go
+    symbol: TestRepair_SourceLedgerCompleteness
+    package: controlstate
+    language: go
+    doc: "§12.9-.10 — every dimension/lifecycle/feedback source appears in the ledger."
   - id: golang/architecture/convergence/convergence_test.go:TestABAStateCycleIsOscillation
     file: golang/architecture/convergence/convergence_test.go
     symbol: TestABAStateCycleIsOscillation
@@ -11685,6 +12348,18 @@ test_symbols:
     package: coverage
     language: go
     doc: "TestBriefingFeedbackOwnershipBoundary proves the single-owner boundary statically: the server\nand tasksession consume the canonical briefingfeedback owner and never reimplement promotion\nverification or read promotion artifacts directly."
+  - id: golang/coverage/controlstate_ownership_test.go:TestControlStateOwnershipBoundary
+    file: golang/coverage/controlstate_ownership_test.go
+    symbol: TestControlStateOwnershipBoundary
+    package: coverage
+    language: go
+    doc: "TestControlStateOwnershipBoundary proves the Phase 9.5 owner boundary statically: the\ncontrolstate package is transport-neutral (imports no server/protobuf/editor/CLI/os) and it is\nthe single semantic composition owner — no consumer reimplements its classification and it\nnever uses closure.Report.Verdict as artifact closure."
+  - id: golang/coverage/controlstate_ownership_test.go:TestControlStateTransportOwnershipBoundary
+    file: golang/coverage/controlstate_ownership_test.go
+    symbol: TestControlStateTransportOwnershipBoundary
+    package: coverage
+    language: go
+    doc: "TestControlStateTransportOwnershipBoundary proves the Checkpoint-2 transport boundary\nstatically:\n\n  - the pure mapper (golang/server/controlstateproto) imports ONLY controlstate, the generated\n    protobuf package, gRPC-free stdlib — no graph stores, governed-YAML readers, mutation\n    owners, or certification writers;\n  - the mapper and server define no second semantic vocabulary (no closure/severity/lifecycle\n    mapping tables outside the controlstate owner);\n  - the read-only store interface the handlers consume has NO write method (structural\n    no-mutation proof for the control-panel read surfaces)."
   - id: golang/coverage/phase8_1b_contract_test.go:TestPhase81bGovernedContractPresent
     file: golang/coverage/phase8_1b_contract_test.go
     symbol: TestPhase81bGovernedContractPresent
@@ -11697,6 +12372,18 @@ test_symbols:
     package: coverage
     language: go
     doc: "TestPhase8GovernedContractPresent is the govern-first gate for Phase 8 (terminal\narchitectural closure). It proves the Phase-8 governed contract (Slice 8.0) is\nauthored in the canonical source YAML — every invariant, failure mode, and\nforbidden fix is present and schema-valid (id + title) — and that the Phase-8\nauthority surfaces are high-risk covered so a future Phase-8 edit requires a\nbriefing/preflight. The contract exists before any Phase-8 implementation."
+  - id: golang/coverage/phase9_5_contract_test.go:TestPhase95Checkpoint2GovernedContractPresent
+    file: golang/coverage/phase9_5_contract_test.go
+    symbol: TestPhase95Checkpoint2GovernedContractPresent
+    package: coverage
+    language: go
+    doc: "TestPhase95Checkpoint2GovernedContractPresent is the govern-first gate for Phase 9.5\nCheckpoint 2 (read-only protobuf + server surfaces). Every Checkpoint-2 invariant, failure\nmode, and forbidden fix is authored + schema-valid in the canonical source YAML, and the\nCheckpoint-2 rulings section exists in the opening contract — before the transport is built.\nTwo directive items are satisfied by existing Checkpoint-1 records and are asserted here under\ntheir canonical IDs: server reclassification (controlstate.server_or_editor_reclassifies_\ncontrol_state) and cwd/workspace repository authority (phase9_5_derive_repository_identity_\nfrom_cwd_or_workspace)."
+  - id: golang/coverage/phase9_5_contract_test.go:TestPhase95GovernedContractPresent
+    file: golang/coverage/phase9_5_contract_test.go
+    symbol: TestPhase95GovernedContractPresent
+    package: coverage
+    language: go
+    doc: "TestPhase95GovernedContractPresent is the govern-first gate for Phase 9.5 Checkpoint 1 (the\ncanonical architectural-state projection owner). It proves every Checkpoint-1 invariant,\nfailure mode, and forbidden fix is authored + schema-valid in the canonical source YAML, the\nopening contract exists, and the controlstate surface is high-risk covered — all before the\nowner is exercised."
   - id: golang/coverage/phase9_contract_test.go:TestPhase9GovernedContractPresent
     file: golang/coverage/phase9_contract_test.go
     symbol: TestPhase9GovernedContractPresent
@@ -14029,6 +14716,42 @@ test_symbols:
     symbol: TestQueryEnumsExist
     package: awarenesspb_test
     language: go
+  - id: golang/pb/controlpanel_contract_test.go:TestBriefingFeedbackField7Unchanged
+    file: golang/pb/controlpanel_contract_test.go
+    symbol: TestBriefingFeedbackField7Unchanged
+    package: awarenesspb_test
+    language: go
+    doc: "Phase 9.6 compatibility: BriefingResponse.feedback stays FIELD 7 with the same message type.\nRenumbering/retyping an existing field silently corrupts deployed clients."
+  - id: golang/pb/controlpanel_contract_test.go:TestControlPanelEnums_UnspecifiedIsZero
+    file: golang/pb/controlpanel_contract_test.go
+    symbol: TestControlPanelEnums_UnspecifiedIsZero
+    package: awarenesspb_test
+    language: go
+    doc: "Every closed-vocabulary control-panel enum reserves 0 for UNSPECIFIED (which validation always\nrejects — it never means unknown; unknown is an explicit value)."
+  - id: golang/pb/controlpanel_contract_test.go:TestControlPanelRequests_NoClientSuppliedSemanticVerdict
+    file: golang/pb/controlpanel_contract_test.go
+    symbol: TestControlPanelRequests_NoClientSuppliedSemanticVerdict
+    package: awarenesspb_test
+    language: go
+    doc: "Transport-boundary proof: no inbound request (transitively) accepts an AttentionItem or any\nother semantic-verdict message. Every attention record a client sees originates from validated\ncontrolstate construction on the server."
+  - id: golang/pb/controlpanel_contract_test.go:TestControlPanelRequests_NoForbiddenFields
+    file: golang/pb/controlpanel_contract_test.go
+    symbol: TestControlPanelRequests_NoForbiddenFields
+    package: awarenesspb_test
+    language: go
+    doc: "No request field may name a filesystem root, working directory, workspace folder, canonical\nclass, or search text. (ListArchitectureArtifactsRequest.class_filter is a VISIBILITY filter\nover already-resolved rows, explicitly allowed; canonical_class is not.)"
+  - id: golang/pb/controlpanel_contract_test.go:TestControlPanelResponses_NoCertificationOrScore
+    file: golang/pb/controlpanel_contract_test.go
+    symbol: TestControlPanelResponses_NoCertificationOrScore
+    package: awarenesspb_test
+    language: go
+    doc: "Response models carry no correctness-certification claim or synthetic score (Phase 6 stays the\nonly correctness certifier; the panel never launders a score)."
+  - id: golang/pb/controlpanel_contract_test.go:TestNavigationDescriptorRequest_IsEmpty
+    file: golang/pb/controlpanel_contract_test.go
+    symbol: TestNavigationDescriptorRequest_IsEmpty
+    package: awarenesspb_test
+    language: go
+    doc: "The navigation-descriptor request is EMPTY: registry-derived, no filesystem/repository input."
   - id: golang/propose/propose_test.go:TestDeriveID
     file: golang/propose/propose_test.go
     symbol: TestDeriveID
@@ -14329,6 +15052,24 @@ test_symbols:
     symbol: TestIsTestFile
     package: scipingest
     language: go
+  - id: golang/seedmeta/authority_test.go:TestAdmitLiveMarker_ExpectedNeverFallbackIdentity
+    file: golang/seedmeta/authority_test.go
+    symbol: TestAdmitLiveMarker_ExpectedNeverFallbackIdentity
+    package: seedmeta
+    language: go
+    doc: "The expected digest is never substituted as an observed identity: with the SAME expected marker,\nan absent live marker is unobserved with an EMPTY identity — the expected digest does not leak in."
+  - id: golang/seedmeta/authority_test.go:TestAdmitLiveMarker_LegitimateEquality
+    file: golang/seedmeta/authority_test.go
+    symbol: TestAdmitLiveMarker_LegitimateEquality
+    package: seedmeta
+    language: go
+    doc: "Legitimate equality: when the independent discovery proves the expected digest, the identity IS\nthe (equal) live digest — that is discovery, not substitution."
+  - id: golang/seedmeta/authority_test.go:TestAdmitLiveMarker_Matrix
+    file: golang/seedmeta/authority_test.go
+    symbol: TestAdmitLiveMarker_Matrix
+    package: seedmeta
+    language: go
+    doc: "The required REAL-VERIFIER matrix: AdmitLiveMarker runs for real over an independent discovery.\nCore law: AuthorityStaleAdmissible / AuthorityCurrent come ONLY from a genuinely discovered,\nself-consistent marker at its own digest-derived IRI; a differing digest literal attached to a\nnon-derived subject (e.g. the expected IRI) is a marker identity contradiction → integrity."
   - id: golang/seedmeta/marker_triples_test.go:TestMarkerTriples_MatchesAppendMarker
     file: golang/seedmeta/marker_triples_test.go
     symbol: TestMarkerTriples_MatchesAppendMarker
@@ -14860,6 +15601,216 @@ test_symbols:
     package: main
     language: go
     doc: "TestContractSpineV1_GoldenBriefing is the certification of Contract Spine v1:\nfor the /api/save-config demo, the briefing must render BOTH the authoritative\nrealized-contract chain (impl → realizesContract → arch → invariant → required\ntest) AND the candidate as a clearly-marked REVIEW-ONLY entry that is never\npresented as authority. See docs/contract-spine-v1.md.\n\nIt reuses spineFakeStore()/archImpact() from realized_contracts_test.go, which\nmodel the exact committed spine (api_save_config realizes\nconfig_mutation_requires_valid_token; api_cors_diagnostics is a candidate)."
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_ConfigAbsenceIsTypedRefusal
+    file: golang/server/controlstate_mutation_test.go
+    symbol: TestMutation_ConfigAbsenceIsTypedRefusal
+    package: main
+    language: go
+    doc: "── config absence is a stable typed refusal, not an internal failure ─────────"
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_ContestedConflictPreservesPrior
+    file: golang/server/controlstate_mutation_test.go
+    symbol: TestMutation_ContestedConflictPreservesPrior
+    package: main
+    language: go
+    doc: "── a conflicting second disposition CONTESTS; the prior record is immutable ──"
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_PrepareWritesNothing
+    file: golang/server/controlstate_mutation_test.go
+    symbol: TestMutation_PrepareWritesNothing
+    package: main
+    language: go
+    doc: "── prepare writes nothing ───────────────────────────────────────────────────"
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_PromoteProposalIsNotTheRawAnswer
+    file: golang/server/controlstate_mutation_test.go
+    symbol: TestMutation_PromoteProposalIsNotTheRawAnswer
+    package: main
+    language: go
+    doc: "── the promote request has NO channel to carry the raw answer as the proposal"
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_RecordDoesNotAutoPromote
+    file: golang/server/controlstate_mutation_test.go
+    symbol: TestMutation_RecordDoesNotAutoPromote
+    package: main
+    language: go
+    doc: "── a successful record does NOT auto-promote (no hidden lifecycle chaining) ──"
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_RecordThenExactReplay
+    file: golang/server/controlstate_mutation_test.go
+    symbol: TestMutation_RecordThenExactReplay
+    package: main
+    language: go
+    doc: "── record commits once; exact replay returns without a new write ────────────"
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_RefusalsWriteNothing
+    file: golang/server/controlstate_mutation_test.go
+    symbol: TestMutation_RefusalsWriteNothing
+    package: main
+    language: go
+    doc: "── refusals: each writes nothing, exposes mutation_applied=false + unchanged head"
+  - id: golang/server/controlstate_rpcs_test.go:TestArtifactStateRPC_PreconditionsAndNotFound
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestArtifactStateRPC_PreconditionsAndNotFound
+    package: main
+    language: go
+    doc: "Artifact state: registry precondition mismatch → FailedPrecondition; proven absence →\nNotFound; an existing artifact returns honest unknown-closure state (dimension sources\nhonestly unavailable) as RPC success."
+  - id: golang/server/controlstate_rpcs_test.go:TestControlRPCs_RejectFilesystemRepositoryIdentity
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestControlRPCs_RejectFilesystemRepositoryIdentity
+    package: main
+    language: go
+    doc: "Request-shape law: repository identity is logical (no filesystem paths), required, unpadded."
+  - id: golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_NoRepositoryWideFeedback
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestControlSnapshotRPC_NoRepositoryWideFeedback
+    package: main
+    language: go
+    doc: "Exact-scope feedback law at the RPC level: the snapshot exposes feedback CAPABILITY only —\nno verified-record collection ever appears in the snapshot response."
+  - id: golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_PartialIsSuccess
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestControlSnapshotRPC_PartialIsSuccess
+    package: main
+    language: go
+    doc: "A semantically PARTIAL projection is a successful RPC response carrying its typed state —\nnever a transport failure, never an empty success object (unknown stays distinct from zero)."
+  - id: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
+    package: main
+    language: go
+    doc: "The index pages registry-resolved rows; the cursor is opaque and owner-validated; a duplicate\ndual-typed node resolves by registry precedence (never caller-selected class)."
+  - id: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_TruncatedEnumerationDegradesHonestly
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestListArtifactsRPC_TruncatedEnumerationDegradesHonestly
+    package: main
+    language: go
+    doc: "A catalog whose class enumeration plausibly hit the store cap is DEGRADED (typed reason), and\nthe RPC returns SUCCESS with an empty untrusted page — never a transport failure, never rows\nfrom an incomplete enumeration (no silent cap)."
+  - id: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_UnspecifiedFilterRejected
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestListArtifactsRPC_UnspecifiedFilterRejected
+    package: main
+    language: go
+    doc: "A PRESENT filter enum set to UNSPECIFIED is rejected: UNSPECIFIED never means \"no filter\"."
+  - id: golang/server/controlstate_rpcs_test.go:TestNavigationDescriptorRPC_NoRepositoryContextNeeded
+    file: golang/server/controlstate_rpcs_test.go
+    symbol: TestNavigationDescriptorRPC_NoRepositoryContextNeeded
+    package: main
+    language: go
+    doc: "The navigation descriptor needs no store, repository context, or filesystem."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_ConflictingStatusesInvalidUnknown
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_ConflictingStatusesInvalidUnknown
+    package: main
+    language: go
+    doc: "Proof 16: multiple DISTINCT governed statuses are a typed conflict — the lifecycle source is\nINVALID with lifecycle_status_ambiguous and the lifecycle stays unknown (never first-row-wins)."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_FeedbackBoundToEffectiveScope
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_FeedbackBoundToEffectiveScope
+    package: main
+    language: go
+    doc: "Proofs 14+15: feedback capability binds to the EFFECTIVE scope — a domain mismatch is typed\nunavailable with the Phase 9.6 reason; an EMPTY requested domain first resolves through the\nsingle-domain rule and only then matches."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_IntegrityFailedAbsenceNotNotFound
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_IntegrityFailedAbsenceNotNotFound
+    package: main
+    language: go
+    doc: "Proof 12: current-but-INTEGRITY-FAILED absence is not NotFound (via an injected provider — no\nproduction freshness state reports integrity failure yet, but the law is enforced)."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_IntegrityFailedViaRealVerifierPath
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_IntegrityFailedViaRealVerifierPath
+    package: main
+    language: go
+    doc: "Proof 3 (the headline repair, via the REAL independent-discovery path): a differing digest\nliteral ATTACHED TO THE EXPECTED MARKER IRI is a marker identity contradiction — it can never\nmasquerade as a stale-admissible live identity. It derives INTEGRITY-FAILED with the observed\n(tampered) identity and exposes no trusted rows, carrying the typed integrity reason on the\nsources."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_MaliciousIRIRejectedWithoutStoreAccess
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_MaliciousIRIRejectedWithoutStoreAccess
+    package: main
+    language: go
+    doc: "Proofs 8+9: a malicious node IRI is InvalidArgument (sanitized) and causes ZERO store calls."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_MultiRepoNodeVisibleInEachScopeOrderInvariant
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_MultiRepoNodeVisibleInEachScopeOrderInvariant
+    package: main
+    language: go
+    doc: "Proofs 10+11: a node tagged to two repositories is visible in EACH tagged scope, and triple\nordering can never change visibility or the projection digest."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_ShuffledFactsSameCatalogDigest
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_ShuffledFactsSameCatalogDigest
+    package: main
+    language: go
+    doc: "Proof 17: shuffled status/label fact order produces the IDENTICAL index digest (catalog-level\ndeterminism)."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_StaleAbsenceNotNotFoundAndAttentionPartial
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_StaleAbsenceNotNotFoundAndAttentionPartial
+    package: main
+    language: go
+    doc: "Proof 13 + 19: STALE absence is NOT NotFound — the artifact returns as a visible unknown-class\nstate whose degraded authority is response data; and the snapshot still carries the known\ngraph-authority attention item as partial data."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_StaleAuthorityPartialWithRows
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_StaleAuthorityPartialWithRows
+    package: main
+    language: go
+    doc: "Proof 2: a STALE authority produces PARTIAL — never AVAILABLE — while keeping known rows, with\nthe typed graph_authority_stale reason on the required source."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_TruncatedDiscoveryExplicitKnownRowsVisible
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_TruncatedDiscoveryExplicitKnownRowsVisible
+    package: main
+    language: go
+    doc: "Proofs 6+7: a truncated unknown-class sweep is EXPLICIT (degraded unclassified_discovery with\nits typed reason) while known-class rows stay visible and the projection is PARTIAL."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_UnknownOnlyNodeVisibleUnderUnclassified
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_UnknownOnlyNodeVisibleUnderUnclassified
+    package: main
+    language: go
+    doc: "Proof 5: a node typed only as an UNREGISTERED class is discovered and stays visible under the\nunclassified fallback with unknown coverage/closure."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_UnobservedArtifactStateUnavailable
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_UnobservedArtifactStateUnavailable
+    package: main
+    language: go
+    doc: "Proof (matrix): an unobserved authority makes artifact state unconstructible → the closed\ntransport law (Unavailable), never NotFound, never an expected-digest-backed identity."
+  - id: golang/server/controlstate_trust_test.go:TestTrust_UnobservedAuthorityNeverAvailable
+    file: golang/server/controlstate_trust_test.go
+    symbol: TestTrust_UnobservedAuthorityNeverAvailable
+    package: main
+    language: go
+    doc: "Proof 1+4: an UNOBSERVED authority cannot produce an available catalog/index; the expected\nseed digest surfaces ONLY as expected-authority metadata, never as an observed identity."
+  - id: golang/server/controlstateproto/mapper_test.go:TestMapper_FailsClosed
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestMapper_FailsClosed
+    package: controlstateproto
+    language: go
+    doc: "Proof: mapping failures are ERRORS, never silent omissions — a malformed nested attention\nitem, an off-vocabulary enum value, and a digest-tampered projection are all rejected."
+  - id: golang/server/controlstateproto/mapper_test.go:TestMapper_NonAuthoritativeAndNoCertification
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestMapper_NonAuthoritativeAndNoCertification
+    package: controlstateproto
+    language: go
+    doc: "Proof: non_authoritative_projection survives as TRUE on every wire projection, and no wire\noutput carries certification claims or scores."
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_ArtifactStateLossless
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestRoundTrip_ArtifactStateLossless
+    package: controlstateproto
+    language: go
+    doc: "Proof: the artifact state maps without semantic loss (dimensions, blockers, attention,\nlifecycle, exact-scope feedback, sources with impacts and reasons, canonical order)."
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_AvailabilityAndSourcesSurvive
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestRoundTrip_AvailabilityAndSourcesSurvive
+    package: controlstateproto
+    language: go
+    doc: "Proof: partial stays partial and unavailable stays unavailable across the wire; source\nimpacts, identities, and typed reasons survive mapping."
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_ControlSnapshotLossless
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestRoundTrip_ControlSnapshotLossless
+    package: controlstateproto
+    language: go
+    doc: "Proof: the snapshot maps without semantic loss — the reconstructed model revalidates against\nits own digest (content-losslessness) and DeepEquals the original; nil counts stay absent,\nan observed zero stays zero; digest is copied verbatim."
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_IndexCursorAndUnknownClosure
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestRoundTrip_IndexCursorAndUnknownClosure
+    package: controlstateproto
+    language: go
+    doc: "Proof: the index maps losslessly; the opaque cursor survives unchanged; unknown closure stays\nunknown (never closed/unspecified); the page order survives."
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_NavigationDescriptor
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestRoundTrip_NavigationDescriptor
+    package: controlstateproto
+    language: go
+    doc: "Proof: the navigation descriptor maps losslessly (families, classes, fallback, digest)."
   - id: golang/server/domain_scope_test.go:TestCountClassInScope
     file: golang/server/domain_scope_test.go
     symbol: TestCountClassInScope
@@ -16157,6 +17108,18 @@ test_symbols:
     symbol: TestPath_JoinsResolvedDir
     package: statedir
     language: go
+  - id: golang/store/iri_test.go:TestValidateQueryIRI
+    file: golang/store/iri_test.go
+    symbol: TestValidateQueryIRI
+    package: store
+    language: go
+    doc: "The ONE shared lexical IRI validator: canonical project IRI forms pass; anything that could\nescape a SPARQL <...> IRIREF token, look like a filesystem path, or smuggle whitespace/control\ncharacters is rejected."
+  - id: golang/store/iri_test.go:TestValidateQueryIRI_UnicodeControls
+    file: golang/store/iri_test.go
+    symbol: TestValidateQueryIRI_UnicodeControls
+    package: store
+    language: go
+    doc: "The validator rejects ALL Unicode whitespace/control characters — not only ASCII — while\nlegal non-ASCII IRI characters stay accepted."
   - id: golang/store/oxigraph/oxigraph_integration_test.go:TestIntegration_Health_LiveOxigraph
     file: golang/store/oxigraph/oxigraph_integration_test.go
     symbol: TestIntegration_Health_LiveOxigraph

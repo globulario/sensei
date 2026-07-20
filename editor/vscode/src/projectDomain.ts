@@ -89,6 +89,29 @@ export async function effectiveDomain(explicit: string | undefined): Promise<str
   return domain;
 }
 
+/**
+ * The logical repository identity for the control-panel RPCs. Derived PURELY
+ * from the git remote (`host/owner/repo`) — never the `sensei.domain` setting
+ * (which is a chosen scope, not a repo identity) and never a filesystem path
+ * (Phase 9.5 §15 / Phase 9.6 repository-context law). Returns undefined when the
+ * workspace has no resolvable git remote; the caller then renders an explicit
+ * "repository context unavailable" state and issues no RPC (the server rejects
+ * an empty repository_identity with InvalidArgument). Shares the git-remote
+ * cache with effectiveDomain().
+ */
+export async function effectiveRepositoryIdentity(): Promise<string | undefined> {
+  const root = workspaceRoot();
+  if (!root) {
+    return undefined;
+  }
+  if (cache && cache.root === root) {
+    return cache.domain || undefined;
+  }
+  const domain = await deriveFromGit(root);
+  cache = { root, domain: domain || '' };
+  return domain;
+}
+
 /** Choose the dashboard's automatic graph scope after Metadata returns.
  *
  * If the graph rejected the workspace-derived domain, stay graph-wide. That
