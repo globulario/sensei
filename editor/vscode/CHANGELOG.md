@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.8
+
+- **Fixes the mode toggle.** Switching to *Legacy explorer* left the Control panel
+  visible underneath (a CSS specificity issue meant `[hidden]` didn't win), so the
+  two views overlapped into an unreadable mess. Each mode now shows exactly one view.
+- **Widens the artifact inspector.** Long canonical-class IRIs and repository/domain
+  values were clipped at 300px; the inspector pane is wider and long values now wrap
+  instead of truncating.
+
 ## 0.1.7
 
 - **Ontology-aligned architectural control panel (Phase 9.5).** A read-only
