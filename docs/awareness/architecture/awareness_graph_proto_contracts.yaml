@@ -4,10 +4,10 @@
 contracts:
   - id: contract.awareness_graph
     name: AwarenessGraph
-    description: 'gRPC service AwarenessGraph with 13 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor.'
+    description: 'gRPC service AwarenessGraph with 16 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition, PromoteArchitectAnswer.'
     kind: grpc
     stability: stable
-    read_or_write: read
+    read_or_write: read_write
     assertion: inferred
     exposed_by:
       - component.awareness_graph_service
@@ -216,6 +216,54 @@ contracts:
     kind: grpc
     stability: stable
     read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.prepare_architect_answer_disposition
+    name: AwarenessGraph.PrepareArchitectAnswerDisposition
+    description: '── Phase 9.5 Checkpoint 5: the guarded architect-answer mutation family ── The FIRST and ONLY mutation RPCs in the control-panel surface. Each is a guarded delegation to an existing owner (questiondisposition / questionpromotion); the server assigns no authority. A refused mutation is a SUCCESSFUL response carrying a typed refusal (mirrors Propose REJECTED), never a transport error. Requests carry LOGICAL identities + an actor identity only — filesystem roots come from the startup-owned context. — rpc PrepareArchitectAnswerDisposition(PrepareArchitectAnswerDispositionRequest) returns (PrepareArchitectAnswerDispositionResponse)'
+    kind: grpc
+    stability: stable
+    read_or_write: unknown
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.record_architect_answer_disposition
+    name: AwarenessGraph.RecordArchitectAnswerDisposition
+    description: rpc RecordArchitectAnswerDisposition(RecordArchitectAnswerDispositionRequest) returns (RecordArchitectAnswerDispositionResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: unknown
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.promote_architect_answer
+    name: AwarenessGraph.PromoteArchitectAnswer
+    description: rpc PromoteArchitectAnswer(PromoteArchitectAnswerRequest) returns (PromoteArchitectAnswerResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: write
     assertion: inferred
     exposed_by:
       - component.awareness_graph_service
