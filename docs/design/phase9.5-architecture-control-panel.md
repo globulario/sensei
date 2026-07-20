@@ -677,3 +677,50 @@ CP5, completion/accessibility/packaged validation is CP6.
 completion, or feedback-write; no client-side closure/lifecycle/severity/question-state/next-action
 inference; no CP5 question workspace; no CP6 completion/accessibility/packaged validation. Phase 6
 remains the sole correctness certifier; `CorrectnessCertified` stays false.
+
+## 28. Checkpoint 5 rulings (frozen)
+
+Checkpoint 5 opens the FIRST and ONLY guarded mutation family in the control panel: record an
+architect answer, accept/reject it, and request governed promotion — each a deliberate, separately
+triggered, guarded delegation to an existing owner. Everything else stays read-only.
+
+- **Owners (delegation only)** — record/accept/reject delegates to `questiondisposition`
+  (`Prepare` pure → `RecordDisposition`; the disposition vocabulary answered/dismissed/deferred/
+  task_local IS the accept/reject); governed promotion delegates to `questionpromotion.Promote`
+  (distinct actor + distinct grant, only an accepted `reusable_candidate`, an independently-authored
+  `ProposeRequest` as the governed record). `questiongen` is unguarded and is NEVER exposed as
+  authority. The server/handlers assign no authority of their own.
+- **Claims, not authority** — the client-supplied repository/domain/task/session/actor fields are
+  CLAIMS verified against server-resolved authority (startup-owned repository root, active task
+  pointer, enrolled identity manifest). Any mismatch is a typed refusal. Filesystem roots are never
+  taken from the request.
+- **Refusal = typed non-mutation receipt** — a domain refusal (unconfigured, mismatch, unauthorized,
+  ineligible, stale head, contested) is a SUCCESSFUL RPC carrying `mutation_applied=false`, the
+  refusal owner + code, and the UNCHANGED ledger identity (previous == resulting head). It NEVER
+  masquerades as a mutation and NEVER becomes a transport error (transport errors are reserved for
+  malformed requests). Configuration absence is a stable typed refusal, not an internal failure.
+- **Prepare/commit/replay** — Prepare writes nothing; Record commits exactly one disposition against
+  the client's expected-ledger-head precondition (stale → refuse, never silently re-prepare); exact
+  replay returns the original receipt (`mutation_applied=false`); a conflicting disposition is
+  CONTESTED — a new immutable record referencing (never overwriting) the prior. Idempotency is the
+  owner's content-addressed receipt identity.
+- **No hidden lifecycle chaining** — a successful record NEVER promotes; a successful promotion NEVER
+  completes or certifies. `CorrectnessCertified` stays false.
+- **Raw-answer isolation** — the raw answer travels as opaque bytes, is hashed by the owner
+  (`AnswerID` + digest), and NEVER appears in a receipt, refusal, audit field, log, or governed
+  record. Promotion's proposal is structurally separate from the answer bytes.
+- **Extension is painfully literal** — choose → prepare → show the owner candidate/consequences →
+  explicit confirm → commit once → typed receipt/refusal → refresh the artifact state from the
+  owner. No optimistic lifecycle: the DISPLAYED architectural lifecycle comes ONLY from the refreshed
+  owner projection — a stale/unavailable refresh after a successful commit is shown honestly, never
+  as an invented "accepted". No second commit while one is in flight; the server remains the replay
+  authority.
+- **Proofs** — Go adversarial proofs snapshot the task ledger byte-for-byte around every refusal
+  (prepare-writes-nothing, unauthorized, stale head, repo/domain/task mismatch, unknown question,
+  contested, replay, no-auto-promote); the extension state-machine proofs lock the literal flow +
+  the stale-refresh discipline; the anti-duplication gate proves "read-only EXCEPT the guarded
+  family" with no auto-chaining.
+
+**Exclusions (CP5)** — no task completion, no correctness certification, no generic graph/YAML
+mutation, no auto-chaining, no unguarded dialogue write. **CP6 has NOT begun** (completion +
+Phase-9.6 feedback integration, accessibility, packaged/Ubuntu+Windows validation, closure docs).

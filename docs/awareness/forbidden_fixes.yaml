@@ -459,3 +459,27 @@ forbidden_fixes:
     related_invariants:
       - invariant.sensei.artifact_inspector_renders_owner_derived_state_only
     reason: No owner projection carries relationship/edge data. Relationships and the focus graph must render honestly unavailable, never fall back to legacy graph adjacency / CLASS_COLOR / DIR (which stay quarantined in dashboard.js).
+  - id: forbidden_fix.sensei.expose_the_unguarded_questiongen_dialogue_op_as_an_authorita
+    title: Expose the unguarded questiongen dialogue op as an authoritative mutation
+    summary: questiongen RecordAnswer/AdjudicateAnswer carry no identity, authority, or ledger. Only questiondisposition/questionpromotion are guarded; exposing the dialogue layer as authority bypasses actor binding and the ledger.
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: questiongen RecordAnswer/AdjudicateAnswer carry no identity, authority, or ledger. Only questiondisposition/questionpromotion are guarded; exposing the dialogue layer as authority bypasses actor binding and the ledger.
+  - id: forbidden_fix.sensei.auto_promote_or_auto_complete_after_a_successful_disposition
+    title: Auto-promote or auto-complete after a successful disposition
+    summary: Recording an accepted answer must never trigger governed promotion; a promotion must never trigger task completion or certification. Each lifecycle step is a separate, explicitly-authorized guarded action.
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: Recording an accepted answer must never trigger governed promotion; a promotion must never trigger task completion or certification. Each lifecycle step is a separate, explicitly-authorized guarded action.
+  - id: forbidden_fix.sensei.copy_raw_architect_answer_text_into_a_governed_record_or_pro
+    title: Copy raw architect answer text into a governed record or promotion prose
+    summary: The raw answer is opaque bytes hashed by the owner (AnswerID + digest). Governed prose is an independently-authored ProposeRequest; copying answer text into it launders unverified prose into authority (Phase 9.6 provenance != authority).
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: The raw answer is opaque bytes hashed by the owner (AnswerID + digest). Governed prose is an independently-authored ProposeRequest; copying answer text into it launders unverified prose into authority (Phase 9.6 provenance != authority).
+  - id: forbidden_fix.sensei.mutate_without_the_expected_ledger_head_precondition_or_pres
+    title: Mutate without the expected-ledger-head precondition or present a refusal as mutation success
+    summary: A commit must CAS against the client's expected ledger head (stale -> refuse, write nothing) and never silently re-prepare; a domain refusal must expose mutation_applied=false with the unchanged ledger identity, never a transport success that looks applied.
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: A commit must CAS against the client's expected ledger head (stale -> refuse, write nothing) and never silently re-prepare; a domain refusal must expose mutation_applied=false with the unchanged ledger identity, never a transport success that looks applied.

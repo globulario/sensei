@@ -1803,3 +1803,14 @@ invariants:
       - forbidden_fix.sensei.render_a_non_applicable_dimension_as_open
       - forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control
     contract: 'The CP4 artifact inspector renders architecture.artifact_state/v1 verbatim: applicable dimensions only, owner enum states as badges, ids and next-action rendered as-is, exact-scope feedback as provenance, relationships and focus-graph honestly unavailable. It infers no closure, lifecycle, severity, question-state, or next-action and performs no mutation.'
+  - id: invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    title: Architect mutations are guarded owner delegations only
+    status: active
+    description: CP5 adds the first mutation surface as thin guarded delegation to existing owners; it assigns no authority of its own.
+    protects:
+      files:
+        - golang/server/controlstate_mutation_provider.go
+    forbidden_fixes:
+      - forbidden_fix.sensei.expose_the_unguarded_questiongen_dialogue_op_as_an_authorita
+      - forbidden_fix.sensei.copy_raw_architect_answer_text_into_a_governed_record_or_pro
+    contract: 'The control panel''s only mutation family (record/accept/reject via questiondisposition, promote via questionpromotion) is a guarded delegation: authority is resolved server-side and client fields are verified claims; refusals write nothing and expose mutation_applied=false with the unchanged ledger identity; no lifecycle auto-chaining; raw answer text never becomes governed prose. Proven by golang/server/controlstate_mutation_test.go + editor/vscode/src/controlPanelMutation.test.ts.'
