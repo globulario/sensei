@@ -21,9 +21,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
-	qp "github.com/globulario/sensei/golang/architecture/questionpromotion"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
-	"github.com/globulario/sensei/golang/propose"
 )
 
 // PrepareArchitectAnswerDisposition builds the pure candidate (writes nothing).
@@ -58,38 +56,6 @@ func (s *server) RecordArchitectAnswerDisposition(_ context.Context, req *awaren
 		return &awarenesspb.RecordArchitectAnswerDispositionResponse{Refusal: refusalToProto(ref, b)}, nil
 	}
 	return &awarenesspb.RecordArchitectAnswerDispositionResponse{Receipt: dispositionReceiptToProto(res, prevHead, b)}, nil
-}
-
-// PromoteArchitectAnswer promotes an accepted disposition to a governed record.
-func (s *server) PromoteArchitectAnswer(_ context.Context, req *awarenesspb.PromoteArchitectAnswerRequest) (*awarenesspb.PromoteArchitectAnswerResponse, error) {
-	if err := validateControlRepositoryIdentity(req.GetRepositoryIdentity()); err != nil {
-		return nil, err
-	}
-	if req.GetDispositionReceiptDigestSha256() == "" {
-		return nil, status.Error(codes.InvalidArgument, "disposition_receipt_digest_sha256 is required")
-	}
-	if req.GetProposal() == nil {
-		return nil, status.Error(codes.InvalidArgument, "proposal (the independently-authored governed record) is required")
-	}
-	in := promotionInput{
-		repositoryIdentity:       req.GetRepositoryIdentity(),
-		domain:                   req.GetDomain(),
-		taskID:                   req.GetTaskId(),
-		actor:                    req.GetPromotionActorIdentity(),
-		dispositionReceiptDigest: req.GetDispositionReceiptDigestSha256(),
-		proposal:                 proposeRequestFromProto(req.GetProposal()),
-		scopeDomain:              req.GetEffectiveScopeDomain(),
-		scopeFiles:               req.GetEffectiveScopeFiles(),
-		expectedManifestDigest:   req.GetExpectedManifestDigestSha256(),
-	}
-	res, b, ref := s.promoteAnswer(in)
-	if ref != nil {
-		return &awarenesspb.PromoteArchitectAnswerResponse{Refusal: refusalToProto(ref, b)}, nil
-	}
-	// A promotion "outcome" may itself be a typed refusal (owner returns it as a
-	// result, not an error); expose it faithfully with mutation_applied set by
-	// whether the commit actually happened.
-	return &awarenesspb.PromoteArchitectAnswerResponse{Receipt: promotionReceiptToProto(res, b)}, nil
 }
 
 // ── proto → owner input ──────────────────────────────────────────────────────
@@ -149,18 +115,6 @@ func reusabilityFromProto(r awarenesspb.ArchitectureReusability) (qd.Reusability
 	}
 }
 
-func proposeRequestFromProto(p *awarenesspb.ProposeRequest) propose.Request {
-	pr := propose.Request{
-		Kind: p.GetKind(), ID: p.GetId(), Title: p.GetTitle(), Description: p.GetDescription(),
-		Severity: p.GetSeverity(), SourceFiles: p.GetSourceFiles(), RelatedInvariants: p.GetRelatedInvariants(),
-		RelatedFailures: p.GetRelatedFailures(), RequiredTests: p.GetRequiredTests(), ForbiddenFixes: p.GetForbiddenFixes(),
-		Evidence: p.GetEvidence(), Repo: p.GetRepo(), Domain: p.GetDomain(), Contract: p.GetContract(),
-		ProposedContract: p.GetProposedContract(), RevisionRequest: p.GetRevisionRequest(),
-	}
-	propose.Normalize(&pr)
-	return pr
-}
-
 // ── owner result → proto ─────────────────────────────────────────────────────
 
 func refusalToProto(ref *mutationRefusal, b mutationBindings) *awarenesspb.ArchitectureMutationRefusal {
@@ -214,60 +168,5 @@ func dispositionOutcomeToProto(o qd.RecordOutcome) (awarenesspb.ArchitectureDisp
 		return awarenesspb.ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED, "contested", true
 	default:
 		return awarenesspb.ArchitectureDispositionOutcome_ARCHITECTURE_DISPOSITION_OUTCOME_UNSPECIFIED, "none", false
-	}
-}
-
-func promotionReceiptToProto(res *qp.PromoteResult, b mutationBindings) *awarenesspb.ArchitecturePromotionReceipt {
-	outcome, applied := promotionOutcomeToProto(res.Outcome)
-	replay := "applied"
-	if res.Outcome == qp.OutcomeExactReplay {
-		replay = "replay"
-	} else if !applied {
-		replay = "none"
-	}
-	return &awarenesspb.ArchitecturePromotionReceipt{
-		Outcome:                       outcome,
-		PromotionLineageId:            res.PromotionLineageID,
-		ReceiptDigestSha256:           res.ReceiptDigestSHA256,
-		CommittedCausalIdentitySha256: res.CommittedCausalIdentitySHA256,
-		Detail:                        sanitizeMutationDetail(res.Detail),
-		Audit: &awarenesspb.ArchitectureMutationAudit{
-			OperationIdentity: res.ReceiptDigestSHA256, OperationKind: b.OperationKind,
-			ActorIdentity: b.Actor, Domain: b.Domain, TaskId: b.TaskID,
-			OwnerOutcome: string(res.Outcome), ReplayStatus: replay, MutationApplied: applied,
-		},
-	}
-}
-
-func promotionOutcomeToProto(o qp.Outcome) (awarenesspb.ArchitecturePromotionOutcome, bool) {
-	switch o {
-	case qp.OutcomeCommitted:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_COMMITTED, true
-	case qp.OutcomeExactReplay:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_EXACT_REPLAY, false
-	case qp.OutcomeIncompleteAtSource:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_SOURCE, false
-	case qp.OutcomeIncompleteAtGraph:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_GRAPH, false
-	case qp.OutcomeIncompleteAtCommit:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_COMMIT, false
-	case qp.OutcomeIneligibleDisposition:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_INELIGIBLE_DISPOSITION, false
-	case qp.OutcomeStaleInput:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_STALE_OR_SUPERSEDED_INPUT, false
-	case qp.OutcomeAuthorityRefusal:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_AUTHORITY_REFUSAL, false
-	case qp.OutcomeScopeRefusal:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_SCOPE_REFUSAL, false
-	case qp.OutcomeContradiction:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_CONTRADICTION_OR_COLLISION, false
-	case qp.OutcomeManifestCASFailure:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_MANIFEST_CAS_FAILURE, false
-	case qp.OutcomeGraphVerificationFailure:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_GRAPH_VERIFICATION_FAILURE, false
-	case qp.OutcomeTamperedJournal:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_TAMPERED_JOURNAL_OR_ARTIFACT, false
-	default:
-		return awarenesspb.ArchitecturePromotionOutcome_ARCHITECTURE_PROMOTION_OUTCOME_UNSPECIFIED, false
 	}
 }

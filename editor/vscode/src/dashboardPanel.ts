@@ -30,7 +30,6 @@ import {
   getArchitectureArtifactState,
   prepareArchitectAnswerDisposition,
   recordArchitectAnswerDisposition,
-  promoteArchitectAnswer,
   ArchitectureDispositionInput,
 } from './grpcClient';
 import { assessMetadataAuthority } from './graphAuthority';
@@ -561,8 +560,6 @@ export class DashboardPanel {
           return await this.handlePrepareDisposition(msg);
         case 'commitDisposition':
           return await this.handleCommitDisposition(msg);
-        case 'promoteAnswer':
-          return await this.handlePromoteAnswer(msg);
         case 'selectControlArtifact':
           return await this.handleSelectControlArtifact(msg.kind);
         case 'clearControlSelection':
@@ -790,27 +787,6 @@ export class DashboardPanel {
     const resp = await recordArchitectAnswerDisposition(addr, this.dispositionInputFrom(msg, repo, domain), String(msg.expectedHead || ''), timeout);
     this.post({ type: 'dispositionCommitted', questionId: msg.questionId, receipt: resp.receipt, refusal: resp.refusal });
     // ALWAYS refresh the architectural state from the owner after a commit attempt.
-    if (msg.nodeIri) {
-      await this.handleArtifactState(msg.nodeIri);
-    }
-  }
-
-  private async handlePromoteAnswer(msg: any): Promise<void> {
-    const { repo, domain, addr, timeout } = await this.controlScope();
-    if (!repo) {
-      this.post({ type: 'promotionResult', refusal: { reason_code: 'repository_context_unavailable', owner: 'client', mutation_applied: false } });
-      return;
-    }
-    const resp = await promoteArchitectAnswer(addr, {
-      repository_identity: repo,
-      domain,
-      task_id: msg.taskId,
-      promotion_actor_identity: msg.actorIdentity,
-      disposition_receipt_digest_sha256: String(msg.dispositionReceiptDigest || ''),
-      proposal: msg.proposal || {},
-      expected_manifest_digest_sha256: String(msg.expectedManifest || ''),
-    }, timeout);
-    this.post({ type: 'promotionResult', receipt: resp.receipt, refusal: resp.refusal });
     if (msg.nodeIri) {
       await this.handleArtifactState(msg.nodeIri);
     }

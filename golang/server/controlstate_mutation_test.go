@@ -11,7 +11,6 @@ package main
 // governed authority policy.
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -360,20 +359,4 @@ func contains(xs []string, want string) bool {
 		}
 	}
 	return false
-}
-
-// ── the promote request has NO channel to carry the raw answer as the proposal
-func TestMutation_PromoteProposalIsNotTheRawAnswer(t *testing.T) {
-	// Structural guarantee: the promotion request carries a ProposeRequest (a
-	// separately-authored governed record) and has NO answer_bytes field — the
-	// raw answer can never be the promotion proposal.
-	var req awarenesspb.PromoteArchitectAnswerRequest
-	if got := req.GetProposal(); got != nil {
-		t.Fatal("unexpected default proposal")
-	}
-	// A ProposeRequest exposes only governed-record fields; asserting the message
-	// shape documents that raw answer bytes are structurally excluded.
-	if !bytes.Equal([]byte(req.GetDispositionReceiptDigestSha256()), []byte("")) {
-		t.Fatal("default digest must be empty")
-	}
 }

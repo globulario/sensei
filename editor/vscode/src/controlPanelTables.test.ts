@@ -91,7 +91,7 @@ test('the control panel is read-only EXCEPT the single guarded mutation family (
   // Capture every posted message type (direct or Object.assign-wrapped).
   const posted = [...panel.matchAll(/postMessage\(\s*(?:Object\.assign\(\s*)?\{\s*type:\s*'([^']+)'/g)].map((m) => m[1]);
   const reads = new Set(['getNavigationDescriptor', 'getControlSnapshot', 'listArtifacts', 'getArtifactState']);
-  const guarded = new Set(['prepareDisposition', 'commitDisposition', 'promoteAnswer']);
+  const guarded = new Set(['prepareDisposition', 'commitDisposition']);
   assert.ok(posted.length > 0, 'the panel posts requests');
   for (const t of posted) {
     assert.ok(reads.has(t) || guarded.has(t), `unexpected posted message type ${t} — only reads + the guarded family are allowed`);

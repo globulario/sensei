@@ -15619,12 +15619,6 @@ test_symbols:
     package: main
     language: go
     doc: "── prepare writes nothing ───────────────────────────────────────────────────"
-  - id: golang/server/controlstate_mutation_test.go:TestMutation_PromoteProposalIsNotTheRawAnswer
-    file: golang/server/controlstate_mutation_test.go
-    symbol: TestMutation_PromoteProposalIsNotTheRawAnswer
-    package: main
-    language: go
-    doc: "── the promote request has NO channel to carry the raw answer as the proposal"
   - id: golang/server/controlstate_mutation_test.go:TestMutation_RecordDoesNotAutoPromote
     file: golang/server/controlstate_mutation_test.go
     symbol: TestMutation_RecordDoesNotAutoPromote

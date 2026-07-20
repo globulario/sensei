@@ -53,7 +53,6 @@ const (
 	AwarenessGraph_GetOntologyNavigationDescriptor_FullMethodName   = "/globular.awareness_graph.AwarenessGraph/GetOntologyNavigationDescriptor"
 	AwarenessGraph_PrepareArchitectAnswerDisposition_FullMethodName = "/globular.awareness_graph.AwarenessGraph/PrepareArchitectAnswerDisposition"
 	AwarenessGraph_RecordArchitectAnswerDisposition_FullMethodName  = "/globular.awareness_graph.AwarenessGraph/RecordArchitectAnswerDisposition"
-	AwarenessGraph_PromoteArchitectAnswer_FullMethodName            = "/globular.awareness_graph.AwarenessGraph/PromoteArchitectAnswer"
 )
 
 // AwarenessGraphClient is the client API for AwarenessGraph service.
@@ -161,7 +160,6 @@ type AwarenessGraphClient interface {
 	// identity only — filesystem roots come from the startup-owned context.
 	PrepareArchitectAnswerDisposition(ctx context.Context, in *PrepareArchitectAnswerDispositionRequest, opts ...grpc.CallOption) (*PrepareArchitectAnswerDispositionResponse, error)
 	RecordArchitectAnswerDisposition(ctx context.Context, in *RecordArchitectAnswerDispositionRequest, opts ...grpc.CallOption) (*RecordArchitectAnswerDispositionResponse, error)
-	PromoteArchitectAnswer(ctx context.Context, in *PromoteArchitectAnswerRequest, opts ...grpc.CallOption) (*PromoteArchitectAnswerResponse, error)
 }
 
 type awarenessGraphClient struct {
@@ -322,16 +320,6 @@ func (c *awarenessGraphClient) RecordArchitectAnswerDisposition(ctx context.Cont
 	return out, nil
 }
 
-func (c *awarenessGraphClient) PromoteArchitectAnswer(ctx context.Context, in *PromoteArchitectAnswerRequest, opts ...grpc.CallOption) (*PromoteArchitectAnswerResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PromoteArchitectAnswerResponse)
-	err := c.cc.Invoke(ctx, AwarenessGraph_PromoteArchitectAnswer_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // AwarenessGraphServer is the server API for AwarenessGraph service.
 // All implementations must embed UnimplementedAwarenessGraphServer
 // for forward compatibility.
@@ -437,7 +425,6 @@ type AwarenessGraphServer interface {
 	// identity only — filesystem roots come from the startup-owned context.
 	PrepareArchitectAnswerDisposition(context.Context, *PrepareArchitectAnswerDispositionRequest) (*PrepareArchitectAnswerDispositionResponse, error)
 	RecordArchitectAnswerDisposition(context.Context, *RecordArchitectAnswerDispositionRequest) (*RecordArchitectAnswerDispositionResponse, error)
-	PromoteArchitectAnswer(context.Context, *PromoteArchitectAnswerRequest) (*PromoteArchitectAnswerResponse, error)
 	mustEmbedUnimplementedAwarenessGraphServer()
 }
 
@@ -492,9 +479,6 @@ func (UnimplementedAwarenessGraphServer) PrepareArchitectAnswerDisposition(conte
 }
 func (UnimplementedAwarenessGraphServer) RecordArchitectAnswerDisposition(context.Context, *RecordArchitectAnswerDispositionRequest) (*RecordArchitectAnswerDispositionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RecordArchitectAnswerDisposition not implemented")
-}
-func (UnimplementedAwarenessGraphServer) PromoteArchitectAnswer(context.Context, *PromoteArchitectAnswerRequest) (*PromoteArchitectAnswerResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method PromoteArchitectAnswer not implemented")
 }
 func (UnimplementedAwarenessGraphServer) mustEmbedUnimplementedAwarenessGraphServer() {}
 func (UnimplementedAwarenessGraphServer) testEmbeddedByValue()                        {}
@@ -787,24 +771,6 @@ func _AwarenessGraph_RecordArchitectAnswerDisposition_Handler(srv interface{}, c
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AwarenessGraph_PromoteArchitectAnswer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PromoteArchitectAnswerRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AwarenessGraphServer).PromoteArchitectAnswer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AwarenessGraph_PromoteArchitectAnswer_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AwarenessGraphServer).PromoteArchitectAnswer(ctx, req.(*PromoteArchitectAnswerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // AwarenessGraph_ServiceDesc is the grpc.ServiceDesc for AwarenessGraph service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -871,10 +837,6 @@ var AwarenessGraph_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RecordArchitectAnswerDisposition",
 			Handler:    _AwarenessGraph_RecordArchitectAnswerDisposition_Handler,
-		},
-		{
-			MethodName: "PromoteArchitectAnswer",
-			Handler:    _AwarenessGraph_PromoteArchitectAnswer_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

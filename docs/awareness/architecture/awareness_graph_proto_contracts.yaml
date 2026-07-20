@@ -4,10 +4,10 @@
 contracts:
   - id: contract.awareness_graph
     name: AwarenessGraph
-    description: 'gRPC service AwarenessGraph with 16 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition, PromoteArchitectAnswer.'
+    description: 'gRPC service AwarenessGraph with 15 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition.'
     kind: grpc
     stability: stable
-    read_or_write: read_write
+    read_or_write: read
     assertion: inferred
     exposed_by:
       - component.awareness_graph_service
@@ -248,22 +248,6 @@ contracts:
     kind: grpc
     stability: stable
     read_or_write: unknown
-    assertion: inferred
-    exposed_by:
-      - component.awareness_graph_service
-    source_files:
-      - proto/awareness_graph.proto
-    uml:
-      kind: Operation
-      stereotype: rpc
-      view: interaction
-      confidence: inferred
-  - id: contract.awareness_graph.promote_architect_answer
-    name: AwarenessGraph.PromoteArchitectAnswer
-    description: rpc PromoteArchitectAnswer(PromoteArchitectAnswerRequest) returns (PromoteArchitectAnswerResponse)
-    kind: grpc
-    stability: stable
-    read_or_write: write
     assertion: inferred
     exposed_by:
       - component.awareness_graph_service

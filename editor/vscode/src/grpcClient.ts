@@ -820,15 +820,6 @@ export interface ArchitectureDispositionReceipt {
   audit?: ArchitectureMutationAudit;
 }
 
-export interface ArchitecturePromotionReceipt {
-  outcome?: string;
-  promotion_lineage_id?: string;
-  receipt_digest_sha256?: string;
-  committed_causal_identity_sha256?: string;
-  detail?: string;
-  audit?: ArchitectureMutationAudit;
-}
-
 /** Pure prepare — writes nothing; returns a candidate XOR a typed refusal. */
 export function prepareArchitectAnswerDisposition(
   addr: string,
@@ -851,23 +842,4 @@ export function recordArchitectAnswerDisposition(
     { input, expected_ledger_head_digest_sha256: expectedLedgerHeadDigestSha256 },
     timeoutMs
   );
-}
-
-/** Promote an accepted disposition using an independently-authored governed record. */
-export function promoteArchitectAnswer(
-  addr: string,
-  req: {
-    repository_identity: string;
-    domain?: string;
-    task_id?: string;
-    promotion_actor_identity?: string;
-    disposition_receipt_digest_sha256: string;
-    proposal: Record<string, unknown>;
-    effective_scope_domain?: string;
-    effective_scope_files?: string[];
-    expected_manifest_digest_sha256?: string;
-  },
-  timeoutMs: number
-): Promise<{ receipt?: ArchitecturePromotionReceipt; refusal?: ArchitectureMutationRefusal }> {
-  return unary(addr, 'PromoteArchitectAnswer', req, timeoutMs);
 }

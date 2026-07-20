@@ -508,20 +508,6 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.prepare_architect_answer_disposition> <https://globular.io/awareness#umlKind> "Operation" .
 <https://globular.io/awareness#contract/contract.awareness_graph.prepare_architect_answer_disposition> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.prepare_architect_answer_disposition> <https://globular.io/awareness#umlView> "interaction" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <http://www.w3.org/2000/01/rdf-schema#comment> "rpc PromoteArchitectAnswer(PromoteArchitectAnswerRequest) returns (PromoteArchitectAnswerResponse)" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.PromoteArchitectAnswer" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#assertionMethod> "inferred" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/awareness_graph_proto_contracts.yaml" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#exposedBy> <https://globular.io/awareness#component/component.awareness_graph_service> .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#kind> "grpc" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#readOrWrite> "write" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#stability> "stable" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#umlConfidence> "inferred" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#umlKind> "Operation" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#umlStereotype> "rpc" .
-<https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph.propose> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
 <https://globular.io/awareness#contract/contract.awareness_graph.propose> <http://www.w3.org/2000/01/rdf-schema#comment> "Propose submits a typed feedback entry (failure_mode, invariant, required_test, forbidden_fix, or contract_unknown) to the awareness corpus's review queue. It is the agent write path: an agent that learned something durable proposes it here.  The entry is validated with the SAME contract-first rules as `awg propose` and written as a candidate under docs/awareness/candidates/proposals/ — it is NOT a live graph node and does NOT trigger a rebuild. Promotion into the canonical corpus stays a human/CI-gated step, so the served graph never silently mutates durable truth (preserving the CLI-not-durable-mutation contract; the RPC only queues a proposal). Requires the server to be configured with a candidates directory; returns Unavailable otherwise. — rpc Propose(ProposeRequest) returns (ProposeResponse)" .
 <https://globular.io/awareness#contract/contract.awareness_graph.propose> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.Propose" .
@@ -597,14 +583,14 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "gRPC service AwarenessGraph with 16 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition, PromoteArchitectAnswer." .
+<https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "gRPC service AwarenessGraph with 15 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition." .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#assertionMethod> "inferred" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/awareness_graph_proto_contracts.yaml" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#exposedBy> <https://globular.io/awareness#component/component.awareness_graph_service> .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#kind> "grpc" .
-<https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#readOrWrite> "read_write" .
+<https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#readOrWrite> "read" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#stability> "stable" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#umlConfidence> "inferred" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#umlKind> "Interface" .
@@ -6173,7 +6159,6 @@
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.metadata> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.preflight> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.prepare_architect_answer_disposition> .
-<https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.promote_architect_answer> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.propose> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.query> .
 <https://globular.io/awareness#sourceFile/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.record_architect_answer_disposition> .
@@ -6872,9 +6857,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-9ff1239043b76631a5c435983800efb1e9e271b89ea750ed58e8d046ac0d43b5> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-9ff1239043b76631a5c435983800efb1e9e271b89ea750ed58e8d046ac0d43b5> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 9ff1239043b7" .
-<https://globular.io/awareness#seedBuild/sha256-9ff1239043b76631a5c435983800efb1e9e271b89ea750ed58e8d046ac0d43b5> <https://globular.io/awareness#seedDigestSha256> "9ff1239043b76631a5c435983800efb1e9e271b89ea750ed58e8d046ac0d43b5" .
-<https://globular.io/awareness#seedBuild/sha256-9ff1239043b76631a5c435983800efb1e9e271b89ea750ed58e8d046ac0d43b5> <https://globular.io/awareness#seedTripleCount> "6880" .
-<https://globular.io/awareness#seedBuild/sha256-9ff1239043b76631a5c435983800efb1e9e271b89ea750ed58e8d046ac0d43b5> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-9ff1239043b76631a5c435983800efb1e9e271b89ea750ed58e8d046ac0d43b5> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-ad1ddfa2dddfd17229f7b38fc35f407e41813d10d761e0163019691fffe3cdde> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-ad1ddfa2dddfd17229f7b38fc35f407e41813d10d761e0163019691fffe3cdde> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 ad1ddfa2dddf" .
+<https://globular.io/awareness#seedBuild/sha256-ad1ddfa2dddfd17229f7b38fc35f407e41813d10d761e0163019691fffe3cdde> <https://globular.io/awareness#seedDigestSha256> "ad1ddfa2dddfd17229f7b38fc35f407e41813d10d761e0163019691fffe3cdde" .
+<https://globular.io/awareness#seedBuild/sha256-ad1ddfa2dddfd17229f7b38fc35f407e41813d10d761e0163019691fffe3cdde> <https://globular.io/awareness#seedTripleCount> "6865" .
+<https://globular.io/awareness#seedBuild/sha256-ad1ddfa2dddfd17229f7b38fc35f407e41813d10d761e0163019691fffe3cdde> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-ad1ddfa2dddfd17229f7b38fc35f407e41813d10d761e0163019691fffe3cdde> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .

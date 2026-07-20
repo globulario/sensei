@@ -681,15 +681,21 @@ remains the sole correctness certifier; `CorrectnessCertified` stays false.
 ## 28. Checkpoint 5 rulings (frozen)
 
 Checkpoint 5 opens the FIRST and ONLY guarded mutation family in the control panel: record an
-architect answer, accept/reject it, and request governed promotion — each a deliberate, separately
-triggered, guarded delegation to an existing owner. Everything else stays read-only.
+architect answer and accept/reject it — a deliberate, separately triggered, guarded delegation to an
+existing owner. Everything else stays read-only.
 
+- **Governed promotion is DEFERRED (ruling)** — implementing promotion as a direct
+  `server → questionpromotion` RPC on the served surface violated two load-bearing invariants:
+  `graph_truth_must_come_from_approved_corpus` (the served `AwarenessGraph` surface exposes no
+  fact-writing RPC) and the briefing-feedback ownership boundary (`golang/server` must not consume
+  `questionpromotion` directly — promotion verification is owned by `briefingfeedback`). Rather than
+  weaken those guards, CP5 ships only the clean disposition family; governed promotion is re-designed
+  through the feedback owner in a later checkpoint. Its `accepted ≠ promoted` boundary is still
+  visibly enforced (an accepted disposition is marked `reusable_candidate`; nothing promotes it).
 - **Owners (delegation only)** — record/accept/reject delegates to `questiondisposition`
   (`Prepare` pure → `RecordDisposition`; the disposition vocabulary answered/dismissed/deferred/
-  task_local IS the accept/reject); governed promotion delegates to `questionpromotion.Promote`
-  (distinct actor + distinct grant, only an accepted `reusable_candidate`, an independently-authored
-  `ProposeRequest` as the governed record). `questiongen` is unguarded and is NEVER exposed as
-  authority. The server/handlers assign no authority of their own.
+  task_local IS the accept/reject). `questiongen` is unguarded and is NEVER exposed as authority. The
+  server/handlers assign no authority of their own.
 - **Claims, not authority** — the client-supplied repository/domain/task/session/actor fields are
   CLAIMS verified against server-resolved authority (startup-owned repository root, active task
   pointer, enrolled identity manifest). Any mismatch is a typed refusal. Filesystem roots are never

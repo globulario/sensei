@@ -5,8 +5,9 @@ package main
 // Phase 9.5 Checkpoint 5 — the guarded architect-answer mutation write path.
 //
 // This is the FIRST mutation surface in the control panel. It is a thin, guarded
-// DELEGATION to the existing owners (questiondisposition / questionpromotion); it
-// assigns NO authority of its own. The load-bearing discipline:
+// DELEGATION to the questiondisposition owner (record/accept/reject); it assigns
+// NO authority of its own. Governed promotion is DEFERRED (see the note below).
+// The load-bearing discipline:
 //
 //   - Client-supplied repository/domain/task/session/actor fields are CLAIMS to
 //     VERIFY against server-resolved authority — never authority to trust. The
@@ -27,9 +28,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/identity"
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
-	qp "github.com/globulario/sensei/golang/architecture/questionpromotion"
 	"github.com/globulario/sensei/golang/architecture/tasksession"
-	"github.com/globulario/sensei/golang/propose"
 )
 
 // mutationRefusal is a typed, pre-write refusal. It guarantees nothing was
@@ -189,34 +188,11 @@ func (s *server) recordDisposition(in dispositionInput, expectedHead string) (*q
 	return &res, cand.ExpectedLedgerHeadDigestSHA256, b, nil
 }
 
-// promotionInput is the owner-native promotion request.
-type promotionInput struct {
-	repositoryIdentity, domain, taskID, actor, dispositionReceiptDigest string
-	proposal                                                            propose.Request
-	scopeDomain                                                         string
-	scopeFiles                                                          []string
-	expectedManifestDigest                                              string
-}
-
-// promoteAnswer promotes an already-accepted disposition. It CONSUMES an
-// independently-authored governed proposal; it never manufactures one from the
-// answer. A refusal (ineligible/authority/scope/stale) writes nothing.
-func (s *server) promoteAnswer(in promotionInput) (*qp.PromoteResult, mutationBindings, *mutationRefusal) {
-	ctx, ref := s.resolveMutationContext(in.repositoryIdentity, in.domain, in.taskID, "", in.actor)
-	b := ctx.bindings("promotion", "")
-	if ref != nil {
-		return nil, b, ref
-	}
-	res, err := qp.Promote(context.Background(), qp.PromoteRequest{
-		RepositoryRoot: ctx.repoRoot, TaskDirectory: ctx.taskDir, RepositoryDomain: ctx.domain,
-		IdentityRoot: ctx.identityRoot, QuestionDispositionReceiptDigestSHA256: in.dispositionReceiptDigest,
-		Proposal: in.proposal, EffectiveScopeDomain: in.scopeDomain, EffectiveScopeFiles: in.scopeFiles,
-	})
-	if err != nil {
-		return nil, b, &mutationRefusal{Owner: "questionpromotion", Code: "promotion_failed", Detail: sanitizeMutationDetail(err.Error()), LedgerHead: ctx.ledgerHead}
-	}
-	return &res, b, nil
-}
+// Governed promotion is DEFERRED (CP5): the "no fact-writing RPC on the served
+// surface" and "server must not consume questionpromotion directly (verification
+// is owned by briefingfeedback)" invariants mean promotion must not be a direct
+// server→questionpromotion RPC. It will be re-designed through the feedback owner
+// in a later checkpoint. CP5 ships only the guarded disposition family.
 
 // refusalFromDispositionErr maps the owner's typed error to a refusal, verbatim
 // code, sanitized detail. Any error is a refusal (nothing was written pre-commit).

@@ -152,7 +152,6 @@ service AwarenessGraph {
   // identity only — filesystem roots come from the startup-owned context.
   rpc PrepareArchitectAnswerDisposition(PrepareArchitectAnswerDispositionRequest) returns (PrepareArchitectAnswerDispositionResponse);
   rpc RecordArchitectAnswerDisposition(RecordArchitectAnswerDispositionRequest) returns (RecordArchitectAnswerDispositionResponse);
-  rpc PromoteArchitectAnswer(PromoteArchitectAnswerRequest) returns (PromoteArchitectAnswerResponse);
 }
 
 // ─── Briefing ─────────────────────────────────────────────────────────────
@@ -1658,22 +1657,6 @@ enum ArchitectureDispositionOutcome {
   ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED = 4;
 }
 
-enum ArchitecturePromotionOutcome {
-  ARCHITECTURE_PROMOTION_OUTCOME_UNSPECIFIED = 0;  // always invalid
-  ARCHITECTURE_PROMOTION_OUTCOME_COMMITTED = 1;
-  ARCHITECTURE_PROMOTION_OUTCOME_EXACT_REPLAY = 2;
-  ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_SOURCE = 3;
-  ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_GRAPH = 4;
-  ARCHITECTURE_PROMOTION_OUTCOME_INCOMPLETE_AT_COMMIT = 5;
-  ARCHITECTURE_PROMOTION_OUTCOME_INELIGIBLE_DISPOSITION = 6;
-  ARCHITECTURE_PROMOTION_OUTCOME_STALE_OR_SUPERSEDED_INPUT = 7;
-  ARCHITECTURE_PROMOTION_OUTCOME_AUTHORITY_REFUSAL = 8;
-  ARCHITECTURE_PROMOTION_OUTCOME_SCOPE_REFUSAL = 9;
-  ARCHITECTURE_PROMOTION_OUTCOME_CONTRADICTION_OR_COLLISION = 10;
-  ARCHITECTURE_PROMOTION_OUTCOME_MANIFEST_CAS_FAILURE = 11;
-  ARCHITECTURE_PROMOTION_OUTCOME_GRAPH_VERIFICATION_FAILURE = 12;
-  ARCHITECTURE_PROMOTION_OUTCOME_TAMPERED_JOURNAL_OR_ARTIFACT = 13;
-}
 
 // ArchitectureMutationRefusal is a pre-write refusal from the owner (unenrolled/
 // unverified/ungranted actor, broadened scope, ineligible input). It is response
@@ -1776,38 +1759,5 @@ message RecordArchitectAnswerDispositionRequest {
 // Exactly one of receipt / refusal is set. A refusal wrote nothing.
 message RecordArchitectAnswerDispositionResponse {
   ArchitectureDispositionReceipt receipt = 1;
-  ArchitectureMutationRefusal refusal = 2;
-}
-
-// ArchitecturePromotionReceipt mirrors questionpromotion.PromoteResult.
-message ArchitecturePromotionReceipt {
-  ArchitecturePromotionOutcome outcome = 1;
-  string promotion_lineage_id = 2;
-  string receipt_digest_sha256 = 3;
-  string committed_causal_identity_sha256 = 4;
-  string detail = 5;
-  ArchitectureMutationAudit audit = 6;
-}
-
-// PromoteArchitectAnswer promotes an already-accepted (answered + reusable
-// candidate, uncontested) disposition to a governed record. The governed record
-// is an ALREADY-AUTHORED ProposeRequest (the existing propose path) — never the
-// raw answer. A DISTINCT promotion actor + grant are required (enforced by the
-// owner).
-message PromoteArchitectAnswerRequest {
-  string repository_identity = 1;
-  string domain = 2;
-  string task_id = 3;
-  string promotion_actor_identity = 4;
-  string disposition_receipt_digest_sha256 = 5;  // which accepted answer
-  ProposeRequest proposal = 6;                    // governed record, authored separately
-  string effective_scope_domain = 7;
-  repeated string effective_scope_files = 8;
-  string expected_manifest_digest_sha256 = 9;     // precondition
-}
-
-// Exactly one of receipt / refusal is set. A refusal wrote nothing.
-message PromoteArchitectAnswerResponse {
-  ArchitecturePromotionReceipt receipt = 1;
   ArchitectureMutationRefusal refusal = 2;
 }
