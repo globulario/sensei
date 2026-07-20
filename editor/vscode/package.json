@@ -186,7 +186,7 @@
     "compile": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "typecheck": "tsc --noEmit -p ./",
-    "test": "npm run compile && node --test out/*.test.js",
+    "test": "npm run compile && node scripts/run-tests.mjs",
     "sync-proto": "node ./scripts/sync-proto.js",
     "check-proto": "node ./scripts/sync-proto.js --check"
   },
