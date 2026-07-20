@@ -535,7 +535,7 @@ body.review-mode .viewbar { display: none; }
 .cp-prov { margin-top: 6px; display: grid; gap: 2px; font-size: 0.9em; }
 .cp-prov-k { display: inline-block; min-width: 130px; color: var(--vscode-descriptionForeground); }
 
-.cp-body { display: grid; grid-template-columns: minmax(150px, 210px) 1fr minmax(180px, 300px); flex: 1 1 auto; min-height: 0; }
+.cp-body { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) minmax(300px, 460px); flex: 1 1 auto; min-height: 0; }
 .cp-rail { overflow-y: auto; border-right: 1px solid var(--vscode-panel-border); padding: 6px; }
 .cp-center { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .cp-header-pane { overflow-y: auto; border-left: 1px solid var(--vscode-panel-border); padding: 8px; }
@@ -588,7 +588,10 @@ body.review-mode .viewbar { display: none; }
 .cp-header-empty, .cp-header-unavailable { color: var(--vscode-descriptionForeground); }
 .cp-header-id { font-weight: 600; word-break: break-all; margin-bottom: 6px; }
 .cp-h-row { display: flex; gap: 8px; padding: 2px 0; }
-.cp-h-k { min-width: 120px; color: var(--vscode-descriptionForeground); }
+.cp-h-k { flex: 0 0 auto; min-width: 120px; color: var(--vscode-descriptionForeground); }
+/* Let long IRIs/paths wrap inside the inspector instead of being clipped. */
+.cp-h-v { min-width: 0; overflow-wrap: anywhere; }
+.cp-insp-row > span:last-child, .cp-insp-row > code { min-width: 0; overflow-wrap: anywhere; }
 .cp-header-note { margin-top: 10px; font-size: 0.86em; color: var(--vscode-descriptionForeground); border-top: 1px dashed var(--vscode-panel-border); padding-top: 6px; }
 
 /* Badges: enum token -> visual class. Text label is always rendered by JS. */
