@@ -483,3 +483,33 @@ forbidden_fixes:
     related_invariants:
       - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
     reason: A commit must CAS against the client's expected ledger head (stale -> refuse, write nothing) and never silently re-prepare; a domain refusal must expose mutation_applied=false with the unchanged ledger identity, never a transport success that looks applied.
+  - id: forbidden_fix.sensei.render_completion_or_authoritative_completion_as_correctness
+    title: Render completion or authoritative_completion as correctness
+    summary: Showing the top-strip completion state (or the 'authoritative' qualifier) as a correctness/certification claim conflates completion with correctness (proof 4). Phase 6 alone certifies; the panel must word completion as a workflow terminal state, never truth.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Showing the top-strip completion state (or the 'authoritative' qualifier) as a correctness/certification claim conflates completion with correctness (proof 4). Phase 6 alone certifies; the panel must word completion as a workflow terminal state, never truth.
+  - id: forbidden_fix.sensei.invent_a_promotion_owner_to_satisfy_proof_13
+    title: Invent a promotion owner to satisfy proof 13
+    summary: Adding a server-side promotion RPC or any fact-writing path to display 'promoted knowledge' violates graph_truth_must_come_from_approved_corpus and the briefing-feedback ownership boundary. Proof 13 is met by DISPLAYING existing Phase-9.6 ScopedFeedbackRef lineage; promotion stays deferred and visibly unavailable.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Adding a server-side promotion RPC or any fact-writing path to display 'promoted knowledge' violates graph_truth_must_come_from_approved_corpus and the briefing-feedback ownership boundary. Proof 13 is met by DISPLAYING existing Phase-9.6 ScopedFeedbackRef lineage; promotion stays deferred and visibly unavailable.
+  - id: forbidden_fix.sensei.carry_architectural_state_in_color_alone
+    title: Carry architectural state in color alone
+    summary: A badge/row/tag whose meaning is conveyed only by color fails proof 22. Every state must also carry a text label or glyph.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: A badge/row/tag whose meaning is conveyed only by color fails proof 22. Every state must also carry a text label or glyph.
+  - id: forbidden_fix.sensei.let_a_narrow_width_force_horizontal_scroll_or_hide_critical
+    title: Let a narrow width force horizontal scroll or hide critical attention
+    summary: Collapsing the panel by horizontally scrolling the body, or hiding the rail/inspector/attention list at narrow widths, breaks proof 23. The narrow layout must stack into a single vertically-scrolling column with nothing hidden.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Collapsing the panel by horizontally scrolling the body, or hiding the rail/inspector/attention list at narrow widths, breaks proof 23. The narrow layout must stack into a single vertically-scrolling column with nothing hidden.
+  - id: forbidden_fix.sensei.gate_cp6_closure_on_a_flaky_vs_code_host_launch_harness
+    title: Gate CP6 closure on a flaky VS Code host-launch harness
+    summary: Adding @vscode/test-electron (real host download + xvfb) to the closure path introduces cross-platform flake that can block a green Ubuntu+Windows gate. Packaged validation must stay a deterministic pure-Node content assertion over the .vsix.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Adding @vscode/test-electron (real host download + xvfb) to the closure path introduces cross-platform flake that can block a green Ubuntu+Windows gate. Packaged validation must stay a deterministic pure-Node content assertion over the .vsix.

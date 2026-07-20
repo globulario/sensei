@@ -1814,3 +1814,15 @@ invariants:
       - forbidden_fix.sensei.expose_the_unguarded_questiongen_dialogue_op_as_an_authorita
       - forbidden_fix.sensei.copy_raw_architect_answer_text_into_a_governed_record_or_pro
     contract: 'The control panel''s only mutation family (record/accept/reject via questiondisposition, promote via questionpromotion) is a guarded delegation: authority is resolved server-side and client fields are verified claims; refusals write nothing and expose mutation_applied=false with the unchanged ledger identity; no lifecycle auto-chaining; raw answer text never becomes governed prose. Proven by golang/server/controlstate_mutation_test.go + editor/vscode/src/controlPanelMutation.test.ts.'
+  - id: invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    title: CP6 control-panel closure adds display and proof only — no new owner, no fact-writing RPC
+    status: active
+    description: The architectural control panel's final checkpoint must be integration and proof, not new engine parts. Any temptation to add a semantic owner or a fact-writing RPC is a signal to stop and surface a contradiction, not to build.
+    protects:
+      files:
+        - editor/vscode/media/controlPanel.js
+        - golang/architecture/controlstate/snapshot.go
+    required_tests:
+      - golang/coverage/controlstate_ownership_test.go:TestControlStateTransportOwnershipBoundary
+      - golang/coverage/briefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary
+    contract: Phase 9.5 CP6 (final integration) integrates the DISPLAY of completion and Phase-9.6 feedback, closes accessibility and constrained-width, and validates the packaged artifact — introducing NO new semantic owner and NO fact-writing RPC. Completion is a workflow terminal state, never correctness (Phase 6 alone certifies). Governed promotion stays deferred and visibly unavailable; the served AwarenessGraph surface exposes no fact-writing RPC and golang/server never consumes questionpromotion directly.

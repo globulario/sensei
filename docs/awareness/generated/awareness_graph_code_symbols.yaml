@@ -4491,6 +4491,86 @@ test_symbols:
     symbol: TestRun_SummaryShowsIgnoredNonAuthority
     package: main
     language: go
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_21_a_fresh_selection_moves_focus_to_the_inspector_heading
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_21_a_fresh_selection_moves_focus_to_the_inspector_heading
+    language: typescript
+    doc: "title: proof 21 — a fresh selection moves focus to the inspector heading"
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_21_a_persistent_aria_live_region_announces_guarded_results_without_a_focus_jump
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_21_a_persistent_aria_live_region_announces_guarded_results_without_a_focus_jump
+    language: typescript
+    doc: "title: proof 21 — a persistent aria-live region announces guarded results without a focus jump"
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_21_every_selectable_row_wires_keydown_through_activateKey_no_Enter_only_rows
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_21_every_selectable_row_wires_keydown_through_activateKey_no_Enter_only_rows
+    language: typescript
+    doc: "title: proof 21 — every selectable row wires keydown through activateKey (no Enter-only rows)"
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_21_the_interactive_chips_and_rail_classes_are_native_button_keyboard_operable
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_21_the_interactive_chips_and_rail_classes_are_native_button_keyboard_operable
+    language: typescript
+    doc: "title: proof 21 — the interactive chips and rail classes are native <button> (keyboard-operable)"
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_21_the_keyboard_helper_activates_on_BOTH_Enter_and_Space
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_21_the_keyboard_helper_activates_on_BOTH_Enter_and_Space
+    language: typescript
+    doc: "title: proof 21 — the keyboard helper activates on BOTH Enter and Space"
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_22_an_invalid_unspecified_value_shows_the_word_Invalid_never_a_neutral_colour
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_22_an_invalid_unspecified_value_shows_the_word_Invalid_never_a_neutral_colour
+    language: typescript
+    doc: "title: proof 22 — an invalid/unspecified value shows the word \"Invalid\", never a neutral colour"
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_22_every_badge_kind_carries_a_human_text_label_not_colour_alone
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_22_every_badge_kind_carries_a_human_text_label_not_colour_alone
+    language: typescript
+    doc: "title: proof 22 — every badge kind carries a human text label, not colour alone"
+  - id: editor/vscode/src/controlPanelA11y.test.ts:SpecTitle_proof_22_tri_booleans_and_tags_carry_glyphs_words_alongside_colour
+    file: editor/vscode/src/controlPanelA11y.test.ts
+    symbol: SpecTitle_proof_22_tri_booleans_and_tags_carry_glyphs_words_alongside_colour
+    language: typescript
+    doc: "title: proof 22 — tri booleans and tags carry glyphs/words alongside colour"
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_CP6_ruling_governed_promotion_is_labelled_deferred_not_silently_absent
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_CP6_ruling_governed_promotion_is_labelled_deferred_not_silently_absent
+    language: typescript
+    doc: "title: CP6 ruling — governed promotion is labelled deferred, not silently absent"
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_proof_12_an_accepted_disposition_outcome_is_rendered_verbatim_never_relabelled_promoted
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_proof_12_an_accepted_disposition_outcome_is_rendered_verbatim_never_relabelled_promoted
+    language: typescript
+    doc: "title: proof 12 — an accepted disposition outcome is rendered verbatim, never relabelled \"promoted\""
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_proof_12_the_control_panel_offers_no_promotion_affordance_no_fact_writing_button
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_proof_12_the_control_panel_offers_no_promotion_affordance_no_fact_writing_button
+    language: typescript
+    doc: "title: proof 12 — the control panel offers no promotion affordance (no fact-writing button)"
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_proof_13_18_absent_feedback_is_honest_no_exact_scope_feedback_never_fabricated
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_proof_13_18_absent_feedback_is_honest_no_exact_scope_feedback_never_fabricated
+    language: typescript
+    doc: "title: proof 13/18 — absent feedback is honest (\"no exact-scope feedback\"), never fabricated"
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_proof_13_exact_scope_feedback_provenance_renders_verified_records_lineage
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_proof_13_exact_scope_feedback_provenance_renders_verified_records_lineage
+    language: typescript
+    doc: "title: proof 13 — exact-scope feedback provenance renders verified records + lineage"
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_proof_18_the_degradation_banner_is_additive_base_posture_cells_render_first
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_proof_18_the_degradation_banner_is_additive_base_posture_cells_render_first
+    language: typescript
+    doc: "title: proof 18 — the degradation banner is additive; base posture cells render first"
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_proof_4_completionText_never_claims_certification_correctness
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_proof_4_completionText_never_claims_certification_correctness
+    language: typescript
+    doc: "title: proof 4 — completionText never claims certification/correctness"
+  - id: editor/vscode/src/controlPanelClosure.test.ts:SpecTitle_proof_4_the_top_strip_keeps_Completion_and_Active_task_as_separate_cells
+    file: editor/vscode/src/controlPanelClosure.test.ts
+    symbol: SpecTitle_proof_4_the_top_strip_keeps_Completion_and_Active_task_as_separate_cells
+    language: typescript
+    doc: "title: proof 4 — the top strip keeps Completion and Active task as separate cells"
   - id: editor/vscode/src/controlPanelDecode.test.ts:SpecTitle_an_absent_optional_count_decodes_to_undefined_never_0
     file: editor/vscode/src/controlPanelDecode.test.ts
     symbol: SpecTitle_an_absent_optional_count_decodes_to_undefined_never_0
@@ -4581,6 +4661,26 @@ test_symbols:
     symbol: SpecTitle_relationships_focus_graph_render_an_honest_unavailable_placeholder_no_legacy_graph
     language: typescript
     doc: "title: relationships / focus graph render an honest unavailable placeholder (no legacy graph)"
+  - id: editor/vscode/src/controlPanelLayout.test.ts:SpecTitle_proof_23_a_narrow_media_collapses_the_three_pane_grid_to_a_single_column
+    file: editor/vscode/src/controlPanelLayout.test.ts
+    symbol: SpecTitle_proof_23_a_narrow_media_collapses_the_three_pane_grid_to_a_single_column
+    language: typescript
+    doc: "title: proof 23 — a narrow @media collapses the three-pane grid to a single column"
+  - id: editor/vscode/src/controlPanelLayout.test.ts:SpecTitle_proof_23_no_inspector_rail_section_is_hidden_at_narrow_width_they_restack_not_disappear
+    file: editor/vscode/src/controlPanelLayout.test.ts
+    symbol: SpecTitle_proof_23_no_inspector_rail_section_is_hidden_at_narrow_width_they_restack_not_disappear
+    language: typescript
+    doc: "title: proof 23 — no inspector/rail section is hidden at narrow width (they restack, not disappear)"
+  - id: editor/vscode/src/controlPanelLayout.test.ts:SpecTitle_proof_23_the_narrow_layout_scrolls_vertically_and_never_horizontally
+    file: editor/vscode/src/controlPanelLayout.test.ts
+    symbol: SpecTitle_proof_23_the_narrow_layout_scrolls_vertically_and_never_horizontally
+    language: typescript
+    doc: "title: proof 23 — the narrow layout scrolls vertically and never horizontally"
+  - id: editor/vscode/src/controlPanelLayout.test.ts:SpecTitle_proof_23_the_wide_default_is_fluid_a_1fr_center_and_the_center_pane_can_shrink
+    file: editor/vscode/src/controlPanelLayout.test.ts
+    symbol: SpecTitle_proof_23_the_wide_default_is_fluid_a_1fr_center_and_the_center_pane_can_shrink
+    language: typescript
+    doc: "title: proof 23 — the wide default is fluid (a 1fr center), and the center pane can shrink"
   - id: editor/vscode/src/controlPanelMutation.test.ts:SpecTitle_a_receipt_NEVER_produces_an_optimistic_lifecycle_only_the_owner_refresh_does
     file: editor/vscode/src/controlPanelMutation.test.ts
     symbol: SpecTitle_a_receipt_NEVER_produces_an_optimistic_lifecycle_only_the_owner_refresh_does

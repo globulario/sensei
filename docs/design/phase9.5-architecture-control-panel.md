@@ -730,3 +730,103 @@ existing owner. Everything else stays read-only.
 **Exclusions (CP5)** — no task completion, no correctness certification, no generic graph/YAML
 mutation, no auto-chaining, no unguarded dialogue write. **CP6 has NOT begun** (completion +
 Phase-9.6 feedback integration, accessibility, packaged/Ubuntu+Windows validation, closure docs).
+
+## 29. Checkpoint 6 rulings — final integration & proof (frozen)
+
+Checkpoint 6 is the final inspection: **no new engine parts.** It integrates the display of
+completion and Phase-9.6 feedback, closes accessibility and constrained-width, validates the packaged
+artifact on both supported hosts, re-runs the complete 41-proof matrix, and writes the closure docs.
+It adds NO new semantic owner and NO fact-writing RPC.
+
+- **Completion is display, never correctness (proof 4)** — the top strip renders the owner's
+  `CompletionSummary` (terminal state, and `authoritative_completion` scoped in words to *completion —
+  not correctness*). It never emits "certified"/"correct"/"verified". Phase 6 remains the sole
+  certifier; `CorrectnessCertified` stays false. Completion and active-task stay separate cells; a
+  `closure.Report` task verdict is never rendered as artifact closure (proof 28, owner-enforced).
+- **Phase-9.6 feedback is exact-scope display, no invented promotion owner (proofs 13/18/36/37)** —
+  the inspector shows the owner's `ScopedFeedbackRef` (verified records + lineage) as provenance
+  labelled "not a repo-wide scan, not authority"; absence is stated honestly ("no exact-scope
+  feedback"), never fabricated; degraded feedback never erases the base posture cells (the
+  degradation banner is additive). No repository-wide feedback scan is introduced.
+- **Governed promotion stays deferred and VISIBLY unavailable** — the control panel offers no
+  promotion affordance (no fact-writing button); the guarded receipt states plainly that promotion is
+  deferred and an accepted answer stays a `reusable_candidate` (labelled, not painted onto the wall).
+  CP6 does not add a fact-writing RPC; the two load-bearing guards
+  (`graph_truth_must_come_from_approved_corpus`, briefing-feedback ownership) remain green.
+- **Accessibility is closed (proofs 21/22)** — every `div[role=button]` row is operable by BOTH
+  Enter and Space (native `<button>` chips/rail/guarded controls already are); a fresh selection moves
+  focus to the inspector heading; guarded receipts/refusals reach a persistent `aria-live` region and
+  are announced without a focus jump; `:focus-visible` rings are present throughout. Colour is never
+  the sole state carrier — every badge carries a text label, tri-states carry ✓/✗ glyphs, tags carry
+  words. (Keyboard navigation stays the simple Tab + Enter/Space model — no roving-tabindex rewrite.)
+- **Constrained width is closed (proof 23)** — below a narrow threshold the three-pane grid collapses
+  to a single readable column that scrolls vertically; the body never scrolls horizontally and no
+  section is hidden (critical attention stays visible).
+- **Packaged artifact is validated deterministically on Ubuntu + Windows** — the extension CI runs
+  typecheck + the full proof suite + `vsce package` on `[ubuntu-latest, windows-latest]`; a pure-Node
+  `scripts/verify-vsix.mjs` then asserts over the actual `.vsix` that the manifest is AGPL, the
+  extension's own `LICENSE.txt` is the AGPL text (no residual Apache in the extension's own files —
+  third-party `node_modules` licenses are legitimate and untouched), and the control-panel runtime
+  assets + vendored proto are shipped. (This checkpoint caught and fixed a reconciliation residual:
+  `editor/vscode/LICENSE` was still Apache while the manifest declared AGPL.)
+- **Legacy explorer stays quarantined + documented** — it remains behind the mode toggle with its
+  retained Phase-1/Phase-2 semantic surface; the anti-duplication gate (proof 41) still forbids that
+  surface from reappearing in the control panel. Retirement is NOT performed (not proven mechanically
+  risk-free) and is left to a separate change.
+- **Proofs** — proofs 21/22 (`controlPanelA11y.test.ts`), proof 23 (`controlPanelLayout.test.ts`),
+  and proofs 4/12/13/18 + the deferred-promotion label (`controlPanelClosure.test.ts`) join the
+  existing CP1–CP5 suites. §30 maps every one of the 41 required proofs to its executable test.
+
+**Exclusions (CP6)** — no new semantic owner, no fact-writing RPC, no governed promotion, no
+legacy-explorer retirement, no task-completion mutation, no correctness certification. **Phase 9.7
+has NOT begun.** Phase 6 remains the sole correctness certifier; `CorrectnessCertified` stays false.
+
+## 30. The 41-proof matrix (closure)
+
+Every required design proof (§21) maps to an executable test. `controlstate` proofs run under
+`go test ./golang/architecture/controlstate/...`; server/ownership proofs under `./golang/server/...`
+and `./golang/coverage/...`; extension proofs under `editor/vscode` via `node --test`.
+
+| # | Proof | Where it is proven |
+|---|-------|--------------------|
+| 1 | graph authority ≠ artifact closure | `controlstate` authority_ledger + `controlPanel.js` renders three independent authority booleans (never one healthy badge) |
+| 2 | lifecycle ≠ closure | `controlstate` lifecycle_test / artifactstate_test (typed separately) |
+| 3 | task closure ≠ artifact closure | `controlstate` closure_repair_test; `TestControlStateTransportOwnershipBoundary` (no `closure.Report.Verdict` as artifact closure) |
+| 4 | completion ≠ correctness | `controlPanelClosure.test.ts` (completionText never certifies); `CorrectnessCertified` unchanged |
+| 5 | applicable dimensions only | `controlPanelInspector.test.ts` |
+| 6 | missing non-applicable dimension does not open an artifact | `controlPanelInspector.test.ts` |
+| 7 | editor cannot compute closure | `controlPanelTables.test.ts` + `controlPanelInspector.test.ts` |
+| 8 | editor cannot manufacture severity | `controlPanelTables.test.ts` (no severity tables) |
+| 9 | critical attention visible across navigation | `controlstate` attention_test; top-strip + queue always render counts |
+| 10 | questions link to affected artifacts/dimensions | `controlPanelInspector.test.ts` (question linkage) |
+| 11 | a recorded answer is not shown as accepted | `controlPanelMutation.test.ts` (lifecycle from owner, not receipt) |
+| 12 | an accepted answer is not shown as promoted | `controlPanelClosure.test.ts` (no promotion affordance; outcome verbatim) |
+| 13 | promoted knowledge shows Phase-9.6 lineage | `controlPanelClosure.test.ts` (`cpFeedbackProvenance` lineage) |
+| 14 | dialogue actions delegate only to authorized owners | `controlstate_mutation_test.go` (owner delegation, actor verification) |
+| 15 | a refusal writes nothing | `controlstate_mutation_test.go` (byte-for-byte ledger snapshot around every refusal) |
+| 16 | raw answer text never becomes governed prose | `controlstate_mutation_test.go` (AnswerID + digest only) |
+| 17 | stale graph authority disables authoritative claims (no `closed`) | `controlstate` authority_ledger_test |
+| 18 | degraded feedback does not erase base state | `controlPanelClosure.test.ts` (additive degradation banner) |
+| 19 | unknown stays unknown | `controlPanelInspector.test.ts` / `controlPanelDecode.test.ts` |
+| 20 | no repository-wide correctness claim | `controlstate` snapshot_test; no repo-wide verdict emitted |
+| 21 | keyboard-only operation works | `controlPanelA11y.test.ts` (Enter+Space rows, focus move, aria-live) |
+| 22 | colour is never the only state carrier | `controlPanelA11y.test.ts` (every badge/label carries text) |
+| 23 | usable at constrained widths | `controlPanelLayout.test.ts` (narrow collapse, no horizontal scroll) |
+| 24 | existing extension consumers stay compatible | `protoContract.test.ts` + `taskSession.test.ts` (unchanged read surface) |
+| 25 | Phase 9.4 behavior unchanged | `taskSession.test.ts` (active-task/envelope contract) |
+| 26 | `CorrectnessCertified` owner-controlled + unchanged | `controlstate` snapshot/registry tests; no client write |
+| 27 | server does not own semantic classification | `TestControlStateTransportOwnershipBoundary` / `TestControlStateOwnershipBoundary` |
+| 28 | `closure.Report` task verdict never copied as artifact closure | `controlstate` closure_repair_test + ownership boundary |
+| 29 | unsupported class stays visible + `unknown` | `controlstate` catalog_test / registry_test |
+| 30 | absent lifecycle does not synthesize `active` | `controlstate` lifecycle_test |
+| 31 | absent source → `partial`/`unavailable` + reason, not zero | `controlstate` artifactstate_test / snapshot_test |
+| 32 | `closed` requires every applicable required dimension satisfied | `controlstate` closure_repair_test |
+| 33 | `not_applicable` requires explicit policy | `controlstate` policy_test |
+| 34 | artifact-index pagination stable + digest-bound | `controlstate` index_snapshot_test |
+| 35 | unknown ontology classes appear under `unclassified` | `controlstate` navigation_test |
+| 36 | `control_snapshot` performs no repository-wide feedback scan | `controlstate` snapshot_test; `controlPanelClosure.test.ts` (exact-scope only) |
+| 37 | artifact feedback is exact-scope only | `controlPanelInspector.test.ts` + `controlstate` artifactstate_test |
+| 38 | missing repository context → `partial`/`unavailable`, not guesses | `controlstate_mutation_test.go` (config-absence typed) + snapshot_test |
+| 39 | severity IDs + ordering deterministic | `controlstate` determinism_test |
+| 40 | source critical severity cannot be silently downgraded | `controlstate` attention_test; `cpBadge` UNSPECIFIED → Invalid |
+| 41 | client contains no semantic class/severity/closure tables | `controlPanelTables.test.ts` (aggressive anti-duplication gate) |

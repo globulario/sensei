@@ -505,6 +505,8 @@ body.review-mode .viewbar { display: none; }
 .cp-modebtn:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
 
 #controlPanel.cp { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+/* Visually hidden but exposed to assistive tech — the guarded-action live region. */
+.cp-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; white-space: nowrap; }
 .cp-topstrip { padding: 8px 12px; border-bottom: 1px solid var(--vscode-panel-border); flex: 0 0 auto; }
 .cp-strip-cells { display: flex; flex-wrap: wrap; gap: 14px; }
 .cp-cell { min-width: 90px; }
@@ -532,6 +534,18 @@ body.review-mode .viewbar { display: none; }
 .cp-rail { overflow-y: auto; border-right: 1px solid var(--vscode-panel-border); padding: 6px; }
 .cp-center { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .cp-header-pane { overflow-y: auto; border-left: 1px solid var(--vscode-panel-border); padding: 8px; }
+/* Proof 23 — constrained VS Code widths. Below a narrow threshold the three-pane
+   grid (rail | center | inspector) collapses to a single readable column that
+   scrolls VERTICALLY; the body never scrolls horizontally and no section is
+   hidden — critical attention (top strip + list) stays visible. */
+@media (max-width: 700px) {
+  #controlPanel.cp { overflow: hidden; }
+  .cp-body { display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+  .cp-rail, .cp-center, .cp-header-pane { flex: 0 0 auto; min-width: 0; }
+  .cp-rail { border-right: none; border-bottom: 1px solid var(--vscode-panel-border); overflow: visible; }
+  .cp-header-pane { border-left: none; border-top: 1px solid var(--vscode-panel-border); overflow: visible; }
+  .cp-list { flex: 0 0 auto; overflow: visible; }
+}
 
 .cp-fam-h { font-size: 0.8em; text-transform: uppercase; color: var(--vscode-descriptionForeground); margin: 8px 4px 2px; letter-spacing: 0.04em; }
 .cp-cls { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: none; border: none; color: var(--vscode-foreground); padding: 3px 6px; border-radius: 3px; cursor: pointer; font: inherit; }

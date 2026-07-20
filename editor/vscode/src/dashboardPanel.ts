@@ -1807,6 +1807,7 @@ export class DashboardPanel {
   </div>
 
   <div id="controlPanel" class="cp">
+    <div id="cpLive" class="cp-sr-only" role="status" aria-live="polite"></div>
     <div id="cpTopStrip" class="cp-topstrip" aria-label="Repository posture"></div>
     <div class="cp-body">
       <nav id="cpRail" class="cp-rail" aria-label="Ontology navigation"></nav>

@@ -12,6 +12,7 @@ components:
       - editor/vscode/media/controlPanelMutation.js
       - editor/vscode/media/dashboard.js
       - editor/vscode/scripts/sync-proto.js
+      - editor/vscode/scripts/verify-vsix.mjs
       - editor/vscode/src/awarenessProvider.ts
       - editor/vscode/src/awgRunner.ts
       - editor/vscode/src/dashboardPanel.ts

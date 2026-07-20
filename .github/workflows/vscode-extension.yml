@@ -19,7 +19,14 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Checkpoint 6: the extension suite + packaging run on BOTH Ubuntu and Windows
+    # so the guarded UI, the 41-proof matrix, and the packaged .vsix are validated
+    # on each supported host — not Ubuntu-only.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: editor/vscode
@@ -51,4 +58,12 @@ jobs:
         run: npm test
 
       - name: Package (validate the .vsix builds)
-        run: npx --yes @vscode/vsce package --no-git-tag-version -o /tmp/sensei.vsix
+        # Workspace-relative output so the path is valid on Windows too.
+        run: npx --yes @vscode/vsce package --no-git-tag-version -o sensei.vsix
+
+      - name: Validate packaged artifact (AGPL + control-panel + proto shipped)
+        # Deterministic content assertion over the actual .vsix: AGPL manifest +
+        # AGPL LICENSE (no residual Apache in the extension's own files), and the
+        # control-panel runtime assets + vendored proto are present. Pure Node —
+        # no external unzip tool — so it is identical on Ubuntu and Windows.
+        run: node scripts/verify-vsix.mjs sensei.vsix

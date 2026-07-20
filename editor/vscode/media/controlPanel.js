@@ -21,6 +21,16 @@
     String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
     );
+  // Announce a transient guarded-action result to assistive tech through a
+  // persistent live region (proof 21) — no focus jump, no fabricated state.
+  // No-op when the region is absent (older host shell).
+  const announce = (msg) => { const el = $('cpLive'); if (el) el.textContent = String(msg || ''); };
+  // A div[role="button"] row is NOT a native button, so it must honor BOTH Enter
+  // and Space (proof 21). Native <button> elements (chips, rail, guarded panel)
+  // already do this themselves and need no keydown wiring.
+  const activateKey = (e, fn) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); fn(); }
+  };
 
   // ---- state (all server-sourced; nothing synthesized) --------------------
   let descriptor = null; // OntologyNavigationDescriptor
@@ -35,6 +45,7 @@
   let indexCursor = '';
   let selectedNodeIri = '';
   let showProvenance = false;
+  let pendingInspectorFocus = false; // move focus to the inspector heading after a fresh selection
   // Guarded architect-answer action (at most one at a time). Its lifecycle is the
   // pure state machine in controlPanelMutation.js — never optimistic.
   let mutation = null; // { questionId, form, gs }
@@ -101,18 +112,27 @@
             ? { unavailable: true, reason: m.reason || 'unavailable' }
             : { lifecycle: (m.state && m.state.lifecycle && m.state.lifecycle.state) || null, closure: m.state && m.state.closure };
           mutation.gs = cpGuardedReduce(mutation.gs, { type: 'REFRESH_RESULT', ownerState: owner });
+          announce(owner.unavailable
+            ? 'Refreshed owner state unavailable — no lifecycle shown.'
+            : 'Owner state refreshed. Lifecycle ' + (owner.lifecycle || 'none') + '.');
         }
         renderHeader();
         break;
       case 'dispositionPrepared':
         if (mutation && mutation.questionId === m.questionId) {
           mutation.gs = cpGuardedReduce(mutation.gs, { type: 'PREPARE_RESULT', candidate: m.candidate, refusal: m.refusal });
+          announce(m.refusal
+            ? 'Prepare refused, nothing written: ' + ((m.refusal && m.refusal.reason_code) || 'refused') + '.'
+            : 'Owner candidate ready. Nothing written yet — confirm to commit.');
           renderHeader();
         }
         break;
       case 'dispositionCommitted':
         if (mutation && mutation.questionId === m.questionId) {
           mutation.gs = cpGuardedReduce(mutation.gs, { type: 'COMMIT_RESULT', receipt: m.receipt, refusal: m.refusal });
+          announce(m.refusal
+            ? 'Refused, nothing written: ' + ((m.refusal && m.refusal.reason_code) || 'refused') + '.'
+            : 'Recorded. Outcome ' + ((m.receipt && m.receipt.outcome) || 'unknown') + '. Awaiting owner refresh.');
           renderHeader(); // the follow-up artifactState refresh re-renders with owner truth
         }
         break;
@@ -120,6 +140,7 @@
         // A transport failure is honest state, never fake data.
         if (mutation && mutation.gs && mutation.gs.inFlight) {
           mutation.gs = cpGuardedReduce(mutation.gs, { type: 'COMMIT_RESULT', refusal: { reason_code: m.unreachable ? 'server_unreachable' : 'transport_error', owner: 'client', mutation_applied: false } });
+          announce('Transport error — nothing was written.');
           renderHeader();
         } else if (mode === 'artifacts' && (!index || indexUnavailable)) {
           indexUnavailable = { reason: m.unreachable ? 'server_unreachable' : 'error', message: m.message };
@@ -269,8 +290,9 @@
   function completionText(c) {
     if (c == null) return 'Unavailable';
     const st = c.terminal_state ? esc(c.terminal_state) : 'none';
-    // Never certified here — Phase 6 owns certification.
-    return st + (c.authoritative_completion ? ' (authoritative)' : '');
+    // Completion is a workflow terminal state, NOT correctness (proof 4). Phase 6
+    // alone certifies; the word "authoritative" qualifies completion, never truth.
+    return st + (c.authoritative_completion ? ' (authoritative completion — not correctness)' : '');
   }
 
   // ---- left rail (descriptor-driven only) ---------------------------------
@@ -411,7 +433,7 @@
       const iri = r.dataset.iri;
       if (!iri) return;
       r.addEventListener('click', () => selectArtifact(iri));
-      r.addEventListener('keydown', (e) => { if (e.key === 'Enter') selectArtifact(iri); });
+      r.addEventListener('keydown', (e) => activateKey(e, () => selectArtifact(iri)));
     });
   }
 
@@ -448,7 +470,7 @@
       host.querySelectorAll('.cp-row').forEach((r) => {
         const iri = r.dataset.iri;
         r.addEventListener('click', () => selectArtifact(iri));
-        r.addEventListener('keydown', (e) => { if (e.key === 'Enter') selectArtifact(iri); });
+        r.addEventListener('keydown', (e) => activateKey(e, () => selectArtifact(iri)));
       });
     }
     if (pager) {
@@ -487,8 +509,19 @@
   function selectArtifact(iri) {
     selectedNodeIri = iri;
     artifact = null;
+    pendingInspectorFocus = true; // land the keyboard on the inspector once content arrives
     renderHeader();
     vscode.postMessage({ type: 'getArtifactState', nodeIri: iri });
+  }
+
+  // Move focus to the inspector heading exactly once, after a fresh selection's
+  // real content (full or unavailable) first renders — never during the loading
+  // placeholder and never on a guarded-panel re-render (which must not steal focus).
+  function focusInspectorIfPending(host) {
+    if (!pendingInspectorFocus) return;
+    pendingInspectorFocus = false;
+    const h = host.querySelector('.cp-header-id');
+    if (h && h.focus) h.focus();
   }
 
   function renderHeader() {
@@ -504,8 +537,9 @@
     }
     if (artifact.unavailable) {
       host.innerHTML =
-        `<div class="cp-header"><div class="cp-header-id">${esc(bare(selectedNodeIri))}</div>` +
+        `<div class="cp-header"><div class="cp-header-id" tabindex="-1">${esc(bare(selectedNodeIri))}</div>` +
         `<div class="cp-header-unavailable">Artifact state unavailable — <span class="cp-reason">${esc(artifact.reason || '')}</span>.</div></div>`;
+      focusInspectorIfPending(host);
       return;
     }
     // Full read-only inspector (Checkpoint 4), in the design §16 order. Every
@@ -530,7 +564,7 @@
 
     host.innerHTML =
       `<div class="cp-insp">` +
-      `<div class="cp-header-id" title="${esc(id.node_iri || '')}">${esc(bare(id.node_iri || selectedNodeIri))}</div>` +
+      `<div class="cp-header-id" tabindex="-1" title="${esc(id.node_iri || '')}">${esc(bare(id.node_iri || selectedNodeIri))}</div>` +
       section('Identity',
         row('Canonical class', esc(st.canonical_class || id.canonical_class || '—')) +
         row('Observed classes', esc((id.observed_classes || []).join(', ') || '—')) +
@@ -559,6 +593,7 @@
       section('Focus graph', cpUnavailableSection('Focus graph', 'no owner-projected graph data')) +
       `</div>`;
     wireGuardedPanel();
+    focusInspectorIfPending(host);
   }
   function row(k, v) {
     return `<div class="cp-h-row"><span class="cp-h-k">${esc(k)}</span><span class="cp-h-v">${v}</span></div>`;
@@ -639,6 +674,7 @@
         row('Mutation applied', cpReceiptApplied(gs) ? 'yes' : 'no (server replay authority)') +
         row('Receipt digest', `<code>${esc(r.receipt_digest_sha256 || '—')}</code>`) +
         ownerLine +
+        `<div class="cp-readonly-note">Governed promotion is deferred in this build — an accepted answer stays a reusable candidate; nothing is promoted here.</div>` +
         `<div class="cp-mut-actions"><button id="cpMutDone" type="button">Done</button></div></div>`;
     } else if (gs.phase === 'refused') {
       const ref = gs.refusal || {};
