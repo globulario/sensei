@@ -505,6 +505,11 @@ body.review-mode .viewbar { display: none; }
 .cp-modebtn:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
 
 #controlPanel.cp { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+/* The mode toggle hides the inactive view with [hidden]. Because #controlPanel.cp
+   sets display:flex (id+class), it out-ranks the UA [hidden]{display:none} rule —
+   so without this the hidden Control panel bleeds through the Legacy explorer.
+   These equal-specificity rules follow in source order and win when [hidden] is set. */
+#controlPanel[hidden], #legacyView[hidden] { display: none !important; }
 /* Visually hidden but exposed to assistive tech — the guarded-action live region. */
 .cp-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; white-space: nowrap; }
 .cp-topstrip { padding: 8px 12px; border-bottom: 1px solid var(--vscode-panel-border); flex: 0 0 auto; }
