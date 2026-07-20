@@ -394,6 +394,44 @@ sensei briefing --repo . --task active --file path/to/file.go
 The default claim budget is 12. Additional items remain in full task artifacts;
 compact briefing is context selection, not correctness proof.
 
+### `sensei complete-task` — Local
+
+Delegates to the Phase-8 terminal-completion owner (`completion.CompleteTask`): it re-proves readiness, resolves completion authority, checks terminal-history cardinality, and — only when the whole durable conjunction holds — appends the frozen `completed` event referencing a content-addressed completion receipt. A replay of an already-completed, unchanged task is idempotent (`exact_replay`); any refusal (`not_ready`, `stale_expected_head`, `authority_refusal`, ...) is reported and leaves the ledger untouched.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | repository checkout root |
+| `--task-dir` | active task when omitted | task directory containing the session |
+| `--identity-root` | `<repo>/.sensei/identity` when omitted | completion actor identity store |
+| `--expected-head` | — | **required**: expected task-ledger head digest (optimistic-concurrency guard) |
+| `--format` | `text` | `text` \| `json` \| `yaml` |
+
+### `sensei certify-change` — Local
+
+Runs the Phase 6 architectural-closure certification engine over a verified task ledger: every referenced record is loaded content-addressed and digest-verified, the four lanes (scope, authority, proof, evidence) are recomputed from typed records, and a frozen `CertificationReceipt` is emitted. On a certifying verdict, the frozen `certified` ledger event is appended; a blocked evaluation reports deterministically and leaves the ledger untouched.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--task-dir` | — | **required**: task directory, e.g. `.sensei/tasks/task.<id>` |
+| `--expected-head` | — | **required**: expected task-ledger head digest |
+| `--request` | `<task-dir>/certification_request.yaml` when omitted | typed certification request override |
+| `--format` | `text` | `text` \| `json` |
+
+### `sensei task-ledger` — Local
+
+Subcommand dispatch to verify, display, or rebuild task ledgers.
+
+- `sensei task-ledger status` / `verify` — inspect task ledger entries and verify signatures/hashes.
+- `sensei task-ledger rebuild-projections` — rebuild stale or missing derived projections from a valid task ledger.
+- `sensei task-ledger import-legacy` — convert legacy cert/benchmark files to task ledger format.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | repository checkout |
+| `--task-dir` | active task when omitted | task directory containing the session |
+| `--active` | `false` | resolve active task via active.yaml |
+| `--format` | `text` | `text` \| `yaml` \| `json` |
+
 ---
 
 ## Authoring & feedback
@@ -795,6 +833,48 @@ tests, repo surfaces, and optional Sensei cross-references. Mutates nothing.
 | `--addr` | `localhost:10120` | gRPC server (used only if reachable) |
 | `--format` | `text` | `text` \| `json` \| `prompt` (LLM context) \| `scaffold` (YAML ready for `sensei gate --contracts`) |
 
+### `sensei admit-change` — Local
+
+Evaluates one exact bounded action against a verified convergence session. Admission is permission to attempt, not proof of correctness.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--bundle` | — | **required**: convergence bundle directory |
+| `--request` | — | **required**: architecture change request YAML |
+| `--graph-nt` | — | **required**: explicit graph snapshot N-Triples file |
+| `--repo` | — | **required**: repository checkout |
+| `--policy` | `admission.strict.v2` | admission policy ID |
+| `--mode` | `compact` | output detail: `compact` \| `full` |
+| `--format` | `text` | `text` \| `yaml` \| `json` |
+| `--output` | — | write canonical full admission decision YAML |
+| `--check` | `false` | compare canonical decision bytes with `--output` and write nothing |
+| `--require-admitted` | `false` | exit non-zero unless requested decision is admitted |
+| `--require-write-admitted` | `false` | exit non-zero unless mutation capability is admitted |
+
+### `sensei verify-admission` — Local
+
+Verifies that the working-tree diff stayed inside an admission envelope. Scope compliance is not correctness certification.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--decision` | — | **required**: admission decision YAML |
+| `--bundle` | — | **required**: current convergence bundle directory |
+| `--repo` | — | **required**: repository working tree |
+| `--format` | `text` | `text` \| `yaml` \| `json` |
+| `--output` | — | write canonical verification YAML |
+| `--check` | `false` | compare canonical verification bytes with `--output` and write nothing |
+| `--require-compliant` | `false` | exit non-zero unless scope verification is compliant |
+
+### `sensei admission-status` — Local
+
+Reads admission receipts and verifies their digests without querying a graph or repository.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--decision` | — | **required**: admission decision YAML |
+| `--verification` | — | optional admission verification YAML |
+| `--format` | `text` | `text` \| `yaml` \| `json` |
+
 ---
 
 ## Pattern & structural checks
@@ -1086,3 +1166,62 @@ marker.
 | `--ag-repo` | auto | path to awareness-graph repo for seed + transaction comparison |
 | `--require-current` | `false` | exit 1 if the live store lacks this marker |
 | `--json` | `false` | JSON output |
+
+---
+
+## Architectural closure & convergence
+
+These commands manage dialogue-based question generation, architect answers, evidence probes, and convergence sessions to close gaps in bounded architectural knowledge.
+
+### `sensei assess-closure` — Local
+
+Evaluate a bounded architectural closure request against explicit offline artifacts. The command never queries or mutates the live graph.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--request` | — | **required**: `architecture_closure_request` YAML document |
+| `--claims` | — | **required**: maintained `architecture_claims` YAML document |
+| `--maintenance-report` | — | `claim_truth_maintenance` report path |
+| `--plane-assessment` | — | `architectural_plane_assessment` report path |
+| `--dialogue` | — | `architecture_dialogue` YAML document path |
+| `--evidence-state` | — | `architecture_evidence_state` YAML document path |
+| `--graph-nt` | — | explicit compiled N-Triples graph snapshot path |
+| `--repo` | `.` | repository checkout to verify |
+| `--graph-digest` | — | explicit SHA-256 digest for `--graph-nt` |
+| `--graph-digest-status` | `not_requested` | graph digest status: `resolved` \| `unavailable` \| `not_requested` |
+| `--format` | `yaml` | output format: `yaml` \| `json` |
+| `--output` | — | write report instead of stdout |
+| `--check` | `false` | compare `--output` with fresh deterministic closure assessment |
+| `--require-closed` | `false` | exit 1 unless verdict is `closed` |
+
+### `sensei advance-convergence` — Local
+
+Advance one deterministic offline convergence iteration. Composes existing package APIs without running probes, running tests, querying/mutating the graph, or promoting knowledge.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--closure-request` | — | **required**: `architecture_closure_request` YAML |
+| `--claims` | — | **required**: `architecture_claims` YAML |
+| `--dialogue` | — | **required**: `architecture_dialogue` YAML |
+| `--evidence-state` | — | **required**: `architecture_evidence_state` YAML |
+| `--graph-nt` | — | **required**: compiled graph N-Triples snapshot |
+| `--repo` | — | **required**: repository checkout fixed to closure request revision |
+| `--question-created-at` | — | **required**: RFC3339 timestamp for newly generated questions |
+| `--output-dir` | — | **required**: write deterministic convergence bundle here |
+| `--session` | — | optional existing `architecture_convergence_session` YAML |
+| `--existing-probes` | — | optional existing `architecture_evidence_probes` YAML |
+| `--policy` | `convergence.strict.v1` | convergence policy ID |
+| `--format` | `text` | status output format: `text` \| `yaml` \| `json` |
+| `--check` | `false` | compare expected bundle with `--output-dir` and write nothing |
+| `--require-closed` | `false` | exit 1 unless latest status is `closed` |
+| `--require-terminal` | `false` | exit 1 unless latest status is `terminal` |
+
+### `sensei convergence-status` — Local
+
+Inspect an offline convergence session bundle and optionally verify its files.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--session` | — | **required**: `architecture_convergence_session` YAML path |
+| `--verify-bundle` | — | optional bundle directory to verify |
+| `--format` | `text` | output format: `text` \| `yaml` \| `json` |

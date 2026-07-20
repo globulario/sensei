@@ -39,10 +39,9 @@ The skill is process guidance, not authority. Sensei's reviewed corpus remains
 the architectural memory. See [sensei-architect-skill.md](./sensei-architect-skill.md)
 for installation and update details.
 
-## The eight tools
+## Core awareness tools
 
-You reach these as MCP tools (`awareness_*`) or as `sensei` subcommands. Pick by
-what you're about to do — don't default to `briefing` for everything.
+You reach these as MCP tools (`awareness_*`) or as `sensei` subcommands. Pick by what you're about to do — don't default to `briefing` for everything.
 
 | About to… | Call | Why |
 |---|---|---|
@@ -54,6 +53,19 @@ what you're about to do — don't default to `briefing` for everything.
 | Tell "no rule here" from "graph thin here" | `metadata` | overall coverage/freshness, once per session |
 | Operator/debug browse | `query(mode=)` | typed, whitelisted — no raw SPARQL |
 | Record durable lessons | `propose(kind=, ...)` | review-queue candidates, never active authority |
+
+## Task session & closure tools (Phase Two)
+
+These tools are exposed through the MCP server and CLI for managing change sessions, change admission, and convergence.
+
+| About to… | Call | Why |
+|---|---|---|
+| Initialize a task session | `prepare-change` | bind task details and run initial convergence + admission |
+| Check task/session status | `task_status(repo=)` | read current task session and inspect convergence blockers |
+| Brief a file in a task session | `task_briefing(repo=, file=)` | get active blockers and next actions for a specific file |
+| Advance a task session | `advance_task(repo=)` | execute registered static probes and advance convergence |
+| Evaluate change admission | `admit_change(bundle_dir=, ...)` | check if a proposed change is permitted within a convergence bundle |
+| Verify diff scope compliance | `verify_admission(decision_path=, ...)` | verify that edited files stayed inside the admitted scope |
 
 ## Required pre-edit workflow
 
@@ -79,6 +91,42 @@ what you're about to do — don't default to `briefing` for everything.
 If a tool errors or returns `DEGRADED`, say so explicitly ("awareness
 unavailable/degraded") and fall back to reading local YAML, tests, and code.
 Never pretend the constraints don't exist.
+
+## Bounded task session & closure workflow (Phase Two)
+
+For repositories governed by the Phase Two architectural closure protocol:
+
+1. **Initialize the task session**:
+   ```bash
+   sensei prepare-change --repo <checkout> --repo-domain <domain> \
+     --description "..." --mode modify --task-class <class> --risk-class <risk> \
+     --direction <direction> --graph-nt <graph.nt> \
+     --file modify:<path> ...
+   ```
+   This creates the task workspace and session context under `.sensei/tasks/<task-id>/`.
+2. **Check session status**:
+   Call `task_status(repo=)` or run `sensei task-status --active --compact` to read the current operational status and see if the session is blocked by incomplete architectural knowledge.
+3. **Obtain file briefings inside the session**:
+   Call `task_briefing(repo=, file=)` or run `sensei task-briefing --repo <checkout> --active --file <path>` to check blockers and the next action for a specific file.
+4. **Advance static evidence**:
+   If the session next action is `run_static_evidence`, call `advance_task(repo=)` or run `sensei advance-task --repo <checkout> --active`. This executes registered static-read probes to automatically resolve blockers.
+5. **Handle dialogue/unresolved blockers**:
+   If the session is waiting on dialogue/architect answers or external evidence, route the blocker to the closure skill. Manual inputs can be advanced using:
+   ```bash
+   sensei advance-convergence --closure-request <req.yaml> --claims <claims.yaml> --dialogue <dialogue.yaml> --evidence-state <state.yaml> --graph-nt <graph.nt> --repo <checkout> --question-created-at <RFC3339> --output-dir <dir>
+   ```
+6. **Request mutation admission**:
+   Before editing, evaluate admission via MCP `admit_change` or the CLI:
+   ```bash
+   sensei admit-change --bundle <dir> --request <request.yaml> --graph-nt <graph.nt> --repo <checkout> --output <decision.yaml> --format yaml
+   ```
+   *Only proceed with editing if the decision is `admitted` or `admitted_with_conditions`.* Do not edit on `waiting` or `refused`.
+7. **Verify scope compliance**:
+   After modifying the code, verify the working-tree diff against the admission envelope:
+   ```bash
+   sensei verify-admission --decision <decision.yaml> --bundle <dir> --repo <checkout> --output <verification.yaml> --format yaml
+   ```
+   Ensure the status is `compliant` before proceeding to certification and closure.
 
 ## Interpreting status
 

@@ -248,10 +248,7 @@ bindings
 → revocation and migration
 ```
 
-The graph, MCP, briefing, extraction, audit, and CI surfaces are usable today.
-The terminal architectural-closure lifecycle remains under active development
-and is deliberately not represented as complete before its immutable completion
-and evolution boundaries exist.
+The graph, MCP, briefing, extraction, audit, CI, task sessions, and the terminal architectural-closure protocol are fully implemented and usable today.
 
 ---
 
@@ -631,9 +628,7 @@ The [full CLI reference](docs/cli-reference.md) documents every command and flag
 | `sensei validate` | Run deeper structural validation |
 | `sensei demo` | Start a disposable stack and return a real briefing |
 
-Closure-protocol commands are being integrated behind the safe task orchestrator.
-Low-level protocol verbs exist for testing and automation, but the intended agent
-experience is one bounded next legal action at a time.
+The architectural closure protocol commands are fully integrated into both the CLI and MCP server. The agent can use the task orchestration tools (`prepare-change`, `task-status`, `advance-task`, `task-briefing`) to navigate the change session from planning to terminal closure, or use low-level protocol commands (`admit-change`, `verify-admission`, `assess-closure`, `advance-convergence`, `complete-task`, `certify-change`) for customized or offline workflows.
 
 ---
 
@@ -695,12 +690,9 @@ Sensei has two deliberately distinct maturity surfaces.
 - repository evaluation and audit
 - CI diff governance
 - editor integration
-
-### Active closure work
-
-- complete task orchestration
-- deterministic result-transition recording
-- proof execution and discharge integration
+- complete task orchestration (`prepare-change`, `task-status`, `advance-task`, `task-briefing`)
+- deterministic result-transition recording (`certify-change`, `complete-task`, `task-ledger`)
+- proof execution, validation, and discharge integration
 - terminal completion receipts
 - revocation, migration, and learning lifecycle
 - self-hosted closure of Sensei changes

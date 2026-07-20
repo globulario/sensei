@@ -18,6 +18,8 @@
 - [Memory correctness trade-off](./design/memory-correctness-tradeoff.md) — write-time vs read-time correctness, and why behavioral memory is forced to the write-time pole
 - [Contract-first resolution](./design/contract-first-resolution.md) — why a contract must be explicit before a repair is judged legitimate
 - [Contract Spine v1](./contract-spine-v1.md) — the band-2 model (Contracts, Invariants, Evidence) + the "Evidence is overloaded" modeling note
+- [Architectural Closure v1](./design/architectural-closure-v1.md) — the Phase Two protocol, 10-dimensional task closure model (identity, scope, direction, authority, mutation, protection, epistemic state, proof, freshness, completion), and append-only ledger
+- [Phase 8 Discovery](./design/phase8-discovery.md) — terminal task completion and owner-controlled closure slices
 
 ## Main operational docs
 
@@ -27,6 +29,8 @@
 - [Skill Ingestion](./skill-ingestion.md) — generate review-only Sensei candidates from external `SKILL.md` agent skill packs
 - [Sensei Architect Skill](./sensei-architect-skill.md) — built-in project skill installed by `sensei init`
 - [Local User Services](./initialize-user-services.md) — supervised local `systemd --user` runtime for Sensei and Oxigraph
+- [Agent Admission Skill](../.agents/skills/sensei-admission/SKILL.md) — skill for exact change admission and working-tree scope verification
+- [Agent Closure Skill](../.agents/skills/sensei-closure/SKILL.md) — skill for closing bounded architectural knowledge gaps, recording architect answers, and manual convergence advancement
 - Operational smoke targets: `make oxigraph-health`, `make smoke-local`
 - Integration tests: `go test -tags=integration ./...`
 
