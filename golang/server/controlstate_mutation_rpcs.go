@@ -20,9 +20,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	awarenesspb "github.com/globulario/sensei/golang/pb"
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
 	qp "github.com/globulario/sensei/golang/architecture/questionpromotion"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/propose"
 )
 
