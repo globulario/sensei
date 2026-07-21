@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package grpcwebscan extracts observable gRPC-web service-client CONSUMPTION
 // from TS/JS into architecture consumed_by edges on Contract nodes.

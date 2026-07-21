@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // The "This File" tree: what the awareness graph knows about the file in the
 // active editor. On every (debounced) editor change it runs one Preflight

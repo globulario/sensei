@@ -7,8 +7,13 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - editor/vscode/media/controlPanel.js
+      - editor/vscode/media/controlPanelFmt.js
+      - editor/vscode/media/controlPanelMutation.js
       - editor/vscode/media/dashboard.js
+      - editor/vscode/scripts/run-tests.mjs
       - editor/vscode/scripts/sync-proto.js
+      - editor/vscode/scripts/verify-vsix.mjs
       - editor/vscode/src/awarenessProvider.ts
       - editor/vscode/src/awgRunner.ts
       - editor/vscode/src/dashboardPanel.ts

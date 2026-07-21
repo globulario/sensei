@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package main
 
@@ -68,6 +68,29 @@ func testEmbeddedSeedMarker() seedmeta.Marker {
 
 func testEmbeddedTransactionStamp() seedmeta.TransactionStamp {
 	return seedmeta.ParseTransactionStamp(seedTransactionStamp)
+}
+
+// derivedMarkerIRI is the canonical digest-derived SeedBuild marker subject IRI.
+func derivedMarkerIRI(digest string) string {
+	return seedmeta.NamespaceIRI + "seedBuild/sha256-" + digest
+}
+
+// seedBuildMarkerFacts builds the ClassFacts rows a live SeedBuild marker would yield during
+// independent discovery: the rdf:type row plus the digest and (when > 0) triple-count literals.
+// The IRI is the caller's choice so tests can construct genuine (digest-derived) and adversarial
+// (mismatched-subject) markers.
+func seedBuildMarkerFacts(iri, digest string, count int64) []store.ImpactFact {
+	cls := seedmeta.NamespaceIRI + "SeedBuild"
+	facts := []store.ImpactFact{
+		{NodeIRI: iri, TypeIRI: cls, Predicate: rdf.PropType, Object: cls, ObjectIsIRI: true},
+	}
+	if digest != "" {
+		facts = append(facts, store.ImpactFact{NodeIRI: iri, TypeIRI: cls, Predicate: seedmeta.NamespaceIRI + "seedDigestSha256", Object: digest})
+	}
+	if count > 0 {
+		facts = append(facts, store.ImpactFact{NodeIRI: iri, TypeIRI: cls, Predicate: seedmeta.NamespaceIRI + "seedTripleCount", Object: strconv.FormatInt(count, 10)})
+	}
+	return facts
 }
 
 func (nopStore) Close() error                   { return nil }
@@ -168,6 +191,10 @@ type fakeStore struct {
 	countTriples    func(ctx context.Context) (int64, error)
 	countByClass    func(ctx context.Context, classIRI string) (int64, error)
 	graphFreshness  func(ctx context.Context) seedmeta.Verification
+	// seedMarkerFacts overrides independent SeedBuild-marker discovery (ClassFacts on the
+	// SeedBuild class). nil = expose the embedded-seed marker as the single canonical marker
+	// (mirroring the Describe/CountByClass defaults, so the authority path reads current).
+	seedMarkerFacts func(ctx context.Context) []store.ImpactFact
 }
 
 func captureServerLogger(s *server, buf *bytes.Buffer) {
@@ -219,6 +246,18 @@ func (f fakeStore) ImpactForFile(ctx context.Context, sourceFileIRI string) ([]s
 	return f.impactForFile(ctx, sourceFileIRI)
 }
 func (f fakeStore) ClassFacts(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error) {
+	// Independent live-marker discovery reads the SeedBuild class. The fake exposes the embedded
+	// seed marker as the single canonical marker (unless a test overrides via seedMarkerFacts),
+	// staying consistent with the Describe/CountByClass marker defaults.
+	if classIRI == seedmeta.NamespaceIRI+"SeedBuild" {
+		if f.seedMarkerFacts != nil {
+			return f.seedMarkerFacts(ctx), nil
+		}
+		if m := testEmbeddedSeedMarker(); m.IRI != "" {
+			return seedBuildMarkerFacts(m.IRI, m.Digest, m.TripleCount), nil
+		}
+		return nil, nil
+	}
 	if f.classFacts == nil {
 		return nil, nil
 	}

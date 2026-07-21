@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package coldsource drafts awareness candidates from the "cold" day-0 signals a
 // repo already carries — revert/regression commits, conventional commits, and PR

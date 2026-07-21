@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package resulttestkit seeds a real repository-level Phase-7 task — a temporary
 // Git repository with committed base/result revisions, governed sources, generated

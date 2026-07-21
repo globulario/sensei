@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package questionresolution is the Phase-8.1d owner of two bounded, isolated
 // concerns over a task's architect questions:

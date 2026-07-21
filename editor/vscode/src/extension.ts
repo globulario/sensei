@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Extension entry point. Wires the "This File" awareness tree to the active
 // editor: switching or editing a file (debounced) re-queries the graph, and

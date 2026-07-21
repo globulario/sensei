@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Command awareness-graph is the gRPC service entry point.
 //
@@ -149,6 +149,11 @@ type server struct {
 	// (not a package global) so a test can inject an adapter failure without mutating shared
 	// state — race-safe under parallel tests. nil falls back to briefingFeedbackToProto.
 	feedbackMapper func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error)
+
+	// controlProvider is the typed source boundary for the Phase 9.5 control-panel read RPCs
+	// (test-injectable). nil falls back to the production store-backed provider. Handlers
+	// consume ONLY this seam — never raw triples or governed YAML directly.
+	controlProvider ControlStateReadProvider
 }
 
 // defaultHomeDomain is the domain key assigned to untagged host-project nodes

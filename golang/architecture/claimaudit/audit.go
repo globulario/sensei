@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package claimaudit reports signal distribution and coverage for a complete
 // ArchitectureClaim document. It deliberately produces counts and warnings,

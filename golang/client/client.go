@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package client provides a standalone gRPC client for the awareness-graph
 // service. No Globular-specific imports — any Go application can use this

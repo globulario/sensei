@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // This file isolates all runtime-target-specific validation so that core
 // Sensei stays platform-neutral: a repository with no runtime target never

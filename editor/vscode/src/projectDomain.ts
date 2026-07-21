@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // Resolve the "current project" domain for domain-scoped queries. Sensei's
 // domain keys look like `github.com/owner/repo`; a workspace's git remote maps
@@ -77,6 +77,29 @@ export async function effectiveDomain(explicit: string | undefined): Promise<str
   if (set) {
     return set;
   }
+  const root = workspaceRoot();
+  if (!root) {
+    return undefined;
+  }
+  if (cache && cache.root === root) {
+    return cache.domain || undefined;
+  }
+  const domain = await deriveFromGit(root);
+  cache = { root, domain: domain || '' };
+  return domain;
+}
+
+/**
+ * The logical repository identity for the control-panel RPCs. Derived PURELY
+ * from the git remote (`host/owner/repo`) — never the `sensei.domain` setting
+ * (which is a chosen scope, not a repo identity) and never a filesystem path
+ * (Phase 9.5 §15 / Phase 9.6 repository-context law). Returns undefined when the
+ * workspace has no resolvable git remote; the caller then renders an explicit
+ * "repository context unavailable" state and issues no RPC (the server rejects
+ * an empty repository_identity with InvalidArgument). Shares the git-remote
+ * cache with effectiveDomain().
+ */
+export async function effectiveRepositoryIdentity(): Promise<string | undefined> {
   const root = workspaceRoot();
   if (!root) {
     return undefined;

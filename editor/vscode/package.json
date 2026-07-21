@@ -2,9 +2,9 @@
   "name": "sensei-awareness",
   "displayName": "Sensei — Architectural Memory",
   "description": "See the invariants, failure modes, and intent that govern the file you are editing — straight from your project's awareness graph.",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "publisher": "globulario",
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-only",
   "icon": "media/icon.png",
   "repository": {
     "type": "git",
@@ -186,7 +186,7 @@
     "compile": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "typecheck": "tsc --noEmit -p ./",
-    "test": "npm run compile && node --test out/*.test.js",
+    "test": "npm run compile && node scripts/run-tests.mjs",
     "sync-proto": "node ./scripts/sync-proto.js",
     "check-proto": "node ./scripts/sync-proto.js --check"
   },

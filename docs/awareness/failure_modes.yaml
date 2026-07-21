@@ -964,3 +964,285 @@ failure_modes:
       - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
       - closure.briefing_feedback_is_verified_scoped_and_single_owner
     evidence: Phase 9.6 Checkpoint 2 implemented + tested; the server is a thin consumer of the canonical owner + pure adapter (coverage.TestBriefingFeedbackOwnershipBoundary) and never reconstructs verification.
+
+  - id: controlstate.server_or_editor_reclassifies_control_state
+    title: The server or editor reclassified control state instead of consuming the owner
+    severity: critical
+    root_cause: |
+      A transport/adapter (server, protobuf mapping, VS Code, or CLI) assigned closure, severity,
+      lifecycle, or dimension applicability, composed attention policy independently, invented
+      artifact state, or derived repository posture — instead of consuming the controlstate
+      projections. This puts semantic authority outside the one transport-neutral owner.
+    symptoms:
+      - a server/editor path computing closure/severity/lifecycle/applicability
+      - a second attention or closure aggregator outside controlstate
+      - the client carrying semantic class/severity/closure tables
+    forbidden_fixes:
+      - phase9_5_hardcode_semantic_class_membership_in_editor
+      - phase9_5_use_closure_report_verdict_as_artifact_closure
+    related_invariants:
+      - controlstate.semantic_projection_has_one_transport_neutral_owner
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); controlstate is the sole composition owner, statically isolated from server/proto/editor/CLI.
+
+  - id: controlstate.task_verdict_copied_to_arbitrary_artifact
+    title: A task/scope closure verdict was copied onto an arbitrary artifact
+    severity: critical
+    root_cause: |
+      closure.Report.Verdict or its DimensionAssessment list was projected onto a graph artifact
+      as artifact closure, conflating task/scope closure with per-artifact closure.
+    symptoms:
+      - artifact closure equal to a task verdict
+      - the same dimension list applied to every class
+      - contracts/invariants/components sharing one universal dimension set
+    forbidden_fixes:
+      - phase9_5_use_closure_report_verdict_as_artifact_closure
+    related_invariants:
+      - controlstate.task_closure_must_not_be_projected_as_artifact_closure
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); per-class artifact assessment is independent of closure.Report.
+
+  - id: controlstate.unsupported_class_hidden_or_marked_closed
+    title: An unsupported or unknown class was hidden or marked closed/not_applicable
+    severity: high
+    root_cause: |
+      A class with no reviewed assessment policy (or an unknown/ambiguous graph class) was hidden,
+      or its closure was set to closed or not_applicable, instead of remaining visible with
+      unknown coverage/closure and a typed limitation.
+    symptoms:
+      - a class missing from navigation after migration
+      - unsupported closure rendered as not_applicable
+      - unknown class defaulted to closed
+    forbidden_fixes:
+      - phase9_5_infer_not_applicable_from_missing_policy
+      - phase9_5_replace_unknown_with_friendly_closed
+    related_invariants:
+      - controlstate.unknown_class_remains_visible_and_unknown
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); unknown/unsupported/ambiguous stay visible and unknown under unclassified.
+
+  - id: controlstate.missing_source_rendered_as_zero
+    title: A missing source was rendered as zero instead of unavailable
+    severity: critical
+    root_cause: |
+      A projection reported zero questions/warnings/contradictions/blind-spots (or closed
+      architecture, or an empty attention queue) when the underlying source was not observed,
+      instead of partial/unavailable with a reason code.
+    symptoms:
+      - zero counts with an unavailable source status
+      - closed/empty state derived from an absent source
+    forbidden_fixes:
+      - phase9_5_replace_unknown_with_friendly_closed
+    related_invariants:
+      - controlstate.missing_source_must_not_synthesize_zero_or_closed
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); zero is data only when the source status is available.
+
+  - id: controlstate.lifecycle_defaulted_to_active
+    title: Lifecycle defaulted to active from absent evidence
+    severity: high
+    root_cause: |
+      A LifecycleAssessment reported active when no authoritative lifecycle source was observed,
+      synthesizing a state from absence instead of unknown.
+    symptoms:
+      - active lifecycle with an unavailable lifecycle source
+      - a class defaulting to active
+    forbidden_fixes:
+      - phase9_5_infer_active_from_absent_lifecycle
+    related_invariants:
+      - controlstate.lifecycle_absence_must_not_synthesize_active
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); absent lifecycle -> unknown, never active.
+
+  - id: controlstate.graph_adjacency_treated_as_closure_evidence
+    title: Graph adjacency was treated as closure or feedback evidence
+    severity: high
+    root_cause: |
+      A dimension was declared satisfied from graph-edge presence alone, or feedback was
+      associated with an artifact merely because it was graph-adjacent, instead of an explicit
+      typed owner/verification making the evidence admissible.
+    symptoms:
+      - a dimension satisfied by an edge with no owner admissibility rule
+      - feedback attached by graph adjacency
+    forbidden_fixes:
+      - phase9_5_infer_closure_from_edge_counts
+    related_invariants:
+      - controlstate.artifact_closure_requires_explicit_class_policy
+      - controlstate.feedback_is_consumed_only_at_exact_verified_scope
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); an edge is candidate evidence only, admitted by an explicit owner rule.
+
+  - id: controlstate.attention_severity_derived_from_text_or_color
+    title: Attention severity was derived from text or color
+    severity: high
+    root_cause: |
+      Attention class or severity was assigned by parsing error text or inferring from a label/
+      color, or mapped client-side, instead of a governed typed source-condition mapping in
+      controlstate; or a critical source condition was silently downgraded.
+    symptoms:
+      - severity parsed from an error string
+      - client-side severity/color mapping
+      - a downgraded critical condition
+    forbidden_fixes:
+      - phase9_5_parse_error_text_for_attention_severity
+    related_invariants:
+      - controlstate.attention_severity_is_typed_owner_assigned_and_deterministic
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); severity comes from a governed typed mapping, critical never downgraded.
+
+  - id: controlstate.pagination_cursor_reused_against_another_snapshot
+    title: A pagination cursor was reused against a different snapshot
+    severity: high
+    root_cause: |
+      An ArtifactIndex cursor bound to one repository/domain/snapshot/registry/filter identity was
+      accepted against a different one, producing an inconsistent or unstable page.
+    symptoms:
+      - a cursor accepted after the snapshot/registry/filter changed
+      - unstable page contents across identity changes
+    forbidden_fixes:
+      - phase9_5_infer_closure_from_edge_counts
+    related_invariants:
+      - controlstate.artifact_index_cursor_is_bound_to_snapshot_identity
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); a cursor is rejected when any bound identity differs.
+
+  - id: controlstate.repository_wide_feedback_scan_invented
+    title: A repository-wide feedback scan was invented
+    severity: high
+    root_cause: |
+      control_snapshot (or another projection) collected repository-wide promoted-feedback
+      records, or controlstate discovered/verified promotions itself, instead of consuming only an
+      exact scoped feedback reference and exposing feedback capability/availability.
+    symptoms:
+      - a repo-wide promoted-feedback collection in a projection
+      - controlstate discovering/verifying promotions
+    forbidden_fixes:
+      - phase9_5_use_closure_report_verdict_as_artifact_closure
+    related_invariants:
+      - controlstate.feedback_is_consumed_only_at_exact_verified_scope
+    evidence: Phase 9.5 Checkpoint 1 implemented + tested (golang/architecture/controlstate); feedback is exact-scope only; briefingfeedback stays the owner.
+
+  - id: controlstate.protobuf_mapping_collapses_unknown_to_zero
+    title: The protobuf mapping collapsed unknown into zero
+    severity: critical
+    root_cause: |
+      The controlstate->protobuf mapper (or a handler) converted an unobserved count/summary into
+      an explicit zero, dropped an observed zero, defaulted an absent optional field, or used an
+      UNSPECIFIED enum value to encode unknown — erasing the unknown-versus-zero distinction the
+      canonical projection preserves.
+    symptoms:
+      - a nil controlstate count arriving as 0 on the wire
+      - an UNSPECIFIED enum treated as a meaningful state
+      - a partial projection whose missing sources look observed-and-empty
+    forbidden_fixes:
+      - phase9_5_convert_missing_optional_counts_to_zero
+    related_invariants:
+      - controlstate.transport_must_preserve_unknown_distinct_from_zero
+    evidence: Phase 9.5 Checkpoint 2 mapper (golang/server/controlstateproto) uses proto3 optional fields and rejects UNSPECIFIED; proven by nil-versus-zero round-trip tests.
+
+  - id: controlstate.partial_projection_returned_as_transport_failure
+    title: A partial projection was returned as a transport failure
+    severity: critical
+    root_cause: |
+      A handler converted a semantically partial/unavailable/degraded/unknown projection into a
+      gRPC error (or an empty success object), instead of returning the successful typed response
+      carrying availability, per-source statuses, and reasons. The panel then cannot distinguish
+      "sources honestly missing" from "RPC broken".
+    symptoms:
+      - gRPC Unavailable/Internal returned for a valid partial projection
+      - an empty success object without typed availability
+    forbidden_fixes:
+      - phase9_5_treat_partial_projection_as_empty_success
+    related_invariants:
+      - controlstate.semantic_unavailability_must_remain_response_data
+    evidence: Phase 9.5 Checkpoint 2 handlers return partial projections as RPC success; proven by semantic-availability handler tests.
+
+  - id: controlstate.client_supplied_class_treated_as_artifact_authority
+    title: A client-supplied class was treated as artifact class authority
+    severity: critical
+    root_cause: |
+      An RPC accepted a caller-supplied canonical class (or treated an index filter as class
+      authority) and used it to select an assessment policy, bypassing registry resolution over
+      the artifact's observed graph classes.
+    symptoms:
+      - a request field carrying a canonical class into artifact-state assessment
+      - an index filter changing an artifact's resolved class
+    forbidden_fixes:
+      - phase9_5_accept_artifact_class_from_client
+    related_invariants:
+      - controlstate.artifact_class_must_not_be_caller_selected
+    evidence: Phase 9.5 Checkpoint 2 request contracts carry exact node IRIs only; class resolution stays in the controlstate registry.
+
+  - id: controlstate.rpc_accepts_caller_selected_filesystem_root
+    title: An RPC accepted a caller-selected filesystem root
+    severity: critical
+    root_cause: |
+      A control-panel request carried a repository root, cwd, or workspace-folder path and the
+      server used it as repository authority, bypassing the immutable startup-owned Phase 9.6
+      repository context.
+    symptoms:
+      - a request field naming a filesystem path
+      - repository context varying per request
+    forbidden_fixes:
+      - phase9_5_derive_repository_identity_from_cwd_or_workspace
+    related_invariants:
+      - controlstate.repository_context_must_not_be_derived_from_cwd
+    evidence: Phase 9.5 Checkpoint 2 request contracts carry logical identities only; repository context is startup-owned.
+
+  - id: controlstate.handler_infers_dimension_state_from_raw_graph_edges
+    title: A handler inferred dimension state from raw graph edges
+    severity: critical
+    root_cause: |
+      A server handler (or provider) interpreted raw RDF adjacency, edge counts, or governed YAML
+      records directly as dimension satisfaction/closure evidence, instead of passing typed
+      owner-projected observations into the canonical controlstate builders — semantic inference
+      leaked below the owner.
+    symptoms:
+      - a handler reading triples to decide satisfied/open
+      - provider outputs shaped as raw triples or map[string]any
+      - graph adjacency treated as closure evidence
+    forbidden_fixes:
+      - phase9_5_infer_closure_from_edge_counts
+    related_invariants:
+      - controlstate.server_read_handler_must_consume_canonical_projection
+    evidence: Phase 9.5 Checkpoint 2 provider supplies typed observations or typed-unavailable sources with exact reasons; dimension assessment stays in controlstate.
+
+  - id: controlstate.transport_recomputes_a_different_digest
+    title: The transport recomputed a different projection digest
+    severity: high
+    root_cause: |
+      The mapper, a handler, or a client recomputed a projection digest from the protobuf
+      representation (or repaired a mismatched digest) instead of copying the canonical
+      controlstate digest verbatim — producing a digest that verifies the wrong content.
+    symptoms:
+      - a wire digest differing from the canonical model digest
+      - digest computation code in the mapper/handler/client
+    forbidden_fixes:
+      - phase9_5_reconstruct_models_from_labels_or_colors
+    related_invariants:
+      - controlstate.transport_must_not_recompute_projection_digest
+    evidence: Phase 9.5 Checkpoint 2 mapper copies DigestSHA256 verbatim; proven by digest-copy round-trip tests.
+
+  - id: controlstate.read_rpc_mutates_dialogue_or_completion_state
+    title: A read RPC mutated dialogue or completion state
+    severity: critical
+    root_cause: |
+      A control-panel read handler wrote repository, dialogue, question, completion,
+      certification, or graph state — or accepted a client-supplied AttentionItem or other
+      semantic verdict — turning a read surface into an unaudited write path.
+    symptoms:
+      - a write capability acquired inside a read handler
+      - an inbound message carrying an attention item or verdict
+    forbidden_fixes:
+      - phase9_5_accept_artifact_class_from_client
+    related_invariants:
+      - controlstate.read_surfaces_must_be_structurally_non_mutating
+    evidence: Phase 9.5 Checkpoint 2 handlers consume the read-only store interface; no inbound message carries a semantic verdict; proven by no-mutation tests.
+
+  - id: controlstate.proto_field_renumbering_breaks_existing_consumers
+    title: Protobuf field renumbering broke existing consumers
+    severity: critical
+    root_cause: |
+      A control-panel proto change renumbered, retyped, or removed an existing field (such as the
+      Phase 9.6 BriefingResponse.feedback field 7) or reused an enum number, silently corrupting
+      decoding for already-deployed clients.
+    symptoms:
+      - an existing field number carrying a different meaning
+      - clients decoding garbage after a proto change
+    forbidden_fixes:
+      - phase9_5_expose_raw_errors_or_absolute_paths
+    related_invariants:
+      - controlstate.proto_evolution_must_be_additive
+    evidence: Phase 9.5 Checkpoint 2 additions use new field numbers only; field 7 is pinned by compatibility tests.

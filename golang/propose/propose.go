@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package propose holds the pure, I/O-free core of the awareness feedback
 // write-path: the typed request, contract-first validation, normalization, and

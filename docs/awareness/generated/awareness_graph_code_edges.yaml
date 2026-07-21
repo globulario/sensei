@@ -89,6 +89,48 @@ code_edges:
   - from: globular.awareness_graph:code.go.server.change_impact
     relation: implements
     to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
+  - from: globular.awareness_graph:code.go.server.controlstate
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.read_surfaces_must_be_structurally_non_mutating
+  - from: globular.awareness_graph:code.go.server.controlstate
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.repository_context_must_not_be_derived_from_cwd
+  - from: globular.awareness_graph:code.go.server.controlstate
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.semantic_unavailability_must_remain_response_data
+  - from: globular.awareness_graph:code.go.server.controlstate
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.server_read_handler_must_consume_canonical_projection
+  - from: globular.awareness_graph:code.go.server.controlstate
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.server_read_handler_must_consume_canonical_projection
+  - from: globular.awareness_graph:code.go.server.controlstate.server_GetArchitectureArtifactState
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.artifact_class_must_not_be_caller_selected
+  - from: globular.awareness_graph:code.go.server.controlstate.server_GetArchitectureArtifactState
+    relation: tested_by
+    to: golang/server/controlstate_rpcs_test.go:TestArtifactStateRPC_PreconditionsAndNotFound
+  - from: globular.awareness_graph:code.go.server.controlstate.server_GetArchitectureControlSnapshot
+    relation: enforces
+    to: globular.awareness_graph:invariant.controlstate.semantic_unavailability_must_remain_response_data
+  - from: globular.awareness_graph:code.go.server.controlstate.server_GetArchitectureControlSnapshot
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.server_read_handler_must_consume_canonical_projection
+  - from: globular.awareness_graph:code.go.server.controlstate.server_GetArchitectureControlSnapshot
+    relation: tested_by
+    to: golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_PartialIsSuccess
+  - from: globular.awareness_graph:code.go.server.controlstate.server_GetOntologyNavigationDescriptor
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.navigation_descriptor_is_derived_from_the_canonical_registry
+  - from: globular.awareness_graph:code.go.server.controlstate.server_GetOntologyNavigationDescriptor
+    relation: tested_by
+    to: golang/server/controlstate_rpcs_test.go:TestNavigationDescriptorRPC_NoRepositoryContextNeeded
+  - from: globular.awareness_graph:code.go.server.controlstate.server_ListArchitectureArtifacts
+    relation: implements
+    to: globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
+  - from: globular.awareness_graph:code.go.server.controlstate.server_ListArchitectureArtifacts
+    relation: tested_by
+    to: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaque
   - from: globular.awareness_graph:code.go.server.impact
     relation: implements
     to: globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred

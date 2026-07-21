@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.8
+
+- **Fixes the mode toggle.** Switching to *Legacy explorer* left the Control panel
+  visible underneath (a CSS specificity issue meant `[hidden]` didn't win), so the
+  two views overlapped into an unreadable mess. Each mode now shows exactly one view.
+- **Widens the artifact inspector.** Long canonical-class IRIs and repository/domain
+  values were clipped at 300px; the inspector pane is wider and long values now wrap
+  instead of truncating.
+
+## 0.1.7
+
+- **Ontology-aligned architectural control panel (Phase 9.5).** A read-only
+  control panel — descriptor-driven navigation, snapshot-driven posture strip,
+  index-driven attention queue, and an owner-honest artifact inspector — renders
+  the awareness owner's projections verbatim and never classifies closure,
+  severity, lifecycle, or applicability client-side.
+- **One guarded mutation family.** Architect answers can be recorded and
+  accepted/rejected through an explicit prepare → confirm → commit-once → refresh
+  flow; refusals write nothing and are shown verbatim; the displayed lifecycle
+  comes only from the refreshed owner, never optimistically. Governed promotion
+  stays deferred and visibly unavailable.
+- **Accessibility & layout closure.** Full keyboard operation (Enter/Space on
+  every row, focus moves to the inspector on selection, an `aria-live` region
+  announces guarded results); color is never the sole state carrier; the panel
+  collapses to a single readable column at constrained widths.
+- **Packaging.** AGPL-3.0-only throughout; the extension is validated + packaged
+  on Ubuntu and Windows.
+
 ## 0.1.6
 
 - **Adds Phase 2: Closure & Control.** The project dashboard now separates

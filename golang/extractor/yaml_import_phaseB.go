@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Phase B importers for awareness YAML schemas that were previously reported
 // as known_unsupported. Each function follows the same contract as the Phase A

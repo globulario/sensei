@@ -314,3 +314,202 @@ forbidden_fixes:
       - closure.only_certification_engine_establishes_correctness
     reason: awareness_audit_diff is a read-only, non-authoritative projection whose only change subject is the caller-supplied diff; it must not invoke repository admission or read ambient working-tree state, which represent a different change subject.
     contract: awareness_audit_diff is a read-only, non-authoritative projection whose only change subject is the caller-supplied diff; it must not invoke repository admission or read ambient working-tree state, which represent a different change subject.
+  - id: phase9_5_hardcode_semantic_class_membership_in_editor
+    title: hardcode semantic class membership or capabilities in the editor
+    summary: Carry ontology class membership, families, capabilities, or semantic visibility in the VS Code client instead of consuming the registry-derived navigation descriptor.
+    related_invariants:
+      - controlstate.navigation_descriptor_is_derived_from_the_canonical_registry
+    reason: class membership/capabilities/grouping/visibility are owner policy; a client table drifts from the canonical registry
+    contract: the client renders the navigation descriptor and owns only styling/layout; class membership lives in the controlstate registry
+  - id: phase9_5_infer_closure_from_edge_counts
+    title: infer closure (or a satisfied dimension) from graph edge counts
+    summary: Declare a dimension satisfied or an artifact closed from graph-edge presence/adjacency alone, without an explicit typed owner or verification making the evidence admissible.
+    related_invariants:
+      - controlstate.artifact_closure_requires_explicit_class_policy
+    reason: an edge is candidate evidence, not admissibility; closure requires an explicit owner rule
+    contract: a dimension is satisfied only by an explicit typed owner/verification rule, never edge presence
+  - id: phase9_5_infer_not_applicable_from_missing_policy
+    title: infer not_applicable from a missing assessment policy
+    summary: Mark an artifact or dimension not_applicable because no reviewed policy exists, instead of unknown/unsupported.
+    related_invariants:
+      - controlstate.artifact_closure_requires_explicit_class_policy
+    reason: not_applicable is an explicit policy statement; absence of rules is unknown
+    contract: not_applicable requires explicit class/artifact policy; missing policy -> unsupported/unknown
+  - id: phase9_5_infer_active_from_absent_lifecycle
+    title: infer an active lifecycle from absent lifecycle evidence
+    summary: Report lifecycle active when no authoritative lifecycle source was observed.
+    related_invariants:
+      - controlstate.lifecycle_absence_must_not_synthesize_active
+    reason: absence is unknown, not active; lifecycle must come from an authoritative typed source
+    contract: absent/unavailable lifecycle evidence yields unknown, never active
+  - id: phase9_5_parse_error_text_for_attention_severity
+    title: parse error text (or a label/color) to assign attention severity
+    summary: Derive an attention class or severity from error strings, labels, or colors, or map severity client-side, or silently downgrade a critical source condition.
+    related_invariants:
+      - controlstate.attention_severity_is_typed_owner_assigned_and_deterministic
+    reason: severity must come from a governed typed source-condition mapping; text/color/client derivation drifts and hides critical conditions
+    contract: severity comes from the governed controlstate mapping; critical is never downgraded; unknown severity stays visible
+  - id: phase9_5_replace_unknown_with_friendly_closed
+    title: replace unknown/unavailable state with a friendly closed or zero state
+    summary: Render unknown, unsupported, or unavailable state as closed, not_applicable, or zero to make the panel look healthier.
+    related_invariants:
+      - controlstate.missing_source_must_not_synthesize_zero_or_closed
+      - controlstate.unknown_class_remains_visible_and_unknown
+    reason: unknown must stay unknown; hiding it behind green conceals real gaps
+    contract: unknown/unavailable stays visible and typed; zero/closed require an observed source and satisfied policy
+  - id: phase9_5_use_closure_report_verdict_as_artifact_closure
+    title: use closure.Report.Verdict as artifact closure
+    summary: Copy a task/scope closure verdict or its dimension list onto an arbitrary graph artifact, or invent a repository-wide feedback scan from graph adjacency.
+    related_invariants:
+      - controlstate.task_closure_must_not_be_projected_as_artifact_closure
+      - controlstate.feedback_is_consumed_only_at_exact_verified_scope
+    reason: task/scope closure and artifact closure are independent; feedback is exact-scope, not graph-adjacent
+    contract: artifact closure is a per-class controlstate assessment; feedback is consumed only at exact verified scope
+  - id: phase9_5_derive_repository_identity_from_cwd_or_workspace
+    title: derive repository identity from cwd or workspace folder
+    summary: Establish repository root/domain from the current working directory, a workspace folder guess, or homeDomain, instead of the immutable startup-owned Phase 9.6 repository context.
+    related_invariants:
+      - controlstate.semantic_projection_has_one_transport_neutral_owner
+    reason: repository identity must be the immutable startup-owned context; cwd/workspace guessing lets ambient state choose the repo
+    contract: reuse the Phase 9.6 startup-owned repo root+domain; absent context -> partial/unavailable, never a local guess
+  - id: phase9_5_duplicate_closure_or_severity_tables_in_server
+    title: duplicate closure or severity tables in the server
+    summary: Copy the controlstate closure, severity, lifecycle, or applicability vocabularies/mappings into the server, mapper, or client so a transport layer can classify state itself.
+    related_invariants:
+      - controlstate.server_read_handler_must_consume_canonical_projection
+    reason: a second semantic table drifts from the owner and silently reclassifies control state below it
+    contract: closure/severity/lifecycle/applicability tables live only in golang/architecture/controlstate; transports map one-to-one
+  - id: phase9_5_parse_reason_prose_to_choose_proto_enum
+    title: parse reason prose to choose a protobuf enum
+    summary: Inspect a reason code or human-readable detail string in the mapper/handler to decide which protobuf enum value (availability, closure, severity) to emit.
+    related_invariants:
+      - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+    reason: reason text is provenance, not vocabulary; parsing it makes prose a hidden semantic authority
+    contract: enums map one-to-one from typed controlstate vocabulary values; reason codes are copied verbatim, never interpreted
+  - id: phase9_5_convert_missing_optional_counts_to_zero
+    title: convert missing optional counts to zero
+    summary: Fill an unobserved controlstate count/summary with an explicit zero on the wire (or drop proto3 optional and let absent decode as 0) so the response looks complete.
+    related_invariants:
+      - controlstate.transport_must_preserve_unknown_distinct_from_zero
+    reason: zero is data only when the source is available; manufactured zeros launder missing sources into healthy metrics
+    contract: unobserved counts stay absent on the wire (proto3 optional unset); observed zero stays an explicit zero
+  - id: phase9_5_treat_partial_projection_as_empty_success
+    title: treat partial or unavailable projections as empty success objects
+    summary: Return an empty/zeroed response object (or a transport error) for a semantically partial/unavailable projection instead of the typed projection carrying availability, sources, and reasons.
+    related_invariants:
+      - controlstate.semantic_unavailability_must_remain_response_data
+    reason: an empty success erases the typed unavailability the panel must render; a transport error hides it entirely
+    contract: partial/unavailable/degraded/unknown projections return as RPC success with their full typed state
+  - id: phase9_5_accept_artifact_class_from_client
+    title: accept an artifact class from the client
+    summary: Add a request field (or reuse an index filter) that lets the caller supply the canonical class used to select an artifact assessment policy.
+    related_invariants:
+      - controlstate.artifact_class_must_not_be_caller_selected
+    reason: caller-selected classes bypass registry resolution and let a client choose the policy that judges the artifact
+    contract: artifact state is requested by exact node IRI; the canonical class is resolved by the controlstate registry from observed classes
+  - id: phase9_5_reconstruct_models_from_labels_or_colors
+    title: reconstruct controlstate models from labels or colors
+    summary: Rebuild closure/severity/availability state client- or server-side from display labels, colors, prose, or protobuf string fields instead of consuming the typed canonical projection.
+    related_invariants:
+      - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+      - controlstate.transport_must_not_recompute_projection_digest
+    reason: display artifacts are derived output; reconstructing state from them inverts the dependency direction and recreates semantics outside the owner
+    contract: consumers read the typed projection fields; labels/colors are render-only derivations that are never read back
+  - id: phase9_5_expose_raw_errors_or_absolute_paths
+    title: expose raw internal errors or absolute repository paths
+    summary: Serialize raw internal error strings, stack details, or absolute filesystem/repository paths into a control-panel response or gRPC status message.
+    related_invariants:
+      - controlstate.repository_context_must_not_be_derived_from_cwd
+      - controlstate.proto_evolution_must_be_additive
+    reason: raw errors and absolute paths leak infrastructure into the wire contract and clients start depending on them
+    contract: client-facing messages carry typed reasons and logical identities only; no absolute paths, no raw internal errors
+  - id: forbidden_fix.sensei.re_derive_graph_authority_or_severity_in_the_webview
+    title: Re-derive graph authority or severity in the webview
+    summary: The CP3 control panel must read authority (observed/current/integrity) and severity from the control snapshot verbatim. Re-deriving them client-side (the pre-CP3 graphAuthority.ts/dashboard.js cockpit derivation) reintroduces the drift the migration removed.
+    related_invariants:
+      - invariant.sensei.editor_renders_owner_projections_verbatim
+    reason: The CP3 control panel must read authority (observed/current/integrity) and severity from the control snapshot verbatim. Re-deriving them client-side (the pre-CP3 graphAuthority.ts/dashboard.js cockpit derivation) reintroduces the drift the migration removed.
+  - id: forbidden_fix.sensei.map_an_absent_optional_count_to_zero
+    title: Map an absent optional count to zero
+    summary: proto3 optional counts decode to undefined when unobserved; rendering absence as 0 (e.g. Number(x||0)) launders unknown state into a false healthy zero. Presence must be read via the synthetic-oneof marker.
+    related_invariants:
+      - invariant.sensei.editor_renders_owner_projections_verbatim
+    reason: proto3 optional counts decode to undefined when unobserved; rendering absence as 0 (e.g. Number(x||0)) launders unknown state into a false healthy zero. Presence must be read via the synthetic-oneof marker.
+  - id: forbidden_fix.sensei.hardcode_ontology_class_membership_capabilities_or_families
+    title: Hardcode ontology class membership capabilities or families in the editor
+    summary: Navigation families, class membership, capabilities, and default visibility come only from the ontology navigation descriptor. A client-side ASPECTS/CLASS_COLOR/capability/family table drifts from the owner registry.
+    related_invariants:
+      - invariant.sensei.editor_renders_owner_projections_verbatim
+    reason: Navigation families, class membership, capabilities, and default visibility come only from the ontology navigation descriptor. A client-side ASPECTS/CLASS_COLOR/capability/family table drifts from the owner registry.
+  - id: forbidden_fix.sensei.infer_question_state_next_action_closure_or_lifecycle_in_the
+    title: Infer question-state next-action closure or lifecycle in the inspector
+    summary: The inspector must render artifact_state fields verbatim; questions/evidence/next-action are owner ids with no state, and closure/lifecycle/severity come from the owner. Any client inference fabricates architectural truth.
+    related_invariants:
+      - invariant.sensei.artifact_inspector_renders_owner_derived_state_only
+    reason: The inspector must render artifact_state fields verbatim; questions/evidence/next-action are owner ids with no state, and closure/lifecycle/severity come from the owner. Any client inference fabricates architectural truth.
+  - id: forbidden_fix.sensei.render_a_non_applicable_dimension_as_open
+    title: Render a non-applicable dimension as open
+    summary: Only owner-marked applicable dimensions are shown; a non-applicable dimension must never appear or count as open (missing non-applicable dimensions do not open an artifact).
+    related_invariants:
+      - invariant.sensei.artifact_inspector_renders_owner_derived_state_only
+    reason: Only owner-marked applicable dimensions are shown; a non-applicable dimension must never appear or count as open (missing non-applicable dimensions do not open an artifact).
+  - id: forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control
+    title: Reuse legacy graph-adjacency as relationships in the control panel
+    summary: No owner projection carries relationship/edge data. Relationships and the focus graph must render honestly unavailable, never fall back to legacy graph adjacency / CLASS_COLOR / DIR (which stay quarantined in dashboard.js).
+    related_invariants:
+      - invariant.sensei.artifact_inspector_renders_owner_derived_state_only
+    reason: No owner projection carries relationship/edge data. Relationships and the focus graph must render honestly unavailable, never fall back to legacy graph adjacency / CLASS_COLOR / DIR (which stay quarantined in dashboard.js).
+  - id: forbidden_fix.sensei.expose_the_unguarded_questiongen_dialogue_op_as_an_authorita
+    title: Expose the unguarded questiongen dialogue op as an authoritative mutation
+    summary: questiongen RecordAnswer/AdjudicateAnswer carry no identity, authority, or ledger. Only questiondisposition/questionpromotion are guarded; exposing the dialogue layer as authority bypasses actor binding and the ledger.
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: questiongen RecordAnswer/AdjudicateAnswer carry no identity, authority, or ledger. Only questiondisposition/questionpromotion are guarded; exposing the dialogue layer as authority bypasses actor binding and the ledger.
+  - id: forbidden_fix.sensei.auto_promote_or_auto_complete_after_a_successful_disposition
+    title: Auto-promote or auto-complete after a successful disposition
+    summary: Recording an accepted answer must never trigger governed promotion; a promotion must never trigger task completion or certification. Each lifecycle step is a separate, explicitly-authorized guarded action.
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: Recording an accepted answer must never trigger governed promotion; a promotion must never trigger task completion or certification. Each lifecycle step is a separate, explicitly-authorized guarded action.
+  - id: forbidden_fix.sensei.copy_raw_architect_answer_text_into_a_governed_record_or_pro
+    title: Copy raw architect answer text into a governed record or promotion prose
+    summary: The raw answer is opaque bytes hashed by the owner (AnswerID + digest). Governed prose is an independently-authored ProposeRequest; copying answer text into it launders unverified prose into authority (Phase 9.6 provenance != authority).
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: The raw answer is opaque bytes hashed by the owner (AnswerID + digest). Governed prose is an independently-authored ProposeRequest; copying answer text into it launders unverified prose into authority (Phase 9.6 provenance != authority).
+  - id: forbidden_fix.sensei.mutate_without_the_expected_ledger_head_precondition_or_pres
+    title: Mutate without the expected-ledger-head precondition or present a refusal as mutation success
+    summary: A commit must CAS against the client's expected ledger head (stale -> refuse, write nothing) and never silently re-prepare; a domain refusal must expose mutation_applied=false with the unchanged ledger identity, never a transport success that looks applied.
+    related_invariants:
+      - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    reason: A commit must CAS against the client's expected ledger head (stale -> refuse, write nothing) and never silently re-prepare; a domain refusal must expose mutation_applied=false with the unchanged ledger identity, never a transport success that looks applied.
+  - id: forbidden_fix.sensei.render_completion_or_authoritative_completion_as_correctness
+    title: Render completion or authoritative_completion as correctness
+    summary: Showing the top-strip completion state (or the 'authoritative' qualifier) as a correctness/certification claim conflates completion with correctness (proof 4). Phase 6 alone certifies; the panel must word completion as a workflow terminal state, never truth.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Showing the top-strip completion state (or the 'authoritative' qualifier) as a correctness/certification claim conflates completion with correctness (proof 4). Phase 6 alone certifies; the panel must word completion as a workflow terminal state, never truth.
+  - id: forbidden_fix.sensei.invent_a_promotion_owner_to_satisfy_proof_13
+    title: Invent a promotion owner to satisfy proof 13
+    summary: Adding a server-side promotion RPC or any fact-writing path to display 'promoted knowledge' violates graph_truth_must_come_from_approved_corpus and the briefing-feedback ownership boundary. Proof 13 is met by DISPLAYING existing Phase-9.6 ScopedFeedbackRef lineage; promotion stays deferred and visibly unavailable.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Adding a server-side promotion RPC or any fact-writing path to display 'promoted knowledge' violates graph_truth_must_come_from_approved_corpus and the briefing-feedback ownership boundary. Proof 13 is met by DISPLAYING existing Phase-9.6 ScopedFeedbackRef lineage; promotion stays deferred and visibly unavailable.
+  - id: forbidden_fix.sensei.carry_architectural_state_in_color_alone
+    title: Carry architectural state in color alone
+    summary: A badge/row/tag whose meaning is conveyed only by color fails proof 22. Every state must also carry a text label or glyph.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: A badge/row/tag whose meaning is conveyed only by color fails proof 22. Every state must also carry a text label or glyph.
+  - id: forbidden_fix.sensei.let_a_narrow_width_force_horizontal_scroll_or_hide_critical
+    title: Let a narrow width force horizontal scroll or hide critical attention
+    summary: Collapsing the panel by horizontally scrolling the body, or hiding the rail/inspector/attention list at narrow widths, breaks proof 23. The narrow layout must stack into a single vertically-scrolling column with nothing hidden.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Collapsing the panel by horizontally scrolling the body, or hiding the rail/inspector/attention list at narrow widths, breaks proof 23. The narrow layout must stack into a single vertically-scrolling column with nothing hidden.
+  - id: forbidden_fix.sensei.gate_cp6_closure_on_a_flaky_vs_code_host_launch_harness
+    title: Gate CP6 closure on a flaky VS Code host-launch harness
+    summary: Adding @vscode/test-electron (real host download + xvfb) to the closure path introduces cross-platform flake that can block a green Ubuntu+Windows gate. Packaged validation must stay a deterministic pure-Node content assertion over the .vsix.
+    related_invariants:
+      - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    reason: Adding @vscode/test-electron (real host download + xvfb) to the closure path introduces cross-platform flake that can block a green Ubuntu+Windows gate. Packaged validation must stay a deterministic pure-Node content assertion over the .vsix.

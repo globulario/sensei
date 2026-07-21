@@ -484,3 +484,198 @@ body.review-mode .viewbar { display: none; }
   border-radius: 4px;
   max-width: 320px;
 }
+
+/* ============================================================================
+   Phase 9.5 Checkpoint 3 — read-only architectural control panel.
+   Palette maps an owner enum TOKEN to a visual class only; every badge also
+   carries a text label (color is never the sole carrier of state).
+   ========================================================================== */
+.cp-modebar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; border-bottom: 1px solid var(--vscode-panel-border);
+  gap: 12px; flex: 0 0 auto;
+}
+.cp-brand { font-weight: 600; }
+.cp-modebtn {
+  background: transparent; color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-panel-border); border-radius: 4px;
+  padding: 2px 10px; cursor: pointer; font: inherit;
+}
+.cp-modebtn--on { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent; }
+.cp-modebtn:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
+
+#controlPanel.cp { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+/* The mode toggle hides the inactive view with [hidden]. Because #controlPanel.cp
+   sets display:flex (id+class), it out-ranks the UA [hidden]{display:none} rule —
+   so without this the hidden Control panel bleeds through the Legacy explorer.
+   These equal-specificity rules follow in source order and win when [hidden] is set. */
+#controlPanel[hidden], #legacyView[hidden] { display: none !important; }
+/* Visually hidden but exposed to assistive tech — the guarded-action live region. */
+.cp-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; white-space: nowrap; }
+.cp-topstrip { padding: 8px 12px; border-bottom: 1px solid var(--vscode-panel-border); flex: 0 0 auto; }
+.cp-strip-cells { display: flex; flex-wrap: wrap; gap: 14px; }
+.cp-cell { min-width: 90px; }
+.cp-cell-k { font-size: 0.82em; color: var(--vscode-descriptionForeground); text-transform: uppercase; letter-spacing: 0.03em; }
+.cp-cell-v { margin-top: 2px; }
+.cp-strip-unavailable, .cp-strip-loading { color: var(--vscode-descriptionForeground); padding: 4px 0; }
+.cp-strip-degraded {
+  margin-top: 8px; padding: 6px 8px; border-left: 3px solid var(--warn);
+  background: var(--vscode-inputValidation-warningBackground, transparent);
+}
+.cp-limits, .cp-sources { margin: 4px 0 0 0; padding-left: 18px; }
+.cp-reason { color: var(--vscode-descriptionForeground); font-style: italic; }
+.cp-auth { margin-right: 6px; }
+.cp-auth--unobserved { color: var(--warn); font-weight: 600; }
+.cp-auth-observed { color: var(--ok); font-weight: 600; margin-right: 6px; }
+.cp-tri { margin-right: 6px; }
+.cp-tri--yes { color: var(--ok); }
+.cp-tri--no { color: var(--crit); }
+.cp-auth-id { color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family, monospace); }
+.cp-prov-toggle { margin-top: 8px; background: none; border: none; color: var(--vscode-textLink-foreground); cursor: pointer; padding: 0; font: inherit; }
+.cp-prov { margin-top: 6px; display: grid; gap: 2px; font-size: 0.9em; }
+.cp-prov-k { display: inline-block; min-width: 130px; color: var(--vscode-descriptionForeground); }
+
+.cp-body { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) minmax(300px, 460px); flex: 1 1 auto; min-height: 0; }
+.cp-rail { overflow-y: auto; border-right: 1px solid var(--vscode-panel-border); padding: 6px; }
+.cp-center { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.cp-header-pane { overflow-y: auto; border-left: 1px solid var(--vscode-panel-border); padding: 8px; }
+/* Proof 23 — constrained VS Code widths. Below a narrow threshold the three-pane
+   grid (rail | center | inspector) collapses to a single readable column that
+   scrolls VERTICALLY; the body never scrolls horizontally and no section is
+   hidden — critical attention (top strip + list) stays visible. */
+@media (max-width: 700px) {
+  #controlPanel.cp { overflow: hidden; }
+  .cp-body { display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+  .cp-rail, .cp-center, .cp-header-pane { flex: 0 0 auto; min-width: 0; }
+  .cp-rail { border-right: none; border-bottom: 1px solid var(--vscode-panel-border); overflow: visible; }
+  .cp-header-pane { border-left: none; border-top: 1px solid var(--vscode-panel-border); overflow: visible; }
+  .cp-list { flex: 0 0 auto; overflow: visible; }
+}
+
+.cp-fam-h { font-size: 0.8em; text-transform: uppercase; color: var(--vscode-descriptionForeground); margin: 8px 4px 2px; letter-spacing: 0.04em; }
+.cp-cls { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: none; border: none; color: var(--vscode-foreground); padding: 3px 6px; border-radius: 3px; cursor: pointer; font: inherit; }
+.cp-cls:hover { background: var(--vscode-list-hoverBackground); }
+.cp-cls--on { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+.cp-cls:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
+.cp-cls-tag { font-size: 0.72em; color: var(--vscode-descriptionForeground); border: 1px solid var(--vscode-panel-border); border-radius: 3px; padding: 0 4px; }
+
+.cp-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--vscode-panel-border); flex: 0 0 auto; }
+.cp-chip-group-label { font-size: 0.78em; text-transform: uppercase; color: var(--vscode-descriptionForeground); margin-right: 2px; }
+.cp-chip-sep { width: 1px; height: 16px; background: var(--vscode-panel-border); margin: 0 6px; }
+.cp-chip { background: transparent; border: 1px solid var(--vscode-panel-border); border-radius: 10px; padding: 1px 9px; cursor: pointer; color: var(--vscode-foreground); font: inherit; font-size: 0.9em; }
+.cp-chip--on { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent; }
+.cp-chip:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
+
+.cp-list { overflow-y: auto; flex: 1 1 auto; }
+.cp-empty { padding: 14px; color: var(--vscode-descriptionForeground); }
+.cp-row { display: flex; align-items: center; gap: 8px; padding: 3px 10px; border-bottom: 1px solid var(--vscode-panel-border); cursor: default; font-size: 0.94em; }
+.cp-row[role="button"] { cursor: pointer; }
+.cp-row[role="button"]:hover { background: var(--vscode-list-hoverBackground); }
+.cp-row[role="button"]:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: -2px; }
+.cp-row-label { font-weight: 600; }
+.cp-row-cls, .cp-row-class { color: var(--vscode-descriptionForeground); }
+.cp-row-reason { color: var(--vscode-descriptionForeground); font-style: italic; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-row-owner { color: var(--vscode-descriptionForeground); font-size: 0.9em; }
+.cp-row-dims { min-width: 1.4em; text-align: center; }
+.cp-nosev { color: var(--vscode-descriptionForeground); }
+.cp-tag { font-size: 0.74em; border-radius: 3px; padding: 0 5px; border: 1px solid; }
+.cp-tag--blocking { color: var(--crit); border-color: var(--crit); }
+.cp-tag--architect { color: var(--info); border-color: var(--info); }
+.cp-pager { padding: 6px 10px; flex: 0 0 auto; }
+.cp-more { background: none; border: 1px solid var(--vscode-panel-border); border-radius: 4px; color: var(--vscode-foreground); padding: 2px 10px; cursor: pointer; font: inherit; }
+.cp-trunc { color: var(--warn); margin-right: 8px; }
+
+.cp-header-empty, .cp-header-unavailable { color: var(--vscode-descriptionForeground); }
+.cp-header-id { font-weight: 600; word-break: break-all; margin-bottom: 6px; }
+.cp-h-row { display: flex; gap: 8px; padding: 2px 0; }
+.cp-h-k { flex: 0 0 auto; min-width: 120px; color: var(--vscode-descriptionForeground); }
+/* Let long IRIs/paths wrap inside the inspector instead of being clipped. */
+.cp-h-v { min-width: 0; overflow-wrap: anywhere; }
+.cp-insp-row > span:last-child, .cp-insp-row > code { min-width: 0; overflow-wrap: anywhere; }
+.cp-header-note { margin-top: 10px; font-size: 0.86em; color: var(--vscode-descriptionForeground); border-top: 1px dashed var(--vscode-panel-border); padding-top: 6px; }
+
+/* Badges: enum token -> visual class. Text label is always rendered by JS. */
+.cp-badge { display: inline-block; padding: 0 6px; border-radius: 3px; border: 1px solid transparent; font-size: 0.88em; }
+.cp-sev-critical { color: #fff; background: var(--crit); }
+.cp-sev-warning { color: #000; background: var(--warn); }
+.cp-sev-attention { color: #fff; background: var(--info); }
+.cp-sev-informational { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.cp-closure-closed { color: #fff; background: var(--ok); }
+.cp-closure-open { color: #fff; background: var(--crit); }
+.cp-closure-degraded { color: #000; background: var(--warn); }
+.cp-closure-unknown { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.cp-closure-not_applicable { color: var(--vscode-descriptionForeground); border-color: var(--vscode-panel-border); }
+.cp-lifecycle-active { color: #fff; background: var(--ok); }
+.cp-lifecycle-proposed { color: #fff; background: var(--info); }
+.cp-lifecycle-deprecated, .cp-lifecycle-superseded { color: #000; background: var(--warn); }
+.cp-lifecycle-revoked { color: #fff; background: var(--crit); }
+.cp-lifecycle-unknown, .cp-lifecycle-not_applicable { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.cp-avail-available, .cp-savail-available { color: #fff; background: var(--ok); }
+.cp-avail-partial, .cp-savail-degraded { color: #000; background: var(--warn); }
+.cp-avail-unavailable, .cp-avail-invalid, .cp-savail-unavailable, .cp-savail-invalid { color: #fff; background: var(--crit); }
+/* Any *_UNSPECIFIED / missing value: explicit invalid, never a neutral default. */
+.cp-sev--invalid, .cp-closure--invalid, .cp-lifecycle--invalid, .cp-avail--invalid, .cp-savail--invalid {
+  color: #fff; background: var(--crit); border: 1px dashed #fff;
+}
+
+/* ---- Checkpoint 4: read-only artifact inspector (owner state, verbatim) ---- */
+.cp-insp { display: flex; flex-direction: column; gap: 2px; }
+.cp-insp-sec { border-top: 1px solid var(--vscode-panel-border); padding: 6px 0; }
+.cp-insp-sec:first-of-type { border-top: none; }
+.cp-insp-h { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--vscode-descriptionForeground); margin: 0 0 4px; }
+.cp-insp-b { display: flex; flex-direction: column; gap: 3px; }
+.cp-insp-row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.cp-insp-k { min-width: 120px; color: var(--vscode-descriptionForeground); }
+.cp-none { color: var(--vscode-descriptionForeground); font-style: italic; }
+.cp-idlist { margin: 0; padding-left: 16px; list-style: square; }
+.cp-idlist code { font-size: 0.9em; }
+.cp-qdim { color: var(--vscode-descriptionForeground); font-size: 0.85em; }
+.cp-nextaction { font-weight: 600; }
+.cp-readonly-note { font-size: 0.8em; color: var(--vscode-descriptionForeground); font-style: italic; margin-top: 3px; }
+
+/* Dimension matrix (applicable only). */
+.cp-dim { border: 1px solid var(--vscode-panel-border); border-radius: 4px; padding: 5px 7px; margin-bottom: 5px; }
+.cp-dim-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cp-dim-label { font-weight: 600; }
+.cp-dim-req { font-size: 0.72em; color: var(--crit); border: 1px solid var(--crit); border-radius: 3px; padding: 0 4px; }
+.cp-dim-opt { font-size: 0.72em; color: var(--vscode-descriptionForeground); border: 1px solid var(--vscode-panel-border); border-radius: 3px; padding: 0 4px; }
+.cp-dim-body { margin-top: 5px; display: flex; flex-direction: column; gap: 2px; }
+.cp-dim-na { color: var(--vscode-descriptionForeground); font-style: italic; font-size: 0.9em; margin-top: 4px; }
+
+/* Feedback provenance (exact-scope, never authoritative). */
+.cp-prov-block { border-left: 3px solid var(--info); padding: 4px 8px; display: flex; flex-direction: column; gap: 2px; }
+.cp-prov-note { font-size: 0.8em; color: var(--vscode-descriptionForeground); font-style: italic; }
+
+/* Honest "no owner projection" placeholder (relationships / focus graph). */
+.cp-insp-unavailable { display: flex; gap: 8px; align-items: baseline; color: var(--vscode-descriptionForeground); }
+
+/* Dimension-state + coverage badge palette (enum token -> visual class; text label always present). */
+.cp-dim-satisfied { color: #fff; background: var(--ok); }
+.cp-dim-open { color: #fff; background: var(--crit); }
+.cp-dim-degraded { color: #000; background: var(--warn); }
+.cp-dim-unknown, .cp-dim-not_applicable { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.cp-coverage-assessable { color: #fff; background: var(--ok); }
+.cp-coverage-unsupported, .cp-coverage-unknown { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.cp-coverage-explicitly_not_applicable { color: var(--vscode-descriptionForeground); border-color: var(--vscode-panel-border); }
+.cp-dim--invalid, .cp-coverage--invalid { color: #fff; background: var(--crit); border: 1px dashed #fff; }
+
+/* ---- Checkpoint 5: guarded architect-answer panel (the only mutation UI) ---- */
+.cp-qanswer { font-size: 0.82em; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-foreground); border-radius: 3px; padding: 0 6px; cursor: pointer; margin-left: 6px; }
+.cp-qanswer:hover { background: var(--vscode-list-hoverBackground); }
+.cp-qanswer--on { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent; }
+.cp-qanswer:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
+.cp-mut { border: 1px solid var(--vscode-panel-border); border-radius: 4px; padding: 8px; margin-top: 8px; }
+.cp-mut-form { display: flex; flex-direction: column; gap: 6px; }
+.cp-mut-form label { display: flex; flex-direction: column; gap: 2px; font-size: 0.85em; color: var(--vscode-descriptionForeground); }
+.cp-mut-form input, .cp-mut-form select, .cp-mut-form textarea {
+  background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius: 3px; padding: 3px 5px; font: inherit;
+}
+.cp-mut-actions { display: flex; gap: 6px; margin-top: 6px; }
+.cp-mut-actions button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; padding: 3px 12px; cursor: pointer; font: inherit; }
+.cp-mut-actions button:focus-visible { outline: 2px solid var(--vscode-focusBorder); }
+.cp-mut-status { color: var(--vscode-descriptionForeground); font-style: italic; }
+.cp-mut-candidate, .cp-mut-receipt, .cp-mut-refusal { display: flex; flex-direction: column; gap: 2px; }
+.cp-mut-refusal { border-left: 3px solid var(--crit); padding-left: 8px; }
+.cp-mut-candidate { border-left: 3px solid var(--info); padding-left: 8px; }
+.cp-mut-owner { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--vscode-panel-border); }

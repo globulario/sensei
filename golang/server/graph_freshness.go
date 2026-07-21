@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package main
 
@@ -80,6 +80,35 @@ func expectedGraphMarker(s *server) (seedmeta.Marker, string, bool) {
 	}
 	return expected, "", true
 }
+
+// snapshotLiveAuthority derives the control-panel graph-authority admissibility by INDEPENDENTLY
+// discovering the live SeedBuild marker from the store (never by trusting a handed-in freshness
+// verification's Live identity, and never by looking up the expected IRI). The expected marker is
+// comparison metadata only. It is intentionally SEPARATE from snapshotGraphFreshness: freshness
+// answers "is the live graph the expected artifact"; authority answers "did we independently
+// observe a self-consistent live authority identity, and is it admissible".
+func snapshotLiveAuthority(ctx context.Context, s *server) (seedmeta.AuthorityObservation, seedmeta.Marker) {
+	expected, _, ok := expectedGraphMarker(s)
+	if !ok {
+		return seedmeta.AuthorityObservation{State: seedmeta.AuthorityUnobserved, Reason: seedmeta.AuthorityReasonExpectedMarkerAbsent}, seedmeta.Marker{}
+	}
+	disc, ok := storeAsMarkerDiscoverer(s)
+	if !ok {
+		return seedmeta.AuthorityObservation{State: seedmeta.AuthorityUnobserved, Reason: seedmeta.AuthorityReasonVerificationUnclassified}, expected
+	}
+	return seedmeta.AdmitLiveMarker(ctx, disc, expected), expected
+}
+
+// storeAsMarkerDiscoverer adapts the server store to the seedmeta marker-discovery capability
+// (ClassFacts + CountTriples). A nil store yields no discoverer.
+func storeAsMarkerDiscoverer(s *server) (seedmeta.MarkerDiscoverer, bool) {
+	if s == nil || s.store == nil {
+		return nil, false
+	}
+	disc, ok := s.store.(seedmeta.MarkerDiscoverer)
+	return disc, ok
+}
+
 func graphFreshnessStateProto(state seedmeta.FreshnessState) awarenesspb.GraphFreshnessState {
 	switch state {
 	case seedmeta.FreshnessCurrent:

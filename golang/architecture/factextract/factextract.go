@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package factextract is the deterministic, reusable core of Sensei's
 // architecture fact and authority-surface extraction. It was lifted out of the

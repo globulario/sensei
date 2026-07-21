@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // The "Project Awareness" dashboard — an architect's cockpit.
 //
@@ -19,13 +19,25 @@ import {
   AwgError,
   MetadataResponse,
   QueryRow,
+  ArtifactListFilters,
   metadata,
   queryByClass,
   queryRelated,
   resolveNode,
+  getOntologyNavigationDescriptor,
+  getArchitectureControlSnapshot,
+  listArchitectureArtifacts,
+  getArchitectureArtifactState,
+  prepareArchitectAnswerDisposition,
+  recordArchitectAnswerDisposition,
+  ArchitectureDispositionInput,
 } from './grpcClient';
 import { assessMetadataAuthority } from './graphAuthority';
-import { chooseAutomaticGraphDomain, effectiveDomain } from './projectDomain';
+import {
+  chooseAutomaticGraphDomain,
+  effectiveDomain,
+  effectiveRepositoryIdentity,
+} from './projectDomain';
 import {
   AwgRunResult,
   LocalOpsDisabledError,
@@ -520,6 +532,7 @@ export class DashboardPanel {
           // banner; the webview re-requests the active list under the new scope.
           this.selectedDomain = typeof msg.domain === 'string' ? msg.domain : undefined;
           await this.handleMetadata();
+          await this.handleControlSnapshot();
           return await this.handleControlState();
         case 'refresh':
           return msg.mode === 'rebuild'
@@ -535,6 +548,18 @@ export class DashboardPanel {
           return this.handleCandidates();
         case 'getControlState':
           return await this.handleControlState();
+        case 'getNavigationDescriptor':
+          return await this.handleNavigationDescriptor();
+        case 'getControlSnapshot':
+          return await this.handleControlSnapshot();
+        case 'listArtifacts':
+          return await this.handleListArtifacts(msg.filters, msg.cursor);
+        case 'getArtifactState':
+          return await this.handleArtifactState(msg.nodeIri);
+        case 'prepareDisposition':
+          return await this.handlePrepareDisposition(msg);
+        case 'commitDisposition':
+          return await this.handleCommitDisposition(msg);
         case 'selectControlArtifact':
           return await this.handleSelectControlArtifact(msg.kind);
         case 'clearControlSelection':
@@ -654,6 +679,117 @@ export class DashboardPanel {
   private async handleMetadata(): Promise<void> {
     const { domain, data } = await this.scopedMetadata();
     this.post({ type: 'metadata', data, activeDomain: domain, localOps: this.localOpsPayload() });
+  }
+
+  // ── Phase 9.5 architectural control panel (read-only) ──────────────────────
+  // Thin transport: fetch the owner projection and post it verbatim. The host
+  // NEVER computes closure/severity/lifecycle/class; the webview renders the
+  // typed state. The navigation descriptor is registry-derived and cached.
+  private cachedNavDescriptor: unknown;
+
+  private async controlScope(): Promise<{ repo?: string; domain: string; addr: string; timeout: number }> {
+    const { addr, timeout } = this.cfg();
+    const repo = await effectiveRepositoryIdentity();
+    const domain = await this.graphDomain();
+    return { repo, domain, addr, timeout };
+  }
+
+  private async handleNavigationDescriptor(): Promise<void> {
+    if (this.cachedNavDescriptor) {
+      this.post({ type: 'navigationDescriptor', descriptor: this.cachedNavDescriptor });
+      return;
+    }
+    const { addr, timeout } = this.cfg();
+    const resp = await getOntologyNavigationDescriptor(addr, timeout);
+    this.cachedNavDescriptor = resp.descriptor;
+    this.post({ type: 'navigationDescriptor', descriptor: resp.descriptor });
+  }
+
+  private async handleControlSnapshot(): Promise<void> {
+    const { repo, domain, addr, timeout } = await this.controlScope();
+    if (!repo) {
+      // No logical repository identity → do not call the RPC (the server rejects
+      // an empty identity); render an explicit unavailable state, never a zero.
+      this.post({ type: 'controlSnapshot', unavailable: true, reason: 'repository_context_unavailable' });
+      return;
+    }
+    const resp = await getArchitectureControlSnapshot(addr, repo, domain, timeout);
+    this.post({ type: 'controlSnapshot', snapshot: resp.snapshot });
+  }
+
+  private async handleListArtifacts(
+    filters: ArtifactListFilters | undefined,
+    cursor: string | undefined
+  ): Promise<void> {
+    const { repo, domain, addr, timeout } = await this.controlScope();
+    if (!repo) {
+      this.post({ type: 'artifactIndex', unavailable: true, reason: 'repository_context_unavailable' });
+      return;
+    }
+    const resp = await listArchitectureArtifacts(
+      addr,
+      repo,
+      domain,
+      100,
+      cursor ?? '',
+      filters ?? {},
+      timeout
+    );
+    this.post({ type: 'artifactIndex', index: resp.index, filters: filters ?? {} });
+  }
+
+  private async handleArtifactState(nodeIri: unknown): Promise<void> {
+    const iri = String(nodeIri ?? '');
+    const { repo, domain, addr, timeout } = await this.controlScope();
+    if (!repo) {
+      this.post({ type: 'artifactState', unavailable: true, reason: 'repository_context_unavailable', nodeIri: iri });
+      return;
+    }
+    const resp = await getArchitectureArtifactState(addr, repo, domain, iri, timeout);
+    this.post({ type: 'artifactState', state: resp.state, nodeIri: iri });
+  }
+
+  // ── Phase 9.5 Checkpoint 5: guarded architect-answer mutation family ────────
+  // Painfully literal: prepare (pure) → the webview shows the owner candidate →
+  // explicit confirm → commit once → typed receipt/refusal → ALWAYS refresh the
+  // artifact state from the owner. The host adds no authority and never chains.
+
+  private dispositionInputFrom(msg: any, repo: string, domain: string): ArchitectureDispositionInput {
+    const answer = typeof msg.answerText === 'string' && msg.answerText !== '' ? Buffer.from(msg.answerText, 'utf8') : undefined;
+    return {
+      repository_identity: repo,
+      domain,
+      question_id: String(msg.questionId || ''),
+      disposition: msg.disposition,
+      reusability: msg.reusability || 'ARCHITECTURE_REUSABILITY_NONE',
+      rationale: String(msg.rationale || ''),
+      answer_id: msg.answerId || undefined,
+      answer_bytes: answer,
+    };
+  }
+
+  private async handlePrepareDisposition(msg: any): Promise<void> {
+    const { repo, domain, addr, timeout } = await this.controlScope();
+    if (!repo) {
+      this.post({ type: 'dispositionPrepared', questionId: msg.questionId, refusal: { reason_code: 'repository_context_unavailable', owner: 'client', mutation_applied: false } });
+      return;
+    }
+    const resp = await prepareArchitectAnswerDisposition(addr, this.dispositionInputFrom(msg, repo, domain), timeout);
+    this.post({ type: 'dispositionPrepared', questionId: msg.questionId, candidate: resp.candidate, refusal: resp.refusal });
+  }
+
+  private async handleCommitDisposition(msg: any): Promise<void> {
+    const { repo, domain, addr, timeout } = await this.controlScope();
+    if (!repo) {
+      this.post({ type: 'dispositionCommitted', questionId: msg.questionId, refusal: { reason_code: 'repository_context_unavailable', owner: 'client', mutation_applied: false } });
+      return;
+    }
+    const resp = await recordArchitectAnswerDisposition(addr, this.dispositionInputFrom(msg, repo, domain), String(msg.expectedHead || ''), timeout);
+    this.post({ type: 'dispositionCommitted', questionId: msg.questionId, receipt: resp.receipt, refusal: resp.refusal });
+    // ALWAYS refresh the architectural state from the owner after a commit attempt.
+    if (msg.nodeIri) {
+      await this.handleArtifactState(msg.nodeIri);
+    }
   }
 
   // Reload: re-pull what the server already serves (Metadata). Cheap, no local
@@ -1636,6 +1772,15 @@ export class DashboardPanel {
     const jsUri = webview.asWebviewUri(
       vscode.Uri.joinPath(extensionUri, 'media', 'dashboard.js')
     );
+    const cpFmtUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(extensionUri, 'media', 'controlPanelFmt.js')
+    );
+    const cpUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(extensionUri, 'media', 'controlPanel.js')
+    );
+    const cpMutUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(extensionUri, 'media', 'controlPanelMutation.js')
+    );
     const csp = [
       `default-src 'none'`,
       `img-src ${webview.cspSource} data:`,
@@ -1653,6 +1798,29 @@ export class DashboardPanel {
   <title>Project Awareness</title>
 </head>
 <body>
+  <div class="cp-modebar">
+    <strong class="cp-brand">Sensei — architecture control panel</strong>
+    <span class="cp-mode-toggle" role="tablist" aria-label="View">
+      <button id="cpModeControl" class="cp-modebtn cp-modebtn--on" role="tab" aria-pressed="true">Control panel</button>
+      <button id="cpModeLegacy" class="cp-modebtn" role="tab" aria-pressed="false">Legacy explorer</button>
+    </span>
+  </div>
+
+  <div id="controlPanel" class="cp">
+    <div id="cpLive" class="cp-sr-only" role="status" aria-live="polite"></div>
+    <div id="cpTopStrip" class="cp-topstrip" aria-label="Repository posture"></div>
+    <div class="cp-body">
+      <nav id="cpRail" class="cp-rail" aria-label="Ontology navigation"></nav>
+      <section class="cp-center">
+        <div id="cpChips" class="cp-chips" role="toolbar" aria-label="Attention and artifact filters"></div>
+        <div id="cpList" class="cp-list" role="list" aria-live="polite"></div>
+        <div id="cpPager" class="cp-pager"></div>
+      </section>
+      <aside id="cpHeader" class="cp-header-pane" aria-label="Selected artifact header"></aside>
+    </div>
+  </div>
+
+  <div id="legacyView" hidden>
   <header id="banner" class="banner banner--loading">
     <div class="banner__title">Project Awareness</div>
     <div class="banner__state" id="bannerState">loading…</div>
@@ -1700,12 +1868,16 @@ export class DashboardPanel {
       </div>
     </section>
   </main>
+  </div>
 
   <footer class="footer">
     This view is a client of the <a href="https://github.com/globulario/sensei">Sensei CLI</a> — it reads the awareness graph that <code>sensei serve</code> hosts.
     Install it: <code>brew install globulario/tap/sensei</code> · <code>winget install Globulario.Sensei</code> · <code>curl -fsSL https://raw.githubusercontent.com/globulario/sensei/main/install.sh | sh</code>, then run <code>sensei serve</code>.
   </footer>
 
+  <script nonce="${nonce}" src="${cpFmtUri}"></script>
+  <script nonce="${nonce}" src="${cpMutUri}"></script>
+  <script nonce="${nonce}" src="${cpUri}"></script>
   <script nonce="${nonce}" src="${jsUri}"></script>
 </body>
 </html>`;

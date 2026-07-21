@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package resultrecording commits a validated resultpipeline.TransitionCandidate
 // into a task's authoritative append-only ledger history. It is the only Phase 7

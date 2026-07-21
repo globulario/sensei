@@ -113,6 +113,45 @@ service AwarenessGraph {
   // External targets (stdlib/third-party, id "external:<name>") have no
   // in-repo definition and are ignored. Cheap: one inbound describe per id.
   rpc ReferenceSites(ReferenceSitesRequest) returns (ReferenceSitesResponse);
+
+  // ── Phase 9.5 Checkpoint 2: read-only architectural control-panel surfaces ──
+  //
+  // These four RPCs transport the canonical controlstate projections
+  // (golang/architecture/controlstate) losslessly. The server composes and
+  // classifies NOTHING here: closure, lifecycle, severity, applicability, and
+  // availability are decided by the semantic owner and copied to the wire. A
+  // semantically partial/unavailable/degraded/unknown projection is a
+  // SUCCESSFUL response carrying its typed state — never a transport error.
+  // All four are structurally read-only; no request carries a filesystem
+  // root, a canonical class, or any semantic verdict.
+
+  // GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 —
+  // the bounded repository overview (typed counts, attention, authority).
+  rpc GetArchitectureControlSnapshot(GetArchitectureControlSnapshotRequest) returns (GetArchitectureControlSnapshotResponse);
+
+  // ListArchitectureArtifacts returns one page of architecture.artifact_index/v1.
+  // The cursor is OPAQUE: produced and validated only by the controlstate
+  // owner, bound to snapshot/registry/filter identity, rejected on mismatch.
+  rpc ListArchitectureArtifacts(ListArchitectureArtifactsRequest) returns (ListArchitectureArtifactsResponse);
+
+  // GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE
+  // exact node IRI. The canonical class is resolved by the controlstate
+  // registry from observed graph classes — never supplied by the caller.
+  rpc GetArchitectureArtifactState(GetArchitectureArtifactStateRequest) returns (GetArchitectureArtifactStateResponse);
+
+  // GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 —
+  // registry-derived, repository-independent; requires no filesystem context.
+  rpc GetOntologyNavigationDescriptor(GetOntologyNavigationDescriptorRequest) returns (GetOntologyNavigationDescriptorResponse);
+
+  // ── Phase 9.5 Checkpoint 5: the guarded architect-answer mutation family ──
+  // The FIRST and ONLY mutation RPCs in the control-panel surface. Each is a
+  // guarded delegation to an existing owner (questiondisposition /
+  // questionpromotion); the server assigns no authority. A refused mutation is a
+  // SUCCESSFUL response carrying a typed refusal (mirrors Propose REJECTED),
+  // never a transport error. Requests carry LOGICAL identities + an actor
+  // identity only — filesystem roots come from the startup-owned context.
+  rpc PrepareArchitectAnswerDisposition(PrepareArchitectAnswerDispositionRequest) returns (PrepareArchitectAnswerDispositionResponse);
+  rpc RecordArchitectAnswerDisposition(RecordArchitectAnswerDispositionRequest) returns (RecordArchitectAnswerDispositionResponse);
 }
 
 // ─── Briefing ─────────────────────────────────────────────────────────────
@@ -1172,4 +1211,553 @@ message ReferenceSitesResponse {
   repeated ReferenceFamily families = 1;
   GraphAuthority authority = 2;
   int64 generated_in_ms = 3;
+}
+
+// ─── Phase 9.5 Checkpoint 2: architectural control-panel read models ────────
+//
+// Wire representation of the five canonical controlstate schemas:
+//   architecture.control_snapshot/v1
+//   architecture.artifact_index/v1
+//   architecture.artifact_state/v1
+//   architecture.attention_item/v1
+//   ontology.navigation_descriptor/v1
+//
+// Laws (frozen in design §25 + governed invariants):
+//   - This layer is LOSSLESS TRANSPORT. Closed vocabularies map one-to-one to
+//     the enums below; *_UNSPECIFIED = 0 always FAILS validation and never
+//     means unknown — unknown is an explicit vocabulary value.
+//   - Unknown-versus-zero is preserved: unobserved counts are ABSENT
+//     (proto3 optional unset); an observed zero is an explicit zero.
+//   - digest_sha256 is the canonical controlstate digest, copied verbatim.
+//     No transport layer recomputes it from this representation.
+//   - Repeated fields keep the canonical controlstate ordering.
+//   - No absolute repository roots, raw internal errors, raw architect
+//     answers, unstable timestamps, UI colors, layout hints, synthetic
+//     scores, or correctness-certification claims are serialized.
+
+// ArchitectureAvailability mirrors controlstate.Availability.
+enum ArchitectureAvailability {
+  ARCHITECTURE_AVAILABILITY_UNSPECIFIED = 0;  // always invalid on the wire
+  ARCHITECTURE_AVAILABILITY_AVAILABLE = 1;
+  ARCHITECTURE_AVAILABILITY_PARTIAL = 2;
+  ARCHITECTURE_AVAILABILITY_UNAVAILABLE = 3;
+  ARCHITECTURE_AVAILABILITY_INVALID = 4;
+}
+
+// ArchitectureSourceAvailability mirrors controlstate.SourceAvailability.
+enum ArchitectureSourceAvailability {
+  ARCHITECTURE_SOURCE_AVAILABILITY_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_SOURCE_AVAILABILITY_AVAILABLE = 1;
+  ARCHITECTURE_SOURCE_AVAILABILITY_DEGRADED = 2;
+  ARCHITECTURE_SOURCE_AVAILABILITY_UNAVAILABLE = 3;
+  ARCHITECTURE_SOURCE_AVAILABILITY_INVALID = 4;
+}
+
+// ArchitectureSourceImpact mirrors controlstate.SourceImpact.
+enum ArchitectureSourceImpact {
+  ARCHITECTURE_SOURCE_IMPACT_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_SOURCE_IMPACT_PRIMARY = 1;
+  ARCHITECTURE_SOURCE_IMPACT_REQUIRED = 2;
+  ARCHITECTURE_SOURCE_IMPACT_RELEVANT = 3;
+  ARCHITECTURE_SOURCE_IMPACT_OPTIONAL = 4;
+}
+
+// ArchitectureArtifactClosure mirrors controlstate.ArtifactClosure. UNKNOWN is
+// an explicit honest state — it is NEVER encoded as UNSPECIFIED.
+enum ArchitectureArtifactClosure {
+  ARCHITECTURE_ARTIFACT_CLOSURE_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_ARTIFACT_CLOSURE_CLOSED = 1;
+  ARCHITECTURE_ARTIFACT_CLOSURE_OPEN = 2;
+  ARCHITECTURE_ARTIFACT_CLOSURE_DEGRADED = 3;
+  ARCHITECTURE_ARTIFACT_CLOSURE_UNKNOWN = 4;
+  ARCHITECTURE_ARTIFACT_CLOSURE_NOT_APPLICABLE = 5;
+}
+
+// ArchitectureDimensionState mirrors controlstate.DimensionState.
+enum ArchitectureDimensionState {
+  ARCHITECTURE_DIMENSION_STATE_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_DIMENSION_STATE_SATISFIED = 1;
+  ARCHITECTURE_DIMENSION_STATE_OPEN = 2;
+  ARCHITECTURE_DIMENSION_STATE_DEGRADED = 3;
+  ARCHITECTURE_DIMENSION_STATE_UNKNOWN = 4;
+  ARCHITECTURE_DIMENSION_STATE_NOT_APPLICABLE = 5;
+}
+
+// ArchitectureLifecycleState mirrors controlstate.LifecycleState. Absence of a
+// lifecycle source is UNKNOWN (typed) — never silently ACTIVE.
+enum ArchitectureLifecycleState {
+  ARCHITECTURE_LIFECYCLE_STATE_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_LIFECYCLE_STATE_ACTIVE = 1;
+  ARCHITECTURE_LIFECYCLE_STATE_PROPOSED = 2;
+  ARCHITECTURE_LIFECYCLE_STATE_DEPRECATED = 3;
+  ARCHITECTURE_LIFECYCLE_STATE_SUPERSEDED = 4;
+  ARCHITECTURE_LIFECYCLE_STATE_REVOKED = 5;
+  ARCHITECTURE_LIFECYCLE_STATE_UNKNOWN = 6;
+  ARCHITECTURE_LIFECYCLE_STATE_NOT_APPLICABLE = 7;
+}
+
+// ArchitectureAttentionSeverity mirrors controlstate.AttentionSeverity — the
+// governed owner-assigned severity. Transport never derives severity from
+// text, color, or reason prose.
+enum ArchitectureAttentionSeverity {
+  ARCHITECTURE_ATTENTION_SEVERITY_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_ATTENTION_SEVERITY_INFORMATIONAL = 1;
+  ARCHITECTURE_ATTENTION_SEVERITY_ATTENTION = 2;
+  ARCHITECTURE_ATTENTION_SEVERITY_WARNING = 3;
+  ARCHITECTURE_ATTENTION_SEVERITY_CRITICAL = 4;
+}
+
+// ArchitectureAssessmentCoverage mirrors controlstate.AssessmentCoverage.
+enum ArchitectureAssessmentCoverage {
+  ARCHITECTURE_ASSESSMENT_COVERAGE_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_ASSESSMENT_COVERAGE_ASSESSABLE = 1;
+  ARCHITECTURE_ASSESSMENT_COVERAGE_EXPLICITLY_NOT_APPLICABLE = 2;
+  ARCHITECTURE_ASSESSMENT_COVERAGE_UNSUPPORTED = 3;
+  ARCHITECTURE_ASSESSMENT_COVERAGE_UNKNOWN = 4;
+}
+
+// ArchitectureSourceStatus mirrors controlstate.SourceStatus: one typed source
+// contribution in a projection's evidence ledger. reason_code is a typed code
+// copied verbatim — it is provenance, never parsed to choose a vocabulary.
+message ArchitectureSourceStatus {
+  string owner = 1;
+  string schema = 2;
+  ArchitectureSourceAvailability availability = 3;
+  ArchitectureSourceImpact impact = 4;
+  string reason_code = 5;
+  string identity = 6;
+  string digest = 7;
+}
+
+// ArchitectureProjectionMeta mirrors controlstate.ProjectionMeta — the shared
+// self-describing envelope every projection carries. non_authoritative_projection
+// is always true: these are read models, never graph/governance authority.
+message ArchitectureProjectionMeta {
+  string schema_version = 1;
+  string producer_name = 2;
+  string producer_version = 3;
+  string repository_identity = 4;   // logical identity, never a filesystem path
+  string requested_domain = 5;
+  ArchitectureAvailability availability = 6;
+  repeated ArchitectureSourceStatus sources = 7;  // canonical controlstate order
+  bool non_authoritative_projection = 8;
+  repeated string limitations = 9;
+  string digest_sha256 = 10;        // canonical controlstate digest, copied verbatim
+}
+
+// ArchitectureArtifactIdentity mirrors controlstate.ArtifactIdentity. The
+// canonical class is registry-resolved from observed classes — a client can
+// read it but never supplies it.
+message ArchitectureArtifactIdentity {
+  string node_iri = 1;
+  string canonical_class = 2;
+  repeated string observed_classes = 3;   // canonical sorted+unique
+  string repository_identity = 4;
+  string domain_identity = 5;
+  string graph_authority_identity = 6;
+  repeated string provenance_identities = 7;  // canonical sorted+unique
+}
+
+// ArchitectureLifecycleAssessment mirrors controlstate.LifecycleAssessment.
+message ArchitectureLifecycleAssessment {
+  bool applicable = 1;
+  string vocabulary = 2;
+  ArchitectureLifecycleState state = 3;
+  string source_owner = 4;
+  string source_identity = 5;
+  ArchitectureSourceAvailability source_availability = 6;
+  string reason_code = 7;
+}
+
+// ArchitectureDimensionAssessment mirrors controlstate.DimensionAssessment.
+message ArchitectureDimensionAssessment {
+  string dimension = 1;
+  string label = 2;
+  bool applicable = 3;
+  bool required = 4;
+  ArchitectureDimensionState state = 5;
+  string reason_code = 6;
+  repeated string blockers = 7;   // canonical sorted+unique
+  repeated string evidence = 8;   // canonical sorted+unique
+  repeated string questions = 9;  // canonical sorted+unique
+  string owner = 10;
+  string next_action_owner = 11;
+}
+
+// ArchitectureAttentionItem is architecture.attention_item/v1 — the ONE shared
+// canonical attention record, embedded in snapshot and artifact-state
+// responses. It is OUTPUT-ONLY: no inbound RPC accepts an attention item or
+// any other client-supplied semantic verdict.
+message ArchitectureAttentionItem {
+  string id = 1;                    // deterministic canonical identity digest
+  string source_owner = 2;
+  string source_schema = 3;
+  string source_identity = 4;
+  string attention_class = 5;       // governed class vocabulary, copied verbatim
+  string reason_code = 6;
+  ArchitectureAttentionSeverity severity = 7;
+  string severity_basis = 8;        // governed-mapping basis, copied verbatim
+  string source_digest = 9;
+  repeated string affected_artifacts = 10;  // canonical sorted+unique
+  bool blocking = 11;
+  repeated string evidence = 12;    // canonical sorted+unique
+  string next_action_owner = 13;
+  bool architect_input_required = 14;
+}
+
+// ArchitectureKeyedCount mirrors controlstate.KeyedCount — deterministic
+// (key, count) pairs used instead of maps for stable canonical output.
+message ArchitectureKeyedCount {
+  string key = 1;
+  int64 count = 2;
+}
+
+// ArchitectureGraphAuthoritySummary mirrors controlstate.GraphAuthoritySummary
+// (typed authority state, never recomputed by transport).
+message ArchitectureGraphAuthoritySummary {
+  bool observed = 1;
+  bool current = 2;
+  bool integrity = 3;
+  string identity = 4;
+}
+
+// ArchitectureCoverageSummary mirrors controlstate.CoverageSummary.
+message ArchitectureCoverageSummary {
+  bool sufficient = 1;
+  int64 blind_spot_count = 2;
+  int64 high_risk_blind_spot_count = 3;
+}
+
+// ArchitectureTaskSummary mirrors controlstate.TaskSummary (bounded; no raw
+// dialogue, no answers, no certification claims).
+message ArchitectureTaskSummary {
+  string task_id = 1;
+  string session_id = 2;
+  string closure = 3;
+  string admission = 4;
+}
+
+// ArchitectureCompletionSummary mirrors controlstate.CompletionSummary.
+// Phase 6 remains the sole correctness certifier; nothing here certifies.
+message ArchitectureCompletionSummary {
+  string terminal_state = 1;
+  bool authoritative_completion = 2;
+}
+
+// ArchitectureFeedbackContext mirrors controlstate.FeedbackContext — feedback
+// CAPABILITY/availability only, never repository-wide feedback records.
+// availability uses the Phase 9.6 vocabulary (feedback_available /
+// feedback_empty / feedback_degraded / feedback_unavailable / feedback_invalid).
+message ArchitectureFeedbackContext {
+  bool capable = 1;
+  string availability = 2;
+}
+
+// ArchitectureScopedFeedbackRef mirrors controlstate.ScopedFeedbackRef — an
+// exact-scope Phase 9.6 feedback reference (never a repo-wide scan).
+message ArchitectureScopedFeedbackRef {
+  string scope_identity = 1;
+  string projection_digest = 2;
+  string availability = 3;   // Phase 9.6 vocabulary, validated upstream
+  repeated string verified_record_ids = 4;  // canonical sorted+unique
+  repeated string lineage_ids = 5;          // canonical sorted+unique
+  repeated string limitations = 6;          // canonical sorted+unique
+}
+
+// ArchitectureControlSnapshot is architecture.control_snapshot/v1. Optional
+// counts preserve unknown-versus-zero: an UNSET count means the source was
+// not available (unknown); a SET zero is observed data.
+message ArchitectureControlSnapshot {
+  ArchitectureProjectionMeta meta = 1;
+  string registry_digest = 2;
+  ArchitectureGraphAuthoritySummary graph_authority = 3;
+  repeated ArchitectureKeyedCount counts_by_class = 4;
+  repeated ArchitectureKeyedCount assessment_coverage_counts = 5;
+  repeated ArchitectureKeyedCount closure_counts = 6;
+  optional int64 lifecycle_unknown_count = 7;
+  repeated ArchitectureKeyedCount attention_counts_by_severity = 8;
+  repeated ArchitectureAttentionItem top_attention = 9;  // bounded, canonical order
+  optional int64 open_question_count = 10;
+  optional int64 contradiction_count = 11;
+  optional int64 missing_evidence_count = 12;
+  optional int64 missing_test_count = 13;
+  optional int64 missing_enforcement_count = 14;
+  ArchitectureCoverageSummary coverage = 15;          // absent when unobserved
+  ArchitectureTaskSummary active_task = 16;           // absent when unobserved
+  ArchitectureCompletionSummary completion = 17;      // absent when unobserved
+  ArchitectureFeedbackContext feedback_context = 18;  // absent when source not available
+}
+
+// ArchitectureArtifactSummary mirrors controlstate.ArtifactSummary — one
+// bounded index row (never a full artifact state).
+message ArchitectureArtifactSummary {
+  ArchitectureArtifactIdentity identity = 1;
+  string label = 2;
+  string family = 3;
+  string class = 4;
+  ArchitectureAssessmentCoverage assessment_coverage = 5;
+  ArchitectureLifecycleState lifecycle = 6;
+  ArchitectureArtifactClosure closure = 7;
+  int64 open_required_dimensions = 8;
+  // highest_severity is ABSENT when the artifact has zero attention items;
+  // when present it must be a non-UNSPECIFIED severity.
+  optional ArchitectureAttentionSeverity highest_severity = 9;
+  int64 attention_count = 10;
+  string owner_summary = 11;
+  ArchitectureAvailability availability = 12;
+}
+
+// ArchitectureArtifactIndex is architecture.artifact_index/v1 — one stable
+// page. next_cursor is OPAQUE: owner-produced, owner-validated, bound to
+// snapshot/registry/filter identity; clients echo it back unchanged.
+message ArchitectureArtifactIndex {
+  ArchitectureProjectionMeta meta = 1;
+  string registry_digest = 2;
+  repeated ArchitectureArtifactSummary page = 3;  // canonical complete-sort-key order
+  string next_cursor = 4;
+  bool truncated = 5;
+}
+
+// ArchitectureArtifactState is architecture.artifact_state/v1 — the full typed
+// state for ONE exact artifact identity.
+message ArchitectureArtifactState {
+  ArchitectureProjectionMeta meta = 1;
+  ArchitectureArtifactIdentity identity = 2;
+  string canonical_class = 3;
+  ArchitectureAssessmentCoverage assessment_coverage = 4;
+  ArchitectureArtifactClosure closure = 5;
+  string closure_reason = 6;
+  ArchitectureLifecycleAssessment lifecycle = 7;
+  repeated ArchitectureDimensionAssessment dimensions = 8;  // canonical order
+  repeated ArchitectureAttentionItem attention = 9;         // canonical order
+  repeated string questions = 10;  // canonical sorted+unique
+  repeated string evidence = 11;   // canonical sorted+unique
+  ArchitectureScopedFeedbackRef feedback = 12;  // absent when no exact-scope feedback
+  string next_action_owner = 13;
+}
+
+// ArchitectureNavigationClass mirrors controlstate.NavigationClass — copied
+// from the canonical registry, never invented during projection.
+message ArchitectureNavigationClass {
+  string class_iri = 1;
+  string label = 2;
+  int32 order = 3;
+  ArchitectureAssessmentCoverage coverage = 4;
+  bool assessable_artifact = 5;
+  bool query_capable = 6;
+  bool resolve_capable = 7;
+  bool inspector_capable = 8;
+  bool question_capable = 9;
+  bool default_visible = 10;
+  bool overview_visible = 11;
+}
+
+// ArchitectureNavigationFamily mirrors controlstate.NavigationFamily.
+message ArchitectureNavigationFamily {
+  string id = 1;
+  string label = 2;
+  int32 order = 3;
+  repeated ArchitectureNavigationClass classes = 4;  // canonical order
+}
+
+// OntologyNavigationDescriptor is ontology.navigation_descriptor/v1 —
+// mechanically derived from the canonical Go-owned registry.
+message OntologyNavigationDescriptor {
+  ArchitectureProjectionMeta meta = 1;
+  string registry_digest = 2;
+  repeated ArchitectureNavigationFamily families = 3;  // canonical order
+  ArchitectureNavigationClass unknown_class_fallback = 4;
+}
+
+// ─── Phase 9.5 Checkpoint 2: request/response contracts ─────────────────────
+//
+// Requests carry LOGICAL identities only. By law there is no repository-root,
+// cwd, or workspace-folder field; no caller-supplied canonical class; and no
+// search-text field while Checkpoint-1 search remains unsupported.
+
+message GetArchitectureControlSnapshotRequest {
+  string repository_identity = 1;  // logical repository identity (not a path)
+  string domain = 2;               // graph domain scope
+}
+
+message GetArchitectureControlSnapshotResponse {
+  ArchitectureControlSnapshot snapshot = 1;
+}
+
+message ListArchitectureArtifactsRequest {
+  string repository_identity = 1;
+  string domain = 2;
+  int32 page_size = 3;   // bounded by the controlstate owner (default 100, max 250)
+  string cursor = 4;     // opaque; echoed back from a previous response
+  // Optional visibility filters over already-resolved rows. A filter never
+  // changes an artifact's resolved class. When a filter enum field is present
+  // it must be a non-UNSPECIFIED value.
+  string family_filter = 5;
+  string class_filter = 6;   // exact class IRI visibility filter
+  optional ArchitectureArtifactClosure closure_filter = 7;
+  optional ArchitectureAttentionSeverity severity_filter = 8;
+}
+
+message ListArchitectureArtifactsResponse {
+  ArchitectureArtifactIndex index = 1;
+}
+
+message GetArchitectureArtifactStateRequest {
+  string repository_identity = 1;
+  string domain = 2;
+  string node_iri = 3;  // exact node IRI; the ONLY artifact selector
+  // Preconditions, NOT alternate authorities: when set and mismatched against
+  // the server's authoritative values the RPC fails with FailedPrecondition.
+  string expected_graph_authority_identity = 4;
+  string expected_registry_digest = 5;
+}
+
+message GetArchitectureArtifactStateResponse {
+  ArchitectureArtifactState state = 1;
+}
+
+// GetOntologyNavigationDescriptorRequest is intentionally EMPTY: the
+// descriptor is registry-derived and requires no filesystem or repository
+// argument.
+message GetOntologyNavigationDescriptorRequest {
+}
+
+message GetOntologyNavigationDescriptorResponse {
+  OntologyNavigationDescriptor descriptor = 1;
+}
+
+// ─── Phase 9.5 Checkpoint 5: guarded architect-answer mutation family ───────
+//
+// Closed vocabularies mirror the owner types (questiondisposition.Disposition /
+// Reusability / RecordOutcome, questionpromotion.Outcome). Every *_UNSPECIFIED=0
+// ALWAYS fails validation. A typed refusal is response DATA, never a transport
+// error. The raw architect answer travels as opaque bytes and is hashed by the
+// owner — it is never echoed back and never becomes governed prose.
+
+enum ArchitectureDisposition {
+  ARCHITECTURE_DISPOSITION_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_DISPOSITION_ANSWERED = 1;
+  ARCHITECTURE_DISPOSITION_DISMISSED = 2;
+  ARCHITECTURE_DISPOSITION_DEFERRED = 3;
+  ARCHITECTURE_DISPOSITION_TASK_LOCAL = 4;
+}
+
+enum ArchitectureReusability {
+  ARCHITECTURE_REUSABILITY_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_REUSABILITY_NONE = 1;         // maps to "" (dismissed/deferred)
+  ARCHITECTURE_REUSABILITY_REUSABLE_CANDIDATE = 2;
+  ARCHITECTURE_REUSABILITY_TASK_LOCAL = 3;
+}
+
+enum ArchitectureDispositionOutcome {
+  ARCHITECTURE_DISPOSITION_OUTCOME_UNSPECIFIED = 0;  // always invalid
+  ARCHITECTURE_DISPOSITION_OUTCOME_RECORDED = 1;
+  ARCHITECTURE_DISPOSITION_OUTCOME_REPLAYED = 2;
+  ARCHITECTURE_DISPOSITION_OUTCOME_RECONCILED = 3;
+  ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED = 4;
+}
+
+
+// ArchitectureMutationRefusal is a pre-write refusal from the owner (unenrolled/
+// unverified/ungranted actor, broadened scope, ineligible input). It is response
+// DATA and guarantees NOTHING was written. reason_code is the owner error code
+// verbatim; owner is the owner identity that refused; detail is sanitized (no
+// filesystem paths, no raw errors, and NEVER the raw answer text).
+message ArchitectureMutationRefusal {
+  string reason_code = 1;
+  string detail = 2;
+  string owner = 3;
+  bool mutation_applied = 4;   // always false — a refusal writes nothing
+  // audit exposes the UNCHANGED ledger identity (previous == resulting head) and
+  // the resolved bindings, so a refusal can never be mistaken for a mutation.
+  ArchitectureMutationAudit audit = 5;
+}
+
+// ArchitectureMutationAudit is the typed audit envelope on every successful
+// receipt: enough to audit the operation WITHOUT echoing unsafe content (no raw
+// answer text, ever). operation_identity is the canonical mutation identity
+// (the content-addressed receipt digest binding kind+actor+task/session+question
+// +expected head+payload).
+message ArchitectureMutationAudit {
+  string operation_identity = 1;
+  string operation_kind = 2;   // "disposition" | "promotion"
+  string actor_identity = 3;
+  string repository_identity = 4;
+  string domain = 5;
+  string task_id = 6;
+  string session_id = 7;
+  string question_id = 8;
+  string previous_ledger_head_sha256 = 9;
+  string resulting_ledger_head_sha256 = 10;
+  string owner_outcome = 11;    // owner outcome string, verbatim
+  string replay_status = 12;    // applied | replay | reconciled | contested | none
+  bool mutation_applied = 13;
+}
+
+// ArchitectureDispositionInput carries logical identities + the actor + the
+// answer bytes. There is NO filesystem root here; the server resolves the
+// repository/task/identity roots from its startup-owned context.
+message ArchitectureDispositionInput {
+  string repository_identity = 1;
+  string domain = 2;
+  string task_id = 3;
+  string session_id = 4;
+  string question_id = 5;
+  string actor_identity = 6;
+  ArchitectureDisposition disposition = 7;
+  ArchitectureReusability reusability = 8;
+  string rationale = 9;
+  string answer_id = 10;
+  bytes answer_bytes = 11;   // opaque; hashed by the owner, never stored as prose
+  string effective_scope_domain = 12;
+  repeated string effective_scope_files = 13;
+  repeated string evidence_refs = 14;
+}
+
+// ArchitectureDispositionCandidate is the PURE prepared candidate (writes
+// nothing): the receipt identity and the expected ledger head the commit will
+// CAS against.
+message ArchitectureDispositionCandidate {
+  string question_id = 1;
+  string receipt_digest_sha256 = 2;
+  string receipt_byte_digest_sha256 = 3;
+  string expected_ledger_head_digest_sha256 = 4;
+  string anchor_entry_digest_sha256 = 5;
+}
+
+message PrepareArchitectAnswerDispositionRequest {
+  ArchitectureDispositionInput input = 1;
+}
+
+// Exactly one of candidate / refusal is set. A refusal wrote nothing.
+message PrepareArchitectAnswerDispositionResponse {
+  ArchitectureDispositionCandidate candidate = 1;
+  ArchitectureMutationRefusal refusal = 2;
+}
+
+// ArchitectureDispositionReceipt mirrors questiondisposition.RecordResult. The
+// architect answer appears only as answer_id + digest upstream — never here.
+message ArchitectureDispositionReceipt {
+  ArchitectureDispositionOutcome outcome = 1;
+  string question_id = 2;
+  string receipt_digest_sha256 = 3;
+  string entry_digest_sha256 = 4;
+  string previous_ledger_head_sha256 = 5;
+  string current_ledger_head_sha256 = 6;
+  int64 ledger_sequence = 7;
+  repeated string contested_prior_digests = 8;
+  string projection_state = 9;
+  ArchitectureMutationAudit audit = 10;
+}
+
+message RecordArchitectAnswerDispositionRequest {
+  ArchitectureDispositionInput input = 1;
+  // Precondition (from a prior prepare): FailedPrecondition if the live head moved.
+  string expected_ledger_head_digest_sha256 = 2;
+}
+
+// Exactly one of receipt / refusal is set. A refusal wrote nothing.
+message RecordArchitectAnswerDispositionResponse {
+  ArchitectureDispositionReceipt receipt = 1;
+  ArchitectureMutationRefusal refusal = 2;
 }

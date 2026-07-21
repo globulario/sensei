@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package buildtransaction renders the deterministic, acyclic result-artifact
 // manifest for a Phase 7 result architecture. It is NOT the legacy

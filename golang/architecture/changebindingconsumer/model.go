@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package changebindingconsumer places authoritative completion.change_task_binding/v1
 // validation IN FRONT of the closed Phase 9.4b completion-enforcement decision (Phase 9.4c,

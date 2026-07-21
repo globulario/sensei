@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,6 +25,29 @@ test('vendored proto includes Phase 2 query classes and metadata counts', () => 
     'open_question_count',
     'architect_answer_count',
     'evidence_probe_count',
+  ]) {
+    assert.match(vendored, new RegExp(needle));
+  }
+});
+
+test('vendored proto includes the Phase 9.5 control-panel read surface', () => {
+  const vendored = fs.readFileSync(path.join(root, 'proto', 'awareness_graph.proto'), 'utf8');
+  for (const needle of [
+    // the four read-only RPCs
+    'rpc GetArchitectureControlSnapshot',
+    'rpc ListArchitectureArtifacts',
+    'rpc GetArchitectureArtifactState',
+    'rpc GetOntologyNavigationDescriptor',
+    // the descriptor + closed vocabularies the client renders verbatim
+    'message OntologyNavigationDescriptor',
+    'enum ArchitectureArtifactClosure',
+    'ARCHITECTURE_ARTIFACT_CLOSURE_UNKNOWN',
+    'enum ArchitectureAttentionSeverity',
+    'enum ArchitectureAvailability',
+    // the optional counts that preserve unknown-versus-zero
+    'optional int64 open_question_count',
+    'optional int64 contradiction_count',
+    'optional ArchitectureAttentionSeverity highest_severity',
   ]) {
     assert.match(vendored, new RegExp(needle));
   }

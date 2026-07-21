@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package netcfg is the single source of truth for the default network
 // endpoints used across the Sensei stack: the awareness-graph gRPC service and

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package questiondisposition is the Phase-8.1a owner of the authoritative
 // task-ledger question-disposition transaction. It records what an authorized

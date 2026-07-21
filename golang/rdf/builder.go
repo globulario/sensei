@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package rdf provides triple-emission helpers for the awareness ontology.
 // Designed so a converter can stream N-Triples to a Writer without holding

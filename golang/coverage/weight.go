@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package coverage holds the pure, importable risk-weighting and coverage-report
 // logic shared by the awareness-graph server (Preflight) and the offline

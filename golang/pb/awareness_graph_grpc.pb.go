@@ -38,15 +38,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AwarenessGraph_Briefing_FullMethodName       = "/globular.awareness_graph.AwarenessGraph/Briefing"
-	AwarenessGraph_Impact_FullMethodName         = "/globular.awareness_graph.AwarenessGraph/Impact"
-	AwarenessGraph_Query_FullMethodName          = "/globular.awareness_graph.AwarenessGraph/Query"
-	AwarenessGraph_Resolve_FullMethodName        = "/globular.awareness_graph.AwarenessGraph/Resolve"
-	AwarenessGraph_Metadata_FullMethodName       = "/globular.awareness_graph.AwarenessGraph/Metadata"
-	AwarenessGraph_Preflight_FullMethodName      = "/globular.awareness_graph.AwarenessGraph/Preflight"
-	AwarenessGraph_EditCheck_FullMethodName      = "/globular.awareness_graph.AwarenessGraph/EditCheck"
-	AwarenessGraph_Propose_FullMethodName        = "/globular.awareness_graph.AwarenessGraph/Propose"
-	AwarenessGraph_ReferenceSites_FullMethodName = "/globular.awareness_graph.AwarenessGraph/ReferenceSites"
+	AwarenessGraph_Briefing_FullMethodName                          = "/globular.awareness_graph.AwarenessGraph/Briefing"
+	AwarenessGraph_Impact_FullMethodName                            = "/globular.awareness_graph.AwarenessGraph/Impact"
+	AwarenessGraph_Query_FullMethodName                             = "/globular.awareness_graph.AwarenessGraph/Query"
+	AwarenessGraph_Resolve_FullMethodName                           = "/globular.awareness_graph.AwarenessGraph/Resolve"
+	AwarenessGraph_Metadata_FullMethodName                          = "/globular.awareness_graph.AwarenessGraph/Metadata"
+	AwarenessGraph_Preflight_FullMethodName                         = "/globular.awareness_graph.AwarenessGraph/Preflight"
+	AwarenessGraph_EditCheck_FullMethodName                         = "/globular.awareness_graph.AwarenessGraph/EditCheck"
+	AwarenessGraph_Propose_FullMethodName                           = "/globular.awareness_graph.AwarenessGraph/Propose"
+	AwarenessGraph_ReferenceSites_FullMethodName                    = "/globular.awareness_graph.AwarenessGraph/ReferenceSites"
+	AwarenessGraph_GetArchitectureControlSnapshot_FullMethodName    = "/globular.awareness_graph.AwarenessGraph/GetArchitectureControlSnapshot"
+	AwarenessGraph_ListArchitectureArtifacts_FullMethodName         = "/globular.awareness_graph.AwarenessGraph/ListArchitectureArtifacts"
+	AwarenessGraph_GetArchitectureArtifactState_FullMethodName      = "/globular.awareness_graph.AwarenessGraph/GetArchitectureArtifactState"
+	AwarenessGraph_GetOntologyNavigationDescriptor_FullMethodName   = "/globular.awareness_graph.AwarenessGraph/GetOntologyNavigationDescriptor"
+	AwarenessGraph_PrepareArchitectAnswerDisposition_FullMethodName = "/globular.awareness_graph.AwarenessGraph/PrepareArchitectAnswerDisposition"
+	AwarenessGraph_RecordArchitectAnswerDisposition_FullMethodName  = "/globular.awareness_graph.AwarenessGraph/RecordArchitectAnswerDisposition"
 )
 
 // AwarenessGraphClient is the client API for AwarenessGraph service.
@@ -131,6 +137,29 @@ type AwarenessGraphClient interface {
 	// External targets (stdlib/third-party, id "external:<name>") have no
 	// in-repo definition and are ignored. Cheap: one inbound describe per id.
 	ReferenceSites(ctx context.Context, in *ReferenceSitesRequest, opts ...grpc.CallOption) (*ReferenceSitesResponse, error)
+	// GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 —
+	// the bounded repository overview (typed counts, attention, authority).
+	GetArchitectureControlSnapshot(ctx context.Context, in *GetArchitectureControlSnapshotRequest, opts ...grpc.CallOption) (*GetArchitectureControlSnapshotResponse, error)
+	// ListArchitectureArtifacts returns one page of architecture.artifact_index/v1.
+	// The cursor is OPAQUE: produced and validated only by the controlstate
+	// owner, bound to snapshot/registry/filter identity, rejected on mismatch.
+	ListArchitectureArtifacts(ctx context.Context, in *ListArchitectureArtifactsRequest, opts ...grpc.CallOption) (*ListArchitectureArtifactsResponse, error)
+	// GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE
+	// exact node IRI. The canonical class is resolved by the controlstate
+	// registry from observed graph classes — never supplied by the caller.
+	GetArchitectureArtifactState(ctx context.Context, in *GetArchitectureArtifactStateRequest, opts ...grpc.CallOption) (*GetArchitectureArtifactStateResponse, error)
+	// GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 —
+	// registry-derived, repository-independent; requires no filesystem context.
+	GetOntologyNavigationDescriptor(ctx context.Context, in *GetOntologyNavigationDescriptorRequest, opts ...grpc.CallOption) (*GetOntologyNavigationDescriptorResponse, error)
+	// ── Phase 9.5 Checkpoint 5: the guarded architect-answer mutation family ──
+	// The FIRST and ONLY mutation RPCs in the control-panel surface. Each is a
+	// guarded delegation to an existing owner (questiondisposition /
+	// questionpromotion); the server assigns no authority. A refused mutation is a
+	// SUCCESSFUL response carrying a typed refusal (mirrors Propose REJECTED),
+	// never a transport error. Requests carry LOGICAL identities + an actor
+	// identity only — filesystem roots come from the startup-owned context.
+	PrepareArchitectAnswerDisposition(ctx context.Context, in *PrepareArchitectAnswerDispositionRequest, opts ...grpc.CallOption) (*PrepareArchitectAnswerDispositionResponse, error)
+	RecordArchitectAnswerDisposition(ctx context.Context, in *RecordArchitectAnswerDispositionRequest, opts ...grpc.CallOption) (*RecordArchitectAnswerDispositionResponse, error)
 }
 
 type awarenessGraphClient struct {
@@ -231,6 +260,66 @@ func (c *awarenessGraphClient) ReferenceSites(ctx context.Context, in *Reference
 	return out, nil
 }
 
+func (c *awarenessGraphClient) GetArchitectureControlSnapshot(ctx context.Context, in *GetArchitectureControlSnapshotRequest, opts ...grpc.CallOption) (*GetArchitectureControlSnapshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetArchitectureControlSnapshotResponse)
+	err := c.cc.Invoke(ctx, AwarenessGraph_GetArchitectureControlSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *awarenessGraphClient) ListArchitectureArtifacts(ctx context.Context, in *ListArchitectureArtifactsRequest, opts ...grpc.CallOption) (*ListArchitectureArtifactsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListArchitectureArtifactsResponse)
+	err := c.cc.Invoke(ctx, AwarenessGraph_ListArchitectureArtifacts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *awarenessGraphClient) GetArchitectureArtifactState(ctx context.Context, in *GetArchitectureArtifactStateRequest, opts ...grpc.CallOption) (*GetArchitectureArtifactStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetArchitectureArtifactStateResponse)
+	err := c.cc.Invoke(ctx, AwarenessGraph_GetArchitectureArtifactState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *awarenessGraphClient) GetOntologyNavigationDescriptor(ctx context.Context, in *GetOntologyNavigationDescriptorRequest, opts ...grpc.CallOption) (*GetOntologyNavigationDescriptorResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetOntologyNavigationDescriptorResponse)
+	err := c.cc.Invoke(ctx, AwarenessGraph_GetOntologyNavigationDescriptor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *awarenessGraphClient) PrepareArchitectAnswerDisposition(ctx context.Context, in *PrepareArchitectAnswerDispositionRequest, opts ...grpc.CallOption) (*PrepareArchitectAnswerDispositionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PrepareArchitectAnswerDispositionResponse)
+	err := c.cc.Invoke(ctx, AwarenessGraph_PrepareArchitectAnswerDisposition_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *awarenessGraphClient) RecordArchitectAnswerDisposition(ctx context.Context, in *RecordArchitectAnswerDispositionRequest, opts ...grpc.CallOption) (*RecordArchitectAnswerDispositionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RecordArchitectAnswerDispositionResponse)
+	err := c.cc.Invoke(ctx, AwarenessGraph_RecordArchitectAnswerDisposition_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AwarenessGraphServer is the server API for AwarenessGraph service.
 // All implementations must embed UnimplementedAwarenessGraphServer
 // for forward compatibility.
@@ -313,6 +402,29 @@ type AwarenessGraphServer interface {
 	// External targets (stdlib/third-party, id "external:<name>") have no
 	// in-repo definition and are ignored. Cheap: one inbound describe per id.
 	ReferenceSites(context.Context, *ReferenceSitesRequest) (*ReferenceSitesResponse, error)
+	// GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 —
+	// the bounded repository overview (typed counts, attention, authority).
+	GetArchitectureControlSnapshot(context.Context, *GetArchitectureControlSnapshotRequest) (*GetArchitectureControlSnapshotResponse, error)
+	// ListArchitectureArtifacts returns one page of architecture.artifact_index/v1.
+	// The cursor is OPAQUE: produced and validated only by the controlstate
+	// owner, bound to snapshot/registry/filter identity, rejected on mismatch.
+	ListArchitectureArtifacts(context.Context, *ListArchitectureArtifactsRequest) (*ListArchitectureArtifactsResponse, error)
+	// GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE
+	// exact node IRI. The canonical class is resolved by the controlstate
+	// registry from observed graph classes — never supplied by the caller.
+	GetArchitectureArtifactState(context.Context, *GetArchitectureArtifactStateRequest) (*GetArchitectureArtifactStateResponse, error)
+	// GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 —
+	// registry-derived, repository-independent; requires no filesystem context.
+	GetOntologyNavigationDescriptor(context.Context, *GetOntologyNavigationDescriptorRequest) (*GetOntologyNavigationDescriptorResponse, error)
+	// ── Phase 9.5 Checkpoint 5: the guarded architect-answer mutation family ──
+	// The FIRST and ONLY mutation RPCs in the control-panel surface. Each is a
+	// guarded delegation to an existing owner (questiondisposition /
+	// questionpromotion); the server assigns no authority. A refused mutation is a
+	// SUCCESSFUL response carrying a typed refusal (mirrors Propose REJECTED),
+	// never a transport error. Requests carry LOGICAL identities + an actor
+	// identity only — filesystem roots come from the startup-owned context.
+	PrepareArchitectAnswerDisposition(context.Context, *PrepareArchitectAnswerDispositionRequest) (*PrepareArchitectAnswerDispositionResponse, error)
+	RecordArchitectAnswerDisposition(context.Context, *RecordArchitectAnswerDispositionRequest) (*RecordArchitectAnswerDispositionResponse, error)
 	mustEmbedUnimplementedAwarenessGraphServer()
 }
 
@@ -349,6 +461,24 @@ func (UnimplementedAwarenessGraphServer) Propose(context.Context, *ProposeReques
 }
 func (UnimplementedAwarenessGraphServer) ReferenceSites(context.Context, *ReferenceSitesRequest) (*ReferenceSitesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReferenceSites not implemented")
+}
+func (UnimplementedAwarenessGraphServer) GetArchitectureControlSnapshot(context.Context, *GetArchitectureControlSnapshotRequest) (*GetArchitectureControlSnapshotResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetArchitectureControlSnapshot not implemented")
+}
+func (UnimplementedAwarenessGraphServer) ListArchitectureArtifacts(context.Context, *ListArchitectureArtifactsRequest) (*ListArchitectureArtifactsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListArchitectureArtifacts not implemented")
+}
+func (UnimplementedAwarenessGraphServer) GetArchitectureArtifactState(context.Context, *GetArchitectureArtifactStateRequest) (*GetArchitectureArtifactStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetArchitectureArtifactState not implemented")
+}
+func (UnimplementedAwarenessGraphServer) GetOntologyNavigationDescriptor(context.Context, *GetOntologyNavigationDescriptorRequest) (*GetOntologyNavigationDescriptorResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetOntologyNavigationDescriptor not implemented")
+}
+func (UnimplementedAwarenessGraphServer) PrepareArchitectAnswerDisposition(context.Context, *PrepareArchitectAnswerDispositionRequest) (*PrepareArchitectAnswerDispositionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PrepareArchitectAnswerDisposition not implemented")
+}
+func (UnimplementedAwarenessGraphServer) RecordArchitectAnswerDisposition(context.Context, *RecordArchitectAnswerDispositionRequest) (*RecordArchitectAnswerDispositionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecordArchitectAnswerDisposition not implemented")
 }
 func (UnimplementedAwarenessGraphServer) mustEmbedUnimplementedAwarenessGraphServer() {}
 func (UnimplementedAwarenessGraphServer) testEmbeddedByValue()                        {}
@@ -533,6 +663,114 @@ func _AwarenessGraph_ReferenceSites_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AwarenessGraph_GetArchitectureControlSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetArchitectureControlSnapshotRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AwarenessGraphServer).GetArchitectureControlSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AwarenessGraph_GetArchitectureControlSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AwarenessGraphServer).GetArchitectureControlSnapshot(ctx, req.(*GetArchitectureControlSnapshotRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AwarenessGraph_ListArchitectureArtifacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListArchitectureArtifactsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AwarenessGraphServer).ListArchitectureArtifacts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AwarenessGraph_ListArchitectureArtifacts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AwarenessGraphServer).ListArchitectureArtifacts(ctx, req.(*ListArchitectureArtifactsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AwarenessGraph_GetArchitectureArtifactState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetArchitectureArtifactStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AwarenessGraphServer).GetArchitectureArtifactState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AwarenessGraph_GetArchitectureArtifactState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AwarenessGraphServer).GetArchitectureArtifactState(ctx, req.(*GetArchitectureArtifactStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AwarenessGraph_GetOntologyNavigationDescriptor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOntologyNavigationDescriptorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AwarenessGraphServer).GetOntologyNavigationDescriptor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AwarenessGraph_GetOntologyNavigationDescriptor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AwarenessGraphServer).GetOntologyNavigationDescriptor(ctx, req.(*GetOntologyNavigationDescriptorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AwarenessGraph_PrepareArchitectAnswerDisposition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PrepareArchitectAnswerDispositionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AwarenessGraphServer).PrepareArchitectAnswerDisposition(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AwarenessGraph_PrepareArchitectAnswerDisposition_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AwarenessGraphServer).PrepareArchitectAnswerDisposition(ctx, req.(*PrepareArchitectAnswerDispositionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AwarenessGraph_RecordArchitectAnswerDisposition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecordArchitectAnswerDispositionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AwarenessGraphServer).RecordArchitectAnswerDisposition(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AwarenessGraph_RecordArchitectAnswerDisposition_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AwarenessGraphServer).RecordArchitectAnswerDisposition(ctx, req.(*RecordArchitectAnswerDispositionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AwarenessGraph_ServiceDesc is the grpc.ServiceDesc for AwarenessGraph service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -575,6 +813,30 @@ var AwarenessGraph_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReferenceSites",
 			Handler:    _AwarenessGraph_ReferenceSites_Handler,
+		},
+		{
+			MethodName: "GetArchitectureControlSnapshot",
+			Handler:    _AwarenessGraph_GetArchitectureControlSnapshot_Handler,
+		},
+		{
+			MethodName: "ListArchitectureArtifacts",
+			Handler:    _AwarenessGraph_ListArchitectureArtifacts_Handler,
+		},
+		{
+			MethodName: "GetArchitectureArtifactState",
+			Handler:    _AwarenessGraph_GetArchitectureArtifactState_Handler,
+		},
+		{
+			MethodName: "GetOntologyNavigationDescriptor",
+			Handler:    _AwarenessGraph_GetOntologyNavigationDescriptor_Handler,
+		},
+		{
+			MethodName: "PrepareArchitectAnswerDisposition",
+			Handler:    _AwarenessGraph_PrepareArchitectAnswerDisposition_Handler,
+		},
+		{
+			MethodName: "RecordArchitectAnswerDisposition",
+			Handler:    _AwarenessGraph_RecordArchitectAnswerDisposition_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

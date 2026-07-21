@@ -4,7 +4,7 @@
 contracts:
   - id: contract.awareness_graph
     name: AwarenessGraph
-    description: 'gRPC service AwarenessGraph with 9 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites.'
+    description: 'gRPC service AwarenessGraph with 15 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition.'
     kind: grpc
     stability: stable
     read_or_write: read
@@ -149,6 +149,102 @@ contracts:
   - id: contract.awareness_graph.reference_sites
     name: AwarenessGraph.ReferenceSites
     description: 'ReferenceSites returns, for each requested code-symbol id, the set of OTHER code symbols that reference it (inbound aw:references edges from ingested SCIP occurrences). This is the completeness primitive: given the symbols a change touches, it answers "N sites share this reference; which ones did the diff miss?". Directed and complete — it reads inbound edges straight from the store, so a target with many OUTGOING references does not crowd out its referencing sites (as a bidirectional related-walk would). External targets (stdlib/third-party, id "external:<name>") have no in-repo definition and are ignored. Cheap: one inbound describe per id. — rpc ReferenceSites(ReferenceSitesRequest) returns (ReferenceSitesResponse)'
+    kind: grpc
+    stability: stable
+    read_or_write: unknown
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.get_architecture_control_snapshot
+    name: AwarenessGraph.GetArchitectureControlSnapshot
+    description: GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 — the bounded repository overview (typed counts, attention, authority). — rpc GetArchitectureControlSnapshot(GetArchitectureControlSnapshotRequest) returns (GetArchitectureControlSnapshotResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.list_architecture_artifacts
+    name: AwarenessGraph.ListArchitectureArtifacts
+    description: 'ListArchitectureArtifacts returns one page of architecture.artifact_index/v1. The cursor is OPAQUE: produced and validated only by the controlstate owner, bound to snapshot/registry/filter identity, rejected on mismatch. — rpc ListArchitectureArtifacts(ListArchitectureArtifactsRequest) returns (ListArchitectureArtifactsResponse)'
+    kind: grpc
+    stability: stable
+    read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.get_architecture_artifact_state
+    name: AwarenessGraph.GetArchitectureArtifactState
+    description: GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE exact node IRI. The canonical class is resolved by the controlstate registry from observed graph classes — never supplied by the caller. — rpc GetArchitectureArtifactState(GetArchitectureArtifactStateRequest) returns (GetArchitectureArtifactStateResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.get_ontology_navigation_descriptor
+    name: AwarenessGraph.GetOntologyNavigationDescriptor
+    description: GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 — registry-derived, repository-independent; requires no filesystem context. — rpc GetOntologyNavigationDescriptor(GetOntologyNavigationDescriptorRequest) returns (GetOntologyNavigationDescriptorResponse)
+    kind: grpc
+    stability: stable
+    read_or_write: read
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.prepare_architect_answer_disposition
+    name: AwarenessGraph.PrepareArchitectAnswerDisposition
+    description: '── Phase 9.5 Checkpoint 5: the guarded architect-answer mutation family ── The FIRST and ONLY mutation RPCs in the control-panel surface. Each is a guarded delegation to an existing owner (questiondisposition / questionpromotion); the server assigns no authority. A refused mutation is a SUCCESSFUL response carrying a typed refusal (mirrors Propose REJECTED), never a transport error. Requests carry LOGICAL identities + an actor identity only — filesystem roots come from the startup-owned context. — rpc PrepareArchitectAnswerDisposition(PrepareArchitectAnswerDispositionRequest) returns (PrepareArchitectAnswerDispositionResponse)'
+    kind: grpc
+    stability: stable
+    read_or_write: unknown
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.record_architect_answer_disposition
+    name: AwarenessGraph.RecordArchitectAnswerDisposition
+    description: rpc RecordArchitectAnswerDisposition(RecordArchitectAnswerDispositionRequest) returns (RecordArchitectAnswerDispositionResponse)
     kind: grpc
     stability: stable
     read_or_write: unknown

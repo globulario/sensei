@@ -73,4 +73,4 @@ scripts/build-awareness-graph-self.sh --check  # CI: fail if the committed seed 
 ## License
 
 By contributing, you agree that your contributions are licensed under the
-[Apache License 2.0](LICENSE), the same license that covers this project.
+[GNU Affero General Public License v3.0](LICENSE), the same license that covers this project.

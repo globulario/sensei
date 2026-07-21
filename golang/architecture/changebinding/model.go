@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package changebinding implements the typed completion.change_task_binding/v1
 // publication and its pure validation machinery (Phase 9.4c, Checkpoint 1).

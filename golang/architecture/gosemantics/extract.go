@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package gosemantics extracts bounded, repository-local Go semantic
 // observations without executing the target repository or its Tests.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package certification implements Phase 6 (typed, receipt-driven
 // certification) of the architectural closure protocol. It recomputes the four
