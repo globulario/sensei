@@ -543,3 +543,27 @@ forbidden_fixes:
     related_invariants:
       - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
     reason: Trusting a caller-supplied canonical class instead of resolving it from observed rdf:type. A fabricated Boundary class must never make an arbitrary node runtime-assessable; the class is recomputed and disagreement is refused.
+  - id: forbidden_fix.sensei.invent_a_caller_callee_or_contract_from_a_probe_observation
+    title: Invent a caller, callee, or contract from a probe observation
+    summary: Populating RuntimeObservation caller/callee/EndpointOrContract with fabricated identities so an owner-path probe becomes an admissible crossing. Probe data has none of these; the adapter must leave the crossing identity unresolved and let the owner refuse it.
+    related_invariants:
+      - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+    reason: Populating RuntimeObservation caller/callee/EndpointOrContract with fabricated identities so an owner-path probe becomes an admissible crossing. Probe data has none of these; the adapter must leave the crossing identity unresolved and let the owner refuse it.
+  - id: forbidden_fix.sensei.map_a_probe_result_to_a_satisfied_crossing_verdict
+    title: Map a probe result to a satisfied crossing verdict
+    summary: Any path where evidence-level probe data yields satisfied/violated on a boundary crossing. Composed through the runtimeboundary owner, an honest probe observation must resolve to unknown/required_evidence_absent, never a positive verdict.
+    related_invariants:
+      - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+    reason: Any path where evidence-level probe data yields satisfied/violated on a boundary crossing. Composed through the runtimeboundary owner, an honest probe observation must resolve to unknown/required_evidence_absent, never a positive verdict.
+  - id: forbidden_fix.sensei.mark_a_degraded_stale_or_unavailable_probe_as_available_fres
+    title: Mark a degraded, stale, or unavailable probe as available/fresh
+    summary: Reporting Availability=available or Freshness=fresh (or IntegrityVerified=true) for a probe that was inconclusive/failed/unavailable/stale/incomplete. Availability, freshness, and integrity must be mapped honestly from the probe result.
+    related_invariants:
+      - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+    reason: Reporting Availability=available or Freshness=fresh (or IntegrityVerified=true) for a probe that was inconclusive/failed/unavailable/stale/incomplete. Availability, freshness, and integrity must be mapped honestly from the probe result.
+  - id: forbidden_fix.sensei.first_row_win_over_contested_evidence_receipts
+    title: First-row-win over contested evidence receipts
+    summary: Silently accepting the first receipt when a later receipt observes the same owner-path subject with a different payload. Same-subject/different-payload must be CONTESTED with both preserved; exact-digest is REPLAYED.
+    related_invariants:
+      - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+    reason: Silently accepting the first receipt when a later receipt observes the same owner-path subject with a different payload. Same-subject/different-payload must be CONTESTED with both preserved; exact-digest is REPLAYED.

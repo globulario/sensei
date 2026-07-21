@@ -1839,3 +1839,16 @@ invariants:
       - golang/architecture/runtimeboundary/assess_test.go:TestProof_MissingTelemetryNeverCompliant
       - golang/coverage/runtimeboundary_ownership_test.go:TestRuntimeBoundaryOwnershipBoundary
     contract: 'Phase 9.7 runtime-boundary assessment: a runtime observation may support or contradict a declared boundary, but it can never author the boundary, redefine its contract, or certify correctness. Missing telemetry is never compliant (absent/unobserved evidence yields unavailable/unknown, never satisfied). Observed traffic can never authorize a crossing or create a boundary — an observation is admissible only through an explicit non-self-authorizing binding, in scope, target-matched. A positive verdict requires the full conjunction: current integrity-verified runtime-assessable identity + explicit policy + admissible fresh in-scope evidence. Phase 6 remains the sole correctness certifier.'
+  - id: invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+    title: A probe observation is owner-path evidence, not a boundary crossing
+    status: active
+    description: The runtimeprobe adapter proves the runtime-boundary kernel with one native witness. Any change that lets a probe fabricate a caller/callee/contract, reach satisfied, or claim available/fresh from a degraded/stale probe breaks the honesty law.
+    protects:
+      files:
+        - golang/architecture/runtimeprobe/observation.go
+        - golang/architecture/runtimeprobe/receipt.go
+    required_tests:
+      - golang/architecture/runtimeprobe/adapter_test.go:TestInsufficiency_ProbeNeverSatisfiesCrossing
+      - golang/architecture/runtimeprobe/adapter_test.go:TestHonestMapping_NeverInventsCrossingIdentity
+      - golang/coverage/runtimeprobe_ownership_test.go:TestRuntimeProbeOwnershipBoundary
+    contract: 'Phase 9.7 CP2: a Sensei probe/probeexec observation is owner-path EVIDENCE (collector, evidence digest, timestamp, declared freshness, content integrity, evidence-node anchor) — it has no caller, callee, contract, or interaction. The runtimeprobe adapter maps only what a probe honestly has and leaves the governed-crossing identity UNRESOLVED; it never invents caller/callee/contract to make an observation admissible. Evidence-level proof therefore never satisfies a boundary crossing: composed through the frozen runtimeboundary owner, an honest probe observation is admitted and correctly ruled insufficient (unknown/required_evidence_absent), never satisfied. The immutable evidence receipt is the frozen closureprotocol.EvidenceReceipt; replay is idempotent (REPLAYED) and conflicting same-subject evidence is preserved (CONTESTED), never first-row-wins.'
