@@ -151,6 +151,7 @@ func Normalize(doc Document) (Document, error) {
 		receipt.Category = EvidenceCategory(strings.TrimSpace(string(receipt.Category)))
 		receipt.Provider.ID = strings.TrimSpace(receipt.Provider.ID)
 		receipt.Provider.Version = strings.TrimSpace(receipt.Provider.Version)
+		receipt.ProofStrength = ProofStrength(strings.TrimSpace(string(receipt.ProofStrength)))
 		receipt.SourceIdentity = strings.TrimSpace(receipt.SourceIdentity)
 		receipt.SourceDigestSHA256 = strings.TrimSpace(receipt.SourceDigestSHA256)
 		receipt.ContentDigestSHA256 = strings.TrimSpace(receipt.ContentDigestSHA256)
@@ -318,5 +319,18 @@ func counterexamplesEqual(a, b Counterexample) bool {
 func factsEqual(a, b architecture.Fact) bool {
 	aj, _ := json.Marshal(a)
 	bj, _ := json.Marshal(b)
-	return string(aj) == string(bj)
+	if string(aj) != string(bj) {
+		return false
+	}
+	if (a.Provenance == nil) != (b.Provenance == nil) {
+		return false
+	}
+	if a.Provenance != nil && b.Provenance != nil {
+		apj, _ := json.Marshal(a.Provenance)
+		bpj, _ := json.Marshal(b.Provenance)
+		if string(apj) != string(bpj) {
+			return false
+		}
+	}
+	return true
 }

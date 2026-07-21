@@ -23,16 +23,17 @@ const (
 )
 
 type EvidenceReceipt struct {
-	ID                  string                 `json:"id" yaml:"id"`
-	Category            EvidenceCategory       `json:"category" yaml:"category"`
-	Provider            ProviderBinding        `json:"provider" yaml:"provider"`
-	SourceIdentity      string                 `json:"source_identity" yaml:"source_identity"`
-	SourceDigestSHA256  string                 `json:"source_digest_sha256" yaml:"source_digest_sha256"`
-	ContentDigestSHA256 string                 `json:"content_digest_sha256" yaml:"content_digest_sha256"`
-	CapturedContent     string                 `json:"captured_content,omitempty" yaml:"captured_content,omitempty"`
-	ContentLocation     string                 `json:"content_location,omitempty" yaml:"content_location,omitempty"`
+	ID                  string                  `json:"id" yaml:"id"`
+	Category            EvidenceCategory        `json:"category" yaml:"category"`
+	Provider            ProviderBinding         `json:"provider" yaml:"provider"`
+	ProofStrength       ProofStrength           `json:"proof_strength" yaml:"proof_strength"`
+	SourceIdentity      string                  `json:"source_identity" yaml:"source_identity"`
+	SourceDigestSHA256  string                  `json:"source_digest_sha256" yaml:"source_digest_sha256"`
+	ContentDigestSHA256 string                  `json:"content_digest_sha256" yaml:"content_digest_sha256"`
+	CapturedContent     string                  `json:"captured_content,omitempty" yaml:"captured_content,omitempty"`
+	ContentLocation     string                  `json:"content_location,omitempty" yaml:"content_location,omitempty"`
 	Scope               architecture.ClaimScope `json:"scope" yaml:"scope"`
-	CapturedAt          string                 `json:"captured_at" yaml:"captured_at"`
+	CapturedAt          string                  `json:"captured_at" yaml:"captured_at"`
 }
 
 func IsValidEvidenceCategory(cat EvidenceCategory) bool {

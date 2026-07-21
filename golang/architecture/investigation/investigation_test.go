@@ -18,7 +18,7 @@ func createValidBaseDocument() Document {
 	repoDomain := "github.com/globulario/sensei"
 	sha256Hex := "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8" // 64 chars
 
-	return Document{
+	doc := Document{
 		SchemaVersion: "1.0",
 		GeneratedBy:   "test_investigator",
 		Mode:          ModeHow,
@@ -58,6 +58,7 @@ func createValidBaseDocument() Document {
 				ID:                  "evidence_1",
 				Category:            EvidenceSourceControl,
 				Provider:            ProviderBinding{ID: "git_history", Version: "1.0"},
+				ProofStrength:       ProofStaticSource,
 				SourceIdentity:      "git_commit_1",
 				SourceDigestSHA256:  sha256Hex,
 				ContentDigestSHA256: sha256Hex,
@@ -84,9 +85,16 @@ func createValidBaseDocument() Document {
 			},
 		},
 		Receipt: RunReceipt{
-			SchemaVersion:                "1.0",
-			GeneratedBy:                  "test_investigator",
-			Repository:                   architecture.ClaimDocumentBinding{RepositoryDomain: repoDomain, RevisionStatus: "resolved", GraphDigestStatus: "resolved"},
+			SchemaVersion: "1.0",
+			GeneratedBy:   "test_investigator",
+			Repository: architecture.ClaimDocumentBinding{
+				RepositoryDomain:  repoDomain,
+				Revision:          "9c2b6d83692d75e8f692b2231fd754456e633fc8",
+				RevisionStatus:    "resolved",
+				GraphDigestSHA256: sha256Hex,
+				GraphDigestStatus: "resolved",
+			},
+			GraphDigestSHA256:            sha256Hex,
 			PlanDigestSHA256:             sha256Hex,
 			ExtractorProfileDigestSHA256: sha256Hex,
 			EvidenceSnapshotDigestSHA256: sha256Hex,
@@ -95,6 +103,9 @@ func createValidBaseDocument() Document {
 			TimestampSource:              "2026-07-21T09:29:53-04:00",
 		},
 	}
+	digest, _ := CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
+	return doc
 }
 
 // Test Normalization Idempotence
@@ -307,38 +318,26 @@ func TestModelStatusAndDigestMatrix(t *testing.T) {
 		t.Errorf("Expected error for resolved model status invalid digest, got: %v", err)
 	}
 
-	// 2. Claiming model outputs when status is disabled/unavailable is refused
+	// 2. Invalid model configuration (e.g. status is disabled, but model name or digest is present)
 	doc = createValidBaseDocument()
 	doc.Binding.Model.Status = ModelStatusDisabled
-	doc.CandidateClaims = []architecture.Claim{
-		{
-			ID:                  "claim_1",
-			Label:               "test_claim",
-			EpistemicStatus:     "supported",
-			PromotionStatus:     "candidate",
-			HumanReviewRequired: true,
-			Scope: architecture.ClaimScope{
-				Repository: "github.com/globulario/sensei",
-				Files:      []string{"golang/server/reload.go"},
-			},
-			Statement: architecture.ClaimStatement{
-				Subject:   "a",
-				Predicate: "b",
-				Object:    "c",
-			},
-			SupportingEvidence: []string{"evidence:evidence_1"},
-		},
-	}
-	if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "model status must be \"resolved\" when model output is claimed") {
-		t.Errorf("Expected error for model output with disabled model status, got: %v", err)
+	doc.Binding.Model.ModelName = "gemini-pro"
+	doc.Receipt.Model = doc.Binding.Model
+	digest, _ := CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
+	if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "model_name must be empty when model status is") {
+		t.Errorf("Expected error for disabled model status with model name, got: %v", err)
 	}
 
 	// 3. Make model resolved and valid, it should validate successfully
+	doc = createValidBaseDocument()
 	doc.Binding.Model.Status = ModelStatusResolved
 	doc.Binding.Model.ModelName = "gemini-pro"
 	doc.Binding.Model.ModelDigestSHA256 = sha256Hex
 	doc.Receipt.Model = doc.Binding.Model
 	doc.Receipt.ModelArtifactDigestSHA256 = sha256Hex
+	digest, _ = CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
 	if err := Validate(doc); err != nil {
 		t.Errorf("Expected valid document with resolved model, got error: %v", err)
 	}
@@ -350,6 +349,8 @@ func TestRepositoryEvidenceBindingMismatchRefusal(t *testing.T) {
 
 	// Domain in RawEvidence Scope is mismatched
 	doc.RawEvidence[0].Scope.Repository = "mismatched_repo.com"
+	digest, _ := CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
 	if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "does not match document binding") {
 		t.Errorf("Expected error for raw evidence repository mismatch, got: %v", err)
 	}
@@ -363,6 +364,8 @@ func TestCandidateScopeExpansionRefusal(t *testing.T) {
 	doc.Binding.Model.Status = ModelStatusResolved
 	doc.Binding.Model.ModelName = "gemini-pro"
 	doc.Binding.Model.ModelDigestSHA256 = sha256Hex
+	doc.Receipt.Model = doc.Binding.Model
+	doc.Receipt.ModelArtifactDigestSHA256 = sha256Hex
 
 	// Candidate claim refers to file absent from observations or raw evidence
 	doc.CandidateClaims = []architecture.Claim{
@@ -372,6 +375,8 @@ func TestCandidateScopeExpansionRefusal(t *testing.T) {
 			EpistemicStatus:     "supported",
 			PromotionStatus:     "candidate",
 			HumanReviewRequired: true,
+			ArchitecturalPlane:  "intended",
+			AssertionOrigin:     "observed",
 			Scope: architecture.ClaimScope{
 				Repository: "github.com/globulario/sensei",
 				Files:      []string{"golang/server/unseen_file.go"},
@@ -384,8 +389,10 @@ func TestCandidateScopeExpansionRefusal(t *testing.T) {
 			SupportingEvidence: []string{"evidence:evidence_1"},
 		},
 	}
+	digest, _ := CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
 
-	if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "absent from observation and evidence scope") {
+	if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "is not grounded in its cited evidence or facts (borrowing refused)") {
 		t.Errorf("Expected error for candidate claim scope file expansion, got: %v", err)
 	}
 }
@@ -540,7 +547,7 @@ func TestReceiptDigestSelfExcludingOnly(t *testing.T) {
 func TestDeduplicationAndCollisionDetection(t *testing.T) {
 	// 1. Identical ID + identical content -> deduplicated cleanly
 	doc := createValidBaseDocument()
-	
+
 	// Add an identical evidence receipt copy
 	identicalEvidence := doc.RawEvidence[0]
 	doc.RawEvidence = append(doc.RawEvidence, identicalEvidence)
@@ -565,4 +572,3 @@ func TestDeduplicationAndCollisionDetection(t *testing.T) {
 		t.Errorf("Expected hard collision error for same ID but different content, got: %v", err)
 	}
 }
-

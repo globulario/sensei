@@ -73,13 +73,12 @@ func Validate(doc Document) error {
 		if !IsValidSHA256(doc.Binding.Model.ModelDigestSHA256) {
 			errs = append(errs, "resolved model status requires a valid model_digest_sha256")
 		}
-	}
-
-	// 5. Model output claim validation
-	hasModelOutput := len(doc.CandidateClaims) > 0 || len(doc.CandidateQuestions) > 0 || len(doc.Counterexamples) > 0
-	if hasModelOutput {
-		if doc.Binding.Model.Status != ModelStatusResolved {
-			errs = append(errs, fmt.Sprintf("model status must be %q when model output is claimed, but got %q", ModelStatusResolved, doc.Binding.Model.Status))
+	} else {
+		if doc.Binding.Model.ModelName != "" {
+			errs = append(errs, fmt.Sprintf("model_name must be empty when model status is %q", doc.Binding.Model.Status))
+		}
+		if doc.Binding.Model.ModelDigestSHA256 != "" {
+			errs = append(errs, fmt.Sprintf("model_digest_sha256 must be empty when model status is %q", doc.Binding.Model.Status))
 		}
 	}
 
@@ -115,6 +114,10 @@ func Validate(doc Document) error {
 
 		if !IsValidEvidenceCategory(receipt.Category) {
 			errs = append(errs, fmt.Sprintf("invalid raw evidence category: %q", receipt.Category))
+		}
+
+		if !IsValidProofStrength(receipt.ProofStrength) {
+			errs = append(errs, fmt.Sprintf("raw evidence receipt %s has invalid proof strength: %q", receipt.ID, receipt.ProofStrength))
 		}
 
 		if !IsValidSHA256(receipt.ContentDigestSHA256) {
@@ -258,21 +261,72 @@ func Validate(doc Document) error {
 			errs = append(errs, fmt.Sprintf("candidate claim %s confidence must be between 0 and 1, got %f", claim.ID, claim.Confidence))
 		}
 
+		// Grounding scope of this claim locally using only cited evidence & premise facts
+		claimAllowedFiles := make(map[string]bool)
+		claimAllowedSymbols := make(map[string]bool)
+
+		addScopeFromEvidenceRef := func(ref string) {
+			ref = strings.TrimSpace(ref)
+			if ref == "" {
+				return
+			}
+			id := ref
+			hasPrefix := false
+			if strings.HasPrefix(id, "evidence:") {
+				id = strings.TrimPrefix(id, "evidence:")
+				hasPrefix = true
+			} else if strings.HasPrefix(id, "fact:") {
+				id = strings.TrimPrefix(id, "fact:")
+				hasPrefix = true
+			}
+
+			for _, rec := range doc.RawEvidence {
+				if rec.ID == id || (!hasPrefix && rec.ID == ref) {
+					for _, f := range rec.Scope.Files {
+						claimAllowedFiles[f] = true
+					}
+					for _, s := range rec.Scope.Symbols {
+						claimAllowedSymbols[s] = true
+					}
+				}
+			}
+			for _, fact := range doc.Observations {
+				if fact.ID == id || (!hasPrefix && fact.ID == ref) {
+					for _, f := range fact.Scope.Files {
+						claimAllowedFiles[f] = true
+					}
+					for _, s := range fact.Scope.Symbols {
+						claimAllowedSymbols[s] = true
+					}
+				}
+			}
+		}
+
+		for _, ref := range claim.SupportingEvidence {
+			addScopeFromEvidenceRef(ref)
+		}
+		for _, ref := range claim.RefutingEvidence {
+			addScopeFromEvidenceRef(ref)
+		}
+		for _, ref := range claim.PremiseFacts {
+			addScopeFromEvidenceRef(ref)
+		}
+
 		// Non-escaping file paths in claim scope
 		for _, f := range claim.Scope.Files {
 			if isEscapingPath(f) {
 				errs = append(errs, fmt.Sprintf("candidate claim %s contains escaping file path: %s", claim.ID, f))
 			}
 			// Scope expansion check
-			if !allowedFiles[f] {
-				errs = append(errs, fmt.Sprintf("candidate claim %s scope file %q is absent from observation and evidence scope (broadening refused)", claim.ID, f))
+			if !claimAllowedFiles[f] {
+				errs = append(errs, fmt.Sprintf("candidate claim %s scope file %q is not grounded in its cited evidence or facts (borrowing refused)", claim.ID, f))
 			}
 		}
 
 		// Symbols scope expansion check
 		for _, s := range claim.Scope.Symbols {
-			if !allowedSymbols[s] {
-				errs = append(errs, fmt.Sprintf("candidate claim %s scope symbol %q is absent from observation and evidence scope (broadening refused)", claim.ID, s))
+			if !claimAllowedSymbols[s] {
+				errs = append(errs, fmt.Sprintf("candidate claim %s scope symbol %q is not grounded in its cited evidence or facts (borrowing refused)", claim.ID, s))
 			}
 		}
 
@@ -300,18 +354,48 @@ func Validate(doc Document) error {
 			questionIDs[q.ID] = true
 		}
 
+		questionAllowedFiles := make(map[string]bool)
+		questionAllowedSymbols := make(map[string]bool)
+
+		for _, factID := range q.KnownFactIDs {
+			id := strings.TrimPrefix(factID, "fact:")
+			for _, fact := range doc.Observations {
+				if fact.ID == id || fact.ID == factID {
+					for _, f := range fact.Scope.Files {
+						questionAllowedFiles[f] = true
+					}
+					for _, s := range fact.Scope.Symbols {
+						questionAllowedSymbols[s] = true
+					}
+				}
+			}
+		}
+		for _, evID := range q.KnownEvidence {
+			id := strings.TrimPrefix(evID, "evidence:")
+			for _, rec := range doc.RawEvidence {
+				if rec.ID == id || rec.ID == evID {
+					for _, f := range rec.Scope.Files {
+						questionAllowedFiles[f] = true
+					}
+					for _, s := range rec.Scope.Symbols {
+						questionAllowedSymbols[s] = true
+					}
+				}
+			}
+		}
+
 		for _, f := range q.Scope.Files {
 			if isEscapingPath(f) {
 				errs = append(errs, fmt.Sprintf("candidate question %s contains escaping file path: %s", q.ID, f))
 			}
-			if !allowedFiles[f] {
-				errs = append(errs, fmt.Sprintf("candidate question %s scope file %q is absent from observation and evidence scope (broadening refused)", q.ID, f))
+			if !questionAllowedFiles[f] {
+				errs = append(errs, fmt.Sprintf("candidate question %s scope file %q is not grounded in its cited known facts or evidence (borrowing refused)", q.ID, f))
 			}
 		}
 
 		for _, s := range q.Scope.Symbols {
-			if !allowedSymbols[s] {
-				errs = append(errs, fmt.Sprintf("candidate question %s scope symbol %q is absent from observation and evidence scope (broadening refused)", q.ID, s))
+			if !questionAllowedSymbols[s] {
+				errs = append(errs, fmt.Sprintf("candidate question %s scope symbol %q is not grounded in its cited known facts or evidence (borrowing refused)", q.ID, s))
 			}
 		}
 
@@ -343,18 +427,35 @@ func Validate(doc Document) error {
 			errs = append(errs, fmt.Sprintf("counterexample %s: description is required", ce.ID))
 		}
 
+		ceAllowedFiles := make(map[string]bool)
+		ceAllowedSymbols := make(map[string]bool)
+
+		for _, evID := range ce.EvidenceRefIDs {
+			id := strings.TrimPrefix(evID, "evidence:")
+			for _, rec := range doc.RawEvidence {
+				if rec.ID == id || rec.ID == evID {
+					for _, f := range rec.Scope.Files {
+						ceAllowedFiles[f] = true
+					}
+					for _, s := range rec.Scope.Symbols {
+						ceAllowedSymbols[s] = true
+					}
+				}
+			}
+		}
+
 		for _, f := range ce.Scope.Files {
 			if isEscapingPath(f) {
 				errs = append(errs, fmt.Sprintf("counterexample %s contains escaping file path: %s", ce.ID, f))
 			}
-			if !allowedFiles[f] {
-				errs = append(errs, fmt.Sprintf("counterexample %s scope file %q is absent from observation and evidence scope (broadening refused)", ce.ID, f))
+			if !ceAllowedFiles[f] {
+				errs = append(errs, fmt.Sprintf("counterexample %s scope file %q is not grounded in its cited evidence (borrowing refused)", ce.ID, f))
 			}
 		}
 
 		for _, s := range ce.Scope.Symbols {
-			if !allowedSymbols[s] {
-				errs = append(errs, fmt.Sprintf("counterexample %s scope symbol %q is absent from observation and evidence scope (broadening refused)", ce.ID, s))
+			if !ceAllowedSymbols[s] {
+				errs = append(errs, fmt.Sprintf("counterexample %s scope symbol %q is not grounded in its cited evidence (borrowing refused)", ce.ID, s))
 			}
 		}
 
@@ -372,37 +473,63 @@ func Validate(doc Document) error {
 
 	// 12. Run Receipt Validation
 	receipt := doc.Receipt
-	if receipt.OutputDocumentDigestSHA256 != "" {
-		if !IsValidSHA256(receipt.OutputDocumentDigestSHA256) {
-			errs = append(errs, "receipt output document digest must be a valid SHA256")
-		} else {
-			// Compute document digest and verify matches receipt output document digest
-			computedDigest, err := CalculateDocumentDigest(doc)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("failed to compute document digest for validation: %v", err))
-			} else if computedDigest != receipt.OutputDocumentDigestSHA256 {
-				errs = append(errs, fmt.Sprintf("output document digest mismatch: computed %s, receipt has %s", computedDigest, receipt.OutputDocumentDigestSHA256))
-			}
+	if receipt.OutputDocumentDigestSHA256 == "" {
+		errs = append(errs, "receipt output document digest is required")
+	} else if !IsValidSHA256(receipt.OutputDocumentDigestSHA256) {
+		errs = append(errs, "receipt output document digest must be a valid SHA256")
+	} else {
+		// Compute document digest and verify matches receipt output document digest
+		computedDigest, err := CalculateDocumentDigest(doc)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("failed to compute document digest for validation: %v", err))
+		} else if computedDigest != receipt.OutputDocumentDigestSHA256 {
+			errs = append(errs, fmt.Sprintf("output document digest mismatch: computed %s, receipt has %s", computedDigest, receipt.OutputDocumentDigestSHA256))
 		}
 	}
 
-	if receipt.PlanDigestSHA256 != "" && receipt.PlanDigestSHA256 != doc.Binding.InvestigationPlanDigestSHA256 {
-		errs = append(errs, "receipt plan digest does not match binding plan digest")
+	if receipt.PlanDigestSHA256 != doc.Binding.InvestigationPlanDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt plan digest %q does not match binding plan digest %q", receipt.PlanDigestSHA256, doc.Binding.InvestigationPlanDigestSHA256))
 	}
-	if receipt.ExtractorProfileDigestSHA256 != "" && receipt.ExtractorProfileDigestSHA256 != doc.Binding.ExtractorProfileDigestSHA256 {
-		errs = append(errs, "receipt extractor profile digest does not match binding extractor profile digest")
+	if receipt.ExtractorProfileDigestSHA256 != doc.Binding.ExtractorProfileDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt extractor profile digest %q does not match binding extractor profile digest %q", receipt.ExtractorProfileDigestSHA256, doc.Binding.ExtractorProfileDigestSHA256))
 	}
-	if receipt.EvidenceSnapshotDigestSHA256 != "" && receipt.EvidenceSnapshotDigestSHA256 != doc.Binding.EvidenceSnapshotDigestSHA256 {
-		errs = append(errs, "receipt evidence snapshot digest does not match binding evidence snapshot digest")
+	if receipt.EvidenceSnapshotDigestSHA256 != doc.Binding.EvidenceSnapshotDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt evidence snapshot digest %q does not match binding evidence snapshot digest %q", receipt.EvidenceSnapshotDigestSHA256, doc.Binding.EvidenceSnapshotDigestSHA256))
 	}
-	if receipt.Model.Status != "" && receipt.Model.Status != doc.Binding.Model.Status {
-		errs = append(errs, "receipt model status does not match binding model status")
+	if receipt.Model.Status != doc.Binding.Model.Status {
+		errs = append(errs, fmt.Sprintf("receipt model status %q does not match binding model status %q", receipt.Model.Status, doc.Binding.Model.Status))
 	}
-	if receipt.Model.ModelDigestSHA256 != "" && receipt.Model.ModelDigestSHA256 != doc.Binding.Model.ModelDigestSHA256 {
-		errs = append(errs, "receipt model digest does not match binding model digest")
+	if receipt.Model.ModelName != doc.Binding.Model.ModelName {
+		errs = append(errs, fmt.Sprintf("receipt model name %q does not match binding model name %q", receipt.Model.ModelName, doc.Binding.Model.ModelName))
 	}
-	if receipt.ModelArtifactDigestSHA256 != "" && receipt.ModelArtifactDigestSHA256 != doc.Binding.Model.ModelDigestSHA256 {
-		errs = append(errs, "receipt model artifact digest does not match binding model digest")
+	if receipt.Model.ModelDigestSHA256 != doc.Binding.Model.ModelDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt model digest %q does not match binding model digest %q", receipt.Model.ModelDigestSHA256, doc.Binding.Model.ModelDigestSHA256))
+	}
+	if receipt.ModelArtifactDigestSHA256 != doc.Binding.Model.ModelDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt model artifact digest %q does not match binding model digest %q", receipt.ModelArtifactDigestSHA256, doc.Binding.Model.ModelDigestSHA256))
+	}
+
+	// Mandate repository details match binding
+	if receipt.Repository.RepositoryDomain != doc.Binding.Repository.RepositoryDomain {
+		errs = append(errs, fmt.Sprintf("receipt repository domain %q does not match binding repository domain %q", receipt.Repository.RepositoryDomain, doc.Binding.Repository.RepositoryDomain))
+	}
+	if receipt.Repository.Revision != doc.Binding.Repository.Revision {
+		errs = append(errs, fmt.Sprintf("receipt repository revision %q does not match binding repository revision %q", receipt.Repository.Revision, doc.Binding.Repository.Revision))
+	}
+	if receipt.Repository.RevisionStatus != doc.Binding.Repository.RevisionStatus {
+		errs = append(errs, fmt.Sprintf("receipt repository revision status %q does not match binding repository revision status %q", receipt.Repository.RevisionStatus, doc.Binding.Repository.RevisionStatus))
+	}
+	if receipt.Repository.TreeDigestSHA256 != doc.Binding.Repository.TreeDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt repository tree digest %q does not match binding repository tree digest %q", receipt.Repository.TreeDigestSHA256, doc.Binding.Repository.TreeDigestSHA256))
+	}
+	if receipt.Repository.GraphDigestSHA256 != doc.Binding.Repository.GraphDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt repository graph digest %q does not match binding repository graph digest %q", receipt.Repository.GraphDigestSHA256, doc.Binding.Repository.GraphDigestSHA256))
+	}
+	if receipt.Repository.GraphDigestStatus != doc.Binding.Repository.GraphDigestStatus {
+		errs = append(errs, fmt.Sprintf("receipt repository graph digest status %q does not match binding repository graph digest status %q", receipt.Repository.GraphDigestStatus, doc.Binding.Repository.GraphDigestStatus))
+	}
+	if receipt.GraphDigestSHA256 != doc.Binding.Repository.GraphDigestSHA256 {
+		errs = append(errs, fmt.Sprintf("receipt graph digest %q does not match binding repository graph digest %q", receipt.GraphDigestSHA256, doc.Binding.Repository.GraphDigestSHA256))
 	}
 
 	if receipt.TimestampSource != "" {
