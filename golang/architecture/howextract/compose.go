@@ -3,14 +3,12 @@
 package howextract
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/factextract"
@@ -26,7 +24,7 @@ func extractAll(root string) (Result, error) {
 	identity := factextract.ResolveRepositoryIdentity(root)
 	repoDomain := identity.Domain
 	if repoDomain == "" {
-		repoDomain = "github.com/globulario/sensei" // Fallback
+		return Result{}, fmt.Errorf("resolve repository identity: domain is unavailable")
 	}
 
 	// 1. Run Semantic Extractor
@@ -73,7 +71,9 @@ func extractAll(root string) (Result, error) {
 	var evidenceReceipts []investigation.EvidenceReceipt
 	evidenceIDsByFact := make(map[string][]string)
 
-	capturedAtTime := time.Now().UTC().Format(time.RFC3339)
+	// Extraction is an offline deterministic transform. Wall-clock time is not
+	// evidence; callers that need an observation time must bind it separately.
+	const capturedAtTime = "1970-01-01T00:00:00Z"
 
 	for _, f := range normalizedFacts {
 		if f.Evidence.SourceFile == "" {
@@ -83,7 +83,8 @@ func extractAll(root string) (Result, error) {
 		// Calculate file SHA256
 		fileSHA, err := architecture.SourceDigestSHA256(root, f.Evidence.SourceFile)
 		if err != nil {
-			fileSHA = "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8" // fallback
+			limitations = append(limitations, architecture.Limitation{Source: f.Extractor, Scope: f.Evidence.SourceFile, Reason: "source digest unavailable: " + err.Error(), Blocking: false})
+			continue
 		}
 
 		// Read CapturedContent from the source file
@@ -98,7 +99,8 @@ func extractAll(root string) (Result, error) {
 
 		capturedText, readErr := readCapturedLines(filepath.Join(root, f.Evidence.SourceFile), lineStart, lineEnd)
 		if readErr != nil {
-			capturedText = fmt.Sprintf("Source: %s L%d-L%d", f.Evidence.SourceFile, lineStart, lineEnd)
+			limitations = append(limitations, architecture.Limitation{Source: f.Extractor, Scope: f.Evidence.SourceFile, Reason: "source capture unavailable: " + readErr.Error(), Blocking: false})
+			continue
 		}
 
 		// Content Digest SHA256 of CapturedContent
@@ -138,7 +140,10 @@ func extractAll(root string) (Result, error) {
 	}
 
 	// Deduplicate identical evidence receipts
-	dedupReceipts := deduplicateReceipts(evidenceReceipts)
+	dedupReceipts, err := deduplicateReceipts(evidenceReceipts)
+	if err != nil {
+		return Result{}, err
+	}
 
 	// 4. Generate coverage entries
 	var coverage []investigation.CoverageEntry
@@ -163,12 +168,12 @@ func extractAll(root string) (Result, error) {
 	semIDs = append(semIDs, evidenceIDsByExtractor["contract_extractor"]...)
 
 	coverage = append(coverage, investigation.CoverageEntry{
-		ProviderID:        "go_semantic_extractor",
-		ProviderVersion:   "1.0",
-		Category:          categorySem,
+		ProviderID:         "go_semantic_extractor",
+		ProviderVersion:    "1.0",
+		Category:           categorySem,
 		TargetDigestSHA256: "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8",
-		ResultEvidenceIDs: semIDs,
-		Status:            statusSem,
+		ResultEvidenceIDs:  semIDs,
+		Status:             statusSem,
 	})
 
 	// Coverage entry for AST/state (go_ast_extractor / state_extractor)
@@ -179,42 +184,55 @@ func extractAll(root string) (Result, error) {
 	}
 
 	coverage = append(coverage, investigation.CoverageEntry{
-		ProviderID:        "go_ast_extractor",
-		ProviderVersion:   "1.0",
-		Category:          categoryAST,
+		ProviderID:         "go_ast_extractor",
+		ProviderVersion:    "1.0",
+		Category:           categoryAST,
 		TargetDigestSHA256: "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8",
-		ResultEvidenceIDs: evidenceIDsByExtractor["state_extractor"],
-		Status:            statusAST,
+		ResultEvidenceIDs:  evidenceIDsByExtractor["state_extractor"],
+		Status:             statusAST,
 	})
 
 	return Result{
-		Facts:        normalizedFacts,
-		RawEvidence:  dedupReceipts,
-		Coverage:     coverage,
-		Limitations:  limitations,
+		Facts:       normalizedFacts,
+		RawEvidence: dedupReceipts,
+		Coverage:    coverage,
+		Limitations: limitations,
 	}, nil
 }
 
 func readCapturedLines(filePath string, lineStart, lineEnd int) (string, error) {
-	file, err := os.Open(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
-
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		if lineNum >= lineStart && lineNum <= lineEnd {
-			lines = append(lines, scanner.Text())
-		}
-		if lineNum > lineEnd {
+	if lineStart < 1 || lineEnd < lineStart {
+		return "", fmt.Errorf("invalid line range %d-%d", lineStart, lineEnd)
+	}
+	start, line := 0, 1
+	for i, b := range data {
+		if line == lineStart {
+			start = i
 			break
 		}
+		if b == '\n' {
+			line++
+		}
 	}
-	return strings.Join(lines, "\n") + "\n", scanner.Err() // Keep trailing newline
+	if line != lineStart {
+		return "", fmt.Errorf("line %d unavailable", lineStart)
+	}
+	end := len(data)
+	line = lineStart
+	for i := start; i < len(data); i++ {
+		if data[i] == '\n' {
+			line++
+			if line > lineEnd {
+				end = i + 1
+				break
+			}
+		}
+	}
+	return string(data[start:end]), nil
 }
 
 func sha256Hex(content string) string {
@@ -223,15 +241,22 @@ func sha256Hex(content string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func deduplicateReceipts(receipts []investigation.EvidenceReceipt) []investigation.EvidenceReceipt {
-	seen := make(map[string]bool)
+func deduplicateReceipts(receipts []investigation.EvidenceReceipt) ([]investigation.EvidenceReceipt, error) {
+	seen := make(map[string][]byte)
 	var dedup []investigation.EvidenceReceipt
 	for _, rec := range receipts {
-		if seen[rec.ID] {
+		canonical, err := json.Marshal(rec)
+		if err != nil {
+			return nil, fmt.Errorf("canonicalize evidence receipt %s: %w", rec.ID, err)
+		}
+		if prior, ok := seen[rec.ID]; ok {
+			if string(prior) != string(canonical) {
+				return nil, fmt.Errorf("evidence receipt collision for %s", rec.ID)
+			}
 			continue
 		}
-		seen[rec.ID] = true
+		seen[rec.ID] = canonical
 		dedup = append(dedup, rec)
 	}
-	return dedup
+	return dedup, nil
 }

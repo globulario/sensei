@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 )
 
@@ -124,5 +125,29 @@ func TestReadCapturedLines(t *testing.T) {
 	expected := "line1\nline2\n"
 	if text != expected {
 		t.Errorf("Expected %q, got %q", expected, text)
+	}
+}
+
+func TestReadCapturedLinesPreservesBytes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "source.go")
+	want := "first\r\nsecond\r\nthird"
+	if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readCapturedLines(path, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "first\r\nsecond\r\n" {
+		t.Fatalf("captured bytes changed: %q", got)
+	}
+}
+
+func TestDeduplicateReceiptsRefusesConflictingID(t *testing.T) {
+	base := investigation.EvidenceReceipt{ID: "evidence_same", Scope: architecture.ClaimScope{Repository: "example.test"}}
+	other := base
+	other.CapturedContent = "different"
+	if _, err := deduplicateReceipts([]investigation.EvidenceReceipt{base, other}); err == nil {
+		t.Fatal("expected conflicting evidence IDs to fail")
 	}
 }
