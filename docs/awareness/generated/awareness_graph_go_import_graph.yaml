@@ -469,6 +469,14 @@ components:
       - golang/architecture/graphbuild/manifest.go
       - golang/architecture/graphbuild/supplemental.go
       - golang/architecture/graphsnapshot/graphsnapshot.go
+      - golang/architecture/howextract/boundaries.go
+      - golang/architecture/howextract/compose.go
+      - golang/architecture/howextract/contracts.go
+      - golang/architecture/howextract/extract.go
+      - golang/architecture/howextract/flow.go
+      - golang/architecture/howextract/state.go
+      - golang/architecture/howextract/tests.go
+      - golang/architecture/howextract/topology.go
       - golang/architecture/identity/identity.go
       - golang/architecture/inference/binding.go
       - golang/architecture/inference/document.go
