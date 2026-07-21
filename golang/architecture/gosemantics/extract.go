@@ -405,10 +405,20 @@ func IsExcludedPath(path string) bool {
 	return excludedPath(path)
 }
 
-// SearchedFiles returns the sorted, absolute paths in the repository source set
-// offered to HOW extraction. Symlinks are refused so the snapshot cannot bind
-// bytes outside the repository root.
+// SearchedFiles returns the sorted, absolute paths whose source positions may
+// produce HOW observations. Generated files are excluded from emitted evidence.
 func SearchedFiles(root string) ([]string, error) {
+	return sourceFiles(root, false)
+}
+
+// SemanticInputFiles returns every local file that can affect the semantic
+// compiler input. Generated Go files are included because their declarations
+// can change type information for observations attributed to selected files.
+func SemanticInputFiles(root string) ([]string, error) {
+	return sourceFiles(root, true)
+}
+
+func sourceFiles(root string, includeGenerated bool) ([]string, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -440,7 +450,7 @@ func SearchedFiles(root string) ([]string, error) {
 		if relSlash != "go.mod" && relSlash != "go.sum" && filepath.Ext(relSlash) != ".go" {
 			return nil
 		}
-		if filepath.Ext(relSlash) == ".go" && IsGeneratedFile(path) {
+		if !includeGenerated && filepath.Ext(relSlash) == ".go" && IsGeneratedFile(path) {
 			return nil
 		}
 		files = append(files, path)

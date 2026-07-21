@@ -96,7 +96,7 @@ func BuildSourceSnapshotManifest(root string, repoDomain string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	selected, err := gosemantics.SearchedFiles(absRoot)
+	selected, err := gosemantics.SemanticInputFiles(absRoot)
 	if err != nil {
 		return "", err
 	}
@@ -238,6 +238,8 @@ func composeReceiptsAndCoverage(
 ) (investigation.Document, error) {
 	limitations := initialLimitations
 	var rawEvidence []investigation.EvidenceReceipt
+	discoveredByProvider := map[string]int{}
+	captureFailuresByProvider := map[string]int{}
 
 	for _, f := range normalizedFacts {
 		if f.Evidence.SourceFile == "" {
@@ -247,9 +249,11 @@ func composeReceiptsAndCoverage(
 		if !ok {
 			return investigation.Document{}, fmt.Errorf("unregistered HOW extractor %q", f.Extractor)
 		}
+		discoveredByProvider[definition.ProviderID]++
 
 		fileSHA, err := architecture.SourceDigestSHA256(root, f.Evidence.SourceFile)
 		if err != nil {
+			captureFailuresByProvider[definition.ProviderID]++
 			limitations = append(limitations, architecture.Limitation{Source: f.Extractor, Scope: f.Evidence.SourceFile, Reason: "source digest unavailable: " + err.Error(), Blocking: false})
 			continue
 		}
@@ -265,6 +269,7 @@ func composeReceiptsAndCoverage(
 
 		capturedText, readErr := readCapturedLines(filepath.Join(root, f.Evidence.SourceFile), lineStart, lineEnd)
 		if readErr != nil {
+			captureFailuresByProvider[definition.ProviderID]++
 			limitations = append(limitations, architecture.Limitation{Source: f.Extractor, Scope: f.Evidence.SourceFile, Reason: "source capture unavailable: " + readErr.Error(), Blocking: false})
 			continue
 		}
@@ -330,7 +335,7 @@ func composeReceiptsAndCoverage(
 			"data_shape_extractor",
 			"test_extractor",
 		},
-		SourceSnapshotAlgo: "manifest.v1",
+		SourceSnapshotAlgo: "semantic-input-manifest.v1",
 	}
 	profileDigest, err := CalculateProfileDigest(profile)
 	if err != nil {
@@ -379,7 +384,10 @@ func composeReceiptsAndCoverage(
 				status = investigation.CoverageUnavailable
 			}
 		default:
-			if len(matchingReceiptIDs) == 0 {
+			if discoveredByProvider[inv.ProviderID] > 0 && len(matchingReceiptIDs) == 0 && captureFailuresByProvider[inv.ProviderID] > 0 {
+				status = investigation.CoverageUnavailable
+				reason = "all discovered evidence failed capture"
+			} else if len(matchingReceiptIDs) == 0 {
 				status = investigation.CoverageNoResult
 			} else {
 				status = investigation.CoverageSupporting
