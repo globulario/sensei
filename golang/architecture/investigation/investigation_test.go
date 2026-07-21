@@ -792,3 +792,41 @@ func TestClaimScopeComponentsAndSourceSetGrounding(t *testing.T) {
 		t.Errorf("Expected validation to pass with grounded components and source set, got: %v", err)
 	}
 }
+
+func TestRawEvidencePreservesExactCapturedContentAndDigestValidation(t *testing.T) {
+	doc := createValidBaseDocument()
+
+	// 1. Set CapturedContent containing leading spaces, trailing spaces, and a newline
+	rawContent := "  exact statement\n"
+	doc.RawEvidence[0].CapturedContent = rawContent
+	contentHash := SHA256String(rawContent)
+	doc.RawEvidence[0].ContentDigestSHA256 = contentHash
+
+	// Normalize
+	normalized, err := Normalize(doc)
+	if err != nil {
+		t.Fatalf("Expected normalization to pass: %v", err)
+	}
+
+	// Prove normalization preserves the exact string (without trimming)
+	if normalized.RawEvidence[0].CapturedContent != rawContent {
+		t.Errorf("Normalization trimmed CapturedContent! Expected %q, got %q", rawContent, normalized.RawEvidence[0].CapturedContent)
+	}
+
+	// Recalculate document digest and assert validation passes
+	digest, _ := CalculateDocumentDigest(normalized)
+	normalized.Receipt.OutputDocumentDigestSHA256 = digest
+	if err := Validate(normalized); err != nil {
+		t.Errorf("Expected validation to pass with exact untrimmed CapturedContent, got error: %v", err)
+	}
+
+	// 2. A one-byte mutation of CapturedContent invalidates the content binding
+	normalized.RawEvidence[0].CapturedContent = " exact statement\n" // removed one space
+
+	// Recalculate digest and assert validation fails
+	digest, _ = CalculateDocumentDigest(normalized)
+	normalized.Receipt.OutputDocumentDigestSHA256 = digest
+	if err := Validate(normalized); err == nil || !strings.Contains(err.Error(), "content digest mismatch") {
+		t.Errorf("Expected validation to fail with content digest mismatch after one-byte mutation, got: %v", err)
+	}
+}

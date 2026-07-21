@@ -155,7 +155,6 @@ func Normalize(doc Document) (Document, error) {
 		receipt.SourceIdentity = strings.TrimSpace(receipt.SourceIdentity)
 		receipt.SourceDigestSHA256 = strings.TrimSpace(receipt.SourceDigestSHA256)
 		receipt.ContentDigestSHA256 = strings.TrimSpace(receipt.ContentDigestSHA256)
-		receipt.CapturedContent = strings.TrimSpace(receipt.CapturedContent)
 		receipt.ContentLocation = strings.TrimSpace(receipt.ContentLocation)
 		receipt.Scope = canonicalizeClaimScope(receipt.Scope)
 		receipt.CapturedAt = strings.TrimSpace(receipt.CapturedAt)
