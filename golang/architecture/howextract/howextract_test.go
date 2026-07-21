@@ -17,13 +17,7 @@ import (
 )
 
 func TestExtract(t *testing.T) {
-	// We run Extract on the local directory
-	root, err := filepath.Abs("../../../")
-	if err != nil {
-		t.Fatalf("Failed to resolve root path: %v", err)
-	}
-
-	res, err := ExtractWithOptions(root, Options{CapturedAt: "2026-07-21T14:00:00Z"})
+	res, err := ExtractWithOptions(deterministicFixture(t), Options{CapturedAt: "2026-07-21T14:00:00Z"})
 	if err != nil {
 		t.Fatalf("Extract failed: %v", err)
 	}
@@ -41,7 +35,7 @@ func TestExtract(t *testing.T) {
 
 	t.Logf("Extracted fact kinds: %v", kinds)
 
-	// Since we are running on the entire repository, we should find topology, contract_seam, test_protection
+	// The fixture must exercise representative HOW behavior, not merely return.
 	if !kinds["topology"] {
 		t.Errorf("Expected topology facts to be extracted")
 	}
@@ -50,6 +44,9 @@ func TestExtract(t *testing.T) {
 	}
 	if !kinds["test_protection"] {
 		t.Errorf("Expected test_protection facts to be extracted")
+	}
+	if !kinds["read"] {
+		t.Errorf("Expected state read facts to be extracted")
 	}
 
 	// 2. Verify evidence receipts are generated correctly
