@@ -896,3 +896,18 @@ required_tests:
     protects:
       invariants:
         - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_TrafficAloneCannotAuthorize
+    title: Traffic without a binding never satisfies a boundary
+    protects:
+      invariants:
+        - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_MissingTelemetryNeverCompliant
+    title: Missing telemetry is never compliant
+    protects:
+      invariants:
+        - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+  - id: golang/coverage/runtimeboundary_ownership_test.go:TestRuntimeBoundaryOwnershipBoundary
+    title: runtimeboundary is a pure transport-neutral owner (no server/pb/store/editor, no RDF emit, no write verb)
+    protects:
+      invariants:
+        - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n

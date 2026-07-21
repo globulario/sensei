@@ -578,6 +578,13 @@ components:
       - golang/architecture/resulttransition/bind.go
       - golang/architecture/resulttransition/confine.go
       - golang/architecture/resulttransition/observe.go
+      - golang/architecture/runtimeboundary/assess.go
+      - golang/architecture/runtimeboundary/binding.go
+      - golang/architecture/runtimeboundary/common.go
+      - golang/architecture/runtimeboundary/identity.go
+      - golang/architecture/runtimeboundary/model.go
+      - golang/architecture/runtimeboundary/observation.go
+      - golang/architecture/runtimeboundary/policy.go
       - golang/architecture/taskcontrol/model.go
       - golang/architecture/taskcontrol/project.go
       - golang/architecture/tasksession/advance_result.go
