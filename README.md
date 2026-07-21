@@ -626,6 +626,7 @@ The [full CLI reference](docs/cli-reference.md) documents every command and flag
 | `sensei preflight` | Evaluate risk before a task begins |
 | `sensei edit-check` | Check proposed content against governed rules |
 | `sensei gate --diff <range>` | Evaluate a Git diff in CI |
+| `sensei rigor --file <path>` | Report the proof-rigor class a change owes (governed-surface, fail-closed) |
 | `sensei propose --kind ...` | Stage a new architectural scar or rule candidate |
 | `sensei check` | Validate governed source documents |
 | `sensei validate` | Run deeper structural validation |

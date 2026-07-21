@@ -31,7 +31,7 @@ sensei version              # print version and exit
 | [Task sessions](#task-sessions) | `prepare-change` · `task-status` · `advance-task` · `task-briefing` |
 | [Authoring & feedback](#authoring--feedback) | `propose` · `feedback-check` · `promote` · `ingest` · `skill-ingest` |
 | [Validation & audit](#validation--audit) | `check` · `validate` · `validate-draft` · `audit` · `repo-eval` (+ `fix`, `draft-upgrade`) · `architecture-extract` · `extract-invariants` |
-| [Gating](#gating) | `gate` · `contract-assess` · `contract-bootstrap` |
+| [Gating](#gating) | `gate` · `rigor` · `contract-assess` · `contract-bootstrap` |
 | [Pattern & structural checks](#pattern--structural-checks) | `pattern-check` · `source-check` · `visual-audit` |
 | [Cold bootstrap & mining](#cold-bootstrap--mining) | `cold-bootstrap` · `intent-mine` · `corpus` |
 | [Benchmark / evaluation](#benchmark--evaluation) | `benchmark-brief` · `benchmark-judge` · `benchmark-score` · `benchmark-retry` · `benchmark-event-meta` · `seed-status` |
@@ -764,6 +764,37 @@ contract set — no server needed.
 Evaluates `regex_forbidden` detect rules and emits a verdict per contract:
 `respected` / `violated` / `not_applicable`, with scope warnings, proof status,
 and required test paths.
+
+### `sensei rigor` — Local
+
+Report the **proportional-rigor class** and the proof obligations a proposed
+change owes. Rigor classifies the *change* (never repository truth) by the
+**governed surfaces** it touches — declared in `docs/rigor_classes.yaml` and bound
+to code through owned package prefixes, never by raw filename. Advisory: it names
+the obligations the existing guards/CI enforce; it enforces nothing itself.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--file` (repeatable) | — | a changed file (repo-relative or absolute) |
+| `--declared` | — | optional declared class `A`\|`B`\|`C`\|`D` (can only **raise** rigor, never downgrade) |
+| `--root` | walk up | project root (finds `docs/awareness` / `.sensei/config.yaml`) |
+
+Classes: **A** semantic owner / authority / certification / identity · **B**
+evidence ingestion / admission / binding · **C** projection / transport /
+rendering · **D** cosmetic / explanatory local UI.
+
+Laws (all fail-closed): effective rigor is the **strictest** class among every
+governed surface a changed file touches; a file owned by no surface is
+**unclassified → Class A**; an unknown class fails closed to **A**; a declared
+class can only **raise** strictness (never downgrade contact with an A/B surface);
+and **Class D still owes every repository-integrity gate** (ownership,
+determinism, licensing, generated-artifact, build) — it lightens only *semantic*
+proof. At least one `--file` is required.
+
+```bash
+sensei rigor --file golang/architecture/runtimeboundary/assess.go --file editor/vscode/media/dashboard.css
+# → Class A (strictest touched surface); D declaration would be ignored
+```
 
 ### `sensei contract-assess` — Local
 
