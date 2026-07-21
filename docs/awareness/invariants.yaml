@@ -1866,3 +1866,28 @@ invariants:
       - golang/architecture/runtimeboundarycompose/compose_test.go:TestVerbatim_VerdictToDimensionState
       - golang/coverage/runtimeboundarycompose_ownership_test.go:TestRuntimeBoundaryComposeOwnershipBoundary
     contract: 'Phase 9.7 CP3: a runtimeboundary.RuntimeBoundaryAssessment reaches Sensei''s control panel (artifact dimensions + attention + transport + editor) only as a VERBATIM projection of the owner''s already-decided verdict, through the single runtimeboundarycompose bridge. controlstate never imports runtimeboundary and never recomputes a verdict; the server carries the runtime dimension through the generic transport and never imports the owner. The verdict maps one-to-one to a typed controlstate dimension state (satisfied->DimSatisfied, violated->DimOpen with an OWNER-supplied source_severity attention, degraded->DimDegraded, unknown/unavailable/invalid->DimUnknown, not_applicable->a TYPED DimNotApplicable never absence-inferred). A later assessment supersedes by rebinding the dimension source digest to the new assessment digest while the CP2 evidence receipts stay immutable. The bridge invents no evidence and forces no positive verdict.'
+  - id: invariant.sensei.incompleteness_and_coverage_are_explained_by_owner_projectio
+    title: Incompleteness and coverage are explained by owner projection, never inferred from absence
+    status: active
+    description: 'Issue #93 Layer 1-3: the actionable incompleteness explanation and the coverage grounding summary are owner-projected, never UI-composed and never absence-inferred.'
+    protects:
+      files:
+        - golang/architecture/controlstate/artifactstate.go
+        - golang/architecture/runtimeboundarycompose/compose.go
+        - editor/vscode/media/controlPanelFmt.js
+    required_tests:
+      - golang/architecture/controlstate/explanation_test.go:TestComposeDimensionExplanation_TotalAndFailHonest
+      - golang/architecture/runtimeboundarycompose/compose_test.go:TestRuntimeExplanation_TotalAndDoesNotChangeVerdict
+    contract: 'Phase 9 polish: a non-positive dimension''s actionable explanation (Known/Missing/WhyNotImprovable/NextEvidence) is projected by its OWNER (controlstate from its own reason codes; the runtimeboundary bridge from the owner''s already-decided ResultKind space), carried as data with a stable Kind, and rendered VERBATIM by the panel — the UI composes no wording and holds no decision table. The mapping is TOTAL and fail-honest: an unrecognized reason yields an explicit generic explanation, never empty. An explanation never changes the owner verdict or severity. Non-positive states (unknown/unavailable/invalid/degraded/not_applicable) render DISTINCTLY (glyph+text, never color alone, never collapsed). Coverage ratios use only owner-controlled numerator/denominator pairs; a percentage is emitted ONLY when the denominator is observed and greater than zero; a missing denominator is unavailable and an observed-zero population is never 0%/100%; coverage never certifies and never suppresses attention.'
+  - id: invariant.sensei.proportional_rigor_classifies_governed_surfaces_and_fails_cl
+    title: Proportional rigor classifies governed surfaces and fails closed
+    status: active
+    description: 'Issue #93 Layer 4: the proportional-rigor classifier grades a CHANGE''s proof obligations by governed surface, fails closed, and never exempts repository integrity.'
+    protects:
+      files:
+        - golang/architecture/rigor/rigor.go
+        - docs/rigor_classes.yaml
+    required_tests:
+      - golang/architecture/rigor/rigor_test.go:TestUnclassifiedFileForcesClassA
+      - golang/coverage/rigor_ownership_test.go:TestRigorOwnershipBoundary
+    contract: 'Phase 9 polish: proportional rigor answers what proof a CHANGE owes, never repository truth. It classifies stable GOVERNED SURFACES declared in docs/rigor_classes.yaml (never a raw filename); changed files bind to surfaces through owned package prefixes. Effective rigor = the STRICTEST class among all touched surfaces; a changed file owned by no surface is unclassified and forced to Class A; an unknown/off-vocabulary class fails closed to Class A; an optional declared class can only RAISE strictness and can never downgrade contact with an A/B surface. Class D means lighter SEMANTIC proof only — every class, including D, still owes the repository-integrity gates (ownership, determinism, licensing, generated-artifact, build). The classifier is pure (stdlib+yaml), reads no filesystem, and enforces nothing — it names obligations the existing guards/CI enforce.'

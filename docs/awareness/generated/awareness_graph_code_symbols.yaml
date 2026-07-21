@@ -4591,6 +4591,31 @@ test_symbols:
     symbol: SpecTitle_proto3_optional_int64_counts_are_modeled_with_explicit_presence
     language: typescript
     doc: "title: proto3 optional int64 counts are modeled with explicit presence"
+  - id: editor/vscode/src/controlPanelExplanation.test.ts:SpecTitle_a_satisfied_dimension_carries_no_explanation_block
+    file: editor/vscode/src/controlPanelExplanation.test.ts
+    symbol: SpecTitle_a_satisfied_dimension_carries_no_explanation_block
+    language: typescript
+    doc: "title: a satisfied dimension carries no explanation block"
+  - id: editor/vscode/src/controlPanelExplanation.test.ts:SpecTitle_an_owner_explanation_renders_verbatim_known_missing_why_next_with_its_stable_kind
+    file: editor/vscode/src/controlPanelExplanation.test.ts
+    symbol: SpecTitle_an_owner_explanation_renders_verbatim_known_missing_why_next_with_its_stable_kind
+    language: typescript
+    doc: "title: an owner explanation renders verbatim (known/missing/why/next), with its stable kind"
+  - id: editor/vscode/src/controlPanelExplanation.test.ts:SpecTitle_cpExplanation_is_presentation_only_a_null_kindless_explanation_yields_nothing
+    file: editor/vscode/src/controlPanelExplanation.test.ts
+    symbol: SpecTitle_cpExplanation_is_presentation_only_a_null_kindless_explanation_yields_nothing
+    language: typescript
+    doc: "title: cpExplanation is presentation-only: a null/kindless explanation yields nothing"
+  - id: editor/vscode/src/controlPanelExplanation.test.ts:SpecTitle_explanation_text_is_escaped_no_markup_injection_from_owner_strings
+    file: editor/vscode/src/controlPanelExplanation.test.ts
+    symbol: SpecTitle_explanation_text_is_escaped_no_markup_injection_from_owner_strings
+    language: typescript
+    doc: "title: explanation text is escaped (no markup injection from owner strings)"
+  - id: editor/vscode/src/controlPanelExplanation.test.ts:SpecTitle_the_stylesheet_renders_each_non_positive_state_distinctly_glyph_not_color_only
+    file: editor/vscode/src/controlPanelExplanation.test.ts
+    symbol: SpecTitle_the_stylesheet_renders_each_non_positive_state_distinctly_glyph_not_color_only
+    language: typescript
+    doc: "title: the stylesheet renders each non-positive state distinctly (glyph + not color-only)"
   - id: editor/vscode/src/controlPanelFmt.test.ts:SpecTitle_cpBadge_renders_UNSPECIFIED_missing_as_an_explicit_Invalid_badge_never_neutral_OK
     file: editor/vscode/src/controlPanelFmt.test.ts
     symbol: SpecTitle_cpBadge_renders_UNSPECIFIED_missing_as_an_explicit_Invalid_badge_never_neutral_OK
@@ -4631,6 +4656,31 @@ test_symbols:
     symbol: SpecTitle_cpSeverityCount_unknown_when_the_source_was_not_observed_real_0_when_observed
     language: typescript
     doc: "title: cpSeverityCount: unknown when the source was not observed, real 0 when observed"
+  - id: editor/vscode/src/controlPanelGrounding.test.ts:SpecTitle_cpKeyedCount_cpKeyedTotal_preserve_unobserved_vs_observed_zero
+    file: editor/vscode/src/controlPanelGrounding.test.ts
+    symbol: SpecTitle_cpKeyedCount_cpKeyedTotal_preserve_unobserved_vs_observed_zero
+    language: typescript
+    doc: "title: cpKeyedCount / cpKeyedTotal preserve unobserved-vs-observed-zero"
+  - id: editor/vscode/src/controlPanelGrounding.test.ts:SpecTitle_cpRatio_a_percentage_requires_an_observed_denominator_0
+    file: editor/vscode/src/controlPanelGrounding.test.ts
+    symbol: SpecTitle_cpRatio_a_percentage_requires_an_observed_denominator_0
+    language: typescript
+    doc: "title: cpRatio: a percentage requires an observed denominator > 0"
+  - id: editor/vscode/src/controlPanelGrounding.test.ts:SpecTitle_grounding_is_unavailable_never_0_100_when_the_catalog_was_not_observed
+    file: editor/vscode/src/controlPanelGrounding.test.ts
+    symbol: SpecTitle_grounding_is_unavailable_never_0_100_when_the_catalog_was_not_observed
+    language: typescript
+    doc: "title: grounding is unavailable (never 0%/100%) when the catalog was not observed"
+  - id: editor/vscode/src/controlPanelGrounding.test.ts:SpecTitle_grounding_renders_honest_ratios_from_owned_tallies_with_a_not_correctness_caveat
+    file: editor/vscode/src/controlPanelGrounding.test.ts
+    symbol: SpecTitle_grounding_renders_honest_ratios_from_owned_tallies_with_a_not_correctness_caveat
+    language: typescript
+    doc: "title: grounding renders honest ratios from owned tallies, with a not-correctness caveat"
+  - id: editor/vscode/src/controlPanelGrounding.test.ts:SpecTitle_grounding_with_zero_assessable_never_renders_a_closure_percentage
+    file: editor/vscode/src/controlPanelGrounding.test.ts
+    symbol: SpecTitle_grounding_with_zero_assessable_never_renders_a_closure_percentage
+    language: typescript
+    doc: "title: grounding with zero assessable never renders a closure percentage"
   - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_a_dimension_with_an_UNSPECIFIED_missing_state_renders_Invalid_never_neutral_OK
     file: editor/vscode/src/controlPanelInspector.test.ts
     symbol: SpecTitle_a_dimension_with_an_UNSPECIFIED_missing_state_renders_Invalid_never_neutral_OK
@@ -7952,6 +8002,18 @@ test_symbols:
     package: controlstate
     language: go
     doc: "Shuffling every input-order axis must not change any projection digest."
+  - id: golang/architecture/controlstate/explanation_test.go:TestComposeDimensionExplanation_TotalAndFailHonest
+    file: golang/architecture/controlstate/explanation_test.go
+    symbol: TestComposeDimensionExplanation_TotalAndFailHonest
+    package: controlstate
+    language: go
+    doc: "Every reason code that dimensionStateFor / assessContradictionDimension can emit for a non-positive\nstate. The composer must be TOTAL over these (non-nil, non-empty Kind) and fail-honest on anything\nunrecognized (an explicit generic_incomplete, never empty strings)."
+  - id: golang/architecture/controlstate/explanation_test.go:TestExplanation_NeverImpliesSatisfied
+    file: golang/architecture/controlstate/explanation_test.go
+    symbol: TestExplanation_NeverImpliesSatisfied
+    package: controlstate
+    language: go
+    doc: "Proof: the explanation never contradicts the state — its presence tracks non-positive states only,\nand it is projection, so it cannot upgrade a state to satisfied/compliant."
   - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_AbsoluteFeedbackIdentityRefused
     file: golang/architecture/controlstate/final_repair_test.go
     symbol: TestFinal_AbsoluteFeedbackIdentityRefused
@@ -11896,6 +11958,66 @@ test_symbols:
     symbol: TestSymlinkEscapeDetection
     package: resulttransition
     language: go
+  - id: golang/architecture/rigor/rigor_test.go:TestClassDKeepsIntegrityGates
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestClassDKeepsIntegrityGates
+    package: rigor
+    language: go
+    doc: "Class D keeps EVERY repository-integrity gate — it lightens only semantic proof."
+  - id: golang/architecture/rigor/rigor_test.go:TestDeclaredCanRaise
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestDeclaredCanRaise
+    package: rigor
+    language: go
+    doc: "A declared class can RAISE strictness (never weaken it)."
+  - id: golang/architecture/rigor/rigor_test.go:TestDeclaredCannotDowngradeContactWithStrictSurface
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestDeclaredCannotDowngradeContactWithStrictSurface
+    package: rigor
+    language: go
+    doc: "A declared C/D class can NEVER downgrade contact with an A/B surface."
+  - id: golang/architecture/rigor/rigor_test.go:TestEffectiveIsStrictestTouched
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestEffectiveIsStrictestTouched
+    package: rigor
+    language: go
+    doc: "Effective rigor is the STRICTEST class among all touched surfaces."
+  - id: golang/architecture/rigor/rigor_test.go:TestFormatDecisionSurfacesKeyFacts
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestFormatDecisionSurfacesKeyFacts
+    package: rigor
+    language: go
+    doc: "FormatDecision surfaces the load-bearing facts: the effective class, that a weaker declaration was\nignored, and that the integrity gates are owed by every class."
+  - id: golang/architecture/rigor/rigor_test.go:TestLongestPrefixWins
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestLongestPrefixWins
+    package: rigor
+    language: go
+    doc: "The most specific (longest-prefix) surface owns a file."
+  - id: golang/architecture/rigor/rigor_test.go:TestManifestValidationRejectsAmbiguity
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestManifestValidationRejectsAmbiguity
+    package: rigor
+    language: go
+    doc: "The manifest rejects ambiguity and off-vocabulary input (fail closed)."
+  - id: golang/architecture/rigor/rigor_test.go:TestObligationsGradeMonotonically
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestObligationsGradeMonotonically
+    package: rigor
+    language: go
+    doc: "Obligations are cumulative in semantic weight A > B > C (each stricter class owes a superset of\nthe graded proofs), while all keep the integrity gates."
+  - id: golang/architecture/rigor/rigor_test.go:TestUnclassifiedFileForcesClassA
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestUnclassifiedFileForcesClassA
+    package: rigor
+    language: go
+    doc: "A changed file owned by NO surface forces Class A (fail closed)."
+  - id: golang/architecture/rigor/rigor_test.go:TestUnknownClassFailsClosedToA
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestUnknownClassFailsClosedToA
+    package: rigor
+    language: go
+    doc: "An unknown/off-vocabulary class fails closed to Class A's obligations (never weaker)."
   - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_AmbiguousIdentityRefused
     file: golang/architecture/runtimeboundary/assess_test.go
     symbol: TestProof_AmbiguousIdentityRefused
@@ -12056,6 +12178,12 @@ test_symbols:
     package: runtimeboundarycompose
     language: go
     doc: "Proof 4: re-assessment supersedes (new digest) — the dimension rebinds to the new assessment."
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestRuntimeExplanation_TotalAndDoesNotChangeVerdict
+    file: golang/architecture/runtimeboundarycompose/compose_test.go
+    symbol: TestRuntimeExplanation_TotalAndDoesNotChangeVerdict
+    package: runtimeboundarycompose
+    language: go
+    doc: "Proof (issue #93): the runtime explanation is TOTAL over the owner's verdicts and fail-honest —\nevery non-satisfied verdict yields a non-empty explanation with a stable Kind; satisfied yields\nnone. The explanation is projection: it NEVER alters the verdict-derived outcome or owner severity."
   - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestVerbatim_VerdictToDimensionState
     file: golang/architecture/runtimeboundarycompose/compose_test.go
     symbol: TestVerbatim_VerdictToDimensionState
@@ -12749,6 +12877,18 @@ test_symbols:
     package: coverage
     language: go
     doc: "Weighted overall reflects risk: covering the critical files moves the\nheadline far more than covering helpers."
+  - id: golang/coverage/rigor_ownership_test.go:TestRigorManifestBindsToRealPackages
+    file: golang/coverage/rigor_ownership_test.go
+    symbol: TestRigorManifestBindsToRealPackages
+    package: coverage
+    language: go
+    doc: "TestRigorManifestBindsToRealPackages proves the committed surface manifest agrees with reality:\nit parses, and every governed surface's owned package prefix points at a path that exists on\ndisk. This is the \"changed-file set / ownership map / declared class must agree\" law — a surface\ncan never classify code that does not exist."
+  - id: golang/coverage/rigor_ownership_test.go:TestRigorOwnershipBoundary
+    file: golang/coverage/rigor_ownership_test.go
+    symbol: TestRigorOwnershipBoundary
+    package: coverage
+    language: go
+    doc: "TestRigorOwnershipBoundary proves the Phase 9 proportional-rigor classifier is a pure,\nself-contained decision function (issue #93): it imports only stdlib + yaml, reaches nothing\ntransport/store/editor/os/net, emits no RDF, and exposes no write-verb surface. It answers \"what\nproof does a change owe\"; it enforces nothing and mutates nothing."
   - id: golang/coverage/runtimeboundary_ownership_test.go:TestRuntimeBoundaryOwnershipBoundary
     file: golang/coverage/runtimeboundary_ownership_test.go
     symbol: TestRuntimeBoundaryOwnershipBoundary

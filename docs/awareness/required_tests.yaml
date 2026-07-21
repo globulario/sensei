@@ -940,3 +940,31 @@ required_tests:
         - invariant.sensei.runtime_boundary_verdict_travels_the_control_panel_only_as_a
       files:
         - golang/architecture/runtimeboundarycompose/compose_test.go
+  - id: golang/architecture/controlstate/explanation_test.go:TestComposeDimensionExplanation_TotalAndFailHonest
+    title: The dimension-explanation composer is total and fail-honest
+    protects:
+      invariants:
+        - invariant.sensei.incompleteness_and_coverage_are_explained_by_owner_projectio
+      files:
+        - golang/architecture/controlstate/explanation_test.go
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestRuntimeExplanation_TotalAndDoesNotChangeVerdict
+    title: The runtime explanation is total and never changes the owner verdict or severity
+    protects:
+      invariants:
+        - invariant.sensei.incompleteness_and_coverage_are_explained_by_owner_projectio
+      files:
+        - golang/architecture/runtimeboundarycompose/compose_test.go
+  - id: golang/architecture/rigor/rigor_test.go:TestUnclassifiedFileForcesClassA
+    title: An unclassified changed file forces Class A (fail closed)
+    protects:
+      invariants:
+        - invariant.sensei.proportional_rigor_classifies_governed_surfaces_and_fails_cl
+      files:
+        - golang/architecture/rigor/rigor_test.go
+  - id: golang/coverage/rigor_ownership_test.go:TestRigorOwnershipBoundary
+    title: The rigor classifier is a pure, filesystem-free decision function
+    protects:
+      invariants:
+        - invariant.sensei.proportional_rigor_classifies_governed_surfaces_and_fails_cl
+      files:
+        - golang/coverage/rigor_ownership_test.go
