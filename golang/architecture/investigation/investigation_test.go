@@ -61,7 +61,7 @@ func createValidBaseDocument() Document {
 				ProofStrength:       ProofStaticSource,
 				SourceIdentity:      "git_commit_1",
 				SourceDigestSHA256:  sha256Hex,
-				ContentDigestSHA256: sha256Hex,
+				ContentDigestSHA256: "18a82ad0428f38eb219034afff34d4995f7492ee667476da6717f0ba472c175f",
 				CapturedContent:     "Fixed a bug in reload logic",
 				CapturedAt:          "2026-07-21T09:29:53-04:00",
 				Scope: architecture.ClaimScope{
@@ -101,6 +101,8 @@ func createValidBaseDocument() Document {
 			Model:                        ModelBinding{Status: ModelStatusDisabled},
 			PostProcessingVersion:        "1.0",
 			TimestampSource:              "2026-07-21T09:29:53-04:00",
+			ResourceLimits:               map[string]string{"cpu_seconds": "10"},
+			NondeterminismDeclaration:    "pure_deterministic",
 		},
 	}
 	digest, _ := CalculateDocumentDigest(doc)
@@ -389,6 +391,9 @@ func TestCandidateScopeExpansionRefusal(t *testing.T) {
 			SupportingEvidence: []string{"evidence:evidence_1"},
 		},
 	}
+	doc.Receipt.OutputCandidateIDsAndDigests = map[string]string{
+		"claim_1": sha256Hex,
+	}
 	digest, _ := CalculateDocumentDigest(doc)
 	doc.Receipt.OutputDocumentDigestSHA256 = digest
 
@@ -570,5 +575,220 @@ func TestDeduplicationAndCollisionDetection(t *testing.T) {
 	_, err = Normalize(doc)
 	if err == nil || !strings.Contains(err.Error(), "raw evidence ID collision") {
 		t.Errorf("Expected hard collision error for same ID but different content, got: %v", err)
+	}
+}
+
+func TestContradictionPreservation(t *testing.T) {
+	// Mixed evidence supporting and refuting the same claim must coexist and normalize/validate successfully
+	doc := createValidBaseDocument()
+
+	// Add an evidence receipt for refuting evidence
+	sha256Hex := "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"
+	refutingEvidence := EvidenceReceipt{
+		ID:                  "evidence_refute",
+		Category:            EvidenceSourceControl,
+		Provider:            ProviderBinding{ID: "git_history", Version: "1.0"},
+		ProofStrength:       ProofStaticSource,
+		SourceIdentity:      "git_commit_refute",
+		SourceDigestSHA256:  sha256Hex,
+		ContentDigestSHA256: "18a82ad0428f38eb219034afff34d4995f7492ee667476da6717f0ba472c175f",
+		CapturedContent:     "Fixed a bug in reload logic",
+		CapturedAt:          "2026-07-21T09:29:53-04:00",
+		Scope: architecture.ClaimScope{
+			Repository: "github.com/globulario/sensei",
+			Files:      []string{"golang/server/reload.go"},
+		},
+	}
+	doc.RawEvidence = append(doc.RawEvidence, refutingEvidence)
+
+	doc.CandidateClaims = []architecture.Claim{
+		{
+			ID:                  "claim_1",
+			Label:               "test_claim",
+			EpistemicStatus:     "contested", // status indicates mixed/contradictory evidence
+			PromotionStatus:     "candidate",
+			HumanReviewRequired: true,
+			ArchitecturalPlane:  "intended",
+			AssertionOrigin:     "observed",
+			Scope: architecture.ClaimScope{
+				Repository: "github.com/globulario/sensei",
+				Files:      []string{"golang/server/reload.go"},
+			},
+			Statement: architecture.ClaimStatement{
+				Subject:   "a",
+				Predicate: "b",
+				Object:    "c",
+			},
+			SupportingEvidence: []string{"evidence:evidence_1"},
+			RefutingEvidence:   []string{"evidence:evidence_refute"},
+		},
+	}
+
+	doc.Receipt.OutputCandidateIDsAndDigests = map[string]string{
+		"claim_1": sha256Hex,
+	}
+
+	normalized, err := Normalize(doc)
+	if err != nil {
+		t.Fatalf("Expected normalization of contested claim to pass: %v", err)
+	}
+
+	digest, _ := CalculateDocumentDigest(normalized)
+	normalized.Receipt.OutputDocumentDigestSHA256 = digest
+
+	if err := Validate(normalized); err != nil {
+		t.Errorf("Expected validation to pass, showing supporting and refuting evidence coexist: %v", err)
+	}
+}
+
+func TestConfidenceIndependentCandidateIdentity(t *testing.T) {
+	// Stable ID / candidate identity must NOT depend on confidence
+	claim1 := architecture.Claim{
+		ID:                  "claim_1",
+		Label:               "test_claim",
+		EpistemicStatus:     "supported",
+		PromotionStatus:     "candidate",
+		HumanReviewRequired: true,
+		Confidence:          0.2, // Low confidence
+		ArchitecturalPlane:  "intended",
+		AssertionOrigin:     "observed",
+		Scope: architecture.ClaimScope{
+			Repository: "github.com/globulario/sensei",
+			Files:      []string{"golang/server/reload.go"},
+		},
+		Statement: architecture.ClaimStatement{
+			Subject:   "a",
+			Predicate: "b",
+			Object:    "c",
+		},
+	}
+
+	claim2 := claim1
+	claim2.Confidence = 0.95 // High confidence
+
+	id1 := architecture.StableClaimID(claim1)
+	id2 := architecture.StableClaimID(claim2)
+
+	if id1 != id2 {
+		t.Errorf("StableClaimID must be independent of Confidence! got %s vs %s", id1, id2)
+	}
+}
+
+func TestProofStrengthIndependenceFromConfidence(t *testing.T) {
+	// ProofStrength is independent of Confidence and both can coexist in any combination
+	doc := createValidBaseDocument()
+
+	// High confidence (0.99) but low proof strength (P0 - assertion only)
+	doc.RawEvidence[0].ProofStrength = ProofAssertionOnly
+	doc.CandidateClaims = []architecture.Claim{
+		{
+			ID:                  "claim_1",
+			Label:               "test_claim",
+			EpistemicStatus:     "supported",
+			PromotionStatus:     "candidate",
+			HumanReviewRequired: true,
+			Confidence:          0.99,
+			ArchitecturalPlane:  "intended",
+			AssertionOrigin:     "observed",
+			Scope: architecture.ClaimScope{
+				Repository: "github.com/globulario/sensei",
+				Files:      []string{"golang/server/reload.go"},
+			},
+			Statement: architecture.ClaimStatement{
+				Subject:   "a",
+				Predicate: "b",
+				Object:    "c",
+			},
+			SupportingEvidence: []string{"evidence:evidence_1"},
+		},
+	}
+
+	sha256Hex := "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"
+	doc.Receipt.OutputCandidateIDsAndDigests = map[string]string{
+		"claim_1": sha256Hex,
+	}
+
+	digest, _ := CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
+
+	if err := Validate(doc); err != nil {
+		t.Errorf("Expected high confidence + none proof strength to be valid: %v", err)
+	}
+
+	// Low confidence (0.01) but high proof strength (P5 - static source proof)
+	doc.RawEvidence[0].ProofStrength = ProofStaticSource
+	doc.CandidateClaims[0].Confidence = 0.01
+
+	digest, _ = CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
+
+	if err := Validate(doc); err != nil {
+		t.Errorf("Expected low confidence + static source proof strength to be valid: %v", err)
+	}
+}
+
+func TestClaimScopeComponentsAndSourceSetGrounding(t *testing.T) {
+	doc := createValidBaseDocument()
+	doc.RawEvidence[0].Scope.Components = []string{"component_a"}
+	doc.RawEvidence[0].Scope.SourceSet = "sourceset_x"
+
+	doc.CandidateClaims = []architecture.Claim{
+		{
+			ID:                  "claim_1",
+			Label:               "test_claim",
+			EpistemicStatus:     "supported",
+			PromotionStatus:     "candidate",
+			HumanReviewRequired: true,
+			ArchitecturalPlane:  "intended",
+			AssertionOrigin:     "observed",
+			Scope: architecture.ClaimScope{
+				Repository: "github.com/globulario/sensei",
+				Files:      []string{"golang/server/reload.go"},
+				Components: []string{"component_b"}, // Not grounded!
+				SourceSet:  "sourceset_x",
+			},
+			Statement: architecture.ClaimStatement{
+				Subject:   "a",
+				Predicate: "b",
+				Object:    "c",
+			},
+			SupportingEvidence: []string{"evidence:evidence_1"},
+		},
+	}
+
+	sha256Hex := "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"
+	doc.Receipt.OutputCandidateIDsAndDigests = map[string]string{
+		"claim_1": sha256Hex,
+	}
+
+	digest, _ := CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
+
+	// Expect grounding failure on component_b
+	if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "scope component \"component_b\" is not grounded") {
+		t.Errorf("Expected grounding error on component_b, got: %v", err)
+	}
+
+	// Correct component scope
+	doc.CandidateClaims[0].Scope.Components = []string{"component_a"}
+	// Ground sourceset to incorrect value
+	doc.CandidateClaims[0].Scope.SourceSet = "sourceset_y" // Not grounded!
+
+	digest, _ = CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
+
+	// Expect grounding failure on sourceset_y
+	if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "scope source set \"sourceset_y\" is not grounded") {
+		t.Errorf("Expected grounding error on sourceset_y, got: %v", err)
+	}
+
+	// Correct sourceset scope
+	doc.CandidateClaims[0].Scope.SourceSet = "sourceset_x"
+	digest, _ = CalculateDocumentDigest(doc)
+	doc.Receipt.OutputDocumentDigestSHA256 = digest
+
+	// Expect valid grounding to succeed
+	if err := Validate(doc); err != nil {
+		t.Errorf("Expected validation to pass with grounded components and source set, got: %v", err)
 	}
 }

@@ -120,8 +120,33 @@ func Validate(doc Document) error {
 			errs = append(errs, fmt.Sprintf("raw evidence receipt %s has invalid proof strength: %q", receipt.ID, receipt.ProofStrength))
 		}
 
+		if receipt.Provider.ID == "" {
+			errs = append(errs, fmt.Sprintf("raw evidence receipt %s must have a provider ID", receipt.ID))
+		}
+		if receipt.Provider.Version == "" {
+			errs = append(errs, fmt.Sprintf("raw evidence receipt %s must have a provider version", receipt.ID))
+		}
+		if receipt.SourceIdentity == "" {
+			errs = append(errs, fmt.Sprintf("raw evidence receipt %s must have a source identity", receipt.ID))
+		}
+		if !IsValidSHA256(receipt.SourceDigestSHA256) {
+			errs = append(errs, fmt.Sprintf("raw evidence receipt %s must have a valid source_digest_sha256", receipt.ID))
+		}
 		if !IsValidSHA256(receipt.ContentDigestSHA256) {
 			errs = append(errs, fmt.Sprintf("raw evidence receipt %s must have a valid content_digest_sha256", receipt.ID))
+		}
+		if receipt.CapturedAt == "" {
+			errs = append(errs, fmt.Sprintf("raw evidence receipt %s must have a captured_at timestamp", receipt.ID))
+		} else {
+			if _, err := time.Parse(time.RFC3339, receipt.CapturedAt); err != nil {
+				errs = append(errs, fmt.Sprintf("raw evidence receipt %s captured_at must be RFC3339 formatted, got %q", receipt.ID, receipt.CapturedAt))
+			}
+		}
+		if receipt.CapturedContent != "" {
+			computed := SHA256String(receipt.CapturedContent)
+			if computed != receipt.ContentDigestSHA256 {
+				errs = append(errs, fmt.Sprintf("raw evidence receipt %s content digest mismatch: computed %s from captured_content, but content_digest_sha256 is %s", receipt.ID, computed, receipt.ContentDigestSHA256))
+			}
 		}
 
 		if isEscapingPath(receipt.ContentLocation) {
@@ -264,6 +289,8 @@ func Validate(doc Document) error {
 		// Grounding scope of this claim locally using only cited evidence & premise facts
 		claimAllowedFiles := make(map[string]bool)
 		claimAllowedSymbols := make(map[string]bool)
+		claimAllowedComponents := make(map[string]bool)
+		claimAllowedSourceSets := make(map[string]bool)
 
 		addScopeFromEvidenceRef := func(ref string) {
 			ref = strings.TrimSpace(ref)
@@ -287,6 +314,12 @@ func Validate(doc Document) error {
 					}
 					for _, s := range rec.Scope.Symbols {
 						claimAllowedSymbols[s] = true
+					}
+					for _, comp := range rec.Scope.Components {
+						claimAllowedComponents[comp] = true
+					}
+					if rec.Scope.SourceSet != "" {
+						claimAllowedSourceSets[rec.Scope.SourceSet] = true
 					}
 				}
 			}
@@ -330,6 +363,20 @@ func Validate(doc Document) error {
 			}
 		}
 
+		// Components scope grounding check
+		for _, comp := range claim.Scope.Components {
+			if !claimAllowedComponents[comp] {
+				errs = append(errs, fmt.Sprintf("candidate claim %s scope component %q is not grounded in its cited evidence or facts (borrowing refused)", claim.ID, comp))
+			}
+		}
+
+		// SourceSet scope grounding check
+		if claim.Scope.SourceSet != "" {
+			if !claimAllowedSourceSets[claim.Scope.SourceSet] {
+				errs = append(errs, fmt.Sprintf("candidate claim %s scope source set %q is not grounded in its cited evidence or facts (borrowing refused)", claim.ID, claim.Scope.SourceSet))
+			}
+		}
+
 		claimDomain := claim.Scope.Domain
 		if claimDomain == "" {
 			claimDomain = claim.Scope.Repository
@@ -356,6 +403,8 @@ func Validate(doc Document) error {
 
 		questionAllowedFiles := make(map[string]bool)
 		questionAllowedSymbols := make(map[string]bool)
+		questionAllowedComponents := make(map[string]bool)
+		questionAllowedSourceSets := make(map[string]bool)
 
 		for _, factID := range q.KnownFactIDs {
 			id := strings.TrimPrefix(factID, "fact:")
@@ -380,6 +429,12 @@ func Validate(doc Document) error {
 					for _, s := range rec.Scope.Symbols {
 						questionAllowedSymbols[s] = true
 					}
+					for _, comp := range rec.Scope.Components {
+						questionAllowedComponents[comp] = true
+					}
+					if rec.Scope.SourceSet != "" {
+						questionAllowedSourceSets[rec.Scope.SourceSet] = true
+					}
 				}
 			}
 		}
@@ -396,6 +451,18 @@ func Validate(doc Document) error {
 		for _, s := range q.Scope.Symbols {
 			if !questionAllowedSymbols[s] {
 				errs = append(errs, fmt.Sprintf("candidate question %s scope symbol %q is not grounded in its cited known facts or evidence (borrowing refused)", q.ID, s))
+			}
+		}
+
+		for _, comp := range q.Scope.Components {
+			if !questionAllowedComponents[comp] {
+				errs = append(errs, fmt.Sprintf("candidate question %s scope component %q is not grounded in its cited known facts or evidence (borrowing refused)", q.ID, comp))
+			}
+		}
+
+		if q.Scope.SourceSet != "" {
+			if !questionAllowedSourceSets[q.Scope.SourceSet] {
+				errs = append(errs, fmt.Sprintf("candidate question %s scope source set %q is not grounded in its cited known facts or evidence (borrowing refused)", q.ID, q.Scope.SourceSet))
 			}
 		}
 
@@ -429,6 +496,8 @@ func Validate(doc Document) error {
 
 		ceAllowedFiles := make(map[string]bool)
 		ceAllowedSymbols := make(map[string]bool)
+		ceAllowedComponents := make(map[string]bool)
+		ceAllowedSourceSets := make(map[string]bool)
 
 		for _, evID := range ce.EvidenceRefIDs {
 			id := strings.TrimPrefix(evID, "evidence:")
@@ -439,6 +508,12 @@ func Validate(doc Document) error {
 					}
 					for _, s := range rec.Scope.Symbols {
 						ceAllowedSymbols[s] = true
+					}
+					for _, comp := range rec.Scope.Components {
+						ceAllowedComponents[comp] = true
+					}
+					if rec.Scope.SourceSet != "" {
+						ceAllowedSourceSets[rec.Scope.SourceSet] = true
 					}
 				}
 			}
@@ -456,6 +531,18 @@ func Validate(doc Document) error {
 		for _, s := range ce.Scope.Symbols {
 			if !ceAllowedSymbols[s] {
 				errs = append(errs, fmt.Sprintf("counterexample %s scope symbol %q is not grounded in its cited evidence (borrowing refused)", ce.ID, s))
+			}
+		}
+
+		for _, comp := range ce.Scope.Components {
+			if !ceAllowedComponents[comp] {
+				errs = append(errs, fmt.Sprintf("counterexample %s scope component %q is not grounded in its cited evidence (borrowing refused)", ce.ID, comp))
+			}
+		}
+
+		if ce.Scope.SourceSet != "" {
+			if !ceAllowedSourceSets[ce.Scope.SourceSet] {
+				errs = append(errs, fmt.Sprintf("counterexample %s scope source set %q is not grounded in its cited evidence (borrowing refused)", ce.ID, ce.Scope.SourceSet))
 			}
 		}
 
@@ -485,6 +572,58 @@ func Validate(doc Document) error {
 		} else if computedDigest != receipt.OutputDocumentDigestSHA256 {
 			errs = append(errs, fmt.Sprintf("output document digest mismatch: computed %s, receipt has %s", computedDigest, receipt.OutputDocumentDigestSHA256))
 		}
+	}
+
+	if receipt.SchemaVersion == "" {
+		errs = append(errs, "receipt schema_version is required")
+	} else if receipt.SchemaVersion != doc.SchemaVersion {
+		errs = append(errs, fmt.Sprintf("receipt schema_version %q does not match document schema_version %q", receipt.SchemaVersion, doc.SchemaVersion))
+	}
+	if receipt.GeneratedBy == "" {
+		errs = append(errs, "receipt generated_by is required")
+	} else if receipt.GeneratedBy != doc.GeneratedBy {
+		errs = append(errs, fmt.Sprintf("receipt generated_by %q does not match document generated_by %q", receipt.GeneratedBy, doc.GeneratedBy))
+	}
+	if receipt.PostProcessingVersion == "" {
+		errs = append(errs, "receipt post_processing_version is required")
+	}
+	if receipt.TimestampSource == "" {
+		errs = append(errs, "receipt timestamp_source is required")
+	} else {
+		if _, err := time.Parse(time.RFC3339, receipt.TimestampSource); err != nil {
+			errs = append(errs, fmt.Sprintf("receipt timestamp_source must be RFC3339 formatted, got %q", receipt.TimestampSource))
+		}
+	}
+	if len(receipt.ResourceLimits) == 0 {
+		errs = append(errs, "receipt resource_limits are required")
+	}
+	if receipt.NondeterminismDeclaration == "" {
+		errs = append(errs, "receipt nondeterminism_declaration is required")
+	}
+
+	// Verify OutputCandidateIDsAndDigests matches candidates exactly
+	candidateIDs := make(map[string]bool)
+	for _, claim := range doc.CandidateClaims {
+		candidateIDs[claim.ID] = true
+	}
+	for _, q := range doc.CandidateQuestions {
+		candidateIDs[q.ID] = true
+	}
+	for _, ce := range doc.Counterexamples {
+		candidateIDs[ce.ID] = true
+	}
+
+	for id := range candidateIDs {
+		digestVal, ok := receipt.OutputCandidateIDsAndDigests[id]
+		if !ok {
+			errs = append(errs, fmt.Sprintf("receipt output_candidate_ids_and_digests is missing candidate: %s", id))
+		} else if !IsValidSHA256(digestVal) {
+			errs = append(errs, fmt.Sprintf("receipt output_candidate_ids_and_digests for candidate %s must be a valid SHA256", id))
+		}
+	}
+
+	if len(receipt.OutputCandidateIDsAndDigests) != len(candidateIDs) {
+		errs = append(errs, fmt.Sprintf("receipt output_candidate_ids_and_digests length %d does not match actual candidates count %d", len(receipt.OutputCandidateIDsAndDigests), len(candidateIDs)))
 	}
 
 	if receipt.PlanDigestSHA256 != doc.Binding.InvestigationPlanDigestSHA256 {
@@ -530,12 +669,6 @@ func Validate(doc Document) error {
 	}
 	if receipt.GraphDigestSHA256 != doc.Binding.Repository.GraphDigestSHA256 {
 		errs = append(errs, fmt.Sprintf("receipt graph digest %q does not match binding repository graph digest %q", receipt.GraphDigestSHA256, doc.Binding.Repository.GraphDigestSHA256))
-	}
-
-	if receipt.TimestampSource != "" {
-		if _, err := time.Parse(time.RFC3339, receipt.TimestampSource); err != nil {
-			errs = append(errs, "receipt timestamp source must be RFC3339 formatted")
-		}
 	}
 
 	if len(errs) > 0 {
