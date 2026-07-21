@@ -235,29 +235,87 @@ func Validate(doc Document) error {
 	}
 
 	// 8. Coverage Entry Checks
+	seenCoverageIdentity := make(map[string]bool)
 	for i, entry := range doc.Coverage {
+		if entry.ProviderID == "" {
+			errs = append(errs, fmt.Sprintf("coverage entry %d: provider_id is required", i))
+		}
+		if entry.ProviderVersion == "" {
+			errs = append(errs, fmt.Sprintf("coverage entry %d: provider_version is required", i))
+		}
 		if !IsValidEvidenceCategory(entry.Category) {
 			errs = append(errs, fmt.Sprintf("coverage entry %d: invalid category %q", i, entry.Category))
 		}
 		if !IsValidCoverageStatus(entry.Status) {
 			errs = append(errs, fmt.Sprintf("coverage entry %d: invalid status %q", i, entry.Status))
 		}
+		if !IsValidSHA256(entry.TargetDigestSHA256) {
+			errs = append(errs, fmt.Sprintf("coverage entry %d: target_digest_sha256 must be a valid SHA256", i))
+		}
 
-		// searched_no_result requires execution proof
-		isSearched := entry.Status == CoverageSupporting || entry.Status == CoverageRefuting ||
-			entry.Status == CoverageMixed || entry.Status == CoverageNoResult
+		// Unique identity check
+		identityKey := entry.ProviderID + "\x00" + string(entry.Category) + "\x00" + entry.TargetDigestSHA256
+		if seenCoverageIdentity[identityKey] {
+			errs = append(errs, fmt.Sprintf("coverage entry %d: duplicate provider/category/target identity", i))
+		}
+		seenCoverageIdentity[identityKey] = true
 
-		if isSearched {
-			if entry.ProviderID == "" {
-				errs = append(errs, fmt.Sprintf("coverage entry %d status %q requires provider_id", i, entry.Status))
-			}
-			if entry.ProviderVersion == "" {
-				errs = append(errs, fmt.Sprintf("coverage entry %d status %q requires provider_version", i, entry.Status))
-			}
+		// source_snapshot_digest_sha256 when the provider was attempted
+		wasAttempted := entry.Status != CoverageNotConfigured && entry.Status != CoverageSkipped && entry.Status != CoverageUnavailable && entry.Status != CoverageInvalid
+		if wasAttempted {
 			if entry.SourceSnapshotDigestSHA256 == "" {
-				errs = append(errs, fmt.Sprintf("coverage entry %d status %q requires source_snapshot_digest_sha256", i, entry.Status))
+				errs = append(errs, fmt.Sprintf("coverage entry %d: status %q requires source_snapshot_digest_sha256", i, entry.Status))
 			} else if !IsValidSHA256(entry.SourceSnapshotDigestSHA256) {
-				errs = append(errs, fmt.Sprintf("coverage entry %d status %q requires a valid source_snapshot_digest_sha256", i, entry.Status))
+				errs = append(errs, fmt.Sprintf("coverage entry %d: status %q requires a valid source_snapshot_digest_sha256", i, entry.Status))
+			}
+		}
+
+		// Validate status compatibility and result linkage
+		hasEvidence := len(entry.ResultEvidenceIDs) > 0
+		switch entry.Status {
+		case CoverageSupporting, CoverageRefuting, CoverageMixed:
+			if !hasEvidence {
+				errs = append(errs, fmt.Sprintf("coverage entry %d: status %q requires one or more evidence IDs", i, entry.Status))
+			}
+		case CoverageNoResult, CoverageUnavailable, CoverageNotConfigured, CoverageSkipped, CoverageInvalid:
+			if hasEvidence {
+				errs = append(errs, fmt.Sprintf("coverage entry %d: status %q requires zero evidence IDs", i, entry.Status))
+			}
+			if entry.Status == CoverageUnavailable || entry.Status == CoverageNotConfigured || entry.Status == CoverageSkipped || entry.Status == CoverageInvalid {
+				if entry.Reason == "" {
+					errs = append(errs, fmt.Sprintf("coverage entry %d: status %q requires a reason", i, entry.Status))
+				}
+			}
+		}
+
+		seenResultIDs := make(map[string]bool)
+		for _, evidenceID := range entry.ResultEvidenceIDs {
+			if seenResultIDs[evidenceID] {
+				errs = append(errs, fmt.Sprintf("coverage entry %d: duplicate result evidence ID %q", i, evidenceID))
+			}
+			seenResultIDs[evidenceID] = true
+
+			// Find receipt
+			var matchingReceipt *EvidenceReceipt
+			for j := range doc.RawEvidence {
+				if doc.RawEvidence[j].ID == evidenceID {
+					matchingReceipt = &doc.RawEvidence[j]
+					break
+				}
+			}
+
+			if matchingReceipt == nil {
+				errs = append(errs, fmt.Sprintf("coverage entry %d: result evidence ID %q does not resolve to raw evidence", i, evidenceID))
+			} else {
+				if matchingReceipt.Provider.ID != entry.ProviderID {
+					errs = append(errs, fmt.Sprintf("coverage entry %d: result evidence %q provider ID %q does not match coverage provider ID %q", i, evidenceID, matchingReceipt.Provider.ID, entry.ProviderID))
+				}
+				if matchingReceipt.Provider.Version != entry.ProviderVersion {
+					errs = append(errs, fmt.Sprintf("coverage entry %d: result evidence %q provider version %q does not match coverage provider version %q", i, evidenceID, matchingReceipt.Provider.Version, entry.ProviderVersion))
+				}
+				if matchingReceipt.Category != entry.Category {
+					errs = append(errs, fmt.Sprintf("coverage entry %d: result evidence %q category %q does not match coverage category %q", i, evidenceID, matchingReceipt.Category, entry.Category))
+				}
 			}
 		}
 	}

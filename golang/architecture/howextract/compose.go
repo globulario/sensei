@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/factextract"
@@ -17,14 +19,182 @@ import (
 	"github.com/globulario/sensei/golang/extractor/importgraph"
 )
 
-func extractAll(root string, opts Options) (Result, error) {
+const (
+	SchemaVersion             = "investigation.schema.v1"
+	GeneratedByIdentity       = "sensei.howextract"
+	HowPlanID                 = "plan.how.v1"
+	PostProcessingVersion     = "postprocess.v1"
+	NondeterminismDeclaration = "deterministic_only"
+	ExtractorProfileName      = "profile.how.v1"
+)
+
+type InvestigatorDefinition struct {
+	ProviderID      string
+	ProviderVersion string
+	Category        investigation.EvidenceCategory
+	Engine          string
+}
+
+var InvestigatorRegistry = []InvestigatorDefinition{
+	{ProviderID: "topology_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
+	{ProviderID: "flow_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
+	{ProviderID: "state_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "ast"},
+	{ProviderID: "boundary_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
+	{ProviderID: "contract_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
+	{ProviderID: "data_shape_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
+	{ProviderID: "test_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceTests, Engine: "semantic"},
+}
+
+type SourceSnapshotFile struct {
+	Path         string `json:"path"`
+	DigestSHA256 string `json:"digest_sha256"`
+}
+
+type SourceSnapshotManifestV1 struct {
+	SchemaVersion    string               `json:"schema_version"`
+	RepositoryDomain string               `json:"repository_domain"`
+	Files            []SourceSnapshotFile `json:"files"`
+}
+
+type CoverageTargetV1 struct {
+	SchemaVersion          string                         `json:"schema_version"`
+	Mode                   investigation.Mode             `json:"mode"`
+	ProviderID             string                         `json:"provider_id"`
+	ProviderVersion        string                         `json:"provider_version"`
+	Category               investigation.EvidenceCategory `json:"category"`
+	RepositoryDomain       string                         `json:"repository_domain"`
+	Scope                  string                         `json:"scope"`
+	PlanDigestSHA256       string                         `json:"plan_digest_sha256"`
+	ExtractorProfileDigest string                         `json:"extractor_profile_digest"`
+}
+
+type ExtractorProfileV1 struct {
+	SchemaVersion        string   `json:"schema_version"`
+	ProfileName          string   `json:"profile_name"`
+	EnabledInvestigators []string `json:"enabled_investigators"`
+	SourceSnapshotAlgo   string   `json:"source_snapshot_algo"`
+}
+
+func BuildSourceSnapshotManifest(root string, repoDomain string) (string, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+
+	var files []SourceSnapshotFile
+	err = filepath.WalkDir(absRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Refuse files outside root
+		rel, relErr := filepath.Rel(absRoot, path)
+		if relErr != nil || strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("file outside repository root refused: %s", path)
+		}
+
+		if d.IsDir() {
+			if rel != "." {
+				relSlash := filepath.ToSlash(rel)
+				padded := "/" + relSlash + "/"
+				for _, seg := range []string{"/.git/", "/.sensei/", "/vendor/", "/generated/"} {
+					if strings.Contains(padded, seg) {
+						return filepath.SkipDir
+					}
+				}
+			}
+			return nil
+		}
+
+		relSlash := filepath.ToSlash(rel)
+		ext := filepath.Ext(path)
+		isSource := ext == ".go" || relSlash == "go.mod" || relSlash == "go.sum"
+		if !isSource {
+			return nil
+		}
+
+		padded := "/" + relSlash + "/"
+		excluded := false
+		for _, seg := range []string{"/.git/", "/.sensei/", "/vendor/", "/generated/"} {
+			if strings.Contains(padded, seg) {
+				excluded = true
+				break
+			}
+		}
+		if excluded {
+			return nil
+		}
+
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		digest := sha256Hex(string(content))
+
+		files = append(files, SourceSnapshotFile{
+			Path:         relSlash,
+			DigestSHA256: digest,
+		})
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Path < files[j].Path
+	})
+
+	manifest := SourceSnapshotManifestV1{
+		SchemaVersion:    "manifest.v1",
+		RepositoryDomain: repoDomain,
+		Files:            files,
+	}
+
+	manifestData, err := json.Marshal(manifest)
+	if err != nil {
+		return "", err
+	}
+
+	return sha256Hex(string(manifestData)), nil
+}
+
+func CalculatePlanDigest(plan investigation.Plan) (string, error) {
+	data, err := json.Marshal(plan)
+	if err != nil {
+		return "", err
+	}
+	return sha256Hex(string(data)), nil
+}
+
+func CalculateProfileDigest(profile ExtractorProfileV1) (string, error) {
+	data, err := json.Marshal(profile)
+	if err != nil {
+		return "", err
+	}
+	return sha256Hex(string(data)), nil
+}
+
+func CalculateTargetDigest(target CoverageTargetV1) (string, error) {
+	data, err := json.Marshal(target)
+	if err != nil {
+		return "", err
+	}
+	return sha256Hex(string(data)), nil
+}
+
+func extractAll(root string, opts Options) (investigation.Document, error) {
 	var limitations []architecture.Limitation
 
-	// Resolve repository identity for metadata
-	identity := factextract.ResolveRepositoryIdentity(root)
-	repoDomain := identity.Domain
+	repoDomain := opts.Repository.RepositoryDomain
 	if repoDomain == "" {
-		return Result{}, fmt.Errorf("resolve repository identity: domain is unavailable")
+		identity := factextract.ResolveRepositoryIdentity(root)
+		repoDomain = identity.Domain
+		opts.Repository.RepositoryDomain = repoDomain
+	}
+	if repoDomain == "" {
+		return investigation.Document{}, fmt.Errorf("resolve repository identity: domain is unavailable")
 	}
 
 	// 1. Run Semantic Extractor
@@ -33,6 +203,12 @@ func extractAll(root string, opts Options) (Result, error) {
 		limitations = append(limitations, architecture.Limitation{
 			Source: "go_semantic_extractor", Scope: "repository", Reason: semanticErr.Error(), Blocking: false,
 		})
+	} else {
+		for _, lim := range semanticRes.Limitations {
+			limitations = append(limitations, architecture.Limitation{
+				Source: "go_semantic_extractor", Scope: lim.Scope, Reason: lim.Reason, Blocking: false,
+			})
+		}
 	}
 
 	// 2. Run AST/Invariant Extractor
@@ -41,56 +217,63 @@ func extractAll(root string, opts Options) (Result, error) {
 		limitations = append(limitations, architecture.Limitation{
 			Source: "go_ast_extractor", Scope: "repository", Reason: astErr.Error(), Blocking: false,
 		})
-	}
-
-	// Combine limitations from AST extraction
-	for _, lim := range astRes.Limitations {
-		limitations = append(limitations, lim)
+	} else {
+		for _, lim := range astRes.Limitations {
+			limitations = append(limitations, lim)
+		}
 	}
 
 	// Composed observations
 	var facts []architecture.Fact
+	if semanticErr == nil {
+		facts = append(facts, extractTopology(semanticRes.Observations)...)
+		facts = append(facts, extractFlow(semanticRes.Observations)...)
+		facts = append(facts, extractBoundaries(semanticRes.Observations)...)
+		facts = append(facts, extractContracts(semanticRes.Observations)...)
+		facts = append(facts, extractTests(semanticRes.Observations)...)
+		facts = append(facts, extractDataShapes(semanticRes.Observations)...)
+	}
+	if astErr == nil {
+		facts = append(facts, extractState(astRes.Facts)...)
+	}
 
-	// Extract observations from topology, flow, boundaries, contracts, tests
-	facts = append(facts, extractTopology(semanticRes.Observations)...)
-	facts = append(facts, extractFlow(semanticRes.Observations)...)
-	facts = append(facts, extractBoundaries(semanticRes.Observations)...)
-	facts = append(facts, extractContracts(semanticRes.Observations)...)
-	facts = append(facts, extractTests(semanticRes.Observations)...)
-	facts = append(facts, extractDataShapes(semanticRes.Observations)...)
-
-	// Extract observations from state AST facts
-	facts = append(facts, extractState(astRes.Facts)...)
+	// Ensure all facts are scoped to the bound repository domain
+	for i := range facts {
+		facts[i].Scope.Repository = repoDomain
+	}
 
 	// Normalize facts
 	normalizedFacts, normErr := architecture.NormalizeFacts(root, facts)
 	if normErr != nil {
-		return Result{}, normErr
+		return investigation.Document{}, normErr
 	}
 
-	return composeReceiptsAndCoverage(root, normalizedFacts, repoDomain, opts, limitations)
+	return composeReceiptsAndCoverage(root, normalizedFacts, repoDomain, opts, limitations, semanticErr, astErr)
 }
 
-func composeReceiptsAndCoverage(root string, normalizedFacts []architecture.Fact, repoDomain string, opts Options, initialLimitations []architecture.Limitation) (Result, error) {
+func composeReceiptsAndCoverage(
+	root string,
+	normalizedFacts []architecture.Fact,
+	repoDomain string,
+	opts Options,
+	initialLimitations []architecture.Limitation,
+	semanticErr error,
+	astErr error,
+) (investigation.Document, error) {
 	limitations := initialLimitations
-	var evidenceReceipts []investigation.EvidenceReceipt
-	evidenceIDsByFact := make(map[string][]string)
-
-	capturedAtTime := opts.CapturedAt
+	var rawEvidence []investigation.EvidenceReceipt
 
 	for _, f := range normalizedFacts {
 		if f.Evidence.SourceFile == "" {
 			continue
 		}
 
-		// Calculate file SHA256
 		fileSHA, err := architecture.SourceDigestSHA256(root, f.Evidence.SourceFile)
 		if err != nil {
 			limitations = append(limitations, architecture.Limitation{Source: f.Extractor, Scope: f.Evidence.SourceFile, Reason: "source digest unavailable: " + err.Error(), Blocking: false})
 			continue
 		}
 
-		// Read CapturedContent from the source file
 		lineStart := f.Evidence.LineStart
 		lineEnd := f.Evidence.LineEnd
 		if lineStart <= 0 {
@@ -106,30 +289,30 @@ func composeReceiptsAndCoverage(root string, normalizedFacts []architecture.Fact
 			continue
 		}
 
-		// Content Digest SHA256 of CapturedContent
 		contentSHA := sha256Hex(capturedText)
-
-		// Create deterministic ID from fact ID hash
 		receiptID := "evidence_" + sha256Hex(f.ID)[:16]
-
-		// Resolve component for this file
 		component, _ := importgraph.ComponentForFile(f.Evidence.SourceFile)
 
 		category := investigation.EvidenceSourceCode
-		if f.Kind == "test_protection" {
-			category = investigation.EvidenceTests
+		version := "1.0"
+		for _, r := range InvestigatorRegistry {
+			if r.ProviderID == f.Extractor {
+				category = r.Category
+				version = r.ProviderVersion
+				break
+			}
 		}
 
 		receipt := investigation.EvidenceReceipt{
 			ID:                  receiptID,
 			Category:            category,
-			Provider:            investigation.ProviderBinding{ID: f.Extractor, Version: "1.0"},
+			Provider:            investigation.ProviderBinding{ID: f.Extractor, Version: version},
 			ProofStrength:       investigation.ProofStaticSource,
 			SourceIdentity:      f.Evidence.SourceFile,
 			SourceDigestSHA256:  fileSHA,
 			ContentDigestSHA256: contentSHA,
 			CapturedContent:     capturedText,
-			CapturedAt:          capturedAtTime,
+			CapturedAt:          opts.CapturedAt,
 			Scope: architecture.ClaimScope{
 				Repository: repoDomain,
 				Files:      []string{f.Evidence.SourceFile},
@@ -137,71 +320,199 @@ func composeReceiptsAndCoverage(root string, normalizedFacts []architecture.Fact
 				Components: []string{component},
 			},
 		}
-
-		evidenceReceipts = append(evidenceReceipts, receipt)
-		evidenceIDsByFact[f.ID] = []string{receiptID}
+		rawEvidence = append(rawEvidence, receipt)
 	}
 
-	// Deduplicate identical evidence receipts
-	dedupReceipts, err := deduplicateReceipts(evidenceReceipts)
+	dedupReceipts, err := deduplicateReceipts(rawEvidence)
 	if err != nil {
-		return Result{}, err
+		return investigation.Document{}, err
 	}
 
-	// 4. Generate coverage entries
+	// 1. Plan Digest
+	plan := investigation.Plan{
+		ID:          HowPlanID,
+		Description: "Phase 10.2 deterministic HOW extraction plan",
+		Queries: []string{
+			"topology_extractor",
+			"flow_extractor",
+			"state_extractor",
+			"boundary_extractor",
+			"contract_extractor",
+			"data_shape_extractor",
+			"test_extractor",
+		},
+	}
+	planDigest, err := CalculatePlanDigest(plan)
+	if err != nil {
+		return investigation.Document{}, err
+	}
+
+	// 2. Extractor Profile Digest
+	profile := ExtractorProfileV1{
+		SchemaVersion: "profile.schema.v1",
+		ProfileName:   ExtractorProfileName,
+		EnabledInvestigators: []string{
+			"topology_extractor",
+			"flow_extractor",
+			"state_extractor",
+			"boundary_extractor",
+			"contract_extractor",
+			"data_shape_extractor",
+			"test_extractor",
+		},
+		SourceSnapshotAlgo: "manifest.v1",
+	}
+	profileDigest, err := CalculateProfileDigest(profile)
+	if err != nil {
+		return investigation.Document{}, err
+	}
+
+	// 3. Source Snapshot Digest
+	snapshotDigest, err := BuildSourceSnapshotManifest(root, repoDomain)
+	if err != nil {
+		return investigation.Document{}, fmt.Errorf("build source manifest: %w", err)
+	}
+
+	// 4. Coverage Entries
+	semanticFailed := (semanticErr != nil)
+	semanticReason := ""
+	if semanticFailed {
+		semanticReason = "semantic engine failed: " + semanticErr.Error()
+	}
+
+	stateFailed := (astErr != nil)
+	stateReason := ""
+	if stateFailed {
+		stateReason = "state engine failed: " + astErr.Error()
+	}
+
 	var coverage []investigation.CoverageEntry
+	for _, inv := range InvestigatorRegistry {
+		var status investigation.CoverageStatus
+		var reason string
+		var matchingReceiptIDs []string
 
-	// Aggregate evidence IDs by extractor
-	evidenceIDsByExtractor := make(map[string][]string)
-	for _, rec := range dedupReceipts {
-		evidenceIDsByExtractor[rec.Provider.ID] = append(evidenceIDsByExtractor[rec.Provider.ID], rec.ID)
+		engineFailed := false
+		engineReason := ""
+		if inv.Engine == "semantic" {
+			engineFailed = semanticFailed
+			engineReason = semanticReason
+		} else if inv.Engine == "ast" {
+			engineFailed = stateFailed
+			engineReason = stateReason
+		}
+
+		if engineFailed {
+			status = investigation.CoverageUnavailable
+			reason = engineReason
+		} else {
+			for _, rec := range dedupReceipts {
+				if rec.Provider.ID == inv.ProviderID {
+					matchingReceiptIDs = append(matchingReceiptIDs, rec.ID)
+				}
+			}
+
+			if len(matchingReceiptIDs) > 0 {
+				status = investigation.CoverageSupporting
+			} else {
+				status = investigation.CoverageNoResult
+			}
+		}
+
+		targetDesc := CoverageTargetV1{
+			SchemaVersion:          "target.schema.v1",
+			Mode:                   investigation.ModeHow,
+			ProviderID:             inv.ProviderID,
+			ProviderVersion:        inv.ProviderVersion,
+			Category:               inv.Category,
+			RepositoryDomain:       repoDomain,
+			Scope:                  "repository",
+			PlanDigestSHA256:       planDigest,
+			ExtractorProfileDigest: profileDigest,
+		}
+		targetDigest, err := CalculateTargetDigest(targetDesc)
+		if err != nil {
+			return investigation.Document{}, err
+		}
+
+		var entryLimitations []architecture.Limitation
+		for _, lim := range limitations {
+			if lim.Source == inv.ProviderID {
+				entryLimitations = append(entryLimitations, lim)
+			}
+		}
+
+		entry := investigation.CoverageEntry{
+			ProviderID:                 inv.ProviderID,
+			ProviderVersion:            inv.ProviderVersion,
+			Category:                   inv.Category,
+			TargetDigestSHA256:         targetDigest,
+			SourceSnapshotDigestSHA256: snapshotDigest,
+			ResultEvidenceIDs:          matchingReceiptIDs,
+			Status:                     status,
+			Reason:                     reason,
+			Limitations:                entryLimitations,
+		}
+		coverage = append(coverage, entry)
 	}
 
-	// We create a coverage entry for topology/flow/contracts/datashapes (gosemantics)
-	categorySem := investigation.EvidenceSourceCode
-	statusSem := investigation.CoverageNoResult
-	if len(evidenceIDsByExtractor["topology_extractor"])+len(evidenceIDsByExtractor["flow_extractor"])+len(evidenceIDsByExtractor["boundary_extractor"])+len(evidenceIDsByExtractor["contract_extractor"])+len(evidenceIDsByExtractor["data_shape_extractor"]) > 0 {
-		statusSem = investigation.CoverageSupporting
+	binding := investigation.Binding{
+		Repository:                    opts.Repository,
+		EvidenceSnapshotDigestSHA256:  "",
+		InvestigationPlanDigestSHA256: planDigest,
+		ExtractorProfileDigestSHA256:  profileDigest,
+		Model: investigation.ModelBinding{
+			Status: investigation.ModelStatusDisabled,
+		},
 	}
 
-	var semIDs []string
-	semIDs = append(semIDs, evidenceIDsByExtractor["topology_extractor"]...)
-	semIDs = append(semIDs, evidenceIDsByExtractor["flow_extractor"]...)
-	semIDs = append(semIDs, evidenceIDsByExtractor["boundary_extractor"]...)
-	semIDs = append(semIDs, evidenceIDsByExtractor["contract_extractor"]...)
-	semIDs = append(semIDs, evidenceIDsByExtractor["data_shape_extractor"]...)
-
-	coverage = append(coverage, investigation.CoverageEntry{
-		ProviderID:         "go_semantic_extractor",
-		ProviderVersion:    "1.0",
-		Category:           categorySem,
-		TargetDigestSHA256: "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8",
-		ResultEvidenceIDs:  semIDs,
-		Status:             statusSem,
-	})
-
-	// Coverage entry for AST/state (go_ast_extractor / state_extractor)
-	categoryAST := investigation.EvidenceSourceCode
-	statusAST := investigation.CoverageNoResult
-	if len(evidenceIDsByExtractor["state_extractor"]) > 0 {
-		statusAST = investigation.CoverageSupporting
+	receipt := investigation.RunReceipt{
+		SchemaVersion:                SchemaVersion,
+		GeneratedBy:                  GeneratedByIdentity,
+		Repository:                   opts.Repository,
+		GraphDigestSHA256:            "",
+		PlanDigestSHA256:             planDigest,
+		ExtractorProfileDigestSHA256: profileDigest,
+		EvidenceSnapshotDigestSHA256: "",
+		Model: investigation.ModelBinding{
+			Status: investigation.ModelStatusDisabled,
+		},
+		ModelArtifactDigestSHA256: "",
+		PostProcessingVersion:     PostProcessingVersion,
+		TimestampSource:           opts.CapturedAt,
+		ResourceLimits:            opts.ResourceLimits,
+		NondeterminismDeclaration: NondeterminismDeclaration,
 	}
 
-	coverage = append(coverage, investigation.CoverageEntry{
-		ProviderID:         "go_ast_extractor",
-		ProviderVersion:    "1.0",
-		Category:           categoryAST,
-		TargetDigestSHA256: "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8",
-		ResultEvidenceIDs:  evidenceIDsByExtractor["state_extractor"],
-		Status:             statusAST,
-	})
+	doc := investigation.Document{
+		SchemaVersion: SchemaVersion,
+		GeneratedBy:   GeneratedByIdentity,
+		Mode:          investigation.ModeHow,
+		Binding:       binding,
+		Plan:          plan,
+		Coverage:      coverage,
+		RawEvidence:   dedupReceipts,
+		Observations:  normalizedFacts,
+		Limitations:   limitations,
+		Receipt:       receipt,
+	}
 
-	return Result{
-		Facts:       normalizedFacts,
-		RawEvidence: dedupReceipts,
-		Coverage:    coverage,
-		Limitations: limitations,
-	}, nil
+	normDoc, err := investigation.Normalize(doc)
+	if err != nil {
+		return investigation.Document{}, err
+	}
+
+	docDigest, err := investigation.CalculateDocumentDigest(normDoc)
+	if err != nil {
+		return investigation.Document{}, err
+	}
+	normDoc.Receipt.OutputDocumentDigestSHA256 = docDigest
+
+	if err := investigation.Validate(normDoc); err != nil {
+		return investigation.Document{}, fmt.Errorf("composed document fails validation: %w", err)
+	}
+
+	return normDoc, nil
 }
 
 func readCapturedLines(filePath string, lineStart, lineEnd int) (string, error) {

@@ -10,21 +10,17 @@ import (
 )
 
 // Options binds deterministic extraction inputs supplied by the orchestrator.
-type Options struct{ CapturedAt string }
-
-// Result is the completed HOW extraction report containing
-// facts, evidence receipts, coverage entries, and limitations.
-type Result struct {
-	Facts       []architecture.Fact             `json:"facts" yaml:"facts"`
-	RawEvidence []investigation.EvidenceReceipt `json:"raw_evidence" yaml:"raw_evidence"`
-	Coverage    []investigation.CoverageEntry   `json:"coverage" yaml:"coverage"`
-	Limitations []architecture.Limitation       `json:"limitations" yaml:"limitations"`
+type Options struct {
+	CapturedAt     string
+	Repository     architecture.ClaimDocumentBinding
+	ResourceLimits map[string]string
 }
 
-// Extract parses the codebase using explicit deterministic inputs.
-func Extract(root string, opts Options) (Result, error) {
+// Extract parses the codebase using explicit deterministic inputs and returns
+// a complete normalized Phase 10 investigation Document.
+func Extract(root string, opts Options) (investigation.Document, error) {
 	if _, err := time.Parse(time.RFC3339, opts.CapturedAt); err != nil {
-		return Result{}, fmt.Errorf("captured_at must be an explicit RFC3339 input: %w", err)
+		return investigation.Document{}, fmt.Errorf("captured_at must be an explicit RFC3339 input: %w", err)
 	}
 	return extractAll(root, opts)
 }
