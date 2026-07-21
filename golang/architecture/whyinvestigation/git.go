@@ -39,10 +39,12 @@ func (p GitProvider) Capture(ctx context.Context, req CaptureRequest) (Snapshot,
 	if _, err := runGit(ctx, p.Root, "rev-parse", "--is-inside-work-tree"); err != nil {
 		return Snapshot{}, fmt.Errorf("local Git history unavailable: %w", err)
 	}
-	if _, err := runGit(ctx, p.Root, "rev-parse", "--verify", req.Range.Start+"^{commit}"); err != nil {
+	start, err := runGit(ctx, p.Root, "rev-parse", "--verify", req.Range.Start+"^{commit}")
+	if err != nil {
 		return Snapshot{}, fmt.Errorf("resolve history range start: %w", err)
 	}
-	if _, err := runGit(ctx, p.Root, "rev-parse", "--verify", req.Range.End+"^{commit}"); err != nil {
+	end, err := runGit(ctx, p.Root, "rev-parse", "--verify", req.Range.End+"^{commit}")
+	if err != nil {
 		return Snapshot{}, fmt.Errorf("resolve history range end: %w", err)
 	}
 	shallow, err := runGit(ctx, p.Root, "rev-parse", "--is-shallow-repository")
@@ -50,18 +52,28 @@ func (p GitProvider) Capture(ctx context.Context, req CaptureRequest) (Snapshot,
 		return Snapshot{}, fmt.Errorf("determine Git history completeness: %w", err)
 	}
 	format := "%H%x1f%P%x1f%aI%x1f%cI%x1f%B%x1e"
-	out, err := runGit(ctx, p.Root, "log", "--reverse", "--format="+format, req.Range.Start+".."+req.Range.End)
+	start, end = strings.TrimSpace(start), strings.TrimSpace(end)
+	out, err := runGit(ctx, p.Root, "log", "--reverse", "--format="+format, start+".."+end)
 	if err != nil {
 		return Snapshot{}, err
 	}
 	var commits []Commit
 	for _, record := range strings.Split(out, "\x1e") {
-		fields := strings.Split(strings.TrimSpace(record), "\x1f")
-		if len(fields) != 5 {
+		if strings.TrimSpace(record) == "" {
 			continue
 		}
-		paths, _ := runGit(ctx, p.Root, "show", "--format=", "--name-only", fields[0])
-		patch, _ := runGit(ctx, p.Root, "show", "--format=", "--no-ext-diff", fields[0])
+		fields := strings.Split(strings.TrimSpace(record), "\x1f")
+		if len(fields) != 5 {
+			return Snapshot{}, fmt.Errorf("malformed Git log record")
+		}
+		paths, err := runGit(ctx, p.Root, "show", "--format=", "--name-only", fields[0])
+		if err != nil {
+			return Snapshot{}, fmt.Errorf("capture changed paths for %s: %w", fields[0], err)
+		}
+		patch, err := runGit(ctx, p.Root, "show", "--format=", "--no-ext-diff", fields[0])
+		if err != nil {
+			return Snapshot{}, fmt.Errorf("capture patch for %s: %w", fields[0], err)
+		}
 		commits = append(commits, Commit{ID: fields[0], Parents: fields[1], AuthorTime: fields[2], CommitterTime: fields[3], Message: fields[4], ChangedPaths: paths, PatchDigest: investigation.SHA256String(patch)})
 	}
 	sort.Slice(commits, func(i, j int) bool { return commits[i].ID < commits[j].ID })
@@ -69,7 +81,7 @@ func (p GitProvider) Capture(ctx context.Context, req CaptureRequest) (Snapshot,
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{Provider: p.Identity(), Digest: investigation.SHA256Bytes(data), Range: req.Range, Incomplete: strings.TrimSpace(shallow) == "true", Commits: commits}, nil
+	return Snapshot{Provider: p.Identity(), Digest: investigation.SHA256Bytes(data), Range: GitRange{Start: start, End: end}, Incomplete: strings.TrimSpace(shallow) == "true", Commits: commits}, nil
 }
 
 func (p GitProvider) Investigate(_ context.Context, snap Snapshot, req CaptureRequest) (Result, error) {
@@ -174,18 +186,23 @@ func validateRequest(req CaptureRequest) error {
 	if err != nil || digest != req.How.Receipt.OutputDocumentDigestSHA256 {
 		return fmt.Errorf("HOW document digest mismatch")
 	}
-	if req.Repository.RepositoryDomain != req.How.Binding.Repository.RepositoryDomain || req.Repository.Revision != req.How.Binding.Repository.Revision || req.Range.Start == "" || req.Range.End == "" || req.CapturedAt == "" {
+	if req.Repository != req.How.Binding.Repository || req.Range.Start == "" || req.Range.End == "" || req.CapturedAt == "" {
 		return fmt.Errorf("invalid WHY repository binding, range, or capture timestamp")
 	}
-	seen := map[string]bool{}
+	obs, ev := map[string]bool{}, map[string]bool{}
 	for _, f := range req.How.Observations {
-		seen[f.ID] = true
+		obs[f.ID] = true
 	}
 	for _, e := range req.How.RawEvidence {
-		seen[e.ID] = true
+		ev[e.ID] = true
 	}
-	for _, id := range append(append([]string{}, req.Query.TargetObservationIDs...), req.Query.TargetEvidenceIDs...) {
-		if !seen[id] {
+	for _, id := range req.Query.TargetObservationIDs {
+		if !obs[id] {
+			return fmt.Errorf("unknown HOW observation target %q", id)
+		}
+	}
+	for _, id := range req.Query.TargetEvidenceIDs {
+		if !ev[id] {
 			return fmt.Errorf("unknown HOW evidence target %q", id)
 		}
 	}
@@ -197,7 +214,11 @@ func unavailableDocument(req CaptureRequest, cause error) (investigation.Documen
 		return investigation.Document{}, err
 	}
 	snapshot := investigation.SHA256String(GitProviderID + "|unavailable|" + req.Repository.RepositoryDomain + "|" + req.Range.Start + "|" + req.Range.End + "|" + query)
-	result := Result{Coverage: investigation.CoverageEntry{ProviderID: GitProviderID, ProviderVersion: GitProviderVersion, Category: investigation.EvidenceSourceControl, TargetDigestSHA256: investigation.SHA256String("unavailable|" + query), Status: investigation.CoverageUnavailable, Reason: "local Git repository unavailable"}, Limitations: []architecture.Limitation{{Source: GitProviderID, Scope: "repository", Reason: cause.Error()}}}
+	target, err := digestTarget(req, query)
+	if err != nil {
+		return investigation.Document{}, err
+	}
+	result := Result{Coverage: investigation.CoverageEntry{ProviderID: GitProviderID, ProviderVersion: GitProviderVersion, Category: investigation.EvidenceSourceControl, TargetDigestSHA256: target, Status: investigation.CoverageUnavailable, Reason: "local Git repository unavailable"}, Limitations: []architecture.Limitation{{Source: GitProviderID, Scope: "repository", Reason: cause.Error()}}}
 	return composeDocument(req, Snapshot{Provider: GitProvider{}.Identity(), Digest: snapshot, Range: req.Range}, result)
 }
 
@@ -211,11 +232,27 @@ func runGit(ctx context.Context, root string, args ...string) (string, error) {
 }
 
 func digestQuery(q Query) (string, error) {
+	q.TargetObservationIDs = canonicalIDs(q.TargetObservationIDs)
+	q.TargetEvidenceIDs = canonicalIDs(q.TargetEvidenceIDs)
 	data, err := json.Marshal(q)
 	if err != nil {
 		return "", err
 	}
 	return investigation.SHA256Bytes(data), nil
+}
+func canonicalIDs(in []string) []string {
+	seen := map[string]bool{}
+	for _, id := range in {
+		if id = strings.TrimSpace(id); id != "" {
+			seen[id] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for id := range seen {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
 }
 func digestTarget(req CaptureRequest, query string) (string, error) {
 	data, err := json.Marshal(struct {
