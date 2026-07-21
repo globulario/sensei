@@ -192,6 +192,10 @@ type RuntimeBoundaryAssessment struct {
 	// first-row-wins).
 	Conflicts []string `json:"conflicts,omitempty" yaml:"conflicts,omitempty"`
 
+	// AdmittedEvidence binds the EXACT admitted observations (id + evidence digest, canonical) into
+	// the assessment digest, so a verdict cannot be replayed against different evidence.
+	AdmittedEvidence []string `json:"admitted_evidence,omitempty" yaml:"admitted_evidence,omitempty"`
+
 	NextActionOwner string `json:"next_action_owner,omitempty" yaml:"next_action_owner,omitempty"`
 }
 
@@ -201,6 +205,7 @@ func (a RuntimeBoundaryAssessment) ComputeDigest() (string, error) {
 	c.Meta.DigestSHA256 = ""
 	c.RefusalReasons = sortedUnique(c.RefusalReasons)
 	c.Conflicts = sortedUnique(c.Conflicts)
+	c.AdmittedEvidence = sortedUnique(c.AdmittedEvidence)
 	return digestOf(c)
 }
 
@@ -246,6 +251,13 @@ func ValidateAssessment(a RuntimeBoundaryAssessment) error {
 	}
 	if !equalStrings(a.RefusalReasons, sortedUnique(a.RefusalReasons)) {
 		return fmt.Errorf("assessment refusal reasons are not canonical (sorted+unique)")
+	}
+	if !equalStrings(a.AdmittedEvidence, sortedUnique(a.AdmittedEvidence)) {
+		return fmt.Errorf("assessment admitted evidence is not canonical (sorted+unique)")
+	}
+	// A satisfied/violated verdict must bind the exact evidence it rests on.
+	if (a.Verdict == VerdictSatisfied || a.Verdict == VerdictViolated) && len(a.AdmittedEvidence) == 0 {
+		return fmt.Errorf("verdict %q must bind at least one admitted evidence record", a.Verdict)
 	}
 	want, err := a.ComputeDigest()
 	if err != nil {

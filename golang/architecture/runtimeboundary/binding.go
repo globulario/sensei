@@ -68,6 +68,11 @@ func validateBindingFields(b RuntimeArchitectureBinding) error {
 			return fmt.Errorf("binding missing or padded %s", name)
 		}
 	}
+	// Non-self-authorizing: the authority grant must be DISTINCT from the runtime identities it
+	// admits. A grant equal to a mapped caller/callee would let traffic authorize its own binding.
+	if containsString(b.MappedCallers, b.AuthorityGrantIdentity) || containsString(b.MappedCallees, b.AuthorityGrantIdentity) {
+		return fmt.Errorf("binding %q authority grant is a mapped runtime identity (self-authorizing)", b.BindingID)
+	}
 	return nil
 }
 

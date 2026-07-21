@@ -33,8 +33,15 @@ type AssessmentInput struct {
 // assessment.
 func AssessRuntimeBoundary(in AssessmentInput) (RuntimeBoundaryAssessment, error) {
 	id := in.Identity
+	var polDigest, bindDigest string
+	if in.Policy != nil {
+		polDigest = in.Policy.DigestSHA256
+	}
+	if in.Binding != nil {
+		bindDigest = in.Binding.DigestSHA256
+	}
 	fin := func(kind ResultKind, reason string, admissible, refused int, refusals, conflicts []string, nextOwner string) (RuntimeBoundaryAssessment, error) {
-		return finalizeAssessment(id, kind, reason, admissible, refused, refusals, conflicts, nextOwner)
+		return finalizeAssessment(id, polDigest, bindDigest, kind, reason, admissible, refused, refusals, conflicts, nil, nextOwner)
 	}
 
 	// 1. Identity must be well-formed and actually a boundary.
@@ -87,6 +94,7 @@ func AssessRuntimeBoundary(in AssessmentInput) (RuntimeBoundaryAssessment, error
 
 	// 5. Admit observations through the non-self-authorizing binding.
 	admitted, refused, refusals := admitObservations(in, id)
+	admittedEvidence := admittedEvidenceList(admitted)
 
 	// 6. No admissible evidence: distinguish collector outage / required-absent / optional-none.
 	if len(admitted) == 0 {
@@ -101,7 +109,7 @@ func AssessRuntimeBoundary(in AssessmentInput) (RuntimeBoundaryAssessment, error
 
 	// 7. Classify admitted crossings against the policy and aggregate deterministically.
 	kind, conflicts := classifyAdmitted(admitted, pol)
-	return fin(kind, string(kind), len(admitted), refused, refusals, conflicts, nextOwner)
+	return finalizeAssessment(id, polDigest, bindDigest, kind, string(kind), len(admitted), refused, refusals, conflicts, admittedEvidence, nextOwner)
 }
 
 // admitObservations applies the non-self-authorizing binding: an observation is admissible only when
@@ -126,9 +134,18 @@ func admitObservations(in AssessmentInput, id RuntimeBoundaryIdentity) (admitted
 			reason = "runtime_target_mismatch"
 		case !mappedThroughBinding(*in.Binding, o):
 			reason = "unmapped_identity"
+		case o.CallerIdentity == in.Binding.AuthorityGrantIdentity || o.CalleeIdentity == in.Binding.AuthorityGrantIdentity:
+			// The traffic cannot be its own authority grant (self-authorizing).
+			reason = "self_authorizing"
 		case o.Availability != SourceAvailable:
 			// Degraded/unavailable/invalid evidence is not admitted as authoritative.
 			reason = string(o.Availability)
+		case !o.IntegrityVerified:
+			// Unverifiable evidence is rejected (issue #88 §5).
+			reason = "integrity_unverified"
+		case o.Freshness != FreshnessFresh:
+			// Stale/unknown-freshness evidence cannot establish a current verdict (issue #88 §5).
+			reason = "stale"
 		}
 		if reason != "" {
 			refused++
@@ -297,10 +314,24 @@ func refusalList(reason string, n int) []string {
 	return []string{reason}
 }
 
+// admittedEvidenceList binds each admitted observation's id + evidence digest so the assessment
+// digest represents the EXACT evidence it rests on (a verdict cannot be replayed against other
+// evidence).
+func admittedEvidenceList(admitted []RuntimeObservation) []string {
+	if len(admitted) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(admitted))
+	for _, o := range admitted {
+		out = append(out, o.ObservationID+"\x00"+o.EvidenceDigestSHA256)
+	}
+	return sortedUnique(out)
+}
+
 // finalizeAssessment builds the well-formed, digest-bound assessment for a chosen result kind. The
 // verdict is derived solely from the result kind; availability is derived from the verdict through a
 // single primary source, so the two can never disagree.
-func finalizeAssessment(id RuntimeBoundaryIdentity, kind ResultKind, reason string, admissible, refused int, refusals, conflicts []string, nextOwner string) (RuntimeBoundaryAssessment, error) {
+func finalizeAssessment(id RuntimeBoundaryIdentity, policyDigest, bindingDigest string, kind ResultKind, reason string, admissible, refused int, refusals, conflicts, admittedEvidence []string, nextOwner string) (RuntimeBoundaryAssessment, error) {
 	verdict := resultKindVerdict(kind)
 	avail, srcAvail := verdictAvailability(verdict)
 	primary := srcStatus(ProducerName, SchemaAssessment, bareBoundaryID(id.BoundaryIRI), id.DigestSHA256, srcAvail, ImpactPrimary, string(kind))
@@ -313,10 +344,13 @@ func finalizeAssessment(id RuntimeBoundaryIdentity, kind ResultKind, reason stri
 		ResultKind:             kind,
 		ReasonCode:             reason,
 		IdentityDigest:         id.DigestSHA256,
+		PolicyDigest:           policyDigest,
+		BindingDigest:          bindingDigest,
 		AdmissibleObservations: admissible,
 		RefusedObservations:    refused,
 		RefusalReasons:         sortedUnique(refusals),
 		Conflicts:              sortedUnique(conflicts),
+		AdmittedEvidence:       sortedUnique(admittedEvidence),
 		NextActionOwner:        nextOwner,
 	}
 	dig, err := a.ComputeDigest()

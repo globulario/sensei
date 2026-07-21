@@ -354,6 +354,119 @@ func TestProof_NonBoundaryIsInvalid(t *testing.T) {
 	}
 }
 
+// Q1: stale evidence cannot reach satisfied (freshness is part of the conjunction).
+func TestProof_StaleEvidenceRefused(t *testing.T) {
+	in := tInput(t)
+	o := tObs()
+	o.Freshness = FreshnessStale
+	in.Observations = []RuntimeObservation{o}
+	a := assess(t, in)
+	if a.Verdict == VerdictSatisfied {
+		t.Fatal("stale evidence must never satisfy")
+	}
+	if !contains(a.RefusalReasons, "stale") {
+		t.Fatalf("stale evidence must be refused, got %v", a.RefusalReasons)
+	}
+}
+
+// Q1: integrity-unverified evidence cannot reach satisfied.
+func TestProof_IntegrityUnverifiedRefused(t *testing.T) {
+	in := tInput(t)
+	o := tObs()
+	o.IntegrityVerified = false
+	in.Observations = []RuntimeObservation{o}
+	a := assess(t, in)
+	if a.Verdict == VerdictSatisfied {
+		t.Fatal("integrity-unverified evidence must never satisfy")
+	}
+	if !contains(a.RefusalReasons, "integrity_unverified") {
+		t.Fatalf("integrity-unverified evidence must be refused, got %v", a.RefusalReasons)
+	}
+}
+
+// Q2: a binding cannot make the traffic its own authority grant (matching identifiers).
+func TestProof_SelfAuthorizingBindingRejected(t *testing.T) {
+	_, err := BuildRuntimeArchitectureBinding(RuntimeArchitectureBinding{
+		BindingID: "bind-x", BoundaryIRI: tBoundaryIRI, RepositoryIdentity: tRepo,
+		RuntimeTarget: tTarget(), MappedCallers: []string{tCaller},
+		AuthorityGrantIdentity: tCaller, // grant == a mapped runtime identity → self-authorizing
+	})
+	if err == nil {
+		t.Fatal("a binding whose grant equals a mapped runtime identity must be rejected")
+	}
+}
+
+// Q2: an observation whose identity equals the binding's authority grant is refused.
+func TestProof_SelfAuthorizingObservationRefused(t *testing.T) {
+	in := tInput(t)
+	b := tBinding(t)
+	b.MappedCallers = nil // wildcard so the grant is not a mapped id (binding is valid)
+	b.AuthorityGrantIdentity = tCaller
+	nb, err := BuildRuntimeArchitectureBinding(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Binding = &nb
+	a := assess(t, in) // obs caller == grant
+	if a.Verdict == VerdictSatisfied {
+		t.Fatal("an observation that is its own authority grant must never satisfy")
+	}
+	if !contains(a.RefusalReasons, "self_authorizing") {
+		t.Fatalf("self-authorizing observation must be refused, got %v", a.RefusalReasons)
+	}
+}
+
+// Q4: the assessment digest binds the exact policy, binding, and evidence it claims — changing any
+// of them changes the digest.
+func TestProof_DigestBindsPolicyBindingEvidence(t *testing.T) {
+	base := assess(t, tInput(t))
+
+	// (a) different policy (benign field) → different digest
+	in := tInput(t)
+	pol := tPolicy(t)
+	pol.RequiredInvariant = "invariant.some_extra"
+	np, err := BuildBoundaryPolicy(pol)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Policy = &np
+	if got := assess(t, in); got.Meta.DigestSHA256 == base.Meta.DigestSHA256 {
+		t.Fatal("assessment digest does not bind the policy")
+	}
+	if base.PolicyDigest == "" {
+		t.Fatal("assessment must record the policy digest")
+	}
+
+	// (b) different binding (benign extra mapped callee) → different digest
+	in = tInput(t)
+	b := tBinding(t)
+	b.MappedCallees = []string{tCallee, "component.extra"}
+	nb, err := BuildRuntimeArchitectureBinding(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Binding = &nb
+	if got := assess(t, in); got.Meta.DigestSHA256 == base.Meta.DigestSHA256 {
+		t.Fatal("assessment digest does not bind the binding")
+	}
+	if base.BindingDigest == "" {
+		t.Fatal("assessment must record the binding digest")
+	}
+
+	// (c) different evidence digest → different assessment digest
+	in = tInput(t)
+	o := tObs()
+	o.EvidenceDigestSHA256 = "different-evidence-digest"
+	in.Observations = []RuntimeObservation{o}
+	got := assess(t, in)
+	if got.Meta.DigestSHA256 == base.Meta.DigestSHA256 {
+		t.Fatal("assessment digest does not bind the admitted evidence")
+	}
+	if len(got.AdmittedEvidence) != 1 {
+		t.Fatalf("satisfied assessment must bind its admitted evidence, got %v", got.AdmittedEvidence)
+	}
+}
+
 func contains(in []string, want string) bool {
 	for _, s := range in {
 		if s == want {
