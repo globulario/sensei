@@ -515,6 +515,12 @@ type structFieldInfo struct {
 	line   int
 }
 
+type boundaryInfo struct {
+	symbol string
+	file   string
+	line   int
+}
+
 func (e *extractor) extractDataShapes() {
 	type structInfo struct {
 		named  *types.Named
@@ -602,7 +608,7 @@ func (e *extractor) extractDataShapes() {
 	// For each struct, check if it matches the 5 boundary crossing/serialization paths
 	for _, s := range structs {
 		crossesBoundary := false
-		var boundarySymbols []string
+		var boundarySymbols []boundaryInfo
 		hasSerializationTag := false
 
 		for _, f := range s.fields {
@@ -616,10 +622,19 @@ func (e *extractor) extractDataShapes() {
 			if otherPkg.Types == nil || otherPkg.TypesInfo == nil || otherPkg.PkgPath == s.obj.Pkg().Path() || !e.packageIsLocal(otherPkg) {
 				continue
 			}
-			for _, obj := range otherPkg.TypesInfo.Uses {
+			for id, obj := range otherPkg.TypesInfo.Uses {
 				if obj == s.obj {
 					crossesBoundary = true
-					boundarySymbols = append(boundarySymbols, "package:"+otherPkg.PkgPath)
+					file, line, ok := e.position(id.Pos())
+					if !ok {
+						file = s.file
+						line = s.line
+					}
+					boundarySymbols = append(boundarySymbols, boundaryInfo{
+						symbol: "package:" + otherPkg.PkgPath,
+						file:   file,
+						line:   line,
+					})
 				}
 			}
 		}
@@ -636,7 +651,16 @@ func (e *extractor) extractDataShapes() {
 					sig := fn.Type().(*types.Signature)
 					if signatureUsesType(sig, s.named) {
 						crossesBoundary = true
-						boundarySymbols = append(boundarySymbols, objectSymbol(fn))
+						file, line, ok := e.position(fn.Pos())
+						if !ok {
+							file = s.file
+							line = s.line
+						}
+						boundarySymbols = append(boundarySymbols, boundaryInfo{
+							symbol: objectSymbol(fn),
+							file:   file,
+							line:   line,
+						})
 					}
 				}
 				if typeName, ok := obj.(*types.TypeName); ok && typeName.Exported() {
@@ -646,7 +670,16 @@ func (e *extractor) extractDataShapes() {
 							sig := m.Type().(*types.Signature)
 							if signatureUsesType(sig, s.named) {
 								crossesBoundary = true
-								boundarySymbols = append(boundarySymbols, objectSymbol(typeName)+"."+m.Name())
+								file, line, ok := e.position(m.Pos())
+								if !ok {
+									file = s.file
+									line = s.line
+								}
+								boundarySymbols = append(boundarySymbols, boundaryInfo{
+									symbol: objectSymbol(typeName) + "." + m.Name(),
+									file:   file,
+									line:   line,
+								})
 							}
 						}
 					}
@@ -657,7 +690,16 @@ func (e *extractor) extractDataShapes() {
 								sig := m.Type().(*types.Signature)
 								if signatureUsesType(sig, s.named) {
 									crossesBoundary = true
-									boundarySymbols = append(boundarySymbols, objectSymbol(m))
+									file, line, ok := e.position(m.Pos())
+									if !ok {
+										file = s.file
+										line = s.line
+									}
+									boundarySymbols = append(boundarySymbols, boundaryInfo{
+										symbol: objectSymbol(m),
+										file:   file,
+										line:   line,
+									})
 								}
 							}
 						}
@@ -683,50 +725,60 @@ func (e *extractor) extractDataShapes() {
 				Confidence: 0.98,
 			})
 
-			// Emit has_serialized_field for each field
+			// Emit has_serialized_field for tagged, neutral has_field for untagged
 			for _, f := range s.fields {
 				fieldSymbol := typeName + "." + f.name
-				serializedName := f.tagVal
-				if serializedName == "" {
-					serializedName = f.name
-				}
-				meta := map[string]string{
-					"field_type": f.typ,
-				}
 				if f.tagKey != "" {
-					meta["tag"] = f.tagKey
-					meta["serialized_name"] = f.tagVal
+					e.add(Observation{
+						Kind:       "data_shape",
+						Subject:    fieldSymbol,
+						Predicate:  "has_serialized_field",
+						Object:     f.tagVal,
+						File:       s.file,
+						Symbol:     fieldSymbol,
+						Line:       f.line,
+						Confidence: 0.98,
+						Meta: map[string]string{
+							"field_type":      f.typ,
+							"tag":             f.tagKey,
+							"serialized_name": f.tagVal,
+						},
+					})
+				} else {
+					e.add(Observation{
+						Kind:       "data_shape",
+						Subject:    fieldSymbol,
+						Predicate:  "has_field",
+						Object:     f.name,
+						File:       s.file,
+						Symbol:     fieldSymbol,
+						Line:       f.line,
+						Confidence: 0.98,
+						Meta: map[string]string{
+							"field_type": f.typ,
+						},
+					})
 				}
-				e.add(Observation{
-					Kind:       "data_shape",
-					Subject:    fieldSymbol,
-					Predicate:  "has_serialized_field",
-					Object:     serializedName,
-					File:       s.file,
-					Symbol:     fieldSymbol,
-					Line:       f.line,
-					Confidence: 0.98,
-					Meta:       meta,
-				})
 			}
 
 			// Emit uses_data_shape_across_boundary for each crossing
 			seenBoundary := make(map[string]bool)
 			for _, bs := range boundarySymbols {
-				if seenBoundary[bs] {
+				key := bs.symbol + "\x00" + bs.file + "\x00" + strconv.Itoa(bs.line)
+				if seenBoundary[key] {
 					continue
 				}
-				seenBoundary[bs] = true
+				seenBoundary[key] = true
 				e.add(Observation{
 					Kind:       "data_shape",
 					Subject:    typeName,
 					Predicate:  "uses_data_shape_across_boundary",
-					Object:     bs,
-					File:       s.file,
+					Object:     bs.symbol,
+					File:       bs.file, // actual boundary file!
 					Symbol:     typeName,
-					Line:       s.line,
+					Line:       bs.line, // actual boundary line!
 					Confidence: 0.98,
-					Meta:       map[string]string{"boundary": bs},
+					Meta:       map[string]string{"boundary": bs.symbol},
 				})
 			}
 		}

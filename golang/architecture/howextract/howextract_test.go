@@ -286,6 +286,29 @@ func TestDeterministicRepoDataShapes(t *testing.T) {
 		}
 	}
 
+	// Block 1: Verify untagged fields are NOT reported as has_serialized_field but as has_field, and no serialized name guessed
+	untaggedField := findFact("data_shape", "impl.Memory.values", "has_field", "values")
+	if untaggedField == nil {
+		t.Errorf("Expected untagged field impl.Memory.values to have has_field fact")
+	}
+	badUntaggedField := findFact("data_shape", "impl.Memory.values", "has_serialized_field", "values")
+	if badUntaggedField != nil {
+		t.Errorf("Falsely guessed serialized name 'values' as serialized field: %+v", badUntaggedField)
+	}
+
+	// Block 2: Verify uses_data_shape_across_boundary evidence cites the crossing location, not the declaration
+	boundaryUseFact := findFact("data_shape", "api.Request", "uses_data_shape_across_boundary", "impl.Client.Call")
+	if boundaryUseFact == nil {
+		t.Errorf("Expected uses_data_shape_across_boundary fact to be present for Client.Call")
+	} else {
+		if boundaryUseFact.Evidence.SourceFile != "impl/impl.go" {
+			t.Errorf("Expected boundary crossing evidence file to be impl/impl.go, got %q", boundaryUseFact.Evidence.SourceFile)
+		}
+		if boundaryUseFact.Evidence.LineStart != 21 {
+			t.Errorf("Expected boundary crossing evidence line to be 21, got %d", boundaryUseFact.Evidence.LineStart)
+		}
+	}
+
 	// 6. A private local-only struct with no serialization or boundary use is not falsely reported as a boundary-crossing shape
 	for _, f := range res.Facts {
 		if f.Kind == "data_shape" && (strings.Contains(f.Subject, "privateStruct") || strings.Contains(f.Object, "privateStruct")) {
@@ -367,5 +390,75 @@ func TestDeterministicRepoDataShapes(t *testing.T) {
 	}
 	if !testFact {
 		t.Errorf("Expected test_protection test_calls_symbol fact to be present")
+	}
+}
+
+func TestCaptureFailurePipelineProof(t *testing.T) {
+	validFact := architecture.Fact{
+		ID:        "fact.valid",
+		Kind:      "topology",
+		Subject:   "api.Request",
+		Predicate: "declares_data_shape",
+		Object:    "struct",
+		Extractor: "data_shape_extractor",
+		Evidence: architecture.Evidence{
+			SourceFile: "api/api.go",
+			LineStart:  7,
+			LineEnd:    7,
+		},
+	}
+	badFact := architecture.Fact{
+		ID:        "fact.bad",
+		Kind:      "topology",
+		Subject:   "api.NonExistent",
+		Predicate: "declares_data_shape",
+		Object:    "struct",
+		Extractor: "data_shape_extractor",
+		Evidence: architecture.Evidence{
+			SourceFile: "api/missing.go",
+			LineStart:  1,
+			LineEnd:    1,
+		},
+	}
+
+	root := deterministicFixture(t)
+	res, err := composeReceiptsAndCoverage(root, []architecture.Fact{validFact, badFact}, "example.test", Options{CapturedAt: "2026-07-21T14:00:00Z"}, nil)
+	if err != nil {
+		t.Fatalf("composeReceiptsAndCoverage failed: %v", err)
+	}
+
+	// 1. Prove that a limitation is created for the bad file
+	foundLimitation := false
+	for _, lim := range res.Limitations {
+		if lim.Scope == "api/missing.go" && (strings.Contains(lim.Reason, "source capture unavailable") || strings.Contains(lim.Reason, "source digest unavailable")) {
+			foundLimitation = true
+			break
+		}
+	}
+	if !foundLimitation {
+		t.Errorf("Expected limitation to be generated for the missing file, got limitations: %+v", res.Limitations)
+	}
+
+	// 2. Prove that NO evidence receipt is emitted for the bad fact (emits no fabricated evidence)
+	badReceiptID := "evidence_" + sha256Hex(badFact.ID)[:16]
+	for _, rec := range res.RawEvidence {
+		if rec.ID == badReceiptID {
+			t.Errorf("Emitted fabricated evidence receipt for missing file: %+v", rec)
+		}
+	}
+
+	// 3. Prove that the valid fact's evidence receipt is preserved
+	validReceiptID := "evidence_" + sha256Hex(validFact.ID)[:16]
+	foundValid := false
+	for _, rec := range res.RawEvidence {
+		if rec.ID == validReceiptID {
+			foundValid = true
+			if rec.CapturedContent == "" {
+				t.Errorf("Expected captured content for valid fact to be populated")
+			}
+		}
+	}
+	if !foundValid {
+		t.Errorf("Expected valid fact's evidence receipt to be preserved, but it was missing")
 	}
 }

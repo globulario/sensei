@@ -68,7 +68,11 @@ func extractAll(root string, opts Options) (Result, error) {
 		return Result{}, normErr
 	}
 
-	// 3. Generate raw evidence receipts and match them to facts
+	return composeReceiptsAndCoverage(root, normalizedFacts, repoDomain, opts, limitations)
+}
+
+func composeReceiptsAndCoverage(root string, normalizedFacts []architecture.Fact, repoDomain string, opts Options, initialLimitations []architecture.Limitation) (Result, error) {
+	limitations := initialLimitations
 	var evidenceReceipts []investigation.EvidenceReceipt
 	evidenceIDsByFact := make(map[string][]string)
 
