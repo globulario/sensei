@@ -36,7 +36,7 @@
     "intent",
     "agent"
   ],
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-only",
   "systemd_unit": "globular-awareness-graph.service",
   "health_check_unit": "globular-awareness-graph.service",
   "entrypoint_checksum": "sha256:generated-by-service-dist"

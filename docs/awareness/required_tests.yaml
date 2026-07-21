@@ -886,3 +886,13 @@ required_tests:
         - closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades
       files:
         - golang/architecture/changebindingconsumer/consume.go
+  - id: golang/coverage/controlstate_ownership_test.go:TestControlStateTransportOwnershipBoundary
+    title: controlstate stays transport-neutral; server owns no semantic classification
+    protects:
+      invariants:
+        - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+  - id: golang/coverage/briefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary
+    title: server never consumes questionpromotion directly (briefing-feedback ownership)
+    protects:
+      invariants:
+        - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new

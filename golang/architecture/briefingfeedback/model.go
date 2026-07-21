@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package briefingfeedback is the SOLE canonical, deterministic, read-only owner of the
 // governed briefing-feedback projection (Phase 9.6). It admits a promoted governed record

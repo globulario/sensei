@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package store defines the RDF backend abstraction the awareness-graph
 // server depends on.
@@ -20,7 +20,12 @@
 // free of any backend-specific imports.
 package store
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"strings"
+	"unicode"
+)
 
 // Triple is a single RDF statement where subject is implied by Describe.
 // The object is either an IRI (when ObjectIsIRI=true) or a literal.
@@ -119,4 +124,63 @@ type RenderingGroupInfo struct {
 	ID       string
 	Label    string
 	Contract string
+}
+
+// ValidateQueryIRI is the ONE shared lexical validator for node IRIs that reach a SPARQL query.
+// It accepts canonical project IRI forms (aw:contract/example, invariant:example,
+// urn:sensei:example, https://globular.io/awareness#...) and rejects anything that could
+// terminate or escape a SPARQL <...> IRIREF token, look like a filesystem path, or smuggle
+// whitespace/control characters. Callers apply it at the RPC boundary; store implementations
+// apply it AGAIN before interpolation as defense in depth — an unvalidated caller value must
+// never reach SPARQL text.
+func ValidateQueryIRI(iri string) error {
+	if iri == "" {
+		return fmt.Errorf("iri is empty")
+	}
+	if len(iri) > 2048 {
+		return fmt.Errorf("iri exceeds the maximum length")
+	}
+	if iri != strings.TrimSpace(iri) {
+		return fmt.Errorf("iri is padded")
+	}
+	for _, r := range iri {
+		// ALL Unicode whitespace and control characters (C0, C1 incl. U+0085/U+009F, U+00A0,
+		// and every other space separator) are forbidden — SPARQL IRIREF admits none of them.
+		if unicode.IsSpace(r) || unicode.IsControl(r) {
+			return fmt.Errorf("iri contains whitespace or a control character")
+		}
+		switch r {
+		case '<', '>', '{', '}', '"', '\'', '`', '\\', '|', '^':
+			return fmt.Errorf("iri contains a character forbidden in a SPARQL IRIREF")
+		}
+	}
+	// Filesystem-path shapes are never node IRIs.
+	if strings.HasPrefix(iri, "/") {
+		return fmt.Errorf("iri is an absolute filesystem path")
+	}
+	// A scheme is required: ALPHA *(ALPHA / DIGIT / "+" / "-" / ".") ":".
+	colon := strings.IndexByte(iri, ':')
+	if colon <= 0 {
+		return fmt.Errorf("iri has no scheme")
+	}
+	scheme := iri[:colon]
+	for i := 0; i < len(scheme); i++ {
+		c := scheme[i]
+		alpha := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+		digit := c >= '0' && c <= '9'
+		if i == 0 && !alpha {
+			return fmt.Errorf("iri scheme must start with a letter")
+		}
+		if !alpha && !digit && c != '+' && c != '-' && c != '.' {
+			return fmt.Errorf("iri scheme contains an invalid character")
+		}
+	}
+	// A single-letter scheme followed by a slash is a Windows drive path, not an IRI.
+	if len(scheme) == 1 && colon+1 < len(iri) && iri[colon+1] == '/' {
+		return fmt.Errorf("iri is a drive-letter filesystem path")
+	}
+	if colon == len(iri)-1 {
+		return fmt.Errorf("iri has an empty body")
+	}
+	return nil
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package changebindingproducer is the AUTHORITATIVE GitHub-side producer for
 // completion.change_task_binding/v1 (Phase 9.4c, Checkpoint 2). It constructs and

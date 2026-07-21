@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package evidence is the outcome ledger behind AWG's "control" claim: an
 // append-only record of what the gate and pre-edit guard actually DID — every

@@ -1502,3 +1502,327 @@ invariants:
     contract: >
       Task text is pattern-matching input, never canonical task identity; task-only feedback is
       typed-unavailable (canonical_task_scope_not_established), never a manufactured binding.
+
+  - id: controlstate.semantic_projection_has_one_transport_neutral_owner
+    title: Phase 9.5 architectural-state projections have one transport-neutral composition owner
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. golang/architecture/controlstate is the SOLE semantic composition
+      owner of the control-panel read models (control_snapshot, artifact_index, artifact_state,
+      attention_item, navigation_descriptor). It composes and classifies closure, lifecycle,
+      severity, applicability, artifact state, and repository posture. It imports no
+      golang/server, generated protobuf, editor, or CLI rendering package. The server, protobuf
+      adapters, VS Code, and CLI are consumers below it and never reclassify control state.
+    contract: >
+      controlstate is the one transport-neutral owner of Phase 9.5 semantic projections; the
+      server/editor expose them and never compose or reclassify them.
+
+  - id: controlstate.task_closure_must_not_be_projected_as_artifact_closure
+    title: Task/scope closure is never copied onto an arbitrary artifact
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. closure.Report is a task/request/scope closure owner; its aggregate
+      Verdict and DimensionAssessment list are never copied onto an arbitrary graph artifact.
+      Task closure and artifact closure are independent projections. closure.Report may
+      contribute scoped typed evidence to an artifact dimension only where a reviewed per-class
+      dimension policy explicitly permits it.
+    contract: >
+      Artifact closure is a per-class controlstate assessment, never closure.Report.Verdict;
+      task closure and artifact closure are independent.
+
+  - id: controlstate.artifact_closure_requires_explicit_class_policy
+    title: Artifact closure requires an explicit reviewed per-class policy
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. An artifact is closed/open/degraded only under an explicit reviewed
+      class assessment policy (initial set: Contract, Invariant, Component, Boundary). A class
+      with no reviewed policy is unsupported and its closure is unknown, never not_applicable.
+      not_applicable requires an explicit class/artifact policy; absence of rules is unknown.
+    contract: >
+      Artifact closure/open/degraded requires an explicit reviewed class policy; unsupported ->
+      unknown; not_applicable is explicit, never absence-inferred.
+
+  - id: controlstate.missing_source_must_not_synthesize_zero_or_closed
+    title: A missing or degraded source never synthesizes zero or closed
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. Every projection carries typed source statuses and a projection
+      availability (available/partial/unavailable/invalid). A missing/unobserved source never
+      becomes zero open questions/warnings/contradictions/blind-spots, closed architecture, or an
+      empty attention queue. Zero is data only when its source status is available; otherwise the
+      state is partial/unavailable with a reason code. Stale/invalid required graph authority can
+      never yield closed.
+    contract: >
+      Zero is data only when the source was observed; a missing source yields partial/unavailable
+      with a reason, never zero/closed.
+
+  - id: controlstate.unknown_class_remains_visible_and_unknown
+    title: Unknown and unsupported classes remain visible and unknown
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. Unknown graph classes remain visible under the unclassified family
+      with assessment coverage unknown, closure unknown, and a typed limitation. Ambiguous
+      multi-typed artifacts remain visible under unclassified with closure unknown
+      (artifact_class_ambiguous). Unsupported classes are never hidden or marked closed/
+      not_applicable.
+    contract: >
+      Unknown/unsupported/ambiguous classes stay visible with unknown closure and a typed
+      limitation; never hidden, closed, or not_applicable.
+
+  - id: controlstate.lifecycle_absence_must_not_synthesize_active
+    title: Absent lifecycle evidence never synthesizes an active state
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. LifecycleAssessment is typed separately from closure. Absence of
+      deprecated/superseded evidence never synthesizes active; unsupported vocabulary yields
+      unknown; a revocation receipt is not a universal node lifecycle; superseded requires an
+      authoritative typed lifecycle source; not_applicable requires explicit class policy.
+    contract: >
+      Lifecycle is typed separately; absence -> unknown, never active; not_applicable is explicit.
+
+  - id: controlstate.attention_severity_is_typed_owner_assigned_and_deterministic
+    title: Attention class and severity are typed, owner-assigned, and deterministic
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. controlstate assigns the control-panel attention class and severity
+      via a governed source-condition -> class -> severity mapping, as a non-authoritative
+      prioritization projection. No error-text parsing, no label/color inference, no client
+      mapping. A critical source condition is never silently downgraded; unknown source
+      classification stays visible and fails closed; attention identity is the deterministic
+      digest of canonical fields; duplicates deduplicate deterministically; ordering is stable.
+    contract: >
+      Attention class/severity come from a governed typed mapping in controlstate, with
+      deterministic IDs/order and no text/color/client derivation; critical is never downgraded.
+
+  - id: controlstate.navigation_descriptor_is_derived_from_the_canonical_registry
+    title: The navigation descriptor is mechanically derived from the canonical registry
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. ontology.navigation_descriptor/v1 is produced from the authored,
+      code-reviewed, immutable typed registry in controlstate, not inferred from whichever classes
+      exist in the current graph and not loaded from ambient config. It carries no policy invented
+      during projection. The client owns styling/layout only, never class membership,
+      capabilities, ontology grouping, or semantic visibility.
+    contract: >
+      The navigation descriptor is registry-derived and carries no invented policy; the client
+      renders it and owns no class membership/capabilities/grouping/visibility.
+
+  - id: controlstate.artifact_index_cursor_is_bound_to_snapshot_identity
+    title: The artifact-index cursor is bound to repository/domain/snapshot/registry/filter identity
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. ArtifactIndex is paginated with stable deterministic ordering; its
+      cursor binds schema, repository identity, domain, graph-authority/snapshot identity,
+      registry digest, filter digest, the last complete sort key, and a cursor self-digest. A
+      cursor whose bound identity differs from the current request is rejected. Index construction
+      is bounded (no semantic N+1) and never requires full ArtifactState per row.
+    contract: >
+      The index cursor is bound to snapshot/registry/filter identity and rejected on mismatch;
+      index rows never build full ArtifactState.
+
+  - id: controlstate.feedback_is_consumed_only_at_exact_verified_scope
+    title: Phase 9.6 feedback is consumed only at exact verified scope
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 1. controlstate never discovers or verifies promotions, scans the
+      repository for feedback, or associates feedback via graph adjacency. It models only an
+      exact scoped feedback reference/summary (scope identity, canonical Phase 9.6 projection
+      digest, availability, verified governed-record identities, authorized lineage identities,
+      limitations) and never reinterprets briefingfeedback availability. control_snapshot exposes
+      feedback capability/availability only, never a repository-wide promoted-feedback collection.
+    contract: >
+      Feedback is exact-scope only (task/file/artifact), never a repo-wide scan or graph-adjacency
+      association; briefingfeedback remains the feedback semantic owner.
+
+  - id: controlstate.protobuf_is_lossless_transport_not_semantic_owner
+    title: The control-panel protobuf layer is lossless transport, never a semantic owner
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. The protobuf messages for the five control-panel read models and
+      the pure mapper (golang/server/controlstateproto) transport controlstate's conclusions
+      without semantic loss or reinterpretation. The mapper validates the canonical projection
+      before mapping, maps closed vocabularies one-to-one, errors on any unmappable value, and
+      never silently omits a malformed field. Ordered repeated fields, limitations, source
+      statuses with impacts and reasons, identities, and non_authoritative_projection survive
+      mapping exactly. A model->proto->model round trip preserves the canonical semantic content
+      and digest.
+    contract: >
+      controlstateproto maps controlstate projections losslessly and fails on any mismatch; it
+      composes and classifies nothing.
+
+  - id: controlstate.server_read_handler_must_consume_canonical_projection
+    title: Server read handlers consume canonical controlstate projections only
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. Each control-panel RPC handler only validates the request, acquires
+      typed inputs through the ControlStateReadProvider seam, calls the canonical controlstate
+      builder, validates the returned projection, and maps it losslessly. Handlers never change
+      closure, assign severity, select lifecycle, change applicability, fill missing counts,
+      reorder semantic lists, inspect reason prose, choose a canonical class, or interpret raw
+      RDF edges or governed YAML directly.
+    contract: >
+      A control-panel read handler is orchestration only: request validation, provider inputs,
+      canonical builder, validation, lossless mapping — nothing else.
+
+  - id: controlstate.semantic_unavailability_must_remain_response_data
+    title: Semantic unavailability is response data, never a transport failure
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. A semantically partial, unavailable, degraded, or unknown
+      projection is a SUCCESSFUL RPC response carrying its typed availability, per-source
+      statuses, and reasons. gRPC errors are reserved for malformed requests (InvalidArgument),
+      failed preconditions (expected authority/registry mismatch), proven absence (NotFound),
+      infrastructure failure (Unavailable), and impossible mapper/validator contradictions
+      (Internal). Converting semantic unavailability into a transport failure erases the typed
+      state the panel must render.
+    contract: >
+      Partial/unavailable/degraded/unknown projections return as RPC success with typed state;
+      transport errors are reserved for the closed error-law conditions.
+
+  - id: controlstate.transport_must_preserve_unknown_distinct_from_zero
+    title: The transport preserves unknown as distinct from zero
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. An unobserved count/summary is absent on the wire (proto3 optional
+      not set), and an observed zero is an explicit zero. The mapper and handlers never convert a
+      missing optional value to zero, never drop an observed zero, and never weaken unknown
+      closure/lifecycle/availability into a healthier-looking value. UNSPECIFIED enum values
+      always fail validation and never encode unknown — unknown is an explicit vocabulary value.
+    contract: >
+      nil stays absent, observed zero stays zero, unknown stays unknown on the wire; UNSPECIFIED
+      always fails validation.
+
+  - id: controlstate.transport_must_not_recompute_projection_digest
+    title: The transport copies the canonical projection digest and never recomputes it
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. Every wire projection carries the exact digest computed by
+      controlstate over the canonical model. The mapper, handlers, and clients never recompute a
+      digest from the protobuf representation and never repair a digest mismatch — a projection
+      failing its own digest validation is rejected before mapping.
+    contract: >
+      The projection digest on the wire is the canonical controlstate digest, copied verbatim.
+
+  - id: controlstate.artifact_class_must_not_be_caller_selected
+    title: Artifact class authority is never caller-selected
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. GetArchitectureArtifactState identifies the artifact by exact node
+      IRI only. The canonical class is resolved by the controlstate registry from OBSERVED graph
+      classes; no request field supplies a canonical class, and index class filters only restrict
+      visibility over already-resolved rows. A caller-supplied class can never select an
+      assessment policy.
+    contract: >
+      Requests identify artifacts by exact IRI; canonical class comes from registry resolution
+      over observed classes, never from the caller.
+
+  - id: controlstate.repository_context_must_not_be_derived_from_cwd
+    title: Control-panel repository context is startup-owned, never derived from cwd
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. Control-panel RPCs reuse the immutable startup-owned repository
+      root + domain context (Phase 9.6). Requests may identify the logical repository/domain but
+      carry no filesystem root; the server never derives repository authority from os.Getwd,
+      workspace folders, home-directory fallbacks, or caller paths. With context unconfigured,
+      filesystem-backed inputs remain typed-unavailable and are never filled from local guesses.
+    contract: >
+      Repository authority is the immutable startup-owned context; requests select logical
+      identity only, never a filesystem root.
+
+  - id: controlstate.read_surfaces_must_be_structurally_non_mutating
+    title: Control-panel read surfaces are structurally non-mutating
+    severity: critical
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. The four control-panel RPCs perform no write of repository,
+      dialogue, question, completion, certification, or graph state. They consume the read-only
+      store interface and typed providers; no handler acquires a write capability. Attention
+      items on the wire originate only from validated controlstate construction — no inbound RPC
+      accepts an AttentionItem or any other semantic verdict from the client.
+    contract: >
+      Control-panel RPCs are read-only end to end; no client-supplied semantic verdict is
+      accepted.
+
+  - id: controlstate.cursor_must_remain_opaque_and_owner_validated
+    title: The index cursor stays opaque on the wire and owner-validated
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. ListArchitectureArtifacts carries the controlstate cursor as an
+      opaque string. The server and clients never parse, construct, or rewrite it; only
+      controlstate validates it against snapshot/registry/filter identity, and a mismatched
+      cursor is InvalidArgument. Page-size bounds remain controlstate's.
+    contract: >
+      The cursor is opaque to transport and clients; only the controlstate owner validates it.
+
+  - id: controlstate.proto_evolution_must_be_additive
+    title: Control-panel protobuf evolution is additive only
+    severity: high
+    status: active
+    description: >
+      Phase 9.5 Checkpoint 2. Existing protobuf field numbers — including the Phase 9.6
+      BriefingResponse.feedback field 7 — are never renumbered, retyped, or removed. Control-panel
+      additions use new messages and new field numbers; existing clients keep compiling and
+      decoding. Enum vocabularies extend by appending values, never by reusing numbers.
+    contract: >
+      Proto changes are additive with new field numbers; field 7 and all existing numbers are
+      frozen.
+  - id: invariant.sensei.editor_renders_owner_projections_verbatim
+    title: Editor renders owner projections verbatim
+    status: active
+    description: CP3 control panel is a read-only renderer; all semantic state originates from controlstate projections over the four read RPCs.
+    protects:
+      files:
+        - editor/vscode/media/controlPanel.js
+    contract: 'The VS Code architectural control panel renders typed owner projections (navigation descriptor, control snapshot, artifact index/state) verbatim and classifies nothing: no client-side closure, severity, lifecycle, class membership, capability, ontology grouping, or default visibility. Proven by editor/vscode/src/controlPanelTables.test.ts (node --test).'
+  - id: invariant.sensei.artifact_inspector_renders_owner_derived_state_only
+    title: Artifact inspector renders owner-derived state only
+    status: active
+    description: CP4 is a strictly read-only inspector over the already-wired artifact_state projection.
+    protects:
+      files:
+        - editor/vscode/media/controlPanel.js
+    forbidden_fixes:
+      - forbidden_fix.sensei.render_a_non_applicable_dimension_as_open
+      - forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control
+    contract: 'The CP4 artifact inspector renders architecture.artifact_state/v1 verbatim: applicable dimensions only, owner enum states as badges, ids and next-action rendered as-is, exact-scope feedback as provenance, relationships and focus-graph honestly unavailable. It infers no closure, lifecycle, severity, question-state, or next-action and performs no mutation.'
+  - id: invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+    title: Architect mutations are guarded owner delegations only
+    status: active
+    description: CP5 adds the first mutation surface as thin guarded delegation to existing owners; it assigns no authority of its own.
+    protects:
+      files:
+        - golang/server/controlstate_mutation_provider.go
+    forbidden_fixes:
+      - forbidden_fix.sensei.expose_the_unguarded_questiongen_dialogue_op_as_an_authorita
+      - forbidden_fix.sensei.copy_raw_architect_answer_text_into_a_governed_record_or_pro
+    contract: 'The control panel''s only mutation family (record/accept/reject via questiondisposition, promote via questionpromotion) is a guarded delegation: authority is resolved server-side and client fields are verified claims; refusals write nothing and expose mutation_applied=false with the unchanged ledger identity; no lifecycle auto-chaining; raw answer text never becomes governed prose. Proven by golang/server/controlstate_mutation_test.go + editor/vscode/src/controlPanelMutation.test.ts.'
+  - id: invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
+    title: CP6 control-panel closure adds display and proof only — no new owner, no fact-writing RPC
+    status: active
+    description: The architectural control panel's final checkpoint must be integration and proof, not new engine parts. Any temptation to add a semantic owner or a fact-writing RPC is a signal to stop and surface a contradiction, not to build.
+    protects:
+      files:
+        - editor/vscode/media/controlPanel.js
+        - golang/architecture/controlstate/snapshot.go
+    required_tests:
+      - golang/coverage/controlstate_ownership_test.go:TestControlStateTransportOwnershipBoundary
+      - golang/coverage/briefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary
+    contract: Phase 9.5 CP6 (final integration) integrates the DISPLAY of completion and Phase-9.6 feedback, closes accessibility and constrained-width, and validates the packaged artifact — introducing NO new semantic owner and NO fact-writing RPC. Completion is a workflow terminal state, never correctness (Phase 6 alone certifies). Governed promotion stays deferred and visibly unavailable; the served AwarenessGraph surface exposes no fact-writing RPC and golang/server never consumes questionpromotion directly.

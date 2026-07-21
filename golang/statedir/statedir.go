@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package statedir resolves the per-repository state directory that Sensei
 // writes local, gitignored runtime state into: the project config, the managed

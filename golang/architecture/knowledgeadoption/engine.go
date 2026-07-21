@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package knowledgeadoption evaluates repository-local knowledge candidates
 // under closed, code-registered policies. It may stage, machine-adopt, or

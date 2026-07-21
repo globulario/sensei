@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package identity materializes and loads a locally-trusted agent identity for
 // admission v2. Enrollment authors a structurally valid receipt bundle

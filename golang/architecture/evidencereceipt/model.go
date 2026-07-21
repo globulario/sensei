@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package evidencereceipt implements the evidence layer of the architectural
 // closure protocol (Phase 4). It provides typed evidence receipts (reusing the

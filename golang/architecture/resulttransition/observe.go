@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package resulttransition binds the exact repository result of an admitted,
 // scope-verified task to the frozen closure protocol. It owns the repository

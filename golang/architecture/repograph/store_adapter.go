@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package repograph owns the canonical repository-scoped graph projection:
 // deterministic compile + stamp of the governed sources, atomic persistence of

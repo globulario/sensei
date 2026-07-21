@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package rdf carries the Go-side constants that mirror ontology/awareness.ttl.
 //

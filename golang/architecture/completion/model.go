@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package completion (Phase 8.2a) owns the READ-ONLY terminal-completion
 // readiness evidence model and evaluator. It answers exactly one question:

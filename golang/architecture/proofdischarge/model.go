@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package proofdischarge implements Phase 5 (proof execution & discharge) of the
 // architectural closure protocol. It maps Phase-4-validated evidence receipts to

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package resultpipeline composes the complete result architecture pipeline for
 // an admitted, scope-verified task: from the exact repository result tree (bound

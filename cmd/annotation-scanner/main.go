@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Command annotation-scanner walks a Go source tree, extracts @awareness
 // annotations, validates them against a namespace registry, and writes

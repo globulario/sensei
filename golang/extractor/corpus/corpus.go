@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package corpus implements the human-gated path from a grounded dry-run finding
 // to a candidate AWG corpus entry — the design of docs/corpus-integration-design.md.

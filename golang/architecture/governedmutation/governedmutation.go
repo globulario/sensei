@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package governedmutation is the single reusable owner of the canonical
 // governed-source mutation policy: the closed governed-kind vocabulary and

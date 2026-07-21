@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package proofrequirements is the deterministic, reusable core of Sensei's
 // proof-obligation and proof-plan generation, lifted out of the cmd/awg CLI so

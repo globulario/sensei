@@ -3,7 +3,8 @@
  * No framework, no external deps: an architect's cockpit, not a graph toy. */
 (function () {
   'use strict';
-  const vscode = acquireVsCodeApi();
+  // acquireVsCodeApi() may run only once per webview; share it with controlPanel.js.
+  const vscode = window.__vscodeApi || (window.__vscodeApi = acquireVsCodeApi());
   const SVGNS = 'http://www.w3.org/2000/svg';
 
   // ---- aspects -----------------------------------------------------------

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Package generatedartifact regenerates a repository's governed generated
 // artifacts in memory from the exact result architecture and compares them
