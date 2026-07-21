@@ -1,53 +1,58 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package whyinvestigation defines the offline, evidence-only contract for
-// Phase 10.3. Providers never create canonical architectural claims.
+// Package whyinvestigation captures deterministic, evidence-only historical
+// context. It never creates claims, explanations, or architectural authority.
 package whyinvestigation
 
-import "context"
+import (
+	"context"
 
-type ProviderBinding struct{ ID, Version string }
-type RepositoryBinding struct{ Domain, Revision, TreeDigest string }
-type CaptureRequest struct {
-	Repository  RepositoryBinding
-	QueryDigest string
-	Targets     []string
-	TimeRange   string
-}
+	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/investigation"
+)
+
+const (
+	GitProviderID      = "git_history_provider"
+	GitProviderVersion = "1.0"
+)
+
+type GitRange struct{ Start, End string }
+
 type Query struct {
-	ID, Statement string
-	Targets       []string
-}
-type Snapshot struct {
-	Provider               ProviderBinding
-	Digest                 string
-	Repository             RepositoryBinding
-	QueryDigest, TimeRange string
-	RawEvidence            []Evidence
-	Coverage               Coverage
-}
-type Evidence struct{ ID, SourceIdentity, SourceDigest, ContentDigest, Content string }
-type Coverage struct {
-	State, Reason string
-	Limitations   []string
-}
-type Result struct {
-	Evidence       []Evidence
-	Coverage       Coverage
-	Contradictions []string
-	Candidates     []Candidate
-}
-type Candidate struct {
-	ID, Statement string
-	EvidenceIDs   []string
-	Status        string
+	ID                   string
+	TargetObservationIDs []string
+	TargetEvidenceIDs    []string
 }
 
-// Provider captures immutable source evidence, then investigates only that
-// snapshot. Valid coverage states are searched, partial, unavailable, and
-// not_configured; absence is never inferred from an unsearched snapshot.
+type CaptureRequest struct {
+	Repository architecture.ClaimDocumentBinding
+	How        investigation.Document
+	Query      Query
+	Range      GitRange
+	CapturedAt string
+}
+
+type Snapshot struct {
+	Provider   investigation.ProviderBinding
+	Digest     string
+	Range      GitRange
+	Incomplete bool
+	Commits    []Commit
+}
+
+// Commit is raw historical evidence, not an interpretation of the change.
+type Commit struct {
+	ID, Parents, AuthorTime, CommitterTime, Message, ChangedPaths, PatchDigest string
+}
+
+type Result struct {
+	RawEvidence []investigation.EvidenceReceipt
+	Coverage    investigation.CoverageEntry
+	Limitations []architecture.Limitation
+}
+
 type Provider interface {
-	Identity() ProviderBinding
+	Identity() investigation.ProviderBinding
 	Capture(context.Context, CaptureRequest) (Snapshot, error)
-	Investigate(context.Context, Snapshot, Query) Result
+	Investigate(context.Context, Snapshot, CaptureRequest) (Result, error)
 }

@@ -44,6 +44,20 @@ func Validate(doc Document) error {
 	if !IsValidMode(doc.Mode) {
 		errs = append(errs, fmt.Sprintf("invalid mode: %q", doc.Mode))
 	}
+	if doc.Mode == ModeWhy {
+		if !IsValidSHA256(doc.Binding.Why.HowDocumentDigestSHA256) {
+			errs = append(errs, "WHY binding requires a valid HOW document digest")
+		}
+		if !IsValidSHA256(doc.Binding.Why.QueryDigestSHA256) {
+			errs = append(errs, "WHY binding requires a valid query digest")
+		}
+		if len(doc.Binding.Why.TargetObservationIDs) == 0 && len(doc.Binding.Why.TargetEvidenceIDs) == 0 {
+			errs = append(errs, "WHY binding requires one or more HOW observation or evidence targets")
+		}
+		if doc.Binding.Why.HistoryRangeStart == "" || doc.Binding.Why.HistoryRangeEnd == "" {
+			errs = append(errs, "WHY binding requires an explicit history range")
+		}
+	}
 
 	// 3. Binding validation
 	if doc.Binding.Repository.RepositoryDomain == "" {

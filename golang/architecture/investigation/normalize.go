@@ -97,6 +97,12 @@ func Normalize(doc Document) (Document, error) {
 	out.Binding.Model.Status = strings.TrimSpace(out.Binding.Model.Status)
 	out.Binding.Model.ModelName = strings.TrimSpace(out.Binding.Model.ModelName)
 	out.Binding.Model.ModelDigestSHA256 = strings.TrimSpace(out.Binding.Model.ModelDigestSHA256)
+	out.Binding.Why.HowDocumentDigestSHA256 = strings.TrimSpace(out.Binding.Why.HowDocumentDigestSHA256)
+	out.Binding.Why.QueryDigestSHA256 = strings.TrimSpace(out.Binding.Why.QueryDigestSHA256)
+	out.Binding.Why.TargetObservationIDs = cleanStringList(out.Binding.Why.TargetObservationIDs, false)
+	out.Binding.Why.TargetEvidenceIDs = cleanStringList(out.Binding.Why.TargetEvidenceIDs, false)
+	out.Binding.Why.HistoryRangeStart = strings.TrimSpace(out.Binding.Why.HistoryRangeStart)
+	out.Binding.Why.HistoryRangeEnd = strings.TrimSpace(out.Binding.Why.HistoryRangeEnd)
 
 	// Normalize Plan
 	out.Plan.ID = strings.TrimSpace(out.Plan.ID)
