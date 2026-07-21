@@ -55,6 +55,15 @@ func Validate(doc Document) error {
 	if doc.Binding.Repository.GraphDigestStatus == "" {
 		errs = append(errs, "binding repository graph digest status is required")
 	}
+	if doc.Binding.Repository.Revision == "" && doc.Binding.Repository.TreeDigestSHA256 == "" {
+		errs = append(errs, "either revision or tree_digest_sha256 is required in repository binding")
+	}
+	if doc.Binding.Repository.TreeDigestSHA256 != "" && !IsValidSHA256(doc.Binding.Repository.TreeDigestSHA256) {
+		errs = append(errs, "binding repository tree digest must be a valid SHA256")
+	}
+	if doc.Binding.Repository.GraphDigestSHA256 != "" && !IsValidSHA256(doc.Binding.Repository.GraphDigestSHA256) {
+		errs = append(errs, "binding repository graph digest must be a valid SHA256")
+	}
 	if !IsValidSHA256(doc.Binding.InvestigationPlanDigestSHA256) {
 		errs = append(errs, "binding investigation plan digest must be a valid SHA256")
 	}

@@ -372,6 +372,13 @@ func (e *extractor) isGenerated(path string) bool {
 	if generated, ok := e.generated[path]; ok {
 		return generated
 	}
+	generated := IsGeneratedFile(path)
+	e.generated[path] = generated
+	return generated
+}
+
+// IsGeneratedFile returns true if the Go file at the absolute path is generated.
+func IsGeneratedFile(path string) bool {
 	generated := strings.HasSuffix(path, ".pb.go") || strings.HasSuffix(path, "_generated.go")
 	if !generated {
 		file, err := os.Open(path)
@@ -387,8 +394,12 @@ func (e *extractor) isGenerated(path string) bool {
 			_ = file.Close()
 		}
 	}
-	e.generated[path] = generated
 	return generated
+}
+
+// IsExcludedPath returns true if a repository-relative path should be excluded.
+func IsExcludedPath(path string) bool {
+	return excludedPath(path)
 }
 
 func objectSymbol(obj types.Object) string {
