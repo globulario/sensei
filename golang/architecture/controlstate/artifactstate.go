@@ -46,6 +46,11 @@ type DimensionObservation struct {
 	EvidenceIDs        []string
 	QuestionIDs        []string
 	NextActionOwner    string
+	// SourceSeverity is an OPTIONAL owner-supplied attention severity for this dimension. When set
+	// (and valid), an open dimension's attention uses it verbatim (basis source_severity) instead of
+	// the governed class→severity mapping — so a source that owns its own severity (e.g. the
+	// runtimeboundary assessment) is never re-severitized by controlstate.
+	SourceSeverity AttentionSeverity
 }
 
 // ContradictionObservation is one typed contradiction finding.
@@ -294,8 +299,22 @@ func validateDimensionObservation(dp dimensionPolicy, obs DimensionObservation) 
 		return fmt.Errorf("dimension %q outcome %q off-vocabulary (fail closed)", dp.Dimension, obs.Outcome)
 	}
 	if obs.Outcome == OutcomeNotApplicable {
-		// None of the CP1 dimensions are declared not-applicable-eligible.
-		return fmt.Errorf("dimension %q not_applicable requires an explicit applicability policy", dp.Dimension)
+		if !dp.NotApplicableEligible {
+			return fmt.Errorf("dimension %q not_applicable requires an explicit applicability policy", dp.Dimension)
+		}
+		// A typed not_applicable is a definitive owner statement: it comes from an available source
+		// and manufactures no blocker/evidence/question.
+		if obs.SourceAvailability != SourceAvailable {
+			return fmt.Errorf("dimension %q not_applicable requires an available source", dp.Dimension)
+		}
+		if len(obs.BlockerIDs) > 0 || len(obs.QuestionIDs) > 0 {
+			return fmt.Errorf("dimension %q not_applicable cannot admit blockers/questions", dp.Dimension)
+		}
+	}
+	// An owner-supplied severity, when present, must be a valid closed value; controlstate never
+	// invents or overrides it.
+	if obs.SourceSeverity != "" && !validSeverity(obs.SourceSeverity) {
+		return fmt.Errorf("dimension %q source severity %q off-vocabulary", dp.Dimension, obs.SourceSeverity)
 	}
 	// Any admitted identity list must be exact, unpadded, non-absolute, sorted, and unique.
 	for name, ids := range map[string][]string{"blocker": obs.BlockerIDs, "evidence": obs.EvidenceIDs, "question": obs.QuestionIDs} {
@@ -373,6 +392,8 @@ func dimensionStateFor(obs DimensionObservation) (DimensionState, string) {
 	switch obs.Outcome {
 	case OutcomeSatisfied:
 		return DimSatisfied, ""
+	case OutcomeNotApplicable:
+		return DimNotApplicable, "not_applicable"
 	case OutcomeDegraded:
 		return DimDegraded, "degraded"
 	default:

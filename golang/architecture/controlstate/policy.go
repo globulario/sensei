@@ -11,6 +11,10 @@ type dimensionPolicy struct {
 	Required   bool
 	Owner      string // typed source owner for this dimension
 	NextAction string // next-action owner
+	// NotApplicableEligible declares this dimension may carry a TYPED not_applicable outcome (never
+	// absence-inferred). Only a dimension whose owner can legitimately assess "explicitly not
+	// applicable" sets this; the CP1 closure dimensions do not.
+	NotApplicableEligible bool
 }
 
 // assessmentPolicy is a reviewed per-class artifact-assessment policy.
@@ -25,6 +29,13 @@ type assessmentPolicy struct {
 func assessmentPolicies() map[string]assessmentPolicy {
 	d := func(dim, label string, required bool, owner, next string) dimensionPolicy {
 		return dimensionPolicy{Dimension: dim, Label: label, Required: required, Owner: owner, NextAction: next}
+	}
+	// dna: a dimension whose owner may assess a TYPED not_applicable (e.g. a boundary explicitly not
+	// runtime-assessable), never absence-inferred.
+	dna := func(dim, label string, required bool, owner, next string) dimensionPolicy {
+		p := dimensionPolicy{Dimension: dim, Label: label, Required: required, Owner: owner, NextAction: next}
+		p.NotApplicableEligible = true
+		return p
 	}
 	return map[string]assessmentPolicy{
 		"contract.v1": {ID: "contract.v1", ClassIRI: "https://globular.io/awareness#Contract", Dimensions: []dimensionPolicy{
@@ -62,6 +73,10 @@ func assessmentPolicies() map[string]assessmentPolicy {
 			d("enforcement", "Enforcement", true, "closure.enforcement", "architect"),
 			d("verification", "Verification", true, "closure.verification", "architect"),
 			d("evidence", "Evidence", true, "closure.evidence", "architect"),
+			// Phase 9.7 CP3: the runtime-boundary dimension, owned by the runtimeboundary assessment.
+			// Its state is the owner's verdict projected verbatim (never recomputed here); a boundary
+			// explicitly not runtime-assessable is a TYPED not_applicable.
+			dna("runtime", "Runtime boundary", true, "runtimeboundary", "architect"),
 			d("contradiction", "Contradiction", true, "extractor.contradiction", "architect"),
 		}},
 	}
