@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.9
+
+- **Unknown now explains itself (actionable incompleteness).** A non-positive
+  dimension no longer just says "Unknown" — it shows what is *Known*, what is
+  *Missing*, *why* it cannot yet improve, and the *next evidence* required. The
+  wording is the awareness owner's projection, rendered verbatim; the panel
+  composes nothing. So "not grounded yet" now reads distinctly from "broken".
+- **Distinct non-positive states.** `unknown`, `unavailable`, `invalid`,
+  `degraded`, and `not_applicable` each render with their own glyph and label —
+  never collapsed into one muted badge, and never carried by colour alone.
+- **Honest grounding summary.** A compact coverage strip shows owner-defined
+  ratios (assessable / enumerated, closed / assessable) computed only from data
+  the owner already reports. A missing denominator reads *unavailable* — never a
+  fabricated 0% or 100% — and coverage is explicitly not correctness.
+
 ## 0.1.8
 
 - **Fixes the mode toggle.** Switching to *Legacy explorer* left the Control panel
