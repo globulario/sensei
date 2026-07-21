@@ -29,6 +29,13 @@ type IngestResult struct {
 	ConflictingReceiptIDs []string `json:"conflicting_receipt_ids,omitempty" yaml:"conflicting_receipt_ids,omitempty"`
 }
 
+// Retained reports whether the receipt is retained in the evidence set. ONLY an exact replay is inert;
+// a CONTESTED receipt is retained (flagged, alongside the receipts it contests) and is NEVER silently
+// excluded from the assessment input — the contradiction must remain visible to the owner.
+func (r IngestResult) Retained() bool {
+	return r.Outcome != OutcomeReplayed
+}
+
 // Ingest deterministically classifies an incoming receipt against the existing set: exact
 // content-digest match → replayed (no new event); same owner-path subject with a different payload →
 // contested (both preserved); otherwise recorded. It writes nothing — it is a pure classification.

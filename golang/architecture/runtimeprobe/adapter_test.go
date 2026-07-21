@@ -46,23 +46,118 @@ func mustObs(t *testing.T, in ProbeObservationInput) rb.RuntimeObservation {
 	return o
 }
 
-// Proof: the honest mapping never fabricates caller/callee/contract.
+// Proof (Q1): the honest mapping fabricates NO governed crossing identity, and the evidence-node
+// anchor is never placed where it could be mistaken for a contract/endpoint — it lives in provenance.
 func TestHonestMapping_NeverInventsCrossingIdentity(t *testing.T) {
 	o := mustObs(t, tInput())
-	if o.CallerIdentity != "" {
-		t.Fatalf("a probe has no governed caller; mapper must leave it empty, got %q", o.CallerIdentity)
+	if o.CallerIdentity != "" || o.CalleeIdentity != "" || o.EndpointOrContractIdentity != "" {
+		t.Fatalf("a probe establishes no caller/callee/contract; all must be empty, got %q/%q/%q",
+			o.CallerIdentity, o.CalleeIdentity, o.EndpointOrContractIdentity)
 	}
-	// The endpoint is the evidence anchor, NOT a contract identity.
-	if o.EndpointOrContractIdentity != tEvidenceID {
-		t.Fatalf("endpoint must be the evidence anchor, got %q", o.EndpointOrContractIdentity)
+	if o.InteractionKind != rb.InteractionUnknown || o.Direction != rb.DirectionUnknown {
+		t.Fatalf("a probe establishes no interaction/direction, got %s/%s", o.InteractionKind, o.Direction)
 	}
-	if o.InteractionKind != rb.InteractionRead || o.Direction != rb.DirectionUnknown {
-		t.Fatalf("probe read must map to read/unknown-direction, got %s/%s", o.InteractionKind, o.Direction)
+	rt := o.RuntimeTarget
+	if rt.Platform != "" || rt.DeploymentID != "" || rt.EnvironmentID != "" ||
+		len(rt.NodeIDs) != 0 || len(rt.ServiceInstances) != 0 || rt.ReleaseRevision != "" {
+		t.Fatalf("a probe establishes no runtime target, got %+v", rt)
 	}
-	// It IS a well-formed observation (missing caller is honest absence, not malformed).
+	// The evidence anchor + owner service are provenance, NOT crossing identity.
+	if !contains(o.Provenance, tEvidenceID) || !contains(o.Provenance, tOwnerSvc) {
+		t.Fatalf("evidence anchor + owner service must be preserved in provenance, got %v", o.Provenance)
+	}
+	// It IS a well-formed observation (unresolved identity is honest absence, not malformed).
 	if err := rb.ValidateObservation(o); err != nil {
 		t.Fatalf("observation must be well-formed: %v", err)
 	}
+}
+
+// Proof (Q2): the empty caller identity survives every result status + freshness through the mapper.
+func TestQ2_CallerEmptyThroughEveryMapping(t *testing.T) {
+	for _, status := range []string{"completed", "inconclusive", "unavailable", "failed", "rejected"} {
+		for _, fresh := range []string{"current", "stale", "unknown", "historical", ""} {
+			in := tInput()
+			in.ResultStatus = status
+			in.EvidenceFreshness = fresh
+			r, err := ToEvidenceReceipt(in)
+			if err != nil {
+				t.Fatalf("%s/%s receipt: %v", status, fresh, err)
+			}
+			o, err := ToRuntimeObservation(in, r)
+			if err != nil {
+				t.Fatalf("%s/%s observation: %v", status, fresh, err)
+			}
+			if o.CallerIdentity != "" || o.CalleeIdentity != "" || o.EndpointOrContractIdentity != "" {
+				t.Fatalf("%s/%s: crossing identity leaked (%q/%q/%q)", status, fresh,
+					o.CallerIdentity, o.CalleeIdentity, o.EndpointOrContractIdentity)
+			}
+		}
+	}
+}
+
+// Proof (Q3): a replay cannot strengthen availability, identity, or verdict. The same probe result
+// yields an identical observation, and a duplicated observation never upgrades the owner's verdict.
+func TestQ3_ReplayDoesNotStrengthen(t *testing.T) {
+	in := tInput()
+	o1 := mustObs(t, in)
+	o2 := mustObs(t, in)
+	if o1.Availability != o2.Availability || o1.CallerIdentity != o2.CallerIdentity ||
+		o1.EvidenceDigestSHA256 != o2.EvidenceDigestSHA256 {
+		t.Fatal("re-mapping the same probe result must be identical (no strengthening)")
+	}
+	// Ingest of an identical receipt is inert (replayed, does not persist a new event).
+	r := mustReceipt(t, in)
+	got, err := Ingest([]closureprotocol.EvidenceReceipt{r}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Outcome != OutcomeReplayed || got.Retained() {
+		t.Fatalf("replay must be inert, got %s retained=%v", got.Outcome, got.Retained())
+	}
+	// Even if a duplicate observation reaches the owner, the verdict is not upgraded.
+	single := assessWith(t, o1)
+	dup := assessWith(t, o1, o2)
+	if single.Verdict != dup.Verdict || single.Verdict == rb.VerdictSatisfied {
+		t.Fatalf("a duplicate observation must not upgrade the verdict (%s vs %s)", single.Verdict, dup.Verdict)
+	}
+}
+
+// Proof (Q4): a contested receipt persists — it is never silently excluded from the input set.
+func TestQ4_ContestedIsNeverExcluded(t *testing.T) {
+	recorded := IngestResult{Outcome: OutcomeRecorded}
+	contested := IngestResult{Outcome: OutcomeContested, ConflictingReceiptIDs: []string{"prior"}}
+	replayed := IngestResult{Outcome: OutcomeReplayed}
+	if !recorded.Retained() || !contested.Retained() {
+		t.Fatal("recorded and contested receipts must persist into the input set")
+	}
+	if replayed.Retained() {
+		t.Fatal("only an exact replay is inert")
+	}
+}
+
+// assessWith composes observations through the frozen owner with a minimal proof-required boundary.
+func assessWith(t *testing.T, obs ...rb.RuntimeObservation) rb.RuntimeBoundaryAssessment {
+	t.Helper()
+	id, res, err := rb.BuildRuntimeBoundaryIdentity(tBoundaryIRI, []string{rdf.ClassBoundary}, "domain",
+		tRepo, tRepo, "graph-authority-abc", "reg-1", nil, nil, "", "", "", rb.LifecycleActive, true, true, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pol, err := rb.BuildBoundaryPolicy(rb.BoundaryPolicy{PolicyID: "pol-1", BoundaryIRI: tBoundaryIRI, RuntimeProof: rb.ProofRequired})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bind, err := rb.BuildRuntimeArchitectureBinding(rb.RuntimeArchitectureBinding{
+		BindingID: "bind-1", BoundaryIRI: tBoundaryIRI, RepositoryIdentity: tRepo, AuthorityGrantIdentity: "grant.x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := rb.AssessRuntimeBoundary(rb.AssessmentInput{
+		Identity: id, IdentityResolution: res, Policy: &pol, Binding: &bind, Observations: obs, CollectorAvailable: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
 }
 
 // Proof: a real probe observation, composed through the frozen owner, is ADMITTED and correctly ruled
@@ -202,4 +297,13 @@ func TestDeterminism_ArtifactOrder(t *testing.T) {
 	if mustReceipt(t, in).PayloadDigestSHA256 != mustReceipt(t, rev).PayloadDigestSHA256 {
 		t.Fatal("payload digest must not depend on artifact input order")
 	}
+}
+
+func contains(in []string, want string) bool {
+	for _, s := range in {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }

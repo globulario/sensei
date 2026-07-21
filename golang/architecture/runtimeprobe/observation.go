@@ -8,15 +8,17 @@ import (
 )
 
 // ToRuntimeObservation maps the honest probe projection + its receipt into a runtimeboundary
-// observation. THE HONESTY IS IN WHAT IS LEFT EMPTY:
-//   - CallerIdentity = "" — a probe has no governed caller. Unresolved, NEVER invented.
-//   - EndpointOrContractIdentity = the Evidence-node anchor, NOT a contract (probes don't reference
-//     contracts). It is honest provenance, not a governed contract identity.
-//   - CalleeIdentity = the single owner service, only if the probe genuinely names one.
+// observation. THE HONESTY IS IN WHAT IS LEFT UNRESOLVED: a probe establishes NONE of the governed
+// crossing identity, so the mapper populates none of it —
+//   - CallerIdentity, CalleeIdentity, EndpointOrContractIdentity = "" (unresolved, never invented);
+//   - InteractionKind = unknown; Direction = unknown; RuntimeTarget = empty.
 //
-// Because the caller is genuinely unresolved, runtimeboundary.admitObservations will refuse this
-// observation (ambiguous_identity) — by design. The mapper NEVER sets caller/contract to force
-// admission; evidence-level proof must not become a crossing verdict.
+// The evidence-node anchor and owner-service are carried ONLY in Provenance — never in the
+// contract/endpoint field — so an evidence anchor can never be mistaken for a governed contract or
+// endpoint authority. What a probe DOES establish (collector, evidence digest, freshness, integrity,
+// truncation) is carried in the fields that mean exactly that. Because the crossing identity is
+// unresolved, runtimeboundary.admitObservations refuses this observation (ambiguous_identity) — by
+// design; evidence-level proof must not become a crossing verdict.
 func ToRuntimeObservation(in ProbeObservationInput, receipt closureprotocol.EvidenceReceipt) (rb.RuntimeObservation, error) {
 	if err := ValidateInput(in); err != nil {
 		return rb.RuntimeObservation{}, err
@@ -26,16 +28,16 @@ func ToRuntimeObservation(in ProbeObservationInput, receipt closureprotocol.Evid
 		ObservationID:              in.ResultID,
 		SchemaVersion:              rb.ObservationSchema,
 		Direction:                  rb.DirectionUnknown,
-		CallerIdentity:             "", // no governed caller — honest, not invented
-		CalleeIdentity:             in.OwnerService,
-		EndpointOrContractIdentity: in.EvidenceID, // evidence anchor, not a contract
-		InteractionKind:            rb.InteractionRead,
+		CallerIdentity:             "", // no governed caller — unresolved, never invented
+		CalleeIdentity:             "", // a probe names no governed callee — provenance only
+		EndpointOrContractIdentity: "", // NO contract/endpoint — the evidence anchor is provenance only
+		InteractionKind:            rb.InteractionUnknown,
 		AuthContextPresent:         false,
 		AuthorityClass:             "",
-		RuntimeTarget:              targetValue(receipt.RuntimeTarget),
+		RuntimeTarget:              closureprotocol.RuntimeTarget{}, // a probe establishes no runtime target
 		CollectorID:                in.ExecutedBy,
 		EvidenceDigestSHA256:       receipt.PayloadDigestSHA256,
-		Provenance:                 sortedUnique([]string{receipt.ReceiptID, in.EvidenceID, in.ProbeID}),
+		Provenance:                 sortedUnique([]string{receipt.ReceiptID, in.EvidenceID, in.OwnerService, in.ProbeID}),
 		Availability:               avail,
 		Freshness:                  freshness(in.EvidenceFreshness),
 		IntegrityVerified:          integrityVerified(in),
@@ -88,11 +90,4 @@ func integrityVerified(in ProbeObservationInput) bool {
 		}
 	}
 	return false
-}
-
-func targetValue(t *closureprotocol.RuntimeTarget) closureprotocol.RuntimeTarget {
-	if t == nil {
-		return closureprotocol.RuntimeTarget{}
-	}
-	return *t
 }

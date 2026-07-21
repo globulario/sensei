@@ -30,7 +30,10 @@ func ToEvidenceReceipt(in ProbeObservationInput) (closureprotocol.EvidenceReceip
 		ExpiresAt:           in.ExpiresAt,
 		Status:              receiptStatus(in),
 		PayloadDigestSHA256: payload,
-		RuntimeTarget:       honestRuntimeTarget(in),
+		// A probe establishes NO concrete runtime target (no deployment/node/instance). Leaving it nil
+		// is honest; the owner read-path lives in ObservationPath. An owner-service NAME is not a
+		// runtime target and is never elevated into one here.
+		RuntimeTarget: nil,
 	}
 	if err := closureprotocol.ValidateEvidenceReceipt(r); err != nil {
 		return closureprotocol.EvidenceReceipt{}, fmt.Errorf("runtimeprobe produced an invalid evidence receipt: %w", err)
@@ -64,13 +67,4 @@ func receiptStatus(in ProbeObservationInput) closureprotocol.ReceiptStatus {
 	default:
 		return closureprotocol.ReceiptUnknown
 	}
-}
-
-// honestRuntimeTarget carries only what a probe actually has: at most the single owner-service name.
-// It never fabricates a deployment/node/platform. Absent owner service → no runtime target at all.
-func honestRuntimeTarget(in ProbeObservationInput) *closureprotocol.RuntimeTarget {
-	if !trimmed(in.OwnerService) {
-		return nil
-	}
-	return &closureprotocol.RuntimeTarget{ServiceInstances: []string{in.OwnerService}}
 }
