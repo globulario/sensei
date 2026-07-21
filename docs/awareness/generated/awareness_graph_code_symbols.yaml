@@ -12026,6 +12026,72 @@ test_symbols:
     package: runtimeboundary
     language: go
     doc: "TestDeterminism_ObservationOrder proves the assessment digest does not depend on the input order\nof observations — the owner aggregates by fixed precedence and canonicalizes every collection."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestDeterminism_ArtifactOrder
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestDeterminism_ArtifactOrder
+    package: runtimeprobe
+    language: go
+    doc: "Proof: deterministic — artifact input order does not change the receipt payload digest."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestHonestMapping_NeverInventsCrossingIdentity
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestHonestMapping_NeverInventsCrossingIdentity
+    package: runtimeprobe
+    language: go
+    doc: "Proof (Q1): the honest mapping fabricates NO governed crossing identity, and the evidence-node\nanchor is never placed where it could be mistaken for a contract/endpoint — it lives in provenance."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestHonestMapping_StaleUnavailableTruncated
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestHonestMapping_StaleUnavailableTruncated
+    package: runtimeprobe
+    language: go
+    doc: "Proof: a stale / unavailable / truncated probe maps honestly — never fresh/available."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestIngest_ConflictContested
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestIngest_ConflictContested
+    package: runtimeprobe
+    language: go
+    doc: "Proof: conflicting evidence is preserved and never first-row-wins — same owner-path subject,\ndifferent payload → CONTESTED."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestIngest_ReplayIdempotent
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestIngest_ReplayIdempotent
+    package: runtimeprobe
+    language: go
+    doc: "Proof: replay is idempotent — the same probe result yields the same receipt → REPLAYED, no new event."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestInsufficiency_ProbeNeverSatisfiesCrossing
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestInsufficiency_ProbeNeverSatisfiesCrossing
+    package: runtimeprobe
+    language: go
+    doc: "Proof: a real probe observation, composed through the frozen owner, is ADMITTED and correctly ruled\nINSUFFICIENT for a crossing — unknown/required_evidence_absent, never satisfied."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestQ2_CallerEmptyThroughEveryMapping
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestQ2_CallerEmptyThroughEveryMapping
+    package: runtimeprobe
+    language: go
+    doc: "Proof (Q2): the empty caller identity survives every result status + freshness through the mapper."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestQ3_ReplayDoesNotStrengthen
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestQ3_ReplayDoesNotStrengthen
+    package: runtimeprobe
+    language: go
+    doc: "Proof (Q3): a replay cannot strengthen availability, identity, or verdict. The same probe result\nyields an identical observation, and a duplicated observation never upgrades the owner's verdict."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestQ4_ContestedIsNeverExcluded
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestQ4_ContestedIsNeverExcluded
+    package: runtimeprobe
+    language: go
+    doc: "Proof (Q4): a contested receipt persists — it is never silently excluded from the input set."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestReceipt_ContentAddressed
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestReceipt_ContentAddressed
+    package: runtimeprobe
+    language: go
+    doc: "Proof: the evidence receipt is immutable/content-addressed — a different payload is a different receipt."
+  - id: golang/architecture/runtimeprobe/probesource/fromprobe_test.go:TestFromProbeResult_RealProbeData
+    file: golang/architecture/runtimeprobe/probesource/fromprobe_test.go
+    symbol: TestFromProbeResult_RealProbeData
+    package: probesource
+    language: go
+    doc: "TestFromProbeResult_RealProbeData proves CP2 consumes a REAL probe.ProbeResult and produces an\nhonest input + a valid receipt + a well-formed (but crossing-unresolved) observation — with no\nfabricated caller/callee/contract."
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
@@ -12653,6 +12719,12 @@ test_symbols:
     package: coverage
     language: go
     doc: "TestRuntimeBoundaryOwnershipBoundary proves the Phase 9.7 CP1 owner boundary statically: the\nruntimeboundary package is a PURE, transport-neutral assessment owner. It imports only stdlib plus\nthe closure-protocol primitives and the RDF vocabulary; it emits no RDF, has no write-verb surface,\nand is not re-implemented by any consumer. This enforces \"observed traffic cannot create\narchitecture\" structurally — the owner can neither mutate nor project runtime data into the graph."
+  - id: golang/coverage/runtimeprobe_ownership_test.go:TestRuntimeProbeOwnershipBoundary
+    file: golang/coverage/runtimeprobe_ownership_test.go
+    symbol: TestRuntimeProbeOwnershipBoundary
+    package: coverage
+    language: go
+    doc: "TestRuntimeProbeOwnershipBoundary proves the Phase 9.7 CP2 adapter boundary statically: the PURE\nruntimeprobe core imports only the runtimeboundary owner + closureprotocol receipt primitives — NOT\nthe os-tainted probe package, and nothing transport/store/mutation. The single seam that reads\nprobe.ProbeResult is isolated in the runtimeprobe/probesource subpackage. The core emits no RDF and\nexposes no write-verb surface, so observed probe evidence can neither mutate nor be projected into\nthe graph."
   - id: golang/coverage/self_governance_test.go:TestHighRiskRegistryCoversAuthoritySurface
     file: golang/coverage/self_governance_test.go
     symbol: TestHighRiskRegistryCoversAuthoritySurface

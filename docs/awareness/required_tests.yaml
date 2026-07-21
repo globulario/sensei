@@ -911,3 +911,18 @@ required_tests:
     protects:
       invariants:
         - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestInsufficiency_ProbeNeverSatisfiesCrossing
+    title: A probe observation is admitted and ruled insufficient for a crossing (never satisfied)
+    protects:
+      invariants:
+        - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestHonestMapping_NeverInventsCrossingIdentity
+    title: The probe adapter never invents caller/callee/contract
+    protects:
+      invariants:
+        - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+  - id: golang/coverage/runtimeprobe_ownership_test.go:TestRuntimeProbeOwnershipBoundary
+    title: runtimeprobe core is pure (no probe/os/server/store; no RDF emit; no write verb); probe seam isolated
+    protects:
+      invariants:
+        - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr

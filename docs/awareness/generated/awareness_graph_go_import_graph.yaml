@@ -585,6 +585,11 @@ components:
       - golang/architecture/runtimeboundary/model.go
       - golang/architecture/runtimeboundary/observation.go
       - golang/architecture/runtimeboundary/policy.go
+      - golang/architecture/runtimeprobe/ingest.go
+      - golang/architecture/runtimeprobe/input.go
+      - golang/architecture/runtimeprobe/observation.go
+      - golang/architecture/runtimeprobe/probesource/fromprobe.go
+      - golang/architecture/runtimeprobe/receipt.go
       - golang/architecture/taskcontrol/model.go
       - golang/architecture/taskcontrol/project.go
       - golang/architecture/tasksession/advance_result.go
