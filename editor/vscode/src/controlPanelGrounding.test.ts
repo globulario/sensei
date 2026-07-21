@@ -24,6 +24,19 @@ test('cpRatio: a percentage requires an observed denominator > 0', () => {
   assert.match(CPFmt.cpRatio(0, 0).text, /no eligible items/);
 });
 
+test('reviewer point 3: numerator 0 with a known denominator is distinct from an unobserved side', () => {
+  const observedZero = CPFmt.cpRatio(0, 8); // 0 of 8 = a real, observed 0%
+  const unobservedNum = CPFmt.cpRatio(null, 8); // numerator not observed
+  const unobservedDen = CPFmt.cpRatio(0, null); // denominator not observed
+  assert.equal(observedZero.text, '0 of 8', 'an observed 0/8 shows the real ratio');
+  assert.equal(observedZero.percent, 0, 'an observed 0/8 is an honest 0% (not unavailable)');
+  assert.equal(unobservedNum.text, 'unavailable', 'an unobserved numerator is unavailable, not 0%');
+  assert.equal(unobservedNum.percent, null);
+  assert.equal(unobservedDen.text, 'unavailable', 'an unobserved denominator is unavailable, not 0%');
+  // The three must be mutually distinguishable in what the user sees.
+  assert.notEqual(observedZero.text, unobservedNum.text);
+});
+
 test('cpKeyedCount / cpKeyedTotal preserve unobserved-vs-observed-zero', () => {
   assert.equal(CPFmt.cpKeyedCount(undefined, 'assessable'), null, 'absent array = unobserved (null)');
   assert.equal(CPFmt.cpKeyedCount([{ key: 'unsupported', count: 2 }], 'assessable'), 0, 'observed collection, key absent = observed 0');

@@ -142,23 +142,46 @@ func TestManifestValidationRejectsAmbiguity(t *testing.T) {
 	}
 }
 
-// The most specific (longest-prefix) surface owns a file.
-func TestLongestPrefixWins(t *testing.T) {
-	m, err := ParseManifest([]byte(`
+// Overlapping prefixes take the STRICTEST matching surface — a narrower but WEAKER surface can
+// never trick classification into a lighter class than a broader stricter surface that also owns
+// the file (reviewer point 4). Both directions are covered.
+func TestOverlappingPrefixesTakeStrictest(t *testing.T) {
+	// Broad-strict (A) over narrow-weak (C): the file must stay Class A — the narrow C cannot carve
+	// out a weaker zone inside the broader A surface.
+	trap, err := ParseManifest([]byte(`
+surfaces:
+  - id: broad
+    class: A
+    packages: [golang/architecture]
+  - id: narrow
+    class: C
+    packages: [golang/architecture/controlstate]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := ClassifyChange(trap, []string{"golang/architecture/controlstate/snapshot.go"}, ClassUnknown)
+	if d.Effective != ClassA {
+		t.Fatalf("a narrow weak surface must NOT downgrade a broad strict one, got %q", d.Effective)
+	}
+	if len(d.TouchedSurfaces) != 2 {
+		t.Fatalf("both overlapping surfaces must be reported as touched, got %v", d.TouchedSurfaces)
+	}
+	// Broad-weak (C) over narrow-strict (A): still the strictest (A).
+	rev, err := ParseManifest([]byte(`
 surfaces:
   - id: broad
     class: C
     packages: [golang/architecture]
-  - id: specific
+  - id: narrow
     class: A
     packages: [golang/architecture/runtimeboundary]
 `))
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := ClassifyChange(m, []string{"golang/architecture/runtimeboundary/assess.go"}, ClassUnknown)
-	if d.Effective != ClassA || len(d.TouchedSurfaces) != 1 || d.TouchedSurfaces[0] != "specific" {
-		t.Fatalf("longest-prefix surface must win, got %q touched=%v", d.Effective, d.TouchedSurfaces)
+	if got := ClassifyChange(rev, []string{"golang/architecture/runtimeboundary/assess.go"}, ClassUnknown).Effective; got != ClassA {
+		t.Fatalf("strictest matching surface must win regardless of prefix length, got %q", got)
 	}
 }
 

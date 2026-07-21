@@ -127,23 +127,22 @@ func ParseManifest(data []byte) (Manifest, error) {
 	return m, nil
 }
 
-// surfaceForFile returns the surface that owns a changed file via the LONGEST matching package
-// prefix (most specific wins), or ("", false) when no surface owns it.
-func (m Manifest) surfaceForFile(file string) (Surface, bool) {
+// matchingSurfaces returns EVERY governed surface whose package prefix owns a changed file. When
+// prefixes overlap (a broad and a narrow surface both match), all matches are returned so the caller
+// can take the STRICTEST — a narrower but weaker surface can therefore never trick classification
+// into a lighter class than a broader stricter surface that also owns the file.
+func (m Manifest) matchingSurfaces(file string) []Surface {
 	file = strings.TrimSpace(file)
-	best := -1
-	var out Surface
-	found := false
+	var out []Surface
 	for _, s := range m.Surfaces {
 		for _, p := range s.Packages {
-			if (file == p || strings.HasPrefix(file, strings.TrimSuffix(p, "/")+"/")) && len(p) > best {
-				best = len(p)
-				out = s
-				found = true
+			if file == p || strings.HasPrefix(file, strings.TrimSuffix(p, "/")+"/") {
+				out = append(out, s)
+				break
 			}
 		}
 	}
-	return out, found
+	return out
 }
 
 // ObligationKind is the CLOSED proof-obligation vocabulary a class may owe. The first five are
@@ -274,13 +273,20 @@ func ClassifyChange(m Manifest, changedFiles []string, declared Class) Decision 
 			continue
 		}
 		anyFile = true
-		if s, ok := m.surfaceForFile(f); ok {
-			touched[s.ID] = s.Class
-			accumulate(s.Class)
-		} else {
+		ms := m.matchingSurfaces(f)
+		if len(ms) == 0 {
 			d.Unclassified = append(d.Unclassified, f)
 			accumulate(ClassA) // unclassified fails closed to A
+			continue
 		}
+		// A file owes the STRICTEST of every surface that owns it — overlapping prefixes can only
+		// add strictness, never remove it (no weaker-surface trick).
+		fileClass := ms[0].Class
+		for _, s := range ms {
+			touched[s.ID] = s.Class
+			fileClass = stricter(fileClass, s.Class)
+		}
+		accumulate(fileClass)
 	}
 	if !anyFile {
 		// No changed files → nothing to owe beyond the strictest default (fail closed).
