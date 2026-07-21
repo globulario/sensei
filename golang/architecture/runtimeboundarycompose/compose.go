@@ -44,6 +44,7 @@ func ToDimensionObservation(a rb.RuntimeBoundaryAssessment) (controlstate.Dimens
 		SourceIdentity:   a.BoundaryIRI,
 		SourceDigest:     a.Meta.DigestSHA256,
 		SourceReasonCode: a.ReasonCode,
+		Explanation:      runtimeExplanation(a),
 	}
 	switch a.Verdict {
 	case rb.VerdictSatisfied:
@@ -73,6 +74,101 @@ func ToDimensionObservation(a rb.RuntimeBoundaryAssessment) (controlstate.Dimens
 		// An untrustworthy source admits no blocker/evidence/next-action (controlstate enforces this).
 	}
 	return obs, nil
+}
+
+// runtimeExplanation projects the owner's ALREADY-DECIDED reason space into an actionable
+// incompleteness explanation — read-only, never a re-assessment. It is TOTAL over the owner's closed
+// ResultKind vocabulary and fail-honest: a satisfied crossing has nothing to explain (nil), and any
+// unrecognized kind still yields an explicit generic explanation, never empty strings. The stable
+// semantic identity is the ResultKind itself (carried as Explanation.Kind); the prose is presentation.
+func runtimeExplanation(a rb.RuntimeBoundaryAssessment) *controlstate.DimensionExplanation {
+	if a.Verdict == rb.VerdictSatisfied {
+		return nil
+	}
+	next := a.NextActionOwner
+	if next == "" {
+		next = "the architect"
+	}
+	kind := string(a.ResultKind)
+	switch a.ResultKind {
+	case rb.KindObservedForbiddenCrossing:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "a runtime crossing was observed and admitted against the governed boundary",
+			Missing:          "the crossing conforming to the boundary's policy",
+			WhyNotImprovable: "the observed crossing is forbidden by the boundary policy (a violation)",
+			NextEvidence:     "correct the crossing or the policy so the runtime path conforms"}
+	case rb.KindCrossingStaleAuthority:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "the boundary and a runtime observation are present",
+			Missing:          "current, integrity-verified graph authority",
+			WhyNotImprovable: "the graph authority backing the boundary is stale or unverified, so the crossing cannot be trusted",
+			NextEvidence:     "refresh and integrity-verify the graph authority"}
+	case rb.KindEvidenceTruncated:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "a satisfying crossing was observed",
+			Missing:          "complete (non-truncated) runtime evidence",
+			WhyNotImprovable: "the runtime evidence was truncated, so the assessment degrades",
+			NextEvidence:     "collect complete runtime evidence for the crossing"}
+	case rb.KindContradictoryObservations:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "multiple runtime observations for the same crossing were admitted",
+			Missing:          "the contradiction between observations resolved",
+			WhyNotImprovable: "admitted observations classify the same crossing differently",
+			NextEvidence:     "reconcile the conflicting runtime observations"}
+	case rb.KindRequiredEvidenceAbsent, rb.KindNoRuntimeEvidence:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "the boundary and its policy are valid and runtime-assessable",
+			Missing:          "an admissible native crossing observation (caller, callee, crossing binding)",
+			WhyNotImprovable: "no runtime crossing evidence has been observed, so compliance cannot be established",
+			NextEvidence:     "a native crossing observation admitted through an explicit binding"}
+	case rb.KindCollectorUnavailable:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "the boundary and its policy are valid",
+			Missing:          "an available evidence collector",
+			WhyNotImprovable: "the runtime evidence collector cannot currently provide evidence",
+			NextEvidence:     "restore the runtime evidence collector"}
+	case rb.KindPolicyAbsent:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "the boundary identity is valid and runtime-assessable",
+			Missing:          "an explicit boundary policy",
+			WhyNotImprovable: "no policy governs the crossing, and absence is never treated as permission",
+			NextEvidence:     "declare an explicit boundary policy"}
+	case rb.KindEvidenceOutOfScope:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "runtime observations were admitted for the boundary",
+			Missing:          "an in-scope, on-contract crossing observation",
+			WhyNotImprovable: "the admitted evidence is out of scope or off the required contract, so nothing conclusive was observed",
+			NextEvidence:     "observe an in-scope crossing on the required contract"}
+	case rb.KindBoundaryNotAssessable:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "the boundary is governed but declared not runtime-assessable (or its runtime proof is unsupported)",
+			WhyNotImprovable: "the owner explicitly ruled runtime assessment outside this boundary's scope",
+			NextEvidence:     "none — no runtime action is required"}
+	case rb.KindBoundaryRevoked:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "the boundary exists in the graph",
+			WhyNotImprovable: "the boundary lifecycle is revoked or deprecated, so it is not runtime-assessable",
+			NextEvidence:     "none — reinstate the boundary if runtime assessment is intended"}
+	case rb.KindIdentityUnresolved:
+		return &controlstate.DimensionExplanation{Kind: kind,
+			Known:            "an artifact was supplied for runtime-boundary assessment",
+			Missing:          "a valid, unambiguous boundary identity / policy / binding",
+			WhyNotImprovable: "the identity, policy, or binding inputs are malformed or contradictory and cannot be trusted",
+			NextEvidence:     "supply a valid boundary identity, policy, and binding"}
+	default:
+		return &controlstate.DimensionExplanation{Kind: "runtime_generic_incomplete",
+			Known:            "a runtime-boundary assessment was produced",
+			Missing:          "a decisive, trustworthy runtime crossing observation",
+			WhyNotImprovable: "the runtime-boundary verdict is non-positive (reason: " + reasonOrUnspecified(a.ReasonCode) + ")",
+			NextEvidence:     "consult " + next + " for the required runtime evidence"}
+	}
+}
+
+func reasonOrUnspecified(reason string) string {
+	if reason == "" {
+		return "unspecified"
+	}
+	return reason
 }
 
 // untrustworthyAvailability maps the non-conclusive verdicts to a source availability that yields

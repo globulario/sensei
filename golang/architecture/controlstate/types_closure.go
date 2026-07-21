@@ -42,19 +42,33 @@ func validDimState(s DimensionState) bool {
 	return false
 }
 
+// DimensionExplanation is the owner-projected, actionable rendering of WHY a non-positive dimension
+// state cannot currently improve. It is projection only: it never changes the state/verdict. Its
+// semantic identity is the stable Kind code — downstream consumers key on Kind, never on the prose,
+// so human wording may change without altering architectural meaning (even though wording, being part
+// of the projected state, enters the artifact digest). A positive (satisfied) dimension carries none.
+type DimensionExplanation struct {
+	Kind             string `json:"kind" yaml:"kind"`
+	Known            string `json:"known,omitempty" yaml:"known,omitempty"`
+	Missing          string `json:"missing,omitempty" yaml:"missing,omitempty"`
+	WhyNotImprovable string `json:"why_not_improvable,omitempty" yaml:"why_not_improvable,omitempty"`
+	NextEvidence     string `json:"next_evidence,omitempty" yaml:"next_evidence,omitempty"`
+}
+
 // DimensionAssessment is one owner-projected per-dimension verdict for an artifact.
 type DimensionAssessment struct {
-	Dimension  string         `json:"dimension" yaml:"dimension"`
-	Label      string         `json:"label" yaml:"label"`
-	Applicable bool           `json:"applicable" yaml:"applicable"`
-	Required   bool           `json:"required" yaml:"required"`
-	State      DimensionState `json:"state" yaml:"state"`
-	ReasonCode string         `json:"reason_code,omitempty" yaml:"reason_code,omitempty"`
-	Blockers   []string       `json:"blockers,omitempty" yaml:"blockers,omitempty"`
-	Evidence   []string       `json:"evidence,omitempty" yaml:"evidence,omitempty"`
-	Questions  []string       `json:"questions,omitempty" yaml:"questions,omitempty"`
-	Owner      string         `json:"owner" yaml:"owner"`
-	NextAction string         `json:"next_action_owner,omitempty" yaml:"next_action_owner,omitempty"`
+	Dimension   string                `json:"dimension" yaml:"dimension"`
+	Label       string                `json:"label" yaml:"label"`
+	Applicable  bool                  `json:"applicable" yaml:"applicable"`
+	Required    bool                  `json:"required" yaml:"required"`
+	State       DimensionState        `json:"state" yaml:"state"`
+	ReasonCode  string                `json:"reason_code,omitempty" yaml:"reason_code,omitempty"`
+	Explanation *DimensionExplanation `json:"explanation,omitempty" yaml:"explanation,omitempty"`
+	Blockers    []string              `json:"blockers,omitempty" yaml:"blockers,omitempty"`
+	Evidence    []string              `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	Questions   []string              `json:"questions,omitempty" yaml:"questions,omitempty"`
+	Owner       string                `json:"owner" yaml:"owner"`
+	NextAction  string                `json:"next_action_owner,omitempty" yaml:"next_action_owner,omitempty"`
 }
 
 // LifecycleState is the CLOSED lifecycle vocabulary.

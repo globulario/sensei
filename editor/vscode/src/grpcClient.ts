@@ -464,6 +464,14 @@ export interface ArchitectureLifecycleAssessment {
   reason_code?: string;
 }
 
+export interface ArchitectureDimensionExplanation {
+  kind?: string;
+  known?: string;
+  missing?: string;
+  why_not_improvable?: string;
+  next_evidence?: string;
+}
+
 export interface ArchitectureDimensionAssessment {
   dimension?: string;
   label?: string;
@@ -476,6 +484,8 @@ export interface ArchitectureDimensionAssessment {
   questions?: string[];
   owner?: string;
   next_action_owner?: string;
+  // Owner-projected actionable incompleteness; absent for a satisfied dimension.
+  explanation?: ArchitectureDimensionExplanation | null;
 }
 
 export interface ArchitectureAttentionItem {

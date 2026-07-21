@@ -1369,6 +1369,18 @@ message ArchitectureLifecycleAssessment {
   string reason_code = 7;
 }
 
+// ArchitectureDimensionExplanation mirrors controlstate.DimensionExplanation — the owner-projected,
+// actionable "why a non-positive dimension cannot yet improve" (projection only; never a verdict).
+// `kind` is the stable semantic identity; the four strings are presentation wording. Absent for a
+// satisfied dimension.
+message ArchitectureDimensionExplanation {
+  string kind = 1;
+  string known = 2;
+  string missing = 3;
+  string why_not_improvable = 4;
+  string next_evidence = 5;
+}
+
 // ArchitectureDimensionAssessment mirrors controlstate.DimensionAssessment.
 message ArchitectureDimensionAssessment {
   string dimension = 1;
@@ -1382,6 +1394,7 @@ message ArchitectureDimensionAssessment {
   repeated string questions = 9;  // canonical sorted+unique
   string owner = 10;
   string next_action_owner = 11;
+  ArchitectureDimensionExplanation explanation = 12;  // absent for satisfied
 }
 
 // ArchitectureAttentionItem is architecture.attention_item/v1 — the ONE shared
