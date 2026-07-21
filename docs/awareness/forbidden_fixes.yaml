@@ -513,3 +513,33 @@ forbidden_fixes:
     related_invariants:
       - invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
     reason: Adding @vscode/test-electron (real host download + xvfb) to the closure path introduces cross-platform flake that can block a green Ubuntu+Windows gate. Packaged validation must stay a deterministic pure-Node content assertion over the .vsix.
+  - id: forbidden_fix.sensei.mint_or_authorize_a_boundary_from_observed_traffic
+    title: Mint or authorize a boundary from observed traffic
+    summary: Letting a runtime observation create a boundary, or admitting an observation without an explicit non-self-authorizing binding (in scope, target-matched), lets traffic author architecture. Observations are admissible only through a validated binding; unbound traffic is refused.
+    related_invariants:
+      - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+    reason: Letting a runtime observation create a boundary, or admitting an observation without an explicit non-self-authorizing binding (in scope, target-matched), lets traffic author architecture. Observations are admissible only through a validated binding; unbound traffic is refused.
+  - id: forbidden_fix.sensei.treat_missing_or_absent_telemetry_as_satisfied
+    title: Treat missing or absent telemetry as satisfied
+    summary: Returning satisfied (or any compliant verdict) when required runtime evidence is absent or the collector is unavailable. Missing telemetry must yield unavailable/unknown, never satisfied — and collector outage must stay distinct from no-violation-observed.
+    related_invariants:
+      - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+    reason: Returning satisfied (or any compliant verdict) when required runtime evidence is absent or the collector is unavailable. Missing telemetry must yield unavailable/unknown, never satisfied — and collector outage must stay distinct from no-violation-observed.
+  - id: forbidden_fix.sensei.yield_satisfied_under_stale_or_unverified_graph_authority
+    title: Yield satisfied under stale or unverified graph authority
+    summary: Concluding satisfied when the boundary identity is not current or not integrity-verified. Stale/unverified authority means the boundary definition itself is untrusted, so no observation can be admitted as authoritative — the verdict is at best degraded.
+    related_invariants:
+      - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+    reason: Concluding satisfied when the boundary identity is not current or not integrity-verified. Stale/unverified authority means the boundary definition itself is untrusted, so no observation can be admitted as authoritative — the verdict is at best degraded.
+  - id: forbidden_fix.sensei.first_row_wins_on_conflicting_runtime_evidence
+    title: First-row-wins on conflicting runtime evidence
+    summary: Taking the first observation's classification when the same crossing is observed with conflicting evidence. Conflicting evidence must be preserved (all conflicting ids recorded) and yield contradictory_observations/degraded, never a silent satisfied.
+    related_invariants:
+      - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+    reason: Taking the first observation's classification when the same crossing is observed with conflicting evidence. Conflicting evidence must be preserved (all conflicting ids recorded) and yield contradictory_observations/degraded, never a silent satisfied.
+  - id: forbidden_fix.sensei.let_caller_input_select_a_boundary_s_canonical_class
+    title: Let caller input select a boundary's canonical class
+    summary: Trusting a caller-supplied canonical class instead of resolving it from observed rdf:type. A fabricated Boundary class must never make an arbitrary node runtime-assessable; the class is recomputed and disagreement is refused.
+    related_invariants:
+      - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+    reason: Trusting a caller-supplied canonical class instead of resolving it from observed rdf:type. A fabricated Boundary class must never make an arbitrary node runtime-assessable; the class is recomputed and disagreement is refused.

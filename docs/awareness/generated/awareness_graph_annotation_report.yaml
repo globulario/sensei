@@ -1,7 +1,7 @@
-scanned_files: 1082
+scanned_files: 1114
 annotated_symbols: 17
 imported_annotations: 46
-discovered_tests: 3179
+discovered_tests: 3197
 missing_namespace:
   []
 unknown_namespace:

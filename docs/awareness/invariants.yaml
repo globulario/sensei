@@ -1826,3 +1826,16 @@ invariants:
       - golang/coverage/controlstate_ownership_test.go:TestControlStateTransportOwnershipBoundary
       - golang/coverage/briefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary
     contract: Phase 9.5 CP6 (final integration) integrates the DISPLAY of completion and Phase-9.6 feedback, closes accessibility and constrained-width, and validates the packaged artifact — introducing NO new semantic owner and NO fact-writing RPC. Completion is a workflow terminal state, never correctness (Phase 6 alone certifies). Governed promotion stays deferred and visibly unavailable; the served AwarenessGraph surface exposes no fact-writing RPC and golang/server never consumes questionpromotion directly.
+  - id: invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+    title: Runtime observation supports or contradicts a boundary but never authors, redefines, or certifies it
+    status: active
+    description: The runtimeboundary owner assesses whether a governed boundary was respected at runtime without letting telemetry invent or certify architecture. Any change that lets an observation mint/authorize a boundary, treats missing telemetry as compliant, or yields satisfied without the full conjunction breaks this.
+    protects:
+      files:
+        - golang/architecture/runtimeboundary/assess.go
+        - golang/architecture/runtimeboundary/binding.go
+    required_tests:
+      - golang/architecture/runtimeboundary/assess_test.go:TestProof_TrafficAloneCannotAuthorize
+      - golang/architecture/runtimeboundary/assess_test.go:TestProof_MissingTelemetryNeverCompliant
+      - golang/coverage/runtimeboundary_ownership_test.go:TestRuntimeBoundaryOwnershipBoundary
+    contract: 'Phase 9.7 runtime-boundary assessment: a runtime observation may support or contradict a declared boundary, but it can never author the boundary, redefine its contract, or certify correctness. Missing telemetry is never compliant (absent/unobserved evidence yields unavailable/unknown, never satisfied). Observed traffic can never authorize a crossing or create a boundary — an observation is admissible only through an explicit non-self-authorizing binding, in scope, target-matched. A positive verdict requires the full conjunction: current integrity-verified runtime-assessable identity + explicit policy + admissible fresh in-scope evidence. Phase 6 remains the sole correctness certifier.'

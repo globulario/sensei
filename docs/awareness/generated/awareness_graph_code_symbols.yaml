@@ -11896,6 +11896,106 @@ test_symbols:
     symbol: TestSymlinkEscapeDetection
     package: resulttransition
     language: go
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_AmbiguousIdentityRefused
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_AmbiguousIdentityRefused
+    package: runtimeboundary
+    language: go
+    doc: "Proof 7: ambiguous runtime identity remains unknown (refused, never guessed)."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_CollectorOutageDistinct
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_CollectorOutageDistinct
+    package: runtimeboundary
+    language: go
+    doc: "Proof 10: collector outage is distinct from no-violation observed."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_ConflictingEvidencePreserved
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_ConflictingEvidencePreserved
+    package: runtimeboundary
+    language: go
+    doc: "Proof 9: conflicting evidence is preserved and never first-row-wins."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_CrossDomainEvidenceRefused
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_CrossDomainEvidenceRefused
+    package: runtimeboundary
+    language: go
+    doc: "Proof 6: cross-repository/domain evidence is refused."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_MissingTelemetryNeverCompliant
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_MissingTelemetryNeverCompliant
+    package: runtimeboundary
+    language: go
+    doc: "Proof 2: missing telemetry never becomes compliant."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_NonBoundaryIsInvalid
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_NonBoundaryIsInvalid
+    package: runtimeboundary
+    language: go
+    doc: "A non-boundary node is invalid input, never assessed."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_PolicyAbsenceIsUnknownNotNA
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_PolicyAbsenceIsUnknownNotNA
+    package: runtimeboundary
+    language: go
+    doc: "not_applicable requires explicit policy — absence of policy is unknown, never not_applicable."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_PureNoMutation
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_PureNoMutation
+    package: runtimeboundary
+    language: go
+    doc: "Proof 14: assessment is a pure function — same input → identical digest; input not mutated."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_RevokedBoundaryNotApplicable
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_RevokedBoundaryNotApplicable
+    package: runtimeboundary
+    language: go
+    doc: "A revoked boundary stays visible but is never satisfied."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_StaleAuthorityNeverSatisfied
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_StaleAuthorityNeverSatisfied
+    package: runtimeboundary
+    language: go
+    doc: "Proof 3: stale graph authority cannot yield satisfied."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_TrafficAloneCannotAuthorize
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_TrafficAloneCannotAuthorize
+    package: runtimeboundary
+    language: go
+    doc: "Proof 1: traffic alone cannot create/authorize a boundary — without a binding, observations are\nrefused and never satisfy."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_TruncatedEvidenceNotComplete
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_TruncatedEvidenceNotComplete
+    package: runtimeboundary
+    language: go
+    doc: "Proof 8: truncated evidence cannot produce complete compliance."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_WrongContractDoesNotSatisfy
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_WrongContractDoesNotSatisfy
+    package: runtimeboundary
+    language: go
+    doc: "Proof 5: an authorized crossing against the wrong contract does not satisfy."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestSatisfied_FullConjunction
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestSatisfied_FullConjunction
+    package: runtimeboundary
+    language: go
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestViolated_ForbiddenCrossing
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestViolated_ForbiddenCrossing
+    package: runtimeboundary
+    language: go
+  - id: golang/architecture/runtimeboundary/determinism_test.go:TestDeterminism_ConflictOrder
+    file: golang/architecture/runtimeboundary/determinism_test.go
+    symbol: TestDeterminism_ConflictOrder
+    package: runtimeboundary
+    language: go
+    doc: "TestDeterminism_ConflictOrder proves preserved conflicts are canonical (sorted+unique), so the\ndigest is stable regardless of which conflicting observation arrived first."
+  - id: golang/architecture/runtimeboundary/determinism_test.go:TestDeterminism_ObservationOrder
+    file: golang/architecture/runtimeboundary/determinism_test.go
+    symbol: TestDeterminism_ObservationOrder
+    package: runtimeboundary
+    language: go
+    doc: "TestDeterminism_ObservationOrder proves the assessment digest does not depend on the input order\nof observations — the owner aggregates by fixed precedence and canonicalizes every collection."
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
@@ -12517,6 +12617,12 @@ test_symbols:
     package: coverage
     language: go
     doc: "Weighted overall reflects risk: covering the critical files moves the\nheadline far more than covering helpers."
+  - id: golang/coverage/runtimeboundary_ownership_test.go:TestRuntimeBoundaryOwnershipBoundary
+    file: golang/coverage/runtimeboundary_ownership_test.go
+    symbol: TestRuntimeBoundaryOwnershipBoundary
+    package: coverage
+    language: go
+    doc: "TestRuntimeBoundaryOwnershipBoundary proves the Phase 9.7 CP1 owner boundary statically: the\nruntimeboundary package is a PURE, transport-neutral assessment owner. It imports only stdlib plus\nthe closure-protocol primitives and the RDF vocabulary; it emits no RDF, has no write-verb surface,\nand is not re-implemented by any consumer. This enforces \"observed traffic cannot create\narchitecture\" structurally — the owner can neither mutate nor project runtime data into the graph."
   - id: golang/coverage/self_governance_test.go:TestHighRiskRegistryCoversAuthoritySurface
     file: golang/coverage/self_governance_test.go
     symbol: TestHighRiskRegistryCoversAuthoritySurface
