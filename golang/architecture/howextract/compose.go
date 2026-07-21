@@ -17,7 +17,7 @@ import (
 	"github.com/globulario/sensei/golang/extractor/importgraph"
 )
 
-func extractAll(root string) (Result, error) {
+func extractAll(root string, opts Options) (Result, error) {
 	var limitations []architecture.Limitation
 
 	// Resolve repository identity for metadata
@@ -71,9 +71,7 @@ func extractAll(root string) (Result, error) {
 	var evidenceReceipts []investigation.EvidenceReceipt
 	evidenceIDsByFact := make(map[string][]string)
 
-	// Extraction is an offline deterministic transform. Wall-clock time is not
-	// evidence; callers that need an observation time must bind it separately.
-	const capturedAtTime = "1970-01-01T00:00:00Z"
+	capturedAtTime := opts.CapturedAt
 
 	for _, f := range normalizedFacts {
 		if f.Evidence.SourceFile == "" {

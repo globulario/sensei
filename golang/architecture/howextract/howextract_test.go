@@ -20,7 +20,7 @@ func TestExtract(t *testing.T) {
 		t.Fatalf("Failed to resolve root path: %v", err)
 	}
 
-	res, err := Extract(root)
+	res, err := ExtractWithOptions(root, Options{CapturedAt: "2026-07-21T14:00:00Z"})
 	if err != nil {
 		t.Fatalf("Extract failed: %v", err)
 	}
@@ -99,6 +99,12 @@ func TestExtract(t *testing.T) {
 	}
 	if !providers["go_ast_extractor"] {
 		t.Errorf("Missing go_ast_extractor coverage entry")
+	}
+}
+
+func TestExtractRequiresExplicitCaptureBinding(t *testing.T) {
+	if _, err := Extract(t.TempDir()); err == nil {
+		t.Fatal("expected missing capture binding to fail")
 	}
 }
 
