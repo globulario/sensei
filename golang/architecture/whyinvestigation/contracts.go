@@ -33,11 +33,12 @@ type CaptureRequest struct {
 }
 
 type Snapshot struct {
-	Provider   investigation.ProviderBinding
-	Digest     string
-	Range      GitRange
-	Incomplete bool
-	Commits    []Commit
+	Provider       investigation.ProviderBinding
+	Digest         string
+	RequestedRange GitRange
+	ResolvedRange  GitRange
+	Incomplete     bool
+	Commits        []Commit
 }
 
 // Commit is raw historical evidence, not an interpretation of the change.

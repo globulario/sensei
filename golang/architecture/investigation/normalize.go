@@ -103,6 +103,8 @@ func Normalize(doc Document) (Document, error) {
 	out.Binding.Why.TargetEvidenceIDs = cleanStringList(out.Binding.Why.TargetEvidenceIDs, false)
 	out.Binding.Why.HistoryRangeStart = strings.TrimSpace(out.Binding.Why.HistoryRangeStart)
 	out.Binding.Why.HistoryRangeEnd = strings.TrimSpace(out.Binding.Why.HistoryRangeEnd)
+	out.Binding.Why.ResolvedHistoryRangeStart = strings.TrimSpace(out.Binding.Why.ResolvedHistoryRangeStart)
+	out.Binding.Why.ResolvedHistoryRangeEnd = strings.TrimSpace(out.Binding.Why.ResolvedHistoryRangeEnd)
 
 	// Normalize Plan
 	out.Plan.ID = strings.TrimSpace(out.Plan.ID)

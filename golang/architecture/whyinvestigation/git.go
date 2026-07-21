@@ -77,11 +77,19 @@ func (p GitProvider) Capture(ctx context.Context, req CaptureRequest) (Snapshot,
 		commits = append(commits, Commit{ID: fields[0], Parents: fields[1], AuthorTime: fields[2], CommitterTime: fields[3], Message: fields[4], ChangedPaths: paths, PatchDigest: investigation.SHA256String(patch)})
 	}
 	sort.Slice(commits, func(i, j int) bool { return commits[i].ID < commits[j].ID })
-	data, err := json.Marshal(commits)
+	resolved := GitRange{Start: strings.TrimSpace(start), End: strings.TrimSpace(end)}
+	descriptor := struct {
+		Provider                      investigation.ProviderBinding
+		Repository                    architecture.ClaimDocumentBinding
+		RequestedRange, ResolvedRange GitRange
+		Incomplete                    bool
+		Commits                       []Commit
+	}{p.Identity(), req.Repository, req.Range, resolved, strings.TrimSpace(shallow) == "true", commits}
+	data, err := json.Marshal(descriptor)
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{Provider: p.Identity(), Digest: investigation.SHA256Bytes(data), Range: GitRange{Start: start, End: end}, Incomplete: strings.TrimSpace(shallow) == "true", Commits: commits}, nil
+	return Snapshot{Provider: p.Identity(), Digest: investigation.SHA256Bytes(data), RequestedRange: req.Range, ResolvedRange: resolved, Incomplete: strings.TrimSpace(shallow) == "true", Commits: commits}, nil
 }
 
 func (p GitProvider) Investigate(_ context.Context, snap Snapshot, req CaptureRequest) (Result, error) {
@@ -93,7 +101,7 @@ func (p GitProvider) Investigate(_ context.Context, snap Snapshot, req CaptureRe
 	if err != nil {
 		return Result{}, err
 	}
-	coverage := investigation.CoverageEntry{ProviderID: GitProviderID, ProviderVersion: GitProviderVersion, Category: investigation.EvidenceSourceControl, TargetDigestSHA256: target, SourceSnapshotDigestSHA256: snap.Digest, SearchedTimeRange: &investigation.TimeRange{Start: req.Range.Start, End: req.Range.End}}
+	coverage := investigation.CoverageEntry{ProviderID: GitProviderID, ProviderVersion: GitProviderVersion, Category: investigation.EvidenceSourceControl, TargetDigestSHA256: target, SourceSnapshotDigestSHA256: snap.Digest, SearchedTimeRange: &investigation.TimeRange{Start: snap.ResolvedRange.Start, End: snap.ResolvedRange.End}}
 	outcome := executionOutcome{State: executionComplete}
 	if snap.Incomplete {
 		outcome.State = executionPartial
@@ -162,7 +170,7 @@ func composeDocument(req CaptureRequest, snap Snapshot, result Result) (investig
 		return investigation.Document{}, err
 	}
 	profile := investigation.SHA256String(GitProviderID + "|" + GitProviderVersion)
-	doc := investigation.Document{SchemaVersion: "investigation.schema.v1", GeneratedBy: "sensei.whyinvestigation", Mode: investigation.ModeWhy, Binding: investigation.Binding{Repository: req.Repository, EvidenceSnapshotDigestSHA256: snap.Digest, InvestigationPlanDigestSHA256: investigation.SHA256Bytes(planData), ExtractorProfileDigestSHA256: profile, Model: investigation.ModelBinding{Status: investigation.ModelStatusDisabled}, Why: investigation.WhyBinding{HowDocumentDigestSHA256: req.How.Receipt.OutputDocumentDigestSHA256, QueryDigestSHA256: query, TargetObservationIDs: req.Query.TargetObservationIDs, TargetEvidenceIDs: req.Query.TargetEvidenceIDs, HistoryRangeStart: req.Range.Start, HistoryRangeEnd: req.Range.End}}, Plan: plan, Coverage: []investigation.CoverageEntry{result.Coverage}, RawEvidence: result.RawEvidence, Limitations: result.Limitations, Receipt: investigation.RunReceipt{SchemaVersion: "investigation.schema.v1", GeneratedBy: "sensei.whyinvestigation", Repository: req.Repository, GraphDigestSHA256: req.Repository.GraphDigestSHA256, PlanDigestSHA256: investigation.SHA256Bytes(planData), ExtractorProfileDigestSHA256: profile, EvidenceSnapshotDigestSHA256: snap.Digest, Model: investigation.ModelBinding{Status: investigation.ModelStatusDisabled}, PostProcessingVersion: "why.git.v1", TimestampSource: req.CapturedAt, ResourceLimits: map[string]string{"provider": "local_git"}, NondeterminismDeclaration: "deterministic_only"}}
+	doc := investigation.Document{SchemaVersion: "investigation.schema.v1", GeneratedBy: "sensei.whyinvestigation", Mode: investigation.ModeWhy, Binding: investigation.Binding{Repository: req.Repository, EvidenceSnapshotDigestSHA256: snap.Digest, InvestigationPlanDigestSHA256: investigation.SHA256Bytes(planData), ExtractorProfileDigestSHA256: profile, Model: investigation.ModelBinding{Status: investigation.ModelStatusDisabled}, Why: investigation.WhyBinding{HowDocumentDigestSHA256: req.How.Receipt.OutputDocumentDigestSHA256, QueryDigestSHA256: query, TargetObservationIDs: req.Query.TargetObservationIDs, TargetEvidenceIDs: req.Query.TargetEvidenceIDs, HistoryRangeStart: snap.RequestedRange.Start, HistoryRangeEnd: snap.RequestedRange.End, ResolvedHistoryRangeStart: snap.ResolvedRange.Start, ResolvedHistoryRangeEnd: snap.ResolvedRange.End}}, Plan: plan, Coverage: []investigation.CoverageEntry{result.Coverage}, RawEvidence: result.RawEvidence, Limitations: result.Limitations, Receipt: investigation.RunReceipt{SchemaVersion: "investigation.schema.v1", GeneratedBy: "sensei.whyinvestigation", Repository: req.Repository, GraphDigestSHA256: req.Repository.GraphDigestSHA256, PlanDigestSHA256: investigation.SHA256Bytes(planData), ExtractorProfileDigestSHA256: profile, EvidenceSnapshotDigestSHA256: snap.Digest, Model: investigation.ModelBinding{Status: investigation.ModelStatusDisabled}, PostProcessingVersion: "why.git.v1", TimestampSource: req.CapturedAt, ResourceLimits: map[string]string{"provider": "local_git"}, NondeterminismDeclaration: "deterministic_only"}}
 	norm, err := investigation.Normalize(doc)
 	if err != nil {
 		return investigation.Document{}, err
@@ -219,7 +227,7 @@ func unavailableDocument(req CaptureRequest, cause error) (investigation.Documen
 		return investigation.Document{}, err
 	}
 	result := Result{Coverage: investigation.CoverageEntry{ProviderID: GitProviderID, ProviderVersion: GitProviderVersion, Category: investigation.EvidenceSourceControl, TargetDigestSHA256: target, Status: investigation.CoverageUnavailable, Reason: "local Git repository unavailable"}, Limitations: []architecture.Limitation{{Source: GitProviderID, Scope: "repository", Reason: cause.Error()}}}
-	return composeDocument(req, Snapshot{Provider: GitProvider{}.Identity(), Digest: snapshot, Range: req.Range}, result)
+	return composeDocument(req, Snapshot{Provider: GitProvider{}.Identity(), Digest: snapshot, RequestedRange: req.Range}, result)
 }
 
 func runGit(ctx context.Context, root string, args ...string) (string, error) {

@@ -28,12 +28,14 @@ type ModelBinding struct {
 // WhyBinding pins a WHY investigation to the exact HOW document and local
 // history snapshot it was allowed to inspect.
 type WhyBinding struct {
-	HowDocumentDigestSHA256 string   `json:"how_document_digest_sha256,omitempty" yaml:"how_document_digest_sha256,omitempty"`
-	QueryDigestSHA256       string   `json:"query_digest_sha256,omitempty" yaml:"query_digest_sha256,omitempty"`
-	TargetObservationIDs    []string `json:"target_observation_ids,omitempty" yaml:"target_observation_ids,omitempty"`
-	TargetEvidenceIDs       []string `json:"target_evidence_ids,omitempty" yaml:"target_evidence_ids,omitempty"`
-	HistoryRangeStart       string   `json:"history_range_start,omitempty" yaml:"history_range_start,omitempty"`
-	HistoryRangeEnd         string   `json:"history_range_end,omitempty" yaml:"history_range_end,omitempty"`
+	HowDocumentDigestSHA256   string   `json:"how_document_digest_sha256,omitempty" yaml:"how_document_digest_sha256,omitempty"`
+	QueryDigestSHA256         string   `json:"query_digest_sha256,omitempty" yaml:"query_digest_sha256,omitempty"`
+	TargetObservationIDs      []string `json:"target_observation_ids,omitempty" yaml:"target_observation_ids,omitempty"`
+	TargetEvidenceIDs         []string `json:"target_evidence_ids,omitempty" yaml:"target_evidence_ids,omitempty"`
+	HistoryRangeStart         string   `json:"history_range_start,omitempty" yaml:"history_range_start,omitempty"`
+	HistoryRangeEnd           string   `json:"history_range_end,omitempty" yaml:"history_range_end,omitempty"`
+	ResolvedHistoryRangeStart string   `json:"resolved_history_range_start,omitempty" yaml:"resolved_history_range_start,omitempty"`
+	ResolvedHistoryRangeEnd   string   `json:"resolved_history_range_end,omitempty" yaml:"resolved_history_range_end,omitempty"`
 }
 
 type Binding struct {
