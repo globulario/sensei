@@ -1,5 +1,5 @@
 PackageIdentifier: Globulario.Sensei
-PackageVersion: 1.2.1
+PackageVersion: 1.3.0
 InstallerType: zip
 NestedInstallerType: portable
 # Only user-facing commands go on PATH. awareness-graph.exe and oxigraph.exe stay
@@ -11,7 +11,7 @@ NestedInstallerFiles:
     PortableCommandAlias: awareness-mcp
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/globulario/sensei/releases/download/v1.2.1/sensei-windows-amd64.zip
-    InstallerSha256: 508B1A765ABF81A82DA89700DAC1E7A0BF211F8C8161A9480333893B081B3311
+    InstallerUrl: https://github.com/globulario/sensei/releases/download/v1.3.0/sensei-windows-amd64.zip
+    InstallerSha256: B0F9F6D0578E39ECDFE049D637CD9DB3038D1045A7F26FAB53BC6FDEA1B0478C
 ManifestType: installer
 ManifestVersion: 1.6.0
