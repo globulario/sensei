@@ -11920,6 +11920,18 @@ test_symbols:
     package: runtimeboundary
     language: go
     doc: "Proof 6: cross-repository/domain evidence is refused."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_DigestBindsPolicyBindingEvidence
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_DigestBindsPolicyBindingEvidence
+    package: runtimeboundary
+    language: go
+    doc: "Q4: the assessment digest binds the exact policy, binding, and evidence it claims — changing any\nof them changes the digest."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_IntegrityUnverifiedRefused
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_IntegrityUnverifiedRefused
+    package: runtimeboundary
+    language: go
+    doc: "Q1: integrity-unverified evidence cannot reach satisfied."
   - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_MissingTelemetryNeverCompliant
     file: golang/architecture/runtimeboundary/assess_test.go
     symbol: TestProof_MissingTelemetryNeverCompliant
@@ -11950,12 +11962,30 @@ test_symbols:
     package: runtimeboundary
     language: go
     doc: "A revoked boundary stays visible but is never satisfied."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_SelfAuthorizingBindingRejected
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_SelfAuthorizingBindingRejected
+    package: runtimeboundary
+    language: go
+    doc: "Q2: a binding cannot make the traffic its own authority grant (matching identifiers)."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_SelfAuthorizingObservationRefused
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_SelfAuthorizingObservationRefused
+    package: runtimeboundary
+    language: go
+    doc: "Q2: an observation whose identity equals the binding's authority grant is refused."
   - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_StaleAuthorityNeverSatisfied
     file: golang/architecture/runtimeboundary/assess_test.go
     symbol: TestProof_StaleAuthorityNeverSatisfied
     package: runtimeboundary
     language: go
     doc: "Proof 3: stale graph authority cannot yield satisfied."
+  - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_StaleEvidenceRefused
+    file: golang/architecture/runtimeboundary/assess_test.go
+    symbol: TestProof_StaleEvidenceRefused
+    package: runtimeboundary
+    language: go
+    doc: "Q1: stale evidence cannot reach satisfied (freshness is part of the conjunction)."
   - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_TrafficAloneCannotAuthorize
     file: golang/architecture/runtimeboundary/assess_test.go
     symbol: TestProof_TrafficAloneCannotAuthorize
