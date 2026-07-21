@@ -12037,7 +12037,7 @@ test_symbols:
     symbol: TestHonestMapping_NeverInventsCrossingIdentity
     package: runtimeprobe
     language: go
-    doc: "Proof: the honest mapping never fabricates caller/callee/contract."
+    doc: "Proof (Q1): the honest mapping fabricates NO governed crossing identity, and the evidence-node\nanchor is never placed where it could be mistaken for a contract/endpoint — it lives in provenance."
   - id: golang/architecture/runtimeprobe/adapter_test.go:TestHonestMapping_StaleUnavailableTruncated
     file: golang/architecture/runtimeprobe/adapter_test.go
     symbol: TestHonestMapping_StaleUnavailableTruncated
@@ -12062,6 +12062,24 @@ test_symbols:
     package: runtimeprobe
     language: go
     doc: "Proof: a real probe observation, composed through the frozen owner, is ADMITTED and correctly ruled\nINSUFFICIENT for a crossing — unknown/required_evidence_absent, never satisfied."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestQ2_CallerEmptyThroughEveryMapping
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestQ2_CallerEmptyThroughEveryMapping
+    package: runtimeprobe
+    language: go
+    doc: "Proof (Q2): the empty caller identity survives every result status + freshness through the mapper."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestQ3_ReplayDoesNotStrengthen
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestQ3_ReplayDoesNotStrengthen
+    package: runtimeprobe
+    language: go
+    doc: "Proof (Q3): a replay cannot strengthen availability, identity, or verdict. The same probe result\nyields an identical observation, and a duplicated observation never upgrades the owner's verdict."
+  - id: golang/architecture/runtimeprobe/adapter_test.go:TestQ4_ContestedIsNeverExcluded
+    file: golang/architecture/runtimeprobe/adapter_test.go
+    symbol: TestQ4_ContestedIsNeverExcluded
+    package: runtimeprobe
+    language: go
+    doc: "Proof (Q4): a contested receipt persists — it is never silently excluded from the input set."
   - id: golang/architecture/runtimeprobe/adapter_test.go:TestReceipt_ContentAddressed
     file: golang/architecture/runtimeprobe/adapter_test.go
     symbol: TestReceipt_ContentAddressed
