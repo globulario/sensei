@@ -1852,3 +1852,17 @@ invariants:
       - golang/architecture/runtimeprobe/adapter_test.go:TestHonestMapping_NeverInventsCrossingIdentity
       - golang/coverage/runtimeprobe_ownership_test.go:TestRuntimeProbeOwnershipBoundary
     contract: 'Phase 9.7 CP2: a Sensei probe/probeexec observation is owner-path EVIDENCE (collector, evidence digest, timestamp, declared freshness, content integrity, evidence-node anchor) — it has no caller, callee, contract, or interaction. The runtimeprobe adapter maps only what a probe honestly has and leaves the governed-crossing identity UNRESOLVED; it never invents caller/callee/contract to make an observation admissible. Evidence-level proof therefore never satisfies a boundary crossing: composed through the frozen runtimeboundary owner, an honest probe observation is admitted and correctly ruled insufficient (unknown/required_evidence_absent), never satisfied. The immutable evidence receipt is the frozen closureprotocol.EvidenceReceipt; replay is idempotent (REPLAYED) and conflicting same-subject evidence is preserved (CONTESTED), never first-row-wins.'
+  - id: invariant.sensei.runtime_boundary_verdict_travels_the_control_panel_only_as_a
+    title: Runtime-boundary verdict travels the control panel only as a verbatim projection
+    status: active
+    description: CP3 composes the runtime-boundary verdict into the control panel through one bridge; no downstream surface re-derives runtime-boundary semantics.
+    protects:
+      files:
+        - golang/architecture/runtimeboundarycompose/compose.go
+        - golang/architecture/controlstate/policy.go
+    related_invariants:
+      - invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
+    required_tests:
+      - golang/architecture/runtimeboundarycompose/compose_test.go:TestVerbatim_VerdictToDimensionState
+      - golang/coverage/runtimeboundarycompose_ownership_test.go:TestRuntimeBoundaryComposeOwnershipBoundary
+    contract: 'Phase 9.7 CP3: a runtimeboundary.RuntimeBoundaryAssessment reaches Sensei''s control panel (artifact dimensions + attention + transport + editor) only as a VERBATIM projection of the owner''s already-decided verdict, through the single runtimeboundarycompose bridge. controlstate never imports runtimeboundary and never recomputes a verdict; the server carries the runtime dimension through the generic transport and never imports the owner. The verdict maps one-to-one to a typed controlstate dimension state (satisfied->DimSatisfied, violated->DimOpen with an OWNER-supplied source_severity attention, degraded->DimDegraded, unknown/unavailable/invalid->DimUnknown, not_applicable->a TYPED DimNotApplicable never absence-inferred). A later assessment supersedes by rebinding the dimension source digest to the new assessment digest while the CP2 evidence receipts stay immutable. The bridge invents no evidence and forces no positive verdict.'

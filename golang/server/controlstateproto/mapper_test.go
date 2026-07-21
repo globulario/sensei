@@ -303,6 +303,63 @@ func TestMapper_FailsClosed(t *testing.T) {
 	}
 }
 
+// Proof (Phase 9.7 CP3): a boundary's runtime-boundary dimension and its OWNER-severity violation
+// attention ride the generic transport verbatim — the runtime dimension, its blocker, and the
+// runtime_boundary_violated critical/source_severity attention item survive a full round trip. The
+// transport adds no runtime vocabulary; it carries whatever the runtimeboundary owner produced.
+func TestRoundTrip_RuntimeBoundaryDimensionSurvives(t *testing.T) {
+	reg := controlstate.DefaultRegistry()
+	id, res, err := controlstate.BuildArtifactIdentity(reg, "aw:b1", []string{rdf.ClassBoundary}, rtRepo, rtRepo, rtAuth, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := controlstate.BuildArtifactState(reg, id, res, controlstate.ArtifactSourceBundle{
+		GraphAuthority: controlstate.GraphAuthorityObservation{Observed: true, Current: true, Integrity: true, Identity: rtAuth},
+		Contradiction: controlstate.ContradictionSource{Owner: "extractor.contradiction", Schema: "contradiction",
+			Identity: "contra:b1", Availability: controlstate.SourceAvailable},
+		Dimensions: map[string]controlstate.DimensionObservation{
+			"runtime": {Dimension: "runtime", SourceOwner: "runtimeboundary", SourceSchema: "runtime.boundary_assessment/v1",
+				SourceIdentity: "aw:b1", SourceAvailability: controlstate.SourceAvailable, SourceReasonCode: "crossing_forbidden",
+				Outcome: controlstate.OutcomeDefinitiveBlocker, BlockerIDs: []string{"aw:b1"},
+				SourceSeverity: controlstate.SeverityCritical, NextActionOwner: "architect"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The composed state must carry the runtime dimension as an open blocker with an OWNER-severity
+	// (source_severity) critical runtime_boundary_violated attention item.
+	var sawDim, sawAttn bool
+	for _, d := range st.Dimensions {
+		if d.Dimension == "runtime" && d.State == controlstate.DimOpen {
+			sawDim = true
+		}
+	}
+	for _, a := range st.Attention {
+		if a.AttentionClass == controlstate.AttnRuntimeBoundaryViolated &&
+			a.Severity == controlstate.SeverityCritical && a.SeverityBasis == "source_severity" {
+			sawAttn = true
+		}
+	}
+	if !sawDim || !sawAttn {
+		t.Fatalf("runtime dimension/attention not composed (dim=%v attn=%v)", sawDim, sawAttn)
+	}
+	wire, err := ToProtoArtifactState(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := fromProtoArtifactState(wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := controlstate.ValidateArtifactState(back); err != nil {
+		t.Fatalf("round-tripped runtime state failed canonical validation: %v", err)
+	}
+	if !reflect.DeepEqual(st, back) {
+		t.Fatal("the runtime dimension + owner-severity attention must survive transport verbatim")
+	}
+}
+
 // Proof: non_authoritative_projection survives as TRUE on every wire projection, and no wire
 // output carries certification claims or scores.
 func TestMapper_NonAuthoritativeAndNoCertification(t *testing.T) {

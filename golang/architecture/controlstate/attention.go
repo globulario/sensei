@@ -24,6 +24,7 @@ const (
 	AttnProvenanceIntegrity       = "provenance_integrity_failure"
 	AttnForbiddenMove             = "forbidden_move_detected"
 	AttnSeedVerification          = "seed_verification_failure"
+	AttnRuntimeBoundaryViolated   = "runtime_boundary_violated"
 )
 
 // severityForClass is the frozen governed mapping condition → severity. Critical is never
@@ -59,6 +60,8 @@ func dimensionAttentionClass(dim string) string {
 		return AttnOwnershipUnresolved
 	case "scope":
 		return AttnScopeAmbiguous
+	case "runtime":
+		return AttnRuntimeBoundaryViolated
 	default:
 		return AttnArtifactDimensionOpen
 	}
@@ -133,6 +136,11 @@ func AttentionForContradiction(cs ContradictionSource, finding ContradictionObse
 func AttentionForDimensionBlocker(dimension string, obs DimensionObservation, affected []string) (AttentionItem, error) {
 	class := dimensionAttentionClass(dimension)
 	sev, basis := severityForClass(class, false)
+	// Owner-supplied severity is preferred verbatim (never re-severitized) when the source owns it —
+	// controlstate composes the owner's severity, it does not author one for such a dimension.
+	if validSeverity(obs.SourceSeverity) {
+		sev, basis = obs.SourceSeverity, "source_severity"
+	}
 	return newAttention(obs.SourceOwner, nonEmpty(obs.SourceSchema, "dimension:"+dimension), nonEmpty(obs.SourceIdentity, dimension), obs.SourceDigest, class, "required_dimension_open", sev, basis, affected, true, obs.EvidenceIDs, nonEmpty(obs.NextActionOwner, "architect"), true)
 }
 

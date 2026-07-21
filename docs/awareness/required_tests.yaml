@@ -926,3 +926,17 @@ required_tests:
     protects:
       invariants:
         - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
+  - id: golang/coverage/runtimeboundarycompose_ownership_test.go:TestRuntimeBoundaryComposeOwnershipBoundary
+    title: The runtime-boundary composition bridge is the only cross-import; controlstate/server never recompute
+    protects:
+      invariants:
+        - invariant.sensei.runtime_boundary_verdict_travels_the_control_panel_only_as_a
+      files:
+        - golang/coverage/runtimeboundarycompose_ownership_test.go
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestVerbatim_VerdictToDimensionState
+    title: Every runtime-boundary verdict maps to its control-panel dimension state verbatim
+    protects:
+      invariants:
+        - invariant.sensei.runtime_boundary_verdict_travels_the_control_panel_only_as_a
+      files:
+        - golang/architecture/runtimeboundarycompose/compose_test.go

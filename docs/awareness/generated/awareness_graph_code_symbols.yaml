@@ -12026,6 +12026,42 @@ test_symbols:
     package: runtimeboundary
     language: go
     doc: "TestDeterminism_ObservationOrder proves the assessment digest does not depend on the input order\nof observations — the owner aggregates by fixed precedence and canonicalizes every collection."
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestDeterminism
+    file: golang/architecture/runtimeboundarycompose/compose_test.go
+    symbol: TestDeterminism
+    package: runtimeboundarycompose
+    language: go
+    doc: "Proof: determinism — the same assessment always yields the same dimension observation."
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestInvalidAssessment_Refused
+    file: golang/architecture/runtimeboundarycompose/compose_test.go
+    symbol: TestInvalidAssessment_Refused
+    package: runtimeboundarycompose
+    language: go
+    doc: "Proof: an invalid assessment cannot be composed (fail closed)."
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestNotApplicable_IsTyped
+    file: golang/architecture/runtimeboundarycompose/compose_test.go
+    symbol: TestNotApplicable_IsTyped
+    package: runtimeboundarycompose
+    language: go
+    doc: "Proof 3: not_applicable is a typed dimension outcome, never absence-inferred."
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestOwnerSeverity_ViolationIsCritical
+    file: golang/architecture/runtimeboundarycompose/compose_test.go
+    symbol: TestOwnerSeverity_ViolationIsCritical
+    package: runtimeboundarycompose
+    language: go
+    doc: "Proof 2: a violation's attention severity is OWNER-supplied (critical), not governed."
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestReassessment_Supersedes
+    file: golang/architecture/runtimeboundarycompose/compose_test.go
+    symbol: TestReassessment_Supersedes
+    package: runtimeboundarycompose
+    language: go
+    doc: "Proof 4: re-assessment supersedes (new digest) — the dimension rebinds to the new assessment."
+  - id: golang/architecture/runtimeboundarycompose/compose_test.go:TestVerbatim_VerdictToDimensionState
+    file: golang/architecture/runtimeboundarycompose/compose_test.go
+    symbol: TestVerbatim_VerdictToDimensionState
+    package: runtimeboundarycompose
+    language: go
+    doc: "Proof 1: every verdict maps to its dimension state verbatim through the real composition."
   - id: golang/architecture/runtimeprobe/adapter_test.go:TestDeterminism_ArtifactOrder
     file: golang/architecture/runtimeprobe/adapter_test.go
     symbol: TestDeterminism_ArtifactOrder
@@ -12719,6 +12755,12 @@ test_symbols:
     package: coverage
     language: go
     doc: "TestRuntimeBoundaryOwnershipBoundary proves the Phase 9.7 CP1 owner boundary statically: the\nruntimeboundary package is a PURE, transport-neutral assessment owner. It imports only stdlib plus\nthe closure-protocol primitives and the RDF vocabulary; it emits no RDF, has no write-verb surface,\nand is not re-implemented by any consumer. This enforces \"observed traffic cannot create\narchitecture\" structurally — the owner can neither mutate nor project runtime data into the graph."
+  - id: golang/coverage/runtimeboundarycompose_ownership_test.go:TestRuntimeBoundaryComposeOwnershipBoundary
+    file: golang/coverage/runtimeboundarycompose_ownership_test.go
+    symbol: TestRuntimeBoundaryComposeOwnershipBoundary
+    package: coverage
+    language: go
+    doc: "TestRuntimeBoundaryComposeOwnershipBoundary proves the Phase 9.7 CP3 anti-doppelgänger DAG\nstatically. Runtime-boundary truth reaches the control panel through ONE bridge package that\nprojects an already-decided verdict verbatim; no downstream surface re-derives runtime-boundary\nsemantics.\n\n\truntimeboundarycompose ──► runtimeboundary   (reads a.Verdict; never re-assesses)\n\t         └────────────────► controlstate      (fills its typed DimensionObservation)\n\ncontrolstate must NOT import runtimeboundary (else it could reach the verdict logic and recompute);\nruntimeboundary must NOT import controlstate; the server carries the runtime dimension through the\ngeneric transport and never imports the runtimeboundary owner directly."
   - id: golang/coverage/runtimeprobe_ownership_test.go:TestRuntimeProbeOwnershipBoundary
     file: golang/coverage/runtimeprobe_ownership_test.go
     symbol: TestRuntimeProbeOwnershipBoundary
@@ -16113,6 +16155,12 @@ test_symbols:
     package: controlstateproto
     language: go
     doc: "Proof: the navigation descriptor maps losslessly (families, classes, fallback, digest)."
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_RuntimeBoundaryDimensionSurvives
+    file: golang/server/controlstateproto/mapper_test.go
+    symbol: TestRoundTrip_RuntimeBoundaryDimensionSurvives
+    package: controlstateproto
+    language: go
+    doc: "Proof (Phase 9.7 CP3): a boundary's runtime-boundary dimension and its OWNER-severity violation\nattention ride the generic transport verbatim — the runtime dimension, its blocker, and the\nruntime_boundary_violated critical/source_severity attention item survive a full round trip. The\ntransport adds no runtime vocabulary; it carries whatever the runtimeboundary owner produced."
   - id: golang/server/domain_scope_test.go:TestCountClassInScope
     file: golang/server/domain_scope_test.go
     symbol: TestCountClassInScope

@@ -585,6 +585,7 @@ components:
       - golang/architecture/runtimeboundary/model.go
       - golang/architecture/runtimeboundary/observation.go
       - golang/architecture/runtimeboundary/policy.go
+      - golang/architecture/runtimeboundarycompose/compose.go
       - golang/architecture/runtimeprobe/ingest.go
       - golang/architecture/runtimeprobe/input.go
       - golang/architecture/runtimeprobe/observation.go

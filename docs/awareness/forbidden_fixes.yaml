@@ -567,3 +567,13 @@ forbidden_fixes:
     related_invariants:
       - invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
     reason: Silently accepting the first receipt when a later receipt observes the same owner-path subject with a different payload. Same-subject/different-payload must be CONTESTED with both preserved; exact-digest is REPLAYED.
+  - id: forbidden_fix.sensei.recompute_the_runtime_boundary_verdict_in_controlstate_or_th
+    title: Recompute the runtime-boundary verdict in controlstate or the server
+    summary: 'Re-deriving a runtime-boundary verdict downstream (importing runtimeboundary from controlstate/server, or reimplementing crossing classification / verdict / severity so the control panel decides compliance instead of projecting the owner''s decision) spawns a semantic doppelganger: two owners disagree and telemetry can launder itself into architecture. The only admissible path is the runtimeboundarycompose bridge projecting the already-decided verdict verbatim; controlstate carries a typed DimensionObservation and the server carries it through the generic transport.'
+    protects:
+      files:
+        - golang/architecture/controlstate/artifactstate.go
+    related_invariants:
+      - invariant.sensei.runtime_boundary_verdict_travels_the_control_panel_only_as_a
+    reason: 'Phase 9.7 CP3: runtime-boundary compliance is decided solely by the runtimeboundary owner; downstream surfaces project it verbatim and never recompute it.'
+    contract: 'Phase 9.7 CP3: runtime-boundary compliance is decided solely by the runtimeboundary owner; downstream surfaces project it verbatim and never recompute it.'
