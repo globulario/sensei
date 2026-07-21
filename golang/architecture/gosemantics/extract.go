@@ -56,9 +56,9 @@ type Result struct {
 
 type extractor struct {
 	root          string
+	selectedFiles map[string]bool
 	fset          *token.FileSet
 	packages      []*packages.Package
-	generated     map[string]bool
 	observations  []Observation
 	limitations   []Limitation
 	rootComponent *importgraph.RootComponent
@@ -70,6 +70,18 @@ func Extract(root string) (result Result, err error) {
 	root, err = filepath.Abs(root)
 	if err != nil {
 		return Result{}, err
+	}
+	selected, err := SearchedFiles(root)
+	if err != nil {
+		return Result{}, err
+	}
+	selectedFiles := make(map[string]bool, len(selected))
+	for _, path := range selected {
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return Result{}, fmt.Errorf("relativize selected source file %s: %w", path, relErr)
+		}
+		selectedFiles[filepath.ToSlash(rel)] = true
 	}
 	fset := token.NewFileSet()
 	goCache := filepath.Join(os.TempDir(), "sensei-go-build-cache")
@@ -87,7 +99,7 @@ func Extract(root string) (result Result, err error) {
 	if loadErr != nil {
 		return Result{}, loadErr
 	}
-	e := &extractor{root: root, fset: fset, packages: loaded, generated: map[string]bool{}}
+	e := &extractor{root: root, selectedFiles: selectedFiles, fset: fset, packages: loaded}
 	e.rootComponent, _ = importgraph.DetectGoRootComponent(root)
 	for _, pkg := range loaded {
 		for _, pkgErr := range pkg.Errors {
@@ -342,7 +354,7 @@ func (e *extractor) relativeFile(path string) (string, bool) {
 		return "", false
 	}
 	rel = filepath.ToSlash(rel)
-	if excludedPath(rel) || e.isGenerated(path) {
+	if !e.selectedFiles[rel] {
 		return "", false
 	}
 	return rel, true
@@ -368,15 +380,6 @@ func (e *extractor) componentForFile(file string) string {
 	return component
 }
 
-func (e *extractor) isGenerated(path string) bool {
-	if generated, ok := e.generated[path]; ok {
-		return generated
-	}
-	generated := IsGeneratedFile(path)
-	e.generated[path] = generated
-	return generated
-}
-
 // IsGeneratedFile returns true if the Go file at the absolute path is generated.
 func IsGeneratedFile(path string) bool {
 	generated := strings.HasSuffix(path, ".pb.go") || strings.HasSuffix(path, "_generated.go")
@@ -400,6 +403,54 @@ func IsGeneratedFile(path string) bool {
 // IsExcludedPath returns true if a repository-relative path should be excluded.
 func IsExcludedPath(path string) bool {
 	return excludedPath(path)
+}
+
+// SearchedFiles returns the sorted, absolute paths in the repository source set
+// offered to HOW extraction. Symlinks are refused so the snapshot cannot bind
+// bytes outside the repository root.
+func SearchedFiles(root string) ([]string, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []string
+	err = filepath.WalkDir(absRoot, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in searched source set refused: %s", path)
+		}
+
+		rel, relErr := filepath.Rel(absRoot, path)
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("file outside repository root refused: %s", path)
+		}
+		relSlash := filepath.ToSlash(rel)
+		if d.IsDir() {
+			if rel != "." && IsExcludedPath(relSlash) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if IsExcludedPath(relSlash) {
+			return nil
+		}
+		if relSlash != "go.mod" && relSlash != "go.sum" && filepath.Ext(relSlash) != ".go" {
+			return nil
+		}
+		if filepath.Ext(relSlash) == ".go" && IsGeneratedFile(path) {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(files)
+	return files, nil
 }
 
 func objectSymbol(obj types.Object) string {

@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/factextract"
@@ -35,6 +34,14 @@ type InvestigatorDefinition struct {
 	Engine          string
 }
 
+type executionState string
+
+const (
+	executionComplete    executionState = "complete"
+	executionPartial     executionState = "partial"
+	executionUnavailable executionState = "unavailable"
+)
+
 var InvestigatorRegistry = []InvestigatorDefinition{
 	{ProviderID: "topology_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
 	{ProviderID: "flow_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
@@ -43,6 +50,15 @@ var InvestigatorRegistry = []InvestigatorDefinition{
 	{ProviderID: "contract_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
 	{ProviderID: "data_shape_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceSourceCode, Engine: "semantic"},
 	{ProviderID: "test_extractor", ProviderVersion: "1.0", Category: investigation.EvidenceTests, Engine: "semantic"},
+}
+
+func investigatorDefinition(id string) (InvestigatorDefinition, bool) {
+	for _, definition := range InvestigatorRegistry {
+		if definition.ProviderID == id {
+			return definition, true
+		}
+	}
+	return InvestigatorDefinition{}, false
 }
 
 type SourceSnapshotFile struct {
@@ -80,66 +96,26 @@ func BuildSourceSnapshotManifest(root string, repoDomain string) (string, error)
 	if err != nil {
 		return "", err
 	}
-
-	var files []SourceSnapshotFile
-	err = filepath.WalkDir(absRoot, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Refuse files outside root
-		rel, relErr := filepath.Rel(absRoot, path)
-		if relErr != nil || strings.HasPrefix(rel, "..") {
-			return fmt.Errorf("file outside repository root refused: %s", path)
-		}
-
-		if d.IsDir() {
-			if rel != "." {
-				relSlash := filepath.ToSlash(rel)
-				padded := "/" + relSlash + "/"
-				for _, seg := range []string{"/.git/", "/.sensei/", "/vendor/", "/generated/"} {
-					if strings.Contains(padded, seg) {
-						return filepath.SkipDir
-					}
-				}
-			}
-			return nil
-		}
-
-		relSlash := filepath.ToSlash(rel)
-		ext := filepath.Ext(path)
-		isSource := ext == ".go" || relSlash == "go.mod" || relSlash == "go.sum"
-		if !isSource {
-			return nil
-		}
-
-		padded := "/" + relSlash + "/"
-		excluded := false
-		for _, seg := range []string{"/.git/", "/.sensei/", "/vendor/", "/generated/"} {
-			if strings.Contains(padded, seg) {
-				excluded = true
-				break
-			}
-		}
-		if excluded {
-			return nil
-		}
-
-		content, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		digest := sha256Hex(string(content))
-
-		files = append(files, SourceSnapshotFile{
-			Path:         relSlash,
-			DigestSHA256: digest,
-		})
-		return nil
-	})
-
+	selected, err := gosemantics.SearchedFiles(absRoot)
 	if err != nil {
 		return "", err
+	}
+
+	var files []SourceSnapshotFile
+	for _, path := range selected {
+		rel, relErr := filepath.Rel(absRoot, path)
+		if relErr != nil {
+			return "", fmt.Errorf("relativize searched source file %s: %w", path, relErr)
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return "", readErr
+		}
+
+		files = append(files, SourceSnapshotFile{
+			Path:         filepath.ToSlash(rel),
+			DigestSHA256: sha256Hex(string(content)),
+		})
 	}
 
 	sort.Slice(files, func(i, j int) bool {
@@ -267,6 +243,10 @@ func composeReceiptsAndCoverage(
 		if f.Evidence.SourceFile == "" {
 			continue
 		}
+		definition, ok := investigatorDefinition(f.Extractor)
+		if !ok {
+			return investigation.Document{}, fmt.Errorf("unregistered HOW extractor %q", f.Extractor)
+		}
 
 		fileSHA, err := architecture.SourceDigestSHA256(root, f.Evidence.SourceFile)
 		if err != nil {
@@ -293,20 +273,10 @@ func composeReceiptsAndCoverage(
 		receiptID := "evidence_" + sha256Hex(f.ID)[:16]
 		component, _ := importgraph.ComponentForFile(f.Evidence.SourceFile)
 
-		category := investigation.EvidenceSourceCode
-		version := "1.0"
-		for _, r := range InvestigatorRegistry {
-			if r.ProviderID == f.Extractor {
-				category = r.Category
-				version = r.ProviderVersion
-				break
-			}
-		}
-
 		receipt := investigation.EvidenceReceipt{
 			ID:                  receiptID,
-			Category:            category,
-			Provider:            investigation.ProviderBinding{ID: f.Extractor, Version: version},
+			Category:            definition.Category,
+			Provider:            investigation.ProviderBinding{ID: definition.ProviderID, Version: definition.ProviderVersion},
 			ProofStrength:       investigation.ProofStaticSource,
 			SourceIdentity:      f.Evidence.SourceFile,
 			SourceDigestSHA256:  fileSHA,
@@ -374,17 +344,8 @@ func composeReceiptsAndCoverage(
 	}
 
 	// 4. Coverage Entries
-	semanticFailed := (semanticErr != nil)
-	semanticReason := ""
-	if semanticFailed {
-		semanticReason = "semantic engine failed: " + semanticErr.Error()
-	}
-
-	stateFailed := (astErr != nil)
-	stateReason := ""
-	if stateFailed {
-		stateReason = "state engine failed: " + astErr.Error()
-	}
+	semanticState, semanticReason := executionStateFor("semantic", semanticErr, limitations)
+	stateState, stateReason := executionStateFor("ast", astErr, limitations)
 
 	var coverage []investigation.CoverageEntry
 	for _, inv := range InvestigatorRegistry {
@@ -392,30 +353,36 @@ func composeReceiptsAndCoverage(
 		var reason string
 		var matchingReceiptIDs []string
 
-		engineFailed := false
-		engineReason := ""
+		state := executionComplete
+		reason = ""
 		if inv.Engine == "semantic" {
-			engineFailed = semanticFailed
-			engineReason = semanticReason
+			state = semanticState
+			reason = semanticReason
 		} else if inv.Engine == "ast" {
-			engineFailed = stateFailed
-			engineReason = stateReason
+			state = stateState
+			reason = stateReason
 		}
 
-		if engineFailed {
-			status = investigation.CoverageUnavailable
-			reason = engineReason
-		} else {
-			for _, rec := range dedupReceipts {
-				if rec.Provider.ID == inv.ProviderID {
-					matchingReceiptIDs = append(matchingReceiptIDs, rec.ID)
-				}
+		for _, rec := range dedupReceipts {
+			if rec.Provider.ID == inv.ProviderID {
+				matchingReceiptIDs = append(matchingReceiptIDs, rec.ID)
 			}
+		}
 
+		switch state {
+		case executionUnavailable:
+			status = investigation.CoverageUnavailable
+		case executionPartial:
 			if len(matchingReceiptIDs) > 0 {
 				status = investigation.CoverageSupporting
 			} else {
+				status = investigation.CoverageUnavailable
+			}
+		default:
+			if len(matchingReceiptIDs) == 0 {
 				status = investigation.CoverageNoResult
+			} else {
+				status = investigation.CoverageSupporting
 			}
 		}
 
@@ -437,7 +404,7 @@ func composeReceiptsAndCoverage(
 
 		var entryLimitations []architecture.Limitation
 		for _, lim := range limitations {
-			if lim.Source == inv.ProviderID {
+			if lim.Source == inv.ProviderID || (inv.Engine == "semantic" && lim.Source == "go_semantic_extractor") || (inv.Engine == "ast" && lim.Source == "go_ast_extractor") {
 				entryLimitations = append(entryLimitations, lim)
 			}
 		}
@@ -513,6 +480,19 @@ func composeReceiptsAndCoverage(
 	}
 
 	return normDoc, nil
+}
+
+func executionStateFor(engine string, executionErr error, limitations []architecture.Limitation) (executionState, string) {
+	if executionErr != nil {
+		return executionUnavailable, engine + " engine failed: " + executionErr.Error()
+	}
+	limitationSource := "go_" + engine + "_extractor"
+	for _, limitation := range limitations {
+		if limitation.Source == limitationSource {
+			return executionPartial, engine + " engine completed partially"
+		}
+	}
+	return executionComplete, ""
 }
 
 func readCapturedLines(filePath string, lineStart, lineEnd int) (string, error) {

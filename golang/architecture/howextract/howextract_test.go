@@ -79,6 +79,30 @@ func TestExtract(t *testing.T) {
 	}
 
 	seenCoverageIDs := make(map[string]bool)
+	planDigest, err := CalculatePlanDigest(doc.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Binding.InvestigationPlanDigestSHA256 != planDigest {
+		t.Fatalf("plan digest mismatch: got %s want %s", doc.Binding.InvestigationPlanDigestSHA256, planDigest)
+	}
+	profile := ExtractorProfileV1{
+		SchemaVersion:        "profile.schema.v1",
+		ProfileName:          ExtractorProfileName,
+		EnabledInvestigators: doc.Plan.Queries,
+		SourceSnapshotAlgo:   "manifest.v1",
+	}
+	profileDigest, err := CalculateProfileDigest(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Binding.ExtractorProfileDigestSHA256 != profileDigest {
+		t.Fatalf("extractor profile digest mismatch: got %s want %s", doc.Binding.ExtractorProfileDigestSHA256, profileDigest)
+	}
+	snapshotDigest, err := BuildSourceSnapshotManifest(root, defaultOpts().Repository.RepositoryDomain)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, cov := range doc.Coverage {
 		seenCoverageIDs[cov.ProviderID] = true
@@ -116,14 +140,28 @@ func TestExtract(t *testing.T) {
 			}
 		}
 
-		// 4. Every target digest is valid and deterministically derived.
-		if !strings.HasPrefix(cov.TargetDigestSHA256, "") || len(cov.TargetDigestSHA256) != 64 {
-			t.Errorf("Coverage entry %s has invalid target digest: %s", cov.ProviderID, cov.TargetDigestSHA256)
+		// 4. Every target digest equals the canonical target descriptor digest.
+		wantTarget, err := CalculateTargetDigest(CoverageTargetV1{
+			SchemaVersion:          "target.schema.v1",
+			Mode:                   investigation.ModeHow,
+			ProviderID:             cov.ProviderID,
+			ProviderVersion:        cov.ProviderVersion,
+			Category:               cov.Category,
+			RepositoryDomain:       defaultOpts().Repository.RepositoryDomain,
+			Scope:                  "repository",
+			PlanDigestSHA256:       planDigest,
+			ExtractorProfileDigest: profileDigest,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cov.TargetDigestSHA256 != wantTarget {
+			t.Errorf("Coverage entry %s target digest mismatch: got %s want %s", cov.ProviderID, cov.TargetDigestSHA256, wantTarget)
 		}
 
-		// 5. Every source-snapshot digest is valid and derived from the source manifest.
-		if !strings.HasPrefix(cov.SourceSnapshotDigestSHA256, "") || len(cov.SourceSnapshotDigestSHA256) != 64 {
-			t.Errorf("Coverage entry %s has invalid source snapshot digest: %s", cov.ProviderID, cov.SourceSnapshotDigestSHA256)
+		// 5. Every coverage entry binds to the exact canonical source manifest.
+		if cov.SourceSnapshotDigestSHA256 != snapshotDigest {
+			t.Errorf("Coverage entry %s source snapshot mismatch: got %s want %s", cov.ProviderID, cov.SourceSnapshotDigestSHA256, snapshotDigest)
 		}
 
 		// 6. Every result evidence ID resolves and matches provider, version, and category.
@@ -169,6 +207,32 @@ func TestExtract(t *testing.T) {
 	}
 }
 
+func TestExtractRequiresExactRepositoryBinding(t *testing.T) {
+	opts := defaultOpts()
+	opts.Repository.Revision = ""
+	opts.Repository.TreeDigestSHA256 = ""
+	if _, err := Extract(deterministicFixture(t), opts); err == nil {
+		t.Fatal("missing revision and tree digest produced a HOW document")
+	}
+}
+
+func TestExtractPreservesBoundRepositoryDigests(t *testing.T) {
+	opts := defaultOpts()
+	opts.Repository.TreeDigestSHA256 = sha256Hex("canonical tree")
+	opts.Repository.GraphDigestSHA256 = sha256Hex("canonical graph")
+	opts.Repository.GraphDigestStatus = architecture.GraphDigestResolved
+	doc, err := Extract(deterministicFixture(t), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Receipt.GraphDigestSHA256 != opts.Repository.GraphDigestSHA256 {
+		t.Fatalf("run receipt graph digest mismatch: got %s want %s", doc.Receipt.GraphDigestSHA256, opts.Repository.GraphDigestSHA256)
+	}
+	if doc.Binding.Repository.Revision != opts.Repository.Revision || doc.Binding.Repository.TreeDigestSHA256 != opts.Repository.TreeDigestSHA256 || doc.Binding.Repository.GraphDigestSHA256 != opts.Repository.GraphDigestSHA256 {
+		t.Fatalf("repository binding was not preserved: %+v", doc.Binding.Repository)
+	}
+}
+
 // 9. A semantic-engine failure makes all dependent entries unavailable.
 func TestSemanticEngineFailureMakesDependentsUnavailable(t *testing.T) {
 	root := deterministicFixture(t)
@@ -204,6 +268,30 @@ func TestSemanticEngineFailureMakesDependentsUnavailable(t *testing.T) {
 			if cov.Status == investigation.CoverageUnavailable {
 				t.Errorf("Expected AST investigator %s to be unaffected, but it was unavailable", cov.ProviderID)
 			}
+		}
+	}
+}
+
+func TestPartialSemanticExecutionCannotClaimNoResult(t *testing.T) {
+	root := deterministicFixture(t)
+	limitations := []architecture.Limitation{{
+		Source: "go_semantic_extractor",
+		Scope:  "example.com/deterministic/api",
+		Reason: "type check failed",
+	}}
+	doc, err := composeReceiptsAndCoverage(root, nil, "example.com/deterministic", defaultOpts(), limitations, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range doc.Coverage {
+		if entry.ProviderID == "state_extractor" {
+			continue
+		}
+		if entry.Status != investigation.CoverageUnavailable {
+			t.Errorf("partial semantic execution reported %s as %q, want unavailable", entry.ProviderID, entry.Status)
+		}
+		if len(entry.Limitations) != 1 || entry.Limitations[0].Source != "go_semantic_extractor" {
+			t.Errorf("semantic limitation not attached to %s: %+v", entry.ProviderID, entry.Limitations)
 		}
 	}
 }
@@ -367,6 +455,77 @@ func TestDigestChangesOnSourceByteChange(t *testing.T) {
 	}
 }
 
+func TestSourceSnapshotUsesCanonicalSearchedFiles(t *testing.T) {
+	root := deterministicFixture(t)
+	before, err := BuildSourceSnapshotManifest(root, "example.com/deterministic")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	generated := filepath.Join(root, "ignored_generated.go")
+	if err := os.WriteFile(generated, []byte("// Code generated by test. DO NOT EDIT.\npackage deterministic\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	excludedDir := filepath.Join(root, "testdata")
+	if err := os.MkdirAll(excludedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	excluded := filepath.Join(excludedDir, "ignored.go")
+	if err := os.WriteFile(excluded, []byte("package testdata\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	afterIgnored, err := BuildSourceSnapshotManifest(root, "example.com/deterministic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != afterIgnored {
+		t.Fatal("generated or excluded source changed the searched snapshot")
+	}
+	if err := os.WriteFile(generated, []byte("// Code generated by test. DO NOT EDIT.\npackage deterministic\n// changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(excluded, []byte("package testdata\n// changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if afterMutation, err := BuildSourceSnapshotManifest(root, "example.com/deterministic"); err != nil || afterMutation != before {
+		t.Fatalf("generated or excluded mutation changed the searched snapshot: digest=%q err=%v", afterMutation, err)
+	}
+
+	searched := filepath.Join(root, "api", "api.go")
+	content, err := os.ReadFile(searched)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(searched, append(content, []byte("\n// searched mutation\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	afterSearched, err := BuildSourceSnapshotManifest(root, "example.com/deterministic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == afterSearched {
+		t.Fatal("searched source mutation did not change the snapshot")
+	}
+
+	if again, err := BuildSourceSnapshotManifest(root, "example.com/deterministic"); err != nil || again != afterSearched {
+		t.Fatalf("searched manifest is not deterministic: digest=%q err=%v", again, err)
+	}
+}
+
+func TestSourceSnapshotRefusesExternalSymlink(t *testing.T) {
+	root := deterministicFixture(t)
+	external := filepath.Join(t.TempDir(), "outside.go")
+	if err := os.WriteFile(external, []byte("package outside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(root, "external.go")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := BuildSourceSnapshotManifest(root, "example.com/deterministic"); err == nil {
+		t.Fatal("external symlink was accepted into the searched source snapshot")
+	}
+}
+
 // 17. Changing only CapturedAt does not change facts, evidence identities, source-snapshot digests, target digests, plan digest, or extractor-profile digest.
 func TestCaptureTimeIndependence(t *testing.T) {
 	root := deterministicFixture(t)
@@ -525,6 +684,26 @@ func TestDeduplicateReceiptsRefusesConflictingID(t *testing.T) {
 	other.CapturedContent = "different"
 	if _, err := deduplicateReceipts([]investigation.EvidenceReceipt{base, other}); err == nil {
 		t.Fatal("expected conflicting evidence IDs to fail")
+	}
+}
+
+func TestUnknownExtractorIsRefused(t *testing.T) {
+	root := deterministicFixture(t)
+	fact := architecture.Fact{
+		ID:        "fact.unknown-extractor",
+		Kind:      "topology",
+		Subject:   "api.Service",
+		Predicate: "defines",
+		Object:    "Service",
+		Extractor: "unknown_extractor",
+		Evidence: architecture.Evidence{
+			SourceFile: "api/api.go",
+			LineStart:  1,
+			LineEnd:    1,
+		},
+	}
+	if _, err := composeReceiptsAndCoverage(root, []architecture.Fact{fact}, "example.com/deterministic", defaultOpts(), nil, nil, nil); err == nil {
+		t.Fatal("unknown extractor emitted evidence instead of failing closed")
 	}
 }
 

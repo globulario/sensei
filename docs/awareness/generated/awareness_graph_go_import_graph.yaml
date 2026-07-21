@@ -620,6 +620,7 @@ components:
       - golang/architecture/tasksession/governance.go
       - golang/architecture/tasksession/session.go
       - golang/architecture/tasksession/session_authority.go
+      - golang/architecture/whyinvestigation/contracts.go
     depends_on:
       - component.golang.extractor
       - component.golang.propose
