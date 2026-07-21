@@ -470,7 +470,7 @@ func composeReceiptsAndCoverage(
 		SchemaVersion:                SchemaVersion,
 		GeneratedBy:                  GeneratedByIdentity,
 		Repository:                   opts.Repository,
-		GraphDigestSHA256:            "",
+		GraphDigestSHA256:            opts.Repository.GraphDigestSHA256,
 		PlanDigestSHA256:             planDigest,
 		ExtractorProfileDigestSHA256: profileDigest,
 		EvidenceSnapshotDigestSHA256: "",

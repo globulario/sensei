@@ -20,6 +20,7 @@ func defaultOpts() Options {
 		CapturedAt: "2026-07-21T14:00:00Z",
 		Repository: architecture.ClaimDocumentBinding{
 			RepositoryDomain:  "example.com/deterministic",
+			Revision:          "0123456789abcdef0123456789abcdef01234567",
 			RevisionStatus:    "clean",
 			GraphDigestStatus: "none",
 		},
