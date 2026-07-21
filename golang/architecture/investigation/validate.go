@@ -57,6 +57,18 @@ func Validate(doc Document) error {
 		if doc.Binding.Why.HistoryRangeStart == "" || doc.Binding.Why.HistoryRangeEnd == "" {
 			errs = append(errs, "WHY binding requires an explicit history range")
 		}
+		resolvedStart := doc.Binding.Why.ResolvedHistoryRangeStart != ""
+		resolvedEnd := doc.Binding.Why.ResolvedHistoryRangeEnd != ""
+		if resolvedStart != resolvedEnd {
+			errs = append(errs, "WHY binding resolved history range endpoints must be both present or both absent")
+		}
+		for _, entry := range doc.Coverage {
+			if entry.Status == CoverageSupporting || entry.Status == CoverageNoResult {
+				if !resolvedStart || !resolvedEnd {
+					errs = append(errs, "successful or empty WHY coverage requires resolved history range endpoints")
+				}
+			}
+		}
 	}
 
 	// 3. Binding validation
