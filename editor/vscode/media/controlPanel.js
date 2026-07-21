@@ -226,6 +226,10 @@
 
     let html = `<div class="cp-strip-cells">${cells.join('')}</div>`;
 
+    // grounding summary — honest coverage ratios from already-owned catalog tallies only
+    // (no denominator → no percentage; never suppresses attention).
+    html += CP_FMT.cpGroundingSummary(snapshot);
+
     // availability degradation banner (partial / unavailable / invalid)
     if (avail && avail !== 'ARCHITECTURE_AVAILABILITY_AVAILABLE') {
       const lims = (meta.limitations || []).map((l) => `<li>${esc(l)}</li>`).join('');

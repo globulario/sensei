@@ -412,14 +412,21 @@ func ToProtoArtifactState(st controlstate.ArtifactState) (*awarenesspb.Architect
 		if err != nil {
 			return nil, err
 		}
-		out.Dimensions = append(out.Dimensions, &awarenesspb.ArchitectureDimensionAssessment{
+		pd := &awarenesspb.ArchitectureDimensionAssessment{
 			Dimension: d.Dimension, Label: d.Label, Applicable: d.Applicable, Required: d.Required,
 			State: ds, ReasonCode: d.ReasonCode,
 			Blockers:  append([]string(nil), d.Blockers...),
 			Evidence:  append([]string(nil), d.Evidence...),
 			Questions: append([]string(nil), d.Questions...),
 			Owner:     d.Owner, NextActionOwner: d.NextAction,
-		})
+		}
+		if d.Explanation != nil {
+			pd.Explanation = &awarenesspb.ArchitectureDimensionExplanation{
+				Kind: d.Explanation.Kind, Known: d.Explanation.Known, Missing: d.Explanation.Missing,
+				WhyNotImprovable: d.Explanation.WhyNotImprovable, NextEvidence: d.Explanation.NextEvidence,
+			}
+		}
+		out.Dimensions = append(out.Dimensions, pd)
 	}
 	for _, a := range st.Attention {
 		pa, err := ToProtoAttentionItem(a)

@@ -577,3 +577,23 @@ forbidden_fixes:
       - invariant.sensei.runtime_boundary_verdict_travels_the_control_panel_only_as_a
     reason: 'Phase 9.7 CP3: runtime-boundary compliance is decided solely by the runtimeboundary owner; downstream surfaces project it verbatim and never recompute it.'
     contract: 'Phase 9.7 CP3: runtime-boundary compliance is decided solely by the runtimeboundary owner; downstream surfaces project it verbatim and never recompute it.'
+  - id: forbidden_fix.sensei.compose_an_incompleteness_explanation_or_coverage_percentage
+    title: Compose an incompleteness explanation or coverage percentage in the UI or from a missing denominator
+    summary: Composing the known/missing/next-evidence wording in the webview (a client decision table), or rendering a coverage percentage without an observed denominator (or an observed-zero population as 0%/100%), launders absence into apparent knowledge and re-opens the collapse the Phase-9 laws forbid. The panel must render owner-projected strings verbatim and emit a percentage only for an observed denominator > 0.
+    protects:
+      files:
+        - editor/vscode/media/controlPanelFmt.js
+    related_invariants:
+      - invariant.sensei.incompleteness_and_coverage_are_explained_by_owner_projectio
+    reason: 'Phase 9 polish: incompleteness and coverage are owner-projected; the UI renders verbatim and never fabricates meaning from absence.'
+    contract: 'Phase 9 polish: incompleteness and coverage are owner-projected; the UI renders verbatim and never fabricates meaning from absence.'
+  - id: forbidden_fix.sensei.classify_rigor_by_filename_let_a_declaration_downgrade_an_a
+    title: Classify rigor by filename, let a declaration downgrade an A/B surface, or exempt Class D from integrity gates
+    summary: 'Assigning a rigor class to a raw filename (instead of a governed surface), letting a declared C/D class downgrade a change that touches an A/B-owned surface, or exempting Class D from the repository-integrity gates all defeat proportional rigor''s purpose: they let ceremony land away from where the structural weight is, or let a light declaration bypass integrity. Effective rigor must be the strictest touched surface, fail closed to Class A on the unknown, and keep every integrity gate at Class D.'
+    protects:
+      files:
+        - golang/architecture/rigor/rigor.go
+    related_invariants:
+      - invariant.sensei.proportional_rigor_classifies_governed_surfaces_and_fails_cl
+    reason: 'Phase 9 polish: rigor classifies governed surfaces, fails closed, never downgrades via declaration, and never exempts repository integrity.'
+    contract: 'Phase 9 polish: rigor classifies governed surfaces, fails closed, never downgrades via declaration, and never exempts repository integrity.'

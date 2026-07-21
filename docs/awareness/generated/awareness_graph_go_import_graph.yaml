@@ -126,6 +126,7 @@ components:
       - cmd/awg/cmd_repo_eval_fix.go
       - cmd/awg/cmd_resolve.go
       - cmd/awg/cmd_review_realization.go
+      - cmd/awg/cmd_rigor.go
       - cmd/awg/cmd_runtime.go
       - cmd/awg/cmd_runtime_candidate.go
       - cmd/awg/cmd_runtime_gate.go
@@ -578,6 +579,7 @@ components:
       - golang/architecture/resulttransition/bind.go
       - golang/architecture/resulttransition/confine.go
       - golang/architecture/resulttransition/observe.go
+      - golang/architecture/rigor/rigor.go
       - golang/architecture/runtimeboundary/assess.go
       - golang/architecture/runtimeboundary/binding.go
       - golang/architecture/runtimeboundary/common.go

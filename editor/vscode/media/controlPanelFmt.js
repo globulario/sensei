@@ -128,10 +128,36 @@ function cpIdList(label, ids) {
   return '<div class="cp-insp-row"><span class="cp-insp-k">' + cpEsc(label) + '</span>' + body + '</div>';
 }
 
+// cpExplanation renders the owner-projected actionable incompleteness for a
+// non-positive dimension: what is Known, what is Missing, Why it cannot improve,
+// and the Next evidence needed. It is PRESENTATION ONLY — every string is the
+// owner's verbatim projection (escaped); the panel composes no wording and holds
+// no decision table. The stable semantic identity (e.kind) rides as a data
+// attribute so distinctions are testable without parsing prose. Empty fields are
+// omitted (never rendered as a blank row). A null explanation yields ''.
+function cpExplanation(e) {
+  if (!e || !e.kind) {
+    return '';
+  }
+  function row(k, v) {
+    return v ? '<div class="cp-explain-row"><span class="cp-explain-k">' + cpEsc(k) + '</span><span class="cp-explain-v">' + cpEsc(v) + '</span></div>' : '';
+  }
+  return (
+    '<div class="cp-dim-explain" data-explain-kind="' + cpEsc(e.kind) + '">' +
+    row('Known', e.known) +
+    row('Missing', e.missing) +
+    row('Why not improvable', e.why_not_improvable) +
+    row('Next evidence', e.next_evidence) +
+    '</div>'
+  );
+}
+
 // cpDimensionRow renders ONE dimension. Applicable-only is enforced HERE: a
 // non-applicable dimension yields '' and can never be shown as open. The state
 // is an owner enum -> badge (no client computation); required/reason and the
-// per-dimension blockers/evidence/questions/owner/next-action are verbatim.
+// per-dimension blockers/evidence/questions/owner/next-action are verbatim. When
+// the owner supplied an actionable incompleteness explanation (non-positive
+// states only), it is rendered verbatim beneath the head.
 function cpDimensionRow(d) {
   if (!d || d.applicable === false) {
     return '';
@@ -144,12 +170,89 @@ function cpDimensionRow(d) {
     (d.reason_code ? '<span class="cp-reason">' + cpEsc(d.reason_code) + '</span>' : '') +
     '</div>';
   var body =
+    cpExplanation(d.explanation) +
     cpIdList('Blockers', d.blockers) +
     cpIdList('Evidence', d.evidence) +
     cpIdList('Questions', d.questions) +
     '<div class="cp-insp-row"><span class="cp-insp-k">Owner</span><span>' + cpEsc(d.owner || '—') + '</span></div>' +
     '<div class="cp-insp-row"><span class="cp-insp-k">Next action owner</span><span>' + cpEsc(d.next_action_owner || '—') + '</span></div>';
   return '<div class="cp-dim">' + head + '<div class="cp-dim-body">' + body + '</div></div>';
+}
+
+// cpKeyedCount reads one key's count from a wire keyed-count array. Returns null
+// when the array is ABSENT (the population was not observed — never coerce to 0),
+// 0 when the collection was observed but the key is absent (an observed zero).
+function cpKeyedCount(arr, key) {
+  if (!Array.isArray(arr)) {
+    return null;
+  }
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] && arr[i].key === key) {
+      return Number(arr[i].count || 0);
+    }
+  }
+  return 0;
+}
+
+// cpKeyedTotal sums an observed keyed-count array; null when unobserved (absent/empty).
+function cpKeyedTotal(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return null;
+  }
+  var t = 0;
+  for (var i = 0; i < arr.length; i++) {
+    t += Number((arr[i] && arr[i].count) || 0);
+  }
+  return t;
+}
+
+// cpRatio is the HONEST numerator/denominator rule: a percentage is emitted ONLY when
+// the denominator is an observed integer strictly greater than zero. An unobserved side
+// (null) yields "unavailable"; an observed zero population yields "no eligible items" —
+// never 0% and never 100%. Coverage is never fabricated from a missing denominator.
+function cpRatio(num, den) {
+  if (num === null || den === null) {
+    return { text: 'unavailable', percent: null };
+  }
+  if (den === 0) {
+    return { text: '0 of 0 (no eligible items)', percent: null };
+  }
+  return { text: num + ' of ' + den, percent: Math.round((num / den) * 100) };
+}
+
+// cpGroundingSummary renders a compact, deterministic grounding summary from tallies that
+// ALREADY exist under a single owner (the controlstate catalog + per-class assessment). It
+// adds no census engine and invents no denominator: when the catalog was not observed it
+// renders an explicit "unavailable" (never 0%/100%). It is grounding, NOT correctness — and
+// it never suppresses attention (it is an additional block, not a replacement).
+function cpGroundingSummary(snapshot) {
+  var snap = snapshot || {};
+  var cov = snap.assessment_coverage_counts;
+  var clo = snap.closure_counts;
+  if (!Array.isArray(cov) || cov.length === 0) {
+    return (
+      '<div class="cp-grounding"><span class="cp-grounding-h">Grounding</span>' +
+      '<span class="cp-none">coverage unavailable — catalog not observed</span></div>'
+    );
+  }
+  // Assessment coverage: assessable artifacts / all enumerated artifacts (owner: controlstate catalog).
+  var assessR = cpRatio(cpKeyedCount(cov, 'assessable'), cpKeyedTotal(cov));
+  // Closure grounding: closed artifacts / assessable artifacts (owner: controlstate per-class assessment).
+  var closeR = cpRatio(cpKeyedCount(clo, 'closed'), cpKeyedCount(cov, 'assessable'));
+  function line(label, r) {
+    var pct = r.percent === null ? '' : ' <span class="cp-grounding-pct">(' + r.percent + '%)</span>';
+    return (
+      '<div class="cp-grounding-row"><span class="cp-grounding-k">' + cpEsc(label) + '</span>' +
+      '<span class="cp-grounding-v">' + cpEsc(r.text) + pct + '</span></div>'
+    );
+  }
+  return (
+    '<div class="cp-grounding"><span class="cp-grounding-h">Grounding</span>' +
+    line('Assessable / enumerated', assessR) +
+    line('Closed / assessable', closeR) +
+    '<div class="cp-grounding-note">Grounding, not correctness — high coverage never certifies and never suppresses attention.</div>' +
+    '</div>'
+  );
 }
 
 // cpFeedbackProvenance renders the EXACT-SCOPE Phase 9.6 feedback reference as
@@ -195,6 +298,11 @@ var CP_FMT = {
   cpBadge: cpBadge,
   cpSeverityCount: cpSeverityCount,
   cpIdList: cpIdList,
+  cpExplanation: cpExplanation,
+  cpKeyedCount: cpKeyedCount,
+  cpKeyedTotal: cpKeyedTotal,
+  cpRatio: cpRatio,
+  cpGroundingSummary: cpGroundingSummary,
   cpDimensionRow: cpDimensionRow,
   cpFeedbackProvenance: cpFeedbackProvenance,
   cpUnavailableSection: cpUnavailableSection,

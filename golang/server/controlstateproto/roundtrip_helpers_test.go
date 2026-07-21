@@ -317,14 +317,21 @@ func fromProtoArtifactState(p *awarenesspb.ArchitectureArtifactState) (controlst
 		if err != nil {
 			return controlstate.ArtifactState{}, err
 		}
-		out.Dimensions = append(out.Dimensions, controlstate.DimensionAssessment{
+		da := controlstate.DimensionAssessment{
 			Dimension: d.GetDimension(), Label: d.GetLabel(), Applicable: d.GetApplicable(),
 			Required: d.GetRequired(), State: ds, ReasonCode: d.GetReasonCode(),
 			Blockers:  append([]string(nil), d.GetBlockers()...),
 			Evidence:  append([]string(nil), d.GetEvidence()...),
 			Questions: append([]string(nil), d.GetQuestions()...),
 			Owner:     d.GetOwner(), NextAction: d.GetNextActionOwner(),
-		})
+		}
+		if e := d.GetExplanation(); e != nil {
+			da.Explanation = &controlstate.DimensionExplanation{
+				Kind: e.GetKind(), Known: e.GetKnown(), Missing: e.GetMissing(),
+				WhyNotImprovable: e.GetWhyNotImprovable(), NextEvidence: e.GetNextEvidence(),
+			}
+		}
+		out.Dimensions = append(out.Dimensions, da)
 	}
 	for _, a := range p.GetAttention() {
 		ma, err := attentionFromProto(a)

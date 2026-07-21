@@ -146,6 +146,8 @@ func main() {
 		os.Exit(runEditGuard(args))
 	case "edit-brief":
 		os.Exit(runEditBrief(args))
+	case "rigor":
+		os.Exit(runRigor(args))
 	case "gate":
 		os.Exit(runGate(args))
 	case "produce-change-binding":

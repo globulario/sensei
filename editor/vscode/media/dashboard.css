@@ -612,7 +612,12 @@ body.review-mode .viewbar { display: none; }
 .cp-lifecycle-unknown, .cp-lifecycle-not_applicable { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
 .cp-avail-available, .cp-savail-available { color: #fff; background: var(--ok); }
 .cp-avail-partial, .cp-savail-degraded { color: #000; background: var(--warn); }
-.cp-avail-unavailable, .cp-avail-invalid, .cp-savail-unavailable, .cp-savail-invalid { color: #fff; background: var(--crit); }
+/* unavailable and invalid are DISTINCT: unavailable = source cannot answer now;
+   invalid = input cannot be trusted. Glyph + text carry the difference, not color alone. */
+.cp-avail-unavailable, .cp-savail-unavailable { color: #fff; background: var(--crit); }
+.cp-avail-invalid, .cp-savail-invalid { color: #fff; background: var(--crit); border: 1px dashed #fff; }
+.cp-avail-unavailable::before, .cp-savail-unavailable::before { content: "⃠ "; }
+.cp-avail-invalid::before, .cp-savail-invalid::before { content: "⚠ "; }
 /* Any *_UNSPECIFIED / missing value: explicit invalid, never a neutral default. */
 .cp-sev--invalid, .cp-closure--invalid, .cp-lifecycle--invalid, .cp-avail--invalid, .cp-savail--invalid {
   color: #fff; background: var(--crit); border: 1px dashed #fff;
@@ -649,15 +654,39 @@ body.review-mode .viewbar { display: none; }
 /* Honest "no owner projection" placeholder (relationships / focus graph). */
 .cp-insp-unavailable { display: flex; gap: 8px; align-items: baseline; color: var(--vscode-descriptionForeground); }
 
-/* Dimension-state + coverage badge palette (enum token -> visual class; text label always present). */
+/* Dimension-state + coverage badge palette (enum token -> visual class; text label always present).
+   Each non-positive state is DISTINCT (glyph + border + text), never collapsed — "not grounded yet"
+   must read differently from "broken", and color is never the sole carrier. */
 .cp-dim-satisfied { color: #fff; background: var(--ok); }
+.cp-dim-satisfied::before { content: "✓ "; }
 .cp-dim-open { color: #fff; background: var(--crit); }
+.cp-dim-open::before { content: "✕ "; }
 .cp-dim-degraded { color: #000; background: var(--warn); }
-.cp-dim-unknown, .cp-dim-not_applicable { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.cp-dim-degraded::before { content: "◐ "; }
+.cp-dim-unknown { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); border-style: dashed; }
+.cp-dim-unknown::before { content: "? "; }
+.cp-dim-not_applicable { color: var(--vscode-descriptionForeground); border-color: var(--vscode-panel-border); border-style: dotted; }
+.cp-dim-not_applicable::before { content: "– "; }
 .cp-coverage-assessable { color: #fff; background: var(--ok); }
-.cp-coverage-unsupported, .cp-coverage-unknown { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
-.cp-coverage-explicitly_not_applicable { color: var(--vscode-descriptionForeground); border-color: var(--vscode-panel-border); }
+.cp-coverage-unsupported { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); border-style: dashed; }
+.cp-coverage-unknown { color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.cp-coverage-unknown::before { content: "? "; }
+.cp-coverage-explicitly_not_applicable { color: var(--vscode-descriptionForeground); border-color: var(--vscode-panel-border); border-style: dotted; }
 .cp-dim--invalid, .cp-coverage--invalid { color: #fff; background: var(--crit); border: 1px dashed #fff; }
+
+/* Grounding summary (honest ratios from owned tallies; never a percentage without a denominator). */
+.cp-grounding { border: 1px solid var(--vscode-panel-border); border-radius: 4px; padding: 5px 8px; margin: 6px 0; display: flex; flex-direction: column; gap: 2px; }
+.cp-grounding-h { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--vscode-descriptionForeground); }
+.cp-grounding-row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.cp-grounding-k { min-width: 170px; color: var(--vscode-descriptionForeground); }
+.cp-grounding-pct { color: var(--vscode-descriptionForeground); }
+.cp-grounding-note { font-size: 0.8em; color: var(--vscode-descriptionForeground); font-style: italic; margin-top: 3px; }
+
+/* Actionable incompleteness explanation (owner-projected, verbatim; not a decision table). */
+.cp-dim-explain { border-left: 3px solid var(--info); padding: 3px 8px; margin: 3px 0; display: flex; flex-direction: column; gap: 2px; }
+.cp-explain-row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.cp-explain-k { min-width: 130px; color: var(--vscode-descriptionForeground); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.03em; }
+.cp-explain-v { font-size: 0.92em; }
 
 /* ---- Checkpoint 5: guarded architect-answer panel (the only mutation UI) ---- */
 .cp-qanswer { font-size: 0.82em; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-foreground); border-radius: 3px; padding: 0 6px; cursor: pointer; margin-left: 6px; }

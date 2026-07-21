@@ -231,6 +231,46 @@ func TestInvalidAssessment_Refused(t *testing.T) {
 	}
 }
 
+// Proof (issue #93): the runtime explanation is TOTAL over the owner's verdicts and fail-honest —
+// every non-satisfied verdict yields a non-empty explanation with a stable Kind; satisfied yields
+// none. The explanation is projection: it NEVER alters the verdict-derived outcome or owner severity.
+func TestRuntimeExplanation_TotalAndDoesNotChangeVerdict(t *testing.T) {
+	type want struct {
+		outcome  cs.DimensionOutcome
+		severity cs.AttentionSeverity
+		hasExpl  bool
+	}
+	cases := map[rb.Verdict]want{
+		rb.VerdictSatisfied:     {cs.OutcomeSatisfied, "", false},
+		rb.VerdictViolated:      {cs.OutcomeDefinitiveBlocker, cs.SeverityCritical, true},
+		rb.VerdictDegraded:      {cs.OutcomeDegraded, "", true},
+		rb.VerdictUnavailable:   {cs.OutcomeInsufficient, "", true},
+		rb.VerdictNotApplicable: {cs.OutcomeNotApplicable, "", true},
+		rb.VerdictInvalid:       {cs.OutcomeInsufficient, "", true},
+	}
+	for v, w := range cases {
+		a := assess(t, v)
+		obs, err := ToDimensionObservation(a)
+		if err != nil {
+			t.Fatalf("%s: %v", v, err)
+		}
+		// Verdict-derived fields are exactly what the verbatim map decided — the explanation changed nothing.
+		if obs.Outcome != w.outcome {
+			t.Fatalf("%s: outcome %q, want %q (explanation must not change it)", v, obs.Outcome, w.outcome)
+		}
+		if obs.SourceSeverity != w.severity {
+			t.Fatalf("%s: severity %q, want %q (explanation must not change it)", v, obs.SourceSeverity, w.severity)
+		}
+		if w.hasExpl {
+			if obs.Explanation == nil || obs.Explanation.Kind == "" || obs.Explanation.WhyNotImprovable == "" {
+				t.Fatalf("%s: missing/empty explanation", v)
+			}
+		} else if obs.Explanation != nil {
+			t.Fatalf("%s: satisfied must carry no explanation", v)
+		}
+	}
+}
+
 // Proof: determinism — the same assessment always yields the same dimension observation.
 func TestDeterminism(t *testing.T) {
 	a := assess(t, rb.VerdictViolated)

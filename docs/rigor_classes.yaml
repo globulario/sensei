@@ -1,0 +1,61 @@
+# Proportional rigor — governed-surface classification (issue #93, Phase 9 polish).
+#
+# This is change-time governance config, NOT graph truth: it declares, per STABLE governed
+# surface, the proof rigor a CHANGE touching that surface owes. It is consumed by `sensei
+# preflight` / `sensei edit-guard` (CLI only), never rendered as repository/artifact state.
+#
+# Classification keys on the SURFACE (a named architectural entity), never a raw filename. Files
+# inherit a surface's class through its owned package prefixes. Laws (all fail-closed, enforced by
+# golang/architecture/rigor):
+#   - effective rigor over a change = the STRICTEST class among all touched surfaces;
+#   - a changed file owned by NO surface is unclassified → forced to Class A (strictest);
+#   - a declared class can only RAISE strictness, never downgrade contact with an A/B surface;
+#   - Class D is lighter SEMANTIC proof only — every class keeps the repository-integrity gates
+#     (ownership, determinism, licensing, generated-artifact, build).
+#
+# Classes: A = semantic owner / authority / certification / identity; B = evidence ingestion /
+# admission / binding; C = projection / transport / rendering; D = cosmetic / explanatory local UI.
+
+surfaces:
+  - id: runtimeboundary.owner
+    class: A
+    packages:
+      - golang/architecture/runtimeboundary
+  - id: certification.owner
+    class: A
+    packages:
+      - golang/architecture/certification
+  - id: closure.owner
+    class: A
+    packages:
+      - golang/architecture/closure
+      - golang/architecture/closureprotocol
+  - id: runtimeprobe.ingestion
+    class: B
+    packages:
+      - golang/architecture/runtimeprobe
+  - id: proofrequirements.obligations
+    class: B
+    packages:
+      - golang/architecture/proofrequirements
+      - golang/architecture/proofdischarge
+  - id: controlstate.projection
+    class: C
+    packages:
+      - golang/architecture/controlstate
+  - id: runtimeboundarycompose.bridge
+    class: C
+    packages:
+      - golang/architecture/runtimeboundarycompose
+  - id: controlstate.transport
+    class: C
+    packages:
+      - golang/server/controlstateproto
+  - id: rigor.classifier
+    class: C
+    packages:
+      - golang/architecture/rigor
+  - id: vscode.presentation
+    class: D
+    packages:
+      - editor/vscode/media

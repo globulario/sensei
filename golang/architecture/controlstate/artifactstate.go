@@ -51,6 +51,12 @@ type DimensionObservation struct {
 	// the governed class→severity mapping — so a source that owns its own severity (e.g. the
 	// runtimeboundary assessment) is never re-severitized by controlstate.
 	SourceSeverity AttentionSeverity
+	// Explanation is an OPTIONAL owner-supplied actionable incompleteness projection. When the owner
+	// (e.g. the runtimeboundary bridge) can explain WHY a non-positive state cannot yet improve from
+	// its own already-decided reason space, it supplies it here and controlstate carries it verbatim.
+	// When absent, controlstate composes a generic explanation from its own (state, reason) — never
+	// from the UI, and never by re-deriving the verdict.
+	Explanation *DimensionExplanation
 }
 
 // ContradictionObservation is one typed contradiction finding.
@@ -261,6 +267,7 @@ func assessDimensions(ap assessmentPolicy, bundle ArtifactSourceBundle) ([]Dimen
 		da := DimensionAssessment{Dimension: dp.Dimension, Label: dp.Label, Applicable: true, Required: dp.Required, Owner: dp.Owner, NextAction: dp.NextAction}
 		if !ok {
 			da.State, da.ReasonCode = DimUnknown, "source_not_observed"
+			da.Explanation = composeDimensionExplanation(da.State, da.ReasonCode)
 			out = append(out, da)
 			sources = append(sources, srcStatus(dp.Owner, "dimension:"+dp.Dimension, "", "", SourceUnavailable, ImpactRequired, "source_not_observed"))
 			continue
@@ -275,6 +282,16 @@ func assessDimensions(ap assessmentPolicy, bundle ArtifactSourceBundle) ([]Dimen
 		da.Evidence = sortedUnique(obs.EvidenceIDs)
 		da.Questions = sortedUnique(obs.QuestionIDs)
 		da.Owner = obs.SourceOwner
+		// Actionable incompleteness: carry the owner-supplied explanation verbatim when present
+		// (e.g. the runtimeboundary bridge's reason-space projection), otherwise compose a generic
+		// one from controlstate's own (state, reason). Positive states carry none.
+		if da.State != DimSatisfied {
+			if obs.Explanation != nil {
+				da.Explanation = obs.Explanation
+			} else {
+				da.Explanation = composeDimensionExplanation(da.State, da.ReasonCode)
+			}
+		}
 		out = append(out, da)
 		sources = append(sources, srcStatus(obs.SourceOwner, obs.SourceSchema, obs.SourceIdentity, obs.SourceDigest, obs.SourceAvailability, ImpactRequired, obs.SourceReasonCode))
 	}
@@ -376,6 +393,85 @@ func validateIdentityList(ids []string) error {
 	return nil
 }
 
+// composeDimensionExplanation is controlstate's TOTAL, fail-honest projection of WHY a non-positive
+// dimension cannot currently improve, derived only from controlstate's own (state, reason) — never a
+// re-derivation of any owner's verdict. A satisfied (positive) dimension gets none. Every recognized
+// reason maps to a stable Kind + presentation text; an unrecognized reason still yields an explicit
+// generic explanation (never empty strings), so the mapping can never silently drop meaning.
+func composeDimensionExplanation(state DimensionState, reason string) *DimensionExplanation {
+	if state == DimSatisfied {
+		return nil
+	}
+	switch reason {
+	case "source_not_observed":
+		return &DimensionExplanation{Kind: "source_not_observed",
+			Known:            "the dimension is in scope for this artifact class",
+			Missing:          "an observation from the owning source",
+			WhyNotImprovable: "no admissible evidence has been observed for this dimension",
+			NextEvidence:     "the owning source must report a typed observation"}
+	case "source_unavailable":
+		return &DimensionExplanation{Kind: "source_unavailable",
+			Known:            "the dimension is in scope",
+			Missing:          "a trustworthy source",
+			WhyNotImprovable: "the source is unavailable or its input cannot be trusted",
+			NextEvidence:     "restore the source so it can provide admissible evidence"}
+	case "insufficient_evidence":
+		return &DimensionExplanation{Kind: "insufficient_evidence",
+			Known:            "the dimension is in scope and a source was observed",
+			Missing:          "evidence admissible and sufficient to decide",
+			WhyNotImprovable: "the observed evidence cannot decide the dimension",
+			NextEvidence:     "supply admissible evidence sufficient for a decision"}
+	case "definitive_blocker":
+		return &DimensionExplanation{Kind: "definitive_blocker",
+			Known:            "the dimension was assessed by its owner",
+			Missing:          "the open blocker cleared",
+			WhyNotImprovable: "an owner-confirmed blocker is open",
+			NextEvidence:     "resolve the identified blocker(s)"}
+	case "degraded_source", "degraded":
+		return &DimensionExplanation{Kind: "degraded",
+			Known:            "the dimension is assessable",
+			Missing:          "evidence at the required quality",
+			WhyNotImprovable: "the assessment is possible but the source is below required quality",
+			NextEvidence:     "restore the source to the required quality"}
+	case "not_applicable":
+		return &DimensionExplanation{Kind: "not_applicable",
+			Known:            "the owner explicitly ruled this dimension outside scope",
+			WhyNotImprovable: "the dimension is not applicable to this artifact by owner decision",
+			NextEvidence:     "none — no action is required"}
+	case "contradiction_present":
+		return &DimensionExplanation{Kind: "contradiction_present",
+			Known:            "contradiction findings were observed",
+			Missing:          "the contradictions resolved",
+			WhyNotImprovable: "at least one contradiction is open against this artifact",
+			NextEvidence:     "resolve the reported contradiction(s)"}
+	case "contradiction_source_degraded":
+		return &DimensionExplanation{Kind: "degraded",
+			Known:            "the contradiction dimension is assessable",
+			Missing:          "the contradiction source at required quality",
+			WhyNotImprovable: "the contradiction source is below required quality",
+			NextEvidence:     "restore the contradiction source quality"}
+	case "contradiction_source_unavailable":
+		return &DimensionExplanation{Kind: "source_unavailable",
+			Known:            "the contradiction dimension is in scope",
+			Missing:          "a trustworthy contradiction source",
+			WhyNotImprovable: "the contradiction source is unavailable or untrusted",
+			NextEvidence:     "restore the contradiction source"}
+	default:
+		return &DimensionExplanation{Kind: "generic_incomplete",
+			Known:            "the dimension is in scope",
+			Missing:          "a decisive, trustworthy observation",
+			WhyNotImprovable: "the dimension state is non-positive (reason: " + reasonOrUnspecified(reason) + ")",
+			NextEvidence:     "consult the owning source for the required evidence"}
+	}
+}
+
+func reasonOrUnspecified(reason string) string {
+	if reason == "" {
+		return "unspecified"
+	}
+	return reason
+}
+
 func dimensionStateFor(obs DimensionObservation) (DimensionState, string) {
 	// An unavailable/invalid source is untrustworthy → unknown.
 	if obs.SourceAvailability == SourceUnavailable || obs.SourceAvailability == SourceInvalid {
@@ -471,6 +567,9 @@ func assessContradictionDimension(dp dimensionPolicy, cs ContradictionSource) (D
 		}
 	default: // unavailable / invalid
 		da.State, da.ReasonCode = DimUnknown, "contradiction_source_unavailable"
+	}
+	if da.State != DimSatisfied {
+		da.Explanation = composeDimensionExplanation(da.State, da.ReasonCode)
 	}
 	return da, src
 }
