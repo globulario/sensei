@@ -57,6 +57,7 @@ func extractAll(root string, opts Options) (Result, error) {
 	facts = append(facts, extractBoundaries(semanticRes.Observations)...)
 	facts = append(facts, extractContracts(semanticRes.Observations)...)
 	facts = append(facts, extractTests(semanticRes.Observations)...)
+	facts = append(facts, extractDataShapes(semanticRes.Observations)...)
 
 	// Extract observations from state AST facts
 	facts = append(facts, extractState(astRes.Facts)...)
@@ -152,10 +153,10 @@ func extractAll(root string, opts Options) (Result, error) {
 		evidenceIDsByExtractor[rec.Provider.ID] = append(evidenceIDsByExtractor[rec.Provider.ID], rec.ID)
 	}
 
-	// We create a coverage entry for topology/flow/contracts (gosemantics)
+	// We create a coverage entry for topology/flow/contracts/datashapes (gosemantics)
 	categorySem := investigation.EvidenceSourceCode
 	statusSem := investigation.CoverageNoResult
-	if len(evidenceIDsByExtractor["topology_extractor"])+len(evidenceIDsByExtractor["flow_extractor"])+len(evidenceIDsByExtractor["boundary_extractor"])+len(evidenceIDsByExtractor["contract_extractor"]) > 0 {
+	if len(evidenceIDsByExtractor["topology_extractor"])+len(evidenceIDsByExtractor["flow_extractor"])+len(evidenceIDsByExtractor["boundary_extractor"])+len(evidenceIDsByExtractor["contract_extractor"])+len(evidenceIDsByExtractor["data_shape_extractor"]) > 0 {
 		statusSem = investigation.CoverageSupporting
 	}
 
@@ -164,6 +165,7 @@ func extractAll(root string, opts Options) (Result, error) {
 	semIDs = append(semIDs, evidenceIDsByExtractor["flow_extractor"]...)
 	semIDs = append(semIDs, evidenceIDsByExtractor["boundary_extractor"]...)
 	semIDs = append(semIDs, evidenceIDsByExtractor["contract_extractor"]...)
+	semIDs = append(semIDs, evidenceIDsByExtractor["data_shape_extractor"]...)
 
 	coverage = append(coverage, investigation.CoverageEntry{
 		ProviderID:         "go_semantic_extractor",

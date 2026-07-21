@@ -30,7 +30,7 @@ func extractContracts(semanticObs []gosemantics.Observation) []architecture.Fact
 				Meta: obs.Meta,
 			})
 		}
-		if obs.Predicate == gosemantics.PredicateExportsSymbol && obs.Object == "interface" {
+		if obs.Predicate == "exports_interface" || (obs.Predicate == gosemantics.PredicateExportsSymbol && obs.Object == "interface") {
 			facts = append(facts, architecture.Fact{
 				Kind:       "contract_seam",
 				Subject:    obs.Subject,

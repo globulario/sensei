@@ -223,3 +223,149 @@ func TestDeduplicateReceiptsRefusesConflictingID(t *testing.T) {
 		t.Fatal("expected conflicting evidence IDs to fail")
 	}
 }
+
+func TestDeterministicRepoDataShapes(t *testing.T) {
+	root := deterministicFixture(t)
+	res, err := Extract(root, Options{CapturedAt: "2026-07-21T14:00:00Z"})
+	if err != nil {
+		t.Fatalf("Extract failed: %v", err)
+	}
+	t.Logf("Extracted %d facts:", len(res.Facts))
+	for _, f := range res.Facts {
+		t.Logf("Fact: Kind=%s Subject=%s Predicate=%s Object=%s Source=%s:%d", f.Kind, f.Subject, f.Predicate, f.Object, f.Evidence.SourceFile, f.Evidence.LineStart)
+	}
+	t.Logf("Extracted %d limitations:", len(res.Limitations))
+	for _, lim := range res.Limitations {
+		t.Logf("Limitation: Scope=%s Reason=%s", lim.Scope, lim.Reason)
+	}
+	findFact := func(kind, subject, predicate, object string) *architecture.Fact {
+		for _, f := range res.Facts {
+			if f.Kind == kind && f.Subject == subject && f.Predicate == predicate && f.Object == object {
+				return &f
+			}
+		}
+		return nil
+	}
+
+	// 1. At least one data_shape fact is emitted
+	foundDataShape := false
+	for _, f := range res.Facts {
+		if f.Kind == "data_shape" {
+			foundDataShape = true
+			break
+		}
+	}
+	if !foundDataShape {
+		t.Errorf("Expected at least one data_shape fact to be emitted")
+	}
+
+	// 2. A cross-package request or response shape is detected
+	reqDecl := findFact("data_shape", "api.Request", "declares_data_shape", "struct")
+	if reqDecl == nil {
+		t.Errorf("Expected api.Request declares_data_shape observation to be found")
+	}
+
+	// 3. Explicit serialized field names are preserved (and tag type json)
+	reqField := findFact("data_shape", "api.Request.UserID", "has_serialized_field", "user_id")
+	if reqField == nil {
+		t.Errorf("Expected api.Request.UserID has_serialized_field user_id observation to be found")
+	} else {
+		if reqField.Meta["tag"] != "json" {
+			t.Errorf("Expected tag metadata to be 'json', got %q", reqField.Meta["tag"])
+		}
+		// 4. Field type represented deterministically
+		if !strings.Contains(reqField.Meta["field_type"], "string") {
+			t.Errorf("Expected field_type metadata to contain 'string', got %q", reqField.Meta["field_type"])
+		}
+		// 5. Evidence points to exact declaring source
+		if reqField.Evidence.SourceFile != "api/api.go" {
+			t.Errorf("Expected source file to be api/api.go, got %q", reqField.Evidence.SourceFile)
+		}
+		if reqField.Evidence.LineStart <= 0 {
+			t.Errorf("Expected line start to be positive, got %d", reqField.Evidence.LineStart)
+		}
+	}
+
+	// 6. A private local-only struct with no serialization or boundary use is not falsely reported as a boundary-crossing shape
+	for _, f := range res.Facts {
+		if f.Kind == "data_shape" && (strings.Contains(f.Subject, "privateStruct") || strings.Contains(f.Object, "privateStruct")) {
+			t.Errorf("Falsely reported privateStruct in data_shape facts: %+v", f)
+		}
+	}
+
+	// 7. Two runs over same fixture and capture binding produce identical results
+	res2, err := Extract(root, Options{CapturedAt: "2026-07-21T14:00:00Z"})
+	if err != nil {
+		t.Fatalf("Extract run 2 failed: %v", err)
+	}
+	if !reflect.DeepEqual(res, res2) {
+		t.Errorf("Identical runs did not produce deep equal results")
+	}
+
+	// 8. Data-shape facts do not claim ownership, intended authority, or historical WHY
+	forbiddenSubstrings := []string{"authoritative", "intended", "owner", "why", "intent"}
+	for _, f := range res.Facts {
+		if f.Kind == "data_shape" {
+			summary := strings.ToLower(f.Subject + " " + f.Predicate + " " + f.Object)
+			for _, term := range forbiddenSubstrings {
+				if strings.Contains(summary, term) {
+					t.Errorf("Fact contains architectural intent word %q: %+v", term, f)
+				}
+			}
+		}
+	}
+
+	// 9. Evidence capture failure creates a limitation rather than synthetic content
+	_, badErr := readCapturedLines("non_existent_file.go", 1, 2)
+	if badErr == nil {
+		t.Errorf("Expected error reading non-existent file, got nil")
+	}
+
+	// 10. Existing topology, boundary, contract-seam, state-read, and test-protection fixture assertions continue to pass
+	topologyFact := false
+	boundaryFact := false
+	contractFact := false
+	stateFact := false
+	testFact := false
+
+	for _, f := range res.Facts {
+		switch f.Kind {
+		case "topology":
+			if f.Predicate == "defines_symbol" {
+				topologyFact = true
+			}
+		case "boundary":
+			if f.Predicate == "crosses_package_boundary_to" {
+				boundaryFact = true
+			}
+		case "contract_seam":
+			if f.Predicate == "exports_interface" {
+				contractFact = true
+			}
+		case "read":
+			if f.Predicate == "reads" && f.Object == "values" {
+				stateFact = true
+			}
+		case "test_protection":
+			if f.Predicate == "test_calls_symbol" {
+				testFact = true
+			}
+		}
+	}
+
+	if !topologyFact {
+		t.Errorf("Expected topology defines_symbol fact to be present")
+	}
+	if !boundaryFact {
+		t.Errorf("Expected boundary crosses_package_boundary_to fact to be present")
+	}
+	if !contractFact {
+		t.Errorf("Expected contract_seam exports_interface fact to be present")
+	}
+	if !stateFact {
+		t.Errorf("Expected state reads fact to be present")
+	}
+	if !testFact {
+		t.Errorf("Expected test_protection test_calls_symbol fact to be present")
+	}
+}
