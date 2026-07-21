@@ -607,6 +607,7 @@ func (e *extractor) extractDataShapes() {
 
 	// For each struct, check if it matches the 5 boundary crossing/serialization paths
 	for _, s := range structs {
+		typeName := s.obj.Pkg().Name() + "." + s.obj.Name()
 		crossesBoundary := false
 		var boundarySymbols []boundaryInfo
 		hasSerializationTag := false
@@ -624,12 +625,15 @@ func (e *extractor) extractDataShapes() {
 			}
 			for id, obj := range otherPkg.TypesInfo.Uses {
 				if obj == s.obj {
-					crossesBoundary = true
 					file, line, ok := e.position(id.Pos())
 					if !ok {
-						file = s.file
-						line = s.line
+						e.limitations = append(e.limitations, Limitation{
+							Scope:  typeName,
+							Reason: "boundary crossing location unresolved: package:" + otherPkg.PkgPath + " (position not found in fileset)",
+						})
+						continue
 					}
+					crossesBoundary = true
 					boundarySymbols = append(boundarySymbols, boundaryInfo{
 						symbol: "package:" + otherPkg.PkgPath,
 						file:   file,
@@ -650,12 +654,15 @@ func (e *extractor) extractDataShapes() {
 				if fn, ok := obj.(*types.Func); ok && fn.Exported() {
 					sig := fn.Type().(*types.Signature)
 					if signatureUsesType(sig, s.named) {
-						crossesBoundary = true
 						file, line, ok := e.position(fn.Pos())
 						if !ok {
-							file = s.file
-							line = s.line
+							e.limitations = append(e.limitations, Limitation{
+								Scope:  typeName,
+								Reason: "boundary crossing location unresolved: " + objectSymbol(fn) + " (position not found in fileset)",
+							})
+							continue
 						}
+						crossesBoundary = true
 						boundarySymbols = append(boundarySymbols, boundaryInfo{
 							symbol: objectSymbol(fn),
 							file:   file,
@@ -663,38 +670,44 @@ func (e *extractor) extractDataShapes() {
 						})
 					}
 				}
-				if typeName, ok := obj.(*types.TypeName); ok && typeName.Exported() {
-					if iface, ok := types.Unalias(typeName.Type()).Underlying().(*types.Interface); ok {
+				if typeNameObj, ok := obj.(*types.TypeName); ok && typeNameObj.Exported() {
+					if iface, ok := types.Unalias(typeNameObj.Type()).Underlying().(*types.Interface); ok {
 						for i := 0; i < iface.NumMethods(); i++ {
 							m := iface.Method(i)
 							sig := m.Type().(*types.Signature)
 							if signatureUsesType(sig, s.named) {
-								crossesBoundary = true
 								file, line, ok := e.position(m.Pos())
 								if !ok {
-									file = s.file
-									line = s.line
+									e.limitations = append(e.limitations, Limitation{
+										Scope:  typeName,
+										Reason: "boundary crossing location unresolved: " + objectSymbol(typeNameObj) + "." + m.Name() + " (position not found in fileset)",
+									})
+									continue
 								}
+								crossesBoundary = true
 								boundarySymbols = append(boundarySymbols, boundaryInfo{
-									symbol: objectSymbol(typeName) + "." + m.Name(),
+									symbol: objectSymbol(typeNameObj) + "." + m.Name(),
 									file:   file,
 									line:   line,
 								})
 							}
 						}
 					}
-					if namedType, ok := types.Unalias(typeName.Type()).(*types.Named); ok {
+					if namedType, ok := types.Unalias(typeNameObj.Type()).(*types.Named); ok {
 						for i := 0; i < namedType.NumMethods(); i++ {
 							m := namedType.Method(i)
 							if m.Exported() {
 								sig := m.Type().(*types.Signature)
 								if signatureUsesType(sig, s.named) {
-									crossesBoundary = true
 									file, line, ok := e.position(m.Pos())
 									if !ok {
-										file = s.file
-										line = s.line
+										e.limitations = append(e.limitations, Limitation{
+											Scope:  typeName,
+											Reason: "boundary crossing location unresolved: " + objectSymbol(m) + " (position not found in fileset)",
+										})
+										continue
 									}
+									crossesBoundary = true
 									boundarySymbols = append(boundarySymbols, boundaryInfo{
 										symbol: objectSymbol(m),
 										file:   file,
