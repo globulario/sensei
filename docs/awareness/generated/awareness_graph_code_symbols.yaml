@@ -4681,6 +4681,11 @@ test_symbols:
     symbol: SpecTitle_grounding_with_zero_assessable_never_renders_a_closure_percentage
     language: typescript
     doc: "title: grounding with zero assessable never renders a closure percentage"
+  - id: editor/vscode/src/controlPanelGrounding.test.ts:SpecTitle_reviewer_point_3_numerator_0_with_a_known_denominator_is_distinct_from_an_unobserved_side
+    file: editor/vscode/src/controlPanelGrounding.test.ts
+    symbol: SpecTitle_reviewer_point_3_numerator_0_with_a_known_denominator_is_distinct_from_an_unobserved_side
+    language: typescript
+    doc: "title: reviewer point 3: numerator 0 with a known denominator is distinct from an unobserved side"
   - id: editor/vscode/src/controlPanelInspector.test.ts:SpecTitle_a_dimension_with_an_UNSPECIFIED_missing_state_renders_Invalid_never_neutral_OK
     file: editor/vscode/src/controlPanelInspector.test.ts
     symbol: SpecTitle_a_dimension_with_an_UNSPECIFIED_missing_state_renders_Invalid_never_neutral_OK
@@ -8008,12 +8013,24 @@ test_symbols:
     package: controlstate
     language: go
     doc: "Every reason code that dimensionStateFor / assessContradictionDimension can emit for a non-positive\nstate. The composer must be TOTAL over these (non-nil, non-empty Kind) and fail-honest on anything\nunrecognized (an explicit generic_incomplete, never empty strings)."
+  - id: golang/architecture/controlstate/explanation_test.go:TestExplanationProseDoesNotAlterSemantics
+    file: golang/architecture/controlstate/explanation_test.go
+    symbol: TestExplanationProseDoesNotAlterSemantics
+    package: controlstate
+    language: go
+    doc: "Reviewer point 1: changing explanation WORDING (same Kind) never alters a semantic comparison —\nthe dimension state, artifact closure, and every attention identity are invariant to the prose.\n(The projection digest legitimately reflects the full rendered content; semantics do not.)"
   - id: golang/architecture/controlstate/explanation_test.go:TestExplanation_NeverImpliesSatisfied
     file: golang/architecture/controlstate/explanation_test.go
     symbol: TestExplanation_NeverImpliesSatisfied
     package: controlstate
     language: go
     doc: "Proof: the explanation never contradicts the state — its presence tracks non-positive states only,\nand it is projection, so it cannot upgrade a state to satisfied/compliant."
+  - id: golang/architecture/controlstate/explanation_test.go:TestGenericFallbackNeverImpliesEvidence
+    file: golang/architecture/controlstate/explanation_test.go
+    symbol: TestGenericFallbackNeverImpliesEvidence
+    package: controlstate
+    language: go
+    doc: "Reviewer point 2: the generic fallback explanation never implies evidence EXISTS — it names what\nis still missing and needed, and never asserts an observed/admitted crossing or a positive state."
   - id: golang/architecture/controlstate/final_repair_test.go:TestFinal_AbsoluteFeedbackIdentityRefused
     file: golang/architecture/controlstate/final_repair_test.go
     symbol: TestFinal_AbsoluteFeedbackIdentityRefused
@@ -11988,12 +12005,6 @@ test_symbols:
     package: rigor
     language: go
     doc: "FormatDecision surfaces the load-bearing facts: the effective class, that a weaker declaration was\nignored, and that the integrity gates are owed by every class."
-  - id: golang/architecture/rigor/rigor_test.go:TestLongestPrefixWins
-    file: golang/architecture/rigor/rigor_test.go
-    symbol: TestLongestPrefixWins
-    package: rigor
-    language: go
-    doc: "The most specific (longest-prefix) surface owns a file."
   - id: golang/architecture/rigor/rigor_test.go:TestManifestValidationRejectsAmbiguity
     file: golang/architecture/rigor/rigor_test.go
     symbol: TestManifestValidationRejectsAmbiguity
@@ -12006,6 +12017,12 @@ test_symbols:
     package: rigor
     language: go
     doc: "Obligations are cumulative in semantic weight A > B > C (each stricter class owes a superset of\nthe graded proofs), while all keep the integrity gates."
+  - id: golang/architecture/rigor/rigor_test.go:TestOverlappingPrefixesTakeStrictest
+    file: golang/architecture/rigor/rigor_test.go
+    symbol: TestOverlappingPrefixesTakeStrictest
+    package: rigor
+    language: go
+    doc: "Overlapping prefixes take the STRICTEST matching surface — a narrower but WEAKER surface can\nnever trick classification into a lighter class than a broader stricter surface that also owns\nthe file (reviewer point 4). Both directions are covered."
   - id: golang/architecture/rigor/rigor_test.go:TestUnclassifiedFileForcesClassA
     file: golang/architecture/rigor/rigor_test.go
     symbol: TestUnclassifiedFileForcesClassA
