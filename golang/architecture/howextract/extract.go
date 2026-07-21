@@ -21,13 +21,8 @@ type Result struct {
 	Limitations []architecture.Limitation       `json:"limitations" yaml:"limitations"`
 }
 
-// Extract parses the codebase using the Go AST and semantic extractors
-// and returns the composed HOW observations, receipts, and coverage.
-func Extract(root string) (Result, error) {
-	return ExtractWithOptions(root, Options{})
-}
-
-func ExtractWithOptions(root string, opts Options) (Result, error) {
+// Extract parses the codebase using explicit deterministic inputs.
+func Extract(root string, opts Options) (Result, error) {
 	if _, err := time.Parse(time.RFC3339, opts.CapturedAt); err != nil {
 		return Result{}, fmt.Errorf("captured_at must be an explicit RFC3339 input: %w", err)
 	}
