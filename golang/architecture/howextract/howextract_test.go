@@ -3,8 +3,11 @@
 package howextract
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -106,6 +109,62 @@ func TestExtractRequiresExplicitCaptureBinding(t *testing.T) {
 	if _, err := Extract(t.TempDir()); err == nil {
 		t.Fatal("expected missing capture binding to fail")
 	}
+}
+
+func TestExtractWithSameBindingIsDeterministic(t *testing.T) {
+	root := deterministicFixture(t)
+	opts := Options{CapturedAt: "2026-07-21T14:00:00Z"}
+	first, err := ExtractWithOptions(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := ExtractWithOptions(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := json.Marshal(first)
+	b, _ := json.Marshal(second)
+	if string(a) != string(b) {
+		t.Fatal("same tree and capture binding produced different HOW output")
+	}
+}
+
+func TestCaptureBindingOnlyChangesReceiptTimestamp(t *testing.T) {
+	root := deterministicFixture(t)
+	a, err := ExtractWithOptions(root, Options{CapturedAt: "2026-07-21T14:00:00Z"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ExtractWithOptions(root, Options{CapturedAt: "2026-07-21T15:00:00Z"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.Facts) != len(b.Facts) || len(a.RawEvidence) != len(b.RawEvidence) {
+		t.Fatal("capture binding changed extraction shape")
+	}
+	for i := range a.RawEvidence {
+		x, y := a.RawEvidence[i], b.RawEvidence[i]
+		if x.ID != y.ID || x.SourceDigestSHA256 != y.SourceDigestSHA256 || x.ContentDigestSHA256 != y.ContentDigestSHA256 || !reflect.DeepEqual(x.Scope, y.Scope) {
+			t.Fatal("capture binding changed semantic evidence")
+		}
+		if x.CapturedAt == y.CapturedAt {
+			t.Fatal("capture binding did not change captured_at")
+		}
+	}
+}
+
+func deterministicFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("testdata/deterministic_repo")); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"init"}, {"remote", "add", "origin", "https://example.com/deterministic.git"}} {
+		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	return root
 }
 
 func TestReadCapturedLines(t *testing.T) {
