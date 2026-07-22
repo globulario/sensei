@@ -3,10 +3,18 @@
 package investigator
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
 )
+
+func TestValidateRefusesMissingMandatoryReceipt(t *testing.T) {
+	err := Validate(Result{}, GroundingSnapshot{})
+	if err == nil || !strings.Contains(err.Error(), "receipt exact result digest is required") {
+		t.Fatalf("missing receipt must be refused, got %v", err)
+	}
+}
 
 func TestCandidateIdentityIsDeterministicAndIgnoresRankingMetadata(t *testing.T) {
 	binding := Binding{Repository: architecture.ClaimDocumentBinding{RepositoryDomain: "example/repo", Revision: "abc"}, GraphDigestSHA256: "graph", EvidenceSnapshotDigestSHA256: "evidence"}

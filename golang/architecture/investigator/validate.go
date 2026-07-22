@@ -485,21 +485,25 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 	// 9. Validate Run Receipt digests (Section 16 & 17)
 	receipt := res.Receipt
-	if receipt.HowDocumentDigestSHA256 != "" && res.Binding.HowDocumentDigestSHA256 != "" &&
-		receipt.HowDocumentDigestSHA256 != res.Binding.HowDocumentDigestSHA256 {
+	if receipt.InputBinding != res.Binding {
+		errs = append(errs, "receipt input binding must exactly match result binding")
+	}
+	if receipt.HowDocumentDigestSHA256 == "" || receipt.HowDocumentDigestSHA256 != res.Binding.HowDocumentDigestSHA256 {
 		errs = append(errs, fmt.Sprintf("receipt HOW digest %q does not match binding HOW digest %q", receipt.HowDocumentDigestSHA256, res.Binding.HowDocumentDigestSHA256))
 	}
-	if receipt.WhyDocumentDigestSHA256 != "" && res.Binding.WhyDocumentDigestSHA256 != "" &&
-		receipt.WhyDocumentDigestSHA256 != res.Binding.WhyDocumentDigestSHA256 {
+	if receipt.WhyDocumentDigestSHA256 == "" || receipt.WhyDocumentDigestSHA256 != res.Binding.WhyDocumentDigestSHA256 {
 		errs = append(errs, fmt.Sprintf("receipt WHY digest %q does not match binding WHY digest %q", receipt.WhyDocumentDigestSHA256, res.Binding.WhyDocumentDigestSHA256))
 	}
-	if receipt.GraphDigestSHA256 != "" && repo.GraphDigestSHA256 != "" &&
-		receipt.GraphDigestSHA256 != repo.GraphDigestSHA256 {
+	if receipt.GraphDigestSHA256 == "" || receipt.GraphDigestSHA256 != repo.GraphDigestSHA256 {
 		errs = append(errs, fmt.Sprintf("receipt graph digest %q does not match binding graph digest %q", receipt.GraphDigestSHA256, repo.GraphDigestSHA256))
 	}
 
-	// Verify exact result digest if populated
-	if receipt.ExactResultDigestSHA256 != "" {
+	if receipt.TimestampSource == "" || receipt.NondeterminismDeclaration == "" {
+		errs = append(errs, "receipt timestamp source and nondeterminism declaration are required")
+	}
+	if receipt.ExactResultDigestSHA256 == "" {
+		errs = append(errs, "receipt exact result digest is required")
+	} else {
 		recomputed, err := ResultDigest(res)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("recomputing result digest failed: %v", err))
