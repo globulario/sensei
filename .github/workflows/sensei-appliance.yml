@@ -55,6 +55,15 @@ jobs:
           fi
           tail -n 40 /tmp/sensei-appliance-build.log
 
+      - name: Upload failed Docker build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensei-appliance-build-failure
+          path: /tmp/sensei-appliance-build.log
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Enforce lightweight image ceiling
         shell: bash
         run: |
