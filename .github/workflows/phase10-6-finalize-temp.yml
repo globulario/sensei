@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/phase10-6-deviation-learning
+  pull_request:
+    branches:
+      - phase10-architectural-investigation
 
 permissions:
   contents: write
