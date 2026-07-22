@@ -17,20 +17,22 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-# Sensei's semantic scanners intentionally use Tree-sitter CGO bindings. Keep
-# CGO for the CLI and MCP bridge; the gRPC server remains a static Go binary.
+# Sensei's shared architecture packages intentionally include Tree-sitter CGO
+# bindings. All three shipped binaries traverse that dependency graph, so build
+# them consistently with CGO and inspect their actual runtime link surface.
 RUN set -eux; \
     CGO_ENABLED=1 go build -trimpath \
       -ldflags "-s -w -X main.Version=${SENSEI_VERSION}" \
       -o /out/sensei ./cmd/awg; \
-    CGO_ENABLED=0 go build -trimpath \
+    CGO_ENABLED=1 go build -trimpath \
       -ldflags "-s -w -X main.Version=${SENSEI_VERSION} -X main.BuildCommit=${VCS_REF}" \
       -o /out/awareness-graph ./golang/server; \
     CGO_ENABLED=1 go build -trimpath \
       -ldflags "-s -w" \
       -o /out/awareness-mcp ./cmd/awareness-mcp; \
     ldd /out/sensei; \
-    ldd /out/awareness-mcp || true
+    ldd /out/awareness-graph; \
+    ldd /out/awareness-mcp
 
 # Pin Oxigraph and verify the exact GitHub release asset digest before it enters
 # the runtime image. TARGETARCH is supplied automatically by BuildKit/buildx.
