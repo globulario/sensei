@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/investigation"
@@ -47,10 +48,22 @@ func ReadArtifact(path string, out any) error {
 	if err != nil {
 		return err
 	}
-	if json.Unmarshal(data, out) == nil {
+	target := reflect.ValueOf(out)
+	if target.Kind() != reflect.Pointer || target.IsNil() {
+		return errors.New("artifact destination must be a non-nil pointer")
+	}
+	decode := func(unmarshal func([]byte, any) error) error {
+		temporary := reflect.New(target.Elem().Type()).Interface()
+		if err := unmarshal(data, temporary); err != nil {
+			return err
+		}
+		target.Elem().Set(reflect.ValueOf(temporary).Elem())
 		return nil
 	}
-	if yaml.Unmarshal(data, out) == nil {
+	if err := decode(json.Unmarshal); err == nil {
+		return nil
+	}
+	if err := decode(yaml.Unmarshal); err == nil {
 		return nil
 	}
 	return fmt.Errorf("%s is neither valid JSON nor YAML for the requested artifact", path)
@@ -153,6 +166,18 @@ func ValidateArtifact(path string) ValidationReport {
 		report.DigestSHA256 = digest
 		return report
 	}
+	var grounding investigator.GroundingSnapshot
+	if err := ReadArtifact(path, &grounding); err == nil && groundingSnapshotPresent(grounding) {
+		report.ArtifactKind = ArtifactGrounding
+		digest, err := investigator.GroundingSnapshotDigest(grounding)
+		if err != nil {
+			report.Error = err.Error()
+			return report
+		}
+		report.Valid = true
+		report.DigestSHA256 = digest
+		return report
+	}
 	var result investigator.Result
 	if err := ReadArtifact(path, &result); err == nil && result.SchemaVersion == investigator.ComposerSchemaVersion {
 		report.ArtifactKind = ArtifactResult
@@ -184,4 +209,10 @@ func ValidateArtifact(path string) ValidationReport {
 	report.ArtifactKind = ArtifactUnknown
 	report.Error = "artifact schema is not recognized by Phase 10.7"
 	return report
+}
+
+func groundingSnapshotPresent(snapshot investigator.GroundingSnapshot) bool {
+	return len(snapshot.Files) > 0 || len(snapshot.Symbols) > 0 || len(snapshot.GraphNodeIDs) > 0 ||
+		len(snapshot.ClaimIDs) > 0 || len(snapshot.ObservationIDs) > 0 ||
+		len(snapshot.EvidenceReceiptIDs) > 0 || len(snapshot.ExistingQuestionIDs) > 0
 }
