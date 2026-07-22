@@ -148,14 +148,14 @@ func ComputeReceiptSemanticDigests(res Result) (ReceiptSemanticDigests, error) {
 // the complete receipt semantic spine. ExactResultDigestSHA256 is ignored to
 // avoid a cyclic digest dependency.
 func ResultDigest(res Result) (string, error) {
-	if err := validateDeterministicSidecars(res); err != nil {
-		return "", err
-	}
 	expected, err := ComputeReceiptSemanticDigests(res)
 	if err != nil {
 		return "", err
 	}
 	if err := validateReceiptSemanticSpine(res, expected); err != nil {
+		return "", err
+	}
+	if err := validateDeterministicSidecars(res); err != nil {
 		return "", err
 	}
 
