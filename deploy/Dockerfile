@@ -17,16 +17,20 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
+# Sensei's semantic scanners intentionally use Tree-sitter CGO bindings. Keep
+# CGO for the CLI and MCP bridge; the gRPC server remains a static Go binary.
 RUN set -eux; \
-    CGO_ENABLED=0 go build -trimpath \
+    CGO_ENABLED=1 go build -trimpath \
       -ldflags "-s -w -X main.Version=${SENSEI_VERSION}" \
       -o /out/sensei ./cmd/awg; \
     CGO_ENABLED=0 go build -trimpath \
       -ldflags "-s -w -X main.Version=${SENSEI_VERSION} -X main.BuildCommit=${VCS_REF}" \
       -o /out/awareness-graph ./golang/server; \
-    CGO_ENABLED=0 go build -trimpath \
+    CGO_ENABLED=1 go build -trimpath \
       -ldflags "-s -w" \
-      -o /out/awareness-mcp ./cmd/awareness-mcp
+      -o /out/awareness-mcp ./cmd/awareness-mcp; \
+    ldd /out/sensei; \
+    ldd /out/awareness-mcp || true
 
 # Pin Oxigraph and verify the exact GitHub release asset digest before it enters
 # the runtime image. TARGETARCH is supplied automatically by BuildKit/buildx.
@@ -63,7 +67,7 @@ LABEL org.opencontainers.image.title="Sensei appliance" \
       io.globulario.sensei.oxigraph.version="${OXIGRAPH_VERSION}"
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates libgcc-s1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 65532 sensei \
     && useradd --system --uid 65532 --gid 65532 --home-dir /var/lib/sensei --shell /usr/sbin/nologin sensei \
