@@ -37,9 +37,18 @@ func ComputeCandidateID(schemaVersion string, binding Binding, proposition strin
 	sortedComponents := append([]string(nil), scope.Components...)
 	sort.Strings(sortedComponents)
 
+	repository := strings.TrimSpace(scope.Repository)
+	repo := strings.TrimSpace(scope.Repo)
+	if repository == "" {
+		repository = repo
+	}
+	if repo == "" {
+		repo = repository
+	}
+
 	normalizedScope := architecture.ClaimScope{
-		Repository: strings.TrimSpace(scope.Repository),
-		Repo:       strings.TrimSpace(scope.Repo),
+		Repository: repository,
+		Repo:       repo,
 		Domain:     strings.TrimSpace(scope.Domain),
 		SourceSet:  strings.TrimSpace(scope.SourceSet),
 		Files:      sortedFiles,
