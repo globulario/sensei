@@ -8983,6 +8983,11 @@ test_symbols:
     symbol: TestGoSemanticFactsIncludeTestToProductionCalls
     package: gosemantics
     language: go
+  - id: golang/architecture/gosemantics/extract_test.go:TestUnresolvedBoundaryProvenanceRegression
+    file: golang/architecture/gosemantics/extract_test.go
+    symbol: TestUnresolvedBoundaryProvenanceRegression
+    package: gosemantics
+    language: go
   - id: golang/architecture/governedimpact/codec_test.go:TestParseReportRejectsUnknownFieldAndTrailing
     file: golang/architecture/governedimpact/codec_test.go
     symbol: TestParseReportRejectsUnknownFieldAndTrailing
@@ -9323,6 +9328,130 @@ test_symbols:
     symbol: TestVerifyDigestResolved
     package: graphsnapshot
     language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestAllCaptureFailuresAreUnavailable
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestAllCaptureFailuresAreUnavailable
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestCaptureFailurePipelineProof
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestCaptureFailurePipelineProof
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestCaptureTimeIndependence
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestCaptureTimeIndependence
+    package: howextract
+    language: go
+    doc: "17. Changing only CapturedAt does not change facts, evidence identities, source-snapshot digests, target digests, plan digest, or extractor-profile digest."
+  - id: golang/architecture/howextract/howextract_test.go:TestDeduplicateReceiptsRefusesConflictingID
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestDeduplicateReceiptsRefusesConflictingID
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestDeterminismAcrossRuns
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestDeterminismAcrossRuns
+    package: howextract
+    language: go
+    doc: "15. Two identical runs with identical inputs produce deeply equal documents and identical output digests."
+  - id: golang/architecture/howextract/howextract_test.go:TestDigestChangesOnSourceByteChange
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestDigestChangesOnSourceByteChange
+    package: howextract
+    language: go
+    doc: "16. Changing source bytes changes the source-snapshot and output-document digests."
+  - id: golang/architecture/howextract/howextract_test.go:TestDuplicateCoverageIdentitiesAreRefused
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestDuplicateCoverageIdentitiesAreRefused
+    package: howextract
+    language: go
+    doc: "12. Duplicate coverage identities are refused."
+  - id: golang/architecture/howextract/howextract_test.go:TestEvidenceBorrowingIsRefused
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestEvidenceBorrowingIsRefused
+    package: howextract
+    language: go
+    doc: "13. Evidence borrowing across investigators is refused."
+  - id: golang/architecture/howextract/howextract_test.go:TestExtract
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestExtract
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestExtractPreservesBoundRepositoryDigests
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestExtractPreservesBoundRepositoryDigests
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestExtractRequiresExactRepositoryBinding
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestExtractRequiresExactRepositoryBinding
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestGeneratedCompilerInputChangesSnapshotAndSemantics
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestGeneratedCompilerInputChangesSnapshotAndSemantics
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestInvalidDigestMutationsAreRejected
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestInvalidDigestMutationsAreRejected
+    package: howextract
+    language: go
+    doc: "19. Invalid source or target digest mutations are rejected by validation."
+  - id: golang/architecture/howextract/howextract_test.go:TestNoResultInvestigatorReportsSearchedNoResult
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestNoResultInvestigatorReportsSearchedNoResult
+    package: howextract
+    language: go
+    doc: "18. A successful investigator with zero matches reports searched_no_result, not unavailable."
+  - id: golang/architecture/howextract/howextract_test.go:TestPartialSemanticExecutionCannotClaimNoResult
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestPartialSemanticExecutionCannotClaimNoResult
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestReadCapturedLines
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestReadCapturedLines
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestReadCapturedLinesPreservesBytes
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestReadCapturedLinesPreservesBytes
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestSemanticEngineFailureMakesDependentsUnavailable
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestSemanticEngineFailureMakesDependentsUnavailable
+    package: howextract
+    language: go
+    doc: "9. A semantic-engine failure makes all dependent entries unavailable."
+  - id: golang/architecture/howextract/howextract_test.go:TestSourceSnapshotRefusesExternalSymlink
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestSourceSnapshotRefusesExternalSymlink
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestSourceSnapshotUsesCanonicalSearchedFiles
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestSourceSnapshotUsesCanonicalSearchedFiles
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/howextract_test.go:TestStateEngineFailureAffectsStateIndependently
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestStateEngineFailureAffectsStateIndependently
+    package: howextract
+    language: go
+    doc: "10. A state-engine failure affects state coverage independently."
+  - id: golang/architecture/howextract/howextract_test.go:TestUnknownExtractorIsRefused
+    file: golang/architecture/howextract/howextract_test.go
+    symbol: TestUnknownExtractorIsRefused
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/testdata/deterministic_repo/impl/impl_test.go:TestUse
+    file: golang/architecture/howextract/testdata/deterministic_repo/impl/impl_test.go
+    symbol: TestUse
+    package: impl
+    language: go
   - id: golang/architecture/identity/identity_test.go:TestEnrollForeignIssuerRejected
     file: golang/architecture/identity/identity_test.go
     symbol: TestEnrollForeignIssuerRejected
@@ -9628,6 +9757,113 @@ test_symbols:
     symbol: TestUnknownRuleSelectionFails
     package: inference
     language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestCandidateScopeExpansionRefusal
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestCandidateScopeExpansionRefusal
+    package: investigation
+    language: go
+    doc: "Test Candidate Scope Expansion Refusal"
+  - id: golang/architecture/investigation/investigation_test.go:TestClaimScopeComponentsAndSourceSetGrounding
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestClaimScopeComponentsAndSourceSetGrounding
+    package: investigation
+    language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestConfidenceIndependentCandidateIdentity
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestConfidenceIndependentCandidateIdentity
+    package: investigation
+    language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestContradictionPreservation
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestContradictionPreservation
+    package: investigation
+    language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestDeduplicationAndCollisionDetection
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestDeduplicationAndCollisionDetection
+    package: investigation
+    language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestDigestDeterminism
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestDigestDeterminism
+    package: investigation
+    language: go
+    doc: "Test Digest Determinism"
+  - id: golang/architecture/investigation/investigation_test.go:TestDuplicateIDRefusal
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestDuplicateIDRefusal
+    package: investigation
+    language: go
+    doc: "Test Duplicate ID Refusal"
+  - id: golang/architecture/investigation/investigation_test.go:TestEscapingFilePathRefusal
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestEscapingFilePathRefusal
+    package: investigation
+    language: go
+    doc: "Test Escaping File Path Refusal"
+  - id: golang/architecture/investigation/investigation_test.go:TestFuzzNormalizationAndValidationStability
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestFuzzNormalizationAndValidationStability
+    package: investigation
+    language: go
+    doc: "Fuzz/Property Tests for Normalization and Validation Stability"
+  - id: golang/architecture/investigation/investigation_test.go:TestInvalidVocabularyRefusal
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestInvalidVocabularyRefusal
+    package: investigation
+    language: go
+    doc: "Test Invalid Vocabulary Refusal"
+  - id: golang/architecture/investigation/investigation_test.go:TestMissingProviderExecutionForSearchedNoResult
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestMissingProviderExecutionForSearchedNoResult
+    package: investigation
+    language: go
+    doc: "Test Missing Provider Execution for searched_no_result"
+  - id: golang/architecture/investigation/investigation_test.go:TestModelDisabledCanonicalTruthEquivalence
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestModelDisabledCanonicalTruthEquivalence
+    package: investigation
+    language: go
+    doc: "Test Model-Disabled Canonical Truth Equivalence"
+  - id: golang/architecture/investigation/investigation_test.go:TestModelStatusAndDigestMatrix
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestModelStatusAndDigestMatrix
+    package: investigation
+    language: go
+    doc: "Test Model Status and Digest Matrix"
+  - id: golang/architecture/investigation/investigation_test.go:TestNormalizationIdempotence
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestNormalizationIdempotence
+    package: investigation
+    language: go
+    doc: "Test Normalization Idempotence"
+  - id: golang/architecture/investigation/investigation_test.go:TestOutputReceiptDigestMismatchRefusal
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestOutputReceiptDigestMismatchRefusal
+    package: investigation
+    language: go
+    doc: "Test Output Receipt Digest Mismatch Refusal"
+  - id: golang/architecture/investigation/investigation_test.go:TestProofStrengthIndependenceFromConfidence
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestProofStrengthIndependenceFromConfidence
+    package: investigation
+    language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestRawEvidencePreservesExactCapturedContentAndDigestValidation
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestRawEvidencePreservesExactCapturedContentAndDigestValidation
+    package: investigation
+    language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestReceiptDigestSelfExcludingOnly
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestReceiptDigestSelfExcludingOnly
+    package: investigation
+    language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestRepositoryEvidenceBindingMismatchRefusal
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestRepositoryEvidenceBindingMismatchRefusal
+    package: investigation
+    language: go
+    doc: "Test Repository/Evidence Binding Mismatch Refusal"
   - id: golang/architecture/knowledgeadoption/engine_test.go:TestCompilerEnforcedInternalBoundaryIsMachineAdopted
     file: golang/architecture/knowledgeadoption/engine_test.go
     symbol: TestCompilerEnforcedInternalBoundaryIsMachineAdopted
@@ -12773,6 +13009,31 @@ test_symbols:
     file: golang/architecture/tasksession/session_test.go
     symbol: TestWorkingTreeChangeOutsideModifyEnvelopeMakesTaskStale
     package: tasksession
+    language: go
+  - id: golang/architecture/whyinvestigation/git_test.go:TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
+    file: golang/architecture/whyinvestigation/git_test.go
+    symbol: TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/git_test.go:TestDeterministicGitEvidenceAndEmptyRange
+    file: golang/architecture/whyinvestigation/git_test.go
+    symbol: TestDeterministicGitEvidenceAndEmptyRange
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/git_test.go:TestInvalidWhyRequestsAreRefused
+    file: golang/architecture/whyinvestigation/git_test.go
+    symbol: TestInvalidWhyRequestsAreRefused
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/git_test.go:TestMissingGitProducesUnavailableDocument
+    file: golang/architecture/whyinvestigation/git_test.go
+    symbol: TestMissingGitProducesUnavailableDocument
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/git_test.go:TestShallowHistoryKeepsEvidenceButSignalsLimitation
+    file: golang/architecture/whyinvestigation/git_test.go
+    symbol: TestShallowHistoryKeepsEvidenceButSignalsLimitation
+    package: whyinvestigation
     language: go
   - id: golang/client/auth_test.go:TestBearerToken
     file: golang/client/auth_test.go
