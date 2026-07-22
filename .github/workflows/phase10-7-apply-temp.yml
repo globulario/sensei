@@ -33,34 +33,38 @@ jobs:
           import hashlib
           from pathlib import Path
 
-          expected = {
-              'overlay.part00': '3bcbd57d9a6a95b30f4833aaa9ecd14a6460eb83d95328450f918e022517e9b4',
-              'overlay.part01': '703948464304647a0f06b7989531074f57e65c0011c80278e8d1524f6bb39469',
-              'overlay.part02': '12bcbbb211f12a086549e1977d85301e61341302ba7ab0d94928a3a1f6623685',
-              'overlay.part03': 'c751c11d69efcd43b987f13545df6e363d82a7ccfb9d16cfed2caa3caaa1a30f',
-              'overlay.part04': 'dcbf7768defcf56fc46f32b266338687911b659784f117b9ead73b1160c010af',
-              'overlay.part05': '02f748487a111b5646761189fa0fa430b634fc63d82ad33a6c021f8616a5298f',
-              'overlay.part06': '20b89c4ea68c51ce88395552116c946c85951840e2bc4512927d222feda447ac',
-              'overlay.part07': '5885f0ce92c16e530c5d7b7419d5dfc944a37fc4a02c4eb52359592b4b75c958',
-          }
+          expected = [
+              ('overlay.part00', '3bcbd57d9a6a95b30f4833aaa9ecd14a6460eb83d95328450f918e022517e9b4'),
+              ('overlay.part01', '703948464304647a0f06b7989531074f57e65c0011c80278e8d1524f6bb39469'),
+              ('overlay.part02', '12bcbbb211f12a086549e1977d85301e61341302ba7ab0d94928a3a1f6623685'),
+              ('overlay.part03', 'c751c11d69efcd43b987f13545df6e363d82a7ccfb9d16cfed2caa3caaa1a30f'),
+              ('overlay.part04', 'dcbf7768defcf56fc46f32b266338687911b659784f117b9ead73b1160c010af'),
+              ('overlay.part05', '02f748487a111b5646761189fa0fa430b634fc63d82ad33a6c021f8616a5298f'),
+              ('overlay.part06', '20b89c4ea68c51ce88395552116c946c85951840e2bc4512927d222feda447ac'),
+              ('overlay.part07a', '4104c6fb44b85a5a4a3845e5a83b14b6554435a6744c2ef1a09f252e2ddce2e0'),
+              ('overlay.part07b', '17d9855642ebdb643c29d7f548137ac8f0e4f884319eef719c4376ce36727feb'),
+          ]
           chunks = []
           report = []
-          mismatch = False
-          for name, want in expected.items():
+          for name, want in expected:
               data = (Path('.phase10-7') / name).read_bytes().strip()
               got = hashlib.sha256(data).hexdigest()
               report.append(f'{name} bytes={len(data)} got={got} want={want} match={got == want}')
               if got != want:
-                  mismatch = True
+                  Path('/tmp/phase10-7-transfer-report.txt').write_text('\n'.join(report) + '\n')
+                  raise SystemExit(f'{name} checksum mismatch')
               chunks.append(data)
           encoded = b''.join(chunks)
           combined = hashlib.sha256(encoded).hexdigest()
-          report.append(f'combined bytes={len(encoded)} got={combined} want=b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf')
-          Path('/tmp/phase10-7-transfer-report.txt').write_text('\n'.join(report) + '\n')
-          if mismatch or combined != 'b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf':
-              raise SystemExit('overlay chunk integrity failed; see transfer report artifact')
+          report.append(f'combined bytes={len(encoded)} got={combined} want=bc084c14691f23dc4bac0644d25ed435d5350785c3015fd27d273f893c60424f')
+          if combined != 'bc084c14691f23dc4bac0644d25ed435d5350785c3015fd27d273f893c60424f':
+              Path('/tmp/phase10-7-transfer-report.txt').write_text('\n'.join(report) + '\n')
+              raise SystemExit('combined base64 checksum mismatch')
           archive = base64.b64decode(encoded, validate=True)
-          if hashlib.sha256(archive).hexdigest() != '792ec92c4d87a0dd77b8ee199d651d47fefbdfaa3163efb5a2776a230efff49a':
+          archive_digest = hashlib.sha256(archive).hexdigest()
+          report.append(f'archive bytes={len(archive)} got={archive_digest} want=ba1e4a3dbfd2140d2f4d698099b38e5bd5bd23364a6afd7d67f6ed704428fd54')
+          Path('/tmp/phase10-7-transfer-report.txt').write_text('\n'.join(report) + '\n')
+          if archive_digest != 'ba1e4a3dbfd2140d2f4d698099b38e5bd5bd23364a6afd7d67f6ed704428fd54':
               raise SystemExit('decoded overlay checksum mismatch')
           Path('/tmp/phase10-7-overlay.tgz').write_bytes(archive)
           PY
@@ -76,8 +80,7 @@ jobs:
       - name: Remove transfer scaffolding
         run: |
           rm -rf .phase10-7
-          rm -f .github/workflows/phase10-7-export-temp.yml
-          rm -f .github/workflows/phase10-7-apply-temp.yml
+          rm -f .github/workflows/phase10-7-*.yml
 
       - name: Format Phase 10.7 Go surfaces
         shell: bash
