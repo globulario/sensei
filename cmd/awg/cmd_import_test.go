@@ -4,10 +4,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -406,4 +409,646 @@ func readinessGraph(files ...string) []byte {
 		lines = append(lines, fmt.Sprintf("%s %s %s .", rdf.MintIRI(rdf.ClassSourceFile, file), rdf.IRI(rdf.PropType), rdf.IRI(rdf.ClassSourceFile)))
 	}
 	return []byte(strings.Join(lines, "\n") + "\n")
+}
+
+func setupCoherentProjectFixture(t *testing.T) (string, string) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/gin\n")
+	writeFile(t, filepath.Join(root, "state.go"), `package gin
+func Apply(state string) error {
+	if state == "bad" { return errInvalid }
+	Value = state
+	return nil
+}
+var Value string
+var errInvalid error
+`)
+	writeFile(t, filepath.Join(root, "state_test.go"), `package gin
+func TestApplyMustRejectBadState(t *testing.T) {
+	if Apply("bad") == nil { t.Fatal("must reject") }
+}
+`)
+	writeFile(t, filepath.Join(root, "docs", "awareness", "generated", "components.yaml"), `components:
+  - id: component.gin
+    name: gin
+    kind: module
+    assertion: inferred
+    source_files:
+      - state.go
+`)
+	runGit(t, root, "init")
+	runGit(t, root, "config", "user.email", "test@example.com")
+	runGit(t, root, "config", "user.name", "Test User")
+	runGit(t, root, "add", ".")
+	runGit(t, root, "commit", "-m", "initial")
+
+	domain := "github.com/example/gin"
+	_, err := reconstructImportedProject(root, domain, false)
+	if err != nil {
+		t.Fatalf("setup coherent fixture failed: %v", err)
+	}
+
+	activeProjectDir := filepath.Join(root, ".sensei", "project")
+	class, err := classifyActiveProjectFamily(activeProjectDir)
+	if err != nil {
+		t.Fatalf("classify coherent failed: %v", err)
+	}
+	if class.Status != projectFamilyCoherent {
+		t.Fatalf("setup coherent fixture got status %q (detail: %s), want coherent", class.Status, class.Detail)
+	}
+
+	return root, domain
+}
+
+func cloneProjectFamily(t *testing.T, src string) string {
+	dst := t.TempDir()
+	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(dstPath, data, info.Mode())
+	})
+	if err != nil {
+		t.Fatalf("clone project family: %v", err)
+	}
+	return dst
+}
+
+func mutateReceipt(t *testing.T, dir string, fn func(*projectReconstructionReceipt)) {
+	path := filepath.Join(dir, "reconstruction-receipt.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r projectReconstructionReceipt
+	if err := yaml.Unmarshal(data, &r); err != nil {
+		t.Fatal(err)
+	}
+	fn(&r)
+	out, err := yaml.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type claimDocumentEnvelope struct {
+	ArchitectureClaims architecture.ClaimDocument `yaml:"architecture_claims"`
+}
+
+func mutateClaims(t *testing.T, dir string, fn func(*architecture.ClaimDocument)) {
+	path := filepath.Join(dir, "claims.yaml")
+	doc, err := architecture.LoadClaimDocument(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn(&doc)
+	env := claimDocumentEnvelope{ArchitectureClaims: doc}
+	out, err := yaml.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mutateReadiness(t *testing.T, dir string, fn func(*phase2Readiness)) {
+	path := filepath.Join(dir, "readiness.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env phase2ReadinessEnvelope
+	if err := yaml.Unmarshal(data, &env); err != nil {
+		t.Fatal(err)
+	}
+	fn(&env.Phase2Readiness)
+	out, err := yaml.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func updateReceiptDigest(t *testing.T, dir, relPath string, body []byte) {
+	sum := sha256.Sum256(body)
+	digest := hex.EncodeToString(sum[:])
+	mutateReceipt(t, dir, func(r *projectReconstructionReceipt) {
+		for i, art := range r.Artifacts {
+			if art.Path == relPath {
+				r.Artifacts[i].SHA256Digest = digest
+				return
+			}
+		}
+	})
+}
+
+func TestProjectFamilyClassifier(t *testing.T) {
+	fixtureRoot, _ := setupCoherentProjectFixture(t)
+	srcDir := filepath.Join(fixtureRoot, ".sensei", "project")
+
+	cases := []struct {
+		name           string
+		mutate         func(t *testing.T, dir string)
+		expectedReason projectFamilyInvalidReason
+	}{
+		{
+			name: "malformed graph",
+			mutate: func(t *testing.T, dir string) {
+				body := []byte("invalid ntriples line")
+				os.WriteFile(filepath.Join(dir, "graph.nt"), body, 0o644)
+				updateReceiptDigest(t, dir, ".sensei/project/graph.nt", body)
+			},
+			expectedReason: invalidGraph,
+		},
+		{
+			name: "graph digest mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReceipt(t, dir, func(r *projectReconstructionReceipt) {
+					r.FinalGraphDigestSHA256 = "mismatchedhash"
+				})
+			},
+			expectedReason: invalidGraph,
+		},
+		{
+			name: "missing graph",
+			mutate: func(t *testing.T, dir string) {
+				os.Remove(filepath.Join(dir, "graph.nt"))
+			},
+			expectedReason: invalidDigest,
+		},
+		{
+			name: "missing claims",
+			mutate: func(t *testing.T, dir string) {
+				os.Remove(filepath.Join(dir, "claims.yaml"))
+			},
+			expectedReason: invalidDigest,
+		},
+		{
+			name: "missing audit",
+			mutate: func(t *testing.T, dir string) {
+				os.Remove(filepath.Join(dir, "claim-audit.yaml"))
+			},
+			expectedReason: invalidDigest,
+		},
+		{
+			name: "missing readiness",
+			mutate: func(t *testing.T, dir string) {
+				os.Remove(filepath.Join(dir, "readiness.yaml"))
+			},
+			expectedReason: invalidDigest,
+		},
+		{
+			name: "missing adoption artifact",
+			mutate: func(t *testing.T, dir string) {
+				os.Remove(filepath.Join(dir, "knowledge", "adoption-report.yaml"))
+			},
+			expectedReason: invalidDigest,
+		},
+		{
+			name: "duplicate receipt path",
+			mutate: func(t *testing.T, dir string) {
+				mutateReceipt(t, dir, func(r *projectReconstructionReceipt) {
+					if len(r.Artifacts) > 0 {
+						r.Artifacts = append(r.Artifacts, r.Artifacts[0])
+					}
+				})
+			},
+			expectedReason: invalidPath,
+		},
+		{
+			name: "non-canonical receipt path",
+			mutate: func(t *testing.T, dir string) {
+				mutateReceipt(t, dir, func(r *projectReconstructionReceipt) {
+					if len(r.Artifacts) > 0 {
+						r.Artifacts[0].Path = "graph.nt"
+					}
+				})
+			},
+			expectedReason: invalidPath,
+		},
+		{
+			name: "path traversal",
+			mutate: func(t *testing.T, dir string) {
+				mutateReceipt(t, dir, func(r *projectReconstructionReceipt) {
+					if len(r.Artifacts) > 0 {
+						r.Artifacts[0].Path = ".sensei/project/../../graph.nt"
+					}
+				})
+			},
+			expectedReason: invalidPath,
+		},
+		{
+			name: "artifact digest mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReceipt(t, dir, func(r *projectReconstructionReceipt) {
+					if len(r.Artifacts) > 0 {
+						r.Artifacts[0].SHA256Digest = "mismatchedsha"
+					}
+				})
+			},
+			expectedReason: invalidDigest,
+		},
+		{
+			name: "claims domain mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateClaims(t, dir, func(c *architecture.ClaimDocument) {
+					c.Binding.RepositoryDomain = "mismatched.com"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "claims.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/claims.yaml", body)
+			},
+			expectedReason: invalidClaims,
+		},
+		{
+			name: "claims revision mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateClaims(t, dir, func(c *architecture.ClaimDocument) {
+					c.Binding.Revision = "mismatchedrevision"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "claims.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/claims.yaml", body)
+			},
+			expectedReason: invalidClaims,
+		},
+		{
+			name: "unresolved claims revision",
+			mutate: func(t *testing.T, dir string) {
+				mutateClaims(t, dir, func(c *architecture.ClaimDocument) {
+					c.Binding.RevisionStatus = "unresolved"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "claims.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/claims.yaml", body)
+			},
+			expectedReason: invalidClaims,
+		},
+		{
+			name: "claims graph mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateClaims(t, dir, func(c *architecture.ClaimDocument) {
+					c.Binding.GraphDigestSHA256 = "mismatchedgraphdigest"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "claims.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/claims.yaml", body)
+			},
+			expectedReason: invalidClaims,
+		},
+		{
+			name: "unresolved claims graph binding",
+			mutate: func(t *testing.T, dir string) {
+				mutateClaims(t, dir, func(c *architecture.ClaimDocument) {
+					c.Binding.GraphDigestStatus = "unresolved"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "claims.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/claims.yaml", body)
+			},
+			expectedReason: invalidClaims,
+		},
+		{
+			name: "readiness domain mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReadiness(t, dir, func(r *phase2Readiness) {
+					r.RepositoryDomain = "mismatched.com"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "readiness.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/readiness.yaml", body)
+			},
+			expectedReason: invalidReadiness,
+		},
+		{
+			name: "readiness graph mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReadiness(t, dir, func(r *phase2Readiness) {
+					r.GraphDigestSHA256 = "mismatchedgraphdigest"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "readiness.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/readiness.yaml", body)
+			},
+			expectedReason: invalidReadiness,
+		},
+		{
+			name: "readiness state mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReadiness(t, dir, func(r *phase2Readiness) {
+					r.State = "mismatchedstate"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "readiness.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/readiness.yaml", body)
+			},
+			expectedReason: invalidReadiness,
+		},
+		{
+			name: "readiness graph path mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReadiness(t, dir, func(r *phase2Readiness) {
+					r.GraphPath = "mismatchedpath"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "readiness.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/readiness.yaml", body)
+			},
+			expectedReason: invalidReadiness,
+		},
+		{
+			name: "readiness claims path mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReadiness(t, dir, func(r *phase2Readiness) {
+					r.ClaimsPath = "mismatchedpath"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "readiness.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/readiness.yaml", body)
+			},
+			expectedReason: invalidReadiness,
+		},
+		{
+			name: "readiness audit path mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReadiness(t, dir, func(r *phase2Readiness) {
+					r.ClaimAuditPath = "mismatchedpath"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "readiness.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/readiness.yaml", body)
+			},
+			expectedReason: invalidReadiness,
+		},
+		{
+			name: "readiness adoption path mismatch",
+			mutate: func(t *testing.T, dir string) {
+				mutateReadiness(t, dir, func(r *phase2Readiness) {
+					r.AdoptionReportPath = "mismatchedpath"
+				})
+				body, _ := os.ReadFile(filepath.Join(dir, "readiness.yaml"))
+				updateReceiptDigest(t, dir, ".sensei/project/readiness.yaml", body)
+			},
+			expectedReason: invalidReadiness,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cloned := cloneProjectFamily(t, srcDir)
+			tc.mutate(t, cloned)
+			class, err := classifyActiveProjectFamily(cloned)
+			if err != nil {
+				if class.Status != projectFamilyInvalid {
+					t.Fatalf("expected invalid status, got %q, err: %v", class.Status, err)
+				}
+				return
+			}
+			if class.Status != projectFamilyInvalid {
+				t.Fatalf("expected status invalid, got %q", class.Status)
+			}
+			if class.Reason != tc.expectedReason {
+				t.Fatalf("expected reason %q, got %q (detail: %s)", tc.expectedReason, class.Reason, class.Detail)
+			}
+		})
+	}
+}
+
+func TestProjectPublication(t *testing.T) {
+	root, domain := setupCoherentProjectFixture(t)
+	projectParent := filepath.Join(root, ".sensei")
+	activeDir := filepath.Join(projectParent, "project")
+	txMarkerPath := filepath.Join(projectParent, "tx-marker.yaml")
+
+	class, err := classifyActiveProjectFamily(activeDir)
+	if err != nil || class.Status != projectFamilyCoherent {
+		t.Fatalf("initial state not coherent: %+v, err: %v", class, err)
+	}
+
+	failurePoints := []string{
+		failAfterAdoption,
+		failAfterGraph,
+		failAfterClaims,
+		failAfterAudit,
+		failAfterReadiness,
+		failAfterReceipt,
+		failAfterValidation,
+		failBeforeMoveCoherent,
+		failAfterMoveCoherent,
+		failBeforeActivation,
+		failDuringActivation,
+		failAfterActivation,
+	}
+
+	for _, fp := range failurePoints {
+		t.Run("fail_"+fp, func(t *testing.T) {
+			os.RemoveAll(projectParent)
+			_, err := reconstructImportedProject(root, domain, false)
+			if err != nil {
+				t.Fatalf("failed to recreate coherent project: %v", err)
+			}
+
+			if _, err := os.Stat(txMarkerPath); err == nil {
+				t.Fatal("marker should not exist initially")
+			}
+			class, err = classifyActiveProjectFamily(activeDir)
+			if err != nil || class.Status != projectFamilyCoherent {
+				t.Fatalf("recreated active state is not coherent: %+v", class)
+			}
+
+			testFailureInjectionPoint = fp
+			defer func() { testFailureInjectionPoint = "" }()
+
+			_, err = reconstructImportedProject(root, domain, false)
+			if err == nil {
+				t.Fatalf("expected failure at point %q, got nil", fp)
+			}
+
+			testFailureInjectionPoint = ""
+
+			if _, statErr := os.Stat(txMarkerPath); os.IsNotExist(statErr) {
+				t.Fatalf("expected transaction marker at %s", txMarkerPath)
+			}
+
+			if err := recoverTransaction(projectParent, txMarkerPath); err != nil {
+				t.Fatalf("recovery failed: %v", err)
+			}
+
+			if _, statErr := os.Stat(txMarkerPath); !os.IsNotExist(statErr) {
+				t.Fatal("transaction marker was not deleted by recovery")
+			}
+
+			finalClass, err := classifyActiveProjectFamily(activeDir)
+			if err != nil || finalClass.Status != projectFamilyCoherent {
+				t.Fatalf("active project not restored to coherent: %+v, err: %v", finalClass, err)
+			}
+
+			files, err := os.ReadDir(projectParent)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, file := range files {
+				if strings.HasPrefix(file.Name(), ".project-staging-") {
+					t.Fatalf("stale staging directory %s not cleaned up", file.Name())
+				}
+			}
+		})
+	}
+}
+
+func TestProjectPublicationWithInvalidAndAbsentPrior(t *testing.T) {
+	t.Run("absent_prior", func(t *testing.T) {
+		root := t.TempDir()
+		projectParent := filepath.Join(root, ".sensei")
+		activeDir := filepath.Join(projectParent, "project")
+		txMarkerPath := filepath.Join(projectParent, "tx-marker.yaml")
+
+		testFailureInjectionPoint = failAfterReceipt
+		defer func() { testFailureInjectionPoint = "" }()
+
+		writeFile(t, filepath.Join(root, "go.mod"), "module example.com/gin\n")
+		writeFile(t, filepath.Join(root, "docs", "awareness", "generated", "components.yaml"), "components: []\n")
+		runGit(t, root, "init")
+		runGit(t, root, "config", "user.email", "test@example.com")
+		runGit(t, root, "config", "user.name", "Test User")
+		runGit(t, root, "add", ".")
+		runGit(t, root, "commit", "-m", "initial")
+
+		_, err := reconstructImportedProject(root, "github.com/example/gin", false)
+		if err == nil {
+			t.Fatal("expected failure after receipt")
+		}
+
+		if _, err := os.Stat(txMarkerPath); err != nil {
+			t.Fatal("marker should exist")
+		}
+
+		testFailureInjectionPoint = ""
+		if err := recoverTransaction(projectParent, txMarkerPath); err != nil {
+			t.Fatalf("recovery failed: %v", err)
+		}
+
+		if _, err := os.Stat(txMarkerPath); !os.IsNotExist(err) {
+			t.Fatal("marker should be deleted")
+		}
+
+		class, err := classifyActiveProjectFamily(activeDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if class.Status != projectFamilyAbsent {
+			t.Fatalf("expected absent status, got %q", class.Status)
+		}
+	})
+
+	t.Run("invalid_prior", func(t *testing.T) {
+		root, domain := setupCoherentProjectFixture(t)
+		projectParent := filepath.Join(root, ".sensei")
+		activeDir := filepath.Join(projectParent, "project")
+		txMarkerPath := filepath.Join(projectParent, "tx-marker.yaml")
+
+		os.WriteFile(filepath.Join(activeDir, "graph.nt"), []byte("invalid graph"), 0o644)
+
+		class, err := classifyActiveProjectFamily(activeDir)
+		if err != nil || class.Status != projectFamilyInvalid {
+			t.Fatalf("expected invalid status, got %+v", class)
+		}
+
+		testFailureInjectionPoint = failAfterMoveInvalid
+		defer func() { testFailureInjectionPoint = "" }()
+
+		_, err = reconstructImportedProject(root, domain, false)
+		if err == nil {
+			t.Fatal("expected failure after move invalid prior")
+		}
+
+		testFailureInjectionPoint = ""
+		if err := recoverTransaction(projectParent, txMarkerPath); err != nil {
+			t.Fatalf("recovery failed: %v", err)
+		}
+
+		if _, err := os.Stat(txMarkerPath); !os.IsNotExist(err) {
+			t.Fatal("marker should be deleted")
+		}
+
+		finalClass, err := classifyActiveProjectFamily(activeDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if finalClass.Status != projectFamilyAbsent {
+			t.Fatalf("expected absent status for recovered invalid prior, got %q", finalClass.Status)
+		}
+
+		files, err := os.ReadDir(projectParent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, file := range files {
+			if strings.HasPrefix(file.Name(), ".project-staging-") {
+				t.Fatalf("stale staging directory %s not cleaned up", file.Name())
+			}
+		}
+	})
+}
+
+func TestProjectPublicationRevisionChange(t *testing.T) {
+	root, domain := setupCoherentProjectFixture(t)
+	projectParent := filepath.Join(root, ".sensei")
+	activeDir := filepath.Join(projectParent, "project")
+
+	testFailureHook = func(point string) {
+		if point == failAfterReceipt {
+			writeFile(t, filepath.Join(root, "extra.go"), "package gin\n")
+			runGit(t, root, "add", "extra.go")
+			runGit(t, root, "commit", "-m", "revision change")
+		}
+	}
+	defer func() { testFailureHook = nil }()
+
+	_, err := reconstructImportedProject(root, domain, false)
+	if err == nil {
+		t.Fatal("expected reconstruction to fail because revision changed")
+	}
+	if !strings.Contains(err.Error(), "repository revision changed during staging") {
+		t.Fatalf("expected revision change error, got: %v", err)
+	}
+
+	class, err := classifyActiveProjectFamily(activeDir)
+	if err != nil || class.Status != projectFamilyCoherent {
+		t.Fatalf("expected prior coherent project to remain active, got: %+v", class)
+	}
+}
+
+func TestProjectPublicationConcurrency(t *testing.T) {
+	root, domain := setupCoherentProjectFixture(t)
+	projectParent := filepath.Join(root, ".sensei")
+	lockPath := filepath.Join(projectParent, "project.lock")
+
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lockFile.Close()
+
+	err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		t.Fatalf("failed to acquire test lock: %v", err)
+	}
+	defer syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+
+	_, err = reconstructImportedProject(root, domain, false)
+	if err == nil {
+		t.Fatal("expected concurrent reconstruction attempt to fail, but it succeeded")
+	}
+
+	if !strings.Contains(err.Error(), "concurrent reconstruction in progress") {
+		t.Fatalf("expected concurrent reconstruction in progress error, got: %v", err)
+	}
 }

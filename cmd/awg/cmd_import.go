@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/adoption"
@@ -525,8 +527,224 @@ type phase2SemanticInputs struct {
 	GoSemanticFactCount int
 }
 
+type transactionPhase string
+
+const (
+	phaseStaging    transactionPhase = "staging"
+	phaseValidated  transactionPhase = "validated"
+	phasePriorMoved transactionPhase = "prior_moved"
+	phaseActivated  transactionPhase = "activated"
+)
+
+type transactionMarker struct {
+	TransactionID string              `yaml:"transaction_id"`
+	RepoRevision  string              `yaml:"repo_revision"`
+	StagingPath   string              `yaml:"staging_path"`
+	PriorPath     string              `yaml:"prior_path"`
+	PriorStatus   projectFamilyStatus `yaml:"prior_status"`
+	Phase         transactionPhase    `yaml:"phase"`
+}
+
+var testFailureInjectionPoint string
+var testFailureHook func(string)
+
+const (
+	failAfterGraph         = "after_graph"
+	failAfterClaims        = "after_claims"
+	failAfterAudit         = "after_audit"
+	failAfterReadiness     = "after_readiness"
+	failAfterAdoption      = "after_adoption"
+	failAfterReceipt       = "after_receipt"
+	failAfterValidation    = "after_validation"
+	failBeforeMoveCoherent = "before_move_coherent"
+	failAfterMoveCoherent  = "after_move_coherent"
+	failBeforeMoveInvalid  = "before_move_invalid"
+	failAfterMoveInvalid   = "after_move_invalid"
+	failBeforeActivation   = "before_activation"
+	failDuringActivation   = "during_activation"
+	failAfterActivation    = "after_activation"
+)
+
+func injectFailure(point string, cleanupStaging *bool) error {
+	if testFailureHook != nil {
+		testFailureHook(point)
+	}
+	if testFailureInjectionPoint == point {
+		if cleanupStaging != nil {
+			*cleanupStaging = false
+		}
+		return fmt.Errorf("injected failure at: %s", point)
+	}
+	return nil
+}
+
+func flushFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return f.Sync()
+}
+
+func flushDir(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	err = f.Sync()
+	if err != nil && strings.Contains(err.Error(), "invalid argument") {
+		return nil
+	}
+	return err
+}
+
+func flushStagingFiles(stagingDir string) error {
+	return filepath.Walk(stagingDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			if err := flushFile(path); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func recoverTransaction(projectParent, txMarkerPath string) error {
+	data, err := os.ReadFile(txMarkerPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	var marker transactionMarker
+	if err := yaml.Unmarshal(data, &marker); err != nil {
+		os.Remove(txMarkerPath)
+		return fmt.Errorf("malformed transaction marker deleted: %w", err)
+	}
+
+	activeProjectDir := marker.PriorPath
+	backupDir := activeProjectDir + ".previous"
+
+	switch marker.Phase {
+	case phaseStaging, phaseValidated:
+		if marker.StagingPath != "" {
+			os.RemoveAll(marker.StagingPath)
+		}
+	case phasePriorMoved:
+		if marker.PriorStatus == projectFamilyCoherent {
+			if _, err := os.Stat(backupDir); err == nil {
+				os.RemoveAll(activeProjectDir)
+				os.Rename(backupDir, activeProjectDir)
+			}
+		} else {
+			os.RemoveAll(activeProjectDir)
+		}
+		if marker.StagingPath != "" {
+			os.RemoveAll(marker.StagingPath)
+		}
+	case phaseActivated:
+		finalClass, err := classifyActiveProjectFamily(activeProjectDir)
+		if err == nil && finalClass.Status == projectFamilyCoherent {
+			if marker.PriorStatus == projectFamilyCoherent {
+				os.RemoveAll(backupDir)
+			}
+		} else {
+			if marker.PriorStatus == projectFamilyCoherent {
+				os.RemoveAll(activeProjectDir)
+				if _, statErr := os.Stat(backupDir); statErr == nil {
+					os.Rename(backupDir, activeProjectDir)
+				}
+			} else {
+				os.RemoveAll(activeProjectDir)
+			}
+		}
+		if marker.StagingPath != "" {
+			os.RemoveAll(marker.StagingPath)
+		}
+	}
+
+	os.Remove(txMarkerPath)
+	return flushDir(projectParent)
+}
+
+func acquireLock(lockPath string) (*os.File, error) {
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		file.Close()
+		if err == syscall.EWOULDBLOCK {
+			return nil, fmt.Errorf("concurrent reconstruction in progress (lock busy)")
+		}
+		return nil, err
+	}
+	return file, nil
+}
+
 func reconstructImportedProject(root, domain string, includeHistory bool) (phase2Readiness, error) {
-	projectDir := filepath.Join(root, ".sensei", "project")
+	projectParent := filepath.Join(root, ".sensei")
+	activeProjectDir := filepath.Join(projectParent, "project")
+	txMarkerPath := filepath.Join(projectParent, "tx-marker.yaml")
+	lockPath := filepath.Join(projectParent, "project.lock")
+
+	if err := os.MkdirAll(projectParent, 0o755); err != nil {
+		return phase2Readiness{}, fmt.Errorf("create project parent directory: %w", err)
+	}
+
+	lockFile, err := acquireLock(lockPath)
+	if err != nil {
+		return phase2Readiness{}, err
+	}
+	defer lockFile.Close()
+
+	// 1. Recover any crashed/interrupted transaction
+	if err := recoverTransaction(projectParent, txMarkerPath); err != nil {
+		return phase2Readiness{}, fmt.Errorf("recover transaction: %w", err)
+	}
+
+	// 2. Classify prior active project family
+	prior, err := classifyActiveProjectFamily(activeProjectDir)
+	if err != nil {
+		return phase2Readiness{}, fmt.Errorf("classify active project family: %w", err)
+	}
+
+	// 3. Setup Staging
+	projectDir, err := os.MkdirTemp(projectParent, ".project-staging-")
+	if err != nil {
+		return phase2Readiness{}, fmt.Errorf("create project staging directory: %w", err)
+	}
+
+	cleanupStaging := true
+	defer func() {
+		if cleanupStaging {
+			os.RemoveAll(projectDir)
+		}
+	}()
+
+	revision, decisionTimestamp := projectRevisionBinding(root)
+
+	// 4. Create Persistent Transaction Marker
+	txID := strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+	marker := transactionMarker{
+		TransactionID: txID,
+		RepoRevision:  revision,
+		StagingPath:   projectDir,
+		PriorPath:     activeProjectDir,
+		PriorStatus:   prior.Status,
+		Phase:         phaseStaging,
+	}
+	if err := writeTxMarker(txMarkerPath, marker); err != nil {
+		return phase2Readiness{}, fmt.Errorf("write transaction marker: %w", err)
+	}
+
 	graphPath := filepath.Join(projectDir, "graph.nt")
 	claimsPath := filepath.Join(projectDir, "claims.yaml")
 	claimAuditPath := filepath.Join(projectDir, "claim-audit.yaml")
@@ -536,9 +754,6 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	awarenessDir := filepath.Join(root, "docs", "awareness")
 	generatedDir := filepath.Join(awarenessDir, "generated")
 
-	// Compile a knowledge-free base graph. Machine-adoption receipts bind to
-	// this exact reconstruction input, avoiding a self-referential digest when
-	// the receipts themselves enter the final graph.
 	raw, _, err := compileAwarenessInputs([]string{awarenessDir, generatedDir}, domain, "", "", false)
 	if err != nil {
 		return phase2Readiness{}, err
@@ -553,7 +768,6 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	}
 	baseSum := sha256.Sum256(baseGraph)
 	baseDigest := hex.EncodeToString(baseSum[:])
-	revision, decisionTimestamp := projectRevisionBinding(root)
 	if err := finalizeMachineAdoptedIntentReceipts(awarenessDir, revision, baseDigest, decisionTimestamp); err != nil {
 		return phase2Readiness{}, fmt.Errorf("finalize machine-adopted Intent receipts: %w", err)
 	}
@@ -565,6 +779,10 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	})
 	if err != nil {
 		return phase2Readiness{}, fmt.Errorf("project knowledge adoption: %w", err)
+	}
+
+	if err := injectFailure(failAfterAdoption, &cleanupStaging); err != nil {
+		return phase2Readiness{}, err
 	}
 
 	compileFinal := func() ([]byte, error) {
@@ -582,9 +800,6 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	if err != nil {
 		return phase2Readiness{}, err
 	}
-	// Re-run the deterministic decision/render pass and demand byte-identical
-	// graph output. This catches timestamps, map order, and unstable identities
-	// before claims bind to the artifact.
 	if _, err := knowledgeadoption.Run(knowledgeadoption.Options{
 		RepositoryRoot: root, RepositoryDomain: domain,
 		CandidatesDir: filepath.Join(awarenessDir, "candidates"), OutputDir: knowledgeDir,
@@ -604,6 +819,9 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	}
 	graphData = convergedGraph
 	if err := writeFileAtomic(graphPath, graphData); err != nil {
+		return phase2Readiness{}, err
+	}
+	if err := injectFailure(failAfterGraph, &cleanupStaging); err != nil {
 		return phase2Readiness{}, err
 	}
 	sum := sha256.Sum256(graphData)
@@ -627,29 +845,39 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	if inferenceErr == nil {
 		inferenceErr = writeFileAtomic(claimsPath, claimsData)
 	}
-	audit := claimaudit.Report{}
-	auditValid := false
-	if inferenceErr == nil {
-		audit = claimaudit.Build(claims, projectClaimAuditOptions(root))
-		auditBytes, auditErr := yaml.Marshal(audit)
-		if auditErr == nil {
-			auditErr = writeFileAtomic(claimAuditPath, auditBytes)
-		}
-		if auditErr != nil {
-			inferenceErr = fmt.Errorf("write claim audit: %w", auditErr)
-		} else {
-			auditValid = true
-		}
+	if inferenceErr != nil {
+		return phase2Readiness{}, inferenceErr
+	}
+	if err := injectFailure(failAfterClaims, &cleanupStaging); err != nil {
+		return phase2Readiness{}, err
 	}
 
-	readiness, readinessErr := assessPhase2Readiness(root, domain, graphPath, claimsPath, graphData, claims, phase2SemanticInputs{
+	audit := claimaudit.Report{}
+	auditValid := false
+	audit = claimaudit.Build(claims, projectClaimAuditOptions(root))
+	auditBytes, auditErr := yaml.Marshal(audit)
+	if auditErr == nil {
+		auditErr = writeFileAtomic(claimAuditPath, auditBytes)
+	}
+	if auditErr != nil {
+		return phase2Readiness{}, fmt.Errorf("write claim audit: %w", auditErr)
+	}
+	auditValid = true
+	if err := injectFailure(failAfterAudit, &cleanupStaging); err != nil {
+		return phase2Readiness{}, err
+	}
+
+	canonicalGraphPath := filepath.Join(root, ".sensei", "project", "graph.nt")
+	canonicalClaimsPath := filepath.Join(root, ".sensei", "project", "claims.yaml")
+	canonicalAdoptionPath := filepath.Join(root, ".sensei", "project", "knowledge", "adoption-report.yaml")
+
+	readiness, readinessErr := assessPhase2Readiness(root, domain, canonicalGraphPath, canonicalClaimsPath, graphData, claims, phase2SemanticInputs{
 		Audit: audit, AuditValid: auditValid, Adoption: adoptionResult.Report,
-		AdoptionPath: adoptionResult.Paths["adoption_report"], GraphDeterministic: true,
+		AdoptionPath: canonicalAdoptionPath, GraphDeterministic: true,
 		FactCount: inferenceResult.FactCount, GoSemanticFactCount: inferenceResult.GoSemanticFactCount,
 	})
-	if inferenceErr != nil {
-		readiness.State = readinessUncertifiable
-		readiness.Limitations = append(readiness.Limitations, "claim inference failed: "+inferenceErr.Error())
+	if readinessErr != nil {
+		return readiness, readinessErr
 	}
 	readinessBytes, err := yaml.Marshal(phase2ReadinessEnvelope{Phase2Readiness: readiness})
 	if err == nil {
@@ -658,20 +886,184 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	if err != nil {
 		return readiness, err
 	}
-	if inferenceErr != nil {
-		return readiness, inferenceErr
+	if err := injectFailure(failAfterReadiness, &cleanupStaging); err != nil {
+		return readiness, err
 	}
-	if readinessErr != nil {
-		return readiness, readinessErr
-	}
+
 	artifactPaths := []string{graphPath, claimsPath, claimAuditPath, readinessPath}
 	for _, path := range adoptionResult.Paths {
 		artifactPaths = append(artifactPaths, path)
 	}
-	if err := writeProjectReconstructionReceipt(reconstructionReceiptPath, root, domain, revision, graphDigest, readiness.State, artifactPaths); err != nil {
+	if err := writeProjectReconstructionReceipt(reconstructionReceiptPath, projectDir, domain, revision, graphDigest, readiness.State, artifactPaths); err != nil {
 		return readiness, err
 	}
+	if err := injectFailure(failAfterReceipt, &cleanupStaging); err != nil {
+		return readiness, err
+	}
+
+	// 5. Durability Hardening (flush staged files and directory)
+	if err := flushStagingFiles(projectDir); err != nil {
+		return readiness, err
+	}
+	if err := flushDir(projectDir); err != nil {
+		return readiness, err
+	}
+
+	// 6. Validate Staged Family before rename
+	stagedClass, err := classifyActiveProjectFamily(projectDir)
+	if err != nil || stagedClass.Status != projectFamilyCoherent {
+		detail := ""
+		if err != nil {
+			detail = err.Error()
+		} else {
+			detail = stagedClass.Detail
+		}
+		return readiness, fmt.Errorf("staged project family is not coherent: %s", detail)
+	}
+	if err := injectFailure(failAfterValidation, &cleanupStaging); err != nil {
+		return readiness, err
+	}
+
+	// Update Phase to validated
+	marker.Phase = phaseValidated
+	if err := writeTxMarker(txMarkerPath, marker); err != nil {
+		return readiness, err
+	}
+
+	// 7. Recheck Repository Revision immediately before activation
+	currentRevision, _ := projectRevisionBinding(root)
+	if currentRevision != marker.RepoRevision {
+		return readiness, fmt.Errorf("repository revision changed during staging (was %s, now %s); activation failed closed", marker.RepoRevision, currentRevision)
+	}
+
+	// 8. Move Prior Family (Publication Rename)
+	if prior.Status == projectFamilyInvalid {
+		if err := injectFailure(failBeforeMoveInvalid, &cleanupStaging); err != nil {
+			return readiness, err
+		}
+		marker.Phase = phasePriorMoved
+		if err := writeTxMarker(txMarkerPath, marker); err != nil {
+			return readiness, err
+		}
+
+		diagnosticDir := filepath.Join(projectParent, "project-invalid-"+txID)
+		if err := os.Rename(activeProjectDir, diagnosticDir); err != nil {
+			return readiness, fmt.Errorf("preserve invalid project family: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(diagnosticDir, "NON_CERTIFYING"), []byte("invalid project artifact family; preserved for diagnostics\n"), 0o600); err != nil {
+			return readiness, fmt.Errorf("mark invalid project family: %w", err)
+		}
+		if err := flushDir(projectParent); err != nil {
+			return readiness, err
+		}
+		if err := injectFailure(failAfterMoveInvalid, &cleanupStaging); err != nil {
+			return readiness, err
+		}
+	} else if prior.Status == projectFamilyCoherent {
+		if err := injectFailure(failBeforeMoveCoherent, &cleanupStaging); err != nil {
+			return readiness, err
+		}
+		marker.Phase = phasePriorMoved
+		if err := writeTxMarker(txMarkerPath, marker); err != nil {
+			return readiness, err
+		}
+
+		backupDir := activeProjectDir + ".previous"
+		if err := os.RemoveAll(backupDir); err != nil {
+			return readiness, err
+		}
+		if err := os.Rename(activeProjectDir, backupDir); err != nil {
+			return readiness, fmt.Errorf("stage prior project generation: %w", err)
+		}
+		if err := flushDir(projectParent); err != nil {
+			return readiness, err
+		}
+		if err := injectFailure(failAfterMoveCoherent, &cleanupStaging); err != nil {
+			return readiness, err
+		}
+	} else {
+		// Prior family was absent. Mark phasePriorMoved so recovery knows we are moving to activate.
+		marker.Phase = phasePriorMoved
+		if err := writeTxMarker(txMarkerPath, marker); err != nil {
+			return readiness, err
+		}
+	}
+
+	// 9. Activate Staged Directory
+	if err := injectFailure(failBeforeActivation, &cleanupStaging); err != nil {
+		return readiness, err
+	}
+	if err := injectFailure(failDuringActivation, &cleanupStaging); err != nil {
+		return readiness, err
+	}
+
+	if err := os.Rename(projectDir, activeProjectDir); err != nil {
+		// If prior coherent existed, roll back rename
+		if prior.Status == projectFamilyCoherent {
+			backupDir := activeProjectDir + ".previous"
+			if rerr := os.Rename(backupDir, activeProjectDir); rerr != nil {
+				return readiness, fmt.Errorf("activate project generation failed: %w (rollback failed: %v)", err, rerr)
+			}
+		}
+		return readiness, fmt.Errorf("activate project generation: %w", err)
+	}
+
+	// Update Phase to activated
+	marker.Phase = phaseActivated
+	if err := writeTxMarker(txMarkerPath, marker); err != nil {
+		return readiness, err
+	}
+	if err := flushDir(projectParent); err != nil {
+		return readiness, err
+	}
+	if err := injectFailure(failAfterActivation, &cleanupStaging); err != nil {
+		return readiness, err
+	}
+
+	// 10. Final validation and cleanup
+	finalClass, err := classifyActiveProjectFamily(activeProjectDir)
+	if err != nil || finalClass.Status != projectFamilyCoherent {
+		// Roll back
+		if prior.Status == projectFamilyCoherent {
+			backupDir := activeProjectDir + ".previous"
+			os.RemoveAll(activeProjectDir)
+			os.Rename(backupDir, activeProjectDir)
+		} else {
+			os.RemoveAll(activeProjectDir)
+		}
+		detail := ""
+		if err != nil {
+			detail = err.Error()
+		} else {
+			detail = finalClass.Detail
+		}
+		return readiness, fmt.Errorf("final active project validation failed: %s", detail)
+	}
+
+	// Remove marker and backup
+	os.Remove(txMarkerPath)
+	if prior.Status == projectFamilyCoherent {
+		backupDir := activeProjectDir + ".previous"
+		os.RemoveAll(backupDir)
+	}
+	flushDir(projectParent)
+
+	cleanupStaging = false
 	return readiness, nil
+}
+
+func writeTxMarker(path string, marker transactionMarker) error {
+	data, err := yaml.Marshal(marker)
+	if err != nil {
+		return err
+	}
+	if err := writeFileAtomic(path, data); err != nil {
+		return err
+	}
+	if err := flushFile(path); err != nil {
+		return err
+	}
+	return flushDir(filepath.Dir(path))
 }
 
 func stripMachineAdoptedIntentSubjects(raw []byte) ([]byte, error) {
@@ -814,7 +1206,158 @@ type projectReconstructionReceipt struct {
 	Artifacts                    []projectReconstructionArtifactReceipt `yaml:"artifacts"`
 }
 
-func writeProjectReconstructionReceipt(path, root, domain, revision, graphDigest, readinessState string, artifactPaths []string) error {
+type projectFamilyStatus string
+
+type projectFamilyInvalidReason string
+
+const (
+	invalidReceipt   projectFamilyInvalidReason = "receipt"
+	invalidPath      projectFamilyInvalidReason = "path"
+	invalidShape     projectFamilyInvalidReason = "shape"
+	invalidDigest    projectFamilyInvalidReason = "digest"
+	invalidGraph     projectFamilyInvalidReason = "graph"
+	invalidClaims    projectFamilyInvalidReason = "claims"
+	invalidReadiness projectFamilyInvalidReason = "readiness"
+	invalidRevision  projectFamilyInvalidReason = "revision"
+)
+
+type projectFamilyClassification struct {
+	Status projectFamilyStatus
+	Reason projectFamilyInvalidReason
+	Detail string
+}
+
+const (
+	projectFamilyAbsent   projectFamilyStatus = "absent"
+	projectFamilyCoherent projectFamilyStatus = "coherent"
+	projectFamilyInvalid  projectFamilyStatus = "invalid"
+)
+
+// classifyActiveProjectFamily verifies the published family before it can be
+// considered rollback authority. An incomplete or cross-generation family is
+// diagnostic residue, never a generation to restore.
+func classifyActiveProjectFamily(projectDir string) (projectFamilyClassification, error) {
+	receiptPath := filepath.Join(projectDir, "reconstruction-receipt.yaml")
+	data, err := os.ReadFile(receiptPath)
+	if os.IsNotExist(err) {
+		if _, statErr := os.Stat(projectDir); os.IsNotExist(statErr) {
+			return projectFamilyClassification{Status: projectFamilyAbsent, Detail: "project directory absent"}, nil
+		}
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReceipt, Detail: "missing reconstruction receipt"}, nil
+	}
+	if err != nil {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReceipt, Detail: err.Error()}, err
+	}
+	var receipt projectReconstructionReceipt
+	if err := yaml.Unmarshal(data, &receipt); err != nil {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReceipt, Detail: "malformed receipt yaml"}, nil
+	}
+	if receipt.Revision == "" {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReceipt, Detail: "missing revision in receipt"}, nil
+	}
+	if receipt.FinalGraphDigestSHA256 == "" {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReceipt, Detail: "missing graph digest in receipt"}, nil
+	}
+	required := map[string]bool{
+		".sensei/project/graph.nt": true, ".sensei/project/claims.yaml": true,
+		".sensei/project/claim-audit.yaml": true, ".sensei/project/readiness.yaml": true,
+		".sensei/project/knowledge/adoption-report.yaml": true,
+	}
+	seen := map[string]bool{}
+	for _, artifact := range receipt.Artifacts {
+		rel := filepath.ToSlash(filepath.Clean(artifact.Path))
+		if !strings.HasPrefix(rel, ".sensei/project/") {
+			return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidPath, Detail: fmt.Sprintf("non-canonical path: %s", rel)}, nil
+		}
+		if filepath.IsAbs(rel) || strings.Contains(rel, "../") {
+			return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidPath, Detail: fmt.Sprintf("path traversal or absolute path: %s", rel)}, nil
+		}
+		if seen[rel] {
+			return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidPath, Detail: fmt.Sprintf("duplicate receipt path: %s", rel)}, nil
+		}
+		seen[rel] = true
+		subpath := strings.TrimPrefix(rel, ".sensei/project/")
+		body, readErr := os.ReadFile(filepath.Join(projectDir, filepath.FromSlash(subpath)))
+		if readErr != nil {
+			return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidDigest, Detail: fmt.Sprintf("failed to read artifact %s: %v", rel, readErr)}, nil
+		}
+		sum := sha256.Sum256(body)
+		if hex.EncodeToString(sum[:]) != artifact.SHA256Digest {
+			return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidDigest, Detail: fmt.Sprintf("digest mismatch for %s: got %s, want %s", rel, hex.EncodeToString(sum[:]), artifact.SHA256Digest)}, nil
+		}
+	}
+	for path := range required {
+		if !seen[path] {
+			return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidShape, Detail: fmt.Sprintf("missing required artifact: %s", path)}, nil
+		}
+	}
+	graph, err := os.ReadFile(filepath.Join(projectDir, "graph.nt"))
+	if err != nil {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidGraph, Detail: fmt.Sprintf("failed to read graph: %v", err)}, nil
+	}
+	graphSum := sha256.Sum256(graph)
+	if hex.EncodeToString(graphSum[:]) != receipt.FinalGraphDigestSHA256 {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidGraph, Detail: fmt.Sprintf("graph digest mismatch against receipt: got %s, receipt has %s", hex.EncodeToString(graphSum[:]), receipt.FinalGraphDigestSHA256)}, nil
+	}
+	if len(extractor.ValidateNTriples(bytes.NewReader(graph))) != 0 {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidGraph, Detail: "malformed graph NTriples"}, nil
+	}
+	claims, err := architecture.LoadClaimDocument(filepath.Join(projectDir, "claims.yaml"))
+	if err != nil {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidClaims, Detail: fmt.Sprintf("failed to load claims: %v", err)}, nil
+	}
+	if claims.Binding.RepositoryDomain != receipt.RepositoryDomain {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidClaims, Detail: fmt.Sprintf("claims domain mismatch: got %s, receipt has %s", claims.Binding.RepositoryDomain, receipt.RepositoryDomain)}, nil
+	}
+	if claims.Binding.Revision != receipt.Revision {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidClaims, Detail: fmt.Sprintf("claims revision mismatch: got %s, receipt has %s", claims.Binding.Revision, receipt.Revision)}, nil
+	}
+	if claims.Binding.RevisionStatus != architecture.RevisionResolved {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidClaims, Detail: fmt.Sprintf("unresolved claims revision status: %s", claims.Binding.RevisionStatus)}, nil
+	}
+	if claims.Binding.GraphDigestSHA256 != receipt.FinalGraphDigestSHA256 {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidClaims, Detail: fmt.Sprintf("claims graph digest mismatch: got %s, receipt has %s", claims.Binding.GraphDigestSHA256, receipt.FinalGraphDigestSHA256)}, nil
+	}
+	if claims.Binding.GraphDigestStatus != architecture.GraphDigestResolved {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidClaims, Detail: fmt.Sprintf("unresolved claims graph digest status: %s", claims.Binding.GraphDigestStatus)}, nil
+	}
+	readinessBytes, err := os.ReadFile(filepath.Join(projectDir, "readiness.yaml"))
+	if err != nil {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("failed to read readiness: %v", err)}, nil
+	}
+	var readinessEnv phase2ReadinessEnvelope
+	if yaml.Unmarshal(readinessBytes, &readinessEnv) != nil {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: "failed to unmarshal readiness"}, nil
+	}
+	r := readinessEnv.Phase2Readiness
+	if r.RepositoryDomain != receipt.RepositoryDomain {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness domain mismatch: got %s, receipt has %s", r.RepositoryDomain, receipt.RepositoryDomain)}, nil
+	}
+	if r.GraphDigestSHA256 != receipt.FinalGraphDigestSHA256 {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness graph digest mismatch: got %s, receipt has %s", r.GraphDigestSHA256, receipt.FinalGraphDigestSHA256)}, nil
+	}
+	if r.State != receipt.ReadinessState {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness state mismatch: got %s, receipt has %s", r.State, receipt.ReadinessState)}, nil
+	}
+	if r.GraphPath != ".sensei/project/graph.nt" {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness graph path mismatch: %s", r.GraphPath)}, nil
+	}
+	if r.ClaimsPath != ".sensei/project/claims.yaml" {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness claims path mismatch: %s", r.ClaimsPath)}, nil
+	}
+	if r.ClaimAuditPath != ".sensei/project/claim-audit.yaml" {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness audit path mismatch: %s", r.ClaimAuditPath)}, nil
+	}
+	if r.AdoptionReportPath != ".sensei/project/knowledge/adoption-report.yaml" {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness adoption path mismatch: %s", r.AdoptionReportPath)}, nil
+	}
+	if r.ReconstructionReceiptPath != ".sensei/project/reconstruction-receipt.yaml" {
+		return projectFamilyClassification{Status: projectFamilyInvalid, Reason: invalidReadiness, Detail: fmt.Sprintf("readiness receipt path mismatch: %s", r.ReconstructionReceiptPath)}, nil
+	}
+	return projectFamilyClassification{Status: projectFamilyCoherent, Detail: "coherent project family"}, nil
+}
+
+func writeProjectReconstructionReceipt(path, projectRoot, domain, revision, graphDigest, readinessState string, artifactPaths []string) error {
 	unique := map[string]bool{}
 	for _, artifactPath := range artifactPaths {
 		if strings.TrimSpace(artifactPath) != "" {
@@ -837,9 +1380,13 @@ func writeProjectReconstructionReceipt(path, root, domain, revision, graphDigest
 		if err != nil {
 			return fmt.Errorf("read reconstruction artifact %s: %w", artifactPath, err)
 		}
+		canonicalPath := canonicalProjectArtifactPath(projectRoot, artifactPath)
+		if canonicalPath == "" {
+			return fmt.Errorf("reconstruction artifact escapes staging root: %s", artifactPath)
+		}
 		sum := sha256.Sum256(data)
 		receipt.Artifacts = append(receipt.Artifacts, projectReconstructionArtifactReceipt{
-			Path: filepath.ToSlash(relativeProjectPath(root, artifactPath)), SHA256Digest: hex.EncodeToString(sum[:]),
+			Path: canonicalPath, SHA256Digest: hex.EncodeToString(sum[:]),
 		})
 	}
 	data, err := yaml.Marshal(receipt)
@@ -847,6 +1394,14 @@ func writeProjectReconstructionReceipt(path, root, domain, revision, graphDigest
 		return err
 	}
 	return writeFileAtomic(path, data)
+}
+
+func canonicalProjectArtifactPath(projectRoot, artifactPath string) string {
+	rel, err := filepath.Rel(projectRoot, artifactPath)
+	if err != nil || rel == "." || filepath.IsAbs(rel) || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return ""
+	}
+	return ".sensei/project/" + filepath.ToSlash(rel)
 }
 
 func projectClaimAuditOptions(root string) claimaudit.Options {
