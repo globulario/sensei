@@ -1,0 +1,28 @@
+name: Sensei appliance workspace export
+
+on:
+  push:
+    branches:
+      - codex/sensei-docker-appliance
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/sensei-docker-appliance
+          fetch-depth: 0
+      - name: Package exact workspace
+        shell: bash
+        run: |
+          tar --exclude=.git -czf /tmp/sensei-appliance-workspace.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sensei-appliance-workspace
+          path: /tmp/sensei-appliance-workspace.tar.gz
+          if-no-files-found: error
