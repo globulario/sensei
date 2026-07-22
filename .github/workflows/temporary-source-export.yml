@@ -1,0 +1,23 @@
+name: Temporary source export
+
+on:
+  push:
+    branches:
+      - codex/symbol-aware-briefing
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pack exact branch source
+        run: tar --exclude=.git -czf /tmp/sensei-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sensei-source
+          path: /tmp/sensei-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error
