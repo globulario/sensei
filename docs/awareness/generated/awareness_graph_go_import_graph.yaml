@@ -21,6 +21,7 @@ components:
     assertion: inferred
     source_files:
       - cmd/awareness-mcp/main.go
+      - cmd/awareness-mcp/phase10_tools.go
     depends_on:
       - component.golang.architecture
       - component.golang.client
@@ -65,6 +66,7 @@ components:
       - cmd/awg/cmd_bootstrap_direction.go
       - cmd/awg/cmd_briefing.go
       - cmd/awg/cmd_build.go
+      - cmd/awg/cmd_candidates.go
       - cmd/awg/cmd_certify.go
       - cmd/awg/cmd_certify_change.go
       - cmd/awg/cmd_check.go
@@ -82,6 +84,7 @@ components:
       - cmd/awg/cmd_edit_guard.go
       - cmd/awg/cmd_enroll_agent.go
       - cmd/awg/cmd_evidence.go
+      - cmd/awg/cmd_evidence_phase10.go
       - cmd/awg/cmd_feedback_check.go
       - cmd/awg/cmd_gate.go
       - cmd/awg/cmd_gate_completeness.go
@@ -100,6 +103,7 @@ components:
       - cmd/awg/cmd_init.go
       - cmd/awg/cmd_inspect_terminal.go
       - cmd/awg/cmd_intent_mine.go
+      - cmd/awg/cmd_investigate.go
       - cmd/awg/cmd_learn.go
       - cmd/awg/cmd_lifecycle.go
       - cmd/awg/cmd_maintain_claims.go
@@ -503,6 +507,10 @@ components:
       - golang/architecture/investigation/proof_strength.go
       - golang/architecture/investigation/receipt.go
       - golang/architecture/investigation/validate.go
+      - golang/architecture/investigationsurface/artifact.go
+      - golang/architecture/investigationsurface/evidence.go
+      - golang/architecture/investigationsurface/run.go
+      - golang/architecture/investigationsurface/view.go
       - golang/architecture/investigator/binding.go
       - golang/architecture/investigator/candidate.go
       - golang/architecture/investigator/challenge.go

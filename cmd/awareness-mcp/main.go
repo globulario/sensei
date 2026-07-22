@@ -113,7 +113,7 @@ var mcpQueryClasses = []string{
 }
 
 func (b *bridge) tools() []tool {
-	return []tool{
+	tools := []tool{
 		{
 			Name:        "awareness_briefing",
 			Description: "Get deterministic awareness briefing for a file before edits",
@@ -372,6 +372,7 @@ func (b *bridge) tools() []tool {
 			},
 		},
 	}
+	return append(tools, phase10Tools()...)
 }
 
 // callTool dispatches one MCP tool call. Only the typed tools are handled —
@@ -576,6 +577,9 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 
 	case "awareness_audit_diff":
 		return b.callAuditDiff(ctx, args)
+
+	case "awareness_investigate", "awareness_evidence_coverage", "awareness_candidates", "awareness_challenge":
+		return callPhase10Tool(name, args)
 
 	case "task_status":
 		repo, _ := args["repo"].(string)

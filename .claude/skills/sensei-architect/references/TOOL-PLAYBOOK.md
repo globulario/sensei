@@ -113,3 +113,9 @@ State the degraded condition. Then inspect:
 - runtime evidence when relevant
 
 For high-risk work, ask for user approval before mutation if the governing contract or authority path remains unverified.
+
+## Phase 10 investigation
+
+Use `sensei investigate how` to freeze deterministic structural evidence, then `sensei investigate why` with explicit providers, targets, and history range. Compose candidates with `sensei investigate architecture` only when every required binding digest is exact. Inspect results with `sensei candidates`, `sensei investigate blast-radius`, `sensei investigate challenge`, or the four matching MCP tools.
+
+Coverage and proof strength are part of the answer. Never summarize `unavailable`, `not_configured`, `skipped_with_reason`, and `searched_no_result` as simply “no evidence.” Candidate review is not promotion; use `awareness_propose` for the governed bridge.
