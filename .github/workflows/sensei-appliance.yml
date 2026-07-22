@@ -33,8 +33,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Entrypoint contract tests
-        run: sh deploy/appliance-entrypoint_test.sh
+      - name: Entrypoint and Compose contract tests
+        shell: bash
+        run: |
+          sh deploy/appliance-entrypoint_test.sh
+          SENSEI_REPO="${GITHUB_WORKSPACE}" docker compose -f deploy/docker-compose.yml config --quiet
 
       - name: Build appliance image
         shell: bash
@@ -75,7 +78,7 @@ jobs:
             exit 1
           fi
 
-      - name: Cold bootstrap and appliance smoke
+      - name: Cold bootstrap and hardened appliance smoke
         shell: bash
         run: |
           set -euo pipefail
@@ -110,6 +113,10 @@ jobs:
           docker volume create sensei-appliance-smoke >/dev/null
           docker run -d \
             --name sensei-appliance-smoke \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --cap-drop ALL \
+            --security-opt no-new-privileges:true \
             --volume "${fixture}:/workspace:ro" \
             --volume sensei-appliance-smoke:/var/lib/sensei \
             sensei-appliance:ci >/dev/null
