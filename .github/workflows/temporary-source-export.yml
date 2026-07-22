@@ -1,9 +1,11 @@
 name: Temporary source export
 
 on:
-  push:
+  pull_request:
     branches:
-      - codex/symbol-aware-briefing
+      - phase10-architectural-investigation
+    paths:
+      - '.github/workflows/temporary-source-export.yml'
 
 permissions:
   contents: read
