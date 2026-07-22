@@ -1,0 +1,106 @@
+name: Sensei appliance
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '.dockerignore'
+      - 'deploy/**'
+      - 'cmd/awg/**'
+      - 'cmd/awareness-mcp/**'
+      - 'golang/server/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/sensei-appliance.yml'
+  pull_request:
+    branches: ['**']
+    paths:
+      - '.dockerignore'
+      - 'deploy/**'
+      - 'cmd/awg/**'
+      - 'cmd/awareness-mcp/**'
+      - 'golang/server/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/sensei-appliance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Entrypoint contract tests
+        run: deploy/appliance-entrypoint_test.sh
+
+      - name: Build appliance image
+        run: |
+          docker build \
+            --file deploy/Dockerfile \
+            --build-arg SENSEI_VERSION=ci \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --tag sensei-appliance:ci \
+            .
+
+      - name: Enforce lightweight image ceiling
+        shell: bash
+        run: |
+          size=$(docker image inspect sensei-appliance:ci --format '{{.Size}}')
+          limit=$((250 * 1024 * 1024))
+          echo "appliance image bytes: ${size}"
+          if (( size > limit )); then
+            echo "::error::Sensei appliance is larger than 250 MiB (${size} bytes)"
+            exit 1
+          fi
+
+      - name: Cold bootstrap and appliance smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture=$(mktemp -d)
+          cleanup() {
+            docker rm -f sensei-appliance-smoke >/dev/null 2>&1 || true
+            docker volume rm sensei-appliance-smoke >/dev/null 2>&1 || true
+            rm -rf "${fixture}"
+          }
+          trap cleanup EXIT
+
+          git -C "${fixture}" init -q
+          cat > "${fixture}/main.go" <<'GO'
+          package main
+          func main() {}
+          GO
+
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --volume "${fixture}:/workspace" \
+            sensei-appliance:ci bootstrap --skip-history
+
+          docker volume create sensei-appliance-smoke >/dev/null
+          docker run -d \
+            --name sensei-appliance-smoke \
+            --volume "${fixture}:/workspace:ro" \
+            --volume sensei-appliance-smoke:/var/lib/sensei \
+            sensei-appliance:ci >/dev/null
+
+          for _ in $(seq 1 60); do
+            status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' sensei-appliance-smoke)
+            [ "${status}" = healthy ] && break
+            [ "${status}" = unhealthy ] && { docker logs sensei-appliance-smoke; exit 1; }
+            sleep 1
+          done
+
+          [ "$(docker inspect --format '{{.State.Health.Status}}' sensei-appliance-smoke)" = healthy ] \
+            || { docker logs sensei-appliance-smoke; exit 1; }
+
+          docker exec sensei-appliance-smoke sensei-appliance health
+          docker exec sensei-appliance-smoke sensei metadata -addr 127.0.0.1:10120 >/dev/null
+          docker exec sensei-appliance-smoke sensei version
+          docker exec sensei-appliance-smoke awareness-graph --version
+          docker exec sensei-appliance-smoke oxigraph --version
+
+          test ! -e "${fixture}/.sensei/graph-authority.json"
+          docker logs sensei-appliance-smoke 2>&1 | grep -q 'Oxigraph is private at 127.0.0.1:7878'
