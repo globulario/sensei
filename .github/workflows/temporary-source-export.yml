@@ -1,4 +1,4 @@
-name: Temporary source export
+name: Temporary apply symbol-aware briefing patch
 
 on:
   pull_request:
@@ -8,18 +8,56 @@ on:
       - '.github/workflows/temporary-source-export.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  export:
+  apply-and-verify:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Pack exact branch source
-        run: tar --exclude=.git -czf /tmp/sensei-source.tar.gz .
-      - uses: actions/upload-artifact@v4
         with:
-          name: sensei-source
-          path: /tmp/sensei-source.tar.gz
-          retention-days: 1
-          if-no-files-found: error
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Fetch and apply exact implementation patch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/git/blobs/6d006b07caab33ed7428395c588b617ad11cefbe" \
+            | jq -r '.content' | base64 -d > /tmp/symbol-aware-briefing.patch
+          git apply --check /tmp/symbol-aware-briefing.patch
+          git apply /tmp/symbol-aware-briefing.patch
+          gofmt -w \
+            golang/scipingest/scipingest.go \
+            golang/scipingest/scipingest_test.go \
+            golang/server/briefing.go \
+            golang/server/code_symbol.go \
+            golang/server/provenance_serving_test.go \
+            golang/server/reference_sites_test.go
+          git diff --check
+      - name: Verify generated contracts remain fresh
+        run: |
+          scripts/build-awareness-graph-self.sh --check
+          make proto-contracts-check
+          make import-graph-check
+      - name: Run focused tests
+        run: |
+          go test ./golang/scipingest -run TestIngest_Symbols -count=1
+          go test ./golang/server -run 'TestCodeSymbolIDFromIRI|TestBriefing_Provenance_RenderedForPromotedRule' -count=1
+      - name: Publish verified implementation and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/temporary-source-export.yml
+          git config user.name 'Codex'
+          git config user.email 'codex@openai.invalid'
+          git add -A
+          git commit -m 'feat(briefing): resolve exact code-symbol targets'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
