@@ -1,27 +1,81 @@
-name: Phase 10 question owner discovery
+name: Phase 10.5 governed question integration
 
 on:
   pull_request:
     branches:
       - phase10-architectural-investigation
 
+permissions:
+  contents: write
+
 jobs:
-  discover:
+  implement:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - name: Locate canonical dialogue owners
+      - name: Checkout implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/phase10-5-governed-questions
+          fetch-depth: 0
+
+      - name: Setup repository Go version
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Apply bounded Phase 10.5 patch
         shell: bash
         run: |
           set -euo pipefail
-          {
-            echo '=== OpenQuestion definitions and uses ==='
-            rg -n --glob '*.go' 'OpenQuestion|ArchitectAnswer|QuestionSource|question source|QuestionTemplate|awareness_propose|Propose' . || true
-            echo '=== dialogue-related files ==='
-            find . -type f \( -iname '*dialog*' -o -iname '*question*' -o -iname '*answer*' -o -iname '*propos*' \) | sort
-          } > question-owner-discovery.txt
-      - name: Upload discovery output
-        uses: actions/upload-artifact@v4
-        with:
-          name: question-owner-discovery
-          path: question-owner-discovery.txt
+          cat .github/phase10_5_patch.part{1,2,3,4} | base64 -d | gzip -d > /tmp/phase10_5_patch.py
+          python /tmp/phase10_5_patch.py
+          gofmt -w \
+            golang/architecture/dialogue.go \
+            golang/architecture/dialogue_investigation_test.go \
+            golang/architecture/questiongen/dialogue_ops.go \
+            golang/architecture/questiongen/investigation_questions.go \
+            golang/architecture/questiongen/investigation_questions_test.go
+
+      - name: Verify canonical dialogue and question adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./golang/architecture -count=1
+          go test ./golang/architecture/questiongen -count=1
+          go test ./golang/architecture/questiongen -count=10
+          go test -race ./golang/architecture/questiongen -count=1
+          go test ./golang/architecture/investigator -count=1
+
+      - name: Refresh and verify import graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          make import-graph
+          make import-graph-check
+
+      - name: Remove temporary implementation scaffolding
+        shell: bash
+        run: |
+          rm .github/phase10_5_patch.part{1,2,3,4}
+          rm .github/workflows/phase10-question-owner-discovery.yml
+
+      - name: Commit verified Phase 10.5 slice
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "sensei-phase10-codex"
+          git config user.email "actions@users.noreply.github.com"
+          git add \
+            golang/architecture/dialogue.go \
+            golang/architecture/dialogue_investigation_test.go \
+            golang/architecture/questiongen/dialogue_ops.go \
+            golang/architecture/questiongen/investigation_questions.go \
+            golang/architecture/questiongen/investigation_questions_test.go \
+            docs/awareness/generated/awareness_graph_go_import_graph.yaml \
+            .github/phase10_5_patch.part1 \
+            .github/phase10_5_patch.part2 \
+            .github/phase10_5_patch.part3 \
+            .github/phase10_5_patch.part4 \
+            .github/workflows/phase10-question-owner-discovery.yml
+          git commit -m "integrate governed investigator questions"
+          git push origin HEAD:codex/phase10-5-governed-questions
