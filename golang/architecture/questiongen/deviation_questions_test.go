@@ -5,7 +5,6 @@ package questiongen
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -19,7 +18,7 @@ const deviationQuestionFixtureTime = "2026-07-22T15:00:00Z"
 func TestGenerateFromDeviationRoutesOnlyRepeatedPatterns(t *testing.T) {
 	analysis := deviationQuestionAnalysis(t, 2)
 	generated, err := GenerateFromDeviation(DeviationQuestionContext{
-		Analysis: analysis,
+		Analysis:  analysis,
 		CreatedAt: deviationQuestionFixtureTime,
 	})
 	if err != nil {
@@ -46,7 +45,7 @@ func TestGenerateFromDeviationRoutesOnlyRepeatedPatterns(t *testing.T) {
 func TestGenerateFromDeviationOneOccurrenceRemainsEvidenceOnly(t *testing.T) {
 	analysis := deviationQuestionAnalysis(t, 1)
 	generated, err := GenerateFromDeviation(DeviationQuestionContext{
-		Analysis: analysis,
+		Analysis:  analysis,
 		CreatedAt: deviationQuestionFixtureTime,
 	})
 	if err != nil {
@@ -72,9 +71,7 @@ func TestGenerateFromDeviationIsDeterministicAndDeduplicates(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(first.Dialogue, second.Dialogue) {
-		firstJSON, _ := json.MarshalIndent(first.Dialogue, "", "  ")
-		secondJSON, _ := json.MarshalIndent(second.Dialogue, "", "  ")
-		t.Fatalf("repeated generation changed canonical dialogue lifecycle state\nFIRST:\n%s\nSECOND:\n%s", firstJSON, secondJSON)
+		t.Fatal("repeated generation changed canonical dialogue lifecycle state")
 	}
 	if len(second.Report.ExistingCoverage) != 1 || len(second.Report.Generated) != 0 {
 		t.Fatalf("repeat was not accounted as existing coverage: %+v", second.Report)

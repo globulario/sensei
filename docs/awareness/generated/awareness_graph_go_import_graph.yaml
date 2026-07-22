@@ -573,6 +573,7 @@ components:
       - golang/architecture/questiondisposition/prepare.go
       - golang/architecture/questiondisposition/record.go
       - golang/architecture/questiondisposition/state.go
+      - golang/architecture/questiongen/deviation_questions.go
       - golang/architecture/questiongen/dialogue_ops.go
       - golang/architecture/questiongen/investigation_questions.go
       - golang/architecture/questiongen/questiongen.go

@@ -5,6 +5,7 @@ package questiongen
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -558,14 +559,37 @@ func classQualifiedEvidenceReferences(ids []string) []string {
 }
 
 func appendInvestigationQuestion(dialogue *architecture.DialogueDocument, question architecture.OpenQuestion) (string, error) {
+	normalized, err := architecture.NormalizeOpenQuestions([]architecture.OpenQuestion{question})
+	if err != nil {
+		return "", fmt.Errorf("normalize investigation question %s: %w", question.ID, err)
+	}
+	question = normalized[0]
 	if existing := findQuestionByID(dialogue.OpenQuestions, question.ID); existing != nil {
-		if !questionsEquivalent(*existing, question) {
+		existingNormalized, normalizeErr := architecture.NormalizeOpenQuestions([]architecture.OpenQuestion{*existing})
+		if normalizeErr != nil {
+			return "", fmt.Errorf("normalize existing investigation question %s: %w", existing.ID, normalizeErr)
+		}
+		if !investigationQuestionsEquivalent(existingNormalized[0], question) {
 			return "", fmt.Errorf("investigation question id collision for %s", question.ID)
 		}
 		return InvestigationDispositionExistingCovers, nil
 	}
 	dialogue.OpenQuestions = append(dialogue.OpenQuestions, question)
 	return InvestigationDispositionGenerated, nil
+}
+
+func investigationQuestionsEquivalent(left, right architecture.OpenQuestion) bool {
+	left.Status = ""
+	left.ResolvedByAnswers = nil
+	left.SupersededByQuestion = ""
+	left.CreatedAt = ""
+	left.LastReviewedAt = ""
+	right.Status = ""
+	right.ResolvedByAnswers = nil
+	right.SupersededByQuestion = ""
+	right.CreatedAt = ""
+	right.LastReviewedAt = ""
+	return reflect.DeepEqual(left, right)
 }
 
 func investigationQuestionItem(sourceKind architecture.QuestionSourceKind, sourceID, candidateID, claimID, disposition, templateID, questionID, reason, detail string) InvestigationQuestionItem {

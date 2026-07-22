@@ -33,12 +33,12 @@ type DeviationQuestionResult struct {
 
 // DeviationQuestionReport accounts for every repeated-deviation candidate.
 type DeviationQuestionReport struct {
-	SchemaVersion                 string                              `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy                   string                              `json:"generated_by" yaml:"generated_by"`
-	Binding                       architecture.ClaimDocumentBinding   `json:"binding" yaml:"binding"`
-	SourceDeviationDigestSHA256   string                              `json:"source_deviation_digest_sha256" yaml:"source_deviation_digest_sha256"`
-	Generated                     []DeviationQuestionItem             `json:"generated,omitempty" yaml:"generated,omitempty"`
-	ExistingCoverage              []DeviationQuestionItem             `json:"existing_coverage,omitempty" yaml:"existing_coverage,omitempty"`
+	SchemaVersion               string                            `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy                 string                            `json:"generated_by" yaml:"generated_by"`
+	Binding                     architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
+	SourceDeviationDigestSHA256 string                            `json:"source_deviation_digest_sha256" yaml:"source_deviation_digest_sha256"`
+	Generated                   []DeviationQuestionItem           `json:"generated,omitempty" yaml:"generated,omitempty"`
+	ExistingCoverage            []DeviationQuestionItem           `json:"existing_coverage,omitempty" yaml:"existing_coverage,omitempty"`
 }
 
 // DeviationQuestionItem binds one question disposition to its exact pattern.
@@ -176,12 +176,12 @@ func repeatedDeviationQuestion(createdAt, sourceDigest string, pattern deviation
 			{ID: "deviation.scope_or_exception_missing", Statement: "The architecture is valid but its scope or governed exception path is incomplete."},
 			{ID: "deviation.repeated_noncompliance", Statement: "The architecture is valid and implementations repeatedly choose a forbidden shortcut."},
 		},
-		MissingEvidence:    append([]string(nil), candidate.Claim.Unknowns...),
-		Priority:           deviationQuestionPriority(candidate.Kind),
-		RiskIfUnresolved:   "Sensei cannot distinguish architectural debt from repeated implementation noncompliance, so no rule may be weakened or promoted safely.",
-		ArchitectRequired:  true,
-		Status:             architecture.QuestionStatusAwaitingArchitect,
-		CreatedAt:          strings.TrimSpace(createdAt),
+		MissingEvidence:   append([]string(nil), candidate.Claim.Unknowns...),
+		Priority:          deviationQuestionPriority(candidate.Kind),
+		RiskIfUnresolved:  "Sensei cannot distinguish architectural debt from repeated implementation noncompliance, so no rule may be weakened or promoted safely.",
+		ArchitectRequired: true,
+		Status:            architecture.QuestionStatusAwaitingArchitect,
+		CreatedAt:         strings.TrimSpace(createdAt),
 	}
 	question.ID = architecture.StableOpenQuestionID(question)
 	return question
