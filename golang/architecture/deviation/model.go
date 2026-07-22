@@ -111,13 +111,14 @@ type Pattern struct {
 	Kind    Kind                    `json:"kind" yaml:"kind"`
 	Scope   architecture.ClaimScope `json:"scope" yaml:"scope"`
 	Shape   Shape                   `json:"shape" yaml:"shape"`
-	ReceiptIDs     []string `json:"receipt_ids" yaml:"receipt_ids"`
+	ReceiptIDs       []string `json:"receipt_ids" yaml:"receipt_ids"`
 	IndependenceKeys []string `json:"independence_keys" yaml:"independence_keys"`
-	AgentIDs       []string `json:"agent_ids,omitempty" yaml:"agent_ids,omitempty"`
-	TaskIDs        []string `json:"task_ids,omitempty" yaml:"task_ids,omitempty"`
-	RelatedClaimIDs []string `json:"related_claim_ids,omitempty" yaml:"related_claim_ids,omitempty"`
-	EvidenceRefs   []string `json:"evidence_refs" yaml:"evidence_refs"`
+	AgentIDs         []string `json:"agent_ids,omitempty" yaml:"agent_ids,omitempty"`
+	TaskIDs          []string `json:"task_ids,omitempty" yaml:"task_ids,omitempty"`
+	RelatedClaimIDs  []string `json:"related_claim_ids,omitempty" yaml:"related_claim_ids,omitempty"`
+	EvidenceRefs     []string `json:"evidence_refs" yaml:"evidence_refs"`
 	IndependentOccurrenceCount int `json:"independent_occurrence_count" yaml:"independent_occurrence_count"`
+	MinimumIndependentOccurrences int `json:"minimum_independent_occurrences" yaml:"minimum_independent_occurrences"`
 	FirstObservedAt string `json:"first_observed_at" yaml:"first_observed_at"`
 	LastObservedAt  string `json:"last_observed_at" yaml:"last_observed_at"`
 	CandidateEligible bool `json:"candidate_eligible" yaml:"candidate_eligible"`
@@ -126,12 +127,12 @@ type Pattern struct {
 
 // Candidate is an advisory claim derived from a repeated deviation pattern.
 type Candidate struct {
-	ID        string           `json:"id" yaml:"id"`
-	PatternID string           `json:"pattern_id" yaml:"pattern_id"`
-	Kind      CandidateKind    `json:"kind" yaml:"kind"`
+	ID        string             `json:"id" yaml:"id"`
+	PatternID string             `json:"pattern_id" yaml:"pattern_id"`
+	Kind      CandidateKind      `json:"kind" yaml:"kind"`
 	Claim     architecture.Claim `json:"claim" yaml:"claim"`
-	ReceiptIDs []string        `json:"receipt_ids" yaml:"receipt_ids"`
-	SemanticDigestSHA256 string `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
+	ReceiptIDs []string          `json:"receipt_ids" yaml:"receipt_ids"`
+	SemanticDigestSHA256 string   `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
 }
 
 // Analysis is the exact, receipt-bound output of Phase 10.6.
