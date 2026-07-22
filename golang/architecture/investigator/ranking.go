@@ -217,7 +217,7 @@ func buildCounterexamples(
 			continue
 		}
 		scope := intersectScope(claim.Scope, receipt.Scope)
-		id := "counterexample_" + SHA256String(envelope.CandidateID+"\x00"+evidenceID)[:24]
+		id := "counterexample_" + SHA256String(envelope.CandidateID + "\x00" + evidenceID)[:24]
 		out = append(out, CounterexampleRecord{
 			Counterexample: investigation.Counterexample{
 				ID:             id,
