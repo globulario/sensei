@@ -2,37 +2,31 @@
 
 package investigator
 
-import (
-	"time"
+// RunReceipt freezes the exact inputs, metadata, and candidate digests.
+type RunReceipt struct {
+	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
 
-	"github.com/globulario/sensei/golang/architecture/investigation"
-)
+	InputBinding                  Binding           `json:"input_binding" yaml:"input_binding"`
+	GroundingSnapshotDigestSHA256 string            `json:"grounding_snapshot_digest_sha256" yaml:"grounding_snapshot_digest_sha256"`
+	HowDocumentDigestSHA256       string            `json:"how_document_digest_sha256" yaml:"how_document_digest_sha256"`
+	WhyDocumentDigestSHA256       string            `json:"why_document_digest_sha256" yaml:"why_document_digest_sha256"`
+	GraphDigestSHA256             string            `json:"graph_digest_sha256" yaml:"graph_digest_sha256"`
+	CurrentClaimsDigestSHA256     string            `json:"current_claims_digest_sha256" yaml:"current_claims_digest_sha256"`
+	ClosureStateDigestSHA256      string            `json:"closure_state_digest_sha256" yaml:"closure_state_digest_sha256"`
+	ExistingQuestionsDigestSHA256 string            `json:"existing_questions_digest_sha256" yaml:"existing_questions_digest_sha256"`
+	ReviewHistoryDigestSHA256     string            `json:"review_history_digest_sha256" yaml:"review_history_digest_sha256"`
 
-// BuildRunReceipt constructs the final immutable run receipt for the investigation document.
-func BuildRunReceipt(doc *investigation.Document, candidateDigests map[string]string, opts Options) investigation.RunReceipt {
-	capturedAt := opts.CapturedAt
-	if capturedAt == "" {
-		capturedAt = time.Now().Format(time.RFC3339)
-	}
+	GeneratorVersion string `json:"generator_version" yaml:"generator_version"`
+	RulesetVersion   string `json:"ruleset_version" yaml:"ruleset_version"`
 
-	limits := opts.ResourceLimits
-	if len(limits) == 0 {
-		limits = map[string]string{"composer": "local"}
-	}
+	CandidateIDsAndDigests       map[string]string `json:"candidate_ids_and_digests" yaml:"candidate_ids_and_digests"`
+	ChallengeIDsAndDigests       map[string]string `json:"challenge_ids_and_digests" yaml:"challenge_ids_and_digests"`
+	CounterexampleIDsAndDigests  map[string]string `json:"counterexample_ids_and_digests" yaml:"counterexample_ids_and_digests"`
+	EvidenceRequestIDsAndDigests map[string]string `json:"evidence_request_ids_and_digests" yaml:"evidence_request_ids_and_digests"`
+	RankingDigestSHA256          string            `json:"ranking_digest_sha256" yaml:"ranking_digest_sha256"`
+	ExactResultDigestSHA256      string            `json:"exact_result_digest_sha256" yaml:"exact_result_digest_sha256"`
 
-	return investigation.RunReceipt{
-		SchemaVersion:                "investigation.schema.v1",
-		GeneratedBy:                  "sensei.investigator.v1",
-		Repository:                   doc.Binding.Repository,
-		GraphDigestSHA256:            doc.Binding.Repository.GraphDigestSHA256,
-		PlanDigestSHA256:             doc.Binding.InvestigationPlanDigestSHA256,
-		ExtractorProfileDigestSHA256: doc.Binding.ExtractorProfileDigestSHA256,
-		EvidenceSnapshotDigestSHA256: doc.Binding.EvidenceSnapshotDigestSHA256,
-		Model:                        doc.Binding.Model,
-		PostProcessingVersion:        "investigator.postprocessor.v1",
-		OutputCandidateIDsAndDigests: candidateDigests,
-		TimestampSource:              capturedAt,
-		ResourceLimits:               limits,
-		NondeterminismDeclaration:    "deterministic_only",
-	}
+	TimestampSource           string `json:"timestamp_source" yaml:"timestamp_source"`
+	NondeterminismDeclaration string `json:"nondeterminism_declaration" yaml:"nondeterminism_declaration"`
 }

@@ -2,80 +2,45 @@
 
 package investigator
 
-import (
-	"context"
-	"sort"
+// RankingFactorKind defines closed ranking criteria.
+type RankingFactorKind string
 
-	"github.com/globulario/sensei/golang/architecture"
+const (
+	FactorBlastRadius               RankingFactorKind = "blast_radius"
+	FactorAuthoritySensitivity      RankingFactorKind = "authority_sensitivity"
+	FactorContradictionDensity     RankingFactorKind = "contradiction_density"
+	FactorIncidentRecurrence        RankingFactorKind = "incident_recurrence"
+	FactorTaskRelevance             RankingFactorKind = "task_relevance"
+	FactorRuntimeFrequency         RankingFactorKind = "runtime_frequency"
+	FactorEvidenceIndependence     RankingFactorKind = "evidence_independence"
+	FactorMissingEvidenceCost      RankingFactorKind = "missing_evidence_cost"
+	FactorFutureAgentErrorReduction RankingFactorKind = "future_agent_error_reduction"
 )
 
-type defaultRanker struct{}
-
-// NewRanker returns the default Ranker implementation.
-func NewRanker() Ranker {
-	return &defaultRanker{}
+// IsValidRankingFactorKind validates factor kinds.
+func IsValidRankingFactorKind(k RankingFactorKind) bool {
+	switch k {
+	case FactorBlastRadius, FactorAuthoritySensitivity, FactorContradictionDensity, FactorIncidentRecurrence,
+		FactorTaskRelevance, FactorRuntimeFrequency, FactorEvidenceIndependence, FactorMissingEvidenceCost,
+		FactorFutureAgentErrorReduction:
+		return true
+	default:
+		return false
+	}
 }
 
-func (r *defaultRanker) RankClaims(ctx context.Context, claims []architecture.Claim, input Input) []architecture.Claim {
-	// 1. Calculate confidence rank score for each claim
-	for i, claim := range claims {
-		// Base confidence
-		score := 0.5
-
-		// Contradiction density: reduce confidence if claim has refuting evidence or conflicts
-		refuteCount := len(claim.RefutingEvidence)
-		for _, ce := range input.Document.Counterexamples {
-			if ce.ClaimID == claim.ID {
-				refuteCount++
-			}
-		}
-
-		if refuteCount > 0 {
-			score -= float64(refuteCount) * 0.2
-		}
-
-		// Supporting evidence: increase confidence for more evidence receipts
-		score += float64(len(claim.SupportingEvidence)) * 0.1
-
-		// Keep confidence strictly bounded between 0.0 and 1.0 (non-authoritative ranking metadata only)
-		if score < 0.0 {
-			score = 0.0
-		}
-		if score > 1.0 {
-			score = 1.0
-		}
-
-		claims[i].Confidence = score
-	}
-
-	// 2. Sort claims by confidence in descending order
-	sort.SliceStable(claims, func(i, j int) bool {
-		return claims[i].Confidence > claims[j].Confidence
-	})
-
-	return claims
+// RankingFactor represents one dimension of candidate ranking score.
+type RankingFactor struct {
+	Kind           RankingFactorKind `json:"kind" yaml:"kind"`
+	Value          int               `json:"value" yaml:"value"`
+	EvidenceRefIDs []string          `json:"evidence_ref_ids,omitempty" yaml:"evidence_ref_ids,omitempty"`
 }
 
-func (r *defaultRanker) RankQuestions(ctx context.Context, questions []architecture.OpenQuestion, input Input) []architecture.OpenQuestion {
-	// Sort questions by priority (critical > high > medium > low)
-	priorityWeight := func(p string) int {
-		switch p {
-		case architecture.QuestionPriorityCritical:
-			return 4
-		case architecture.QuestionPriorityHigh:
-			return 3
-		case architecture.QuestionPriorityMedium:
-			return 2
-		case architecture.QuestionPriorityLow:
-			return 1
-		default:
-			return 0
-		}
-	}
+// RankingRecord aggregates factors into a stable score and rank.
+type RankingRecord struct {
+	CandidateID string `json:"candidate_id" yaml:"candidate_id"`
+	Rank        int    `json:"rank" yaml:"rank"`
+	Score       int    `json:"score" yaml:"score"`
 
-	sort.SliceStable(questions, func(i, j int) bool {
-		return priorityWeight(questions[i].Priority) > priorityWeight(questions[j].Priority)
-	})
-
-	return questions
+	Factors []RankingFactor `json:"factors" yaml:"factors"`
 }
