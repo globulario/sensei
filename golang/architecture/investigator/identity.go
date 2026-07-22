@@ -13,6 +13,8 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 )
 
+const candidateIDDigestPrefixLength = 24
+
 // CandidateIdentityDescriptor defines the exact inputs for candidate ID generation.
 type CandidateIdentityDescriptor struct {
 	SchemaVersion          string                  `json:"schema_version"`
@@ -28,7 +30,6 @@ type CandidateIdentityDescriptor struct {
 
 // ComputeCandidateID returns the stable ID and its full SHA256 digest.
 func ComputeCandidateID(schemaVersion string, binding Binding, proposition string, scope architecture.ClaimScope, kind CandidateKind, genVersion string) (string, string, error) {
-	// Normalize scope files and symbols to be order-independent
 	sortedFiles := append([]string(nil), scope.Files...)
 	sort.Strings(sortedFiles)
 	sortedSymbols := append([]string(nil), scope.Symbols...)
@@ -47,15 +48,15 @@ func ComputeCandidateID(schemaVersion string, binding Binding, proposition strin
 	}
 
 	descriptor := CandidateIdentityDescriptor{
-		SchemaVersion:          schemaVersion,
-		RepositoryDomain:       binding.Repository.RepositoryDomain,
-		Revision:               binding.Repository.Revision,
+		SchemaVersion:          strings.TrimSpace(schemaVersion),
+		RepositoryDomain:       strings.TrimSpace(binding.Repository.RepositoryDomain),
+		Revision:               strings.TrimSpace(binding.Repository.Revision),
 		Proposition:            strings.TrimSpace(proposition),
 		Scope:                  normalizedScope,
 		CandidateKind:          kind,
-		GeneratorVersion:       genVersion,
-		GraphDigest:            binding.GraphDigestSHA256,
-		EvidenceSnapshotDigest: binding.EvidenceSnapshotDigestSHA256,
+		GeneratorVersion:       strings.TrimSpace(genVersion),
+		GraphDigest:            strings.TrimSpace(binding.GraphDigestSHA256),
+		EvidenceSnapshotDigest: strings.TrimSpace(binding.EvidenceSnapshotDigestSHA256),
 	}
 
 	bytes, err := json.Marshal(descriptor)
@@ -65,9 +66,7 @@ func ComputeCandidateID(schemaVersion string, binding Binding, proposition strin
 
 	hash := sha256.Sum256(bytes)
 	digest := hex.EncodeToString(hash[:])
-
-	// Candidate ID must be deterministic and prefixed with candidate kind
-	id := fmt.Sprintf("candidate_%s_%s", kind, digest[:12])
+	id := fmt.Sprintf("candidate_%s_%s", kind, digest[:candidateIDDigestPrefixLength])
 
 	return id, digest, nil
 }
