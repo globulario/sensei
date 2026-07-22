@@ -37,14 +37,32 @@ jobs:
             golang/architecture/questiongen/investigation_questions_test.go
 
       - name: Verify canonical dialogue and question adapter
+        id: verify
         shell: bash
         run: |
-          set -euo pipefail
-          go test ./golang/architecture -count=1
-          go test ./golang/architecture/questiongen -count=1
-          go test ./golang/architecture/questiongen -count=10
-          go test -race ./golang/architecture/questiongen -count=1
-          go test ./golang/architecture/investigator -count=1
+          set +e
+          {
+            go test ./golang/architecture -count=1
+            go test ./golang/architecture/questiongen -count=1
+            go test ./golang/architecture/questiongen -count=10
+            go test -race ./golang/architecture/questiongen -count=1
+            go test ./golang/architecture/investigator -count=1
+          } > phase10_5_test.log 2>&1
+          status=$?
+          cat phase10_5_test.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload Phase 10.5 test output
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-5-test-output
+          path: phase10_5_test.log
+
+      - name: Preserve test failure
+        if: steps.verify.outputs.status != '0'
+        shell: bash
+        run: exit 1
 
       - name: Refresh and verify import graph
         shell: bash
