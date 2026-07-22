@@ -75,5 +75,17 @@ func RunWhy(ctx context.Context, request WhyRequest) (investigation.Document, er
 }
 
 func RunArchitecture(request ArchitectureRequest) (investigator.Result, error) {
+	canonical := GroundingFromDocuments(request.How, request.Why)
+	want, err := investigator.GroundingSnapshotDigest(canonical)
+	if err != nil {
+		return investigator.Result{}, err
+	}
+	got, err := investigator.GroundingSnapshotDigest(request.Grounding)
+	if err != nil {
+		return investigator.Result{}, err
+	}
+	if got != want {
+		return investigator.Result{}, errors.New("Phase 10.7 requires grounding to exactly match the canonical HOW and WHY grounding snapshot")
+	}
 	return investigator.Compose(investigator.ComposeInput{How: request.How, Why: request.Why, Grounding: request.Grounding, Digests: request.Digests}, request.Options)
 }
