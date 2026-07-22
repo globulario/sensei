@@ -30,12 +30,20 @@ jobs:
         run: go test ./golang/architecture/deviation -count=10
       - name: Deviation race
         run: go test -race ./golang/architecture/deviation -count=1
-      - name: Deviation question repeatability
-        run: go test ./golang/architecture/questiongen -run 'TestGenerateFromDeviation' -count=10
+      - name: Routes repeated patterns
+        run: go test ./golang/architecture/questiongen -run '^TestGenerateFromDeviationRoutesOnlyRepeatedPatterns$' -count=10
+      - name: Keeps one occurrence local
+        run: go test ./golang/architecture/questiongen -run '^TestGenerateFromDeviationOneOccurrenceRemainsEvidenceOnly$' -count=10
+      - name: Deduplicates questions
+        run: go test ./golang/architecture/questiongen -run '^TestGenerateFromDeviationIsDeterministicAndDeduplicates$' -count=10
+      - name: Preserves governed promotion boundary
+        run: go test ./golang/architecture/questiongen -run '^TestDeviationQuestionAnswerPathDoesNotPromoteOrWeakenCandidate$' -count=10
+      - name: Refuses stale analysis
+        run: go test ./golang/architecture/questiongen -run '^TestGenerateFromDeviationRefusesStaleAnalysisReceipt$' -count=10
       - name: Questiongen full package
         run: go test ./golang/architecture/questiongen -count=1
       - name: Deviation question race
-        run: go test -race ./golang/architecture/questiongen -run 'TestGenerateFromDeviation' -count=1
+        run: go test -race ./golang/architecture/questiongen -run 'TestGenerateFromDeviation|TestDeviationQuestion' -count=1
       - name: Refresh generated import graph
         run: |
           make import-graph
