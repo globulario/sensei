@@ -115,6 +115,20 @@ See [references/SPECIALIZED-SKILLS.md](references/SPECIALIZED-SKILLS.md).
    - Candidates are not active authority.
    - See [references/DURABLE-FEEDBACK.md](references/DURABLE-FEEDBACK.md).
 
+
+## Phase 10 Investigation Surfaces
+
+Use these surfaces when existing awareness is incomplete or a deeper evidence-bound architecture investigation is needed.
+
+- CLI execution: `sensei investigate how`, `why`, `architecture`, `blast-radius`, `challenge`, and `validate`.
+- Evidence handling: `sensei evidence snapshot`, `import`, and `coverage`.
+- Candidate review: `sensei candidates list`, `show`, and `review`. A review receipt never promotes a candidate.
+- MCP inspection: `awareness_investigate`, `awareness_evidence_coverage`, `awareness_candidates`, and `awareness_challenge`.
+- Always read coverage states and proof strength explicitly. `unavailable`, `not_configured`, `skipped_with_reason`, and `searched_no_result` are distinct worlds.
+- Route any accepted architectural conclusion through `awareness_propose` and the existing authored-source promotion path.
+
+The Phase 10 tools may produce or inspect derived artifacts. They may not create canonical truth, weaken architecture, authorize mutations, or complete tasks.
+
 ## Architecture Brief
 
 Before architecture-sensitive implementation, give the user a compact brief:

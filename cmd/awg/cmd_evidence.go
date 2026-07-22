@@ -17,6 +17,9 @@ import (
 // control claim needs: "caught N drift incidents across M repos". It reads only;
 // it never writes.
 func runEvidence(args []string) int {
+	if code, handled := runPhase10Evidence(args); handled {
+		return code
+	}
 	fs := flag.NewFlagSet("sensei evidence", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	path := fs.String("log", os.Getenv("AWG_EVENT_LOG"), "path to the JSONL evidence ledger (default: $AWG_EVENT_LOG)")
