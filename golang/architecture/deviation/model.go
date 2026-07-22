@@ -135,7 +135,8 @@ type Candidate struct {
 	SemanticDigestSHA256 string             `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
 }
 
-// Analysis is the exact, receipt-bound output of Phase 10.6.
+// Analysis is the exact, receipt-bound Phase 10.6 output. Recurrence can raise
+// review priority, but this document never grants promotion authority.
 type Analysis struct {
 	SchemaVersion                 string                            `json:"schema_version" yaml:"schema_version"`
 	GeneratedBy                   string                            `json:"generated_by" yaml:"generated_by"`
