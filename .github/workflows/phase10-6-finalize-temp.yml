@@ -26,13 +26,16 @@ jobs:
       - name: Format Phase 10.6 files
         run: |
           gofmt -w golang/architecture/deviation golang/architecture/questiongen/deviation_questions.go golang/architecture/questiongen/deviation_questions_test.go
-      - name: Verify deviation learning and dialogue
-        run: |
-          go test ./golang/architecture/deviation -count=10
-          go test -race ./golang/architecture/deviation -count=1
-          go test ./golang/architecture/questiongen -run 'TestGenerateFromDeviation' -count=10
-          go test ./golang/architecture/questiongen -count=1
-          go test -race ./golang/architecture/questiongen -run 'TestGenerateFromDeviation' -count=1
+      - name: Deviation repeatability
+        run: go test ./golang/architecture/deviation -count=10
+      - name: Deviation race
+        run: go test -race ./golang/architecture/deviation -count=1
+      - name: Deviation question repeatability
+        run: go test ./golang/architecture/questiongen -run 'TestGenerateFromDeviation' -count=10
+      - name: Questiongen full package
+        run: go test ./golang/architecture/questiongen -count=1
+      - name: Deviation question race
+        run: go test -race ./golang/architecture/questiongen -run 'TestGenerateFromDeviation' -count=1
       - name: Refresh generated import graph
         run: |
           make import-graph
