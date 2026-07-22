@@ -79,11 +79,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          exec > >(tee /tmp/sensei-appliance-smoke.log) 2>&1
           fixture=$(mktemp -d)
           cleanup() {
+            rc=$?
+            docker inspect sensei-appliance-smoke > /tmp/sensei-appliance-container-inspect.json 2>/dev/null || true
+            docker logs sensei-appliance-smoke > /tmp/sensei-appliance-container.log 2>&1 || true
             docker rm -f sensei-appliance-smoke >/dev/null 2>&1 || true
             docker volume rm sensei-appliance-smoke >/dev/null 2>&1 || true
             rm -rf "${fixture}"
+            return "${rc}"
           }
           trap cleanup EXIT
 
@@ -123,3 +128,15 @@ jobs:
 
           test ! -e "${fixture}/.sensei/graph-authority.json"
           docker logs sensei-appliance-smoke 2>&1 | grep -q 'Oxigraph is private at 127.0.0.1:7878'
+
+      - name: Upload failed appliance runtime diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensei-appliance-smoke-failure
+          path: |
+            /tmp/sensei-appliance-smoke.log
+            /tmp/sensei-appliance-container.log
+            /tmp/sensei-appliance-container-inspect.json
+          if-no-files-found: ignore
+          retention-days: 7
