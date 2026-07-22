@@ -5,6 +5,7 @@ package questiongen
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -63,15 +64,17 @@ func TestGenerateFromDeviationIsDeterministicAndDeduplicates(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, err := GenerateFromDeviation(DeviationQuestionContext{
-		Analysis: analysis,
-		Existing: &first.Dialogue,
+		Analysis:  analysis,
+		Existing:  &first.Dialogue,
 		CreatedAt: "2026-07-22T16:00:00Z",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(first.Dialogue, second.Dialogue) {
-		t.Fatal("repeated generation changed canonical dialogue lifecycle state")
+		firstJSON, _ := json.MarshalIndent(first.Dialogue, "", "  ")
+		secondJSON, _ := json.MarshalIndent(second.Dialogue, "", "  ")
+		t.Fatalf("repeated generation changed canonical dialogue lifecycle state\nFIRST:\n%s\nSECOND:\n%s", firstJSON, secondJSON)
 	}
 	if len(second.Report.ExistingCoverage) != 1 || len(second.Report.Generated) != 0 {
 		t.Fatalf("repeat was not accounted as existing coverage: %+v", second.Report)
@@ -87,20 +90,20 @@ func TestDeviationQuestionAnswerPathDoesNotPromoteOrWeakenCandidate(t *testing.T
 	}
 	question := generated.Dialogue.OpenQuestions[0]
 	doc, recording, err := RecordAnswer(generated.Dialogue, RecordAnswerOptions{
-		QuestionID: question.ID,
-		Statement: "The architecture remains valid; implementations used an ungoverned shortcut and require a stronger refusal gate.",
-		Classifications: []string{architecture.AnswerTypeGovernedDecisionCandidate},
-		AuthorRole: "architect",
-		AuthorID: "fixture",
-		RecordedAt: deviationQuestionFixtureTime,
+		QuestionID:       question.ID,
+		Statement:        "The architecture remains valid; implementations used an ungoverned shortcut and require a stronger refusal gate.",
+		Classifications:  []string{architecture.AnswerTypeGovernedDecisionCandidate},
+		AuthorRole:       "architect",
+		AuthorID:         "fixture",
+		RecordedAt:       deviationQuestionFixtureTime,
 		GovernanceStatus: architecture.AnswerGovernanceRecorded,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	doc, _, err = AdjudicateAnswer(doc, AdjudicateAnswerOptions{
-		AnswerID: recording.AnswerID,
-		Status: architecture.AnswerGovernanceAcceptedForQuestion,
+		AnswerID:      recording.AnswerID,
+		Status:        architecture.AnswerGovernanceAcceptedForQuestion,
 		AdjudicatedAt: deviationQuestionFixtureTime,
 	})
 	if err != nil {
@@ -127,10 +130,10 @@ func TestGenerateFromDeviationRefusesStaleAnalysisReceipt(t *testing.T) {
 func deviationQuestionAnalysis(t *testing.T, occurrences int) deviation.Analysis {
 	t.Helper()
 	binding := architecture.ClaimDocumentBinding{
-		RepositoryDomain: "example/repo",
-		Revision: "abc123",
-		RevisionStatus: architecture.RevisionResolved,
-		TreeDigestSHA256: deviationQuestionDigest("tree"),
+		RepositoryDomain:  "example/repo",
+		Revision:          "abc123",
+		RevisionStatus:    architecture.RevisionResolved,
+		TreeDigestSHA256:  deviationQuestionDigest("tree"),
 		GraphDigestSHA256: deviationQuestionDigest("graph"),
 		GraphDigestStatus: architecture.GraphDigestResolved,
 	}
@@ -138,24 +141,24 @@ func deviationQuestionAnalysis(t *testing.T, occurrences int) deviation.Analysis
 	for i := 0; i < occurrences; i++ {
 		label := string(rune('a' + i))
 		receipt, err := deviation.Record(deviation.RecordInput{
-			Kind: deviation.KindBypassedOwnerPath,
+			Kind:    deviation.KindBypassedOwnerPath,
 			Binding: binding,
 			Scope: architecture.ClaimScope{
 				Repository: binding.RepositoryDomain,
-				Files: []string{"api.go", "store.go"},
+				Files:      []string{"api.go", "store.go"},
 				Components: []string{"component.api", "component.store"},
 			},
-			Shape: deviation.Shape{Subject: "component.api", Predicate: "bypassed_owner_path", Object: "component.store"},
-			Expected: "mutate through the governed owner path",
-			Observed: "implementation used a non-owner write path",
-			TaskID: "task." + label,
+			Shape:         deviation.Shape{Subject: "component.api", Predicate: "bypassed_owner_path", Object: "component.store"},
+			Expected:      "mutate through the governed owner path",
+			Observed:      "implementation used a non-owner write path",
+			TaskID:        "task." + label,
 			TaskSessionID: "session." + label,
-			AgentID: "codex." + label,
-			ChangeDigest: deviationQuestionDigest("change." + label),
-			SourceDigest: deviationQuestionDigest("source." + label),
-			EvidenceRefs: []string{"evidence:deviation_" + label},
-			RecordedAt: "2026-07-22T1" + string(rune('2' + i)) + ":00:00Z",
-			Timestamp: "fixture",
+			AgentID:       "codex." + label,
+			ChangeDigest:  deviationQuestionDigest("change." + label),
+			SourceDigest:  deviationQuestionDigest("source." + label),
+			EvidenceRefs:  []string{"evidence:deviation_" + label},
+			RecordedAt:    "2026-07-22T1" + string(rune('2'+i)) + ":00:00Z",
+			Timestamp:     "fixture",
 		})
 		if err != nil {
 			t.Fatal(err)
