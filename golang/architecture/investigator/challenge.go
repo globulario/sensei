@@ -23,6 +23,16 @@ func IsValidChallengeStatus(s ChallengeStatus) bool {
 	}
 }
 
+// IsValidChallengeReasonCode checks the deterministic challenge reason vocabulary.
+func IsValidChallengeReasonCode(reason string) bool {
+	switch reason {
+	case ChallengeReasonRefutingEvidence, ChallengeReasonEvidenceMissing, ChallengeReasonNoCounterexample:
+		return true
+	default:
+		return false
+	}
+}
+
 // ChallengeReceipt documents the result of an adversarial challenge.
 type ChallengeReceipt struct {
 	ID          string `json:"id" yaml:"id"`
