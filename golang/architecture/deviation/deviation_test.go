@@ -72,17 +72,17 @@ func TestClusterRefusesOneOccurrenceKeyBoundToDifferentEvents(t *testing.T) {
 func TestAnalyzeCreatesAdvisoryCandidateWithoutWeakeningArchitecture(t *testing.T) {
 	binding := deviationBinding()
 	existing := architecture.Claim{
-		ID: "claim.existing.boundary",
-		Statement: architecture.ClaimStatement{Subject: "component.api", Predicate: "must_use_owner_path", Object: "component.store"},
-		Scope: architecture.ClaimScope{Repository: binding.RepositoryDomain, Components: []string{"component.api", "component.store"}},
-		ArchitecturalPlane: architecture.PlaneIntended,
-		AssertionOrigin: architecture.OriginDerived,
-		EpistemicStatus: architecture.StatusSupported,
-		InferenceRule: "fixture.rule.v1",
-		SupportingEvidence: []string{"evidence:existing"},
-		Confidence: 1,
+		ID:                  "claim.existing.boundary",
+		Statement:           architecture.ClaimStatement{Subject: "component.api", Predicate: "must_use_owner_path", Object: "component.store"},
+		Scope:               architecture.ClaimScope{Repository: binding.RepositoryDomain, Components: []string{"component.api", "component.store"}},
+		ArchitecturalPlane:  architecture.PlaneIntended,
+		AssertionOrigin:     architecture.OriginDerived,
+		EpistemicStatus:     architecture.StatusSupported,
+		InferenceRule:       "fixture.rule.v1",
+		SupportingEvidence:  []string{"evidence:existing"},
+		Confidence:          1,
 		HumanReviewRequired: true,
-		PromotionStatus: architecture.PromotionCandidate,
+		PromotionStatus:     architecture.PromotionCandidate,
 	}
 	before := existing
 	firstInput := deviationInput("task.one", "session.one", "change.one", "2026-07-22T12:00:00Z")
@@ -178,34 +178,34 @@ func TestPatternIdentityIgnoresOccurrenceMetadataButBindsScope(t *testing.T) {
 func deviationInput(taskID, sessionID, changeLabel, recordedAt string) RecordInput {
 	binding := deviationBinding()
 	return RecordInput{
-		Kind: KindBypassedOwnerPath,
+		Kind:    KindBypassedOwnerPath,
 		Binding: binding,
 		Scope: architecture.ClaimScope{
 			Repository: binding.RepositoryDomain,
-			Files: []string{"api.go", "store.go"},
-			Symbols: []string{"api.Write", "store.Apply"},
+			Files:      []string{"api.go", "store.go"},
+			Symbols:    []string{"api.Write", "store.Apply"},
 			Components: []string{"component.api", "component.store"},
 		},
-		Shape: Shape{Subject: "component.api", Predicate: "bypassed_owner_path", Object: "component.store"},
-		Expected: "mutate state through the governed store owner",
-		Observed: "implementation wrote state through a non-owner path",
-		TaskID: taskID,
+		Shape:         Shape{Subject: "component.api", Predicate: "bypassed_owner_path", Object: "component.store"},
+		Expected:      "mutate state through the governed store owner",
+		Observed:      "implementation wrote state through a non-owner path",
+		TaskID:        taskID,
 		TaskSessionID: sessionID,
-		AgentID: "codex",
-		ChangeDigest: digest(changeLabel),
-		SourceDigest: digest("source:" + changeLabel),
-		EvidenceRefs: []string{"evidence:" + strings.ReplaceAll(changeLabel, ".", "_")},
-		RecordedAt: recordedAt,
-		Timestamp: "fixture",
+		AgentID:       "codex",
+		ChangeDigest:  digest(changeLabel),
+		SourceDigest:  digest("source:" + changeLabel),
+		EvidenceRefs:  []string{"evidence:" + strings.ReplaceAll(changeLabel, ".", "_")},
+		RecordedAt:    recordedAt,
+		Timestamp:     "fixture",
 	}
 }
 
 func deviationBinding() architecture.ClaimDocumentBinding {
 	return architecture.ClaimDocumentBinding{
-		RepositoryDomain: "example/repo",
-		Revision: "abc123",
-		RevisionStatus: architecture.RevisionResolved,
-		TreeDigestSHA256: digest("tree"),
+		RepositoryDomain:  "example/repo",
+		Revision:          "abc123",
+		RevisionStatus:    architecture.RevisionResolved,
+		TreeDigestSHA256:  digest("tree"),
 		GraphDigestSHA256: digest("graph"),
 		GraphDigestStatus: architecture.GraphDigestResolved,
 	}

@@ -107,56 +107,56 @@ type RecordInput struct {
 
 // Pattern groups independent receipts with the same structured shape.
 type Pattern struct {
-	ID      string                  `json:"id" yaml:"id"`
-	Kind    Kind                    `json:"kind" yaml:"kind"`
-	Scope   architecture.ClaimScope `json:"scope" yaml:"scope"`
-	Shape   Shape                   `json:"shape" yaml:"shape"`
-	ReceiptIDs       []string `json:"receipt_ids" yaml:"receipt_ids"`
-	IndependenceKeys []string `json:"independence_keys" yaml:"independence_keys"`
-	AgentIDs         []string `json:"agent_ids,omitempty" yaml:"agent_ids,omitempty"`
-	TaskIDs          []string `json:"task_ids,omitempty" yaml:"task_ids,omitempty"`
-	RelatedClaimIDs  []string `json:"related_claim_ids,omitempty" yaml:"related_claim_ids,omitempty"`
-	EvidenceRefs     []string `json:"evidence_refs" yaml:"evidence_refs"`
-	IndependentOccurrenceCount int `json:"independent_occurrence_count" yaml:"independent_occurrence_count"`
-	MinimumIndependentOccurrences int `json:"minimum_independent_occurrences" yaml:"minimum_independent_occurrences"`
-	FirstObservedAt string `json:"first_observed_at" yaml:"first_observed_at"`
-	LastObservedAt  string `json:"last_observed_at" yaml:"last_observed_at"`
-	CandidateEligible bool `json:"candidate_eligible" yaml:"candidate_eligible"`
-	SemanticDigestSHA256 string `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
+	ID                            string                  `json:"id" yaml:"id"`
+	Kind                          Kind                    `json:"kind" yaml:"kind"`
+	Scope                         architecture.ClaimScope `json:"scope" yaml:"scope"`
+	Shape                         Shape                   `json:"shape" yaml:"shape"`
+	ReceiptIDs                    []string                `json:"receipt_ids" yaml:"receipt_ids"`
+	IndependenceKeys              []string                `json:"independence_keys" yaml:"independence_keys"`
+	AgentIDs                      []string                `json:"agent_ids,omitempty" yaml:"agent_ids,omitempty"`
+	TaskIDs                       []string                `json:"task_ids,omitempty" yaml:"task_ids,omitempty"`
+	RelatedClaimIDs               []string                `json:"related_claim_ids,omitempty" yaml:"related_claim_ids,omitempty"`
+	EvidenceRefs                  []string                `json:"evidence_refs" yaml:"evidence_refs"`
+	IndependentOccurrenceCount    int                     `json:"independent_occurrence_count" yaml:"independent_occurrence_count"`
+	MinimumIndependentOccurrences int                     `json:"minimum_independent_occurrences" yaml:"minimum_independent_occurrences"`
+	FirstObservedAt               string                  `json:"first_observed_at" yaml:"first_observed_at"`
+	LastObservedAt                string                  `json:"last_observed_at" yaml:"last_observed_at"`
+	CandidateEligible             bool                    `json:"candidate_eligible" yaml:"candidate_eligible"`
+	SemanticDigestSHA256          string                  `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
 }
 
 // Candidate is an advisory claim derived from a repeated deviation pattern.
 type Candidate struct {
-	ID        string             `json:"id" yaml:"id"`
-	PatternID string             `json:"pattern_id" yaml:"pattern_id"`
-	Kind      CandidateKind      `json:"kind" yaml:"kind"`
-	Claim     architecture.Claim `json:"claim" yaml:"claim"`
-	ReceiptIDs []string          `json:"receipt_ids" yaml:"receipt_ids"`
-	SemanticDigestSHA256 string   `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
+	ID                   string             `json:"id" yaml:"id"`
+	PatternID            string             `json:"pattern_id" yaml:"pattern_id"`
+	Kind                 CandidateKind      `json:"kind" yaml:"kind"`
+	Claim                architecture.Claim `json:"claim" yaml:"claim"`
+	ReceiptIDs           []string           `json:"receipt_ids" yaml:"receipt_ids"`
+	SemanticDigestSHA256 string             `json:"semantic_digest_sha256" yaml:"semantic_digest_sha256"`
 }
 
 // Analysis is the exact, receipt-bound output of Phase 10.6.
 type Analysis struct {
-	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
-	Binding architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
-	MinimumIndependentOccurrences int `json:"minimum_independent_occurrences" yaml:"minimum_independent_occurrences"`
-	Receipts   []Receipt   `json:"receipts" yaml:"receipts"`
-	Patterns   []Pattern   `json:"patterns" yaml:"patterns"`
-	Candidates []Candidate `json:"candidates" yaml:"candidates"`
-	Receipt    RunReceipt  `json:"receipt" yaml:"receipt"`
+	SchemaVersion                 string                            `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy                   string                            `json:"generated_by" yaml:"generated_by"`
+	Binding                       architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
+	MinimumIndependentOccurrences int                               `json:"minimum_independent_occurrences" yaml:"minimum_independent_occurrences"`
+	Receipts                      []Receipt                         `json:"receipts" yaml:"receipts"`
+	Patterns                      []Pattern                         `json:"patterns" yaml:"patterns"`
+	Candidates                    []Candidate                       `json:"candidates" yaml:"candidates"`
+	Receipt                       RunReceipt                        `json:"receipt" yaml:"receipt"`
 }
 
 // RunReceipt freezes the exact semantic indexes of an Analysis.
 type RunReceipt struct {
-	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
-	Binding architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
-	RulesetVersion string `json:"ruleset_version" yaml:"ruleset_version"`
-	MinimumIndependentOccurrences int `json:"minimum_independent_occurrences" yaml:"minimum_independent_occurrences"`
-	ReceiptIDsAndDigests map[string]string `json:"receipt_ids_and_digests" yaml:"receipt_ids_and_digests"`
-	PatternIDsAndDigests map[string]string `json:"pattern_ids_and_digests" yaml:"pattern_ids_and_digests"`
-	CandidateIDsAndDigests map[string]string `json:"candidate_ids_and_digests" yaml:"candidate_ids_and_digests"`
-	ExactAnalysisDigestSHA256 string `json:"exact_analysis_digest_sha256" yaml:"exact_analysis_digest_sha256"`
-	NondeterminismDeclaration string `json:"nondeterminism_declaration" yaml:"nondeterminism_declaration"`
+	SchemaVersion                 string                            `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy                   string                            `json:"generated_by" yaml:"generated_by"`
+	Binding                       architecture.ClaimDocumentBinding `json:"binding" yaml:"binding"`
+	RulesetVersion                string                            `json:"ruleset_version" yaml:"ruleset_version"`
+	MinimumIndependentOccurrences int                               `json:"minimum_independent_occurrences" yaml:"minimum_independent_occurrences"`
+	ReceiptIDsAndDigests          map[string]string                 `json:"receipt_ids_and_digests" yaml:"receipt_ids_and_digests"`
+	PatternIDsAndDigests          map[string]string                 `json:"pattern_ids_and_digests" yaml:"pattern_ids_and_digests"`
+	CandidateIDsAndDigests        map[string]string                 `json:"candidate_ids_and_digests" yaml:"candidate_ids_and_digests"`
+	ExactAnalysisDigestSHA256     string                            `json:"exact_analysis_digest_sha256" yaml:"exact_analysis_digest_sha256"`
+	NondeterminismDeclaration     string                            `json:"nondeterminism_declaration" yaml:"nondeterminism_declaration"`
 }

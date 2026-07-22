@@ -42,13 +42,13 @@ func Analyze(binding architecture.ClaimDocumentBinding, receipts []Receipt, mini
 		return Analysis{}, err
 	}
 	analysis := Analysis{
-		SchemaVersion: SchemaVersion,
-		GeneratedBy: GeneratedBy,
-		Binding: binding,
+		SchemaVersion:                 SchemaVersion,
+		GeneratedBy:                   GeneratedBy,
+		Binding:                       binding,
 		MinimumIndependentOccurrences: minimumIndependentOccurrences,
-		Receipts: normalizedReceipts,
-		Patterns: patterns,
-		Candidates: candidates,
+		Receipts:                      normalizedReceipts,
+		Patterns:                      patterns,
+		Candidates:                    candidates,
 	}
 	analysis.Receipt = buildRunReceipt(analysis)
 	digest, err := AnalysisDigest(analysis)
@@ -80,20 +80,20 @@ func GenerateCandidates(patterns []Pattern) ([]Candidate, error) {
 			status = architecture.StatusContested
 		}
 		claim := architecture.Claim{
-			Label: label,
+			Label:       label,
 			Description: fmt.Sprintf("%d independent implementation deviations share one structured architectural shape; repetition raises review priority but grants no authority.", pattern.IndependentOccurrenceCount),
 			Statement: architecture.ClaimStatement{
-				Subject: pattern.Shape.Subject,
+				Subject:   pattern.Shape.Subject,
 				Predicate: predicate,
-				Object: pattern.Shape.Object,
+				Object:    pattern.Shape.Object,
 			},
-			Scope: pattern.Scope,
+			Scope:              pattern.Scope,
 			ArchitecturalPlane: architecture.PlaneObserved,
-			AssertionOrigin: architecture.OriginDerived,
-			EpistemicStatus: status,
-			InferenceRule: repeatedDeviationInferenceRule,
+			AssertionOrigin:    architecture.OriginDerived,
+			EpistemicStatus:    status,
+			InferenceRule:      repeatedDeviationInferenceRule,
 			SupportingEvidence: pattern.EvidenceRefs,
-			ConflictsWith: pattern.RelatedClaimIDs,
+			ConflictsWith:      pattern.RelatedClaimIDs,
 			Unknowns: []string{
 				"whether the architecture is incorrect, scoped incorrectly, or being repeatedly bypassed",
 				"whether a governed exception or missing contract would resolve the friction",
@@ -102,9 +102,9 @@ func GenerateCandidates(patterns []Pattern) ([]Candidate, error) {
 				"duplicate-source correction reduces independent occurrences below threshold",
 				"governed review determines the occurrences do not share one architectural cause",
 			},
-			Confidence: 0,
+			Confidence:          0,
 			HumanReviewRequired: true,
-			PromotionStatus: architecture.PromotionCandidate,
+			PromotionStatus:     architecture.PromotionCandidate,
 		}
 		normalizedClaims, err := architecture.NormalizeClaims([]architecture.Claim{claim})
 		if err != nil {
@@ -112,9 +112,9 @@ func GenerateCandidates(patterns []Pattern) ([]Candidate, error) {
 		}
 		claim = normalizedClaims[0]
 		candidate := Candidate{
-			PatternID: pattern.ID,
-			Kind: kind,
-			Claim: claim,
+			PatternID:  pattern.ID,
+			Kind:       kind,
+			Claim:      claim,
 			ReceiptIDs: pattern.ReceiptIDs,
 		}
 		candidate.ID = expectedCandidateID(candidate)
@@ -279,15 +279,15 @@ func AnalysisDigest(in Analysis) (string, error) {
 
 func buildRunReceipt(analysis Analysis) RunReceipt {
 	receipt := RunReceipt{
-		SchemaVersion: SchemaVersion,
-		GeneratedBy: GeneratedBy,
-		Binding: canonicalizeBinding(analysis.Binding),
-		RulesetVersion: RulesetVersion,
+		SchemaVersion:                 SchemaVersion,
+		GeneratedBy:                   GeneratedBy,
+		Binding:                       canonicalizeBinding(analysis.Binding),
+		RulesetVersion:                RulesetVersion,
 		MinimumIndependentOccurrences: analysis.MinimumIndependentOccurrences,
-		ReceiptIDsAndDigests: map[string]string{},
-		PatternIDsAndDigests: map[string]string{},
-		CandidateIDsAndDigests: map[string]string{},
-		NondeterminismDeclaration: NondeterminismNone,
+		ReceiptIDsAndDigests:          map[string]string{},
+		PatternIDsAndDigests:          map[string]string{},
+		CandidateIDsAndDigests:        map[string]string{},
+		NondeterminismDeclaration:     NondeterminismNone,
 	}
 	for _, item := range analysis.Receipts {
 		receipt.ReceiptIDsAndDigests[item.ID] = item.SemanticDigestSHA256

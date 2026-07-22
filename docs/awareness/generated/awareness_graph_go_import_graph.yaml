@@ -438,6 +438,10 @@ components:
       - golang/architecture/controlstate/types_closure.go
       - golang/architecture/controlstate/util.go
       - golang/architecture/convergence/convergence.go
+      - golang/architecture/deviation/candidate.go
+      - golang/architecture/deviation/cluster.go
+      - golang/architecture/deviation/model.go
+      - golang/architecture/deviation/record.go
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
       - golang/architecture/diffaudit/evaluator.go

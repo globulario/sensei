@@ -19,31 +19,31 @@ import (
 )
 
 var (
-	sha256RE = regexp.MustCompile(`^[a-f0-9]{64}$`)
-	tokenRE  = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$`)
+	sha256RE    = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	tokenRE     = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$`)
 	predicateRE = regexp.MustCompile(`^[a-z][a-z0-9_.-]*$`)
 )
 
 // Record creates one immutable deviation receipt from exact caller input.
 func Record(in RecordInput) (Receipt, error) {
 	receipt := Receipt{
-		SchemaVersion: SchemaVersion,
-		GeneratedBy: GeneratedBy,
-		Kind: in.Kind,
-		Binding: in.Binding,
-		Scope: in.Scope,
-		Shape: in.Shape,
-		ExpectedBehavior: in.Expected,
-		ObservedBehavior: in.Observed,
-		TaskID: in.TaskID,
-		TaskSessionID: in.TaskSessionID,
-		AgentID: in.AgentID,
-		ChangeDigestSHA256: in.ChangeDigest,
+		SchemaVersion:              SchemaVersion,
+		GeneratedBy:                GeneratedBy,
+		Kind:                       in.Kind,
+		Binding:                    in.Binding,
+		Scope:                      in.Scope,
+		Shape:                      in.Shape,
+		ExpectedBehavior:           in.Expected,
+		ObservedBehavior:           in.Observed,
+		TaskID:                     in.TaskID,
+		TaskSessionID:              in.TaskSessionID,
+		AgentID:                    in.AgentID,
+		ChangeDigestSHA256:         in.ChangeDigest,
 		SourceArtifactDigestSHA256: in.SourceDigest,
-		RelatedClaimIDs: in.RelatedClaims,
-		EvidenceRefs: in.EvidenceRefs,
-		RecordedAt: in.RecordedAt,
-		TimestampSource: in.Timestamp,
+		RelatedClaimIDs:            in.RelatedClaims,
+		EvidenceRefs:               in.EvidenceRefs,
+		RecordedAt:                 in.RecordedAt,
+		TimestampSource:            in.Timestamp,
 	}
 	receipt = canonicalizeReceipt(receipt)
 	receipt.IndependenceKey = expectedIndependenceKey(receipt)
@@ -113,9 +113,9 @@ func ValidateReceipt(in Receipt) error {
 		errs = append(errs, "task id, task session id, and agent id are required")
 	}
 	for name, value := range map[string]string{
-		"change digest": receipt.ChangeDigestSHA256,
+		"change digest":          receipt.ChangeDigestSHA256,
 		"source artifact digest": receipt.SourceArtifactDigestSHA256,
-		"semantic digest": receipt.SemanticDigestSHA256,
+		"semantic digest":        receipt.SemanticDigestSHA256,
 	} {
 		if !sha256RE.MatchString(value) {
 			errs = append(errs, name+" must be lowercase SHA-256")
