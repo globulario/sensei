@@ -2,7 +2,7 @@
 
 package investigator
 
-// RunReceipt freezes the exact inputs, metadata, and candidate digests.
+// RunReceipt freezes exact inputs, bounded resources, and semantic output indexes.
 type RunReceipt struct {
 	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
 	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
