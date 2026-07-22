@@ -58,8 +58,8 @@ func Validate(res Result, snap GroundingSnapshot) error {
 	}
 
 	// Section 5 Rule 7: evidence snapshot digest must equal WHY document binding digest
-	if res.Binding.EvidenceSnapshotDigestSHA256 != res.Binding.WhyDocumentDigestSHA256 {
-		errs = append(errs, fmt.Sprintf("evidence snapshot digest %q must equal WHY document digest %q", res.Binding.EvidenceSnapshotDigestSHA256, res.Binding.WhyDocumentDigestSHA256))
+	if res.Binding.EvidenceSnapshotDigestSHA256 != res.Document.Binding.EvidenceSnapshotDigestSHA256 {
+		errs = append(errs, "evidence snapshot digest must match document evidence snapshot digest")
 	}
 
 	// Section 5 Rule 4 & 6: check that result repository binding equals document binding
@@ -78,8 +78,8 @@ func Validate(res Result, snap GroundingSnapshot) error {
 	}
 
 	// Section 5 Rule 5: WHY must bind the exact HOW output digest
-	if res.Document.Binding.InvestigationPlanDigestSHA256 != res.Binding.HowDocumentDigestSHA256 {
-		errs = append(errs, fmt.Sprintf("WHY document plan digest %q does not match bound HOW document digest %q", res.Document.Binding.InvestigationPlanDigestSHA256, res.Binding.HowDocumentDigestSHA256))
+	if res.Document.Binding.Why.HowDocumentDigestSHA256 != res.Binding.HowDocumentDigestSHA256 {
+		errs = append(errs, "WHY document HOW digest does not match bound HOW document digest")
 	}
 
 	// Section 5 Rule 8: graph, claims, closure, question, and review-history digests must be explicit
@@ -97,6 +97,17 @@ func Validate(res Result, snap GroundingSnapshot) error {
 	}
 	if res.Binding.ReviewHistoryDigestSHA256 == "" || !IsSHA256(res.Binding.ReviewHistoryDigestSHA256) {
 		errs = append(errs, "review history digest must be explicit and valid")
+	}
+	actualGroundingDigest, digestErr := GroundingSnapshotDigest(snap)
+	if digestErr != nil {
+		errs = append(errs, fmt.Sprintf("grounding snapshot digest: %v", digestErr))
+	} else {
+		if res.Binding.GroundingSnapshotDigestSHA256 != actualGroundingDigest {
+			errs = append(errs, "grounding snapshot digest does not match binding")
+		}
+		if res.Receipt.GroundingSnapshotDigestSHA256 != actualGroundingDigest {
+			errs = append(errs, "grounding snapshot digest does not match receipt")
+		}
 	}
 
 	// Validate repository domains match between Result binding and claims/counterexamples
@@ -123,17 +134,17 @@ func Validate(res Result, snap GroundingSnapshot) error {
 			if strings.Contains(f, "..") {
 				errs = append(errs, fmt.Sprintf("%s scope contains path traversal: %s", contextName, f))
 			}
-			if len(snap.Files) > 0 && !groundingFiles[f] {
+			if !groundingFiles[f] {
 				errs = append(errs, fmt.Sprintf("%s references unresolved file: %s", contextName, f))
 			}
 		}
 		for _, s := range scope.Symbols {
-			if len(snap.Symbols) > 0 && !contains(snap.Symbols, s) {
+			if !contains(snap.Symbols, s) {
 				errs = append(errs, fmt.Sprintf("%s references unresolved symbol: %s", contextName, s))
 			}
 		}
 		for _, node := range scope.Components {
-			if len(snap.GraphNodeIDs) > 0 && !contains(snap.GraphNodeIDs, node) {
+			if !contains(snap.GraphNodeIDs, node) {
 				errs = append(errs, fmt.Sprintf("%s references unresolved graph node: %s", contextName, node))
 			}
 		}
@@ -143,6 +154,7 @@ func Validate(res Result, snap GroundingSnapshot) error {
 	candidateIDs := make(map[string]bool)
 	claimIDs := make(map[string]bool)
 	candidateMap := make(map[string]CandidateEnvelope)
+	candidateByClaimID := make(map[string]CandidateEnvelope)
 
 	for _, envelope := range res.Candidates {
 		if envelope.CandidateID == "" {
@@ -153,6 +165,7 @@ func Validate(res Result, snap GroundingSnapshot) error {
 			}
 			candidateIDs[envelope.CandidateID] = true
 			candidateMap[envelope.CandidateID] = envelope
+			candidateByClaimID[envelope.ClaimID] = envelope
 		}
 
 		if envelope.ClaimID == "" {
@@ -170,17 +183,17 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 		// Grounding observation and evidence references
 		for _, obsID := range envelope.ObservationRefIDs {
-			if len(snap.ObservationIDs) > 0 && !contains(snap.ObservationIDs, obsID) {
+			if !contains(snap.ObservationIDs, obsID) {
 				errs = append(errs, fmt.Sprintf("candidate %s references dangling observation: %s", envelope.CandidateID, obsID))
 			}
 		}
 		for _, supID := range envelope.SupportingEvidenceRefIDs {
-			if len(snap.EvidenceReceiptIDs) > 0 && !contains(snap.EvidenceReceiptIDs, supID) {
+			if !contains(snap.EvidenceReceiptIDs, supID) {
 				errs = append(errs, fmt.Sprintf("candidate %s references dangling supporting evidence: %s", envelope.CandidateID, supID))
 			}
 		}
 		for _, refID := range envelope.RefutingEvidenceRefIDs {
-			if len(snap.EvidenceReceiptIDs) > 0 && !contains(snap.EvidenceReceiptIDs, refID) {
+			if !contains(snap.EvidenceReceiptIDs, refID) {
 				errs = append(errs, fmt.Sprintf("candidate %s references dangling refuting evidence: %s", envelope.CandidateID, refID))
 			}
 		}
@@ -221,7 +234,7 @@ func Validate(res Result, snap GroundingSnapshot) error {
 		validateScopeGrounding(claim.Scope, fmt.Sprintf("candidate claim %s", claim.ID))
 
 		// Check scope expansion: claim scope must not exceed the union of its cited evidence scopes
-		envelope, ok := candidateMap[claim.ID]
+		envelope, ok := candidateByClaimID[claim.ID]
 		if ok {
 			var unionFiles []string
 			var unionSymbols []string
@@ -261,17 +274,17 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 			// Validate subset bounding
 			for _, f := range claim.Scope.Files {
-				if len(unionFiles) > 0 && !contains(unionFiles, f) {
+				if !contains(unionFiles, f) {
 					errs = append(errs, fmt.Sprintf("candidate claim %s scope file %q exceeds cited supporting evidence scopes", claim.ID, f))
 				}
 			}
 			for _, s := range claim.Scope.Symbols {
-				if len(unionSymbols) > 0 && !contains(unionSymbols, s) {
+				if !contains(unionSymbols, s) {
 					errs = append(errs, fmt.Sprintf("candidate claim %s scope symbol %q exceeds cited supporting evidence scopes", claim.ID, s))
 				}
 			}
 			for _, c := range claim.Scope.Components {
-				if len(unionComponents) > 0 && !contains(unionComponents, c) {
+				if !contains(unionComponents, c) {
 					errs = append(errs, fmt.Sprintf("candidate claim %s scope component %q exceeds cited supporting evidence scopes", claim.ID, c))
 				}
 			}
@@ -348,12 +361,12 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 		// Grounding evidence, requests, counterexamples references
 		for _, supID := range chall.SupportingEvidenceRefIDs {
-			if len(snap.EvidenceReceiptIDs) > 0 && !contains(snap.EvidenceReceiptIDs, supID) {
+			if !contains(snap.EvidenceReceiptIDs, supID) {
 				errs = append(errs, fmt.Sprintf("challenge receipt %s references dangling supporting evidence: %s", chall.ID, supID))
 			}
 		}
 		for _, refID := range chall.RefutingEvidenceRefIDs {
-			if len(snap.EvidenceReceiptIDs) > 0 && !contains(snap.EvidenceReceiptIDs, refID) {
+			if !contains(snap.EvidenceReceiptIDs, refID) {
 				errs = append(errs, fmt.Sprintf("challenge receipt %s references dangling refuting evidence: %s", chall.ID, refID))
 			}
 		}
@@ -412,7 +425,7 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 		// Grounding evidence refs
 		for _, ref := range ce.EvidenceRefIDs {
-			if len(snap.EvidenceReceiptIDs) > 0 && !contains(snap.EvidenceReceiptIDs, ref) {
+			if !contains(snap.EvidenceReceiptIDs, ref) {
 				errs = append(errs, fmt.Sprintf("counterexample %s references dangling evidence receipt: %s", ce.ID, ref))
 			}
 		}
@@ -447,7 +460,7 @@ func Validate(res Result, snap GroundingSnapshot) error {
 				errs = append(errs, fmt.Sprintf("ranking record for candidate %s: unknown factor kind %q", r.CandidateID, f.Kind))
 			}
 			for _, ref := range f.EvidenceRefIDs {
-				if len(snap.EvidenceReceiptIDs) > 0 && !contains(snap.EvidenceReceiptIDs, ref) {
+				if !contains(snap.EvidenceReceiptIDs, ref) {
 					errs = append(errs, fmt.Sprintf("ranking factor in %s references dangling evidence: %s", r.CandidateID, ref))
 				}
 			}
