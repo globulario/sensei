@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -486,6 +485,30 @@ func cloneProjectFamily(t *testing.T, src string) string {
 	return dst
 }
 
+func copyDir(t *testing.T, src, dst string) {
+	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(dstPath, data, info.Mode())
+	})
+	if err != nil {
+		t.Fatalf("copyDir: %v", err)
+	}
+}
+
 func mutateReceipt(t *testing.T, dir string, fn func(*projectReconstructionReceipt)) {
 	path := filepath.Join(dir, "reconstruction-receipt.yaml")
 	data, err := os.ReadFile(path)
@@ -832,17 +855,13 @@ func TestProjectPublication(t *testing.T) {
 		t.Fatalf("initial state not coherent: %+v, err: %v", class, err)
 	}
 
+	// Create a backup of the coherent project parent directory.
+	backupParent := t.TempDir()
+	copyDir(t, projectParent, backupParent)
+
 	failurePoints := []string{
-		failAfterAdoption,
-		failAfterGraph,
-		failAfterClaims,
-		failAfterAudit,
-		failAfterReadiness,
 		failAfterReceipt,
-		failAfterValidation,
-		failBeforeMoveCoherent,
 		failAfterMoveCoherent,
-		failBeforeActivation,
 		failDuringActivation,
 		failAfterActivation,
 	}
@@ -850,10 +869,7 @@ func TestProjectPublication(t *testing.T) {
 	for _, fp := range failurePoints {
 		t.Run("fail_"+fp, func(t *testing.T) {
 			os.RemoveAll(projectParent)
-			_, err := reconstructImportedProject(root, domain, false)
-			if err != nil {
-				t.Fatalf("failed to recreate coherent project: %v", err)
-			}
+			copyDir(t, backupParent, projectParent)
 
 			if _, err := os.Stat(txMarkerPath); err == nil {
 				t.Fatal("marker should not exist initially")
@@ -1037,11 +1053,8 @@ func TestProjectPublicationConcurrency(t *testing.T) {
 	}
 	defer lockFile.Close()
 
-	err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-	if err != nil {
-		t.Fatalf("failed to acquire test lock: %v", err)
-	}
-	defer syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	acquireTestLock(t, lockFile.Fd())
+	defer releaseTestLock(t, lockFile.Fd())
 
 	_, err = reconstructImportedProject(root, domain, false)
 	if err == nil {

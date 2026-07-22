@@ -155,6 +155,8 @@ components:
       - cmd/awg/graph_marker.go
       - cmd/awg/helpers.go
       - cmd/awg/json_output.go
+      - cmd/awg/lock_unix.go
+      - cmd/awg/lock_windows.go
       - cmd/awg/main.go
       - cmd/awg/proofrequirements_adapter.go
       - cmd/awg/seedfreshness.go

@@ -218,7 +218,7 @@ func TestScaffoldProject_UnrelatedAgentSkillsUntouched(t *testing.T) {
 func TestBuiltSenseiBinaryInitializesSkillsOutsideSourceTree(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join("..", ".."))
 	bin := filepath.Join(t.TempDir(), "sensei")
-	cmd := exec.Command("go", "build", "-o", bin, "./cmd/awg")
+	cmd := exec.Command("go", "build", "-ldflags=-s -w", "-o", bin, "./cmd/awg")
 	cmd.Dir = repoRoot
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build sensei: %v\n%s", err, out)

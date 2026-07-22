@@ -15,7 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -673,22 +672,6 @@ func recoverTransaction(projectParent, txMarkerPath string) error {
 	return flushDir(projectParent)
 }
 
-func acquireLock(lockPath string) (*os.File, error) {
-	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return nil, err
-	}
-	err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-	if err != nil {
-		file.Close()
-		if err == syscall.EWOULDBLOCK {
-			return nil, fmt.Errorf("concurrent reconstruction in progress (lock busy)")
-		}
-		return nil, err
-	}
-	return file, nil
-}
-
 func reconstructImportedProject(root, domain string, includeHistory bool) (phase2Readiness, error) {
 	projectParent := filepath.Join(root, ".sensei")
 	activeProjectDir := filepath.Join(projectParent, "project")
@@ -699,7 +682,7 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 		return phase2Readiness{}, fmt.Errorf("create project parent directory: %w", err)
 	}
 
-	lockFile, err := acquireLock(lockPath)
+	lockFile, err := acquireProjectLock(lockPath)
 	if err != nil {
 		return phase2Readiness{}, err
 	}
