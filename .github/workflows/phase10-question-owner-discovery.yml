@@ -14,7 +14,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo '=== OpenQuestion definitions and uses ==='
-          rg -n --glob '*.go' 'OpenQuestion|ArchitectAnswer|QuestionSource|question source|QuestionTemplate|awareness_propose|Propose' . || true
-          echo '=== dialogue-related files ==='
-          find . -type f \( -iname '*dialog*' -o -iname '*question*' -o -iname '*answer*' -o -iname '*propos*' \) | sort
+          {
+            echo '=== OpenQuestion definitions and uses ==='
+            rg -n --glob '*.go' 'OpenQuestion|ArchitectAnswer|QuestionSource|question source|QuestionTemplate|awareness_propose|Propose' . || true
+            echo '=== dialogue-related files ==='
+            find . -type f \( -iname '*dialog*' -o -iname '*question*' -o -iname '*answer*' -o -iname '*propos*' \) | sort
+          } > question-owner-discovery.txt
+      - name: Upload discovery output
+        uses: actions/upload-artifact@v4
+        with:
+          name: question-owner-discovery
+          path: question-owner-discovery.txt
