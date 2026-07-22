@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/sensei-docker-appliance
+  pull_request:
+    branches:
+      - phase10-architectural-investigation
   workflow_dispatch:
 
 permissions:
