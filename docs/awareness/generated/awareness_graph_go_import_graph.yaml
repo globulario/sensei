@@ -499,6 +499,13 @@ components:
       - golang/architecture/investigation/proof_strength.go
       - golang/architecture/investigation/receipt.go
       - golang/architecture/investigation/validate.go
+      - golang/architecture/investigator/challenge.go
+      - golang/architecture/investigator/compose.go
+      - golang/architecture/investigator/contracts.go
+      - golang/architecture/investigator/postprocess.go
+      - golang/architecture/investigator/ranking.go
+      - golang/architecture/investigator/receipt.go
+      - golang/architecture/investigator/rules.go
       - golang/architecture/knowledgeadoption/contracts.go
       - golang/architecture/knowledgeadoption/engine.go
       - golang/architecture/knowledgeadoption/output.go
