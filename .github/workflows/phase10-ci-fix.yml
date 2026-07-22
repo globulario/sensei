@@ -1,0 +1,69 @@
+name: Phase 10 CI fix
+
+on:
+  push:
+    branches:
+      - codex/phase10-ci-fix
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase10-ci-fix
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Apply focused Phase 10 question fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          test_path = Path('golang/architecture/dialogue_investigation_test.go')
+          text = test_path.read_text()
+          old = '''\t\tSuggestedAnswerOwner:       "evidence provider for design_documents",\n\t\tAcceptedAnswerTypes:        []string{AnswerTypeEvidencePointer, AnswerTypeUnknownAcknowledgement},'''
+          new = '''\t\tSuggestedAnswerOwner:       "evidence provider for design_documents",\n\t\tMissingEvidence:            []string{"design document or explicit architect evidence"},\n\t\tAcceptedAnswerTypes:        []string{AnswerTypeEvidencePointer, AnswerTypeUnknownAcknowledgement},'''
+          if old not in text:
+              raise SystemExit('dialogue fixture patch anchor not found')
+          test_path.write_text(text.replace(old, new, 1))
+
+          questions_path = Path('golang/architecture/questiongen/investigation_questions.go')
+          text = questions_path.read_text()
+          old_import = '''import (\n\t"errors"\n\t"fmt"\n\t"sort"\n\t"strings"'''
+          new_import = '''import (\n\t"errors"\n\t"fmt"\n\t"reflect"\n\t"sort"\n\t"strings"'''
+          if old_import not in text:
+              raise SystemExit('import patch anchor not found')
+          text = text.replace(old_import, new_import, 1)
+
+          old_func = '''func appendInvestigationQuestion(dialogue *architecture.DialogueDocument, question architecture.OpenQuestion) (string, error) {\n\tif existing := findQuestionByID(dialogue.OpenQuestions, question.ID); existing != nil {\n\t\tif !questionsEquivalent(*existing, question) {\n\t\t\treturn "", fmt.Errorf("investigation question id collision for %s", question.ID)\n\t\t}\n\t\treturn InvestigationDispositionExistingCovers, nil\n\t}\n\tdialogue.OpenQuestions = append(dialogue.OpenQuestions, question)\n\treturn InvestigationDispositionGenerated, nil\n}\n'''
+          new_func = '''func appendInvestigationQuestion(dialogue *architecture.DialogueDocument, question architecture.OpenQuestion) (string, error) {\n\tnormalized, err := architecture.NormalizeOpenQuestions([]architecture.OpenQuestion{question})\n\tif err != nil {\n\t\treturn "", fmt.Errorf("normalize investigation question %s: %w", question.ID, err)\n\t}\n\tquestion = normalized[0]\n\tif existing := findQuestionByID(dialogue.OpenQuestions, question.ID); existing != nil {\n\t\texistingNormalized, normalizeErr := architecture.NormalizeOpenQuestions([]architecture.OpenQuestion{*existing})\n\t\tif normalizeErr != nil {\n\t\t\treturn "", fmt.Errorf("normalize existing investigation question %s: %w", existing.ID, normalizeErr)\n\t\t}\n\t\tif !investigationQuestionsEquivalent(existingNormalized[0], question) {\n\t\t\treturn "", fmt.Errorf("investigation question id collision for %s", question.ID)\n\t\t}\n\t\treturn InvestigationDispositionExistingCovers, nil\n\t}\n\tdialogue.OpenQuestions = append(dialogue.OpenQuestions, question)\n\treturn InvestigationDispositionGenerated, nil\n}\n\nfunc investigationQuestionsEquivalent(left, right architecture.OpenQuestion) bool {\n\tleft.Status = ""\n\tleft.ResolvedByAnswers = nil\n\tleft.SupersededByQuestion = ""\n\tleft.CreatedAt = ""\n\tleft.LastReviewedAt = ""\n\tright.Status = ""\n\tright.ResolvedByAnswers = nil\n\tright.SupersededByQuestion = ""\n\tright.CreatedAt = ""\n\tright.LastReviewedAt = ""\n\treturn reflect.DeepEqual(left, right)\n}\n'''
+          if old_func not in text:
+              raise SystemExit('appendInvestigationQuestion patch anchor not found')
+          questions_path.write_text(text.replace(old_func, new_func, 1))
+          PY
+          gofmt -w golang/architecture/dialogue_investigation_test.go golang/architecture/questiongen/investigation_questions.go
+      - name: Run focused tests
+        run: |
+          go test ./golang/architecture -run 'TestInvestigationQuestion' -count=1
+          go test ./golang/architecture/questiongen -run 'TestGenerateFromInvestigation' -count=10
+      - name: Run remaining suite
+        shell: bash
+        run: |
+          packages=$(go list ./... | grep -v '^github.com/globulario/sensei/cmd/awg$')
+          go test $packages -count=1 -timeout 3m -p 2
+      - name: Remove temporary workflow and publish fix branch
+        shell: bash
+        run: |
+          rm .github/workflows/phase10-ci-fix.yml
+          git config user.name "sensei-phase10-ci-fix"
+          git config user.email "actions@users.noreply.github.com"
+          git add golang/architecture/dialogue_investigation_test.go golang/architecture/questiongen/investigation_questions.go .github/workflows/phase10-ci-fix.yml
+          git commit -m "fix(questiongen): canonicalize investigation question dedup"
+          git push origin HEAD:codex/phase10-ci-fix
