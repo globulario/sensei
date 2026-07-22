@@ -234,7 +234,7 @@ func validReceiptResult(t *testing.T, withCandidate bool) (Result, GroundingSnap
 		candidateID, _, candidateErr := ComputeCandidateID(
 			res.SchemaVersion,
 			binding,
-			"account must remain non-negative",
+			strings.Join([]string{"account", "must_remain", "non_negative"}, "\x00"),
 			claim.Scope,
 			KindInvariant,
 			binding.GeneratorVersion,
@@ -248,6 +248,12 @@ func validReceiptResult(t *testing.T, withCandidate bool) (Result, GroundingSnap
 			ClaimID:                 claim.ID,
 			OutputKind:              KindInvariant,
 			FalsificationConditions: []string{"a negative balance is observed"},
+		}}
+		res.Rankings = []RankingRecord{{
+			CandidateID: candidateID,
+			Rank:        1,
+			Score:       1,
+			Factors:     []RankingFactor{{Kind: FactorBlastRadius, Value: 1}},
 		}}
 	}
 
@@ -275,6 +281,7 @@ func validReceiptResult(t *testing.T, withCandidate bool) (Result, GroundingSnap
 		EvidenceRequestIDsAndDigests:  semantic.EvidenceRequestIDsAndDigests,
 		RankingDigestSHA256:           semantic.RankingDigestSHA256,
 		TimestampSource:               "caller_provided",
+		ResourceLimits:                map[string]string{"fixture": "bounded"},
 		NondeterminismDeclaration:     "none",
 	}
 	res.Receipt.ExactResultDigestSHA256, err = ResultDigest(res)
