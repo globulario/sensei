@@ -44,21 +44,34 @@ jobs:
               'overlay.part07': '5885f0ce92c16e530c5d7b7419d5dfc944a37fc4a02c4eb52359592b4b75c958',
           }
           chunks = []
+          report = []
+          mismatch = False
           for name, want in expected.items():
               data = (Path('.phase10-7') / name).read_bytes().strip()
               got = hashlib.sha256(data).hexdigest()
+              report.append(f'{name} bytes={len(data)} got={got} want={want} match={got == want}')
               if got != want:
-                  raise SystemExit(f'{name} checksum mismatch: got {got}, want {want}, bytes={len(data)}')
+                  mismatch = True
               chunks.append(data)
           encoded = b''.join(chunks)
-          if hashlib.sha256(encoded).hexdigest() != 'b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf':
-              raise SystemExit('combined base64 checksum mismatch')
+          combined = hashlib.sha256(encoded).hexdigest()
+          report.append(f'combined bytes={len(encoded)} got={combined} want=b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf')
+          Path('/tmp/phase10-7-transfer-report.txt').write_text('\n'.join(report) + '\n')
+          if mismatch or combined != 'b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf':
+              raise SystemExit('overlay chunk integrity failed; see transfer report artifact')
           archive = base64.b64decode(encoded, validate=True)
           if hashlib.sha256(archive).hexdigest() != '792ec92c4d87a0dd77b8ee199d651d47fefbdfaa3163efb5a2776a230efff49a':
               raise SystemExit('decoded overlay checksum mismatch')
           Path('/tmp/phase10-7-overlay.tgz').write_bytes(archive)
           PY
           tar -xzf /tmp/phase10-7-overlay.tgz
+
+      - name: Upload transfer diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-7-transfer-report
+          path: /tmp/phase10-7-transfer-report.txt
 
       - name: Remove transfer scaffolding
         run: |
