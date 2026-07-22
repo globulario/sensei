@@ -1,9 +1,9 @@
 name: Phase 10 question owner discovery
 
 on:
-  push:
+  pull_request:
     branches:
-      - codex/phase10-5-governed-questions
+      - phase10-architectural-investigation
 
 jobs:
   discover:
