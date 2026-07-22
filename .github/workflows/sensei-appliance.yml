@@ -37,13 +37,23 @@ jobs:
         run: sh deploy/appliance-entrypoint_test.sh
 
       - name: Build appliance image
+        shell: bash
         run: |
+          set +e
           docker build \
             --file deploy/Dockerfile \
             --build-arg SENSEI_VERSION=ci \
             --build-arg VCS_REF="${GITHUB_SHA}" \
             --tag sensei-appliance:ci \
-            .
+            . > /tmp/sensei-appliance-build.log 2>&1
+          rc=$?
+          if (( rc != 0 )); then
+            echo "::group::Docker build failure tail"
+            tail -n 120 /tmp/sensei-appliance-build.log
+            echo "::endgroup::"
+            exit "${rc}"
+          fi
+          tail -n 40 /tmp/sensei-appliance-build.log
 
       - name: Enforce lightweight image ceiling
         shell: bash
