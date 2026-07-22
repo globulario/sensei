@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Entrypoint contract tests
-        run: deploy/appliance-entrypoint_test.sh
+        run: sh deploy/appliance-entrypoint_test.sh
 
       - name: Build appliance image
         run: |
