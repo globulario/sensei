@@ -1,0 +1,41 @@
+name: Phase 10.6 core build
+
+on:
+  push:
+    branches:
+      - codex/phase10-6-deviation-learning
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase10-6-deviation-learning
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Format and test deviation core
+        shell: bash
+        run: |
+          gofmt -w golang/architecture/deviation
+          go test ./golang/architecture/deviation -count=10
+          go test -race ./golang/architecture/deviation -count=1
+      - name: Refresh generated import graph
+        run: |
+          make import-graph
+          make import-graph-check
+      - name: Remove workflow and publish exact result
+        shell: bash
+        run: |
+          rm .github/workflows/phase10-6-build-temp.yml
+          git config user.name "sensei-phase10-builder"
+          git config user.email "actions@users.noreply.github.com"
+          git add golang/architecture/deviation docs/awareness/generated .github/workflows/phase10-6-build-temp.yml
+          git commit -m "feat(deviation): complete deterministic learning core"
+          git push origin HEAD:codex/phase10-6-deviation-learning
