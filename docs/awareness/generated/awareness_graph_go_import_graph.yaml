@@ -622,8 +622,17 @@ components:
       - golang/architecture/tasksession/governance.go
       - golang/architecture/tasksession/session.go
       - golang/architecture/tasksession/session_authority.go
+      - golang/architecture/whyinvestigation/architect_answers.go
+      - golang/architecture/whyinvestigation/awareness.go
+      - golang/architecture/whyinvestigation/compose.go
       - golang/architecture/whyinvestigation/contracts.go
+      - golang/architecture/whyinvestigation/documentation.go
       - golang/architecture/whyinvestigation/git.go
+      - golang/architecture/whyinvestigation/imported_evidence.go
+      - golang/architecture/whyinvestigation/orchestrate.go
+      - golang/architecture/whyinvestigation/registry.go
+      - golang/architecture/whyinvestigation/scars.go
+      - golang/architecture/whyinvestigation/tests_provider.go
     depends_on:
       - component.golang.extractor
       - component.golang.propose

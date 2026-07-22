@@ -124,8 +124,9 @@ go test ./... -timeout 120s
 The work is committed across the following commits:
 - **Transactional publication repair**: `90f92e3614eee08d5faf2f7ae4ec0f3d2629d1f0`
 - **CI test lane isolation**: `afdd6e0eedc19c539bc3b6124972eacc15f80100`
+- **Phase 10.3B Multi-provider WHY composition**: `2d534d1915968673cf3407653240f3c3d80f3724`
 
 ## 6. Remote Verification Results
-Both remote workflows successfully compiled, validated, and passed:
+Both remote workflows successfully compiled, validated, and passed on the final implementation:
 - **Sensei self-test**: Green (Passed)
 - **Main CI**: Green (Passed)

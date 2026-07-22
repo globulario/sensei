@@ -32,13 +32,22 @@ type CaptureRequest struct {
 	CapturedAt string
 }
 
+type SnapshotEntry struct {
+	SourceIdentity      string `json:"source_identity" yaml:"source_identity"`
+	Path                string `json:"path" yaml:"path"`
+	Content             []byte `json:"content" yaml:"content"`
+	ContentDigestSHA256 string `json:"content_digest_sha256" yaml:"content_digest_sha256"`
+}
+
 type Snapshot struct {
-	Provider       investigation.ProviderBinding
-	Digest         string
-	RequestedRange GitRange
-	ResolvedRange  GitRange
-	Incomplete     bool
-	Commits        []Commit
+	Provider       investigation.ProviderBinding  `json:"provider" yaml:"provider"`
+	Category       investigation.EvidenceCategory `json:"category" yaml:"category"`
+	Digest         string                         `json:"digest" yaml:"digest"`
+	Entries        []SnapshotEntry                `json:"entries,omitempty" yaml:"entries,omitempty"`
+	RequestedRange GitRange                       `json:"requested_range,omitempty" yaml:"requested_range,omitempty"`
+	ResolvedRange  GitRange                       `json:"resolved_range,omitempty" yaml:"resolved_range,omitempty"`
+	Incomplete     bool                           `json:"incomplete,omitempty" yaml:"incomplete,omitempty"`
+	Commits        []Commit                       `json:"commits,omitempty" yaml:"commits,omitempty"`
 }
 
 // Commit is raw historical evidence, not an interpretation of the change.
