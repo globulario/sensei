@@ -127,6 +127,8 @@ Use these surfaces when existing awareness is incomplete or a deeper evidence-bo
 - Always read coverage states and proof strength explicitly. `unavailable`, `not_configured`, `skipped_with_reason`, and `searched_no_result` are distinct worlds.
 - Route any accepted architectural conclusion through `awareness_propose` and the existing authored-source promotion path.
 
+Treat every Phase 10 surface response as derived evidence or a review candidate, never as mutation permission or canonical truth.
+
 The Phase 10 tools may produce or inspect derived artifacts. They may not create canonical truth, weaken architecture, authorize mutations, or complete tasks.
 
 ## Architecture Brief
