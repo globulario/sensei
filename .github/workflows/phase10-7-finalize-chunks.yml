@@ -31,6 +31,20 @@ jobs:
           gzip -dc /tmp/phase10-7.patch.gz > /tmp/phase10-7.patch
           git rm -rf --ignore-unmatch golang/architecture/investigationsurface
           git apply --index /tmp/phase10-7.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('golang/architecture/investigationsurface/surface_test.go')
+          text = path.read_text()
+          text = text.replace(
+              'const surfaceSHA = "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"',
+              'const (\n\tsurfaceSHA = "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"\n\tcontentSHA = "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73"\n)',
+          )
+          text = text.replace(
+              'ContentDigestSHA256: surfaceSHA, CapturedContent: "content"',
+              'ContentDigestSHA256: contentSHA, CapturedContent: "content"',
+          )
+          path.write_text(text)
+          PY
           rm -rf .github/phase10-7-payload
           rm -rf .phase10-7
           rm -f .github/workflows/phase10-7-export-temp.yml
