@@ -75,6 +75,10 @@ func RunWhy(ctx context.Context, request WhyRequest) (investigation.Document, er
 }
 
 func RunArchitecture(request ArchitectureRequest) (investigator.Result, error) {
+	if len(request.How.CandidateClaims) > 0 || len(request.Why.CandidateClaims) > 0 ||
+		len(request.How.CandidateQuestions) > 0 || len(request.Why.CandidateQuestions) > 0 {
+		return investigator.Result{}, errors.New("Phase 10.7 HOW and WHY artifacts must not contain pre-composition candidates or questions")
+	}
 	canonical := GroundingFromDocuments(request.How, request.Why)
 	want, err := investigator.GroundingSnapshotDigest(canonical)
 	if err != nil {
