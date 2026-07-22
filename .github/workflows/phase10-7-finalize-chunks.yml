@@ -56,7 +56,16 @@ jobs:
           make import-graph
           git add docs/awareness/generated/awareness_graph_*_import_graph.yaml
       - name: Test investigation surface repeatability
-        run: go test ./golang/architecture/investigationsurface -count=10
+        shell: bash
+        run: |
+          set -o pipefail
+          go test ./golang/architecture/investigationsurface -count=10 2>&1 | tee /tmp/phase10-7-surface.log
+      - name: Upload surface failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-7-surface-failure
+          path: /tmp/phase10-7-surface.log
       - name: Test MCP package
         run: go test ./cmd/awareness-mcp -count=1
       - name: Test CLI package
