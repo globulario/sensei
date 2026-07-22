@@ -1,0 +1,27 @@
+name: Phase 10 CI diagnose
+
+on:
+  push:
+    branches:
+      - codex/phase10-ci-diagnose
+
+jobs:
+  package-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - ./golang/architecture/investigator
+          - ./golang/architecture/investigation
+          - ./golang/architecture/howextract
+          - ./golang/architecture/whyinvestigation
+          - ./golang/architecture/gosemantics
+          - ./golang/architecture/factextract
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run focused package test
+        run: go test ${{ matrix.package }} -count=1 -timeout 3m -v
