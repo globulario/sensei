@@ -12,6 +12,7 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/sensei-appliance.yml'
+      - '.github/workflows/sensei-appliance-publish.yml'
   pull_request:
     branches: ['**']
     paths:
@@ -23,6 +24,7 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/sensei-appliance.yml'
+      - '.github/workflows/sensei-appliance-publish.yml'
 
 permissions:
   contents: read
