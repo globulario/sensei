@@ -298,7 +298,7 @@ func deriveSingleWriterDrafts(
 			PromotionStatus:     architecture.PromotionCandidate,
 			Unknowns:            []string{"authored owner intent has not been established"},
 			InvalidationConditions: []string{
-				"another independent writer is observed",
+				"a second writer is observed",
 				"governed ownership names a different owner",
 			},
 		}
@@ -428,10 +428,23 @@ func normalizeDrafts(drafts []candidateDraft) ([]candidateDraft, error) {
 		draft.SupportingEvidenceRefIDs = sortedUnique(draft.SupportingEvidenceRefIDs)
 		draft.RefutingEvidenceRefIDs = sortedUnique(draft.RefutingEvidenceRefIDs)
 		draft.FalsificationConditions = sortedUnique(draft.FalsificationConditions)
+		draft.Claim.PremiseFacts = sortedUnique(draft.Claim.PremiseFacts)
+		draft.Claim.SupportingEvidence = sortedUnique(draft.Claim.SupportingEvidence)
+		draft.Claim.RefutingEvidence = sortedUnique(draft.Claim.RefutingEvidence)
+		draft.Claim.Unknowns = sortedUnique(draft.Claim.Unknowns)
+		draft.Claim.InvalidationConditions = sortedUnique(draft.Claim.InvalidationConditions)
+
 		bytes, err := json.Marshal(struct {
-			Kind  CandidateKind
-			Claim architecture.Claim
-		}{Kind: draft.Kind, Claim: draft.Claim})
+			Kind          CandidateKind
+			Statement     architecture.ClaimStatement
+			Scope         architecture.ClaimScope
+			InferenceRule string
+		}{
+			Kind:          draft.Kind,
+			Statement:     draft.Claim.Statement,
+			Scope:         draft.Claim.Scope,
+			InferenceRule: draft.Claim.InferenceRule,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -441,9 +454,16 @@ func normalizeDrafts(drafts []candidateDraft) ([]candidateDraft, error) {
 			existing.SupportingEvidenceRefIDs = sortedUnique(append(existing.SupportingEvidenceRefIDs, draft.SupportingEvidenceRefIDs...))
 			existing.RefutingEvidenceRefIDs = sortedUnique(append(existing.RefutingEvidenceRefIDs, draft.RefutingEvidenceRefIDs...))
 			existing.FalsificationConditions = sortedUnique(append(existing.FalsificationConditions, draft.FalsificationConditions...))
+			existing.Claim.PremiseFacts = sortedUnique(append(existing.Claim.PremiseFacts, draft.Claim.PremiseFacts...))
+			existing.Claim.SupportingEvidence = sortedUnique(append(existing.Claim.SupportingEvidence, draft.Claim.SupportingEvidence...))
+			existing.Claim.RefutingEvidence = sortedUnique(append(existing.Claim.RefutingEvidence, draft.Claim.RefutingEvidence...))
+			existing.Claim.Unknowns = sortedUnique(append(existing.Claim.Unknowns, draft.Claim.Unknowns...))
+			existing.Claim.InvalidationConditions = sortedUnique(append(existing.Claim.InvalidationConditions, draft.Claim.InvalidationConditions...))
+			existing.Claim.ID = architecture.StableClaimID(existing.Claim)
 			byKey[key] = existing
 			continue
 		}
+		draft.Claim.ID = architecture.StableClaimID(draft.Claim)
 		byKey[key] = draft
 	}
 
@@ -454,7 +474,11 @@ func normalizeDrafts(drafts []candidateDraft) ([]candidateDraft, error) {
 	sort.Strings(keys)
 	out := make([]candidateDraft, 0, len(keys))
 	for _, key := range keys {
-		out = append(out, byKey[key])
+		draft := byKey[key]
+		if err := architecture.ValidateClaim(draft.Claim); err != nil {
+			return nil, fmt.Errorf("normalized candidate claim is invalid: %w", err)
+		}
+		out = append(out, draft)
 	}
 	return out, nil
 }
