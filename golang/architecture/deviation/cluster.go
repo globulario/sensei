@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/globulario/sensei/golang/architecture"
 )
 
 // Cluster groups exact receipts by structured architectural shape. Duplicate
@@ -55,10 +57,10 @@ func Cluster(receipts []Receipt, minimumIndependentOccurrences int) ([]Pattern, 
 
 		first := byOccurrence[occurrenceKeys[0]]
 		pattern := Pattern{
-			Kind: first.Kind,
-			Scope: first.Scope,
-			Shape: first.Shape,
-			IndependenceKeys: occurrenceKeys,
+			Kind:                          first.Kind,
+			Scope:                         first.Scope,
+			Shape:                         first.Shape,
+			IndependenceKeys:              occurrenceKeys,
 			MinimumIndependentOccurrences: minimumIndependentOccurrences,
 		}
 		for _, occurrenceKey := range occurrenceKeys {
@@ -154,8 +156,18 @@ func expectedPatternID(in Pattern) string {
 	return "deviation_pattern." + sha256String(descriptor)[:24]
 }
 
-func patternIdentityDescriptor(kind Kind, scope interface{ }) string {
-	return ""
+func patternIdentityDescriptor(kind Kind, scope architecture.ClaimScope, shape Shape) string {
+	scope = canonicalizeScope(scope)
+	shape.Subject = strings.TrimSpace(shape.Subject)
+	shape.Predicate = strings.TrimSpace(shape.Predicate)
+	shape.Object = strings.TrimSpace(shape.Object)
+	payload := struct {
+		Kind  Kind                    `json:"kind"`
+		Scope architecture.ClaimScope `json:"scope"`
+		Shape Shape                   `json:"shape"`
+	}{Kind: kind, Scope: scope, Shape: shape}
+	data, _ := json.Marshal(payload)
+	return string(data)
 }
 
 func canonicalizePattern(in Pattern) Pattern {
