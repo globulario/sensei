@@ -81,6 +81,7 @@ jobs:
           set -euo pipefail
           exec > >(tee /tmp/sensei-appliance-smoke.log) 2>&1
           fixture=$(mktemp -d)
+          chmod 0755 "${fixture}"
           cleanup() {
             rc=$?
             docker inspect sensei-appliance-smoke > /tmp/sensei-appliance-container-inspect.json 2>/dev/null || true
@@ -102,6 +103,9 @@ jobs:
             --user "$(id -u):$(id -g)" \
             --volume "${fixture}:/workspace" \
             sensei-appliance:ci bootstrap --skip-history
+
+          test -d "${fixture}/docs/awareness"
+          test -f "${fixture}/docs/awareness/invariants.yaml"
 
           docker volume create sensei-appliance-smoke >/dev/null
           docker run -d \
