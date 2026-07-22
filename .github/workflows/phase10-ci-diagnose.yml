@@ -1,0 +1,37 @@
+name: Phase 10 CI diagnosis
+
+on:
+  push:
+    branches:
+      - codex/phase10-ci-diagnose
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Run remaining tests and preserve output
+        shell: bash
+        run: |
+          set +e
+          packages=$(go list ./... | grep -v '^github.com/globulario/sensei/cmd/awg$')
+          go test $packages -count=1 -timeout 3m -p 2 2>&1 | tee /tmp/remaining-tests.log
+          status=${PIPESTATUS[0]}
+          echo "$status" > /tmp/remaining-tests.status
+          exit 0
+      - name: Upload diagnosis
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-ci-diagnosis
+          path: |
+            /tmp/remaining-tests.log
+            /tmp/remaining-tests.status
+      - name: Fail when reproduced
+        shell: bash
+        run: |
+          status=$(cat /tmp/remaining-tests.status)
+          exit "$status"
