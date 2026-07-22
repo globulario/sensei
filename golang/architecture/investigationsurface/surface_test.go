@@ -111,7 +111,7 @@ func TestRunArchitectureRefusesNonCanonicalGrounding(t *testing.T) {
 
 func TestGroundingFromResultExcludesGeneratedCandidateClaims(t *testing.T) {
 	result := investigator.Result{Document: investigation.Document{
-		Observations:    []architecture.Fact{{ID: "fact_1", Scope: architecture.ClaimScope{Files: []string{"observed.go"}}}},
+		Observations:    []architecture.Fact{{ID: "fact_1", Scope: architecture.Scope{Files: []string{"observed.go"}}}},
 		CandidateClaims: []architecture.Claim{{ID: "claim.generated", Scope: architecture.ClaimScope{Files: []string{"generated.go"}}}},
 	}}
 	grounding := GroundingFromResult(result)
