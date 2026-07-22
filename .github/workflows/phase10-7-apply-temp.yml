@@ -1,0 +1,74 @@
+name: Phase 10.7 apply and verify
+
+on:
+  push:
+    branches:
+      - codex/phase10-7-agent-surfaces
+  pull_request:
+    branches:
+      - phase10-architectural-investigation
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase10-7-agent-surfaces
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Reconstruct exact Phase 10.7 overlay
+        shell: bash
+        run: |
+          cat .phase10-7/overlay.part* | base64 --decode > /tmp/phase10-7-overlay.tgz
+          echo '792ec92c4d87a0dd77b8ee199d651d47fefbdfaa3163efb5a2776a230efff49a  /tmp/phase10-7-overlay.tgz' | sha256sum --check --strict
+          tar -xzf /tmp/phase10-7-overlay.tgz
+
+      - name: Remove transfer scaffolding
+        run: |
+          rm -rf .phase10-7
+          rm -f .github/workflows/phase10-7-export-temp.yml
+          rm -f .github/workflows/phase10-7-apply-temp.yml
+
+      - name: Format Phase 10.7 Go surfaces
+        shell: bash
+        run: |
+          mapfile -d '' files < <(find golang/architecture/investigationsurface cmd/awg cmd/awareness-mcp -type f -name '*.go' -print0 | sort -z)
+          gofmt -w "${files[@]}"
+
+      - name: Test investigation surface repeatability
+        run: go test ./golang/architecture/investigationsurface -count=10
+
+      - name: Test investigation surface races
+        run: go test -race ./golang/architecture/investigationsurface -count=1
+
+      - name: Test CLI package
+        run: go test ./cmd/awg -count=1
+
+      - name: Test MCP package
+        run: go test ./cmd/awareness-mcp -count=1
+
+      - name: Test Phase 10.7 MCP races
+        run: go test -race ./cmd/awareness-mcp -run 'TestPhase10' -count=1
+
+      - name: Refresh generated import graph
+        run: |
+          make import-graph
+          make import-graph-check
+
+      - name: Commit exact verified tree
+        shell: bash
+        run: |
+          git config user.name 'sensei-phase10-builder'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(investigation): expose Phase 10.7 agent surfaces'
+          git push origin HEAD:codex/phase10-7-agent-surfaces
