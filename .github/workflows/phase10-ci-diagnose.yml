@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/phase10-ci-diagnose
+  pull_request:
+    branches:
+      - phase10-architectural-investigation
 
 jobs:
   package-tests:
