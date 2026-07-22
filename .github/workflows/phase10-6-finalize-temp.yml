@@ -34,8 +34,22 @@ jobs:
         run: go test ./golang/architecture/questiongen -run '^TestGenerateFromDeviationRoutesOnlyRepeatedPatterns$' -count=10
       - name: Keeps one occurrence local
         run: go test ./golang/architecture/questiongen -run '^TestGenerateFromDeviationOneOccurrenceRemainsEvidenceOnly$' -count=10
-      - name: Deduplicates questions
-        run: go test ./golang/architecture/questiongen -run '^TestGenerateFromDeviationIsDeterministicAndDeduplicates$' -count=10
+      - name: Capture deduplication mismatch
+        shell: bash
+        run: |
+          set +e
+          go test -v ./golang/architecture/questiongen -run '^TestGenerateFromDeviationIsDeterministicAndDeduplicates$' -count=1 2>&1 | tee /tmp/deviation-dedup.log
+          echo ${PIPESTATUS[0]} > /tmp/deviation-dedup.status
+          exit 0
+      - name: Upload deduplication diagnosis
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-6-dedup-diagnosis
+          path: |
+            /tmp/deviation-dedup.log
+            /tmp/deviation-dedup.status
+      - name: Enforce deduplication result
+        run: exit "$(cat /tmp/deviation-dedup.status)"
       - name: Preserves governed promotion boundary
         run: go test ./golang/architecture/questiongen -run '^TestDeviationQuestionAnswerPathDoesNotPromoteOrWeakenCandidate$' -count=10
       - name: Refuses stale analysis
