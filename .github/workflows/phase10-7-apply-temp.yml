@@ -88,6 +88,26 @@ jobs:
           mapfile -d '' files < <(find golang/architecture/investigationsurface cmd/awg cmd/awareness-mcp -type f -name '*.go' -print0 | sort -z)
           gofmt -w "${files[@]}"
 
+      - name: Capture investigation surface test output
+        shell: bash
+        run: |
+          set +e
+          go test -v ./golang/architecture/investigationsurface -count=1 2>&1 | tee /tmp/phase10-7-surface-test.log
+          echo ${PIPESTATUS[0]} > /tmp/phase10-7-surface-test.status
+          exit 0
+
+      - name: Upload investigation surface diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-7-surface-test
+          path: |
+            /tmp/phase10-7-surface-test.log
+            /tmp/phase10-7-surface-test.status
+
+      - name: Enforce investigation surface test
+        run: exit "$(cat /tmp/phase10-7-surface-test.status)"
+
       - name: Test investigation surface repeatability
         run: go test ./golang/architecture/investigationsurface -count=10
 
