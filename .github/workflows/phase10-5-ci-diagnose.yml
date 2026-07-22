@@ -1,0 +1,36 @@
+name: Phase 10.5 CI diagnose
+
+on:
+  pull_request:
+    branches:
+      - phase10-architectural-investigation
+
+jobs:
+  remaining-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/phase10-5-governed-questions
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Capture remaining test output
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          packages=$(go list ./... | grep -v '^github.com/globulario/sensei/cmd/awg$')
+          go test $packages -count=1 -timeout 3m -p 2 > remaining-tests.log 2>&1
+          status=$?
+          cat remaining-tests.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload remaining test output
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-5-remaining-tests
+          path: remaining-tests.log
+      - name: Preserve failure
+        if: steps.tests.outputs.status != '0'
+        run: exit 1
