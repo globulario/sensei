@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/phase10-7-agent-surfaces
+  pull_request:
+    branches:
+      - phase10-architectural-investigation
 
 permissions:
   contents: write
@@ -28,9 +31,11 @@ jobs:
           gzip -dc /tmp/phase10-7.patch.gz > /tmp/phase10-7.patch
           git apply --index /tmp/phase10-7.patch
           rm -rf .github/phase10-7-payload
+          rm -rf .phase10-7
           rm -f .github/workflows/phase10-7-export-temp.yml
           rm -f .github/workflows/phase10-7-finalize-temp.yml
           rm -f .github/workflows/phase10-7-finalize-chunks.yml
+          rm -f .github/workflows/phase10-7-apply-temp.yml
           git add -A
       - name: Format exact Go 1.25 sources
         shell: bash
