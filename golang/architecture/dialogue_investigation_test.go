@@ -91,6 +91,7 @@ func investigationBoundQuestionFixture() OpenQuestion {
 		RefutingEvidence:           []string{"evidence:refuting_one"},
 		FalsificationConditions:    []string{"a bound counterexample contradicts the proposition"},
 		SuggestedAnswerOwner:       "evidence provider for design_documents",
+		MissingEvidence:            []string{"design document or explicit architect evidence"},
 		AcceptedAnswerTypes:        []string{AnswerTypeEvidencePointer, AnswerTypeUnknownAcknowledgement},
 		ReasonsOpen:                []string{"supporting_evidence_missing"},
 		Priority:                   QuestionPriorityMedium,
