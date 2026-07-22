@@ -127,12 +127,10 @@ func GroundingFromResult(result investigator.Result) investigator.GroundingSnaps
 		g.Symbols = append(g.Symbols, evidence.Scope.Symbols...)
 		g.GraphNodeIDs = append(g.GraphNodeIDs, evidence.Scope.Components...)
 	}
-	for _, claim := range result.Document.CandidateClaims {
-		g.ClaimIDs = append(g.ClaimIDs, claim.ID)
-		g.Files = append(g.Files, claim.Scope.Files...)
-		g.Symbols = append(g.Symbols, claim.Scope.Symbols...)
-		g.GraphNodeIDs = append(g.GraphNodeIDs, claim.Scope.Components...)
-		g.GraphNodeIDs = append(g.GraphNodeIDs, claim.AboutNodes...)
+	// The composer generates CandidateClaims after binding the grounding snapshot.
+	// They must not be folded back into reconstructed grounding.
+	for _, question := range result.Document.CandidateQuestions {
+		g.ExistingQuestionIDs = append(g.ExistingQuestionIDs, question.ID)
 	}
 	g.Files = unique(g.Files)
 	g.Symbols = unique(g.Symbols)
