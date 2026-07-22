@@ -2,10 +2,6 @@
 
 package investigator
 
-import (
-	"github.com/globulario/sensei/golang/architecture"
-)
-
 // CandidateKind defines the vocabulary of candidate types.
 type CandidateKind string
 

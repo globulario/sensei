@@ -8,12 +8,12 @@ type RankingFactorKind string
 const (
 	FactorBlastRadius               RankingFactorKind = "blast_radius"
 	FactorAuthoritySensitivity      RankingFactorKind = "authority_sensitivity"
-	FactorContradictionDensity     RankingFactorKind = "contradiction_density"
+	FactorContradictionDensity      RankingFactorKind = "contradiction_density"
 	FactorIncidentRecurrence        RankingFactorKind = "incident_recurrence"
 	FactorTaskRelevance             RankingFactorKind = "task_relevance"
-	FactorRuntimeFrequency         RankingFactorKind = "runtime_frequency"
-	FactorEvidenceIndependence     RankingFactorKind = "evidence_independence"
-	FactorMissingEvidenceCost      RankingFactorKind = "missing_evidence_cost"
+	FactorRuntimeFrequency          RankingFactorKind = "runtime_frequency"
+	FactorEvidenceIndependence      RankingFactorKind = "evidence_independence"
+	FactorMissingEvidenceCost       RankingFactorKind = "missing_evidence_cost"
 	FactorFutureAgentErrorReduction RankingFactorKind = "future_agent_error_reduction"
 )
 

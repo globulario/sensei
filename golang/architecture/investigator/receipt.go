@@ -7,15 +7,15 @@ type RunReceipt struct {
 	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
 	GeneratedBy   string `json:"generated_by" yaml:"generated_by"`
 
-	InputBinding                  Binding           `json:"input_binding" yaml:"input_binding"`
-	GroundingSnapshotDigestSHA256 string            `json:"grounding_snapshot_digest_sha256" yaml:"grounding_snapshot_digest_sha256"`
-	HowDocumentDigestSHA256       string            `json:"how_document_digest_sha256" yaml:"how_document_digest_sha256"`
-	WhyDocumentDigestSHA256       string            `json:"why_document_digest_sha256" yaml:"why_document_digest_sha256"`
-	GraphDigestSHA256             string            `json:"graph_digest_sha256" yaml:"graph_digest_sha256"`
-	CurrentClaimsDigestSHA256     string            `json:"current_claims_digest_sha256" yaml:"current_claims_digest_sha256"`
-	ClosureStateDigestSHA256      string            `json:"closure_state_digest_sha256" yaml:"closure_state_digest_sha256"`
-	ExistingQuestionsDigestSHA256 string            `json:"existing_questions_digest_sha256" yaml:"existing_questions_digest_sha256"`
-	ReviewHistoryDigestSHA256     string            `json:"review_history_digest_sha256" yaml:"review_history_digest_sha256"`
+	InputBinding                  Binding `json:"input_binding" yaml:"input_binding"`
+	GroundingSnapshotDigestSHA256 string  `json:"grounding_snapshot_digest_sha256" yaml:"grounding_snapshot_digest_sha256"`
+	HowDocumentDigestSHA256       string  `json:"how_document_digest_sha256" yaml:"how_document_digest_sha256"`
+	WhyDocumentDigestSHA256       string  `json:"why_document_digest_sha256" yaml:"why_document_digest_sha256"`
+	GraphDigestSHA256             string  `json:"graph_digest_sha256" yaml:"graph_digest_sha256"`
+	CurrentClaimsDigestSHA256     string  `json:"current_claims_digest_sha256" yaml:"current_claims_digest_sha256"`
+	ClosureStateDigestSHA256      string  `json:"closure_state_digest_sha256" yaml:"closure_state_digest_sha256"`
+	ExistingQuestionsDigestSHA256 string  `json:"existing_questions_digest_sha256" yaml:"existing_questions_digest_sha256"`
+	ReviewHistoryDigestSHA256     string  `json:"review_history_digest_sha256" yaml:"review_history_digest_sha256"`
 
 	GeneratorVersion string `json:"generator_version" yaml:"generator_version"`
 	RulesetVersion   string `json:"ruleset_version" yaml:"ruleset_version"`

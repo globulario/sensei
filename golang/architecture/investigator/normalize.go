@@ -38,9 +38,9 @@ func Normalize(res Result) (Result, error) {
 			CandidateID:               strings.TrimSpace(c.CandidateID),
 			ClaimID:                   strings.TrimSpace(c.ClaimID),
 			OutputKind:                c.OutputKind,
-			ObservationRefIDs:        obs,
-			SupportingEvidenceRefIDs: sup,
-			RefutingEvidenceRefIDs:   ref,
+			ObservationRefIDs:         obs,
+			SupportingEvidenceRefIDs:  sup,
+			RefutingEvidenceRefIDs:    ref,
 			FalsificationConditions:   fals,
 			MissingEvidenceRequestIDs: miss,
 			ConfidenceBasis:           append([]ConfidenceFactor(nil), c.ConfidenceBasis...),
@@ -187,7 +187,7 @@ func Normalize(res Result) (Result, error) {
 				),
 			},
 			StrategyVersion: strings.TrimSpace(r.StrategyVersion),
-			MinimalityBasis:  strings.TrimSpace(r.MinimalityBasis),
+			MinimalityBasis: strings.TrimSpace(r.MinimalityBasis),
 		}
 	}
 	sort.SliceStable(normalizedCounterexamples, func(i, j int) bool {

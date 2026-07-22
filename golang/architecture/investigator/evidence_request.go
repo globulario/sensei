@@ -9,12 +9,12 @@ import (
 
 // EvidenceRequest reason codes
 const (
-	ReasonSupportingEvidenceMissing  = "supporting_evidence_missing"
-	ReasonRefutingEvidenceUnsearched = "refuting_evidence_unsearched"
-	ReasonOwnerAuthorityUnresolved   = "owner_authority_unresolved"
-	ReasonBoundaryScopeUnresolved    = "boundary_scope_unresolved"
-	ReasonRuntimeConfirmationRequired = "runtime_confirmation_required"
-	ReasonHistoricalRationaleUnresolved = "historical_rationale_unresolved"
+	ReasonSupportingEvidenceMissing       = "supporting_evidence_missing"
+	ReasonRefutingEvidenceUnsearched      = "refuting_evidence_unsearched"
+	ReasonOwnerAuthorityUnresolved        = "owner_authority_unresolved"
+	ReasonBoundaryScopeUnresolved         = "boundary_scope_unresolved"
+	ReasonRuntimeConfirmationRequired     = "runtime_confirmation_required"
+	ReasonHistoricalRationaleUnresolved   = "historical_rationale_unresolved"
 	ReasonCounterexampleExecutionRequired = "counterexample_execution_required"
 )
 
