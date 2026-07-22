@@ -29,6 +29,7 @@ jobs:
           base64 -d /tmp/phase10-7.patch.gz.b64 > /tmp/phase10-7.patch.gz
           echo '859085e2edb410b5490b87b1c8ec5b1e56a7c11c8cc9f9c79231119adbea1963  /tmp/phase10-7.patch.gz' | sha256sum -c -
           gzip -dc /tmp/phase10-7.patch.gz > /tmp/phase10-7.patch
+          git rm -rf --ignore-unmatch golang/architecture/investigationsurface
           git apply --index /tmp/phase10-7.patch
           rm -rf .github/phase10-7-payload
           rm -rf .phase10-7
