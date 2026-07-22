@@ -70,6 +70,20 @@ jobs:
           PY
           tar -xzf /tmp/phase10-7-overlay.tgz
 
+      - name: Repair exact captured-content fixture binding
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('golang/architecture/investigationsurface/surface_test.go')
+          text = path.read_text()
+          old = 'ContentDigestSHA256: surfaceSHA, CapturedContent: "content"'
+          new = 'ContentDigestSHA256: "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73", CapturedContent: "content"'
+          if old not in text:
+              raise SystemExit('surface fixture digest anchor not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
       - name: Upload transfer diagnosis
         if: always()
         uses: actions/upload-artifact@v4
