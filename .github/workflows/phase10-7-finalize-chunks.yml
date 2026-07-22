@@ -55,12 +55,14 @@ jobs:
         run: |
           make import-graph
           git add docs/awareness/generated/awareness_graph_*_import_graph.yaml
-      - name: Test Phase 10.7 surfaces
-        run: |
-          go test ./golang/architecture/investigationsurface -count=10
-          go test ./cmd/awareness-mcp -count=1
-          go test ./cmd/awg -count=1
-          go test -race ./golang/architecture/investigationsurface ./cmd/awareness-mcp
+      - name: Test investigation surface repeatability
+        run: go test ./golang/architecture/investigationsurface -count=10
+      - name: Test MCP package
+        run: go test ./cmd/awareness-mcp -count=1
+      - name: Test CLI package
+        run: go test ./cmd/awg -count=1
+      - name: Test Phase 10.7 races
+        run: go test -race ./golang/architecture/investigationsurface ./cmd/awareness-mcp
       - name: Commit verified implementation
         shell: bash
         run: |
