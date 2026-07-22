@@ -28,8 +28,36 @@ jobs:
       - name: Reconstruct exact Phase 10.7 overlay
         shell: bash
         run: |
-          cat .phase10-7/overlay.part* | base64 --decode > /tmp/phase10-7-overlay.tgz
-          echo '792ec92c4d87a0dd77b8ee199d651d47fefbdfaa3163efb5a2776a230efff49a  /tmp/phase10-7-overlay.tgz' | sha256sum --check --strict
+          python - <<'PY'
+          import base64
+          import hashlib
+          from pathlib import Path
+
+          expected = {
+              'overlay.part00': '3bcbd57d9a6a95b30f4833aaa9ecd14a6460eb83d95328450f918e022517e9b4',
+              'overlay.part01': '703948464304647a0f06b7989531074f57e65c0011c80278e8d1524f6bb39469',
+              'overlay.part02': '12bcbbb211f12a086549e1977d85301e61341302ba7ab0d94928a3a1f6623685',
+              'overlay.part03': 'c751c11d69efcd43b987f13545df6e363d82a7ccfb9d16cfed2caa3caaa1a30f',
+              'overlay.part04': 'dcbf7768defcf56fc46f32b266338687911b659784f117b9ead73b1160c010af',
+              'overlay.part05': '02f748487a111b5646761189fa0fa430b634fc63d82ad33a6c021f8616a5298f',
+              'overlay.part06': '20b89c4ea68c51ce88395552116c946c85951840e2bc4512927d222feda447ac',
+              'overlay.part07': '5885f0ce92c16e530c5d7b7419d5dfc944a37fc4a02c4eb52359592b4b75c958',
+          }
+          chunks = []
+          for name, want in expected.items():
+              data = (Path('.phase10-7') / name).read_bytes().strip()
+              got = hashlib.sha256(data).hexdigest()
+              if got != want:
+                  raise SystemExit(f'{name} checksum mismatch: got {got}, want {want}, bytes={len(data)}')
+              chunks.append(data)
+          encoded = b''.join(chunks)
+          if hashlib.sha256(encoded).hexdigest() != 'b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf':
+              raise SystemExit('combined base64 checksum mismatch')
+          archive = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(archive).hexdigest() != '792ec92c4d87a0dd77b8ee199d651d47fefbdfaa3163efb5a2776a230efff49a':
+              raise SystemExit('decoded overlay checksum mismatch')
+          Path('/tmp/phase10-7-overlay.tgz').write_bytes(archive)
+          PY
           tar -xzf /tmp/phase10-7-overlay.tgz
 
       - name: Remove transfer scaffolding
