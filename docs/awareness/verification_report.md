@@ -121,5 +121,11 @@ go test ./... -timeout 120s
 ---
 
 ## 5. Commit SHA
-The work is committed as a single transactional repair commit:
-- **Commit SHA**: `4d6cfea0590e1f079112795796ed24c7ec4add36`
+The work is committed across the following commits:
+- **Transactional publication repair**: `90f92e3614eee08d5faf2f7ae4ec0f3d2629d1f0`
+- **CI test lane isolation**: `afdd6e0eedc19c539bc3b6124972eacc15f80100`
+
+## 6. Remote Verification Results
+Both remote workflows successfully compiled, validated, and passed:
+- **Sensei self-test**: Green (Passed)
+- **Main CI**: Green (Passed)
