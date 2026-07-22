@@ -485,6 +485,19 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 	// 9. Validate Run Receipt digests (Section 16 & 17)
 	receipt := res.Receipt
+	if receipt.SchemaVersion == "" || receipt.GeneratedBy == "" || receipt.GeneratorVersion == "" || receipt.RulesetVersion == "" {
+		errs = append(errs, "receipt schema, generator, generator version, and ruleset version are required")
+	}
+	for _, pair := range []struct{ got, want, name string }{
+		{receipt.CurrentClaimsDigestSHA256, res.Binding.CurrentClaimsDigestSHA256, "current claims"},
+		{receipt.ClosureStateDigestSHA256, res.Binding.ClosureStateDigestSHA256, "closure state"},
+		{receipt.ExistingQuestionsDigestSHA256, res.Binding.ExistingQuestionsDigestSHA256, "existing questions"},
+		{receipt.ReviewHistoryDigestSHA256, res.Binding.ReviewHistoryDigestSHA256, "review history"},
+	} {
+		if pair.got == "" || pair.got != pair.want {
+			errs = append(errs, "receipt "+pair.name+" digest must exactly match binding")
+		}
+	}
 	if receipt.InputBinding != res.Binding {
 		errs = append(errs, "receipt input binding must exactly match result binding")
 	}
