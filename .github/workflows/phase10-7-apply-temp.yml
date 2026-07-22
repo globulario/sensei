@@ -56,15 +56,15 @@ jobs:
               chunks.append(data)
           encoded = b''.join(chunks)
           combined = hashlib.sha256(encoded).hexdigest()
-          report.append(f'combined bytes={len(encoded)} got={combined} want=bc084c14691f23dc4bac0644d25ed435d5350785c3015fd27d273f893c60424f')
-          if combined != 'bc084c14691f23dc4bac0644d25ed435d5350785c3015fd27d273f893c60424f':
+          report.append(f'combined bytes={len(encoded)} got={combined} want=b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf')
+          if combined != 'b387ebb6051913af952bebb485b0bca6bf82f67329e9651c6357160b8b99a1cf':
               Path('/tmp/phase10-7-transfer-report.txt').write_text('\n'.join(report) + '\n')
               raise SystemExit('combined base64 checksum mismatch')
           archive = base64.b64decode(encoded, validate=True)
           archive_digest = hashlib.sha256(archive).hexdigest()
-          report.append(f'archive bytes={len(archive)} got={archive_digest} want=ba1e4a3dbfd2140d2f4d698099b38e5bd5bd23364a6afd7d67f6ed704428fd54')
+          report.append(f'archive bytes={len(archive)} got={archive_digest} want=792ec92c4d87a0dd77b8ee199d651d47fefbdfaa3163efb5a2776a230efff49a')
           Path('/tmp/phase10-7-transfer-report.txt').write_text('\n'.join(report) + '\n')
-          if archive_digest != 'ba1e4a3dbfd2140d2f4d698099b38e5bd5bd23364a6afd7d67f6ed704428fd54':
+          if archive_digest != '792ec92c4d87a0dd77b8ee199d651d47fefbdfaa3163efb5a2776a230efff49a':
               raise SystemExit('decoded overlay checksum mismatch')
           Path('/tmp/phase10-7-overlay.tgz').write_bytes(archive)
           PY
