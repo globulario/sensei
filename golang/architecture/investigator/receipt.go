@@ -27,6 +27,7 @@ type RunReceipt struct {
 	RankingDigestSHA256          string            `json:"ranking_digest_sha256" yaml:"ranking_digest_sha256"`
 	ExactResultDigestSHA256      string            `json:"exact_result_digest_sha256" yaml:"exact_result_digest_sha256"`
 
-	TimestampSource           string `json:"timestamp_source" yaml:"timestamp_source"`
-	NondeterminismDeclaration string `json:"nondeterminism_declaration" yaml:"nondeterminism_declaration"`
+	TimestampSource           string            `json:"timestamp_source" yaml:"timestamp_source"`
+	ResourceLimits            map[string]string `json:"resource_limits" yaml:"resource_limits"`
+	NondeterminismDeclaration string            `json:"nondeterminism_declaration" yaml:"nondeterminism_declaration"`
 }
