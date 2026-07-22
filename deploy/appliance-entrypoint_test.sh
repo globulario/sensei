@@ -66,7 +66,7 @@ SENSEI_TEST_LOG="${log_file}" \
 SENSEI_WORKSPACE="${workspace}" \
 SENSEI_DATA_DIR="${data_dir}" \
 SENSEI_STARTUP_ATTEMPTS=5 \
-./deploy/appliance-entrypoint.sh serve >"${root}/serve.out" 2>"${root}/serve.err" &
+sh ./deploy/appliance-entrypoint.sh serve >"${root}/serve.out" 2>"${root}/serve.err" &
 serve_pid=$!
 
 for _ in 1 2 3 4 5; do
@@ -83,7 +83,7 @@ SENSEI_BIN_DIR="${bin_dir}" \
 SENSEI_TEST_LOG="${log_file}" \
 SENSEI_WORKSPACE="${workspace}" \
 SENSEI_DATA_DIR="${data_dir}" \
-./deploy/appliance-entrypoint.sh health
+sh ./deploy/appliance-entrypoint.sh health
 
 grep -q 'serve .* -oxigraph-bind 127.0.0.1:7878 .* -no-seed' "${log_file}"
 grep -q 'build -all -input docs/awareness .* -graph-marker-file .*data/graph-authority.json .* -strict' "${log_file}"
@@ -100,7 +100,7 @@ SENSEI_BIN_DIR="${bin_dir}" \
 SENSEI_TEST_LOG="${log_file}" \
 SENSEI_WORKSPACE="${workspace}" \
 SENSEI_DATA_DIR="${data_dir}" \
-./deploy/appliance-entrypoint.sh bootstrap --skip-history
+sh ./deploy/appliance-entrypoint.sh bootstrap --skip-history
 
 grep -q "bootstrap -path ${workspace} --skip-history" "${log_file}"
 
