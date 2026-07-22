@@ -33,8 +33,9 @@ jobs:
           git apply --index /tmp/phase10-7.patch
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('golang/architecture/investigationsurface/surface_test.go')
-          text = path.read_text()
+
+          surface = Path('golang/architecture/investigationsurface/surface_test.go')
+          text = surface.read_text()
           text = text.replace(
               'const surfaceSHA = "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"',
               'const (\n\tsurfaceSHA = "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"\n\tcontentSHA = "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73"\n)',
@@ -43,7 +44,15 @@ jobs:
               'ContentDigestSHA256: surfaceSHA, CapturedContent: "content"',
               'ContentDigestSHA256: contentSHA, CapturedContent: "content"',
           )
-          path.write_text(text)
+          surface.write_text(text)
+
+          cli = Path('cmd/awg/cmd_evidence_phase10.go')
+          text = cli.read_text()
+          old = 'if err := readSurfaceArtifact(*snapshotPath, &snapshot); err != nil {'
+          new = 'if err := investigationsurface.ReadArtifact(*snapshotPath, &snapshot); err != nil {'
+          if old not in text:
+              raise SystemExit('CLI artifact reader anchor not found')
+          cli.write_text(text.replace(old, new, 1))
           PY
           rm -rf .github/phase10-7-payload
           rm -rf .phase10-7
