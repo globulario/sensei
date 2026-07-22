@@ -45,7 +45,7 @@ type RankingFactor struct {
 	EvidenceRefIDs []string          `json:"evidence_ref_ids,omitempty" yaml:"evidence_ref_ids,omitempty"`
 }
 
-// RankingRecord aggregates factors into a stable score and rank.
+// RankingRecord keeps advisory ranking separate from candidate claim authority.
 type RankingRecord struct {
 	CandidateID string `json:"candidate_id" yaml:"candidate_id"`
 	Rank        int    `json:"rank" yaml:"rank"`
@@ -217,7 +217,7 @@ func buildCounterexamples(
 			continue
 		}
 		scope := intersectScope(claim.Scope, receipt.Scope)
-		id := "counterexample_" + SHA256String(envelope.CandidateID + "\x00" + evidenceID)[:24]
+		id := "counterexample_" + SHA256String(envelope.CandidateID+"\x00"+evidenceID)[:24]
 		out = append(out, CounterexampleRecord{
 			Counterexample: investigation.Counterexample{
 				ID:             id,
