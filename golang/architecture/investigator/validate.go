@@ -235,7 +235,9 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 		// Check scope expansion: claim scope must not exceed the union of its cited evidence scopes
 		envelope, ok := candidateByClaimID[claim.ID]
-		if ok {
+		if !ok {
+			errs = append(errs, fmt.Sprintf("candidate claim %s has no envelope", claim.ID))
+		} else {
 			var unionFiles []string
 			var unionSymbols []string
 			var unionComponents []string
@@ -321,13 +323,13 @@ func Validate(res Result, snap GroundingSnapshot) error {
 			if claimFound {
 				// Validate files subset
 				for _, f := range req.Scope.Files {
-					if len(claim.Scope.Files) > 0 && !contains(claim.Scope.Files, f) {
+					if !contains(claim.Scope.Files, f) {
 						errs = append(errs, fmt.Sprintf("evidence request %s scope file %q exceeds candidate %s scope", req.ID, f, req.CandidateID))
 					}
 				}
 				// Validate symbols subset
 				for _, s := range req.Scope.Symbols {
-					if len(claim.Scope.Symbols) > 0 && !contains(claim.Scope.Symbols, s) {
+					if !contains(claim.Scope.Symbols, s) {
 						errs = append(errs, fmt.Sprintf("evidence request %s scope symbol %q exceeds candidate %s scope", req.ID, s, req.CandidateID))
 					}
 				}
@@ -353,6 +355,14 @@ func Validate(res Result, snap GroundingSnapshot) error {
 
 		if !IsValidChallengeStatus(chall.Status) {
 			errs = append(errs, fmt.Sprintf("challenge receipt %s: unknown challenge status %q", chall.ID, chall.Status))
+		}
+		if strings.TrimSpace(chall.StrategyVersion) == "" || strings.TrimSpace(chall.ReasonCode) == "" {
+			errs = append(errs, fmt.Sprintf("challenge receipt %s requires strategy version and reason code", chall.ID))
+		}
+		for _, id := range chall.SupportingEvidenceRefIDs {
+			if contains(chall.RefutingEvidenceRefIDs, id) {
+				errs = append(errs, fmt.Sprintf("challenge receipt %s overlaps supporting and refuting evidence", chall.ID))
+			}
 		}
 
 		if _, candidateExists := candidateMap[chall.CandidateID]; !candidateExists {
@@ -416,11 +426,14 @@ func Validate(res Result, snap GroundingSnapshot) error {
 			claim, claimFound := documentClaims[ce.ClaimID]
 			if claimFound {
 				for _, f := range ce.Scope.Files {
-					if len(claim.Scope.Files) > 0 && !contains(claim.Scope.Files, f) {
+					if !contains(claim.Scope.Files, f) {
 						errs = append(errs, fmt.Sprintf("counterexample %s scope file %q exceeds target candidate scope", ce.ID, f))
 					}
 				}
 			}
+		}
+		if strings.TrimSpace(record.StrategyVersion) == "" || strings.TrimSpace(record.MinimalityBasis) == "" {
+			errs = append(errs, fmt.Sprintf("counterexample %s requires strategy version and minimality basis", ce.ID))
 		}
 
 		// Grounding evidence refs
@@ -449,6 +462,9 @@ func Validate(res Result, snap GroundingSnapshot) error {
 				errs = append(errs, fmt.Sprintf("duplicate ranking candidate ID: %s", r.CandidateID))
 			}
 			rankingCandidateIDs[r.CandidateID] = true
+		}
+		if r.Rank <= 0 {
+			errs = append(errs, fmt.Sprintf("ranking record %s must have positive rank", r.CandidateID))
 		}
 
 		if _, exists := candidateMap[r.CandidateID]; !exists {
