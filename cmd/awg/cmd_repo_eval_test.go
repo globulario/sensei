@@ -106,6 +106,77 @@ func TestRepoEvalInputDirsUsesGenericTargetAwareness(t *testing.T) {
 	}
 }
 
+func TestRepoEvalInputDirs_SelfOnlyAwarenessGraphMatchesAudit(t *testing.T) {
+	agRepo := t.TempDir()
+	for _, dir := range []string{
+		filepath.Join(agRepo, "docs", "awareness"),
+		filepath.Join(agRepo, "docs", "intent"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "contracts"),
+		filepath.Join(agRepo, "eval", "multi-swe-bench", "notes", "learning_events"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	target := repoEvalTarget{root: agRepo, intentDir: filepath.Join(agRepo, "docs", "intent"), kind: "awareness-graph"}
+
+	// svcRepo == "" ⇒ this is a self-only evaluation of the awareness-graph repo
+	// alone; the freshness-comparison input set must match exactly what the
+	// committed self-only seed was built from (docs/awareness only), never the
+	// broader combined set collectInputDirs returns when an agRepo is present.
+	gotDirs, gotIntentDir, err := repoEvalInputDirs(target, "", agRepo)
+	if err != nil {
+		t.Fatalf("repoEvalInputDirs: %v", err)
+	}
+
+	broadDirs, broadIntentDir, err := collectInputDirs("", agRepo)
+	if err != nil {
+		t.Fatalf("collectInputDirs: %v", err)
+	}
+	wantDirs, wantIntentDir := auditSeedGenerationInputs(broadDirs, broadIntentDir, "", agRepo)
+
+	if strings.Join(gotDirs, "\n") != strings.Join(wantDirs, "\n") {
+		t.Fatalf("repoEvalInputDirs self-only dirs = %#v, want parity with auditSeedGenerationInputs %#v", gotDirs, wantDirs)
+	}
+	if gotIntentDir != wantIntentDir {
+		t.Fatalf("repoEvalInputDirs intentDir = %q, want %q", gotIntentDir, wantIntentDir)
+	}
+	if len(gotDirs) != 1 || gotDirs[0] != filepath.Join(agRepo, "docs", "awareness") {
+		t.Fatalf("expected exactly the self-only docs/awareness dir, got %#v", gotDirs)
+	}
+}
+
+func TestRepoEvalInputDirs_CombinedAwarenessGraphKeepsPairedInputs(t *testing.T) {
+	agRepo := t.TempDir()
+	svcRepo := t.TempDir()
+	for _, dir := range []string{
+		filepath.Join(agRepo, "docs", "awareness"),
+		filepath.Join(svcRepo, "docs", "awareness"),
+		filepath.Join(svcRepo, "docs", "awareness", "generated"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	target := repoEvalTarget{root: agRepo, intentDir: filepath.Join(agRepo, "docs", "intent"), kind: "awareness-graph"}
+
+	// An explicitly supplied services repo means a combined target IS in scope,
+	// so the paired inputs must be kept, not narrowed away.
+	gotDirs, _, err := repoEvalInputDirs(target, svcRepo, agRepo)
+	if err != nil {
+		t.Fatalf("repoEvalInputDirs: %v", err)
+	}
+	wantDirs, _, err := collectInputDirs(svcRepo, agRepo)
+	if err != nil {
+		t.Fatalf("collectInputDirs: %v", err)
+	}
+	if strings.Join(gotDirs, "\n") != strings.Join(wantDirs, "\n") {
+		t.Fatalf("combined dirs = %#v, want unnarrowed %#v", gotDirs, wantDirs)
+	}
+}
+
 func TestWalkRepoGoFiles_ScansRepoRootNotOnlyGolangDir(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/test\n"), 0o644); err != nil {

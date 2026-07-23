@@ -309,7 +309,18 @@ func resolveRepoEvalTarget(targetRepo, svcRepo, agRepo string) (repoEvalTarget, 
 
 func repoEvalInputDirs(target repoEvalTarget, svcRepo, agRepo string) (inputDirs []string, intentDir string, err error) {
 	if target.kind != "generic" {
-		return collectInputDirs(svcRepo, agRepo)
+		inputDirs, intentDir, err = collectInputDirs(svcRepo, agRepo)
+		if err != nil {
+			return nil, "", err
+		}
+		if target.kind == "awareness-graph" {
+			// Mirrors auditSeedGenerationInputs: evaluating this repo alone with no
+			// paired services repo must compare against a self-only regeneration,
+			// never a combined one — a combined target is only in scope when the
+			// caller explicitly supplies --services-repo.
+			inputDirs, intentDir = auditSeedGenerationInputs(inputDirs, intentDir, svcRepo, agRepo)
+		}
+		return inputDirs, intentDir, nil
 	}
 
 	inputDirs = appendExistingDir(nil,
