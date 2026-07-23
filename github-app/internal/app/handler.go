@@ -1,0 +1,151 @@
+package app
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"strings"
+
+	"github.com/globulario/sensei-github-app/internal/briefing"
+	githubapi "github.com/globulario/sensei-github-app/internal/github"
+	"github.com/globulario/sensei-github-app/internal/webhook"
+)
+
+const maxWebhookBody = 5 << 20
+
+// GitHubClient is the narrow GitHub surface used by the webhook processor.
+type GitHubClient interface {
+	ListPullRequestFiles(context.Context, int64, string, string, int) ([]githubapi.PullRequestFile, error)
+	UpsertIssueComment(context.Context, int64, string, string, int, string, string) error
+	UpsertCheckRun(context.Context, int64, string, string, string, string, string, string) error
+}
+
+// Handler receives authenticated GitHub webhooks.
+type Handler struct {
+	webhookSecret []byte
+	github        GitHubClient
+	logger        *slog.Logger
+}
+
+func NewHandler(webhookSecret []byte, github GitHubClient, logger *slog.Logger) (*Handler, error) {
+	if len(webhookSecret) == 0 {
+		return nil, errors.New("webhook secret is required")
+	}
+	if github == nil {
+		return nil, errors.New("GitHub client is required")
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Handler{webhookSecret: webhookSecret, github: github, logger: logger}, nil
+}
+
+func (h *Handler) Routes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "ok\n")
+	})
+	mux.HandleFunc("POST /webhooks/github", h.handleGitHubWebhook)
+	return mux
+}
+
+func (h *Handler) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
+	if err != nil {
+		http.Error(w, "invalid webhook body", http.StatusBadRequest)
+		return
+	}
+	if err := webhook.VerifySignature(h.webhookSecret, body, r.Header.Get("X-Hub-Signature-256")); err != nil {
+		h.logger.Warn("rejected GitHub webhook", "delivery", r.Header.Get("X-GitHub-Delivery"), "error", err)
+		http.Error(w, "invalid webhook signature", http.StatusUnauthorized)
+		return
+	}
+
+	eventName := strings.TrimSpace(r.Header.Get("X-GitHub-Event"))
+	switch eventName {
+	case "ping":
+		w.WriteHeader(http.StatusNoContent)
+		return
+	case "pull_request":
+		if err := h.handlePullRequest(r.Context(), body); err != nil {
+			h.logger.Error("process pull request webhook", "delivery", r.Header.Get("X-GitHub-Delivery"), "error", err)
+			http.Error(w, "failed to process pull request webhook", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (h *Handler) handlePullRequest(ctx context.Context, body []byte) error {
+	var event webhook.PullRequestEvent
+	if err := json.Unmarshal(body, &event); err != nil {
+		return fmt.Errorf("decode pull request event: %w", err)
+	}
+	if !event.Supported() {
+		return nil
+	}
+	if !event.Valid() {
+		return errors.New("pull request event is missing immutable analysis identity")
+	}
+
+	files, err := h.github.ListPullRequestFiles(
+		ctx,
+		event.Installation.ID,
+		event.Repository.Owner.Login,
+		event.Repository.Name,
+		event.PullRequest.Number,
+	)
+	if err != nil {
+		return err
+	}
+
+	report := briefing.Build(briefing.Input{
+		Repository: event.Repository.FullName,
+		PRNumber:   event.PullRequest.Number,
+		BaseSHA:    event.PullRequest.Base.SHA,
+		HeadSHA:    event.PullRequest.Head.SHA,
+		Files:      files,
+	})
+
+	checkErr := h.github.UpsertCheckRun(
+		ctx,
+		event.Installation.ID,
+		event.Repository.Owner.Login,
+		event.Repository.Name,
+		event.PullRequest.Head.SHA,
+		report.ExternalID,
+		report.CheckSummary,
+		report.CheckText,
+	)
+	commentErr := h.github.UpsertIssueComment(
+		ctx,
+		event.Installation.ID,
+		event.Repository.Owner.Login,
+		event.Repository.Name,
+		event.PullRequest.Number,
+		briefing.CommentMarker,
+		report.CommentBody,
+	)
+	if err := errors.Join(checkErr, commentErr); err != nil {
+		return fmt.Errorf("publish Sensei briefing: %w", err)
+	}
+
+	h.logger.Info(
+		"published Sensei briefing",
+		"repository", event.Repository.FullName,
+		"pull_request", event.PullRequest.Number,
+		"base_sha", event.PullRequest.Base.SHA,
+		"head_sha", event.PullRequest.Head.SHA,
+		"changed_files", len(files),
+	)
+	return nil
+}
