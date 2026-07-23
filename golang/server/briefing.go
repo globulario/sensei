@@ -133,6 +133,11 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		return nil, status.Errorf(codes.Unavailable, "code symbol query failed: %v", err)
 	}
 	impact = limitImpactResponseWithProfile(impact, profile)
+	codeSyms = focusCodeSymbolsForTask(task, codeSyms)
+	codeSyms, err = s.attachKnownStaticCallers(ctx, codeSyms)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "code symbol caller query failed: %v", err)
+	}
 	codeSyms = limitCodeSymbolsWithCap(codeSyms, profile.codeSymbols)
 	if task == "" {
 		task = "(not provided)"

@@ -49,6 +49,68 @@ func TestBriefing_Provenance_RenderedForPromotedRule(t *testing.T) {
 			t.Errorf("briefing prose missing %q\n---\n%s", want, prose)
 		}
 	}
+
+	t.Run("exact task symbol scopes evidence and callers", func(t *testing.T) {
+		targetID := "render/json.go:JSON.Render"
+		targetIRI := mintedIRI(rdf.ClassCodeSymbol, targetID)
+		siblingID := "render/json.go:AsciiJSON.Render"
+		siblingIRI := mintedIRI(rdf.ClassCodeSymbol, siblingID)
+		intentIRI := mintedIRI(rdf.ClassIntent, "render.json_preserves_http_contract")
+		testIRI := mintedIRI(rdf.ClassTestSymbol, "render/json_test.go:TestJSONRender")
+		callerID := "handlers/api.go:writeJSON"
+
+		targetServer := newServer(fakeStore{
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return nil, nil
+			},
+			codeSymbolFacts: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return []store.ImpactFact{
+					{NodeIRI: siblingIRI, TypeIRI: rdf.ClassCodeSymbol, Predicate: rdf.PropLabel, Object: "AsciiJSON.Render"},
+					{NodeIRI: siblingIRI, TypeIRI: rdf.ClassCodeSymbol, Predicate: rdf.PropComment, Object: "component: render.json"},
+					{NodeIRI: targetIRI, TypeIRI: rdf.ClassCodeSymbol, Predicate: rdf.PropLabel, Object: "JSON.Render"},
+					{NodeIRI: targetIRI, TypeIRI: rdf.ClassCodeSymbol, Predicate: rdf.PropLanguage, Object: "go"},
+					{NodeIRI: targetIRI, TypeIRI: rdf.ClassCodeSymbol, Predicate: rdf.PropComment, Object: "component: render.json"},
+					{NodeIRI: targetIRI, TypeIRI: rdf.ClassCodeSymbol, Predicate: rdf.PropImplements, Object: intentIRI, ObjectIsIRI: true},
+					{NodeIRI: targetIRI, TypeIRI: rdf.ClassCodeSymbol, Predicate: rdf.PropTestedBy, Object: testIRI, ObjectIsIRI: true},
+				}, nil
+			},
+			describeInbound: func(_ context.Context, iri string) ([]store.InboundTriple, error) {
+				if iri != targetIRI {
+					t.Fatalf("caller lookup iri=%q, want %q", iri, targetIRI)
+				}
+				return []store.InboundTriple{{Subject: mintedIRI(rdf.ClassCodeSymbol, callerID), Predicate: rdf.PropReferences}}, nil
+			},
+		})
+		resp, err := targetServer.Briefing(context.Background(), &awarenesspb.BriefingRequest{
+			File: "render/json.go",
+			Task: "preserve JSON.Render response behavior",
+		})
+		if err != nil {
+			t.Fatalf("Briefing exact symbol: %v", err)
+		}
+		prose := resp.GetProse()
+		for _, want := range []string{
+			"Target symbol: JSON.Render",
+			"Go visibility: exported",
+			"Supported public API contract: unknown",
+			"Known static callers:",
+			callerID,
+			"intent:render.json_preserves_http_contract",
+			"render/json_test.go:TestJSONRender",
+		} {
+			if !strings.Contains(prose, want) {
+				t.Fatalf("exact-symbol prose missing %q:\n%s", want, prose)
+			}
+		}
+		if strings.Contains(prose, "AsciiJSON.Render") {
+			t.Fatalf("neighboring symbol leaked into exact briefing:\n%s", prose)
+		}
+		for _, ref := range resp.GetReferencedIds() {
+			if ref == "code_symbol:"+siblingID {
+				t.Fatalf("neighboring symbol leaked into referenced_ids: %v", resp.GetReferencedIds())
+			}
+		}
+	})
 }
 
 // An untagged (home-domain) briefing carries NO provenance block — provenance is
