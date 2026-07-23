@@ -19,6 +19,20 @@ The service is a thin orchestration layer. Architectural reasoning remains in
 Sensei. LLM-derived knowledge is never authoritative until reviewed and
 promoted through repository-owned sources.
 
+## Current boundary
+
+The first slice is intentionally mechanical and advisory. It reports immutable
+change identity, changed-file scope, test-file presence, file types, and
+sensitive structural surfaces. It does not execute pull-request code.
+
+The next slice will replace the mechanical report source with a pinned Sensei
+engine or appliance run so the same GitHub surfaces can include governed
+invariants, contracts, failure modes, forbidden fixes, and proof obligations.
+
+A merge-ready release also requires one live GitHub App installation proof:
+an authenticated webhook must create one app-owned sticky comment and one
+app-owned Check Run, and redelivery must update rather than duplicate them.
+
 ## Required environment
 
 - `SENSEI_GITHUB_APP_ID`
