@@ -19,7 +19,7 @@ type PullRequestEvent struct {
 			SHA string `json:"sha"`
 		} `json:"base"`
 		Head struct {
-			SHA string `json:"sha"`
+			SHA  string `json:"sha"`
 			Repo struct {
 				FullName string `json:"full_name"`
 			} `json:"repo"`
