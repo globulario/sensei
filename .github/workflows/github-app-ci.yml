@@ -29,19 +29,11 @@ jobs:
           cache-dependency-path: github-app/go.mod
       - name: Verify formatting
         run: |
-          find . -type f -name '*.go' -print0 | xargs -0 gofmt -l > /tmp/gofmt-report.txt
-          if [ -s /tmp/gofmt-report.txt ]; then
-            printf 'The following files require gofmt:\n'
-            cat /tmp/gofmt-report.txt
+          files="$(find . -type f -name '*.go' -print0 | xargs -0 gofmt -l)"
+          if [ -n "$files" ]; then
+            printf 'The following files require gofmt:\n%s\n' "$files"
             exit 1
           fi
-      - name: Upload formatting report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: github-app-gofmt-report
-          path: /tmp/gofmt-report.txt
-          if-no-files-found: error
       - name: Test
         run: go test ./...
       - name: Vet
