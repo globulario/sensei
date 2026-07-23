@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -62,7 +61,7 @@ func (c *Client) ListPullRequestFiles(ctx context.Context, installationID int64,
 	return all, nil
 }
 
-// UpsertIssueComment updates the existing marker comment or creates it once.
+// UpsertIssueComment updates the existing app-owned marker comment or creates it once.
 func (c *Client) UpsertIssueComment(ctx context.Context, installationID int64, owner, repo string, number int, marker, body string) error {
 	if marker == "" || !strings.Contains(body, marker) {
 		return errors.New("sticky comment body must contain its marker")
@@ -71,14 +70,18 @@ func (c *Client) UpsertIssueComment(ctx context.Context, installationID int64, o
 	for page := 1; ; page++ {
 		path := fmt.Sprintf("/repos/%s/%s/issues/%d/comments?per_page=100&page=%d", escape(owner), escape(repo), number, page)
 		var comments []struct {
-			ID   int64  `json:"id"`
-			Body string `json:"body"`
+			ID                    int64  `json:"id"`
+			Body                  string `json:"body"`
+			PerformedViaGitHubApp *struct {
+				ID int64 `json:"id"`
+			} `json:"performed_via_github_app"`
 		}
 		if err := c.do(ctx, installationID, http.MethodGet, path, nil, &comments); err != nil {
 			return fmt.Errorf("list pull request comments: %w", err)
 		}
 		for _, comment := range comments {
-			if strings.Contains(comment.Body, marker) {
+			owned := comment.PerformedViaGitHubApp != nil && comment.PerformedViaGitHubApp.ID == c.auth.AppID()
+			if owned && strings.Contains(comment.Body, marker) {
 				updatePath := fmt.Sprintf("/repos/%s/%s/issues/comments/%d", escape(owner), escape(repo), comment.ID)
 				if err := c.do(ctx, installationID, http.MethodPatch, updatePath, map[string]string{"body": body}, nil); err != nil {
 					return fmt.Errorf("update Sensei briefing comment: %w", err)
@@ -98,7 +101,7 @@ func (c *Client) UpsertIssueComment(ctx context.Context, installationID int64, o
 	return nil
 }
 
-// UpsertCheckRun keeps one check run per PR head SHA and external identity.
+// UpsertCheckRun keeps one app-owned check run per PR head SHA and external identity.
 func (c *Client) UpsertCheckRun(ctx context.Context, installationID int64, owner, repo, headSHA, externalID, summary, text string) error {
 	query := url.Values{}
 	query.Set("check_name", checkRunName)
@@ -108,6 +111,9 @@ func (c *Client) UpsertCheckRun(ctx context.Context, installationID int64, owner
 		CheckRuns []struct {
 			ID         int64  `json:"id"`
 			ExternalID string `json:"external_id"`
+			App        struct {
+				ID int64 `json:"id"`
+			} `json:"app"`
 		} `json:"check_runs"`
 	}
 	if err := c.do(ctx, installationID, http.MethodGet, listPath, nil, &existing); err != nil {
@@ -129,7 +135,7 @@ func (c *Client) UpsertCheckRun(ctx context.Context, installationID int64, owner
 	}
 
 	for _, checkRun := range existing.CheckRuns {
-		if checkRun.ExternalID == externalID {
+		if checkRun.App.ID == c.auth.AppID() && checkRun.ExternalID == externalID {
 			path := fmt.Sprintf("/repos/%s/%s/check-runs/%d", escape(owner), escape(repo), checkRun.ID)
 			if err := c.do(ctx, installationID, http.MethodPatch, path, payload, nil); err != nil {
 				return fmt.Errorf("update Sensei check run: %w", err)
@@ -195,8 +201,4 @@ func (c *Client) do(ctx context.Context, installationID int64, method, path stri
 
 func escape(value string) string {
 	return url.PathEscape(value)
-}
-
-func checkExternalID(prNumber int, headSHA string) string {
-	return "sensei-pr-" + strconv.Itoa(prNumber) + "-" + headSHA
 }
