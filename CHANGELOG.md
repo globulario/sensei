@@ -3,6 +3,29 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v1.3.0 — proportional rigor
+
+- **`sensei rigor`** — reports the proportional-rigor class (and proof
+  obligations owed) for a proposed change, classifying by the **governed
+  surfaces** it touches rather than by filename. Surfaces are declared in
+  `docs/rigor_classes.yaml` and bound to code through owned package prefixes.
+  Advisory only: it names the obligations existing guards/CI enforce, it
+  enforces nothing itself.
+  - Classes: **A** semantic owner/authority/certification/identity · **B**
+    evidence ingestion/admission/binding · **C** projection/transport/rendering
+    · **D** cosmetic/explanatory local UI.
+  - Fail-closed laws: effective rigor is the **strictest** class among every
+    governed surface touched; a file owned by no surface is unclassified →
+    **Class A**; an unknown class fails closed to A; a `--declared` class can
+    only *raise* strictness, never downgrade contact with an A/B surface; and
+    Class D still owes every repository-integrity gate (ownership,
+    determinism, licensing, generated-artifact, build) — it only lightens
+    *semantic* proof.
+- **Control-panel polish** — actionable Unknown (owner-projected explanation,
+  stable Kind), distinct non-positive states, and honest coverage (owned
+  tallies only, no denominator → no fabricated percentage). Ships documented
+  in the VS Code extension's own changelog.
+
 ## v1.2.1 — init wires every agent tool
 
 - **`sensei init` sets up all your agent surfaces, not just Claude Code.** It now
