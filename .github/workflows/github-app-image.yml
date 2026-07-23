@@ -8,8 +8,13 @@ on:
         required: true
         default: private-beta
   push:
+    branches:
+      - main
     tags:
       - "github-app-v*"
+    paths:
+      - "github-app/**"
+      - ".github/workflows/github-app-image.yml"
 
 permissions:
   contents: read
@@ -29,8 +34,10 @@ jobs:
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sensei-github-app"
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             version="${{ inputs.version }}"
-          else
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             version="${GITHUB_REF_NAME}"
+          else
+            version="private-beta"
           fi
           if [[ ! "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
             echo "Invalid container tag: $version" >&2
