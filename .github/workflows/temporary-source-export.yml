@@ -36,11 +36,15 @@ jobs:
           echo 'ad14519cfcfac204fd73c59fe5301d4c4d21d8ce8ae7ff75cde1df93a62096cd  /tmp/symbol-aware-briefing.patch.b64' | sha256sum -c -
           base64 -d /tmp/symbol-aware-briefing.patch.b64 > /tmp/symbol-aware-briefing.patch
           echo '8b51da67b8a114a5e1cba23a88ccccf14930b7bbb1fb6198ca39be8a7683d3c9  /tmp/symbol-aware-briefing.patch' | sha256sum -c -
+          base64 -d .github/symbol-caller-decode.patch.b64 > /tmp/symbol-caller-decode.patch
+          echo 'c817c6b57fc50c6dc0973bd7d469f759135b70c958896c41afaf1bd7da5defc8  /tmp/symbol-caller-decode.patch' | sha256sum -c -
       - name: Apply and format implementation
         shell: bash
         run: |
           git apply --check /tmp/symbol-aware-briefing.patch
           git apply /tmp/symbol-aware-briefing.patch
+          git apply --check /tmp/symbol-caller-decode.patch
+          git apply /tmp/symbol-caller-decode.patch
           gofmt -w \
             golang/scipingest/scipingest.go \
             golang/scipingest/scipingest_test.go \
@@ -84,7 +88,8 @@ jobs:
             .github/patch.part.02 \
             .github/patch.part.02.0 \
             .github/patch.part.02.1 \
-            .github/patch.part.02.2
+            .github/patch.part.02.2 \
+            .github/symbol-caller-decode.patch.b64
           rm .github/workflows/temporary-source-export.yml
           git config user.name 'Codex'
           git config user.email 'codex@openai.invalid'
