@@ -5043,6 +5043,16 @@ test_symbols:
     package: orders
     language: go
     doc: "TestOrderTotal_DiscountStaysExactInteger is the required test named by the\ninvariant. It proves the scar: on a $9.99 order the unsafe float path yields\n899 cents while the AWG-guided integer path yields the exact 900 — a silent\none-cent divergence that is real money across orders."
+  - id: github-app/cmd/sensei-github-app/main_test.go:TestRunHealthcheck
+    file: github-app/cmd/sensei-github-app/main_test.go
+    symbol: TestRunHealthcheck
+    package: main
+    language: go
+  - id: github-app/cmd/sensei-github-app/main_test.go:TestRunHealthcheckRejectsNonOK
+    file: github-app/cmd/sensei-github-app/main_test.go
+    symbol: TestRunHealthcheckRejectsNonOK
+    package: main
+    language: go
   - id: github-app/internal/app/handler_test.go:TestHandlerDiscardsDeliveryAlreadyStale
     file: github-app/internal/app/handler_test.go
     symbol: TestHandlerDiscardsDeliveryAlreadyStale
@@ -5051,6 +5061,11 @@ test_symbols:
   - id: github-app/internal/app/handler_test.go:TestHandlerDiscardsDeliveryThatRacesWithNewCommit
     file: github-app/internal/app/handler_test.go
     symbol: TestHandlerDiscardsDeliveryThatRacesWithNewCommit
+    package: app
+    language: go
+  - id: github-app/internal/app/handler_test.go:TestHandlerHealthAndReadiness
+    file: github-app/internal/app/handler_test.go
+    symbol: TestHandlerHealthAndReadiness
     package: app
     language: go
   - id: github-app/internal/app/handler_test.go:TestHandlerProcessesSupportedPullRequest
@@ -5063,10 +5078,25 @@ test_symbols:
     symbol: TestHandlerRejectsInvalidSignature
     package: app
     language: go
+  - id: github-app/internal/app/handler_test.go:TestHandlerRequiresDeliveryIdentity
+    file: github-app/internal/app/handler_test.go
+    symbol: TestHandlerRequiresDeliveryIdentity
+    package: app
+    language: go
   - id: github-app/internal/briefing/briefing_test.go:TestBuildIsDeterministic
     file: github-app/internal/briefing/briefing_test.go
     symbol: TestBuildIsDeterministic
     package: briefing
+    language: go
+  - id: github-app/internal/config/config_test.go:TestLoadReadsMountedSecrets
+    file: github-app/internal/config/config_test.go
+    symbol: TestLoadReadsMountedSecrets
+    package: config
+    language: go
+  - id: github-app/internal/config/config_test.go:TestLoadRejectsEmptyMountedWebhookSecret
+    file: github-app/internal/config/config_test.go
+    symbol: TestLoadRejectsEmptyMountedWebhookSecret
+    package: config
     language: go
   - id: github-app/internal/github/auth_test.go:TestInstallationTokenExchangeAndCache
     file: github-app/internal/github/auth_test.go
