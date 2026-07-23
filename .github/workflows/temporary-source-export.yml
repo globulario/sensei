@@ -59,7 +59,22 @@ jobs:
       - name: Test exact symbol selector contracts
         run: go test ./golang/server -run 'TestCodeSymbolIDFromIRI' -count=1 -v
       - name: Test exact symbol briefing composition
-        run: go test ./golang/server -run 'TestBriefing_Provenance_RenderedForPromotedRule/exact_task_symbol' -count=1 -v
+        id: briefing-test
+        shell: bash
+        run: |
+          set +e
+          go test ./golang/server -run 'TestBriefing_Provenance_RenderedForPromotedRule/exact_task_symbol' -count=1 -v > /tmp/symbol-briefing-test.log 2>&1
+          status=$?
+          cat /tmp/symbol-briefing-test.log
+          exit ${status}
+      - name: Upload exact briefing failure log
+        if: failure() && steps.briefing-test.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: symbol-briefing-test-log
+          path: /tmp/symbol-briefing-test.log
+          retention-days: 1
+          if-no-files-found: error
       - name: Publish verified implementation and remove temporary transfer files
         shell: bash
         run: |
