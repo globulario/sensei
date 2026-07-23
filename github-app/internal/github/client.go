@@ -15,6 +15,12 @@ import (
 
 const checkRunName = "Sensei Architectural Briefing"
 
+// PullRequestIdentity is the current immutable revision pair for a pull request.
+type PullRequestIdentity struct {
+	BaseSHA string
+	HeadSHA string
+}
+
 // PullRequestFile is the immutable file metadata returned for one PR revision.
 type PullRequestFile struct {
 	Filename  string `json:"filename"`
@@ -43,6 +49,25 @@ func NewClient(auth *Authenticator, baseURL string, httpClient *http.Client) (*C
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		httpClient: httpClient,
 	}, nil
+}
+
+func (c *Client) GetPullRequestIdentity(ctx context.Context, installationID int64, owner, repo string, number int) (PullRequestIdentity, error) {
+	path := fmt.Sprintf("/repos/%s/%s/pulls/%d", escape(owner), escape(repo), number)
+	var response struct {
+		Base struct {
+			SHA string `json:"sha"`
+		} `json:"base"`
+		Head struct {
+			SHA string `json:"sha"`
+		} `json:"head"`
+	}
+	if err := c.do(ctx, installationID, http.MethodGet, path, nil, &response); err != nil {
+		return PullRequestIdentity{}, fmt.Errorf("get pull request identity: %w", err)
+	}
+	if response.Base.SHA == "" || response.Head.SHA == "" {
+		return PullRequestIdentity{}, errors.New("GitHub returned an incomplete pull request identity")
+	}
+	return PullRequestIdentity{BaseSHA: response.Base.SHA, HeadSHA: response.Head.SHA}, nil
 }
 
 func (c *Client) ListPullRequestFiles(ctx context.Context, installationID int64, owner, repo string, number int) ([]PullRequestFile, error) {
