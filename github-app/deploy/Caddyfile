@@ -1,0 +1,13 @@
+{$SENSEI_GITHUB_HOSTNAME} {
+	encode zstd gzip
+
+	@health path /healthz /readyz
+	header @health Cache-Control "no-store"
+
+	reverse_proxy sensei-github-app:8080
+
+	log {
+		output stdout
+		format json
+	}
+}
