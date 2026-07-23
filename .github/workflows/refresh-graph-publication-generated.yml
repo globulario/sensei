@@ -6,6 +6,11 @@ on:
       - agent/transactional-graph-publication
     paths:
       - '.github/workflows/refresh-graph-publication-generated.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/refresh-graph-publication-generated.yml'
 
 permissions:
   contents: write
