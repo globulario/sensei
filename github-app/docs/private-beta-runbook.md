@@ -16,7 +16,7 @@ Caddy obtains and renews TLS automatically. The application container is not exp
 
 ## 2. Publish the private GHCR image
 
-Run the **GitHub App Image** workflow from the Sensei repository with version `private-beta`.
+Merging a GitHub App change to `main` runs the **GitHub App Image** workflow automatically. The workflow can also be dispatched manually with an explicit private tag.
 
 The workflow publishes:
 
@@ -32,9 +32,23 @@ On the deployment host, authenticate an account that can read the private packag
 echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 ```
 
-Use a classic personal access token with `read:packages`, or another credential explicitly authorized for the package. Do not put this credential in the Compose environment file.
+Use a package credential with `read:packages`, or another credential explicitly authorized for the package. Do not put this credential in the Compose environment file.
 
-## 3. Register the private GitHub App
+## 3. Generate the one authoritative webhook secret
+
+From `github-app/deploy/` on the deployment host:
+
+```bash
+cp .env.private.example .env.private
+mkdir -p secrets
+chmod 700 secrets
+openssl rand -hex 32 > secrets/github-webhook-secret.txt
+chmod 600 secrets/github-webhook-secret.txt
+```
+
+The exact contents of `secrets/github-webhook-secret.txt` are the only authoritative webhook secret. Paste that value into GitHub during registration. Do not generate a second value in the GitHub UI.
+
+## 4. Register the private GitHub App
 
 In the `globulario` organization settings, create a new GitHub App using `config/private-app-registration.json` as the authoritative registration contract.
 
@@ -44,7 +58,7 @@ Required values:
 - Homepage: `https://github.com/globulario/sensei/tree/main/github-app`
 - Webhook active: yes
 - Webhook URL: `https://<hostname>/webhooks/github`
-- Webhook secret: a new high-entropy random value
+- Webhook secret: paste the exact value from `secrets/github-webhook-secret.txt`
 - Request user authorization during installation: no
 - Visibility / installation target: only this account
 
@@ -61,19 +75,11 @@ Subscribe only to:
 
 Generate a private key after creating the app. Record the numeric App ID. Keep the app private.
 
-## 4. Stage secrets
-
-From `github-app/deploy/` on the deployment host:
+## 5. Stage the private key and deployment identity
 
 ```bash
-cp .env.private.example .env.private
-mkdir -p secrets
 install -m 0600 /path/to/downloaded-private-key.pem secrets/github-app-private-key.pem
-openssl rand -hex 32 > secrets/github-webhook-secret.txt
-chmod 600 secrets/github-webhook-secret.txt
 ```
-
-Use the exact same webhook secret value in the GitHub App registration and in `secrets/github-webhook-secret.txt`.
 
 Set these values in `.env.private`:
 
@@ -83,7 +89,7 @@ Set these values in `.env.private`:
 
 Never commit `.env.private` or files under `deploy/secrets/`.
 
-## 5. Deploy
+## 6. Deploy
 
 ```bash
 docker compose --env-file .env.private -f docker-compose.private.yml pull
@@ -101,13 +107,13 @@ docker compose --env-file .env.private -f docker-compose.private.yml logs -f sen
 
 The startup record must identify the application version, source commit, build time, listening address, and App ID.
 
-## 6. Install on one selected repository
+## 7. Install on one selected repository
 
 Install the private app on `globulario` and choose **Only select repositories**. Select a disposable test repository, not the entire organization.
 
 Record the installation ID from the installation URL or API response.
 
-## 7. Prove the PR lifecycle
+## 8. Prove the PR lifecycle
 
 Create a small pull request in the selected repository that changes:
 
@@ -162,12 +168,12 @@ Create a normal user comment containing the hidden marker.
 
 Synchronize the PR again and verify that Sensei updates only the app-owned comment, leaving the user comment untouched.
 
-## 8. Capture the proof receipt
+## 9. Capture the proof receipt
 
 Collect the opening, redelivery, synchronize, and stale-replay delivery IDs. Then run:
 
 ```bash
-./scripts/capture-live-proof.sh \
+bash scripts/capture-live-proof.sh \
   globulario/<test-repository> \
   <pr-number> \
   <app-id> \
@@ -179,7 +185,7 @@ Collect the opening, redelivery, synchronize, and stale-replay delivery IDs. The
 
 Commit only the proof receipt if it contains no credentials. Never commit the private key, webhook secret, package token, or raw webhook payloads containing sensitive repository information.
 
-## 9. Private-beta acceptance
+## 10. Private-beta acceptance
 
 The private beta is accepted only when:
 
