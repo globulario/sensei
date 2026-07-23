@@ -1,0 +1,37 @@
+name: GitHub App CI
+
+on:
+  pull_request:
+    paths:
+      - "github-app/**"
+      - ".github/workflows/github-app-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "github-app/**"
+      - ".github/workflows/github-app-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: github-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: github-app/go.mod
+          cache-dependency-path: github-app/go.mod
+      - name: Verify formatting
+        run: |
+          gofmt -w .
+          git diff --exit-code -- .
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
