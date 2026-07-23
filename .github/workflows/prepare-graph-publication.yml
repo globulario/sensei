@@ -175,10 +175,23 @@ jobs:
       - name: Commit proven implementation
         shell: bash
         run: |
-          set -euo pipefail
-          rm -rf .sensei-patches
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'fix(graph): stage RDF before atomic publication [engine-ack]'
-          git push origin HEAD:agent/transactional-graph-publication
+          set -o pipefail
+          {
+            set -eux
+            rm -rf .sensei-patches
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git status --short
+            git diff --stat
+            git add -A
+            git commit -m 'fix(graph): stage RDF before atomic publication [engine-ack]'
+            git push origin HEAD:agent/transactional-graph-publication
+          } 2>&1 | tee /tmp/graph-publication-commit.log
+
+      - name: Preserve commit diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: graph-publication-commit-log
+          path: /tmp/graph-publication-commit.log
+          if-no-files-found: ignore
