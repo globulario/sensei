@@ -14,6 +14,32 @@ import (
 	"testing"
 )
 
+func TestGetPullRequestIdentity(t *testing.T) {
+	client, server, requests := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/app/installations/9/access_tokens":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"token":"token","expires_at":"2099-01-01T00:00:00Z"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/globulario/example/pulls/4":
+			_, _ = w.Write([]byte(`{"base":{"sha":"base-sha"},"head":{"sha":"head-sha"}}`))
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+	})
+	defer server.Close()
+
+	identity, err := client.GetPullRequestIdentity(context.Background(), 9, "globulario", "example", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identity.BaseSHA != "base-sha" || identity.HeadSHA != "head-sha" {
+		t.Fatalf("identity = %#v", identity)
+	}
+	if requests.Load() != 2 {
+		t.Fatalf("requests = %d, want 2", requests.Load())
+	}
+}
+
 func TestUpsertIssueCommentUpdatesExistingOwnedMarker(t *testing.T) {
 	client, server, requests := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
