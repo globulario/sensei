@@ -23,16 +23,16 @@ jobs:
         with:
           go-version: '1.25'
           cache-dependency-path: go.sum
-      - name: Fetch and apply exact implementation patch
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Reassemble exact implementation patch
         shell: bash
         run: |
-          curl -fsSL \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/git/blobs/6d006b07caab33ed7428395c588b617ad11cefbe" \
-            | jq -r '.content' | base64 -d > /tmp/symbol-aware-briefing.patch
+          cat .github/patch.part.00 .github/patch.part.01 .github/patch.part.02 > /tmp/symbol-aware-briefing.patch.b64
+          echo 'ad14519cfcfac204fd73c59fe5301d4c4d21d8ce8ae7ff75cde1df93a62096cd  /tmp/symbol-aware-briefing.patch.b64' | sha256sum -c -
+          base64 -d /tmp/symbol-aware-briefing.patch.b64 > /tmp/symbol-aware-briefing.patch
+          echo '8b51da67b8a114a5e1cba23a88ccccf14930b7bbb1fb6198ca39be8a7683d3c9  /tmp/symbol-aware-briefing.patch' | sha256sum -c -
+      - name: Apply and format implementation
+        shell: bash
+        run: |
           git apply --check /tmp/symbol-aware-briefing.patch
           git apply /tmp/symbol-aware-briefing.patch
           gofmt -w \
@@ -52,9 +52,10 @@ jobs:
         run: |
           go test ./golang/scipingest -run TestIngest_Symbols -count=1
           go test ./golang/server -run 'TestCodeSymbolIDFromIRI|TestBriefing_Provenance_RenderedForPromotedRule' -count=1
-      - name: Publish verified implementation and remove temporary workflow
+      - name: Publish verified implementation and remove temporary transfer files
         shell: bash
         run: |
+          rm .github/patch.part.00 .github/patch.part.01 .github/patch.part.02
           rm .github/workflows/temporary-source-export.yml
           git config user.name 'Codex'
           git config user.email 'codex@openai.invalid'
