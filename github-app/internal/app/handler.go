@@ -19,6 +19,7 @@ const maxWebhookBody = 5 << 20
 
 // GitHubClient is the narrow GitHub surface used by the webhook processor.
 type GitHubClient interface {
+	GetPullRequestIdentity(context.Context, int64, string, string, int) (githubapi.PullRequestIdentity, error)
 	ListPullRequestFiles(context.Context, int64, string, string, int) ([]githubapi.PullRequestFile, error)
 	UpsertIssueComment(context.Context, int64, string, string, int, string, string) error
 	UpsertCheckRun(context.Context, int64, string, string, string, string, string, string) error
@@ -97,6 +98,15 @@ func (h *Handler) handlePullRequest(ctx context.Context, body []byte) error {
 		return errors.New("pull request event is missing immutable analysis identity")
 	}
 
+	identity, err := h.currentIdentity(ctx, event)
+	if err != nil {
+		return err
+	}
+	if !matchesEvent(event, identity) {
+		h.logStaleEvent(event, identity, "before file collection")
+		return nil
+	}
+
 	files, err := h.github.ListPullRequestFiles(
 		ctx,
 		event.Installation.ID,
@@ -106,6 +116,15 @@ func (h *Handler) handlePullRequest(ctx context.Context, body []byte) error {
 	)
 	if err != nil {
 		return err
+	}
+
+	identity, err = h.currentIdentity(ctx, event)
+	if err != nil {
+		return err
+	}
+	if !matchesEvent(event, identity) {
+		h.logStaleEvent(event, identity, "after file collection")
+		return nil
 	}
 
 	report := briefing.Build(briefing.Input{
@@ -148,4 +167,35 @@ func (h *Handler) handlePullRequest(ctx context.Context, body []byte) error {
 		"changed_files", len(files),
 	)
 	return nil
+}
+
+func (h *Handler) currentIdentity(ctx context.Context, event webhook.PullRequestEvent) (githubapi.PullRequestIdentity, error) {
+	identity, err := h.github.GetPullRequestIdentity(
+		ctx,
+		event.Installation.ID,
+		event.Repository.Owner.Login,
+		event.Repository.Name,
+		event.PullRequest.Number,
+	)
+	if err != nil {
+		return githubapi.PullRequestIdentity{}, err
+	}
+	return identity, nil
+}
+
+func matchesEvent(event webhook.PullRequestEvent, identity githubapi.PullRequestIdentity) bool {
+	return event.PullRequest.Base.SHA == identity.BaseSHA && event.PullRequest.Head.SHA == identity.HeadSHA
+}
+
+func (h *Handler) logStaleEvent(event webhook.PullRequestEvent, identity githubapi.PullRequestIdentity, stage string) {
+	h.logger.Info(
+		"discarded stale pull request delivery",
+		"repository", event.Repository.FullName,
+		"pull_request", event.PullRequest.Number,
+		"stage", stage,
+		"event_base_sha", event.PullRequest.Base.SHA,
+		"event_head_sha", event.PullRequest.Head.SHA,
+		"current_base_sha", identity.BaseSHA,
+		"current_head_sha", identity.HeadSHA,
+	)
 }
