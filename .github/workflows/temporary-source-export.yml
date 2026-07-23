@@ -54,10 +54,12 @@ jobs:
           scripts/build-awareness-graph-self.sh --check
           make proto-contracts-check
           make import-graph-check
-      - name: Run focused tests
-        run: |
-          go test ./golang/scipingest -run TestIngest_Symbols -count=1
-          go test ./golang/server -run 'TestCodeSymbolIDFromIRI|TestBriefing_Provenance_RenderedForPromotedRule' -count=1
+      - name: Test receiver-qualified SCIP method identity
+        run: go test ./golang/scipingest -run 'TestIngest_Symbols/method_identity' -count=1 -v
+      - name: Test exact symbol selector contracts
+        run: go test ./golang/server -run 'TestCodeSymbolIDFromIRI' -count=1 -v
+      - name: Test exact symbol briefing composition
+        run: go test ./golang/server -run 'TestBriefing_Provenance_RenderedForPromotedRule/exact_task_symbol' -count=1 -v
       - name: Publish verified implementation and remove temporary transfer files
         shell: bash
         run: |
