@@ -14,11 +14,11 @@ const (
 
 // Config contains the immutable process configuration for the GitHub App.
 type Config struct {
-	AppID          string
-	PrivateKeyPEM  []byte
-	WebhookSecret  []byte
-	ListenAddr     string
-	GitHubAPIURL   string
+	AppID         string
+	PrivateKeyPEM []byte
+	WebhookSecret []byte
+	ListenAddr    string
+	GitHubAPIURL  string
 }
 
 // Load reads and validates process configuration from the environment.
