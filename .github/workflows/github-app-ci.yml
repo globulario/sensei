@@ -29,7 +29,7 @@ jobs:
           cache-dependency-path: github-app/go.mod
       - name: Verify formatting
         run: |
-          files="$(gofmt -l .)"
+          files="$(find . -type f -name '*.go' -print0 | xargs -0 gofmt -l)"
           if [ -n "$files" ]; then
             printf 'The following files require gofmt:\n%s\n' "$files"
             exit 1
