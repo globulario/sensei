@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -33,9 +34,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
-	webhookSecret := os.Getenv("SENSEI_GITHUB_WEBHOOK_SECRET")
-	if webhookSecret == "" {
-		return Config{}, errors.New("SENSEI_GITHUB_WEBHOOK_SECRET is required")
+	webhookSecret, err := loadWebhookSecret()
+	if err != nil {
+		return Config{}, err
 	}
 
 	listenAddr := strings.TrimSpace(os.Getenv("SENSEI_GITHUB_LISTEN_ADDR"))
@@ -51,7 +52,7 @@ func Load() (Config, error) {
 	return Config{
 		AppID:         appID,
 		PrivateKeyPEM: privateKey,
-		WebhookSecret: []byte(webhookSecret),
+		WebhookSecret: webhookSecret,
 		ListenAddr:    listenAddr,
 		GitHubAPIURL:  apiURL,
 	}, nil
@@ -71,6 +72,27 @@ func loadPrivateKey() ([]byte, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read GitHub App private key: %w", err)
+	}
+	return content, nil
+}
+
+func loadWebhookSecret() ([]byte, error) {
+	if value := os.Getenv("SENSEI_GITHUB_WEBHOOK_SECRET"); value != "" {
+		return []byte(value), nil
+	}
+
+	path := strings.TrimSpace(os.Getenv("SENSEI_GITHUB_WEBHOOK_SECRET_FILE"))
+	if path == "" {
+		return nil, errors.New("SENSEI_GITHUB_WEBHOOK_SECRET or SENSEI_GITHUB_WEBHOOK_SECRET_FILE is required")
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read GitHub App webhook secret: %w", err)
+	}
+	content = bytes.TrimSpace(content)
+	if len(content) == 0 {
+		return nil, errors.New("GitHub App webhook secret file is empty")
 	}
 	return content, nil
 }
