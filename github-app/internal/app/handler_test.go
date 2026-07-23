@@ -18,12 +18,12 @@ import (
 )
 
 type fakeGitHubClient struct {
-	files          []githubapi.PullRequestFile
-	commentCalls   int
-	checkCalls     int
-	commentBody    string
-	checkHeadSHA   string
-	checkExternal  string
+	files         []githubapi.PullRequestFile
+	commentCalls  int
+	checkCalls    int
+	commentBody   string
+	checkHeadSHA  string
+	checkExternal string
 }
 
 func (f *fakeGitHubClient) ListPullRequestFiles(context.Context, int64, string, string, int) ([]githubapi.PullRequestFile, error) {
