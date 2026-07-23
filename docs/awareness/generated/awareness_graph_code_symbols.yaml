@@ -5043,6 +5043,66 @@ test_symbols:
     package: orders
     language: go
     doc: "TestOrderTotal_DiscountStaysExactInteger is the required test named by the\ninvariant. It proves the scar: on a $9.99 order the unsafe float path yields\n899 cents while the AWG-guided integer path yields the exact 900 — a silent\none-cent divergence that is real money across orders."
+  - id: github-app/internal/app/handler_test.go:TestHandlerDiscardsDeliveryAlreadyStale
+    file: github-app/internal/app/handler_test.go
+    symbol: TestHandlerDiscardsDeliveryAlreadyStale
+    package: app
+    language: go
+  - id: github-app/internal/app/handler_test.go:TestHandlerDiscardsDeliveryThatRacesWithNewCommit
+    file: github-app/internal/app/handler_test.go
+    symbol: TestHandlerDiscardsDeliveryThatRacesWithNewCommit
+    package: app
+    language: go
+  - id: github-app/internal/app/handler_test.go:TestHandlerProcessesSupportedPullRequest
+    file: github-app/internal/app/handler_test.go
+    symbol: TestHandlerProcessesSupportedPullRequest
+    package: app
+    language: go
+  - id: github-app/internal/app/handler_test.go:TestHandlerRejectsInvalidSignature
+    file: github-app/internal/app/handler_test.go
+    symbol: TestHandlerRejectsInvalidSignature
+    package: app
+    language: go
+  - id: github-app/internal/briefing/briefing_test.go:TestBuildIsDeterministic
+    file: github-app/internal/briefing/briefing_test.go
+    symbol: TestBuildIsDeterministic
+    package: briefing
+    language: go
+  - id: github-app/internal/github/auth_test.go:TestInstallationTokenExchangeAndCache
+    file: github-app/internal/github/auth_test.go
+    symbol: TestInstallationTokenExchangeAndCache
+    package: github
+    language: go
+  - id: github-app/internal/github/client_test.go:TestGetPullRequestIdentity
+    file: github-app/internal/github/client_test.go
+    symbol: TestGetPullRequestIdentity
+    package: github
+    language: go
+  - id: github-app/internal/github/client_test.go:TestUpsertCheckRunUpdatesMatchingOwnedExternalID
+    file: github-app/internal/github/client_test.go
+    symbol: TestUpsertCheckRunUpdatesMatchingOwnedExternalID
+    package: github
+    language: go
+  - id: github-app/internal/github/client_test.go:TestUpsertIssueCommentDoesNotOverwriteSpoofedMarker
+    file: github-app/internal/github/client_test.go
+    symbol: TestUpsertIssueCommentDoesNotOverwriteSpoofedMarker
+    package: github
+    language: go
+  - id: github-app/internal/github/client_test.go:TestUpsertIssueCommentUpdatesExistingOwnedMarker
+    file: github-app/internal/github/client_test.go
+    symbol: TestUpsertIssueCommentUpdatesExistingOwnedMarker
+    package: github
+    language: go
+  - id: github-app/internal/webhook/verify_test.go:TestVerifySignature
+    file: github-app/internal/webhook/verify_test.go
+    symbol: TestVerifySignature
+    package: webhook
+    language: go
+  - id: github-app/internal/webhook/verify_test.go:TestVerifySignatureRejectsTampering
+    file: github-app/internal/webhook/verify_test.go
+    symbol: TestVerifySignatureRejectsTampering
+    package: webhook
+    language: go
   - id: golang/architecture/admission/admission_ledger_test.go:TestAdmissionLedgerRecordsChain
     file: golang/architecture/admission/admission_ledger_test.go
     symbol: TestAdmissionLedgerRecordsChain
