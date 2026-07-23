@@ -5,12 +5,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -305,35 +307,44 @@ func queryEndpointPath(p string) string {
 }
 
 // runScopedRepoUpdate performs a non-destructive, domain-scoped store update for
-// `sensei build --repo <domain>`. It deletes only the target domain's slice
-// (subjects tagged aw:repo == domain, sole-owner), appends the freshly compiled
-// slice, then recomputes the single whole-graph marker over the post-update
-// store — leaving every other domain, shared nodes, and the home slice intact.
+// `sensei build --repo <domain>`. The complete candidate generation is derived
+// and validated before publication. Its replacement slice is loaded as real
+// N-Triples into an isolated staging graph, then one SPARQL control transaction
+// swaps that graph into the default graph. Raw RDF bytes are never embedded in
+// SPARQL text.
 func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
-	// Compile the domain slice: dedup, but DO NOT stamp a per-slice marker — the
-	// whole-graph marker is recomputed over the live store after the update.
+	// Compile the domain slice: dedup, but DO NOT stamp a per-slice marker. The
+	// whole-graph marker is calculated from the complete post-update generation.
 	sliceNT, uniqueCount, dupCount := extractor.DedupNTriples(rawProjectNT)
 	if len(bytes.TrimSpace(sliceNT)) == 0 {
 		fmt.Fprintf(os.Stderr, "sensei build: --repo %s produced no triples (nothing to update)\n", domain)
 		return 1
 	}
-	// Guard: the slice MUST be attributed to this domain, or a later scoped
-	// DELETE could never reclaim it and it would pollute the untagged home
-	// scope. The extractor stamps aw:repo when the repo scope is set.
+	// The slice MUST be attributed to this domain. Otherwise no later scoped
+	// rebuild could reclaim it and it would pollute the untagged home scope.
 	repoTag := fmt.Sprintf("<%srepo> %q", seedmeta.NamespaceIRI, domain)
 	if !bytes.Contains(sliceNT, []byte(repoTag)) {
-		fmt.Fprintf(os.Stderr, "sensei build: compiled slice for --repo %s carries no %s tag — refusing to insert untagged triples into the store.\n", domain, repoTag)
+		fmt.Fprintf(os.Stderr, "sensei build: compiled slice for --repo %s carries no %s tag — refusing to publish untagged triples.\n", domain, repoTag)
 		fmt.Fprintln(os.Stderr, "  (The extractor did not receive the repo scope; this is a build-wiring bug, not a store issue.)")
+		return 1
+	}
+	if errs := extractor.ValidateNTriples(bytes.NewReader(sliceNT)); len(errs) > 0 {
+		for i, e := range errs {
+			if i >= 20 {
+				fmt.Fprintf(os.Stderr, "sensei build: ... %d more errors\n", len(errs)-i)
+				break
+			}
+			fmt.Fprintf(os.Stderr, "sensei build: %s\n", e)
+		}
 		return 1
 	}
 	if dupCount > 0 {
 		fmt.Fprintf(os.Stderr, "  dedup: %d duplicate triple(s) suppressed\n", dupCount)
 	}
 
-	// Resolve the query endpoint and construct a store client.
 	storeEndpoint, err := normalizeStoreURL(storeURLFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: invalid --store-url: %v\n", err)
@@ -351,6 +362,21 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 	}
 	defer client.Close()
 
+	// All local publishers targeting the same store serialize around the complete
+	// read -> stage -> promote -> verify sequence. CI and hosted workers use an
+	// isolated store, while this lock protects the shared local-service topology.
+	lockPath, err := graphPublicationLockPath(storeEndpoint)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: resolve graph publication lock: %v\n", err)
+		return 1
+	}
+	lockFile, err := acquireGraphPublicationLock(lockPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: acquire graph publication lock: %v\n", err)
+		return 1
+	}
+	defer lockFile.Close()
+
 	if err := client.Health(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: store not reachable: %v\n", err)
 		fmt.Fprintln(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve` or `bash ./scripts/install-sensei-user-services.sh`.")
@@ -361,37 +387,63 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 		fmt.Fprintf(os.Stderr, "sensei build: count live triples: %v\n", err)
 		return 1
 	}
-	if before == 0 {
-		fmt.Fprintf(os.Stderr, "sensei build: store is empty — a scoped --repo update needs an existing graph.\n  Run `sensei build --all` (or seed the store) first, then update individual domains with --repo.\n")
-		return 1
-	}
 
-	// Read the complete pre-update store and derive the exact post-update graph
-	// before publishing anything. The replacement below is one SPARQL Update:
-	// publishing the delete, domain slice, and whole-graph marker separately can
-	// leave a served store stale if the process dies after the slice append.
+	// Derive the exact candidate generation while the served default graph is
+	// untouched. An empty store is a valid first publication.
 	fullBase, err := client.DumpNTriples(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: dump store for marker recompute: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei build: dump store for candidate generation: %v\n", err)
+		return 1
+	}
+	if got := int64(countNTriples(fullBase)); got != before {
+		fmt.Fprintf(os.Stderr, "sensei build: incomplete store dump (%d triples read vs %d live) — refusing publication.\n", got, before)
 		return 1
 	}
 	retainedBase := retainScopedGraph(fullBase, domain)
 	postUpdateBase := append(append([]byte{}, retainedBase...), sliceNT...)
 	postUpdateBase, _, _ = extractor.DedupNTriples(postUpdateBase)
 	fullWithMarker, marker := seedmeta.AppendMarker(postUpdateBase)
-	insertNT := append(append([]byte{}, sliceNT...), seedmeta.MarkerTriples(marker)...)
-	if err := client.Update(ctx, scopedReplaceUpdate(domain, insertNT)); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: scoped replacement for %s: %v\n", domain, err)
-		return 1
-	}
-	// Verify the live store now matches the recomputed marker.
-	verification := seedmeta.VerifyLiveStore(ctx, client, marker)
-	if verification.State != seedmeta.FreshnessCurrent {
-		fmt.Fprintf(os.Stderr, "sensei build: post-update verification failed: %s\n", verification.Detail)
+	if errs := extractor.ValidateNTriples(bytes.NewReader(fullWithMarker)); len(errs) > 0 {
+		fmt.Fprintf(os.Stderr, "sensei build: candidate generation is invalid: %s\n", errs[0])
 		return 1
 	}
 
-	// 6. Publish the marker file (+ optional runtime transaction).
+	// Only the replacement slice and its global marker are staged. Other domains
+	// remain in the default graph and are untouched by the promotion transaction.
+	stagedNT := append(append([]byte{}, sliceNT...), seedmeta.MarkerTriples(marker)...)
+	stagingIRI := graphStagingIRI(marker)
+	if err := putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: stage candidate generation for %s: %v\n", domain, err)
+		return 1
+	}
+
+	promotionErr := client.Update(ctx, scopedPromoteStagingUpdate(domain, stagingIRI))
+	if promotionErr != nil {
+		// A lost HTTP response is ambiguous: the store may have committed the
+		// transaction before the client observed the transport failure. Resolve the
+		// outcome with a fresh context because the promotion context itself may have
+		// expired even though Oxigraph committed before the connection was lost.
+		verifyCtx, verifyCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		verification := seedmeta.VerifyLiveStore(verifyCtx, client, marker)
+		verifyCancel()
+		if verification.State != seedmeta.FreshnessCurrent {
+			_ = deleteNamedGraph(context.Background(), storeEndpoint, stagingIRI)
+			fmt.Fprintf(os.Stderr, "sensei build: promote staged generation for %s: %v\n", domain, promotionErr)
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "  promotion response was ambiguous, but live marker %s verifies the transaction committed\n", marker.Digest[:12])
+	}
+
+	verification := seedmeta.VerifyLiveStore(ctx, client, marker)
+	if verification.State != seedmeta.FreshnessCurrent {
+		_ = deleteNamedGraph(context.Background(), storeEndpoint, stagingIRI)
+		fmt.Fprintf(os.Stderr, "sensei build: post-publication verification failed: %s\n", verification.Detail)
+		return 1
+	}
+	// The transactional update drops the staging graph. DELETE is an idempotent
+	// cleanup for backends or interrupted attempts that left it behind.
+	_ = deleteNamedGraph(context.Background(), storeEndpoint, stagingIRI)
+
 	markerPath := graphMarkerFile
 	if markerPath == "" {
 		markerPath, err = defaultRuntimeMarkerFile()
@@ -429,7 +481,7 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "  domain %s: %d triple(s) rebuilt in place; store now %d triples (was %d)\n", domain, uniqueCount, marker.TripleCount, before)
+	fmt.Fprintf(os.Stderr, "  domain %s: %d triple(s) published; store now %d triples (was %d)\n", domain, uniqueCount, marker.TripleCount, before)
 	fmt.Fprintf(os.Stderr, "  marker file: %s\n", markerPath)
 	fmt.Fprintln(os.Stdout, "Build complete.")
 	return 0
@@ -437,7 +489,7 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 
 // retainScopedGraph returns the pre-update graph without the target domain's
 // solely-owned subjects or any prior whole-graph marker. It mirrors the scoped
-// DELETE predicate so the marker can be calculated before the atomic update.
+// DELETE predicate so the candidate marker is calculated before publication.
 func retainScopedGraph(nt []byte, domain string) []byte {
 	const rdfType = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"
 	repoPredicate := "<" + seedmeta.NamespaceIRI + "repo>"
@@ -494,8 +546,7 @@ func ntriplesLiteral(rest string) (string, bool) {
 }
 
 // queryURLFromStore derives the SPARQL query endpoint from a Graph Store
-// endpoint (…/store?default → …/query), reusing queryEndpointPath's suffix
-// normalization so it tolerates /store, /query, or a bare path.
+// endpoint (.../store?default -> .../query).
 func queryURLFromStore(storeEndpoint string) (string, error) {
 	u, err := url.Parse(storeEndpoint)
 	if err != nil {
@@ -506,12 +557,82 @@ func queryURLFromStore(storeEndpoint string) (string, error) {
 	return u.String(), nil
 }
 
-// scopedDeleteUpdate builds the SPARQL Update that clears one domain's slice
-// before it is re-appended. It removes (a) every triple whose subject is
-// attributed SOLELY to domain — a subject co-owned by another repo (a second
-// aw:repo literal) is preserved so a scoped rebuild never damages another
-// domain — and (b) the stale whole-graph marker node, which is restamped after
-// the append.
+func graphStagingIRI(marker seedmeta.Marker) string {
+	return "urn:sensei:graph-staging:sha256:" + marker.Digest
+}
+
+func namedGraphStoreURL(storeEndpoint, graphIRI string) (string, error) {
+	u, err := url.Parse(storeEndpoint)
+	if err != nil {
+		return "", err
+	}
+	q := u.Query()
+	q.Del("default")
+	q.Set("graph", graphIRI)
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
+func putNamedGraph(ctx context.Context, storeEndpoint, graphIRI string, nt []byte) error {
+	u, err := namedGraphStoreURL(storeEndpoint, graphIRI)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Timeout: 60 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, bytes.NewReader(nt))
+	if err != nil {
+		return fmt.Errorf("build staging request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/n-triples")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+func deleteNamedGraph(ctx context.Context, storeEndpoint, graphIRI string) error {
+	u, err := namedGraphStoreURL(storeEndpoint, graphIRI)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u, nil)
+	if err != nil {
+		return fmt.Errorf("build staging cleanup request: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+func graphPublicationLockPath(storeEndpoint string) (string, error) {
+	base, err := os.UserCacheDir()
+	if err != nil || strings.TrimSpace(base) == "" {
+		base = os.TempDir()
+	}
+	dir := filepath.Join(base, "sensei", "locks")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256([]byte(storeEndpoint))
+	return filepath.Join(dir, fmt.Sprintf("graph-publication-%x.lock", digest[:12])), nil
+}
+
+// scopedDeleteUpdate clears the target domain's solely-owned subjects and the
+// prior whole-graph marker. Co-owned nodes survive.
 func scopedDeleteUpdate(domain string) string {
 	d := sparqlEscapeLiteral(domain)
 	repoP := seedmeta.NamespaceIRI + "repo"
@@ -530,11 +651,10 @@ func scopedDeleteUpdate(domain string) string {
 }`, repoP, d, repoP, d, seedClass)
 }
 
-// scopedReplaceUpdate applies the scoped delete and the complete replacement
-// payload in one store request. SPARQL Update executes the request atomically,
-// so a partial publication can never expose a slice without its matching marker.
-func scopedReplaceUpdate(domain string, insertNT []byte) string {
-	return scopedDeleteUpdate(domain) + ";\nINSERT DATA {\n" + string(insertNT) + "}\n"
+// scopedPromoteStagingUpdate contains control operations only. RDF content is
+// already parsed by Oxigraph through Graph Store Protocol before this request.
+func scopedPromoteStagingUpdate(domain, stagingIRI string) string {
+	return scopedDeleteUpdate(domain) + ";\nADD GRAPH <" + stagingIRI + "> TO DEFAULT;\nDROP GRAPH <" + stagingIRI + ">"
 }
 
 // sparqlEscapeLiteral escapes a Go string for use inside a SPARQL double-quoted

@@ -1,0 +1,38 @@
+required_tests:
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_NonDestructive
+    title: Scoped publication stages RDF and preserves non-target domains
+    protects:
+      invariants:
+        - awareness.graph_publication_stages_rdf_before_atomic_promotion
+      files:
+        - cmd/awg/cmd_build.go
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_StageFailurePreservesLiveGraph
+    title: Staging failure preserves the active graph
+    protects:
+      failure_modes:
+        - awareness.graph_publication_embeds_rdf_or_exposes_partial_generation
+      files:
+        - cmd/awg/cmd_build.go
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_PromotionFailurePreservesLiveGraphAndCleansStage
+    title: Rejected promotion preserves the active graph and cleans staging
+    protects:
+      failure_modes:
+        - awareness.graph_publication_embeds_rdf_or_exposes_partial_generation
+      files:
+        - cmd/awg/cmd_build.go
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_AmbiguousResponseResolvedByLiveMarker
+    title: Ambiguous promotion response is resolved from the live marker
+    protects:
+      invariants:
+        - awareness.graph_publication_stages_rdf_before_atomic_promotion
+      files:
+        - cmd/awg/cmd_build.go
+  - id: cmd/awg/cmd_build_integration_test.go:TestIntegration_ScopedRepoPublication_RealOxigraph
+    title: Real Oxigraph accepts staged current-corpus publication
+    protects:
+      invariants:
+        - awareness.graph_publication_stages_rdf_before_atomic_promotion
+      failure_modes:
+        - awareness.graph_publication_embeds_rdf_or_exposes_partial_generation
+      files:
+        - cmd/awg/cmd_build.go

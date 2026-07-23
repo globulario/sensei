@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -181,128 +182,103 @@ func TestRunBuild_FailsClosedWithoutScope(t *testing.T) {
 }
 
 // TestRunBuild_ScopedRepoUpdate_NonDestructive exercises the --repo path end to
-// end against a stateful fake store: it must issue a scoped SPARQL DELETE (not a
-// whole-graph PUT), append the compiled slice and then the recomputed marker,
-// and publish a marker file that matches the marker recomputed over the
-// post-update store contents.
+// end against a stateful fake store. RDF is first loaded through Graph Store
+// Protocol into a named staging graph. The default graph is then changed by one
+// control-only SPARQL transaction, never by embedding raw N-Triples in SPARQL.
 func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
-	repo := t.TempDir()
-	awarenessDir := filepath.Join(repo, "docs", "awareness")
-	if err := os.MkdirAll(awarenessDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := copyFixtureYAMLs(filepath.Join("..", "..", "golang", "extractor", "testdata"), awarenessDir); err != nil {
-		t.Fatal(err)
-	}
-	initGitRepo(t, repo)
-	markerPath := filepath.Join(repo, ".awg", "graph-authority.json")
-	txPath := seedmeta.RuntimeTransactionPath(markerPath)
-
+	repo, awarenessDir, markerPath, txPath := scopedBuildFixture(t)
 	const domain = "github.com/test/scoped"
 
-	// The bytes GET /store returns — the "post-update" store the scoped build
-	// recomputes its whole-graph marker over.
-	base := []byte(
-		"<https://example.test/a> <https://globular.io/awareness#repo> \"" + domain + "\" .\n" +
-			"<https://example.test/a> <https://example.test/p> \"x\" .\n" +
-			"<https://example.test/b> <https://example.test/p> \"home\" .\n")
+	baseWithoutMarker := []byte(
+		"<https://example.test/old> <https://globular.io/awareness#repo> \"" + domain + "\" .\n" +
+			"<https://example.test/old> <https://example.test/p> \"replace me\" .\n" +
+			"<https://example.test/other> <https://globular.io/awareness#repo> \"github.com/test/other\" .\n" +
+			"<https://example.test/other> <https://example.test/p> \"preserve me\" .\n")
+	currentLive, _ := seedmeta.AppendMarker(baseWithoutMarker)
 	var (
-		updateBodies []string
-		appendBodies []string
-		markerLoaded bool
-		expected     seedmeta.Marker
+		staged           []byte
+		updateBodies     []string
+		stagingPuts      int
+		stagingDeletes   int
+		defaultMutations int
 	)
-	liveCount := func() int64 {
-		if markerLoaded {
-			return expected.TripleCount
-		}
-		var n int64
-		for _, ln := range strings.Split(string(base), "\n") {
-			if strings.TrimSpace(ln) != "" {
-				n++
-			}
-		}
-		return n
-	}
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/update":
-			b, _ := io.ReadAll(r.Body)
-			updateBodies = append(updateBodies, string(b))
-			var ok bool
-			expected, ok = seedmeta.ParseMarker(b)
-			if !ok {
-				t.Fatalf("scoped update did not carry a whole-graph marker:\n%s", string(b))
-			}
-			markerLoaded = true
-			w.WriteHeader(http.StatusNoContent)
-		case r.URL.Path == "/store" && r.Method == http.MethodPost:
-			b, _ := io.ReadAll(r.Body)
-			body := string(b)
-			appendBodies = append(appendBodies, body)
-			if strings.Contains(body, "SeedBuild") {
-				markerLoaded = true
-			}
-			w.WriteHeader(http.StatusNoContent)
-		case r.URL.Path == "/store" && r.Method == http.MethodGet:
+		case r.URL.Path == "/store" && r.Method == http.MethodGet && r.URL.Query().Has("default"):
 			w.Header().Set("Content-Type", "application/n-triples")
-			_, _ = w.Write(base)
+			_, _ = w.Write(currentLive)
+		case r.URL.Path == "/store" && r.Method == http.MethodPut && r.URL.Query().Get("graph") != "":
+			stagingPuts++
+			staged, _ = io.ReadAll(r.Body)
+			if got := r.Header.Get("Content-Type"); got != "application/n-triples" {
+				t.Fatalf("staging Content-Type=%q", got)
+			}
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/store" && r.Method == http.MethodDelete && r.URL.Query().Get("graph") != "":
+			stagingDeletes++
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/store" && (r.Method == http.MethodPost || (r.Method == http.MethodPut && r.URL.Query().Has("default"))):
+			defaultMutations++
+			w.WriteHeader(http.StatusInternalServerError)
+		case r.URL.Path == "/update":
+			body, _ := io.ReadAll(r.Body)
+			updateBodies = append(updateBodies, string(body))
+			if len(staged) == 0 {
+				t.Fatal("promotion occurred before candidate graph was staged")
+			}
+			currentLive = append(retainScopedGraph(currentLive, domain), staged...)
+			w.WriteHeader(http.StatusNoContent)
 		case r.URL.Path == "/query":
 			body := readQueryBody(t, r)
-			w.Header().Set("Content-Type", "application/sparql-results+json")
-			switch {
-			case strings.Contains(body, "ASK"):
+			if strings.Contains(body, "ASK") {
+				w.Header().Set("Content-Type", "application/sparql-results+json")
 				_, _ = w.Write([]byte(`{"head":{},"boolean":true}`))
-			case strings.Contains(body, "COUNT(*)"):
-				_, _ = w.Write([]byte(`{"results":{"bindings":[{"n":{"value":"` + itoa(liveCount()) + `"}}]}}`))
-			case strings.Contains(body, "COUNT(DISTINCT ?s)") && strings.Contains(body, "SeedBuild"):
-				_, _ = w.Write([]byte(`{"results":{"bindings":[{"n":{"value":"1"}}]}}`))
-			default: // Describe(marker)
-				_, _ = w.Write([]byte(`{"results":{"bindings":[` +
-					`{"p":{"type":"uri","value":"https://globular.io/awareness#seedDigestSha256"},"o":{"type":"literal","value":"` + expected.Digest + `"}},` +
-					`{"p":{"type":"uri","value":"https://globular.io/awareness#seedTripleCount"},"o":{"type":"literal","value":"` + itoa(expected.TripleCount) + `"}}` +
-					`]}}`))
+				return
 			}
+			writeVerificationQuery(t, w, currentLive, body)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	defer ts.Close()
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.Chdir(cwd) }()
-	if err := os.Chdir(repo); err != nil {
-		t.Fatal(err)
-	}
-
-	code := runBuild([]string{
-		"-input", awarenessDir,
-		"-repo", domain,
-		"-store-url", ts.URL + "/store?default",
-		"-graph-marker-file", markerPath,
-		"-graph-transaction-file", txPath,
-		"-ag-repo", repo,
-	})
+	code := runScopedBuildInRepo(t, repo, awarenessDir, markerPath, txPath, domain, ts.URL+"/store?default")
 	if code != 0 {
 		t.Fatalf("scoped runBuild code=%d, want 0", code)
 	}
-
-	// One scoped replacement request names the domain + marker class and carries
-	// the replacement slice plus its recomputed marker. It must not split delete,
-	// slice append, and marker append into independently interruptible requests.
+	if stagingPuts != 1 {
+		t.Fatalf("staging PUTs=%d, want 1", stagingPuts)
+	}
+	if stagingDeletes == 0 {
+		t.Fatal("staging graph was not cleaned up")
+	}
+	if defaultMutations != 0 {
+		t.Fatalf("default graph direct mutations=%d, want 0", defaultMutations)
+	}
 	if len(updateBodies) != 1 {
 		t.Fatalf("update calls=%d, want 1", len(updateBodies))
 	}
-	if !strings.Contains(updateBodies[0], domain) || !strings.Contains(updateBodies[0], "SeedBuild") || !strings.Contains(updateBodies[0], "INSERT DATA") {
-		t.Fatalf("scoped replacement missing domain/SeedBuild/INSERT DATA:\n%s", updateBodies[0])
+	update := updateBodies[0]
+	for _, want := range []string{domain, "SeedBuild", "ADD GRAPH <urn:sensei:graph-staging:sha256:", "TO DEFAULT", "DROP GRAPH"} {
+		if !strings.Contains(update, want) {
+			t.Fatalf("promotion update missing %q:\n%s", want, update)
+		}
 	}
-	if len(appendBodies) != 0 {
-		t.Fatalf("append calls=%d, want 0; scoped replacement must be atomic", len(appendBodies))
+	if strings.Contains(update, "INSERT DATA") || strings.Contains(update, string(staged)) {
+		t.Fatalf("promotion update embeds RDF payload instead of control operations:\n%s", update)
 	}
-	// Marker file matches the marker recomputed over the post-update store.
+	if !bytes.Contains(staged, []byte(domain)) || !bytes.Contains(staged, []byte("SeedBuild")) {
+		t.Fatalf("staging payload lacks replacement domain or marker:\n%s", staged)
+	}
+	if bytes.Contains(currentLive, []byte("replace me")) || !bytes.Contains(currentLive, []byte("preserve me")) {
+		t.Fatalf("scoped publication did not replace only the target domain:\n%s", currentLive)
+	}
+
+	expected, ok := seedmeta.ParseMarker(currentLive)
+	if !ok {
+		t.Fatal("published graph missing marker")
+	}
 	written, err := seedmeta.ReadMarkerFile(markerPath)
 	if err != nil {
 		t.Fatalf("read marker file: %v", err)
@@ -315,8 +291,175 @@ func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
 		t.Fatalf("read transaction file: %v", err)
 	}
 	if !bytes.Contains(txBytes, []byte("seed\tdigest_sha256\t"+expected.Digest)) {
-		t.Fatalf("transaction file missing recomputed graph digest:\n%s", string(txBytes))
+		t.Fatalf("transaction file missing published graph digest:\n%s", txBytes)
 	}
+}
+
+func TestRunBuild_ScopedRepoUpdate_StageFailurePreservesLiveGraph(t *testing.T) {
+	repo, awarenessDir, markerPath, txPath := scopedBuildFixture(t)
+	const domain = "github.com/test/scoped"
+	currentLive, oldMarker := seedmeta.AppendMarker([]byte(
+		"<https://example.test/old> <https://globular.io/awareness#repo> \"" + domain + "\" .\n" +
+			"<https://example.test/old> <https://example.test/p> \"still live\" .\n"))
+	var updateCalls int
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/store" && r.Method == http.MethodGet:
+			_, _ = w.Write(currentLive)
+		case r.URL.Path == "/store" && r.Method == http.MethodPut && r.URL.Query().Get("graph") != "":
+			http.Error(w, "injected staging failure", http.StatusBadRequest)
+		case r.URL.Path == "/update":
+			updateCalls++
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/query":
+			body := readQueryBody(t, r)
+			if strings.Contains(body, "ASK") {
+				w.Header().Set("Content-Type", "application/sparql-results+json")
+				_, _ = w.Write([]byte(`{"head":{},"boolean":true}`))
+				return
+			}
+			writeVerificationQuery(t, w, currentLive, body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	if code := runScopedBuildInRepo(t, repo, awarenessDir, markerPath, txPath, domain, ts.URL+"/store?default"); code == 0 {
+		t.Fatal("stage failure unexpectedly succeeded")
+	}
+	if updateCalls != 0 {
+		t.Fatalf("promotion calls=%d, want 0 after staging failure", updateCalls)
+	}
+	got, ok := seedmeta.ParseMarker(currentLive)
+	if !ok || got != oldMarker || !bytes.Contains(currentLive, []byte("still live")) {
+		t.Fatal("staging failure changed the live generation")
+	}
+}
+
+func TestRunBuild_ScopedRepoUpdate_PromotionFailurePreservesLiveGraphAndCleansStage(t *testing.T) {
+	repo, awarenessDir, markerPath, txPath := scopedBuildFixture(t)
+	const domain = "github.com/test/scoped"
+	currentLive, oldMarker := seedmeta.AppendMarker([]byte(
+		"<https://example.test/old> <https://globular.io/awareness#repo> \"" + domain + "\" .\n" +
+			"<https://example.test/old> <https://example.test/p> \"still live\" .\n"))
+	var cleanupCalls int
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/store" && r.Method == http.MethodGet:
+			_, _ = w.Write(currentLive)
+		case r.URL.Path == "/store" && r.Method == http.MethodPut && r.URL.Query().Get("graph") != "":
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/store" && r.Method == http.MethodDelete && r.URL.Query().Get("graph") != "":
+			cleanupCalls++
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/update":
+			http.Error(w, "injected promotion failure", http.StatusBadRequest)
+		case r.URL.Path == "/query":
+			body := readQueryBody(t, r)
+			if strings.Contains(body, "ASK") {
+				w.Header().Set("Content-Type", "application/sparql-results+json")
+				_, _ = w.Write([]byte(`{"head":{},"boolean":true}`))
+				return
+			}
+			writeVerificationQuery(t, w, currentLive, body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	if code := runScopedBuildInRepo(t, repo, awarenessDir, markerPath, txPath, domain, ts.URL+"/store?default"); code == 0 {
+		t.Fatal("promotion failure unexpectedly succeeded")
+	}
+	if cleanupCalls == 0 {
+		t.Fatal("failed promotion did not clean the staging graph")
+	}
+	got, ok := seedmeta.ParseMarker(currentLive)
+	if !ok || got != oldMarker || !bytes.Contains(currentLive, []byte("still live")) {
+		t.Fatal("failed promotion changed the live generation")
+	}
+}
+
+func TestRunBuild_ScopedRepoUpdate_AmbiguousResponseResolvedByLiveMarker(t *testing.T) {
+	repo, awarenessDir, markerPath, txPath := scopedBuildFixture(t)
+	const domain = "github.com/test/scoped"
+	base, _ := seedmeta.AppendMarker([]byte(
+		"<https://example.test/old> <https://globular.io/awareness#repo> \"" + domain + "\" .\n" +
+			"<https://example.test/old> <https://example.test/p> \"old\" .\n"))
+	currentLive := base
+	var staged []byte
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/store" && r.Method == http.MethodGet:
+			_, _ = w.Write(currentLive)
+		case r.URL.Path == "/store" && r.Method == http.MethodPut && r.URL.Query().Get("graph") != "":
+			staged, _ = io.ReadAll(r.Body)
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/store" && r.Method == http.MethodDelete && r.URL.Query().Get("graph") != "":
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/update":
+			currentLive = append(retainScopedGraph(currentLive, domain), staged...)
+			http.Error(w, "response lost after commit", http.StatusInternalServerError)
+		case r.URL.Path == "/query":
+			body := readQueryBody(t, r)
+			if strings.Contains(body, "ASK") {
+				w.Header().Set("Content-Type", "application/sparql-results+json")
+				_, _ = w.Write([]byte(`{"head":{},"boolean":true}`))
+				return
+			}
+			writeVerificationQuery(t, w, currentLive, body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	if code := runScopedBuildInRepo(t, repo, awarenessDir, markerPath, txPath, domain, ts.URL+"/store?default"); code != 0 {
+		t.Fatalf("ambiguous committed response code=%d, want success after marker verification", code)
+	}
+	if bytes.Contains(currentLive, []byte("\"old\"")) {
+		t.Fatal("ambiguous committed response did not expose the replacement generation")
+	}
+}
+
+func scopedBuildFixture(t *testing.T) (repo, awarenessDir, markerPath, txPath string) {
+	t.Helper()
+	repo = t.TempDir()
+	awarenessDir = filepath.Join(repo, "docs", "awareness")
+	if err := os.MkdirAll(awarenessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyFixtureYAMLs(filepath.Join("..", "..", "golang", "extractor", "testdata"), awarenessDir); err != nil {
+		t.Fatal(err)
+	}
+	initGitRepo(t, repo)
+	markerPath = filepath.Join(repo, ".awg", "graph-authority.json")
+	txPath = seedmeta.RuntimeTransactionPath(markerPath)
+	return repo, awarenessDir, markerPath, txPath
+}
+
+func runScopedBuildInRepo(t *testing.T, repo, awarenessDir, markerPath, txPath, domain, storeURL string) int {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(cwd) }()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	return runBuild([]string{
+		"-input", awarenessDir,
+		"-repo", domain,
+		"-store-url", storeURL,
+		"-graph-marker-file", markerPath,
+		"-graph-transaction-file", txPath,
+		"-ag-repo", repo,
+	})
 }
 
 func TestScopedDeleteUpdate_TargetsDomainAndMarker(t *testing.T) {
@@ -354,6 +497,32 @@ func TestRetainScopedGraph_RemovesOnlySoleOwnedTargetAndMarker(t *testing.T) {
 		if strings.Contains(got, unwanted) {
 			t.Fatalf("retained graph contains removed subject %q:\n%s", unwanted, got)
 		}
+	}
+}
+
+func TestScopedPromoteStagingUpdate_ContainsOnlyControlOperations(t *testing.T) {
+	u := scopedPromoteStagingUpdate("github.com/test/repo", "urn:sensei:graph-staging:sha256:abc")
+	for _, want := range []string{"DELETE", "ADD GRAPH <urn:sensei:graph-staging:sha256:abc> TO DEFAULT", "DROP GRAPH <urn:sensei:graph-staging:sha256:abc>"} {
+		if !strings.Contains(u, want) {
+			t.Fatalf("promotion update missing %q:\n%s", want, u)
+		}
+	}
+	if strings.Contains(u, "INSERT DATA") {
+		t.Fatalf("promotion update must not embed RDF payload:\n%s", u)
+	}
+}
+
+func TestNamedGraphStoreURL_ReplacesDefaultSelector(t *testing.T) {
+	got, err := namedGraphStoreURL("http://h:7878/store?default", "urn:sensei:stage:abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := url.Parse(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Path != "/store" || u.Query().Get("graph") != "urn:sensei:stage:abc" || u.Query().Has("default") {
+		t.Fatalf("named graph URL=%q", got)
 	}
 }
 

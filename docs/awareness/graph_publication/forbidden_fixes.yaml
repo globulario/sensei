@@ -1,0 +1,21 @@
+forbidden_fixes:
+  - id: forbidden_fix.awareness.embed_compiled_ntriples_in_sparql_insert_data
+    title: Embed compiled N-Triples in SPARQL INSERT DATA
+    summary: >
+      Do not concatenate compiled N-Triples bytes into a SPARQL update to obtain a
+      one-request replacement. N-Triples and SPARQL data blocks are different parser
+      surfaces; a corpus valid for Graph Store ingestion may be rejected when pasted
+      into INSERT DATA.
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+    related_invariants:
+      - awareness.graph_publication_stages_rdf_before_atomic_promotion
+    reason: >
+      This repair recreates the exact live parser failure and couples data
+      serialization to the mutation language. Stage RDF as application/n-triples
+      and keep the promotion transaction control-only.
+    contract: >
+      Compiled RDF crosses the Oxigraph boundary only through an RDF ingestion
+      endpoint; SPARQL updates contain identifiers and control operations, not raw
+      generated RDF payloads.

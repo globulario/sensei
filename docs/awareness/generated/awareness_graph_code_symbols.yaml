@@ -1575,6 +1575,12 @@ test_symbols:
     symbol: TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository
     package: main
     language: go
+  - id: cmd/awg/cmd_build_integration_test.go:TestIntegration_ScopedRepoPublication_RealOxigraph
+    file: cmd/awg/cmd_build_integration_test.go
+    symbol: TestIntegration_ScopedRepoPublication_RealOxigraph
+    package: main
+    language: go
+    doc: "TestIntegration_ScopedRepoPublication_RealOxigraph proves the publication\ncontract against the real parser and transaction engine. The exact authored\nSensei corpus is staged as N-Triples, promoted through control-only SPARQL,\nand must preserve a foreign domain already present in the default graph."
   - id: cmd/awg/cmd_build_query_endpoint_test.go:TestQueryEndpointPath
     file: cmd/awg/cmd_build_query_endpoint_test.go
     symbol: TestQueryEndpointPath
@@ -1595,6 +1601,11 @@ test_symbols:
     symbol: TestFinalizeBuildArtifact_DedupsBeforeMarker
     package: main
     language: go
+  - id: cmd/awg/cmd_build_test.go:TestNamedGraphStoreURL_ReplacesDefaultSelector
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestNamedGraphStoreURL_ReplacesDefaultSelector
+    package: main
+    language: go
   - id: cmd/awg/cmd_build_test.go:TestQueryURLFromStore
     file: cmd/awg/cmd_build_test.go
     symbol: TestQueryURLFromStore
@@ -1611,12 +1622,27 @@ test_symbols:
     package: main
     language: go
     doc: "TestRunBuild_FailsClosedWithoutScope locks the fail-closed contract: a bare\n`sensei build` (no --repo, no --all, no --output) must refuse to touch the\nstore rather than silently replace the whole graph — the exact accidental\nwipe the scope flags prevent."
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_AmbiguousResponseResolvedByLiveMarker
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestRunBuild_ScopedRepoUpdate_AmbiguousResponseResolvedByLiveMarker
+    package: main
+    language: go
   - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_NonDestructive
     file: cmd/awg/cmd_build_test.go
     symbol: TestRunBuild_ScopedRepoUpdate_NonDestructive
     package: main
     language: go
-    doc: "TestRunBuild_ScopedRepoUpdate_NonDestructive exercises the --repo path end to\nend against a stateful fake store: it must issue a scoped SPARQL DELETE (not a\nwhole-graph PUT), append the compiled slice and then the recomputed marker,\nand publish a marker file that matches the marker recomputed over the\npost-update store contents."
+    doc: "TestRunBuild_ScopedRepoUpdate_NonDestructive exercises the --repo path end to\nend against a stateful fake store. RDF is first loaded through Graph Store\nProtocol into a named staging graph. The default graph is then changed by one\ncontrol-only SPARQL transaction, never by embedding raw N-Triples in SPARQL."
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_PromotionFailurePreservesLiveGraphAndCleansStage
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestRunBuild_ScopedRepoUpdate_PromotionFailurePreservesLiveGraphAndCleansStage
+    package: main
+    language: go
+  - id: cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_StageFailurePreservesLiveGraph
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestRunBuild_ScopedRepoUpdate_StageFailurePreservesLiveGraph
+    package: main
+    language: go
   - id: cmd/awg/cmd_build_test.go:TestRunBuild_WritesGraphMarkerFileAfterVerifiedLoad
     file: cmd/awg/cmd_build_test.go
     symbol: TestRunBuild_WritesGraphMarkerFileAfterVerifiedLoad
@@ -1625,6 +1651,11 @@ test_symbols:
   - id: cmd/awg/cmd_build_test.go:TestScopedDeleteUpdate_TargetsDomainAndMarker
     file: cmd/awg/cmd_build_test.go
     symbol: TestScopedDeleteUpdate_TargetsDomainAndMarker
+    package: main
+    language: go
+  - id: cmd/awg/cmd_build_test.go:TestScopedPromoteStagingUpdate_ContainsOnlyControlOperations
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestScopedPromoteStagingUpdate_ContainsOnlyControlOperations
     package: main
     language: go
   - id: cmd/awg/cmd_build_test.go:TestSparqlEscapeLiteral
@@ -4040,6 +4071,11 @@ test_symbols:
     package: main
     language: go
     doc: "TestGovernanceCertificationSpine_EndToEnd freezes the full local governance\nflow:\n 1. proof-plan exposes the runtime-required checklist for a lifecycle surface\n 2. certify blocks when runtime evidence is missing\n 3. certify passes when mapped evidence satisfies the obligation\n 4. certify blocks again when a forbidden move is detected, even at score 100"
+  - id: cmd/awg/graph_publication_lock_test.go:TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
+    file: cmd/awg/graph_publication_lock_test.go
+    symbol: TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
+    package: main
+    language: go
   - id: cmd/awg/graph_refresh_test.go:TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
     file: cmd/awg/graph_refresh_test.go
     symbol: TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
