@@ -3,6 +3,44 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v1.4.0 — transactional graph publication + GitHub App incubation
+
+- **`sensei build --repo` no longer risks corrupting the live graph.** The
+  scoped repository-refresh path previously concatenated compiled N-Triples
+  directly into a SPARQL `INSERT DATA` block — a corpus valid for RDF ingestion
+  could still be rejected by the SPARQL parser, and a delete-then-append
+  window meant a mid-failure could leave the served store stale or corrupted.
+  It now derives and validates the complete candidate generation offline,
+  stages the replacement RDF through the Graph Store Protocol into an isolated
+  named graph, and promotes it with one control-only SPARQL transaction
+  (`ADD GRAPH ... TO DEFAULT; DROP GRAPH ...`) — raw RDF is never embedded in
+  SPARQL text again. A cross-platform publication lock serializes concurrent
+  local publishers, an ambiguous post-promotion response is resolved against
+  the live whole-generation marker instead of guessed at, and a first
+  publication into an empty store is now supported. Proven against a real
+  Oxigraph instance (`-tags integration`), not just mocks. See
+  `docs/architecture/repository-authority-and-graph-publication.md` for the
+  full authority/publication model.
+- **Governance self-audit repair.** Wired `required_tests` for 26 critical/high
+  invariants that had a real proving test but no graph linkage, backfilled
+  severity on 9 invariants that had none, and fixed `sensei repo-eval` to
+  compare a self-only build's freshness against a self-only regeneration
+  instead of a broader combined one (which was reading as false drift).
+- **`sensei bootstrap` extracts Go library API candidates** — boundary and
+  contract candidates inferred from exported declarations, written to
+  `docs/awareness/generated/` alongside the existing candidate extractors.
+- **Sensei GitHub App (first slice, incubating).** A standalone `github-app/`
+  service: verifies webhook signatures, exchanges a signed JWT for
+  installation tokens, handles `pull_request` open/reopen/synchronize events,
+  posts a deterministic mechanical briefing as a sticky PR comment, and
+  creates/updates one Check Run per head revision. Static-only inspection —
+  no repository code execution. Governed architectural reasoning (invariants,
+  contracts, proof obligations) is deferred to the next slice; see issue #111.
+- **Phase 10 architectural-investigation groundwork** — deterministic HOW/WHY
+  extraction (compiler-bound data-shape capture, Git-history-bound evidence)
+  and the underlying investigation contract/validation model. Internal
+  reasoning infrastructure for now; no new CLI surface yet.
+
 ## v1.3.0 — proportional rigor
 
 - **`sensei rigor`** — reports the proportional-rigor class (and proof
