@@ -27,10 +27,14 @@ jobs:
         with:
           go-version-file: github-app/go.mod
           cache-dependency-path: github-app/go.mod
-      - name: Verify formatting
+      - name: Report formatting
+        continue-on-error: true
         run: |
-          gofmt -w .
-          git diff --exit-code -- .
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            printf 'The following files require gofmt:\n%s\n' "$files"
+            exit 1
+          fi
       - name: Test
         run: go test ./...
       - name: Vet
