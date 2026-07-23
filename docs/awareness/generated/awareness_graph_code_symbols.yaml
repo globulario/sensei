@@ -3374,6 +3374,16 @@ test_symbols:
     symbol: TestRepoEvalInputDirsUsesGenericTargetAwareness
     package: main
     language: go
+  - id: cmd/awg/cmd_repo_eval_test.go:TestRepoEvalInputDirs_CombinedAwarenessGraphKeepsPairedInputs
+    file: cmd/awg/cmd_repo_eval_test.go
+    symbol: TestRepoEvalInputDirs_CombinedAwarenessGraphKeepsPairedInputs
+    package: main
+    language: go
+  - id: cmd/awg/cmd_repo_eval_test.go:TestRepoEvalInputDirs_SelfOnlyAwarenessGraphMatchesAudit
+    file: cmd/awg/cmd_repo_eval_test.go
+    symbol: TestRepoEvalInputDirs_SelfOnlyAwarenessGraphMatchesAudit
+    package: main
+    language: go
   - id: cmd/awg/cmd_repo_eval_test.go:TestRepoEvalIntegrityIssues_MapsAuditChecks
     file: cmd/awg/cmd_repo_eval_test.go
     symbol: TestRepoEvalIntegrityIssues_MapsAuditChecks
@@ -6656,6 +6666,16 @@ test_symbols:
     file: golang/architecture/claimaudit/audit_test.go
     symbol: TestClaimAuditReportsUnanchoredClaims
     package: claimaudit_test
+    language: go
+  - id: golang/architecture/closure/behavioral_scope_test.go:TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic
+    file: golang/architecture/closure/behavioral_scope_test.go
+    symbol: TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic
+    package: closure
+    language: go
+  - id: golang/architecture/closure/behavioral_scope_test.go:TestProjectApplicableBehavioral_NoArbitraryCountLimit
+    file: golang/architecture/closure/behavioral_scope_test.go
+    symbol: TestProjectApplicableBehavioral_NoArbitraryCountLimit
+    package: closure
     language: go
   - id: golang/architecture/closure/model_test.go:TestAbsentAuthoredFileRemainsUnrepresented
     file: golang/architecture/closure/model_test.go
@@ -16599,6 +16619,12 @@ test_symbols:
     package: controlstateproto
     language: go
     doc: "Proof (Phase 9.7 CP3): a boundary's runtime-boundary dimension and its OWNER-severity violation\nattention ride the generic transport verbatim — the runtime dimension, its blocker, and the\nruntime_boundary_violated critical/source_severity attention item survive a full round trip. The\ntransport adds no runtime vocabulary; it carries whatever the runtimeboundary owner produced."
+  - id: golang/server/controlstateproto/proto_evolution_test.go:TestControlPanelMessages_FieldNumbersAreFrozen
+    file: golang/server/controlstateproto/proto_evolution_test.go
+    symbol: TestControlPanelMessages_FieldNumbersAreFrozen
+    package: controlstateproto
+    language: go
+    doc: "Mirrors briefing_feedback_adapter_test.go's TestBriefingResponse_FeedbackIsAdditiveFieldSeven:\nthe four control-panel read-model messages must never renumber, retype, or remove an\nexisting field — additions land as new fields with new numbers."
   - id: golang/server/domain_scope_test.go:TestCountClassInScope
     file: golang/server/domain_scope_test.go
     symbol: TestCountClassInScope
