@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -365,39 +366,25 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 		return 1
 	}
 
-	// 1. Remove this domain's existing slice (sole-owner) and the stale marker.
-	if err := client.Update(ctx, scopedDeleteUpdate(domain)); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: scoped delete for %s: %v\n", domain, err)
-		return 1
-	}
-	// 2. Append the freshly compiled slice (additive; other domains untouched).
-	if err := client.Append(ctx, bytes.NewReader(sliceNT)); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: append slice for %s: %v\n", domain, err)
-		return 1
-	}
-	// 3. Recompute the whole-graph marker over the post-update store. Read the
-	//    full graph back and refuse to stamp a marker over a partial dump.
+	// Read the complete pre-update store and derive the exact post-update graph
+	// before publishing anything. The replacement below is one SPARQL Update:
+	// publishing the delete, domain slice, and whole-graph marker separately can
+	// leave a served store stale if the process dies after the slice append.
 	fullBase, err := client.DumpNTriples(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: dump store for marker recompute: %v\n", err)
 		return 1
 	}
-	liveAfter, err := client.CountTriples(ctx)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: count after update: %v\n", err)
+	retainedBase := retainScopedGraph(fullBase, domain)
+	postUpdateBase := append(append([]byte{}, retainedBase...), sliceNT...)
+	postUpdateBase, _, _ = extractor.DedupNTriples(postUpdateBase)
+	fullWithMarker, marker := seedmeta.AppendMarker(postUpdateBase)
+	insertNT := append(append([]byte{}, sliceNT...), seedmeta.MarkerTriples(marker)...)
+	if err := client.Update(ctx, scopedReplaceUpdate(domain, insertNT)); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: scoped replacement for %s: %v\n", domain, err)
 		return 1
 	}
-	if got := int64(countNTriples(fullBase)); got != liveAfter {
-		fmt.Fprintf(os.Stderr, "sensei build: incomplete store dump (%d triples read vs %d live) — refusing to stamp a marker over a partial read.\n  The domain slice was updated but the graph marker was NOT refreshed; re-run when the store is stable.\n", got, liveAfter)
-		return 1
-	}
-	fullWithMarker, marker := seedmeta.AppendMarker(fullBase)
-	// 4. Insert the recomputed marker triples.
-	if err := client.Append(ctx, bytes.NewReader(seedmeta.MarkerTriples(marker))); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: insert recomputed marker: %v\n", err)
-		return 1
-	}
-	// 5. Verify the live store now matches the recomputed marker.
+	// Verify the live store now matches the recomputed marker.
 	verification := seedmeta.VerifyLiveStore(ctx, client, marker)
 	if verification.State != seedmeta.FreshnessCurrent {
 		fmt.Fprintf(os.Stderr, "sensei build: post-update verification failed: %s\n", verification.Detail)
@@ -448,6 +435,64 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 	return 0
 }
 
+// retainScopedGraph returns the pre-update graph without the target domain's
+// solely-owned subjects or any prior whole-graph marker. It mirrors the scoped
+// DELETE predicate so the marker can be calculated before the atomic update.
+func retainScopedGraph(nt []byte, domain string) []byte {
+	const rdfType = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"
+	repoPredicate := "<" + seedmeta.NamespaceIRI + "repo>"
+	seedClass := "<" + seedmeta.NamespaceIRI + "SeedBuild>"
+
+	type subjectInfo struct {
+		repos  map[string]bool
+		marker bool
+	}
+	infos := map[string]*subjectInfo{}
+	lines := strings.Split(string(nt), "\n")
+	for _, line := range lines {
+		subject, predicate, rest, ok := splitNTripleLine(line)
+		if !ok {
+			continue
+		}
+		info := infos[subject]
+		if info == nil {
+			info = &subjectInfo{repos: map[string]bool{}}
+			infos[subject] = info
+		}
+		if predicate == repoPredicate {
+			if value, ok := ntriplesLiteral(rest); ok {
+				info.repos[value] = true
+			}
+		}
+		if predicate == rdfType && strings.TrimSpace(rest) == seedClass+" ." {
+			info.marker = true
+		}
+	}
+
+	var out bytes.Buffer
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		info := infos[ntSubject(line)]
+		if info != nil && (info.marker || (info.repos[domain] && len(info.repos) == 1)) {
+			continue
+		}
+		out.WriteString(strings.TrimSpace(line))
+		out.WriteByte('\n')
+	}
+	return out.Bytes()
+}
+
+func ntriplesLiteral(rest string) (string, bool) {
+	value := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(rest), "."))
+	parsed, err := strconv.Unquote(value)
+	if err != nil {
+		return "", false
+	}
+	return parsed, true
+}
+
 // queryURLFromStore derives the SPARQL query endpoint from a Graph Store
 // endpoint (…/store?default → …/query), reusing queryEndpointPath's suffix
 // normalization so it tolerates /store, /query, or a bare path.
@@ -472,14 +517,24 @@ func scopedDeleteUpdate(domain string) string {
 	repoP := seedmeta.NamespaceIRI + "repo"
 	seedClass := seedmeta.NamespaceIRI + "SeedBuild"
 	return fmt.Sprintf(`DELETE { ?s ?p ?o } WHERE {
-  ?s <%s> "%s" .
-  ?s ?p ?o .
-  FILTER NOT EXISTS { ?s <%s> ?other . FILTER(str(?other) != "%s") }
-} ;
-DELETE { ?m ?p ?o } WHERE {
-  ?m <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .
-  ?m ?p ?o .
+  {
+    ?s <%s> "%s" .
+    ?s ?p ?o .
+    FILTER NOT EXISTS { ?s <%s> ?other . FILTER(str(?other) != "%s") }
+  }
+  UNION
+  {
+    ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .
+    ?s ?p ?o .
+  }
 }`, repoP, d, repoP, d, seedClass)
+}
+
+// scopedReplaceUpdate applies the scoped delete and the complete replacement
+// payload in one store request. SPARQL Update executes the request atomically,
+// so a partial publication can never expose a slice without its matching marker.
+func scopedReplaceUpdate(domain string, insertNT []byte) string {
+	return scopedDeleteUpdate(domain) + ";\nINSERT DATA {\n" + string(insertNT) + "}\n"
 }
 
 // sparqlEscapeLiteral escapes a Go string for use inside a SPARQL double-quoted

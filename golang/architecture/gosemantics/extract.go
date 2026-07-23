@@ -56,9 +56,9 @@ type Result struct {
 
 type extractor struct {
 	root          string
+	selectedFiles map[string]bool
 	fset          *token.FileSet
 	packages      []*packages.Package
-	generated     map[string]bool
 	observations  []Observation
 	limitations   []Limitation
 	rootComponent *importgraph.RootComponent
@@ -70,6 +70,18 @@ func Extract(root string) (result Result, err error) {
 	root, err = filepath.Abs(root)
 	if err != nil {
 		return Result{}, err
+	}
+	selected, err := SearchedFiles(root)
+	if err != nil {
+		return Result{}, err
+	}
+	selectedFiles := make(map[string]bool, len(selected))
+	for _, path := range selected {
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return Result{}, fmt.Errorf("relativize selected source file %s: %w", path, relErr)
+		}
+		selectedFiles[filepath.ToSlash(rel)] = true
 	}
 	fset := token.NewFileSet()
 	goCache := filepath.Join(os.TempDir(), "sensei-go-build-cache")
@@ -87,7 +99,7 @@ func Extract(root string) (result Result, err error) {
 	if loadErr != nil {
 		return Result{}, loadErr
 	}
-	e := &extractor{root: root, fset: fset, packages: loaded, generated: map[string]bool{}}
+	e := &extractor{root: root, selectedFiles: selectedFiles, fset: fset, packages: loaded}
 	e.rootComponent, _ = importgraph.DetectGoRootComponent(root)
 	for _, pkg := range loaded {
 		for _, pkgErr := range pkg.Errors {
@@ -97,6 +109,7 @@ func Extract(root string) (result Result, err error) {
 	e.extractDefinitionsAndInterfaces()
 	e.extractComponentDependencies()
 	e.extractSSACalls()
+	e.extractDataShapes()
 	e.observations = normalizeObservations(e.observations)
 	e.limitations = normalizeLimitations(e.limitations)
 	return Result{Observations: e.observations, Limitations: e.limitations}, nil
@@ -150,6 +163,7 @@ func (e *extractor) extractDefinitionsAndInterfaces() {
 			entry := namedType{named: named, object: typeName, file: file, line: line}
 			if _, ok := named.Underlying().(*types.Interface); ok {
 				interfaces = append(interfaces, entry)
+				e.add(Observation{Kind: "contract_seam", Subject: symbol, Predicate: "exports_interface", Object: "interface", File: file, Symbol: symbol, Line: line, Confidence: .98})
 			} else {
 				concretes = append(concretes, entry)
 			}
@@ -340,7 +354,7 @@ func (e *extractor) relativeFile(path string) (string, bool) {
 		return "", false
 	}
 	rel = filepath.ToSlash(rel)
-	if excludedPath(rel) || e.isGenerated(path) {
+	if !e.selectedFiles[rel] {
 		return "", false
 	}
 	return rel, true
@@ -366,10 +380,8 @@ func (e *extractor) componentForFile(file string) string {
 	return component
 }
 
-func (e *extractor) isGenerated(path string) bool {
-	if generated, ok := e.generated[path]; ok {
-		return generated
-	}
+// IsGeneratedFile returns true if the Go file at the absolute path is generated.
+func IsGeneratedFile(path string) bool {
 	generated := strings.HasSuffix(path, ".pb.go") || strings.HasSuffix(path, "_generated.go")
 	if !generated {
 		file, err := os.Open(path)
@@ -385,8 +397,70 @@ func (e *extractor) isGenerated(path string) bool {
 			_ = file.Close()
 		}
 	}
-	e.generated[path] = generated
 	return generated
+}
+
+// IsExcludedPath returns true if a repository-relative path should be excluded.
+func IsExcludedPath(path string) bool {
+	return excludedPath(path)
+}
+
+// SearchedFiles returns the sorted, absolute paths whose source positions may
+// produce HOW observations. Generated files are excluded from emitted evidence.
+func SearchedFiles(root string) ([]string, error) {
+	return sourceFiles(root, false)
+}
+
+// SemanticInputFiles returns every local file that can affect the semantic
+// compiler input. Generated Go files are included because their declarations
+// can change type information for observations attributed to selected files.
+func SemanticInputFiles(root string) ([]string, error) {
+	return sourceFiles(root, true)
+}
+
+func sourceFiles(root string, includeGenerated bool) ([]string, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []string
+	err = filepath.WalkDir(absRoot, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in searched source set refused: %s", path)
+		}
+
+		rel, relErr := filepath.Rel(absRoot, path)
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("file outside repository root refused: %s", path)
+		}
+		relSlash := filepath.ToSlash(rel)
+		if d.IsDir() {
+			if rel != "." && IsExcludedPath(relSlash) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if IsExcludedPath(relSlash) {
+			return nil
+		}
+		if relSlash != "go.mod" && relSlash != "go.sum" && filepath.Ext(relSlash) != ".go" {
+			return nil
+		}
+		if !includeGenerated && filepath.Ext(relSlash) == ".go" && IsGeneratedFile(path) {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(files)
+	return files, nil
 }
 
 func objectSymbol(obj types.Object) string {
@@ -503,3 +577,339 @@ func normalizeLimitations(in []Limitation) []Limitation {
 // Keep ast imported as an explicit compile-time assertion that the package
 // loader supplies parsed Go syntax; dependency extraction walks ImportSpecs.
 var _ ast.Node = (*ast.ImportSpec)(nil)
+
+type structFieldInfo struct {
+	name   string
+	typ    string
+	tagKey string
+	tagVal string
+	rawTag string
+	line   int
+}
+
+type boundaryInfo struct {
+	symbol string
+	file   string
+	line   int
+}
+
+func (e *extractor) extractDataShapes() {
+	type structInfo struct {
+		named  *types.Named
+		obj    *types.TypeName
+		file   string
+		line   int
+		fields []structFieldInfo
+	}
+
+	parseTag := func(tag string) (key, name string) {
+		tag = strings.Trim(tag, "`")
+		for _, k := range []string{"json", "yaml", "bson", "xml", "protobuf"} {
+			prefix := k + ":\""
+			idx := strings.Index(tag, prefix)
+			if idx < 0 {
+				continue
+			}
+			rest := tag[idx+len(prefix):]
+			end := strings.Index(rest, "\"")
+			if end < 0 {
+				continue
+			}
+			val := strings.Split(rest[:end], ",")[0]
+			val = strings.TrimSpace(val)
+			if val != "" && val != "-" {
+				return k, val
+			}
+		}
+		return "", ""
+	}
+
+	var structs []structInfo
+
+	for _, pkg := range e.packages {
+		if pkg.Types == nil || pkg.TypesInfo == nil || !e.packageIsLocal(pkg) {
+			continue
+		}
+
+		scope := pkg.Types.Scope()
+		for _, name := range scope.Names() {
+			obj := scope.Lookup(name)
+			typeName, ok := obj.(*types.TypeName)
+			if !ok {
+				continue
+			}
+			named, ok := types.Unalias(typeName.Type()).(*types.Named)
+			if !ok {
+				continue
+			}
+			st, ok := named.Underlying().(*types.Struct)
+			if !ok {
+				continue
+			}
+			file, line, ok := e.position(obj.Pos())
+			if !ok {
+				continue
+			}
+
+			var fields []structFieldInfo
+			for i := 0; i < st.NumFields(); i++ {
+				field := st.Field(i)
+				tag := st.Tag(i)
+				tagKey, tagVal := parseTag(tag)
+
+				fields = append(fields, structFieldInfo{
+					name:   field.Name(),
+					typ:    field.Type().String(),
+					tagKey: tagKey,
+					tagVal: tagVal,
+					rawTag: tag,
+					line:   e.fset.Position(field.Pos()).Line,
+				})
+			}
+
+			structs = append(structs, structInfo{
+				named:  named,
+				obj:    typeName,
+				file:   file,
+				line:   line,
+				fields: fields,
+			})
+		}
+	}
+
+	// For each struct, check if it matches the 5 boundary crossing/serialization paths
+	for _, s := range structs {
+		typeName := s.obj.Pkg().Name() + "." + s.obj.Name()
+		crossesBoundary := false
+		var boundarySymbols []boundaryInfo
+		hasSerializationTag := false
+
+		for _, f := range s.fields {
+			if f.tagKey != "" {
+				hasSerializationTag = true
+			}
+		}
+
+		// 1. Referenced in another package (Path 1)
+		for _, otherPkg := range e.packages {
+			if otherPkg.Types == nil || otherPkg.TypesInfo == nil || otherPkg.PkgPath == s.obj.Pkg().Path() || !e.packageIsLocal(otherPkg) {
+				continue
+			}
+			for id, obj := range otherPkg.TypesInfo.Uses {
+				if obj == s.obj {
+					file, line, ok := e.position(id.Pos())
+					if !ok {
+						e.limitations = append(e.limitations, Limitation{
+							Scope:  typeName,
+							Reason: "boundary crossing location unresolved: package:" + otherPkg.PkgPath + " (position not found in fileset)",
+						})
+						continue
+					}
+					crossesBoundary = true
+					boundarySymbols = append(boundarySymbols, boundaryInfo{
+						symbol: "package:" + otherPkg.PkgPath,
+						file:   file,
+						line:   line,
+					})
+				}
+			}
+		}
+
+		// 2. Used in exported function / method / interface method (Paths 2, 3, 4)
+		for _, pkg := range e.packages {
+			if pkg.Types == nil || !e.packageIsLocal(pkg) {
+				continue
+			}
+			scope := pkg.Types.Scope()
+			for _, name := range scope.Names() {
+				obj := scope.Lookup(name)
+				if fn, ok := obj.(*types.Func); ok && fn.Exported() {
+					sig := fn.Type().(*types.Signature)
+					if signatureUsesType(sig, s.named) {
+						file, line, ok := e.position(fn.Pos())
+						if !ok {
+							e.limitations = append(e.limitations, Limitation{
+								Scope:  typeName,
+								Reason: "boundary crossing location unresolved: " + objectSymbol(fn) + " (position not found in fileset)",
+							})
+							continue
+						}
+						crossesBoundary = true
+						boundarySymbols = append(boundarySymbols, boundaryInfo{
+							symbol: objectSymbol(fn),
+							file:   file,
+							line:   line,
+						})
+					}
+				}
+				if typeNameObj, ok := obj.(*types.TypeName); ok && typeNameObj.Exported() {
+					if iface, ok := types.Unalias(typeNameObj.Type()).Underlying().(*types.Interface); ok {
+						for i := 0; i < iface.NumMethods(); i++ {
+							m := iface.Method(i)
+							sig := m.Type().(*types.Signature)
+							if signatureUsesType(sig, s.named) {
+								file, line, ok := e.position(m.Pos())
+								if !ok {
+									e.limitations = append(e.limitations, Limitation{
+										Scope:  typeName,
+										Reason: "boundary crossing location unresolved: " + objectSymbol(typeNameObj) + "." + m.Name() + " (position not found in fileset)",
+									})
+									continue
+								}
+								crossesBoundary = true
+								boundarySymbols = append(boundarySymbols, boundaryInfo{
+									symbol: objectSymbol(typeNameObj) + "." + m.Name(),
+									file:   file,
+									line:   line,
+								})
+							}
+						}
+					}
+					if namedType, ok := types.Unalias(typeNameObj.Type()).(*types.Named); ok {
+						for i := 0; i < namedType.NumMethods(); i++ {
+							m := namedType.Method(i)
+							if m.Exported() {
+								sig := m.Type().(*types.Signature)
+								if signatureUsesType(sig, s.named) {
+									file, line, ok := e.position(m.Pos())
+									if !ok {
+										e.limitations = append(e.limitations, Limitation{
+											Scope:  typeName,
+											Reason: "boundary crossing location unresolved: " + objectSymbol(m) + " (position not found in fileset)",
+										})
+										continue
+									}
+									crossesBoundary = true
+									boundarySymbols = append(boundarySymbols, boundaryInfo{
+										symbol: objectSymbol(m),
+										file:   file,
+										line:   line,
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		isRecognized := hasSerializationTag || crossesBoundary
+
+		if isRecognized {
+			typeName := s.obj.Pkg().Name() + "." + s.obj.Name()
+
+			// Emit declares_data_shape
+			e.add(Observation{
+				Kind:       "data_shape",
+				Subject:    typeName,
+				Predicate:  "declares_data_shape",
+				Object:     "struct",
+				File:       s.file,
+				Symbol:     typeName,
+				Line:       s.line,
+				Confidence: 0.98,
+			})
+
+			// Emit has_serialized_field for tagged, neutral has_field for untagged
+			for _, f := range s.fields {
+				fieldSymbol := typeName + "." + f.name
+				if f.tagKey != "" {
+					e.add(Observation{
+						Kind:       "data_shape",
+						Subject:    fieldSymbol,
+						Predicate:  "has_serialized_field",
+						Object:     f.tagVal,
+						File:       s.file,
+						Symbol:     fieldSymbol,
+						Line:       f.line,
+						Confidence: 0.98,
+						Meta: map[string]string{
+							"field_type":      f.typ,
+							"tag":             f.tagKey,
+							"serialized_name": f.tagVal,
+						},
+					})
+				} else {
+					e.add(Observation{
+						Kind:       "data_shape",
+						Subject:    fieldSymbol,
+						Predicate:  "has_field",
+						Object:     f.name,
+						File:       s.file,
+						Symbol:     fieldSymbol,
+						Line:       f.line,
+						Confidence: 0.98,
+						Meta: map[string]string{
+							"field_type": f.typ,
+						},
+					})
+				}
+			}
+
+			// Emit uses_data_shape_across_boundary for each crossing
+			seenBoundary := make(map[string]bool)
+			for _, bs := range boundarySymbols {
+				key := bs.symbol + "\x00" + bs.file + "\x00" + strconv.Itoa(bs.line)
+				if seenBoundary[key] {
+					continue
+				}
+				seenBoundary[key] = true
+				e.add(Observation{
+					Kind:       "data_shape",
+					Subject:    typeName,
+					Predicate:  "uses_data_shape_across_boundary",
+					Object:     bs.symbol,
+					File:       bs.file, // actual boundary file!
+					Symbol:     typeName,
+					Line:       bs.line, // actual boundary line!
+					Confidence: 0.98,
+					Meta:       map[string]string{"boundary": bs.symbol},
+				})
+			}
+		}
+	}
+}
+
+func signatureUsesType(sig *types.Signature, target *types.Named) bool {
+	params := sig.Params()
+	for i := 0; i < params.Len(); i++ {
+		if typeContainsTarget(params.At(i).Type(), target) {
+			return true
+		}
+	}
+	results := sig.Results()
+	for i := 0; i < results.Len(); i++ {
+		if typeContainsTarget(results.At(i).Type(), target) {
+			return true
+		}
+	}
+	return false
+}
+
+func typeContainsTarget(t types.Type, target *types.Named) bool {
+	if t == nil {
+		return false
+	}
+	under := t
+	for {
+		switch x := under.(type) {
+		case *types.Pointer:
+			under = x.Elem()
+		case *types.Slice:
+			under = x.Elem()
+		case *types.Array:
+			under = x.Elem()
+		case *types.Map:
+			return typeContainsTarget(x.Key(), target) || typeContainsTarget(x.Elem(), target)
+		case *types.Chan:
+			under = x.Elem()
+		default:
+			goto done
+		}
+	}
+done:
+	if named, ok := under.(*types.Named); ok {
+		return named.Obj() == target.Obj()
+	}
+	return false
+}

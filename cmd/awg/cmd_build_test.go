@@ -206,22 +206,21 @@ func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
 		"<https://example.test/a> <https://globular.io/awareness#repo> \"" + domain + "\" .\n" +
 			"<https://example.test/a> <https://example.test/p> \"x\" .\n" +
 			"<https://example.test/b> <https://example.test/p> \"home\" .\n")
-	_, expected := seedmeta.AppendMarker(base)
-
 	var (
 		updateBodies []string
 		appendBodies []string
 		markerLoaded bool
+		expected     seedmeta.Marker
 	)
 	liveCount := func() int64 {
+		if markerLoaded {
+			return expected.TripleCount
+		}
 		var n int64
 		for _, ln := range strings.Split(string(base), "\n") {
 			if strings.TrimSpace(ln) != "" {
 				n++
 			}
-		}
-		if markerLoaded {
-			n += 6
 		}
 		return n
 	}
@@ -230,6 +229,12 @@ func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
 		case r.URL.Path == "/update":
 			b, _ := io.ReadAll(r.Body)
 			updateBodies = append(updateBodies, string(b))
+			var ok bool
+			expected, ok = seedmeta.ParseMarker(b)
+			if !ok {
+				t.Fatalf("scoped update did not carry a whole-graph marker:\n%s", string(b))
+			}
+			markerLoaded = true
 			w.WriteHeader(http.StatusNoContent)
 		case r.URL.Path == "/store" && r.Method == http.MethodPost:
 			b, _ := io.ReadAll(r.Body)
@@ -285,22 +290,17 @@ func TestRunBuild_ScopedRepoUpdate_NonDestructive(t *testing.T) {
 		t.Fatalf("scoped runBuild code=%d, want 0", code)
 	}
 
-	// A scoped DELETE naming the domain + marker class — never a whole-graph PUT.
+	// One scoped replacement request names the domain + marker class and carries
+	// the replacement slice plus its recomputed marker. It must not split delete,
+	// slice append, and marker append into independently interruptible requests.
 	if len(updateBodies) != 1 {
 		t.Fatalf("update calls=%d, want 1", len(updateBodies))
 	}
-	if !strings.Contains(updateBodies[0], domain) || !strings.Contains(updateBodies[0], "SeedBuild") {
-		t.Fatalf("scoped delete missing domain/SeedBuild:\n%s", updateBodies[0])
+	if !strings.Contains(updateBodies[0], domain) || !strings.Contains(updateBodies[0], "SeedBuild") || !strings.Contains(updateBodies[0], "INSERT DATA") {
+		t.Fatalf("scoped replacement missing domain/SeedBuild/INSERT DATA:\n%s", updateBodies[0])
 	}
-	// Two appends: the domain slice, then the recomputed marker.
-	if len(appendBodies) != 2 {
-		t.Fatalf("append calls=%d, want 2 (slice, marker)", len(appendBodies))
-	}
-	if !strings.Contains(appendBodies[0], domain) {
-		t.Fatalf("first append (slice) missing domain tag:\n%s", appendBodies[0])
-	}
-	if !strings.Contains(appendBodies[1], "SeedBuild") {
-		t.Fatalf("second append should be the recomputed marker:\n%s", appendBodies[1])
+	if len(appendBodies) != 0 {
+		t.Fatalf("append calls=%d, want 0; scoped replacement must be atomic", len(appendBodies))
 	}
 	// Marker file matches the marker recomputed over the post-update store.
 	written, err := seedmeta.ReadMarkerFile(markerPath)
@@ -328,6 +328,31 @@ func TestScopedDeleteUpdate_TargetsDomainAndMarker(t *testing.T) {
 	} {
 		if !strings.Contains(u, want) {
 			t.Fatalf("scopedDeleteUpdate missing %q:\n%s", want, u)
+		}
+	}
+}
+
+func TestRetainScopedGraph_RemovesOnlySoleOwnedTargetAndMarker(t *testing.T) {
+	const target = "github.com/test/target"
+	nt := []byte(
+		"<https://example.test/target> <https://globular.io/awareness#repo> \"github.com/test/target\" .\n" +
+			"<https://example.test/target> <https://example.test/p> \"remove\" .\n" +
+			"<https://example.test/shared> <https://globular.io/awareness#repo> \"github.com/test/target\" .\n" +
+			"<https://example.test/shared> <https://globular.io/awareness#repo> \"github.com/test/other\" .\n" +
+			"<https://example.test/shared> <https://example.test/p> \"keep\" .\n" +
+			"<https://globular.io/awareness#seedBuild/sha256-old> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .\n" +
+			"<https://globular.io/awareness#seedBuild/sha256-old> <https://example.test/p> \"remove marker\" .\n" +
+			"<https://example.test/home> <https://example.test/p> \"keep\" .\n")
+
+	got := string(retainScopedGraph(nt, target))
+	for _, want := range []string{"https://example.test/shared", "https://example.test/home"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("retained graph missing %q:\n%s", want, got)
+		}
+	}
+	for _, unwanted := range []string{"https://example.test/target", "seedBuild/sha256-old"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("retained graph contains removed subject %q:\n%s", unwanted, got)
 		}
 	}
 }

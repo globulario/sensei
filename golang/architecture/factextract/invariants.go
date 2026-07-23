@@ -209,24 +209,17 @@ func resolveInvariantRepositoryIdentity(root string) invariantRepositoryIdentity
 }
 
 func invariantGoFiles(root string) ([]string, error) {
-	var files []string
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if path != root && invariantSkipDir(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) == ".go" && !strings.HasSuffix(path, ".pb.go") {
+	selected, err := gosemantics.SearchedFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0, len(selected))
+	for _, path := range selected {
+		if filepath.Ext(path) == ".go" {
 			files = append(files, path)
 		}
-		return nil
-	})
-	sort.Strings(files)
-	return files, err
+	}
+	return files, nil
 }
 
 func invariantSkipDir(name string) bool {

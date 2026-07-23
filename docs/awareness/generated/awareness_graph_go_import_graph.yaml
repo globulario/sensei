@@ -469,6 +469,15 @@ components:
       - golang/architecture/graphbuild/manifest.go
       - golang/architecture/graphbuild/supplemental.go
       - golang/architecture/graphsnapshot/graphsnapshot.go
+      - golang/architecture/howextract/boundaries.go
+      - golang/architecture/howextract/compose.go
+      - golang/architecture/howextract/contracts.go
+      - golang/architecture/howextract/datashapes.go
+      - golang/architecture/howextract/extract.go
+      - golang/architecture/howextract/flow.go
+      - golang/architecture/howextract/state.go
+      - golang/architecture/howextract/tests.go
+      - golang/architecture/howextract/topology.go
       - golang/architecture/identity/identity.go
       - golang/architecture/inference/binding.go
       - golang/architecture/inference/document.go
@@ -479,6 +488,15 @@ components:
       - golang/architecture/inference/rules.go
       - golang/architecture/inference/semantic_rules.go
       - golang/architecture/inference/util.go
+      - golang/architecture/investigation/binding.go
+      - golang/architecture/investigation/coverage.go
+      - golang/architecture/investigation/digest.go
+      - golang/architecture/investigation/evidence.go
+      - golang/architecture/investigation/model.go
+      - golang/architecture/investigation/normalize.go
+      - golang/architecture/investigation/proof_strength.go
+      - golang/architecture/investigation/receipt.go
+      - golang/architecture/investigation/validate.go
       - golang/architecture/knowledgeadoption/contracts.go
       - golang/architecture/knowledgeadoption/engine.go
       - golang/architecture/knowledgeadoption/output.go
@@ -602,6 +620,8 @@ components:
       - golang/architecture/tasksession/governance.go
       - golang/architecture/tasksession/session.go
       - golang/architecture/tasksession/session_authority.go
+      - golang/architecture/whyinvestigation/contracts.go
+      - golang/architecture/whyinvestigation/git.go
     depends_on:
       - component.golang.extractor
       - component.golang.propose

@@ -403,6 +403,39 @@ Flags:
 	} else {
 		rep.candidateInvariants = len(report.Candidates)
 		rep.candidateAuthority = len(report.AuthoritySurfaces)
+		if libraryAPIs, lerr := extractGoLibraryAPICandidates(root, report.Facts); lerr != nil {
+			rep.notes = append(rep.notes, "Go library API candidates: "+lerr.Error())
+		} else {
+			rep.candidateLibraryAPIs = len(libraryAPIs)
+			if writeCands && len(libraryAPIs) > 0 {
+				doc := goLibraryAPICandidateDoc{LibraryAPIs: libraryAPIs}
+				if data, rerr := renderGenerated("Go library API candidates inferred from exported declarations; extension points require a proven local implementation (status: candidate).", doc); rerr != nil {
+					rep.notes = append(rep.notes, "Go library API candidates: render: "+rerr.Error())
+				} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+					rep.notes = append(rep.notes, "Go library API candidates: mkdir: "+merr.Error())
+				} else if werr := os.WriteFile(filepath.Join(candidatesDir, "go_library_api_candidates.yaml"), data, 0o644); werr != nil {
+					rep.notes = append(rep.notes, "Go library API candidates: write: "+werr.Error())
+				}
+			}
+			if contracts := goLibraryAPIContracts(libraryAPIs); len(contracts) > 0 && writeCands {
+				doc := goLibraryAPIContractDoc{Contracts: contracts}
+				if data, rerr := renderGenerated("Candidate Go library API contracts inferred from exported declarations; review required before governing behavior.", doc); rerr != nil {
+					rep.notes = append(rep.notes, "Go library API contracts: render: "+rerr.Error())
+				} else if merr := os.MkdirAll(generatedDir, 0o755); merr != nil {
+					rep.notes = append(rep.notes, "Go library API contracts: mkdir: "+merr.Error())
+				} else if werr := os.WriteFile(filepath.Join(generatedDir, "library_api_contracts.yaml"), data, 0o644); werr != nil {
+					rep.notes = append(rep.notes, "Go library API contracts: write: "+werr.Error())
+				}
+			}
+			if boundaries := goLibraryAPIBoundaryCandidates(libraryAPIs); len(boundaries) > 0 {
+				rep.candidateLibraryAPIBoundaries = len(boundaries)
+				if data, rerr := renderGenerated("Candidate Go library API boundaries inferred from exported declarations; not governed contracts.", boundaryCandidateDoc{Boundaries: boundaries}); rerr != nil {
+					rep.notes = append(rep.notes, "Go library API boundaries: render: "+rerr.Error())
+				} else {
+					generated = append(generated, genFile{filepath.Join(generatedDir, "library_api_boundaries.yaml"), data})
+				}
+			}
+		}
 		if writeCands && len(report.Candidates) > 0 {
 			doc := struct {
 				Invariants []extractedInvariantCandidate `yaml:"invariants"`
@@ -594,16 +627,17 @@ func countYAML(dir string) int {
 // On a curated repo (awareness_graph_* present) these are deferred to the
 // targeted extractors so bootstrap never duplicates their node ids.
 var bootstrapOwnedGenerated = map[string]bool{
-	"contracts.yaml":            true,
-	"rest_contracts.yaml":       true,
-	"components.yaml":           true,
-	"web_components.yaml":       true,
-	"contract_consumption.yaml": true,
-	"source_symbols.yaml":       true,
-	"source_edges.yaml":         true,
-	"scip_symbols.yaml":         true,
-	"scip_references.yaml":      true,
-	"tests.yaml":                true,
+	"contracts.yaml":              true,
+	"rest_contracts.yaml":         true,
+	"components.yaml":             true,
+	"web_components.yaml":         true,
+	"contract_consumption.yaml":   true,
+	"library_api_boundaries.yaml": true,
+	"source_symbols.yaml":         true,
+	"source_edges.yaml":           true,
+	"scip_symbols.yaml":           true,
+	"scip_references.yaml":        true,
+	"tests.yaml":                  true,
 }
 
 // hasCuratedGenerated reports whether the generated dir already carries the
@@ -706,32 +740,34 @@ func syncBootstrapScaffold(root string, rep *bootstrapReport) error {
 // ── report ──
 
 type bootstrapReport struct {
-	root                  string
-	dryRun                bool
-	check                 bool
-	scaffolded            []string
-	writtenGenerated      []string
-	components            int
-	contracts             int
-	operations            int
-	webComponents         int // native custom elements (customElements.define / @customElement)
-	contractConsumptions  int // contracts consumed via gRPC-web service clients (consumed_by edges)
-	importEdges           int // component dependsOn edges from Go imports
-	importEdgesClassified int // semantic edges (reads_from/writes_to/exposes) from the classifier
-	tests                 int
-	sourceAnchors         int
-	candidatePatterns     int
-	candidateMisuses      int
-	candidateAuthority    int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
-	candidateBoundaries   int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
-	candidateInvariants   int // Invariant candidates inferred from rule-signaling test names
-	historyCandidates     int // -1 = skipped
-	validationFindings    int
-	validationByCheck     map[string]int
-	buildStatus           string
-	stale                 []string
-	notes                 []string
-	nextActions           []string
+	root                          string
+	dryRun                        bool
+	check                         bool
+	scaffolded                    []string
+	writtenGenerated              []string
+	components                    int
+	contracts                     int
+	operations                    int
+	webComponents                 int // native custom elements (customElements.define / @customElement)
+	contractConsumptions          int // contracts consumed via gRPC-web service clients (consumed_by edges)
+	importEdges                   int // component dependsOn edges from Go imports
+	importEdgesClassified         int // semantic edges (reads_from/writes_to/exposes) from the classifier
+	tests                         int
+	sourceAnchors                 int
+	candidatePatterns             int
+	candidateMisuses              int
+	candidateAuthority            int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
+	candidateLibraryAPIs          int // Go public-package API candidates; extension points require type-checked local implementations
+	candidateLibraryAPIBoundaries int // Candidate Boundary nodes projected from public Go library APIs
+	candidateBoundaries           int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
+	candidateInvariants           int // Invariant candidates inferred from rule-signaling test names
+	historyCandidates             int // -1 = skipped
+	validationFindings            int
+	validationByCheck             map[string]int
+	buildStatus                   string
+	stale                         []string
+	notes                         []string
+	nextActions                   []string
 }
 
 func (r *bootstrapReport) computeNextActions() {
@@ -778,6 +814,8 @@ func (r *bootstrapReport) print(w *os.File) {
 	fmt.Fprintf(w, "  candidate patterns found:   %d\n", r.candidatePatterns)
 	fmt.Fprintf(w, "  candidate misuses found:    %d\n", r.candidateMisuses)
 	fmt.Fprintf(w, "  authority surfaces found:   %d\n", r.candidateAuthority)
+	fmt.Fprintf(w, "  library API candidates:     %d\n", r.candidateLibraryAPIs)
+	fmt.Fprintf(w, "  library API boundaries:     %d\n", r.candidateLibraryAPIBoundaries)
 	fmt.Fprintf(w, "  boundary candidates found:  %d\n", r.candidateBoundaries)
 	fmt.Fprintf(w, "  invariant candidates found: %d\n", r.candidateInvariants)
 	fmt.Fprintf(w, "  history-derived candidates: %s\n", hist)
