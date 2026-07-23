@@ -21,6 +21,7 @@ const (
 	baseSHA      = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	headSHA      = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	advancedHead = "cccccccccccccccccccccccccccccccccccccccc"
+	deliveryID   = "11111111-2222-3333-4444-555555555555"
 )
 
 type fakeGitHubClient struct {
@@ -68,6 +69,20 @@ func (f *fakeGitHubClient) UpsertCheckRun(_ context.Context, _ int64, _, _, chec
 	return nil
 }
 
+func TestHandlerHealthAndReadiness(t *testing.T) {
+	handler, err := NewHandler([]byte("secret"), &fakeGitHubClient{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]string{"/healthz": "ok\n", "/readyz": "ready\n"} {
+		response := httptest.NewRecorder()
+		handler.Routes().ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusOK || response.Body.String() != want {
+			t.Fatalf("%s: status = %d, body = %q", path, response.Code, response.Body.String())
+		}
+	}
+}
+
 func TestHandlerProcessesSupportedPullRequest(t *testing.T) {
 	secret := []byte("webhook-secret")
 	identity := githubapi.PullRequestIdentity{BaseSHA: baseSHA, HeadSHA: headSHA}
@@ -75,7 +90,7 @@ func TestHandlerProcessesSupportedPullRequest(t *testing.T) {
 		identities: []githubapi.PullRequestIdentity{identity, identity},
 		files:      []githubapi.PullRequestFile{{Filename: "cmd/app/main.go", Status: "modified", Additions: 4, Deletions: 1}},
 	}
-	response := performPullRequestWebhook(t, secret, client)
+	response := performPullRequestWebhook(t, secret, client, deliveryID)
 
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
@@ -97,10 +112,22 @@ func TestHandlerProcessesSupportedPullRequest(t *testing.T) {
 	}
 }
 
+func TestHandlerRequiresDeliveryIdentity(t *testing.T) {
+	secret := []byte("webhook-secret")
+	client := &fakeGitHubClient{}
+	response := performPullRequestWebhook(t, secret, client, "")
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if client.identityCalls != 0 || client.fileCalls != 0 || client.commentCalls != 0 || client.checkCalls != 0 {
+		t.Fatal("GitHub API was called without a delivery identity")
+	}
+}
+
 func TestHandlerDiscardsDeliveryAlreadyStale(t *testing.T) {
 	secret := []byte("webhook-secret")
 	client := &fakeGitHubClient{identities: []githubapi.PullRequestIdentity{{BaseSHA: baseSHA, HeadSHA: advancedHead}}}
-	response := performPullRequestWebhook(t, secret, client)
+	response := performPullRequestWebhook(t, secret, client, deliveryID)
 
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
@@ -122,7 +149,7 @@ func TestHandlerDiscardsDeliveryThatRacesWithNewCommit(t *testing.T) {
 		},
 		files: []githubapi.PullRequestFile{{Filename: "cmd/app/main.go", Status: "modified", Additions: 4, Deletions: 1}},
 	}
-	response := performPullRequestWebhook(t, secret, client)
+	response := performPullRequestWebhook(t, secret, client, deliveryID)
 
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
@@ -144,6 +171,7 @@ func TestHandlerRejectsInvalidSignature(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/webhooks/github", strings.NewReader(`{"action":"opened"}`))
 	req.Header.Set("X-GitHub-Event", "pull_request")
+	req.Header.Set("X-GitHub-Delivery", deliveryID)
 	req.Header.Set("X-Hub-Signature-256", "sha256=deadbeef")
 	response := httptest.NewRecorder()
 
@@ -156,7 +184,7 @@ func TestHandlerRejectsInvalidSignature(t *testing.T) {
 	}
 }
 
-func performPullRequestWebhook(t *testing.T, secret []byte, client *fakeGitHubClient) *httptest.ResponseRecorder {
+func performPullRequestWebhook(t *testing.T, secret []byte, client *fakeGitHubClient, delivery string) *httptest.ResponseRecorder {
 	t.Helper()
 	handler, err := NewHandler(secret, client, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
@@ -171,6 +199,9 @@ func performPullRequestWebhook(t *testing.T, secret []byte, client *fakeGitHubCl
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/webhooks/github", bytes.NewReader(body))
 	req.Header.Set("X-GitHub-Event", "pull_request")
+	if delivery != "" {
+		req.Header.Set("X-GitHub-Delivery", delivery)
+	}
 	req.Header.Set("X-Hub-Signature-256", sign(secret, body))
 	response := httptest.NewRecorder()
 	handler.Routes().ServeHTTP(response, req)

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,8 +16,30 @@ import (
 	githubapi "github.com/globulario/sensei-github-app/internal/github"
 )
 
+var (
+	version   = "dev"
+	commit    = "unknown"
+	buildTime = "unknown"
+)
+
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		target := "http://127.0.0.1:8080/readyz"
+		if len(os.Args) > 2 {
+			target = os.Args[2]
+		}
+		if err := runHealthcheck(target); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With(
+		"version", version,
+		"commit", commit,
+		"build_time", buildTime,
+	)
 	if err := run(logger); err != nil {
 		logger.Error("Sensei GitHub App stopped", "error", err)
 		os.Exit(1)
@@ -57,7 +80,7 @@ func run(logger *slog.Logger) error {
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		logger.Info("Sensei GitHub App listening", "address", cfg.ListenAddr)
+		logger.Info("Sensei GitHub App listening", "address", cfg.ListenAddr, "app_id", cfg.AppID)
 		serverErrors <- server.ListenAndServe()
 	}()
 
@@ -75,4 +98,17 @@ func run(logger *slog.Logger) error {
 		}
 		return err
 	}
+}
+
+func runHealthcheck(target string) error {
+	client := &http.Client{Timeout: 3 * time.Second}
+	response, err := client.Get(target)
+	if err != nil {
+		return fmt.Errorf("healthcheck request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("healthcheck returned %s", response.Status)
+	}
+	return nil
 }
