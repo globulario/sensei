@@ -1,0 +1,158 @@
+{
+  "schema_version": "sensei.dashboard.projection.v1",
+  "identity": {
+    "projection_id": "projection.fixture",
+    "repository": {
+      "key": "github.com/globulario/sensei",
+      "display_name": "sensei"
+    },
+    "revision": {
+      "id": "0000000000000000000000000000000000fix1"
+    },
+    "graph_authority": {
+      "observed": "yes",
+      "current": "yes",
+      "identity": null,
+      "summary": "fixture"
+    },
+    "generated_at": "2026-07-23T00:00:00Z"
+  },
+  "availability": {
+    "state": "available",
+    "summary": "first observed revision",
+    "limitations": [],
+    "sources": []
+  },
+  "assessments": {
+    "architecture_health": {
+      "state": "unknown",
+      "label": "Architecture health",
+      "summary": "not evaluated",
+      "severity": "not_applicable",
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    "projection_integrity": {
+      "state": "healthy",
+      "label": "Projection integrity",
+      "summary": "current",
+      "severity": "not_applicable",
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    "observation_completeness": {
+      "state": "attention",
+      "label": "Observation completeness",
+      "summary": "coverage of the authored corpus",
+      "severity": "medium",
+      "coverage": {
+        "observed": 1,
+        "total": null,
+        "unit": "authored architectural elements"
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  },
+  "active_context": null,
+  "briefing": [
+    {
+      "id": "briefing.change",
+      "kind": "change",
+      "text": "This is the first authoritative projection recorded for this repository. There is no prior revision to compare against, so evolution.changes is empty and base_revision is null — that is the honest state, not a missing feature.",
+      "severity": "info",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "region.ungrouped.synthetic-placeholder",
+      "name": "Ungrouped",
+      "responsibility": "Placeholder region.",
+      "state": "unknown",
+      "component_refs": [
+        "component.example"
+      ],
+      "visual_anchor": {
+        "order": 0
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "component.example",
+      "name": "Example",
+      "region_ref": "region.ungrouped.synthetic-placeholder",
+      "responsibility": "Illustrates the first-observed-revision evolution case.",
+      "state": "open",
+      "authority_refs": [],
+      "visual_anchor": {
+        "order": 0
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "boundaries": [],
+  "contracts": [],
+  "flows": [],
+  "attention": [],
+  "evolution": {
+    "availability": "available",
+    "base_revision": null,
+    "head_revision": "0000000000000000000000000000000000fix4",
+    "summary": "first observed revision for this producer; no prior authoritative projection exists to compare against",
+    "changes": []
+  },
+  "focus_records": [
+    {
+      "element_ref": "component.example",
+      "element_kind": "component",
+      "name": "Example",
+      "responsibility": "Illustrates the first-observed-revision evolution case.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    {
+      "element_ref": "region.ungrouped.synthetic-placeholder",
+      "element_kind": "region",
+      "name": "Ungrouped",
+      "responsibility": "Placeholder region.",
+      "state": "unknown",
+      "owner_refs": [],
+      "owned_refs": [
+        "component.example"
+      ],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "capabilities": {
+    "live_refresh": false,
+    "revision_compare": false,
+    "agent_handoff": "none",
+    "source_deep_links": false
+  }
+}

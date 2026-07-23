@@ -1,0 +1,171 @@
+{
+  "schema_version": "sensei.dashboard.projection.v1",
+  "identity": {
+    "projection_id": "projection.fixture",
+    "repository": {
+      "key": "github.com/globulario/sensei",
+      "display_name": "sensei"
+    },
+    "revision": {
+      "id": "0000000000000000000000000000000000fix1"
+    },
+    "graph_authority": {
+      "observed": "unknown",
+      "current": "unknown",
+      "identity": null,
+      "summary": "fixture"
+    },
+    "generated_at": "2026-07-23T00:00:00Z"
+  },
+  "availability": {
+    "state": "partial",
+    "summary": "the live Oxigraph store was unreachable; this projection was built from the committed awareness corpus only",
+    "limitations": [
+      "live graph freshness (graph_authority.current) could not be confirmed: no reachable store",
+      "architecture_health not evaluated in this fixture"
+    ],
+    "sources": [
+      {
+        "owner": "docs/awareness/architecture",
+        "availability": "available",
+        "summary": "components/boundaries/contracts corpus"
+      },
+      {
+        "owner": "live-oxigraph",
+        "availability": "unavailable",
+        "summary": "no reachable store"
+      }
+    ]
+  },
+  "assessments": {
+    "architecture_health": {
+      "state": "unknown",
+      "label": "Architecture health",
+      "summary": "not evaluated",
+      "severity": "not_applicable",
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    "projection_integrity": {
+      "state": "attention",
+      "label": "Projection integrity",
+      "summary": "embeddata freshness unresolved: live store unreachable",
+      "severity": "medium",
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    "observation_completeness": {
+      "state": "attention",
+      "label": "Observation completeness",
+      "summary": "coverage counted from the authored corpus only; live-store coverage unknown",
+      "severity": "medium",
+      "coverage": {
+        "observed": 1,
+        "total": null,
+        "unit": "authored architectural elements"
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  },
+  "active_context": null,
+  "briefing": [
+    {
+      "id": "briefing.orientation",
+      "kind": "orientation",
+      "text": "Partial fixture: one component is documented; live evidence was unavailable when this projection was built.",
+      "severity": "info",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "region.ungrouped.synthetic-placeholder",
+      "name": "Ungrouped",
+      "responsibility": "Placeholder region; see availability.limitations.",
+      "state": "unknown",
+      "component_refs": [
+        "component.example"
+      ],
+      "visual_anchor": {
+        "order": 0
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "component.example",
+      "name": "Example",
+      "region_ref": "region.ungrouped.synthetic-placeholder",
+      "responsibility": "Illustrates a partial-availability fixture.",
+      "state": "open",
+      "authority_refs": [],
+      "visual_anchor": {
+        "order": 0
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "boundaries": [],
+  "contracts": [],
+  "flows": [],
+  "attention": [],
+  "evolution": {
+    "availability": "available",
+    "base_revision": null,
+    "head_revision": "0000000000000000000000000000000000fix1",
+    "changes": []
+  },
+  "focus_records": [
+    {
+      "element_ref": "component.example",
+      "element_kind": "component",
+      "name": "Example",
+      "responsibility": "Illustrates a partial-availability fixture.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    {
+      "element_ref": "region.ungrouped.synthetic-placeholder",
+      "element_kind": "region",
+      "name": "Ungrouped",
+      "responsibility": "Placeholder region.",
+      "state": "unknown",
+      "owner_refs": [],
+      "owned_refs": [
+        "component.example"
+      ],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "capabilities": {
+    "live_refresh": false,
+    "revision_compare": false,
+    "agent_handoff": "none",
+    "source_deep_links": false
+  }
+}
