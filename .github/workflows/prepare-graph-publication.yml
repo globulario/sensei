@@ -7,6 +7,12 @@ on:
     paths:
       - '.sensei-patches/graph-publication.tar.gz.b64.part-*'
       - '.github/workflows/prepare-graph-publication.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.sensei-patches/graph-publication.tar.gz.b64.part-*'
+      - '.github/workflows/prepare-graph-publication.yml'
 
 permissions:
   contents: write
@@ -22,6 +28,7 @@ jobs:
       - name: Checkout exact branch
         uses: actions/checkout@v4
         with:
+          ref: agent/transactional-graph-publication
           fetch-depth: 0
 
       - name: Setup Go
