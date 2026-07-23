@@ -64,6 +64,17 @@ func TestIngest_Symbols(t *testing.T) {
 			t.Errorf("missing expected symbol id %q", want)
 		}
 	}
+
+	t.Run("method identity keeps receiver despite bare display name", func(t *testing.T) {
+		si := &scip.SymbolInformation{
+			Symbol:      "scip-go gomod repo . `render`/JSON#Render().",
+			DisplayName: "Render",
+			Kind:        scip.SymbolInformation_Method,
+		}
+		if got := symbolDisplayName(si); got != "JSON.Render" {
+			t.Fatalf("symbolDisplayName() = %q, want receiver-qualified JSON.Render", got)
+		}
+	})
 }
 
 func TestIngest_References(t *testing.T) {

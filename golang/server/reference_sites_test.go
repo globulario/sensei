@@ -84,6 +84,54 @@ func TestCodeSymbolIDFromIRI(t *testing.T) {
 	if _, ok := codeSymbolIDFromIRI("not-an-awareness-iri"); ok {
 		t.Error("non-awareness IRI must return ok=false")
 	}
+
+	t.Run("qualified task target excludes neighboring symbols", func(t *testing.T) {
+		intentIRI := mintedIRI(rdf.ClassIntent, "render.json_preserves_http_contract")
+		testIRI := mintedIRI(rdf.ClassTestSymbol, "render/json_test.go:TestJSONRender")
+		syms := []codeSymbol{
+			{id: "render/json.go:AsciiJSON.Render", label: "AsciiJSON.Render", language: "go"},
+			{id: "render/json.go:JSON.Render", label: "JSON.Render", language: "go", implements: []string{intentIRI}, testedBy: []string{testIRI}},
+		}
+
+		focused := focusCodeSymbolsForTask("preserve JSON.Render response behavior", syms)
+		if len(focused) != 1 || focused[0].id != "render/json.go:JSON.Render" || !focused[0].targeted {
+			t.Fatalf("focused symbols = %+v, want exact targeted JSON.Render", focused)
+		}
+		if !reflect.DeepEqual(focused[0].implements, []string{intentIRI}) || !reflect.DeepEqual(focused[0].testedBy, []string{testIRI}) {
+			t.Fatalf("target evidence was not preserved: %+v", focused[0])
+		}
+	})
+
+	t.Run("ambiguous simple target preserves file context", func(t *testing.T) {
+		syms := []codeSymbol{
+			{id: "render/json.go:JSON.Render", label: "Render"},
+			{id: "render/xml.go:XML.Render", label: "Render"},
+		}
+		focused := focusCodeSymbolsForTask("change Render behavior", syms)
+		if !reflect.DeepEqual(focused, syms) {
+			t.Fatalf("ambiguous simple name must preserve all symbols: got %+v", focused)
+		}
+	})
+
+	t.Run("symbol boundaries prevent substring matches", func(t *testing.T) {
+		syms := []codeSymbol{
+			{id: "render/json.go:JSON.Render", label: "JSON.Render"},
+			{id: "render/json.go:AsciiJSON.Render", label: "AsciiJSON.Render"},
+		}
+		focused := focusCodeSymbolsForTask("change AsciiJSON.Render", syms)
+		if len(focused) != 1 || focused[0].id != "render/json.go:AsciiJSON.Render" {
+			t.Fatalf("substring boundary selected the wrong symbol: %+v", focused)
+		}
+	})
+
+	t.Run("go visibility is descriptive not API authority", func(t *testing.T) {
+		if visibility, ok := goSymbolVisibility("go", "Context.Bind"); !ok || visibility != "exported" {
+			t.Fatalf("Context.Bind visibility = %q, %v; want exported", visibility, ok)
+		}
+		if visibility, ok := goSymbolVisibility("go", "context.bind"); !ok || visibility != "unexported" {
+			t.Fatalf("context.bind visibility = %q, %v; want unexported", visibility, ok)
+		}
+	})
 }
 
 // A store failure while reading inbound edges must surface as an error, never

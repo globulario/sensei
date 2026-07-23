@@ -30,6 +30,119 @@ type codeSymbol struct {
 	partiallyViolates []string // invariant IRIs the code KNOWINGLY violates in part
 	testedBy          []string // TestSymbol IRIs
 	references        []string // CodeSymbol ids this symbol references (calls/uses), incl. external:<name>
+	knownCallers      []string // inbound static aw:references sites from the current graph
+	targeted          bool     // true only when the task names this symbol exactly
+}
+
+// focusCodeSymbolsForTask narrows file-level code context only when the task
+// names a symbol exactly. Qualified names (for example Context.Bind) take
+// precedence. A simple name is accepted only when it resolves to one symbol in
+// the file. Ambiguous or absent matches preserve the full file-level context;
+// Sensei never guesses which sibling the caller meant.
+func focusCodeSymbolsForTask(task string, syms []codeSymbol) []codeSymbol {
+	if strings.TrimSpace(task) == "" || len(syms) == 0 {
+		return syms
+	}
+
+	qualified := exactTaskSymbolMatches(task, syms, true)
+	if len(qualified) > 0 {
+		return markTargetedSymbols(qualified)
+	}
+
+	simple := exactTaskSymbolMatches(task, syms, false)
+	if len(simple) == 1 {
+		return markTargetedSymbols(simple)
+	}
+	return syms
+}
+
+func exactTaskSymbolMatches(task string, syms []codeSymbol, qualified bool) []codeSymbol {
+	seen := map[string]bool{}
+	var out []codeSymbol
+	for _, sym := range syms {
+		for _, name := range codeSymbolCandidateNames(sym) {
+			isQualified := strings.Contains(name, ".")
+			if isQualified != qualified || !containsExactSymbolName(task, name) {
+				continue
+			}
+			if !seen[sym.id] {
+				seen[sym.id] = true
+				out = append(out, sym)
+			}
+			break
+		}
+	}
+	return out
+}
+
+func codeSymbolCandidateNames(sym codeSymbol) []string {
+	var names []string
+	if name := strings.TrimSpace(sym.label); name != "" && name != sym.id {
+		names = append(names, name)
+	}
+	if colon := strings.LastIndex(sym.id, ":"); colon >= 0 && colon+1 < len(sym.id) {
+		name := strings.TrimSpace(sym.id[colon+1:])
+		if name != "" {
+			names = appendUniqueStr(names, name)
+		}
+	}
+	return names
+}
+
+func containsExactSymbolName(text, name string) bool {
+	if name == "" {
+		return false
+	}
+	for offset := 0; offset <= len(text)-len(name); {
+		rel := strings.Index(text[offset:], name)
+		if rel < 0 {
+			return false
+		}
+		start := offset + rel
+		end := start + len(name)
+		beforeOK := start == 0 || !isSymbolNameByte(text[start-1])
+		afterOK := end == len(text) || !isSymbolNameByte(text[end])
+		if beforeOK && afterOK {
+			return true
+		}
+		offset = start + 1
+	}
+	return false
+}
+
+func isSymbolNameByte(b byte) bool {
+	return b == '_' || b == '.' ||
+		(b >= '0' && b <= '9') ||
+		(b >= 'A' && b <= 'Z') ||
+		(b >= 'a' && b <= 'z')
+}
+
+func markTargetedSymbols(syms []codeSymbol) []codeSymbol {
+	out := append([]codeSymbol(nil), syms...)
+	for i := range out {
+		out[i].targeted = true
+	}
+	return out
+}
+
+// attachKnownStaticCallers enriches only explicitly targeted symbols. The
+// result is deliberately labelled static and graph-bounded when rendered;
+// interface dispatch, callbacks, reflection, and generated registration may
+// not produce aw:references edges and therefore remain unknown.
+func (s *server) attachKnownStaticCallers(ctx context.Context, syms []codeSymbol) ([]codeSymbol, error) {
+	out := append([]codeSymbol(nil), syms...)
+	for i := range out {
+		if !out[i].targeted {
+			continue
+		}
+		symbolID := rdf.DecodeIRIPath(out[i].id)
+		callers, err := s.referencingSites(ctx, symbolID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].knownCallers = callers
+	}
+	return out, nil
 }
 
 // collectCodeSymbols queries for CodeSymbol nodes defined in the given source-file IRI.
@@ -204,6 +317,30 @@ func appendCodeContextSection(b *strings.Builder, syms []codeSymbol, maxEntries 
 	}
 
 	b.WriteString("\n\nCode context:")
+	for _, s := range syms {
+		if !s.targeted {
+			continue
+		}
+		name := codeSymbolDisplayName(s)
+		fmt.Fprintf(b, "\n  Target symbol: %s", name)
+		if visibility, ok := goSymbolVisibility(s.language, name); ok {
+			fmt.Fprintf(b, "\n  Go visibility: %s", visibility)
+			if visibility == "exported" {
+				b.WriteString("\n  Supported public API contract: unknown (exported visibility alone is not compatibility authority)")
+			} else {
+				b.WriteString("\n  External package API surface: no (unexported)")
+			}
+		}
+		if len(s.knownCallers) == 0 {
+			b.WriteString("\n  Known static callers: none found in the current graph")
+		} else {
+			b.WriteString("\n  Known static callers:")
+			for _, caller := range capStrings(s.knownCallers, maxEntries) {
+				fmt.Fprintf(b, "\n  - %s", caller)
+			}
+		}
+		b.WriteString("\n  Caller coverage: static aw:references only; interface dispatch, callbacks, reflection, and generated registration may be incomplete")
+	}
 	if ns != "" {
 		fmt.Fprintf(b, "\n  Namespace: %s", ns)
 	}
@@ -300,6 +437,38 @@ func appendCodeContextSection(b *strings.Builder, syms []codeSymbol, maxEntries 
 		for _, line := range conv {
 			fmt.Fprintf(b, "\n  - %s", line)
 		}
+	}
+}
+
+func codeSymbolDisplayName(sym codeSymbol) string {
+	if name := strings.TrimSpace(sym.label); name != "" && name != sym.id {
+		return name
+	}
+	if colon := strings.LastIndex(sym.id, ":"); colon >= 0 && colon+1 < len(sym.id) {
+		return sym.id[colon+1:]
+	}
+	return sym.id
+}
+
+func goSymbolVisibility(language, name string) (string, bool) {
+	if !strings.EqualFold(strings.TrimSpace(language), "go") {
+		return "", false
+	}
+	leaf := name
+	if dot := strings.LastIndex(leaf, "."); dot >= 0 {
+		leaf = leaf[dot+1:]
+	}
+	leaf = strings.TrimLeft(leaf, "*()")
+	if leaf == "" {
+		return "", false
+	}
+	switch {
+	case leaf[0] >= 'A' && leaf[0] <= 'Z':
+		return "exported", true
+	case leaf[0] >= 'a' && leaf[0] <= 'z':
+		return "unexported", true
+	default:
+		return "", false
 	}
 }
 

@@ -250,10 +250,19 @@ func hasRole(roles int32, role scip.SymbolRole) bool { return roles&int32(role) 
 // symbolDisplayName returns the best human name for a defined symbol: SCIP's
 // display_name when the indexer set it, else the last meaningful descriptor.
 func symbolDisplayName(si *scip.SymbolInformation) string {
+	// scip-go commonly reports a bare DisplayName for methods (for example
+	// "Render"), even though the canonical symbol descriptors carry the
+	// receiver ("JSON.Render"). Prefer that descriptor-derived qualified name
+	// for methods so same-named methods in one file do not collapse onto the
+	// same file:method identity. Functions keep the indexer's display name.
+	parsed := symbolStringName(si.GetSymbol())
+	if symbolKind(si) == "method" && strings.Contains(parsed, ".") {
+		return parsed
+	}
 	if n := strings.TrimSpace(si.GetDisplayName()); n != "" {
 		return n
 	}
-	return symbolStringName(si.GetSymbol())
+	return parsed
 }
 
 // symbolStringName parses a SCIP symbol string and returns a readable name from
