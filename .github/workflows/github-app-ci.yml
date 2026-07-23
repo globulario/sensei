@@ -27,8 +27,7 @@ jobs:
         with:
           go-version-file: github-app/go.mod
           cache-dependency-path: github-app/go.mod
-      - name: Report formatting
-        continue-on-error: true
+      - name: Verify formatting
         run: |
           files="$(gofmt -l .)"
           if [ -n "$files" ]; then
