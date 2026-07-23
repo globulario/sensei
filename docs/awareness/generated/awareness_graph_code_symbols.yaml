@@ -793,9 +793,24 @@ test_symbols:
     symbol: TestExtractGoCodeSymbolsWithoutNamespaceRegistry
     package: main
     language: go
+  - id: cmd/awg/bootstrap_extract_test.go:TestExtractGoLibraryAPICandidates
+    file: cmd/awg/bootstrap_extract_test.go
+    symbol: TestExtractGoLibraryAPICandidates
+    package: main
+    language: go
   - id: cmd/awg/bootstrap_extract_test.go:TestExtractTests
     file: cmd/awg/bootstrap_extract_test.go
     symbol: TestExtractTests
+    package: main
+    language: go
+  - id: cmd/awg/bootstrap_extract_test.go:TestGoLibraryAPIBoundaryCandidatesRemainCandidates
+    file: cmd/awg/bootstrap_extract_test.go
+    symbol: TestGoLibraryAPIBoundaryCandidatesRemainCandidates
+    package: main
+    language: go
+  - id: cmd/awg/bootstrap_extract_test.go:TestGoLibraryAPIContractsRemainCandidates
+    file: cmd/awg/bootstrap_extract_test.go
+    symbol: TestGoLibraryAPIContractsRemainCandidates
     package: main
     language: go
   - id: cmd/awg/bootstrap_extract_test.go:TestMergeImportGraphComponents_MergesEdgesIntoSingleComponentSet
@@ -1583,6 +1598,11 @@ test_symbols:
   - id: cmd/awg/cmd_build_test.go:TestQueryURLFromStore
     file: cmd/awg/cmd_build_test.go
     symbol: TestQueryURLFromStore
+    package: main
+    language: go
+  - id: cmd/awg/cmd_build_test.go:TestRetainScopedGraph_RemovesOnlySoleOwnedTargetAndMarker
+    file: cmd/awg/cmd_build_test.go
+    symbol: TestRetainScopedGraph_RemovesOnlySoleOwnedTargetAndMarker
     package: main
     language: go
   - id: cmd/awg/cmd_build_test.go:TestRunBuild_FailsClosedWithoutScope
