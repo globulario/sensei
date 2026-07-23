@@ -1,0 +1,98 @@
+name: GitHub App Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Private image tag to publish
+        required: true
+        default: private-beta
+  push:
+    tags:
+      - "github-app-v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve immutable image identity
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sensei-github-app"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME}"
+          fi
+          if [[ ! "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "Invalid container tag: $version" >&2
+            exit 1
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to GHCR
+        shell: bash
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push private image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${{ steps.meta.outputs.image }}"
+          version="${{ steps.meta.outputs.version }}"
+          short_sha="${{ steps.meta.outputs.short_sha }}"
+          build_time="${{ steps.meta.outputs.build_time }}"
+          docker buildx build \
+            --file github-app/Dockerfile \
+            --build-arg VERSION="$version" \
+            --build-arg COMMIT="$GITHUB_SHA" \
+            --build-arg BUILD_TIME="$build_time" \
+            --build-arg SOURCE="https://github.com/$GITHUB_REPOSITORY" \
+            --tag "$image:$version" \
+            --tag "$image:sha-$short_sha" \
+            --provenance=true \
+            --sbom=true \
+            --push \
+            --metadata-file /tmp/image-metadata.json \
+            github-app
+
+          digest="$(jq -r '."containerimage.digest"' /tmp/image-metadata.json)"
+          if [[ -z "$digest" || "$digest" == "null" ]]; then
+            echo "Container digest missing from build metadata" >&2
+            exit 1
+          fi
+          jq -n \
+            --arg image "$image" \
+            --arg version "$version" \
+            --arg commit "$GITHUB_SHA" \
+            --arg digest "$digest" \
+            --arg build_time "$build_time" \
+            '{schema:"sensei.github_app.image_receipt.v1", image:$image, version:$version, commit:$commit, digest:$digest, build_time:$build_time, immutable_reference:($image+"@"+$digest)}' \
+            > github-app-image-receipt.json
+
+          {
+            echo "## Sensei GitHub App private image"
+            echo
+            echo '```text'
+            echo "$image@$digest"
+            echo '```'
+            echo
+            echo "The first GHCR publication is private by default. Keep it private until the live installation proof is accepted."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: github-app-image-receipt
+          path: github-app-image-receipt.json
+          if-no-files-found: error
