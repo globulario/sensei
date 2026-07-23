@@ -153,6 +153,8 @@ components:
       - cmd/awg/governance_helpers.go
       - cmd/awg/governance_publish_helpers.go
       - cmd/awg/graph_marker.go
+      - cmd/awg/graph_publication_lock_unix.go
+      - cmd/awg/graph_publication_lock_windows.go
       - cmd/awg/helpers.go
       - cmd/awg/json_output.go
       - cmd/awg/main.go
