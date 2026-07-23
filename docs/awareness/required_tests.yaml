@@ -968,3 +968,386 @@ required_tests:
         - invariant.sensei.proportional_rigor_classifies_governed_surfaces_and_fails_cl
       files:
         - golang/coverage/rigor_ownership_test.go
+
+  # ── Issue #95 governance repair: test-wiring backfill ────────────────────
+
+  - id: golang/server/briefing_repo_context_test.go:TestEstablishBriefingRepositoryContext
+    title: The server briefing-feedback repository context is one immutable startup-owned root+domain pair
+    protects:
+      invariants:
+        - closure.briefing_feedback_server_repository_context_is_startup_owned
+      files:
+        - golang/server/briefing_repo_context_test.go
+  - id: golang/server/briefing_repo_context_test.go:TestBriefingRequest_HasNoFilesystemRootField
+    title: BriefingRequest never carries a filesystem repository root
+    protects:
+      invariants:
+        - closure.briefing_feedback_server_repository_context_is_startup_owned
+      files:
+        - golang/server/briefing_repo_context_test.go
+  - id: golang/server/briefing_feedback_adapter_test.go:TestBriefingResponse_FeedbackIsAdditiveFieldSeven
+    title: BriefingResponse.feedback is additive field 7
+    protects:
+      invariants:
+        - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+        - controlstate.proto_evolution_must_be_additive
+      files:
+        - golang/server/briefing_feedback_adapter_test.go
+  - id: golang/server/briefing_feedback_adapter_test.go:TestFeedbackAvailabilityMapsExplicitly
+    title: Every canonical feedback availability maps explicitly to a distinct non-unspecified enum
+    protects:
+      invariants:
+        - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+      files:
+        - golang/server/briefing_feedback_adapter_test.go
+  - id: golang/server/briefing_feedback_adapter_test.go:TestFeedbackFindingClassMapsExplicitly
+    title: Every canonical feedback finding class maps explicitly to a distinct non-unspecified enum
+    protects:
+      invariants:
+        - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+      files:
+        - golang/server/briefing_feedback_adapter_test.go
+  - id: golang/server/briefing_feedback_adapter_test.go:TestFeedbackDispositionMapsExplicitly
+    title: Every canonical feedback disposition maps explicitly to a distinct non-unspecified enum
+    protects:
+      invariants:
+        - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+      files:
+        - golang/server/briefing_feedback_adapter_test.go
+  - id: golang/server/briefing_feedback_adapter_test.go:TestBriefingFeedbackToProto_PreservesAndRefuses
+    title: The feedback-to-proto adapter preserves identities/digest and refuses unmappable states
+    protects:
+      invariants:
+        - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+      files:
+        - golang/server/briefing_feedback_adapter_test.go
+  - id: golang/server/briefing_feedback_adapter_test.go:TestBriefingFeedbackProjection_NoRepositoryRootField
+    title: The briefing-feedback wire projection never carries a filesystem repository root
+    protects:
+      invariants:
+        - closure.briefing_feedback_wire_is_additive_typed_and_projection_derived
+      files:
+        - golang/server/briefing_feedback_adapter_test.go
+  - id: golang/server/briefing_feedback_closure_test.go:TestClosure_RpcStructuredProseReferenceParity
+    title: RPC prose and the structured projection reference the same governed records
+    protects:
+      invariants:
+        - closure.briefing_feedback_prose_is_rendered_only_from_the_typed_projection
+      files:
+        - golang/server/briefing_feedback_closure_test.go
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedbackProse_PrivacyAndParity
+    title: Feedback prose renders only governed-record identity, never raw answer text
+    protects:
+      invariants:
+        - closure.briefing_feedback_prose_is_rendered_only_from_the_typed_projection
+      files:
+        - golang/server/briefing_feedback_behavior_test.go
+  - id: golang/server/briefing_feedback_behavior_test.go:TestCombineBriefingStatus_FrozenTable
+    title: Combined briefing status composes base and feedback by a frozen table that never upgrades to OK
+    protects:
+      invariants:
+        - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+      files:
+        - golang/server/briefing_feedback_behavior_test.go
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefing_UnconfiguredEmitsUnavailableAndDegrades
+    title: Unconfigured feedback emits typed unavailable while the base briefing degrades, never aborts
+    protects:
+      invariants:
+        - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+      files:
+        - golang/server/briefing_feedback_behavior_test.go
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefing_ForeignDomainDegradesButKeepsBase
+    title: A foreign-domain feedback lookup degrades without erasing the base graph briefing
+    protects:
+      invariants:
+        - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+      files:
+        - golang/server/briefing_feedback_behavior_test.go
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefing_ConfiguredEmptyFeedbackComposes
+    title: A configured-but-empty feedback source composes to OK, never DEGRADED
+    protects:
+      invariants:
+        - closure.briefing_feedback_unavailability_never_erases_base_graph_briefing
+      files:
+        - golang/server/briefing_feedback_behavior_test.go
+  - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedback_TaskOnlyUnavailable
+    title: Task-only briefing feedback returns typed canonical_task_scope_not_established, never a manufactured binding
+    protects:
+      invariants:
+        - closure.briefing_feedback_task_text_is_not_task_identity
+      files:
+        - golang/server/briefing_feedback_behavior_test.go
+  - id: golang/coverage/controlstate_ownership_test.go:TestControlStateOwnershipBoundary
+    title: controlstate never imports closure.Report as artifact closure and orchestrates read handlers only
+    protects:
+      invariants:
+        - controlstate.task_closure_must_not_be_projected_as_artifact_closure
+        - controlstate.server_read_handler_must_consume_canonical_projection
+      files:
+        - golang/coverage/controlstate_ownership_test.go
+  - id: golang/architecture/controlstate/registry_test.go:TestRegistry_UnsupportedIsNotNotApplicable
+    title: An unsupported class resolves to unknown, never not_applicable
+    protects:
+      invariants:
+        - controlstate.artifact_closure_requires_explicit_class_policy
+      files:
+        - golang/architecture/controlstate/registry_test.go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_ExplicitlyNotApplicable
+    title: not_applicable only follows an explicit reviewed class policy
+    protects:
+      invariants:
+        - controlstate.artifact_closure_requires_explicit_class_policy
+      files:
+        - golang/architecture/controlstate/artifactstate_test.go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_UnknownAndAmbiguousClassesVisibleUnknown
+    title: Unknown and ambiguous classes remain visible with unknown closure
+    protects:
+      invariants:
+        - controlstate.unknown_class_remains_visible_and_unknown
+      files:
+        - golang/architecture/controlstate/artifactstate_test.go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_LifecycleNeverDefaultsActive
+    title: Absent lifecycle evidence never synthesizes an active state
+    protects:
+      invariants:
+        - controlstate.lifecycle_absence_must_not_synthesize_active
+      files:
+        - golang/architecture/controlstate/artifactstate_test.go
+  - id: golang/architecture/controlstate/artifactstate_test.go:TestResolveCanonicalClass_CompatibleMostSpecificWins
+    title: The canonical class is resolved by the registry from observed classes, never from the caller
+    protects:
+      invariants:
+        - controlstate.artifact_class_must_not_be_caller_selected
+      files:
+        - golang/architecture/controlstate/artifactstate_test.go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_DeterministicIdentityAndOrder
+    title: Attention identity and ordering are deterministic
+    protects:
+      invariants:
+        - controlstate.attention_severity_is_typed_owner_assigned_and_deterministic
+      files:
+        - golang/architecture/controlstate/attention_test.go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_CriticalNeverDowngraded
+    title: A critical source condition is never silently downgraded
+    protects:
+      invariants:
+        - controlstate.attention_severity_is_typed_owner_assigned_and_deterministic
+      files:
+        - golang/architecture/controlstate/attention_test.go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_UnknownClassificationVisibleFailClosed
+    title: Unknown source classification stays visible and fails closed
+    protects:
+      invariants:
+        - controlstate.attention_severity_is_typed_owner_assigned_and_deterministic
+      files:
+        - golang/architecture/controlstate/attention_test.go
+  - id: golang/architecture/controlstate/attention_test.go:TestAttention_DeterministicDedup
+    title: Duplicate attention items deduplicate deterministically
+    protects:
+      invariants:
+        - controlstate.attention_severity_is_typed_owner_assigned_and_deterministic
+      files:
+        - golang/architecture/controlstate/attention_test.go
+  - id: golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_MechanicallyDerived
+    title: The navigation descriptor is mechanically derived from the canonical registry
+    protects:
+      invariants:
+        - controlstate.navigation_descriptor_is_derived_from_the_canonical_registry
+      files:
+        - golang/architecture/controlstate/navigation_test.go
+  - id: golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_UnknownFallbackVisibleAndUnknown
+    title: An unknown navigation class falls back visibly and stays unknown, never invented policy
+    protects:
+      invariants:
+        - controlstate.navigation_descriptor_is_derived_from_the_canonical_registry
+      files:
+        - golang/architecture/controlstate/navigation_test.go
+  - id: golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_Deterministic
+    title: The navigation descriptor is deterministic across repeated builds
+    protects:
+      invariants:
+        - controlstate.navigation_descriptor_is_derived_from_the_canonical_registry
+      files:
+        - golang/architecture/controlstate/navigation_test.go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_StablePaginationAndCursor
+    title: The artifact index paginates with stable deterministic ordering and a bound cursor
+    protects:
+      invariants:
+        - controlstate.artifact_index_cursor_is_bound_to_snapshot_identity
+      files:
+        - golang/architecture/controlstate/index_snapshot_test.go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_CursorReplayAgainstDifferentSnapshotFails
+    title: A cursor whose bound identity differs from the current request is rejected
+    protects:
+      invariants:
+        - controlstate.artifact_index_cursor_is_bound_to_snapshot_identity
+      files:
+        - golang/architecture/controlstate/index_snapshot_test.go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_PageSizeFailsClosedAboveMax
+    title: Index page size fails closed above the maximum bound
+    protects:
+      invariants:
+        - controlstate.artifact_index_cursor_is_bound_to_snapshot_identity
+      files:
+        - golang/architecture/controlstate/index_snapshot_test.go
+  - id: golang/architecture/controlstate/index_snapshot_test.go:TestControlSnapshot_NoFeedbackCollectionNoScore
+    title: control_snapshot exposes feedback capability/availability only, never a repo-wide collection
+    protects:
+      invariants:
+        - controlstate.feedback_is_consumed_only_at_exact_verified_scope
+      files:
+        - golang/architecture/controlstate/index_snapshot_test.go
+  - id: golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_NoRepositoryWideFeedback
+    title: The control-snapshot RPC never returns a repository-wide promoted-feedback collection
+    protects:
+      invariants:
+        - controlstate.feedback_is_consumed_only_at_exact_verified_scope
+      files:
+        - golang/server/controlstate_rpcs_test.go
+  - id: golang/server/controlstate_rpcs_test.go:TestArtifactStateRPC_PreconditionsAndNotFound
+    title: The artifact-state RPC validates preconditions and never reinterprets the canonical projection
+    protects:
+      invariants:
+        - controlstate.server_read_handler_must_consume_canonical_projection
+        - controlstate.semantic_unavailability_must_remain_response_data
+        - controlstate.artifact_class_must_not_be_caller_selected
+      files:
+        - golang/server/controlstate_rpcs_test.go
+  - id: golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_PartialIsSuccess
+    title: A partial/unavailable/degraded projection is a successful RPC response, never a transport error
+    protects:
+      invariants:
+        - controlstate.semantic_unavailability_must_remain_response_data
+        - controlstate.transport_must_preserve_unknown_distinct_from_zero
+      files:
+        - golang/server/controlstate_rpcs_test.go
+  - id: golang/server/controlstate_rpcs_test.go:TestControlRPCs_RejectFilesystemRepositoryIdentity
+    title: Control-panel RPCs reject caller-supplied filesystem-looking repository identity
+    protects:
+      invariants:
+        - controlstate.repository_context_must_not_be_derived_from_cwd
+      files:
+        - golang/server/controlstate_rpcs_test.go
+  - id: golang/server/controlstate_rpcs_test.go:TestNavigationDescriptorRPC_NoRepositoryContextNeeded
+    title: The navigation-descriptor RPC needs no filesystem repository context
+    protects:
+      invariants:
+        - controlstate.repository_context_must_not_be_derived_from_cwd
+      files:
+        - golang/server/controlstate_rpcs_test.go
+  - id: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
+    title: The list-artifacts cursor is opaque to transport and only the controlstate owner validates it
+    protects:
+      invariants:
+        - controlstate.cursor_must_remain_opaque_and_owner_validated
+      files:
+        - golang/server/controlstate_rpcs_test.go
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_ControlSnapshotLossless
+    title: A ControlSnapshot model->proto->model round trip preserves canonical semantic content and digest
+    protects:
+      invariants:
+        - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+      files:
+        - golang/server/controlstateproto/mapper_test.go
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_ArtifactStateLossless
+    title: An ArtifactState model->proto->model round trip preserves canonical semantic content and digest
+    protects:
+      invariants:
+        - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+      files:
+        - golang/server/controlstateproto/mapper_test.go
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_AvailabilityAndSourcesSurvive
+    title: Availability and per-source statuses survive the protobuf round trip exactly
+    protects:
+      invariants:
+        - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+      files:
+        - golang/server/controlstateproto/mapper_test.go
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_IndexCursorAndUnknownClosure
+    title: The index cursor and unknown closure survive the protobuf round trip exactly
+    protects:
+      invariants:
+        - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+        - controlstate.transport_must_preserve_unknown_distinct_from_zero
+        - controlstate.transport_must_not_recompute_projection_digest
+        - controlstate.cursor_must_remain_opaque_and_owner_validated
+      files:
+        - golang/server/controlstateproto/mapper_test.go
+  - id: golang/server/controlstateproto/mapper_test.go:TestRoundTrip_NavigationDescriptor
+    title: A NavigationDescriptor model->proto->model round trip preserves canonical semantic content
+    protects:
+      invariants:
+        - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+      files:
+        - golang/server/controlstateproto/mapper_test.go
+  - id: golang/server/controlstateproto/mapper_test.go:TestMapper_FailsClosed
+    title: The mapper rejects an unmappable or digest-mismatched projection before mapping
+    protects:
+      invariants:
+        - controlstate.protobuf_is_lossless_transport_not_semantic_owner
+        - controlstate.transport_must_not_recompute_projection_digest
+      files:
+        - golang/server/controlstateproto/mapper_test.go
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_RefusalsWriteNothing
+    title: A refused mutation writes nothing and exposes mutation_applied=false with the unchanged ledger identity
+    protects:
+      invariants:
+        - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+      files:
+        - golang/server/controlstate_mutation_test.go
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_RecordThenExactReplay
+    title: Recording then replaying the exact same mutation is idempotent and never reapplies
+    protects:
+      invariants:
+        - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+      files:
+        - golang/server/controlstate_mutation_test.go
+  - id: golang/server/controlstate_mutation_test.go:TestMutation_RecordDoesNotAutoPromote
+    title: Recording a disposition never auto-chains into promotion
+    protects:
+      invariants:
+        - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+      files:
+        - golang/server/controlstate_mutation_test.go
+  - id: editor/vscode/src/controlPanelMutation.test.ts
+    title: The control-panel mutation client renders refusals and exact replay honestly, never optimistically
+    protects:
+      invariants:
+        - invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
+      files:
+        - editor/vscode/src/controlPanelMutation.test.ts
+  - id: golang/architecture/closure/behavioral_scope_test.go:TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic
+    title: Behavioral claim binding is narrow, explainable, and deterministic for identical inputs
+    protects:
+      invariants:
+        - awareness.task_claim_scoping_is_task_local_and_explainable
+      files:
+        - golang/architecture/closure/behavioral_scope_test.go
+  - id: golang/architecture/closure/behavioral_scope_test.go:TestProjectApplicableBehavioral_NoArbitraryCountLimit
+    title: Task-local claim binding applies no arbitrary count limit
+    protects:
+      invariants:
+        - awareness.task_claim_scoping_is_task_local_and_explainable
+      files:
+        - golang/architecture/closure/behavioral_scope_test.go
+  - id: golang/server/controlstateproto/proto_evolution_test.go:TestControlPanelMessages_FieldNumbersAreFrozen
+    title: Control-panel protobuf message field numbers are frozen across the four read-model messages
+    protects:
+      invariants:
+        - controlstate.proto_evolution_must_be_additive
+      files:
+        - golang/server/controlstateproto/proto_evolution_test.go
+  - id: editor/vscode/src/controlPanelTables.test.ts
+    title: The control panel renders typed owner projections verbatim and classifies nothing client-side
+    protects:
+      invariants:
+        - invariant.sensei.editor_renders_owner_projections_verbatim
+      files:
+        - editor/vscode/src/controlPanelTables.test.ts
+  - id: editor/vscode/src/controlPanelInspector.test.ts
+    title: The CP4 artifact inspector renders owner ArtifactState fields, applicable-only, with no client inference
+    protects:
+      invariants:
+        - invariant.sensei.artifact_inspector_renders_owner_derived_state_only
+      files:
+        - editor/vscode/src/controlPanelInspector.test.ts

@@ -443,6 +443,9 @@ invariants:
         - golang/architecture/convergence/convergence.go
         - golang/architecture/closure/model.go
         - golang/architecture/tasksession/briefing.go
+    required_tests:
+      - golang/architecture/closure/behavioral_scope_test.go:TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic
+      - golang/architecture/closure/behavioral_scope_test.go:TestProjectApplicableBehavioral_NoArbitraryCountLimit
     related_failure_modes:
       - behavioral.task_claim_scope_blocker_explosion
   - id: awareness.authored_knowledge_sources_are_governable_repository_files
@@ -1428,6 +1431,9 @@ invariants:
       verified. Absent configuration ⇒ feedback_unavailable while the graph briefing stays usable;
       never inferred from cwd, the requested file, the requested/home domain, the only task
       directory, or a promotion artifact.
+    required_tests:
+      - golang/server/briefing_repo_context_test.go:TestEstablishBriefingRepositoryContext
+      - golang/server/briefing_repo_context_test.go:TestBriefingRequest_HasNoFilesystemRootField
     contract: >
       The filesystem feedback context is one immutable startup-owned root+domain pair, validated
       once before serving, never caller-selected and never inferred from ambient context.
@@ -1448,6 +1454,13 @@ invariants:
       The server is a thin consumer: it does not rediscover promotions, reimplement verification,
       calculate availability, or reinterpret findings — it delegates to the canonical owner and the
       pure adapter.
+    required_tests:
+      - golang/server/briefing_feedback_adapter_test.go:TestBriefingResponse_FeedbackIsAdditiveFieldSeven
+      - golang/server/briefing_feedback_adapter_test.go:TestFeedbackAvailabilityMapsExplicitly
+      - golang/server/briefing_feedback_adapter_test.go:TestFeedbackFindingClassMapsExplicitly
+      - golang/server/briefing_feedback_adapter_test.go:TestFeedbackDispositionMapsExplicitly
+      - golang/server/briefing_feedback_adapter_test.go:TestBriefingFeedbackToProto_PreservesAndRefuses
+      - golang/server/briefing_feedback_adapter_test.go:TestBriefingFeedbackProjection_NoRepositoryRootField
     contract: >
       Feedback rides an additive typed field 7 mapped only from a validated canonical projection
       with explicit closed-enum mapping, preserved digest, and no filesystem root on the wire.
@@ -1465,6 +1478,9 @@ invariants:
       structured provenance and raw answer text is never rendered. Every governed record rendered
       in prose exists in the structured projection, and no failed candidate is ever rendered as
       governed truth.
+    required_tests:
+      - golang/server/briefing_feedback_closure_test.go:TestClosure_RpcStructuredProseReferenceParity
+      - golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedbackProse_PrivacyAndParity
     contract: >
       Prose and structured feedback derive from one validated canonical projection; prose renders
       only governed-record identity, never raw answer text or a failed candidate as truth.
@@ -1482,6 +1498,11 @@ invariants:
       preserved when feedback is degraded, unavailable, or invalid, and a feedback failure never
       aborts an otherwise usable graph briefing (a valid typed unavailable projection is emitted
       instead).
+    required_tests:
+      - golang/server/briefing_feedback_behavior_test.go:TestCombineBriefingStatus_FrozenTable
+      - golang/server/briefing_feedback_behavior_test.go:TestBriefing_UnconfiguredEmitsUnavailableAndDegrades
+      - golang/server/briefing_feedback_behavior_test.go:TestBriefing_ForeignDomainDegradesButKeepsBase
+      - golang/server/briefing_feedback_behavior_test.go:TestBriefing_ConfiguredEmptyFeedbackComposes
     contract: >
       Combined status composes base and feedback by a frozen table that never upgrades to OK, and
       the base graph briefing is always preserved when feedback degrades.
@@ -1499,6 +1520,8 @@ invariants:
       graph/intent/implementation-pattern briefing remains present. The exact task-scoped feedback
       path exists only through TaskBriefing.FeedbackProjection; the generic server briefing creates
       no second task-resolution surface.
+    required_tests:
+      - golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedback_TaskOnlyUnavailable
     contract: >
       Task text is pattern-matching input, never canonical task identity; task-only feedback is
       typed-unavailable (canonical_task_scope_not_established), never a manufactured binding.
@@ -1514,6 +1537,8 @@ invariants:
       severity, applicability, artifact state, and repository posture. It imports no
       golang/server, generated protobuf, editor, or CLI rendering package. The server, protobuf
       adapters, VS Code, and CLI are consumers below it and never reclassify control state.
+    required_tests:
+      - golang/coverage/controlstate_ownership_test.go:TestControlStateTransportOwnershipBoundary
     contract: >
       controlstate is the one transport-neutral owner of Phase 9.5 semantic projections; the
       server/editor expose them and never compose or reclassify them.
@@ -1528,6 +1553,8 @@ invariants:
       Task closure and artifact closure are independent projections. closure.Report may
       contribute scoped typed evidence to an artifact dimension only where a reviewed per-class
       dimension policy explicitly permits it.
+    required_tests:
+      - golang/coverage/controlstate_ownership_test.go:TestControlStateOwnershipBoundary
     contract: >
       Artifact closure is a per-class controlstate assessment, never closure.Report.Verdict;
       task closure and artifact closure are independent.
@@ -1541,6 +1568,9 @@ invariants:
       class assessment policy (initial set: Contract, Invariant, Component, Boundary). A class
       with no reviewed policy is unsupported and its closure is unknown, never not_applicable.
       not_applicable requires an explicit class/artifact policy; absence of rules is unknown.
+    required_tests:
+      - golang/architecture/controlstate/registry_test.go:TestRegistry_UnsupportedIsNotNotApplicable
+      - golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_ExplicitlyNotApplicable
     contract: >
       Artifact closure/open/degraded requires an explicit reviewed class policy; unsupported ->
       unknown; not_applicable is explicit, never absence-inferred.
@@ -1556,6 +1586,8 @@ invariants:
       empty attention queue. Zero is data only when its source status is available; otherwise the
       state is partial/unavailable with a reason code. Stale/invalid required graph authority can
       never yield closed.
+    required_tests:
+      - golang/architecture/controlstate/explanation_test.go:TestComposeDimensionExplanation_TotalAndFailHonest
     contract: >
       Zero is data only when the source was observed; a missing source yields partial/unavailable
       with a reason, never zero/closed.
@@ -1570,6 +1602,8 @@ invariants:
       multi-typed artifacts remain visible under unclassified with closure unknown
       (artifact_class_ambiguous). Unsupported classes are never hidden or marked closed/
       not_applicable.
+    required_tests:
+      - golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_UnknownAndAmbiguousClassesVisibleUnknown
     contract: >
       Unknown/unsupported/ambiguous classes stay visible with unknown closure and a typed
       limitation; never hidden, closed, or not_applicable.
@@ -1583,6 +1617,8 @@ invariants:
       deprecated/superseded evidence never synthesizes active; unsupported vocabulary yields
       unknown; a revocation receipt is not a universal node lifecycle; superseded requires an
       authoritative typed lifecycle source; not_applicable requires explicit class policy.
+    required_tests:
+      - golang/architecture/controlstate/artifactstate_test.go:TestArtifactState_LifecycleNeverDefaultsActive
     contract: >
       Lifecycle is typed separately; absence -> unknown, never active; not_applicable is explicit.
 
@@ -1597,6 +1633,11 @@ invariants:
       mapping. A critical source condition is never silently downgraded; unknown source
       classification stays visible and fails closed; attention identity is the deterministic
       digest of canonical fields; duplicates deduplicate deterministically; ordering is stable.
+    required_tests:
+      - golang/architecture/controlstate/attention_test.go:TestAttention_DeterministicIdentityAndOrder
+      - golang/architecture/controlstate/attention_test.go:TestAttention_CriticalNeverDowngraded
+      - golang/architecture/controlstate/attention_test.go:TestAttention_UnknownClassificationVisibleFailClosed
+      - golang/architecture/controlstate/attention_test.go:TestAttention_DeterministicDedup
     contract: >
       Attention class/severity come from a governed typed mapping in controlstate, with
       deterministic IDs/order and no text/color/client derivation; critical is never downgraded.
@@ -1611,6 +1652,10 @@ invariants:
       exist in the current graph and not loaded from ambient config. It carries no policy invented
       during projection. The client owns styling/layout only, never class membership,
       capabilities, ontology grouping, or semantic visibility.
+    required_tests:
+      - golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_MechanicallyDerived
+      - golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_UnknownFallbackVisibleAndUnknown
+      - golang/architecture/controlstate/navigation_test.go:TestBuildNavigationDescriptor_Deterministic
     contract: >
       The navigation descriptor is registry-derived and carries no invented policy; the client
       renders it and owns no class membership/capabilities/grouping/visibility.
@@ -1625,6 +1670,10 @@ invariants:
       registry digest, filter digest, the last complete sort key, and a cursor self-digest. A
       cursor whose bound identity differs from the current request is rejected. Index construction
       is bounded (no semantic N+1) and never requires full ArtifactState per row.
+    required_tests:
+      - golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_StablePaginationAndCursor
+      - golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_CursorReplayAgainstDifferentSnapshotFails
+      - golang/architecture/controlstate/index_snapshot_test.go:TestArtifactIndex_PageSizeFailsClosedAboveMax
     contract: >
       The index cursor is bound to snapshot/registry/filter identity and rejected on mismatch;
       index rows never build full ArtifactState.
@@ -1640,6 +1689,9 @@ invariants:
       digest, availability, verified governed-record identities, authorized lineage identities,
       limitations) and never reinterprets briefingfeedback availability. control_snapshot exposes
       feedback capability/availability only, never a repository-wide promoted-feedback collection.
+    required_tests:
+      - golang/architecture/controlstate/index_snapshot_test.go:TestControlSnapshot_NoFeedbackCollectionNoScore
+      - golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_NoRepositoryWideFeedback
     contract: >
       Feedback is exact-scope only (task/file/artifact), never a repo-wide scan or graph-adjacency
       association; briefingfeedback remains the feedback semantic owner.
@@ -1657,6 +1709,13 @@ invariants:
       statuses with impacts and reasons, identities, and non_authoritative_projection survive
       mapping exactly. A model->proto->model round trip preserves the canonical semantic content
       and digest.
+    required_tests:
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_ControlSnapshotLossless
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_ArtifactStateLossless
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_AvailabilityAndSourcesSurvive
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_IndexCursorAndUnknownClosure
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_NavigationDescriptor
+      - golang/server/controlstateproto/mapper_test.go:TestMapper_FailsClosed
     contract: >
       controlstateproto maps controlstate projections losslessly and fails on any mismatch; it
       composes and classifies nothing.
@@ -1672,6 +1731,9 @@ invariants:
       closure, assign severity, select lifecycle, change applicability, fill missing counts,
       reorder semantic lists, inspect reason prose, choose a canonical class, or interpret raw
       RDF edges or governed YAML directly.
+    required_tests:
+      - golang/server/controlstate_rpcs_test.go:TestArtifactStateRPC_PreconditionsAndNotFound
+      - golang/coverage/controlstate_ownership_test.go:TestControlStateOwnershipBoundary
     contract: >
       A control-panel read handler is orchestration only: request validation, provider inputs,
       canonical builder, validation, lossless mapping — nothing else.
@@ -1688,6 +1750,9 @@ invariants:
       infrastructure failure (Unavailable), and impossible mapper/validator contradictions
       (Internal). Converting semantic unavailability into a transport failure erases the typed
       state the panel must render.
+    required_tests:
+      - golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_PartialIsSuccess
+      - golang/server/controlstate_rpcs_test.go:TestArtifactStateRPC_PreconditionsAndNotFound
     contract: >
       Partial/unavailable/degraded/unknown projections return as RPC success with typed state;
       transport errors are reserved for the closed error-law conditions.
@@ -1702,6 +1767,9 @@ invariants:
       missing optional value to zero, never drop an observed zero, and never weaken unknown
       closure/lifecycle/availability into a healthier-looking value. UNSPECIFIED enum values
       always fail validation and never encode unknown — unknown is an explicit vocabulary value.
+    required_tests:
+      - golang/server/controlstate_rpcs_test.go:TestControlSnapshotRPC_PartialIsSuccess
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_IndexCursorAndUnknownClosure
     contract: >
       nil stays absent, observed zero stays zero, unknown stays unknown on the wire; UNSPECIFIED
       always fails validation.
@@ -1715,6 +1783,9 @@ invariants:
       controlstate over the canonical model. The mapper, handlers, and clients never recompute a
       digest from the protobuf representation and never repair a digest mismatch — a projection
       failing its own digest validation is rejected before mapping.
+    required_tests:
+      - golang/server/controlstateproto/mapper_test.go:TestMapper_FailsClosed
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_IndexCursorAndUnknownClosure
     contract: >
       The projection digest on the wire is the canonical controlstate digest, copied verbatim.
 
@@ -1728,6 +1799,9 @@ invariants:
       classes; no request field supplies a canonical class, and index class filters only restrict
       visibility over already-resolved rows. A caller-supplied class can never select an
       assessment policy.
+    required_tests:
+      - golang/server/controlstate_rpcs_test.go:TestArtifactStateRPC_PreconditionsAndNotFound
+      - golang/architecture/controlstate/artifactstate_test.go:TestResolveCanonicalClass_CompatibleMostSpecificWins
     contract: >
       Requests identify artifacts by exact IRI; canonical class comes from registry resolution
       over observed classes, never from the caller.
@@ -1742,6 +1816,9 @@ invariants:
       carry no filesystem root; the server never derives repository authority from os.Getwd,
       workspace folders, home-directory fallbacks, or caller paths. With context unconfigured,
       filesystem-backed inputs remain typed-unavailable and are never filled from local guesses.
+    required_tests:
+      - golang/server/controlstate_rpcs_test.go:TestControlRPCs_RejectFilesystemRepositoryIdentity
+      - golang/server/controlstate_rpcs_test.go:TestNavigationDescriptorRPC_NoRepositoryContextNeeded
     contract: >
       Repository authority is the immutable startup-owned context; requests select logical
       identity only, never a filesystem root.
@@ -1756,6 +1833,8 @@ invariants:
       store interface and typed providers; no handler acquires a write capability. Attention
       items on the wire originate only from validated controlstate construction — no inbound RPC
       accepts an AttentionItem or any other semantic verdict from the client.
+    required_tests:
+      - golang/coverage/controlstate_ownership_test.go:TestControlStateTransportOwnershipBoundary
     contract: >
       Control-panel RPCs are read-only end to end; no client-supplied semantic verdict is
       accepted.
@@ -1769,6 +1848,9 @@ invariants:
       opaque string. The server and clients never parse, construct, or rewrite it; only
       controlstate validates it against snapshot/registry/filter identity, and a mismatched
       cursor is InvalidArgument. Page-size bounds remain controlstate's.
+    required_tests:
+      - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
+      - golang/server/controlstateproto/mapper_test.go:TestRoundTrip_IndexCursorAndUnknownClosure
     contract: >
       The cursor is opaque to transport and clients; only the controlstate owner validates it.
 
@@ -1781,30 +1863,40 @@ invariants:
       BriefingResponse.feedback field 7 — are never renumbered, retyped, or removed. Control-panel
       additions use new messages and new field numbers; existing clients keep compiling and
       decoding. Enum vocabularies extend by appending values, never by reusing numbers.
+    required_tests:
+      - golang/server/controlstateproto/proto_evolution_test.go:TestControlPanelMessages_FieldNumbersAreFrozen
+      - golang/server/briefing_feedback_adapter_test.go:TestBriefingResponse_FeedbackIsAdditiveFieldSeven
     contract: >
       Proto changes are additive with new field numbers; field 7 and all existing numbers are
       frozen.
   - id: invariant.sensei.editor_renders_owner_projections_verbatim
     title: Editor renders owner projections verbatim
+    severity: high
     status: active
     description: CP3 control panel is a read-only renderer; all semantic state originates from controlstate projections over the four read RPCs.
     protects:
       files:
         - editor/vscode/media/controlPanel.js
+    required_tests:
+      - editor/vscode/src/controlPanelTables.test.ts
     contract: 'The VS Code architectural control panel renders typed owner projections (navigation descriptor, control snapshot, artifact index/state) verbatim and classifies nothing: no client-side closure, severity, lifecycle, class membership, capability, ontology grouping, or default visibility. Proven by editor/vscode/src/controlPanelTables.test.ts (node --test).'
   - id: invariant.sensei.artifact_inspector_renders_owner_derived_state_only
     title: Artifact inspector renders owner-derived state only
+    severity: high
     status: active
     description: CP4 is a strictly read-only inspector over the already-wired artifact_state projection.
     protects:
       files:
         - editor/vscode/media/controlPanel.js
+    required_tests:
+      - editor/vscode/src/controlPanelInspector.test.ts
     forbidden_fixes:
       - forbidden_fix.sensei.render_a_non_applicable_dimension_as_open
       - forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control
     contract: 'The CP4 artifact inspector renders architecture.artifact_state/v1 verbatim: applicable dimensions only, owner enum states as badges, ids and next-action rendered as-is, exact-scope feedback as provenance, relationships and focus-graph honestly unavailable. It infers no closure, lifecycle, severity, question-state, or next-action and performs no mutation.'
   - id: invariant.sensei.architect_mutations_are_guarded_owner_delegations_only
     title: Architect mutations are guarded owner delegations only
+    severity: critical
     status: active
     description: CP5 adds the first mutation surface as thin guarded delegation to existing owners; it assigns no authority of its own.
     protects:
@@ -1813,9 +1905,15 @@ invariants:
     forbidden_fixes:
       - forbidden_fix.sensei.expose_the_unguarded_questiongen_dialogue_op_as_an_authorita
       - forbidden_fix.sensei.copy_raw_architect_answer_text_into_a_governed_record_or_pro
+    required_tests:
+      - golang/server/controlstate_mutation_test.go:TestMutation_RefusalsWriteNothing
+      - golang/server/controlstate_mutation_test.go:TestMutation_RecordThenExactReplay
+      - golang/server/controlstate_mutation_test.go:TestMutation_RecordDoesNotAutoPromote
+      - editor/vscode/src/controlPanelMutation.test.ts
     contract: 'The control panel''s only mutation family (record/accept/reject via questiondisposition, promote via questionpromotion) is a guarded delegation: authority is resolved server-side and client fields are verified claims; refusals write nothing and expose mutation_applied=false with the unchanged ledger identity; no lifecycle auto-chaining; raw answer text never becomes governed prose. Proven by golang/server/controlstate_mutation_test.go + editor/vscode/src/controlPanelMutation.test.ts.'
   - id: invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new
     title: CP6 control-panel closure adds display and proof only — no new owner, no fact-writing RPC
+    severity: high
     status: active
     description: The architectural control panel's final checkpoint must be integration and proof, not new engine parts. Any temptation to add a semantic owner or a fact-writing RPC is a signal to stop and surface a contradiction, not to build.
     protects:
@@ -1828,6 +1926,7 @@ invariants:
     contract: Phase 9.5 CP6 (final integration) integrates the DISPLAY of completion and Phase-9.6 feedback, closes accessibility and constrained-width, and validates the packaged artifact — introducing NO new semantic owner and NO fact-writing RPC. Completion is a workflow terminal state, never correctness (Phase 6 alone certifies). Governed promotion stays deferred and visibly unavailable; the served AwarenessGraph surface exposes no fact-writing RPC and golang/server never consumes questionpromotion directly.
   - id: invariant.sensei.runtime_observation_supports_or_contradicts_a_boundary_but_n
     title: Runtime observation supports or contradicts a boundary but never authors, redefines, or certifies it
+    severity: critical
     status: active
     description: The runtimeboundary owner assesses whether a governed boundary was respected at runtime without letting telemetry invent or certify architecture. Any change that lets an observation mint/authorize a boundary, treats missing telemetry as compliant, or yields satisfied without the full conjunction breaks this.
     protects:
@@ -1841,6 +1940,7 @@ invariants:
     contract: 'Phase 9.7 runtime-boundary assessment: a runtime observation may support or contradict a declared boundary, but it can never author the boundary, redefine its contract, or certify correctness. Missing telemetry is never compliant (absent/unobserved evidence yields unavailable/unknown, never satisfied). Observed traffic can never authorize a crossing or create a boundary — an observation is admissible only through an explicit non-self-authorizing binding, in scope, target-matched. A positive verdict requires the full conjunction: current integrity-verified runtime-assessable identity + explicit policy + admissible fresh in-scope evidence. Phase 6 remains the sole correctness certifier.'
   - id: invariant.sensei.a_probe_observation_is_owner_path_evidence_not_a_boundary_cr
     title: A probe observation is owner-path evidence, not a boundary crossing
+    severity: high
     status: active
     description: The runtimeprobe adapter proves the runtime-boundary kernel with one native witness. Any change that lets a probe fabricate a caller/callee/contract, reach satisfied, or claim available/fresh from a degraded/stale probe breaks the honesty law.
     protects:
@@ -1854,6 +1954,7 @@ invariants:
     contract: 'Phase 9.7 CP2: a Sensei probe/probeexec observation is owner-path EVIDENCE (collector, evidence digest, timestamp, declared freshness, content integrity, evidence-node anchor) — it has no caller, callee, contract, or interaction. The runtimeprobe adapter maps only what a probe honestly has and leaves the governed-crossing identity UNRESOLVED; it never invents caller/callee/contract to make an observation admissible. Evidence-level proof therefore never satisfies a boundary crossing: composed through the frozen runtimeboundary owner, an honest probe observation is admitted and correctly ruled insufficient (unknown/required_evidence_absent), never satisfied. The immutable evidence receipt is the frozen closureprotocol.EvidenceReceipt; replay is idempotent (REPLAYED) and conflicting same-subject evidence is preserved (CONTESTED), never first-row-wins.'
   - id: invariant.sensei.runtime_boundary_verdict_travels_the_control_panel_only_as_a
     title: Runtime-boundary verdict travels the control panel only as a verbatim projection
+    severity: critical
     status: active
     description: CP3 composes the runtime-boundary verdict into the control panel through one bridge; no downstream surface re-derives runtime-boundary semantics.
     protects:
@@ -1868,6 +1969,7 @@ invariants:
     contract: 'Phase 9.7 CP3: a runtimeboundary.RuntimeBoundaryAssessment reaches Sensei''s control panel (artifact dimensions + attention + transport + editor) only as a VERBATIM projection of the owner''s already-decided verdict, through the single runtimeboundarycompose bridge. controlstate never imports runtimeboundary and never recomputes a verdict; the server carries the runtime dimension through the generic transport and never imports the owner. The verdict maps one-to-one to a typed controlstate dimension state (satisfied->DimSatisfied, violated->DimOpen with an OWNER-supplied source_severity attention, degraded->DimDegraded, unknown/unavailable/invalid->DimUnknown, not_applicable->a TYPED DimNotApplicable never absence-inferred). A later assessment supersedes by rebinding the dimension source digest to the new assessment digest while the CP2 evidence receipts stay immutable. The bridge invents no evidence and forces no positive verdict.'
   - id: invariant.sensei.incompleteness_and_coverage_are_explained_by_owner_projectio
     title: Incompleteness and coverage are explained by owner projection, never inferred from absence
+    severity: high
     status: active
     description: 'Issue #93 Layer 1-3: the actionable incompleteness explanation and the coverage grounding summary are owner-projected, never UI-composed and never absence-inferred.'
     protects:
@@ -1881,6 +1983,7 @@ invariants:
     contract: 'Phase 9 polish: a non-positive dimension''s actionable explanation (Known/Missing/WhyNotImprovable/NextEvidence) is projected by its OWNER (controlstate from its own reason codes; the runtimeboundary bridge from the owner''s already-decided ResultKind space), carried as data with a stable Kind, and rendered VERBATIM by the panel — the UI composes no wording and holds no decision table. The mapping is TOTAL and fail-honest: an unrecognized reason yields an explicit generic explanation, never empty. An explanation never changes the owner verdict or severity. Non-positive states (unknown/unavailable/invalid/degraded/not_applicable) render DISTINCTLY (glyph+text, never color alone, never collapsed). Coverage ratios use only owner-controlled numerator/denominator pairs; a percentage is emitted ONLY when the denominator is observed and greater than zero; a missing denominator is unavailable and an observed-zero population is never 0%/100%; coverage never certifies and never suppresses attention.'
   - id: invariant.sensei.proportional_rigor_classifies_governed_surfaces_and_fails_cl
     title: Proportional rigor classifies governed surfaces and fails closed
+    severity: critical
     status: active
     description: 'Issue #93 Layer 4: the proportional-rigor classifier grades a CHANGE''s proof obligations by governed surface, fails closed, and never exempts repository integrity.'
     protects:
