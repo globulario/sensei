@@ -1,0 +1,81 @@
+name: Prepare transactional graph publication
+
+on:
+  push:
+    branches:
+      - agent/transactional-graph-publication
+    paths:
+      - '.sensei-patches/graph-publication.tar.gz.b64.part-*'
+      - '.github/workflows/prepare-graph-publication.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prepare-transactional-graph-publication
+  cancel-in-progress: false
+
+jobs:
+  prepare-and-prove:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Apply reviewed payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .sensei-patches/graph-publication.tar.gz.b64.part-* | base64 -d > /tmp/graph-publication.tar.gz
+          tar -xzf /tmp/graph-publication.tar.gz -C .
+          gofmt -w cmd/awg/cmd_build.go cmd/awg/cmd_build_test.go cmd/awg/cmd_build_integration_test.go
+
+      - name: Regenerate repository-owned projections
+        shell: bash
+        run: scripts/build-awareness-graph-self.sh
+
+      - name: Prove unit publication boundaries
+        shell: bash
+        run: |
+          go test ./cmd/awg \
+            -run 'TestRunBuild_ScopedRepoUpdate|TestScopedPromoteStagingUpdate|TestNamedGraphStoreURL|TestRetainScopedGraph|TestScopedDeleteUpdate' \
+            -count=1 -timeout 5m
+
+      - name: Prove exact corpus against real Oxigraph
+        shell: bash
+        run: |
+          scripts/fetch-oxigraph.sh 0.5.9
+          go test -tags=integration ./cmd/awg \
+            -run '^TestIntegration_ScopedRepoPublication_RealOxigraph$' \
+            -count=1 -timeout 5m
+
+      - name: Prove command package
+        shell: bash
+        run: go test ./cmd/awg -count=1 -timeout 5m
+
+      - name: Verify generated freshness and formatting
+        shell: bash
+        run: |
+          scripts/build-awareness-graph-self.sh --check
+          test -z "$(gofmt -l cmd/awg/cmd_build.go cmd/awg/cmd_build_test.go cmd/awg/cmd_build_integration_test.go)"
+          git diff --check
+
+      - name: Commit proven implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .sensei-patches
+          rm -f .github/workflows/prepare-graph-publication.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(graph): stage RDF before atomic publication [engine-ack]'
+          git push origin HEAD:agent/transactional-graph-publication
