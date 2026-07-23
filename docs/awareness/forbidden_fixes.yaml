@@ -597,3 +597,14 @@ forbidden_fixes:
       - invariant.sensei.proportional_rigor_classifies_governed_surfaces_and_fails_cl
     reason: 'Phase 9 polish: rigor classifies governed surfaces, fails closed, never downgrades via declaration, and never exempts repository integrity.'
     contract: 'Phase 9 polish: rigor classifies governed surfaces, fails closed, never downgrades via declaration, and never exempts repository integrity.'
+  - id: forbidden_fix.run_sensei_audit_fix_to_resolve_embeddata_freshness_in_this
+    title: Run sensei audit --fix to resolve embeddata-freshness in this repo
+    summary: 'In a checkout with a sibling ../services repo present, ''sensei audit --fix'' resolves svcRepo to that sibling and its embeddata-freshness fix path regenerates the COMBINED (services+awareness-graph) seed, then writes it straight over golang/server/embeddata/awareness.nt — inflating the file by ~174k lines and leaking internal services-repo content into what must stay a self-only public artifact. Discovered while closing issue #95: after correctly rebuilding the self-only seed via scripts/build-awareness-graph-self.sh, running ''sensei audit --fix'' to clear a residual 13-triple STALE reading silently overwrote it with the combined regeneration. Always use scripts/build-awareness-graph-self.sh (optionally --check first) to refresh this repo''s committed seed; never run ''sensei audit --fix'' for embeddata-freshness when a sibling services checkout is present.'
+    protects:
+      files:
+        - cmd/awg/cmd_audit.go
+    related_invariants:
+      - awareness.seed_is_generated_author_in_yaml
+    reason: 'In a checkout with a sibling ../services repo present, ''sensei audit --fix'' resolves svcRepo to that sibling and its embeddata-freshness fix path regenerates the COMBINED (services+awareness-graph) seed, then writes it straight over golang/server/embeddata/awareness.nt — inflating the file by ~174k lines and leaking internal services-repo content into what must stay a self-only public artifact. Discovered while closing issue #95: after correctly rebuilding the self-only seed via scripts/build-awareness-graph-self.sh, running ''sensei audit --fix'' to clear a residual 13-triple STALE reading silently overwrote it with the combined regeneration. Always use scripts/build-awareness-graph-self.sh (optionally --check first) to refresh this repo''s committed seed; never run ''sensei audit --fix'' for embeddata-freshness when a sibling services checkout is present.'
+    evidence:
+      - git diff showed golang/server/embeddata/awareness.nt going from 7551 to 181546 lines after 'sensei audit --fix', reverted by rerunning scripts/build-awareness-graph-self.sh
