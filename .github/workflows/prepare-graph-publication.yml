@@ -43,7 +43,87 @@ jobs:
           set -euo pipefail
           cat .sensei-patches/graph-publication.tar.gz.b64.part-* | base64 -d > /tmp/graph-publication.tar.gz
           tar -xzf /tmp/graph-publication.tar.gz -C .
-          gofmt -w cmd/awg/cmd_build.go cmd/awg/cmd_build_test.go cmd/awg/cmd_build_integration_test.go
+          sed -i 's/acquireProjectLock(lockPath)/acquireGraphPublicationLock(lockPath)/' cmd/awg/cmd_build.go
+          cat > cmd/awg/graph_publication_lock_unix.go <<'EOF'
+          // SPDX-License-Identifier: AGPL-3.0-only
+
+          //go:build !windows
+
+          package main
+
+          import (
+           "fmt"
+           "os"
+           "syscall"
+          )
+
+          func acquireGraphPublicationLock(lockPath string) (*os.File, error) {
+           file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+           if err != nil {
+            return nil, err
+           }
+           if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+            _ = file.Close()
+            if err == syscall.EWOULDBLOCK {
+             return nil, fmt.Errorf("concurrent graph publication in progress (lock busy)")
+            }
+            return nil, err
+           }
+           return file, nil
+          }
+          EOF
+          cat > cmd/awg/graph_publication_lock_windows.go <<'EOF'
+          // SPDX-License-Identifier: AGPL-3.0-only
+
+          //go:build windows
+
+          package main
+
+          import (
+           "fmt"
+           "os"
+           "syscall"
+          )
+
+          func acquireGraphPublicationLock(lockPath string) (*os.File, error) {
+           file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+           if err != nil {
+            return nil, err
+           }
+           handle := syscall.Handle(file.Fd())
+           if err := syscall.LockFile(handle, 0, 0, 1, 0); err != nil {
+            _ = file.Close()
+            return nil, fmt.Errorf("concurrent graph publication in progress (lock busy): %w", err)
+           }
+           return file, nil
+          }
+          EOF
+          cat > cmd/awg/graph_publication_lock_test.go <<'EOF'
+          // SPDX-License-Identifier: AGPL-3.0-only
+
+          package main
+
+          import (
+           "path/filepath"
+           "testing"
+          )
+
+          func TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher(t *testing.T) {
+           path := filepath.Join(t.TempDir(), "graph-publication.lock")
+           first, err := acquireGraphPublicationLock(path)
+           if err != nil {
+            t.Fatal(err)
+           }
+           defer first.Close()
+
+           second, err := acquireGraphPublicationLock(path)
+           if err == nil {
+            _ = second.Close()
+            t.Fatal("second publisher acquired an already-held graph publication lock")
+           }
+          }
+          EOF
+          gofmt -w cmd/awg/cmd_build.go cmd/awg/cmd_build_test.go cmd/awg/cmd_build_integration_test.go cmd/awg/graph_publication_lock_*.go
 
       - name: Regenerate repository-owned projections
         shell: bash
@@ -54,7 +134,7 @@ jobs:
         run: |
           set -o pipefail
           go test -v ./cmd/awg \
-            -run 'TestRunBuild_ScopedRepoUpdate|TestScopedPromoteStagingUpdate|TestNamedGraphStoreURL|TestRetainScopedGraph|TestScopedDeleteUpdate' \
+            -run 'TestRunBuild_ScopedRepoUpdate|TestScopedPromoteStagingUpdate|TestNamedGraphStoreURL|TestRetainScopedGraph|TestScopedDeleteUpdate|TestAcquireGraphPublicationLock' \
             -count=1 -timeout 5m 2>&1 | tee /tmp/graph-publication-unit.log
 
       - name: Preserve focused test output
@@ -89,7 +169,7 @@ jobs:
         shell: bash
         run: |
           scripts/build-awareness-graph-self.sh --check
-          test -z "$(gofmt -l cmd/awg/cmd_build.go cmd/awg/cmd_build_test.go cmd/awg/cmd_build_integration_test.go)"
+          test -z "$(gofmt -l cmd/awg/cmd_build.go cmd/awg/cmd_build_test.go cmd/awg/cmd_build_integration_test.go cmd/awg/graph_publication_lock_*.go)"
           git diff --check
 
       - name: Commit proven implementation
