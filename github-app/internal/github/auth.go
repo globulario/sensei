@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,19 +29,25 @@ type cachedToken struct {
 
 // Authenticator exchanges a short-lived app JWT for installation tokens.
 type Authenticator struct {
-	appID      string
-	privateKey *rsa.PrivateKey
-	baseURL    string
-	httpClient *http.Client
-	now        func() time.Time
+	appID        string
+	appNumericID int64
+	privateKey   *rsa.PrivateKey
+	baseURL      string
+	httpClient   *http.Client
+	now          func() time.Time
 
 	mu     sync.Mutex
 	tokens map[int64]cachedToken
 }
 
 func NewAuthenticator(appID string, privateKeyPEM []byte, baseURL string, httpClient *http.Client) (*Authenticator, error) {
-	if strings.TrimSpace(appID) == "" {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
 		return nil, errors.New("GitHub App ID is required")
+	}
+	appNumericID, err := strconv.ParseInt(appID, 10, 64)
+	if err != nil || appNumericID <= 0 {
+		return nil, errors.New("GitHub App ID must be a positive integer")
 	}
 	privateKey, err := parsePrivateKey(privateKeyPEM)
 	if err != nil {
@@ -50,13 +57,19 @@ func NewAuthenticator(appID string, privateKeyPEM []byte, baseURL string, httpCl
 		httpClient = &http.Client{Timeout: 20 * time.Second}
 	}
 	return &Authenticator{
-		appID:      appID,
-		privateKey: privateKey,
-		baseURL:    strings.TrimRight(baseURL, "/"),
-		httpClient: httpClient,
-		now:        time.Now,
-		tokens:     make(map[int64]cachedToken),
+		appID:        appID,
+		appNumericID: appNumericID,
+		privateKey:   privateKey,
+		baseURL:      strings.TrimRight(baseURL, "/"),
+		httpClient:   httpClient,
+		now:          time.Now,
+		tokens:       make(map[int64]cachedToken),
 	}, nil
+}
+
+// AppID returns the immutable numeric GitHub App identity.
+func (a *Authenticator) AppID() int64 {
+	return a.appNumericID
 }
 
 func (a *Authenticator) InstallationToken(ctx context.Context, installationID int64) (string, error) {
