@@ -1,0 +1,3 @@
+.env.private
+secrets/*
+!secrets/README.md
