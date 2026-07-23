@@ -5,12 +5,14 @@ on:
     paths:
       - "github-app/**"
       - ".github/workflows/github-app-ci.yml"
+      - ".github/workflows/github-app-image.yml"
   push:
     branches:
       - main
     paths:
       - "github-app/**"
       - ".github/workflows/github-app-ci.yml"
+      - ".github/workflows/github-app-image.yml"
 
 permissions:
   contents: read
@@ -38,3 +40,13 @@ jobs:
         run: go test ./...
       - name: Vet
         run: go vet ./...
+      - name: Validate proof script syntax
+        run: bash -n scripts/capture-live-proof.sh
+      - name: Build container
+        run: docker build --tag sensei-github-app:ci .
+      - name: Validate private Compose stack
+        env:
+          SENSEI_GITHUB_IMAGE: ghcr.io/globulario/sensei-github-app@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          SENSEI_GITHUB_APP_ID: "1"
+          SENSEI_GITHUB_HOSTNAME: sensei-app.example.com
+        run: docker compose -f deploy/docker-compose.private.yml config --quiet
