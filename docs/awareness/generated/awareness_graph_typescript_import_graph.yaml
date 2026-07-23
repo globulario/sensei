@@ -2,6 +2,18 @@
 # Run `make import-graph` to regenerate from source imports.
 # Component dependency edges inferred from typescript imports (assertion: inferred). importgraph v1.
 components:
+  - id: component.dashboard
+    name: dashboard
+    kind: module
+    assertion: inferred
+    source_files:
+      - dashboard/controlPanel.js
+      - dashboard/controlPanelFmt.js
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.editor
     name: editor
     kind: module

@@ -354,6 +354,24 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.github_app
+    name: github-app
+    kind: service
+    assertion: inferred
+    source_files:
+      - github-app/cmd/sensei-github-app/main.go
+      - github-app/internal/app/handler.go
+      - github-app/internal/briefing/briefing.go
+      - github-app/internal/config/config.go
+      - github-app/internal/github/auth.go
+      - github-app/internal/github/client.go
+      - github-app/internal/webhook/payload.go
+      - github-app/internal/webhook/verify.go
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture
     name: architecture
     kind: module
