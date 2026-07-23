@@ -26,7 +26,13 @@ jobs:
       - name: Reassemble exact implementation patch
         shell: bash
         run: |
-          cat .github/patch.part.00 .github/patch.part.01 .github/patch.part.02 > /tmp/symbol-aware-briefing.patch.b64
+          cat \
+            .github/patch.part.00 \
+            .github/patch.part.01 \
+            .github/patch.part.02.0 \
+            .github/patch.part.02.1 \
+            .github/patch.part.02.2 \
+            > /tmp/symbol-aware-briefing.patch.b64
           echo 'ad14519cfcfac204fd73c59fe5301d4c4d21d8ce8ae7ff75cde1df93a62096cd  /tmp/symbol-aware-briefing.patch.b64' | sha256sum -c -
           base64 -d /tmp/symbol-aware-briefing.patch.b64 > /tmp/symbol-aware-briefing.patch
           echo '8b51da67b8a114a5e1cba23a88ccccf14930b7bbb1fb6198ca39be8a7683d3c9  /tmp/symbol-aware-briefing.patch' | sha256sum -c -
@@ -55,7 +61,13 @@ jobs:
       - name: Publish verified implementation and remove temporary transfer files
         shell: bash
         run: |
-          rm .github/patch.part.00 .github/patch.part.01 .github/patch.part.02
+          rm -f \
+            .github/patch.part.00 \
+            .github/patch.part.01 \
+            .github/patch.part.02 \
+            .github/patch.part.02.0 \
+            .github/patch.part.02.1 \
+            .github/patch.part.02.2
           rm .github/workflows/temporary-source-export.yml
           git config user.name 'Codex'
           git config user.email 'codex@openai.invalid'
