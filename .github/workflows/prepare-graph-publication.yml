@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           cat .sensei-patches/graph-publication.tar.gz.b64.part-* | base64 -d > /tmp/graph-publication.tar.gz
           tar -xzf /tmp/graph-publication.tar.gz -C .
+          rm -f .github/workflows/graph-publication-integration.yml
           sed -i 's/acquireProjectLock(lockPath)/acquireGraphPublicationLock(lockPath)/' cmd/awg/cmd_build.go
           cat > cmd/awg/graph_publication_lock_unix.go <<'EOF'
           // SPDX-License-Identifier: AGPL-3.0-only
