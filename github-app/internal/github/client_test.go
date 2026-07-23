@@ -14,14 +14,14 @@ import (
 	"testing"
 )
 
-func TestUpsertIssueCommentUpdatesExistingMarker(t *testing.T) {
+func TestUpsertIssueCommentUpdatesExistingOwnedMarker(t *testing.T) {
 	client, server, requests := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/app/installations/9/access_tokens":
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"token":"token","expires_at":"2099-01-01T00:00:00Z"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/globulario/example/issues/4/comments":
-			_, _ = w.Write([]byte(`[{"id":88,"body":"<!-- sensei-architectural-briefing -->\nold"}]`))
+			_, _ = w.Write([]byte(`[{"id":88,"body":"<!-- sensei-architectural-briefing -->\nold","performed_via_github_app":{"id":123}}]`))
 		case r.Method == http.MethodPatch && r.URL.Path == "/repos/globulario/example/issues/comments/88":
 			var payload map[string]string
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -47,14 +47,36 @@ func TestUpsertIssueCommentUpdatesExistingMarker(t *testing.T) {
 	}
 }
 
-func TestUpsertCheckRunUpdatesMatchingExternalID(t *testing.T) {
+func TestUpsertIssueCommentDoesNotOverwriteSpoofedMarker(t *testing.T) {
+	client, server, _ := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/app/installations/9/access_tokens":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"token":"token","expires_at":"2099-01-01T00:00:00Z"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/globulario/example/issues/4/comments":
+			_, _ = w.Write([]byte(`[{"id":88,"body":"<!-- sensei-architectural-briefing -->\nuser text","performed_via_github_app":null}]`))
+		case r.Method == http.MethodPost && r.URL.Path == "/repos/globulario/example/issues/4/comments":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+	})
+	defer server.Close()
+
+	if err := client.UpsertIssueComment(context.Background(), 9, "globulario", "example", 4, "<!-- sensei-architectural-briefing -->", "<!-- sensei-architectural-briefing -->\nnew"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpsertCheckRunUpdatesMatchingOwnedExternalID(t *testing.T) {
 	client, server, _ := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/app/installations/9/access_tokens":
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"token":"token","expires_at":"2099-01-01T00:00:00Z"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/globulario/example/commits/abc/check-runs":
-			_, _ = w.Write([]byte(`{"check_runs":[{"id":55,"external_id":"sensei-pr-4-abc"}]}`))
+			_, _ = w.Write([]byte(`{"check_runs":[{"id":55,"external_id":"sensei-pr-4-abc","app":{"id":123}}]}`))
 		case r.Method == http.MethodPatch && r.URL.Path == "/repos/globulario/example/check-runs/55":
 			var payload map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
