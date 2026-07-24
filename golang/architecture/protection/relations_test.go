@@ -2,7 +2,10 @@
 
 package protection
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 const testInvariantsYAML = `
 invariants:
@@ -99,5 +102,46 @@ func TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed(t *testing.
 	}
 	if len(malformed) != 0 {
 		t.Fatalf("non-YAML governed sources must never be reported as malformed, got %v", malformed)
+	}
+}
+
+// contract §4/§6 correction (second review round): an invalid governed-
+// relation target (one that escapes the repository) must be reported as
+// malformed, not silently dropped — the prior behavior let the target just
+// vanish with no diagnostic, which could hide a real authoring mistake
+// behind an apparently-clean COMPLETE result.
+func TestGovernedRelationReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/invariants.yaml", `
+invariants:
+  - id: test.example.invalid_target
+    title: An invariant with one valid and one escaping target
+    severity: high
+    protects:
+      files:
+        - src/core/valid.go
+        - ../escapes/repo.go
+`)
+
+	reasons, malformed, err := GovernedRelationReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reasons["src/core/valid.go"]) == 0 {
+		t.Fatal("the valid target must still be protected")
+	}
+	if len(malformed) != 1 {
+		t.Fatalf("expected exactly one malformed entry for the escaping target, got %v", malformed)
+	}
+	if !strings.Contains(malformed[0], "../escapes/repo.go") {
+		t.Fatalf("expected the malformed entry to name the invalid target, got %q", malformed[0])
+	}
+
+	cov, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cov.Status == CoverageComplete {
+		t.Fatalf("an invalid governed-relation target must not allow COMPLETE, got %s (gaps=%v)", cov.Status, cov.Gaps)
 	}
 }

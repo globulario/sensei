@@ -72,6 +72,11 @@ func GovernedRelationReasons(repoRoot string) (reasons map[string][]ProtectionRe
 	add := func(target, kind, source, knowledgeRef string) {
 		norm, ok := NormalizePath(target)
 		if !ok {
+			// contract §4/§6 correction: an invalid governed-relation
+			// target (empty, or escaping the repository) must never be
+			// silently dropped — it is a gap forcing at least PARTIAL
+			// coverage, not a clean no-op.
+			malformed = append(malformed, fmt.Sprintf("%s: invalid target %q for %s (id=%s)", source, target, kind, knowledgeRef))
 			return
 		}
 		out[norm] = append(out[norm], ProtectionReason{

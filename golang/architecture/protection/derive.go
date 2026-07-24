@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // SchemaVersion is the current wire/snapshot schema identity.
@@ -89,12 +90,15 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	}
 
 	// 3. Structural contract + annotation signals.
-	structReasons, structErr := StructuralContractReasons(repoRoot)
+	structReasons, structMalformed, structErr := StructuralContractReasons(repoRoot)
 	if structErr != nil {
 		gaps = append(gaps, "structural_scan_unavailable: "+structErr.Error())
 	} else {
 		addAll(structReasons)
 		sourceFiles = append(sourceFiles, sortedKeys(structReasons)...)
+		for _, m := range structMalformed {
+			gaps = append(gaps, "structural_scan_malformed_source: "+m)
+		}
 	}
 
 	// 4. Direct governed relations (protects/enforces/configures/observes,
@@ -155,9 +159,20 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	cov.DerivedCount = derived
 	cov.ProvisionalCount = provisional
 
-	hasMalformedInputs := len(manualMalformed) > 0 || len(relationMalformed) > 0 || len(candidateMalformed) > 0
+	hasMalformedInputs := len(manualMalformed) > 0 || len(relationMalformed) > 0 || len(candidateMalformed) > 0 || len(structMalformed) > 0
 	cov.Status = computeCoverageStatus(cov, manualErr, govErr, structErr, relErr, candErr, hasMalformedInputs)
-	cov.GenerationIdentity = semanticDigest(repoRoot, cov, sourceFiles)
+	outcome := derivationOutcome{
+		ManualErr:               manualErr != nil,
+		GovernedErr:             govErr != nil,
+		StructErr:               structErr != nil,
+		RelationErr:             relErr != nil,
+		CandidateErr:            candErr != nil,
+		ManualMalformedCount:    len(manualMalformed),
+		StructMalformedCount:    len(structMalformed),
+		RelationMalformedCount:  len(relationMalformed),
+		CandidateMalformedCount: len(candidateMalformed),
+	}
+	cov.GenerationIdentity = semanticDigest(repoRoot, cov, sourceFiles, outcome)
 
 	return cov, nil
 }
@@ -187,15 +202,76 @@ func candidateSourceFiles(repoRoot string) ([]string, error) {
 	return out, nil
 }
 
-// semanticDigest binds GenerationIdentity to BOTH the fully-assembled,
-// already-sorted ProtectedPaths (every reason field: origin, kind, source,
-// knowledge ref, provisional flag — not just the path key) AND the raw byte
-// content of every source file this derivation consulted. Either dimension
-// changing — a different rule protecting the same file, a reason's kind
-// changing, or an unrelated edit to a governed source's content — changes
-// the identity (contract §3 correction). Carries no timestamp.
-func semanticDigest(repoRoot string, cov ProtectionCoverage, sourceFiles []string) string {
+// derivationOutcome is the normalized (never raw-error-text) shape of
+// "which scanners succeeded and how many individual inputs each rejected,"
+// bound into GenerationIdentity alongside cov.Status and the sorted set of
+// stable gap CODES (see gapCodes) — never the interpolated gap messages
+// themselves, which may embed checkout-specific absolute paths (contract §3
+// correction: a transient scanner failure or a coverage-status change must
+// invalidate identity even when the protected-path set happens to be
+// unchanged; raw error text must never leak into a value meant to be
+// compared across checkouts/machines).
+type derivationOutcome struct {
+	ManualErr    bool
+	GovernedErr  bool
+	StructErr    bool
+	RelationErr  bool
+	CandidateErr bool
+
+	ManualMalformedCount    int
+	StructMalformedCount    int
+	RelationMalformedCount  int
+	CandidateMalformedCount int
+}
+
+// gapCodes extracts the stable, non-interpolated prefix (the part before the
+// first ": ") from each gap message — e.g. "manual_registry_malformed_entry"
+// from "manual_registry_malformed_entry: docs/awareness/high_risk_files.yaml:
+// entry ... escapes the repository". These codes are safe to bind into
+// GenerationIdentity; the full interpolated messages are not, since they can
+// contain checkout-specific absolute paths (contract §3 correction).
+func gapCodes(gaps []string) []string {
+	seen := map[string]bool{}
+	var codes []string
+	for _, g := range gaps {
+		code := g
+		if i := strings.Index(g, ": "); i >= 0 {
+			code = g[:i]
+		}
+		if seen[code] {
+			continue
+		}
+		seen[code] = true
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	return codes
+}
+
+// semanticDigest binds GenerationIdentity to every dimension contract §3
+// requires: the fully-assembled, already-sorted ProtectedPaths (every reason
+// field: origin, kind, source, knowledge ref, provisional flag — not just
+// the path key), the raw byte content of every source file this derivation
+// consulted, the resulting coverage status, the stable set of gap codes, and
+// each scanner's own success/failure and malformed-input counts. Any of
+// these changing — a different rule protecting the same file, a reason's
+// kind changing, an unrelated edit to a governed source's content, or a
+// scanner outcome flipping while the protected-path set happens to stay
+// identical — changes the identity (contract §3 correction: "a transient
+// scanner failure could change COMPLETE to PARTIAL or DEGRADED while the
+// snapshot still reports current" must not be possible). Carries no
+// timestamp, and never hashes raw error text (which may contain
+// checkout-specific absolute paths) — only the normalized outcome/gapCodes
+// dimensions above.
+func semanticDigest(repoRoot string, cov ProtectionCoverage, sourceFiles []string, outcome derivationOutcome) string {
 	h := sha256.New()
+	fmt.Fprintf(h, "status:%s\n", cov.Status)
+	fmt.Fprintf(h, "outcome:manual_err=%v governed_err=%v struct_err=%v relation_err=%v candidate_err=%v manual_malformed=%d struct_malformed=%d relation_malformed=%d candidate_malformed=%d\n",
+		outcome.ManualErr, outcome.GovernedErr, outcome.StructErr, outcome.RelationErr, outcome.CandidateErr,
+		outcome.ManualMalformedCount, outcome.StructMalformedCount, outcome.RelationMalformedCount, outcome.CandidateMalformedCount)
+	for _, code := range gapCodes(cov.Gaps) {
+		fmt.Fprintf(h, "gap_code:%s\n", code)
+	}
 	for _, pp := range cov.ProtectedPaths {
 		fmt.Fprintf(h, "path:%s\n", pp.Path)
 		for _, r := range pp.Reasons {
@@ -213,7 +289,9 @@ func semanticDigest(repoRoot string, cov ProtectionCoverage, sourceFiles []strin
 		fmt.Fprintf(h, "file:%s\n", f)
 		data, err := os.ReadFile(joinRepo(repoRoot, f))
 		if err != nil {
-			fmt.Fprintf(h, "  unreadable:%v\n", err)
+			// Bind only the fact of unreadability, never the raw error text
+			// (which embeds the checkout's absolute path).
+			fmt.Fprintf(h, "  unreadable\n")
 			continue
 		}
 		h.Write(data)

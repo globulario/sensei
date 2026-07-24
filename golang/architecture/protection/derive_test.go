@@ -3,6 +3,8 @@
 package protection
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -288,5 +290,80 @@ func TestDerive_MalformedCandidateFileForcesPartial(t *testing.T) {
 	}
 	if cov.Status == CoverageComplete {
 		t.Fatalf("a malformed candidate file must not allow COMPLETE, got %s (gaps=%v)", cov.Status, cov.Gaps)
+	}
+}
+
+// contract §3 correction (second review round): the digest must bind
+// coverage status, gap codes, and each scanner's success/failure — a
+// transient scanner failure must change identity even when the assembled
+// ProtectedPaths and consulted source-file bytes happen to be byte-for-byte
+// identical. Proven directly against the pure semanticDigest function so no
+// real Derive() scenario needs to (impossibly) hold every other input fixed
+// while only the outcome changes.
+func TestSemanticDigest_ChangesWithScannerOutcomeAloneEvenWhenPathsAndFilesAreIdentical(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+	cov, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceFiles := []string{"docs/awareness/invariants.yaml"}
+
+	clean := derivationOutcome{}
+	degraded := derivationOutcome{GovernedErr: true}
+	malformed := derivationOutcome{RelationMalformedCount: 1}
+
+	digestClean := semanticDigest(root, cov, sourceFiles, clean)
+	digestDegraded := semanticDigest(root, cov, sourceFiles, degraded)
+	digestMalformed := semanticDigest(root, cov, sourceFiles, malformed)
+
+	if digestClean == digestDegraded {
+		t.Fatal("expected GenerationIdentity to change when a scanner's error outcome changes, even with identical protected paths and source content")
+	}
+	if digestClean == digestMalformed {
+		t.Fatal("expected GenerationIdentity to change when a malformed-input count changes, even with identical protected paths and source content")
+	}
+
+	covStale := cov
+	covStale.Status = CoveragePartial
+	digestStatusChanged := semanticDigest(root, covStale, sourceFiles, clean)
+	if digestClean == digestStatusChanged {
+		t.Fatal("expected GenerationIdentity to change when coverage status changes alone")
+	}
+}
+
+// contract §3 correction: raw error text (which can embed a checkout's
+// absolute filesystem path) must never enter GenerationIdentity — only
+// normalized, path-free outcome codes may. Proven by deriving the identical
+// repository content, with the identical malformed/unreadable condition,
+// from two DIFFERENT temp-dir roots (so any leaked absolute path would
+// necessarily differ between them) and requiring identical identities.
+func TestSemanticDigest_NeverLeaksAbsolutePathsFromMalformedInputErrors(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root: file permissions are not enforced")
+	}
+	build := func() ProtectionCoverage {
+		root := t.TempDir()
+		writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+		writeFile(t, root, "docs/awareness/candidates/locked.yaml", "candidates: []\n")
+		full := filepath.Join(root, "docs", "awareness", "candidates", "locked.yaml")
+		if err := os.Chmod(full, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(full, 0o644) })
+		cov, err := Derive(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cov
+	}
+	covA := build()
+	covB := build()
+	if covA.Status == CoverageComplete {
+		t.Fatalf("setup: expected the unreadable candidate file to force below-COMPLETE coverage, got %s", covA.Status)
+	}
+	if covA.GenerationIdentity != covB.GenerationIdentity {
+		t.Fatalf("GenerationIdentity must not depend on checkout-specific absolute paths embedded in raw error text: %s != %s",
+			covA.GenerationIdentity, covB.GenerationIdentity)
 	}
 }
