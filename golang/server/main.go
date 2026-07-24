@@ -340,14 +340,33 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 	if briefingRepo != nil {
 		descRepoRoot, descRepoDomain = briefingRepo.Root, briefingRepo.Domain
 	}
+	// A relative graph-marker-file compares equal-by-accident across two
+	// checkouts with different working directories, defeating the
+	// wrapper's exact-match compatibility check — always describe the
+	// ABSOLUTE path actually in effect, regardless of how the flag was
+	// spelled (docs/design/serve-runtime-compatibility.md, issue #118).
+	descMarkerFile := graphMarkerFile
+	if descMarkerFile != "" {
+		if abs, aerr := filepath.Abs(descMarkerFile); aerr == nil {
+			descMarkerFile = abs
+		}
+	}
+	descAwarenessDir := awarenessDir
+	if descAwarenessDir != "" {
+		if abs, aerr := filepath.Abs(descAwarenessDir); aerr == nil {
+			descAwarenessDir = abs
+		}
+	}
 	if derr := runtimedescriptor.Write(runtimedescriptor.Descriptor{
 		Kind:             runtimedescriptor.KindAwarenessGraph,
 		PID:              os.Getpid(),
 		ListenAddr:       addr,
 		OxigraphQueryURL: cfg.OxigraphQueryURL,
-		GraphMarkerFile:  graphMarkerFile,
+		GraphMarkerFile:  descMarkerFile,
 		RepoRoot:         descRepoRoot,
 		RepoDomain:       descRepoDomain,
+		HomeDomain:       homeDomain,
+		AwarenessDir:     descAwarenessDir,
 		StartedAtUnix:    time.Now().Unix(),
 		SenseiVersion:    Version,
 	}); derr != nil {

@@ -21,7 +21,7 @@ func withDescriptorHome(t *testing.T) {
 
 func TestCheckOxigraphCompatibility_UnidentifiedOccupantHardFails(t *testing.T) {
 	withDescriptorHome(t)
-	ok, err := checkOxigraphCompatibility("127.0.0.1:7878", "/data")
+	ok, err := checkOxigraphCompatibility("127.0.0.1:7878", runtimedescriptor.Descriptor{DataDir: "/data"})
 	if ok {
 		t.Fatal("expected an occupied address with no descriptor to be incompatible")
 	}
@@ -38,12 +38,12 @@ func TestCheckOxigraphCompatibility_ExactDataDirMatchRequired(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ok, err := checkOxigraphCompatibility("127.0.0.1:7878", "/data/a")
+	ok, err := checkOxigraphCompatibility("127.0.0.1:7878", runtimedescriptor.Descriptor{DataDir: "/data/a"})
 	if !ok || err != nil {
 		t.Fatalf("expected an exact data-dir match to be compatible, got ok=%v err=%v", ok, err)
 	}
 
-	ok, err = checkOxigraphCompatibility("127.0.0.1:7878", "/data/b")
+	ok, err = checkOxigraphCompatibility("127.0.0.1:7878", runtimedescriptor.Descriptor{DataDir: "/data/b"})
 	if ok {
 		t.Fatal("expected a mismatched data directory to be incompatible")
 	}
@@ -55,7 +55,12 @@ func TestCheckOxigraphCompatibility_ExactDataDirMatchRequired(t *testing.T) {
 
 func TestCheckAwarenessCompatibility_UnidentifiedOccupantHardFails(t *testing.T) {
 	withDescriptorHome(t)
-	ok, err := checkAwarenessCompatibility(":10120", "http://localhost:7878/query", "/repo/.sensei/graph-authority.json", "/repo", "github.com/owner/repo")
+	ok, err := checkAwarenessCompatibility(":10120", runtimedescriptor.Descriptor{
+		OxigraphQueryURL: "http://localhost:7878/query",
+		GraphMarkerFile:  "/repo/.sensei/graph-authority.json",
+		RepoRoot:         "/repo",
+		RepoDomain:       "github.com/owner/repo",
+	})
 	if ok {
 		t.Fatal("expected an occupied address with no descriptor to be incompatible")
 	}
@@ -73,6 +78,8 @@ func TestCheckAwarenessCompatibility_ExactMatchRequired(t *testing.T) {
 		GraphMarkerFile:  "/repo/.sensei/graph-authority.json",
 		RepoRoot:         "/repo",
 		RepoDomain:       "github.com/owner/repo",
+		HomeDomain:       "globular",
+		AwarenessDir:     "/repo/docs/awareness",
 	}
 
 	cases := []struct {
@@ -98,6 +105,14 @@ func TestCheckAwarenessCompatibility_ExactMatchRequired(t *testing.T) {
 			d.RepoDomain = "github.com/owner/other"
 			return d
 		}, "repo domain", false},
+		{"mismatched home domain", func(d runtimedescriptor.Descriptor) runtimedescriptor.Descriptor {
+			d.HomeDomain = "other-home"
+			return d
+		}, "home domain", false},
+		{"mismatched awareness dir (propose surface)", func(d runtimedescriptor.Descriptor) runtimedescriptor.Descriptor {
+			d.AwarenessDir = ""
+			return d
+		}, "awareness dir", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -106,7 +121,7 @@ func TestCheckAwarenessCompatibility_ExactMatchRequired(t *testing.T) {
 			if err := runtimedescriptor.Write(running); err != nil {
 				t.Fatal(err)
 			}
-			ok, err := checkAwarenessCompatibility(base.ListenAddr, base.OxigraphQueryURL, base.GraphMarkerFile, base.RepoRoot, base.RepoDomain)
+			ok, err := checkAwarenessCompatibility(base.ListenAddr, base)
 			if ok != tc.compatible {
 				t.Fatalf("got ok=%v, want %v (err=%v)", ok, tc.compatible, err)
 			}
@@ -137,13 +152,12 @@ func TestCheckAwarenessCompatibility_RejectsForeignCheckout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ok, err := checkAwarenessCompatibility(
-		":10120",
-		"http://localhost:7878/query",
-		"/checkout-b/.sensei/graph-authority.json",
-		"/checkout-b",
-		"github.com/globulario/checkout-b",
-	)
+	ok, err := checkAwarenessCompatibility(":10120", runtimedescriptor.Descriptor{
+		OxigraphQueryURL: "http://localhost:7878/query",
+		GraphMarkerFile:  "/checkout-b/.sensei/graph-authority.json",
+		RepoRoot:         "/checkout-b",
+		RepoDomain:       "github.com/globulario/checkout-b",
+	})
 	if ok {
 		t.Fatal("expected checkout B to be rejected as incompatible with checkout A's running service")
 	}

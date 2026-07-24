@@ -50,9 +50,17 @@ type Descriptor struct {
 	GraphMarkerFile  string `json:"graph_marker_file,omitempty"`
 	RepoRoot         string `json:"repo_root,omitempty"`
 	RepoDomain       string `json:"repo_domain,omitempty"`
-	DataDir          string `json:"data_dir,omitempty"`
-	StartedAtUnix    int64  `json:"started_at_unix"`
-	SenseiVersion    string `json:"sensei_version,omitempty"`
+	// HomeDomain and AwarenessDir are BEHAVIORAL settings, not just identity:
+	// a different home-domain attributes untagged nodes differently, and a
+	// non-empty AwarenessDir means the Propose RPC write path is enabled.
+	// Both must be part of the exact-match fingerprint — a service reused
+	// under a silently different behavioral configuration is exactly the
+	// "approximate similarity" contract §3.4 forbids.
+	HomeDomain    string `json:"home_domain,omitempty"`
+	AwarenessDir  string `json:"awareness_dir,omitempty"`
+	DataDir       string `json:"data_dir,omitempty"`
+	StartedAtUnix int64  `json:"started_at_unix"`
+	SenseiVersion string `json:"sensei_version,omitempty"`
 }
 
 // ErrAbsent reports that no live, readable descriptor exists for the given
