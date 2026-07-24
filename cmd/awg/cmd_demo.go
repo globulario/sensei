@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/globulario/sensei/golang/architecture/protection"
 )
 
 // runDemo is the zero-friction golden path: one command that stands up a private
@@ -130,7 +132,7 @@ Flags:
 	// 4. One real briefing.
 	target := strings.TrimSpace(*file)
 	if target == "" {
-		target = firstHighRiskFile(awarenessDir)
+		target = firstHighRiskFile(dir)
 	}
 	if target == "" {
 		fmt.Fprintf(os.Stderr, "sensei demo: no file to brief — pass --file, or add one to high_risk_files.yaml\n")
@@ -190,20 +192,17 @@ func resolveDemoRepo(explicit string) (string, error) {
 	return "", fmt.Errorf("no project found — pass --repo <dir> (a directory with docs/awareness/)")
 }
 
-// firstHighRiskFile returns the first path listed in high_risk_files.yaml, so the
-// demo briefs a file the project already marked as load-bearing.
-func firstHighRiskFile(awarenessDir string) string {
-	data, err := os.ReadFile(filepath.Join(awarenessDir, "high_risk_files.yaml"))
-	if err != nil {
+// firstHighRiskFile returns the first manually-registered protection entry
+// for repoRoot, so the demo briefs a file the project already marked as
+// load-bearing. Delegates to the one canonical protection owner
+// (golang/architecture/protection) rather than re-parsing
+// high_risk_files.yaml itself (contract §3.6).
+func firstHighRiskFile(repoRoot string) string {
+	entries, _, err := protection.ManualEntries(repoRoot)
+	if err != nil || len(entries) == 0 {
 		return ""
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		s := strings.TrimSpace(line)
-		if strings.HasPrefix(s, "- ") {
-			return strings.TrimSpace(strings.Trim(strings.TrimPrefix(s, "- "), `"'`))
-		}
-	}
-	return ""
+	return entries[0]
 }
 
 var tripleRe = regexp.MustCompile(`(\d[\d,]*)\s+triples`)

@@ -40,7 +40,14 @@ func TestDescribeTriples(t *testing.T) {
 
 func TestFirstHighRiskFile(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "high_risk_files.yaml"), []byte("files:\n  - src/payment_processor.py\n  - src/other.py\n"), 0o644)
+	hrf := filepath.Join(dir, "docs", "awareness", "high_risk_files.yaml")
+	if err := os.MkdirAll(filepath.Dir(hrf), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(hrf, []byte("files:\n  - src/payment_processor.py\n  - src/other.py\n"), 0o644)
+	// firstHighRiskFile takes the REPOSITORY ROOT (it consults the canonical
+	// protection owner, which knows the docs/awareness/ location itself) —
+	// not the awareness directory directly.
 	if got := firstHighRiskFile(dir); got != "src/payment_processor.py" {
 		t.Errorf("firstHighRiskFile = %q", got)
 	}

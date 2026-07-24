@@ -22,6 +22,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/globulario/sensei/golang/architecture/protection"
 )
 
 // feedbackGapResult is the structured verdict over a session's changed files.
@@ -169,17 +171,15 @@ func feedbackSuggestions() []string {
 	}
 }
 
+// matchesAnyPrefix delegates to protection.InPathScope for segment-boundary-
+// safe matching (contract §3.7) — "src/auth" must not match
+// "src/authorization/x.go".
 func matchesAnyPrefix(path string, prefixes []string) bool {
-	for _, pre := range prefixes {
-		pre = strings.TrimSpace(filepath.ToSlash(pre))
-		if pre == "" {
-			continue
-		}
-		if path == pre || strings.HasPrefix(path, strings.TrimRight(pre, "/")+"/") || strings.HasPrefix(path, pre) {
-			return true
-		}
+	norm, ok := protection.NormalizePath(path)
+	if !ok {
+		return false
 	}
-	return false
+	return protection.AnyInPathScope(norm, prefixes)
 }
 
 func sortedKeys(m map[string]bool) []string {
@@ -220,30 +220,17 @@ func gitChangedFiles(root string) []string {
 	return files
 }
 
-// readHighRiskPrefixes loads docs/awareness/high_risk_files.yaml (the same list
-// the enforce-briefing hook reads). Missing file → no prefixes.
+// readHighRiskPrefixes loads the manual protection registry through the one
+// canonical protection owner (golang/architecture/protection) rather than
+// re-parsing docs/awareness/high_risk_files.yaml itself (contract §3.6).
+// Missing file or a parse error → no prefixes (advisory caller; feedback-check
+// never fails the session on its own error).
 func readHighRiskPrefixes(root string) []string {
-	path := filepath.Join(root, "docs", "awareness", "high_risk_files.yaml")
-	data, err := os.ReadFile(path)
+	entries, _, err := protection.ManualEntries(root)
 	if err != nil {
 		return nil
 	}
-	var prefixes []string
-	for _, line := range strings.Split(string(data), "\n") {
-		t := strings.TrimSpace(line)
-		if !strings.HasPrefix(t, "- ") {
-			continue
-		}
-		v := strings.TrimSpace(strings.TrimPrefix(t, "- "))
-		if i := strings.Index(v, "#"); i >= 0 {
-			v = strings.TrimSpace(v[:i])
-		}
-		v = strings.Trim(v, `"'`)
-		if v != "" {
-			prefixes = append(prefixes, v)
-		}
-	}
-	return prefixes
+	return entries
 }
 
 func printFeedbackGap(res feedbackGapResult, quiet bool) {

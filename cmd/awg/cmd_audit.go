@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	"github.com/globulario/sensei/golang/contractassess"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/rdf"
@@ -164,6 +165,7 @@ Flags:
 	}
 	if genErr == nil && coverageRepo != "" {
 		checks = append(checks, checkCoverageGaps(coverageRepo, checkNTBytes))
+		checks = append(checks, checkProtectionCoverage(coverageRepo))
 	} else if genErr == nil && auditDomain != "" {
 		checks = append(checks, auditResult{name: "coverage-gaps", level: auditWARN, summary: "domain repo root unavailable for high_risk_files.yaml"})
 	}
@@ -660,22 +662,20 @@ func checkNTValidity(ntBytes []byte, totalTriples int) auditResult {
 // ── check 4: coverage gaps ───────────────────────────────────────────────
 
 func checkCoverageGaps(svcRepo string, ntBytes []byte) auditResult {
-	hrfPath := filepath.Join(svcRepo, "docs", "awareness", "high_risk_files.yaml")
-	raw, err := os.ReadFile(hrfPath)
+	// Manual entries come from the one canonical protection owner
+	// (golang/architecture/protection), not a re-parse of
+	// high_risk_files.yaml (contract §3.6).
+	files, present, err := protection.ManualEntries(svcRepo)
 	if err != nil {
-		return auditResult{name: "coverage-gaps", level: auditWARN, summary: "no high_risk_files.yaml"}
-	}
-	var doc struct {
-		Files []string `yaml:"files"`
-	}
-	if err := yaml.Unmarshal(raw, &doc); err != nil {
 		return auditResult{name: "coverage-gaps", level: auditWARN, summary: "parse error: " + err.Error()}
+	}
+	if !present {
+		return auditResult{name: "coverage-gaps", level: auditWARN, summary: "no high_risk_files.yaml"}
 	}
 
 	fileRefs := collectFilePathsFromNT(ntBytes)
 	var uncovered []string
-	for _, f := range doc.Files {
-		f = strings.TrimSuffix(f, "/")
+	for _, f := range files {
 		found := false
 		for ref := range fileRefs {
 			if strings.Contains(ref, f) {
@@ -690,11 +690,49 @@ func checkCoverageGaps(svcRepo string, ntBytes []byte) auditResult {
 
 	if len(uncovered) == 0 {
 		return auditResult{name: "coverage-gaps", level: auditPASS,
-			summary: fmt.Sprintf("all %d high-risk files have anchors", len(doc.Files))}
+			summary: fmt.Sprintf("all %d high-risk files have anchors", len(files))}
 	}
 	return auditResult{name: "coverage-gaps", level: auditWARN,
-		summary: fmt.Sprintf("%d/%d high-risk files have no anchors", len(uncovered), len(doc.Files)),
+		summary: fmt.Sprintf("%d/%d high-risk files have no anchors", len(uncovered), len(files)),
 		details: uncovered,
+	}
+}
+
+// ── check: effective protection coverage (contract §11) ─────────────────
+
+// checkProtectionCoverage reports the canonical protection owner's coverage
+// status as an audit finding, distinct from checkCoverageGaps (which asks
+// "does the MANUAL list have anchors"; this asks "is the EFFECTIVE protected
+// set — manual ∪ governed ∪ structural ∪ relations ∪ candidates — healthy").
+//
+//   - PASS: COMPLETE, or a conclusive EMPTY scan with no contract/invariant
+//     signal anywhere in the repository (nothing to protect yet is honest,
+//     not a failure);
+//   - WARN: PARTIAL, or EMPTY while the repository DOES carry governed
+//     sources (a bootstrap/coverage gap worth flagging but not blocking);
+//   - FAIL: DEGRADED, or an EMPTY scan despite present governed sources
+//     that should have produced protection.
+func checkProtectionCoverage(repoRoot string) auditResult {
+	cov, err := protection.Derive(repoRoot)
+	if err != nil {
+		return auditResult{name: "protection-coverage", level: auditFAIL, summary: "derivation failed: " + err.Error()}
+	}
+	summary := fmt.Sprintf("status=%s protected=%d (manual=%d derived=%d provisional=%d)",
+		cov.Status, len(cov.ProtectedPaths), cov.ManualCount, cov.DerivedCount, cov.ProvisionalCount)
+	switch cov.Status {
+	case protection.CoverageComplete:
+		return auditResult{name: "protection-coverage", level: auditPASS, summary: summary}
+	case protection.CoverageDegraded:
+		return auditResult{name: "protection-coverage", level: auditFAIL, summary: summary, details: cov.Gaps}
+	case protection.CoverageEmpty:
+		governed, govErr := protection.GovernedSourceFiles(repoRoot)
+		if govErr == nil && len(governed) > 0 {
+			return auditResult{name: "protection-coverage", level: auditFAIL,
+				summary: summary + " — governed sources exist but zero effective protection was derived"}
+		}
+		return auditResult{name: "protection-coverage", level: auditPASS, summary: summary + " — no governed sources yet"}
+	default: // PARTIAL
+		return auditResult{name: "protection-coverage", level: auditWARN, summary: summary, details: cov.Gaps}
 	}
 }
 
