@@ -27,6 +27,27 @@ func envWithPath(pathEnv string) []string {
 	return append(out, "PATH="+pathEnv)
 }
 
+// senseiTestHelperEnv gates TestMain's re-exec shortcut below: this test
+// binary IS the compiled cmd/awg code, so re-executing it as a real "sensei"
+// process (via a symlink named "sensei" on PATH) exercises the identical
+// dispatch a `go build`'d binary would — without paying for a separate
+// compile inside a shared, tightly-timed `go test ./...` CI budget.
+const senseiTestHelperEnv = "SENSEI_TEST_HELPER"
+
+// TestMain lets this test binary double as the real "sensei" CLI process
+// when SENSEI_TEST_HELPER is set, so TestHookLifecycle_DomainBoundBriefingMarkers
+// can hand a symlink to it to real bash hook scripts as `$BIN` (contract §13's
+// process-level requirement) without a nested `go build`.
+func TestMain(m *testing.M) {
+	if os.Getenv(senseiTestHelperEnv) == "1" {
+		if len(os.Args) < 2 {
+			os.Exit(2)
+		}
+		os.Exit(dispatch(os.Args[1], os.Args[2:]))
+	}
+	os.Exit(m.Run())
+}
+
 // TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level
 // integration proof (contract §13 correction): the ACTUAL .claude/hooks
 // shell scripts and the ACTUAL built sensei binary, invoked as real
@@ -49,15 +70,19 @@ func TestHookLifecycle_DomainBoundBriefingMarkers(t *testing.T) {
 		}
 	}
 
-	// Build the binary under test into an isolated directory — the fixture
-	// must never rely on whatever `sensei`/`awg` happens to already be on
-	// the developer's ambient PATH.
+	// This already-compiled test binary IS the code under test (see TestMain):
+	// symlink it as "sensei" into an isolated PATH directory rather than
+	// paying for a separate `go build` inside a shared, tightly-timed
+	// `go test ./...` CI budget. The fixture must never rely on whatever
+	// `sensei`/`awg` happens to already be on the developer's ambient PATH.
+	testBinPath, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
 	binDir := t.TempDir()
 	senseiBin := filepath.Join(binDir, "sensei")
-	build := exec.Command("go", "build", "-o", senseiBin, "./cmd/awg")
-	build.Dir = repoRoot
-	if out, buildErr := build.CombinedOutput(); buildErr != nil {
-		t.Fatalf("go build sensei: %v\n%s", buildErr, out)
+	if err := os.Symlink(testBinPath, senseiBin); err != nil {
+		t.Fatalf("symlink test binary as sensei: %v", err)
 	}
 	availablePath := binDir + ":/usr/local/bin:/usr/bin:/bin"
 	unavailablePath := "/usr/local/bin:/usr/bin:/bin" // deliberately excludes binDir
@@ -107,7 +132,7 @@ invariants:
 		cmd.Dir = root
 		cmd.Stdin = strings.NewReader(string(body))
 		cmd.Env = envWithPath(pathEnv)
-		cmd.Env = append(cmd.Env, "CLAUDE_SESSION_ID="+sessionID)
+		cmd.Env = append(cmd.Env, "CLAUDE_SESSION_ID="+sessionID, senseiTestHelperEnv+"=1")
 		// If a descendant process ever outlives bash while still holding the
 		// stdout/stderr pipe open, force CombinedOutput to return anyway
 		// rather than hang past the context deadline.
@@ -167,7 +192,10 @@ invariants:
 	// presented directly to the compiled `protection-check` binary rather
 	// than through the hook's own realpath pre-filter — is blocked visibly,
 	// never silently renormalized as repo-relative (contract §2).
-	check := exec.Command(senseiBin, "protection-check", "--path", root, "--file", "/etc/passwd", "--json")
+	checkCtx, checkCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer checkCancel()
+	check := exec.CommandContext(checkCtx, senseiBin, "protection-check", "--path", root, "--file", "/etc/passwd", "--json")
+	check.Env = append(os.Environ(), senseiTestHelperEnv+"=1")
 	checkOut, checkErr := check.CombinedOutput()
 	if checkErr == nil {
 		t.Fatalf("step 6: expected `sensei protection-check` to fail visibly for an absolute path outside the repository, got exit 0:\n%s", checkOut)
