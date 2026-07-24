@@ -275,11 +275,13 @@ func Validate(doc Document) error {
 		if entry.ProviderID == "" {
 			errs = append(errs, fmt.Sprintf("coverage entry %d: provider_id is required", i))
 		}
-		if entry.ProviderVersion == "" {
-			errs = append(errs, fmt.Sprintf("coverage entry %d: provider_version is required", i))
-		}
-		if !IsValidEvidenceCategory(entry.Category) {
-			errs = append(errs, fmt.Sprintf("coverage entry %d: invalid category %q", i, entry.Category))
+		if entry.Status != CoverageNotConfigured {
+			if entry.ProviderVersion == "" {
+				errs = append(errs, fmt.Sprintf("coverage entry %d: provider_version is required", i))
+			}
+			if !IsValidEvidenceCategory(entry.Category) {
+				errs = append(errs, fmt.Sprintf("coverage entry %d: invalid category %q", i, entry.Category))
+			}
 		}
 		if !IsValidCoverageStatus(entry.Status) {
 			errs = append(errs, fmt.Sprintf("coverage entry %d: invalid status %q", i, entry.Status))

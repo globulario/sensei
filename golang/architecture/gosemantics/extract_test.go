@@ -61,6 +61,42 @@ func TestGoSemanticFactsAreDeterministic(t *testing.T) {
 	}
 }
 
+func TestSemanticInputFilesRespectExcludedPathsAndRefuseEligibleSymlinks(t *testing.T) {
+	root := writeFixture(t)
+	target := filepath.Join(t.TempDir(), "target")
+	if err := os.WriteFile(target, []byte("package ignored\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	excluded := filepath.Join(root, "nested", "node_modules", ".bin", "tool")
+	if err := os.MkdirAll(filepath.Dir(excluded), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, excluded); err != nil {
+		t.Fatal(err)
+	}
+	first, err := SemanticInputFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := SemanticInputFiles(root)
+	if err != nil || !reflect.DeepEqual(first, second) {
+		t.Fatalf("semantic input selection is not deterministic: %v\n%v\n%v", err, first, second)
+	}
+	for _, name := range []string{"external.go", "go.mod", "go.sum"} {
+		path := filepath.Join(root, name)
+		_ = os.Remove(path)
+		if err := os.Symlink(target, path); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := SemanticInputFiles(root); err == nil {
+			t.Fatalf("eligible symlink %s was accepted", name)
+		}
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestGoSemanticFactsDoNotDependOnUserBuildCachePermissions(t *testing.T) {
 	root := writeFixture(t)
 	readOnly := filepath.Join(t.TempDir(), "read-only-cache")

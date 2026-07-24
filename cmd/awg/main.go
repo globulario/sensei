@@ -134,6 +134,10 @@ func main() {
 		os.Exit(runBriefing(args))
 	case "impact":
 		os.Exit(runImpact(args))
+	case "investigate":
+		os.Exit(runInvestigate(args))
+	case "candidates":
+		os.Exit(runCandidates(args))
 	case "preflight":
 		os.Exit(runPreflight(args))
 	case "contract-assess":
@@ -404,7 +408,9 @@ Runtime, recovery, and provenance:
   reconcile                  Diff live store against committed seed
   seed-status                Check generated/committed/live seed authority alignment
   governance                 Verify/activate/status for managed-governance packs
-  evidence                   Aggregate the gate/guard outcome ledger
+  evidence                   Aggregate ledger evidence or snapshot/import/inspect Phase 10 evidence
+  investigate                Run or inspect deterministic Phase 10 investigations
+  candidates                 List, show, or record governed review of investigation candidates
 
 Repair and evaluation helpers:
   proof-plan     Show required proof/forbidden-move checklist before editing

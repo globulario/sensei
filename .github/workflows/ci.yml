@@ -73,8 +73,14 @@ jobs:
           fi
           echo "onboarding docs: total principle count matches the pack (${PACK})"
 
-      - name: Run tests
-        run: go test ./... -count=1 -timeout 120s
+      - name: Run cmd/awg tests
+        run: go test ./cmd/awg -count=1 -timeout 5m
+
+      - name: Run remaining tests
+        shell: bash
+        run: |
+          packages=$(go list ./... | grep -v '^github.com/globulario/sensei/cmd/awg$')
+          go test $packages -count=1 -timeout 3m -p 2
 
       - name: "Cold-start smoke (stranger path: init -> serve -no-seed -> build -> briefing)"
         # Fetches the upstream Oxigraph binary, scaffolds a throwaway project in

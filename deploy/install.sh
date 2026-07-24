@@ -50,10 +50,9 @@ case ":${PATH}:" in
 	*) echo "note: ${bindir} is not on your PATH — add it: export PATH=\"${bindir}:\$PATH\"" ;;
 esac
 echo "next — run the SERVICE, then point the client at it:"
-echo "  recommended:  cd deploy && docker compose up --build   # bundles Oxigraph"
+echo "  recommended:  SENSEI_REPO=$PWD docker compose -f deploy/docker-compose.yml up -d --build"
 echo "  then:         export SENSEI_ADDR=localhost:10120 && sensei metadata"
 echo
-echo "note: 'sensei serve' (local, no Docker) ALSO needs an 'oxigraph' binary on PATH"
-echo "      (this installer does not provide it — https://github.com/oxigraph/oxigraph/releases,"
-echo "      or run it externally and use 'sensei serve --no-oxigraph'). The compose path avoids this."
+echo "note: the Docker appliance contains Sensei, awareness-graph, awareness-mcp, and a pinned Oxigraph binary."
+echo "      Local 'sensei serve' still needs an 'oxigraph' binary on PATH."
 echo "if the service requires auth, export SENSEI_TOKEN=<token> for the client too."

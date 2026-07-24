@@ -1,0 +1,148 @@
+name: Publish Sensei appliance
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing released version to publish (for example 0.0.5, without v)'
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve release identity
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            version="${INPUT_VERSION}"
+            tag="v${version}"
+            if [[ ! "${version}" =~ ^[0-9]+(\.[0-9]+){1,3}([.-][0-9A-Za-z._-]+)?$ ]]; then
+              echo "::error::invalid version '${version}'"
+              exit 1
+            fi
+            gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null
+          else
+            tag="${GITHUB_REF_NAME}"
+            version="${tag#v}"
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Wait for the complete Release workflow
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          workflow_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --paginate \
+            --jq '.workflows[] | select(.name == "Release") | .id' | head -n 1)"
+          if [[ -z "${workflow_id}" ]]; then
+            echo "::error::Release workflow was not found"
+            exit 1
+          fi
+
+          for attempt in $(seq 1 120); do
+            run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs?head_sha=${SOURCE_SHA}&event=push&per_page=20")"
+            status="$(jq -r '.workflow_runs[0].status // empty' <<<"${run}")"
+            conclusion="$(jq -r '.workflow_runs[0].conclusion // empty' <<<"${run}")"
+            url="$(jq -r '.workflow_runs[0].html_url // empty' <<<"${run}")"
+
+            if [[ "${status}" == "completed" ]]; then
+              if [[ "${conclusion}" != "success" ]]; then
+                echo "::error::Release workflow concluded ${conclusion}: ${url}"
+                exit 1
+              fi
+              echo "Release workflow succeeded: ${url}"
+              break
+            fi
+
+            if [[ "${attempt}" -eq 120 ]]; then
+              echo "::error::timed out waiting for Release workflow for ${SOURCE_SHA}"
+              exit 1
+            fi
+            echo "Release workflow status: ${status:-not-yet-visible} (${attempt}/120)"
+            sleep 15
+          done
+
+      - name: Checkout released source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Bind source commit
+        id: source
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image tags
+        id: image
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sensei-appliance"
+          {
+            echo 'tags<<EOF'
+            echo "${image}:${TAG}"
+            echo "${image}:${VERSION}"
+            if [[ "${VERSION}" != *-* ]]; then
+              echo "${image}:latest"
+            fi
+            echo 'EOF'
+            echo "image=${image}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Build and publish multi-platform appliance
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.tags }}
+          build-args: |
+            SENSEI_VERSION=${{ steps.release.outputs.version }}
+            VCS_REF=${{ steps.source.outputs.sha }}
+            OXIGRAPH_VERSION=0.5.9
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.release.outputs.version }}
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Record published image
+        run: |
+          echo "Published ${{ steps.image.outputs.image }}:${{ steps.release.outputs.tag }}"
+          echo "Published version ${{ steps.release.outputs.version }} for linux/amd64 and linux/arm64"

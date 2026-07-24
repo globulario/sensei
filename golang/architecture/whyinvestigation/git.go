@@ -78,18 +78,20 @@ func (p GitProvider) Capture(ctx context.Context, req CaptureRequest) (Snapshot,
 	}
 	sort.Slice(commits, func(i, j int) bool { return commits[i].ID < commits[j].ID })
 	resolved := GitRange{Start: strings.TrimSpace(start), End: strings.TrimSpace(end)}
-	descriptor := struct {
-		Provider                      investigation.ProviderBinding
-		Repository                    architecture.ClaimDocumentBinding
-		RequestedRange, ResolvedRange GitRange
-		Incomplete                    bool
-		Commits                       []Commit
-	}{p.Identity(), req.Repository, req.Range, resolved, strings.TrimSpace(shallow) == "true", commits}
-	data, err := json.Marshal(descriptor)
+	snap := Snapshot{
+		Provider:       p.Identity(),
+		Category:       investigation.EvidenceSourceControl,
+		RequestedRange: req.Range,
+		ResolvedRange:  resolved,
+		Incomplete:     strings.TrimSpace(shallow) == "true",
+		Commits:        commits,
+	}
+	digest, err := computeSnapshotDigest(&snap)
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{Provider: p.Identity(), Digest: investigation.SHA256Bytes(data), RequestedRange: req.Range, ResolvedRange: resolved, Incomplete: strings.TrimSpace(shallow) == "true", Commits: commits}, nil
+	snap.Digest = digest
+	return snap, nil
 }
 
 func (p GitProvider) Investigate(_ context.Context, snap Snapshot, req CaptureRequest) (Result, error) {
