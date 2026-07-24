@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/extractor/grpcwebscan"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
@@ -42,6 +43,7 @@ func runBootstrap(args []string) int {
 	check := fs.Bool("check", false, "compare generated output to committed files; exit non-zero if stale")
 	dryRun := fs.Bool("dry-run", false, "print the report without writing generated/candidate files")
 	scipPath := fs.String("scip", "", "path to a SCIP index to ingest symbol-level nodes; defaults to <repo>/index.scip when present")
+	domain := fs.String("domain", "", "explicit repository domain to bind (default: preserve existing config, else derive from git origin)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei bootstrap --path <checkout> [flags]
 
@@ -474,6 +476,86 @@ Flags:
 		}
 	}
 
+	// ── Stage 6b: derive + publish the effective protection snapshot ──
+	// Participates in normal write/dry-run/--check behavior per contract §8.
+	if protCov, protErr := protection.Derive(root); protErr != nil {
+		rep.notes = append(rep.notes, "protection: derive: "+protErr.Error())
+	} else {
+		rep.protectionStatus = string(protCov.Status)
+		rep.protectionCount = len(protCov.ProtectedPaths)
+		rep.protectionManualCount = protCov.ManualCount
+		rep.protectionDerivedCount = protCov.DerivedCount
+		rep.protectionProvisionalCount = protCov.ProvisionalCount
+		rep.protectionGaps = protCov.Gaps
+		switch {
+		case *dryRun:
+			// dry-run: report only, never publish.
+		case *check:
+			switch state, cmpErr := protection.CompareSnapshot(root, protCov); state {
+			case protection.SnapshotInvalid:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (unreadable: "+cmpErr.Error()+")")
+			case protection.SnapshotMissing:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (missing)")
+			case protection.SnapshotStale:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (stale)")
+			}
+		default:
+			if pubErr := protection.PublishSnapshot(root, protCov); pubErr != nil {
+				rep.notes = append(rep.notes, "protection: publish snapshot: "+pubErr.Error())
+			}
+		}
+		// A repository with real governed/contract signal and zero effective
+		// protection is a bootstrap failure, not success (contract §8).
+		if protCov.Status == protection.CoverageDegraded {
+			rep.protectionHardFailure = true
+		} else if protCov.Status == protection.CoverageEmpty {
+			if governed, gerr := protection.GovernedSourceFiles(root); gerr == nil && len(governed) > 0 {
+				rep.protectionHardFailure = true
+			}
+		}
+	}
+
+	// ── Stage 6c: establish the checkout-scoped repository domain ──
+	// Participates in normal write/dry-run/--check behavior per contract §8:
+	// dry-run reports only, --check reports a stale/missing/mismatched binding
+	// without writing, and normal mode establishes it (never rewriting an
+	// existing configured domain — see establishRepositoryDomain).
+	switch {
+	case *dryRun:
+		domRes := resolveRepositoryDomain(root, *domain)
+		if domRes.Err != nil {
+			rep.notes = append(rep.notes, "repository domain: "+domRes.Err.Error())
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+		}
+	case *check:
+		domRes := resolveRepositoryDomain(root, *domain)
+		if domRes.Err != nil {
+			rep.stale = append(rep.stale, "repository domain ("+domRes.Err.Error()+")")
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+			if domRes.Domain == "" {
+				rep.stale = append(rep.stale, "repository domain (unbound)")
+			} else if origin := gitRemoteDomain(root); origin != "" && origin != domRes.Domain {
+				rep.repositoryDomainStale = true
+				rep.stale = append(rep.stale, fmt.Sprintf("repository domain (configured=%s, git origin=%s)", domRes.Domain, origin))
+			}
+		}
+	default:
+		if domRes, domErr := establishRepositoryDomain(root, *domain); domErr != nil {
+			rep.notes = append(rep.notes, "repository domain: "+domErr.Error())
+			rep.repositoryDomainHardFailure = true
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+			if domRes.Mismatch {
+				rep.notes = append(rep.notes, fmt.Sprintf("repository domain: configured domain %q preserved despite git origin now resolving to %q", domRes.Domain, domRes.OriginURL))
+			}
+		}
+	}
+
 	// ── Stage 7: gates ──
 	if !*check {
 		// validate (read-only).
@@ -529,6 +611,12 @@ Flags:
 	rep.print(os.Stdout)
 
 	if *check && len(rep.stale) > 0 {
+		return 1
+	}
+	if !*dryRun && rep.protectionHardFailure {
+		return 1
+	}
+	if !*dryRun && rep.repositoryDomainHardFailure {
 		return 1
 	}
 	return 0
@@ -768,6 +856,26 @@ type bootstrapReport struct {
 	stale                         []string
 	notes                         []string
 	nextActions                   []string
+
+	protectionStatus           string
+	protectionCount            int
+	protectionManualCount      int
+	protectionDerivedCount     int
+	protectionProvisionalCount int
+	protectionGaps             []string
+	// protectionHardFailure is true when governed/contract signal exists but
+	// zero effective protection was derived (DEGRADED, or a conclusive EMPTY
+	// scan despite present governed sources) — contract §8's "not success."
+	protectionHardFailure bool
+
+	repositoryDomain       string // resolved/established repository.domain, "" if unbound
+	repositoryDomainSource string // "explicit" | "existing_config" | "git_origin" | "unbound"
+	repositoryDomainStale  bool   // --check: config.yaml domain disagrees with the current git origin
+	// repositoryDomainHardFailure is true when the repository domain
+	// configuration is malformed or an explicit/configured value is
+	// invalid — checkout identity is an authority boundary (contract §3.6
+	// correction), so this must gate a non-zero exit, never just a note.
+	repositoryDomainHardFailure bool
 }
 
 func (r *bootstrapReport) computeNextActions() {
@@ -785,6 +893,13 @@ func (r *bootstrapReport) computeNextActions() {
 	}
 	if strings.HasPrefix(r.buildStatus, "failed") {
 		r.nextActions = append(r.nextActions, "Fix build errors before serving the graph.")
+	}
+	if r.protectionHardFailure {
+		r.nextActions = append(r.nextActions,
+			"Repair protection coverage (`sensei protection-status`) — governed sources exist but the effective protected set is empty or degraded.")
+	} else if r.protectionProvisionalCount > 0 {
+		r.nextActions = append(r.nextActions,
+			fmt.Sprintf("Review %d candidate-derived provisional protection path(s) (`sensei protection-status`) — distinct from reviewing candidate architecture itself.", r.protectionProvisionalCount))
 	}
 }
 
@@ -831,6 +946,18 @@ func (r *bootstrapReport) print(w *os.File) {
 		}
 	}
 	fmt.Fprintf(w, "  build status:               %s\n", r.buildStatus)
+	if r.protectionStatus != "" {
+		fmt.Fprintf(w, "  protection coverage:        %s (%d path(s): manual=%d derived=%d provisional=%d)\n",
+			r.protectionStatus, r.protectionCount, r.protectionManualCount, r.protectionDerivedCount, r.protectionProvisionalCount)
+		if r.protectionHardFailure {
+			fmt.Fprintln(w, "      governed sources exist but effective protection is empty/degraded — see next actions")
+		}
+	}
+	if r.repositoryDomain != "" {
+		fmt.Fprintf(w, "  repository domain:          %s (source=%s)\n", r.repositoryDomain, r.repositoryDomainSource)
+	} else {
+		fmt.Fprintln(w, "  repository domain:          unbound (briefing/preflight will require an explicit --domain)")
+	}
 	if len(r.writtenGenerated) > 0 {
 		fmt.Fprintf(w, "  wrote generated:            %s\n", strings.Join(r.writtenGenerated, ", "))
 	}

@@ -475,8 +475,11 @@ func TestCollectRepoEvalUpgradePath_SkipsHighRiskPathsAlreadyGovernedByInvariant
 			t.Fatalf("unexpected governed high-risk candidate still present: %+v", candidate)
 		}
 	}
-	if path.Invariants[0].Paths[0] != "internal/config/" {
-		t.Fatalf("first remaining invariant path=%q want internal/config/", path.Invariants[0].Paths[0])
+	// The canonical protection owner normalizes manual entries (no trailing
+	// slash) — matching still respects directory semantics via
+	// repoEvalNormalizeSurfacePath, this is a display-format change only.
+	if path.Invariants[0].Paths[0] != "internal/config" {
+		t.Fatalf("first remaining invariant path=%q want internal/config", path.Invariants[0].Paths[0])
 	}
 }
 

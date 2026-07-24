@@ -74,6 +74,7 @@ components:
       - cmd/awg/cmd_contract_assess.go
       - cmd/awg/cmd_contract_bootstrap.go
       - cmd/awg/cmd_corpus.go
+      - cmd/awg/cmd_dashboard_projection.go
       - cmd/awg/cmd_demo.go
       - cmd/awg/cmd_disposition_question.go
       - cmd/awg/cmd_draft_candidate.go
@@ -115,6 +116,7 @@ components:
       - cmd/awg/cmd_promote_realization.go
       - cmd/awg/cmd_proof_plan.go
       - cmd/awg/cmd_propose.go
+      - cmd/awg/cmd_protection.go
       - cmd/awg/cmd_query.go
       - cmd/awg/cmd_rebuild.go
       - cmd/awg/cmd_reconcile.go
@@ -159,6 +161,7 @@ components:
       - cmd/awg/json_output.go
       - cmd/awg/main.go
       - cmd/awg/proofrequirements_adapter.go
+      - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
     depends_on:
       - component.golang.architecture
@@ -456,6 +459,10 @@ components:
       - golang/architecture/controlstate/types_closure.go
       - golang/architecture/controlstate/util.go
       - golang/architecture/convergence/convergence.go
+      - golang/architecture/dashboardprojection/digest.go
+      - golang/architecture/dashboardprojection/schemavalidate.go
+      - golang/architecture/dashboardprojection/types.go
+      - golang/architecture/dashboardprojection/validate.go
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
       - golang/architecture/diffaudit/evaluator.go
@@ -568,6 +575,17 @@ components:
       - golang/architecture/proofrequirements/obligations.go
       - golang/architecture/proofrequirements/parse.go
       - golang/architecture/proofrequirements/proofrequirements.go
+      - golang/architecture/protection/assessment.go
+      - golang/architecture/protection/classify.go
+      - golang/architecture/protection/derive.go
+      - golang/architecture/protection/governed.go
+      - golang/architecture/protection/manual.go
+      - golang/architecture/protection/pathmatch.go
+      - golang/architecture/protection/relations.go
+      - golang/architecture/protection/snapshot.go
+      - golang/architecture/protection/structural.go
+      - golang/architecture/protection/types.go
+      - golang/architecture/protection/util.go
       - golang/architecture/questiondisposition/errors.go
       - golang/architecture/questiondisposition/load.go
       - golang/architecture/questiondisposition/model.go
@@ -646,9 +664,11 @@ components:
       - component.golang.extractor
       - component.golang.propose
       - component.golang.rdf
+      - component.golang.scanner
       - component.golang.seedmeta
       - component.golang.store
     external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
       - golang.org/x/tools/go/packages
       - golang.org/x/tools/go/ssa
       - golang.org/x/tools/go/ssa/ssautil
@@ -771,6 +791,7 @@ components:
       - golang/extractor/importgraph/rust.go
       - golang/extractor/importgraph/typescript.go
       - golang/extractor/intent_yaml_import.go
+      - golang/extractor/jsonschemascan/jsonschemascan.go
       - golang/extractor/learning_event_yaml_import.go
       - golang/extractor/ntriples_validator.go
       - golang/extractor/openapiscan/openapiscan.go

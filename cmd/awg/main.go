@@ -110,234 +110,247 @@ func main() {
 		os.Exit(2)
 	}
 
-	cmd := os.Args[1]
-	args := os.Args[2:]
+	os.Exit(dispatch(os.Args[1], os.Args[2:]))
+}
 
+// dispatch resolves one Sensei subcommand to its exit code. Extracted
+// from main so tests can re-exec the compiled test binary as a real
+// "sensei" process (env-var-gated) without a separate `go build`.
+func dispatch(cmd string, args []string) int {
 	switch cmd {
+
 	case "demo":
-		os.Exit(runDemo(args))
+		return runDemo(args)
 	case "init":
-		os.Exit(runInit(args))
+		return runInit(args)
 	case "bootstrap":
-		os.Exit(runBootstrap(args))
+		return runBootstrap(args)
 	case "import":
-		os.Exit(runImport(args))
+		return runImport(args)
 	case "onboard":
-		os.Exit(runOnboard(args))
+		return runOnboard(args)
 	case "build":
-		os.Exit(runBuild(args))
+		return runBuild(args)
 	case "scip-ingest":
-		os.Exit(runScipIngest(args))
+		return runScipIngest(args)
+	case "protection-status":
+		return runProtectionStatus(args)
+	case "protection-check":
+		return runProtectionCheck(args)
+	case "repo-domain":
+		return runRepoDomain(args)
 	case "serve":
-		os.Exit(runServe(args))
+		return runServe(args)
 	case "briefing":
-		os.Exit(runBriefing(args))
+		return runBriefing(args)
 	case "impact":
-		os.Exit(runImpact(args))
+		return runImpact(args)
 	case "preflight":
-		os.Exit(runPreflight(args))
+		return runPreflight(args)
 	case "contract-assess":
-		os.Exit(runContractAssess(args))
+		return runContractAssess(args)
 	case "contract-bootstrap":
-		os.Exit(runContractBootstrap(args))
+		return runContractBootstrap(args)
 	case "edit-check":
-		os.Exit(runEditCheck(args))
+		return runEditCheck(args)
 	case "edit-guard":
-		os.Exit(runEditGuard(args))
+		return runEditGuard(args)
 	case "edit-brief":
-		os.Exit(runEditBrief(args))
+		return runEditBrief(args)
 	case "rigor":
-		os.Exit(runRigor(args))
+		return runRigor(args)
 	case "gate":
-		os.Exit(runGate(args))
+		return runGate(args)
 	case "produce-change-binding":
-		os.Exit(runProduceChangeBinding(args))
+		return runProduceChangeBinding(args)
 	case "evidence":
-		os.Exit(runEvidence(args))
+		return runEvidence(args)
 	case "resolve":
-		os.Exit(runResolve(args))
+		return runResolve(args)
 	case "query":
-		os.Exit(runQuery(args))
+		return runQuery(args)
 	case "metadata":
-		os.Exit(runMetadata(args))
+		return runMetadata(args)
 	case "domains":
-		os.Exit(runDomains(args))
+		return runDomains(args)
 	case "governance":
-		os.Exit(runGovernance(args))
+		return runGovernance(args)
 	case "check":
-		os.Exit(runCheck(args))
+		return runCheck(args)
 	case "validate":
-		os.Exit(runValidate(args))
+		return runValidate(args)
 	case "audit":
-		os.Exit(runAudit(args))
+		return runAudit(args)
 	case "merge-check":
-		os.Exit(runMergeCheck(args))
+		return runMergeCheck(args)
 	case "runtime-adapter":
-		os.Exit(runRuntimeAdapter(args))
+		return runRuntimeAdapter(args)
 	case "runtime-snapshot":
-		os.Exit(runRuntimeSnapshot(args))
+		return runRuntimeSnapshot(args)
 	case "cluster-diagnose":
-		os.Exit(runClusterDiagnose(args))
+		return runClusterDiagnose(args)
 	case "runtime-repair-report":
-		os.Exit(runRuntimeRepairReport(args))
+		return runRuntimeRepairReport(args)
 	case "runtime-gate":
-		os.Exit(runRuntimeGate(args))
+		return runRuntimeGate(args)
 	case "runtime-candidate":
-		os.Exit(runRuntimeCandidate(args))
+		return runRuntimeCandidate(args)
 	case "suggest-realizations":
-		os.Exit(runSuggestRealizations(args))
+		return runSuggestRealizations(args)
 	case "promote-realization":
-		os.Exit(runPromoteRealization(args))
+		return runPromoteRealization(args)
 	case "review-realization":
-		os.Exit(runReviewRealization(args))
+		return runReviewRealization(args)
 	case "repo-eval":
-		os.Exit(runRepoEval(args))
+		return runRepoEval(args)
 	case "architecture-extract":
-		os.Exit(runArchitectureExtract(args))
+		return runArchitectureExtract(args)
 	case "dashboard-projection":
-		os.Exit(runDashboardProjection(args))
+		return runDashboardProjection(args)
 	case "benchmark-brief":
-		os.Exit(runBenchmarkBrief(args))
+		return runBenchmarkBrief(args)
 	case "benchmark-judge":
-		os.Exit(runBenchmarkJudge(args))
+		return runBenchmarkJudge(args)
 	case "benchmark-score":
-		os.Exit(runBenchmarkScore(args))
+		return runBenchmarkScore(args)
 	case "benchmark-retry":
-		os.Exit(runBenchmarkRetry(args))
+		return runBenchmarkRetry(args)
 	case "benchmark-event-meta":
-		os.Exit(runBenchmarkEventMeta(args))
+		return runBenchmarkEventMeta(args)
 	case "benchmark-freeze":
-		os.Exit(runBenchmarkFreezeExternal(args))
+		return runBenchmarkFreezeExternal(args)
 	case "benchmark-reconstruct":
-		os.Exit(runBenchmarkReconstruct(args))
+		return runBenchmarkReconstruct(args)
 	case "benchmark-evaluate":
-		os.Exit(runBenchmarkEvaluateExternal(args))
+		return runBenchmarkEvaluateExternal(args)
 	case "benchmark-status":
-		os.Exit(runBenchmarkStatusExternal(args))
+		return runBenchmarkStatusExternal(args)
 	case "certify":
-		os.Exit(runCertify(args))
+		return runCertify(args)
 	case "certify-change":
-		os.Exit(runCertifyChange(args))
+		return runCertifyChange(args)
 	case "complete-task":
-		os.Exit(runCompleteTask(args))
+		return runCompleteTask(args)
 	case "inspect-terminal":
-		os.Exit(runInspectTerminal(args))
+		return runInspectTerminal(args)
 	case "recover-projections":
-		os.Exit(runRecoverProjections(args))
+		return runRecoverProjections(args)
 	case "extract-authority":
-		os.Exit(runExtractAuthority(args))
+		return runExtractAuthority(args)
 	case "extract-proof-obligations":
-		os.Exit(runExtractProofObligations(args))
+		return runExtractProofObligations(args)
 	case "extract-invariants":
-		os.Exit(runExtractInvariants(args))
+		return runExtractInvariants(args)
 	case "infer-claims":
-		os.Exit(runInferClaims(args))
+		return runInferClaims(args)
 	case "maintain-claims":
-		os.Exit(runMaintainClaims(args))
+		return runMaintainClaims(args)
 	case "assess-planes":
-		os.Exit(runAssessPlanes(args))
+		return runAssessPlanes(args)
 	case "assess-closure":
-		os.Exit(runAssessClosure(args))
+		return runAssessClosure(args)
 	case "generate-questions":
-		os.Exit(runGenerateQuestions(args))
+		return runGenerateQuestions(args)
 	case "record-answer":
-		os.Exit(runRecordAnswer(args))
+		return runRecordAnswer(args)
 	case "adjudicate-answer":
-		os.Exit(runAdjudicateAnswer(args))
+		return runAdjudicateAnswer(args)
 	case "plan-probes":
-		os.Exit(runPlanProbes(args))
+		return runPlanProbes(args)
 	case "record-probe-result":
-		os.Exit(runRecordProbeResult(args))
+		return runRecordProbeResult(args)
 	case "advance-convergence":
-		os.Exit(runAdvanceConvergence(args))
+		return runAdvanceConvergence(args)
 	case "convergence-status":
-		os.Exit(runConvergenceStatus(args))
+		return runConvergenceStatus(args)
 	case "bootstrap-direction-digest":
-		os.Exit(runBootstrapDirectionDigest(args))
+		return runBootstrapDirectionDigest(args)
 	case "enroll-agent":
-		os.Exit(runEnrollAgent(args))
+		return runEnrollAgent(args)
 	case "authority-resolve":
-		os.Exit(runAuthorityResolve(args))
+		return runAuthorityResolve(args)
 	case "consume-admission":
-		os.Exit(runConsumeAdmission(args))
+		return runConsumeAdmission(args)
 	case "admit-change":
-		os.Exit(dispatchAdmitChange(args))
+		return dispatchAdmitChange(args)
 	case "verify-admission":
-		os.Exit(dispatchVerifyAdmission(args))
+		return dispatchVerifyAdmission(args)
 	case "admission-status":
-		os.Exit(runAdmissionStatus(args))
+		return runAdmissionStatus(args)
 	case "advance-result":
-		os.Exit(runAdvanceResult(args))
+		return runAdvanceResult(args)
 	case "disposition-question":
-		os.Exit(runDispositionQuestion(args))
+		return runDispositionQuestion(args)
 	case "promote-answer":
-		os.Exit(runPromoteAnswer(args))
+		return runPromoteAnswer(args)
 	case "prepare-change":
-		os.Exit(runPrepareChange(args))
+		return runPrepareChange(args)
 	case "task-status":
-		os.Exit(runTaskStatus(args))
+		return runTaskStatus(args)
 	case "advance-task":
-		os.Exit(runAdvanceTask(args))
+		return runAdvanceTask(args)
 	case "task-briefing":
-		os.Exit(runTaskBriefing(args))
+		return runTaskBriefing(args)
 	case "task-ledger":
-		os.Exit(runTaskLedger(args))
+		return runTaskLedger(args)
 	case "proof-plan":
-		os.Exit(runProofPlan(args))
+		return runProofPlan(args)
 	case "repair-plan":
-		os.Exit(runRepairPlan(args))
+		return runRepairPlan(args)
 	case "seed-status":
-		os.Exit(runSeedStatus(args))
+		return runSeedStatus(args)
 	case "reconcile":
-		os.Exit(runReconcile(args))
+		return runReconcile(args)
 	case "draft-candidate":
-		os.Exit(runDraftCandidate(args))
+		return runDraftCandidate(args)
 	case "impact-gate":
-		os.Exit(runImpactGate(args))
+		return runImpactGate(args)
 	case "repair-report":
-		os.Exit(runRepairReport(args))
+		return runRepairReport(args)
 	case "repair-gate":
-		os.Exit(runRepairGate(args))
+		return runRepairGate(args)
 	case "seed-freshness":
-		os.Exit(runSeedFreshness(args))
+		return runSeedFreshness(args)
 	case "rebuild":
-		os.Exit(runRebuild(args))
+		return runRebuild(args)
 	case "learn":
-		os.Exit(runLearn(args))
+		return runLearn(args)
 	case "lifecycle":
-		os.Exit(runLifecycle(args))
+		return runLifecycle(args)
 	case "promote":
-		os.Exit(runPromote(args))
+		return runPromote(args)
 	case "propose":
-		os.Exit(runPropose(args))
+		return runPropose(args)
 	case "feedback-check":
-		os.Exit(runFeedbackCheck(args))
+		return runFeedbackCheck(args)
 	case "ingest":
-		os.Exit(runIngest(args))
+		return runIngest(args)
 	case "skill-ingest":
-		os.Exit(runSkillIngest(args))
+		return runSkillIngest(args)
 	case "pattern-check":
-		os.Exit(runPatternCheck(args))
+		return runPatternCheck(args)
 	case "source-check":
-		os.Exit(runSourceCheck(args))
+		return runSourceCheck(args)
 	case "visual-audit":
-		os.Exit(runVisualAudit(args))
+		return runVisualAudit(args)
 	case "cold-bootstrap":
-		os.Exit(runColdBootstrap(args))
+		return runColdBootstrap(args)
 	case "validate-draft":
-		os.Exit(runValidateDraft(args))
+		return runValidateDraft(args)
 	case "intent-mine":
-		os.Exit(runIntentMine(args))
+		return runIntentMine(args)
 	case "corpus":
-		os.Exit(runCorpus(args))
+		return runCorpus(args)
 	case "version":
 		fmt.Println(Version)
+		return 0
 	case "help", "-h", "--help":
 		printUsage()
+		return 0
 	default:
 		fmt.Fprintf(os.Stderr, "sensei: unknown command %q\n\n", cmd)
 		printUsage()
-		os.Exit(2)
+		return 2
 	}
 }
 

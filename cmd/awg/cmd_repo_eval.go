@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	"github.com/globulario/sensei/golang/contractassess"
 	"github.com/globulario/sensei/golang/coverage"
 	"github.com/globulario/sensei/golang/rdf"
@@ -851,7 +852,7 @@ func collectRepoEvalUpgradePath(repoRoot, intentDir string) (repoeval.UpgradePat
 	if err != nil {
 		return repoeval.UpgradePath{}, err
 	}
-	highRisk, err := readRepoEvalHighRiskPrefixes(filepath.Join(repoRoot, "docs", "awareness", "high_risk_files.yaml"))
+	highRisk, err := readRepoEvalHighRiskPrefixes(repoRoot)
 	if err != nil {
 		return repoeval.UpgradePath{}, err
 	}
@@ -923,21 +924,15 @@ func repoEvalComponentPriority(c repoEvalComponent) int {
 	return 1
 }
 
-func readRepoEvalHighRiskPrefixes(path string) ([]string, error) {
-	raw, err := os.ReadFile(path)
+// readRepoEvalHighRiskPrefixes loads the manual protection registry through
+// the one canonical protection owner (golang/architecture/protection) rather
+// than re-parsing docs/awareness/high_risk_files.yaml itself (contract §3.6).
+func readRepoEvalHighRiskPrefixes(repoRoot string) ([]string, error) {
+	entries, _, _, err := protection.ManualEntries(repoRoot)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	var doc struct {
-		Files []string `yaml:"files"`
-	}
-	if err := yaml.Unmarshal(raw, &doc); err != nil {
-		return nil, err
-	}
-	return dedupeSortedStrings(doc.Files), nil
+	return dedupeSortedStrings(entries), nil
 }
 
 func readRepoEvalInvariantSurfaces(path string) ([]repoEvalInvariantSurface, error) {

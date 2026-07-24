@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
@@ -94,6 +95,93 @@ func TestClassifyRisk_HighRiskDirectoryEscalates(t *testing.T) {
 	})
 	if risk != awarenesspb.RiskClass_ARCHITECTURE_SENSITIVE {
 		t.Errorf("want ARCHITECTURE_SENSITIVE, got %v", risk)
+	}
+}
+
+// contract §10: a canonical-protection-owner signal escalates risk exactly
+// like the static highRiskDirPrefixes baseline does — additive, never
+// competing. A file outside every static high-risk dir must still escalate
+// when the protection assessment reports Protected.
+func TestClassifyRisk_CanonicalProtectedEscalatesLikeHighRiskDir(t *testing.T) {
+	risk, reasons := classifyRisk(ClassifyInputs{
+		Direct:     []*awarenesspb.KnowledgeNode{mkNode("benign.invariant", "nothing exciting", "warning")},
+		Coverage:   sufficientCoverage(),
+		Files:      []string{"some/ordinary/path/not_in_any_static_dir.go"},
+		Protection: protection.Assessment{Availability: protection.AvailabilityObserved, CoverageStatus: protection.CoverageComplete, Protected: true},
+	})
+	if risk != awarenesspb.RiskClass_ARCHITECTURE_SENSITIVE {
+		t.Errorf("want ARCHITECTURE_SENSITIVE, got %v (reasons=%v)", risk, reasons)
+	}
+}
+
+// The absence of a positive protection verdict must never itself weaken the
+// verdict — it is purely additive over the existing static-prefix signal.
+func TestClassifyRisk_CanonicalProtectedFalseDoesNotWeaken(t *testing.T) {
+	risk, _ := classifyRisk(ClassifyInputs{
+		Direct:     []*awarenesspb.KnowledgeNode{mkNode("benign.invariant", "nothing exciting", "warning")},
+		Coverage:   sufficientCoverage(),
+		Files:      []string{"golang/node_agent/internal/foo.go"},
+		Protection: protection.Assessment{Availability: protection.AvailabilityUnbound},
+	})
+	if risk != awarenesspb.RiskClass_ARCHITECTURE_SENSITIVE {
+		t.Errorf("static high-risk dir escalation must be unaffected by an unbound protection assessment, got %v", risk)
+	}
+}
+
+// contract §5 correction: a bound repository whose protection derivation
+// failed, or whose coverage came back DEGRADED, must surface a distinct
+// typed blind-spot reason — never silently indistinguishable from "genuinely
+// not protected."
+func TestClassifyRisk_ProtectionUnavailableSurfacesDegradedReason(t *testing.T) {
+	_, reasons := classifyRisk(ClassifyInputs{
+		Direct:     []*awarenesspb.KnowledgeNode{mkNode("benign.invariant", "nothing exciting", "warning")},
+		Coverage:   sufficientCoverage(),
+		Files:      []string{"some/ordinary/path.go"},
+		Protection: protection.Assessment{Availability: protection.AvailabilityUnavailable},
+	})
+	found := false
+	for _, r := range reasons {
+		if strings.HasPrefix(r, ProtectionAssessmentDegradedReasonPrefix) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a %s reason, got %v", ProtectionAssessmentDegradedReasonPrefix, reasons)
+	}
+}
+
+func TestClassifyRisk_ProtectionCoverageDegradedSurfacesDegradedReason(t *testing.T) {
+	_, reasons := classifyRisk(ClassifyInputs{
+		Direct:     []*awarenesspb.KnowledgeNode{mkNode("benign.invariant", "nothing exciting", "warning")},
+		Coverage:   sufficientCoverage(),
+		Files:      []string{"some/ordinary/path.go"},
+		Protection: protection.Assessment{Availability: protection.AvailabilityObserved, CoverageStatus: protection.CoverageDegraded},
+	})
+	found := false
+	for _, r := range reasons {
+		if strings.HasPrefix(r, ProtectionAssessmentDegradedReasonPrefix) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a %s reason, got %v", ProtectionAssessmentDegradedReasonPrefix, reasons)
+	}
+}
+
+// AvailabilityUnbound (no bound repository context — the normal state for a
+// server not scoped to one exact repo) must NOT itself surface a degraded
+// reason; it is expected, not a failure.
+func TestClassifyRisk_ProtectionUnboundDoesNotSurfaceDegradedReason(t *testing.T) {
+	_, reasons := classifyRisk(ClassifyInputs{
+		Direct:     []*awarenesspb.KnowledgeNode{mkNode("benign.invariant", "nothing exciting", "warning")},
+		Coverage:   sufficientCoverage(),
+		Files:      []string{"some/ordinary/path.go"},
+		Protection: protection.Assessment{Availability: protection.AvailabilityUnbound},
+	})
+	for _, r := range reasons {
+		if strings.HasPrefix(r, ProtectionAssessmentDegradedReasonPrefix) {
+			t.Fatalf("an unbound (normal, expected) protection assessment must not degrade, got %v", reasons)
+		}
 	}
 }
 
@@ -288,5 +376,23 @@ func TestComputeConfidence_TieredByAnchorCount(t *testing.T) {
 				t.Errorf("want %v, got %v", tc.want, got)
 			}
 		})
+	}
+}
+
+// assessCanonicalProtection must degrade to AvailabilityUnbound — never
+// panic — when no exact repository context is bound (the normal state for
+// a combined/multi-domain graph). It is an additive signal only; its
+// unavailability must never surface as a failure (contract §10).
+func TestAssessCanonicalProtection_DegradesGracefullyWithoutRepoContext(t *testing.T) {
+	var nilServer *server
+	if a := nilServer.assessCanonicalProtection([]string{"any/file.go"}); a.Availability != protection.AvailabilityUnbound {
+		t.Fatalf("a nil server must report AvailabilityUnbound, not panic; got %+v", a)
+	}
+	s := &server{} // briefingRepo is nil: no exact repository context configured
+	if a := s.assessCanonicalProtection([]string{"any/file.go"}); a.Availability != protection.AvailabilityUnbound {
+		t.Fatalf("a server with no bound repository context must report AvailabilityUnbound, got %+v", a)
+	}
+	if a := s.assessCanonicalProtection(nil); a.Availability != protection.AvailabilityUnbound {
+		t.Fatalf("no files touched must report AvailabilityUnbound, got %+v", a)
 	}
 }
