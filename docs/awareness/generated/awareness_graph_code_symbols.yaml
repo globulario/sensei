@@ -1865,6 +1865,35 @@ test_symbols:
     symbol: TestRenderContractBootstrapPrompt_StatesBackendDownExplicitly
     package: main
     language: go
+  - id: cmd/awg/cmd_dashboard_projection_test.go:TestBuildDashboardProjectionIsDeterministic
+    file: cmd/awg/cmd_dashboard_projection_test.go
+    symbol: TestBuildDashboardProjectionIsDeterministic
+    package: main
+    language: go
+    doc: "TestBuildDashboardProjectionIsDeterministic builds the same repository\ntwice with a fixed clock and requires byte-identical content once the only\nintentionally time-varying field (generated_at) is excluded, matching the\ncanonical Digest() convention."
+  - id: cmd/awg/cmd_dashboard_projection_test.go:TestBuildDashboardProjectionNeverClaimsAvailableGivenKnownGaps
+    file: cmd/awg/cmd_dashboard_projection_test.go
+    symbol: TestBuildDashboardProjectionNeverClaimsAvailableGivenKnownGaps
+    package: main
+    language: go
+    doc: "TestBuildDashboardProjectionNeverClaimsAvailableGivenKnownGaps proves this\nproducer version cannot accidentally emit availability.state: available.\nRegions, flows, and architecture_health are material parts of the V1\narchitectural view; this producer has no authored source for any of the\nthree yet, so a projection it builds can only ever be honestly partial —\nnot decorative metadata, but a fact enforced here."
+  - id: cmd/awg/cmd_dashboard_projection_test.go:TestBuildDashboardProjectionOnRealRepo
+    file: cmd/awg/cmd_dashboard_projection_test.go
+    symbol: TestBuildDashboardProjectionOnRealRepo
+    package: main
+    language: go
+  - id: cmd/awg/cmd_dashboard_projection_test.go:TestBuildDashboardProjectionPublicModeRedactsByDefault
+    file: cmd/awg/cmd_dashboard_projection_test.go
+    symbol: TestBuildDashboardProjectionPublicModeRedactsByDefault
+    package: main
+    language: go
+    doc: "TestBuildDashboardProjectionPublicModeRedactsByDefault confirms the\npublic-snapshot path never emits active_context (this producer never sets\none, so ValidatePublicRedaction must always pass trivially) and reports\nthe export-only handoff capability, never live."
+  - id: cmd/awg/cmd_dashboard_projection_test.go:TestCheckEmbeddedSeedFreshnessRefusesNonCLIExecutable
+    file: cmd/awg/cmd_dashboard_projection_test.go
+    symbol: TestCheckEmbeddedSeedFreshnessRefusesNonCLIExecutable
+    package: main
+    language: go
+    doc: "TestBuildDashboardProjectionOnRealRepo builds a projection from this\nrepository's own real, committed awareness corpus (not a synthetic\nfixture) and requires it to pass every producer-side validation rule.\ncheckEmbeddedSeedFreshness degrades to an honest \"unknown\" when\nsensei/awg is not resolvable on PATH during `go test` (no binary has been\nbuilt yet in that context) rather than failing the build — that lane is\nseparately proven correct by hand against `sensei rebuild --check` (see\nPR description).\nTestCheckEmbeddedSeedFreshnessRefusesNonCLIExecutable proves the\nos.Executable() guard actually blocks the dangerous case: under `go test`,\nos.Executable() resolves to this package's test binary, not the sensei\nCLI. Re-invoking it as \"rebuild --check\" would run this entire test suite\nrecursively as a subprocess (observed directly during development: each\ninvocation took ~40s and spawned further nested recursive runs before a\nhard timeout killed the process tree). This test must return an error\nquickly and must not spawn a subprocess."
   - id: cmd/awg/cmd_demo_test.go:TestCleanBriefing_DropsProvenanceKeepsKnowledge
     file: cmd/awg/cmd_demo_test.go
     symbol: TestCleanBriefing_DropsProvenanceKeepsKnowledge
@@ -8487,6 +8516,173 @@ test_symbols:
     file: golang/architecture/convergence/convergence_test.go
     symbol: TestUnknownConvergencePolicyRejected
     package: convergence
+    language: go
+  - id: golang/architecture/dashboardprojection/fixtures_test.go:TestFixturesDirectoryHasNoUnexpectedContent
+    file: golang/architecture/dashboardprojection/fixtures_test.go
+    symbol: TestFixturesDirectoryHasNoUnexpectedContent
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/fixtures_test.go:TestHandoffFixturesPassSchemaAndMatchTheirLabel
+    file: golang/architecture/dashboardprojection/fixtures_test.go
+    symbol: TestHandoffFixturesPassSchemaAndMatchTheirLabel
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/fixtures_test.go:TestInvalidFixturesAreJSONSchemaValidButProducerInvalid
+    file: golang/architecture/dashboardprojection/fixtures_test.go
+    symbol: TestInvalidFixturesAreJSONSchemaValidButProducerInvalid
+    package: dashboardprojection
+    language: go
+    doc: "TestInvalidFixturesAreJSONSchemaValidButProducerInvalid proves the two\n\"invalid\" fixtures are exactly what issue #115 asked for: instances the\nreal, canonical JSON Schema validator accepts (every required field,\nenum, and pattern is satisfied) that this producer's cross-record\nvalidation correctly rejects anyway. Both halves of that claim are\nverified here, in this repository's own test suite, against the real\nvendored schema — not asserted from an out-of-band check."
+  - id: golang/architecture/dashboardprojection/fixtures_test.go:TestPublicRedactedFixtureIsRedacted
+    file: golang/architecture/dashboardprojection/fixtures_test.go
+    symbol: TestPublicRedactedFixtureIsRedacted
+    package: dashboardprojection
+    language: go
+    doc: "TestPublicRedactedFixtureIsRedacted confirms the public-redacted fixture\nactually demonstrates what its name claims."
+  - id: golang/architecture/dashboardprojection/fixtures_test.go:TestValidFixturesPassProducerValidation
+    file: golang/architecture/dashboardprojection/fixtures_test.go
+    symbol: TestValidFixturesPassProducerValidation
+    package: dashboardprojection
+    language: go
+    doc: "TestValidFixturesPassProducerValidation proves every fixture labeled valid\n(including the real-repo one) passes both the real, canonical JSON Schema\n(required fields, enums, formats, patterns, additionalProperties:false —\neverything a typed Go struct alone does not enforce) and this producer's\nhand-written cross-record validation (focus integrity, reference-kind\nchecks, duplicate-ID rejection) — not just that it parses as JSON."
+  - id: golang/architecture/dashboardprojection/schema_test.go:TestHandoffSchemaRefsResolveAgainstProjectionSchema
+    file: golang/architecture/dashboardprojection/schema_test.go
+    symbol: TestHandoffSchemaRefsResolveAgainstProjectionSchema
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/schema_test.go:TestSchemaVersionIdentifiersMatchAdopted
+    file: golang/architecture/dashboardprojection/schema_test.go
+    symbol: TestSchemaVersionIdentifiersMatchAdopted
+    package: dashboardprojection
+    language: go
+    doc: "TestSchemaVersionIdentifiersMatchAdopted confirms the vendored schemas'\nconst identifiers exactly match what issue #115 adopted, so a rename in\nupstream sensei-dashboard cannot silently drift the producer's contract."
+  - id: golang/architecture/dashboardprojection/schema_test.go:TestSchemasParseAndAreClosed
+    file: golang/architecture/dashboardprojection/schema_test.go
+    symbol: TestSchemasParseAndAreClosed
+    package: dashboardprojection
+    language: go
+    doc: "TestSchemasParseAndAreClosed mirrors closureprotocol's\nTestSchemasParseAndAreClosed: every vendored schema must parse as JSON and\nkeep additionalProperties:false at its object roots, matching the strict,\nversioned-evolution policy in architecture-dashboard-v1.md §10."
+  - id: golang/architecture/dashboardprojection/schema_test.go:TestValidateProjectionSchemaCompilesAndEnforcesRealConstraints
+    file: golang/architecture/dashboardprojection/schema_test.go
+    symbol: TestValidateProjectionSchemaCompilesAndEnforcesRealConstraints
+    package: dashboardprojection
+    language: go
+    doc: "TestHandoffSchemaRefsResolveAgainstProjectionSchema is issue #115's\nrequired producer validation item 8: \"Agent handoff schema references\nresolve URI-aware against the canonical projection schema.\" It resolves\nevery \"dashboard-projection-v1.schema.json#/...\" $ref found in the\nagent-handoff schema as a JSON Pointer into the actual vendored projection\nschema document, proving the cross-schema pairing is not just\ntextually-plausible but structurally correct.\nTestValidateProjectionSchemaCompilesAndEnforcesRealConstraints proves\ncompileSchemas/ValidateProjectionSchema is a real Draft 2020-12 validator,\nnot a stub: it rejects a structurally-plausible but incomplete instance,\nand it accepts a minimal genuinely-complete one built to satisfy every\nrequired field the schema actually declares (not this package's own\nProjection struct, so a bug in the struct's json tags can't hide here)."
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestDigestIsStableAcrossGeneratedAtOnly
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestDigestIsStableAcrossGeneratedAtOnly
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateAcceptsMinimalHonestProjection
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateAcceptsMinimalHonestProjection
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateAcceptsOneOfEachKindFixture
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateAcceptsOneOfEachKindFixture
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidatePublicRedactionAcceptsNilActiveContext
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidatePublicRedactionAcceptsNilActiveContext
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidatePublicRedactionRejectsPullRequestAndChangeContext
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidatePublicRedactionRejectsPullRequestAndChangeContext
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidatePublicRedactionRejectsSessionContext
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidatePublicRedactionRejectsSessionContext
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidatePublicRedactionRejectsTaskContextEvenWithURL
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidatePublicRedactionRejectsTaskContextEvenWithURL
+    package: dashboardprojection
+    language: go
+    doc: "TestValidatePublicRedactionRejectsTaskContextEvenWithURL is the corrected\nV1 behavior: a public URL on task/pull_request context is not proof every\nincluded field (label, id, element_refs) is safe to publish, so it must\nstill be rejected in public mode. A prior version of this producer treated\na non-nil URL as sufficient; that was wrong and has been removed."
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidatePublicRedactionRejectsTaskContextWithoutURL
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidatePublicRedactionRejectsTaskContextWithoutURL
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsBoundaryMemberRefOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsBoundaryMemberRefOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsComponentAuthorityRefOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsComponentAuthorityRefOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsComponentRegionRefOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsComponentRegionRefOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsContractSourceRefOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsContractSourceRefOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsDuplicateFocusRecord
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsDuplicateFocusRecord
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsDuplicateIDAcrossKinds
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsDuplicateIDAcrossKinds
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsFlowContractRefOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsFlowContractRefOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsFocusRecordAttentionRefsOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsFocusRecordAttentionRefsOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsFocusRecordContractRefsOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsFocusRecordContractRefsOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsFocusRecordFlowRefsOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsFocusRecordFlowRefsOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsMissingFocusRecord
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsMissingFocusRecord
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsOrphanFocusRecord
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsOrphanFocusRecord
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsRegionComponentRefOfWrongKind
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsRegionComponentRefOfWrongKind
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsUnresolvedReference
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsUnresolvedReference
+    package: dashboardprojection
+    language: go
+  - id: golang/architecture/dashboardprojection/validate_test.go:TestValidateRejectsUnsupportedSchemaVersion
+    file: golang/architecture/dashboardprojection/validate_test.go
+    symbol: TestValidateRejectsUnsupportedSchemaVersion
+    package: dashboardprojection
     language: go
   - id: golang/architecture/dialogue_document_test.go:TestAcceptedUnknownRequiresUnknownAcknowledgement
     file: golang/architecture/dialogue_document_test.go
