@@ -116,6 +116,7 @@ components:
       - cmd/awg/cmd_promote_realization.go
       - cmd/awg/cmd_proof_plan.go
       - cmd/awg/cmd_propose.go
+      - cmd/awg/cmd_protection.go
       - cmd/awg/cmd_query.go
       - cmd/awg/cmd_rebuild.go
       - cmd/awg/cmd_reconcile.go
@@ -573,6 +574,16 @@ components:
       - golang/architecture/proofrequirements/obligations.go
       - golang/architecture/proofrequirements/parse.go
       - golang/architecture/proofrequirements/proofrequirements.go
+      - golang/architecture/protection/classify.go
+      - golang/architecture/protection/derive.go
+      - golang/architecture/protection/governed.go
+      - golang/architecture/protection/manual.go
+      - golang/architecture/protection/pathmatch.go
+      - golang/architecture/protection/relations.go
+      - golang/architecture/protection/snapshot.go
+      - golang/architecture/protection/structural.go
+      - golang/architecture/protection/types.go
+      - golang/architecture/protection/util.go
       - golang/architecture/questiondisposition/errors.go
       - golang/architecture/questiondisposition/load.go
       - golang/architecture/questiondisposition/model.go
@@ -651,6 +662,7 @@ components:
       - component.golang.extractor
       - component.golang.propose
       - component.golang.rdf
+      - component.golang.scanner
       - component.golang.seedmeta
       - component.golang.store
     external_imports:
