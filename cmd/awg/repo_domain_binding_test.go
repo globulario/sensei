@@ -93,19 +93,75 @@ func TestResolveRepositoryDomain_UnresolvedWhenNothingApplies(t *testing.T) {
 	}
 }
 
-func TestResolveRepositoryDomain_MalformedConfiguredDomainFailsHonestly(t *testing.T) {
+// contract §3.6 correction (second review round): a malformed
+// .sensei/config.yaml must fail VISIBLY — Err set, Domain empty — and must
+// NOT silently fall through to SENSEI_DOMAIN/AWG_DOMAIN. Checkout identity
+// is an authority boundary: guessing a different domain from the
+// environment when the repository's OWN configuration is corrupt is exactly
+// the silent fallback the contract forbids.
+func TestResolveRepositoryDomain_MalformedConfiguredDomainFailsVisibly(t *testing.T) {
 	root := t.TempDir()
 	writeDomainTestFile(t, root, ".sensei/config.yaml", "repository: [this is not, a mapping\n")
 	t.Setenv("SENSEI_DOMAIN", "example.com/env/repo")
 
-	// A malformed config must not silently crash the resolver into a wrong
-	// domain; falling through to the next tier (env) is the honest behavior
-	// here since loadRepoDomainConfig's error is swallowed by design (a
-	// checkout-scoped read failure must never block every command — but it
-	// must also never invent a domain from garbage).
 	got := resolveRepositoryDomain(root, "")
-	if got.Domain == "github.com/configured/repo" {
-		t.Fatal("a malformed config must never produce a guessed domain")
+	if got.Err == nil {
+		t.Fatal("expected a malformed config to produce a visible error, not a silent fallback")
+	}
+	if got.Domain != "" {
+		t.Fatalf("expected no domain when configuration is malformed, got %q", got.Domain)
+	}
+	if got.Domain == "example.com/env/repo" {
+		t.Fatal("a malformed config must never silently fall through to SENSEI_DOMAIN")
+	}
+}
+
+// contract §3.7 correction: explicit, configured, and environment values are
+// all validated through the same canonical shape — a URL, bare host, or
+// whitespace-bearing value must never become resolved/persisted identity.
+func TestResolveRepositoryDomain_RejectsInvalidValuesAtEveryTier(t *testing.T) {
+	cases := []struct {
+		name     string
+		explicit string
+		config   string
+		env      string
+	}{
+		{name: "explicit URL with scheme", explicit: "https://github.com/owner/repo"},
+		{name: "explicit bare hostname, no path", explicit: "github.com"},
+		{name: "explicit value with whitespace", explicit: "github.com/owner/repo with spaces"},
+		{name: "configured URL with scheme", config: "repository:\n  domain: https://github.com/owner/repo\n"},
+		{name: "configured bare hostname", config: "repository:\n  domain: github\n"},
+		{name: "env value with whitespace", env: "github.com/owner/ repo"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if tc.config != "" {
+				writeDomainTestFile(t, root, ".sensei/config.yaml", tc.config)
+			}
+			if tc.env != "" {
+				t.Setenv("SENSEI_DOMAIN", tc.env)
+			}
+			got := resolveRepositoryDomain(root, tc.explicit)
+			if got.Err == nil {
+				t.Fatalf("expected an invalid domain value to fail visibly, got %+v", got)
+			}
+			if got.Domain != "" {
+				t.Fatalf("expected no domain to be resolved from an invalid value, got %q", got.Domain)
+			}
+		})
+	}
+}
+
+func TestValidateDomain_AcceptsCanonicalShape(t *testing.T) {
+	for _, d := range []string{
+		"github.com/owner/repo",
+		"gitlab.example.co.uk/group/sub/project",
+		"github.com/OWNER/Repo-Name",
+	} {
+		if err := validateDomain(d); err != nil {
+			t.Errorf("expected %q to be a valid domain, got error: %v", d, err)
+		}
 	}
 }
 
@@ -264,6 +320,40 @@ func TestRunRepoDomain_UnresolvedPrintsBlankLine(t *testing.T) {
 	}
 }
 
+// contract §3.6 correction: `sensei repo-domain` must fail visibly (non-zero
+// exit, a stderr message) for a malformed configuration, in both output
+// modes — never print an empty line indistinguishable from "legitimately
+// unbound."
+func TestRunRepoDomain_MalformedConfigFailsVisibly(t *testing.T) {
+	root := t.TempDir()
+	writeDomainTestFile(t, root, ".sensei/config.yaml", "repository: [this is not, a mapping\n")
+
+	code, _, errOut := captureStdoutStderr(t, func() int {
+		return runRepoDomain([]string{"--path", root})
+	})
+	if code == 0 {
+		t.Fatal("expected a non-zero exit for a malformed repository domain configuration")
+	}
+	if !strings.Contains(errOut, "malformed") {
+		t.Fatalf("expected a clear stderr message naming the malformed configuration, got %q", errOut)
+	}
+}
+
+func TestRunRepoDomain_MalformedConfigFailsVisiblyInJSON(t *testing.T) {
+	root := t.TempDir()
+	writeDomainTestFile(t, root, ".sensei/config.yaml", "repository: [this is not, a mapping\n")
+
+	code, out, _ := captureStdoutStderr(t, func() int {
+		return runRepoDomain([]string{"--path", root, "--json"})
+	})
+	if code == 0 {
+		t.Fatal("expected a non-zero exit for a malformed repository domain configuration, even in --json mode")
+	}
+	if !strings.Contains(out, "error") {
+		t.Fatalf("expected the JSON output to carry an error field, got %q", out)
+	}
+}
+
 // ─── sensei init establishes the repository domain (contract §3.3) ────────
 
 func TestRunInit_EstablishesDomainFromGitOrigin(t *testing.T) {
@@ -302,6 +392,27 @@ func TestRunInit_ExplicitDomainFlagWins(t *testing.T) {
 	}
 	if cfg.Repository.Domain != "github.com/explicit/override" {
 		t.Fatalf("expected the explicit --domain flag to win, got %q", cfg.Repository.Domain)
+	}
+}
+
+// contract §3.6 correction: `sensei init` must fail visibly (non-zero exit)
+// when a pre-existing .sensei/config.yaml has a malformed repository
+// section, never silently report success while identity is unresolvable.
+func TestRunInit_FailsVisiblyOnMalformedExistingConfig(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".sensei"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeDomainTestFile(t, root, ".sensei/config.yaml", "repository: [this is not, a mapping\n")
+
+	code, _, errOut := captureStdoutStderr(t, func() int {
+		return runInit([]string{"--dir", root, "--hooks=false", "--claude-md=false", "--agents-md=false", "--cursor=false", "--skills=false"})
+	})
+	if code == 0 {
+		t.Fatal("expected a non-zero exit when the existing repository domain configuration is malformed")
+	}
+	if !strings.Contains(errOut, "malformed") {
+		t.Fatalf("expected a clear stderr message, got %q", errOut)
 	}
 }
 

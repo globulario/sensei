@@ -76,6 +76,29 @@ func TestBootstrapOwnedGenerated_CoversEmittedFiles(t *testing.T) {
 	}
 }
 
+// contract §3.6 correction: `sensei bootstrap` must fail visibly (non-zero
+// exit) when the repository domain configuration is malformed — checkout
+// identity is an authority boundary, so this must gate the exit code
+// exactly like protectionHardFailure does, never just append a note while
+// otherwise reporting success.
+func TestRunBootstrap_FailsVisiblyOnMalformedDomainConfig(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".sensei"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".sensei", "config.yaml"), []byte("repository: [this is not, a mapping\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _, errOut := captureStdoutStderr(t, func() int {
+		return runBootstrap([]string{"--path", root, "--skip-history"})
+	})
+	if code == 0 {
+		t.Fatal("expected a non-zero exit when the repository domain configuration is malformed")
+	}
+	_ = errOut
+}
+
 func TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "docs", "awareness"), 0o755); err != nil {

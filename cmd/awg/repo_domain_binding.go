@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/globulario/sensei/golang/statedir"
@@ -65,6 +66,14 @@ type domainResolution struct {
 	// Source is one of: "explicit", "configured", "SENSEI_DOMAIN",
 	// "AWG_DOMAIN" (legacy), or "unresolved".
 	Source string
+	// Err is non-nil when the tier identified by Source could not be
+	// trusted: a malformed .sensei/config.yaml, or a value at ANY tier that
+	// fails validateDomain. Checkout identity is an authority boundary — a
+	// malformed or invalid value must fail visibly here and stop resolution
+	// outright, never be silently skipped in favor of a lower-precedence
+	// tier or a guessed fallback (contract §3.6 correction). Domain is
+	// always "" when Err is non-nil.
+	Err error
 }
 
 const (
@@ -74,6 +83,38 @@ const (
 	domainSourceEnvLegacy  = "AWG_DOMAIN"
 	domainSourceUnresolved = "unresolved"
 )
+
+// domainHostRe matches a DNS-like hostname: at least two dot-separated
+// labels (e.g. "github.com"), each a valid label per RFC 1123. Bare
+// hostnames ("localhost"), schemes, and whitespace are rejected by
+// validateDomain before this ever runs.
+var domainHostRe = regexp.MustCompile(`(?i)^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
+
+// validateDomain rejects anything that is not a canonical repository domain
+// string: host.tld/path (e.g. "github.com/owner/repo") — no scheme, no
+// whitespace, a DNS-like host, and a non-empty path (contract §3.7
+// correction: explicit, configured, and newly-published values all share
+// this one validator so no caller can persist or act on a guessed/garbage
+// identity).
+func validateDomain(d string) error {
+	if d == "" {
+		return fmt.Errorf("must not be empty")
+	}
+	if strings.ContainsAny(d, " \t\n\r") {
+		return fmt.Errorf("must not contain whitespace")
+	}
+	if strings.Contains(d, "://") {
+		return fmt.Errorf("must be host/path (e.g. github.com/owner/repo), not a URL with a scheme")
+	}
+	host, path, found := strings.Cut(d, "/")
+	if !found || path == "" {
+		return fmt.Errorf("must be host/path (e.g. github.com/owner/repo)")
+	}
+	if !domainHostRe.MatchString(host) {
+		return fmt.Errorf("host %q is not a valid domain name", host)
+	}
+	return nil
+}
 
 // resolveRepositoryDomain implements the checkout-scoped resolver precedence
 // (contract §3.5):
@@ -88,20 +129,39 @@ const (
 //  5. otherwise unresolved ("").
 //
 // Repository configuration is never silently overridden by an ambient
-// environment variable — configured identity always outranks it.
+// environment variable — configured identity always outranks it. A
+// malformed .sensei/config.yaml, or a value at any tier that fails
+// validateDomain, stops resolution immediately with Err set — it never
+// falls through to a lower-precedence tier (contract §3.6 correction: a
+// checkout's identity configuration failing to parse must never be silently
+// "worked around" by guessing at a different domain from the environment).
 func resolveRepositoryDomain(root, explicit string) domainResolution {
-	if strings.TrimSpace(explicit) != "" {
-		return domainResolution{Domain: strings.TrimSpace(explicit), Source: domainSourceExplicit}
-	}
-	if cfg, err := loadRepoDomainConfig(root); err == nil {
-		if d := strings.TrimSpace(cfg.Repository.Domain); d != "" {
-			return domainResolution{Domain: d, Source: domainSourceConfigured}
+	if e := strings.TrimSpace(explicit); e != "" {
+		if err := validateDomain(e); err != nil {
+			return domainResolution{Source: domainSourceExplicit, Err: fmt.Errorf("--domain value %q is invalid: %w", e, err)}
 		}
+		return domainResolution{Domain: e, Source: domainSourceExplicit}
+	}
+	cfg, cfgErr := loadRepoDomainConfig(root)
+	if cfgErr != nil {
+		return domainResolution{Source: domainSourceConfigured, Err: fmt.Errorf("repository domain configuration is malformed: %w", cfgErr)}
+	}
+	if d := strings.TrimSpace(cfg.Repository.Domain); d != "" {
+		if err := validateDomain(d); err != nil {
+			return domainResolution{Source: domainSourceConfigured, Err: fmt.Errorf("configured repository domain %q is invalid: %w", d, err)}
+		}
+		return domainResolution{Domain: d, Source: domainSourceConfigured}
 	}
 	if v := strings.TrimSpace(os.Getenv("SENSEI_DOMAIN")); v != "" {
+		if err := validateDomain(v); err != nil {
+			return domainResolution{Source: domainSourceEnvNew, Err: fmt.Errorf("SENSEI_DOMAIN value %q is invalid: %w", v, err)}
+		}
 		return domainResolution{Domain: v, Source: domainSourceEnvNew}
 	}
 	if v := strings.TrimSpace(os.Getenv("AWG_DOMAIN")); v != "" {
+		if err := validateDomain(v); err != nil {
+			return domainResolution{Source: domainSourceEnvLegacy, Err: fmt.Errorf("AWG_DOMAIN value %q is invalid: %w", v, err)}
+		}
 		return domainResolution{Domain: v, Source: domainSourceEnvLegacy}
 	}
 	return domainResolution{Domain: "", Source: domainSourceUnresolved}
@@ -132,15 +192,24 @@ type establishmentResult struct {
 func establishRepositoryDomain(root, explicitFlag string) (establishmentResult, error) {
 	cfg, err := loadRepoDomainConfig(root)
 	if err != nil {
-		return establishmentResult{}, err
+		return establishmentResult{}, fmt.Errorf("repository domain configuration is malformed: %w", err)
 	}
 	existing := strings.TrimSpace(cfg.Repository.Domain)
+	if existing != "" {
+		if verr := validateDomain(existing); verr != nil {
+			return establishmentResult{}, fmt.Errorf("configured repository domain %q is invalid: %w", existing, verr)
+		}
+	}
 	origin := gitRemoteDomain(root)
 
 	res := establishmentResult{OriginURL: origin}
 	switch {
 	case strings.TrimSpace(explicitFlag) != "":
-		res.Domain, res.Source = strings.TrimSpace(explicitFlag), "explicit"
+		d := strings.TrimSpace(explicitFlag)
+		if verr := validateDomain(d); verr != nil {
+			return establishmentResult{}, fmt.Errorf("--domain value %q is invalid: %w", d, verr)
+		}
+		res.Domain, res.Source = d, "explicit"
 	case existing != "":
 		res.Domain, res.Source = existing, "existing_config"
 		if origin != "" && origin != existing {
@@ -167,7 +236,16 @@ func establishRepositoryDomain(root, explicitFlag string) (establishmentResult, 
 // preserving every other section and comment via a yaml.Node round-trip
 // rather than a lossy generic-map re-marshal. Creates the config file (using
 // the standard scaffolded template as a base) if it does not exist yet.
+//
+// Validates domain before writing anything — a defense-in-depth boundary so
+// no caller of this function (present or future) can ever persist an
+// invalid value regardless of how it validated its own input upstream
+// (contract §3.7 correction: "a shared validator is needed for configured,
+// explicit, and newly published values").
 func writeRepositoryDomain(root, domain string) error {
+	if err := validateDomain(domain); err != nil {
+		return fmt.Errorf("refusing to persist invalid repository domain %q: %w", domain, err)
+	}
 	path := repoDomainConfigPath(root)
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -290,6 +368,23 @@ Flags:
 	}
 
 	res := resolveRepositoryDomain(*path, *explicit)
+	if res.Err != nil {
+		// Malformed/invalid checkout identity must fail visibly in BOTH
+		// output modes with a non-zero exit — never silently print an empty
+		// domain that a caller might mistake for "legitimately unbound"
+		// (contract §3.6 correction).
+		if *asJSON {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			_ = enc.Encode(map[string]any{
+				"error":  res.Err.Error(),
+				"source": res.Source,
+			})
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "sensei repo-domain: %v\n", res.Err)
+		return 1
+	}
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")

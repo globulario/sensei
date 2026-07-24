@@ -523,21 +523,30 @@ Flags:
 	switch {
 	case *dryRun:
 		domRes := resolveRepositoryDomain(root, *domain)
-		rep.repositoryDomain = domRes.Domain
-		rep.repositoryDomainSource = domRes.Source
+		if domRes.Err != nil {
+			rep.notes = append(rep.notes, "repository domain: "+domRes.Err.Error())
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+		}
 	case *check:
 		domRes := resolveRepositoryDomain(root, *domain)
-		rep.repositoryDomain = domRes.Domain
-		rep.repositoryDomainSource = domRes.Source
-		if domRes.Domain == "" {
-			rep.stale = append(rep.stale, "repository domain (unbound)")
-		} else if origin := gitRemoteDomain(root); origin != "" && origin != domRes.Domain {
-			rep.repositoryDomainStale = true
-			rep.stale = append(rep.stale, fmt.Sprintf("repository domain (configured=%s, git origin=%s)", domRes.Domain, origin))
+		if domRes.Err != nil {
+			rep.stale = append(rep.stale, "repository domain ("+domRes.Err.Error()+")")
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+			if domRes.Domain == "" {
+				rep.stale = append(rep.stale, "repository domain (unbound)")
+			} else if origin := gitRemoteDomain(root); origin != "" && origin != domRes.Domain {
+				rep.repositoryDomainStale = true
+				rep.stale = append(rep.stale, fmt.Sprintf("repository domain (configured=%s, git origin=%s)", domRes.Domain, origin))
+			}
 		}
 	default:
 		if domRes, domErr := establishRepositoryDomain(root, *domain); domErr != nil {
 			rep.notes = append(rep.notes, "repository domain: "+domErr.Error())
+			rep.repositoryDomainHardFailure = true
 		} else {
 			rep.repositoryDomain = domRes.Domain
 			rep.repositoryDomainSource = domRes.Source
@@ -605,6 +614,9 @@ Flags:
 		return 1
 	}
 	if !*dryRun && rep.protectionHardFailure {
+		return 1
+	}
+	if !*dryRun && rep.repositoryDomainHardFailure {
 		return 1
 	}
 	return 0
@@ -859,6 +871,11 @@ type bootstrapReport struct {
 	repositoryDomain       string // resolved/established repository.domain, "" if unbound
 	repositoryDomainSource string // "explicit" | "existing_config" | "git_origin" | "unbound"
 	repositoryDomainStale  bool   // --check: config.yaml domain disagrees with the current git origin
+	// repositoryDomainHardFailure is true when the repository domain
+	// configuration is malformed or an explicit/configured value is
+	// invalid — checkout identity is an authority boundary (contract §3.6
+	// correction), so this must gate a non-zero exit, never just a note.
+	repositoryDomainHardFailure bool
 }
 
 func (r *bootstrapReport) computeNextActions() {

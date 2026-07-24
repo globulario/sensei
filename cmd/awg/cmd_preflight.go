@@ -47,6 +47,10 @@ Flags:
 	}
 
 	resolvedDomain := resolveRepositoryDomain(*repo, *domain)
+	if resolvedDomain.Err != nil {
+		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", resolvedDomain.Err)
+		return 1
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -85,7 +85,14 @@ if [ -z "$BIN" ]; then
     exit 0
 fi
 
-RESOLVED_DOMAIN=$("$BIN" repo-domain --path "$PROJECT_ROOT" 2>/dev/null || echo "")
+DOMAIN_ERR_FILE=$(mktemp)
+if ! RESOLVED_DOMAIN=$("$BIN" repo-domain --path "$PROJECT_ROOT" 2>"$DOMAIN_ERR_FILE"); then
+    DOMAIN_ERR_MSG=$(cat "$DOMAIN_ERR_FILE" 2>/dev/null || echo "unknown error")
+    rm -f "$DOMAIN_ERR_FILE"
+    block "Sensei: repository domain resolution failed ($DOMAIN_ERR_MSG) — a malformed .sensei/config.yaml must never be silently bypassed. Fix the repository.domain value and retry."
+    exit 0
+fi
+rm -f "$DOMAIN_ERR_FILE"
 
 ERR_FILE=$(mktemp)
 if ! CHECK_JSON=$("$BIN" protection-check --path "$PROJECT_ROOT" --file "$REL_PATH" --json 2>"$ERR_FILE"); then

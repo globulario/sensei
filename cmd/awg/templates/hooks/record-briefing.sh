@@ -64,10 +64,19 @@ REL_PATH="${FILE_PATH#$PROJECT_ROOT/}"
 # wins, else the checkout's configured/env domain) — the Sensei CLI is the
 # one canonical resolver; never re-derive precedence here.
 BIN="$(command -v sensei || command -v awg || true)"
-RESOLVED_DOMAIN=""
-if [ -n "$BIN" ]; then
-    RESOLVED_DOMAIN=$("$BIN" repo-domain --path "$PROJECT_ROOT" --domain "$CALL_DOMAIN" 2>/dev/null || echo "")
+if [ -z "$BIN" ]; then
+    exit 0  # No classifier available — enforce-briefing.sh will fail closed on its own; nothing to record here.
 fi
+DOMAIN_ERR_FILE=$(mktemp)
+if ! RESOLVED_DOMAIN=$("$BIN" repo-domain --path "$PROJECT_ROOT" --domain "$CALL_DOMAIN" 2>"$DOMAIN_ERR_FILE"); then
+    # A malformed/invalid domain must never be silently recorded under a
+    # guessed fallback — skip the marker entirely so the corresponding
+    # enforce-briefing.sh check (which fails the same way) is never bypassed.
+    echo "Sensei: repository domain resolution failed while recording a briefing marker: $(cat "$DOMAIN_ERR_FILE" 2>/dev/null)" >&2
+    rm -f "$DOMAIN_ERR_FILE"
+    exit 0
+fi
+rm -f "$DOMAIN_ERR_FILE"
 
 # Create marker file, keyed by (project root, resolved domain, file) — never
 # by file path alone, so a briefing scoped to one domain cannot authorize an

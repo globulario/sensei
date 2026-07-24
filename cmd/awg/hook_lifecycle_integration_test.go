@@ -203,4 +203,17 @@ invariants:
 	if !strings.Contains(string(checkOut), "outside the repository or could not be normalized") {
 		t.Fatalf("step 6: expected a visible, specific error for the unbound path, got:\n%s", checkOut)
 	}
+
+	// 7. A malformed repository domain configuration → blocked visibly, never
+	// silently bypassed by falling through to an environment-derived guess
+	// (contract §3.6 correction, second review round).
+	cfgPath := filepath.Join(root, ".sensei", "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte("repository: [this is not, a mapping\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	session4 := "hook-lifecycle-" + t.Name() + "-4"
+	out = runHook(t, enforceScript, session4, availablePath, map[string]any{"file_path": "src/core/engine.go"})
+	if !strings.Contains(out, `"decision": "block"`) || !strings.Contains(out, "domain resolution failed") {
+		t.Fatalf("step 7: expected a visible block for a malformed repository domain configuration, got:\n%s", out)
+	}
 }

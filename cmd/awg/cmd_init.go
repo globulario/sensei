@@ -99,7 +99,12 @@ Flags:
 	}
 
 	if domRes, domErr := establishRepositoryDomain(root, *domain); domErr != nil {
-		fmt.Fprintf(os.Stdout, "\nNotice: repository domain could not be established: %v\n", domErr)
+		// Checkout identity is an authority boundary (contract §3.6
+		// correction): a malformed/invalid repository domain must fail
+		// visibly, never just be noted in passing while init otherwise
+		// reports success.
+		fmt.Fprintf(os.Stderr, "sensei init: repository domain could not be established: %v\n", domErr)
+		return 1
 	} else {
 		switch {
 		case domRes.Domain == "":
