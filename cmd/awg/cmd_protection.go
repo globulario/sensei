@@ -109,13 +109,18 @@ Flags:
 	}
 	fc, ok := protection.ClassifyFile(*path, cov, *file)
 	if !ok {
+		// An unbound identity (outside the repository, unresolvable, a
+		// symlink escape) must fail visibly with a non-zero exit in BOTH
+		// output modes — a --json caller checking the exit code the normal
+		// way must never observe success for a failed classification.
 		if *asJSON {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
-			return exitOnEncodeErr(enc.Encode(map[string]any{
+			_ = enc.Encode(map[string]any{
 				"error": "file is outside the repository or could not be normalized",
 				"file":  *file,
-			}))
+			})
+			return 1
 		}
 		fmt.Fprintf(os.Stderr, "sensei protection-check: %q is outside the repository or could not be normalized\n", *file)
 		return 1
