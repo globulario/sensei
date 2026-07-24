@@ -161,6 +161,7 @@ components:
       - cmd/awg/json_output.go
       - cmd/awg/main.go
       - cmd/awg/proofrequirements_adapter.go
+      - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
     depends_on:
       - component.golang.architecture
@@ -574,6 +575,7 @@ components:
       - golang/architecture/proofrequirements/obligations.go
       - golang/architecture/proofrequirements/parse.go
       - golang/architecture/proofrequirements/proofrequirements.go
+      - golang/architecture/protection/assessment.go
       - golang/architecture/protection/classify.go
       - golang/architecture/protection/derive.go
       - golang/architecture/protection/governed.go
@@ -789,6 +791,7 @@ components:
       - golang/extractor/importgraph/rust.go
       - golang/extractor/importgraph/typescript.go
       - golang/extractor/intent_yaml_import.go
+      - golang/extractor/jsonschemascan/jsonschemascan.go
       - golang/extractor/learning_event_yaml_import.go
       - golang/extractor/ntriples_validator.go
       - golang/extractor/openapiscan/openapiscan.go
