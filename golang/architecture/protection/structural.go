@@ -9,6 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/globulario/sensei/golang/extractor/jsonschemascan"
 	"github.com/globulario/sensei/golang/extractor/openapiscan"
 	"github.com/globulario/sensei/golang/extractor/protoscan"
 	"github.com/globulario/sensei/golang/scanner"
@@ -21,16 +22,10 @@ import (
 //
 //   - protobuf service/message definitions (protoscan.FindProtoFiles);
 //   - OpenAPI/Swagger spec files (openapiscan.FindSpecFiles);
+//   - JSON Schema documents (jsonschemascan.FindSchemaFiles);
 //   - source files carrying at least one @awareness annotation
 //     (golang/scanner) — an authored annotation is an explicit assertion,
 //     not a candidate.
-//
-// JSON Schema is named in the contract as a supported source, but this
-// repository has no existing deterministic JSON-Schema scanner to source
-// from; per §15 ("do not fill semantic gaps with filename heuristics beyond
-// the explicitly supported structural contract sources") this function does
-// not invent one. Callers should treat that as a documented coverage gap,
-// not silently-covered.
 func StructuralContractReasons(repoRoot string) (map[string][]ProtectionReason, error) {
 	out := map[string][]ProtectionReason{}
 	add := func(target, kind, source string) {
@@ -67,6 +62,18 @@ func StructuralContractReasons(repoRoot string) (map[string][]ProtectionReason, 
 			continue
 		}
 		add(rel, "openapi_contract", rel)
+	}
+
+	schemaFiles, err := jsonschemascan.FindSchemaFiles(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range schemaFiles {
+		rel, ok := relTo(repoRoot, f)
+		if !ok {
+			continue
+		}
+		add(rel, "json_schema_contract", rel)
 	}
 
 	annotated, err := annotatedSourceFiles(repoRoot)

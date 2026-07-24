@@ -96,10 +96,6 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 		addAll(structReasons)
 		sourceFiles = append(sourceFiles, sortedKeys(structReasons)...)
 	}
-	// JSON Schema is a named-but-unimplemented structural source (see
-	// structural.go doc comment) — always a partial-coverage gap, never
-	// silently absent.
-	gaps = append(gaps, "json_schema_scanner_not_implemented")
 
 	// 4. Direct governed relations (protects/enforces/configures/observes,
 	// required tests) read from the same authored governed sources — already
@@ -230,10 +226,13 @@ func semanticDigest(repoRoot string, cov ProtectionCoverage, sourceFiles []strin
 // coverage — these are the tiers the contract treats as load-bearing
 // ("contracts/invariants/governed sources... exist but the effective
 // protected set cannot be established safely"). A manual-registry read
-// error, an individual malformed input (contract §6 correction — a dropped
-// entry or unparseable source file is never silently absorbed into a
-// clean-looking COMPLETE result), or the always-open JSON-Schema gap, PARTIAL
-// coverage at minimum.
+// error or any individual malformed input (contract §6 correction — a
+// dropped entry or unparseable source file is never silently absorbed into
+// a clean-looking COMPLETE result) forces PARTIAL coverage at minimum. Every
+// named structural source (protobuf, OpenAPI, JSON Schema, annotations) is
+// now actually implemented — COMPLETE is reachable when every input truly
+// evaluated cleanly (contract §4 correction: COMPLETE must not coexist with
+// an admitted "supported input not implemented" gap).
 func computeCoverageStatus(cov ProtectionCoverage, manualErr, govErr, structErr, relErr, candErr error, hasMalformedInputs bool) ProtectionCoverageStatus {
 	if govErr != nil || relErr != nil {
 		return CoverageDegraded
@@ -247,7 +246,7 @@ func computeCoverageStatus(cov ProtectionCoverage, manualErr, govErr, structErr,
 		// never presented as "no high-risk files" safety (contract §3.5).
 		return CoverageEmpty
 	}
-	if hasHardGap || len(cov.Gaps) > 1 { // ">1" because the JSON-schema gap is always present.
+	if hasHardGap || len(cov.Gaps) > 0 {
 		return CoveragePartial
 	}
 	return CoverageComplete

@@ -82,3 +82,22 @@ func TestGovernedRelationReasons_RequiredTestSplitsFileFromTestName(t *testing.T
 		t.Fatalf("expected kind=required_test, got %q", rs[0].Kind)
 	}
 }
+
+// A non-YAML file living under docs/awareness/ (a design doc, a generated
+// baseline) is a governed_source (unconditionally protected) but was never
+// meant to be parsed as invariants.yaml/failure_modes.yaml — it must NOT be
+// reported as malformed just because it isn't YAML at all.
+func TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+	writeFile(t, root, "docs/awareness/design_notes.md", "# Not YAML\n\nSome prose that is not valid YAML: [unterminated\n")
+	writeFile(t, root, "docs/awareness/baseline.tsv", "col1\tcol2\nhttps://example.com/x\tvalue\n")
+
+	_, malformed, err := GovernedRelationReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(malformed) != 0 {
+		t.Fatalf("non-YAML governed sources must never be reported as malformed, got %v", malformed)
+	}
+}

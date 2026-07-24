@@ -5,6 +5,8 @@ package protection
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -80,6 +82,15 @@ func GovernedRelationReasons(repoRoot string) (reasons map[string][]ProtectionRe
 		})
 	}
 	for _, f := range files {
+		// Governed sources include non-YAML authored files (design docs,
+		// generated baselines) that are unconditionally protected as
+		// governed_source but were never meant to be parsed as
+		// invariants.yaml/failure_modes.yaml — attempting to would report
+		// every such file as "malformed YAML" when it simply isn't YAML.
+		ext := strings.ToLower(filepath.Ext(f))
+		if ext != ".yaml" && ext != ".yml" {
+			continue
+		}
 		raw, readErr := os.ReadFile(joinRepo(repoRoot, f))
 		if readErr != nil {
 			malformed = append(malformed, fmt.Sprintf("%s: unreadable: %v", f, readErr))
