@@ -43,6 +43,7 @@ func runBootstrap(args []string) int {
 	check := fs.Bool("check", false, "compare generated output to committed files; exit non-zero if stale")
 	dryRun := fs.Bool("dry-run", false, "print the report without writing generated/candidate files")
 	scipPath := fs.String("scip", "", "path to a SCIP index to ingest symbol-level nodes; defaults to <repo>/index.scip when present")
+	domain := fs.String("domain", "", "explicit repository domain to bind (default: preserve existing config, else derive from git origin)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei bootstrap --path <checkout> [flags]
 
@@ -514,6 +515,38 @@ Flags:
 		}
 	}
 
+	// ── Stage 6c: establish the checkout-scoped repository domain ──
+	// Participates in normal write/dry-run/--check behavior per contract §8:
+	// dry-run reports only, --check reports a stale/missing/mismatched binding
+	// without writing, and normal mode establishes it (never rewriting an
+	// existing configured domain — see establishRepositoryDomain).
+	switch {
+	case *dryRun:
+		domRes := resolveRepositoryDomain(root, *domain)
+		rep.repositoryDomain = domRes.Domain
+		rep.repositoryDomainSource = domRes.Source
+	case *check:
+		domRes := resolveRepositoryDomain(root, *domain)
+		rep.repositoryDomain = domRes.Domain
+		rep.repositoryDomainSource = domRes.Source
+		if domRes.Domain == "" {
+			rep.stale = append(rep.stale, "repository domain (unbound)")
+		} else if origin := gitRemoteDomain(root); origin != "" && origin != domRes.Domain {
+			rep.repositoryDomainStale = true
+			rep.stale = append(rep.stale, fmt.Sprintf("repository domain (configured=%s, git origin=%s)", domRes.Domain, origin))
+		}
+	default:
+		if domRes, domErr := establishRepositoryDomain(root, *domain); domErr != nil {
+			rep.notes = append(rep.notes, "repository domain: "+domErr.Error())
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+			if domRes.Mismatch {
+				rep.notes = append(rep.notes, fmt.Sprintf("repository domain: configured domain %q preserved despite git origin now resolving to %q", domRes.Domain, domRes.OriginURL))
+			}
+		}
+	}
+
 	// ── Stage 7: gates ──
 	if !*check {
 		// validate (read-only).
@@ -822,6 +855,10 @@ type bootstrapReport struct {
 	// zero effective protection was derived (DEGRADED, or a conclusive EMPTY
 	// scan despite present governed sources) — contract §8's "not success."
 	protectionHardFailure bool
+
+	repositoryDomain       string // resolved/established repository.domain, "" if unbound
+	repositoryDomainSource string // "explicit" | "existing_config" | "git_origin" | "unbound"
+	repositoryDomainStale  bool   // --check: config.yaml domain disagrees with the current git origin
 }
 
 func (r *bootstrapReport) computeNextActions() {
@@ -898,6 +935,11 @@ func (r *bootstrapReport) print(w *os.File) {
 		if r.protectionHardFailure {
 			fmt.Fprintln(w, "      governed sources exist but effective protection is empty/degraded — see next actions")
 		}
+	}
+	if r.repositoryDomain != "" {
+		fmt.Fprintf(w, "  repository domain:          %s (source=%s)\n", r.repositoryDomain, r.repositoryDomainSource)
+	} else {
+		fmt.Fprintln(w, "  repository domain:          unbound (briefing/preflight will require an explicit --domain)")
 	}
 	if len(r.writtenGenerated) > 0 {
 		fmt.Fprintf(w, "  wrote generated:            %s\n", strings.Join(r.writtenGenerated, ", "))

@@ -132,6 +132,8 @@ func main() {
 		os.Exit(runProtectionStatus(args))
 	case "protection-check":
 		os.Exit(runProtectionCheck(args))
+	case "repo-domain":
+		os.Exit(runRepoDomain(args))
 	case "serve":
 		os.Exit(runServe(args))
 	case "briefing":

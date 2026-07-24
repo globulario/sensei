@@ -48,6 +48,7 @@ func runInit(args []string) int {
 	withMCP := fs.Bool("mcp", false, "write/merge the Sensei MCP server into .mcp.json (opt-in)")
 	withSkills := fs.Bool("skills", true, "install bundled Sensei project skills under .sensei/skills and native agent skill folders")
 	skillsForce := fs.Bool("skills-force", false, "replace locally modified Sensei-managed skill copies")
+	domain := fs.String("domain", "", "explicit repository domain to bind (default: derive from git origin, or leave unbound)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei init [flags]
 
@@ -95,6 +96,19 @@ Flags:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei init: %v\n", err)
 		return 1
+	}
+
+	if domRes, domErr := establishRepositoryDomain(root, *domain); domErr != nil {
+		fmt.Fprintf(os.Stdout, "\nNotice: repository domain could not be established: %v\n", domErr)
+	} else {
+		switch {
+		case domRes.Domain == "":
+			fmt.Fprintln(os.Stdout, "\nRepository domain: unbound (no git origin found and no --domain given; briefing/preflight will require an explicit --domain until one is configured).")
+		case domRes.Mismatch:
+			fmt.Fprintf(os.Stdout, "\nRepository domain: %s (source=%s) — NOTE: this disagrees with the current git origin (%s); the configured domain was preserved, not overwritten.\n", domRes.Domain, domRes.Source, domRes.OriginURL)
+		default:
+			fmt.Fprintf(os.Stdout, "\nRepository domain: %s (source=%s)\n", domRes.Domain, domRes.Source)
+		}
 	}
 
 	fmt.Fprintf(os.Stdout, "Sensei initialized. Created:\n")

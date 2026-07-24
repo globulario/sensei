@@ -66,6 +66,8 @@ Flags:
 		return 0
 	}
 
+	resolvedDomain := resolveRepositoryDomain(*repo, *domain)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -81,7 +83,7 @@ Flags:
 		File:   *file,
 		Task:   *task,
 		Depth:  *depth,
-		Domain: *domain,
+		Domain: resolvedDomain.Domain,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei briefing: %v\n", err)

@@ -22,7 +22,13 @@
 # bootstrap gap this repair closes).
 #
 # The record-briefing.sh PostToolUse hook creates the session marker file
-# that this hook checks — that mechanism is unchanged.
+# that this hook checks. The marker binds hash(repository root + repository
+# domain + file path) — never hash(file path) alone — so a briefing obtained
+# against the wrong loaded domain can never authorize an edit in this
+# checkout (contract §3/§9 correction). The domain used here is the
+# checkout's own resolved default (no explicit override — editing has no
+# --domain flag), via the same `sensei repo-domain` resolver record-briefing.sh
+# uses.
 
 set -euo pipefail
 
@@ -79,6 +85,8 @@ if [ -z "$BIN" ]; then
     exit 0
 fi
 
+RESOLVED_DOMAIN=$("$BIN" repo-domain --path "$PROJECT_ROOT" 2>/dev/null || echo "")
+
 ERR_FILE=$(mktemp)
 if ! CHECK_JSON=$("$BIN" protection-check --path "$PROJECT_ROOT" --file "$REL_PATH" --json 2>"$ERR_FILE"); then
     ERR_MSG=$(cat "$ERR_FILE" 2>/dev/null || echo "unknown error")
@@ -110,16 +118,23 @@ fi
 
 # Check for briefing marker (protected AND provisionally-protected files both
 # require briefing — candidate-derived caution still means "consult Sensei").
+# Keyed by (project root, resolved domain, file) — matching record-briefing.sh
+# — never by file path alone.
 SESSION_ID="${CLAUDE_SESSION_ID:-default}"
 MARKER_DIR="/tmp/sensei-briefings/$SESSION_ID"
-PATH_HASH=$(echo -n "$FILE_PATH" | sha256sum | cut -d' ' -f1)
+MARKER_KEY="$PROJECT_ROOT|$RESOLVED_DOMAIN|$REL_PATH"
+PATH_HASH=$(printf '%s' "$MARKER_KEY" | sha256sum | cut -d' ' -f1)
 
 if [ -f "$MARKER_DIR/$PATH_HASH" ]; then
-    exit 0  # Briefing was obtained.
+    exit 0  # Briefing was obtained for this exact repository/domain/file.
 fi
 
 KIND="high-risk path"
 if [ "$PROVISIONAL" = "True" ]; then
     KIND="provisionally protected path (candidate-derived caution)"
 fi
-block "Sensei: call awareness briefing for $REL_PATH before editing this $KIND. Run: sensei briefing --file $REL_PATH"
+DOMAIN_FLAG=""
+if [ -n "$RESOLVED_DOMAIN" ]; then
+    DOMAIN_FLAG=" --domain $RESOLVED_DOMAIN"
+fi
+block "Sensei: call awareness briefing for $REL_PATH before editing this $KIND. Run: sensei briefing --file $REL_PATH$DOMAIN_FLAG"

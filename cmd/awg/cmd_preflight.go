@@ -22,6 +22,7 @@ func runPreflight(args []string) int {
 	asJSON := fs.Bool("json", false, "output as JSON")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to per-file impact queries")
+	repo := fs.String("repo", ".", "repository checkout, used to resolve the domain when --domain is omitted")
 	var files stringSlice
 	fs.Var(&files, "file", "repo-relative file (repeatable)")
 	fs.Usage = func() {
@@ -45,6 +46,8 @@ Flags:
 		return 2
 	}
 
+	resolvedDomain := resolveRepositoryDomain(*repo, *domain)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -65,7 +68,7 @@ Flags:
 		Task:   *task,
 		Files:  files,
 		Mode:   pfMode,
-		Domain: *domain,
+		Domain: resolvedDomain.Domain,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
