@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/emicklei/proto v1.14.3
 	github.com/gorilla/websocket v1.5.3
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/scip-code/scip/bindings/go/scip v0.9.0
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-python v0.23.6

@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globulario.github.io/sensei-dashboard/schema/dashboard-projection-v1.json",
+  "title": "Sensei Dashboard Projection V1",
+  "description": "A versioned, human-scale architectural projection produced by Sensei core and rendered by Sensei Dashboard.",
+  "$comment": "schema_version is a const, not a range: any field addition, removal, rename, or semantic change requires a new schema identifier/version. A consumer must reject a projection whose schema_version it does not exactly recognize rather than partially interpret it. Canonical ownership: globulario/sensei is the producer authority once it adopts this contract; until that adoption lands, this file is the proposed handshake, not an independent competing authority. globulario/sensei-dashboard keeps a generated/pinned consumer mirror and verifies digest parity in CI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "identity",
+    "availability",
+    "assessments",
+    "briefing",
+    "regions",
+    "components",
+    "boundaries",
+    "contracts",
+    "flows",
+    "attention",
+    "evolution",
+    "focus_records"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.dashboard.projection.v1" },
+    "identity": { "$ref": "#/$defs/identity" },
+    "availability": { "$ref": "#/$defs/projectionAvailability" },
+    "assessments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture_health", "projection_integrity", "observation_completeness"],
+      "properties": {
+        "architecture_health": { "$ref": "#/$defs/assessment" },
+        "projection_integrity": { "$ref": "#/$defs/assessment" },
+        "observation_completeness": { "$ref": "#/$defs/observationAssessment" }
+      }
+    },
+    "active_context": {
+      "oneOf": [
+        { "$ref": "#/$defs/activeContext" },
+        { "type": "null" }
+      ],
+      "default": null
+    },
+    "briefing": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/briefingStatement" },
+      "maxItems": 12
+    },
+    "facts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fact" },
+      "maxItems": 24,
+      "default": []
+    },
+    "regions": { "type": "array", "items": { "$ref": "#/$defs/region" } },
+    "components": { "type": "array", "items": { "$ref": "#/$defs/component" } },
+    "boundaries": { "type": "array", "items": { "$ref": "#/$defs/boundary" } },
+    "contracts": { "type": "array", "items": { "$ref": "#/$defs/contract" } },
+    "flows": { "type": "array", "items": { "$ref": "#/$defs/flow" } },
+    "attention": { "type": "array", "items": { "$ref": "#/$defs/attentionItem" } },
+    "evolution": { "$ref": "#/$defs/evolution" },
+    "focus_records": { "type": "array", "items": { "$ref": "#/$defs/focusRecord" } },
+    "capabilities": { "$ref": "#/$defs/capabilities" }
+  },
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#@-]*$"
+    },
+    "refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stableId" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "availabilityState": {
+      "type": "string",
+      "enum": ["available", "partial", "unavailable"]
+    },
+    "knowledgeState": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "attention",
+        "at_risk",
+        "degraded",
+        "open",
+        "proven",
+        "contested",
+        "unknown",
+        "unobserved",
+        "not_applicable"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["info", "low", "medium", "high", "critical", "unknown", "not_applicable"],
+      "$comment": "not_applicable is for objects (e.g. a healthy/proven assessment) where no rating is meaningful. unknown is reserved for cases where a rating is meaningful but not known."
+    },
+    "triState": {
+      "type": "string",
+      "enum": ["yes", "no", "unknown"]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_refs"],
+      "properties": {
+        "evidence_refs": { "$ref": "#/$defs/refs" },
+        "decision_refs": { "$ref": "#/$defs/refs" },
+        "source_refs": { "$ref": "#/$defs/refs" },
+        "observed_at": { "type": ["string", "null"], "format": "date-time" },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projection_id", "repository", "revision", "graph_authority", "generated_at"],
+      "properties": {
+        "projection_id": { "$ref": "#/$defs/stableId" },
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key", "display_name"],
+          "properties": {
+            "key": { "$ref": "#/$defs/stableId" },
+            "display_name": { "type": "string", "minLength": 1 },
+            "url": { "type": ["string", "null"], "format": "uri" },
+            "domain": { "type": ["string", "null"] }
+          }
+        },
+        "revision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id"],
+          "properties": {
+            "id": { "$ref": "#/$defs/stableId" },
+            "display": { "type": ["string", "null"] },
+            "ref": { "type": ["string", "null"] },
+            "committed_at": { "type": ["string", "null"], "format": "date-time" }
+          }
+        },
+        "graph_authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["observed", "current", "identity", "summary"],
+          "properties": {
+            "observed": { "$ref": "#/$defs/triState", "$comment": "whether authority state was observed at all; absence of observation can itself be unknown, so this is tri-state rather than boolean" },
+            "current": { "$ref": "#/$defs/triState" },
+            "identity": { "type": ["string", "null"] },
+            "summary": { "type": "string", "minLength": 1 },
+            "provenance": { "$ref": "#/$defs/provenance" }
+          }
+        },
+        "generated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "sourceState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "availability", "summary"],
+      "properties": {
+        "owner": { "$ref": "#/$defs/stableId" },
+        "availability": { "$ref": "#/$defs/availabilityState" },
+        "summary": { "type": "string", "minLength": 1 },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    },
+    "projectionAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "summary", "limitations", "sources"],
+      "properties": {
+        "state": { "$ref": "#/$defs/availabilityState" },
+        "summary": { "type": "string", "minLength": 1 },
+        "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceState" } }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "label", "summary", "severity", "provenance"],
+      "$comment": "V1 renders owner-produced states, explanations, severity, evidence, and coverage counts only. No unowned numeric score is included; a future metric may return only under a separately defined contract with owner, scale, evidence, and intended rendering semantics.",
+      "properties": {
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "label": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "severity": { "$ref": "#/$defs/severity" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "observationAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "label", "summary", "severity", "coverage", "provenance"],
+      "properties": {
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "label": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "severity": { "$ref": "#/$defs/severity" },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["observed", "total", "unit"],
+          "properties": {
+            "observed": { "type": ["integer", "null"], "minimum": 0 },
+            "total": { "type": ["integer", "null"], "minimum": 0 },
+            "unit": { "type": "string", "minLength": 1 }
+          }
+        },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "activeContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "label"],
+      "$comment": "Public static snapshots redact active_context by default: 'session' context must never be published, and 'task'/'pull_request' context must be omitted unless the producer has explicitly marked every included field public and bound it to a public URL. The frontend does not decide what is safe to publish; the safe default for public static generation is active_context: null (see top-level 'active_context').",
+      "properties": {
+        "kind": { "type": "string", "enum": ["task", "pull_request", "change", "session"] },
+        "id": { "$ref": "#/$defs/stableId" },
+        "label": { "type": "string", "minLength": 1 },
+        "url": { "type": ["string", "null"], "format": "uri" },
+        "element_refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+    "briefingStatement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "text", "severity", "element_refs", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "kind": { "type": "string", "enum": ["orientation", "health", "integrity", "observation", "change", "attention"] },
+        "text": { "type": "string", "minLength": 1 },
+        "severity": { "$ref": "#/$defs/severity" },
+        "element_refs": { "$ref": "#/$defs/refs" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "value", "state"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "label": { "type": "string", "minLength": 1 },
+        "value": { "type": ["string", "number", "integer", "null"] },
+        "unit": { "type": ["string", "null"] },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "element_refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+    "visualAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order"],
+      "$comment": "Stable owner hints only (author-declared placement, not a computed layout). This does not by itself guarantee deterministic, edge-crossing-free rendering — the layout/routing algorithm and its determinism guarantee are a dashboard-side Stage 4 contract, not a property proven by this schema.",
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "lane": { "type": ["string", "null"] },
+        "group": { "type": ["string", "null"] }
+      }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "responsibility", "state", "component_refs", "visual_anchor", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 },
+        "responsibility": { "type": "string", "minLength": 1 },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "component_refs": { "$ref": "#/$defs/refs" },
+        "visual_anchor": { "$ref": "#/$defs/visualAnchor" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "region_ref", "responsibility", "state", "authority_refs", "visual_anchor", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 },
+        "region_ref": { "$ref": "#/$defs/stableId" },
+        "responsibility": { "type": "string", "minLength": 1 },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "authority_refs": { "$ref": "#/$defs/refs" },
+        "visual_anchor": { "$ref": "#/$defs/visualAnchor" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "kind", "member_refs", "state", "summary", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "enum": ["authority", "ownership", "domain", "trust", "deployment", "other"] },
+        "member_refs": { "$ref": "#/$defs/refs" },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "summary": { "type": "string", "minLength": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "source_ref", "target_ref", "kind", "direction", "state", "summary", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 },
+        "source_ref": { "$ref": "#/$defs/stableId" },
+        "target_ref": { "$ref": "#/$defs/stableId" },
+        "kind": { "type": "string", "minLength": 1 },
+        "direction": { "type": "string", "enum": ["source_to_target", "target_to_source", "bidirectional", "undirected"] },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "summary": { "type": "string", "minLength": 1 },
+        "boundary_refs": { "$ref": "#/$defs/refs" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "flowStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "element_ref"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "element_ref": { "$ref": "#/$defs/stableId" },
+        "contract_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/stableId" },
+            { "type": "null" }
+          ]
+        },
+        "summary": { "type": ["string", "null"] }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "kind", "state", "steps", "summary", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "enum": ["command", "query", "event", "data", "publication", "governance", "other"] },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/flowStep" }, "minItems": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "attentionItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "title", "summary", "severity", "state", "element_refs", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "kind": {
+          "type": "string",
+          "enum": ["contradiction", "question", "missing_evidence", "stale_evidence", "boundary_pressure", "failure_mode", "forbidden_move", "integrity", "observation_gap", "other"]
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "severity": { "$ref": "#/$defs/severity" },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "element_refs": { "$ref": "#/$defs/refs" },
+        "selectable": {
+          "type": "boolean",
+          "default": false,
+          "$comment": "An attention item may deep-link to a referenced architectural element without being independently focusable. It requires its own matching focus_records entry only when selectable is true."
+        },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "title", "summary", "impact", "element_refs", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "region_added", "region_removed", "component_added", "component_removed", "component_moved",
+            "responsibility_changed", "authority_changed", "boundary_added", "boundary_removed", "boundary_changed",
+            "contract_added", "contract_removed", "contract_changed", "flow_changed", "evidence_improved",
+            "evidence_degraded", "question_opened", "question_resolved", "contradiction_introduced",
+            "contradiction_resolved", "observation_changed", "other"
+          ]
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "impact": { "type": "string", "enum": ["improved", "degraded", "changed", "unknown"] },
+        "element_refs": { "$ref": "#/$defs/refs" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "evolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "base_revision", "head_revision", "changes"],
+      "properties": {
+        "availability": { "$ref": "#/$defs/availabilityState" },
+        "base_revision": {
+          "oneOf": [
+            { "$ref": "#/$defs/stableId" },
+            { "type": "null" }
+          ],
+          "$comment": "null when there is no prior authoritative revision to compare against (e.g. the first observed revision)."
+        },
+        "head_revision": { "$ref": "#/$defs/stableId" },
+        "summary": { "type": ["string", "null"] },
+        "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+        "changes": { "type": "array", "items": { "$ref": "#/$defs/change" } }
+      }
+    },
+    "focusRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "Referential integrity is mandatory: every selectable region, component, boundary, contract, and flow must resolve to exactly one focus_records entry with the same stable id and matching element_kind. Duplicate or missing focus records for a selectable element are a projection-integrity failure to be detected by the producer/validator, not repaired by the frontend. The frontend must not fabricate a fallback description; it may only present the element as unavailable with the integrity diagnostic. An attentionItem needs a focus_records entry only when its own selectable flag is true.",
+      "required": [
+        "element_ref", "element_kind", "name", "responsibility", "state", "owner_refs",
+        "contract_refs", "flow_refs", "attention_refs", "decision_refs", "provenance"
+      ],
+      "properties": {
+        "element_ref": { "$ref": "#/$defs/stableId" },
+        "element_kind": { "type": "string", "enum": ["region", "component", "boundary", "contract", "flow", "attention"] },
+        "name": { "type": "string", "minLength": 1 },
+        "responsibility": { "type": "string", "minLength": 1 },
+        "state": { "$ref": "#/$defs/knowledgeState" },
+        "owner_refs": { "$ref": "#/$defs/refs" },
+        "owned_refs": { "$ref": "#/$defs/refs" },
+        "contract_refs": { "$ref": "#/$defs/refs" },
+        "flow_refs": { "$ref": "#/$defs/refs" },
+        "attention_refs": { "$ref": "#/$defs/refs" },
+        "decision_refs": { "$ref": "#/$defs/refs" },
+        "recent_change_refs": { "$ref": "#/$defs/refs" },
+        "source_links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "target"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "target": { "type": "string", "minLength": 1 }
+            }
+          },
+          "default": []
+        },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "live_refresh": { "type": "boolean", "default": false },
+        "revision_compare": { "type": "boolean", "default": false },
+        "agent_handoff": {
+          "type": "string",
+          "enum": ["none", "export", "live"],
+          "default": "none",
+          "$comment": "none: no handoff affordance. export: a read-only handoff envelope (see agent-handoff-v1.schema.json) may be created/copied without a live backend, so this may be true in static mode. live: a configured agent transport exists. Static mode must never report 'live', and neither value implies mutation authority."
+        },
+        "source_deep_links": { "type": "boolean", "default": false }
+      },
+      "default": {}
+    }
+  }
+}

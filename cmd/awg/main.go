@@ -194,6 +194,8 @@ func main() {
 		os.Exit(runRepoEval(args))
 	case "architecture-extract":
 		os.Exit(runArchitectureExtract(args))
+	case "dashboard-projection":
+		os.Exit(runDashboardProjection(args))
 	case "benchmark-brief":
 		os.Exit(runBenchmarkBrief(args))
 	case "benchmark-judge":
@@ -381,6 +383,7 @@ Gate or validate a change:
   contract-assess Report-only contract synthesis assessment
   contract-bootstrap Build a proposed repair-contract bootstrap
   architecture-extract Layer repository evidence into observed/inferred/governed contracts
+  dashboard-projection Build a sensei.dashboard.projection.v1 document from the authored corpus
   check          Validate YAML sources without building
   validate       Deep structural check (dangling refs, missing files, dup IDs)
   validate-draft Validate draft candidates before promotion

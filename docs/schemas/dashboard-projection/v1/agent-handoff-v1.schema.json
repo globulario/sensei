@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://globulario.github.io/sensei-dashboard/schema/agent-handoff-v1.json",
+  "title": "Sensei Dashboard Agent Handoff V1",
+  "description": "A bounded, dashboard-populated request handed to a connected agent (Claude, Codex, or another agent) to continue the user's current architectural investigation. This is a separate, mutable, per-interaction envelope, not part of the immutable dashboard-projection-v1 document.",
+  "$comment": "schema_version is a const: any field addition, removal, rename, or semantic change requires a new schema identifier/version, and a consumer must reject an envelope whose schema_version it does not exactly recognize. The dashboard may populate this envelope only from validated fields of the current dashboard-projection-v1 document plus explicit user input (selection, lens, requested intent); it must not invent, infer, or repair architectural fields when constructing it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "repository",
+    "revision",
+    "graph_authority",
+    "selected_element",
+    "lens",
+    "visible_concern",
+    "referenced_ids",
+    "active_context",
+    "requested_intent",
+    "observation_limitations",
+    "capability"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.dashboard.agent-handoff.v1" },
+    "repository": {
+      "$ref": "dashboard-projection-v1.schema.json#/$defs/identity/properties/repository"
+    },
+    "revision": {
+      "$ref": "dashboard-projection-v1.schema.json#/$defs/identity/properties/revision"
+    },
+    "graph_authority": {
+      "$ref": "dashboard-projection-v1.schema.json#/$defs/identity/properties/graph_authority"
+    },
+    "selected_element": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "kind"],
+          "properties": {
+            "id": { "$ref": "dashboard-projection-v1.schema.json#/$defs/stableId" },
+            "kind": { "type": "string", "enum": ["region", "component", "boundary", "contract", "flow", "attention"] }
+          }
+        },
+        { "type": "null" }
+      ],
+      "$comment": "null when the handoff concerns the current view as a whole rather than one selected element."
+    },
+    "lens": {
+      "type": "string",
+      "enum": ["structure", "authority", "behavior", "risk", "change", "closure"]
+    },
+    "visible_concern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route", "summary"],
+      "properties": {
+        "route": { "type": "string", "minLength": 1 },
+        "summary": { "type": ["string", "null"] }
+      }
+    },
+    "referenced_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Stable identifiers already supplied by the current projection that ground this request. All categories are optional lists, not inferred relationships.",
+      "properties": {
+        "attention_refs": { "$ref": "dashboard-projection-v1.schema.json#/$defs/refs" },
+        "contract_refs": { "$ref": "dashboard-projection-v1.schema.json#/$defs/refs" },
+        "boundary_refs": { "$ref": "dashboard-projection-v1.schema.json#/$defs/refs" },
+        "flow_refs": { "$ref": "dashboard-projection-v1.schema.json#/$defs/refs" },
+        "evidence_refs": { "$ref": "dashboard-projection-v1.schema.json#/$defs/refs" },
+        "decision_refs": { "$ref": "dashboard-projection-v1.schema.json#/$defs/refs" }
+      },
+      "default": {}
+    },
+    "active_context": {
+      "oneOf": [
+        { "$ref": "dashboard-projection-v1.schema.json#/$defs/activeContext" },
+        { "type": "null" }
+      ],
+      "default": null,
+      "$comment": "Same public-snapshot redaction rule as the projection's active_context: 'session' context must never be included, and 'task'/'pull_request' context must be omitted unless every included field has been explicitly marked public. The dashboard does not decide what is safe to publish."
+    },
+    "requested_intent": {
+      "type": "string",
+      "enum": ["explain", "review", "compare", "propose"]
+    },
+    "observation_limitations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": [],
+      "description": "Carried forward from the source projection's availability/coverage limitations so the handoff never implies that visible evidence is exhaustive when observation was partial."
+    },
+    "capability": {
+      "type": "string",
+      "enum": ["read_only", "propose"],
+      "$comment": "read_only: the agent may explain, review, retrieve evidence, or compare. propose: the agent may additionally prepare or propose a governed change, but still may not mutate architectural state directly (product contract §3.3). This is distinct from the projection-level capabilities.agent_handoff transport flag (none/export/live), which governs whether a handoff affordance exists at all."
+    }
+  }
+}
