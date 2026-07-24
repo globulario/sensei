@@ -49,6 +49,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
 	"github.com/globulario/sensei/golang/netcfg"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/runtimedescriptor"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
 	"github.com/globulario/sensei/golang/store/oxigraph"
@@ -324,6 +325,39 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", addr, err)
 	}
+
+	// Self-describe immediately after a successful bind, keyed by the exact
+	// -addr string a `sensei serve` wrapper will look this process up by
+	// (docs/design/serve-runtime-compatibility.md, issue #118). This is the
+	// ONLY process that can prove what it was actually started with — a
+	// wrapper reusing an occupied address has no other way to verify
+	// compatibility before mixing a checkout-local marker with a foreign
+	// service. A write failure is logged but non-fatal: the server must
+	// remain runnable standalone even where the state directory isn't
+	// writable; it is the WRAPPER, not this process, that must fail closed
+	// on the reuse decision.
+	descRepoRoot, descRepoDomain := "", ""
+	if briefingRepo != nil {
+		descRepoRoot, descRepoDomain = briefingRepo.Root, briefingRepo.Domain
+	}
+	if derr := runtimedescriptor.Write(runtimedescriptor.Descriptor{
+		Kind:             runtimedescriptor.KindAwarenessGraph,
+		PID:              os.Getpid(),
+		ListenAddr:       addr,
+		OxigraphQueryURL: cfg.OxigraphQueryURL,
+		GraphMarkerFile:  graphMarkerFile,
+		RepoRoot:         descRepoRoot,
+		RepoDomain:       descRepoDomain,
+		StartedAtUnix:    time.Now().Unix(),
+		SenseiVersion:    Version,
+	}); derr != nil {
+		logger.Printf("awareness-graph: write runtime descriptor: %v", derr)
+	}
+	defer func() {
+		if derr := runtimedescriptor.Remove(runtimedescriptor.KindAwarenessGraph, addr); derr != nil {
+			logger.Printf("awareness-graph: remove runtime descriptor: %v", derr)
+		}
+	}()
 
 	// Load cluster TLS credentials. If the cert files are absent (e.g. dev
 	// machine without a Globular install) fall back to plaintext and update
