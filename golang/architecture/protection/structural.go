@@ -26,7 +26,12 @@ import (
 //   - source files carrying at least one @awareness annotation
 //     (golang/scanner) — an authored annotation is an explicit assertion,
 //     not a candidate.
-func StructuralContractReasons(repoRoot string) (map[string][]ProtectionReason, error) {
+//
+// malformed currently surfaces jsonschemascan's own evaluation failures (a
+// walk error, or a JSON Schema candidate this scan could not open/read) —
+// per contract §4/§6 correction, those must never be silently treated as
+// "not a contract."
+func StructuralContractReasons(repoRoot string) (reasons map[string][]ProtectionReason, malformed []string, err error) {
 	out := map[string][]ProtectionReason{}
 	add := func(target, kind, source string) {
 		norm, ok := NormalizePath(target)
@@ -42,7 +47,7 @@ func StructuralContractReasons(repoRoot string) (map[string][]ProtectionReason, 
 
 	protoFiles, err := protoscan.FindProtoFiles(repoRoot)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, f := range protoFiles {
 		rel, ok := relTo(repoRoot, f)
@@ -54,7 +59,7 @@ func StructuralContractReasons(repoRoot string) (map[string][]ProtectionReason, 
 
 	specFiles, err := openapiscan.FindSpecFiles(repoRoot)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, f := range specFiles {
 		rel, ok := relTo(repoRoot, f)
@@ -64,10 +69,11 @@ func StructuralContractReasons(repoRoot string) (map[string][]ProtectionReason, 
 		add(rel, "openapi_contract", rel)
 	}
 
-	schemaFiles, err := jsonschemascan.FindSchemaFiles(repoRoot)
+	schemaFiles, schemaMalformed, err := jsonschemascan.FindSchemaFiles(repoRoot)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	malformed = append(malformed, schemaMalformed...)
 	for _, f := range schemaFiles {
 		rel, ok := relTo(repoRoot, f)
 		if !ok {
@@ -78,13 +84,13 @@ func StructuralContractReasons(repoRoot string) (map[string][]ProtectionReason, 
 
 	annotated, err := annotatedSourceFiles(repoRoot)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, f := range annotated {
 		add(f, "awareness_annotation", f)
 	}
 
-	return out, nil
+	return out, malformed, nil
 }
 
 // relTo converts an absolute or repo-root-relative path returned by a
@@ -206,6 +212,11 @@ func CandidateSignalReasons(repoRoot string) (reasons map[string][]ProtectionRea
 				for _, target := range targets {
 					norm, ok := NormalizePath(target)
 					if !ok {
+						// contract §4/§6 correction: an invalid candidate
+						// target (empty, or escaping the repository) must
+						// never be silently dropped — it is a gap forcing
+						// at least PARTIAL coverage, not a clean no-op.
+						malformed = append(malformed, fmt.Sprintf("%s: candidate %q has invalid target %q", relSource, c.ID, target))
 						continue
 					}
 					out[norm] = append(out[norm], ProtectionReason{

@@ -2,7 +2,10 @@
 
 package protection
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 const testAuthorityCandidatesYAML = `
 authority_surface_candidates:
@@ -35,6 +38,40 @@ func TestCandidateSignalReasons_ProvisionalOnly(t *testing.T) {
 	}
 	if rs[0].KnowledgeRef != "candidate.authority.example.startservice" {
 		t.Fatalf("expected knowledge ref to trace to the candidate id, got %q", rs[0].KnowledgeRef)
+	}
+}
+
+// contract §4/§6 correction (second review round): an invalid candidate
+// target (escaping the repository) must be reported as malformed, not
+// silently dropped.
+func TestCandidateSignalReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/candidates/authority_surface_candidates.yaml", `
+authority_surface_candidates:
+  repo_root: /fixture
+  generated_by: awg extract-authority
+  candidates:
+    - id: candidate.authority.example.escaping
+      class: AuthoritySurface
+      status: candidate
+      source_files:
+        - ../escapes/repo.go
+      symbols:
+        - Escaping
+`)
+
+	reasons, malformed, err := CandidateSignalReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reasons) != 0 {
+		t.Fatalf("an escaping target must never resolve to a protected path, got %v", reasons)
+	}
+	if len(malformed) != 1 {
+		t.Fatalf("expected exactly one malformed entry for the escaping target, got %v", malformed)
+	}
+	if !strings.Contains(malformed[0], "../escapes/repo.go") {
+		t.Fatalf("expected the malformed entry to name the invalid target, got %q", malformed[0])
 	}
 }
 
@@ -77,9 +114,12 @@ func TestStructuralContractReasons_ProtectsJSONSchemaFiles(t *testing.T) {
   "type": "object"
 }`)
 
-	reasons, err := StructuralContractReasons(root)
+	reasons, malformed, err := StructuralContractReasons(root)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(malformed) != 0 {
+		t.Fatalf("expected no malformed entries, got %v", malformed)
 	}
 	rs, ok := reasons["schemas/config.schema.json"]
 	if !ok || len(rs) == 0 {
