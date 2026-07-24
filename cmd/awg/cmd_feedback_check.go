@@ -226,7 +226,7 @@ func gitChangedFiles(root string) []string {
 // Missing file or a parse error → no prefixes (advisory caller; feedback-check
 // never fails the session on its own error).
 func readHighRiskPrefixes(root string) []string {
-	entries, _, err := protection.ManualEntries(root)
+	entries, _, _, err := protection.ManualEntries(root)
 	if err != nil {
 		return nil
 	}

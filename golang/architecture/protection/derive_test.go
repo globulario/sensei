@@ -3,6 +3,7 @@
 package protection
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -246,5 +247,46 @@ func TestClassifyFile_ProvisionalVsDefinite(t *testing.T) {
 	definite, _ := ClassifyFile(root, cov, "src/core/engine.go")
 	if !definite.Protected || definite.Provisional {
 		t.Fatalf("a directly-governed path must be protected and NOT provisional, got %+v", definite)
+	}
+}
+
+// contract §6 correction: a malformed individual input must force coverage
+// below COMPLETE — never let a dropped/unparseable entry hide behind an
+// otherwise-clean-looking result.
+func TestDerive_MalformedManualEntryForcesPartial(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+	writeFile(t, root, ManualRegistryFile, "files:\n  - ../escapes/\n  - src/auth/\n")
+
+	cov, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cov.Status == CoverageComplete {
+		t.Fatalf("a malformed manual entry must not allow COMPLETE, got %s (gaps=%v)", cov.Status, cov.Gaps)
+	}
+	found := false
+	for _, g := range cov.Gaps {
+		if strings.HasPrefix(g, "manual_registry_malformed_entry") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a manual_registry_malformed_entry gap, got %v", cov.Gaps)
+	}
+}
+
+// A malformed candidate file must likewise force coverage below COMPLETE.
+func TestDerive_MalformedCandidateFileForcesPartial(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+	writeFile(t, root, "docs/awareness/candidates/broken.yaml", "not: [valid: yaml:::")
+
+	cov, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cov.Status == CoverageComplete {
+		t.Fatalf("a malformed candidate file must not allow COMPLETE, got %s (gaps=%v)", cov.Status, cov.Gaps)
 	}
 }

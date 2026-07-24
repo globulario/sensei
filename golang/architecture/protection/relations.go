@@ -3,6 +3,7 @@
 package protection
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -53,10 +54,17 @@ type relationFailureModesFile struct {
 //
 // This reads authored YAML directly: it requires no running graph/MCP
 // service, satisfying the offline-capability requirement (contract §5).
-func GovernedRelationReasons(repoRoot string) (map[string][]ProtectionReason, error) {
+//
+// malformed lists every file that could not be read, or that failed to
+// parse as EITHER an invariants.yaml or failure_modes.yaml shape (a real
+// YAML syntax error, not merely "this file doesn't declare that top-level
+// key"). Per contract §6 correction, a non-empty malformed list must never
+// be silently absorbed into a clean-looking result — callers MUST treat it
+// as a gap forcing at least PARTIAL coverage.
+func GovernedRelationReasons(repoRoot string) (reasons map[string][]ProtectionReason, malformed []string, err error) {
 	files, err := GovernedSourceFiles(repoRoot)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := map[string][]ProtectionReason{}
 	add := func(target, kind, source, knowledgeRef string) {
@@ -74,10 +82,12 @@ func GovernedRelationReasons(repoRoot string) (map[string][]ProtectionReason, er
 	for _, f := range files {
 		raw, readErr := os.ReadFile(joinRepo(repoRoot, f))
 		if readErr != nil {
-			continue // GovernedSourceFiles just listed it; a race/removal here is not fatal.
+			malformed = append(malformed, fmt.Sprintf("%s: unreadable: %v", f, readErr))
+			continue
 		}
 		var inv relationInvariantsFile
-		if yaml.Unmarshal(raw, &inv) == nil {
+		invErr := yaml.Unmarshal(raw, &inv)
+		if invErr == nil {
 			for _, i := range inv.Invariants {
 				for _, target := range i.Protects.Files {
 					add(target, "protects.files", f, i.ID)
@@ -97,7 +107,8 @@ func GovernedRelationReasons(repoRoot string) (map[string][]ProtectionReason, er
 			}
 		}
 		var fm relationFailureModesFile
-		if yaml.Unmarshal(raw, &fm) == nil {
+		fmErr := yaml.Unmarshal(raw, &fm)
+		if fmErr == nil {
 			for _, m := range fm.FailureModes {
 				for _, target := range m.Protects.Files {
 					add(target, "protects.files", f, m.ID)
@@ -107,6 +118,13 @@ func GovernedRelationReasons(repoRoot string) (map[string][]ProtectionReason, er
 				}
 			}
 		}
+		// A genuine YAML syntax error fails BOTH lenient unmarshal attempts —
+		// a file that simply doesn't declare `invariants:`/`failure_modes:`
+		// (the normal case for most governed sources) fails neither, since
+		// unmatched top-level keys are not an error under yaml.v3.
+		if invErr != nil && fmErr != nil {
+			malformed = append(malformed, fmt.Sprintf("%s: %v", f, invErr))
+		}
 	}
-	return out, nil
+	return out, malformed, nil
 }

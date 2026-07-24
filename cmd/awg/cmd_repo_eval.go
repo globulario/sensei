@@ -928,7 +928,7 @@ func repoEvalComponentPriority(c repoEvalComponent) int {
 // the one canonical protection owner (golang/architecture/protection) rather
 // than re-parsing docs/awareness/high_risk_files.yaml itself (contract §3.6).
 func readRepoEvalHighRiskPrefixes(repoRoot string) ([]string, error) {
-	entries, _, err := protection.ManualEntries(repoRoot)
+	entries, _, _, err := protection.ManualEntries(repoRoot)
 	if err != nil {
 		return nil, err
 	}

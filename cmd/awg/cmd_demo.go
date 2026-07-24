@@ -198,7 +198,7 @@ func resolveDemoRepo(explicit string) (string, error) {
 // (golang/architecture/protection) rather than re-parsing
 // high_risk_files.yaml itself (contract §3.6).
 func firstHighRiskFile(repoRoot string) string {
-	entries, _, err := protection.ManualEntries(repoRoot)
+	entries, _, _, err := protection.ManualEntries(repoRoot)
 	if err != nil || len(entries) == 0 {
 		return ""
 	}

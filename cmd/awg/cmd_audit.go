@@ -665,7 +665,7 @@ func checkCoverageGaps(svcRepo string, ntBytes []byte) auditResult {
 	// Manual entries come from the one canonical protection owner
 	// (golang/architecture/protection), not a re-parse of
 	// high_risk_files.yaml (contract §3.6).
-	files, present, err := protection.ManualEntries(svcRepo)
+	files, present, _, err := protection.ManualEntries(svcRepo)
 	if err != nil {
 		return auditResult{name: "coverage-gaps", level: auditWARN, summary: "parse error: " + err.Error()}
 	}

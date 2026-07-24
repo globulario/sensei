@@ -25,7 +25,7 @@ func removeFile(root, rel string) error {
 
 func TestManualEntries_AbsentFileIsNotAnError(t *testing.T) {
 	root := t.TempDir()
-	entries, present, err := ManualEntries(root)
+	entries, present, malformed, err := ManualEntries(root)
 	if err != nil {
 		t.Fatalf("absent manual registry must not error: %v", err)
 	}
@@ -35,12 +35,15 @@ func TestManualEntries_AbsentFileIsNotAnError(t *testing.T) {
 	if entries != nil {
 		t.Fatalf("absent manual registry must yield no entries, got %v", entries)
 	}
+	if malformed != nil {
+		t.Fatalf("absent manual registry must yield no malformed diagnostics, got %v", malformed)
+	}
 }
 
 func TestManualEntries_EmptyListIsPresentButEmpty(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, ManualRegistryFile, "files: []\n")
-	entries, present, err := ManualEntries(root)
+	entries, present, malformed, err := ManualEntries(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,12 +53,15 @@ func TestManualEntries_EmptyListIsPresentButEmpty(t *testing.T) {
 	if len(entries) != 0 {
 		t.Fatalf("expected zero entries, got %v", entries)
 	}
+	if len(malformed) != 0 {
+		t.Fatalf("a valid empty list must yield no malformed diagnostics, got %v", malformed)
+	}
 }
 
 func TestManualEntries_MalformedYAMLIsTypedError(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, ManualRegistryFile, "files: [this is not: valid: yaml:::\n")
-	_, present, err := ManualEntries(root)
+	_, present, _, err := ManualEntries(root)
 	if err == nil {
 		t.Fatal("malformed manual registry must return a typed error, not silently-empty")
 	}
@@ -64,14 +70,19 @@ func TestManualEntries_MalformedYAMLIsTypedError(t *testing.T) {
 	}
 }
 
-func TestManualEntries_DropsEscapingEntriesButKeepsGoodOnes(t *testing.T) {
+// contract §6 correction: a dropped individual entry must produce a
+// diagnostic — never silently vanish from an otherwise-clean-looking result.
+func TestManualEntries_DropsEscapingEntriesButReportsMalformed(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, ManualRegistryFile, "files:\n  - ../outside/\n  - src/auth/\n")
-	entries, _, err := ManualEntries(root)
+	entries, _, malformed, err := ManualEntries(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(entries) != 1 || entries[0] != "src/auth" {
 		t.Fatalf("expected only the safe entry to survive, got %v", entries)
+	}
+	if len(malformed) != 1 {
+		t.Fatalf("expected exactly one malformed diagnostic for the dropped entry, got %v", malformed)
 	}
 }

@@ -22,7 +22,7 @@ func TestCandidateSignalReasons_ProvisionalOnly(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "docs/awareness/candidates/authority_surface_candidates.yaml", testAuthorityCandidatesYAML)
 
-	reasons, err := CandidateSignalReasons(root)
+	reasons, _, err := CandidateSignalReasons(root)
 	if err != nil {
 		t.Fatal(err)
 	}

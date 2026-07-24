@@ -3,6 +3,7 @@
 package protection
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -151,14 +152,20 @@ type candidateEntry struct {
 // procedural caution only: it never promotes the candidate, and a rejected/
 // deleted candidate signal removes the provisional reason on the next
 // derivation (contract §3.2, §12).
-func CandidateSignalReasons(repoRoot string) (map[string][]ProtectionReason, error) {
+//
+// malformed lists every candidate file that could not be read or parsed. Per
+// contract §6 correction, a non-empty malformed list must never be silently
+// absorbed — callers MUST treat it as a gap forcing at least PARTIAL
+// coverage, rather than letting an unreadable candidate file quietly vanish
+// from consideration.
+func CandidateSignalReasons(repoRoot string) (reasons map[string][]ProtectionReason, malformed []string, err error) {
 	dir := joinRepo(repoRoot, candidatesDir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return map[string][]ProtectionReason{}, nil
+			return map[string][]ProtectionReason{}, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	out := map[string][]ProtectionReason{}
 	for _, e := range entries {
@@ -175,13 +182,15 @@ func CandidateSignalReasons(repoRoot string) (map[string][]ProtectionReason, err
 		}
 		raw, readErr := os.ReadFile(filepath.Join(dir, name))
 		if readErr != nil {
+			malformed = append(malformed, fmt.Sprintf("%s: unreadable: %v", relSource, readErr))
 			continue
 		}
 		var doc map[string]struct {
 			Candidates []candidateEntry `yaml:"candidates"`
 		}
-		if yaml.Unmarshal(raw, &doc) != nil {
-			continue // malformed candidate file: skip rather than fail whole derivation.
+		if parseErr := yaml.Unmarshal(raw, &doc); parseErr != nil {
+			malformed = append(malformed, fmt.Sprintf("%s: %v", relSource, parseErr))
+			continue
 		}
 		for _, section := range doc {
 			for _, c := range section.Candidates {
@@ -203,5 +212,5 @@ func CandidateSignalReasons(repoRoot string) (map[string][]ProtectionReason, err
 			}
 		}
 	}
-	return out, nil
+	return out, malformed, nil
 }

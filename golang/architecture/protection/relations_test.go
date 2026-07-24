@@ -40,7 +40,7 @@ func TestGovernedRelationReasons_DirectRolesOnly(t *testing.T) {
 	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
 	writeFile(t, root, "docs/awareness/failure_modes.yaml", testFailureModesYAML)
 
-	reasons, err := GovernedRelationReasons(root)
+	reasons, _, err := GovernedRelationReasons(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestGovernedRelationReasons_DirectRolesOnly(t *testing.T) {
 func TestGovernedRelationReasons_RequiredTestSplitsFileFromTestName(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
-	reasons, err := GovernedRelationReasons(root)
+	reasons, _, err := GovernedRelationReasons(root)
 	if err != nil {
 		t.Fatal(err)
 	}

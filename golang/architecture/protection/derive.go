@@ -57,10 +57,13 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 
 	// 1. Manual registry (additive; absence/emptiness is NOT itself a gap —
 	// it is the expected default state a fresh repo starts in).
-	manualEntries, manualPresent, manualErr := ManualEntries(repoRoot)
+	manualEntries, manualPresent, manualMalformed, manualErr := ManualEntries(repoRoot)
 	if manualErr != nil {
 		gaps = append(gaps, "manual_registry_invalid: "+manualErr.Error())
 	} else if manualPresent {
+		for _, m := range manualMalformed {
+			gaps = append(gaps, "manual_registry_malformed_entry: "+m)
+		}
 		sourceFiles = append(sourceFiles, ManualRegistryFile)
 		// Manual entries protect by directory/file PREFIX, not just files that
 		// already exist — record one path per configured prefix so callers can
@@ -102,19 +105,25 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	// required tests) read from the same authored governed sources — already
 	// covered by governedSourceFiles above (relations are read from the same
 	// files), so no additional sourceFiles entries are needed here.
-	relationReasons, relErr := GovernedRelationReasons(repoRoot)
+	relationReasons, relationMalformed, relErr := GovernedRelationReasons(repoRoot)
 	if relErr != nil {
 		gaps = append(gaps, "governed_relations_unavailable: "+relErr.Error())
 	} else {
 		addAll(relationReasons)
+		for _, m := range relationMalformed {
+			gaps = append(gaps, "governed_relation_malformed_source: "+m)
+		}
 	}
 
 	// 5. Candidate-derived provisional caution.
-	candidateReasons, candErr := CandidateSignalReasons(repoRoot)
+	candidateReasons, candidateMalformed, candErr := CandidateSignalReasons(repoRoot)
 	if candErr != nil {
 		gaps = append(gaps, "candidate_scan_unavailable: "+candErr.Error())
 	} else {
 		addAll(candidateReasons)
+		for _, m := range candidateMalformed {
+			gaps = append(gaps, "candidate_malformed_source: "+m)
+		}
 		if files, cerr := candidateSourceFiles(repoRoot); cerr == nil {
 			sourceFiles = append(sourceFiles, files...)
 		}
@@ -150,7 +159,8 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	cov.DerivedCount = derived
 	cov.ProvisionalCount = provisional
 
-	cov.Status = computeCoverageStatus(cov, manualErr, govErr, structErr, relErr, candErr)
+	hasMalformedInputs := len(manualMalformed) > 0 || len(relationMalformed) > 0 || len(candidateMalformed) > 0
+	cov.Status = computeCoverageStatus(cov, manualErr, govErr, structErr, relErr, candErr, hasMalformedInputs)
 	cov.GenerationIdentity = semanticDigest(repoRoot, cov, sourceFiles)
 
 	return cov, nil
@@ -220,12 +230,15 @@ func semanticDigest(repoRoot string, cov ProtectionCoverage, sourceFiles []strin
 // coverage — these are the tiers the contract treats as load-bearing
 // ("contracts/invariants/governed sources... exist but the effective
 // protected set cannot be established safely"). A manual-registry read
-// error, or the always-open JSON-Schema gap, only PARTIALs coverage.
-func computeCoverageStatus(cov ProtectionCoverage, manualErr, govErr, structErr, relErr, candErr error) ProtectionCoverageStatus {
+// error, an individual malformed input (contract §6 correction — a dropped
+// entry or unparseable source file is never silently absorbed into a
+// clean-looking COMPLETE result), or the always-open JSON-Schema gap, PARTIAL
+// coverage at minimum.
+func computeCoverageStatus(cov ProtectionCoverage, manualErr, govErr, structErr, relErr, candErr error, hasMalformedInputs bool) ProtectionCoverageStatus {
 	if govErr != nil || relErr != nil {
 		return CoverageDegraded
 	}
-	hasHardGap := manualErr != nil || structErr != nil || candErr != nil
+	hasHardGap := manualErr != nil || structErr != nil || candErr != nil || hasMalformedInputs
 	if len(cov.ProtectedPaths) == 0 {
 		if hasHardGap {
 			return CoverageDegraded
