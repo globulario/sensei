@@ -128,6 +128,9 @@ func validateDomain(d string) error {
 	if strings.ContainsAny(path, "?#") {
 		return fmt.Errorf("path %q must not contain a query string or fragment", path)
 	}
+	if strings.Contains(path, `\`) {
+		return fmt.Errorf("path %q must use forward slashes", path)
+	}
 	if strings.HasPrefix(path, "/") || strings.HasSuffix(path, "/") {
 		return fmt.Errorf("path %q must not have a leading or trailing slash (canonical form: %q)", path, strings.Trim(path, "/"))
 	}

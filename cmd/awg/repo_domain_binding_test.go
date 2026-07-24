@@ -183,6 +183,7 @@ func TestValidateDomain_RejectsNonCanonicalForms(t *testing.T) {
 		{"empty path segment", "github.com/owner//repo"},
 		{"parent traversal segment", "github.com/owner/../repo"},
 		{"query string", "github.com/owner/repo?ref=x"},
+		{"backslash separator", `github.com/owner\repo`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -483,5 +484,19 @@ func TestWriteRepositoryDomain_PreservesUnrelatedSections(t *testing.T) {
 		if !strings.Contains(content, want) {
 			t.Fatalf("expected %q to survive in the rewritten config, got:\n%s", want, content)
 		}
+	}
+}
+
+// contract §3.7 correction (fourth review round): a backslash-separated
+// path cannot match the slash-separated canonical domain a git remote
+// produces — writeRepositoryDomain must refuse to persist it, exactly like
+// any other non-canonical value.
+func TestWriteRepositoryDomain_RefusesBackslashPath(t *testing.T) {
+	root := t.TempDir()
+	if err := writeRepositoryDomain(root, `github.com/owner\repo`); err == nil {
+		t.Fatal("expected writeRepositoryDomain to refuse a backslash-separated path")
+	}
+	if _, err := os.Stat(repoDomainConfigPath(root)); err == nil {
+		t.Fatal("expected no config.yaml to be created for a refused invalid domain")
 	}
 }
