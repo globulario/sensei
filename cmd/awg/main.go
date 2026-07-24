@@ -128,6 +128,10 @@ func main() {
 		os.Exit(runBuild(args))
 	case "scip-ingest":
 		os.Exit(runScipIngest(args))
+	case "protection-status":
+		os.Exit(runProtectionStatus(args))
+	case "protection-check":
+		os.Exit(runProtectionCheck(args))
 	case "serve":
 		os.Exit(runServe(args))
 	case "briefing":
