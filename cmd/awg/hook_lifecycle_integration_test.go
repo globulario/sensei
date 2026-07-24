@@ -3,13 +3,29 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+// envWithPath returns os.Environ() with any existing PATH replaced by
+// pathEnv, never appended alongside it — a duplicate PATH entry is
+// ambiguous across platforms and must not be relied on to "win".
+func envWithPath(pathEnv string) []string {
+	out := make([]string, 0, len(os.Environ())+1)
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "PATH=") {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return append(out, "PATH="+pathEnv)
+}
 
 // TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level
 // integration proof (contract §13 correction): the ACTUAL .claude/hooks
@@ -81,11 +97,25 @@ invariants:
 		if marshalErr != nil {
 			t.Fatal(marshalErr)
 		}
-		cmd := exec.Command("bash", script)
+		// A bounded timeout, not the package's shared 2-minute test-binary
+		// deadline: any real hang here must fail fast and specifically,
+		// never silently starve every other (possibly parallel) test in the
+		// package until the whole binary is killed.
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "bash", script)
 		cmd.Dir = root
 		cmd.Stdin = strings.NewReader(string(body))
-		cmd.Env = append(os.Environ(), "PATH="+pathEnv, "CLAUDE_SESSION_ID="+sessionID)
+		cmd.Env = envWithPath(pathEnv)
+		cmd.Env = append(cmd.Env, "CLAUDE_SESSION_ID="+sessionID)
+		// If a descendant process ever outlives bash while still holding the
+		// stdout/stderr pipe open, force CombinedOutput to return anyway
+		// rather than hang past the context deadline.
+		cmd.WaitDelay = 5 * time.Second
 		out, _ := cmd.CombinedOutput() // both scripts always exit 0; decision travels in stdout JSON.
+		if ctx.Err() != nil {
+			t.Fatalf("%s timed out after 20s (session=%s): %v\npartial output:\n%s", script, sessionID, ctx.Err(), out)
+		}
 		return string(out)
 	}
 	t.Cleanup(func() {
