@@ -216,13 +216,16 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents,
 		patterns)
 
-	// Risk classify (pure function).
+	// Risk classify (pure function). The canonical protection signal is
+	// derived here (I/O boundary) — classifyRisk itself stays pure and never
+	// touches the filesystem (contract §10).
 	directAll := mergeAnchors(resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents)
 	risk, reasons := classifyRisk(ClassifyInputs{
-		Direct:   directAll,
-		Patterns: patterns,
-		Coverage: resp.Coverage,
-		Files:    files,
+		Direct:             directAll,
+		Patterns:           patterns,
+		Coverage:           resp.Coverage,
+		Files:              files,
+		CanonicalProtected: s.anyFileCanonicallyProtected(files),
 	})
 	resp.RiskClass = risk
 	resp.BlindSpots = append(resp.BlindSpots, reasons...)

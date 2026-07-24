@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/extractor/grpcwebscan"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
@@ -474,6 +475,46 @@ Flags:
 		}
 	}
 
+	// ── Stage 6b: derive + publish the effective protection snapshot ──
+	// Participates in normal write/dry-run/--check behavior per contract §8.
+	if protCov, protErr := protection.Derive(root); protErr != nil {
+		rep.notes = append(rep.notes, "protection: derive: "+protErr.Error())
+	} else {
+		rep.protectionStatus = string(protCov.Status)
+		rep.protectionCount = len(protCov.ProtectedPaths)
+		rep.protectionManualCount = protCov.ManualCount
+		rep.protectionDerivedCount = protCov.DerivedCount
+		rep.protectionProvisionalCount = protCov.ProvisionalCount
+		rep.protectionGaps = protCov.Gaps
+		switch {
+		case *dryRun:
+			// dry-run: report only, never publish.
+		case *check:
+			existing, exists, loadErr := protection.LoadSnapshot(root)
+			switch {
+			case loadErr != nil:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (unreadable: "+loadErr.Error()+")")
+			case !exists:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (missing)")
+			case existing.GenerationIdentity != protCov.GenerationIdentity:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (stale)")
+			}
+		default:
+			if pubErr := protection.PublishSnapshot(root, protCov); pubErr != nil {
+				rep.notes = append(rep.notes, "protection: publish snapshot: "+pubErr.Error())
+			}
+		}
+		// A repository with real governed/contract signal and zero effective
+		// protection is a bootstrap failure, not success (contract §8).
+		if protCov.Status == protection.CoverageDegraded {
+			rep.protectionHardFailure = true
+		} else if protCov.Status == protection.CoverageEmpty {
+			if governed, gerr := protection.GovernedSourceFiles(root); gerr == nil && len(governed) > 0 {
+				rep.protectionHardFailure = true
+			}
+		}
+	}
+
 	// ── Stage 7: gates ──
 	if !*check {
 		// validate (read-only).
@@ -529,6 +570,9 @@ Flags:
 	rep.print(os.Stdout)
 
 	if *check && len(rep.stale) > 0 {
+		return 1
+	}
+	if !*dryRun && rep.protectionHardFailure {
 		return 1
 	}
 	return 0
@@ -768,6 +812,17 @@ type bootstrapReport struct {
 	stale                         []string
 	notes                         []string
 	nextActions                   []string
+
+	protectionStatus           string
+	protectionCount            int
+	protectionManualCount      int
+	protectionDerivedCount     int
+	protectionProvisionalCount int
+	protectionGaps             []string
+	// protectionHardFailure is true when governed/contract signal exists but
+	// zero effective protection was derived (DEGRADED, or a conclusive EMPTY
+	// scan despite present governed sources) — contract §8's "not success."
+	protectionHardFailure bool
 }
 
 func (r *bootstrapReport) computeNextActions() {
@@ -785,6 +840,13 @@ func (r *bootstrapReport) computeNextActions() {
 	}
 	if strings.HasPrefix(r.buildStatus, "failed") {
 		r.nextActions = append(r.nextActions, "Fix build errors before serving the graph.")
+	}
+	if r.protectionHardFailure {
+		r.nextActions = append(r.nextActions,
+			"Repair protection coverage (`sensei protection-status`) — governed sources exist but the effective protected set is empty or degraded.")
+	} else if r.protectionProvisionalCount > 0 {
+		r.nextActions = append(r.nextActions,
+			fmt.Sprintf("Review %d candidate-derived provisional protection path(s) (`sensei protection-status`) — distinct from reviewing candidate architecture itself.", r.protectionProvisionalCount))
 	}
 }
 
@@ -831,6 +893,13 @@ func (r *bootstrapReport) print(w *os.File) {
 		}
 	}
 	fmt.Fprintf(w, "  build status:               %s\n", r.buildStatus)
+	if r.protectionStatus != "" {
+		fmt.Fprintf(w, "  protection coverage:        %s (%d path(s): manual=%d derived=%d provisional=%d)\n",
+			r.protectionStatus, r.protectionCount, r.protectionManualCount, r.protectionDerivedCount, r.protectionProvisionalCount)
+		if r.protectionHardFailure {
+			fmt.Fprintln(w, "      governed sources exist but effective protection is empty/degraded — see next actions")
+		}
+	}
 	if len(r.writtenGenerated) > 0 {
 		fmt.Fprintf(w, "  wrote generated:            %s\n", strings.Join(r.writtenGenerated, ", "))
 	}

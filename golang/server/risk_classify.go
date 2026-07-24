@@ -32,6 +32,7 @@ package main
 import (
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	"github.com/globulario/sensei/golang/coverage"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
@@ -81,6 +82,14 @@ type ClassifyInputs struct {
 	Patterns []*awarenesspb.MatchedImplementationPattern
 	Coverage *awarenesspb.CoverageSummary
 	Files    []string
+	// CanonicalProtected is true when at least one touched file is protected
+	// under golang/architecture/protection's effective coverage (manual ∪
+	// governed-source ∪ governed-relation ∪ structural ∪ candidate-derived).
+	// classifyRisk stays pure (no I/O): the caller derives this once and
+	// passes the boolean in. It is folded into the SAME high-risk-path
+	// signal the static highRiskDirPrefixes baseline already feeds — an
+	// additive union, never a competing second decision (contract §10).
+	CanonicalProtected bool
 }
 
 // classifyRisk runs the priority-ordered rule table and returns
@@ -96,7 +105,7 @@ func classifyRisk(in ClassifyInputs) (awarenesspb.RiskClass, []string) {
 
 	hasAnchors := len(in.Direct) > 0
 	haystack := strings.ToLower(anchorHaystack(in.Direct))
-	hasHighRiskPath := anyPathInHighRiskDir(in.Files)
+	hasHighRiskPath := anyPathInHighRiskDir(in.Files) || in.CanonicalProtected
 	hasCriticalAnchor := anyCriticalSeverity(in.Direct)
 	hasStrongPattern := anyStrongOrMediumPattern(in.Patterns)
 
@@ -195,6 +204,30 @@ func anchorHaystack(nodes []*awarenesspb.KnowledgeNode) string {
 func containsAny(haystack string, needles []string) bool {
 	for _, n := range needles {
 		if strings.Contains(haystack, n) {
+			return true
+		}
+	}
+	return false
+}
+
+// anyFileCanonicallyProtected reports whether any of files is protected
+// under the canonical protection owner's effective coverage for the
+// server's bound repository. Degrades to false — never an error, never a
+// panic — when no exact repository context is configured (s.briefingRepo
+// nil) or derivation fails; the static highRiskDirPrefixes baseline and
+// authority-domain signal continue to apply regardless (contract §10: this
+// is an ADDITIONAL signal, never a replacement, and its absence must not
+// weaken existing fail-closed behavior).
+func (s *server) anyFileCanonicallyProtected(files []string) bool {
+	if s == nil || s.briefingRepo == nil || len(files) == 0 {
+		return false
+	}
+	cov, err := protection.Derive(s.briefingRepo.Root)
+	if err != nil {
+		return false
+	}
+	for _, f := range files {
+		if fc, ok := protection.ClassifyFile(cov, f); ok && fc.Protected {
 			return true
 		}
 	}

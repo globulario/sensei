@@ -97,6 +97,36 @@ func TestClassifyRisk_HighRiskDirectoryEscalates(t *testing.T) {
 	}
 }
 
+// contract §10: a canonical-protection-owner signal escalates risk exactly
+// like the static highRiskDirPrefixes baseline does — additive, never
+// competing. A file outside every static high-risk dir must still escalate
+// when CanonicalProtected is true.
+func TestClassifyRisk_CanonicalProtectedEscalatesLikeHighRiskDir(t *testing.T) {
+	risk, reasons := classifyRisk(ClassifyInputs{
+		Direct:             []*awarenesspb.KnowledgeNode{mkNode("benign.invariant", "nothing exciting", "warning")},
+		Coverage:           sufficientCoverage(),
+		Files:              []string{"some/ordinary/path/not_in_any_static_dir.go"},
+		CanonicalProtected: true,
+	})
+	if risk != awarenesspb.RiskClass_ARCHITECTURE_SENSITIVE {
+		t.Errorf("want ARCHITECTURE_SENSITIVE, got %v (reasons=%v)", risk, reasons)
+	}
+}
+
+// The absence of CanonicalProtected must never itself weaken the verdict —
+// it is purely additive over the existing static-prefix signal.
+func TestClassifyRisk_CanonicalProtectedFalseDoesNotWeaken(t *testing.T) {
+	risk, _ := classifyRisk(ClassifyInputs{
+		Direct:             []*awarenesspb.KnowledgeNode{mkNode("benign.invariant", "nothing exciting", "warning")},
+		Coverage:           sufficientCoverage(),
+		Files:              []string{"golang/node_agent/internal/foo.go"},
+		CanonicalProtected: false,
+	})
+	if risk != awarenesspb.RiskClass_ARCHITECTURE_SENSITIVE {
+		t.Errorf("static high-risk dir escalation must be unaffected by CanonicalProtected=false, got %v", risk)
+	}
+}
+
 // 4. Critical severity escalates to ARCHITECTURE_SENSITIVE even outside
 // high-risk dirs and without keyword hits.
 func TestClassifyRisk_CriticalSeverityEscalates(t *testing.T) {
@@ -288,5 +318,23 @@ func TestComputeConfidence_TieredByAnchorCount(t *testing.T) {
 				t.Errorf("want %v, got %v", tc.want, got)
 			}
 		})
+	}
+}
+
+// anyFileCanonicallyProtected must degrade to false — never panic, never
+// error — when no exact repository context is bound (the normal state for
+// a combined/multi-domain graph). It is an additive signal only; its
+// unavailability must never surface as a failure (contract §10).
+func TestAnyFileCanonicallyProtected_DegradesGracefullyWithoutRepoContext(t *testing.T) {
+	var nilServer *server
+	if nilServer.anyFileCanonicallyProtected([]string{"any/file.go"}) {
+		t.Fatal("a nil server must report false, not panic")
+	}
+	s := &server{} // briefingRepo is nil: no exact repository context configured
+	if s.anyFileCanonicallyProtected([]string{"any/file.go"}) {
+		t.Fatal("a server with no bound repository context must report false")
+	}
+	if s.anyFileCanonicallyProtected(nil) {
+		t.Fatal("no files touched must report false")
 	}
 }

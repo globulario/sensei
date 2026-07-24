@@ -1,9 +1,23 @@
-# High-Risk Files — directories and files that require awareness briefing.
+# High-Risk Files — an ADDITIVE manual seed for file protection.
 #
-# Any edit to a path matching these prefixes triggers an automatic
-# briefing lookup. This is where your most load-bearing code lives.
+# This list is one of several inputs Sensei uses to decide which files
+# require an awareness briefing before editing — it is not the only one.
+# Sensei ALSO automatically protects, without any entry here:
+#   - every governed source under docs/awareness/ (this file included);
+#   - files a governed invariant or failure mode directly names via
+#     protects.files/enforces_files/configures_files/observes_files, or
+#     required_tests;
+#   - protobuf/OpenAPI contract files and annotated (@awareness) source;
+#   - files a review-only candidate (docs/awareness/candidates/) points at,
+#     as provisional caution, not authority.
 #
-# Start with the directories where bugs are most expensive:
+# Run `sensei protection-status` to see the full effective set this
+# repository currently protects, including everything derived above.
+# An empty files: list below does NOT mean nothing is protected.
+#
+# Use this list to ADD paths the automatic derivation above cannot see yet —
+# directories where bugs are most expensive but that carry no governed
+# source, contract, or annotation (yet):
 # - Authentication / authorization
 # - Database migrations
 # - Core business logic
