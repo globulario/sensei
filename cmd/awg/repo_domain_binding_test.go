@@ -165,6 +165,54 @@ func TestValidateDomain_AcceptsCanonicalShape(t *testing.T) {
 	}
 }
 
+// contract §3.7 correction (third review round): validateDomain must reject
+// anything that is not ALREADY in the exact canonical form the git-origin
+// parser (domainFromRemoteURL) produces — a value differing only by host
+// case, a trailing slash, a ".git" suffix, path noise, or traversal would
+// otherwise resolve and persist successfully while silently never matching
+// the graph's own canonical domain string. These are the exact six examples
+// named in the review.
+func TestValidateDomain_RejectsNonCanonicalForms(t *testing.T) {
+	cases := []struct {
+		name string
+		d    string
+	}{
+		{"uppercase host", "GitHub.com/owner/repo"},
+		{"trailing slash", "github.com/owner/repo/"},
+		{"dot-git suffix", "github.com/owner/repo.git"},
+		{"empty path segment", "github.com/owner//repo"},
+		{"parent traversal segment", "github.com/owner/../repo"},
+		{"query string", "github.com/owner/repo?ref=x"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateDomain(tc.d); err == nil {
+				t.Errorf("expected %q to be rejected as non-canonical", tc.d)
+			}
+		})
+	}
+}
+
+// A value that resolves/establishes successfully must be usable directly by
+// writeRepositoryDomain without any further normalization — proving
+// validateDomain's canonical-form requirement is consistent end-to-end with
+// what establishRepositoryDomain actually persists from a real git origin.
+func TestEstablishRepositoryDomain_GitOriginDomainIsAlreadyCanonical(t *testing.T) {
+	root := t.TempDir()
+	initGitRepoWithOrigin(t, root, "https://github.com/Globulario/Example-Repo.git")
+
+	res, err := establishRepositoryDomain(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateDomain(res.Domain); err != nil {
+		t.Fatalf("git-origin-derived domain %q must already be canonical, got error: %v", res.Domain, err)
+	}
+	if res.Domain != "github.com/Globulario/Example-Repo" {
+		t.Fatalf("got %q", res.Domain)
+	}
+}
+
 // ─── Establishment order (contract §3.3/§3.4) ───────────────────────────────
 
 func TestEstablishRepositoryDomain_GitOriginWhenUnconfigured(t *testing.T) {

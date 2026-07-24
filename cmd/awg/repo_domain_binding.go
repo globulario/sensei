@@ -113,6 +113,36 @@ func validateDomain(d string) error {
 	if !domainHostRe.MatchString(host) {
 		return fmt.Errorf("host %q is not a valid domain name", host)
 	}
+
+	// The host shape check above is case-insensitive by design (so a
+	// mixed-case host gets THIS specific message, not "invalid domain
+	// name") — canonical form additionally requires it already be
+	// lowercase, exactly as domainFromRemoteURL (the git-origin parser)
+	// always produces (contract §3.7 correction, second round: a value
+	// that only differs from the graph's own canonical domain by case,
+	// trailing slash, ".git" suffix, or path noise resolves and persists
+	// successfully but silently never matches).
+	if host != strings.ToLower(host) {
+		return fmt.Errorf("host %q must be lowercase (canonical form: %q)", host, strings.ToLower(host))
+	}
+	if strings.ContainsAny(path, "?#") {
+		return fmt.Errorf("path %q must not contain a query string or fragment", path)
+	}
+	if strings.HasPrefix(path, "/") || strings.HasSuffix(path, "/") {
+		return fmt.Errorf("path %q must not have a leading or trailing slash (canonical form: %q)", path, strings.Trim(path, "/"))
+	}
+	segments := strings.Split(path, "/")
+	for _, seg := range segments {
+		switch seg {
+		case "":
+			return fmt.Errorf("path %q must not contain empty (\"//\") segments", path)
+		case ".", "..":
+			return fmt.Errorf("path %q must not contain \".\" or \"..\" segments", path)
+		}
+	}
+	if strings.HasSuffix(strings.ToLower(path), ".git") {
+		return fmt.Errorf("path %q must not end with \".git\" (canonical form strips it, matching the git-origin parser)", path)
+	}
 	return nil
 }
 
