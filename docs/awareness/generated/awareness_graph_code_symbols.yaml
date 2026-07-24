@@ -1570,6 +1570,12 @@ test_symbols:
     symbol: TestRepairLegacyStarterTemplates_RefreshesUntouchedExamplesOnly
     package: main
     language: go
+  - id: cmd/awg/cmd_bootstrap_test.go:TestRunBootstrap_FailsVisiblyOnMalformedDomainConfig
+    file: cmd/awg/cmd_bootstrap_test.go
+    symbol: TestRunBootstrap_FailsVisiblyOnMalformedDomainConfig
+    package: main
+    language: go
+    doc: "contract §3.6 correction: `sensei bootstrap` must fail visibly (non-zero\nexit) when the repository domain configuration is malformed — checkout\nidentity is an authority boundary, so this must gate the exit code\nexactly like protectionHardFailure does, never just append a note while\notherwise reporting success."
   - id: cmd/awg/cmd_bootstrap_test.go:TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository
     file: cmd/awg/cmd_bootstrap_test.go
     symbol: TestSyncBootstrapScaffoldInstallsAgentAwarenessForExistingRepository
@@ -4223,6 +4229,12 @@ test_symbols:
     symbol: TestEstablishRepositoryDomain_ExplicitFlagWins
     package: main
     language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_GitOriginDomainIsAlreadyCanonical
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestEstablishRepositoryDomain_GitOriginDomainIsAlreadyCanonical
+    package: main
+    language: go
+    doc: "A value that resolves/establishes successfully must be usable directly by\nwriteRepositoryDomain without any further normalization — proving\nvalidateDomain's canonical-form requirement is consistent end-to-end with\nwhat establishRepositoryDomain actually persists from a real git origin."
   - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_GitOriginWhenUnconfigured
     file: cmd/awg/repo_domain_binding_test.go
     symbol: TestEstablishRepositoryDomain_GitOriginWhenUnconfigured
@@ -4254,11 +4266,18 @@ test_symbols:
     symbol: TestResolveRepositoryDomain_LegacyAwgDomainUsedOnlyWhenConfigAndSenseiDomainAbsent
     package: main
     language: go
-  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_MalformedConfiguredDomainFailsHonestly
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_MalformedConfiguredDomainFailsVisibly
     file: cmd/awg/repo_domain_binding_test.go
-    symbol: TestResolveRepositoryDomain_MalformedConfiguredDomainFailsHonestly
+    symbol: TestResolveRepositoryDomain_MalformedConfiguredDomainFailsVisibly
     package: main
     language: go
+    doc: "contract §3.6 correction (second review round): a malformed\n.sensei/config.yaml must fail VISIBLY — Err set, Domain empty — and must\nNOT silently fall through to SENSEI_DOMAIN/AWG_DOMAIN. Checkout identity\nis an authority boundary: guessing a different domain from the\nenvironment when the repository's OWN configuration is corrupt is exactly\nthe silent fallback the contract forbids."
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_RejectsInvalidValuesAtEveryTier
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestResolveRepositoryDomain_RejectsInvalidValuesAtEveryTier
+    package: main
+    language: go
+    doc: "contract §3.7 correction: explicit, configured, and environment values are\nall validated through the same canonical shape — a URL, bare host, or\nwhitespace-bearing value must never become resolved/persisted identity."
   - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_SenseiDomainUsedOnlyWhenConfigAbsent
     file: cmd/awg/repo_domain_binding_test.go
     symbol: TestResolveRepositoryDomain_SenseiDomainUsedOnlyWhenConfigAbsent
@@ -4279,9 +4298,26 @@ test_symbols:
     symbol: TestRunInit_ExplicitDomainFlagWins
     package: main
     language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunInit_FailsVisiblyOnMalformedExistingConfig
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunInit_FailsVisiblyOnMalformedExistingConfig
+    package: main
+    language: go
+    doc: "contract §3.6 correction: `sensei init` must fail visibly (non-zero exit)\nwhen a pre-existing .sensei/config.yaml has a malformed repository\nsection, never silently report success while identity is unresolvable."
   - id: cmd/awg/repo_domain_binding_test.go:TestRunRepoDomain_ExplicitFlagOverridesConfig
     file: cmd/awg/repo_domain_binding_test.go
     symbol: TestRunRepoDomain_ExplicitFlagOverridesConfig
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunRepoDomain_MalformedConfigFailsVisibly
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunRepoDomain_MalformedConfigFailsVisibly
+    package: main
+    language: go
+    doc: "contract §3.6 correction: `sensei repo-domain` must fail visibly (non-zero\nexit, a stderr message) for a malformed configuration, in both output\nmodes — never print an empty line indistinguishable from \"legitimately\nunbound.\""
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunRepoDomain_MalformedConfigFailsVisiblyInJSON
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunRepoDomain_MalformedConfigFailsVisiblyInJSON
     package: main
     language: go
   - id: cmd/awg/repo_domain_binding_test.go:TestRunRepoDomain_PrintsResolvedDomain
@@ -4294,12 +4330,29 @@ test_symbols:
     symbol: TestRunRepoDomain_UnresolvedPrintsBlankLine
     package: main
     language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestValidateDomain_AcceptsCanonicalShape
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestValidateDomain_AcceptsCanonicalShape
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestValidateDomain_RejectsNonCanonicalForms
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestValidateDomain_RejectsNonCanonicalForms
+    package: main
+    language: go
+    doc: "contract §3.7 correction (third review round): validateDomain must reject\nanything that is not ALREADY in the exact canonical form the git-origin\nparser (domainFromRemoteURL) produces — a value differing only by host\ncase, a trailing slash, a \".git\" suffix, path noise, or traversal would\notherwise resolve and persist successfully while silently never matching\nthe graph's own canonical domain string. These are the exact six examples\nnamed in the review."
   - id: cmd/awg/repo_domain_binding_test.go:TestWriteRepositoryDomain_PreservesUnrelatedSections
     file: cmd/awg/repo_domain_binding_test.go
     symbol: TestWriteRepositoryDomain_PreservesUnrelatedSections
     package: main
     language: go
     doc: "writeRepositoryDomain must not destroy unrelated existing config.yaml\nsections (contract §3.2/§6: non-destructive to unrelated fields)."
+  - id: cmd/awg/repo_domain_binding_test.go:TestWriteRepositoryDomain_RefusesBackslashPath
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestWriteRepositoryDomain_RefusesBackslashPath
+    package: main
+    language: go
+    doc: "contract §3.7 correction (fourth review round): a backslash-separated\npath cannot match the slash-separated canonical domain a git remote\nproduces — writeRepositoryDomain must refuse to persist it, exactly like\nany other non-canonical value."
   - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_AGEdgeRemoved_StillOwned
     file: cmd/awg/seedfreshness_ownership_test.go
     symbol: TestOwnership_AGEdgeRemoved_StillOwned
@@ -11500,6 +11553,18 @@ test_symbols:
     package: protection
     language: go
     doc: "A candidate becoming non-provisional (i.e. the SAME file gaining a direct\ngoverned reason) must also change identity — proven directly since it\nchanges AllProvisional on the affected ProtectedPath."
+  - id: golang/architecture/protection/derive_test.go:TestSemanticDigest_ChangesWithScannerOutcomeAloneEvenWhenPathsAndFilesAreIdentical
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestSemanticDigest_ChangesWithScannerOutcomeAloneEvenWhenPathsAndFilesAreIdentical
+    package: protection
+    language: go
+    doc: "contract §3 correction (second review round): the digest must bind\ncoverage status, gap codes, and each scanner's success/failure — a\ntransient scanner failure must change identity even when the assembled\nProtectedPaths and consulted source-file bytes happen to be byte-for-byte\nidentical. Proven directly against the pure semanticDigest function so no\nreal Derive() scenario needs to (impossibly) hold every other input fixed\nwhile only the outcome changes."
+  - id: golang/architecture/protection/derive_test.go:TestSemanticDigest_NeverLeaksAbsolutePathsFromMalformedInputErrors
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestSemanticDigest_NeverLeaksAbsolutePathsFromMalformedInputErrors
+    package: protection
+    language: go
+    doc: "contract §3 correction: raw error text (which can embed a checkout's\nabsolute filesystem path) must never enter GenerationIdentity — only\nnormalized, path-free outcome codes may. Proven by deriving the identical\nrepository content, with the identical malformed/unreadable condition,\nfrom two DIFFERENT temp-dir roots (so any leaked absolute path would\nnecessarily differ between them) and requiring identical identities."
   - id: golang/architecture/protection/foreign_repo_fixture_test.go:TestForeignRepositoryProofFixture
     file: golang/architecture/protection/foreign_repo_fixture_test.go
     symbol: TestForeignRepositoryProofFixture
@@ -11609,6 +11674,12 @@ test_symbols:
     symbol: TestGovernedRelationReasons_DirectRolesOnly
     package: protection
     language: go
+  - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped
+    file: golang/architecture/protection/relations_test.go
+    symbol: TestGovernedRelationReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped
+    package: protection
+    language: go
+    doc: "contract §4/§6 correction (second review round): an invalid governed-\nrelation target (one that escapes the repository) must be reported as\nmalformed, not silently dropped — the prior behavior let the target just\nvanish with no diagnostic, which could hide a real authoring mistake\nbehind an apparently-clean COMPLETE result."
   - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed
     file: golang/architecture/protection/relations_test.go
     symbol: TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed
@@ -11647,6 +11718,12 @@ test_symbols:
     symbol: TestSnapshot_PublishThenLoadRoundTrips
     package: protection
     language: go
+  - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped
+    file: golang/architecture/protection/structural_test.go
+    symbol: TestCandidateSignalReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped
+    package: protection
+    language: go
+    doc: "contract §4/§6 correction (second review round): an invalid candidate\ntarget (escaping the repository) must be reported as malformed, not\nsilently dropped."
   - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_ProvisionalOnly
     file: golang/architecture/protection/structural_test.go
     symbol: TestCandidateSignalReasons_ProvisionalOnly
@@ -15421,11 +15498,23 @@ test_symbols:
     package: extractor_test
     language: go
     doc: "TestPhaseC_Intent_RelatedInvariants pins that related_invariants produce\naw:affects edges pointing to aw:Invariant nodes."
+  - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_DoesNotMatchNestedSchemaKey
+    file: golang/extractor/jsonschemascan/jsonschemascan_test.go
+    symbol: TestFindSchemaFiles_DoesNotMatchNestedSchemaKey
+    package: jsonschemascan
+    language: go
+    doc: "contract §4 correction: a NESTED `$schema` key (several levels deep, not\nthe document's own top-level declaration) must never be mistaken for a\nreal schema file — the prior regex-over-raw-bytes approach matched\nanywhere in the file."
   - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_ExcludesGeneratedAndVendorDirs
     file: golang/extractor/jsonschemascan/jsonschemascan_test.go
     symbol: TestFindSchemaFiles_ExcludesGeneratedAndVendorDirs
     package: jsonschemascan
     language: go
+  - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_FindsSchemaKeyBeyondPriorTruncationWindow
+    file: golang/extractor/jsonschemascan/jsonschemascan_test.go
+    symbol: TestFindSchemaFiles_FindsSchemaKeyBeyondPriorTruncationWindow
+    package: jsonschemascan
+    language: go
+    doc: "contract §4 correction: the whole document is evaluated, never truncated\nto a fixed head size — a $schema key appearing after a large leading\nblock (much larger than the prior 4KiB sniff window) must still be found."
   - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_IgnoresUnrelatedJSON
     file: golang/extractor/jsonschemascan/jsonschemascan_test.go
     symbol: TestFindSchemaFiles_IgnoresUnrelatedJSON
@@ -15441,6 +15530,12 @@ test_symbols:
     symbol: TestFindSchemaFiles_RecognizesDraft07JSON
     package: jsonschemascan
     language: go
+  - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_UnreadableFileIsMalformedNotSilentlySkipped
+    file: golang/extractor/jsonschemascan/jsonschemascan_test.go
+    symbol: TestFindSchemaFiles_UnreadableFileIsMalformedNotSilentlySkipped
+    package: jsonschemascan
+    language: go
+    doc: "contract §4/§6 correction: a file this scan cannot read is an evaluation\nfailure, never silently treated as \"not a schema.\""
   - id: golang/extractor/learning_event_yaml_import_test.go:TestLearningEvent_ImportedAndLinkedToCertificationContext
     file: golang/extractor/learning_event_yaml_import_test.go
     symbol: TestLearningEvent_ImportedAndLinkedToCertificationContext
