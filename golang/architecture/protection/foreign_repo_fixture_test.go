@@ -51,7 +51,7 @@ invariants:
 	if cov.Status == CoverageEmpty {
 		t.Fatalf("expected real derived protection, got status=%s", cov.Status)
 	}
-	ledgerClassification, ok := ClassifyFile(cov, "src/payments/ledger.go")
+	ledgerClassification, ok := ClassifyFile(root, cov, "src/payments/ledger.go")
 	if !ok || !ledgerClassification.Protected {
 		t.Fatalf("expected src/payments/ledger.go to be protected, got %+v", ledgerClassification)
 	}
@@ -77,7 +77,7 @@ invariants:
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidateClassification, ok := ClassifyFile(cov2, "src/lifecycle/start.go")
+	candidateClassification, ok := ClassifyFile(root, cov2, "src/lifecycle/start.go")
 	if !ok || !candidateClassification.Protected || !candidateClassification.Provisional {
 		t.Fatalf("expected provisional candidate protection, got %+v", candidateClassification)
 	}
@@ -92,7 +92,7 @@ invariants:
 	}
 
 	// 7. An unrelated README remains unprotected.
-	readmeClassification, ok := ClassifyFile(cov2, "README.md")
+	readmeClassification, ok := ClassifyFile(root, cov2, "README.md")
 	if !ok {
 		t.Fatal("classifying README.md must succeed")
 	}

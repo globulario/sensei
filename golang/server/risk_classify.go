@@ -82,20 +82,53 @@ type ClassifyInputs struct {
 	Patterns []*awarenesspb.MatchedImplementationPattern
 	Coverage *awarenesspb.CoverageSummary
 	Files    []string
-	// CanonicalProtected is true when at least one touched file is protected
-	// under golang/architecture/protection's effective coverage (manual ∪
-	// governed-source ∪ governed-relation ∪ structural ∪ candidate-derived).
-	// classifyRisk stays pure (no I/O): the caller derives this once and
-	// passes the boolean in. It is folded into the SAME high-risk-path
-	// signal the static highRiskDirPrefixes baseline already feeds — an
-	// additive union, never a competing second decision (contract §10).
-	CanonicalProtected bool
+	// Protection is the typed canonical-protection-owner assessment
+	// (golang/architecture/protection) for Files. classifyRisk stays pure
+	// (no I/O): the caller derives this once and passes it in. A positive
+	// Protected verdict is folded into the SAME high-risk-path signal the
+	// static highRiskDirPrefixes baseline already feeds — an additive
+	// union, never a competing second decision (contract §10). Unavailable
+	// or DEGRADED protection is surfaced as its own typed blind-spot reason
+	// rather than silently collapsing to "not protected" (contract §5).
+	Protection protection.Assessment
+}
+
+// ProtectionAssessmentDegradedReasonPrefix is the stable reason-string
+// prefix classifyRisk emits when the canonical protection assessment itself
+// could not be trusted (derivation failed, or coverage is DEGRADED) — NOT
+// when there is simply no bound repository context (AvailabilityUnbound is
+// the normal, expected state for a server not bound to one exact repo, and
+// does not by itself degrade the response). The Preflight handler matches
+// this prefix to upgrade the response Status from OK to DEGRADED, mirroring
+// HighRiskNoAnchorReasonPrefix.
+const ProtectionAssessmentDegradedReasonPrefix = "protection_assessment_degraded:"
+
+func protectionAssessmentDegradedReason(a protection.Assessment) (string, bool) {
+	switch a.Availability {
+	case protection.AvailabilityUnavailable:
+		return ProtectionAssessmentDegradedReasonPrefix +
+			" canonical protection derivation failed for the bound repository — treat as unknown, never as safe", true
+	case protection.AvailabilityObserved:
+		if a.CoverageStatus == protection.CoverageDegraded {
+			return ProtectionAssessmentDegradedReasonPrefix +
+				" canonical protection coverage is DEGRADED — the effective protected set could not be established safely", true
+		}
+	}
+	return "", false
 }
 
 // classifyRisk runs the priority-ordered rule table and returns
 // (RiskClass, reasons). Reasons are surface-level — the caller appends
 // them to blind_spots so the agent sees the verdict's basis.
 func classifyRisk(in ClassifyInputs) (awarenesspb.RiskClass, []string) {
+	risk, reasons := classifyRiskCore(in)
+	if reason, degraded := protectionAssessmentDegradedReason(in.Protection); degraded {
+		reasons = append(reasons, reason)
+	}
+	return risk, reasons
+}
+
+func classifyRiskCore(in ClassifyInputs) (awarenesspb.RiskClass, []string) {
 	// Rule 1 — coverage gate.
 	if in.Coverage == nil || !in.Coverage.GetSufficient() {
 		return awarenesspb.RiskClass_UNKNOWN_IMPACT, []string{
@@ -105,7 +138,7 @@ func classifyRisk(in ClassifyInputs) (awarenesspb.RiskClass, []string) {
 
 	hasAnchors := len(in.Direct) > 0
 	haystack := strings.ToLower(anchorHaystack(in.Direct))
-	hasHighRiskPath := anyPathInHighRiskDir(in.Files) || in.CanonicalProtected
+	hasHighRiskPath := anyPathInHighRiskDir(in.Files) || in.Protection.Protected
 	hasCriticalAnchor := anyCriticalSeverity(in.Direct)
 	hasStrongPattern := anyStrongOrMediumPattern(in.Patterns)
 
@@ -210,28 +243,16 @@ func containsAny(haystack string, needles []string) bool {
 	return false
 }
 
-// anyFileCanonicallyProtected reports whether any of files is protected
-// under the canonical protection owner's effective coverage for the
-// server's bound repository. Degrades to false — never an error, never a
-// panic — when no exact repository context is configured (s.briefingRepo
-// nil) or derivation fails; the static highRiskDirPrefixes baseline and
-// authority-domain signal continue to apply regardless (contract §10: this
-// is an ADDITIONAL signal, never a replacement, and its absence must not
-// weaken existing fail-closed behavior).
-func (s *server) anyFileCanonicallyProtected(files []string) bool {
-	if s == nil || s.briefingRepo == nil || len(files) == 0 {
-		return false
+// assessCanonicalProtection returns the typed canonical-protection-owner
+// assessment for files against the server's bound repository. Never panics:
+// a nil server or no bound repository context (s.briefingRepo nil) yields
+// AvailabilityUnbound — a normal, expected state — never a silent boolean
+// false indistinguishable from "genuinely not protected" (contract §5).
+func (s *server) assessCanonicalProtection(files []string) protection.Assessment {
+	if s == nil || s.briefingRepo == nil {
+		return protection.Assessment{Availability: protection.AvailabilityUnbound}
 	}
-	cov, err := protection.Derive(s.briefingRepo.Root)
-	if err != nil {
-		return false
-	}
-	for _, f := range files {
-		if fc, ok := protection.ClassifyFile(cov, f); ok && fc.Protected {
-			return true
-		}
-	}
-	return false
+	return protection.Assess(s.briefingRepo.Root, files)
 }
 
 func anyPathInHighRiskDir(files []string) bool {

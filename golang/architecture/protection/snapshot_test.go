@@ -112,3 +112,42 @@ func TestSnapshot_DeterministicMarshaling(t *testing.T) {
 		t.Fatal("marshaling identical coverage twice must produce identical bytes")
 	}
 }
+
+// contract §3 correction: CompareSnapshot must report the exact typed state
+// — current/stale/missing/invalid — never a bare "present."
+func TestCompareSnapshot_AllFourStates(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+	cov, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if state, _ := CompareSnapshot(root, cov); state != SnapshotMissing {
+		t.Fatalf("expected SnapshotMissing before any publish, got %s", state)
+	}
+
+	if err := PublishSnapshot(root, cov); err != nil {
+		t.Fatal(err)
+	}
+	if state, err := CompareSnapshot(root, cov); state != SnapshotCurrent {
+		t.Fatalf("expected SnapshotCurrent right after publish, got %s (err=%v)", state, err)
+	}
+
+	// Change the repository's real content so a fresh Derive produces a
+	// different GenerationIdentity than the published snapshot.
+	writeFile(t, root, "docs/awareness/failure_modes.yaml", testFailureModesYAML)
+	cov2, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state, _ := CompareSnapshot(root, cov2); state != SnapshotStale {
+		t.Fatalf("expected SnapshotStale after the repository changed, got %s", state)
+	}
+
+	// Corrupt the published snapshot file to prove SnapshotInvalid.
+	writeFile(t, root, SnapshotPath, "not: [valid, yaml:::")
+	if state, err := CompareSnapshot(root, cov2); state != SnapshotInvalid || err == nil {
+		t.Fatalf("expected SnapshotInvalid with a non-nil error for a corrupt snapshot, got %s (err=%v)", state, err)
+	}
+}

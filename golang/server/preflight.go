@@ -220,12 +220,13 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// derived here (I/O boundary) — classifyRisk itself stays pure and never
 	// touches the filesystem (contract §10).
 	directAll := mergeAnchors(resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents)
+	protAssessment := s.assessCanonicalProtection(files)
 	risk, reasons := classifyRisk(ClassifyInputs{
-		Direct:             directAll,
-		Patterns:           patterns,
-		Coverage:           resp.Coverage,
-		Files:              files,
-		CanonicalProtected: s.anyFileCanonicallyProtected(files),
+		Direct:     directAll,
+		Patterns:   patterns,
+		Coverage:   resp.Coverage,
+		Files:      files,
+		Protection: protAssessment,
 	})
 	resp.RiskClass = risk
 	resp.BlindSpots = append(resp.BlindSpots, reasons...)
@@ -311,7 +312,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// even outside the static high-risk list, while helper/test files in a
 	// high-risk directory no longer falsely degrade.
 	if len(files) > 0 && len(directAll) == 0 &&
-		coverage.AnyFileHighRiskWeighted(files, authorityCoversPaths(authorityDomains)) {
+		(coverage.AnyFileHighRiskWeighted(files, authorityCoversPaths(authorityDomains)) || protAssessment.Protected) {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED
 		resp.Confidence = awarenesspb.Confidence_CONFIDENCE_LOW
 		resp.BlindSpots = append(resp.BlindSpots,
@@ -327,6 +328,23 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		if len(resp.RequiredActions) > caps.actionEntries {
 			resp.RequiredActions = resp.RequiredActions[:caps.actionEntries]
 		}
+	}
+
+	// Protection-assessment-itself-untrustworthy gate (contract §5 correction):
+	// a repository context WAS bound but derivation failed, or coverage came
+	// back DEGRADED, is a stronger signal than "no anchors" alone — it means
+	// the canonical protection owner could not vouch for this file at all.
+	// This must escalate regardless of anchors; an anchored-but-otherwise-OK
+	// response must not silently imply protection coverage is trustworthy
+	// when it manifestly is not. AvailabilityUnbound (no repository context
+	// configured — the normal state for a server not bound to one exact
+	// repo) does NOT fire this; it is not itself a degradation.
+	//
+	// The blind-spot reason itself already rode in via classifyRisk's
+	// returned reasons (appended to resp.BlindSpots above) — this only
+	// decides the Status escalation, so the text is never duplicated.
+	if _, degraded := protectionAssessmentDegradedReason(protAssessment); degraded {
+		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED
 	}
 
 	// Status: EMPTY only when truly nothing returned AND coverage was deemed sufficient.

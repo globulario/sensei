@@ -40,10 +40,10 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei protection-status: %v\n", err)
 		return 1
 	}
-	_, snapshotExists, snapErr := protection.LoadSnapshot(*path)
+	snapState, snapErr := protection.CompareSnapshot(*path, cov)
 
 	if *asJSON {
-		out := protectionStatusJSON(cov, snapshotExists, snapErr)
+		out := protectionStatusJSON(cov, snapState, snapErr)
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return exitOnEncodeErr(enc.Encode(out))
@@ -52,12 +52,15 @@ Flags:
 	fmt.Printf("coverage status: %s\n", cov.Status)
 	fmt.Printf("effective protected paths: %d (manual=%d derived=%d provisional=%d)\n",
 		len(cov.ProtectedPaths), cov.ManualCount, cov.DerivedCount, cov.ProvisionalCount)
-	if snapErr != nil {
-		fmt.Printf("snapshot: error reading existing snapshot: %v\n", snapErr)
-	} else if !snapshotExists {
-		fmt.Println("snapshot: none published yet (run `sensei bootstrap` or `sensei init`)")
-	} else {
-		fmt.Println("snapshot: present")
+	switch snapState {
+	case protection.SnapshotMissing:
+		fmt.Println("snapshot: missing (run `sensei bootstrap` or `sensei init`)")
+	case protection.SnapshotStale:
+		fmt.Println("snapshot: stale — the repository changed since it was last published; re-run `sensei bootstrap`")
+	case protection.SnapshotInvalid:
+		fmt.Printf("snapshot: invalid — %v\n", snapErr)
+	default:
+		fmt.Println("snapshot: current")
 	}
 	if len(cov.Gaps) > 0 {
 		fmt.Println("gaps:")
@@ -104,7 +107,7 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei protection-check: %v\n", err)
 		return 1
 	}
-	fc, ok := protection.ClassifyFile(cov, *file)
+	fc, ok := protection.ClassifyFile(*path, cov, *file)
 	if !ok {
 		if *asJSON {
 			enc := json.NewEncoder(os.Stdout)
@@ -149,7 +152,7 @@ Flags:
 	return 0
 }
 
-func protectionStatusJSON(cov protection.ProtectionCoverage, snapshotExists bool, snapErr error) map[string]any {
+func protectionStatusJSON(cov protection.ProtectionCoverage, snapState protection.SnapshotState, snapErr error) map[string]any {
 	m := map[string]any{
 		"status":              string(cov.Status),
 		"protected_count":     len(cov.ProtectedPaths),
@@ -158,7 +161,7 @@ func protectionStatusJSON(cov protection.ProtectionCoverage, snapshotExists bool
 		"provisional_count":   cov.ProvisionalCount,
 		"gaps":                cov.Gaps,
 		"generation_identity": cov.GenerationIdentity,
-		"snapshot_present":    snapshotExists,
+		"snapshot_state":      string(snapState),
 	}
 	if snapErr != nil {
 		m["snapshot_error"] = snapErr.Error()

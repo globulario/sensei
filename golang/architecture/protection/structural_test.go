@@ -50,7 +50,7 @@ func TestCandidateSignalReasons_RemovedOnNextDerivationAfterDeletion(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	fc1, _ := ClassifyFile(cov1, "src/lifecycle/start.go")
+	fc1, _ := ClassifyFile(root, cov1, "src/lifecycle/start.go")
 	if !fc1.Protected || !fc1.Provisional {
 		t.Fatalf("expected provisional protection before candidate removal, got %+v", fc1)
 	}
@@ -62,7 +62,7 @@ func TestCandidateSignalReasons_RemovedOnNextDerivationAfterDeletion(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	fc2, _ := ClassifyFile(cov2, "src/lifecycle/start.go")
+	fc2, _ := ClassifyFile(root, cov2, "src/lifecycle/start.go")
 	if fc2.Protected {
 		t.Fatalf("expected protection to be gone after the only candidate signal was removed, got %+v", fc2)
 	}

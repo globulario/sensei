@@ -24,11 +24,14 @@ type FileClassification struct {
 }
 
 // ClassifyFile answers whether path is protected under an already-derived
-// ProtectionCoverage. path is normalized internally; a path that fails
-// normalization (escapes the repository) returns ok=false and the caller
-// MUST treat that as a typed failure, never as "not protected."
-func ClassifyFile(cov ProtectionCoverage, path string) (FileClassification, bool) {
-	norm, ok := NormalizePath(path)
+// ProtectionCoverage for repoRoot. path may be absolute or relative — it is
+// resolved via ResolveRepoPath (symlink-aware, root-contained) internally, so
+// a path that escapes the repository (an absolute path outside it, `..`
+// traversal, or a symlink that resolves outside it) returns ok=false. The
+// caller MUST treat ok=false as a typed failure, never as "not protected"
+// (contract §2/§3.7).
+func ClassifyFile(repoRoot string, cov ProtectionCoverage, path string) (FileClassification, bool) {
+	norm, ok := ResolveRepoPath(repoRoot, path)
 	if !ok {
 		return FileClassification{}, false
 	}

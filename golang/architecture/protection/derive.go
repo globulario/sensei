@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 )
@@ -31,7 +32,14 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	cov := ProtectionCoverage{SchemaVersion: SchemaVersion, Status: CoverageEmpty}
 	paths := map[string]*ProtectedPath{}
 	var gaps []string
-	digestInputs := []string{}
+	// sourceFiles collects every repo-relative file this derivation actually
+	// read, so GenerationIdentity can bind their raw CONTENT — not just the
+	// paths/reasons extracted from them. A change to a source file that
+	// doesn't happen to alter any extracted reason (e.g. an invariant's
+	// severity or title changes, or a new invariant is added with no
+	// protects.files) must still invalidate a published snapshot (contract
+	// §3 correction: "source content changes" must change identity).
+	var sourceFiles []string
 
 	ensure := func(p string) *ProtectedPath {
 		if existing, ok := paths[p]; ok {
@@ -53,7 +61,7 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	if manualErr != nil {
 		gaps = append(gaps, "manual_registry_invalid: "+manualErr.Error())
 	} else if manualPresent {
-		digestInputs = append(digestInputs, "manual:"+joinSorted(manualEntries))
+		sourceFiles = append(sourceFiles, ManualRegistryFile)
 		// Manual entries protect by directory/file PREFIX, not just files that
 		// already exist — record one path per configured prefix so callers can
 		// see manual coverage even over not-yet-created files.
@@ -72,7 +80,9 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 		gaps = append(gaps, "governed_source_unavailable: "+govErr.Error())
 	} else {
 		addAll(governedReasons)
-		digestInputs = append(digestInputs, "governed:"+joinSorted(sortedKeys(governedReasons)))
+		if files, gerr := GovernedSourceFiles(repoRoot); gerr == nil {
+			sourceFiles = append(sourceFiles, files...)
+		}
 	}
 
 	// 3. Structural contract + annotation signals.
@@ -81,7 +91,7 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 		gaps = append(gaps, "structural_scan_unavailable: "+structErr.Error())
 	} else {
 		addAll(structReasons)
-		digestInputs = append(digestInputs, "structural:"+joinSorted(sortedKeys(structReasons)))
+		sourceFiles = append(sourceFiles, sortedKeys(structReasons)...)
 	}
 	// JSON Schema is a named-but-unimplemented structural source (see
 	// structural.go doc comment) — always a partial-coverage gap, never
@@ -89,13 +99,14 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	gaps = append(gaps, "json_schema_scanner_not_implemented")
 
 	// 4. Direct governed relations (protects/enforces/configures/observes,
-	// required tests) read from the same authored governed sources.
+	// required tests) read from the same authored governed sources — already
+	// covered by governedSourceFiles above (relations are read from the same
+	// files), so no additional sourceFiles entries are needed here.
 	relationReasons, relErr := GovernedRelationReasons(repoRoot)
 	if relErr != nil {
 		gaps = append(gaps, "governed_relations_unavailable: "+relErr.Error())
 	} else {
 		addAll(relationReasons)
-		digestInputs = append(digestInputs, "relations:"+joinSorted(sortedKeys(relationReasons)))
 	}
 
 	// 5. Candidate-derived provisional caution.
@@ -104,7 +115,9 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 		gaps = append(gaps, "candidate_scan_unavailable: "+candErr.Error())
 	} else {
 		addAll(candidateReasons)
-		digestInputs = append(digestInputs, "candidates:"+joinSorted(sortedKeys(candidateReasons)))
+		if files, cerr := candidateSourceFiles(repoRoot); cerr == nil {
+			sourceFiles = append(sourceFiles, files...)
+		}
 	}
 
 	for _, pp := range paths {
@@ -138,9 +151,68 @@ func Derive(repoRoot string) (ProtectionCoverage, error) {
 	cov.ProvisionalCount = provisional
 
 	cov.Status = computeCoverageStatus(cov, manualErr, govErr, structErr, relErr, candErr)
-	cov.GenerationIdentity = digestOf(digestInputs)
+	cov.GenerationIdentity = semanticDigest(repoRoot, cov, sourceFiles)
 
 	return cov, nil
+}
+
+// candidateSourceFiles lists the repo-relative docs/awareness/candidates/
+// files (mirrors CandidateSignalReasons' own directory scan) so their raw
+// content participates in the generation identity even for entries that
+// don't resolve to a valid protected-path target.
+func candidateSourceFiles(repoRoot string) ([]string, error) {
+	dir := joinRepo(repoRoot, candidatesDir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if norm, ok := NormalizePath(candidatesDir + "/" + e.Name()); ok {
+			out = append(out, norm)
+		}
+	}
+	return out, nil
+}
+
+// semanticDigest binds GenerationIdentity to BOTH the fully-assembled,
+// already-sorted ProtectedPaths (every reason field: origin, kind, source,
+// knowledge ref, provisional flag — not just the path key) AND the raw byte
+// content of every source file this derivation consulted. Either dimension
+// changing — a different rule protecting the same file, a reason's kind
+// changing, or an unrelated edit to a governed source's content — changes
+// the identity (contract §3 correction). Carries no timestamp.
+func semanticDigest(repoRoot string, cov ProtectionCoverage, sourceFiles []string) string {
+	h := sha256.New()
+	for _, pp := range cov.ProtectedPaths {
+		fmt.Fprintf(h, "path:%s\n", pp.Path)
+		for _, r := range pp.Reasons {
+			fmt.Fprintf(h, "  reason:%s|%s|%s|%s|%v\n", r.Origin, r.Kind, r.Source, r.KnowledgeRef, r.Provisional)
+		}
+	}
+	seen := map[string]bool{}
+	files := append([]string(nil), sourceFiles...)
+	sort.Strings(files)
+	for _, f := range files {
+		if seen[f] {
+			continue
+		}
+		seen[f] = true
+		fmt.Fprintf(h, "file:%s\n", f)
+		data, err := os.ReadFile(joinRepo(repoRoot, f))
+		if err != nil {
+			fmt.Fprintf(h, "  unreadable:%v\n", err)
+			continue
+		}
+		h.Write(data)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // computeCoverageStatus applies contract §3.5's closed vocabulary. Hard input
@@ -168,16 +240,6 @@ func computeCoverageStatus(cov ProtectionCoverage, manualErr, govErr, structErr,
 	return CoverageComplete
 }
 
-func joinSorted(items []string) string {
-	sorted := append([]string(nil), items...)
-	sort.Strings(sorted)
-	out := ""
-	for _, s := range sorted {
-		out += s + "\n"
-	}
-	return out
-}
-
 func sortedKeys(m map[string][]ProtectionReason) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -185,16 +247,4 @@ func sortedKeys(m map[string][]ProtectionReason) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-// digestOf returns a deterministic hex digest of the given deterministically
-// pre-sorted inputs. Carries no timestamp — identical inputs always produce
-// the identical identity (contract §5).
-func digestOf(inputs []string) string {
-	h := sha256.New()
-	for _, in := range inputs {
-		h.Write([]byte(in))
-		h.Write([]byte{0})
-	}
-	return hex.EncodeToString(h.Sum(nil))
 }

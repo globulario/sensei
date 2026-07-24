@@ -114,6 +114,42 @@ func PublishSnapshot(repoRoot string, cov ProtectionCoverage) error {
 	return writeFileAtomic(full, data)
 }
 
+// SnapshotState is the closed vocabulary for how a published snapshot
+// compares against a fresh derivation (contract §3 correction: a snapshot
+// consumer must be able to tell current from stale/missing/invalid, not just
+// "present").
+type SnapshotState string
+
+const (
+	// SnapshotCurrent: a snapshot exists and its GenerationIdentity matches
+	// a fresh derivation exactly.
+	SnapshotCurrent SnapshotState = "current"
+	// SnapshotStale: a snapshot exists but its GenerationIdentity no longer
+	// matches a fresh derivation — the repository changed since publication.
+	SnapshotStale SnapshotState = "stale"
+	// SnapshotMissing: no snapshot has ever been published.
+	SnapshotMissing SnapshotState = "missing"
+	// SnapshotInvalid: a snapshot exists but could not be read/parsed.
+	SnapshotInvalid SnapshotState = "invalid"
+)
+
+// CompareSnapshot loads the published snapshot at repoRoot and compares its
+// GenerationIdentity against cov (a freshly computed Derive result),
+// returning the exact typed state — never a bare "present."
+func CompareSnapshot(repoRoot string, cov ProtectionCoverage) (SnapshotState, error) {
+	existing, exists, err := LoadSnapshot(repoRoot)
+	if err != nil {
+		return SnapshotInvalid, err
+	}
+	if !exists {
+		return SnapshotMissing, nil
+	}
+	if existing.GenerationIdentity != cov.GenerationIdentity {
+		return SnapshotStale, nil
+	}
+	return SnapshotCurrent, nil
+}
+
 // LoadSnapshot reads the published snapshot at repoRoot. Returns
 // (ProtectionCoverage{}, false, nil) when no snapshot has ever been
 // published — that is a supported state (contract §7: a fresh/unbootstrapped

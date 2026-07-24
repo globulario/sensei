@@ -38,7 +38,7 @@ func TestDerive_EmptyManualListNeverHidesRealProtection(t *testing.T) {
 	if len(cov.ProtectedPaths) == 0 {
 		t.Fatal("an empty manual registry must not suppress governed-relation-derived protection")
 	}
-	fc, _ := ClassifyFile(cov, "src/core/engine.go")
+	fc, _ := ClassifyFile(root, cov, "src/core/engine.go")
 	if !fc.Protected {
 		t.Fatal("src/core/engine.go must be protected via governed relation despite an empty manual list")
 	}
@@ -60,7 +60,7 @@ func TestDerive_UnrelatedFileNeverSweptIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fc, ok := ClassifyFile(cov, "README.md")
+	fc, ok := ClassifyFile(root, cov, "README.md")
 	if !ok {
 		t.Fatal("classification of a normal path must succeed")
 	}
@@ -70,11 +70,19 @@ func TestDerive_UnrelatedFileNeverSweptIn(t *testing.T) {
 }
 
 // contract §12 "coverage reasons and path ordering are deterministic across
-// shuffled input order" — two derivations of identical logical content
-// (built via different map/slice insertion order) must produce byte-for-byte
-// identical GenerationIdentity and path ordering.
+// shuffled input order" — two independently-derived repositories with
+// byte-IDENTICAL source content must produce byte-for-byte identical
+// GenerationIdentity and path ordering, regardless of incidental internal
+// nondeterminism (Go map iteration order while assembling ProtectedPaths,
+// distinct absolute temp-dir paths, file-write order on disk).
+//
+// This is deliberately NOT "differently-ordered-but-semantically-equivalent
+// YAML hashes the same" — GenerationIdentity binds raw source-file content
+// (contract §3 correction), so a real byte-level edit — including reordering
+// a list — MUST change identity. That is proven separately by
+// TestSemanticDigest_ChangesOnEveryRequiredCase.
 func TestDerive_DeterministicAcrossInputOrder(t *testing.T) {
-	buildA := func() string {
+	build := func() (ProtectionCoverage, string) {
 		root := t.TempDir()
 		writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
 		writeFile(t, root, "docs/awareness/failure_modes.yaml", testFailureModesYAML)
@@ -83,24 +91,122 @@ func TestDerive_DeterministicAcrossInputOrder(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return cov.GenerationIdentity
+		return cov, root
 	}
-	buildB := func() string {
+	covA, _ := build()
+	covB, _ := build()
+	if covA.GenerationIdentity != covB.GenerationIdentity {
+		t.Fatalf("generation identity must be deterministic across independent derivations of identical content: %s != %s",
+			covA.GenerationIdentity, covB.GenerationIdentity)
+	}
+	if len(covA.ProtectedPaths) != len(covB.ProtectedPaths) {
+		t.Fatal("protected path count must be deterministic")
+	}
+	for i := range covA.ProtectedPaths {
+		if covA.ProtectedPaths[i].Path != covB.ProtectedPaths[i].Path {
+			t.Fatalf("protected path ordering must be deterministic: index %d: %q != %q",
+				i, covA.ProtectedPaths[i].Path, covB.ProtectedPaths[i].Path)
+		}
+	}
+}
+
+// contract §3 correction: GenerationIdentity must change when an invariant
+// ID changes, a reason kind changes, source content changes, a candidate
+// becomes non-provisional, or a different rule protects the same file — the
+// exact five cases named in review. The prior (path-keys-only) digest left
+// all five unchanged.
+func TestSemanticDigest_ChangesOnEveryRequiredCase(t *testing.T) {
+	baseline := func(invariantsYAML string) string {
 		root := t.TempDir()
-		// Same logical content, different file/write order.
-		writeFile(t, root, ManualRegistryFile, "files:\n  - src/core/\n  - src/auth/\n")
-		writeFile(t, root, "docs/awareness/failure_modes.yaml", testFailureModesYAML)
-		writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+		writeFile(t, root, "docs/awareness/invariants.yaml", invariantsYAML)
 		cov, err := Derive(root)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return cov.GenerationIdentity
 	}
-	idA := buildA()
-	idB := buildB()
-	if idA != idB {
-		t.Fatalf("generation identity must be deterministic regardless of input order: %s != %s", idA, idB)
+	const original = `
+invariants:
+  - id: fixture.rule.one
+    title: Original title
+    severity: high
+    protects:
+      files:
+        - src/target.go
+`
+	baseID := baseline(original)
+
+	cases := map[string]string{
+		"invariant ID changes": `
+invariants:
+  - id: fixture.rule.RENAMED
+    title: Original title
+    severity: high
+    protects:
+      files:
+        - src/target.go
+`,
+		"a different rule protects the same file": `
+invariants:
+  - id: fixture.rule.one
+    title: Original title
+    severity: high
+    protects:
+      files:
+        - src/target.go
+  - id: fixture.rule.two
+    title: A second rule
+    severity: high
+    protects:
+      files:
+        - src/target.go
+`,
+		"source content changes (unrelated field, same protects.files)": `
+invariants:
+  - id: fixture.rule.one
+    title: A DIFFERENT title that does not affect protects.files
+    severity: critical
+    protects:
+      files:
+        - src/target.go
+`,
+	}
+	for name, yaml := range cases {
+		if got := baseline(yaml); got == baseID {
+			t.Errorf("%s: expected GenerationIdentity to change, stayed %s", name, got)
+		}
+	}
+}
+
+// A candidate becoming non-provisional (i.e. the SAME file gaining a direct
+// governed reason) must also change identity — proven directly since it
+// changes AllProvisional on the affected ProtectedPath.
+func TestSemanticDigest_ChangesWhenCandidateBecomesNonProvisional(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/candidates/authority_surface_candidates.yaml", testAuthorityCandidatesYAML)
+	cov1, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "docs/awareness/invariants.yaml", `
+invariants:
+  - id: fixture.now.governs.the.candidate.file
+    title: Now directly governs the same file the candidate pointed at
+    severity: high
+    protects:
+      files:
+        - src/lifecycle/start.go
+`)
+	cov2, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cov1.GenerationIdentity == cov2.GenerationIdentity {
+		t.Fatal("expected GenerationIdentity to change when a candidate-only path becomes definitely governed")
+	}
+	fc, _ := ClassifyFile(root, cov2, "src/lifecycle/start.go")
+	if fc.Provisional {
+		t.Fatal("the path must no longer be provisional once a direct governed reason exists")
 	}
 }
 
@@ -113,7 +219,7 @@ func TestClassifyFile_EscapingPathFailsTyped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ok := ClassifyFile(cov, "../../etc/passwd")
+	_, ok := ClassifyFile(root, cov, "../../etc/passwd")
 	if ok {
 		t.Fatal("an escaping path must fail classification, not report protected=false as if safe")
 	}
@@ -132,12 +238,12 @@ func TestClassifyFile_ProvisionalVsDefinite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	provisionalOnly, _ := ClassifyFile(cov, "src/lifecycle/start.go")
+	provisionalOnly, _ := ClassifyFile(root, cov, "src/lifecycle/start.go")
 	if !provisionalOnly.Protected || !provisionalOnly.Provisional {
 		t.Fatalf("candidate-only path must be protected+provisional, got %+v", provisionalOnly)
 	}
 
-	definite, _ := ClassifyFile(cov, "src/core/engine.go")
+	definite, _ := ClassifyFile(root, cov, "src/core/engine.go")
 	if !definite.Protected || definite.Provisional {
 		t.Fatalf("a directly-governed path must be protected and NOT provisional, got %+v", definite)
 	}

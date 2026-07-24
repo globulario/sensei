@@ -490,13 +490,12 @@ Flags:
 		case *dryRun:
 			// dry-run: report only, never publish.
 		case *check:
-			existing, exists, loadErr := protection.LoadSnapshot(root)
-			switch {
-			case loadErr != nil:
-				rep.stale = append(rep.stale, "protection-coverage.yaml (unreadable: "+loadErr.Error()+")")
-			case !exists:
+			switch state, cmpErr := protection.CompareSnapshot(root, protCov); state {
+			case protection.SnapshotInvalid:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (unreadable: "+cmpErr.Error()+")")
+			case protection.SnapshotMissing:
 				rep.stale = append(rep.stale, "protection-coverage.yaml (missing)")
-			case existing.GenerationIdentity != protCov.GenerationIdentity:
+			case protection.SnapshotStale:
 				rep.stale = append(rep.stale, "protection-coverage.yaml (stale)")
 			}
 		default:
