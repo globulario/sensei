@@ -1,16 +1,16 @@
 {
   "schema_version": "sensei.dashboard.projection.v1",
   "identity": {
-    "projection_id": "projection.32c8208d3d99c0e726c91b9a58afd4f057ae97f6",
+    "projection_id": "projection.69f1940cf50cea6eca84e572b613f38f4b747814",
     "repository": {
       "key": "github.com/globulario/sensei",
       "display_name": "sensei",
       "url": "https://github.com/globulario/sensei"
     },
     "revision": {
-      "id": "32c8208d3d99c0e726c91b9a58afd4f057ae97f6",
+      "id": "69f1940cf50cea6eca84e572b613f38f4b747814",
       "ref": "feat/dashboard-projection-v1-producer",
-      "committed_at": "2026-07-23T17:28:00+00:00"
+      "committed_at": "2026-07-23T19:05:49-04:00"
     },
     "graph_authority": {
       "observed": "yes",
@@ -18,11 +18,11 @@
       "identity": null,
       "summary": "Check mode: fresh (no changes)"
     },
-    "generated_at": "2026-07-23T23:02:09Z"
+    "generated_at": "2026-07-24T00:24:57Z"
   },
   "availability": {
-    "state": "available",
-    "summary": "projection built from this repository's committed, authored awareness corpus",
+    "state": "partial",
+    "summary": "projection is usable but incomplete: components, boundaries, contracts, and attention items are drawn from the authored corpus, but regions and flows have no authored source and architecture_health is not evaluated in this producer version — see limitations and per-source availability",
     "limitations": [
       "regions are not authored: components are grouped under one synthetic 'Ungrouped' placeholder region because no owner-authored region entity exists yet in this repository's awareness corpus (components.yaml carries a bare 'owner' tag with no name/responsibility text) — see PR non-blocking note",
       "flows are not populated: docs/awareness/architecture/contract_realizations.yaml (the natural flow source) currently has zero authored realizations — see PR non-blocking note",
@@ -32,7 +32,22 @@
       {
         "owner": "docs/awareness/architecture",
         "availability": "available",
-        "summary": "components/boundaries/contracts corpus"
+        "summary": "authored components.yaml, boundaries.yaml, and contracts.yaml corpus"
+      },
+      {
+        "owner": "regions",
+        "availability": "unavailable",
+        "summary": "no owner-authored region entity exists yet; a synthetic, explicitly non-authoritative placeholder is emitted instead"
+      },
+      {
+        "owner": "flows",
+        "availability": "unavailable",
+        "summary": "contract_realizations.yaml has zero authored realizations"
+      },
+      {
+        "owner": "architecture_health",
+        "availability": "unavailable",
+        "summary": "not evaluated by this producer version"
       }
     ]
   },
@@ -84,7 +99,7 @@
     {
       "id": "briefing.orientation",
       "kind": "orientation",
-      "text": "Revision 32c8208d3d99 of github.com/globulario/sensei. The authored architecture corpus documents 5 component(s), 5 boundary(ies), and 18 contract(s); 164 attention item(s) (failure modes and forbidden fixes) are tracked. Regions and flows have no authored source yet. Architecture-health scoring is not yet wired into this producer.",
+      "text": "Revision 69f1940cf50c of github.com/globulario/sensei. The authored architecture corpus documents 5 component(s), 5 boundary(ies), and 18 contract(s); 164 attention item(s) (failure modes and forbidden fixes) are tracked. Regions and flows have no authored source yet. Architecture-health scoring is not yet wired into this producer.",
       "severity": "info",
       "element_refs": [],
       "provenance": {
@@ -3110,7 +3125,7 @@
   "evolution": {
     "availability": "available",
     "base_revision": null,
-    "head_revision": "32c8208d3d99c0e726c91b9a58afd4f057ae97f6",
+    "head_revision": "69f1940cf50cea6eca84e572b613f38f4b747814",
     "summary": "first observed revision for this producer; no prior authoritative projection exists to compare against",
     "changes": []
   },

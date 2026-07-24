@@ -53,6 +53,25 @@ Flags:
 		return 1
 	}
 
+	data, err := json.MarshalIndent(proj, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei dashboard-projection: encode: %v\n", err)
+		return 1
+	}
+	data = append(data, '\n')
+
+	// Real JSON Schema instance validation against the canonical, vendored
+	// dashboard-projection-v1.schema.json runs first: required fields,
+	// enums, formats, patterns, and additionalProperties:false, none of
+	// which the hand-written cross-record Validate() below checks. A typed
+	// Go struct proves the shape compiles; it does not prove the adopted
+	// closed schema is satisfied.
+	schemaDir := filepath.Join(repoRoot, "docs", "schemas", "dashboard-projection", "v1")
+	if err := dashboardprojection.ValidateProjectionSchema(schemaDir, data); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei dashboard-projection: JSON Schema validation failed: %v\n", err)
+		return 1
+	}
+
 	errs := dashboardprojection.Validate(proj)
 	if *public {
 		errs = append(errs, dashboardprojection.ValidatePublicRedaction(proj)...)
@@ -64,16 +83,9 @@ Flags:
 		return 1
 	}
 	if *checkOnly {
-		fmt.Fprintln(os.Stderr, "sensei dashboard-projection: OK (no validation errors)")
+		fmt.Fprintln(os.Stderr, "sensei dashboard-projection: OK (JSON Schema + producer validation both passed)")
 		return 0
 	}
-
-	data, err := json.MarshalIndent(proj, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei dashboard-projection: encode: %v\n", err)
-		return 1
-	}
-	data = append(data, '\n')
 
 	if *outFlag == "" {
 		os.Stdout.Write(data)
@@ -401,6 +413,29 @@ func buildDashboardProjection(repoRoot string, public bool, now time.Time) (dash
 		"architecture_health is unknown: see assessments.architecture_health.provenance.limitations",
 	)
 
+	// Regions, flows, and architecture_health are material parts of the V1
+	// architectural view (the map's primary grouping, its behavioral layer,
+	// and its headline quality signal), not decorative optional metadata.
+	// This producer version never has an authored source for any of the
+	// three, so a projection it builds from this repository can never
+	// honestly claim `available` ("the view was fully constructible") —
+	// it is always, structurally, partial. These three booleans exist so
+	// that claim is enforced by the code, not just by comment.
+	const (
+		regionsAuthored = false // only a synthetic, explicitly non-authoritative placeholder is emitted
+		flowsAuthored   = false // docs/awareness/architecture/contract_realizations.yaml has zero authored realizations
+		healthEvaluated = false // architecture_health stays unknown in this producer version
+	)
+	sourceStates := []dashboardprojection.SourceState{
+		{Owner: "docs/awareness/architecture", Availability: dashboardprojection.Available, Summary: "authored components.yaml, boundaries.yaml, and contracts.yaml corpus"},
+		{Owner: "regions", Availability: dashboardprojection.Unavailable, Summary: "no owner-authored region entity exists yet; a synthetic, explicitly non-authoritative placeholder is emitted instead"},
+		{Owner: "flows", Availability: dashboardprojection.Unavailable, Summary: "contract_realizations.yaml has zero authored realizations"},
+		{Owner: "architecture_health", Availability: dashboardprojection.Unavailable, Summary: "not evaluated by this producer version"},
+	}
+	if (!regionsAuthored || !flowsAuthored || !healthEvaluated) && availState == dashboardprojection.Available {
+		availState = dashboardprojection.Partial
+	}
+
 	identity := dashboardprojection.Identity{
 		ProjectionID: stableID("projection." + head),
 		Repository: dashboardprojection.Repository{
@@ -417,9 +452,9 @@ func buildDashboardProjection(repoRoot string, public bool, now time.Time) (dash
 		GeneratedAt:    now.Format(time.RFC3339),
 	}
 
-	availSummary := "projection built from this repository's committed, authored awareness corpus"
-	if availState == dashboardprojection.Partial {
-		availSummary = "projection built with one or more sources unavailable; see limitations"
+	availSummary := "projection is usable but incomplete: components, boundaries, contracts, and attention items are drawn from the authored corpus, but regions and flows have no authored source and architecture_health is not evaluated in this producer version — see limitations and per-source availability"
+	if availState == dashboardprojection.Unavailable {
+		availSummary = "projection unavailable: one or more required sources failed entirely; see limitations"
 	}
 
 	briefing := []dashboardprojection.Briefing{
@@ -443,9 +478,7 @@ func buildDashboardProjection(repoRoot string, public bool, now time.Time) (dash
 			State:       availState,
 			Summary:     availSummary,
 			Limitations: limitations,
-			Sources: []dashboardprojection.SourceState{
-				{Owner: "docs/awareness/architecture", Availability: dashboardprojection.Available, Summary: "components/boundaries/contracts corpus"},
-			},
+			Sources:     sourceStates,
 		},
 		Assessments: dashboardprojection.Assessments{
 			ArchitectureHealth:  health,
@@ -504,12 +537,24 @@ func handoffCapability(public bool) dashboardprojection.AgentHandoffCapability {
 // the "Check mode:" line (if present) is carried as the human-readable
 // detail. It looks for "sensei" first, then the legacy "awg" alias.
 func checkEmbeddedSeedFreshness(repoRoot string) (fresh bool, detail string, err error) {
-	bin, lookErr := exec.LookPath("sensei")
+	// Use the exact currently-running binary, never an arbitrary installed
+	// `sensei`/`awg` resolved from PATH. Graph-authority truth must be bound
+	// to the exact executable and checkout performing this build: a
+	// different installed version on PATH could silently answer with a
+	// different build's notion of "fresh", which this producer must not
+	// present as its own authority.
+	bin, lookErr := os.Executable()
 	if lookErr != nil {
-		bin, lookErr = exec.LookPath("awg")
+		return false, "", fmt.Errorf("resolve current executable: %w", lookErr)
 	}
-	if lookErr != nil {
-		return false, "", fmt.Errorf("neither sensei nor awg is on PATH")
+	// Guard against invoking a non-CLI host binary (a `go test` binary is
+	// the case that matters: it runs under this exact package, so a naive
+	// os.Executable() re-invocation would recursively re-run this whole test
+	// suite as a subprocess, which itself does the same thing again).
+	// Refuse anything whose base name is not literally the CLI binary.
+	base := filepath.Base(bin)
+	if base != "sensei" && base != "awg" {
+		return false, "", fmt.Errorf("current executable %s (base name %q) is not the sensei/awg CLI; refusing to invoke it as one", bin, base)
 	}
 
 	cmd := exec.Command(bin, "rebuild", "--check", "--no-runtime-reload")
@@ -517,12 +562,20 @@ func checkEmbeddedSeedFreshness(repoRoot string) (fresh bool, detail string, err
 	out, runErr := cmd.CombinedOutput()
 	text := string(out)
 
-	line := "sensei rebuild --check produced no parsable status line"
+	var line string
 	for _, l := range strings.Split(text, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(l), "Check mode:") {
 			line = strings.TrimSpace(l)
 			break
 		}
+	}
+	if line == "" {
+		// The current executable did not produce a recognizable `sensei
+		// rebuild --check` status line — e.g. it is a `go test` binary
+		// exercising this function directly, not the sensei CLI. Report
+		// honestly that freshness could not be evaluated rather than
+		// guessing stale from an exit code that means something else here.
+		return false, "", fmt.Errorf("current executable %s did not produce a `Check mode:` line for `rebuild --check` (output: %q)", bin, strings.TrimSpace(text))
 	}
 
 	var exitErr *exec.ExitError
@@ -683,7 +736,7 @@ func loadAttention(repoRoot string) ([]dashboardprojection.AttentionItem, error)
 		items = append(items, dashboardprojection.AttentionItem{
 			ID: "failure_mode." + m.ID, Kind: "failure_mode", Title: m.Title, Summary: m.Title,
 			Severity: severityFromAuthored(m.Severity), State: dashboardprojection.StateOpen,
-			ElementRefs: []string{}, Selectable: false, Provenance: emptyProvenance("docs/awareness/failure_modes.yaml"),
+			ElementRefs: []string{}, Provenance: emptyProvenance("docs/awareness/failure_modes.yaml"),
 		})
 	}
 
@@ -701,7 +754,7 @@ func loadAttention(repoRoot string) ([]dashboardprojection.AttentionItem, error)
 		items = append(items, dashboardprojection.AttentionItem{
 			ID: "forbidden_fix." + m.ID, Kind: "forbidden_move", Title: m.Title, Summary: summary,
 			Severity: dashboardprojection.SeverityMedium, State: dashboardprojection.StateOpen,
-			ElementRefs: []string{}, Selectable: false, Provenance: emptyProvenance("docs/awareness/forbidden_fixes.yaml"),
+			ElementRefs: []string{}, Provenance: emptyProvenance("docs/awareness/forbidden_fixes.yaml"),
 		})
 	}
 

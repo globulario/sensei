@@ -29,6 +29,28 @@ func repoRootForTest(t *testing.T) string {
 // built yet in that context) rather than failing the build — that lane is
 // separately proven correct by hand against `sensei rebuild --check` (see
 // PR description).
+// TestCheckEmbeddedSeedFreshnessRefusesNonCLIExecutable proves the
+// os.Executable() guard actually blocks the dangerous case: under `go test`,
+// os.Executable() resolves to this package's test binary, not the sensei
+// CLI. Re-invoking it as "rebuild --check" would run this entire test suite
+// recursively as a subprocess (observed directly during development: each
+// invocation took ~40s and spawned further nested recursive runs before a
+// hard timeout killed the process tree). This test must return an error
+// quickly and must not spawn a subprocess.
+func TestCheckEmbeddedSeedFreshnessRefusesNonCLIExecutable(t *testing.T) {
+	repoRoot := repoRootForTest(t)
+	start := time.Now()
+	fresh, detail, err := checkEmbeddedSeedFreshness(repoRoot)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatalf("expected an error (current executable is a go test binary, not sensei/awg), got fresh=%v detail=%q", fresh, detail)
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("checkEmbeddedSeedFreshness took %s; expected an immediate refusal, not a subprocess invocation", elapsed)
+	}
+}
+
 func TestBuildDashboardProjectionOnRealRepo(t *testing.T) {
 	repoRoot := repoRootForTest(t)
 	now := time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC)
@@ -57,6 +79,39 @@ func TestBuildDashboardProjectionOnRealRepo(t *testing.T) {
 	for _, c := range proj.Components {
 		if c.RegionRef != ungroupedRegionID {
 			t.Errorf("component %q region_ref = %q, want %q", c.ID, c.RegionRef, ungroupedRegionID)
+		}
+	}
+}
+
+// TestBuildDashboardProjectionNeverClaimsAvailableGivenKnownGaps proves this
+// producer version cannot accidentally emit availability.state: available.
+// Regions, flows, and architecture_health are material parts of the V1
+// architectural view; this producer has no authored source for any of the
+// three yet, so a projection it builds can only ever be honestly partial —
+// not decorative metadata, but a fact enforced here.
+func TestBuildDashboardProjectionNeverClaimsAvailableGivenKnownGaps(t *testing.T) {
+	repoRoot := repoRootForTest(t)
+	now := time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC)
+
+	proj, err := buildDashboardProjection(repoRoot, false, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proj.Availability.State != dashboardprojection.Partial {
+		t.Fatalf("availability.state = %s, want partial (regions/flows/health are known-incomplete)", proj.Availability.State)
+	}
+
+	bySourceOwner := map[string]dashboardprojection.SourceState{}
+	for _, s := range proj.Availability.Sources {
+		bySourceOwner[s.Owner] = s
+	}
+	for _, owner := range []string{"regions", "flows", "architecture_health"} {
+		s, ok := bySourceOwner[owner]
+		if !ok {
+			t.Fatalf("expected availability.sources to individually report %q", owner)
+		}
+		if s.Availability == dashboardprojection.Available {
+			t.Fatalf("source %q reported as available, want partial/unavailable", owner)
 		}
 	}
 }

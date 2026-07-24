@@ -18,10 +18,35 @@
     "generated_at": "2026-07-23T00:00:00Z"
   },
   "availability": {
-    "state": "available",
-    "summary": "built, but integrity is contested",
-    "limitations": [],
-    "sources": []
+    "state": "partial",
+    "summary": "usable but incomplete: integrity is contested, and this fixture shares the same regions/flows/health gaps as the real-repo fixture",
+    "limitations": [
+      "regions are not authored: synthetic 'Ungrouped' placeholder only",
+      "flows are not populated",
+      "architecture_health is unknown"
+    ],
+    "sources": [
+      {
+        "owner": "docs/awareness/architecture",
+        "availability": "available",
+        "summary": "authored components corpus"
+      },
+      {
+        "owner": "regions",
+        "availability": "unavailable",
+        "summary": "no owner-authored region entity; synthetic placeholder only"
+      },
+      {
+        "owner": "flows",
+        "availability": "unavailable",
+        "summary": "no authored realizations"
+      },
+      {
+        "owner": "architecture_health",
+        "availability": "unavailable",
+        "summary": "not evaluated"
+      }
+    ]
   },
   "assessments": {
     "architecture_health": {

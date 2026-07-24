@@ -273,6 +273,12 @@ type Flow struct {
 	Provenance Provenance     `json:"provenance"`
 }
 
+// AttentionItem has no selectable/focus-eligibility field: the adopted
+// dashboard-projection-v1.schema.json is closed (additionalProperties:
+// false) and does not define one. Attention items are never independently
+// Focus-selectable in V1; they may still be deep-linked to the architectural
+// elements they reference via ElementRefs. Introducing selectable attention
+// requires a new schema version, not a producer-only field.
 type AttentionItem struct {
 	ID          string         `json:"id"`
 	Kind        string         `json:"kind"`
@@ -281,7 +287,6 @@ type AttentionItem struct {
 	Severity    Severity       `json:"severity"`
 	State       KnowledgeState `json:"state"`
 	ElementRefs []string       `json:"element_refs"`
-	Selectable  bool           `json:"selectable,omitempty"`
 	Provenance  Provenance     `json:"provenance"`
 }
 

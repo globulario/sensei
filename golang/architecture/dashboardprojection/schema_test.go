@@ -70,6 +70,70 @@ func TestSchemaVersionIdentifiersMatchAdopted(t *testing.T) {
 // agent-handoff schema as a JSON Pointer into the actual vendored projection
 // schema document, proving the cross-schema pairing is not just
 // textually-plausible but structurally correct.
+// TestValidateProjectionSchemaCompilesAndEnforcesRealConstraints proves
+// compileSchemas/ValidateProjectionSchema is a real Draft 2020-12 validator,
+// not a stub: it rejects a structurally-plausible but incomplete instance,
+// and it accepts a minimal genuinely-complete one built to satisfy every
+// required field the schema actually declares (not this package's own
+// Projection struct, so a bug in the struct's json tags can't hide here).
+func TestValidateProjectionSchemaCompilesAndEnforcesRealConstraints(t *testing.T) {
+	root := schemaRoot(t)
+
+	missingRequiredFields := []byte(`{"schema_version":"sensei.dashboard.projection.v1"}`)
+	if err := ValidateProjectionSchema(root, missingRequiredFields); err == nil {
+		t.Fatal("expected a missing-required-fields instance to fail schema validation")
+	}
+
+	wrongSchemaVersion := []byte(`{"schema_version":"not-the-right-version"}`)
+	if err := ValidateProjectionSchema(root, wrongSchemaVersion); err == nil {
+		t.Fatal("expected a wrong schema_version const to fail schema validation")
+	}
+
+	badEnum := []byte(`{
+		"schema_version": "sensei.dashboard.projection.v1",
+		"identity": {
+			"projection_id": "p1", "generated_at": "2026-07-23T00:00:00Z",
+			"repository": {"key": "k", "display_name": "d"},
+			"revision": {"id": "r1"},
+			"graph_authority": {"observed": "yes", "current": "not-a-valid-tristate-value", "identity": null, "summary": "s"}
+		},
+		"availability": {"state": "available", "summary": "s", "limitations": [], "sources": []},
+		"assessments": {
+			"architecture_health": {"state": "unknown", "label": "l", "summary": "s", "severity": "not_applicable", "provenance": {"evidence_refs": []}},
+			"projection_integrity": {"state": "unknown", "label": "l", "summary": "s", "severity": "not_applicable", "provenance": {"evidence_refs": []}},
+			"observation_completeness": {"state": "unknown", "label": "l", "summary": "s", "severity": "not_applicable", "coverage": {"observed": null, "total": null, "unit": "u"}, "provenance": {"evidence_refs": []}}
+		},
+		"briefing": [], "regions": [], "components": [], "boundaries": [], "contracts": [], "flows": [], "attention": [],
+		"evolution": {"availability": "available", "base_revision": null, "head_revision": "r1", "changes": []},
+		"focus_records": []
+	}`)
+	if err := ValidateProjectionSchema(root, badEnum); err == nil {
+		t.Fatal("expected an invalid graph_authority.current enum value to fail schema validation")
+	}
+
+	minimalComplete := []byte(`{
+		"schema_version": "sensei.dashboard.projection.v1",
+		"identity": {
+			"projection_id": "p1", "generated_at": "2026-07-23T00:00:00Z",
+			"repository": {"key": "k", "display_name": "d"},
+			"revision": {"id": "r1"},
+			"graph_authority": {"observed": "unknown", "current": "unknown", "identity": null, "summary": "s"}
+		},
+		"availability": {"state": "unavailable", "summary": "s", "limitations": [], "sources": []},
+		"assessments": {
+			"architecture_health": {"state": "unknown", "label": "l", "summary": "s", "severity": "not_applicable", "provenance": {"evidence_refs": []}},
+			"projection_integrity": {"state": "unknown", "label": "l", "summary": "s", "severity": "not_applicable", "provenance": {"evidence_refs": []}},
+			"observation_completeness": {"state": "unknown", "label": "l", "summary": "s", "severity": "not_applicable", "coverage": {"observed": null, "total": null, "unit": "u"}, "provenance": {"evidence_refs": []}}
+		},
+		"briefing": [], "regions": [], "components": [], "boundaries": [], "contracts": [], "flows": [], "attention": [],
+		"evolution": {"availability": "unavailable", "base_revision": null, "head_revision": "r1", "changes": []},
+		"focus_records": []
+	}`)
+	if err := ValidateProjectionSchema(root, minimalComplete); err != nil {
+		t.Fatalf("expected a genuinely minimal-but-complete instance to pass schema validation, got: %v", err)
+	}
+}
+
 func TestHandoffSchemaRefsResolveAgainstProjectionSchema(t *testing.T) {
 	root := schemaRoot(t)
 	projRaw, err := os.ReadFile(filepath.Join(root, "dashboard-projection-v1.schema.json"))

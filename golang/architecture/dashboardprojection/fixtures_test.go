@@ -14,12 +14,18 @@ func fixtureRoot(t *testing.T) string {
 	return filepath.Join("..", "..", "..", "docs", "fixtures", "dashboard-projection", "v1")
 }
 
-func loadFixture(t *testing.T, rel string) Projection {
+func loadFixtureBytes(t *testing.T, rel string) []byte {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(fixtureRoot(t), rel))
 	if err != nil {
 		t.Fatal(err)
 	}
+	return data
+}
+
+func loadFixture(t *testing.T, rel string) Projection {
+	t.Helper()
+	data := loadFixtureBytes(t, rel)
 	var p Projection
 	if err := json.Unmarshal(data, &p); err != nil {
 		t.Fatalf("%s: %v", rel, err)
@@ -28,9 +34,13 @@ func loadFixture(t *testing.T, rel string) Projection {
 }
 
 // TestValidFixturesPassProducerValidation proves every fixture labeled valid
-// (including the real-repo one) has zero producer-validation errors — not
-// just that it parses as JSON.
+// (including the real-repo one) passes both the real, canonical JSON Schema
+// (required fields, enums, formats, patterns, additionalProperties:false —
+// everything a typed Go struct alone does not enforce) and this producer's
+// hand-written cross-record validation (focus integrity, reference-kind
+// checks, duplicate-ID rejection) — not just that it parses as JSON.
 func TestValidFixturesPassProducerValidation(t *testing.T) {
+	schemaDir := schemaRoot(t)
 	for _, rel := range []string{
 		"real-repo/projection.json",
 		"public-redacted/projection.json",
@@ -40,9 +50,16 @@ func TestValidFixturesPassProducerValidation(t *testing.T) {
 		"evolution-first-revision/projection.json",
 	} {
 		t.Run(rel, func(t *testing.T) {
-			p := loadFixture(t, rel)
+			data := loadFixtureBytes(t, rel)
+			if err := ValidateProjectionSchema(schemaDir, data); err != nil {
+				t.Fatalf("JSON Schema validation: %v", err)
+			}
+			var p Projection
+			if err := json.Unmarshal(data, &p); err != nil {
+				t.Fatal(err)
+			}
 			if errs := Validate(p); len(errs) != 0 {
-				t.Fatalf("expected 0 validation errors, got %v", errs)
+				t.Fatalf("expected 0 producer-validation errors, got %v", errs)
 			}
 		})
 	}
@@ -64,13 +81,14 @@ func TestPublicRedactedFixtureIsRedacted(t *testing.T) {
 }
 
 // TestInvalidFixturesAreJSONSchemaValidButProducerInvalid proves the two
-// "invalid" fixtures are exactly what issue #115 asked for: instances a
-// generic JSON Schema validator would accept, that this producer's
-// cross-record validation correctly rejects. If a JSON Schema validator
-// dependency is later added to this repo, that half of the claim should be
-// re-verified in CI too; today it is verified out-of-band (see PR
-// description) since this repo does not carry a JSON Schema library.
+// "invalid" fixtures are exactly what issue #115 asked for: instances the
+// real, canonical JSON Schema validator accepts (every required field,
+// enum, and pattern is satisfied) that this producer's cross-record
+// validation correctly rejects anyway. Both halves of that claim are
+// verified here, in this repository's own test suite, against the real
+// vendored schema — not asserted from an out-of-band check.
 func TestInvalidFixturesAreJSONSchemaValidButProducerInvalid(t *testing.T) {
+	schemaDir := schemaRoot(t)
 	cases := []struct {
 		rel  string
 		rule string
@@ -80,20 +98,28 @@ func TestInvalidFixturesAreJSONSchemaValidButProducerInvalid(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.rel, func(t *testing.T) {
-			p := loadFixture(t, c.rel)
+			data := loadFixtureBytes(t, c.rel)
+			if err := ValidateProjectionSchema(schemaDir, data); err != nil {
+				t.Fatalf("expected this fixture to be JSON-Schema-valid (that's the point of the test), got: %v", err)
+			}
+			var p Projection
+			if err := json.Unmarshal(data, &p); err != nil {
+				t.Fatal(err)
+			}
 			errs := Validate(p)
 			if !hasRule(errs, c.rule) {
-				t.Fatalf("expected rule %q among validation errors, got %v", c.rule, errs)
+				t.Fatalf("expected rule %q among producer-validation errors, got %v", c.rule, errs)
 			}
 		})
 	}
 }
 
-func TestHandoffFixturesParseAndMatchTheirLabel(t *testing.T) {
+func TestHandoffFixturesPassSchemaAndMatchTheirLabel(t *testing.T) {
+	schemaDir := schemaRoot(t)
 	load := func(rel string) HandoffEnvelope {
-		data, err := os.ReadFile(filepath.Join(fixtureRoot(t), rel))
-		if err != nil {
-			t.Fatal(err)
+		data := loadFixtureBytes(t, rel)
+		if err := ValidateHandoffSchema(schemaDir, data); err != nil {
+			t.Fatalf("%s: JSON Schema validation: %v", rel, err)
 		}
 		var h HandoffEnvelope
 		if err := json.Unmarshal(data, &h); err != nil {
