@@ -2676,6 +2676,12 @@ test_symbols:
     symbol: TestScaffoldProject_MetaPrinciples
     package: main
     language: go
+  - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_PublishesProtectionSnapshot
+    file: cmd/awg/cmd_init_test.go
+    symbol: TestScaffoldProject_PublishesProtectionSnapshot
+    package: main
+    language: go
+    doc: "contract §7.4/§7.5: init publishes the offline protection snapshot when\npossible, and a freshly scaffolded repository's own governed sources are\nalready effectively protected — never presented as EMPTY safety just\nbecause high_risk_files.yaml's manual files: list is still empty."
   - id: cmd/awg/cmd_init_test.go:TestScaffoldProject_SkillUpdateSafety
     file: cmd/awg/cmd_init_test.go
     symbol: TestScaffoldProject_SkillUpdateSafety
@@ -4172,6 +4178,12 @@ test_symbols:
     symbol: TestWarnIfDomainLikeExtractorPath
     package: main
     language: go
+  - id: cmd/awg/hook_lifecycle_integration_test.go:TestHookLifecycle_DomainBoundBriefingMarkers
+    file: cmd/awg/hook_lifecycle_integration_test.go
+    symbol: TestHookLifecycle_DomainBoundBriefingMarkers
+    package: main
+    language: go
+    doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
   - id: cmd/awg/observed_change_test.go:TestVerifyAdmissionRecordsChangeObservedBeforeScopeVerified
     file: cmd/awg/observed_change_test.go
     symbol: TestVerifyAdmissionRecordsChangeObservedBeforeScopeVerified
@@ -4200,6 +4212,94 @@ test_symbols:
     symbol: TestVerifyAdmissionV2RenameFailsClosed
     package: main
     language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_ExistingConfigNotRewrittenOnRemoteChange
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestEstablishRepositoryDomain_ExistingConfigNotRewrittenOnRemoteChange
+    package: main
+    language: go
+    doc: "contract §3.4: re-running establishment must NOT rewrite an existing\nconfigured domain merely because the git remote changed — it must report\na mismatch instead of silently following the remote."
+  - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_ExplicitFlagWins
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestEstablishRepositoryDomain_ExplicitFlagWins
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_GitOriginWhenUnconfigured
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestEstablishRepositoryDomain_GitOriginWhenUnconfigured
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_IdempotentOnRerun
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestEstablishRepositoryDomain_IdempotentOnRerun
+    package: main
+    language: go
+    doc: "Re-running establishment with nothing changed must be idempotent: no write\nthe second time, same resolved domain."
+  - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_NoOriginLeavesUnbound
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestEstablishRepositoryDomain_NoOriginLeavesUnbound
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_ConfiguredWinsOverEnv
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestResolveRepositoryDomain_ConfiguredWinsOverEnv
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_ExplicitWins
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestResolveRepositoryDomain_ExplicitWins
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_LegacyAwgDomainUsedOnlyWhenConfigAndSenseiDomainAbsent
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestResolveRepositoryDomain_LegacyAwgDomainUsedOnlyWhenConfigAndSenseiDomainAbsent
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_MalformedConfiguredDomainFailsHonestly
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestResolveRepositoryDomain_MalformedConfiguredDomainFailsHonestly
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_SenseiDomainUsedOnlyWhenConfigAbsent
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestResolveRepositoryDomain_SenseiDomainUsedOnlyWhenConfigAbsent
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestResolveRepositoryDomain_UnresolvedWhenNothingApplies
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestResolveRepositoryDomain_UnresolvedWhenNothingApplies
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunInit_EstablishesDomainFromGitOrigin
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunInit_EstablishesDomainFromGitOrigin
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunInit_ExplicitDomainFlagWins
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunInit_ExplicitDomainFlagWins
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunRepoDomain_ExplicitFlagOverridesConfig
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunRepoDomain_ExplicitFlagOverridesConfig
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunRepoDomain_PrintsResolvedDomain
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunRepoDomain_PrintsResolvedDomain
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestRunRepoDomain_UnresolvedPrintsBlankLine
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestRunRepoDomain_UnresolvedPrintsBlankLine
+    package: main
+    language: go
+  - id: cmd/awg/repo_domain_binding_test.go:TestWriteRepositoryDomain_PreservesUnrelatedSections
+    file: cmd/awg/repo_domain_binding_test.go
+    symbol: TestWriteRepositoryDomain_PreservesUnrelatedSections
+    package: main
+    language: go
+    doc: "writeRepositoryDomain must not destroy unrelated existing config.yaml\nsections (contract §3.2/§6: non-destructive to unrelated fields)."
   - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_AGEdgeRemoved_StillOwned
     file: cmd/awg/seedfreshness_ownership_test.go
     symbol: TestOwnership_AGEdgeRemoved_StillOwned
@@ -11340,6 +11440,236 @@ test_symbols:
     package: proofrequirements
     language: go
     doc: "An unresolvable relevant-node receipt is skipped, not fabricated."
+  - id: golang/architecture/protection/derive_test.go:TestClassifyFile_EscapingPathFailsTyped
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestClassifyFile_EscapingPathFailsTyped
+    package: protection
+    language: go
+    doc: "contract §3.7 outside-repository / malformed-path security: classifying a\npath that escapes the repository must fail typed, never silently report\n\"not protected\" (which would read as safe)."
+  - id: golang/architecture/protection/derive_test.go:TestClassifyFile_ProvisionalVsDefinite
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestClassifyFile_ProvisionalVsDefinite
+    package: protection
+    language: go
+    doc: "contract §10-adjacent / §6 \"protection reasons are surfaced\" — a path\nprotected only by a provisional (candidate) reason must be classified as\nProvisional=true; a path with any definite reason must not be."
+  - id: golang/architecture/protection/derive_test.go:TestDerive_DeterministicAcrossInputOrder
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestDerive_DeterministicAcrossInputOrder
+    package: protection
+    language: go
+    doc: "contract §12 \"coverage reasons and path ordering are deterministic across\nshuffled input order\" — two independently-derived repositories with\nbyte-IDENTICAL source content must produce byte-for-byte identical\nGenerationIdentity and path ordering, regardless of incidental internal\nnondeterminism (Go map iteration order while assembling ProtectedPaths,\ndistinct absolute temp-dir paths, file-write order on disk).\n\nThis is deliberately NOT \"differently-ordered-but-semantically-equivalent\nYAML hashes the same\" — GenerationIdentity binds raw source-file content\n(contract §3 correction), so a real byte-level edit — including reordering\na list — MUST change identity. That is proven separately by\nTestSemanticDigest_ChangesOnEveryRequiredCase."
+  - id: golang/architecture/protection/derive_test.go:TestDerive_EmptyManualListNeverHidesRealProtection
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestDerive_EmptyManualListNeverHidesRealProtection
+    package: protection
+    language: go
+    doc: "contract §3.1 / bootstrap-gap regression: an empty manual `files:` list\nplus real governed/structural signals must never collapse to zero\neffective protection or a low-risk conclusion."
+  - id: golang/architecture/protection/derive_test.go:TestDerive_EmptyRepoIsExplicitlyEmpty
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestDerive_EmptyRepoIsExplicitlyEmpty
+    package: protection
+    language: go
+    doc: "contract §3.5 / §12 \"successful scan with no supported signals yields\nEMPTY, not COMPLETE safety language\" — an empty repository must never\nread as \"safe,\" it must read as an explicit, distinct EMPTY state."
+  - id: golang/architecture/protection/derive_test.go:TestDerive_MalformedCandidateFileForcesPartial
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestDerive_MalformedCandidateFileForcesPartial
+    package: protection
+    language: go
+    doc: "A malformed candidate file must likewise force coverage below COMPLETE."
+  - id: golang/architecture/protection/derive_test.go:TestDerive_MalformedManualEntryForcesPartial
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestDerive_MalformedManualEntryForcesPartial
+    package: protection
+    language: go
+    doc: "contract §6 correction: a malformed individual input must force coverage\nbelow COMPLETE — never let a dropped/unparseable entry hide behind an\notherwise-clean-looking result."
+  - id: golang/architecture/protection/derive_test.go:TestDerive_UnrelatedFileNeverSweptIn
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestDerive_UnrelatedFileNeverSweptIn
+    package: protection
+    language: go
+    doc: "contract §12 \"unrelated sibling or transitively adjacent files are not\nautomatically swept in\" — the core non-goal this whole contract exists to\nprevent: blanket protection."
+  - id: golang/architecture/protection/derive_test.go:TestSemanticDigest_ChangesOnEveryRequiredCase
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestSemanticDigest_ChangesOnEveryRequiredCase
+    package: protection
+    language: go
+    doc: "contract §3 correction: GenerationIdentity must change when an invariant\nID changes, a reason kind changes, source content changes, a candidate\nbecomes non-provisional, or a different rule protects the same file — the\nexact five cases named in review. The prior (path-keys-only) digest left\nall five unchanged."
+  - id: golang/architecture/protection/derive_test.go:TestSemanticDigest_ChangesWhenCandidateBecomesNonProvisional
+    file: golang/architecture/protection/derive_test.go
+    symbol: TestSemanticDigest_ChangesWhenCandidateBecomesNonProvisional
+    package: protection
+    language: go
+    doc: "A candidate becoming non-provisional (i.e. the SAME file gaining a direct\ngoverned reason) must also change identity — proven directly since it\nchanges AllProvisional on the affected ProtectedPath."
+  - id: golang/architecture/protection/foreign_repo_fixture_test.go:TestForeignRepositoryProofFixture
+    file: golang/architecture/protection/foreign_repo_fixture_test.go
+    symbol: TestForeignRepositoryProofFixture
+    package: protection
+    language: go
+    doc: "TestForeignRepositoryProofFixture is the required end-to-end proof\n(contract §13): a synthetic foreign repository demonstrating, in one\nplace, every numbered acceptance point before implementation handoff:\n\n 1. empty manual registry;\n 2. contract/schema/invariant-bearing files;\n 3. non-empty automatically derived protection;\n 4. hook refusal before briefing (proven at the ClassifyFile/briefing-\n    required level — the shell hook itself is proven separately by the\n    manual smoke test recorded in the handoff comment, since t.TempDir()\n    fixtures cannot easily drive a bash PreToolUse hook process);\n 5. successful edit authorization after briefing (the marker-file\n    mechanism itself is unchanged shell-side logic, proven by inspection\n    — this test proves the DATA the hook decision is based on flips\n    correctly, which is the part this contract owns);\n 6. candidate protection without promotion;\n 7. an unrelated README remaining unprotected."
+  - id: golang/architecture/protection/governed_test.go:TestGovernedSourceFiles_ExcludesGeneratedAndCandidates
+    file: golang/architecture/protection/governed_test.go
+    symbol: TestGovernedSourceFiles_ExcludesGeneratedAndCandidates
+    package: protection
+    language: go
+  - id: golang/architecture/protection/governed_test.go:TestGovernedSourceReasons_AbsentManualRegistryIsNotProtected
+    file: golang/architecture/protection/governed_test.go
+    symbol: TestGovernedSourceReasons_AbsentManualRegistryIsNotProtected
+    package: protection
+    language: go
+  - id: golang/architecture/protection/governed_test.go:TestGovernedSourceReasons_ManualRegistryProtectedOnceItExists
+    file: golang/architecture/protection/governed_test.go
+    symbol: TestGovernedSourceReasons_ManualRegistryProtectedOnceItExists
+    package: protection
+    language: go
+  - id: golang/architecture/protection/manual_test.go:TestManualEntries_AbsentFileIsNotAnError
+    file: golang/architecture/protection/manual_test.go
+    symbol: TestManualEntries_AbsentFileIsNotAnError
+    package: protection
+    language: go
+  - id: golang/architecture/protection/manual_test.go:TestManualEntries_DropsEscapingEntriesButReportsMalformed
+    file: golang/architecture/protection/manual_test.go
+    symbol: TestManualEntries_DropsEscapingEntriesButReportsMalformed
+    package: protection
+    language: go
+    doc: "contract §6 correction: a dropped individual entry must produce a\ndiagnostic — never silently vanish from an otherwise-clean-looking result."
+  - id: golang/architecture/protection/manual_test.go:TestManualEntries_EmptyListIsPresentButEmpty
+    file: golang/architecture/protection/manual_test.go
+    symbol: TestManualEntries_EmptyListIsPresentButEmpty
+    package: protection
+    language: go
+  - id: golang/architecture/protection/manual_test.go:TestManualEntries_MalformedYAMLIsTypedError
+    file: golang/architecture/protection/manual_test.go
+    symbol: TestManualEntries_MalformedYAMLIsTypedError
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestInPathScope_SegmentBoundarySafe
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestInPathScope_SegmentBoundarySafe
+    package: protection
+    language: go
+    doc: "contract §3.7: \"avoid src/auth/ matching src/authorization/ unless\nexplicitly intended\" — the exact bug class this package must never\nreintroduce."
+  - id: golang/architecture/protection/pathmatch_test.go:TestInPathScope_TrailingSlashAgnostic
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestInPathScope_TrailingSlashAgnostic
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestNormalizePath_RejectsEscapes
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestNormalizePath_RejectsEscapes
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestNormalizePath_ValidCases
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestNormalizePath_ValidCases
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_AbsolutePathInsideRepository
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_AbsolutePathInsideRepository
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_AbsolutePathOutsideRepositoryFails
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_AbsolutePathOutsideRepositoryFails
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_EmptyInputsFail
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_EmptyInputsFail
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_NotYetCreatedFileStillResolves
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_NotYetCreatedFileStillResolves
+    package: protection
+    language: go
+    doc: "A path that does not exist on disk yet (an about-to-be-created file) must\nstill resolve, via the nearest existing ancestor directory."
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_RelativePathInsideRepository
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_RelativePathInsideRepository
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_SymlinkEscapeFails
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_SymlinkEscapeFails
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_TraversalFails
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_TraversalFails
+    package: protection
+    language: go
+  - id: golang/architecture/protection/pathmatch_test.go:TestResolveRepoPath_WindowsDriveAndUNCPathsFail
+    file: golang/architecture/protection/pathmatch_test.go
+    symbol: TestResolveRepoPath_WindowsDriveAndUNCPathsFail
+    package: protection
+    language: go
+  - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_DirectRolesOnly
+    file: golang/architecture/protection/relations_test.go
+    symbol: TestGovernedRelationReasons_DirectRolesOnly
+    package: protection
+    language: go
+  - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed
+    file: golang/architecture/protection/relations_test.go
+    symbol: TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed
+    package: protection
+    language: go
+    doc: "A non-YAML file living under docs/awareness/ (a design doc, a generated\nbaseline) is a governed_source (unconditionally protected) but was never\nmeant to be parsed as invariants.yaml/failure_modes.yaml — it must NOT be\nreported as malformed just because it isn't YAML at all."
+  - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_RequiredTestSplitsFileFromTestName
+    file: golang/architecture/protection/relations_test.go
+    symbol: TestGovernedRelationReasons_RequiredTestSplitsFileFromTestName
+    package: protection
+    language: go
+  - id: golang/architecture/protection/snapshot_test.go:TestCompareSnapshot_AllFourStates
+    file: golang/architecture/protection/snapshot_test.go
+    symbol: TestCompareSnapshot_AllFourStates
+    package: protection
+    language: go
+    doc: "contract §3 correction: CompareSnapshot must report the exact typed state\n— current/stale/missing/invalid — never a bare \"present.\""
+  - id: golang/architecture/protection/snapshot_test.go:TestSnapshot_DeterministicMarshaling
+    file: golang/architecture/protection/snapshot_test.go
+    symbol: TestSnapshot_DeterministicMarshaling
+    package: protection
+    language: go
+  - id: golang/architecture/protection/snapshot_test.go:TestSnapshot_LoadAbsentIsNotAnError
+    file: golang/architecture/protection/snapshot_test.go
+    symbol: TestSnapshot_LoadAbsentIsNotAnError
+    package: protection
+    language: go
+  - id: golang/architecture/protection/snapshot_test.go:TestSnapshot_PublishIsAtomic_NoPartialFileOnDirCollision
+    file: golang/architecture/protection/snapshot_test.go
+    symbol: TestSnapshot_PublishIsAtomic_NoPartialFileOnDirCollision
+    package: protection
+    language: go
+    doc: "contract §5 \"a failed derivation must preserve the prior valid snapshot\nand report it as stale rather than publish partial truth\" — proven here at\nthe publish-mechanism level: a failed write must never leave a partial or\ncorrupt file where the good snapshot was."
+  - id: golang/architecture/protection/snapshot_test.go:TestSnapshot_PublishThenLoadRoundTrips
+    file: golang/architecture/protection/snapshot_test.go
+    symbol: TestSnapshot_PublishThenLoadRoundTrips
+    package: protection
+    language: go
+  - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_ProvisionalOnly
+    file: golang/architecture/protection/structural_test.go
+    symbol: TestCandidateSignalReasons_ProvisionalOnly
+    package: protection
+    language: go
+  - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_RemovedOnNextDerivationAfterDeletion
+    file: golang/architecture/protection/structural_test.go
+    symbol: TestCandidateSignalReasons_RemovedOnNextDerivationAfterDeletion
+    package: protection
+    language: go
+    doc: "contract §12 \"deleting/rejecting the candidate signal removes provisional\nprotection on the next derivation unless another reason remains\" — proven\nhere at the Derive level (stateless: re-deriving after removing the\ncandidate file removes the reason with it)."
+  - id: golang/architecture/protection/structural_test.go:TestDerive_CompleteIsReachableWithNoGaps
+    file: golang/architecture/protection/structural_test.go
+    symbol: TestDerive_CompleteIsReachableWithNoGaps
+    package: protection
+    language: go
+    doc: "contract §4 correction: COMPLETE must be genuinely reachable now that\nevery named structural source is implemented — a clean repository with\nreal protection and zero gaps must reach COMPLETE, not be permanently\ncapped at PARTIAL by an admitted-but-unimplemented scanner."
+  - id: golang/architecture/protection/structural_test.go:TestStructuralContractReasons_ProtectsJSONSchemaFiles
+    file: golang/architecture/protection/structural_test.go
+    symbol: TestStructuralContractReasons_ProtectsJSONSchemaFiles
+    package: protection
+    language: go
+    doc: "contract §4 correction: JSON Schema is now an implemented structural\nsource (golang/extractor/jsonschemascan), not a permanent gap."
   - id: golang/architecture/questiondisposition/concurrency_test.go:TestConcurrentRecordsRecordExactlyOnce
     file: golang/architecture/questiondisposition/concurrency_test.go
     symbol: TestConcurrentRecordsRecordExactlyOnce
@@ -15091,6 +15421,26 @@ test_symbols:
     package: extractor_test
     language: go
     doc: "TestPhaseC_Intent_RelatedInvariants pins that related_invariants produce\naw:affects edges pointing to aw:Invariant nodes."
+  - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_ExcludesGeneratedAndVendorDirs
+    file: golang/extractor/jsonschemascan/jsonschemascan_test.go
+    symbol: TestFindSchemaFiles_ExcludesGeneratedAndVendorDirs
+    package: jsonschemascan
+    language: go
+  - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_IgnoresUnrelatedJSON
+    file: golang/extractor/jsonschemascan/jsonschemascan_test.go
+    symbol: TestFindSchemaFiles_IgnoresUnrelatedJSON
+    package: jsonschemascan
+    language: go
+  - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_Recognizes2020_12AndYAML
+    file: golang/extractor/jsonschemascan/jsonschemascan_test.go
+    symbol: TestFindSchemaFiles_Recognizes2020_12AndYAML
+    package: jsonschemascan
+    language: go
+  - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_RecognizesDraft07JSON
+    file: golang/extractor/jsonschemascan/jsonschemascan_test.go
+    symbol: TestFindSchemaFiles_RecognizesDraft07JSON
+    package: jsonschemascan
+    language: go
   - id: golang/extractor/learning_event_yaml_import_test.go:TestLearningEvent_ImportedAndLinkedToCertificationContext
     file: golang/extractor/learning_event_yaml_import_test.go
     symbol: TestLearningEvent_ImportedAndLinkedToCertificationContext
@@ -18024,6 +18374,12 @@ test_symbols:
     package: main
     language: go
     doc: "An implementation pattern governs by literal rules (requiresCall, mustFollow,\n…) that are not edges to other nodes, so they never appear as graph links.\nResolve must surface them as facts so the node reads as governed, not bare."
+  - id: golang/server/risk_classify_test.go:TestAssessCanonicalProtection_DegradesGracefullyWithoutRepoContext
+    file: golang/server/risk_classify_test.go
+    symbol: TestAssessCanonicalProtection_DegradesGracefullyWithoutRepoContext
+    package: main
+    language: go
+    doc: "assessCanonicalProtection must degrade to AvailabilityUnbound — never\npanic — when no exact repository context is bound (the normal state for\na combined/multi-domain graph). It is an additive signal only; its\nunavailability must never surface as a failure (contract §10)."
   - id: golang/server/risk_classify_test.go:TestClassifyRisk_AnchorsCleanLowRisk
     file: golang/server/risk_classify_test.go
     symbol: TestClassifyRisk_AnchorsCleanLowRisk
@@ -18036,6 +18392,18 @@ test_symbols:
     package: main
     language: go
     doc: "11. Anchors dominate pattern signal — pattern in high-risk path is\ndrowned out by a security-keyword anchor (higher priority)."
+  - id: golang/server/risk_classify_test.go:TestClassifyRisk_CanonicalProtectedEscalatesLikeHighRiskDir
+    file: golang/server/risk_classify_test.go
+    symbol: TestClassifyRisk_CanonicalProtectedEscalatesLikeHighRiskDir
+    package: main
+    language: go
+    doc: "contract §10: a canonical-protection-owner signal escalates risk exactly\nlike the static highRiskDirPrefixes baseline does — additive, never\ncompeting. A file outside every static high-risk dir must still escalate\nwhen the protection assessment reports Protected."
+  - id: golang/server/risk_classify_test.go:TestClassifyRisk_CanonicalProtectedFalseDoesNotWeaken
+    file: golang/server/risk_classify_test.go
+    symbol: TestClassifyRisk_CanonicalProtectedFalseDoesNotWeaken
+    package: main
+    language: go
+    doc: "The absence of a positive protection verdict must never itself weaken the\nverdict — it is purely additive over the existing static-prefix signal."
   - id: golang/server/risk_classify_test.go:TestClassifyRisk_CleanPathNoAnchorsStillLowRisk
     file: golang/server/risk_classify_test.go
     symbol: TestClassifyRisk_CleanPathNoAnchorsStillLowRisk
@@ -18102,6 +18470,23 @@ test_symbols:
     package: main
     language: go
     doc: "7. Pattern-only + high-risk path → ARCHITECTURE_SENSITIVE (NEW per adj. 2).\nThis is the load-bearing safety rule: a recipe match alone does not\ncertify the change is safe."
+  - id: golang/server/risk_classify_test.go:TestClassifyRisk_ProtectionCoverageDegradedSurfacesDegradedReason
+    file: golang/server/risk_classify_test.go
+    symbol: TestClassifyRisk_ProtectionCoverageDegradedSurfacesDegradedReason
+    package: main
+    language: go
+  - id: golang/server/risk_classify_test.go:TestClassifyRisk_ProtectionUnavailableSurfacesDegradedReason
+    file: golang/server/risk_classify_test.go
+    symbol: TestClassifyRisk_ProtectionUnavailableSurfacesDegradedReason
+    package: main
+    language: go
+    doc: "contract §5 correction: a bound repository whose protection derivation\nfailed, or whose coverage came back DEGRADED, must surface a distinct\ntyped blind-spot reason — never silently indistinguishable from \"genuinely\nnot protected.\""
+  - id: golang/server/risk_classify_test.go:TestClassifyRisk_ProtectionUnboundDoesNotSurfaceDegradedReason
+    file: golang/server/risk_classify_test.go
+    symbol: TestClassifyRisk_ProtectionUnboundDoesNotSurfaceDegradedReason
+    package: main
+    language: go
+    doc: "AvailabilityUnbound (no bound repository context — the normal state for a\nserver not scoped to one exact repo) must NOT itself surface a degraded\nreason; it is expected, not a failure."
   - id: golang/server/risk_classify_test.go:TestClassifyRisk_TablePriority
     file: golang/server/risk_classify_test.go
     symbol: TestClassifyRisk_TablePriority

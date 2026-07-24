@@ -1246,3 +1246,13 @@ failure_modes:
     related_invariants:
       - controlstate.proto_evolution_must_be_additive
     evidence: Phase 9.5 Checkpoint 2 additions use new field numbers only; field 7 is pinned by compatibility tests.
+  - id: failure.briefing_session_marker_bound_only_to_file_path_not_domain
+    title: Briefing session marker bound only to file path, not domain
+    description: record-briefing.sh and enforce-briefing.sh hashed only the resolved absolute file path to gate protected edits. A briefing obtained against one loaded domain could therefore authorize an edit evaluated under a different domain in the same checkout, since the marker carried no domain identity at all.
+    protects:
+      files:
+        - .claude/hooks/record-briefing.sh
+        - .claude/hooks/enforce-briefing.sh
+    evidence:
+      - 'cmd/awg/hook_lifecycle_integration_test.go step 4: a briefing recorded with domain=github.com/somebody-else/renamed-repo still authorized an edit before the fix'
+    contract: 'docs/design/checkout-repository-domain-binding.md §3: briefing markers must bind hash(repository root + repository domain + file path)'

@@ -1341,6 +1341,11 @@
 <https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> .
 <https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
 <https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <http://www.w3.org/2000/01/rdf-schema#label> "Briefing session marker bound only to file path, not domain" .
+<https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Fenforce-briefing.sh> .
+<https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Frecord-briefing.sh> .
 <https://globular.io/awareness#failureMode/failure.components_owner_registry_launders_or_overclaims_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.components_owner_registry_launders_or_overclaims_authority> <http://www.w3.org/2000/01/rdf-schema#label> "Canonical owner registry launders or overclaims authority" .
 <https://globular.io/awareness#failureMode/failure.components_owner_registry_launders_or_overclaims_authority> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/awareness.authored_knowledge_sources_are_governable_repository_files> .
@@ -5665,6 +5670,12 @@
 <https://globular.io/awareness#patternMisuse/pattern_misuse.ui_direct_promotion> <https://globular.io/awareness#umlStereotype> "pattern_misuse" .
 <https://globular.io/awareness#patternMisuse/pattern_misuse.ui_direct_promotion> <https://globular.io/awareness#umlView> "awareness" .
 <https://globular.io/awareness#patternMisuse/pattern_misuse.ui_direct_promotion> <https://globular.io/awareness#violatesInvariant> <https://globular.io/awareness#invariant/awareness.graph.compiled_context_not_authority> .
+<https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Fenforce-briefing.sh> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
+<https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Fenforce-briefing.sh> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> .
+<https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Fenforce-briefing.sh> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> .
+<https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Frecord-briefing.sh> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
+<https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Frecord-briefing.sh> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> .
+<https://globular.io/awareness#sourceFile/.claude%2Fhooks%2Frecord-briefing.sh> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> .
 <https://globular.io/awareness#sourceFile/.github%2Factions%2Fsensei-gate%2Faction.yml> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/.github%2Factions%2Fsensei-gate%2Faction.yml> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/closure.change_task_binding_consumed_before_completion_and_invalid_never_degrades> .
 <https://globular.io/awareness#sourceFile/.github%2Factions%2Fsensei-gate%2Faction.yml> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/closure.change_task_binding_producer_is_authoritative_and_deterministic> .
@@ -7621,9 +7632,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-fea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-fea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 fea3bba33c77" .
-<https://globular.io/awareness#seedBuild/sha256-fea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429> <https://globular.io/awareness#seedDigestSha256> "fea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429" .
-<https://globular.io/awareness#seedBuild/sha256-fea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429> <https://globular.io/awareness#seedTripleCount> "7629" .
-<https://globular.io/awareness#seedBuild/sha256-fea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-fea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-224b32f68ac84f6576d32e62da1a2fe8584ca8659816ab7ea441ae9671e2572a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-224b32f68ac84f6576d32e62da1a2fe8584ca8659816ab7ea441ae9671e2572a> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 224b32f68ac8" .
+<https://globular.io/awareness#seedBuild/sha256-224b32f68ac84f6576d32e62da1a2fe8584ca8659816ab7ea441ae9671e2572a> <https://globular.io/awareness#seedDigestSha256> "224b32f68ac84f6576d32e62da1a2fe8584ca8659816ab7ea441ae9671e2572a" .
+<https://globular.io/awareness#seedBuild/sha256-224b32f68ac84f6576d32e62da1a2fe8584ca8659816ab7ea441ae9671e2572a> <https://globular.io/awareness#seedTripleCount> "7640" .
+<https://globular.io/awareness#seedBuild/sha256-224b32f68ac84f6576d32e62da1a2fe8584ca8659816ab7ea441ae9671e2572a> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-224b32f68ac84f6576d32e62da1a2fe8584ca8659816ab7ea441ae9671e2572a> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
