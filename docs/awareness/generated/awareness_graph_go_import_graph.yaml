@@ -186,6 +186,7 @@ components:
     external_imports:
       - github.com/gorilla/websocket
       - github.com/scip-code/scip/bindings/go/scip
+      - golang.org/x/sys/windows
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
       - google.golang.org/grpc/status
