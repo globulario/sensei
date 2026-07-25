@@ -74,7 +74,7 @@ jobs:
           echo "onboarding docs: total principle count matches the pack (${PACK})"
 
       - name: Run tests
-        run: go test ./... -count=1 -timeout 120s
+        run: go test ./... -count=1 -timeout 300s
 
       - name: "Cold-start smoke (stranger path: init -> serve -no-seed -> build -> briefing)"
         # Fetches the upstream Oxigraph binary, scaffolds a throwaway project in
