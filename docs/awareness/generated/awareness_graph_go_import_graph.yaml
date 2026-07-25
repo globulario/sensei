@@ -163,6 +163,7 @@ components:
       - cmd/awg/proofrequirements_adapter.go
       - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
+      - cmd/awg/serve_compatibility.go
     depends_on:
       - component.golang.architecture
       - component.golang.client
@@ -175,6 +176,7 @@ components:
       - component.golang.propose
       - component.golang.rdf
       - component.golang.repoeval
+      - component.golang.runtimedescriptor
       - component.golang.scanner
       - component.golang.scipingest
       - component.golang.seedmeta
@@ -895,6 +897,19 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.runtimedescriptor
+    name: runtimedescriptor
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/runtimedescriptor/liveness_unix.go
+      - golang/runtimedescriptor/liveness_windows.go
+      - golang/runtimedescriptor/runtimedescriptor.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.scanner
     name: scanner
     kind: module
@@ -1005,6 +1020,7 @@ components:
       - component.golang.netcfg
       - component.golang.propose
       - component.golang.rdf
+      - component.golang.runtimedescriptor
       - component.golang.seedmeta
       - component.golang.store
     external_imports:

@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/globulario/sensei/golang/runtimedescriptor"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store/oxigraph"
 )
@@ -36,6 +37,13 @@ func exeName(base string) string {
 const (
 	backendHealthPollInterval  = 2 * time.Second
 	backendHealthFailThreshold = 2
+	// defaultHomeDomain must match golang/server/main.go's defaultHomeDomain
+	// — the value a freshly started awareness-graph child resolves to when
+	// given no -home-domain flag at all. Kept in sync here (rather than
+	// relying on the child's own flag default) so the compatibility
+	// comparison in checkAwarenessCompatibility is exact, never a
+	// coincidence of two independently-defined defaults agreeing.
+	defaultHomeDomain = "globular"
 )
 
 var httpHealthClient = &http.Client{Timeout: 1 * time.Second}
@@ -82,7 +90,11 @@ Flags:
 		return 2
 	}
 
-	// Resolve data directory.
+	// Resolve data directory. Always normalized to an ABSOLUTE path: a
+	// relative --data from two different checkouts' working directories can
+	// compare equal as strings while naming two different directories,
+	// falsely satisfying the compatibility check below
+	// (docs/design/serve-runtime-compatibility.md, issue #118).
 	data := *dataDir
 	if data == "" {
 		home, _ := os.UserHomeDir()
@@ -97,16 +109,27 @@ Flags:
 			}
 		}
 	}
+	if abs, aerr := filepath.Abs(data); aerr == nil {
+		data = abs
+	}
 
 	oxigraphURL := fmt.Sprintf("http://%s/query", *oxigraphBind)
 	var oxiCmd *exec.Cmd
 
 	// ── Start Oxigraph ──────────────────────────────────────────────────
 	if !*noOxigraph {
-		// Check if something is already listening on the port.
+		// Check if something is already listening on the port. An occupied
+		// port is reused ONLY when it can be proven compatible (same data
+		// directory) — never solely because it responds
+		// (docs/design/serve-runtime-compatibility.md, issue #118).
 		if conn, err := net.DialTimeout("tcp", *oxigraphBind, 500*time.Millisecond); err == nil {
 			conn.Close()
-			fmt.Fprintf(os.Stderr, "sensei serve: port %s already in use — using existing Oxigraph\n", *oxigraphBind)
+			ok, cerr := checkOxigraphCompatibility(*oxigraphBind, runtimedescriptor.Descriptor{DataDir: data})
+			if !ok {
+				fmt.Fprintf(os.Stderr, "sensei serve: %v\n", cerr)
+				return 1
+			}
+			fmt.Fprintf(os.Stderr, "sensei serve: port %s already in use — reusing compatible Oxigraph\n", *oxigraphBind)
 		} else {
 			oxiBin, err := findOxigraphBinary()
 			if err != nil {
@@ -136,6 +159,21 @@ Flags:
 				oxiCmd.Process.Kill()
 				return 1
 			}
+
+			// Oxigraph is a third-party binary and can never self-describe,
+			// so the wrapper that started it writes its descriptor — the
+			// only durable record of which data directory this listener
+			// actually serves.
+			if derr := runtimedescriptor.Write(runtimedescriptor.Descriptor{
+				Kind:          runtimedescriptor.KindOxigraph,
+				PID:           oxiCmd.Process.Pid,
+				ListenAddr:    *oxigraphBind,
+				DataDir:       data,
+				StartedAtUnix: time.Now().Unix(),
+				SenseiVersion: Version,
+			}); derr != nil {
+				fmt.Fprintf(os.Stderr, "sensei serve: write runtime descriptor: %v\n", derr)
+			}
 		}
 	}
 
@@ -150,13 +188,6 @@ Flags:
 		return 1
 	}
 
-	srvArgs := []string{"-addr", *addr, "-oxigraph-url", oxigraphURL}
-	if *noSeed {
-		srvArgs = append(srvArgs, "-no-seed")
-	}
-	if *allowStaleSeed {
-		srvArgs = append(srvArgs, "-allow-stale-seed")
-	}
 	markerPath, err := resolveServeGraphMarkerFile(*graphMarkerFile, *noSeed)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei serve: resolve graph marker file: %v\n", err)
@@ -166,22 +197,23 @@ Flags:
 		}
 		return 1
 	}
+	// Normalized to absolute for the same reason as the Oxigraph data
+	// directory above: the compatibility comparison must never depend on
+	// which directory two different invocations happened to be run from.
 	if markerPath != "" {
-		if *noSeed && strings.TrimSpace(*graphMarkerFile) == "" {
-			syncCtx, syncCancel := context.WithTimeout(context.Background(), 3*time.Second)
-			if err := syncDefaultRuntimeMarkerFromLiveStore(syncCtx, markerPath, oxigraphURL, os.Stderr); err != nil {
-				fmt.Fprintf(os.Stderr, "sensei serve: runtime marker refresh skipped: %v\n", err)
-			}
-			syncCancel()
+		if abs, aerr := filepath.Abs(markerPath); aerr == nil {
+			markerPath = abs
 		}
-		srvArgs = append(srvArgs, "-graph-marker-file", markerPath)
 	}
-	if *homeDomain != "" {
-		srvArgs = append(srvArgs, "-home-domain", *homeDomain)
-	}
-	if serveRepoRoot != "" {
-		srvArgs = append(srvArgs, "-repo-root", serveRepoRoot, "-repo-domain", serveRepoDomain)
-	}
+
+	// wantAwarenessDir mirrors the -awareness-dir flag a fresh start would
+	// pass (non-empty enables the Propose RPC write path). Resolved once,
+	// up front, so BOTH the compatibility check below (which must run
+	// before any child starts) and the fresh-start branch use the identical
+	// value — a service running with a different behavioral surface must
+	// never be silently reused (docs/design/serve-runtime-compatibility.md
+	// §3.4).
+	wantAwarenessDir := ""
 	if *enablePropose {
 		root, rerr := resolveProjectRoot("")
 		if rerr != nil {
@@ -192,20 +224,118 @@ Flags:
 			}
 			return 1
 		}
-		srvArgs = append(srvArgs, "-awareness-dir", filepath.Join(root, "docs", "awareness"))
+		wantAwarenessDir = filepath.Join(root, "docs", "awareness")
 	}
-	srvCmd := exec.Command(srvBin, srvArgs...)
-	srvCmd.Stdout = os.Stdout
-	srvCmd.Stderr = os.Stderr
-	if err := srvCmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei serve: start awareness-graph: %v\n", err)
-		if oxiCmd != nil {
-			oxiCmd.Process.Signal(syscall.SIGTERM)
-			oxiCmd.Wait()
+	// The wrapper's own --home-domain flag defaults to "" (unset), but a
+	// freshly started child that receives no -home-domain flag at all
+	// falls back to ITS OWN internal default, defaultHomeDomain
+	// ("globular", golang/server/main.go). Comparing the wrapper's raw ""
+	// against a running service's self-described "globular" would be a
+	// false incompatibility — resolve to the same canonical default here
+	// so the comparison (and the value handed to a fresh child) is exact.
+	wantHomeDomain := strings.TrimSpace(*homeDomain)
+	if wantHomeDomain == "" {
+		wantHomeDomain = defaultHomeDomain
+	}
+
+	// Check if something is already listening on the gRPC address. An
+	// occupied address is reused ONLY when it can be proven compatible
+	// (same Oxigraph endpoint, graph-marker-file, repo-root, repo-domain,
+	// home-domain, and Propose-RPC surface this invocation would use) —
+	// never solely because it responds
+	// (docs/design/serve-runtime-compatibility.md, issue #118). Critically,
+	// this check runs BEFORE any marker-file mutation: an incompatible or
+	// unidentifiable occupant must never cause this checkout's own marker
+	// file to be overwritten from a foreign store.
+	var srvCmd *exec.Cmd
+	if conn, derr := net.DialTimeout("tcp", *addr, 500*time.Millisecond); derr == nil {
+		conn.Close()
+		ok, cerr := checkAwarenessCompatibility(*addr, runtimedescriptor.Descriptor{
+			OxigraphQueryURL: oxigraphURL,
+			GraphMarkerFile:  markerPath,
+			RepoRoot:         serveRepoRoot,
+			RepoDomain:       serveRepoDomain,
+			HomeDomain:       wantHomeDomain,
+			AwarenessDir:     wantAwarenessDir,
+		})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "sensei serve: %v\n", cerr)
+			if oxiCmd != nil {
+				oxiCmd.Process.Signal(syscall.SIGTERM)
+				oxiCmd.Wait()
+			}
+			return 1
 		}
-		return 1
+		fmt.Fprintf(os.Stderr, "sensei serve: address %s already in use — reusing compatible awareness-graph service\n", *addr)
+	} else {
+		srvArgs := []string{"-addr", *addr, "-oxigraph-url", oxigraphURL}
+		if *noSeed {
+			srvArgs = append(srvArgs, "-no-seed")
+		}
+		if *allowStaleSeed {
+			srvArgs = append(srvArgs, "-allow-stale-seed")
+		}
+		if markerPath != "" {
+			srvArgs = append(srvArgs, "-graph-marker-file", markerPath)
+		}
+		// Always pass explicitly (wantHomeDomain is never empty — see
+		// above) rather than relying on the child's own flag default, so
+		// what we requested and what it self-describes are identical by
+		// construction, not by two defaults happening to agree.
+		srvArgs = append(srvArgs, "-home-domain", wantHomeDomain)
+		if serveRepoRoot != "" {
+			srvArgs = append(srvArgs, "-repo-root", serveRepoRoot, "-repo-domain", serveRepoDomain)
+		}
+		if wantAwarenessDir != "" {
+			srvArgs = append(srvArgs, "-awareness-dir", wantAwarenessDir)
+		}
+		srvCmd = exec.Command(srvBin, srvArgs...)
+		srvCmd.Stdout = os.Stdout
+		srvCmd.Stderr = os.Stderr
+		if err := srvCmd.Start(); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei serve: start awareness-graph: %v\n", err)
+			if oxiCmd != nil {
+				oxiCmd.Process.Signal(syscall.SIGTERM)
+				oxiCmd.Wait()
+			}
+			return 1
+		}
+
+		// Confirm the child actually bound its port before treating this
+		// invocation as having proven ownership. A dial-time-free port can
+		// still race: only a confirmed bind (or the process exiting, which
+		// this timeout also bounds) proves we own this address — the
+		// marker-file mutation below must never precede that proof
+		// (docs/design/serve-runtime-compatibility.md §3.6).
+		if !waitForAddrListening(*addr, 10*time.Second) {
+			fmt.Fprintf(os.Stderr, "sensei serve: awareness-graph did not become ready in 10s\n")
+			srvCmd.Process.Kill()
+			srvCmd.Wait()
+			if oxiCmd != nil {
+				oxiCmd.Process.Signal(syscall.SIGTERM)
+				oxiCmd.Wait()
+			}
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "sensei: awareness-graph started (pid %d, addr=%s)\n", srvCmd.Process.Pid, *addr)
+		// The awareness-graph process self-describes once its own
+		// net.Listen succeeds (golang/server/main.go); this wrapper does
+		// not write that descriptor on its behalf.
+
+		// Only now — after confirmed, exclusive ownership of this address —
+		// is it safe to refresh the checkout-local marker file from the
+		// live store.
+		if markerPath != "" {
+			fmt.Fprintf(os.Stderr, "sensei serve: graph marker file: %s\n", markerPath)
+			if *noSeed && strings.TrimSpace(*graphMarkerFile) == "" {
+				syncCtx, syncCancel := context.WithTimeout(context.Background(), 3*time.Second)
+				if err := syncDefaultRuntimeMarkerFromLiveStore(syncCtx, markerPath, oxigraphURL, os.Stderr); err != nil {
+					fmt.Fprintf(os.Stderr, "sensei serve: runtime marker refresh skipped: %v\n", err)
+				}
+				syncCancel()
+			}
+		}
 	}
-	fmt.Fprintf(os.Stderr, "sensei: awareness-graph started (pid %d, addr=%s)\n", srvCmd.Process.Pid, *addr)
 
 	// ── Signal handling ─────────────────────────────────────────────────
 	sigCh := make(chan os.Signal, 1)
@@ -216,9 +346,13 @@ Flags:
 	backendErrCh := make(chan error, 1)
 	go watchBackendHealth(monitorCtx, oxigraphURL, backendHealthPollInterval, backendHealthFailThreshold, backendErrCh)
 
-	// Wait for either child to exit or a signal.
+	// Wait for either an OWNED child to exit or a signal. A reused piece
+	// (srvCmd/oxiCmd nil) contributes no producer to doneCh — this
+	// invocation never started it, so it never waits on or stops it.
 	doneCh := make(chan error, 2)
-	go func() { doneCh <- srvCmd.Wait() }()
+	if srvCmd != nil {
+		go func() { doneCh <- srvCmd.Wait() }()
+	}
 	if oxiCmd != nil {
 		go func() { doneCh <- oxiCmd.Wait() }()
 	}
@@ -238,22 +372,44 @@ Flags:
 	}
 	monitorCancel()
 
-	// Stop both processes.
-	srvCmd.Process.Signal(syscall.SIGTERM)
-	if oxiCmd != nil {
+	// Stop only processes whose FULL dependency chain this invocation owns.
+	// A freshly-started Oxigraph is left running, even though we started
+	// it, when the awareness-graph service depending on it was REUSED
+	// (not ours) — stopping it here would silently break that dependent
+	// service out from under it. Mixed ownership (own one piece, reuse the
+	// other) must never orphan a resource a reused service still depends on
+	// (docs/design/serve-runtime-compatibility.md, issue #118).
+	stopOxigraph := oxiCmd != nil && srvCmd != nil
+	if oxiCmd != nil && srvCmd == nil {
+		fmt.Fprintf(os.Stderr, "sensei: leaving newly-started Oxigraph running at %s — a reused awareness-graph service still depends on it\n", *oxigraphBind)
+	}
+	if srvCmd != nil {
+		srvCmd.Process.Signal(syscall.SIGTERM)
+	}
+	if stopOxigraph {
 		oxiCmd.Process.Signal(syscall.SIGTERM)
 	}
 
 	// Give them a moment to exit cleanly.
 	timer := time.AfterFunc(5*time.Second, func() {
-		srvCmd.Process.Kill()
-		if oxiCmd != nil {
+		if srvCmd != nil {
+			srvCmd.Process.Kill()
+		}
+		if stopOxigraph {
 			oxiCmd.Process.Kill()
 		}
 	})
-	srvCmd.Wait()
-	if oxiCmd != nil {
+	if srvCmd != nil {
+		srvCmd.Wait()
+	}
+	if stopOxigraph {
 		oxiCmd.Wait()
+		// The awareness-graph process removes its own descriptor on
+		// graceful shutdown (golang/server/main.go); Oxigraph is a
+		// third-party binary and cannot, so the wrapper that wrote it on
+		// its behalf removes it here. A courtesy cleanup only — a stale
+		// descriptor still self-heals via dead-PID detection on next read.
+		_ = runtimedescriptor.Remove(runtimedescriptor.KindOxigraph, *oxigraphBind)
 	}
 	timer.Stop()
 
@@ -468,6 +624,24 @@ func waitForSPARQLHealthy(url string, timeout time.Duration) bool {
 			return true
 		}
 		time.Sleep(250 * time.Millisecond)
+	}
+	return false
+}
+
+// waitForAddrListening polls addr until a bare TCP connection succeeds or
+// timeout elapses. Used to confirm a freshly started awareness-graph child
+// actually bound its port before this invocation treats itself as having
+// proven exclusive ownership of that address — a dial-time-free port can
+// still race, and marker-file mutation must never precede that proof
+// (docs/design/serve-runtime-compatibility.md §3.6).
+func waitForAddrListening(addr string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if conn, err := net.DialTimeout("tcp", addr, 200*time.Millisecond); err == nil {
+			conn.Close()
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	return false
 }
