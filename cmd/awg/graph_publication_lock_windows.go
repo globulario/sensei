@@ -5,9 +5,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"syscall"
+
+	"golang.org/x/sys/windows"
 )
 
 func acquireGraphPublicationLock(lockPath string) (*os.File, error) {
@@ -15,10 +17,15 @@ func acquireGraphPublicationLock(lockPath string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	handle := syscall.Handle(file.Fd())
-	if err := syscall.LockFile(handle, 0, 0, 1, 0); err != nil {
+	handle := windows.Handle(file.Fd())
+	overlapped := new(windows.Overlapped)
+	flags := uint32(windows.LOCKFILE_EXCLUSIVE_LOCK | windows.LOCKFILE_FAIL_IMMEDIATELY)
+	if err := windows.LockFileEx(handle, flags, 0, 1, 0, overlapped); err != nil {
 		_ = file.Close()
-		return nil, fmt.Errorf("concurrent graph publication in progress (lock busy): %w", err)
+		if errors.Is(err, windows.ERROR_LOCK_VIOLATION) {
+			return nil, fmt.Errorf("concurrent graph publication in progress (lock busy)")
+		}
+		return nil, err
 	}
 	return file, nil
 }
