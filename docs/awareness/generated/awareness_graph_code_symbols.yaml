@@ -3636,6 +3636,18 @@ test_symbols:
     symbol: TestSeedStatus_SplitWhenCommittedLiveMatchButGeneratedDrifted
     package: main
     language: go
+  - id: cmd/awg/cmd_serve_integration_test.go:TestIntegration_ServeReuse_FreshnessCurrentAfterCompatibleReuseAndScopedBuild
+    file: cmd/awg/cmd_serve_integration_test.go
+    symbol: TestIntegration_ServeReuse_FreshnessCurrentAfterCompatibleReuseAndScopedBuild
+    package: main
+    language: go
+    doc: "TestIntegration_ServeReuse_FreshnessCurrentAfterCompatibleReuseAndScopedBuild\nis the required freshness-after-compatible-reuse proof (docs/design/\nserve-runtime-compatibility.md, issue #118, acceptance criterion #5): once\na scoped build updates the store and marker a running, COMPATIBLY-REUSABLE\nawareness-graph service already watches, that same (never restarted)\nservice must report graph freshness as current on its next query — proving\nend-to-end that the fix keeps the scoped-build marker and the serving\nprocess's marker as the exact same file, not two that happen to coincide."
+  - id: cmd/awg/cmd_serve_integration_test.go:TestIntegration_ServeReuse_RejectsForeignCheckout
+    file: cmd/awg/cmd_serve_integration_test.go
+    symbol: TestIntegration_ServeReuse_RejectsForeignCheckout
+    package: main
+    language: go
+    doc: "TestIntegration_ServeReuse_RejectsForeignCheckout is the required\ntwo-checkout proof (docs/design/serve-runtime-compatibility.md, issue\n#118, acceptance criterion #6): a REAL awareness-graph process, pointed\nat a REAL Oxigraph — the complete two-process habitat — started for\n\"checkout A\" must never be silently reused as \"checkout B\"'s local\nexecution habitat merely because its gRPC address responds."
   - id: cmd/awg/cmd_serve_test.go:TestCheckSPARQLHealth_UsesASKPost
     file: cmd/awg/cmd_serve_test.go
     symbol: TestCheckSPARQLHealth_UsesASKPost
@@ -4456,6 +4468,37 @@ test_symbols:
   - id: cmd/awg/seedfreshness_test.go:TestNtSubjectPredicate
     file: cmd/awg/seedfreshness_test.go
     symbol: TestNtSubjectPredicate
+    package: main
+    language: go
+  - id: cmd/awg/serve_compatibility_test.go:TestCheckAwarenessCompatibility_ExactMatchRequired
+    file: cmd/awg/serve_compatibility_test.go
+    symbol: TestCheckAwarenessCompatibility_ExactMatchRequired
+    package: main
+    language: go
+  - id: cmd/awg/serve_compatibility_test.go:TestCheckAwarenessCompatibility_RejectsForeignCheckout
+    file: cmd/awg/serve_compatibility_test.go
+    symbol: TestCheckAwarenessCompatibility_RejectsForeignCheckout
+    package: main
+    language: go
+    doc: "contract §3.7/#6: two checkouts differing only in repo-root/repo-domain\nmust never be treated as the same execution habitat, even when every\nother field (oxigraph URL, marker file) happens to coincide."
+  - id: cmd/awg/serve_compatibility_test.go:TestCheckAwarenessCompatibility_UnidentifiedOccupantHardFails
+    file: cmd/awg/serve_compatibility_test.go
+    symbol: TestCheckAwarenessCompatibility_UnidentifiedOccupantHardFails
+    package: main
+    language: go
+  - id: cmd/awg/serve_compatibility_test.go:TestCheckOxigraphCompatibility_ExactDataDirMatchRequired
+    file: cmd/awg/serve_compatibility_test.go
+    symbol: TestCheckOxigraphCompatibility_ExactDataDirMatchRequired
+    package: main
+    language: go
+  - id: cmd/awg/serve_compatibility_test.go:TestCheckOxigraphCompatibility_UnidentifiedOccupantHardFails
+    file: cmd/awg/serve_compatibility_test.go
+    symbol: TestCheckOxigraphCompatibility_UnidentifiedOccupantHardFails
+    package: main
+    language: go
+  - id: cmd/awg/serve_compatibility_test.go:TestFormatIncompatibleReuseError_NamesAddrAndPID
+    file: cmd/awg/serve_compatibility_test.go
+    symbol: TestFormatIncompatibleReuseError_NamesAddrAndPID
     package: main
     language: go
   - id: cmd/awg/wb3_loop_test.go:TestWriteBackLoop_EndToEnd
@@ -16450,6 +16493,47 @@ test_symbols:
     file: golang/repoeval/repoeval_test.go
     symbol: TestEvaluate_TreatsMissingSurfaceClassesAsNotApplicable
     package: repoeval
+    language: go
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestIsProcessAlive
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestIsProcessAlive
+    package: runtimedescriptor
+    language: go
+    doc: "isProcessAlive itself, exercised directly: the current test process must\nbe alive, and a real, deliberately-exited child process must not be."
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestPathFor_DerivesFromKindAndAddrNotCheckout
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestPathFor_DerivesFromKindAndAddrNotCheckout
+    package: runtimedescriptor
+    language: go
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestRead_AbsentWhenNeverWritten
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestRead_AbsentWhenNeverWritten
+    package: runtimedescriptor
+    language: go
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestRead_SelfHealsCorruptDescriptor
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestRead_SelfHealsCorruptDescriptor
+    package: runtimedescriptor
+    language: go
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestRead_SelfHealsDeadPIDDescriptor
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestRead_SelfHealsDeadPIDDescriptor
+    package: runtimedescriptor
+    language: go
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestRemove_MissingFileIsNotAnError
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestRemove_MissingFileIsNotAnError
+    package: runtimedescriptor
+    language: go
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestWriteRead_RoundTrips
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestWriteRead_RoundTrips
+    package: runtimedescriptor
+    language: go
+  - id: golang/runtimedescriptor/runtimedescriptor_test.go:TestWrite_RequiresPIDAndListenAddr
+    file: golang/runtimedescriptor/runtimedescriptor_test.go
+    symbol: TestWrite_RequiresPIDAndListenAddr
+    package: runtimedescriptor
     language: go
   - id: golang/scanner/python_test.go:TestPYScanner_DiscoversPytestAndUnittestTests
     file: golang/scanner/python_test.go
