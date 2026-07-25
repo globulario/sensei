@@ -3,6 +3,41 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v1.5.0 — serve reuse safety + semantic protection coverage
+
+- **`sensei serve` no longer reuses a listening process just because its port
+  answers.** A bare TCP dial was the only reuse check — an occupied port got
+  reused even when it belonged to a different checkout, store, or graph
+  marker. Worse, a checkout's own `.sensei/graph-authority.json` could be
+  silently overwritten with state read from a foreign, shared service before
+  that service's own marker was ever touched, leaving `sensei
+  metadata`/`preflight` reporting stale despite a scoped build genuinely
+  succeeding. Each process `sensei serve` starts (or the awareness-graph
+  binary itself, when invoked directly) now writes a durable runtime
+  descriptor — PID, listen address, and every field specific to that process
+  kind — keyed by `(process kind, listen address)`. Reuse requires an exact
+  match on all of it; an occupied port with no provable, live descriptor is a
+  hard failure with a diagnostic naming the mismatched fields, never a silent
+  reuse. Marker-file mutation is now gated to run only after compatibility is
+  proven (or a fresh child has actually bound its address), reused services
+  are left strictly in a monitor-only capacity, and shutdown no longer
+  orphans an owned Oxigraph a reused awareness-graph service still depends
+  on. See `docs/design/serve-runtime-compatibility.md`.
+- **Semantic protection coverage bootstrap.** `sensei init`/`bootstrap` no
+  longer scaffold an empty manual high-risk registry — file-level briefing
+  enforcement is now the deterministic union of manual protection,
+  unconditional governed-source protection, structural contract/invariant
+  protection, and graph-derived protection when available, behind explicit
+  COMPLETE/PARTIAL/DEGRADED/EMPTY coverage semantics (never treating empty
+  configuration as safe). Checkout-scoped commands (briefing, preflight,
+  hooks) now bind automatically to a durable repository domain recorded in
+  `.sensei/config.yaml`, so a multi-domain store no longer makes ordinary
+  invocations ambiguous — repository configuration outranks ambient
+  `SENSEI_DOMAIN`/legacy `AWG_DOMAIN` fallbacks, with `--domain` remaining an
+  explicit one-invocation override. New `sensei protection-status` /
+  `protection-check` CLI surfaces expose the resolved coverage state
+  directly.
+
 ## v1.4.0 — transactional graph publication + GitHub App incubation
 
 - **`sensei build --repo` no longer risks corrupting the live graph.** The
