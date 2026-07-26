@@ -1,0 +1,41 @@
+{
+  "schema_version": "sensei.workspace.identity.v1",
+  "generated_by": "sensei workspacecontract",
+  "composition_state": "partial",
+  "binding": {
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "abc123def456abc123def456abc123def456abc",
+    "revision_status": "resolved",
+    "tree_digest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "graph_digest_sha256": null,
+    "graph_digest_status": "unavailable"
+  },
+  "repository_domain_source": "configured",
+  "graph_authority": {
+    "authoritative": false,
+    "graph_freshness_state": "GRAPH_FRESHNESS_STATE_STALE",
+    "graph_freshness_detail": "live store graph digest does not match the expected certified artifact",
+    "seed_state": "SEED_STATE_STALE",
+    "build_provenance_state": "BUILD_PROVENANCE_STATE_STAMPED",
+    "live_store_graph_digest_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "live_store_graph_triple_count": 9000,
+    "embedded_seed_digest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "embedded_transaction_stamp_present": true,
+    "embedded_transaction_matches_seed": false,
+    "certified_awareness_graph_commit": "e1985d74b9349b4f90e3a54e3c0312d177a5d239",
+    "certified_services_repo_commit": "eb6610554158444871178afca0626a1ee8d66056"
+  },
+  "coverage_state": "COVERAGE_STATE_THIN",
+  "task_identity": {
+    "state": "not_requested",
+    "task_id": null
+  },
+  "limitations": [
+    {
+      "source": "golang/server/metadata.go",
+      "scope": "graph_digest",
+      "reason": "live store graph digest does not match the expected certified artifact; graph is stale",
+      "blocking": false
+    }
+  ]
+}

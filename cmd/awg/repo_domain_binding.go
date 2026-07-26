@@ -16,27 +16,25 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
-	"github.com/globulario/sensei/golang/statedir"
+	"github.com/globulario/sensei/golang/architecture/repodomain"
 	"gopkg.in/yaml.v3"
 )
 
-// repoDomainConfig is the `repository:` section of .sensei/config.yaml. Only
-// the fields this package understands are modeled; unmarshaling into a
-// yaml.Node round-trip (writeRepositoryDomain) preserves every other section
-// and any comments verbatim.
-type repoDomainConfig struct {
-	Repository struct {
-		Domain string `yaml:"domain"`
-	} `yaml:"repository"`
-}
+// repoDomainConfig is the `repository:` section of .sensei/config.yaml,
+// aliased to the shared golang/architecture/repodomain.Config so this
+// package and the awareness-mcp bridge (governed workspace identity) read
+// and validate the exact same configured domain rather than each parsing
+// their own copy. writeRepositoryDomain still round-trips a yaml.Node
+// directly (preserving every other section and comment verbatim), so this
+// alias only covers the read side.
+type repoDomainConfig = repodomain.Config
 
 // repoDomainConfigPath returns the resolved .sensei/config.yaml (or legacy
 // .awg/config.yaml) path for root.
 func repoDomainConfigPath(root string) string {
-	return statedir.Path(root, "config.yaml")
+	return repodomain.ConfigPath(root)
 }
 
 // loadRepoDomainConfig reads the repository.domain section of root's config.
@@ -44,18 +42,7 @@ func repoDomainConfigPath(root string) string {
 // same as an existing config with no repository section (contract §3.2: the
 // section is optional).
 func loadRepoDomainConfig(root string) (repoDomainConfig, error) {
-	raw, err := os.ReadFile(repoDomainConfigPath(root))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return repoDomainConfig{}, nil
-		}
-		return repoDomainConfig{}, fmt.Errorf("read %s: %w", repoDomainConfigPath(root), err)
-	}
-	var cfg repoDomainConfig
-	if err := yaml.Unmarshal(raw, &cfg); err != nil {
-		return repoDomainConfig{}, fmt.Errorf("parse %s: %w", repoDomainConfigPath(root), err)
-	}
-	return cfg, nil
+	return repodomain.LoadConfig(root)
 }
 
 // domainResolution is the typed result of resolveRepositoryDomain: the
@@ -84,69 +71,16 @@ const (
 	domainSourceUnresolved = "unresolved"
 )
 
-// domainHostRe matches a DNS-like hostname: at least two dot-separated
-// labels (e.g. "github.com"), each a valid label per RFC 1123. Bare
-// hostnames ("localhost"), schemes, and whitespace are rejected by
-// validateDomain before this ever runs.
-var domainHostRe = regexp.MustCompile(`(?i)^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
-
 // validateDomain rejects anything that is not a canonical repository domain
 // string: host.tld/path (e.g. "github.com/owner/repo") — no scheme, no
 // whitespace, a DNS-like host, and a non-empty path (contract §3.7
 // correction: explicit, configured, and newly-published values all share
 // this one validator so no caller can persist or act on a guessed/garbage
-// identity).
+// identity). Delegates to the shared golang/architecture/repodomain.Validate
+// so this package and the awareness-mcp bridge apply exactly one domain-shape
+// rule.
 func validateDomain(d string) error {
-	if d == "" {
-		return fmt.Errorf("must not be empty")
-	}
-	if strings.ContainsAny(d, " \t\n\r") {
-		return fmt.Errorf("must not contain whitespace")
-	}
-	if strings.Contains(d, "://") {
-		return fmt.Errorf("must be host/path (e.g. github.com/owner/repo), not a URL with a scheme")
-	}
-	host, path, found := strings.Cut(d, "/")
-	if !found || path == "" {
-		return fmt.Errorf("must be host/path (e.g. github.com/owner/repo)")
-	}
-	if !domainHostRe.MatchString(host) {
-		return fmt.Errorf("host %q is not a valid domain name", host)
-	}
-
-	// The host shape check above is case-insensitive by design (so a
-	// mixed-case host gets THIS specific message, not "invalid domain
-	// name") — canonical form additionally requires it already be
-	// lowercase, exactly as domainFromRemoteURL (the git-origin parser)
-	// always produces (contract §3.7 correction, second round: a value
-	// that only differs from the graph's own canonical domain by case,
-	// trailing slash, ".git" suffix, or path noise resolves and persists
-	// successfully but silently never matches).
-	if host != strings.ToLower(host) {
-		return fmt.Errorf("host %q must be lowercase (canonical form: %q)", host, strings.ToLower(host))
-	}
-	if strings.ContainsAny(path, "?#") {
-		return fmt.Errorf("path %q must not contain a query string or fragment", path)
-	}
-	if strings.Contains(path, `\`) {
-		return fmt.Errorf("path %q must use forward slashes", path)
-	}
-	if strings.HasPrefix(path, "/") || strings.HasSuffix(path, "/") {
-		return fmt.Errorf("path %q must not have a leading or trailing slash (canonical form: %q)", path, strings.Trim(path, "/"))
-	}
-	segments := strings.Split(path, "/")
-	for _, seg := range segments {
-		switch seg {
-		case "":
-			return fmt.Errorf("path %q must not contain empty (\"//\") segments", path)
-		case ".", "..":
-			return fmt.Errorf("path %q must not contain \".\" or \"..\" segments", path)
-		}
-	}
-	if strings.HasSuffix(strings.ToLower(path), ".git") {
-		return fmt.Errorf("path %q must not end with \".git\" (canonical form strips it, matching the git-origin parser)", path)
-	}
-	return nil
+	return repodomain.Validate(d)
 }
 
 // resolveRepositoryDomain implements the checkout-scoped resolver precedence

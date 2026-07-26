@@ -435,11 +435,54 @@ JSON-RPC notifications (no `id`) are ignored per spec.
 | `task_briefing` | local task artifacts | `repo`, `file` | `task` |
 | `admit_change` | local convergence bundle | `bundle_dir`, `request_path`, `graph_nt`, `repo` | `policy`, `detail` |
 | `verify_admission` | local admission bundle | `decision_path`, `bundle_dir`, `repo` | `detail` |
+| `sensei_workspace_status` | `Metadata` + local checkout/task state | `repo` | `task` |
+| `sensei_workspace_admit_change` | local convergence bundle (via `admit_change`'s owner) | `bundle_dir`, `request_path`, `graph_nt`, `repo` | `policy` |
+| `sensei_workspace_verify_admission` | local admission bundle (via `verify_admission`'s owner) | `decision_path`, `bundle_dir`, `repo` | — |
 
 The task tools do not call the gRPC service. They use the same typed local
 packages as the CLI. `advance_task` is the only state-changing task tool and is
 restricted to the closed static-read probe registry plus one convergence
 iteration.
+
+### Canonical workspace contracts
+
+`sensei_workspace_status`, `sensei_workspace_admit_change`, and
+`sensei_workspace_verify_admission` are the canonical producers of two
+closed, versioned external contracts —
+[`sensei.workspace.identity.v1`](../schemas/workspace/v1/workspace-identity-v1.schema.json)
+and
+[`sensei.workspace.admission.v1`](../schemas/workspace/v1/workspace-admission-v1.schema.json)
+— documented in full in
+[`workspace-identity-admission-contracts.md`](design/workspace-identity-admission-contracts.md).
+They compose/project the same existing owners the tools above already use
+(`Metadata`, `admit_change`'s `admission.Evaluate`, `verify_admission`'s
+`admission.Verify`, the local task-session owner, and this checkout's
+configured `.sensei/config.yaml` `repository.domain`) into one stable,
+schema-validated external shape — they add no new admission semantics, no
+new gRPC RPC, and do not change `admit_change`/`verify_admission`'s own
+output. Load-bearing distinctions these tools preserve, never collapse:
+
+- **workspace identity is not admission** — `sensei_workspace_status`
+  reports evidence (checkout/graph/task facts), never a mutation
+  permission or correctness verdict;
+- **admission is permission to attempt, not correctness** —
+  `correctness_certified` is always whatever the underlying
+  `admission.Decision`/`admission.Verification` already reported, never
+  inferred from admission, tests, CI, or scope compliance;
+- **scope compliance is not correctness certification** — a
+  `scope_compliant` verification result never implies architectural
+  approval or mergeability;
+- **configured MCP is not verified workspace identity** —
+  `sensei_workspace_status` accepts no `domain` argument; governed
+  `repository_domain` comes only from this checkout's configured
+  `.sensei/config.yaml`, never from `SENSEI_DOMAIN`/`AWG_DOMAIN` or a
+  caller-supplied override, and `composition_state` can only reach
+  `complete` when that configured identity, revision, graph digest, and an
+  authoritative graph backend are all resolved;
+- **the runner owns process/worktree/job/provider identity; Sensei owns
+  repository/graph/task/admission truth** — the identity contract
+  deliberately carries no repository-root hash, MCP session id, worktree
+  id, job id, or provider id.
 
 The bridge enforces a **safe-tools-only whitelist** in `callTool()` and
 validates `awareness_query`'s `mode`/`class` against fixed enums — there is no
