@@ -81,22 +81,34 @@ func ComposeIdentity(in IdentityInputs) Identity {
 
 // deriveCompositionState is the single source of truth both ComposeIdentity
 // and ValidateIdentity use: an identity receipt is "complete" only when the
-// repository domain came from configured checkout identity, revision and
-// graph digest are both resolved, and graph_authority is present and
-// authoritative. Any configured-domain receipt short of that is "partial".
-// An unbound repository domain always means "unavailable" — without a
-// governed checkout identity, no other fact in the receipt can be
-// meaningfully attributed to "this checkout" at all. Task identity is
-// deliberately independent of this derivation: a requested-but-unavailable
-// task does not, by itself, downgrade an otherwise complete receipt.
+// repository domain came from configured checkout identity, revision is
+// resolved, and graph_authority is present and authoritative.
+//
+// Two states are hard "unavailable" regardless of what else resolved: an
+// unbound repository domain (without a governed checkout identity, no other
+// fact in the receipt can be meaningfully attributed to "this checkout" at
+// all), and an unreachable metadata backend (graph_authority == nil) — the
+// receipt could not be meaningfully composed at all, not merely partially,
+// when the graph backend itself could not be reached. "partial" is reserved
+// for a configured domain with a *reachable* backend that is not fully
+// current/authoritative (e.g. a stale graph) or an unresolved revision.
+//
+// binding.graph_digest_status/task_identity are deliberately NOT inputs to
+// this derivation: sensei_workspace_status never resolves a task/snapshot-
+// scoped local graph.nt digest (see cmd/awareness-mcp/workspace_tools.go),
+// so that field is legitimately not_requested on every real call this
+// package's only current caller makes, and gating completeness on a field
+// that can never be anything but not_requested would make "complete"
+// unreachable. A requested-but-unavailable task likewise does not, by
+// itself, downgrade an otherwise complete receipt.
 func deriveCompositionState(id Identity) CompositionState {
 	if id.RepositoryDomainSource != RepositoryDomainConfigured || id.Binding.RepositoryDomain == "" {
 		return CompositionUnavailable
 	}
-	if id.Binding.RevisionStatus == RevisionResolved &&
-		id.Binding.GraphDigestStatus == GraphDigestResolved &&
-		id.GraphAuthority != nil &&
-		id.GraphAuthority.Authoritative {
+	if id.GraphAuthority == nil {
+		return CompositionUnavailable
+	}
+	if id.Binding.RevisionStatus == RevisionResolved && id.GraphAuthority.Authoritative {
 		return CompositionComplete
 	}
 	return CompositionPartial

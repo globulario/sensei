@@ -21,7 +21,7 @@
     "schema_version": { "const": "sensei.workspace.identity.v1" },
     "generated_by": { "type": "string", "minLength": 1 },
     "composition_state": {
-      "$comment": "complete: every governed fact below resolved cleanly. partial: some governed facts resolved, at least one did not. unavailable: the receipt could not be meaningfully composed (e.g. no configured repository domain, or the metadata backend was unreachable). complete REQUIRES binding.revision_status=resolved, binding.graph_digest_status=resolved, repository_domain_source=configured, and graph_authority non-null with authoritative=true — a producer must never report complete with any of those unresolved.",
+      "$comment": "complete: every governed fact below resolved cleanly. partial: repository_domain_source=configured and graph_authority is non-null (the backend was reachable), but revision is unresolved or graph_authority.authoritative=false (e.g. a stale graph). unavailable: the receipt could not be meaningfully composed at all — repository_domain_source=unbound, OR graph_authority=null because the metadata backend was unreachable (never partial: an unreachable backend is not a degraded-but-composed receipt). complete REQUIRES repository_domain_source=configured, binding.revision_status=resolved, and graph_authority non-null with authoritative=true. binding.graph_digest_status is NOT part of this gate — it is independently not_requested/resolved/unavailable, exactly like task_identity, since a producer may have no task-scoped local graph.nt snapshot to report at all.",
       "enum": ["complete", "partial", "unavailable"]
     },
     "binding": { "$ref": "#/$defs/binding" },

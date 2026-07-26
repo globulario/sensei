@@ -8,7 +8,7 @@
     "revision_status": "resolved",
     "tree_digest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
     "graph_digest_sha256": null,
-    "graph_digest_status": "unavailable"
+    "graph_digest_status": "not_requested"
   },
   "repository_domain_source": "configured",
   "graph_authority": {

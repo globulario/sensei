@@ -81,7 +81,25 @@ func (b *bridge) callWorkspaceStatus(ctx context.Context, args map[string]interf
 		return nil, err
 	}
 
-	id, err := composeWorkspaceIdentity(ctx, b.client, absRepo, args)
+	// task must be validated as a TYPE before any presence/value logic runs:
+	// a bare `task, _ := args["task"].(string)` type assertion would silently
+	// turn a malformed JSON null/number/array/object into "" — which the
+	// resolver below treats as "the active task." Absent key, present string
+	// (including ""), and present-non-string are three distinct cases; only
+	// the type check belongs here, so it can never be bypassed by whichever
+	// function ends up doing the presence/value branching.
+	var task string
+	taskProvided := false
+	if raw, present := args["task"]; present {
+		s, ok := raw.(string)
+		if !ok {
+			return nil, fmt.Errorf("property \"task\" must be a string")
+		}
+		task = s
+		taskProvided = true
+	}
+
+	id, err := composeWorkspaceIdentity(ctx, b.client, absRepo, taskProvided, task)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +122,7 @@ func (b *bridge) callWorkspaceStatus(ctx context.Context, args map[string]interf
 // composeWorkspaceIdentity resolves every governed fact through its
 // existing owner and hands them to workspacecontract.ComposeIdentity, which
 // does only deterministic composition — never a live lookup itself.
-func composeWorkspaceIdentity(ctx context.Context, client awarenessClient, absRepo string, args map[string]interface{}) (workspacecontract.Identity, error) {
+func composeWorkspaceIdentity(ctx context.Context, client awarenessClient, absRepo string, taskProvided bool, task string) (workspacecontract.Identity, error) {
 	var limitations []workspacecontract.Limitation
 
 	domain, domainErr := repodomain.Configured(absRepo)
@@ -141,8 +159,6 @@ func composeWorkspaceIdentity(ctx context.Context, client awarenessClient, absRe
 	metaReq := &awarenesspb.MetadataRequest{Domain: domain}
 	metaResp, metaErr := client.Metadata(ctx, metaReq)
 	var graphAuthority *workspacecontract.GraphAuthority
-	var graphDigest string
-	graphDigestStatus := workspacecontract.GraphDigestUnavailable
 	coverageState := "COVERAGE_STATE_UNSPECIFIED"
 	if metaErr != nil {
 		limitations = append(limitations, workspacecontract.Limitation{
@@ -164,16 +180,12 @@ func composeWorkspaceIdentity(ctx context.Context, client awarenessClient, absRe
 			CertifiedAwarenessGraphCommit:   metaResp.GetCertifiedAwarenessGraphCommit(),
 			CertifiedServicesRepoCommit:     metaResp.GetCertifiedServicesRepoCommit(),
 		}
-		graphDigest = metaResp.GetLiveStoreGraphDigestSha256()
-		if graphDigest != "" {
-			graphDigestStatus = workspacecontract.GraphDigestResolved
-		}
 		if cs := metaResp.GetCoverageState().String(); cs != "" {
 			coverageState = cs
 		}
 	}
 
-	taskIdentity, taskLimitations := resolveWorkspaceTaskIdentity(absRepo, args)
+	taskIdentity, taskLimitations := resolveWorkspaceTaskIdentity(absRepo, taskProvided, task)
 	limitations = append(limitations, taskLimitations...)
 
 	return workspacecontract.ComposeIdentity(workspacecontract.IdentityInputs{
@@ -182,24 +194,33 @@ func composeWorkspaceIdentity(ctx context.Context, client awarenessClient, absRe
 		Revision:               revision,
 		RevisionStatus:         workspacecontract.RevisionStatus(revisionStatus),
 		TreeDigestSHA256:       treeDigest,
-		GraphDigestSHA256:      graphDigest,
-		GraphDigestStatus:      graphDigestStatus,
-		GraphAuthority:         graphAuthority,
-		CoverageState:          coverageState,
-		TaskIdentity:           taskIdentity,
-		Limitations:            limitations,
+		// GraphDigestSHA256/GraphDigestStatus deliberately stay unset
+		// (not_requested/null): that pair carries ClaimDocumentBinding's
+		// task/snapshot-scoped local graph.nt identity, a different
+		// authority from GraphAuthority.LiveStoreGraphDigestSHA256 above.
+		// sensei_workspace_status has no graph_nt parameter and resolves no
+		// such snapshot, so honestly reporting "not requested" here is the
+		// correct binding-vs-live-store distinction — never borrow the
+		// live-store digest into this field, even though both describe "the
+		// graph": they are not the same fact and must not share one value.
+		GraphDigestSHA256: "",
+		GraphDigestStatus: workspacecontract.GraphDigestNotRequested,
+		GraphAuthority:    graphAuthority,
+		CoverageState:     coverageState,
+		TaskIdentity:      taskIdentity,
+		Limitations:       limitations,
 	}), nil
 }
 
-// resolveWorkspaceTaskIdentity distinguishes not_requested (the "task" key
-// is absent from args entirely) from resolved/unavailable (the key is
-// present — "" per existing convention means "the active task").
-func resolveWorkspaceTaskIdentity(absRepo string, args map[string]interface{}) (workspacecontract.TaskIdentity, []workspacecontract.Limitation) {
-	raw, present := args["task"]
-	if !present {
+// resolveWorkspaceTaskIdentity distinguishes not_requested (taskProvided is
+// false — the "task" key was absent from args entirely) from
+// resolved/unavailable (taskProvided is true — the key was present, and ""
+// per existing convention means "the active task"). The caller has already
+// validated task's JSON type before this function ever sees it.
+func resolveWorkspaceTaskIdentity(absRepo string, taskProvided bool, task string) (workspacecontract.TaskIdentity, []workspacecontract.Limitation) {
+	if !taskProvided {
 		return workspacecontract.TaskIdentity{State: workspacecontract.TaskIdentityNotRequested}, nil
 	}
-	task, _ := raw.(string)
 	state, _, err := tasksession.ControlStatus(absRepo, strings.TrimSpace(task), strings.TrimSpace(task) == "")
 	if err != nil {
 		return workspacecontract.TaskIdentity{State: workspacecontract.TaskIdentityUnavailable},

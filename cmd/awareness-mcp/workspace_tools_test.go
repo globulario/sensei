@@ -182,6 +182,42 @@ func TestWorkspaceStatus_RejectsWrongType(t *testing.T) {
 	}
 }
 
+// TestWorkspaceStatus_RejectsMalformedTaskValues proves a present-but-
+// non-string "task" value is a hard argument error, never silently
+// coerced to "" and treated as "resolve the active task" — the exact
+// failure mode a bare `task, _ := args["task"].(string)` type assertion
+// would produce. Covers JSON null, number, array, and object, the four
+// shapes a `.(string)` assertion silently swallows.
+func TestWorkspaceStatus_RejectsMalformedTaskValues(t *testing.T) {
+	root := t.TempDir()
+	initTestGitRepo(t, root)
+	writeSenseiConfigDomain(t, root, "github.com/globulario/sensei")
+	b := testBridge(fakeClient{
+		metadata: func(_ context.Context, in *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+			return currentMetadataResponse(), nil
+		},
+	})
+
+	cases := map[string]interface{}{
+		"null":   nil,
+		"number": float64(42),
+		"array":  []interface{}{"x"},
+		"object": map[string]interface{}{"x": "y"},
+	}
+	for name, val := range cases {
+		t.Run(name, func(t *testing.T) {
+			args := map[string]interface{}{"repo": root, "task": val}
+			_, err := b.callText(context.Background(), "sensei_workspace_status", args)
+			if err == nil {
+				t.Fatalf("expected a type error for task=%v (%s), got success", val, name)
+			}
+			if !strings.Contains(err.Error(), `"task" must be a string`) {
+				t.Fatalf("err=%v, want a task-must-be-a-string error", err)
+			}
+		})
+	}
+}
+
 // TestWorkspaceStatus_CompleteReceipt proves a configured checkout with a
 // current, authoritative backend produces composition_state=complete, and
 // that the returned structured payload validates against the real,
@@ -274,8 +310,8 @@ func TestWorkspaceStatus_BackendUnavailableIsUnavailableNotEmptyOrComplete(t *te
 	if structured["graph_authority"] != nil {
 		t.Fatalf("graph_authority = %v, want null when the backend is unreachable", structured["graph_authority"])
 	}
-	if structured["composition_state"] == "complete" {
-		t.Fatal("composition_state must never be complete when the metadata backend is unreachable")
+	if structured["composition_state"] != "unavailable" {
+		t.Fatalf("composition_state = %v, want exactly unavailable when the metadata backend is unreachable (not partial — an unreachable backend is not a degraded-but-composed receipt)", structured["composition_state"])
 	}
 }
 

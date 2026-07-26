@@ -7,8 +7,8 @@
     "revision": "abc123def456abc123def456abc123def456abc",
     "revision_status": "resolved",
     "tree_digest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
-    "graph_digest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
-    "graph_digest_status": "resolved"
+    "graph_digest_sha256": null,
+    "graph_digest_status": "not_requested"
   },
   "repository_domain_source": "configured",
   "graph_authority": {
