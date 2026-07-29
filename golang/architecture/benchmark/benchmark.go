@@ -768,15 +768,245 @@ func Reconstruct(workspace, questionCreatedAt string, check bool) (Reconstructio
 	if err != nil {
 		return ReconstructionReceipt{}, err
 	}
+	task, err := LoadTask(filepath.Join(workspace, "freeze", "task.yaml"))
+	if err != nil {
+		return ReconstructionReceipt{}, err
+	}
+
 	receipt := ReconstructionReceipt{
 		SchemaVersion: SchemaVersion, GeneratedBy: GeneratedBy, WorkspaceID: freeze.WorkspaceID, TaskID: freeze.TaskID,
-		Status: ReconstructionUnavailable, ColdStart: true, BlindRepositoryDigestSHA256: tree,
-		FactsDigestSHA256: digest([]byte("not-run")), CandidatesDigestSHA256: digest([]byte("not-run")), GraphDigestSHA256: digest([]byte("isolated-empty")),
-		ClosureVerdict: "uncertifiable", ConvergenceStatus: "uncertifiable", AdmissionDecision: "uncertifiable",
-		Limitations: []architecture.Limitation{{Source: "benchmark.reconstruct", Reason: "full external reconstruction orchestration requires explicit extraction fixtures or real pilot inputs; no agent, tests, graph import, or network executed", Blocking: true}},
+		ColdStart: true, BlindRepositoryDigestSHA256: tree,
+	}
+	result, limitations := runDeterministicReconstruction(workspace, blind, task, questionCreatedAt)
+	receipt.Limitations = limitations
+	if result.ok {
+		receipt.Status = ReconstructionFrozen
+		receipt.FactsDigestSHA256 = result.factsDigest
+		receipt.CandidatesDigestSHA256 = result.candidatesDigest
+		receipt.GraphDigestSHA256 = result.graphDigest
+		receipt.ClosureVerdict = result.closureVerdict
+		receipt.ConvergenceStatus = result.convergenceStatus
+		receipt.AdmissionDecision = result.admissionDecision
+	} else {
+		receipt.Status = ReconstructionUnavailable
+		receipt.FactsDigestSHA256 = digest([]byte("not-run"))
+		receipt.CandidatesDigestSHA256 = digest([]byte("not-run"))
+		receipt.GraphDigestSHA256 = digest([]byte("isolated-empty"))
+		receipt.ClosureVerdict = "uncertifiable"
+		receipt.ConvergenceStatus = "uncertifiable"
+		receipt.AdmissionDecision = "uncertifiable"
 	}
 	receipt = finalizeReconstruction(receipt)
 	return receipt, writeOrCheckReconstruction(workspace, receipt, check)
+}
+
+// reconstructionResult is the output of the deterministic extraction/task
+// pipeline runDeterministicReconstruction drives. ok=false means a stage
+// failed to produce usable output (e.g. mechanical inference found nothing
+// to bind a task to) — a legitimate benchmark finding for a cold external
+// repository, not necessarily a defect, and Reconstruct maps it to
+// Status: ReconstructionUnavailable rather than returning a Go error.
+type reconstructionResult struct {
+	ok                bool
+	factsDigest       string
+	candidatesDigest  string
+	graphDigest       string
+	closureVerdict    string
+	convergenceStatus string
+	admissionDecision string
+}
+
+// prepareChangeOutput is the subset of `sensei prepare-change --format yaml`
+// stdout this package reads. Field names mirror the CLI's own output
+// envelope (cmd/awg/cmd_task_session.go) and tasksession.Session's
+// closure_verdict/convergence_status/admission_decision fields exactly.
+type prepareChangeOutput struct {
+	ArchitecturePrepareChange struct {
+		TaskID  string `yaml:"task_id"`
+		Session struct {
+			ClosureVerdict    string `yaml:"closure_verdict"`
+			ConvergenceStatus string `yaml:"convergence_status"`
+			AdmissionDecision string `yaml:"admission_decision"`
+		} `yaml:"session"`
+	} `yaml:"architecture_prepare_change"`
+}
+
+// runDeterministicReconstruction drives Sensei's own deterministic,
+// agent-free, network-free pipeline against the frozen blind repository:
+// bootstrap (static structural extraction) -> build (local graph compile)
+// -> infer-claims (mechanical rule-based fact->claim inference) ->
+// prepare-change (the real closure -> convergence -> admission chain,
+// entirely offline against the compiled .nt file). It never touches
+// blind-repository itself — all writes land in a disposable local clone
+// under <workspace>/reconstruction/work, keeping the already
+// contamination-verified blind checkout untouched.
+//
+// Every subprocess failure becomes a Limitation and an ok=false result,
+// never a Go error propagated out of Reconstruct: a cold external repo
+// producing no mechanically inferable claims (and therefore no admitted
+// task) is expected, honest benchmark behavior, not an infrastructure bug.
+func runDeterministicReconstruction(workspace, blindRepo string, task Task, questionCreatedAt string) (reconstructionResult, []architecture.Limitation) {
+	var limitations []architecture.Limitation
+	fail := func(source, reason string) (reconstructionResult, []architecture.Limitation) {
+		limitations = append(limitations, architecture.Limitation{Source: source, Reason: reason, Blocking: true})
+		return reconstructionResult{}, limitations
+	}
+
+	work := filepath.Join(workspace, "reconstruction", "work")
+	_ = os.RemoveAll(work)
+	if _, err := git("", "clone", "--quiet", "--no-hardlinks", blindRepo, work); err != nil {
+		return fail("benchmark.reconstruct.clone", err.Error())
+	}
+	_, _ = git(work, "remote", "remove", "origin")
+
+	if _, err := runSenseiIn("", "bootstrap", "--path", work, "--skip-history", "--skip-build", "--domain", task.RepositoryDomain); err != nil {
+		return fail("benchmark.reconstruct.bootstrap", err.Error())
+	}
+
+	factsDigest, err := digestDir(filepath.Join(work, "docs", "awareness", "generated"))
+	if err != nil {
+		return fail("benchmark.reconstruct.facts_digest", err.Error())
+	}
+	candidatesDigest, err := digestDir(filepath.Join(work, "docs", "awareness", "candidates"))
+	if err != nil {
+		return fail("benchmark.reconstruct.candidates_digest", err.Error())
+	}
+
+	// -input is passed relative, with cmd.Dir set to work, because the
+	// compiler embeds its -input argument verbatim into authoredIn
+	// provenance triples in the compiled graph — an absolute path here
+	// would make GraphDigestSHA256 depend on the caller's tmp-workspace
+	// location and break reproducibility (--check mode, determinism
+	// proofs) across otherwise-identical runs.
+	graphPath := filepath.Join(workspace, "reconstruction", "graph.nt")
+	if _, err := runSenseiIn(work, "build", "-input", "docs/awareness", "-output", graphPath); err != nil {
+		return fail("benchmark.reconstruct.build", err.Error())
+	}
+	graphBytes, err := os.ReadFile(graphPath)
+	if err != nil {
+		return fail("benchmark.reconstruct.build", err.Error())
+	}
+	graphDigest := digest(graphBytes)
+
+	claimsPath := filepath.Join(work, ".sensei", "project", "claims.yaml")
+	if err := os.MkdirAll(filepath.Dir(claimsPath), 0o755); err != nil {
+		return fail("benchmark.reconstruct.infer_claims", err.Error())
+	}
+	if _, err := runSenseiIn("", "infer-claims",
+		"--repo", work, "--repo-domain", task.RepositoryDomain,
+		"--graph-nt", graphPath, "--graph-digest", graphDigest, "--graph-digest-status", "resolved",
+		"--output", claimsPath); err != nil {
+		return fail("benchmark.reconstruct.infer_claims", err.Error())
+	}
+
+	args := []string{"prepare-change",
+		"--repo", work, "--repo-domain", task.RepositoryDomain,
+		"--description", task.TaskText, "--mode", task.ExpectedActionMode,
+		"--task-class", task.TaskClass, "--risk-class", task.RiskClass, "--direction", task.DirectionRequirement,
+		"--graph-nt", graphPath, "--question-created-at", questionCreatedAt, "--no-active", "--format", "yaml",
+	}
+	for _, f := range task.InitialScope.Files {
+		args = append(args, "--file", "modify:"+f)
+	}
+	out, err := runSenseiIn("", args...)
+	if err != nil {
+		// The dominant real-world case: mechanical inference produced no
+		// architecture claims (nothing bootstrap extracted matched a
+		// registered inference rule), so tasksession.Prepare refuses to
+		// start a task at all. This is a legitimate cold-repository
+		// finding, not a wiring defect.
+		return fail("benchmark.reconstruct.prepare_change", err.Error())
+	}
+	var parsed prepareChangeOutput
+	if err := yaml.Unmarshal(out, &parsed); err != nil {
+		return fail("benchmark.reconstruct.prepare_change", "parse prepare-change output: "+err.Error())
+	}
+	s := parsed.ArchitecturePrepareChange.Session
+	if s.ClosureVerdict == "" || s.ConvergenceStatus == "" || s.AdmissionDecision == "" {
+		return fail("benchmark.reconstruct.prepare_change", "prepare-change output carried no session verdicts")
+	}
+
+	return reconstructionResult{
+		ok:                true,
+		factsDigest:       factsDigest,
+		candidatesDigest:  candidatesDigest,
+		graphDigest:       graphDigest,
+		closureVerdict:    s.ClosureVerdict,
+		convergenceStatus: s.ConvergenceStatus,
+		admissionDecision: s.AdmissionDecision,
+	}, limitations
+}
+
+// digestDir returns a deterministic digest over every regular file's bytes
+// under root, keyed by its root-relative path (never the absolute path,
+// which would make the digest depend on the caller's tmp-workspace
+// location). Returns digest(nil) for an absent directory — a cold external
+// repository legitimately producing no candidates is not an error.
+func digestDir(root string) (string, error) {
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return digest(nil), nil
+		}
+		return "", err
+	}
+	var paths []string
+	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			paths = append(paths, path)
+		}
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	sort.Strings(paths)
+	var buf bytes.Buffer
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return "", err
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return "", err
+		}
+		buf.WriteString(filepath.ToSlash(rel))
+		buf.WriteByte('\n')
+		buf.Write(data)
+		buf.WriteByte('\n')
+	}
+	return digest(buf.Bytes()), nil
+}
+
+// senseiBinaryPath locates the sensei/awg CLI binary that bootstrap/build/
+// infer-claims/prepare-change should be re-invoked as. Production code
+// (benchmark-reconstruct is itself one of that binary's own subcommands)
+// can safely resolve its own running executable; go test runs as a
+// different binary, so tests must override this var to point at a sensei
+// binary built once (e.g. in TestMain).
+var senseiBinaryPath = func() (string, error) { return os.Executable() }
+
+// runSenseiIn invokes the sensei CLI as a subprocess with the given args,
+// returning stdout. dir == "" inherits the parent process's working
+// directory. Mirrors the existing git() helper's shape/error style.
+func runSenseiIn(dir string, args ...string) ([]byte, error) {
+	bin, err := senseiBinaryPath()
+	if err != nil {
+		return nil, fmt.Errorf("locate sensei binary: %w", err)
+	}
+	cmd := exec.Command(bin, args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return stdout.Bytes(), fmt.Errorf("sensei %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return stdout.Bytes(), nil
 }
 
 func Evaluate(opts EvaluateOptions) (TaskReport, error) {

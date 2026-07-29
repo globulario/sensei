@@ -3,10 +3,13 @@
 package benchmark
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -243,4 +246,244 @@ func gitOut(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %v: %v", args, err)
 	}
 	return string(out)
+}
+
+// --- real Reconstruct() pipeline tests ---
+//
+// These use a tiny test-double "fakesensei" binary (testdata/fakesensei),
+// not the real cmd/awg CLI: cmd/awg depends on cgo/tree-sitter and this
+// repository has already had to fix a "nested go build inside go test"
+// performance regression once (see cmd/awg/hook_lifecycle_integration_test.go).
+// The fake binary proves this package's OWN orchestration (subprocess
+// sequencing, error->Limitation mapping, YAML parsing, digesting) is
+// correct and deterministic; genuine end-to-end proof against the real
+// sensei CLI is exercised separately, outside the automated test suite.
+
+var (
+	fakeSenseiOnce sync.Once
+	fakeSenseiPath string
+	fakeSenseiErr  error
+)
+
+func buildFakeSensei(t *testing.T) string {
+	t.Helper()
+	fakeSenseiOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "fakesensei-*")
+		if err != nil {
+			fakeSenseiErr = err
+			return
+		}
+		bin := filepath.Join(dir, "fakesensei")
+		if runtime.GOOS == "windows" {
+			bin += ".exe"
+		}
+		cmd := exec.Command("go", "build", "-o", bin, "./testdata/fakesensei")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			fakeSenseiErr = fmt.Errorf("build fakesensei: %v: %s", err, out)
+			return
+		}
+		fakeSenseiPath = bin
+	})
+	if fakeSenseiErr != nil {
+		t.Fatal(fakeSenseiErr)
+	}
+	return fakeSenseiPath
+}
+
+// useFakeSensei points senseiBinaryPath at the fake binary for the duration
+// of the calling test, restoring the previous value on cleanup.
+func useFakeSensei(t *testing.T) {
+	t.Helper()
+	bin := buildFakeSensei(t)
+	prev := senseiBinaryPath
+	senseiBinaryPath = func() (string, error) { return bin, nil }
+	t.Cleanup(func() { senseiBinaryPath = prev })
+}
+
+func frozenWorkspaceForReconstructTests(t *testing.T) string {
+	t.Helper()
+	repo, base := localRepo(t)
+	taskPath, oraclePath := writeManifests(t, base, "")
+	workspace := filepath.Join(t.TempDir(), "workspace")
+	if _, _, err := Freeze(FreezeOptions{TaskPath: taskPath, SourceRepo: repo, OraclePath: oraclePath, OutputDir: workspace}); err != nil {
+		t.Fatal(err)
+	}
+	return workspace
+}
+
+func TestReconstruct_SuccessfulPipelineProducesRealVerdicts(t *testing.T) {
+	useFakeSensei(t)
+	workspace := frozenWorkspaceForReconstructTests(t)
+
+	receipt, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Status != ReconstructionFrozen {
+		t.Fatalf("Status = %q, want %q", receipt.Status, ReconstructionFrozen)
+	}
+	if receipt.ClosureVerdict != "closed" || receipt.ConvergenceStatus != "closed" || receipt.AdmissionDecision != "admitted" {
+		t.Fatalf("unexpected verdicts: closure=%q convergence=%q admission=%q", receipt.ClosureVerdict, receipt.ConvergenceStatus, receipt.AdmissionDecision)
+	}
+	for _, sentinel := range []string{digest([]byte("not-run")), digest([]byte("isolated-empty"))} {
+		if receipt.FactsDigestSHA256 == sentinel || receipt.CandidatesDigestSHA256 == sentinel || receipt.GraphDigestSHA256 == sentinel {
+			t.Fatalf("receipt still carries a stub sentinel digest: %+v", receipt)
+		}
+	}
+	if len(receipt.Limitations) != 0 {
+		t.Fatalf("expected no limitations on a successful run, got %+v", receipt.Limitations)
+	}
+}
+
+func TestReconstruct_BootstrapFailureIsUnavailableNotError(t *testing.T) {
+	useFakeSensei(t)
+	t.Setenv("FAKESENSEI_FAIL_STAGE", "bootstrap")
+	workspace := frozenWorkspaceForReconstructTests(t)
+
+	receipt, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", false)
+	if err != nil {
+		t.Fatalf("Reconstruct returned an error instead of an Unavailable receipt: %v", err)
+	}
+	if receipt.Status != ReconstructionUnavailable {
+		t.Fatalf("Status = %q, want %q", receipt.Status, ReconstructionUnavailable)
+	}
+	if receipt.AdmissionDecision != "uncertifiable" {
+		t.Fatalf("AdmissionDecision = %q, want uncertifiable", receipt.AdmissionDecision)
+	}
+	found := false
+	for _, l := range receipt.Limitations {
+		if l.Source == "benchmark.reconstruct.bootstrap" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a benchmark.reconstruct.bootstrap limitation, got %+v", receipt.Limitations)
+	}
+}
+
+// TestReconstruct_EmptyClaimsIsUnavailableNotError proves the dominant
+// real-world cold-repository outcome — mechanical inference produces no
+// claims, so prepare-change refuses to start a task — is treated as an
+// honest, non-error finding, not a crash. The fake binary's default
+// infer-claims behavior already writes an empty claims document; simulate
+// prepare-change's real refusal by configuring that stage to fail too,
+// exactly as the real CLI does when handed an empty claims.yaml.
+func TestReconstruct_EmptyClaimsIsUnavailableNotError(t *testing.T) {
+	useFakeSensei(t)
+	t.Setenv("FAKESENSEI_FAIL_STAGE", "prepare-change")
+	workspace := frozenWorkspaceForReconstructTests(t)
+
+	receipt, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", false)
+	if err != nil {
+		t.Fatalf("Reconstruct returned an error instead of an Unavailable receipt: %v", err)
+	}
+	if receipt.Status != ReconstructionUnavailable {
+		t.Fatalf("Status = %q, want %q", receipt.Status, ReconstructionUnavailable)
+	}
+	if receipt.ClosureVerdict != "uncertifiable" || receipt.ConvergenceStatus != "uncertifiable" || receipt.AdmissionDecision != "uncertifiable" {
+		t.Fatalf("unexpected verdicts on failure: %+v", receipt)
+	}
+}
+
+func TestReconstruct_OpenClosureFromColdRepoIsHonestNotUncertifiable(t *testing.T) {
+	useFakeSensei(t)
+	t.Setenv("FAKESENSEI_PREPARE_YAML", `architecture_prepare_change:
+  task_id: task.fake.cold
+  session:
+    closure_verdict: open
+    convergence_status: waiting
+    admission_decision: waiting
+`)
+	workspace := frozenWorkspaceForReconstructTests(t)
+
+	receipt, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Status != ReconstructionFrozen {
+		t.Fatalf("Status = %q, want %q — a real open/waiting verdict is a completed reconstruction, not an infrastructure failure", receipt.Status, ReconstructionFrozen)
+	}
+	if receipt.ClosureVerdict != "open" || receipt.ConvergenceStatus != "waiting" || receipt.AdmissionDecision != "waiting" {
+		t.Fatalf("unexpected verdicts: %+v", receipt)
+	}
+}
+
+func TestReconstruct_IsDeterministic(t *testing.T) {
+	useFakeSensei(t)
+	workspace := frozenWorkspaceForReconstructTests(t)
+
+	a, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.ReceiptDigestSHA256 != b.ReceiptDigestSHA256 {
+		t.Fatalf("reconstruction not deterministic:\n%+v\n!=\n%+v", a, b)
+	}
+	// --check mode must agree with what was just written.
+	if _, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", true); err != nil {
+		t.Fatalf("--check failed against a receipt Reconstruct itself just wrote: %v", err)
+	}
+}
+
+func TestReconstruct_NeverWritesIntoBlindRepository(t *testing.T) {
+	useFakeSensei(t)
+	workspace := frozenWorkspaceForReconstructTests(t)
+	blind := filepath.Join(workspace, "blind-repository")
+	before := gitOut(t, blind, "status", "--porcelain")
+
+	if _, err := Reconstruct(workspace, "2026-01-01T00:00:00Z", false); err != nil {
+		t.Fatal(err)
+	}
+	after := gitOut(t, blind, "status", "--porcelain")
+	if strings.TrimSpace(before) != strings.TrimSpace(after) {
+		t.Fatalf("blind-repository working tree changed during Reconstruct: before=%q after=%q", before, after)
+	}
+	head := gitOut(t, blind, "rev-parse", "HEAD")
+	if strings.TrimSpace(head) == "" {
+		t.Fatal("blind-repository HEAD unexpectedly empty")
+	}
+}
+
+// --- digestDir ---
+
+func TestDigestDir_DeterministicAndPathIndependent(t *testing.T) {
+	dirA := t.TempDir()
+	dirB := t.TempDir()
+	for _, base := range []string{dirA, dirB} {
+		if err := os.MkdirAll(filepath.Join(base, "sub"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(base, "a.yaml"), []byte("a: 1\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(base, "sub", "b.yaml"), []byte("b: 2\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	digestA, err := digestDir(dirA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digestB, err := digestDir(dirB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if digestA != digestB {
+		t.Fatalf("digestDir depends on the absolute directory path: %q != %q (dirA=%s dirB=%s)", digestA, digestB, dirA, dirB)
+	}
+}
+
+func TestDigestDir_AbsentDirectoryIsEmptyNotError(t *testing.T) {
+	got, err := digestDir(filepath.Join(t.TempDir(), "does-not-exist"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != digest(nil) {
+		t.Fatalf("digestDir(absent) = %q, want digest(nil) = %q", got, digest(nil))
+	}
 }
