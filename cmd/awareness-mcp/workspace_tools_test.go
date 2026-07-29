@@ -4,16 +4,22 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/tasksession"
 	"github.com/globulario/sensei/golang/architecture/workspacecontract"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // minimalAdmittedDecisionForTest builds a real, schema-shape-valid
@@ -80,22 +86,128 @@ func TestMCPWorkspaceToolsAreRegisteredWithClosedSchemas(t *testing.T) {
 }
 
 // TestMCPExistingAdmissionToolsUnchanged proves this feature did not modify
-// admit_change/verify_admission's own registered shape.
+// admit_change/verify_admission's own registered shape: it deep-compares the
+// full Description and InputSchema (not just the required-field list) for
+// both tools against their exact pre-existing literal definitions in
+// main.go, so a changed description, an added/removed/retyped property, or a
+// dropped/added additionalProperties or enum constraint would fail this test
+// even though the required-field set stayed the same.
 func TestMCPExistingAdmissionToolsUnchanged(t *testing.T) {
+	wantAdmitChange := tool{
+		Name:        "admit_change",
+		Description: "Evaluate whether one exact bounded action is permitted by a verified convergence session. Admission is permission to attempt, not proof of correctness.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"bundle_dir":   map[string]interface{}{"type": "string"},
+				"request_path": map[string]interface{}{"type": "string"},
+				"graph_nt":     map[string]interface{}{"type": "string"},
+				"repo":         map[string]interface{}{"type": "string"},
+				"policy":       map[string]interface{}{"type": "string"},
+				"detail":       map[string]interface{}{"type": "string", "enum": []string{"compact", "full"}},
+			},
+			"required": []string{"bundle_dir", "request_path", "graph_nt", "repo"},
+		},
+	}
+	wantVerifyAdmission := tool{
+		Name:        "verify_admission",
+		Description: "Verify that a working-tree diff stayed inside an existing admission envelope. Scope compliance is not correctness certification.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"decision_path": map[string]interface{}{"type": "string"},
+				"bundle_dir":    map[string]interface{}{"type": "string"},
+				"repo":          map[string]interface{}{"type": "string"},
+				"detail":        map[string]interface{}{"type": "string", "enum": []string{"compact", "full"}},
+			},
+			"required": []string{"decision_path", "bundle_dir", "repo"},
+		},
+	}
+
 	b := testBridge(fakeClient{})
-	for _, tool := range b.tools() {
-		switch tool.Name {
+	found := map[string]bool{}
+	for _, got := range b.tools() {
+		switch got.Name {
 		case "admit_change":
-			required, _ := tool.InputSchema["required"].([]string)
-			if strings.Join(required, ",") != "bundle_dir,request_path,graph_nt,repo" {
-				t.Fatalf("admit_change required changed: %v", required)
+			found[got.Name] = true
+			if !reflect.DeepEqual(got, wantAdmitChange) {
+				t.Fatalf("admit_change registration changed:\n got=%+v\nwant=%+v", got, wantAdmitChange)
 			}
 		case "verify_admission":
-			required, _ := tool.InputSchema["required"].([]string)
-			if strings.Join(required, ",") != "decision_path,bundle_dir,repo" {
-				t.Fatalf("verify_admission required changed: %v", required)
+			found[got.Name] = true
+			if !reflect.DeepEqual(got, wantVerifyAdmission) {
+				t.Fatalf("verify_admission registration changed:\n got=%+v\nwant=%+v", got, wantVerifyAdmission)
 			}
 		}
+	}
+	if !found["admit_change"] || !found["verify_admission"] {
+		t.Fatalf("admit_change/verify_admission not both found: %+v", found)
+	}
+}
+
+// TestMCPExistingAdmissionToolsBehaviorUnchanged proves the delegation this
+// feature introduces did not alter admit_change/verify_admission's own
+// dispatch behavior: calling the pre-existing tools directly, through the
+// same b.callTool path sensei_workspace_admit_change/
+// sensei_workspace_verify_admission delegate to, against a real admission
+// bundle still produces the same admitted decision and scope_compliant
+// verification identity (admission_id, decision_digest_sha256) the
+// workspace projection tests observe.
+func TestMCPExistingAdmissionToolsBehaviorUnchanged(t *testing.T) {
+	repo, graphPath := buildAdmissionBundleFixture(t)
+	prep, err := tasksession.Prepare(tasksession.PrepareOptions{
+		RepoRoot:             repo,
+		RepositoryDomain:     admissionFixtureDomain,
+		Description:          "Inspect x.go for a possible trust-boundary issue.",
+		Mode:                 admission.ModeInspect,
+		TaskClass:            "inspect_repository_admission",
+		RiskClass:            closure.RiskLowRisk,
+		DirectionRequirement: closure.DirectionNotApplicable,
+		Files:                []tasksession.FileOperation{{Path: "x.go", Operation: admission.OperationRead}},
+		GraphNT:              graphPath,
+	})
+	if err != nil {
+		t.Fatalf("tasksession.Prepare: %v", err)
+	}
+	taskDir := filepath.Join(repo, filepath.FromSlash(prep.TaskDir))
+	bundleDir := filepath.Join(taskDir, "convergence")
+	requestPath := filepath.Join(taskDir, "admission", "request.yaml")
+	decisionPath := filepath.Join(taskDir, "admission", "decision.yaml")
+
+	b := testBridge(fakeClient{})
+	admitRes, err := b.callTool(context.Background(), "admit_change", map[string]interface{}{
+		"bundle_dir": bundleDir, "request_path": requestPath, "graph_nt": graphPath, "repo": repo, "detail": "full",
+	})
+	if err != nil {
+		t.Fatalf("admit_change: %v", err)
+	}
+	admitStructured, ok := admitRes.Structured.(map[string]interface{})
+	if !ok {
+		t.Fatalf("admit_change Structured is not a map: %T", admitRes.Structured)
+	}
+	if admitStructured["decision"] != "admitted" {
+		t.Fatalf("expected admit_change to still return an admitted decision, got: %+v", admitStructured)
+	}
+	admissionID, _ := admitStructured["admission_id"].(string)
+	if admissionID == "" {
+		t.Fatalf("admit_change result carries no admission_id: %+v", admitStructured)
+	}
+
+	verifyRes, err := b.callTool(context.Background(), "verify_admission", map[string]interface{}{
+		"decision_path": decisionPath, "bundle_dir": bundleDir, "repo": repo,
+	})
+	if err != nil {
+		t.Fatalf("verify_admission: %v", err)
+	}
+	verifyStructured, ok := verifyRes.Structured.(map[string]interface{})
+	if !ok {
+		t.Fatalf("verify_admission Structured is not a map: %T", verifyRes.Structured)
+	}
+	if verifyStructured["status"] != "scope_compliant" {
+		t.Fatalf("expected verify_admission to still return scope_compliant for an untouched repository, got: %+v", verifyStructured)
+	}
+	if verifyStructured["admission_id"] != admissionID {
+		t.Fatalf("verify_admission admission_id %v does not match admit_change's admission_id %v", verifyStructured["admission_id"], admissionID)
 	}
 }
 
@@ -349,20 +461,15 @@ func TestWorkspaceStatus_TaskNotRequestedVsUnavailable(t *testing.T) {
 
 // --- sensei_workspace_admit_change / sensei_workspace_verify_admission ---
 //
-// Building a genuinely real on-disk admission bundle (session.yaml plus the
-// 8 interdependent convergence-stage artifacts admission.LoadBundle
-// requires) has no precedent anywhere in this repository's own test
-// suite — not even the pre-existing admit_change/verify_admission tools
-// this feature delegates to have a real-bundle success test; their own
-// coverage (cmd/awg/cmd_admit_change_test.go) is required-argument
-// validation only. These tests match that same, already-established depth
-// for the delegation surface; the real-decision/real-verification
-// projection path itself is fully exercised end-to-end — including real
-// Draft 2020-12 schema validation — by
-// golang/architecture/workspacecontract's fixture tests (built from real
-// admission.Decision/admission.Verification values), which is where "one
-// admitted decision, and one compliant or violated verification" is
-// actually proven.
+// TestWorkspaceAdmission_RealBundleThroughJSONRPCDispatch below drives both
+// tools through the actual b.callTool JSON-RPC dispatch path against a
+// genuinely real, on-disk admission bundle produced by
+// tasksession.Prepare — the same deterministic pipeline the sensei CLI
+// itself uses — proving one complete identity call, one admitted decision,
+// and one scope_compliant verification end to end
+// (callWorkspaceAdmitChange -> admission.Evaluate -> ProjectDecision ->
+// schema validation, then callWorkspaceVerifyAdmission ->
+// admission.Verify -> ProjectVerification -> schema validation).
 
 func TestWorkspaceAdmitChange_RequiresAllArguments(t *testing.T) {
 	b := testBridge(fakeClient{})
@@ -415,5 +522,203 @@ func TestWorkspaceAdmission_ProjectionRoundtripsSchemaValid(t *testing.T) {
 	structured := res.Structured.(map[string]interface{})
 	if structured["record_kind"] != "decision" || structured["decision"] != "admitted" {
 		t.Fatalf("unexpected structured payload: %+v", structured)
+	}
+}
+
+const admissionFixtureDomain = "github.com/globulario/sensei-mcp-fixture"
+
+// buildAdmissionBundleFixture creates a real, minimal git repository plus a
+// binding-matched .sensei/project/claims.yaml and a compiled graph.nt, so
+// tasksession.Prepare can run its real, fully-offline closure/convergence/
+// admission pipeline and produce a genuinely real on-disk admission bundle
+// (session.yaml plus the interdependent convergence-stage artifacts
+// admission.LoadBundle verifies) — the same artifact tree the sensei CLI's
+// own prepare-change command produces.
+func buildAdmissionBundleFixture(t *testing.T) (repoRoot, graphPath string) {
+	t.Helper()
+	repoRoot = t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "x.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// .sensei/ holds tasksession.Prepare's own generated task artifacts (and
+	// the claims.yaml fixture written below); gitignoring it — matching this
+	// repository's own top-level .gitignore — keeps CaptureChanges honest:
+	// those artifacts are Sensei's bookkeeping, not an observed change to the
+	// inspected scope.
+	if err := os.WriteFile(filepath.Join(repoRoot, ".gitignore"), []byte("/.sensei/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := func(args ...string) {
+		cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com", "GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("add", ".")
+	run("commit", "-q", "-m", "initial")
+	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	revision := strings.TrimSpace(string(out))
+
+	fileIRI := "https://globular.io/awareness#sourceFile/x.go"
+	graph := "<" + fileIRI + "> <" + rdf.PropType + "> <" + rdf.ClassSourceFile + "> .\n" +
+		"<" + fileIRI + "> <" + rdf.PropSourcePath + "> \"x.go\" .\n"
+	graphPath = filepath.Join(t.TempDir(), "graph.nt")
+	if err := os.WriteFile(graphPath, []byte(graph), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	graphSum := sha256.Sum256([]byte(graph))
+	binding := architecture.ClaimDocumentBinding{
+		RepositoryDomain:  admissionFixtureDomain,
+		Revision:          revision,
+		RevisionStatus:    architecture.RevisionResolved,
+		GraphDigestSHA256: hex.EncodeToString(graphSum[:]),
+		GraphDigestStatus: architecture.GraphDigestResolved,
+	}
+
+	srcSum := sha256.Sum256([]byte("package x\n"))
+	fact := architecture.Fact{
+		ID:        "fact.workspace-mcp-test",
+		Kind:      "guard",
+		Subject:   "x.Handler",
+		Predicate: "refuses_when",
+		Object:    "input is invalid",
+		Scope: architecture.Scope{
+			Repository: admissionFixtureDomain,
+			Files:      []string{"x.go"},
+			Symbols:    []string{"x.Handler"},
+		},
+		Evidence:   architecture.Evidence{SourceFile: "x.go", LineStart: 1, LineEnd: 1},
+		Confidence: 0.6,
+		Extractor:  "workspace_tools_test",
+		Provenance: &architecture.Provenance{
+			RepositoryDomain:       admissionFixtureDomain,
+			RepositoryDomainStatus: architecture.RepositoryDomainResolved,
+			Revision:               revision,
+			RevisionStatus:         architecture.RevisionResolved,
+			SourceDigest:           hex.EncodeToString(srcSum[:]),
+			SourceDigestStatus:     architecture.SourceDigestResolved,
+			SourceKind:             "source_file",
+		},
+	}
+	claim := architecture.Claim{
+		ID:                     "claim.workspace-mcp-test",
+		Label:                  "Handler rejects invalid input",
+		Statement:              architecture.ClaimStatement{Subject: "x.Handler", Predicate: "refuses_when", Object: "input is invalid"},
+		Scope:                  architecture.ClaimScope{Repository: admissionFixtureDomain, Repo: admissionFixtureDomain, Files: []string{"x.go"}, Symbols: []string{"x.Handler"}},
+		ArchitecturalPlane:     architecture.PlaneObserved,
+		AssertionOrigin:        architecture.OriginDerived,
+		EpistemicStatus:        architecture.StatusSupported,
+		InferenceRule:          "rule.workspace_tools_test.v1",
+		PremiseFacts:           []string{fact.ID},
+		InvalidationConditions: []string{"The premise fact changes."},
+		Confidence:             0.6,
+		HumanReviewRequired:    true,
+		PromotionStatus:        architecture.PromotionCandidate,
+	}
+	doc := architecture.ClaimDocument{
+		SchemaVersion: "1",
+		GeneratedBy:   "workspace_tools_test",
+		Binding:       binding,
+		FactReceipts:  []architecture.ClaimFactReceipt{{Fact: fact, Provenance: *fact.Provenance}},
+		Claims:        []architecture.Claim{claim},
+	}
+	data, err := architecture.MarshalCanonicalClaimDocumentYAML(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimsDir := filepath.Join(repoRoot, ".sensei", "project")
+	if err := os.MkdirAll(claimsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claimsDir, "claims.yaml"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return repoRoot, graphPath
+}
+
+// TestWorkspaceAdmission_RealBundleThroughJSONRPCDispatch is the JSON-RPC
+// integration proof the reviewer required: it drives sensei_workspace_admit_
+// change and sensei_workspace_verify_admission through the real b.callTool
+// dispatch path against a real, on-disk admission bundle (built by
+// tasksession.Prepare's real closure/convergence pipeline, not a hand-
+// synthesized fixture), producing one complete identity call, one genuinely
+// admitted decision, and one scope_compliant verification.
+//
+// The fixture request is an inspect/read task (low_risk, direction
+// not_applicable): closure closes deterministically on a single pass for a
+// plain source file with no test-identification or intended-basis
+// prerequisites, which a write/modify task would otherwise require — see
+// golang/architecture/closure's write-scope and preserve/evolve direction
+// gates. Inspection admission is still governed by the same real Evaluate
+// path (admission.Decision.Decision is the requested capability outcome:
+// inspection here, mutation for a modify request) and is what
+// callWorkspaceAdmitChange/callWorkspaceVerifyAdmission actually run.
+func TestWorkspaceAdmission_RealBundleThroughJSONRPCDispatch(t *testing.T) {
+	repo, graphPath := buildAdmissionBundleFixture(t)
+	prep, err := tasksession.Prepare(tasksession.PrepareOptions{
+		RepoRoot:             repo,
+		RepositoryDomain:     admissionFixtureDomain,
+		Description:          "Inspect x.go for a possible trust-boundary issue.",
+		Mode:                 admission.ModeInspect,
+		TaskClass:            "inspect_repository_admission",
+		RiskClass:            closure.RiskLowRisk,
+		DirectionRequirement: closure.DirectionNotApplicable,
+		Files:                []tasksession.FileOperation{{Path: "x.go", Operation: admission.OperationRead}},
+		GraphNT:              graphPath,
+	})
+	if err != nil {
+		t.Fatalf("tasksession.Prepare: %v", err)
+	}
+	taskDir := filepath.Join(repo, filepath.FromSlash(prep.TaskDir))
+	bundleDir := filepath.Join(taskDir, "convergence")
+	requestPath := filepath.Join(taskDir, "admission", "request.yaml")
+	decisionPath := filepath.Join(taskDir, "admission", "decision.yaml")
+
+	b := testBridge(fakeClient{})
+	admitRes, err := b.callTool(context.Background(), "sensei_workspace_admit_change", map[string]interface{}{
+		"bundle_dir": bundleDir, "request_path": requestPath, "graph_nt": graphPath, "repo": repo,
+	})
+	if err != nil {
+		t.Fatalf("sensei_workspace_admit_change: %v", err)
+	}
+	admitStructured, ok := admitRes.Structured.(map[string]interface{})
+	if !ok {
+		t.Fatalf("admit result Structured is not a map: %T", admitRes.Structured)
+	}
+	if admitStructured["record_kind"] != "decision" || admitStructured["decision"] != "admitted" {
+		t.Fatalf("expected a real admitted decision through JSON-RPC dispatch, got: %+v", admitStructured)
+	}
+	admissionID, _ := admitStructured["admission_id"].(string)
+	if admissionID == "" {
+		t.Fatalf("decision result carries no admission_id: %+v", admitStructured)
+	}
+
+	verifyRes, err := b.callTool(context.Background(), "sensei_workspace_verify_admission", map[string]interface{}{
+		"decision_path": decisionPath, "bundle_dir": bundleDir, "repo": repo,
+	})
+	if err != nil {
+		t.Fatalf("sensei_workspace_verify_admission: %v", err)
+	}
+	verifyStructured, ok := verifyRes.Structured.(map[string]interface{})
+	if !ok {
+		t.Fatalf("verify result Structured is not a map: %T", verifyRes.Structured)
+	}
+	if verifyStructured["record_kind"] != "verification" {
+		t.Fatalf("expected a verification record through JSON-RPC dispatch, got: %+v", verifyStructured)
+	}
+	if verifyStructured["admission_id"] != admissionID {
+		t.Fatalf("verification record admission_id %v does not match the admitted decision's admission_id %v", verifyStructured["admission_id"], admissionID)
+	}
+	verification, ok := verifyStructured["verification"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("verification field missing or wrong shape: %+v", verifyStructured)
+	}
+	if verification["status"] != "scope_compliant" {
+		t.Fatalf("expected a scope_compliant verification for an untouched repository, got: %+v", verification)
 	}
 }

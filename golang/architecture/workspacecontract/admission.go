@@ -3,6 +3,8 @@
 package workspacecontract
 
 import (
+	"fmt"
+
 	"github.com/globulario/sensei/golang/architecture"
 	admissionpkg "github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closure"
@@ -47,7 +49,25 @@ func ProjectDecision(d admissionpkg.Decision) Admission {
 // capabilities, and envelope all come from the ORIGINAL decision — never
 // re-derived or guessed from the verification alone — so a verification
 // record is never free-floating.
-func ProjectVerification(d admissionpkg.Decision, v admissionpkg.Verification) Admission {
+//
+// It fails closed — returning an error and no Admission — when v's own
+// AdmissionID, DecisionDigestSHA256, or Binding do not match d. Without
+// this check, any caller (including a direct package caller with no
+// filesystem race involved at all) could pass a genuinely unrelated
+// decision/verification pair and receive a normalized, schema-valid record
+// whose verification silently attached itself to the wrong decision's
+// identity, policy, binding, session, request, and envelope.
+func ProjectVerification(d admissionpkg.Decision, v admissionpkg.Verification) (Admission, error) {
+	if v.AdmissionID != d.AdmissionID {
+		return Admission{}, fmt.Errorf("verification admission_id %q does not match decision admission_id %q", v.AdmissionID, d.AdmissionID)
+	}
+	if v.DecisionDigestSHA256 != d.DecisionDigestSHA256 {
+		return Admission{}, fmt.Errorf("verification decision_digest_sha256 %q does not match decision decision_digest_sha256 %q", v.DecisionDigestSHA256, d.DecisionDigestSHA256)
+	}
+	if v.Binding != d.Binding {
+		return Admission{}, fmt.Errorf("verification binding does not match the referenced decision %q's binding", d.AdmissionID)
+	}
+
 	a := ProjectDecision(d)
 	a.RecordKind = RecordKindVerification
 	verification := Verification{
@@ -68,7 +88,7 @@ func ProjectVerification(d admissionpkg.Decision, v admissionpkg.Verification) A
 	}
 	verification = normalizeVerification(verification)
 	a.Verification = &verification
-	return a
+	return a, nil
 }
 
 // projectBinding mirrors the same nullable-when-unresolved projection

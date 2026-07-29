@@ -308,7 +308,10 @@ func (b *bridge) callWorkspaceVerifyAdmission(args map[string]interface{}) (*too
 	if err != nil {
 		return nil, err
 	}
-	rec := workspacecontract.ProjectVerification(decision, verification)
+	rec, err := workspacecontract.ProjectVerification(decision, verification)
+	if err != nil {
+		return nil, err
+	}
 	return workspaceAdmissionResult(rec)
 }
 
