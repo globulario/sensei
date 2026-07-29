@@ -60,7 +60,51 @@ func snapshotGraphFreshness(ctx context.Context, s *server) graphFreshnessSnapsh
 		return snap
 	}
 	snap.verification = seedmeta.VerifyLiveStore(ctx, verifier, expected)
+	annotateEmbeddedModeDetail(&snap.verification, usingEmbeddedSeedMarker(s))
 	return snap
+}
+
+// usingEmbeddedSeedMarker reports whether freshness checks are comparing the
+// live store against the marker COMPILED INTO THIS BINARY (default: no
+// -no-seed / -graph-marker-file flag), as opposed to the runtime marker file
+// at .sensei/graph-authority.json that `sensei build` actually updates.
+func usingEmbeddedSeedMarker(s *server) bool {
+	return s == nil || strings.TrimSpace(s.graphMarkerFile) == ""
+}
+
+// annotateEmbeddedModeDetail appends an actionable hint to a non-current
+// freshness verdict when the server is running in embedded-seed mode. This
+// fixes a real incident: `sensei build` was run repeatedly against a
+// server already serving, and every awareness_briefing call kept returning
+// "graph freshness stale for briefing: live store missing expected graph
+// marker <hash>" with no indication of why — the server was silently
+// comparing the live (correctly rebuilt) store against the marker baked into
+// the binary at compile time, not the runtime marker file build had just
+// updated, because -no-seed had not been passed at startup. Two server
+// restarts and reading this file's source were needed to find the actual
+// lever. The fix here is deliberately NOT a new default or a hot-reload
+// mechanism (embedded-seed mode is an intentional production safeguard
+// against a stray local file silently overriding shipped, trusted
+// knowledge) — it is making the existing, correct behavior legible at the
+// point of failure.
+func annotateEmbeddedModeDetail(ver *seedmeta.Verification, embedded bool) {
+	if ver == nil || !embedded {
+		return
+	}
+	switch ver.State {
+	case seedmeta.FreshnessStale, seedmeta.FreshnessUnknown, seedmeta.FreshnessCheckError, seedmeta.FreshnessEmpty:
+	default:
+		return
+	}
+	hint := "server is running in EMBEDDED-SEED mode (no -no-seed / -graph-marker-file at startup) — " +
+		"it compares the live store against the marker compiled into this binary, NOT the runtime " +
+		"marker file at .sensei/graph-authority.json that `sensei build` updates. If you have run " +
+		"`sensei build` and expect that rebuild to be live, restart `sensei serve` with -no-seed."
+	if ver.Detail != "" {
+		ver.Detail = ver.Detail + " — " + hint
+	} else {
+		ver.Detail = hint
+	}
 }
 
 func expectedGraphMarker(s *server) (seedmeta.Marker, string, bool) {

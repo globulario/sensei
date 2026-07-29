@@ -169,6 +169,74 @@ func TestMetadata_RuntimeMarkerFileMissingMarksUnknown(t *testing.T) {
 	}
 }
 
+// TestMetadata_EmbeddedModeStaleExplainsWhyAndHowToFix is the regression
+// ratchet for a live incident: with no -no-seed / -graph-marker-file at
+// startup (the default), the server compares the live store against the
+// marker COMPILED INTO THE BINARY. Running `sensei build` updates the live
+// store and the RUNTIME marker file, but never the embedded one, so every
+// freshness check kept reporting stale with a bare "live store missing
+// expected graph marker <hash>" — no indication that a rebuild had already
+// happened, or that -no-seed was the fix. The detail string must name the
+// actual cause and the actual fix.
+func TestMetadata_EmbeddedModeStaleExplainsWhyAndHowToFix(t *testing.T) {
+	s := newServer(runtimeMarkerStore{
+		// The live store has REAL data (a rebuild happened) but its marker
+		// IRI doesn't match whatever is embedded in this test binary —
+		// exactly the "I rebuilt, but the server is still stale" shape.
+		describeFn: func(context.Context, string) ([]store.Triple, error) { return nil, nil },
+		countFn:    func(context.Context) (int64, error) { return 42, nil },
+	})
+	// s.graphMarkerFile is left empty: embedded-seed mode, the default.
+
+	resp, err := s.Metadata(context.Background(), &awarenesspb.MetadataRequest{})
+	if err != nil {
+		t.Fatalf("Metadata: %v", err)
+	}
+	detail := resp.GetGraphFreshnessDetail()
+	if resp.GetGraphFreshnessState() == awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT {
+		t.Skip("embedded marker in this test binary happened to match — nothing to annotate")
+	}
+	if !strings.Contains(detail, "EMBEDDED-SEED mode") {
+		t.Fatalf("detail = %q, want it to name embedded-seed mode as the cause", detail)
+	}
+	if !strings.Contains(detail, "-no-seed") {
+		t.Fatalf("detail = %q, want it to name -no-seed as the fix", detail)
+	}
+}
+
+// TestMetadata_RuntimeMarkerStaleDoesNotMentionEmbeddedMode is the inverse
+// ratchet: once a caller HAS opted into runtime-marker mode
+// (s.graphMarkerFile set, e.g. via -no-seed), a genuine staleness (the
+// runtime marker file itself is out of date relative to the live store)
+// must NOT be annotated with the embedded-mode hint — that hint is only
+// correct advice when embedded mode is actually the cause.
+func TestMetadata_RuntimeMarkerStaleDoesNotMentionEmbeddedMode(t *testing.T) {
+	_, marker := seedmeta.AppendMarker([]byte("<https://example.test/s> <https://example.test/p> <https://example.test/x> .\n"))
+	markerPath := filepath.Join(t.TempDir(), "graph-authority.json")
+	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
+		t.Fatalf("write marker file: %v", err)
+	}
+
+	s := newServer(runtimeMarkerStore{
+		// Live store does not carry the expected marker triples — a genuine
+		// stale live store, unrelated to embedded-vs-runtime mode.
+		describeFn: func(context.Context, string) ([]store.Triple, error) { return nil, nil },
+		countFn:    func(context.Context) (int64, error) { return 7, nil },
+	})
+	s.graphMarkerFile = markerPath
+
+	resp, err := s.Metadata(context.Background(), &awarenesspb.MetadataRequest{})
+	if err != nil {
+		t.Fatalf("Metadata: %v", err)
+	}
+	if resp.GetGraphFreshnessState() == awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT {
+		t.Fatal("expected a stale/unknown verdict for this fixture")
+	}
+	if detail := resp.GetGraphFreshnessDetail(); strings.Contains(detail, "EMBEDDED-SEED mode") {
+		t.Fatalf("detail = %q, must not blame embedded-seed mode when running with a runtime marker file", detail)
+	}
+}
+
 func TestBriefing_RuntimeMarkerAllowsNonEmbeddedAuthoritativeGraph(t *testing.T) {
 	_, marker := seedmeta.AppendMarker([]byte(strings.Join([]string{
 		"<https://example.test/invariant/caddy.forwardauth> <http://www.w3.org/2000/01/rdf-schema#label> \"Caddy forwardauth invariant\" .",

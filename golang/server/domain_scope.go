@@ -166,6 +166,30 @@ func (s *server) validateRequestedDomain(ctx context.Context, requested string) 
 		"unknown domain scope %q: graph domains are %v", requested, available)
 }
 
+// homeDomainSuggestion returns a suggested-fix suffix for the ambiguous-domain
+// error when the server's configured home domain (see -home-domain, default
+// "globular") is itself one of the available domains — the common case for a
+// project's own agent calling briefing/query without a --domain, on a graph
+// that also hosts one or more OTHER projects' domains. Confirmed live: this
+// server always has a home domain configured (it defaults, never truly
+// empty), but the prior error text never surfaced it, so every ambiguous call
+// demanded --domain with no hint of what value was actually likely correct —
+// an agent had to already know or guess the domain string. Returns "" when
+// home is unset or not among the available domains, leaving the message
+// exactly as before.
+func homeDomainSuggestion(home string, available []string) string {
+	home = strings.TrimSpace(home)
+	if home == "" {
+		return ""
+	}
+	for _, d := range available {
+		if d == home {
+			return " (this server's home domain is " + home + " — pass --domain " + home + " unless you specifically need one of the other domains)"
+		}
+	}
+	return ""
+}
+
 func (s *server) requireDomainWhenAmbiguous(ctx context.Context, requested string) error {
 	requested = strings.TrimSpace(requested)
 	if err := s.validateRequestedDomain(ctx, requested); err != nil {
@@ -180,7 +204,8 @@ func (s *server) requireDomainWhenAmbiguous(ctx context.Context, requested strin
 	}
 	if ok && len(available) > 1 {
 		return status.Errorf(codes.FailedPrecondition,
-			"ambiguous domain scope: graph holds %d domains %v — specify --domain", len(available), available)
+			"ambiguous domain scope: graph holds %d domains %v — specify --domain%s",
+			len(available), available, homeDomainSuggestion(s.homeDomain, available))
 	}
 	return nil
 }

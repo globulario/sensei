@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/rdf"
@@ -202,5 +203,67 @@ func TestEmbeddedSeedStoreDomains(t *testing.T) {
 	seen := map[string]bool{got[0]: true, got[1]: true}
 	if !seen["github.com/o/a"] || !seen["github.com/o/b"] {
 		t.Errorf("Domains() = %v, want github.com/o/a + github.com/o/b", got)
+	}
+}
+
+// TestHomeDomainSuggestion is the regression ratchet for a live friction
+// point: the server always has a home domain configured (it defaults to
+// "globular", never truly unset), but the ambiguous-domain error never
+// surfaced it — every ambiguous call demanded --domain with no hint of what
+// value was actually the likely-correct one, on a graph whose home domain
+// was sitting right there in the "available" list the error already printed.
+func TestHomeDomainSuggestion(t *testing.T) {
+	cases := []struct {
+		name      string
+		home      string
+		available []string
+		wantEmpty bool
+	}{
+		{"home_among_available", "globular", []string{"github.com/o/a", "globular"}, false},
+		{"home_unset", "", []string{"github.com/o/a", "globular"}, true},
+		{"home_not_among_available", "globular", []string{"github.com/o/a", "github.com/o/b"}, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := homeDomainSuggestion(c.home, c.available)
+			if c.wantEmpty && got != "" {
+				t.Fatalf("homeDomainSuggestion(%q, %v) = %q, want empty", c.home, c.available, got)
+			}
+			if !c.wantEmpty {
+				if got == "" {
+					t.Fatalf("homeDomainSuggestion(%q, %v) = empty, want a suggestion naming %q", c.home, c.available, c.home)
+				}
+				if !strings.Contains(got, "--domain "+c.home) {
+					t.Fatalf("homeDomainSuggestion(%q, %v) = %q, want it to name the exact flag+value to pass", c.home, c.available, got)
+				}
+			}
+		})
+	}
+}
+
+// TestRequireDomainWhenAmbiguous_ErrorNamesHomeDomain is the end-to-end
+// ratchet through the actual RPC-facing error path: with the server's
+// default home domain ("globular") among several available domains and no
+// --domain passed, the FailedPrecondition error text itself must name the
+// exact flag+value an agent should retry with — not just "specify --domain"
+// with no further guidance.
+func TestRequireDomainWhenAmbiguous_ErrorNamesHomeDomain(t *testing.T) {
+	s := newServer(fakeDomainListStore{
+		domains: []string{"github.com/o/a", "github.com/o/b", defaultHomeDomain},
+	})
+	s.homeDomain = defaultHomeDomain
+
+	err := s.requireDomainWhenAmbiguous(context.Background(), "")
+	if err == nil {
+		t.Fatal("expected an ambiguous-domain error, got nil")
+	}
+	if !strings.Contains(err.Error(), "--domain "+defaultHomeDomain) {
+		t.Fatalf("error = %v, want it to suggest --domain %s", err, defaultHomeDomain)
+	}
+
+	// An explicit --domain must still be honored as before — the suggestion
+	// is advisory only, never a silent override.
+	if err := s.requireDomainWhenAmbiguous(context.Background(), "github.com/o/a"); err != nil {
+		t.Fatalf("explicit domain should not be treated as ambiguous: %v", err)
 	}
 }
