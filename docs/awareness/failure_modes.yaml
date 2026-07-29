@@ -1256,3 +1256,14 @@ failure_modes:
     evidence:
       - 'cmd/awg/hook_lifecycle_integration_test.go step 4: a briefing recorded with domain=github.com/somebody-else/renamed-repo still authorized an edit before the fix'
     contract: 'docs/design/checkout-repository-domain-binding.md §3: briefing markers must bind hash(repository root + repository domain + file path)'
+  - id: failure.projectverification_composed_a_verification_record_without_c
+    title: ProjectVerification composed a verification record without checking it referenced the same decision
+    protects:
+      files:
+        - golang/architecture/workspacecontract/admission.go
+    related_invariants:
+      - workspace.admission.decision_verification_binding
+    required_tests:
+      - golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID
+    evidence:
+      - reachable via direct package use with two independently-constructed admission.Decision/admission.Verification values, no filesystem race needed

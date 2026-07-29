@@ -21,6 +21,7 @@ components:
     assertion: inferred
     source_files:
       - cmd/awareness-mcp/main.go
+      - cmd/awareness-mcp/workspace_tools.go
     depends_on:
       - component.golang.architecture
       - component.golang.client
@@ -612,6 +613,7 @@ components:
       - golang/architecture/questionresolution/model.go
       - golang/architecture/questionresolution/persist.go
       - golang/architecture/questionresolution/summarize.go
+      - golang/architecture/repodomain/repodomain.go
       - golang/architecture/repograph/build.go
       - golang/architecture/repograph/provenance_input.go
       - golang/architecture/repograph/repograph.go
@@ -663,12 +665,20 @@ components:
       - golang/architecture/tasksession/session_authority.go
       - golang/architecture/whyinvestigation/contracts.go
       - golang/architecture/whyinvestigation/git.go
+      - golang/architecture/workspacecontract/admission.go
+      - golang/architecture/workspacecontract/digest.go
+      - golang/architecture/workspacecontract/identity.go
+      - golang/architecture/workspacecontract/normalize.go
+      - golang/architecture/workspacecontract/schema.go
+      - golang/architecture/workspacecontract/types.go
+      - golang/architecture/workspacecontract/validate.go
     depends_on:
       - component.golang.extractor
       - component.golang.propose
       - component.golang.rdf
       - component.golang.scanner
       - component.golang.seedmeta
+      - component.golang.statedir
       - component.golang.store
     external_imports:
       - github.com/santhosh-tekuri/jsonschema/v5

@@ -1,0 +1,96 @@
+{
+  "schema_version": "sensei.workspace.admission.v1",
+  "record_kind": "verification",
+  "admission_id": "admission.4444444444444444",
+  "decision_digest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "policy_id": "admission.strict.v1",
+  "policy_version": "v1",
+  "decision": "admitted",
+  "requested_mode": "modify",
+  "binding": {
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "abc123def456abc123def456abc123def456abc",
+    "revision_status": "resolved",
+    "tree_digest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "graph_digest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "graph_digest_status": "resolved"
+  },
+  "session_receipt": {
+    "session_id": "session.feat-workspace",
+    "latest_iteration": 2,
+    "iteration_digest_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "semantic_state_digest_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "status": "converged",
+    "closure_verdict": "closed"
+  },
+  "request_receipt": {
+    "digest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "scope": {
+      "files": [
+        {
+          "path": "golang/architecture/workspacecontract/types.go",
+          "operation": "modify"
+        }
+      ],
+      "symbols": [],
+      "components": [],
+      "claim_ids": [],
+      "proposition_keys": []
+    },
+    "mode": "modify",
+    "task_class": "feature"
+  },
+  "inspection_capability": "admitted",
+  "mutation_capability": "admitted",
+  "envelope": {
+    "read_paths": [],
+    "modify_paths": [
+      "golang/architecture/workspacecontract/types.go"
+    ],
+    "symbols": [],
+    "components": [],
+    "claim_ids": [],
+    "proposition_keys": [],
+    "unsupported_operations": []
+  },
+  "reasons": [
+    {
+      "code": "admission.closed_scope"
+    }
+  ],
+  "limitations": [],
+  "scope_only": true,
+  "correctness_certified": false,
+  "verification": {
+    "status": "stale",
+    "verification_digest_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "iteration_digest_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "patch_digest_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "changes": [
+      {
+        "path": "golang/architecture/workspacecontract/types.go",
+        "change_type": "modified",
+        "current_digest_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "current_size": 4096
+      }
+    ],
+    "violations": [
+      {
+        "code": "admission.verify.base_revision_changed",
+        "detail": "working tree HEAD differs from admission base revision"
+      }
+    ],
+    "pending_condition_ids": [],
+    "pending_test_ids": [],
+    "pending_proof_obligation_ids": [],
+    "pending_runtime_evidence_ids": [],
+    "reasons": [
+      {
+        "code": "admission.verify.base_revision_changed"
+      }
+    ],
+    "limitations": [],
+    "scope_only": true,
+    "correctness_certified": false
+  }
+}

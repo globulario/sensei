@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/workspace-identity-v1.json",
+  "title": "Sensei Workspace Identity V1",
+  "description": "A closed, versioned composition of existing Sensei-owned facts about one checkout: configured repository identity, revision/tree binding, graph authority, coverage, and optional task identity. Evidence, not permission.",
+  "$comment": "Canonical producer/owner: globulario/sensei. This is a Sensei-core truth receipt, not a Dashboard-authored approximation. A consumer (e.g. globulario/sensei-dashboard) must pin an exact accepted Sensei commit and this file's sha256 digest, and must reject any document whose schema_version it does not exactly recognize rather than partially interpret it. schema_version is a const, not a range: any field addition, removal, rename, or semantic change requires a new schema identifier. composition_state reports only whether this receipt could be composed completely — it is NEVER mutation admission, correctness certification, provider authorization, or a merge recommendation; see sensei.workspace.admission.v1 for admission truth. This contract deliberately omits repository-root hash, MCP server/session id, worktree id, job id, and provider id — Sensei does not own those facts; a runner (not yet implemented) binds and compares its own copies of them against this receipt's repository/revision/graph/task facts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_by",
+    "composition_state",
+    "binding",
+    "repository_domain_source",
+    "graph_authority",
+    "coverage_state",
+    "task_identity",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.workspace.identity.v1" },
+    "generated_by": { "type": "string", "minLength": 1 },
+    "composition_state": {
+      "$comment": "complete: every governed fact below resolved cleanly. partial: repository_domain_source=configured and graph_authority is non-null (the backend was reachable), but revision is unresolved or graph_authority.authoritative=false (e.g. a stale graph). unavailable: the receipt could not be meaningfully composed at all — repository_domain_source=unbound, OR graph_authority=null because the metadata backend was unreachable (never partial: an unreachable backend is not a degraded-but-composed receipt). complete REQUIRES repository_domain_source=configured, binding.revision_status=resolved, and graph_authority non-null with authoritative=true. binding.graph_digest_status is NOT part of this gate — it is independently not_requested/resolved/unavailable, exactly like task_identity, since a producer may have no task-scoped local graph.nt snapshot to report at all.",
+      "enum": ["complete", "partial", "unavailable"]
+    },
+    "binding": { "$ref": "#/$defs/binding" },
+    "repository_domain_source": {
+      "$comment": "configured: repository_domain came from this checkout's canonical .sensei/config.yaml repository.domain — the only source that can produce composition_state=complete. unbound: no repository.domain is configured. Environment variables (SENSEI_DOMAIN, legacy AWG_DOMAIN) and git remote origin are never a source of governed workspace identity, even when observed as diagnostic context elsewhere; they never appear here.",
+      "enum": ["configured", "unbound"]
+    },
+    "graph_authority": {
+      "oneOf": [
+        { "$ref": "#/$defs/graphAuthority" },
+        { "type": "null" }
+      ],
+      "$comment": "null only when composition_state=unavailable and the metadata backend could not be reached at all; any other case must supply a graph_authority object, even one reporting an empty/unknown/check_error freshness state."
+    },
+    "coverage_state": {
+      "$comment": "Mirrors the closed Sensei CoverageState vocabulary (proto awareness_graph.proto) verbatim — never a Dashboard-authored translation.",
+      "enum": ["COVERAGE_STATE_UNSPECIFIED", "COVERAGE_STATE_EMPTY", "COVERAGE_STATE_THIN", "COVERAGE_STATE_SUFFICIENT"]
+    },
+    "task_identity": { "$ref": "#/$defs/taskIdentity" },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "binding": {
+      "$comment": "Reuses architecture.ClaimDocumentBinding's exact semantics. revision and tree_digest_sha256 are independently optional: an admitted-but-uncommitted working tree can be represented by tree_digest_sha256 alone, without pretending it has a revision (required proof: 'uncommitted admitted trees can be represented by tree digest without pretending they have a revision').",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_domain", "revision", "revision_status", "tree_digest_sha256", "graph_digest_sha256", "graph_digest_status"],
+      "properties": {
+        "repository_domain": { "type": "string" },
+        "revision": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        },
+        "revision_status": {
+          "enum": ["resolved", "unavailable", "not_git", "not_requested"]
+        },
+        "tree_digest_sha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256Hex" },
+            { "type": "null" }
+          ]
+        },
+        "graph_digest_sha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256Hex" },
+            { "type": "null" }
+          ]
+        },
+        "graph_digest_status": {
+          "enum": ["resolved", "unavailable", "not_requested"]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "revision_status": { "const": "resolved" } } },
+          "then": { "properties": { "revision": { "type": "string", "minLength": 1 } } },
+          "else": { "properties": { "revision": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "graph_digest_status": { "const": "resolved" } } },
+          "then": { "properties": { "graph_digest_sha256": { "$ref": "#/$defs/sha256Hex" } } },
+          "else": { "properties": { "graph_digest_sha256": { "type": "null" } } }
+        }
+      ]
+    },
+    "graphAuthority": {
+      "$comment": "A bounded external projection of GraphAuthority/MetadataResponse (proto awareness_graph.proto) needed by a runner. Field names and enum spellings are verbatim proto names — not renamed for external presentation — so this receipt can be cross-checked directly against docs/api-reference.md and the .proto source.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative",
+        "graph_freshness_state",
+        "graph_freshness_detail",
+        "seed_state",
+        "build_provenance_state",
+        "live_store_graph_digest_sha256",
+        "live_store_graph_triple_count",
+        "embedded_seed_digest_sha256",
+        "embedded_transaction_stamp_present",
+        "embedded_transaction_matches_seed",
+        "certified_awareness_graph_commit",
+        "certified_services_repo_commit"
+      ],
+      "properties": {
+        "authoritative": { "type": "boolean" },
+        "graph_freshness_state": {
+          "enum": [
+            "GRAPH_FRESHNESS_STATE_UNSPECIFIED",
+            "GRAPH_FRESHNESS_STATE_CURRENT",
+            "GRAPH_FRESHNESS_STATE_STALE",
+            "GRAPH_FRESHNESS_STATE_UNKNOWN",
+            "GRAPH_FRESHNESS_STATE_EMPTY",
+            "GRAPH_FRESHNESS_STATE_CHECK_ERROR"
+          ]
+        },
+        "graph_freshness_detail": { "type": "string" },
+        "seed_state": {
+          "enum": ["SEED_STATE_UNSPECIFIED", "SEED_STATE_CURRENT", "SEED_STATE_STALE", "SEED_STATE_UNSTAMPED"]
+        },
+        "build_provenance_state": {
+          "enum": [
+            "BUILD_PROVENANCE_STATE_UNSPECIFIED",
+            "BUILD_PROVENANCE_STATE_STAMPED",
+            "BUILD_PROVENANCE_STATE_DEV",
+            "BUILD_PROVENANCE_STATE_INCOMPLETE"
+          ]
+        },
+        "live_store_graph_digest_sha256": {
+          "oneOf": [{ "$ref": "#/$defs/sha256Hex" }, { "type": "string", "maxLength": 0 }]
+        },
+        "live_store_graph_triple_count": { "type": "integer", "minimum": 0 },
+        "embedded_seed_digest_sha256": {
+          "oneOf": [{ "$ref": "#/$defs/sha256Hex" }, { "type": "string", "maxLength": 0 }]
+        },
+        "embedded_transaction_stamp_present": { "type": "boolean" },
+        "embedded_transaction_matches_seed": { "type": "boolean" },
+        "certified_awareness_graph_commit": { "type": "string" },
+        "certified_services_repo_commit": { "type": "string" }
+      }
+    },
+    "taskIdentity": {
+      "$comment": "not_requested: the caller did not ask sensei_workspace_status to resolve a task. resolved: a deterministic Sensei task_id was found. unavailable: a task was requested but could not be resolved (no active task, unknown task, or a local task-artifact read failure). task_id is present if and only if state=resolved.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "task_id"],
+      "properties": {
+        "state": { "enum": ["not_requested", "resolved", "unavailable"] },
+        "task_id": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "resolved" } } },
+          "then": { "properties": { "task_id": { "type": "string", "minLength": 1 } } },
+          "else": { "properties": { "task_id": { "type": "null" } } }
+        }
+      ]
+    },
+    "limitation": {
+      "$comment": "Mirrors architecture.Limitation verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}
