@@ -753,6 +753,104 @@ test_symbols:
     symbol: TestToolsList_IncludesPropose
     package: main
     language: go
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestMCPExistingAdmissionToolsBehaviorUnchanged
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestMCPExistingAdmissionToolsBehaviorUnchanged
+    package: main
+    language: go
+    doc: "TestMCPExistingAdmissionToolsBehaviorUnchanged proves the delegation this\nfeature introduces did not alter admit_change/verify_admission's own\ndispatch behavior: calling the pre-existing tools directly, through the\nsame b.callTool path sensei_workspace_admit_change/\nsensei_workspace_verify_admission delegate to, against a real admission\nbundle still produces the same admitted decision and scope_compliant\nverification identity (admission_id, decision_digest_sha256) the\nworkspace projection tests observe."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestMCPExistingAdmissionToolsUnchanged
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestMCPExistingAdmissionToolsUnchanged
+    package: main
+    language: go
+    doc: "TestMCPExistingAdmissionToolsUnchanged proves this feature did not modify\nadmit_change/verify_admission's own registered shape: it deep-compares the\nfull Description and InputSchema (not just the required-field list) for\nboth tools against their exact pre-existing literal definitions in\nmain.go, so a changed description, an added/removed/retyped property, or a\ndropped/added additionalProperties or enum constraint would fail this test\neven though the required-field set stayed the same."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestMCPWorkspaceToolsAreRegisteredWithClosedSchemas
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestMCPWorkspaceToolsAreRegisteredWithClosedSchemas
+    package: main
+    language: go
+    doc: "TestMCPWorkspaceToolsAreRegisteredWithClosedSchemas proves tool discovery\nadvertises all three new tools with closed (additionalProperties: false)\ninput schemas."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceAdmission_ProjectionRoundtripsSchemaValid
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceAdmission_ProjectionRoundtripsSchemaValid
+    package: main
+    language: go
+    doc: "TestWorkspaceAdmission_ProjectionRoundtripsSchemaValid closes the gap the\ntwo argument-validation tests above leave: it proves the actual\nMCP-result-building path (workspaceAdmissionResult: producer validation +\nreal schema validation + structFrom) succeeds for a real\nadmission.Decision projection, using the same fixture-construction this\npackage's fixtures already prove pass workspacecontract's own tests."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceAdmission_RealBundleThroughJSONRPCDispatch
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceAdmission_RealBundleThroughJSONRPCDispatch
+    package: main
+    language: go
+    doc: "TestWorkspaceAdmission_RealBundleThroughJSONRPCDispatch is the JSON-RPC\nintegration proof the reviewer required: it drives sensei_workspace_admit_\nchange and sensei_workspace_verify_admission through the real b.callTool\ndispatch path against a real, on-disk admission bundle (built by\ntasksession.Prepare's real closure/convergence pipeline, not a hand-\nsynthesized fixture), producing one complete identity call, one genuinely\nadmitted decision, and one scope_compliant verification.\n\nThe fixture request is an inspect/read task (low_risk, direction\nnot_applicable): closure closes deterministically on a single pass for a\nplain source file with no test-identification or intended-basis\nprerequisites, which a write/modify task would otherwise require — see\ngolang/architecture/closure's write-scope and preserve/evolve direction\ngates. Inspection admission is still governed by the same real Evaluate\npath (admission.Decision.Decision is the requested capability outcome:\ninspection here, mutation for a modify request) and is what\ncallWorkspaceAdmitChange/callWorkspaceVerifyAdmission actually run."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceAdmitChange_RejectsUnknownProperty
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceAdmitChange_RejectsUnknownProperty
+    package: main
+    language: go
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceAdmitChange_RequiresAllArguments
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceAdmitChange_RequiresAllArguments
+    package: main
+    language: go
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_BackendUnavailableIsUnavailableNotEmptyOrComplete
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_BackendUnavailableIsUnavailableNotEmptyOrComplete
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_BackendUnavailableIsUnavailableNotEmptyOrComplete\nproves a Metadata RPC failure is reported as an honest unavailable\ngraph_authority, never silently treated as empty/complete."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_CompleteReceipt
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_CompleteReceipt
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_CompleteReceipt proves a configured checkout with a\ncurrent, authoritative backend produces composition_state=complete, and\nthat the returned structured payload validates against the real,\ncanonical JSON Schema — the full one-complete-identity-call integration\nproof the implementer brief requires."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_RejectsMalformedTaskValues
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_RejectsMalformedTaskValues
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_RejectsMalformedTaskValues proves a present-but-\nnon-string \"task\" value is a hard argument error, never silently\ncoerced to \"\" and treated as \"resolve the active task\" — the exact\nfailure mode a bare `task, _ := args[\"task\"].(string)` type assertion\nwould produce. Covers JSON null, number, array, and object, the four\nshapes a `.(string)` assertion silently swallows."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_RejectsUnknownProperty
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_RejectsUnknownProperty
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_RejectsUnknownProperty proves runtime argument\nenforcement rejects an unknown property even though the caller supplied\nno domain override field the advertised schema would also reject."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_RejectsWrongType
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_RejectsWrongType
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_RejectsWrongType proves a non-string repo value fails\nat runtime rather than silently coercing."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_RequiresRepo
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_RequiresRepo
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_RequiresRepo proves the required argument is enforced."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_TaskNotRequestedVsUnavailable
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_TaskNotRequestedVsUnavailable
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_TaskNotRequestedVsUnavailable proves the two states\nare distinguishable: omitting \"task\" entirely is not_requested; supplying\none that cannot be resolved is unavailable."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceStatus_UnboundDomainIsUnavailable
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceStatus_UnboundDomainIsUnavailable
+    package: main
+    language: go
+    doc: "TestWorkspaceStatus_UnboundDomainIsUnavailable proves an unconfigured\ncheckout never produces composition_state=complete, and never guesses a\ndomain from environment or git origin."
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceVerifyAdmission_RejectsUnknownProperty
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceVerifyAdmission_RejectsUnknownProperty
+    package: main
+    language: go
+  - id: cmd/awareness-mcp/workspace_tools_test.go:TestWorkspaceVerifyAdmission_RequiresAllArguments
+    file: cmd/awareness-mcp/workspace_tools_test.go
+    symbol: TestWorkspaceVerifyAdmission_RequiresAllArguments
+    package: main
+    language: go
   - id: cmd/awg/architect_skill_dialogue_test.go:TestArchitectSkillLabelsDialogueNonAuthoritative
     file: cmd/awg/architect_skill_dialogue_test.go
     symbol: TestArchitectSkillLabelsDialogueNonAuthoritative
@@ -12223,6 +12321,46 @@ test_symbols:
     package: questionresolution
     language: go
     doc: "Item 12: building the summary produces zero repository side effects."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestConfigPath_UsesStatedir
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestConfigPath_UsesStatedir
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestConfigured_ErrorsOnInvalidConfiguredDomain
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestConfigured_ErrorsOnInvalidConfiguredDomain
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestConfigured_ErrorsOnMalformedYAML
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestConfigured_ErrorsOnMalformedYAML
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestConfigured_ReturnsConfiguredDomain
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestConfigured_ReturnsConfiguredDomain
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestConfigured_UnboundWhenConfigHasNoRepositorySection
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestConfigured_UnboundWhenConfigHasNoRepositorySection
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestConfigured_UnboundWhenNoConfig
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestConfigured_UnboundWhenNoConfig
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestValidate_AcceptsCanonicalShape
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestValidate_AcceptsCanonicalShape
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestValidate_RejectsNonCanonicalForms
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestValidate_RejectsNonCanonicalForms
+    package: repodomain
+    language: go
   - id: golang/architecture/repograph/repograph_test.go:TestBoundaryNoLaterPhaseArtifactsOrCLIImport
     file: golang/architecture/repograph/repograph_test.go
     symbol: TestBoundaryNoLaterPhaseArtifactsOrCLIImport
@@ -13847,6 +13985,162 @@ test_symbols:
     symbol: TestShallowHistoryKeepsEvidenceButSignalsLimitation
     package: whyinvestigation
     language: go
+  - id: golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_AcceptsMatchingPair
+    file: golang/architecture/workspacecontract/admission_test.go
+    symbol: TestProjectVerification_AcceptsMatchingPair
+    package: workspacecontract
+    language: go
+    doc: "TestProjectVerification_AcceptsMatchingPair proves the ordinary, correct\ncase still works: a verification whose identity/binding genuinely\nreference the decision projects successfully."
+  - id: golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID
+    file: golang/architecture/workspacecontract/admission_test.go
+    symbol: TestProjectVerification_RejectsMismatchedAdmissionID
+    package: workspacecontract
+    language: go
+    doc: "TestProjectVerification_RejectsMismatchedAdmissionID proves the fail-closed\nrepair: a caller (with no filesystem race involved at all — these are\ntwo independently-constructed in-memory values) supplying a verification\nbound to a DIFFERENT admission_id must be refused, never silently\nprojected under the supplied decision's identity."
+  - id: golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_RejectsMismatchedBinding
+    file: golang/architecture/workspacecontract/admission_test.go
+    symbol: TestProjectVerification_RejectsMismatchedBinding
+    package: workspacecontract
+    language: go
+    doc: "TestProjectVerification_RejectsMismatchedBinding proves the same\nfail-closed behavior for binding — a verification that shares the\ndecision's admission_id/decision_digest by coincidence (or forgery) but\nwas actually computed against a different repository/revision/graph\nbinding must still be refused."
+  - id: golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_RejectsMismatchedDecisionDigest
+    file: golang/architecture/workspacecontract/admission_test.go
+    symbol: TestProjectVerification_RejectsMismatchedDecisionDigest
+    package: workspacecontract
+    language: go
+    doc: "TestProjectVerification_RejectsMismatchedDecisionDigest proves the same\nfail-closed behavior for decision_digest_sha256."
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdmissionFixturesMatchTheirLabel
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdmissionFixturesMatchTheirLabel
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_CompleteWithUnavailableGraphAuthority
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_CompleteWithUnavailableGraphAuthority
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_CompleteWithUnresolvedBinding
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_CompleteWithUnresolvedBinding
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_DecisionRecordWithNonNullVerification
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_DecisionRecordWithNonNullVerification
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_InventedRunnerOwnedFields
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_InventedRunnerOwnedFields
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_MalformedRepositoryDomainRepresentedAsComplete
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_MalformedRepositoryDomainRepresentedAsComplete
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_MalformedSHA256Digest
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_MalformedSHA256Digest
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_MismatchedDecisionAndVerificationIdentity
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_MismatchedDecisionAndVerificationIdentity
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_MissingDecisionOrPolicyIdentity
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_MissingDecisionOrPolicyIdentity
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_ScopeCompliantNeverManufacturesCorrectnessCertified
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_ScopeCompliantNeverManufacturesCorrectnessCertified
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_UnknownAdmissionOutcomeEnumValue
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_UnknownAdmissionOutcomeEnumValue
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_UnknownGraphFreshnessEnumValue
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_UnknownGraphFreshnessEnumValue
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_UnknownNestedProperty
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_UnknownNestedProperty
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_UnknownRootProperty
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_UnknownRootProperty
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_UnknownVerificationStatusEnumValue
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_UnknownVerificationStatusEnumValue
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestAdversarial_VerificationRecordWithNullVerification
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestAdversarial_VerificationRecordWithNullVerification
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestFixturesDirectoryHasNoUnexpectedContent
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestFixturesDirectoryHasNoUnexpectedContent
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestIdentityFixturesMatchTheirLabel
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestIdentityFixturesMatchTheirLabel
+    package: workspacecontract
+    language: go
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestValidAdmissionFixturesPassSchemaAndProducerValidation
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestValidAdmissionFixturesPassSchemaAndProducerValidation
+    package: workspacecontract
+    language: go
+    doc: "TestValidAdmissionFixturesPassSchemaAndProducerValidation proves every\ncommitted admission fixture passes both the real, canonical JSON Schema\nand this producer's cross-field validation."
+  - id: golang/architecture/workspacecontract/fixtures_test.go:TestValidIdentityFixturesPassSchemaAndProducerValidation
+    file: golang/architecture/workspacecontract/fixtures_test.go
+    symbol: TestValidIdentityFixturesPassSchemaAndProducerValidation
+    package: workspacecontract
+    language: go
+    doc: "TestValidIdentityFixturesPassSchemaAndProducerValidation proves every\ncommitted identity fixture passes both the real, canonical JSON Schema\nand this producer's cross-field validation."
+  - id: golang/architecture/workspacecontract/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
+    file: golang/architecture/workspacecontract/schema_test.go
+    symbol: TestEmbeddedSchemasMatchCanonicalSource
+    package: workspacecontract
+    language: go
+    doc: "TestEmbeddedSchemasMatchCanonicalSource proves the go:embed'd copy under\nschemas/ (what actually ships inside cmd/awareness-mcp and every other\nbinary that imports this package) is byte-identical to the canonical,\ncross-repo-pinned source under docs/schemas/workspace/v1/ — go:embed\ncannot reach outside this package directory with a \"..\" pattern, so the\ncanonical file is mechanically copied here at commit time, and this test\nis what stops the two from silently drifting apart."
+  - id: golang/architecture/workspacecontract/schema_test.go:TestSchemaVersionIdentifiersMatchAdopted
+    file: golang/architecture/workspacecontract/schema_test.go
+    symbol: TestSchemaVersionIdentifiersMatchAdopted
+    package: workspacecontract
+    language: go
+    doc: "TestSchemaVersionIdentifiersMatchAdopted confirms the vendored schemas'\nconst identifiers exactly match this package's Go constants."
+  - id: golang/architecture/workspacecontract/schema_test.go:TestSchemasParseAndAreClosed
+    file: golang/architecture/workspacecontract/schema_test.go
+    symbol: TestSchemasParseAndAreClosed
+    package: workspacecontract
+    language: go
+    doc: "TestSchemasParseAndAreClosed proves both vendored schemas parse as JSON\nand keep additionalProperties:false at their object roots."
+  - id: golang/architecture/workspacecontract/schema_test.go:TestValidateAdmissionSchemaCompilesAndEnforcesRealConstraints
+    file: golang/architecture/workspacecontract/schema_test.go
+    symbol: TestValidateAdmissionSchemaCompilesAndEnforcesRealConstraints
+    package: workspacecontract
+    language: go
+    doc: "TestValidateAdmissionSchemaCompilesAndEnforcesRealConstraints proves\nValidateAdmissionSchema is a real Draft 2020-12 validator, not a stub."
+  - id: golang/architecture/workspacecontract/schema_test.go:TestValidateIdentitySchemaCompilesAndEnforcesRealConstraints
+    file: golang/architecture/workspacecontract/schema_test.go
+    symbol: TestValidateIdentitySchemaCompilesAndEnforcesRealConstraints
+    package: workspacecontract
+    language: go
+    doc: "TestValidateIdentitySchemaCompilesAndEnforcesRealConstraints proves\nValidateIdentitySchema is a real Draft 2020-12 validator, not a stub."
   - id: golang/client/auth_test.go:TestBearerToken
     file: golang/client/auth_test.go
     symbol: TestBearerToken
