@@ -1351,3 +1351,10 @@ required_tests:
         - invariant.sensei.artifact_inspector_renders_owner_derived_state_only
       files:
         - editor/vscode/src/controlPanelInspector.test.ts
+  - id: golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID
+    title: ProjectVerification refuses a verification whose admission_id does not match the referenced decision
+    protects:
+      failure_modes:
+        - failure.projectverification_composed_a_verification_record_without_c
+      files:
+        - golang/architecture/workspacecontract/admission.go
