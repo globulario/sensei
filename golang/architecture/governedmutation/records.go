@@ -156,9 +156,18 @@ func protectsOrNil(files []string) *recordFiles {
 	return &recordFiles{Files: files}
 }
 
-// renderItem marshals one record as a 2-space-indented YAML list item, producing
-// minimal, human-reviewable diffs.
-func renderItem(item interface{}) (string, error) {
+// defaultListIndent is used when the target file doesn't exist yet, or has no
+// existing entries under topKey to measure — a brand-new governed source.
+const defaultListIndent = 2
+
+// renderItem marshals one record as a YAML list item indented to match indent
+// (spaces before the leading "- "), producing minimal, human-reviewable diffs
+// against whatever convention the target file already uses. indent must be >= 0;
+// callers should resolve it via detectListIndent before calling this.
+func renderItem(item interface{}, indent int) (string, error) {
+	if indent < 0 {
+		indent = defaultListIndent
+	}
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
@@ -166,13 +175,15 @@ func renderItem(item interface{}) (string, error) {
 		return "", err
 	}
 	_ = enc.Close()
+	dashPad := strings.Repeat(" ", indent)
+	contPad := strings.Repeat(" ", indent+2)
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 	var b strings.Builder
 	for i, ln := range lines {
 		if i == 0 {
-			b.WriteString("  - " + ln + "\n")
+			b.WriteString(dashPad + "- " + ln + "\n")
 		} else {
-			b.WriteString("    " + ln + "\n")
+			b.WriteString(contPad + ln + "\n")
 		}
 	}
 	return b.String(), nil

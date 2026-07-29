@@ -121,10 +121,6 @@ func plan(req Request) (planned, error) {
 	if item == nil {
 		return planned{}, &ValidationError{Errors: []string{fmt.Sprintf("no canonical mapping for kind %q", p.Kind)}}
 	}
-	itemText, err := renderItem(item)
-	if err != nil {
-		return planned{}, err
-	}
 	itemMap, err := itemAsMap(item)
 	if err != nil {
 		return planned{}, err
@@ -149,6 +145,22 @@ func plan(req Request) (planned, error) {
 		topKey = route.key
 	}
 	path := filepath.Join(root, filepath.FromSlash(relPath))
+
+	// Render the entry at the target file's OWN existing indentation, not a
+	// hardcoded one — a mismatched indent (e.g. this package always writing
+	// 2-space list items into a file whose existing entries use 4-space)
+	// desyncs the new item from its siblings' nesting level, which YAML parses
+	// as ending the current block sequence rather than continuing it. That
+	// produced a real "did not find expected key" parse failure on a live
+	// governed source after a prior propose call, breaking `sensei build`/
+	// `briefing` for every entry in the file until a human found and fixed it
+	// by hand (see docs/awareness/... — the file's indent convention is the
+	// only source of truth here, since nothing else records it).
+	indent := detectListIndent(path, topKey)
+	itemText, err := renderItem(item, indent)
+	if err != nil {
+		return planned{}, err
+	}
 
 	pl := planned{
 		kind: p.Kind, id: id, relPath: relPath, topKey: topKey, path: path,
@@ -212,10 +224,45 @@ var topKeyLine = func(key string) *regexp.Regexp {
 	return regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(key) + `:`)
 }
 
+// listItemIndentRe matches a YAML block-sequence item line, capturing its
+// leading whitespace so callers can measure the indentation an existing file
+// actually uses.
+var listItemIndentRe = regexp.MustCompile(`(?m)^([ ]+)-[ \t]`)
+
+// detectListIndent measures the indentation (spaces before "- ") of the first
+// existing item under topKey in the file at path, so a new item can be
+// rendered to match instead of a hardcoded width. Returns defaultListIndent
+// when the file does not exist, has no topKey list, or the list is empty —
+// there is nothing to match yet, so the package's own default governs.
+func detectListIndent(path, topKey string) int {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return defaultListIndent
+	}
+	text := string(data)
+	loc := topKeyLine(topKey).FindStringIndex(text)
+	if loc == nil {
+		return defaultListIndent
+	}
+	m := listItemIndentRe.FindStringSubmatch(text[loc[1]:])
+	if m == nil {
+		return defaultListIndent
+	}
+	return len(m[1])
+}
+
 // atomicAppend appends one rendered list item to path under topKey via a
 // temp-write + rename, so a concurrent reader never sees a half-written file.
 // The canonical governed files carry a single top-level list running to EOF, so
 // appending at end-of-file preserves existing entries and their comments.
+//
+// Validates the resulting file parses as YAML BEFORE writing anything —
+// atomicAppend previously guaranteed only that the write itself was atomic,
+// not that its result was well-formed, so `sensei propose` could report
+// status:created on a write that had actually broken the file for every
+// other entry in it (indent mismatch, unbalanced content in a caller-supplied
+// field, etc.). A rejected append here returns an error instead of a silent
+// corrupt file; writeFileAtomic is never called.
 func atomicAppend(path, topKey, itemText string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -240,6 +287,10 @@ func atomicAppend(path, topKey, itemText string) error {
 		text = topKey + ":\n" + itemText
 	default:
 		return rerr
+	}
+	var probe map[string]any
+	if verr := yaml.Unmarshal([]byte(text), &probe); verr != nil {
+		return fmt.Errorf("append would produce invalid YAML in %s — refusing to write: %w", filepath.Base(path), verr)
 	}
 	return writeFileAtomic(path, []byte(text))
 }

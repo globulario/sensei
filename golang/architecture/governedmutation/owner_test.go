@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	yaml "gopkg.in/yaml.v3"
+
 	gm "github.com/globulario/sensei/golang/architecture/governedmutation"
 	"github.com/globulario/sensei/golang/propose"
 )
@@ -115,6 +117,98 @@ func TestExactReplayWritesNothing(t *testing.T) {
 	after2, _ := os.ReadFile(path)
 	if string(after1) != string(after2) {
 		t.Fatal("replay mutated the file")
+	}
+}
+
+// TestAppendMatchesExistingFileIndent is the regression ratchet for a live
+// incident: renderItem used to hardcode 2-space list-item indentation
+// regardless of what the target file already used. Appending a 2-space item
+// after a run of 4-space items desyncs it from its siblings' YAML nesting
+// level — the parser reads the shallower dash as ending the current block
+// sequence, not continuing it, and the whole file fails to parse ("did not
+// find expected key"). This broke `sensei build`/`briefing` for every OTHER
+// entry in the file until a human found and hand-fixed it; the CLI itself
+// reported status:created on the write that caused it. Every new item MUST
+// be indented to match the file's own established convention.
+func TestAppendMatchesExistingFileIndent(t *testing.T) {
+	root := repoDir(t)
+	path := filepath.Join(root, "docs/awareness/failure_modes.yaml")
+	existing := "failure_modes:\n" +
+		"    - id: failure.pre_existing\n" +
+		"      title: A pre-existing 4-space-indented entry\n" +
+		"      related_invariants:\n" +
+		"        - awareness.some_invariant\n"
+	if err := os.WriteFile(path, []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := validProposal("failure_mode")
+	res, err := gm.Apply(gm.Request{RepositoryRoot: root, Proposal: p})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if res.Disposition != gm.DispositionApplied {
+		t.Fatalf("disposition = %s, want applied", res.Disposition)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+
+	// The whole file, old entry + new entry, must still parse as YAML.
+	var doc map[string]any
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("resulting file is not valid YAML: %v\n---\n%s", err, text)
+	}
+	list, _ := doc["failure_modes"].([]any)
+	if len(list) != 2 {
+		t.Fatalf("expected 2 entries after append, got %d", len(list))
+	}
+
+	// The new entry's "- id:" line must be indented 4 spaces, matching the
+	// pre-existing entry — not the package's old hardcoded 2.
+	found := false
+	for _, ln := range strings.Split(text, "\n") {
+		if strings.Contains(ln, "- id: "+res.CanonicalID) {
+			found = true
+			if !strings.HasPrefix(ln, "    - id: ") {
+				t.Fatalf("new entry indent = %q, want 4-space prefix matching the existing entry", ln)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("new entry id %q not found in written file:\n%s", res.CanonicalID, text)
+	}
+}
+
+// TestAppendToFreshFileDefaultsToTwoSpaceIndent verifies the default (2-space)
+// still applies when there is no existing convention to match — a brand-new
+// governed file, or a topKey with no items yet.
+func TestAppendToFreshFileDefaultsToTwoSpaceIndent(t *testing.T) {
+	root := repoDir(t)
+	p := validProposal("failure_mode")
+	res, err := gm.Apply(gm.Request{RepositoryRoot: root, Proposal: p})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	path := filepath.Join(root, "docs/awareness/failure_modes.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, ln := range strings.Split(string(data), "\n") {
+		if strings.Contains(ln, "- id: "+res.CanonicalID) {
+			found = true
+			if !strings.HasPrefix(ln, "  - id: ") || strings.HasPrefix(ln, "   - id: ") {
+				t.Fatalf("first-entry indent = %q, want exactly 2-space prefix", ln)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("new entry not found in written file")
 	}
 }
 
