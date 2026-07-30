@@ -110,14 +110,23 @@ func (s SessionState) ConsumedReplanBudget() int {
 // NewSessionState is the sole validated entry point for seeding a
 // SessionState. It constructs the initial PhaseCreated state for a session,
 // with full retry/replan budget remaining and nothing recorded yet — but
-// only after confirming session's own declared SessionDigestSHA256 equals
-// the digest SessionDigest independently recomputes from session's content.
-// Schema validation alone cannot catch this: the schema only proves
-// SessionDigestSHA256 looks like a SHA-256 hex value, never that it is the
-// actual digest of the session it is attached to. A session that fails this
-// check is rejected outright — the zero-value SessionState is returned
-// alongside the error and must not be used.
+// only after session passes the same two-stage validation every Record*
+// command's artifact passes in Transition: real Draft 2020-12 schema
+// validation first (wrong schema_version, negative budgets, missing
+// required fields), then confirming session's own declared
+// SessionDigestSHA256 equals the digest SessionDigest independently
+// recomputes from session's content. Schema validation alone cannot catch
+// the latter: the schema only proves SessionDigestSHA256 looks like a
+// SHA-256 hex value, never that it is the actual digest of the session it
+// is attached to — a schema-valid but incorrectly self-digested session
+// must still be rejected, just as a correctly self-digested but
+// schema-invalid session must be. A session that fails either check is
+// rejected outright — the zero-value SessionState is returned alongside the
+// error and must not be used.
 func NewSessionState(session Session) (SessionState, error) {
+	if err := validateDocument(ValidateSessionSchema, session); err != nil {
+		return SessionState{}, fmt.Errorf("synthesis: session failed schema validation: %w", err)
+	}
 	digest, err := SessionDigest(session)
 	if err != nil {
 		return SessionState{}, fmt.Errorf("synthesis: compute session digest: %w", err)
