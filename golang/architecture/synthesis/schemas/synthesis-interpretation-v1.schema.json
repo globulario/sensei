@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesis-interpretation-v1.json",
+  "title": "Sensei Governed Synthesis Interpretation V1",
+  "description": "Sensei's stronger equivalent of ARCHER's rule-interpretation document: evidence supplied to planning, derived from existing governed inputs. It is not new canonical architectural truth and cannot promote candidates.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/synthesis. schema_version is a const. session_digest_sha256 binds this interpretation to exactly one synthesis.Session by digest reference, never by embedding the session document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "interpretation_id",
+    "session_digest_sha256",
+    "generated_by",
+    "objective",
+    "applicable_intent",
+    "binding_invariants",
+    "relevant_contracts",
+    "authority_boundaries",
+    "known_failure_modes",
+    "forbidden_fixes",
+    "required_proof_obligations",
+    "assumptions",
+    "unresolved_questions",
+    "source_references",
+    "limitations",
+    "interpretation_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesis.interpretation.v1" },
+    "interpretation_id": { "type": "string", "minLength": 1 },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "generated_by": { "type": "string", "minLength": 1 },
+    "objective": { "type": "string", "minLength": 1 },
+    "applicable_intent": {
+      "$comment": "Awareness intent node IDs this objective is governed by. Reference by ID only, never by embedding the intent record.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "binding_invariants": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "relevant_contracts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authority_boundaries": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "known_failure_modes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "forbidden_fixes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "required_proof_obligations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "unresolved_questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "source_references": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sourceReference" }
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    },
+    "interpretation_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "source_digest_sha256"],
+      "properties": {
+        "reference": { "type": "string", "minLength": 1 },
+        "source_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+      }
+    },
+    "limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}

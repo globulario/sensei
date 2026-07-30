@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesis-evaluation-v1.json",
+  "title": "Sensei Governed Synthesis Evaluation V1",
+  "description": "Observations from one or more evaluators, without collapsing them into authority. A recommendation here is evidence, not admission, correctness, completion, or approval — the (Step 2) pure state machine, not the evaluator, decides whether a recommendation is permitted by remaining budgets and session state.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/synthesis. An evaluator claiming correctness, admission, completion, or approval outside the closed recommendation enum below is invalid input, not a stronger evaluation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "attempt_digest_sha256",
+    "evaluator_kind",
+    "evaluator_version",
+    "checks",
+    "classified_failure_reasons",
+    "recommendation",
+    "limitations",
+    "evaluation_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesis.evaluation.v1" },
+    "evaluation_id": { "type": "string", "minLength": 1 },
+    "attempt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "evaluator_kind": { "type": "string", "minLength": 1 },
+    "evaluator_version": { "type": "string", "minLength": 1 },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/checkObservation" }
+    },
+    "classified_failure_reasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recommendation": {
+      "enum": ["accept-candidate", "retry-generation", "replan", "architect-review", "abort"]
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    },
+    "evaluation_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "checkObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "status", "evidence_references"],
+      "properties": {
+        "check_id": { "type": "string", "minLength": 1 },
+        "status": {
+          "enum": ["passed", "failed", "skipped", "unavailable"]
+        },
+        "detail": { "type": "string" },
+        "evidence_references": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}
