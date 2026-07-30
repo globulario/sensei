@@ -168,7 +168,26 @@ func transitionRecordAttempt(state SessionState, cmd RecordAttemptCommand) (Sess
 	next.AttemptNumber = attempt.AttemptNumber
 	next.LatestAttemptDigestSHA256 = digest
 	next.ExpectedAttemptNumber = 0
-	return next, []Event{AttemptRecordedEvent{AttemptNumber: next.AttemptNumber, AttemptDigestSHA256: digest}}, nil
+	events := []Event{AttemptRecordedEvent{AttemptNumber: next.AttemptNumber, AttemptDigestSHA256: digest}}
+
+	// invalid_output means the provider's output itself failed the O1 hard
+	// law that provider output is untrusted input and must be closed-schema
+	// validated before use — there is nothing meaningful left to evaluate.
+	// This is categorically different from completed/failed/timed_out/
+	// cancelled, all of which still produce a real (if unsuccessful)
+	// attempt an evaluator can classify and recommend against (e.g. retry).
+	// Short-circuit directly to Failed/invalid-provider-output, preserving
+	// the attempt digest as evidence, rather than proceeding to Evaluating.
+	if attempt.TerminalProviderStatus == ProviderStatusInvalidOutput {
+		final, terminalEvents, err := terminate(next, ReasonInvalidProviderOutput,
+			"provider output failed validation and cannot be evaluated", attempt.ProducedAt)
+		if err != nil {
+			return illegal(state, "build invalid-provider-output receipt: %v", err)
+		}
+		return final, append(events, terminalEvents...), nil
+	}
+
+	return next, events, nil
 }
 
 // --- Evaluating -> {Succeeded | Retry | Replan | Failed} ---
