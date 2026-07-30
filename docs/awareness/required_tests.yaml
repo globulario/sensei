@@ -1456,3 +1456,19 @@ required_tests:
       files:
         - golang/architecture/synthesis/transition.go
         - golang/architecture/synthesis/transition_test.go
+  - id: golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateRejectsDeclaredDigestMismatch
+    title: NewSessionState rejects a session whose declared digest does not match its computed digest
+    protects:
+      invariants:
+        - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/digest_integrity_test.go
+  - id: golang/architecture/synthesis/digest_integrity_test.go:TestRecordCommandsRejectDeclaredDigestMismatch
+    title: Transition's Record* commands reject a document whose declared digest does not match its computed digest
+    protects:
+      invariants:
+        - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/digest_integrity_test.go

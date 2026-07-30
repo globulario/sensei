@@ -2062,3 +2062,18 @@ invariants:
       - golang/architecture/synthesis/transition_test.go:TestResumeRejectsEachDriftedIdentityField
       - golang/architecture/synthesis/transition_test.go:TestResumeMatchingIdentityIsAByteForByteNoOp
     contract: Session resumption must reject identity drift, graph drift, task drift, closure drift, and base revision drift (O1 hard law 11).
+  - id: invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    title: A governed artifact's declared digest must equal its actual computed content digest
+    severity: critical
+    status: active
+    description: Schema validation proves a *_digest_sha256 field looks like a valid SHA-256 hex value; it cannot prove the value is the actual digest of the document it is attached to. Session (via NewSessionState) and every artifact Transition's Record* commands accept (Interpretation, Plan, Attempt, Evaluation) must independently recompute the document's real content digest and reject the document -- fail closed, state unchanged, no events, via the existing illegal() pattern -- when its self-declared digest field does not match, before that document's identity is trusted anywhere else, including as the parent reference the next artifact in the chain must carry.
+    protects:
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/transition.go
+    related_invariants:
+      - invariant.synthesis.provider_output_is_untrusted_and_never_directly_mutates
+    required_tests:
+      - golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateRejectsDeclaredDigestMismatch
+      - golang/architecture/synthesis/digest_integrity_test.go:TestRecordCommandsRejectDeclaredDigestMismatch
+    contract: A governed artifact's declared identity must equal its actual computed content digest before acceptance; schema shape validation is necessary but not sufficient to establish artifact identity, and provider output is untrusted input until independently verified (O1 hard law 9).
