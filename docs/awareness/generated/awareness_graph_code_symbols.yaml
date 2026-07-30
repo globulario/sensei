@@ -13459,6 +13459,246 @@ test_symbols:
     package: probesource
     language: go
     doc: "TestFromProbeResult_RealProbeData proves CP2 consumes a REAL probe.ProbeResult and produces an\nhonest input + a valid receipt + a well-formed (but crossing-unresolved) observation — with no\nfabricated caller/callee/contract."
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestBudgetsNeverIncreaseAcrossAFullSequence
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestBudgetsNeverIncreaseAcrossAFullSequence
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestCandidateReadyReceiptReferencesRealAttemptAndEvaluation
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestCandidateReadyReceiptReferencesRealAttemptAndEvaluation
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestCannotSkipEvaluationToReachRetryOrReplan
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestCannotSkipEvaluationToReachRetryOrReplan
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestEvaluationRejectsUnknownExtraField
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestEvaluationRejectsUnknownExtraField
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestFailureReceiptsPreserveAttemptAndEvaluationEvidence
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestFailureReceiptsPreserveAttemptAndEvaluationEvidence
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestFreeTextDoesNotInfluencePhaseSelection
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestFreeTextDoesNotInfluencePhaseSelection
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestInvalidProviderOutputShortCircuitsToFailedWithoutEvaluation
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestInvalidProviderOutputShortCircuitsToFailedWithoutEvaluation
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestPlanGenerationRejectsStaleGenerationAtReplan
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestPlanGenerationRejectsStaleGenerationAtReplan
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestProviderCannotEncodeABudgetViaAnyArtifactField
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestProviderCannotEncodeABudgetViaAnyArtifactField
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestReplanBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestReplanBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly
+    package: synthesis
+    language: go
+    doc: "TestReplanBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly mirrors\nTestBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly (transition_test.go,\nretry side) — that test never covered the replan side specifically."
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestTerminalSessionRejectsAllNineCommandTypes
+    file: golang/architecture/synthesis/adversarial_gaps_test.go
+    symbol: TestTerminalSessionRejectsAllNineCommandTypes
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/fixtures_test.go:TestAttemptDigestExcludesProducedAt
+    file: golang/architecture/synthesis/fixtures_test.go
+    symbol: TestAttemptDigestExcludesProducedAt
+    package: synthesis
+    language: go
+    doc: "TestAttemptDigestExcludesProducedAt proves attempt identity does not\ndepend on wall-clock time: two attempts identical except for ProducedAt\nmust have the same digest."
+  - id: golang/architecture/synthesis/fixtures_test.go:TestAttemptDigestStillDependsOnSubstance
+    file: golang/architecture/synthesis/fixtures_test.go
+    symbol: TestAttemptDigestStillDependsOnSubstance
+    package: synthesis
+    language: go
+    doc: "TestAttemptDigestStillDependsOnSubstance proves the ProducedAt exclusion\nis narrow: a substantive field change still changes the digest, so\nAttemptDigest is not accidentally constant."
+  - id: golang/architecture/synthesis/fixtures_test.go:TestDigestExcludesSelfField
+    file: golang/architecture/synthesis/fixtures_test.go
+    symbol: TestDigestExcludesSelfField
+    package: synthesis
+    language: go
+    doc: "TestDigestExcludesSelfField proves changing only the stored (pre-existing)\ndigest-field value does not change the freshly-computed digest — the\nfield is zeroed before hashing, so a document does not need to already\ncarry the correct digest to compute it."
+  - id: golang/architecture/synthesis/fixtures_test.go:TestDigestsAreDeterministic
+    file: golang/architecture/synthesis/fixtures_test.go
+    symbol: TestDigestsAreDeterministic
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/fixtures_test.go:TestHappyPathChainValidatesAgainstEverySchema
+    file: golang/architecture/synthesis/fixtures_test.go
+    symbol: TestHappyPathChainValidatesAgainstEverySchema
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/fixtures_test.go:TestNormalizeMakesNilSlicesNonNil
+    file: golang/architecture/synthesis/fixtures_test.go
+    symbol: TestNormalizeMakesNilSlicesNonNil
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/fixtures_test.go:TestUnnormalizedNilSlicesFailSchemaValidation
+    file: golang/architecture/synthesis/fixtures_test.go
+    symbol: TestUnnormalizedNilSlicesFailSchemaValidation
+    package: synthesis
+    language: go
+    doc: "TestUnnormalizedNilSlicesFailSchemaValidation proves the normalize step is\nload-bearing: a document built with nil slices and NOT normalized fails\nschema validation, because these schemas require an array, and JSON null\nis not a valid array instance."
+  - id: golang/architecture/synthesis/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
+    file: golang/architecture/synthesis/schema_test.go
+    symbol: TestEmbeddedSchemasMatchCanonicalSource
+    package: synthesis
+    language: go
+    doc: "TestEmbeddedSchemasMatchCanonicalSource proves the go:embed'd copy under\nschemas/ is byte-identical to the canonical, cross-repo-pinned source\nunder docs/schemas/synthesis/v1/ — go:embed cannot reach outside this\npackage directory with a \"..\" pattern, so the canonical file is\nmechanically copied here at commit time, and this test is what stops the\ntwo from silently drifting apart."
+  - id: golang/architecture/synthesis/schema_test.go:TestSchemaVersionIdentifiersMatchAdopted
+    file: golang/architecture/synthesis/schema_test.go
+    symbol: TestSchemaVersionIdentifiersMatchAdopted
+    package: synthesis
+    language: go
+    doc: "TestSchemaVersionIdentifiersMatchAdopted confirms every vendored schema's\nconst schema_version exactly matches this package's Go constant."
+  - id: golang/architecture/synthesis/schema_test.go:TestSchemasParseAndAreClosed
+    file: golang/architecture/synthesis/schema_test.go
+    symbol: TestSchemasParseAndAreClosed
+    package: synthesis
+    language: go
+    doc: "TestSchemasParseAndAreClosed proves every vendored schema parses as JSON\nand keeps additionalProperties:false at its object root."
+  - id: golang/architecture/synthesis/schema_test.go:TestValidateReceiptSchemaEnforcesAdmissionDigestGating
+    file: golang/architecture/synthesis/schema_test.go
+    symbol: TestValidateReceiptSchemaEnforcesAdmissionDigestGating
+    package: synthesis
+    language: go
+    doc: "TestValidateReceiptSchemaEnforcesAdmissionDigestGating proves the\nallOf/if/else rule: admission digests must be null whenever terminal_reason\nis not candidate-ready-for-admission."
+  - id: golang/architecture/synthesis/schema_test.go:TestValidateSessionSchemaCompilesAndEnforcesRealConstraints
+    file: golang/architecture/synthesis/schema_test.go
+    symbol: TestValidateSessionSchemaCompilesAndEnforcesRealConstraints
+    package: synthesis
+    language: go
+    doc: "TestValidateSessionSchemaCompilesAndEnforcesRealConstraints proves\nValidateSessionSchema is a real Draft 2020-12 validator, not a stub."
+  - id: golang/architecture/synthesis/transition_test.go:TestAbortFromEveryNonTerminalPhase
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestAbortFromEveryNonTerminalPhase
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestArchitectReviewRequired
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestArchitectReviewRequired
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestAttemptNumberAdvancesOnlyOnRecordAttempt
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestAttemptNumberAdvancesOnlyOnRecordAttempt
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestAttemptNumbersMonotonicAcrossRetries
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestAttemptNumbersMonotonicAcrossRetries
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestAttemptProducedAtDoesNotInfluenceResultingState
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestAttemptProducedAtDoesNotInfluenceResultingState
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestAttemptReferencingWrongPlanGenerationRejected
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestAttemptReferencingWrongPlanGenerationRejected
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestEvaluationReferencingWrongAttemptRejected
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestEvaluationReferencingWrongAttemptRejected
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestEvaluatorUnavailable
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestEvaluatorUnavailable
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestHappyPath_CreatedToSucceeded
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestHappyPath_CreatedToSucceeded
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestIllegalTransitions_FailClosedAndLeaveStateUnchanged
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestIllegalTransitions_FailClosedAndLeaveStateUnchanged
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestMalformedTerminalProviderStatusRejected
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestMalformedTerminalProviderStatusRejected
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestPlanGenerationAdvancesOnlyOnRecordPlan
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestPlanGenerationAdvancesOnlyOnRecordPlan
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestReplanBudgetExhaustion
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestReplanBudgetExhaustion
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestReplanReusesOriginalInterpretation_MismatchedInterpretationRejected
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestReplanReusesOriginalInterpretation_MismatchedInterpretationRejected
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestReplanThenSuccess
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestReplanThenSuccess
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestResumeMatchingIdentityIsAByteForByteNoOp
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestResumeMatchingIdentityIsAByteForByteNoOp
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestResumeRejectsEachDriftedIdentityField
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestResumeRejectsEachDriftedIdentityField
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestRetryBudgetExhaustion
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestRetryBudgetExhaustion
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestRetryThenSuccess
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestRetryThenSuccess
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestSameStateSameCommandIsDeterministic
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestSameStateSameCommandIsDeterministic
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestSucceededReceiptNeverClaimsAdmissionCompletionOrApproval
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestSucceededReceiptNeverClaimsAdmissionCompletionOrApproval
+    package: synthesis
+    language: go
+  - id: golang/architecture/synthesis/transition_test.go:TestTerminalSessionRejectsAnyCommand
+    file: golang/architecture/synthesis/transition_test.go
+    symbol: TestTerminalSessionRejectsAnyCommand
+    package: synthesis
+    language: go
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
