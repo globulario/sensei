@@ -1267,3 +1267,14 @@ failure_modes:
       - golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID
     evidence:
       - reachable via direct package use with two independently-constructed admission.Decision/admission.Verification values, no filesystem race needed
+  - id: failure.synthesis_unbounded_retry_if_caller_bypasses_transition
+    title: Unbounded autonomous retry if a caller bypasses Transition's budget enforcement
+    protects:
+      files:
+        - golang/architecture/synthesis/transition.go
+    related_invariants:
+      - invariant.synthesis.retry_and_replan_budgets_are_precommitted
+    required_tests:
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestBudgetsNeverIncreaseAcrossAFullSequence
+    evidence:
+      - 'Transition provably enforces RemainingRetryBudget/RemainingReplanBudget non-increase and exact-once-per-accepted-evaluation consumption (TestBudgetsNeverIncreaseAcrossAFullSequence), but this guarantee holds only for callers that route every retry/replan decision through a RecordEvaluationCommand. Transition has no way to observe calls that never reach it: a hand-rolled orchestration loop that invokes a provider directly and retries on failure, without ever submitting an Evaluation and driving the loop through Transition, would retry without any budget check at all — the state machine cannot prevent misuse of itself that bypasses its own API.'
