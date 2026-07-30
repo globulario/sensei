@@ -2,6 +2,8 @@
 
 package synthesis
 
+import "fmt"
+
 // Phase is the closed set of states the O1 deterministic orchestration
 // state machine can occupy. Phase, SessionState, Command, Event, and
 // Transition are all Step-2, runtime-only concepts: none of them are part
@@ -105,15 +107,30 @@ func (s SessionState) ConsumedReplanBudget() int {
 	return s.Session.ReplanBudget - s.RemainingReplanBudget
 }
 
-// NewSessionState constructs the initial PhaseCreated state for a session,
-// with full retry/replan budget remaining and nothing recorded yet.
-func NewSessionState(session Session) SessionState {
+// NewSessionState is the sole validated entry point for seeding a
+// SessionState. It constructs the initial PhaseCreated state for a session,
+// with full retry/replan budget remaining and nothing recorded yet — but
+// only after confirming session's own declared SessionDigestSHA256 equals
+// the digest SessionDigest independently recomputes from session's content.
+// Schema validation alone cannot catch this: the schema only proves
+// SessionDigestSHA256 looks like a SHA-256 hex value, never that it is the
+// actual digest of the session it is attached to. A session that fails this
+// check is rejected outright — the zero-value SessionState is returned
+// alongside the error and must not be used.
+func NewSessionState(session Session) (SessionState, error) {
+	digest, err := SessionDigest(session)
+	if err != nil {
+		return SessionState{}, fmt.Errorf("synthesis: compute session digest: %w", err)
+	}
+	if session.SessionDigestSHA256 != digest {
+		return SessionState{}, fmt.Errorf("synthesis: session declares digest %q but its actual computed digest is %q", session.SessionDigestSHA256, digest)
+	}
 	return SessionState{
 		Session:               session,
 		Phase:                 PhaseCreated,
 		RemainingRetryBudget:  session.RetryBudget,
 		RemainingReplanBudget: session.ReplanBudget,
-	}
+	}, nil
 }
 
 // ObservedIdentity is what a caller presents to ResumeCommand: its own

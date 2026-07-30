@@ -85,7 +85,11 @@ func mustTransition(t *testing.T, state SessionState, cmd Command) (SessionState
 
 func freshCreatedState(t *testing.T) SessionState {
 	t.Helper()
-	return NewSessionState(fixtureSession(t))
+	state, err := NewSessionState(fixtureSession(t))
+	if err != nil {
+		t.Fatalf("NewSessionState: %v", err)
+	}
+	return state
 }
 
 func driveToPlanned(t *testing.T, state SessionState) SessionState {
@@ -280,7 +284,10 @@ func TestAttemptNumberAdvancesOnlyOnRecordAttempt(t *testing.T) {
 
 func TestPlanGenerationAdvancesOnlyOnRecordPlan(t *testing.T) {
 	session := fixtureSession(t)
-	created := NewSessionState(session)
+	created, err := NewSessionState(session)
+	if err != nil {
+		t.Fatal(err)
+	}
 	interp := fixtureInterpretation(t, session.SessionDigestSHA256)
 	planning, _ := mustTransition(t, created, RecordInterpretationCommand{Interpretation: interp})
 	if planning.PlanGeneration != 0 {
@@ -401,7 +408,11 @@ func TestRetryBudgetExhaustion(t *testing.T) {
 	}
 	session.SessionDigestSHA256 = digest
 
-	state := driveToEvaluating(t, NewSessionState(session))
+	seed, err := NewSessionState(session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := driveToEvaluating(t, seed)
 	state, _ = driveEvaluation(t, state, RecommendRetryGeneration, "")
 	if state.Phase != PhaseRetry || state.RemainingRetryBudget != 0 {
 		t.Fatalf("after consuming the only retry unit: phase=%s remaining=%d, want %s/0", state.Phase, state.RemainingRetryBudget, PhaseRetry)
@@ -433,7 +444,11 @@ func TestReplanBudgetExhaustion(t *testing.T) {
 	}
 	session.SessionDigestSHA256 = digest
 
-	state := driveToEvaluating(t, NewSessionState(session))
+	seed, err := NewSessionState(session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := driveToEvaluating(t, seed)
 	state, _ = driveEvaluation(t, state, RecommendReplan, "")
 	planning, _ := mustTransition(t, state, StartPlanningCommand{})
 	plan2 := buildPlan(t, planning.InterpretationDigestSHA256, 2)

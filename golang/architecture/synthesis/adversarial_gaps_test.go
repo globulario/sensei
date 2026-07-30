@@ -143,7 +143,10 @@ func TestBudgetsNeverIncreaseAcrossAFullSequence(t *testing.T) {
 	}
 	session.SessionDigestSHA256 = digest
 
-	state := NewSessionState(session)
+	state, err := NewSessionState(session)
+	if err != nil {
+		t.Fatal(err)
+	}
 	retryHistory := []int{state.RemainingRetryBudget}
 	replanHistory := []int{state.RemainingReplanBudget}
 
@@ -310,7 +313,11 @@ func TestFailureReceiptsPreserveAttemptAndEvaluationEvidence(t *testing.T) {
 	}
 	session.SessionDigestSHA256 = digest
 
-	state := driveToEvaluating(t, NewSessionState(session))
+	seed, err := NewSessionState(session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := driveToEvaluating(t, seed)
 	final, _ := driveEvaluation(t, state, RecommendRetryGeneration, "2026-01-01T05:00:00Z")
 
 	if final.Phase != PhaseFailed || final.Receipt.TerminalReason != ReasonRetryBudgetExhausted {

@@ -75,6 +75,9 @@ func transitionRecordInterpretation(state SessionState, cmd RecordInterpretation
 	if err != nil {
 		return illegal(state, "compute interpretation digest: %v", err)
 	}
+	if interp.InterpretationDigestSHA256 != digest {
+		return illegal(state, "interpretation declares digest %q but its actual computed digest is %q", interp.InterpretationDigestSHA256, digest)
+	}
 
 	next := state
 	next.InterpretationDigestSHA256 = digest
@@ -117,6 +120,9 @@ func transitionRecordPlan(state SessionState, cmd RecordPlanCommand) (SessionSta
 	digest, err := PlanDigest(plan)
 	if err != nil {
 		return illegal(state, "compute plan digest: %v", err)
+	}
+	if plan.PlanDigestSHA256 != digest {
+		return illegal(state, "plan declares digest %q but its actual computed digest is %q", plan.PlanDigestSHA256, digest)
 	}
 
 	next := state
@@ -162,6 +168,9 @@ func transitionRecordAttempt(state SessionState, cmd RecordAttemptCommand) (Sess
 	if err != nil {
 		return illegal(state, "compute attempt digest: %v", err)
 	}
+	if attempt.AttemptDigestSHA256 != digest {
+		return illegal(state, "attempt declares digest %q but its actual computed digest is %q", attempt.AttemptDigestSHA256, digest)
+	}
 
 	next := state
 	next.Phase = PhaseEvaluating
@@ -206,6 +215,9 @@ func transitionRecordEvaluation(state SessionState, cmd RecordEvaluationCommand)
 	digest, err := EvaluationDigest(eval)
 	if err != nil {
 		return illegal(state, "compute evaluation digest: %v", err)
+	}
+	if eval.EvaluationDigestSHA256 != digest {
+		return illegal(state, "evaluation declares digest %q but its actual computed digest is %q", eval.EvaluationDigestSHA256, digest)
 	}
 
 	recorded := state
