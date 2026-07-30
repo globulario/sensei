@@ -1358,3 +1358,117 @@ required_tests:
         - failure.projectverification_composed_a_verification_record_without_c
       files:
         - golang/architecture/workspacecontract/admission.go
+  - id: golang/architecture/synthesis/transition_test.go:TestSameStateSameCommandIsDeterministic
+    title: 'Transition is deterministic: identical state+command produce byte-for-byte equal results'
+    protects:
+      invariants:
+        - invariant.synthesis.intelligence_may_explore_but_authority_is_deterministic
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/transition_test.go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestFreeTextDoesNotInfluencePhaseSelection
+    title: Free-text evaluation content changes its own digest but never the selected phase
+    protects:
+      invariants:
+        - invariant.synthesis.intelligence_may_explore_but_authority_is_deterministic
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/adversarial_gaps_test.go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestInvalidProviderOutputShortCircuitsToFailedWithoutEvaluation
+    title: An attempt with invalid_output status short-circuits to Failed without reaching Evaluating
+    protects:
+      invariants:
+        - invariant.synthesis.provider_output_is_untrusted_and_never_directly_mutates
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/adversarial_gaps_test.go
+  - id: golang/architecture/synthesis/transition_test.go:TestMalformedTerminalProviderStatusRejected
+    title: An unknown terminal_provider_status enum value fails real Draft 2020-12 schema validation
+    protects:
+      invariants:
+        - invariant.synthesis.provider_output_is_untrusted_and_never_directly_mutates
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/transition_test.go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestBudgetsNeverIncreaseAcrossAFullSequence
+    title: Retry and replan budgets never increase across a full multi-loop sequence
+    protects:
+      invariants:
+        - invariant.synthesis.retry_and_replan_budgets_are_precommitted
+      failure_modes:
+        - failure.synthesis_unbounded_retry_if_caller_bypasses_transition
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/adversarial_gaps_test.go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestProviderCannotEncodeABudgetViaAnyArtifactField
+    title: No artifact schema carries a budget-shaped field; an injected one fails schema validation
+    protects:
+      invariants:
+        - invariant.synthesis.retry_and_replan_budgets_are_precommitted
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/adversarial_gaps_test.go
+  - id: golang/architecture/synthesis/transition_test.go:TestBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly
+    title: Retry budget is consumed exactly once, at the accepted evaluation, never at StartAttempt
+    protects:
+      invariants:
+        - invariant.synthesis.retry_and_replan_budgets_are_precommitted
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/transition_test.go
+  - id: golang/architecture/synthesis/transition_test.go:TestSucceededReceiptNeverClaimsAdmissionCompletionOrApproval
+    title: A candidate-ready receipt never carries a non-nil admission decision or verification digest
+    protects:
+      invariants:
+        - invariant.synthesis.passing_evaluation_is_not_admission_or_completion
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/transition_test.go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestEvaluationRejectsUnknownExtraField
+    title: An evaluation claiming correctness_certified or admission_status fails schema validation
+    protects:
+      invariants:
+        - invariant.synthesis.passing_evaluation_is_not_admission_or_completion
+      files:
+        - golang/architecture/synthesis/adversarial_gaps_test.go
+  - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestCandidateReadyReceiptReferencesRealAttemptAndEvaluation
+    title: A candidate-ready receipt's final-attempt and final-evaluation digests reference the real recorded artifacts
+    protects:
+      invariants:
+        - invariant.synthesis.passing_evaluation_is_not_admission_or_completion
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/adversarial_gaps_test.go
+  - id: golang/architecture/synthesis/transition_test.go:TestResumeRejectsEachDriftedIdentityField
+    title: Resume independently rejects drift on each of the 7 bound identity fields
+    protects:
+      invariants:
+        - invariant.synthesis.session_resumption_rejects_all_bound_identity_drift
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/transition_test.go
+  - id: golang/architecture/synthesis/transition_test.go:TestResumeMatchingIdentityIsAByteForByteNoOp
+    title: A matching resume leaves SessionState byte-for-byte unchanged
+    protects:
+      invariants:
+        - invariant.synthesis.session_resumption_rejects_all_bound_identity_drift
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/transition_test.go
+  - id: golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateRejectsDeclaredDigestMismatch
+    title: NewSessionState rejects a session whose declared digest does not match its computed digest
+    protects:
+      invariants:
+        - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/digest_integrity_test.go
+  - id: golang/architecture/synthesis/digest_integrity_test.go:TestRecordCommandsRejectDeclaredDigestMismatch
+    title: Transition's Record* commands reject a document whose declared digest does not match its computed digest
+    protects:
+      invariants:
+        - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/digest_integrity_test.go

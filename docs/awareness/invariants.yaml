@@ -1994,3 +1994,86 @@ invariants:
       - golang/architecture/rigor/rigor_test.go:TestUnclassifiedFileForcesClassA
       - golang/coverage/rigor_ownership_test.go:TestRigorOwnershipBoundary
     contract: 'Phase 9 polish: proportional rigor answers what proof a CHANGE owes, never repository truth. It classifies stable GOVERNED SURFACES declared in docs/rigor_classes.yaml (never a raw filename); changed files bind to surfaces through owned package prefixes. Effective rigor = the STRICTEST class among all touched surfaces; a changed file owned by no surface is unclassified and forced to Class A; an unknown/off-vocabulary class fails closed to Class A; an optional declared class can only RAISE strictness and can never downgrade contact with an A/B surface. Class D means lighter SEMANTIC proof only — every class, including D, still owes the repository-integrity gates (ownership, determinism, licensing, generated-artifact, build). The classifier is pure (stdlib+yaml), reads no filesystem, and enforces nothing — it names obligations the existing guards/CI enforce.'
+  - id: invariant.synthesis.intelligence_may_explore_but_authority_is_deterministic
+    title: Intelligence may explore; authority remains deterministic
+    severity: critical
+    status: active
+    description: 'The O1 governed synthesis session state machine (golang/architecture/synthesis) is a pure function: Transition(state, command) -> (newState, events, error) invokes no model, runs no process, edits no worktree, calls no GitHub API, performs no admission, and reads no clock. Every timestamp a receipt needs is caller-supplied on the command. Providers may explore freely (propose plans, generate attempts, produce evaluations) but every one of their outputs is closed-schema validated before Transition accepts it, and the phase graph itself — not any provider''s own claim — decides what happens next.'
+    protects:
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/state.go
+    required_tests:
+      - golang/architecture/synthesis/transition_test.go:TestSameStateSameCommandIsDeterministic
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestFreeTextDoesNotInfluencePhaseSelection
+    contract: Intelligence may explore; authority remains deterministic (O1 hard law 1). The same SessionState plus the same Command always produces byte-for-byte equivalent normalized state and events. A provider's own text/status claims influence only the artifact's own content digest, never which phase Transition selects.
+  - id: invariant.synthesis.provider_output_is_untrusted_and_never_directly_mutates
+    title: Provider output is untrusted input and never directly mutates repository state
+    severity: critical
+    status: active
+    description: No provider may mutate repository state through the session contract. Every Record* command's artifact (Interpretation/Plan/Attempt/Evaluation) is validated through the real Step-1 Draft 2020-12 schema validators before Transition accepts it. An Attempt carries only a proposed-change DIGEST (ProposedChangeDigestSHA256), never an implicitly trusted mutation. When a provider's own output fails validation at the deepest level (TerminalProviderStatus=invalid_output), RecordAttempt short-circuits straight to Failed/invalid-provider-output, preserving the attempt digest as evidence, and never proceeds to Evaluating.
+    protects:
+      files:
+        - golang/architecture/synthesis/transition.go
+        - golang/architecture/synthesis/types.go
+    required_tests:
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestInvalidProviderOutputShortCircuitsToFailedWithoutEvaluation
+      - golang/architecture/synthesis/transition_test.go:TestMalformedTerminalProviderStatusRejected
+    contract: Provider output is untrusted input and must be closed-schema validated before use (O1 hard law 9); no provider may mutate repository state through the session contract (O1 hard law 2).
+  - id: invariant.synthesis.retry_and_replan_budgets_are_precommitted
+    title: Retry and replan budgets are precommitted and can never be enlarged by a provider
+    severity: critical
+    status: active
+    description: Session.RetryBudget/ReplanBudget are fixed once at session creation (Step 1, immutable document fields) and no Command in the Step 2 surface carries any budget-setting field, so a provider has no representable way to enlarge them. RemainingRetryBudget/RemainingReplanBudget only ever decrease, by exactly one, at the moment a classified retry/replan recommendation is accepted with budget remaining — never at StartAttempt/StartPlanning, and never more than once per accepted evaluation. Consumed count is always derived (Session.RetryBudget-RemainingRetryBudget), never stored independently.
+    protects:
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/transition.go
+    required_tests:
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestBudgetsNeverIncreaseAcrossAFullSequence
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestProviderCannotEncodeABudgetViaAnyArtifactField
+      - golang/architecture/synthesis/transition_test.go:TestBudgetConsumedExactlyOnceAtAcceptedEvaluationOnly
+    contract: Retry budgets are explicit before execution and cannot be enlarged by a provider; replanning is distinct from regeneration and has an independent budget (O1 hard laws 5-6).
+  - id: invariant.synthesis.passing_evaluation_is_not_admission_or_completion
+    title: A passing evaluation is evidence, never admission, correctness, completion, or approval
+    severity: critical
+    status: active
+    description: 'PhaseSucceeded means only that a candidate was produced and is eligible for submission to the existing admission owner. AdmissionDecisionDigestSHA256/AdmissionVerificationDigestSHA256 stay nil on every receipt O1 produces, even a candidate-ready one — O1 has no admission producer; that selection is deferred to O5. The Evaluation schema itself cannot carry a correctness or admission claim: additionalProperties:false rejects any extra field such as correctness_certified or admission_status, and the closed Recommendation enum (accept-candidate/retry-generation/replan/architect-review/abort) contains no such claim.'
+    protects:
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/types.go
+        - golang/architecture/synthesis/transition.go
+    required_tests:
+      - golang/architecture/synthesis/transition_test.go:TestSucceededReceiptNeverClaimsAdmissionCompletionOrApproval
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestEvaluationRejectsUnknownExtraField
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestCandidateReadyReceiptReferencesRealAttemptAndEvaluation
+    contract: A passing evaluator is evidence, not admission, correctness, completion, or approval; existing admission and verification owners are delegated to, never reimplemented (O1 hard laws 7-8).
+  - id: invariant.synthesis.session_resumption_rejects_all_bound_identity_drift
+    title: Session resumption rejects all bound-identity drift
+    severity: critical
+    status: active
+    description: ResumeCommand validates the complete bound identity set (repository domain, base revision, workspace-identity digest, graph-authority digest, task-session digest, closure digest, and proof-obligation SET equality) against ObservedIdentity. A match returns the state byte-for-byte unchanged (reflect.DeepEqual-provable) plus an observational ResumeValidatedEvent that carries no field able to influence session identity. A mismatch on ANY of the seven fields transitions to Failed/identity-drift-refused, preserving prior evidence.
+    protects:
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/transition.go
+    required_tests:
+      - golang/architecture/synthesis/transition_test.go:TestResumeRejectsEachDriftedIdentityField
+      - golang/architecture/synthesis/transition_test.go:TestResumeMatchingIdentityIsAByteForByteNoOp
+    contract: Session resumption must reject identity drift, graph drift, task drift, closure drift, and base revision drift (O1 hard law 11).
+  - id: invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    title: A governed artifact's declared digest must equal its actual computed content digest
+    severity: critical
+    status: active
+    description: Schema validation proves a *_digest_sha256 field looks like a valid SHA-256 hex value; it cannot prove the value is the actual digest of the document it is attached to. Session (via NewSessionState) and every artifact Transition's Record* commands accept (Interpretation, Plan, Attempt, Evaluation) must independently recompute the document's real content digest and reject the document -- fail closed, state unchanged, no events, via the existing illegal() pattern -- when its self-declared digest field does not match, before that document's identity is trusted anywhere else, including as the parent reference the next artifact in the chain must carry.
+    protects:
+      files:
+        - golang/architecture/synthesis/state.go
+        - golang/architecture/synthesis/transition.go
+    related_invariants:
+      - invariant.synthesis.provider_output_is_untrusted_and_never_directly_mutates
+    required_tests:
+      - golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateRejectsDeclaredDigestMismatch
+      - golang/architecture/synthesis/digest_integrity_test.go:TestRecordCommandsRejectDeclaredDigestMismatch
+    contract: A governed artifact's declared identity must equal its actual computed content digest before acceptance; schema shape validation is necessary but not sufficient to establish artifact identity, and provider output is untrusted input until independently verified (O1 hard law 9).

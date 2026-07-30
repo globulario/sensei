@@ -654,6 +654,14 @@ components:
       - golang/architecture/runtimeprobe/observation.go
       - golang/architecture/runtimeprobe/probesource/fromprobe.go
       - golang/architecture/runtimeprobe/receipt.go
+      - golang/architecture/synthesis/commands.go
+      - golang/architecture/synthesis/digest.go
+      - golang/architecture/synthesis/events.go
+      - golang/architecture/synthesis/normalize.go
+      - golang/architecture/synthesis/schema.go
+      - golang/architecture/synthesis/state.go
+      - golang/architecture/synthesis/transition.go
+      - golang/architecture/synthesis/types.go
       - golang/architecture/taskcontrol/model.go
       - golang/architecture/taskcontrol/project.go
       - golang/architecture/tasksession/advance_result.go

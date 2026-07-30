@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesis-plan-v1.json",
+  "title": "Sensei Governed Synthesis Plan V1",
+  "description": "A provider proposal bound to one interpretation and one session generation. A replan creates a new immutable plan generation; it never rewrites a prior plan.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/synthesis. Provider identity is carried as an observation only (provider_observation) — it is never session authority and never implies trust in the plan's content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_id",
+    "interpretation_digest_sha256",
+    "plan_generation",
+    "steps",
+    "assumptions",
+    "risks",
+    "stop_conditions",
+    "provider_observation",
+    "plan_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesis.plan.v1" },
+    "plan_id": { "type": "string", "minLength": 1 },
+    "interpretation_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "plan_generation": {
+      "$comment": "Monotonically increasing per session, starting at 1. A replan produces plan_generation+1; the prior generation's document is never mutated.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/planStep" }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "stop_conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "provider_observation": { "$ref": "#/$defs/providerObservation" },
+    "plan_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "planStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "description", "intended_files", "intended_symbols", "expected_evidence"],
+      "properties": {
+        "step_id": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "intended_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "intended_symbols": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "expected_evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "providerObservation": {
+      "$comment": "Provider identity as an observation, not session authority. A provider's own claims here (model_identifier, provider_kind) are untrusted input, recorded for evidence and never used to grant capability.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "provider_kind", "observed_at"],
+      "properties": {
+        "provider_id": { "type": "string", "minLength": 1 },
+        "provider_kind": { "type": "string", "minLength": 1 },
+        "model_identifier": { "type": "string" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
