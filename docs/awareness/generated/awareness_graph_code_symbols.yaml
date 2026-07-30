@@ -13515,11 +13515,23 @@ test_symbols:
     symbol: TestTerminalSessionRejectsAllNineCommandTypes
     package: synthesis
     language: go
+  - id: golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateAcceptsSchemaValidCorrectlyDigestedSession
+    file: golang/architecture/synthesis/digest_integrity_test.go
+    symbol: TestNewSessionStateAcceptsSchemaValidCorrectlyDigestedSession
+    package: synthesis
+    language: go
+    doc: "TestNewSessionStateAcceptsSchemaValidCorrectlyDigestedSession is the\ncontrol for the two tests above: a session that is both schema-valid and\ncorrectly self-digested must be accepted."
   - id: golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateRejectsDeclaredDigestMismatch
     file: golang/architecture/synthesis/digest_integrity_test.go
     symbol: TestNewSessionStateRejectsDeclaredDigestMismatch
     package: synthesis
     language: go
+  - id: golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateRejectsSchemaInvalidSessionEvenWithCorrectDigest
+    file: golang/architecture/synthesis/digest_integrity_test.go
+    symbol: TestNewSessionStateRejectsSchemaInvalidSessionEvenWithCorrectDigest
+    package: synthesis
+    language: go
+    doc: "TestNewSessionStateRejectsSchemaInvalidSessionEvenWithCorrectDigest proves\nNewSessionState's schema-validation stage: a session with a negative\nRetryBudget (schema minimum: 0) is rejected even though its declared\ndigest is correctly recomputed for its (invalid) content — digest\nconsistency alone must not be enough to seed the FSM."
   - id: golang/architecture/synthesis/digest_integrity_test.go:TestRecordCommandsRejectDeclaredDigestMismatch
     file: golang/architecture/synthesis/digest_integrity_test.go
     symbol: TestRecordCommandsRejectDeclaredDigestMismatch
