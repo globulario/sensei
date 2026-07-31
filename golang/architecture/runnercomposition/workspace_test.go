@@ -478,3 +478,177 @@ func TestNewFSCandidateWorkspaceRejectsEmptyPaths(t *testing.T) {
 		t.Error("expected an empty bufferRoot to be rejected")
 	}
 }
+
+// --- no-follow (internal aliasing): os.Root alone permits an operation to
+// traverse THROUGH a symlink as long as its target stays within the root --
+// containment, not no-follow. These tests prove fsCandidateWorkspace closes
+// that gap on top of os.Root: a symlink whose target is entirely INSIDE the
+// workspace's own roots must still never be silently followed.
+
+func TestFSCandidateWorkspaceWriteCandidateThroughFinalSymlinkReplacesRatherThanAliases(t *testing.T) {
+	w, _, bufferRoot := newTestWorkspace(t)
+	if err := w.WriteCandidate("target.txt", []byte("original")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Symlink("alias.txt", "target.txt"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := w.WriteCandidate("alias.txt", []byte("via-alias")); err != nil {
+		t.Fatal(err)
+	}
+
+	targetContent, err := os.ReadFile(filepath.Join(bufferRoot, "target.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(targetContent) != "original" {
+		t.Errorf("target.txt content = %q, want unchanged %q -- WriteCandidate wrote THROUGH the symlink instead of replacing it", targetContent, "original")
+	}
+
+	aliasInfo, err := os.Lstat(filepath.Join(bufferRoot, "alias.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if aliasInfo.Mode()&os.ModeSymlink != 0 {
+		t.Error("alias.txt is still a symlink after WriteCandidate -- expected it to be replaced with a regular file")
+	}
+	aliasContent, err := os.ReadFile(filepath.Join(bufferRoot, "alias.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(aliasContent) != "via-alias" {
+		t.Errorf("alias.txt content = %q, want %q", aliasContent, "via-alias")
+	}
+}
+
+func TestFSCandidateWorkspaceWriteCandidateRejectsInternalSymlinkedParent(t *testing.T) {
+	w, _, bufferRoot := newTestWorkspace(t)
+	if err := os.MkdirAll(filepath.Join(bufferRoot, "realdir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Symlink("linkdir", "realdir"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := w.WriteCandidate("linkdir/new.txt", []byte("owned")); err == nil {
+		t.Error("expected WriteCandidate through an internal symlinked parent to fail")
+	}
+	if _, err := os.Stat(filepath.Join(bufferRoot, "realdir", "new.txt")); !os.IsNotExist(err) {
+		t.Errorf("file was written into realdir via the symlinked parent, stat err = %v", err)
+	}
+}
+
+func TestFSCandidateWorkspaceSetModeThroughFinalSymlinkIsRejected(t *testing.T) {
+	w, _, bufferRoot := newTestWorkspace(t)
+	if err := w.WriteCandidate("target.txt", []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(filepath.Join(bufferRoot, "target.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Symlink("alias.txt", "target.txt"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := w.SetMode("alias.txt", ModeExecutable); err == nil {
+		t.Error("expected SetMode through a final symlink to be rejected")
+	}
+	after, err := os.Stat(filepath.Join(bufferRoot, "target.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.Mode() != after.Mode() {
+		t.Errorf("target.txt's mode changed via the symlink: before %v, after %v", before.Mode(), after.Mode())
+	}
+}
+
+func TestFSCandidateWorkspaceSetModeRejectsInternalSymlinkedParent(t *testing.T) {
+	w, _, bufferRoot := newTestWorkspace(t)
+	if err := os.MkdirAll(filepath.Join(bufferRoot, "realdir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bufferRoot, "realdir", "f.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Symlink("linkdir", "realdir"); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.SetMode("linkdir/f.txt", ModeExecutable); err == nil {
+		t.Error("expected SetMode through an internal symlinked parent to fail")
+	}
+}
+
+func TestFSCandidateWorkspaceReadSnapshotThroughFinalSymlinkIsRejected(t *testing.T) {
+	snapshotRoot := t.TempDir()
+	bufferRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(snapshotRoot, "target.txt"), []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("target.txt", filepath.Join(snapshotRoot, "alias.txt")); err != nil {
+		t.Fatal(err)
+	}
+
+	w, err := newFSCandidateWorkspace(snapshotRoot, bufferRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.ReadSnapshot("alias.txt"); err == nil {
+		t.Error("expected ReadSnapshot through a final symlink to be rejected")
+	}
+}
+
+func TestFSCandidateWorkspaceReadSnapshotRejectsInternalSymlinkedParent(t *testing.T) {
+	snapshotRoot := t.TempDir()
+	bufferRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(snapshotRoot, "realdir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(snapshotRoot, "realdir", "f.txt"), []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("realdir", filepath.Join(snapshotRoot, "linkdir")); err != nil {
+		t.Fatal(err)
+	}
+
+	w, err := newFSCandidateWorkspace(snapshotRoot, bufferRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.ReadSnapshot("linkdir/f.txt"); err == nil {
+		t.Error("expected ReadSnapshot through an internal symlinked parent to fail")
+	}
+}
+
+func TestFSCandidateWorkspaceRenameDestinationThroughFinalSymlinkReplacesRatherThanAliases(t *testing.T) {
+	w, _, bufferRoot := newTestWorkspace(t)
+	if err := w.WriteCandidate("target.txt", []byte("original")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Symlink("alias.txt", "target.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.WriteCandidate("source.txt", []byte("moved-in")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := w.Rename("source.txt", "alias.txt"); err != nil {
+		t.Fatal(err)
+	}
+
+	targetContent, err := os.ReadFile(filepath.Join(bufferRoot, "target.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(targetContent) != "original" {
+		t.Errorf("target.txt content = %q, want unchanged %q -- Rename wrote THROUGH the destination symlink instead of replacing it", targetContent, "original")
+	}
+	aliasInfo, err := os.Lstat(filepath.Join(bufferRoot, "alias.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if aliasInfo.Mode()&os.ModeSymlink != 0 {
+		t.Error("alias.txt is still a symlink after Rename -- expected it to be replaced")
+	}
+}
