@@ -648,10 +648,12 @@ components:
       - golang/architecture/resulttransition/confine.go
       - golang/architecture/resulttransition/observe.go
       - golang/architecture/rigor/rigor.go
+      - golang/architecture/runnercomposition/changedigest.go
       - golang/architecture/runnercomposition/digest.go
       - golang/architecture/runnercomposition/manifest.go
       - golang/architecture/runnercomposition/normalize.go
       - golang/architecture/runnercomposition/schema.go
+      - golang/architecture/runnercomposition/tree.go
       - golang/architecture/runnercomposition/types.go
       - golang/architecture/runnercomposition/validate.go
       - golang/architecture/runnercomposition/workspace.go
