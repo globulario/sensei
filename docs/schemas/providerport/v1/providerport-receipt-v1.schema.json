@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/providerport-receipt-v1.json",
+  "title": "Sensei Provider Port Execution Receipt V1",
+  "description": "The O2 provider execution receipt: binds request, capability snapshot, provider identity, response (when one exists), observations, and terminal outcome into one inspectable record. O2 recomputes and verifies this receipt's own digest and every digest it references; a provider-declared digest is never trusted unchecked.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/providerport. response_digest_sha256 is required (non-null) exactly when terminal_outcome is completed, and null otherwise, since only a completed outcome produces a Result payload worth referencing. observation_batch_digest_sha256 is independently nullable -- a batch may or may not exist regardless of outcome.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "request_digest_sha256",
+    "capabilities_digest_sha256",
+    "provider_observation",
+    "terminal_outcome",
+    "response_digest_sha256",
+    "observation_batch_digest_sha256",
+    "started_at",
+    "completed_at",
+    "limitations",
+    "receipt_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.providerport.receipt.v1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "request_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "capabilities_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "provider_observation": { "$ref": "#/$defs/providerObservation" },
+    "terminal_outcome": { "$ref": "#/$defs/terminalOutcome" },
+    "response_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "observation_batch_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "started_at": {
+      "$comment": "Observation timestamp, explicitly excluded from receipt_digest_sha256 so receipt identity does not depend on wall-clock time.",
+      "type": "string",
+      "minLength": 1
+    },
+    "completed_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    },
+    "receipt_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "terminal_outcome": { "const": "completed" } } },
+      "then": { "properties": { "response_digest_sha256": { "$ref": "#/$defs/sha256Hex" } } },
+      "else": { "properties": { "response_digest_sha256": { "type": "null" } } }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "optionalSha256Hex": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
+    },
+    "terminalOutcome": {
+      "enum": ["completed", "unavailable", "timed-out", "cancelled", "invalid-output", "unsupported-capability"]
+    },
+    "providerObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "provider_kind", "observed_at"],
+      "properties": {
+        "provider_id": { "type": "string", "minLength": 1 },
+        "provider_kind": { "type": "string", "minLength": 1 },
+        "model_identifier": { "type": "string" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}

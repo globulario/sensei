@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/providerport-request-v1.json",
+  "title": "Sensei Provider Port Request V1",
+  "description": "The O2 request envelope sent to a provider's Execute(). Binds exact O1 session identity, the exact parent artifact digest, and the expected plan generation/attempt number the mapped result must match -- a provider cannot choose or alter these.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/providerport. parent_artifact_digest_sha256 is the exact O1 artifact this request derives from: the session digest for interpretation, the interpretation digest for planning, the plan digest for generation, the attempt digest for evaluation-observation. deadline_at is a precommitted, binding execution constraint, not a bookkeeping observation timestamp, so it stays included in request_digest_sha256.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "operation",
+    "session_digest_sha256",
+    "repository_domain",
+    "base_revision",
+    "parent_artifact_digest_sha256",
+    "expected_plan_generation",
+    "expected_attempt_number",
+    "deadline_at",
+    "max_observation_count",
+    "max_observation_bytes",
+    "request_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.providerport.request.v1" },
+    "request_id": { "type": "string", "minLength": 1 },
+    "operation": { "$ref": "#/$defs/operation" },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "repository_domain": { "type": "string", "minLength": 1 },
+    "base_revision": { "type": "string", "minLength": 1 },
+    "parent_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "expected_plan_generation": { "$ref": "#/$defs/optionalPositiveInt" },
+    "expected_attempt_number": { "$ref": "#/$defs/optionalPositiveInt" },
+    "deadline_at": { "type": "string", "minLength": 1 },
+    "max_observation_count": {
+      "$comment": "Precommitted before execution. Never enlargeable by the provider.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "max_observation_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "request_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "operation": { "const": "interpretation" } } },
+      "then": {
+        "properties": {
+          "expected_plan_generation": { "type": "null" },
+          "expected_attempt_number": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "operation": { "const": "planning" } } },
+      "then": {
+        "properties": {
+          "expected_plan_generation": { "$ref": "#/$defs/positiveInt" },
+          "expected_attempt_number": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "operation": { "const": "generation" } } },
+      "then": {
+        "properties": {
+          "expected_plan_generation": { "$ref": "#/$defs/positiveInt" },
+          "expected_attempt_number": { "$ref": "#/$defs/positiveInt" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "operation": { "const": "evaluation-observation" } } },
+      "then": {
+        "properties": {
+          "expected_plan_generation": { "$ref": "#/$defs/positiveInt" },
+          "expected_attempt_number": { "$ref": "#/$defs/positiveInt" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "operation": {
+      "enum": ["interpretation", "planning", "generation", "evaluation-observation"]
+    },
+    "positiveInt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "optionalPositiveInt": {
+      "oneOf": [
+        { "$ref": "#/$defs/positiveInt" },
+        { "type": "null" }
+      ]
+    }
+  }
+}

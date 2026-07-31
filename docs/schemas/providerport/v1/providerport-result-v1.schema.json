@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/providerport-result-v1.json",
+  "title": "Sensei Provider Port Result V1",
+  "description": "The O2 result envelope a provider's Execute() returns: a closed terminal-outcome model as data, not an ambiguous Go error. Result is a distinct, untrusted document -- never an accepted O1 Interpretation, Plan, Attempt, or Evaluation. It becomes one only through a later, explicit, pure mapping step accepted by synthesis.Transition; mapping failure is an O2 rejection, not an O1 transition.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/providerport.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_digest_sha256",
+    "operation",
+    "terminal_outcome",
+    "detail",
+    "result_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.providerport.result.v1" },
+    "request_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "operation": { "$ref": "#/$defs/operation" },
+    "terminal_outcome": { "$ref": "#/$defs/terminalOutcome" },
+    "detail": { "type": "string" },
+    "result_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "operation": {
+      "enum": ["interpretation", "planning", "generation", "evaluation-observation"]
+    },
+    "terminalOutcome": {
+      "enum": ["completed", "unavailable", "timed-out", "cancelled", "invalid-output", "unsupported-capability"]
+    }
+  }
+}

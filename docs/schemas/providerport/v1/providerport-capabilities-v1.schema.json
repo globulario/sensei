@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/providerport-capabilities-v1.json",
+  "title": "Sensei Provider Port Capabilities V1",
+  "description": "The O2 capability snapshot returned by a provider's self-description (Describe()). This is untrusted provider self-description: it proves only that a provider claims support for the listed operations, never eligibility, authority, or routing.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/providerport. A capability claim grants nothing beyond eligibility to be asked; actual eligibility to invoke a provider belongs to the caller/configuration layer, out of O2 scope (docs/design/provider-neutral-execution-port-o2.md hard law 2).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider_observation",
+    "supported_operations",
+    "capabilities_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.providerport.capabilities.v1" },
+    "provider_observation": { "$ref": "#/$defs/providerObservation" },
+    "supported_operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operation" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "capabilities_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing (closureprotocol.SemanticDigest convention).",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "operation": {
+      "enum": ["interpretation", "planning", "generation", "evaluation-observation"]
+    },
+    "providerObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "provider_kind", "observed_at"],
+      "properties": {
+        "provider_id": { "type": "string", "minLength": 1 },
+        "provider_kind": { "type": "string", "minLength": 1 },
+        "model_identifier": { "type": "string" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
