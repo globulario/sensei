@@ -123,3 +123,127 @@ func TestGitChangeDigestPropagatesRealError(t *testing.T) {
 		t.Error("expected a nonexistent oldDir to produce an error")
 	}
 }
+
+// TestGitChangeDigestIsPathIndependent is the architect's first blocker,
+// proven directly: the identical logical change (the same file content
+// transition), computed from two COMPLETELY SEPARATE pairs of ephemeral
+// directories (different t.TempDir() calls, so different random names,
+// different depths, different parents), must produce the identical digest.
+// A naive `git diff --no-index oldDir newDir` invocation would embed each
+// pair's own random path in its output and fail this.
+func TestGitChangeDigestIsPathIndependent(t *testing.T) {
+	pairADigest := buildAndDiff(t, "before", "after")
+	pairBDigest := buildAndDiff(t, "before", "after")
+	if pairADigest != pairBDigest {
+		t.Errorf("GitChangeDigest depends on ephemeral directory naming: %q != %q for the identical logical change", pairADigest, pairBDigest)
+	}
+}
+
+func buildAndDiff(t *testing.T, oldContent, newContent string) string {
+	t.Helper()
+	oldDir := t.TempDir()
+	newDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(oldDir, "a.txt"), []byte(oldContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDir, "a.txt"), []byte(newContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := GitChangeDigest(context.Background(), oldDir, newDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return digest
+}
+
+// TestGitChangeDigestNeverMutatesInputDirectories proves oldDir/newDir are
+// read-only from GitChangeDigest's perspective: their content is byte-for-
+// byte identical before and after the call, and neither path is moved or
+// removed.
+func TestGitChangeDigestNeverMutatesInputDirectories(t *testing.T) {
+	oldDir := t.TempDir()
+	newDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(oldDir, "a.txt"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDir, "a.txt"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := GitChangeDigest(context.Background(), oldDir, newDir); err != nil {
+		t.Fatal(err)
+	}
+
+	oldContent, err := os.ReadFile(filepath.Join(oldDir, "a.txt"))
+	if err != nil {
+		t.Fatalf("oldDir was disturbed by GitChangeDigest: %v", err)
+	}
+	if string(oldContent) != "old" {
+		t.Errorf("oldDir content = %q, want unchanged %q", oldContent, "old")
+	}
+	newContent, err := os.ReadFile(filepath.Join(newDir, "a.txt"))
+	if err != nil {
+		t.Fatalf("newDir was disturbed by GitChangeDigest: %v", err)
+	}
+	if string(newContent) != "new" {
+		t.Errorf("newDir content = %q, want unchanged %q", newContent, "new")
+	}
+}
+
+// TestGitChangeDigestIsConfigIndependent is the architect's second blocker,
+// proven directly against a config value CONFIRMED to actually change git
+// diff --no-index's output in this git version (verified by hand before
+// writing this test -- see the commit message): core.autocrlf against
+// CRLF-terminated content. A poisoned ambient environment -- HOME pointed
+// at a directory whose global gitconfig sets core.autocrlf=true, plus
+// GIT_CONFIG_GLOBAL pointed directly at that same poisoned config -- must
+// not change GitChangeDigest's output at all, since it builds its own
+// from-scratch environment (and explicitly forces core.autocrlf=false)
+// rather than inheriting the calling process's.
+func TestGitChangeDigestIsConfigIndependent(t *testing.T) {
+	oldDir := t.TempDir()
+	newDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(oldDir, "f.txt"), []byte("line1\r\nline2\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDir, "f.txt"), []byte("line1\r\nline3\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	baseline, err := GitChangeDigest(context.Background(), oldDir, newDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	poisonedHome := t.TempDir()
+	poisonedGlobalConfig := filepath.Join(poisonedHome, "poisoned-gitconfig")
+	if err := os.WriteFile(poisonedGlobalConfig, []byte("[core]\n\tautocrlf = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origHome, hadHome := os.LookupEnv("HOME")
+	origGlobal, hadGlobal := os.LookupEnv("GIT_CONFIG_GLOBAL")
+	t.Cleanup(func() {
+		if hadHome {
+			os.Setenv("HOME", origHome)
+		} else {
+			os.Unsetenv("HOME")
+		}
+		if hadGlobal {
+			os.Setenv("GIT_CONFIG_GLOBAL", origGlobal)
+		} else {
+			os.Unsetenv("GIT_CONFIG_GLOBAL")
+		}
+	})
+	os.Setenv("HOME", poisonedHome)
+	os.Setenv("GIT_CONFIG_GLOBAL", poisonedGlobalConfig)
+
+	underPoison, err := GitChangeDigest(context.Background(), oldDir, newDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if baseline != underPoison {
+		t.Errorf("GitChangeDigest changed under a poisoned ambient HOME/GIT_CONFIG_GLOBAL (core.autocrlf=true): %q != %q", baseline, underPoison)
+	}
+}

@@ -71,6 +71,14 @@ func BuildManifest(root string) ([]CandidateManifestEntry, error) {
 			// Directories are implicit -- reconstructed from their
 			// children's paths, never their own manifest entry.
 			return nil
+		case !d.Type().IsRegular():
+			// A FIFO, socket, device, or other special file. None has a
+			// representation in the closed regular/executable/symlink
+			// mode vocabulary, and opening one (e.g. os.ReadFile on a
+			// FIFO with no writer) can block indefinitely rather than
+			// fail promptly. Reject outright rather than either hanging
+			// or silently treating it as an ordinary file.
+			return fmt.Errorf("%q is not a regular file, directory, or symlink (mode %v) -- BuildManifest has no representation for it", p, d.Type())
 		default:
 			content, err := os.ReadFile(p)
 			if err != nil {

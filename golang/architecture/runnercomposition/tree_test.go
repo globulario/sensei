@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func TestBuildManifestReadsRegularFilesAndExecutables(t *testing.T) {
@@ -211,5 +213,36 @@ func TestBuildManifestDeterministic(t *testing.T) {
 	}
 	if d1 != d2 {
 		t.Errorf("BuildManifest is not deterministic: %q != %q", d1, d2)
+	}
+}
+
+// TestBuildManifestRejectsFIFOWithoutHanging is the architect's third
+// blocker, proven directly: a FIFO has no representation in the closed
+// regular/executable/symlink mode vocabulary, and a naive os.ReadFile on
+// one with no writer attached blocks forever. This proves BuildManifest
+// rejects it with an error, and does so promptly -- run in a goroutine with
+// a bounded timeout, since a regression back to the hanging behavior would
+// otherwise hang this test (and the whole test binary) rather than fail it
+// cleanly.
+func TestBuildManifestRejectsFIFOWithoutHanging(t *testing.T) {
+	root := t.TempDir()
+	fifoPath := filepath.Join(root, "pipe")
+	if err := syscall.Mkfifo(fifoPath, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := BuildManifest(root)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("expected BuildManifest to reject a FIFO, got nil error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("BuildManifest hung on a FIFO instead of rejecting it promptly")
 	}
 }

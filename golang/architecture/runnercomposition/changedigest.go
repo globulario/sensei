@@ -9,6 +9,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+)
+
+// gitChangeDigestOldName and gitChangeDigestNewName are the fixed relative
+// directory names GitChangeDigest always compares under -- see its doc
+// comment for why these must be fixed, not the caller's real directory
+// names.
+const (
+	gitChangeDigestOldName = "old"
+	gitChangeDigestNewName = "new"
 )
 
 // GitChangeDigest returns the canonical content digest of the change from
@@ -21,10 +31,48 @@ import (
 // two arbitrary filesystem trees -- oldDir and newDir need not be, and for
 // O3's use case never are, inside any git repository at all.
 //
-// oldDir and newDir must be absolute paths. GIT_CONFIG_NOSYSTEM=1 is set on
-// the child process's environment, matching admission.CaptureChanges'
-// existing hardening -- git never reads system-wide configuration to
-// compute this digest.
+// Neither oldDir nor newDir is ever modified, moved, or removed --
+// GitChangeDigest only ever reads them, copying their content into its own
+// disposable staging area.
+//
+// Two properties this function guarantees that a naive `git diff --no-index
+// oldDir newDir` invocation does NOT:
+//
+//  1. Path independence. git diff --no-index embeds the exact paths passed
+//     on the command line in its output headers (diff --git a/<path>
+//     b/<path>, --- a/<path>, +++ b/<path>). oldDir and newDir are
+//     ephemeral, randomly-named temporary directories, so passing them
+//     directly would make the digest depend on unrelated temp-directory
+//     naming -- the identical logical change would hash differently every
+//     run, violating determinism (hard law: "the same snapshot-plus-final-
+//     tree pair always produces the same ProposedChangeDigestSHA256,
+//     byte-for-byte"). GitChangeDigest closes this by copying oldDir and
+//     newDir's content into a fresh staging directory under the FIXED
+//     relative names "old"/"new" and invoking git with that staging
+//     directory as its working directory, so the diff header is always
+//     exactly "diff --git a/old/... b/new/...", independent of where
+//     oldDir/newDir actually live on disk. (A symlink alias was considered
+//     instead of a copy -- cheaper -- but git diff --no-index treats a
+//     symlink argument as a symlink FILE to compare, diffing the two link
+//     targets as text rather than recursing into what they point at, which
+//     would silently diff the wrong thing.)
+//  2. Configuration independence. GIT_CONFIG_NOSYSTEM alone only disables
+//     SYSTEM-level git configuration (/etc/gitconfig) -- it does nothing
+//     about the user's global config, global .gitattributes, or ambient
+//     GIT_* environment variables the calling process might have inherited,
+//     any of which can change git diff's OUTPUT FORMAT (e.g. a global
+//     `text` attribute override can turn a "GIT binary patch" block into a
+//     plain text hunk for the identical bytes) and therefore the digest.
+//     GitChangeDigest runs git with a from-scratch environment: no
+//     inherited GIT_* variables, HOME/XDG_CONFIG_HOME pointed at a fresh
+//     empty directory (so no global gitconfig or global attributes file is
+//     ever found), GIT_CONFIG_SYSTEM and GIT_CONFIG_GLOBAL explicitly
+//     pointed at /dev/null (overriding even an ambient GIT_CONFIG_GLOBAL
+//     the caller's own environment might already have set), and explicit
+//     -c overrides for the config keys most likely to affect diff output
+//     (core.attributesFile, core.autocrlf, core.safecrlf).
+//
+// oldDir and newDir must both name existing directories.
 func GitChangeDigest(ctx context.Context, oldDir, newDir string) (string, error) {
 	if oldDir == "" || newDir == "" {
 		return "", fmt.Errorf("GitChangeDigest: oldDir and newDir must both be non-empty")
@@ -33,21 +81,57 @@ func GitChangeDigest(ctx context.Context, oldDir, newDir string) (string, error)
 	// and "could not access a path" (a real error) -- the exit code alone
 	// cannot distinguish them, so existence is verified here, in Go, before
 	// git is ever invoked, rather than by parsing git's stderr text.
-	if _, err := os.Stat(oldDir); err != nil {
+	if info, err := os.Stat(oldDir); err != nil {
 		return "", fmt.Errorf("GitChangeDigest: oldDir: %w", err)
+	} else if !info.IsDir() {
+		return "", fmt.Errorf("GitChangeDigest: oldDir %q is not a directory", oldDir)
 	}
-	if _, err := os.Stat(newDir); err != nil {
+	if info, err := os.Stat(newDir); err != nil {
 		return "", fmt.Errorf("GitChangeDigest: newDir: %w", err)
+	} else if !info.IsDir() {
+		return "", fmt.Errorf("GitChangeDigest: newDir %q is not a directory", newDir)
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "diff", "--no-index", "--no-ext-diff", "--binary", "--", oldDir, newDir)
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1")
+	staging, err := os.MkdirTemp("", "runnercomposition-changedigest-")
+	if err != nil {
+		return "", fmt.Errorf("GitChangeDigest: create staging directory: %w", err)
+	}
+	defer os.RemoveAll(staging)
+
+	oldCopy := filepath.Join(staging, gitChangeDigestOldName)
+	newCopy := filepath.Join(staging, gitChangeDigestNewName)
+	isolatedHome := filepath.Join(staging, "home")
+	if err := os.MkdirAll(isolatedHome, 0o700); err != nil {
+		return "", fmt.Errorf("GitChangeDigest: create isolated HOME: %w", err)
+	}
+	if err := copyTree(oldDir, oldCopy); err != nil {
+		return "", fmt.Errorf("GitChangeDigest: copy oldDir: %w", err)
+	}
+	if err := copyTree(newDir, newCopy); err != nil {
+		return "", fmt.Errorf("GitChangeDigest: copy newDir: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "git",
+		"-c", "core.attributesFile=/dev/null",
+		"-c", "core.autocrlf=false",
+		"-c", "core.safecrlf=false",
+		"diff", "--no-index", "--no-ext-diff", "--binary",
+		"--", gitChangeDigestOldName, gitChangeDigestNewName,
+	)
+	cmd.Dir = staging
+	cmd.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + isolatedHome,
+		"XDG_CONFIG_HOME=" + isolatedHome,
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_SYSTEM=/dev/null",
+		"GIT_CONFIG_GLOBAL=/dev/null",
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			// git diff --no-index exits 1 when it found differences --
@@ -60,5 +144,48 @@ func GitChangeDigest(ctx context.Context, oldDir, newDir string) (string, error)
 			return "", fmt.Errorf("git diff --no-index: %w", err)
 		}
 	}
+
 	return sha256Hex(stdout.Bytes()), nil
+}
+
+// copyTree recursively copies src's content to dst. Symlinks are copied as
+// symlinks (via os.Readlink/os.Symlink), never followed -- consistent with
+// this package's no-follow discipline elsewhere.
+func copyTree(src, dst string) error {
+	return filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		switch {
+		case d.Type()&os.ModeSymlink != 0:
+			linkTarget, err := os.Readlink(p)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(linkTarget, target)
+		case d.IsDir():
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			return os.MkdirAll(target, info.Mode().Perm())
+		case d.Type().IsRegular():
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(target, data, info.Mode().Perm())
+		default:
+			return fmt.Errorf("copyTree: %q is neither a regular file, directory, nor symlink (mode %v)", p, d.Type())
+		}
+	})
 }
