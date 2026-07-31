@@ -32,6 +32,28 @@ const (
 //go:embed schemas/*.json
 var embeddedSchemas embed.FS
 
+// embeddedSynthesisSchemas is a vendored, build-time copy of the O1
+// (golang/architecture/synthesis) schemas this package's Request/Result
+// payloads $ref, under schemas/synthesis/ -- so a Request/Result payload
+// reuses O1's own closed shape for Session/Interpretation/Plan/Attempt/
+// Evaluation exactly, rather than duplicating those field definitions here.
+// TestEmbeddedSynthesisSchemasMatchCanonicalSource (schema_test.go) fails
+// the build if these ever drift from docs/schemas/synthesis/v1/.
+//
+//go:embed schemas/synthesis/*.json
+var embeddedSynthesisSchemas embed.FS
+
+// vendoredSynthesisSchemaFilenames lists the O1 schemas vendored under
+// schemas/synthesis/ for cross-package $ref resolution. Receipt is
+// intentionally absent: no O2 payload references it.
+var vendoredSynthesisSchemaFilenames = []string{
+	"synthesis-session-v1.schema.json",
+	"synthesis-interpretation-v1.schema.json",
+	"synthesis-plan-v1.schema.json",
+	"synthesis-attempt-v1.schema.json",
+	"synthesis-evaluation-v1.schema.json",
+}
+
 var (
 	compileOnce sync.Once
 	compileErr  error
@@ -43,8 +65,34 @@ var (
 	receiptSchema          *jsonschema.Schema
 )
 
+// compileEmbeddedSchemas compiles all five providerport schemas from ONE
+// shared jsonschema.Compiler instance that also has the vendored O1
+// (synthesis) schemas registered as resources -- Request/Result's
+// interpretation_payload/planning_payload/generation_payload/
+// evaluation_observation_payload properties $ref those O1 schemas by their
+// own $id, so they must be resolvable resources on the same compiler before
+// any of the five providerport schemas is compiled.
 func compileEmbeddedSchemas() error {
 	compileOnce.Do(func() {
+		c := jsonschema.NewCompiler()
+
+		for _, filename := range vendoredSynthesisSchemaFilenames {
+			data, err := embeddedSynthesisSchemas.ReadFile("schemas/synthesis/" + filename)
+			if err != nil {
+				compileErr = fmt.Errorf("read embedded synthesis schema %s: %w", filename, err)
+				return
+			}
+			id, err := schemaID(data)
+			if err != nil {
+				compileErr = fmt.Errorf("synthesis schema %s: %w", filename, err)
+				return
+			}
+			if err := c.AddResource(id, bytes.NewReader(data)); err != nil {
+				compileErr = fmt.Errorf("add synthesis resource %s: %w", id, err)
+				return
+			}
+		}
+
 		type target struct {
 			filename string
 			dst      **jsonschema.Schema
@@ -57,7 +105,7 @@ func compileEmbeddedSchemas() error {
 			{ReceiptSchemaFilename, &receiptSchema},
 		}
 		for _, t := range targets {
-			schema, err := compileEmbedded(t.filename)
+			schema, err := compileEmbedded(c, t.filename)
 			if err != nil {
 				compileErr = err
 				return
@@ -68,7 +116,7 @@ func compileEmbeddedSchemas() error {
 	return compileErr
 }
 
-func compileEmbedded(filename string) (*jsonschema.Schema, error) {
+func compileEmbedded(c *jsonschema.Compiler, filename string) (*jsonschema.Schema, error) {
 	data, err := embeddedSchemas.ReadFile("schemas/" + filename)
 	if err != nil {
 		return nil, fmt.Errorf("read embedded %s: %w", filename, err)
@@ -77,7 +125,6 @@ func compileEmbedded(filename string) (*jsonschema.Schema, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", filename, err)
 	}
-	c := jsonschema.NewCompiler()
 	if err := c.AddResource(id, bytes.NewReader(data)); err != nil {
 		return nil, fmt.Errorf("add resource %s: %w", id, err)
 	}

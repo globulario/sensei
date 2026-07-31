@@ -14,22 +14,33 @@
 // for every document, ahead of that accept path existing.
 package providerport
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/globulario/sensei/golang/architecture/synthesis"
+)
 
 func TestDeclaredDigestEqualsComputedDigestForValidFixtures(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	plan := fixtureSynthesisPlan(t, interpretation.InterpretationDigestSHA256)
+
 	capabilities := fixtureCapabilities(t)
 	if got, err := CapabilitiesDigest(capabilities); err != nil || got != capabilities.CapabilitiesDigestSHA256 {
 		t.Errorf("capabilities: declared %q, computed %q (err %v)", capabilities.CapabilitiesDigestSHA256, got, err)
 	}
 
-	request := fixturePlanningRequest(t, zeroDigest, zeroDigest)
+	request := fixturePlanningRequest(t, session, interpretation)
 	if got, err := RequestDigest(request); err != nil || got != request.RequestDigestSHA256 {
 		t.Errorf("request: declared %q, computed %q (err %v)", request.RequestDigestSHA256, got, err)
 	}
 
-	result := fixtureResult(t, request.RequestDigestSHA256, OperationPlanning, OutcomeCompleted, "planning complete")
+	result := fixturePlanningResult(t, request.RequestDigestSHA256, plan)
 	if got, err := ResultDigest(result); err != nil || got != result.ResultDigestSHA256 {
 		t.Errorf("result: declared %q, computed %q (err %v)", result.ResultDigestSHA256, got, err)
+	}
+	if result.PayloadDigestSHA256 == nil || *result.PayloadDigestSHA256 != plan.PlanDigestSHA256 {
+		t.Errorf("result: PayloadDigestSHA256 = %v, want the embedded plan's real digest %q", result.PayloadDigestSHA256, plan.PlanDigestSHA256)
 	}
 
 	batch := fixtureObservationBatch(t, request.RequestDigestSHA256)
@@ -37,13 +48,24 @@ func TestDeclaredDigestEqualsComputedDigestForValidFixtures(t *testing.T) {
 		t.Errorf("observation batch: declared %q, computed %q (err %v)", batch.ObservationBatchDigestSHA256, got, err)
 	}
 
-	receipt := fixtureReceiptCompleted(t, request.RequestDigestSHA256, capabilities.CapabilitiesDigestSHA256, result.ResultDigestSHA256, batch.ObservationBatchDigestSHA256)
+	receipt := fixtureReceiptCompleted(t, request.RequestDigestSHA256, capabilities.CapabilitiesDigestSHA256, result.ResultDigestSHA256, *result.PayloadDigestSHA256, batch.ObservationBatchDigestSHA256)
 	if got, err := ReceiptDigest(receipt); err != nil || got != receipt.ReceiptDigestSHA256 {
 		t.Errorf("receipt: declared %q, computed %q (err %v)", receipt.ReceiptDigestSHA256, got, err)
 	}
 }
 
 func TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	plan := fixtureSynthesisPlan(t, interpretation.InterpretationDigestSHA256)
+	otherPlan := plan
+	otherPlan.PlanID = "plan.fixture.tampered"
+	otherPlanDigest, err := synthesis.PlanDigest(otherPlan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherPlan.PlanDigestSHA256 = otherPlanDigest
+
 	capabilities := fixtureCapabilities(t)
 	tamperedCapabilities := capabilities
 	tamperedCapabilities.SupportedOperations = []Operation{OperationInterpretation}
@@ -53,7 +75,7 @@ func TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering(t *testin
 		t.Error("capabilities: tampering supported_operations did not change the computed digest")
 	}
 
-	request := fixturePlanningRequest(t, zeroDigest, zeroDigest)
+	request := fixturePlanningRequest(t, session, interpretation)
 	tamperedRequest := request
 	tamperedRequest.DeadlineAt = "2099-12-31T23:59:59Z"
 	if got, err := RequestDigest(tamperedRequest); err != nil {
@@ -61,14 +83,28 @@ func TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering(t *testin
 	} else if got == request.RequestDigestSHA256 {
 		t.Error("request: tampering deadline_at did not change the computed digest")
 	}
+	tamperedRequestPayload := request
+	tamperedRequestPayload.PlanningPayload = nil
+	if got, err := RequestDigest(tamperedRequestPayload); err != nil {
+		t.Fatal(err)
+	} else if got == request.RequestDigestSHA256 {
+		t.Error("request: tampering the embedded planning_payload did not change the computed digest")
+	}
 
-	result := fixtureResult(t, request.RequestDigestSHA256, OperationPlanning, OutcomeCompleted, "planning complete")
+	result := fixturePlanningResult(t, request.RequestDigestSHA256, plan)
 	tamperedResult := result
 	tamperedResult.TerminalOutcome = OutcomeCancelled
 	if got, err := ResultDigest(tamperedResult); err != nil {
 		t.Fatal(err)
 	} else if got == result.ResultDigestSHA256 {
 		t.Error("result: tampering terminal_outcome did not change the computed digest")
+	}
+	tamperedResultPayload := result
+	tamperedResultPayload.PlanningPayload = &otherPlan
+	if got, err := ResultDigest(tamperedResultPayload); err != nil {
+		t.Fatal(err)
+	} else if got == result.ResultDigestSHA256 {
+		t.Error("result: tampering the embedded planning_payload did not change the computed digest")
 	}
 
 	batch := fixtureObservationBatch(t, request.RequestDigestSHA256)
@@ -81,12 +117,20 @@ func TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering(t *testin
 		t.Error("observation batch: tampering an observation's detail did not change the computed digest")
 	}
 
-	receipt := fixtureReceiptCompleted(t, request.RequestDigestSHA256, capabilities.CapabilitiesDigestSHA256, result.ResultDigestSHA256, batch.ObservationBatchDigestSHA256)
+	receipt := fixtureReceiptCompleted(t, request.RequestDigestSHA256, capabilities.CapabilitiesDigestSHA256, result.ResultDigestSHA256, *result.PayloadDigestSHA256, batch.ObservationBatchDigestSHA256)
 	tamperedReceipt := receipt
 	tamperedReceipt.TerminalOutcome = OutcomeCancelled
 	if got, err := ReceiptDigest(tamperedReceipt); err != nil {
 		t.Fatal(err)
 	} else if got == receipt.ReceiptDigestSHA256 {
 		t.Error("receipt: tampering terminal_outcome did not change the computed digest")
+	}
+	tamperedReceiptPayloadDigest := receipt
+	otherDigest := zeroDigest
+	tamperedReceiptPayloadDigest.PayloadDigestSHA256 = &otherDigest
+	if got, err := ReceiptDigest(tamperedReceiptPayloadDigest); err != nil {
+		t.Fatal(err)
+	} else if got == receipt.ReceiptDigestSHA256 {
+		t.Error("receipt: tampering payload_digest_sha256 did not change the computed digest")
 	}
 }

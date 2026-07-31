@@ -14,6 +14,11 @@ func schemaRoot(t *testing.T) string {
 	return filepath.Join("..", "..", "..", "docs", "schemas", "providerport", "v1")
 }
 
+func synthesisSchemaRoot(t *testing.T) string {
+	t.Helper()
+	return filepath.Join("..", "..", "..", "docs", "schemas", "synthesis", "v1")
+}
+
 func readSchemaDoc(t *testing.T, path string) map[string]any {
 	t.Helper()
 	data, err := os.ReadFile(path)
@@ -55,6 +60,32 @@ func TestEmbeddedSchemasMatchCanonicalSource(t *testing.T) {
 			}
 			if string(canonical) != string(embedded) {
 				t.Fatalf("golang/architecture/providerport/schemas/%s has drifted from docs/schemas/providerport/v1/%s -- re-copy the canonical file", filename, filename)
+			}
+		})
+	}
+}
+
+// TestEmbeddedSynthesisSchemasMatchCanonicalSource proves the go:embed'd
+// copy under schemas/synthesis/ (the O1 schemas Request/Result payloads
+// $ref) is byte-identical to the canonical, cross-repo-pinned source under
+// docs/schemas/synthesis/v1/ -- this is a second, independent vendoring
+// relationship from TestEmbeddedSchemasMatchCanonicalSource above, and
+// needs its own drift check so a change to O1's schemas can never silently
+// diverge from what this package's payloads validate against.
+func TestEmbeddedSynthesisSchemasMatchCanonicalSource(t *testing.T) {
+	canonicalRoot := synthesisSchemaRoot(t)
+	for _, filename := range vendoredSynthesisSchemaFilenames {
+		t.Run(filename, func(t *testing.T) {
+			canonical, err := os.ReadFile(filepath.Join(canonicalRoot, filename))
+			if err != nil {
+				t.Fatal(err)
+			}
+			embedded, err := embeddedSynthesisSchemas.ReadFile("schemas/synthesis/" + filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(canonical) != string(embedded) {
+				t.Fatalf("golang/architecture/providerport/schemas/synthesis/%s has drifted from docs/schemas/synthesis/v1/%s -- re-copy the canonical file", filename, filename)
 			}
 		})
 	}

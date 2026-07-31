@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/globulario/sensei/schema/providerport-result-v1.json",
   "title": "Sensei Provider Port Result V1",
-  "description": "The O2 result envelope a provider's Execute() returns: a closed terminal-outcome model as data, not an ambiguous Go error. Result is a distinct, untrusted document -- never an accepted O1 Interpretation, Plan, Attempt, or Evaluation. It becomes one only through a later, explicit, pure mapping step accepted by synthesis.Transition; mapping failure is an O2 rejection, not an O1 transition.",
+  "description": "The O2 result envelope a provider's Execute() returns: a closed terminal-outcome model as data, not an ambiguous Go error, carrying the operation-discriminated candidate output payload -- the next O1 artifact the operation is proposing, embedded by reusing O1's own closed schema. Result is a distinct, untrusted document -- never an accepted O1 Interpretation, Plan, Attempt, or Evaluation. It becomes one only through a later, explicit, pure mapping step accepted by synthesis.Transition; mapping failure is an O2 rejection, not an O1 transition. result_digest_sha256 is always required, on every outcome including a typed failure, so the Result envelope itself always remains verifiable evidence -- payload_digest_sha256 is the separate, optional digest naming the candidate payload specifically, present only on a completed outcome.",
   "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/providerport.",
   "type": "object",
   "additionalProperties": false,
@@ -12,6 +12,11 @@
     "operation",
     "terminal_outcome",
     "detail",
+    "interpretation_payload",
+    "planning_payload",
+    "generation_payload",
+    "evaluation_observation_payload",
+    "payload_digest_sha256",
     "result_digest_sha256"
   ],
   "properties": {
@@ -20,15 +25,139 @@
     "operation": { "$ref": "#/$defs/operation" },
     "terminal_outcome": { "$ref": "#/$defs/terminalOutcome" },
     "detail": { "type": "string" },
+    "interpretation_payload": {
+      "$comment": "The candidate Interpretation produced -- present only when operation is interpretation and terminal_outcome is completed.",
+      "oneOf": [
+        { "$ref": "https://github.com/globulario/sensei/schema/synthesis-interpretation-v1.json" },
+        { "type": "null" }
+      ]
+    },
+    "planning_payload": {
+      "$comment": "The candidate Plan produced -- present only when operation is planning and terminal_outcome is completed.",
+      "oneOf": [
+        { "$ref": "https://github.com/globulario/sensei/schema/synthesis-plan-v1.json" },
+        { "type": "null" }
+      ]
+    },
+    "generation_payload": {
+      "$comment": "The candidate Attempt produced -- present only when operation is generation and terminal_outcome is completed.",
+      "oneOf": [
+        { "$ref": "https://github.com/globulario/sensei/schema/synthesis-attempt-v1.json" },
+        { "type": "null" }
+      ]
+    },
+    "evaluation_observation_payload": {
+      "$comment": "The candidate Evaluation produced -- present only when operation is evaluation-observation and terminal_outcome is completed.",
+      "oneOf": [
+        { "$ref": "https://github.com/globulario/sensei/schema/synthesis-evaluation-v1.json" },
+        { "type": "null" }
+      ]
+    },
+    "payload_digest_sha256": {
+      "$comment": "An operation-agnostic pointer to whichever payload field above is populated, letting a caller check 'is there a payload, and what is its digest' without branching on operation. Non-null exactly when terminal_outcome is completed.",
+      "$ref": "#/$defs/optionalSha256Hex"
+    },
     "result_digest_sha256": {
-      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing. Always required, on every outcome including a typed failure, so the Result envelope always remains verifiable evidence.",
       "$ref": "#/$defs/sha256Hex"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": { "const": "interpretation" },
+          "terminal_outcome": { "const": "completed" }
+        },
+        "required": ["operation", "terminal_outcome"]
+      },
+      "then": {
+        "properties": {
+          "interpretation_payload": { "$ref": "https://github.com/globulario/sensei/schema/synthesis-interpretation-v1.json" },
+          "planning_payload": { "type": "null" },
+          "generation_payload": { "type": "null" },
+          "evaluation_observation_payload": { "type": "null" },
+          "payload_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": { "const": "planning" },
+          "terminal_outcome": { "const": "completed" }
+        },
+        "required": ["operation", "terminal_outcome"]
+      },
+      "then": {
+        "properties": {
+          "interpretation_payload": { "type": "null" },
+          "planning_payload": { "$ref": "https://github.com/globulario/sensei/schema/synthesis-plan-v1.json" },
+          "generation_payload": { "type": "null" },
+          "evaluation_observation_payload": { "type": "null" },
+          "payload_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": { "const": "generation" },
+          "terminal_outcome": { "const": "completed" }
+        },
+        "required": ["operation", "terminal_outcome"]
+      },
+      "then": {
+        "properties": {
+          "interpretation_payload": { "type": "null" },
+          "planning_payload": { "type": "null" },
+          "generation_payload": { "$ref": "https://github.com/globulario/sensei/schema/synthesis-attempt-v1.json" },
+          "evaluation_observation_payload": { "type": "null" },
+          "payload_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": { "const": "evaluation-observation" },
+          "terminal_outcome": { "const": "completed" }
+        },
+        "required": ["operation", "terminal_outcome"]
+      },
+      "then": {
+        "properties": {
+          "interpretation_payload": { "type": "null" },
+          "planning_payload": { "type": "null" },
+          "generation_payload": { "type": "null" },
+          "evaluation_observation_payload": { "$ref": "https://github.com/globulario/sensei/schema/synthesis-evaluation-v1.json" },
+          "payload_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "terminal_outcome": { "const": "completed" } } },
+      "else": {
+        "properties": {
+          "interpretation_payload": { "type": "null" },
+          "planning_payload": { "type": "null" },
+          "generation_payload": { "type": "null" },
+          "evaluation_observation_payload": { "type": "null" },
+          "payload_digest_sha256": { "type": "null" }
+        }
+      }
+    }
+  ],
   "$defs": {
     "sha256Hex": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "optionalSha256Hex": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
     },
     "operation": {
       "enum": ["interpretation", "planning", "generation", "evaluation-observation"]

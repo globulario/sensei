@@ -96,12 +96,16 @@ const RequestSchemaVersion = "sensei.providerport.request.v1"
 // attempt number the eventual mapped result must match -- a provider must
 // not choose or alter plan generation, attempt number, retry budget,
 // replan budget, or session identity; those stay O1-owned inputs this
-// envelope only carries forward.
+// envelope only carries forward. It carries the operation-discriminated
+// input payload a provider needs to actually perform the operation: the
+// parent O1 artifact the operation extends, embedded directly by reusing
+// O1's own closed type -- never a free-form blob.
 //
 // ParentArtifactDigestSHA256 is the exact O1 artifact this request derives
 // from: the session digest for interpretation, the interpretation digest
 // for planning, the plan digest for generation, the attempt digest for
-// evaluation-observation.
+// evaluation-observation -- the same artifact embedded, in full, as this
+// operation's payload field below.
 type Request struct {
 	SchemaVersion string    `json:"schema_version"`
 	RequestID     string    `json:"request_id"`
@@ -131,6 +135,17 @@ type Request struct {
 	MaxObservationCount int `json:"max_observation_count"`
 	MaxObservationBytes int `json:"max_observation_bytes"`
 
+	// Exactly one of the four payload fields below is non-nil, matching
+	// Operation -- enforced by the schema's per-operation conditional. Each
+	// carries the parent O1 artifact the operation extends, reusing O1's
+	// own closed type: interpretation extends a Session, planning extends
+	// an Interpretation, generation extends a Plan, evaluation-observation
+	// extends an Attempt.
+	InterpretationPayload        *synthesis.Session        `json:"interpretation_payload"`
+	PlanningPayload              *synthesis.Interpretation `json:"planning_payload"`
+	GenerationPayload            *synthesis.Plan           `json:"generation_payload"`
+	EvaluationObservationPayload *synthesis.Attempt        `json:"evaluation_observation_payload"`
+
 	// RequestDigestSHA256 is the self-referential semantic digest of this
 	// document with this field zeroed before hashing.
 	RequestDigestSHA256 string `json:"request_digest_sha256"`
@@ -141,17 +156,44 @@ type Request struct {
 const ResultSchemaVersion = "sensei.providerport.result.v1"
 
 // Result is the O2 result envelope a provider's Execute() returns: a
-// closed terminal-outcome model as data. Result is a distinct, untrusted
-// document -- never an accepted O1 Interpretation, Plan, Attempt, or
-// Evaluation. It becomes one only through a later, explicit, pure mapping
-// step accepted by synthesis.Transition; mapping failure is an O2
-// rejection, not an O1 transition.
+// closed terminal-outcome model as data, carrying the operation-
+// discriminated candidate output payload -- the next O1 artifact the
+// operation is proposing, embedded by reusing O1's own closed type. Result
+// is a distinct, untrusted document -- never an accepted O1 Interpretation,
+// Plan, Attempt, or Evaluation. It becomes one only through a later,
+// explicit, pure mapping step accepted by synthesis.Transition; mapping
+// failure is an O2 rejection, not an O1 transition.
+//
+// ResultDigestSHA256 is always required, on every TerminalOutcome including
+// a typed failure, so the Result envelope itself always remains verifiable
+// evidence -- see Receipt.ResultDigestSHA256, which is likewise always
+// required for the same reason. PayloadDigestSHA256 is the separate,
+// optional digest naming the candidate payload specifically: non-nil
+// exactly when TerminalOutcome is OutcomeCompleted.
 type Result struct {
 	SchemaVersion       string          `json:"schema_version"`
 	RequestDigestSHA256 string          `json:"request_digest_sha256"`
 	Operation           Operation       `json:"operation"`
 	TerminalOutcome     TerminalOutcome `json:"terminal_outcome"`
 	Detail              string          `json:"detail"`
+
+	// Exactly one of the four payload fields below is non-nil, matching
+	// Operation, and only when TerminalOutcome is OutcomeCompleted --
+	// enforced by the schema's per-operation, per-outcome conditional. Each
+	// carries the candidate next O1 artifact the operation is proposing:
+	// interpretation proposes an Interpretation, planning proposes a Plan,
+	// generation proposes an Attempt, evaluation-observation proposes an
+	// Evaluation.
+	InterpretationPayload        *synthesis.Interpretation `json:"interpretation_payload"`
+	PlanningPayload              *synthesis.Plan           `json:"planning_payload"`
+	GenerationPayload            *synthesis.Attempt        `json:"generation_payload"`
+	EvaluationObservationPayload *synthesis.Evaluation     `json:"evaluation_observation_payload"`
+
+	// PayloadDigestSHA256 is an operation-agnostic pointer to whichever
+	// payload field above is populated, letting a caller check "is there a
+	// payload, and what is its digest" without branching on Operation.
+	// Non-nil exactly when TerminalOutcome is OutcomeCompleted.
+	PayloadDigestSHA256 *string `json:"payload_digest_sha256"`
 
 	// ResultDigestSHA256 is the self-referential semantic digest of this
 	// document with this field zeroed before hashing.
@@ -192,10 +234,10 @@ type ObservationBatch struct {
 const ReceiptSchemaVersion = "sensei.providerport.receipt.v1"
 
 // Receipt is the O2 provider execution receipt: binds request, capability
-// snapshot, provider identity, response (when one exists), observations,
-// and terminal outcome into one inspectable record. O2 recomputes and
-// verifies this receipt's own digest and every digest it references; a
-// provider-declared digest is never trusted unchecked.
+// snapshot, provider identity, result, observations, and terminal outcome
+// into one inspectable record. O2 recomputes and verifies this receipt's
+// own digest and every digest it references; a provider-declared digest is
+// never trusted unchecked.
 type Receipt struct {
 	SchemaVersion string `json:"schema_version"`
 	ReceiptID     string `json:"receipt_id"`
@@ -206,10 +248,16 @@ type Receipt struct {
 
 	TerminalOutcome TerminalOutcome `json:"terminal_outcome"`
 
-	// ResponseDigestSHA256 is non-nil exactly when TerminalOutcome is
-	// OutcomeCompleted -- only a completed outcome produces a Result
-	// payload worth referencing.
-	ResponseDigestSHA256 *string `json:"response_digest_sha256"`
+	// ResultDigestSHA256 is ALWAYS required, on every TerminalOutcome
+	// including a typed failure -- a Result envelope is always produced as
+	// evidence, so a receipt must always be able to point to it. Losing
+	// this pointer on a failed outcome would silently drop the Result's
+	// evidence from the receipt.
+	ResultDigestSHA256 string `json:"result_digest_sha256"`
+	// PayloadDigestSHA256 is the separate, optional digest naming the
+	// candidate payload specifically -- mirrors Result.PayloadDigestSHA256.
+	// Non-nil exactly when TerminalOutcome is OutcomeCompleted.
+	PayloadDigestSHA256 *string `json:"payload_digest_sha256"`
 	// ObservationBatchDigestSHA256 is independently nilable -- a batch may
 	// or may not exist regardless of outcome.
 	ObservationBatchDigestSHA256 *string `json:"observation_batch_digest_sha256"`
