@@ -11888,6 +11888,348 @@ test_symbols:
     package: protection
     language: go
     doc: "contract §4 correction: JSON Schema is now an implemented structural\nsource (golang/extractor/jsonschemascan), not a permanent gap."
+  - id: golang/architecture/providerport/digest_integrity_test.go:TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering
+    file: golang/architecture/providerport/digest_integrity_test.go
+    symbol: TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/digest_integrity_test.go:TestDeclaredDigestEqualsComputedDigestForValidFixtures
+    file: golang/architecture/providerport/digest_integrity_test.go
+    symbol: TestDeclaredDigestEqualsComputedDigestForValidFixtures
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/digest_integrity_test.go:TestObservationBatchDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/providerport/digest_integrity_test.go
+    symbol: TestObservationBatchDigestEqualsIndependentlyRecomputedDigest
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/digest_integrity_test.go:TestObservationBatchDigestInvalidatedByMutatingObservationContent
+    file: golang/architecture/providerport/digest_integrity_test.go
+    symbol: TestObservationBatchDigestInvalidatedByMutatingObservationContent
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/digest_integrity_test.go:TestReceiptDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/providerport/digest_integrity_test.go
+    symbol: TestReceiptDigestEqualsIndependentlyRecomputedDigest
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/digest_integrity_test.go:TestReceiptDigestInvalidatedByMutatingDigestCoveredContent
+    file: golang/architecture/providerport/digest_integrity_test.go
+    symbol: TestReceiptDigestInvalidatedByMutatingDigestCoveredContent
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunBoundsDescribeAndDoesNotBlockForever
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunBoundsDescribeAndDoesNotBlockForever
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunCompletedProducesRealResultAndReceipt
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunCompletedProducesRealResultAndReceipt
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunContextCancelledMapsToCancelled
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunContextCancelledMapsToCancelled
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunDeadlineElapsedMapsToTimedOut
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunDeadlineElapsedMapsToTimedOut
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunExecuteErrorMapsToUnavailable
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunExecuteErrorMapsToUnavailable
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunObservationByteLimitCannotBeEnlarged
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunObservationByteLimitCannotBeEnlarged
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunObservationCountLimitCannotBeEnlarged
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunObservationCountLimitCannotBeEnlarged
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunRaceCancellationProducesExactlyOneTerminalOutcome
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRaceCancellationProducesExactlyOneTerminalOutcome
+    package: providerport
+    language: go
+    doc: "TestRunRaceCancellationProducesExactlyOneTerminalOutcome is the companion\nproof to TestRunRaceProducesExactlyOneTerminalOutcome: it repeatedly races\nreal caller cancellation (a live ctx cancel, not the request's own\ndeadline) against provider completion, proving Run never returns zero or\ntwo outcomes here either. The request's own deadline is generous (5s) and\nnever legitimately elapses, so the only valid outcomes are completed and\ncancelled -- OutcomeTimedOut is deliberately excluded from the allowed\nset for the same reason OutcomeCancelled is excluded from the deadline\nrace: permitting it here could mask a regression where caller\ncancellation is misclassified as a deadline."
+  - id: golang/architecture/providerport/execution_test.go:TestRunRaceProducesExactlyOneTerminalOutcome
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRaceProducesExactlyOneTerminalOutcome
+    package: providerport
+    language: go
+    doc: "TestRunRaceProducesExactlyOneTerminalOutcome stresses a provider that\nfinishes at almost exactly the same moment its deadline elapses, many\ntimes, proving Run never returns zero or two outcomes -- exactly one,\nevery time. The overall deadline (60ms) is generous relative to a WARM\nDescribe call, and the provider's own delay is a narrow band straddling\nthat same deadline (50-69ms), so the genuinely tight race stays isolated\nto Execute-vs-deadline.\n\nThis uses context.Background() -- nothing ever cancels it -- so the only\nlegitimate outcomes are completed and timed-out. OutcomeCancelled is\ndeliberately excluded from the allowed set: permitting it here could mask\na regression where a deadline is misclassified as caller cancellation.\nSee TestRunRaceCancellationProducesExactlyOneTerminalOutcome for the\ncompanion proof that races real caller cancellation instead.\n\nThe very first call to Run in this package's test binary pays a one-time\ncold-start cost (schema compilation via sync.Once, first goroutine\nspawn/schedule under -race) that can itself run close to or past a 60ms\nbudget -- not representative of any steady-state race this test means to\nstress. A throwaway warm-up call absorbs that one-time cost before the\ntimed loop begins, exactly as a real process would only pay it once at\nstartup, not per request."
+  - id: golang/architecture/providerport/execution_test.go:TestRunRejectsCapabilitiesWithMismatchedDeclaredDigest
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRejectsCapabilitiesWithMismatchedDeclaredDigest
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunRejectsMalformedRequestWithoutBuildingAReceipt
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRejectsMalformedRequestWithoutBuildingAReceipt
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunRejectsRequestWithMismatchedDeclaredDigest
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRejectsRequestWithMismatchedDeclaredDigest
+    package: providerport
+    language: go
+    doc: "TestRunRejectsRequestWithMismatchedDeclaredDigest proves Run recomputes\nand verifies the caller's own Request digest, not just Capabilities' and\nResult's -- a caller could otherwise mutate a request's payload,\ndeadline, identity, parent digest, or observation limits while keeping\nan old valid-looking declared digest, and the resulting receipt would\nbind the wrong request identity."
+  - id: golang/architecture/providerport/execution_test.go:TestRunRejectsResultWithMismatchedDeclaredDigest
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRejectsResultWithMismatchedDeclaredDigest
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunRejectsResultWithMismatchedEmbeddedPayloadDigest
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRejectsResultWithMismatchedEmbeddedPayloadDigest
+    package: providerport
+    language: go
+    doc: "TestRunRejectsResultWithMismatchedEmbeddedPayloadDigest tests the exact\n\"internally contradictory Result\" scenario the review named: the\nembedded payload's own declared digest (PlanDigestSHA256) is wrong, and\nResult.PayloadDigestSHA256 was copied from that same wrong value -- both\nfields agree with EACH OTHER, neither agrees with the plan's actual\ncontent. Run must recompute the payload's real digest independently, not\nmerely check internal consistency between the two declared fields."
+  - id: golang/architecture/providerport/execution_test.go:TestRunRejectsResultWithMismatchedOperation
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRejectsResultWithMismatchedOperation
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/execution_test.go:TestRunRejectsResultWithMismatchedPayloadDigest
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunRejectsResultWithMismatchedPayloadDigest
+    package: providerport
+    language: go
+    doc: "TestRunRejectsResultWithMismatchedPayloadDigest tests the case where the\nembedded payload's own declared digest is correct, but Result's separate\nPayloadDigestSHA256 pointer field is wrong -- Run must independently\nrecompute the payload's real digest and reject this Result rather than\nforward the false pointer onto the receipt."
+  - id: golang/architecture/providerport/execution_test.go:TestRunUnsupportedCapabilityNeverCallsExecute
+    file: golang/architecture/providerport/execution_test.go
+    symbol: TestRunUnsupportedCapabilityNeverCallsExecute
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/fixtures_test.go:TestDigestExcludesSelfField
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestDigestExcludesSelfField
+    package: providerport
+    language: go
+    doc: "TestDigestExcludesSelfField proves changing only the stored (pre-existing)\ndigest-field value does not change the freshly-computed digest."
+  - id: golang/architecture/providerport/fixtures_test.go:TestDigestsAreDeterministic
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestDigestsAreDeterministic
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/fixtures_test.go:TestHappyPathChainValidatesAgainstEverySchema
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestHappyPathChainValidatesAgainstEverySchema
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/fixtures_test.go:TestNormalizeMakesNilSlicesNonNil
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestNormalizeMakesNilSlicesNonNil
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/fixtures_test.go:TestNormalizeRequestNormalizesNestedPayload
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestNormalizeRequestNormalizesNestedPayload
+    package: providerport
+    language: go
+    doc: "TestNormalizeRequestNormalizesNestedPayload proves NormalizeRequest\nreaches into a populated payload and normalizes its own nested slices,\nreusing golang/architecture/synthesis's normalizer rather than\nduplicating it."
+  - id: golang/architecture/providerport/fixtures_test.go:TestReceiptDigestExcludesTimestamps
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestReceiptDigestExcludesTimestamps
+    package: providerport
+    language: go
+    doc: "TestReceiptDigestExcludesTimestamps proves receipt identity does not\ndepend on wall-clock time: two receipts identical except for\nStartedAt/CompletedAt must have the same digest."
+  - id: golang/architecture/providerport/fixtures_test.go:TestReceiptDigestStillDependsOnSubstance
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestReceiptDigestStillDependsOnSubstance
+    package: providerport
+    language: go
+    doc: "TestReceiptDigestStillDependsOnSubstance proves the timestamp exclusion is\nnarrow: a substantive field change still changes the digest."
+  - id: golang/architecture/providerport/fixtures_test.go:TestUnnormalizedNilSlicesFailSchemaValidation
+    file: golang/architecture/providerport/fixtures_test.go
+    symbol: TestUnnormalizedNilSlicesFailSchemaValidation
+    package: providerport
+    language: go
+    doc: "TestUnnormalizedNilSlicesFailSchemaValidation proves the normalize step is\nload-bearing: a document built with a nil slice and NOT normalized fails\nschema validation, because JSON null is not a valid array instance."
+  - id: golang/architecture/providerport/mapping_test.go:TestCapabilityClaimGrantsNoAuthority
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestCapabilityClaimGrantsNoAuthority
+    package: providerport
+    language: go
+    doc: "TestCapabilityClaimGrantsNoAuthority proves an honest capability claim,\nand even a fully successful Run() built on it, grant no lasting\nauthority: a provider claims (truthfully) that it supports planning, and\nRun accepts that claim and lets Execute proceed, producing a Result that\nwas valid relative to the state at the time. By the time MapToCommand is\ncalled, though, the session has moved on (state.InterpretationDigestSHA256\nnow points at a DIFFERENT interpretation than the one the request/result\nwere built against) -- neither the capability claim nor Run's own\nsuccess carries any weight here. MapToCommand's own checks, run fresh\nagainst CURRENT state, are what decide, and they reject the now-stale\nresult before any command is constructed. This also demonstrates\nstructurally that a capability claim cannot \"create an O1 command by\nitself\": Run's return type has no Command in it at all -- only\nMapToCommand, a separate and deliberate call, can produce one, and\nnothing about Describe/Capabilities/Execute grants routing, mutation,\nadmission, or transition authority anywhere in this package."
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandDoesNotMutateState
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandDoesNotMutateState
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandEvaluationObservation
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandEvaluationObservation
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandGeneration
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandGeneration
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandInterpretation
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandInterpretation
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandIsDeterministic
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandIsDeterministic
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandOutputIsAcceptedByTransition
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandOutputIsAcceptedByTransition
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandPlanning
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandPlanning
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsEmbeddedParentThatDoesNotMatchRequestReference
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsEmbeddedParentThatDoesNotMatchRequestReference
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsEmbeddedParentWithWrongDeclaredDigest
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsEmbeddedParentWithWrongDeclaredDigest
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsEveryNonCompletedOutcome
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsEveryNonCompletedOutcome
+    package: providerport
+    language: go
+    doc: "TestMapToCommandRejectsEveryNonCompletedOutcome proves each of the five\nnon-completed terminal outcomes is rejected at the mapping boundary, not\nmerely the one representative case (unavailable) TestMapToCommandRejects\nNonCompletedResult already covers. MapToCommand's rejection is outcome-\nagnostic (any TerminalOutcome != OutcomeCompleted), so this is the same\ncode path proven exhaustively rather than five different code paths."
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsMismatchedResultReference
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsMismatchedResultReference
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsNonCompletedResult
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsNonCompletedResult
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsRequestMutatedAfterValidation
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsRequestMutatedAfterValidation
+    package: providerport
+    language: go
+    doc: "TestMapToCommandRejectsRequestMutatedAfterValidation proves the request\nitself is re-validated, not merely trusted because it \"was\" valid when\nRun produced it: mutating any digest-covered field without recomputing\nRequestDigestSHA256 -- exactly what a caller holding request after Run\nreturns could do -- is rejected."
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsResultWhoseOuterDigestIsStaleAfterCandidateMutation
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsResultWhoseOuterDigestIsStaleAfterCandidateMutation
+    package: providerport
+    language: go
+    doc: "TestMapToCommandRejectsResultWhoseOuterDigestIsStaleAfterCandidateMutation\nproves that recomputing only the candidate's own digest field is not\nenough: mutating the embedded candidate and updating just its own digest\nand Result.PayloadDigestSHA256 to match, while leaving the OUTER\nResult.ResultDigestSHA256 stale (as a caller mutating a candidate in\nplace after Run already digested the whole Result would produce), is\nrejected because the outer digest no longer matches the Result's actual\ncontent."
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsStaleCandidatePayload
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsStaleCandidatePayload
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsStaleRepositoryIdentity
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsStaleRepositoryIdentity
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsStaleSessionIdentity
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsStaleSessionIdentity
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsWrongAttempt
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsWrongAttempt
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsWrongGeneration
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsWrongGeneration
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsWrongParent
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsWrongParent
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandRejectsWrongPhase
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandRejectsWrongPhase
+    package: providerport
+    language: go
+    doc: "TestMapToCommandRejectsWrongPhase isolates the phase check specifically:\neach case starts from a state that is otherwise CORRECT for its\noperation (real parent digest, real generation/attempt expectations --\nexactly what driveToX already produces for that operation), then mutates\nONLY state.Phase to something else. If phase were not checked, every one\nof these would otherwise map successfully."
+  - id: golang/architecture/providerport/mapping_test.go:TestMapToCommandReturnedCommandIsDetachedFromOriginalResult
+    file: golang/architecture/providerport/mapping_test.go
+    symbol: TestMapToCommandReturnedCommandIsDetachedFromOriginalResult
+    package: providerport
+    language: go
+    doc: "TestMapToCommandReturnedCommandIsDetachedFromOriginalResult proves the\nreturned command's embedded artifact is an independent deep copy: after\na successful mapping, mutating the ORIGINAL result's nested slice-backed\nfield must not alter the already-returned command. A plain `*ptr`\ndereference would have only shallow-copied Plan, leaving Steps aliasing\nthe same backing array."
+  - id: golang/architecture/providerport/request_conditional_test.go:TestReceiptPayloadDigestMatchesTerminalOutcome
+    file: golang/architecture/providerport/request_conditional_test.go
+    symbol: TestReceiptPayloadDigestMatchesTerminalOutcome
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/request_conditional_test.go:TestRequestConditionalIdentityBindingPerOperation
+    file: golang/architecture/providerport/request_conditional_test.go
+    symbol: TestRequestConditionalIdentityBindingPerOperation
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/request_conditional_test.go:TestRequestConditionalPayloadPerOperation
+    file: golang/architecture/providerport/request_conditional_test.go
+    symbol: TestRequestConditionalPayloadPerOperation
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/request_conditional_test.go:TestResultConditionalPayloadPerOperation
+    file: golang/architecture/providerport/request_conditional_test.go
+    symbol: TestResultConditionalPayloadPerOperation
+    package: providerport
+    language: go
+  - id: golang/architecture/providerport/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
+    file: golang/architecture/providerport/schema_test.go
+    symbol: TestEmbeddedSchemasMatchCanonicalSource
+    package: providerport
+    language: go
+    doc: "TestEmbeddedSchemasMatchCanonicalSource proves the go:embed'd copy under\nschemas/ is byte-identical to the canonical, cross-repo-pinned source\nunder docs/schemas/providerport/v1/ -- go:embed cannot reach outside this\npackage directory with a \"..\" pattern, so the canonical file is\nmechanically copied here at commit time, and this test is what stops the\ntwo from silently drifting apart."
+  - id: golang/architecture/providerport/schema_test.go:TestEmbeddedSynthesisSchemasMatchCanonicalSource
+    file: golang/architecture/providerport/schema_test.go
+    symbol: TestEmbeddedSynthesisSchemasMatchCanonicalSource
+    package: providerport
+    language: go
+    doc: "TestEmbeddedSynthesisSchemasMatchCanonicalSource proves the go:embed'd\ncopy under schemas/synthesis/ (the O1 schemas Request/Result payloads\n$ref) is byte-identical to the canonical, cross-repo-pinned source under\ndocs/schemas/synthesis/v1/ -- this is a second, independent vendoring\nrelationship from TestEmbeddedSchemasMatchCanonicalSource above, and\nneeds its own drift check so a change to O1's schemas can never silently\ndiverge from what this package's payloads validate against."
+  - id: golang/architecture/providerport/schema_test.go:TestSchemaVersionIdentifiersMatchAdopted
+    file: golang/architecture/providerport/schema_test.go
+    symbol: TestSchemaVersionIdentifiersMatchAdopted
+    package: providerport
+    language: go
+    doc: "TestSchemaVersionIdentifiersMatchAdopted confirms every vendored schema's\nconst schema_version exactly matches this package's Go constant."
+  - id: golang/architecture/providerport/schema_test.go:TestSchemasParseAndAreClosed
+    file: golang/architecture/providerport/schema_test.go
+    symbol: TestSchemasParseAndAreClosed
+    package: providerport
+    language: go
+    doc: "TestSchemasParseAndAreClosed proves every vendored schema parses as JSON\nand keeps additionalProperties:false at its object root."
+  - id: golang/architecture/providerport/smuggling_test.go:TestClosedSchemasRejectUnknownBudgetFields
+    file: golang/architecture/providerport/smuggling_test.go
+    symbol: TestClosedSchemasRejectUnknownBudgetFields
+    package: providerport
+    language: go
+    doc: "TestClosedSchemasRejectUnknownBudgetFields proves no O2 document can\ncarry an O1 budget field at all -- not merely that MapToCommand ignores\none, but that the closed (additionalProperties:false) Request/Result\nschemas reject the field's mere presence outright."
+  - id: golang/architecture/providerport/smuggling_test.go:TestMapToCommandOnlyProducesThePermittedCommandPerOperation
+    file: golang/architecture/providerport/smuggling_test.go
+    symbol: TestMapToCommandOnlyProducesThePermittedCommandPerOperation
+    package: providerport
+    language: go
+    doc: "TestMapToCommandOnlyProducesThePermittedCommandPerOperation is the\nconsolidated command-smuggling proof: provider-controlled Result content\ncan never cause MapToCommand to construct anything other than the exact\ncommand each Operation permits -- never AbortCommand, ResumeCommand,\nStartPlanningCommand, StartAttemptCommand, EvaluatorUnavailableCommand,\nor any other member of synthesis's closed Command set.\nMapToCommand's own switch statement is the ONLY code path that\nconstructs a synthesis.Command; it is hardcoded per Operation with no\ndata-driven or reflective construction, so no provider-supplied field\ncan select a different command type. The exhaustive type switch below\n(default case fails the test) proves this for every successful mapping,\nnot merely that the \"happy\" type assertion succeeds."
   - id: golang/architecture/questiondisposition/concurrency_test.go:TestConcurrentRecordsRecordExactlyOnce
     file: golang/architecture/questiondisposition/concurrency_test.go
     symbol: TestConcurrentRecordsRecordExactlyOnce
