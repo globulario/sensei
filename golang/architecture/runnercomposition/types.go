@@ -316,10 +316,14 @@ type RunnerReceipt struct {
 	// CleanupSucceeded records whether destroying the ephemeral capture
 	// surface afterward succeeded -- ORTHOGONAL to Disposition (hard law
 	// 6a note; design doc "Runner disposition and evidence-presence
-	// matrix"). nil means "not applicable": true only for
-	// DispositionSnapshotFailure, since no ephemeral surface was ever
-	// created there. Every other Disposition has a non-nil value here,
-	// independent of what Disposition itself is.
+	// matrix"), but not a strict function of it: see
+	// CleanupRequirementFor(Disposition). nil for DispositionSnapshotFailure
+	// (no ephemeral surface can exist yet), a non-nil boolean for every
+	// disposition from DispositionProviderConstructionFailure onward (the
+	// surface definitely exists), and EITHER nil or a non-nil boolean for
+	// DispositionWorkspaceInitFailure specifically -- whether a partial
+	// ephemeral surface was created before that one failure is not
+	// generally knowable.
 	CleanupSucceeded *bool `json:"cleanup_succeeded"`
 	// CleanupFailureDetail is required non-empty exactly when
 	// CleanupSucceeded is non-nil and false; empty otherwise.

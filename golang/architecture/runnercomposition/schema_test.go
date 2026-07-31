@@ -119,7 +119,7 @@ func TestSchemaVersionIdentifiersMatchAdopted(t *testing.T) {
 }
 
 // TestValidateSchemasAcceptValidFixtures proves both schemas accept their
-// own package's valid fixtures, for every one of the eight closed
+// own package's valid fixtures, for every one of the ten closed
 // dispositions plus a cleanup-failed variant, under the real Draft 2020-12
 // validator.
 func TestValidateSchemasAcceptValidFixtures(t *testing.T) {
@@ -176,14 +176,13 @@ var receiptDigestFields = []receiptDigestField{
 
 // TestRunnerReceiptSchemaEnforcesDispositionMatrixExactly is the
 // table-first presence-matrix proof the architect asked for: for every one
-// of the eight closed dispositions, and for every one of the six nullable
+// of the ten closed dispositions, and for every one of the six nullable
 // digest fields, flipping that single field's presence (nil<->non-nil)
 // while leaving every other field and the disposition itself untouched
-// must be rejected. This exhaustively covers all 8*6 = 48 combinations, not
-// a sampled subset -- including proving that digest-mismatch and
-// (the former "cleanup-failure" role now split across) every
-// fully-completed disposition require ALL six fields, and that
-// seal-failure requires every field except candidate_artifact_digest_sha256.
+// must be rejected. This exhaustively covers all 10*6 = 60 combinations, not
+// a sampled subset -- including proving that digest-mismatch and verified
+// require ALL six fields, and that seal-failure requires every field except
+// candidate_artifact_digest_sha256.
 func TestRunnerReceiptSchemaEnforcesDispositionMatrixExactly(t *testing.T) {
 	artifact := fixtureCandidateArtifact(t)
 	for _, d := range AllDispositions() {
