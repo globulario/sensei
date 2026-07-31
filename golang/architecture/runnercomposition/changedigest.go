@@ -115,14 +115,7 @@ func GitChangeDigest(ctx context.Context, oldDir, newDir string) (string, error)
 		"--", gitChangeDigestOldName, gitChangeDigestNewName,
 	)
 	cmd.Dir = staging
-	cmd.Env = []string{
-		"PATH=" + os.Getenv("PATH"),
-		"HOME=" + isolatedHome,
-		"XDG_CONFIG_HOME=" + isolatedHome,
-		"GIT_CONFIG_NOSYSTEM=1",
-		"GIT_CONFIG_SYSTEM=/dev/null",
-		"GIT_CONFIG_GLOBAL=/dev/null",
-	}
+	cmd.Env = gitIsolatedEnv(isolatedHome)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
