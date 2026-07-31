@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/globulario/sensei/golang/architecture/providerport"
 )
@@ -48,93 +50,198 @@ type CandidateWorkspace interface {
 }
 
 // fsCandidateWorkspace is the concrete, filesystem-backed CandidateWorkspace.
-// snapshotRoot is read-only -- no fsCandidateWorkspace method ever writes to
-// it. bufferRoot is the ephemeral candidate buffer a provider mutates. Both
-// roots must already exist and be populated by the caller (snapshot
-// creation and buffer initialization are separate, later pieces of O3, not
-// this type's concern); fsCandidateWorkspace does not create, populate, or
-// destroy either root.
+// snapshotRoot is read-only -- no fsCandidateWorkspace method ever writes
+// through it. bufferRoot is the ephemeral candidate buffer a provider
+// mutates. Both are *os.Root handles (Go 1.24+), not bare path strings:
+// every Root method is contained to beneath its root even when a path
+// component is a symlink -- a symlink may exist and be created freely (hard
+// law 9 never forbids that), but no Root method will ever traverse THROUGH
+// one to a location outside its root. This is what makes WriteCandidate/
+// Delete/Rename/SetMode/Symlink/ReadSnapshot safe against the exact class
+// of symlink-escape bare os.* calls under a joined path string are
+// vulnerable to.
+//
+// mu is the freeze barrier for Close (hard law 6a): every operation holds a
+// read lock for its full duration; Close takes the write lock, which by
+// definition cannot be acquired until every in-flight read-locked operation
+// has finished, so Close never returns while a provider-initiated
+// filesystem operation is still in progress, and no new operation can begin
+// once Close has acquired the lock.
 type fsCandidateWorkspace struct {
-	snapshotRoot string
-	bufferRoot   string
+	mu           sync.RWMutex
+	snapshotRoot *os.Root
+	bufferRoot   *os.Root
 	closed       bool
 }
 
-// NewFSCandidateWorkspace constructs a CandidateWorkspace over an existing
-// snapshotRoot (read-only) and bufferRoot (read-write) directory pair.
-func NewFSCandidateWorkspace(snapshotRoot, bufferRoot string) CandidateWorkspace {
-	return &fsCandidateWorkspace{snapshotRoot: snapshotRoot, bufferRoot: bufferRoot}
+// isWithin reports whether child is parent itself or nested inside it, once
+// both are already-cleaned, absolute, symlink-resolved paths.
+func isWithin(parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
-// resolve validates path and joins it under root, returning ErrWorkspaceClosed
-// if the workspace has already been closed. ValidateCandidatePath already
-// rejects "..", a leading "/", and backslash, so the result can never
-// resolve outside root.
-func (w *fsCandidateWorkspace) resolve(root, path string) (string, error) {
-	if w.closed {
-		return "", ErrWorkspaceClosed
+// newFSCandidateWorkspace constructs a CandidateWorkspace over an existing
+// snapshotRoot (read-only) and bufferRoot (read-write) directory pair.
+// Unexported: the future snapshot/attempt orchestration that actually
+// creates these directories is this function's only intended caller --
+// exposing two arbitrary public path strings as a constructor invites
+// exactly the aliasing/overlap bugs this function rejects, so this stays a
+// package-internal seam rather than public API until a real external
+// caller need is identified.
+//
+// Construction is fallible and verifies:
+//   - both paths resolve (via filepath.EvalSymlinks) to existing, real
+//     directories, not files and not missing paths;
+//   - the two real directories are distinct -- not the same directory
+//     reached by different paths or a symlink alias;
+//   - neither real directory is nested inside the other.
+//
+// A caller who cannot satisfy these (e.g. because directory creation
+// itself failed) maps that failure to DispositionWorkspaceInitFailure --
+// this function returning an error is precisely that disposition's
+// mechanical trigger.
+func newFSCandidateWorkspace(snapshotRoot, bufferRoot string) (CandidateWorkspace, error) {
+	if snapshotRoot == "" {
+		return nil, fmt.Errorf("newFSCandidateWorkspace: snapshotRoot must not be empty")
 	}
-	if err := ValidateCandidatePath(path); err != nil {
-		return "", err
+	if bufferRoot == "" {
+		return nil, fmt.Errorf("newFSCandidateWorkspace: bufferRoot must not be empty")
 	}
-	return filepath.Join(root, filepath.FromSlash(path)), nil
+
+	snapReal, err := realDir(snapshotRoot)
+	if err != nil {
+		return nil, fmt.Errorf("snapshotRoot: %w", err)
+	}
+	bufReal, err := realDir(bufferRoot)
+	if err != nil {
+		return nil, fmt.Errorf("bufferRoot: %w", err)
+	}
+
+	if snapReal == bufReal {
+		return nil, fmt.Errorf("newFSCandidateWorkspace: snapshotRoot and bufferRoot resolve to the same directory %q", snapReal)
+	}
+	if isWithin(snapReal, bufReal) {
+		return nil, fmt.Errorf("newFSCandidateWorkspace: bufferRoot %q is nested inside snapshotRoot %q", bufReal, snapReal)
+	}
+	if isWithin(bufReal, snapReal) {
+		return nil, fmt.Errorf("newFSCandidateWorkspace: snapshotRoot %q is nested inside bufferRoot %q", snapReal, bufReal)
+	}
+
+	snapHandle, err := os.OpenRoot(snapReal)
+	if err != nil {
+		return nil, fmt.Errorf("open snapshotRoot: %w", err)
+	}
+	bufHandle, err := os.OpenRoot(bufReal)
+	if err != nil {
+		snapHandle.Close()
+		return nil, fmt.Errorf("open bufferRoot: %w", err)
+	}
+
+	return &fsCandidateWorkspace{snapshotRoot: snapHandle, bufferRoot: bufHandle}, nil
+}
+
+// realDir resolves path to an absolute, symlink-evaluated form and confirms
+// it names an existing directory.
+func realDir(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve absolute path: %w", err)
+	}
+	real, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", fmt.Errorf("resolve: %w", err)
+	}
+	info, err := os.Lstat(real)
+	if err != nil {
+		return "", fmt.Errorf("stat: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%q is not a directory", real)
+	}
+	return real, nil
 }
 
 func (w *fsCandidateWorkspace) ReadSnapshot(path string) ([]byte, error) {
-	full, err := w.resolve(w.snapshotRoot, path)
-	if err != nil {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.closed {
+		return nil, ErrWorkspaceClosed
+	}
+	if err := ValidateCandidatePath(path); err != nil {
 		return nil, err
 	}
-	return os.ReadFile(full)
+	return w.snapshotRoot.ReadFile(filepath.FromSlash(path))
 }
 
 func (w *fsCandidateWorkspace) WriteCandidate(path string, content []byte) error {
-	full, err := w.resolve(w.bufferRoot, path)
-	if err != nil {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.closed {
+		return ErrWorkspaceClosed
+	}
+	if err := ValidateCandidatePath(path); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+	name := filepath.FromSlash(path)
+	if err := w.bufferRoot.MkdirAll(filepath.Dir(name), 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
-	return os.WriteFile(full, content, 0o644)
+	return w.bufferRoot.WriteFile(name, content, 0o644)
 }
 
 func (w *fsCandidateWorkspace) Delete(path string) error {
-	full, err := w.resolve(w.bufferRoot, path)
-	if err != nil {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.closed {
+		return ErrWorkspaceClosed
+	}
+	if err := ValidateCandidatePath(path); err != nil {
 		return err
 	}
-	if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
+	if err := w.bufferRoot.Remove(filepath.FromSlash(path)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
 }
 
 func (w *fsCandidateWorkspace) Rename(oldPath, newPath string) error {
-	oldFull, err := w.resolve(w.bufferRoot, oldPath)
-	if err != nil {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.closed {
+		return ErrWorkspaceClosed
+	}
+	if err := ValidateCandidatePath(oldPath); err != nil {
 		return err
 	}
-	newFull, err := w.resolve(w.bufferRoot, newPath)
-	if err != nil {
+	if err := ValidateCandidatePath(newPath); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(newFull), 0o755); err != nil {
+	newName := filepath.FromSlash(newPath)
+	if err := w.bufferRoot.MkdirAll(filepath.Dir(newName), 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
-	return os.Rename(oldFull, newFull)
+	return w.bufferRoot.Rename(filepath.FromSlash(oldPath), newName)
 }
 
 func (w *fsCandidateWorkspace) SetMode(path string, mode CandidateFileMode) error {
-	full, err := w.resolve(w.bufferRoot, path)
-	if err != nil {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.closed {
+		return ErrWorkspaceClosed
+	}
+	if err := ValidateCandidatePath(path); err != nil {
 		return err
 	}
+	name := filepath.FromSlash(path)
 	switch mode {
 	case ModeRegular:
-		return os.Chmod(full, 0o644)
+		return w.bufferRoot.Chmod(name, 0o644)
 	case ModeExecutable:
-		return os.Chmod(full, 0o755)
+		return w.bufferRoot.Chmod(name, 0o755)
 	case ModeSymlink:
 		return fmt.Errorf("SetMode: use Symlink to create a symlink, not SetMode(%q)", mode)
 	default:
@@ -143,24 +250,43 @@ func (w *fsCandidateWorkspace) SetMode(path string, mode CandidateFileMode) erro
 }
 
 func (w *fsCandidateWorkspace) Symlink(path, target string) error {
-	full, err := w.resolve(w.bufferRoot, path)
-	if err != nil {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.closed {
+		return ErrWorkspaceClosed
+	}
+	if err := ValidateCandidatePath(path); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(full); err != nil {
+	name := filepath.FromSlash(path)
+	if err := w.bufferRoot.RemoveAll(name); err != nil {
 		return fmt.Errorf("remove existing entry before creating symlink: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+	if err := w.bufferRoot.MkdirAll(filepath.Dir(name), 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
-	// target is stored verbatim by os.Symlink -- it is never resolved,
-	// followed, or validated as a path itself (hard law 9).
-	return os.Symlink(target, full)
+	// target is stored verbatim -- os.Root.Symlink does not validate or
+	// resolve it (hard law 9). Any LATER Root method that would traverse
+	// THROUGH this symlink is still contained to beneath bufferRoot,
+	// regardless of what target says.
+	return w.bufferRoot.Symlink(target, name)
 }
 
+// Close freezes the workspace (hard law 6a): it blocks until every
+// in-flight operation above has finished (the write-lock cannot be
+// acquired while any read-locked operation is still running), then marks
+// the workspace closed before releasing the *os.Root handles, so no
+// operation can observe a torn or half-closed state. Idempotent.
 func (w *fsCandidateWorkspace) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return nil
+	}
 	w.closed = true
-	return nil
+	snapErr := w.snapshotRoot.Close()
+	bufErr := w.bufferRoot.Close()
+	return errors.Join(snapErr, bufErr)
 }
 
 // GenerationProviderFactory produces a fresh, workspace-bound Provider for
