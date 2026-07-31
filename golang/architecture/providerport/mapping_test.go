@@ -372,3 +372,254 @@ func TestMapToCommandIsDeterministic(t *testing.T) {
 		t.Error("MapToCommand returned different commands for identical inputs")
 	}
 }
+
+// --- wrong phase: the operation must be legal for the CURRENT phase ---
+
+// TestMapToCommandRejectsWrongPhase isolates the phase check specifically:
+// each case starts from a state that is otherwise CORRECT for its
+// operation (real parent digest, real generation/attempt expectations --
+// exactly what driveToX already produces for that operation), then mutates
+// ONLY state.Phase to something else. If phase were not checked, every one
+// of these would otherwise map successfully.
+func TestMapToCommandRejectsWrongPhase(t *testing.T) {
+	t.Run("interpretation from a non-Created phase", func(t *testing.T) {
+		state, session := driveToCreated(t)
+		state.Phase = synthesis.PhasePlanning // otherwise-correct Created state, wrong phase only
+		request := fixtureInterpretationRequest(t, session)
+		candidate := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+		result := fixtureInterpretationResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected interpretation to be rejected outside PhaseCreated")
+		}
+	})
+	t.Run("planning from a non-Planning phase", func(t *testing.T) {
+		state, session, interp := driveToPlanning(t)
+		state.Phase = synthesis.PhaseCreated // otherwise-correct Planning state, wrong phase only
+		request := fixturePlanningRequest(t, session, interp)
+		candidate := fixtureSynthesisPlan(t, interp.InterpretationDigestSHA256)
+		result := fixturePlanningResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected planning to be rejected outside PhasePlanning")
+		}
+	})
+	t.Run("generation from a non-Attempting phase", func(t *testing.T) {
+		state, session, _, plan := driveToAttempting(t)
+		state.Phase = synthesis.PhasePlanning // otherwise-correct Attempting state, wrong phase only
+		request := fixtureGenerationRequest(t, session, plan)
+		candidate := fixtureSynthesisAttempt(t, plan.PlanDigestSHA256, plan.PlanGeneration)
+		result := fixtureGenerationResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected generation to be rejected outside PhaseAttempting")
+		}
+	})
+	t.Run("evaluation-observation from a non-Evaluating phase", func(t *testing.T) {
+		state, session, _, _, attempt := driveToEvaluating(t)
+		state.Phase = synthesis.PhaseAttempting // otherwise-correct Evaluating state, wrong phase only
+		request := fixtureEvaluationObservationRequest(t, session, attempt)
+		candidate := fixtureSynthesisEvaluation(t, attempt.AttemptDigestSHA256)
+		result := fixtureEvaluationObservationResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected evaluation-observation to be rejected outside PhaseEvaluating")
+		}
+	})
+}
+
+// --- contradictory embedded parent: ParentArtifactDigestSHA256 alone is
+// not enough -- the embedded artifact itself must independently agree ---
+
+func TestMapToCommandRejectsEmbeddedParentWithWrongDeclaredDigest(t *testing.T) {
+	// The embedded artifact's own self-declared digest field does not match
+	// its actual content -- declared != computed, isolated from whether
+	// ParentArtifactDigestSHA256 itself looks right.
+	t.Run("interpretation", func(t *testing.T) {
+		state, session := driveToCreated(t)
+		request := fixtureInterpretationRequest(t, session)
+		tampered := session
+		tampered.SessionDigestSHA256 = zeroDigest // self-declared digest now wrong
+		request.InterpretationPayload = &tampered
+		candidate := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+		result := fixtureInterpretationResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected an embedded session with a self-declared digest that does not match its content to be rejected")
+		}
+	})
+	t.Run("planning", func(t *testing.T) {
+		state, session, interp := driveToPlanning(t)
+		request := fixturePlanningRequest(t, session, interp)
+		tampered := interp
+		tampered.InterpretationDigestSHA256 = zeroDigest
+		request.PlanningPayload = &tampered
+		candidate := fixtureSynthesisPlan(t, interp.InterpretationDigestSHA256)
+		result := fixturePlanningResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected an embedded interpretation with a self-declared digest that does not match its content to be rejected")
+		}
+	})
+	t.Run("generation", func(t *testing.T) {
+		state, session, _, plan := driveToAttempting(t)
+		request := fixtureGenerationRequest(t, session, plan)
+		tampered := plan
+		tampered.PlanDigestSHA256 = zeroDigest
+		request.GenerationPayload = &tampered
+		candidate := fixtureSynthesisAttempt(t, plan.PlanDigestSHA256, plan.PlanGeneration)
+		result := fixtureGenerationResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected an embedded plan with a self-declared digest that does not match its content to be rejected")
+		}
+	})
+	t.Run("evaluation-observation", func(t *testing.T) {
+		state, session, _, _, attempt := driveToEvaluating(t)
+		request := fixtureEvaluationObservationRequest(t, session, attempt)
+		tampered := attempt
+		tampered.AttemptDigestSHA256 = zeroDigest
+		request.EvaluationObservationPayload = &tampered
+		candidate := fixtureSynthesisEvaluation(t, attempt.AttemptDigestSHA256)
+		result := fixtureEvaluationObservationResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected an embedded attempt with a self-declared digest that does not match its content to be rejected")
+		}
+	})
+}
+
+func TestMapToCommandRejectsEmbeddedParentThatDoesNotMatchRequestReference(t *testing.T) {
+	// The exact scenario the review named: a freshly re-digested request
+	// claims the current, correct parent digest while embedding a
+	// DIFFERENT (internally self-consistent) artifact than the one that
+	// digest actually belongs to.
+	t.Run("interpretation", func(t *testing.T) {
+		state, session := driveToCreated(t)
+		request := fixtureInterpretationRequest(t, session)
+
+		otherSession := session
+		otherSession.Objective = "a completely different objective the provider never saw approved"
+		otherDigest, err := synthesis.SessionDigest(otherSession)
+		if err != nil {
+			t.Fatal(err)
+		}
+		otherSession.SessionDigestSHA256 = otherDigest
+		request.InterpretationPayload = &otherSession // self-consistent, but not what ParentArtifactDigestSHA256 (still session.SessionDigestSHA256) claims
+
+		candidate := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+		result := fixtureInterpretationResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a request whose ParentArtifactDigestSHA256 does not match its own embedded (self-consistent) session to be rejected")
+		}
+	})
+	t.Run("planning", func(t *testing.T) {
+		state, session, interp := driveToPlanning(t)
+		request := fixturePlanningRequest(t, session, interp)
+
+		otherInterp := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+		otherInterp.InterpretationID = "interpretation.other.001"
+		otherDigest, err := synthesis.InterpretationDigest(otherInterp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		otherInterp.InterpretationDigestSHA256 = otherDigest
+		request.PlanningPayload = &otherInterp
+
+		candidate := fixtureSynthesisPlan(t, interp.InterpretationDigestSHA256)
+		result := fixturePlanningResult(t, request.RequestDigestSHA256, candidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a request whose ParentArtifactDigestSHA256 does not match its own embedded (self-consistent) interpretation to be rejected")
+		}
+	})
+}
+
+// --- stale candidate payload: the RESULT's candidate artifact must itself
+// reference the current parent/generation/attempt, not just the request ---
+
+func TestMapToCommandRejectsStaleCandidatePayload(t *testing.T) {
+	t.Run("interpretation: candidate references the wrong session", func(t *testing.T) {
+		state, session := driveToCreated(t)
+		request := fixtureInterpretationRequest(t, session)
+		staleCandidate := fixtureSynthesisInterpretation(t, zeroDigest) // self-consistent, wrong session reference
+		result := fixtureInterpretationResult(t, request.RequestDigestSHA256, staleCandidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a candidate interpretation referencing the wrong session to be rejected")
+		}
+	})
+	t.Run("planning: candidate references the wrong interpretation", func(t *testing.T) {
+		state, session, interp := driveToPlanning(t)
+		request := fixturePlanningRequest(t, session, interp)
+		staleCandidate := fixtureSynthesisPlan(t, zeroDigest) // self-consistent, wrong interpretation reference
+		result := fixturePlanningResult(t, request.RequestDigestSHA256, staleCandidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a candidate plan referencing the wrong interpretation to be rejected")
+		}
+	})
+	t.Run("planning: candidate carries the wrong plan generation", func(t *testing.T) {
+		state, session, interp := driveToPlanning(t)
+		request := fixturePlanningRequest(t, session, interp)
+		staleCandidate := fixtureSynthesisPlan(t, interp.InterpretationDigestSHA256)
+		staleCandidate.PlanGeneration = state.ExpectedPlanGeneration + 1
+		digest, err := synthesis.PlanDigest(staleCandidate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		staleCandidate.PlanDigestSHA256 = digest
+		result := fixturePlanningResult(t, request.RequestDigestSHA256, staleCandidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a candidate plan carrying the wrong generation to be rejected")
+		}
+	})
+	t.Run("generation: candidate references the wrong plan", func(t *testing.T) {
+		state, session, _, plan := driveToAttempting(t)
+		request := fixtureGenerationRequest(t, session, plan)
+		staleCandidate := fixtureSynthesisAttempt(t, zeroDigest, plan.PlanGeneration) // self-consistent, wrong plan reference
+		result := fixtureGenerationResult(t, request.RequestDigestSHA256, staleCandidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a candidate attempt referencing the wrong plan to be rejected")
+		}
+	})
+	t.Run("generation: candidate carries the wrong plan generation", func(t *testing.T) {
+		state, session, _, plan := driveToAttempting(t)
+		request := fixtureGenerationRequest(t, session, plan)
+		staleCandidate := fixtureSynthesisAttempt(t, plan.PlanDigestSHA256, plan.PlanGeneration+1)
+		result := fixtureGenerationResult(t, request.RequestDigestSHA256, staleCandidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a candidate attempt carrying the wrong plan generation to be rejected")
+		}
+	})
+	t.Run("generation: candidate carries the wrong attempt number", func(t *testing.T) {
+		state, session, _, plan := driveToAttempting(t)
+		request := fixtureGenerationRequest(t, session, plan)
+		staleCandidate := fixtureSynthesisAttempt(t, plan.PlanDigestSHA256, plan.PlanGeneration)
+		staleCandidate.AttemptNumber = state.ExpectedAttemptNumber + 1
+		digest, err := synthesis.AttemptDigest(staleCandidate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		staleCandidate.AttemptDigestSHA256 = digest
+		result := fixtureGenerationResult(t, request.RequestDigestSHA256, staleCandidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a candidate attempt carrying the wrong attempt number to be rejected")
+		}
+	})
+	t.Run("evaluation-observation: candidate references the wrong attempt", func(t *testing.T) {
+		state, session, _, _, attempt := driveToEvaluating(t)
+		request := fixtureEvaluationObservationRequest(t, session, attempt)
+		staleCandidate := fixtureSynthesisEvaluation(t, zeroDigest) // self-consistent, wrong attempt reference
+		result := fixtureEvaluationObservationResult(t, request.RequestDigestSHA256, staleCandidate)
+
+		if _, err := MapToCommand(state, request, result, ""); err == nil {
+			t.Fatal("expected a candidate evaluation referencing the wrong attempt to be rejected")
+		}
+	})
+}
