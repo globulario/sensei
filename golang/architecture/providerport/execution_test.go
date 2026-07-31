@@ -262,6 +262,13 @@ func TestRunDeadlineElapsedMapsToTimedOut(t *testing.T) {
 // that same deadline (50-69ms), so the genuinely tight race stays isolated
 // to Execute-vs-deadline.
 //
+// This uses context.Background() -- nothing ever cancels it -- so the only
+// legitimate outcomes are completed and timed-out. OutcomeCancelled is
+// deliberately excluded from the allowed set: permitting it here could mask
+// a regression where a deadline is misclassified as caller cancellation.
+// See TestRunRaceCancellationProducesExactlyOneTerminalOutcome for the
+// companion proof that races real caller cancellation instead.
+//
 // The very first call to Run in this package's test binary pays a one-time
 // cold-start cost (schema compilation via sync.Once, first goroutine
 // spawn/schedule under -race) that can itself run close to or past a 60ms
@@ -311,9 +318,74 @@ func TestRunRaceProducesExactlyOneTerminalOutcome(t *testing.T) {
 		if err != nil {
 			t.Fatalf("iteration %d: unexpected error: %v", i, err)
 		}
-		validOutcomes := map[TerminalOutcome]bool{OutcomeCompleted: true, OutcomeTimedOut: true, OutcomeCancelled: true}
+		validOutcomes := map[TerminalOutcome]bool{OutcomeCompleted: true, OutcomeTimedOut: true}
 		if !validOutcomes[result.TerminalOutcome] {
-			t.Fatalf("iteration %d: unexpected TerminalOutcome %s", i, result.TerminalOutcome)
+			t.Fatalf("iteration %d: unexpected TerminalOutcome %s (want only completed or timed-out -- context.Background() is never cancelled)", i, result.TerminalOutcome)
+		}
+		if receipt.TerminalOutcome != result.TerminalOutcome {
+			t.Fatalf("iteration %d: receipt outcome %s != result outcome %s", i, receipt.TerminalOutcome, result.TerminalOutcome)
+		}
+		if receipt.ResultDigestSHA256 != result.ResultDigestSHA256 {
+			t.Fatalf("iteration %d: receipt does not reference the result actually returned", i)
+		}
+	}
+}
+
+// TestRunRaceCancellationProducesExactlyOneTerminalOutcome is the companion
+// proof to TestRunRaceProducesExactlyOneTerminalOutcome: it repeatedly races
+// real caller cancellation (a live ctx cancel, not the request's own
+// deadline) against provider completion, proving Run never returns zero or
+// two outcomes here either. The request's own deadline is generous (5s) and
+// never legitimately elapses, so the only valid outcomes are completed and
+// cancelled -- OutcomeTimedOut is deliberately excluded from the allowed
+// set for the same reason OutcomeCancelled is excluded from the deadline
+// race: permitting it here could mask a regression where caller
+// cancellation is misclassified as a deadline.
+func TestRunRaceCancellationProducesExactlyOneTerminalOutcome(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	plan := fixtureSynthesisPlan(t, interpretation.InterpretationDigestSHA256)
+
+	warmupProvider := &fakeProvider{
+		capabilities: fixtureCapabilities(t),
+		executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
+			return fixturePlanningResult(t, req.RequestDigestSHA256, plan), nil
+		},
+	}
+	if _, _, _, err := Run(context.Background(), warmupProvider, withFreshDeadline(t, fixturePlanningRequest(t, session, interpretation), 5*time.Second), fixedClock(time.Now())); err != nil {
+		t.Fatalf("warm-up Run failed: %v", err)
+	}
+
+	for i := 0; i < 200; i++ {
+		request := withFreshDeadline(t, fixturePlanningRequest(t, session, interpretation), 5*time.Second)
+		capabilities := fixtureCapabilities(t)
+
+		delay := time.Duration(50+i%20) * time.Millisecond
+		provider := &fakeProvider{
+			capabilities: capabilities,
+			executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
+				select {
+				case <-ctx.Done():
+					return Result{}, ctx.Err()
+				case <-time.After(delay):
+					return fixturePlanningResult(t, req.RequestDigestSHA256, plan), nil
+				}
+			},
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancelAfter := time.Duration(50+(i+7)%20) * time.Millisecond
+		timer := time.AfterFunc(cancelAfter, cancel)
+
+		result, _, receipt, err := Run(ctx, provider, request, fixedClock(time.Now()))
+		timer.Stop()
+		cancel()
+		if err != nil {
+			t.Fatalf("iteration %d: unexpected error: %v", i, err)
+		}
+		validOutcomes := map[TerminalOutcome]bool{OutcomeCompleted: true, OutcomeCancelled: true}
+		if !validOutcomes[result.TerminalOutcome] {
+			t.Fatalf("iteration %d: unexpected TerminalOutcome %s (want only completed or cancelled -- the request's own deadline is generous and never elapses)", i, result.TerminalOutcome)
 		}
 		if receipt.TerminalOutcome != result.TerminalOutcome {
 			t.Fatalf("iteration %d: receipt outcome %s != result outcome %s", i, receipt.TerminalOutcome, result.TerminalOutcome)
