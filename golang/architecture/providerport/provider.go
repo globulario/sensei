@@ -18,7 +18,10 @@ type Provider interface {
 	// Describe returns the provider's self-declared capability snapshot.
 	// The returned Capabilities is untrusted self-description: it proves
 	// only that the provider claims support for the listed operations,
-	// never eligibility, authority, or routing.
+	// never eligibility, authority, or routing. Implementations MUST return
+	// promptly once ctx is done -- Run bounds Describe under the same
+	// request-deadline/cancellation mechanism as Execute (describeBounded in
+	// execution.go), and does not wait for a Provider that ignores it.
 	Describe(ctx context.Context) (Capabilities, error)
 
 	// Execute performs one bounded request. Implementations MUST return

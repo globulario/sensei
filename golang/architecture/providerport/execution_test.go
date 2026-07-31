@@ -60,7 +60,7 @@ func fixedClock(t time.Time) func() time.Time {
 // an already-elapsed deadline) must use a request built with this helper.
 func withFreshDeadline(t *testing.T, request Request, d time.Duration) Request {
 	t.Helper()
-	request.DeadlineAt = time.Now().Add(d).UTC().Format(time.RFC3339)
+	request.DeadlineAt = time.Now().Add(d).UTC().Format(time.RFC3339Nano)
 	digest, err := RequestDigest(request)
 	if err != nil {
 		t.Fatal(err)
@@ -226,7 +226,7 @@ func TestRunDeadlineElapsedMapsToTimedOut(t *testing.T) {
 	session := fixtureSynthesisSession(t)
 	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
 	request := fixturePlanningRequest(t, session, interpretation)
-	request.DeadlineAt = time.Now().Add(20 * time.Millisecond).UTC().Format(time.RFC3339)
+	request.DeadlineAt = time.Now().Add(50 * time.Millisecond).UTC().Format(time.RFC3339Nano)
 	digest, err := RequestDigest(request)
 	if err != nil {
 		t.Fatal(err)
@@ -257,15 +257,36 @@ func TestRunDeadlineElapsedMapsToTimedOut(t *testing.T) {
 // TestRunRaceProducesExactlyOneTerminalOutcome stresses a provider that
 // finishes at almost exactly the same moment its deadline elapses, many
 // times, proving Run never returns zero or two outcomes -- exactly one,
-// every time.
+// every time. The overall deadline (60ms) is generous relative to a WARM
+// Describe call, and the provider's own delay is a narrow band straddling
+// that same deadline (50-69ms), so the genuinely tight race stays isolated
+// to Execute-vs-deadline.
+//
+// The very first call to Run in this package's test binary pays a one-time
+// cold-start cost (schema compilation via sync.Once, first goroutine
+// spawn/schedule under -race) that can itself run close to or past a 60ms
+// budget -- not representative of any steady-state race this test means to
+// stress. A throwaway warm-up call absorbs that one-time cost before the
+// timed loop begins, exactly as a real process would only pay it once at
+// startup, not per request.
 func TestRunRaceProducesExactlyOneTerminalOutcome(t *testing.T) {
 	session := fixtureSynthesisSession(t)
 	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
 	plan := fixtureSynthesisPlan(t, interpretation.InterpretationDigestSHA256)
 
+	warmupProvider := &fakeProvider{
+		capabilities: fixtureCapabilities(t),
+		executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
+			return fixturePlanningResult(t, req.RequestDigestSHA256, plan), nil
+		},
+	}
+	if _, _, _, err := Run(context.Background(), warmupProvider, withFreshDeadline(t, fixturePlanningRequest(t, session, interpretation), 5*time.Second), fixedClock(time.Now())); err != nil {
+		t.Fatalf("warm-up Run failed: %v", err)
+	}
+
 	for i := 0; i < 200; i++ {
 		request := fixturePlanningRequest(t, session, interpretation)
-		request.DeadlineAt = time.Now().Add(2 * time.Millisecond).UTC().Format(time.RFC3339)
+		request.DeadlineAt = time.Now().Add(60 * time.Millisecond).UTC().Format(time.RFC3339Nano)
 		digest, err := RequestDigest(request)
 		if err != nil {
 			t.Fatal(err)
@@ -273,13 +294,14 @@ func TestRunRaceProducesExactlyOneTerminalOutcome(t *testing.T) {
 		request.RequestDigestSHA256 = digest
 		capabilities := fixtureCapabilities(t)
 
+		delay := time.Duration(50+i%20) * time.Millisecond
 		provider := &fakeProvider{
 			capabilities: capabilities,
 			executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
 				select {
 				case <-ctx.Done():
 					return Result{}, ctx.Err()
-				case <-time.After(time.Duration(i%3) * time.Millisecond):
+				case <-time.After(delay):
 					return fixturePlanningResult(t, req.RequestDigestSHA256, plan), nil
 				}
 			},
@@ -441,6 +463,83 @@ func TestRunRejectsResultWithMismatchedOperation(t *testing.T) {
 	}
 }
 
+// TestRunRejectsResultWithMismatchedPayloadDigest tests the case where the
+// embedded payload's own declared digest is correct, but Result's separate
+// PayloadDigestSHA256 pointer field is wrong -- Run must independently
+// recompute the payload's real digest and reject this Result rather than
+// forward the false pointer onto the receipt.
+func TestRunRejectsResultWithMismatchedPayloadDigest(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	plan := fixtureSynthesisPlan(t, interpretation.InterpretationDigestSHA256)
+	request := withFreshDeadline(t, fixturePlanningRequest(t, session, interpretation), 5*time.Second)
+	capabilities := fixtureCapabilities(t)
+
+	provider := &fakeProvider{
+		capabilities: capabilities,
+		executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
+			result := fixturePlanningResult(t, req.RequestDigestSHA256, plan)
+			wrong := zeroDigest
+			result.PayloadDigestSHA256 = &wrong // does not match the embedded plan's real digest
+			// Recompute the outer envelope digest over this content, so
+			// that check alone passes and this test isolates the
+			// payload-digest check specifically.
+			outer, err := ResultDigest(result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result.ResultDigestSHA256 = outer
+			return result, nil
+		},
+	}
+
+	result, _, receipt, err := Run(context.Background(), provider, request, fixedClock(time.Now()))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.TerminalOutcome != OutcomeInvalidOutput {
+		t.Errorf("TerminalOutcome = %s, want %s", result.TerminalOutcome, OutcomeInvalidOutput)
+	}
+	if receipt.TerminalOutcome != OutcomeInvalidOutput {
+		t.Errorf("receipt.TerminalOutcome = %s, want %s", receipt.TerminalOutcome, OutcomeInvalidOutput)
+	}
+}
+
+// TestRunRejectsResultWithMismatchedEmbeddedPayloadDigest tests the exact
+// "internally contradictory Result" scenario the review named: the
+// embedded payload's own declared digest (PlanDigestSHA256) is wrong, and
+// Result.PayloadDigestSHA256 was copied from that same wrong value -- both
+// fields agree with EACH OTHER, neither agrees with the plan's actual
+// content. Run must recompute the payload's real digest independently, not
+// merely check internal consistency between the two declared fields.
+func TestRunRejectsResultWithMismatchedEmbeddedPayloadDigest(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	plan := fixtureSynthesisPlan(t, interpretation.InterpretationDigestSHA256)
+	request := withFreshDeadline(t, fixturePlanningRequest(t, session, interpretation), 5*time.Second)
+	capabilities := fixtureCapabilities(t)
+
+	provider := &fakeProvider{
+		capabilities: capabilities,
+		executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
+			tamperedPlan := plan
+			tamperedPlan.PlanDigestSHA256 = zeroDigest
+			return fixturePlanningResult(t, req.RequestDigestSHA256, tamperedPlan), nil
+		},
+	}
+
+	result, _, receipt, err := Run(context.Background(), provider, request, fixedClock(time.Now()))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.TerminalOutcome != OutcomeInvalidOutput {
+		t.Errorf("TerminalOutcome = %s, want %s", result.TerminalOutcome, OutcomeInvalidOutput)
+	}
+	if receipt.TerminalOutcome != OutcomeInvalidOutput {
+		t.Errorf("receipt.TerminalOutcome = %s, want %s", receipt.TerminalOutcome, OutcomeInvalidOutput)
+	}
+}
+
 // --- malformed inputs never reach a receipt at all ---
 
 func TestRunRejectsMalformedRequestWithoutBuildingAReceipt(t *testing.T) {
@@ -479,5 +578,67 @@ func TestRunRejectsCapabilitiesWithMismatchedDeclaredDigest(t *testing.T) {
 	_, _, _, err := Run(context.Background(), provider, request, fixedClock(time.Now()))
 	if err == nil {
 		t.Fatal("expected self-inconsistent capabilities to be rejected before any receipt is built")
+	}
+}
+
+// TestRunRejectsRequestWithMismatchedDeclaredDigest proves Run recomputes
+// and verifies the caller's own Request digest, not just Capabilities' and
+// Result's -- a caller could otherwise mutate a request's payload,
+// deadline, identity, parent digest, or observation limits while keeping
+// an old valid-looking declared digest, and the resulting receipt would
+// bind the wrong request identity.
+func TestRunRejectsRequestWithMismatchedDeclaredDigest(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	request := withFreshDeadline(t, fixturePlanningRequest(t, session, interpretation), 5*time.Second)
+	request.RequestDigestSHA256 = zeroDigest // declared digest no longer matches content
+
+	provider := &fakeProvider{
+		capabilities: fixtureCapabilities(t),
+		executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
+			t.Fatal("Execute must not be called when the request fails its own digest-integrity check")
+			return Result{}, nil
+		},
+	}
+
+	_, _, _, err := Run(context.Background(), provider, request, fixedClock(time.Now()))
+	if err == nil {
+		t.Fatal("expected a self-inconsistent request to be rejected before any receipt is built")
+	}
+	if provider.calls() != 0 {
+		t.Errorf("Execute was called %d times, want 0", provider.calls())
+	}
+}
+
+// --- Describe is mechanically bounded, same as Execute ---
+
+// describeHangsProvider ignores ctx entirely during Describe, the
+// adversarial case describeBounded exists to contain: Execute must never be
+// reached, and Run must not block waiting for a Provider that never
+// respects cancellation during capability discovery.
+type describeHangsProvider struct{}
+
+func (describeHangsProvider) Describe(ctx context.Context) (Capabilities, error) {
+	select {}
+}
+
+func (describeHangsProvider) Execute(ctx context.Context, request Request, obs Observer) (Result, error) {
+	panic("Execute must not be called when Describe never returns")
+}
+
+func TestRunBoundsDescribeAndDoesNotBlockForever(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interpretation := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	request := withFreshDeadline(t, fixturePlanningRequest(t, session, interpretation), 30*time.Millisecond)
+
+	start := time.Now()
+	_, _, _, err := Run(context.Background(), describeHangsProvider{}, request, fixedClock(time.Now()))
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected Run to reject when Describe does not return before the request's deadline")
+	}
+	if elapsed > 2*time.Second {
+		t.Errorf("Run took %v to return after Describe ignored ctx -- expected it to be bounded by the request's deadline, not block indefinitely", elapsed)
 	}
 }

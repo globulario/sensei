@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
 // Run is the O2 bounded execution boundary: it calls a Provider's Describe
@@ -22,24 +24,40 @@ import (
 // golang/architecture/synthesis.
 //
 // Run recomputes and verifies every digest it references before trusting
-// it -- Capabilities' and Result's declared digests, never a Provider's
-// unchecked word for them (hard law 5). A Result that fails that check, or
-// whose Operation/RequestDigestSHA256 does not match request, is treated as
+// it -- the caller's own request, Capabilities, Result, and (on a completed
+// outcome) Result's embedded payload, never anyone's unchecked word for
+// their own digest (hard law 5). A Result that fails that check, whose
+// embedded payload's own declared digest or Result.PayloadDigestSHA256
+// disagrees with the payload's actual computed digest, or whose Operation/
+// RequestDigestSHA256 does not match request, is treated as
 // OutcomeInvalidOutput rather than trusted.
+//
+// Describe is bounded by the same request deadline/cancellation as Execute
+// (describeBounded) -- a Provider that ignores ctx during capability
+// discovery cannot block Run forever.
 //
 // now supplies the wall-clock reading for StartedAt/CompletedAt/observation
 // timestamps -- injected so tests are deterministic; production callers
 // pass time.Now.
 //
 // A non-nil error return means no Receipt could be built at all -- request
-// itself was malformed, its deadline_at could not be parsed, Describe
-// failed, or the returned Capabilities failed its own digest-integrity
-// check. Every other outcome (unsupported capability, execute error,
-// cancellation, timeout, invalid output, or a clean completion) returns a
-// nil error alongside a fully populated Result/ObservationBatch/Receipt.
+// itself was malformed or its own declared digest did not match its
+// content, its deadline_at could not be parsed, Describe failed or did not
+// return before the deadline, or the returned Capabilities failed its own
+// digest-integrity check. Every other outcome (unsupported capability,
+// execute error, cancellation, timeout, invalid output, or a clean
+// completion) returns a nil error alongside a fully populated Result/
+// ObservationBatch/Receipt.
 func Run(ctx context.Context, provider Provider, request Request, now func() time.Time) (Result, ObservationBatch, Receipt, error) {
 	if err := validateDocument(ValidateRequestSchema, request); err != nil {
 		return Result{}, ObservationBatch{}, Receipt{}, fmt.Errorf("providerport: request failed schema validation: %w", err)
+	}
+	reqDigest, err := RequestDigest(request)
+	if err != nil {
+		return Result{}, ObservationBatch{}, Receipt{}, fmt.Errorf("providerport: compute request digest: %w", err)
+	}
+	if reqDigest != request.RequestDigestSHA256 {
+		return Result{}, ObservationBatch{}, Receipt{}, fmt.Errorf("providerport: request declares digest %q but its actual computed digest is %q", request.RequestDigestSHA256, reqDigest)
 	}
 	deadline, err := time.Parse(time.RFC3339, request.DeadlineAt)
 	if err != nil {
@@ -49,9 +67,9 @@ func Run(ctx context.Context, provider Provider, request Request, now func() tim
 	execCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 
-	capabilities, err := provider.Describe(execCtx)
+	capabilities, err := describeBounded(execCtx, provider)
 	if err != nil {
-		return Result{}, ObservationBatch{}, Receipt{}, fmt.Errorf("providerport: describe failed: %w", err)
+		return Result{}, ObservationBatch{}, Receipt{}, err
 	}
 	if err := validateDocument(ValidateCapabilitiesSchema, capabilities); err != nil {
 		return Result{}, ObservationBatch{}, Receipt{}, fmt.Errorf("providerport: capabilities failed schema validation: %w", err)
@@ -106,6 +124,39 @@ func Run(ctx context.Context, provider Provider, request Request, now func() tim
 	}
 }
 
+// describeBounded calls provider.Describe under the same mechanical
+// deadline/cancellation boundary Execute already gets -- a Provider that
+// ignores ctx during capability discovery must not be able to block Run
+// forever. Mirrors Execute's race pattern: a buffered channel with a
+// non-blocking send, so a late-returning Describe can never block trying to
+// deliver a result nobody is listening for anymore. There is no receipted
+// outcome for a Describe timeout/error, same as any other Describe failure:
+// without valid Capabilities, no Receipt can reference them.
+func describeBounded(ctx context.Context, provider Provider) (Capabilities, error) {
+	type described struct {
+		capabilities Capabilities
+		err          error
+	}
+	winner := make(chan described, 1)
+	go func() {
+		c, err := provider.Describe(ctx)
+		select {
+		case winner <- described{c, err}:
+		default:
+		}
+	}()
+
+	select {
+	case d := <-winner:
+		if d.err != nil {
+			return Capabilities{}, fmt.Errorf("providerport: describe failed: %w", d.err)
+		}
+		return d.capabilities, nil
+	case <-ctx.Done():
+		return Capabilities{}, fmt.Errorf("providerport: describe did not return before the request's deadline: %w", ctx.Err())
+	}
+}
+
 // conclude handles a Provider.Execute call that returned on its own --
 // successfully or with a Go error -- and decides the terminal outcome.
 //
@@ -146,6 +197,22 @@ func conclude(request Request, capabilities Capabilities, result Result, execErr
 		return finish(request, capabilities, OutcomeInvalidOutput,
 			fmt.Sprintf("result declares digest %q but its actual computed digest is %q", result.ResultDigestSHA256, digest),
 			batch, startedAt, completedAt)
+	}
+	if result.TerminalOutcome == OutcomeCompleted {
+		declared, computed, err := payloadDigests(result)
+		if err != nil {
+			return finish(request, capabilities, OutcomeInvalidOutput, "compute payload digest: "+err.Error(), batch, startedAt, completedAt)
+		}
+		if declared != computed {
+			return finish(request, capabilities, OutcomeInvalidOutput,
+				fmt.Sprintf("embedded payload declares digest %q but its actual computed digest is %q", declared, computed),
+				batch, startedAt, completedAt)
+		}
+		if result.PayloadDigestSHA256 == nil || *result.PayloadDigestSHA256 != computed {
+			return finish(request, capabilities, OutcomeInvalidOutput,
+				"result payload_digest_sha256 does not match the embedded payload's actual computed digest",
+				batch, startedAt, completedAt)
+		}
 	}
 
 	receipt, err := buildReceipt(request, capabilities, result, batch, startedAt, completedAt)
@@ -218,6 +285,48 @@ func buildReceipt(request Request, capabilities Capabilities, result Result, bat
 	}
 	r.ReceiptDigestSHA256 = digest
 	return NormalizeReceipt(r), nil
+}
+
+// payloadDigests returns the embedded payload's own self-declared digest
+// (e.g. InterpretationPayload.InterpretationDigestSHA256) and the digest
+// independently recomputed from that payload's actual content, for
+// whichever of result's four payload fields matches result.Operation. Only
+// meaningful when result.TerminalOutcome is OutcomeCompleted, since that is
+// the only case the schema guarantees exactly one payload field is
+// populated. A provider could otherwise set an internally contradictory
+// Result -- a correct outer ResultDigestSHA256 alongside a false
+// PayloadDigestSHA256 or a self-contradicting embedded artifact -- so both
+// values here must independently equal the recomputed digest, not just
+// agree with each other.
+func payloadDigests(result Result) (declared, computed string, err error) {
+	switch result.Operation {
+	case OperationInterpretation:
+		if result.InterpretationPayload == nil {
+			return "", "", fmt.Errorf("interpretation_payload is nil")
+		}
+		computed, err = synthesis.InterpretationDigest(*result.InterpretationPayload)
+		return result.InterpretationPayload.InterpretationDigestSHA256, computed, err
+	case OperationPlanning:
+		if result.PlanningPayload == nil {
+			return "", "", fmt.Errorf("planning_payload is nil")
+		}
+		computed, err = synthesis.PlanDigest(*result.PlanningPayload)
+		return result.PlanningPayload.PlanDigestSHA256, computed, err
+	case OperationGeneration:
+		if result.GenerationPayload == nil {
+			return "", "", fmt.Errorf("generation_payload is nil")
+		}
+		computed, err = synthesis.AttemptDigest(*result.GenerationPayload)
+		return result.GenerationPayload.AttemptDigestSHA256, computed, err
+	case OperationEvaluationObservation:
+		if result.EvaluationObservationPayload == nil {
+			return "", "", fmt.Errorf("evaluation_observation_payload is nil")
+		}
+		computed, err = synthesis.EvaluationDigest(*result.EvaluationObservationPayload)
+		return result.EvaluationObservationPayload.EvaluationDigestSHA256, computed, err
+	default:
+		return "", "", fmt.Errorf("unknown operation %q", result.Operation)
+	}
 }
 
 func supportsOperation(c Capabilities, op Operation) bool {
