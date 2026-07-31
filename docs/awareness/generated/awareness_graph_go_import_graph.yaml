@@ -654,6 +654,7 @@ components:
       - golang/architecture/runnercomposition/schema.go
       - golang/architecture/runnercomposition/types.go
       - golang/architecture/runnercomposition/validate.go
+      - golang/architecture/runnercomposition/workspace.go
       - golang/architecture/runtimeboundary/assess.go
       - golang/architecture/runtimeboundary/binding.go
       - golang/architecture/runtimeboundary/common.go
