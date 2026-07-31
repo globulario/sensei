@@ -134,3 +134,67 @@ func TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering(t *testin
 		t.Error("receipt: tampering payload_digest_sha256 did not change the computed digest")
 	}
 }
+
+// --- dedicated digest-recomputation proofs for the two O2-constructed
+// artifacts (ObservationBatch and Receipt are always built fresh by O2
+// itself, never accepted as untrusted provider input -- there is no
+// ingestion API to add here; these prove the SAME declared/computed
+// integrity property TestDeclaredDigestEqualsComputedDigestForValidFixtures
+// and TestDeclaredDigestDivergesFromComputedDigestAfterContentTampering
+// already exercise across all five documents, made explicit and
+// standalone for these two specifically) ---
+
+func TestObservationBatchDigestEqualsIndependentlyRecomputedDigest(t *testing.T) {
+	batch := fixtureObservationBatch(t, zeroDigest)
+
+	got, err := ObservationBatchDigest(batch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != batch.ObservationBatchDigestSHA256 {
+		t.Errorf("declared %q, computed %q", batch.ObservationBatchDigestSHA256, got)
+	}
+}
+
+func TestObservationBatchDigestInvalidatedByMutatingObservationContent(t *testing.T) {
+	batch := fixtureObservationBatch(t, zeroDigest)
+
+	tampered := batch
+	tampered.Observations = append([]Observation{}, batch.Observations...)
+	tampered.Observations[0].Detail = "an observation the provider never actually reported"
+
+	got, err := ObservationBatchDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == batch.ObservationBatchDigestSHA256 {
+		t.Error("mutating an observation's content did not invalidate the previous batch digest")
+	}
+}
+
+func TestReceiptDigestEqualsIndependentlyRecomputedDigest(t *testing.T) {
+	receipt := fixtureReceiptUnavailable(t, zeroDigest, zeroDigest, zeroDigest)
+
+	got, err := ReceiptDigest(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != receipt.ReceiptDigestSHA256 {
+		t.Errorf("declared %q, computed %q", receipt.ReceiptDigestSHA256, got)
+	}
+}
+
+func TestReceiptDigestInvalidatedByMutatingDigestCoveredContent(t *testing.T) {
+	receipt := fixtureReceiptUnavailable(t, zeroDigest, zeroDigest, zeroDigest)
+
+	tampered := receipt
+	tampered.TerminalOutcome = OutcomeCancelled
+
+	got, err := ReceiptDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == receipt.ReceiptDigestSHA256 {
+		t.Error("mutating digest-covered receipt content did not invalidate the previous receipt digest")
+	}
+}

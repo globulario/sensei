@@ -13,8 +13,10 @@
 package providerport
 
 import (
+	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
@@ -709,5 +711,134 @@ func TestMapToCommandReturnedCommandIsDetachedFromOriginalResult(t *testing.T) {
 
 	if got.Plan.Steps[0].Description != original {
 		t.Errorf("mutating the original Result's nested slice altered the already-returned command: got %q, want the original %q -- MapToCommand did not deep-copy the candidate", got.Plan.Steps[0].Description, original)
+	}
+}
+
+// TestMapToCommandRejectsEveryNonCompletedOutcome proves each of the five
+// non-completed terminal outcomes is rejected at the mapping boundary, not
+// merely the one representative case (unavailable) TestMapToCommandRejects
+// NonCompletedResult already covers. MapToCommand's rejection is outcome-
+// agnostic (any TerminalOutcome != OutcomeCompleted), so this is the same
+// code path proven exhaustively rather than five different code paths.
+func TestMapToCommandRejectsEveryNonCompletedOutcome(t *testing.T) {
+	state, session, interp := driveToPlanning(t)
+	request := fixturePlanningRequest(t, session, interp)
+
+	outcomes := []TerminalOutcome{
+		OutcomeUnavailable,
+		OutcomeTimedOut,
+		OutcomeCancelled,
+		OutcomeInvalidOutput,
+		OutcomeUnsupportedCapability,
+	}
+	for _, outcome := range outcomes {
+		t.Run(string(outcome), func(t *testing.T) {
+			result := Result{
+				SchemaVersion:       ResultSchemaVersion,
+				RequestDigestSHA256: request.RequestDigestSHA256,
+				Operation:           request.Operation,
+				TerminalOutcome:     outcome,
+				Detail:              "synthesized for adversarial test",
+			}
+			digest, err := ResultDigest(result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result.ResultDigestSHA256 = digest
+
+			cmd, err := MapToCommand(state, request, result, "")
+			if err == nil {
+				t.Fatalf("expected outcome %s to be rejected, got command %T", outcome, cmd)
+			}
+			if cmd != nil {
+				t.Errorf("expected a nil command on rejection, got %T", cmd)
+			}
+		})
+	}
+}
+
+// --- a capability claim grants no authority ---
+
+// TestCapabilityClaimGrantsNoAuthority proves an honest capability claim,
+// and even a fully successful Run() built on it, grant no lasting
+// authority: a provider claims (truthfully) that it supports planning, and
+// Run accepts that claim and lets Execute proceed, producing a Result that
+// was valid relative to the state at the time. By the time MapToCommand is
+// called, though, the session has moved on (state.InterpretationDigestSHA256
+// now points at a DIFFERENT interpretation than the one the request/result
+// were built against) -- neither the capability claim nor Run's own
+// success carries any weight here. MapToCommand's own checks, run fresh
+// against CURRENT state, are what decide, and they reject the now-stale
+// result before any command is constructed. This also demonstrates
+// structurally that a capability claim cannot "create an O1 command by
+// itself": Run's return type has no Command in it at all -- only
+// MapToCommand, a separate and deliberate call, can produce one, and
+// nothing about Describe/Capabilities/Execute grants routing, mutation,
+// admission, or transition authority anywhere in this package.
+func TestCapabilityClaimGrantsNoAuthority(t *testing.T) {
+	session := fixtureSynthesisSession(t)
+	interp1 := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+
+	capabilities := Capabilities{
+		SchemaVersion: CapabilitiesSchemaVersion,
+		ProviderObservation: synthesis.ProviderObservation{
+			ProviderID:   "provider.honest",
+			ProviderKind: "test-double",
+			ObservedAt:   "2026-01-01T00:00:00Z",
+		},
+		SupportedOperations: []Operation{OperationPlanning},
+	}
+	capDigest, err := CapabilitiesDigest(capabilities)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capabilities.CapabilitiesDigestSHA256 = capDigest
+
+	request := withFreshDeadline(t, fixturePlanningRequest(t, session, interp1), 5*time.Second)
+	plan := fixtureSynthesisPlan(t, interp1.InterpretationDigestSHA256)
+
+	provider := &fakeProvider{
+		capabilities: capabilities,
+		executeFn: func(ctx context.Context, req Request, obs Observer) (Result, error) {
+			return fixturePlanningResult(t, req.RequestDigestSHA256, plan), nil
+		},
+	}
+
+	result, _, _, err := Run(context.Background(), provider, request, fixedClock(time.Now()))
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	if result.TerminalOutcome != OutcomeCompleted {
+		t.Fatalf("setup: expected the honest capability claim and valid result to complete, got %s", result.TerminalOutcome)
+	}
+	if provider.calls() != 1 {
+		t.Fatalf("setup: expected Execute to be called exactly once, got %d", provider.calls())
+	}
+
+	// The session has since moved on: a genuinely different interpretation
+	// (interp2) is now current, e.g. after a replan. request/result still
+	// reference interp1 -- correctly rejected by MapToCommand's fresh
+	// parent check, regardless of the capability claim or Run's success.
+	freshCreated, err := synthesis.NewSessionState(session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	interp2 := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
+	interp2.InterpretationID = "interpretation.advanced.001"
+	interp2Digest, err := synthesis.InterpretationDigest(interp2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	interp2.InterpretationDigestSHA256 = interp2Digest
+	advancedState, _, err := synthesis.Transition(freshCreated, synthesis.RecordInterpretationCommand{Interpretation: interp2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advancedState.InterpretationDigestSHA256 == interp1.InterpretationDigestSHA256 {
+		t.Fatal("setup: expected the advanced state's interpretation to differ from interp1")
+	}
+
+	if cmd, err := MapToCommand(advancedState, request, result, ""); err == nil {
+		t.Fatalf("expected a stale result to be rejected regardless of the provider's honest capability claim and successful execution, got command %T", cmd)
 	}
 }
