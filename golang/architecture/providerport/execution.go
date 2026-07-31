@@ -5,6 +5,7 @@ package providerport
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -107,6 +108,15 @@ func Run(ctx context.Context, provider Provider, request Request, now func() tim
 
 // conclude handles a Provider.Execute call that returned on its own --
 // successfully or with a Go error -- and decides the terminal outcome.
+//
+// A well-behaved Provider that itself observes ctx being done (per its
+// contract obligation to return promptly) reports that as its error --
+// execErr may therefore already BE a context.DeadlineExceeded/
+// context.Canceled, not just local/infrastructure failure. Mapping that to
+// OutcomeTimedOut/OutcomeCancelled here, the same as when Run's own select
+// observes execCtx.Done() directly, keeps the outcome for one underlying
+// cause consistent regardless of which side of that inherent race "wins" --
+// only a genuinely unrelated Go error maps to OutcomeUnavailable.
 func conclude(request Request, capabilities Capabilities, result Result, execErr error, observer *boundedObserver, startedAt, completedAt time.Time) (Result, ObservationBatch, Receipt, error) {
 	batch, err := observer.batch(request.RequestDigestSHA256)
 	if err != nil {
@@ -114,6 +124,12 @@ func conclude(request Request, capabilities Capabilities, result Result, execErr
 	}
 
 	if execErr != nil {
+		if errors.Is(execErr, context.DeadlineExceeded) {
+			return finish(request, capabilities, OutcomeTimedOut, "request deadline elapsed before the provider returned", batch, startedAt, completedAt)
+		}
+		if errors.Is(execErr, context.Canceled) {
+			return finish(request, capabilities, OutcomeCancelled, "context cancelled before the provider returned", batch, startedAt, completedAt)
+		}
 		return finish(request, capabilities, OutcomeUnavailable, "execute failed: "+execErr.Error(), batch, startedAt, completedAt)
 	}
 	if result.RequestDigestSHA256 != request.RequestDigestSHA256 || result.Operation != request.Operation {
