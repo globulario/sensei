@@ -652,3 +652,81 @@ func TestFSCandidateWorkspaceRenameDestinationThroughFinalSymlinkReplacesRatherT
 		t.Error("alias.txt is still a symlink after Rename -- expected it to be replaced")
 	}
 }
+
+// TestFSCandidateWorkspaceMutatingOperationsAreMutuallyExclusive is the
+// concurrency closure the architect asked for: os.Root plus noFollowGuard
+// closes aliasing WITHIN one operation's own check-then-act sequence, but
+// without this, a DIFFERENT concurrent operation could still swap a
+// checked-clean parent or final entry into a symlink in the gap between
+// another operation's noFollowGuard check and its filesystem action --
+// nothing escapes bufferRoot, but the logical path would still act on a
+// different candidate-tree entry.
+//
+// This deliberately holds the SHARED read lock (raw.mu.RLock), not the
+// exclusive one, to simulate the held lock. That distinction is the whole
+// point: sync.RWMutex allows any number of concurrent RLock holders, so if
+// a mutating method incorrectly used RLock (as it did before this fix, and
+// as ReadSnapshot legitimately still does), a second RLock-based call would
+// proceed immediately alongside this one -- it would NOT block. Only a
+// method that correctly takes the EXCLUSIVE lock is forced to wait for this
+// held read lock to release. Using raw.mu.Lock() here instead would prove
+// nothing about which lock Symlink takes, since an exclusive lock blocks a
+// subsequent acquisition of EITHER kind.
+func TestFSCandidateWorkspaceMutatingOperationsAreMutuallyExclusive(t *testing.T) {
+	w, _, _ := newTestWorkspace(t)
+	raw := w.(*fsCandidateWorkspace)
+
+	started := make(chan struct{})
+	proceed := make(chan struct{})
+
+	go func() {
+		raw.mu.RLock()
+		close(started)
+		<-proceed
+		raw.mu.RUnlock()
+	}()
+	<-started
+
+	symlinkDone := make(chan error, 1)
+	go func() {
+		symlinkDone <- w.Symlink("dir", "elsewhere")
+	}()
+
+	select {
+	case <-symlinkDone:
+		t.Fatal("a second mutating operation proceeded while another was still in its critical section")
+	case <-time.After(50 * time.Millisecond):
+		// Expected: Symlink is still blocked on the held exclusive lock.
+	}
+
+	close(proceed)
+	if err := <-symlinkDone; err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestFSCandidateWorkspaceReadSnapshotConcurrentWithMutatingOperations
+// proves ReadSnapshot's continued use of the shared lock is still safe:
+// many concurrent ReadSnapshot calls (which never touch bufferRoot) run
+// alongside many concurrent buffer-mutating calls with no data race.
+// Meaningful only under `go test -race`.
+func TestFSCandidateWorkspaceReadSnapshotConcurrentWithMutatingOperations(t *testing.T) {
+	w, _, _ := newTestWorkspace(t)
+	var wg sync.WaitGroup
+	for i := range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = w.ReadSnapshot("main.go")
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = w.WriteCandidate(fmt.Sprintf("h%d.txt", i), []byte("x"))
+		}()
+	}
+	wg.Wait()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+}

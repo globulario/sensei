@@ -84,17 +84,24 @@ type CandidateWorkspace interface {
 // explicit, documented policy for a symlink at the FINAL component (replace
 // for the mutating methods, reject for ReadSnapshot/SetMode).
 //
-// mu is the freeze barrier for Close (hard law 6a): every operation holds a
-// read lock for its full duration; Close takes the write lock, which by
-// definition cannot be acquired until every in-flight read-locked operation
-// has finished, so Close never returns while a provider-initiated
-// filesystem operation is still in progress, and no new operation can begin
-// once Close has acquired the lock. This also serializes each operation's
-// own check-then-act sequence against Close, though not against a
-// DIFFERENT concurrent operation from the same provider targeting an
-// overlapping path -- the same accepted tradeoff os.Root's own
-// documentation makes for Root.Chmod's TOCTOU caveat, not a gap specific to
-// this package.
+// mu is BOTH the freeze barrier for Close (hard law 6a) AND the mutual-
+// exclusion barrier candidate-tree mutations need on top of noFollowGuard.
+// Every buffer-mutating method (WriteCandidate, Delete, Rename, SetMode,
+// Symlink) takes the EXCLUSIVE write lock for its full
+// noFollowGuard-check-then-act sequence, not the shared read lock: a
+// noFollowGuard check followed by a filesystem action is only truly safe
+// against internal aliasing if no OTHER candidate-tree mutation can run
+// between them, and a shared lock would only have prevented that pair from
+// racing Close, not each other -- a different operation could still swap a
+// checked-clean parent or final entry into a symlink in the gap. ReadSnapshot
+// never touches bufferRoot (only the immutable snapshotRoot), so it keeps
+// the shared read lock: concurrent reads are safe with each other, and the
+// shared/exclusive relationship still correctly blocks it against Close and
+// against any exclusive-locked buffer mutation. Close takes the same
+// exclusive lock, which by definition cannot be acquired until every
+// in-flight operation (shared or exclusive) has finished, so Close never
+// returns while any operation is still in progress, and no new operation
+// can begin once Close has acquired the lock.
 type fsCandidateWorkspace struct {
 	mu           sync.RWMutex
 	snapshotRoot *os.Root
@@ -265,8 +272,8 @@ func (w *fsCandidateWorkspace) ReadSnapshot(path string) ([]byte, error) {
 }
 
 func (w *fsCandidateWorkspace) WriteCandidate(path string, content []byte) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.closed {
 		return ErrWorkspaceClosed
 	}
@@ -291,8 +298,8 @@ func (w *fsCandidateWorkspace) WriteCandidate(path string, content []byte) error
 }
 
 func (w *fsCandidateWorkspace) Delete(path string) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.closed {
 		return ErrWorkspaceClosed
 	}
@@ -310,8 +317,8 @@ func (w *fsCandidateWorkspace) Delete(path string) error {
 }
 
 func (w *fsCandidateWorkspace) Rename(oldPath, newPath string) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.closed {
 		return ErrWorkspaceClosed
 	}
@@ -344,8 +351,8 @@ func (w *fsCandidateWorkspace) Rename(oldPath, newPath string) error {
 }
 
 func (w *fsCandidateWorkspace) SetMode(path string, mode CandidateFileMode) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.closed {
 		return ErrWorkspaceClosed
 	}
@@ -373,8 +380,8 @@ func (w *fsCandidateWorkspace) SetMode(path string, mode CandidateFileMode) erro
 }
 
 func (w *fsCandidateWorkspace) Symlink(path, target string) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.closed {
 		return ErrWorkspaceClosed
 	}
