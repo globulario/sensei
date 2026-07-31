@@ -119,7 +119,9 @@ func TestSchemaVersionIdentifiersMatchAdopted(t *testing.T) {
 }
 
 // TestValidateSchemasAcceptValidFixtures proves both schemas accept their
-// own package's valid fixtures under the real Draft 2020-12 validator.
+// own package's valid fixtures, for every one of the eight closed
+// dispositions plus a cleanup-failed variant, under the real Draft 2020-12
+// validator.
 func TestValidateSchemasAcceptValidFixtures(t *testing.T) {
 	artifact := fixtureCandidateArtifact(t)
 	data, err := json.Marshal(artifact)
@@ -130,68 +132,163 @@ func TestValidateSchemasAcceptValidFixtures(t *testing.T) {
 		t.Errorf("valid CandidateArtifact fixture rejected: %v", err)
 	}
 
-	for _, r := range []RunnerReceipt{
-		fixtureRunnerReceiptVerified(t, artifact),
-		fixtureRunnerReceiptDigestMismatch(t, artifact),
-		fixtureRunnerReceiptCleanupFailure(t, artifact),
-		fixtureRunnerReceiptSnapshotFailure(t),
-		fixtureRunnerReceiptSealFailure(t, artifact),
-	} {
+	for _, d := range AllDispositions() {
+		r := fixtureRunnerReceipt(t, d, artifact)
 		data, err := json.Marshal(r)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if err := ValidateRunnerReceiptSchema(data); err != nil {
-			t.Errorf("valid RunnerReceipt fixture (disposition %q) rejected: %v", r.Disposition, err)
+			t.Errorf("valid RunnerReceipt fixture (disposition %q) rejected: %v", d, err)
+		}
+
+		if d == DispositionSnapshotFailure {
+			continue
+		}
+		cleanupFailed := fixtureRunnerReceiptCleanupFailed(t, d, artifact)
+		data, err = json.Marshal(cleanupFailed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ValidateRunnerReceiptSchema(data); err != nil {
+			t.Errorf("valid cleanup-failed RunnerReceipt fixture (disposition %q) rejected: %v", d, err)
 		}
 	}
 }
 
-// TestRunnerReceiptSchemaRejectsWrongNullShapePerDisposition proves the
-// schema's disposition conditionals are load-bearing: each fixture, with its
-// digest-field nullability pattern flipped to what a DIFFERENT disposition
-// requires, must be rejected.
-func TestRunnerReceiptSchemaRejectsWrongNullShapePerDisposition(t *testing.T) {
+// receiptDigestField names one of RunnerReceipt's six nullable digest
+// fields, with get/set accessors -- used to exhaustively flip each field's
+// presence against every disposition.
+type receiptDigestField struct {
+	name string
+	get  func(RunnerReceipt) *string
+	set  func(*RunnerReceipt, *string)
+}
+
+var receiptDigestFields = []receiptDigestField{
+	{"result_digest_sha256", func(r RunnerReceipt) *string { return r.ResultDigestSHA256 }, func(r *RunnerReceipt, v *string) { r.ResultDigestSHA256 = v }},
+	{"o2_receipt_digest_sha256", func(r RunnerReceipt) *string { return r.O2ReceiptDigestSHA256 }, func(r *RunnerReceipt, v *string) { r.O2ReceiptDigestSHA256 = v }},
+	{"input_candidate_digest_sha256", func(r RunnerReceipt) *string { return r.InputCandidateDigestSHA256 }, func(r *RunnerReceipt, v *string) { r.InputCandidateDigestSHA256 = v }},
+	{"proposed_change_digest_sha256", func(r RunnerReceipt) *string { return r.ProposedChangeDigestSHA256 }, func(r *RunnerReceipt, v *string) { r.ProposedChangeDigestSHA256 = v }},
+	{"final_candidate_content_digest_sha256", func(r RunnerReceipt) *string { return r.FinalCandidateContentDigestSHA256 }, func(r *RunnerReceipt, v *string) { r.FinalCandidateContentDigestSHA256 = v }},
+	{"candidate_artifact_digest_sha256", func(r RunnerReceipt) *string { return r.CandidateArtifactDigestSHA256 }, func(r *RunnerReceipt, v *string) { r.CandidateArtifactDigestSHA256 = v }},
+}
+
+// TestRunnerReceiptSchemaEnforcesDispositionMatrixExactly is the
+// table-first presence-matrix proof the architect asked for: for every one
+// of the eight closed dispositions, and for every one of the six nullable
+// digest fields, flipping that single field's presence (nil<->non-nil)
+// while leaving every other field and the disposition itself untouched
+// must be rejected. This exhaustively covers all 8*6 = 48 combinations, not
+// a sampled subset -- including proving that digest-mismatch and
+// (the former "cleanup-failure" role now split across) every
+// fully-completed disposition require ALL six fields, and that
+// seal-failure requires every field except candidate_artifact_digest_sha256.
+func TestRunnerReceiptSchemaEnforcesDispositionMatrixExactly(t *testing.T) {
+	artifact := fixtureCandidateArtifact(t)
+	for _, d := range AllDispositions() {
+		d := d
+		t.Run(string(d), func(t *testing.T) {
+			base := fixtureRunnerReceipt(t, d, artifact)
+			if data, err := json.Marshal(base); err != nil {
+				t.Fatal(err)
+			} else if err := ValidateRunnerReceiptSchema(data); err != nil {
+				t.Fatalf("valid disposition %q fixture rejected: %v", d, err)
+			}
+
+			for _, f := range receiptDigestFields {
+				f := f
+				t.Run(f.name, func(t *testing.T) {
+					tampered := base
+					if f.get(tampered) == nil {
+						f.set(&tampered, stringPtr(zeroDigest))
+					} else {
+						f.set(&tampered, nil)
+					}
+					data, err := json.Marshal(tampered)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := ValidateRunnerReceiptSchema(data); err == nil {
+						t.Errorf("flipping %s's nullability for disposition %q was accepted, want rejected", f.name, d)
+					}
+				})
+			}
+		})
+	}
+}
+
+// TestRunnerReceiptSchemaEnforcesFailureDetailPresence proves
+// failure_detail's presence rule holds for every disposition, not just
+// verified/digest-mismatch.
+func TestRunnerReceiptSchemaEnforcesFailureDetailPresence(t *testing.T) {
+	artifact := fixtureCandidateArtifact(t)
+	for _, d := range AllDispositions() {
+		d := d
+		t.Run(string(d), func(t *testing.T) {
+			r := fixtureRunnerReceipt(t, d, artifact)
+			if d == DispositionVerified {
+				r.FailureDetail = "should not be populated when verified"
+			} else {
+				r.FailureDetail = ""
+			}
+			data, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := ValidateRunnerReceiptSchema(data); err == nil {
+				t.Errorf("disposition %q with wrong failure_detail presence was accepted", d)
+			}
+		})
+	}
+}
+
+// TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence proves
+// cleanup_succeeded is null only for snapshot-failure and a boolean for
+// every other disposition -- orthogonal to, but still checked per,
+// Disposition.
+func TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence(t *testing.T) {
+	artifact := fixtureCandidateArtifact(t)
+	for _, d := range AllDispositions() {
+		d := d
+		t.Run(string(d), func(t *testing.T) {
+			r := fixtureRunnerReceipt(t, d, artifact)
+			if d == DispositionSnapshotFailure {
+				r.CleanupSucceeded = boolPtr(true)
+			} else {
+				r.CleanupSucceeded = nil
+			}
+			data, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := ValidateRunnerReceiptSchema(data); err == nil {
+				t.Errorf("disposition %q with wrong cleanup_succeeded presence was accepted", d)
+			}
+		})
+	}
+}
+
+// TestRunnerReceiptSchemaEnforcesCleanupFailureDetailPresence proves
+// cleanup_failure_detail is required non-empty exactly when
+// cleanup_succeeded is false.
+func TestRunnerReceiptSchemaEnforcesCleanupFailureDetailPresence(t *testing.T) {
 	artifact := fixtureCandidateArtifact(t)
 
-	verified := fixtureRunnerReceiptVerified(t, artifact)
-	verified.CandidateArtifactDigestSHA256 = nil // seal-failure's shape, not verified's
-	if data, err := json.Marshal(verified); err != nil {
+	failedWithoutDetail := fixtureRunnerReceiptCleanupFailed(t, DispositionVerified, artifact)
+	failedWithoutDetail.CleanupFailureDetail = ""
+	if data, err := json.Marshal(failedWithoutDetail); err != nil {
 		t.Fatal(err)
 	} else if err := ValidateRunnerReceiptSchema(data); err == nil {
-		t.Error("expected a verified receipt with a nil candidate_artifact_digest_sha256 to be rejected")
+		t.Error("expected cleanup_succeeded=false with empty cleanup_failure_detail to be rejected")
 	}
 
-	snapshotFailure := fixtureRunnerReceiptSnapshotFailure(t)
-	snapshotFailure.ResultDigestSHA256 = stringPtr(zeroDigest) // verified's shape, not snapshot-failure's
-	if data, err := json.Marshal(snapshotFailure); err != nil {
+	succeededWithDetail := fixtureRunnerReceipt(t, DispositionVerified, artifact)
+	succeededWithDetail.CleanupFailureDetail = "should be empty when cleanup succeeded"
+	if data, err := json.Marshal(succeededWithDetail); err != nil {
 		t.Fatal(err)
 	} else if err := ValidateRunnerReceiptSchema(data); err == nil {
-		t.Error("expected a snapshot-failure receipt with a non-nil result_digest_sha256 to be rejected")
-	}
-
-	sealFailure := fixtureRunnerReceiptSealFailure(t, artifact)
-	sealFailure.CandidateArtifactDigestSHA256 = stringPtr(zeroDigest) // verified's shape, not seal-failure's
-	if data, err := json.Marshal(sealFailure); err != nil {
-		t.Fatal(err)
-	} else if err := ValidateRunnerReceiptSchema(data); err == nil {
-		t.Error("expected a seal-failure receipt with a non-nil candidate_artifact_digest_sha256 to be rejected")
-	}
-
-	verifiedWithFailureDetail := fixtureRunnerReceiptVerified(t, artifact)
-	verifiedWithFailureDetail.FailureDetail = "should not be populated when verified"
-	if data, err := json.Marshal(verifiedWithFailureDetail); err != nil {
-		t.Fatal(err)
-	} else if err := ValidateRunnerReceiptSchema(data); err == nil {
-		t.Error("expected a verified receipt with a non-empty failure_detail to be rejected")
-	}
-
-	mismatchWithoutFailureDetail := fixtureRunnerReceiptDigestMismatch(t, artifact)
-	mismatchWithoutFailureDetail.FailureDetail = ""
-	if data, err := json.Marshal(mismatchWithoutFailureDetail); err != nil {
-		t.Fatal(err)
-	} else if err := ValidateRunnerReceiptSchema(data); err == nil {
-		t.Error("expected a digest-mismatch receipt with an empty failure_detail to be rejected")
+		t.Error("expected cleanup_succeeded=true with non-empty cleanup_failure_detail to be rejected")
 	}
 }
 

@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/globulario/sensei/schema/runnercomposition-runnerreceipt-v1.json",
   "title": "Sensei Governed Runner Composition Runner Receipt V1",
-  "description": "O3's own closed evidence document: a second, later layer of truth than O2's Receipt, never a rewrite of it. Records what happened to one generation attempt's runner sequence via a closed disposition, referencing O2's Request/Result/Receipt digests without altering them.",
-  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/runnercomposition. Per docs/design/governed-runner-composition-o3.md hard laws 12-14: only a Result whose RunnerReceipt.Disposition is verified reaches MapToCommand. Digest fields other than request_digest_sha256 are nullable exactly per how far the runner sequence progressed before its disposition was reached -- see the allOf conditionals below.",
+  "description": "O3's own closed evidence document: a second, later layer of truth than O2's Receipt, never a rewrite of it. Records exactly how far one generation attempt's runner sequence (provider construction -> O2 Run -> workspace freezing -> verification -> sealing) progressed via a closed, eight-value disposition, referencing O2's Request/Result/Receipt digests without altering them.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/runnercomposition. Per docs/design/governed-runner-composition-o3.md hard laws 6a, 13, 14a: only a Result whose RunnerReceipt.disposition is verified reaches MapToCommand. Digest fields other than request_digest_sha256 are nullable exactly per the disposition/evidence-presence matrix in the design doc -- see the allOf conditionals below, which are that matrix encoded as schema. cleanup_succeeded/cleanup_failure_detail are ORTHOGONAL to disposition, not folded into it.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,6 +18,8 @@
     "candidate_artifact_digest_sha256",
     "disposition",
     "failure_detail",
+    "cleanup_succeeded",
+    "cleanup_failure_detail",
     "completed_at",
     "runner_receipt_digest_sha256"
   ],
@@ -39,6 +41,17 @@
       "$comment": "Required non-empty exactly when disposition is not verified; empty when verified.",
       "type": "string"
     },
+    "cleanup_succeeded": {
+      "$comment": "Orthogonal to disposition. null only for disposition snapshot-failure (no ephemeral capture surface was ever created); a boolean for every other disposition.",
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "cleanup_failure_detail": {
+      "$comment": "Required non-empty exactly when cleanup_succeeded is false; empty when cleanup_succeeded is null or true.",
+      "type": "string"
+    },
     "completed_at": {
       "$comment": "Observation timestamp, explicitly excluded from runner_receipt_digest_sha256 so receipt identity does not depend on wall-clock time.",
       "type": "string",
@@ -51,6 +64,7 @@
   },
   "allOf": [
     {
+      "$comment": "Group A: snapshot-failure -- O2's Run was never invoked, no snapshot exists.",
       "if": { "properties": { "disposition": { "const": "snapshot-failure" } } },
       "then": {
         "properties": {
@@ -59,11 +73,51 @@
           "input_candidate_digest_sha256": { "type": "null" },
           "proposed_change_digest_sha256": { "type": "null" },
           "final_candidate_content_digest_sha256": { "type": "null" },
-          "candidate_artifact_digest_sha256": { "type": "null" }
+          "candidate_artifact_digest_sha256": { "type": "null" },
+          "cleanup_succeeded": { "type": "null" }
         }
       }
     },
     {
+      "$comment": "Group B: provider-construction-failure, o2-run-error -- snapshot succeeded (input digest known), O2's Run never produced a valid Result.",
+      "if": {
+        "properties": {
+          "disposition": { "enum": ["provider-construction-failure", "o2-run-error"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "result_digest_sha256": { "type": "null" },
+          "o2_receipt_digest_sha256": { "type": "null" },
+          "input_candidate_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "proposed_change_digest_sha256": { "type": "null" },
+          "final_candidate_content_digest_sha256": { "type": "null" },
+          "candidate_artifact_digest_sha256": { "type": "null" },
+          "cleanup_succeeded": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "$comment": "Group C: o2-non-completed, workspace-freeze-failure -- O2's Run produced a valid Result/Receipt, but either TerminalOutcome was not completed, or freezing the workspace afterward failed, so verification never proceeded.",
+      "if": {
+        "properties": {
+          "disposition": { "enum": ["o2-non-completed", "workspace-freeze-failure"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "result_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "o2_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "input_candidate_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "proposed_change_digest_sha256": { "type": "null" },
+          "final_candidate_content_digest_sha256": { "type": "null" },
+          "candidate_artifact_digest_sha256": { "type": "null" },
+          "cleanup_succeeded": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "$comment": "Group D: seal-failure -- verification completed and matched, but CandidateArtifactStore.Put failed.",
       "if": { "properties": { "disposition": { "const": "seal-failure" } } },
       "then": {
         "properties": {
@@ -72,14 +126,16 @@
           "input_candidate_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
           "proposed_change_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
           "final_candidate_content_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
-          "candidate_artifact_digest_sha256": { "type": "null" }
+          "candidate_artifact_digest_sha256": { "type": "null" },
+          "cleanup_succeeded": { "type": "boolean" }
         }
       }
     },
     {
+      "$comment": "Group E: digest-mismatch, verified -- every stage through sealing completed.",
       "if": {
         "properties": {
-          "disposition": { "enum": ["verified", "digest-mismatch", "cleanup-failure"] }
+          "disposition": { "enum": ["digest-mismatch", "verified"] }
         }
       },
       "then": {
@@ -89,7 +145,8 @@
           "input_candidate_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
           "proposed_change_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
           "final_candidate_content_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
-          "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+          "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "cleanup_succeeded": { "type": "boolean" }
         }
       }
     },
@@ -97,6 +154,11 @@
       "if": { "properties": { "disposition": { "const": "verified" } } },
       "then": { "properties": { "failure_detail": { "const": "" } } },
       "else": { "properties": { "failure_detail": { "minLength": 1 } } }
+    },
+    {
+      "if": { "properties": { "cleanup_succeeded": { "const": false } } },
+      "then": { "properties": { "cleanup_failure_detail": { "minLength": 1 } } },
+      "else": { "properties": { "cleanup_failure_detail": { "const": "" } } }
     }
   ],
   "$defs": {
@@ -111,7 +173,16 @@
       ]
     },
     "disposition": {
-      "enum": ["verified", "digest-mismatch", "snapshot-failure", "seal-failure", "cleanup-failure"]
+      "enum": [
+        "snapshot-failure",
+        "provider-construction-failure",
+        "o2-run-error",
+        "o2-non-completed",
+        "workspace-freeze-failure",
+        "digest-mismatch",
+        "seal-failure",
+        "verified"
+      ]
     }
   }
 }

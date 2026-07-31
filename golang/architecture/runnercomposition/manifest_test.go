@@ -15,11 +15,26 @@ func TestValidateCandidatePathRejectsInvalidPaths(t *testing.T) {
 		"a//b",
 		"a\x00b",
 		"a\nb",
+		`a\b`,
+		`..\escape`,
+		`\absolute`,
 	}
 	for _, p := range cases {
 		if err := ValidateCandidatePath(p); err == nil {
 			t.Errorf("ValidateCandidatePath(%q) = nil, want an error", p)
 		}
+	}
+}
+
+// TestValidateCandidatePathRejectsBackslashOutright proves backslash is
+// rejected unconditionally, per hard law 9 -- not merely "backslash can
+// never become a separator here" reasoning, but an outright ban, since
+// Windows filesystem APIs do treat '\' as a path separator and this
+// manifest's canonical paths must mean the same thing on every platform
+// that might ever read one.
+func TestValidateCandidatePathRejectsBackslashOutright(t *testing.T) {
+	if err := ValidateCandidatePath(`a\b`); err == nil {
+		t.Error(`ValidateCandidatePath("a\b") = nil, want an error`)
 	}
 }
 
@@ -202,14 +217,39 @@ func TestManifestDigestChangesWhenModeChanges(t *testing.T) {
 	}
 }
 
+// naiveManifestEncoding reproduces the UNFRAMED encoding ManifestDigest does
+// NOT use: mode_byte || path_bytes || content_digest_bytes, concatenated
+// directly per entry with no length prefix. It exists only in this test, to
+// prove -- permanently, every time this test runs, not as a one-off manual
+// check -- that the ambiguity writeLengthPrefixed exists to prevent is real.
+func naiveManifestEncoding(t *testing.T, entries []CandidateManifestEntry) []byte {
+	t.Helper()
+	canonical, err := CanonicalizeManifest(entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf []byte
+	for _, e := range canonical {
+		buf = append(buf, modeByte(e.Mode))
+		buf = append(buf, []byte(e.Path)...)
+		buf = append(buf, []byte(e.ContentDigestSHA256)...)
+	}
+	return buf
+}
+
 // TestManifestDigestCollisionSafety proves the length-prefixed encoding
-// prevents the classic concatenation ambiguity. Without a length prefix on
-// the path field, a two-entry manifest's concatenated
-// mode||path||content_digest bytes could equal a crafted single-entry
-// manifest's bytes, if that single entry's path is built to embed the first
-// entry's digest and the second entry's mode byte verbatim, with the second
-// entry's digest reused as its own. A collision-safe (length-prefixed)
-// encoding must keep these distinct.
+// prevents a real, entry-boundary concatenation collision. It has two
+// halves, in order:
+//
+//  1. Prove the deliberately UNFRAMED encoding (naiveManifestEncoding)
+//     actually collides for a genuinely different two-entry vs. one-entry
+//     manifest pair -- not asserted, demonstrated: both encode to
+//     byte-identical output.
+//  2. Prove the real, length-prefixed ManifestDigest keeps that exact same
+//     pair distinct.
+//
+// Proving only the second half (as an earlier version of this test did)
+// leaves open whether the "collision" being guarded against was ever real.
 func TestManifestDigestCollisionSafety(t *testing.T) {
 	contentA := []byte("contentA")
 	contentB := []byte("contentB")
@@ -222,13 +262,21 @@ func TestManifestDigestCollisionSafety(t *testing.T) {
 	}
 
 	// mode byte for ModeExecutable is 1 (see modeByte in manifest.go) -- a
-	// valid path byte (not NUL, not newline), so it can be embedded
-	// verbatim in a crafted path.
+	// valid path byte (not NUL, newline, or backslash), so it can be
+	// embedded verbatim in a crafted path.
 	collidingPath := "a" + digestA + string([]byte{1}) + "b"
 	oneEntry := []CandidateManifestEntry{
 		{Path: collidingPath, Mode: ModeRegular, Content: contentB, ContentDigestSHA256: digestB},
 	}
 
+	// Half 1: the naive (unframed) encoding genuinely collides.
+	naiveTwo := naiveManifestEncoding(t, twoEntries)
+	naiveOne := naiveManifestEncoding(t, oneEntry)
+	if string(naiveTwo) != string(naiveOne) {
+		t.Fatalf("test setup invalid: the naive unframed encoding was expected to collide for these two manifests but did not -- naiveTwo=%x naiveOne=%x", naiveTwo, naiveOne)
+	}
+
+	// Half 2: the real, length-prefixed ManifestDigest keeps them distinct.
 	d1, err := ManifestDigest(twoEntries)
 	if err != nil {
 		t.Fatal(err)
@@ -238,7 +286,7 @@ func TestManifestDigestCollisionSafety(t *testing.T) {
 		t.Fatal(err)
 	}
 	if d1 == d2 {
-		t.Error("a two-entry manifest and a crafted one-entry manifest produced the same digest -- the encoding is not collision-safe against entry-boundary ambiguity")
+		t.Error("a two-entry manifest and a crafted one-entry manifest that collide under the naive unframed encoding also produced the same real ManifestDigest -- length-prefixing is not preventing the collision it exists to prevent")
 	}
 }
 

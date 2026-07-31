@@ -18,6 +18,8 @@
 // 12-13 in the design doc).
 package runnercomposition
 
+import "fmt"
+
 // CandidateFileMode is the closed, three-value vocabulary for a candidate
 // tree entry's kind, per hard law 9. It intentionally does not carry full
 // POSIX permission bits -- only what real git diff semantics distinguish.
@@ -121,56 +123,107 @@ type CandidateArtifact struct {
 
 const RunnerReceiptSchemaVersion = "sensei.runnercomposition.runnerreceipt.v1"
 
-// Disposition is the closed vocabulary stating exactly what happened to one
-// generation attempt's runner execution, per hard law 13. It is not a
-// correctness, admission, or completion verdict -- only Disposition ==
-// DispositionVerified means the accompanying Result may reach MapToCommand.
+// Disposition is the closed, eight-value vocabulary stating exactly how far
+// one generation attempt's runner sequence (provider construction -> O2 Run
+// -> workspace freezing -> verification -> sealing) progressed before it
+// stopped, per hard laws 5, 6a, and 13. It is not a correctness, admission,
+// or completion verdict -- only Disposition == DispositionVerified means the
+// accompanying Result may reach MapToCommand. See the "Runner disposition
+// and evidence-presence matrix" table in
+// docs/design/governed-runner-composition-o3.md for the authoritative,
+// field-by-field presence rule each value implies -- RunnerReceiptFieldPresence
+// below is that table encoded as data.
 type Disposition string
 
 const (
-	// DispositionVerified means O2's Run completed, and O3's independently
-	// computed evidence matched the Result's declared values.
-	DispositionVerified Disposition = "verified"
-	// DispositionDigestMismatch means O2's Run completed, but O3's
-	// independently computed evidence did NOT match the Result's declared
-	// values. O2's own Receipt can truthfully say the provider's execution
-	// completed while this Disposition truthfully says the claimed patch
-	// digest was wrong -- both facts are recorded, neither is rewritten.
-	DispositionDigestMismatch Disposition = "digest-mismatch"
-	// DispositionSnapshotFailure means the bounded, read-only repository
-	// snapshot could not be built. O2's Run was never invoked; no Result,
-	// O2 Receipt, or candidate evidence exists.
+	// DispositionSnapshotFailure: the bounded, read-only repository
+	// snapshot could not be built. O2's Run was never invoked.
 	DispositionSnapshotFailure Disposition = "snapshot-failure"
-	// DispositionSealFailure means O2's Run completed and O3's evidence was
-	// computed and compared, but sealing the CandidateArtifact itself
-	// failed.
+	// DispositionProviderConstructionFailure: the snapshot succeeded, but
+	// GenerationProviderFactory.NewProvider failed. O2's Run was never
+	// invoked.
+	DispositionProviderConstructionFailure Disposition = "provider-construction-failure"
+	// DispositionO2RunError: the snapshot and provider construction
+	// succeeded, but O2's Run itself returned a hard Go error -- no valid
+	// Result/Receipt was constructed at all (O2's own reserved meaning for
+	// that error).
+	DispositionO2RunError Disposition = "o2-run-error"
+	// DispositionO2NonCompleted: O2's Run produced a valid Result/Receipt,
+	// but TerminalOutcome was unavailable, timed-out, cancelled,
+	// invalid-output, or unsupported-capability -- a legitimate, evidenced
+	// non-completion, not an error.
+	DispositionO2NonCompleted Disposition = "o2-non-completed"
+	// DispositionWorkspaceFreezeFailure: O2's Run completed, but
+	// CandidateWorkspace.Close itself failed, so the final buffer content
+	// cannot be trusted as stable. Verification does not proceed.
+	DispositionWorkspaceFreezeFailure Disposition = "workspace-freeze-failure"
+	// DispositionDigestMismatch: O2's Run completed with
+	// TerminalOutcome: completed, the workspace froze cleanly, but O3's
+	// independently computed evidence did NOT match the Result's declared
+	// values. The candidate is still sealed, as evidence of what the
+	// mismatch actually was.
+	DispositionDigestMismatch Disposition = "digest-mismatch"
+	// DispositionSealFailure: every stage through verification succeeded
+	// and matched, but CandidateArtifactStore.Put failed.
 	DispositionSealFailure Disposition = "seal-failure"
-	// DispositionCleanupFailure means every prior step succeeded -- Run
-	// completed, evidence was verified, the CandidateArtifact was sealed --
-	// but destroying the ephemeral capture surface afterward failed. This
-	// is an orthogonal, last-step failure; it does not retroactively
-	// invalidate the already-sealed candidate.
-	DispositionCleanupFailure Disposition = "cleanup-failure"
+	// DispositionVerified: every stage succeeded and O3's evidence matched.
+	DispositionVerified Disposition = "verified"
 )
+
+// AllDispositions lists every closed Disposition value, in the order they
+// appear in the design doc's disposition matrix.
+func AllDispositions() []Disposition {
+	return []Disposition{
+		DispositionSnapshotFailure,
+		DispositionProviderConstructionFailure,
+		DispositionO2RunError,
+		DispositionO2NonCompleted,
+		DispositionWorkspaceFreezeFailure,
+		DispositionDigestMismatch,
+		DispositionSealFailure,
+		DispositionVerified,
+	}
+}
+
+// RunnerReceiptFieldPresence states which of RunnerReceipt's nullable digest
+// fields must be non-nil for a given Disposition -- the disposition matrix
+// from the design doc, encoded as data so ValidateRunnerReceipt and its
+// tests share one source of truth instead of duplicating the table.
+type RunnerReceiptFieldPresence struct {
+	Result                bool
+	O2Receipt             bool
+	InputCandidate        bool
+	ProposedChange        bool
+	FinalCandidateContent bool
+	CandidateArtifact     bool
+}
+
+// FieldPresenceFor returns the required non-nil/nil shape for d's digest
+// fields other than RequestDigestSHA256 (always present). Returns an error
+// if d is not one of the eight closed Disposition values.
+func FieldPresenceFor(d Disposition) (RunnerReceiptFieldPresence, error) {
+	switch d {
+	case DispositionSnapshotFailure:
+		return RunnerReceiptFieldPresence{}, nil
+	case DispositionProviderConstructionFailure, DispositionO2RunError:
+		return RunnerReceiptFieldPresence{InputCandidate: true}, nil
+	case DispositionO2NonCompleted, DispositionWorkspaceFreezeFailure:
+		return RunnerReceiptFieldPresence{Result: true, O2Receipt: true, InputCandidate: true}, nil
+	case DispositionSealFailure:
+		return RunnerReceiptFieldPresence{Result: true, O2Receipt: true, InputCandidate: true, ProposedChange: true, FinalCandidateContent: true}, nil
+	case DispositionDigestMismatch, DispositionVerified:
+		return RunnerReceiptFieldPresence{Result: true, O2Receipt: true, InputCandidate: true, ProposedChange: true, FinalCandidateContent: true, CandidateArtifact: true}, nil
+	default:
+		return RunnerReceiptFieldPresence{}, fmt.Errorf("runnercomposition: %q is not one of the eight closed Disposition values", d)
+	}
+}
 
 // RunnerReceipt is O3's own closed evidence document -- a second, later
 // layer of truth than O2's Receipt, never a rewrite of it (hard laws 12-13).
-// Every digest field other than RequestDigestSHA256 is nullable, present
-// only as far as the runner's sequence progressed before its Disposition was
-// reached:
-//
-//   - DispositionSnapshotFailure: only RequestDigestSHA256 is non-nil. The
-//     pinned snapshot itself could not be built, so O2's Run was never
-//     invoked and no candidate evidence exists yet.
-//   - DispositionSealFailure: every digest field is non-nil except
-//     CandidateArtifactDigestSHA256. O2's Run completed and O3 independently
-//     verified the evidence, but sealing the CandidateArtifact failed.
-//   - DispositionVerified, DispositionDigestMismatch, DispositionCleanupFailure:
-//     every digest field is non-nil. Each of these three represents a run
-//     that reached a fully-computed, fully-sealed candidate; they differ
-//     only in whether the evidence matched (Verified vs. DigestMismatch) and
-//     whether ephemeral cleanup afterward succeeded (CleanupFailure is its
-//     own, orthogonal, last-step disposition).
+// Every digest field other than RequestDigestSHA256 is nullable; its
+// presence for a given Disposition is exactly what FieldPresenceFor(d)
+// (equivalently, the design doc's disposition matrix) says -- see
+// ValidateRunnerReceipt, which enforces this.
 type RunnerReceipt struct {
 	SchemaVersion string `json:"schema_version"`
 	ReceiptID     string `json:"receipt_id"`
@@ -202,6 +255,18 @@ type RunnerReceipt struct {
 	// exactly when Disposition is not DispositionVerified; empty when
 	// verified.
 	FailureDetail string `json:"failure_detail"`
+
+	// CleanupSucceeded records whether destroying the ephemeral capture
+	// surface afterward succeeded -- ORTHOGONAL to Disposition (hard law
+	// 6a note; design doc "Runner disposition and evidence-presence
+	// matrix"). nil means "not applicable": true only for
+	// DispositionSnapshotFailure, since no ephemeral surface was ever
+	// created there. Every other Disposition has a non-nil value here,
+	// independent of what Disposition itself is.
+	CleanupSucceeded *bool `json:"cleanup_succeeded"`
+	// CleanupFailureDetail is required non-empty exactly when
+	// CleanupSucceeded is non-nil and false; empty otherwise.
+	CleanupFailureDetail string `json:"cleanup_failure_detail"`
 
 	// CompletedAt is an observation timestamp explicitly excluded from
 	// RunnerReceiptDigestSHA256 (see RunnerReceiptDigest in digest.go) so

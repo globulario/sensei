@@ -14,9 +14,12 @@ import (
 
 // ValidateCandidatePath enforces hard law 9's canonical path rules: POSIX-
 // relative, "/"-separated, no leading "/", no "." or ".." segment, no
-// embedded NUL or newline byte. A path failing any of these is rejected
-// before it can appear in any manifest, so a traversal sequence can never
-// address outside the candidate tree.
+// embedded NUL or newline byte, and no backslash. A path failing any of
+// these is rejected before it can appear in any manifest, so a traversal
+// sequence can never address outside the candidate tree. Backslash is
+// rejected outright -- rather than relying on an argument that it could
+// never be interpreted as a separator on some platform -- since Windows'
+// filesystem APIs treat it as one.
 func ValidateCandidatePath(path string) error {
 	if path == "" {
 		return fmt.Errorf("candidate path must not be empty")
@@ -24,8 +27,8 @@ func ValidateCandidatePath(path string) error {
 	if strings.HasPrefix(path, "/") {
 		return fmt.Errorf("candidate path %q must not have a leading '/'", path)
 	}
-	if strings.ContainsAny(path, "\x00\n") {
-		return fmt.Errorf("candidate path %q must not contain a NUL or newline byte", path)
+	if strings.ContainsAny(path, "\x00\n\\") {
+		return fmt.Errorf("candidate path %q must not contain a NUL, newline, or backslash byte", path)
 	}
 	for _, seg := range strings.Split(path, "/") {
 		if seg == "" {

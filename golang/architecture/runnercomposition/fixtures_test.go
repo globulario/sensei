@@ -5,6 +5,7 @@ package runnercomposition
 import "testing"
 
 func stringPtr(s string) *string { return &s }
+func boolPtr(b bool) *bool       { return &b }
 
 // fixtureManifestEntries returns one regular file, one executable file, and
 // one symlink, each with a correctly recomputed ContentDigestSHA256.
@@ -56,25 +57,9 @@ func fixtureCandidateArtifact(t *testing.T) CandidateArtifact {
 	return a
 }
 
-// fixtureRunnerReceiptVerified builds a RunnerReceipt with
-// Disposition == DispositionVerified, every digest field non-nil,
-// referencing artifact.
-func fixtureRunnerReceiptVerified(t *testing.T, artifact CandidateArtifact) RunnerReceipt {
+// finishReceipt fills in RunnerReceiptDigestSHA256 by recomputation.
+func finishReceipt(t *testing.T, r RunnerReceipt) RunnerReceipt {
 	t.Helper()
-	r := RunnerReceipt{
-		SchemaVersion:                     RunnerReceiptSchemaVersion,
-		ReceiptID:                         "runnerreceipt.fixture.verified",
-		RequestDigestSHA256:               zeroDigest,
-		ResultDigestSHA256:                stringPtr(zeroDigest),
-		O2ReceiptDigestSHA256:             stringPtr(zeroDigest),
-		InputCandidateDigestSHA256:        stringPtr(artifact.InputCandidateDigestSHA256),
-		ProposedChangeDigestSHA256:        stringPtr(artifact.ProposedChangeDigestSHA256),
-		FinalCandidateContentDigestSHA256: stringPtr(artifact.FinalCandidateContentDigestSHA256),
-		CandidateArtifactDigestSHA256:     stringPtr(artifact.CandidateArtifactDigestSHA256),
-		Disposition:                       DispositionVerified,
-		FailureDetail:                     "",
-		CompletedAt:                       "2026-07-31T00:00:00Z",
-	}
 	digest, err := RunnerReceiptDigest(r)
 	if err != nil {
 		t.Fatal(err)
@@ -83,86 +68,74 @@ func fixtureRunnerReceiptVerified(t *testing.T, artifact CandidateArtifact) Runn
 	return r
 }
 
-// fixtureRunnerReceiptDigestMismatch mirrors fixtureRunnerReceiptVerified but
-// with Disposition == DispositionDigestMismatch -- every digest field is
-// still non-nil (O2's Run completed and O3 computed evidence), only the
-// disposition and failure detail differ.
-func fixtureRunnerReceiptDigestMismatch(t *testing.T, artifact CandidateArtifact) RunnerReceipt {
+// fixtureRunnerReceipt builds a syntactically valid RunnerReceipt for the
+// given disposition, with every digest field's presence matching
+// FieldPresenceFor(disposition) exactly, and CleanupSucceeded/
+// CleanupFailureDetail/FailureDetail following their own presence rules.
+// This is the one fixture builder every disposition-coverage test uses, so
+// the presence pattern is defined in exactly one place.
+func fixtureRunnerReceipt(t *testing.T, disposition Disposition, artifact CandidateArtifact) RunnerReceipt {
 	t.Helper()
-	r := fixtureRunnerReceiptVerified(t, artifact)
-	r.ReceiptID = "runnerreceipt.fixture.digest-mismatch"
-	r.Disposition = DispositionDigestMismatch
-	r.FailureDetail = "provider-declared proposed_change_digest_sha256 does not match O3's independently computed evidence"
-	digest, err := RunnerReceiptDigest(r)
+	presence, err := FieldPresenceFor(disposition)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.RunnerReceiptDigestSHA256 = digest
-	return r
-}
 
-// fixtureRunnerReceiptCleanupFailure mirrors fixtureRunnerReceiptVerified but
-// with Disposition == DispositionCleanupFailure -- every digest field is
-// still non-nil (sealing already succeeded), only cleanup of the ephemeral
-// capture surface failed afterward.
-func fixtureRunnerReceiptCleanupFailure(t *testing.T, artifact CandidateArtifact) RunnerReceipt {
-	t.Helper()
-	r := fixtureRunnerReceiptVerified(t, artifact)
-	r.ReceiptID = "runnerreceipt.fixture.cleanup-failure"
-	r.Disposition = DispositionCleanupFailure
-	r.FailureDetail = "failed to remove the ephemeral candidate buffer directory after sealing"
-	digest, err := RunnerReceiptDigest(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r.RunnerReceiptDigestSHA256 = digest
-	return r
-}
-
-// fixtureRunnerReceiptSnapshotFailure builds a RunnerReceipt with
-// Disposition == DispositionSnapshotFailure: only RequestDigestSHA256 is
-// non-nil, every other digest field is nil.
-func fixtureRunnerReceiptSnapshotFailure(t *testing.T) RunnerReceipt {
-	t.Helper()
 	r := RunnerReceipt{
 		SchemaVersion:       RunnerReceiptSchemaVersion,
-		ReceiptID:           "runnerreceipt.fixture.snapshot-failure",
+		ReceiptID:           "runnerreceipt.fixture." + string(disposition),
 		RequestDigestSHA256: zeroDigest,
-		Disposition:         DispositionSnapshotFailure,
-		FailureDetail:       "git show of the pinned base revision failed: unknown revision",
+		Disposition:         disposition,
 		CompletedAt:         "2026-07-31T00:00:00Z",
 	}
-	digest, err := RunnerReceiptDigest(r)
-	if err != nil {
-		t.Fatal(err)
+	if presence.Result {
+		r.ResultDigestSHA256 = stringPtr(zeroDigest)
 	}
-	r.RunnerReceiptDigestSHA256 = digest
-	return r
+	if presence.O2Receipt {
+		r.O2ReceiptDigestSHA256 = stringPtr(zeroDigest)
+	}
+	if presence.InputCandidate {
+		r.InputCandidateDigestSHA256 = stringPtr(artifact.InputCandidateDigestSHA256)
+	}
+	if presence.ProposedChange {
+		r.ProposedChangeDigestSHA256 = stringPtr(artifact.ProposedChangeDigestSHA256)
+	}
+	if presence.FinalCandidateContent {
+		r.FinalCandidateContentDigestSHA256 = stringPtr(artifact.FinalCandidateContentDigestSHA256)
+	}
+	if presence.CandidateArtifact {
+		r.CandidateArtifactDigestSHA256 = stringPtr(artifact.CandidateArtifactDigestSHA256)
+	}
+
+	if disposition == DispositionVerified {
+		r.FailureDetail = ""
+	} else {
+		r.FailureDetail = "fixture failure detail for " + string(disposition)
+	}
+
+	if disposition == DispositionSnapshotFailure {
+		r.CleanupSucceeded = nil
+		r.CleanupFailureDetail = ""
+	} else {
+		r.CleanupSucceeded = boolPtr(true)
+		r.CleanupFailureDetail = ""
+	}
+
+	return finishReceipt(t, r)
 }
 
-// fixtureRunnerReceiptSealFailure builds a RunnerReceipt with
-// Disposition == DispositionSealFailure: every digest field is non-nil
-// except CandidateArtifactDigestSHA256.
-func fixtureRunnerReceiptSealFailure(t *testing.T, artifact CandidateArtifact) RunnerReceipt {
+// fixtureRunnerReceiptCleanupFailed mirrors fixtureRunnerReceipt for
+// disposition, but with CleanupSucceeded == false and a non-empty
+// CleanupFailureDetail -- proving cleanup outcome is independent of
+// Disposition. Not valid for DispositionSnapshotFailure (cleanup is not
+// applicable there).
+func fixtureRunnerReceiptCleanupFailed(t *testing.T, disposition Disposition, artifact CandidateArtifact) RunnerReceipt {
 	t.Helper()
-	r := RunnerReceipt{
-		SchemaVersion:                     RunnerReceiptSchemaVersion,
-		ReceiptID:                         "runnerreceipt.fixture.seal-failure",
-		RequestDigestSHA256:               zeroDigest,
-		ResultDigestSHA256:                stringPtr(zeroDigest),
-		O2ReceiptDigestSHA256:             stringPtr(zeroDigest),
-		InputCandidateDigestSHA256:        stringPtr(artifact.InputCandidateDigestSHA256),
-		ProposedChangeDigestSHA256:        stringPtr(artifact.ProposedChangeDigestSHA256),
-		FinalCandidateContentDigestSHA256: stringPtr(artifact.FinalCandidateContentDigestSHA256),
-		CandidateArtifactDigestSHA256:     nil,
-		Disposition:                       DispositionSealFailure,
-		FailureDetail:                     "CandidateArtifactStore.Put failed: disk full",
-		CompletedAt:                       "2026-07-31T00:00:00Z",
+	if disposition == DispositionSnapshotFailure {
+		t.Fatal("cleanup is not applicable to DispositionSnapshotFailure")
 	}
-	digest, err := RunnerReceiptDigest(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r.RunnerReceiptDigestSHA256 = digest
-	return r
+	r := fixtureRunnerReceipt(t, disposition, artifact)
+	r.CleanupSucceeded = boolPtr(false)
+	r.CleanupFailureDetail = "failed to remove the ephemeral candidate buffer directory"
+	return finishReceipt(t, r)
 }

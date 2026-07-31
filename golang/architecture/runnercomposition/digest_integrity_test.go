@@ -53,7 +53,7 @@ func TestCandidateArtifactDigestInvalidatedByMutatingIdentity(t *testing.T) {
 
 func TestRunnerReceiptDigestEqualsIndependentlyRecomputedDigest(t *testing.T) {
 	a := fixtureCandidateArtifact(t)
-	r := fixtureRunnerReceiptVerified(t, a)
+	r := fixtureRunnerReceipt(t, DispositionVerified, a)
 	got, err := RunnerReceiptDigest(r)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestRunnerReceiptDigestEqualsIndependentlyRecomputedDigest(t *testing.T) {
 
 func TestRunnerReceiptDigestInvalidatedByMutatingDisposition(t *testing.T) {
 	a := fixtureCandidateArtifact(t)
-	r := fixtureRunnerReceiptVerified(t, a)
+	r := fixtureRunnerReceipt(t, DispositionVerified, a)
 
 	tampered := r
 	tampered.Disposition = DispositionDigestMismatch
@@ -81,7 +81,7 @@ func TestRunnerReceiptDigestInvalidatedByMutatingDisposition(t *testing.T) {
 
 func TestRunnerReceiptDigestInvalidatedByMutatingReferencedDigest(t *testing.T) {
 	a := fixtureCandidateArtifact(t)
-	r := fixtureRunnerReceiptVerified(t, a)
+	r := fixtureRunnerReceipt(t, DispositionVerified, a)
 
 	tampered := r
 	other := zeroDigest[:63] + "1"
@@ -101,7 +101,7 @@ func TestRunnerReceiptDigestInvalidatedByMutatingReferencedDigest(t *testing.T) 
 // providerport.Receipt already follow.
 func TestRunnerReceiptDigestExcludesCompletedAt(t *testing.T) {
 	a := fixtureCandidateArtifact(t)
-	r := fixtureRunnerReceiptVerified(t, a)
+	r := fixtureRunnerReceipt(t, DispositionVerified, a)
 
 	tampered := r
 	tampered.CompletedAt = "2099-01-01T00:00:00Z"
