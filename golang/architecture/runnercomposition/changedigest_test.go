@@ -247,3 +247,60 @@ func TestGitChangeDigestIsConfigIndependent(t *testing.T) {
 		t.Errorf("GitChangeDigest changed under a poisoned ambient HOME/GIT_CONFIG_GLOBAL (core.autocrlf=true): %q != %q", baseline, underPoison)
 	}
 }
+
+// TestGitChangeDigestRejectsRelativePaths proves oldDir/newDir must be
+// absolute -- a relative path's identity depends on the calling process's
+// ambient current-working-directory state, which GitChangeDigest does not
+// control.
+func TestGitChangeDigestRejectsRelativePaths(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := GitChangeDigest(context.Background(), "relative/old", dir); err == nil {
+		t.Error("expected a relative oldDir to be rejected")
+	}
+	if _, err := GitChangeDigest(context.Background(), dir, "relative/new"); err == nil {
+		t.Error("expected a relative newDir to be rejected")
+	}
+}
+
+func TestGitChangeDigestRejectsFileRoots(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "f.txt")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	other := t.TempDir()
+	if _, err := GitChangeDigest(context.Background(), file, other); err == nil {
+		t.Error("expected a regular-file oldDir to be rejected")
+	}
+	if _, err := GitChangeDigest(context.Background(), other, file); err == nil {
+		t.Error("expected a regular-file newDir to be rejected")
+	}
+}
+
+// TestGitChangeDigestRejectsSymlinkRoots is the architect's root-identity
+// blocker, proven directly: os.Stat FOLLOWS a symlink root, so the prior
+// validation would have let one pass; copyTree's filepath.WalkDir does NOT
+// follow it, so it would have copied the symlink itself into staging rather
+// than the real directory's content, and git diff --no-index would then
+// have hashed the symlink's TARGET STRING rather than the candidate tree
+// (see the negative control in the accompanying commit message for a direct
+// demonstration).
+func TestGitChangeDigestRejectsSymlinkRoots(t *testing.T) {
+	real := t.TempDir()
+	if err := os.WriteFile(filepath.Join(real, "f.txt"), []byte("real content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linkParent := t.TempDir()
+	link := filepath.Join(linkParent, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	other := t.TempDir()
+
+	if _, err := GitChangeDigest(context.Background(), link, other); err == nil {
+		t.Error("expected a symlink oldDir root to be rejected")
+	}
+	if _, err := GitChangeDigest(context.Background(), other, link); err == nil {
+		t.Error("expected a symlink newDir root to be rejected")
+	}
+}

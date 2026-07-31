@@ -81,15 +81,11 @@ func GitChangeDigest(ctx context.Context, oldDir, newDir string) (string, error)
 	// and "could not access a path" (a real error) -- the exit code alone
 	// cannot distinguish them, so existence is verified here, in Go, before
 	// git is ever invoked, rather than by parsing git's stderr text.
-	if info, err := os.Stat(oldDir); err != nil {
-		return "", fmt.Errorf("GitChangeDigest: oldDir: %w", err)
-	} else if !info.IsDir() {
-		return "", fmt.Errorf("GitChangeDigest: oldDir %q is not a directory", oldDir)
+	if err := validateAbsoluteRealDirectory("oldDir", oldDir); err != nil {
+		return "", err
 	}
-	if info, err := os.Stat(newDir); err != nil {
-		return "", fmt.Errorf("GitChangeDigest: newDir: %w", err)
-	} else if !info.IsDir() {
-		return "", fmt.Errorf("GitChangeDigest: newDir %q is not a directory", newDir)
+	if err := validateAbsoluteRealDirectory("newDir", newDir); err != nil {
+		return "", err
 	}
 
 	staging, err := os.MkdirTemp("", "runnercomposition-changedigest-")
@@ -146,6 +142,39 @@ func GitChangeDigest(ctx context.Context, oldDir, newDir string) (string, error)
 	}
 
 	return sha256Hex(stdout.Bytes()), nil
+}
+
+// validateAbsoluteRealDirectory rejects anything GitChangeDigest cannot
+// safely hand to copyTree:
+//
+//   - a relative path, whose identity would depend on the calling
+//     process's ambient current-working-directory state rather than being
+//     self-contained;
+//   - a symlink root. os.Stat FOLLOWS a symlink, so using it here would let
+//     a symlink root pass validation while copyTree's filepath.WalkDir --
+//     which, like BuildManifest, deliberately does NOT follow symlinks,
+//     including at the root -- would then copy the symlink itself into
+//     staging rather than the real directory it points at. git diff
+//     --no-index would go on to treat that copied symlink as a symlink
+//     FILE to compare, hashing the link's TARGET STRING instead of the
+//     real candidate tree's content. os.Lstat (which does not follow) is
+//     used here specifically so this is caught before copyTree ever runs;
+//   - a non-directory, non-symlink path (a regular file, etc).
+func validateAbsoluteRealDirectory(label, path string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("GitChangeDigest: %s %q must be an absolute path", label, path)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("GitChangeDigest: %s: %w", label, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("GitChangeDigest: %s %q must not be a symlink", label, path)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("GitChangeDigest: %s %q is not a directory", label, path)
+	}
+	return nil
 }
 
 // copyTree recursively copies src's content to dst. Symlinks are copied as
