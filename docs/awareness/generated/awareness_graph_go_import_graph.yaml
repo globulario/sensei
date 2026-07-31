@@ -592,6 +592,7 @@ components:
       - golang/architecture/protection/util.go
       - golang/architecture/providerport/digest.go
       - golang/architecture/providerport/execution.go
+      - golang/architecture/providerport/mapping.go
       - golang/architecture/providerport/normalize.go
       - golang/architecture/providerport/provider.go
       - golang/architecture/providerport/schema.go
