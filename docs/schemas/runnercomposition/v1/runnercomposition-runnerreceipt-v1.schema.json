@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/runnercomposition-runnerreceipt-v1.json",
+  "title": "Sensei Governed Runner Composition Runner Receipt V1",
+  "description": "O3's own closed evidence document: a second, later layer of truth than O2's Receipt, never a rewrite of it. Records what happened to one generation attempt's runner sequence via a closed disposition, referencing O2's Request/Result/Receipt digests without altering them.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/runnercomposition. Per docs/design/governed-runner-composition-o3.md hard laws 12-14: only a Result whose RunnerReceipt.Disposition is verified reaches MapToCommand. Digest fields other than request_digest_sha256 are nullable exactly per how far the runner sequence progressed before its disposition was reached -- see the allOf conditionals below.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "request_digest_sha256",
+    "result_digest_sha256",
+    "o2_receipt_digest_sha256",
+    "input_candidate_digest_sha256",
+    "proposed_change_digest_sha256",
+    "final_candidate_content_digest_sha256",
+    "candidate_artifact_digest_sha256",
+    "disposition",
+    "failure_detail",
+    "completed_at",
+    "runner_receipt_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.runnercomposition.runnerreceipt.v1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "request_digest_sha256": {
+      "$comment": "References the providerport.Request this attempt was constructed for. Always present -- the request exists before the runner sequence begins.",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "result_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "o2_receipt_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "input_candidate_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "proposed_change_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "final_candidate_content_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "candidate_artifact_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "disposition": { "$ref": "#/$defs/disposition" },
+    "failure_detail": {
+      "$comment": "Required non-empty exactly when disposition is not verified; empty when verified.",
+      "type": "string"
+    },
+    "completed_at": {
+      "$comment": "Observation timestamp, explicitly excluded from runner_receipt_digest_sha256 so receipt identity does not depend on wall-clock time.",
+      "type": "string",
+      "minLength": 1
+    },
+    "runner_receipt_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "disposition": { "const": "snapshot-failure" } } },
+      "then": {
+        "properties": {
+          "result_digest_sha256": { "type": "null" },
+          "o2_receipt_digest_sha256": { "type": "null" },
+          "input_candidate_digest_sha256": { "type": "null" },
+          "proposed_change_digest_sha256": { "type": "null" },
+          "final_candidate_content_digest_sha256": { "type": "null" },
+          "candidate_artifact_digest_sha256": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "seal-failure" } } },
+      "then": {
+        "properties": {
+          "result_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "o2_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "input_candidate_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "proposed_change_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "final_candidate_content_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "candidate_artifact_digest_sha256": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "disposition": { "enum": ["verified", "digest-mismatch", "cleanup-failure"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "result_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "o2_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "input_candidate_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "proposed_change_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "final_candidate_content_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "verified" } } },
+      "then": { "properties": { "failure_detail": { "const": "" } } },
+      "else": { "properties": { "failure_detail": { "minLength": 1 } } }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "optionalSha256Hex": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
+    },
+    "disposition": {
+      "enum": ["verified", "digest-mismatch", "snapshot-failure", "seal-failure", "cleanup-failure"]
+    }
+  }
+}
