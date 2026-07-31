@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesis-attempt-v1.json",
+  "title": "Sensei Governed Synthesis Attempt V1",
+  "description": "One immutable, monotonically-appended attempt against one plan generation. Carries a proposed change-envelope digest, not an implicitly trusted mutation, and makes no admission or correctness claim.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/synthesis. produced_at is an observation timestamp explicitly excluded from attempt_digest_sha256 (zeroed before hashing, alongside the digest field itself) so attempt identity does not depend on wall-clock time, per the O1 hard law that timestamps and provider prose cannot influence authoritative transition identity unless explicitly included by contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "attempt_id",
+    "attempt_number",
+    "plan_generation",
+    "plan_digest_sha256",
+    "input_candidate_digest_sha256",
+    "provider_observation",
+    "proposed_change_digest_sha256",
+    "evidence_references",
+    "terminal_provider_status",
+    "produced_at",
+    "attempt_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesis.attempt.v1" },
+    "attempt_id": { "type": "string", "minLength": 1 },
+    "attempt_number": {
+      "$comment": "Monotonically increasing within the session, starting at 1. Never reused, never decreased.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "plan_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "plan_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "input_candidate_digest_sha256": {
+      "$comment": "Exact input candidate identity this attempt started from.",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "provider_observation": { "$ref": "#/$defs/providerObservation" },
+    "proposed_change_digest_sha256": {
+      "$comment": "Digest of the proposed patch/change-envelope. This is a reference to untrusted provider output, not a trusted mutation and not itself an admission request.",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "evidence_references": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "terminal_provider_status": {
+      "enum": ["completed", "failed", "timed_out", "cancelled", "invalid_output"]
+    },
+    "produced_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "providerObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "provider_kind", "observed_at"],
+      "properties": {
+        "provider_id": { "type": "string", "minLength": 1 },
+        "provider_kind": { "type": "string", "minLength": 1 },
+        "model_identifier": { "type": "string" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

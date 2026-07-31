@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/providerport-observationbatch-v1.json",
+  "title": "Sensei Provider Port Observation Batch V1",
+  "description": "The O2 observations-aggregate document: the ordered set of bounded streaming observations gathered for one request, with its own declared/computed digest. Observations are evidence attached to a Result/Receipt; they never drive an O1 transition directly.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/providerport. sequence_number is monotonically increasing starting at 1 within one batch -- monotonicity itself is a Go-level (not JSON-Schema-level) invariant, proved by this package's tests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_digest_sha256",
+    "observations",
+    "observation_batch_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.providerport.observationbatch.v1" },
+    "request_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "observations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/observation" }
+    },
+    "observation_batch_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence_number", "detail", "observed_at"],
+      "properties": {
+        "sequence_number": { "type": "integer", "minimum": 1 },
+        "detail": { "type": "string" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
