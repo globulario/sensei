@@ -3,23 +3,40 @@
 package providerport
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
-// MapToCommand is the O2-to-O1 pure mapping layer: given a validated O2
-// Request and its completed Result (both already schema/digest-verified by
-// Run), it produces the exact synthesis.Command
+// MapToCommand is the O2-to-O1 pure mapping layer: given the O2 Request and
+// its completed Result Run produced, it produces the exact synthesis.Command
 // golang/architecture/synthesis.Transition must be called with next -- the
 // candidate O1 artifact travels embedded inside that command (e.g.
-// RecordPlanCommand.Plan). MapToCommand never calls Transition itself,
+// RecordPlanCommand.Plan), as an independent deep copy, never an alias of
+// request/result's own memory. MapToCommand never calls Transition itself,
 // never mutates state, and never reads a clock -- completedAt is
 // caller-supplied, mirroring RecordEvaluationCommand's own convention, and
 // is used only for the evaluation-observation operation.
 //
-// Before mapping, it independently re-verifies that request and result
-// bind to the CURRENT session state, not merely that they were internally
+// Run's validation is not durable across this boundary: Request and Result
+// carry pointers and slices, so a caller holding them after Run returns
+// could still mutate an embedded candidate, and Go's *T dereference alone
+// only shallow-copies -- slice-backed fields would keep aliasing the
+// original's backing array. MapToCommand therefore does not trust that
+// request/result are still what Run validated. It re-validates from
+// scratch: Request's own schema and declared-vs-computed digest, Result's
+// own schema and declared-vs-computed digest, and the completed payload's
+// declared-vs-computed digest (both the embedded artifact's own field and
+// Result.PayloadDigestSHA256) -- exactly the checks Run itself already
+// made, repeated here because nothing guarantees the values it validated
+// are the same bytes MapToCommand now sees. Only once all of that holds
+// does it deep-copy the candidate artifact (via a JSON round-trip, so no
+// nested slice/map survives as a shared reference) and construct the
+// returned command from that independent copy.
+//
+// It also independently re-verifies that request and result bind to the
+// CURRENT session state, not merely that they were internally
 // self-consistent when Run produced them:
 //
 //   - phase: the operation must be legal for state.Phase right now
@@ -54,6 +71,38 @@ func MapToCommand(state synthesis.SessionState, request Request, result Result, 
 	if result.RequestDigestSHA256 != request.RequestDigestSHA256 || result.Operation != request.Operation {
 		return nil, fmt.Errorf("providerport: result does not reference the given request")
 	}
+
+	if err := validateDocument(ValidateRequestSchema, request); err != nil {
+		return nil, fmt.Errorf("providerport: request failed schema validation: %w", err)
+	}
+	reqDigest, err := RequestDigest(request)
+	if err != nil {
+		return nil, fmt.Errorf("providerport: compute request digest: %w", err)
+	}
+	if reqDigest != request.RequestDigestSHA256 {
+		return nil, fmt.Errorf("providerport: request declares digest %q but its actual computed digest is %q -- mutated since validation", request.RequestDigestSHA256, reqDigest)
+	}
+	if err := validateDocument(ValidateResultSchema, result); err != nil {
+		return nil, fmt.Errorf("providerport: result failed schema validation: %w", err)
+	}
+	resDigest, err := ResultDigest(result)
+	if err != nil {
+		return nil, fmt.Errorf("providerport: compute result digest: %w", err)
+	}
+	if resDigest != result.ResultDigestSHA256 {
+		return nil, fmt.Errorf("providerport: result declares digest %q but its actual computed digest is %q -- mutated since validation", result.ResultDigestSHA256, resDigest)
+	}
+	payloadDeclared, payloadComputed, err := payloadDigests(result)
+	if err != nil {
+		return nil, fmt.Errorf("providerport: compute payload digest: %w", err)
+	}
+	if payloadDeclared != payloadComputed {
+		return nil, fmt.Errorf("providerport: embedded payload declares digest %q but its actual computed digest is %q -- mutated since validation", payloadDeclared, payloadComputed)
+	}
+	if result.PayloadDigestSHA256 == nil || *result.PayloadDigestSHA256 != payloadComputed {
+		return nil, fmt.Errorf("providerport: result payload_digest_sha256 does not match the embedded payload's actual computed digest -- mutated since validation")
+	}
+
 	if request.SessionDigestSHA256 != state.Session.SessionDigestSHA256 {
 		return nil, fmt.Errorf("providerport: request references session digest %q, current session is %q -- stale identity", request.SessionDigestSHA256, state.Session.SessionDigestSHA256)
 	}
@@ -79,7 +128,11 @@ func MapToCommand(state synthesis.SessionState, request Request, result Result, 
 		if result.InterpretationPayload.SessionDigestSHA256 != state.Session.SessionDigestSHA256 {
 			return nil, fmt.Errorf("providerport: candidate interpretation references session digest %q, current session is %q -- stale candidate", result.InterpretationPayload.SessionDigestSHA256, state.Session.SessionDigestSHA256)
 		}
-		return synthesis.RecordInterpretationCommand{Interpretation: *result.InterpretationPayload}, nil
+		detached, err := deepCopy(*result.InterpretationPayload)
+		if err != nil {
+			return nil, fmt.Errorf("providerport: deep-copy candidate interpretation: %w", err)
+		}
+		return synthesis.RecordInterpretationCommand{Interpretation: detached}, nil
 
 	case OperationPlanning:
 		if state.Phase != synthesis.PhasePlanning {
@@ -104,7 +157,11 @@ func MapToCommand(state synthesis.SessionState, request Request, result Result, 
 		if result.PlanningPayload.PlanGeneration != state.ExpectedPlanGeneration {
 			return nil, fmt.Errorf("providerport: candidate plan generation %d does not match the session's expected generation %d -- stale candidate", result.PlanningPayload.PlanGeneration, state.ExpectedPlanGeneration)
 		}
-		return synthesis.RecordPlanCommand{Plan: *result.PlanningPayload}, nil
+		detached, err := deepCopy(*result.PlanningPayload)
+		if err != nil {
+			return nil, fmt.Errorf("providerport: deep-copy candidate plan: %w", err)
+		}
+		return synthesis.RecordPlanCommand{Plan: detached}, nil
 
 	case OperationGeneration:
 		if state.Phase != synthesis.PhaseAttempting {
@@ -135,7 +192,11 @@ func MapToCommand(state synthesis.SessionState, request Request, result Result, 
 		if result.GenerationPayload.AttemptNumber != state.ExpectedAttemptNumber {
 			return nil, fmt.Errorf("providerport: candidate attempt number %d does not match the session's expected attempt number %d -- stale candidate", result.GenerationPayload.AttemptNumber, state.ExpectedAttemptNumber)
 		}
-		return synthesis.RecordAttemptCommand{Attempt: *result.GenerationPayload}, nil
+		detached, err := deepCopy(*result.GenerationPayload)
+		if err != nil {
+			return nil, fmt.Errorf("providerport: deep-copy candidate attempt: %w", err)
+		}
+		return synthesis.RecordAttemptCommand{Attempt: detached}, nil
 
 	case OperationEvaluationObservation:
 		if state.Phase != synthesis.PhaseEvaluating {
@@ -160,11 +221,37 @@ func MapToCommand(state synthesis.SessionState, request Request, result Result, 
 		if result.EvaluationObservationPayload.AttemptDigestSHA256 != state.LatestAttemptDigestSHA256 {
 			return nil, fmt.Errorf("providerport: candidate evaluation references attempt digest %q, current attempt is %q -- stale candidate", result.EvaluationObservationPayload.AttemptDigestSHA256, state.LatestAttemptDigestSHA256)
 		}
-		return synthesis.RecordEvaluationCommand{Evaluation: *result.EvaluationObservationPayload, CompletedAt: completedAt}, nil
+		detached, err := deepCopy(*result.EvaluationObservationPayload)
+		if err != nil {
+			return nil, fmt.Errorf("providerport: deep-copy candidate evaluation: %w", err)
+		}
+		return synthesis.RecordEvaluationCommand{Evaluation: detached, CompletedAt: completedAt}, nil
 
 	default:
 		return nil, fmt.Errorf("providerport: unknown operation %q", request.Operation)
 	}
+}
+
+// deepCopy returns v with every nested slice, map, and pointer fully
+// independent of v's own backing memory, via a JSON marshal/unmarshal
+// round-trip -- the same canonicalization every O1/O2 document already
+// round-trips through for schema validation and digesting, so this adds no
+// new serialization behavior to keep in sync as fields are added. A plain
+// `x := *ptr` dereference only shallow-copies: slice-backed fields (e.g.
+// Plan.Steps, Interpretation.SourceReferences) would still alias the
+// original's backing array, so a caller mutating the source Result after
+// MapToCommand returns could silently alter the command already handed to
+// Transition. deepCopy is what makes the returned command detached.
+func deepCopy[T any](v T) (T, error) {
+	var out T
+	data, err := json.Marshal(v)
+	if err != nil {
+		return out, err
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return out, err
+	}
+	return out, nil
 }
 
 // verifyParentChain checks the four-way equality the O2-to-O1 parent

@@ -623,3 +623,91 @@ func TestMapToCommandRejectsStaleCandidatePayload(t *testing.T) {
 		}
 	})
 }
+
+// --- validation is not durable across the boundary: request/result are
+// revalidated from scratch, and the returned command is detached ---
+
+// TestMapToCommandRejectsRequestMutatedAfterValidation proves the request
+// itself is re-validated, not merely trusted because it "was" valid when
+// Run produced it: mutating any digest-covered field without recomputing
+// RequestDigestSHA256 -- exactly what a caller holding request after Run
+// returns could do -- is rejected.
+func TestMapToCommandRejectsRequestMutatedAfterValidation(t *testing.T) {
+	state, session, interp := driveToPlanning(t)
+	request := fixturePlanningRequest(t, session, interp)
+	candidate := fixtureSynthesisPlan(t, interp.InterpretationDigestSHA256)
+	result := fixturePlanningResult(t, request.RequestDigestSHA256, candidate)
+
+	// request is fully valid here. Mutate a digest-covered field without
+	// recomputing RequestDigestSHA256.
+	request.DeadlineAt = "2099-12-31T23:59:59Z"
+
+	if _, err := MapToCommand(state, request, result, ""); err == nil {
+		t.Fatal("expected a request mutated after its digest was computed to be rejected")
+	}
+}
+
+// TestMapToCommandRejectsResultWhoseOuterDigestIsStaleAfterCandidateMutation
+// proves that recomputing only the candidate's own digest field is not
+// enough: mutating the embedded candidate and updating just its own digest
+// and Result.PayloadDigestSHA256 to match, while leaving the OUTER
+// Result.ResultDigestSHA256 stale (as a caller mutating a candidate in
+// place after Run already digested the whole Result would produce), is
+// rejected because the outer digest no longer matches the Result's actual
+// content.
+func TestMapToCommandRejectsResultWhoseOuterDigestIsStaleAfterCandidateMutation(t *testing.T) {
+	state, session, interp := driveToPlanning(t)
+	request := fixturePlanningRequest(t, session, interp)
+	candidate := fixtureSynthesisPlan(t, interp.InterpretationDigestSHA256)
+	result := fixturePlanningResult(t, request.RequestDigestSHA256, candidate)
+
+	tampered := *result.PlanningPayload
+	tampered.Risks = append(tampered.Risks, "a risk the provider never actually reported")
+	newPlanDigest, err := synthesis.PlanDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.PlanDigestSHA256 = newPlanDigest
+	result.PlanningPayload = &tampered
+	result.PayloadDigestSHA256 = &newPlanDigest
+	// result.ResultDigestSHA256 intentionally left stale -- still the
+	// digest of the ORIGINAL (untampered) result content.
+
+	if _, err := MapToCommand(state, request, result, ""); err == nil {
+		t.Fatal("expected a result whose outer digest is stale relative to its mutated candidate to be rejected")
+	}
+}
+
+// TestMapToCommandReturnedCommandIsDetachedFromOriginalResult proves the
+// returned command's embedded artifact is an independent deep copy: after
+// a successful mapping, mutating the ORIGINAL result's nested slice-backed
+// field must not alter the already-returned command. A plain `*ptr`
+// dereference would have only shallow-copied Plan, leaving Steps aliasing
+// the same backing array.
+func TestMapToCommandReturnedCommandIsDetachedFromOriginalResult(t *testing.T) {
+	state, session, interp := driveToPlanning(t)
+	request := fixturePlanningRequest(t, session, interp)
+	candidate := fixtureSynthesisPlan(t, interp.InterpretationDigestSHA256)
+	result := fixturePlanningResult(t, request.RequestDigestSHA256, candidate)
+
+	cmd, err := MapToCommand(state, request, result, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got, ok := cmd.(synthesis.RecordPlanCommand)
+	if !ok {
+		t.Fatalf("command type = %T, want synthesis.RecordPlanCommand", cmd)
+	}
+	if len(got.Plan.Steps) == 0 {
+		t.Fatal("setup: expected the candidate plan to carry at least one step")
+	}
+	original := got.Plan.Steps[0].Description
+
+	// Mutate the ORIGINAL result's nested slice-backed field AFTER mapping
+	// already happened.
+	result.PlanningPayload.Steps[0].Description = "a description the provider never actually wrote"
+
+	if got.Plan.Steps[0].Description != original {
+		t.Errorf("mutating the original Result's nested slice altered the already-returned command: got %q, want the original %q -- MapToCommand did not deep-copy the candidate", got.Plan.Steps[0].Description, original)
+	}
+}
