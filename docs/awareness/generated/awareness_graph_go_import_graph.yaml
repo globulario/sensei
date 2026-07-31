@@ -591,7 +591,9 @@ components:
       - golang/architecture/protection/types.go
       - golang/architecture/protection/util.go
       - golang/architecture/providerport/digest.go
+      - golang/architecture/providerport/execution.go
       - golang/architecture/providerport/normalize.go
+      - golang/architecture/providerport/provider.go
       - golang/architecture/providerport/schema.go
       - golang/architecture/providerport/types.go
       - golang/architecture/questiondisposition/errors.go
