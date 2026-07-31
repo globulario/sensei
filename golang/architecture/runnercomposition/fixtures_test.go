@@ -113,13 +113,17 @@ func fixtureRunnerReceipt(t *testing.T, disposition Disposition, artifact Candid
 		r.FailureDetail = "fixture failure detail for " + string(disposition)
 	}
 
-	if disposition == DispositionSnapshotFailure {
-		r.CleanupSucceeded = nil
-		r.CleanupFailureDetail = ""
-	} else {
-		r.CleanupSucceeded = boolPtr(true)
-		r.CleanupFailureDetail = ""
+	cleanupReq, err := CleanupRequirementFor(disposition)
+	if err != nil {
+		t.Fatal(err)
 	}
+	switch cleanupReq {
+	case CleanupNotApplicable:
+		r.CleanupSucceeded = nil
+	default: // CleanupRequired or CleanupAmbiguous -- both accept a boolean.
+		r.CleanupSucceeded = boolPtr(true)
+	}
+	r.CleanupFailureDetail = ""
 
 	return finishReceipt(t, r)
 }
@@ -137,5 +141,18 @@ func fixtureRunnerReceiptCleanupFailed(t *testing.T, disposition Disposition, ar
 	r := fixtureRunnerReceipt(t, disposition, artifact)
 	r.CleanupSucceeded = boolPtr(false)
 	r.CleanupFailureDetail = "failed to remove the ephemeral candidate buffer directory"
+	return finishReceipt(t, r)
+}
+
+// fixtureRunnerReceiptWorkspaceInitFailureCleanupUnknown mirrors
+// fixtureRunnerReceipt(t, DispositionWorkspaceInitFailure, artifact) but with
+// CleanupSucceeded == nil instead of a boolean -- proving BOTH valid shapes
+// for this one ambiguous disposition are accepted, not just the boolean the
+// shared builder happens to default to.
+func fixtureRunnerReceiptWorkspaceInitFailureCleanupUnknown(t *testing.T, artifact CandidateArtifact) RunnerReceipt {
+	t.Helper()
+	r := fixtureRunnerReceipt(t, DispositionWorkspaceInitFailure, artifact)
+	r.CleanupSucceeded = nil
+	r.CleanupFailureDetail = ""
 	return finishReceipt(t, r)
 }

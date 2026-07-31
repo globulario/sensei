@@ -123,11 +123,12 @@ type CandidateArtifact struct {
 
 const RunnerReceiptSchemaVersion = "sensei.runnercomposition.runnerreceipt.v1"
 
-// Disposition is the closed, eight-value vocabulary stating exactly how far
-// one generation attempt's runner sequence (provider construction -> O2 Run
-// -> workspace freezing -> verification -> sealing) progressed before it
-// stopped, per hard laws 5, 6a, and 13. It is not a correctness, admission,
-// or completion verdict -- only Disposition == DispositionVerified means the
+// Disposition is the closed, ten-value vocabulary stating exactly how far
+// one generation attempt's runner sequence (snapshot -> workspace/buffer
+// init -> provider construction -> O2 Run -> workspace freezing -> evidence
+// computation -> verification -> sealing) progressed before it stopped, per
+// hard laws 5, 5a, 6a, 8a, and 13. It is not a correctness, admission, or
+// completion verdict -- only Disposition == DispositionVerified means the
 // accompanying Result may reach MapToCommand. See the "Runner disposition
 // and evidence-presence matrix" table in
 // docs/design/governed-runner-composition-o3.md for the authoritative,
@@ -139,14 +140,22 @@ const (
 	// DispositionSnapshotFailure: the bounded, read-only repository
 	// snapshot could not be built. O2's Run was never invoked.
 	DispositionSnapshotFailure Disposition = "snapshot-failure"
-	// DispositionProviderConstructionFailure: the snapshot succeeded, but
+	// DispositionWorkspaceInitFailure: the snapshot succeeded, but
+	// initializing the ephemeral buffer or constructing CandidateWorkspace
+	// over it failed. O2's Run was never invoked. Whether a partial
+	// ephemeral surface exists at this point is not generally knowable, so
+	// this is the one disposition CleanupRequirementFor does not pin to a
+	// fixed presence (see CleanupAmbiguous).
+	DispositionWorkspaceInitFailure Disposition = "workspace-init-failure"
+	// DispositionProviderConstructionFailure: the snapshot and
+	// workspace/buffer init succeeded, but
 	// GenerationProviderFactory.NewProvider failed. O2's Run was never
 	// invoked.
 	DispositionProviderConstructionFailure Disposition = "provider-construction-failure"
-	// DispositionO2RunError: the snapshot and provider construction
-	// succeeded, but O2's Run itself returned a hard Go error -- no valid
-	// Result/Receipt was constructed at all (O2's own reserved meaning for
-	// that error).
+	// DispositionO2RunError: the snapshot, workspace init, and provider
+	// construction succeeded, but O2's Run itself returned a hard Go error
+	// -- no valid Result/Receipt was constructed at all (O2's own reserved
+	// meaning for that error).
 	DispositionO2RunError Disposition = "o2-run-error"
 	// DispositionO2NonCompleted: O2's Run produced a valid Result/Receipt,
 	// but TerminalOutcome was unavailable, timed-out, cancelled,
@@ -155,13 +164,21 @@ const (
 	DispositionO2NonCompleted Disposition = "o2-non-completed"
 	// DispositionWorkspaceFreezeFailure: O2's Run completed, but
 	// CandidateWorkspace.Close itself failed, so the final buffer content
-	// cannot be trusted as stable. Verification does not proceed.
+	// cannot be trusted as stable. Evidence computation does not proceed.
 	DispositionWorkspaceFreezeFailure Disposition = "workspace-freeze-failure"
+	// DispositionEvidenceComputationFailure: O2's Run completed and the
+	// workspace froze cleanly, but computing ProposedChangeDigestSHA256/
+	// FinalCandidateContentDigestSHA256 itself failed -- not a mismatch,
+	// a failure to produce a value at all. Distinct from both
+	// DispositionWorkspaceFreezeFailure (stops before computation is
+	// attempted) and DispositionDigestMismatch (computation succeeds, just
+	// doesn't match).
+	DispositionEvidenceComputationFailure Disposition = "evidence-computation-failure"
 	// DispositionDigestMismatch: O2's Run completed with
-	// TerminalOutcome: completed, the workspace froze cleanly, but O3's
-	// independently computed evidence did NOT match the Result's declared
-	// values. The candidate is still sealed, as evidence of what the
-	// mismatch actually was.
+	// TerminalOutcome: completed, the workspace froze cleanly, evidence
+	// computation succeeded, but O3's independently computed evidence did
+	// NOT match the Result's declared values. The candidate is still
+	// sealed, as evidence of what the mismatch actually was.
 	DispositionDigestMismatch Disposition = "digest-mismatch"
 	// DispositionSealFailure: every stage through verification succeeded
 	// and matched, but CandidateArtifactStore.Put failed.
@@ -175,10 +192,12 @@ const (
 func AllDispositions() []Disposition {
 	return []Disposition{
 		DispositionSnapshotFailure,
+		DispositionWorkspaceInitFailure,
 		DispositionProviderConstructionFailure,
 		DispositionO2RunError,
 		DispositionO2NonCompleted,
 		DispositionWorkspaceFreezeFailure,
+		DispositionEvidenceComputationFailure,
 		DispositionDigestMismatch,
 		DispositionSealFailure,
 		DispositionVerified,
@@ -200,21 +219,59 @@ type RunnerReceiptFieldPresence struct {
 
 // FieldPresenceFor returns the required non-nil/nil shape for d's digest
 // fields other than RequestDigestSHA256 (always present). Returns an error
-// if d is not one of the eight closed Disposition values.
+// if d is not one of the ten closed Disposition values.
 func FieldPresenceFor(d Disposition) (RunnerReceiptFieldPresence, error) {
 	switch d {
 	case DispositionSnapshotFailure:
 		return RunnerReceiptFieldPresence{}, nil
-	case DispositionProviderConstructionFailure, DispositionO2RunError:
+	case DispositionWorkspaceInitFailure, DispositionProviderConstructionFailure, DispositionO2RunError:
 		return RunnerReceiptFieldPresence{InputCandidate: true}, nil
-	case DispositionO2NonCompleted, DispositionWorkspaceFreezeFailure:
+	case DispositionO2NonCompleted, DispositionWorkspaceFreezeFailure, DispositionEvidenceComputationFailure:
 		return RunnerReceiptFieldPresence{Result: true, O2Receipt: true, InputCandidate: true}, nil
 	case DispositionSealFailure:
 		return RunnerReceiptFieldPresence{Result: true, O2Receipt: true, InputCandidate: true, ProposedChange: true, FinalCandidateContent: true}, nil
 	case DispositionDigestMismatch, DispositionVerified:
 		return RunnerReceiptFieldPresence{Result: true, O2Receipt: true, InputCandidate: true, ProposedChange: true, FinalCandidateContent: true, CandidateArtifact: true}, nil
 	default:
-		return RunnerReceiptFieldPresence{}, fmt.Errorf("runnercomposition: %q is not one of the eight closed Disposition values", d)
+		return RunnerReceiptFieldPresence{}, fmt.Errorf("runnercomposition: %q is not one of the ten closed Disposition values", d)
+	}
+}
+
+// CleanupRequirement states whether RunnerReceipt.CleanupSucceeded must be
+// nil, must be a non-nil boolean, or may legitimately be either, for a given
+// Disposition. Unlike the six digest fields (RunnerReceiptFieldPresence),
+// this is NOT a strict function of Disposition alone for
+// DispositionWorkspaceInitFailure -- see CleanupAmbiguous.
+type CleanupRequirement int
+
+const (
+	// CleanupNotApplicable: CleanupSucceeded must be nil. No ephemeral
+	// surface can exist yet.
+	CleanupNotApplicable CleanupRequirement = iota
+	// CleanupRequired: CleanupSucceeded must be a non-nil boolean. An
+	// ephemeral surface definitely exists.
+	CleanupRequired
+	// CleanupAmbiguous: CleanupSucceeded may legitimately be either nil or
+	// a non-nil boolean. Only DispositionWorkspaceInitFailure has this
+	// requirement -- whether a partial ephemeral surface was created
+	// before that failure is not generally knowable.
+	CleanupAmbiguous
+)
+
+// CleanupRequirementFor returns d's CleanupRequirement. Returns an error if
+// d is not one of the ten closed Disposition values.
+func CleanupRequirementFor(d Disposition) (CleanupRequirement, error) {
+	switch d {
+	case DispositionSnapshotFailure:
+		return CleanupNotApplicable, nil
+	case DispositionWorkspaceInitFailure:
+		return CleanupAmbiguous, nil
+	case DispositionProviderConstructionFailure, DispositionO2RunError,
+		DispositionO2NonCompleted, DispositionWorkspaceFreezeFailure, DispositionEvidenceComputationFailure,
+		DispositionDigestMismatch, DispositionSealFailure, DispositionVerified:
+		return CleanupRequired, nil
+	default:
+		return 0, fmt.Errorf("runnercomposition: %q is not one of the ten closed Disposition values", d)
 	}
 }
 

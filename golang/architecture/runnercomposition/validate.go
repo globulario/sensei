@@ -2,18 +2,40 @@
 
 package runnercomposition
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
-// ValidateCandidateArtifact performs the semantic checks a bare digest
-// recomputation does not (hard law 14a): every manifest entry's path, mode,
-// and content digest are internally consistent (the same checks
-// CanonicalizeManifest already applies), FinalCandidateContentDigestSHA256
-// equals ManifestDigest(Manifest), and the declared
-// CandidateArtifactDigestSHA256 equals a fresh recomputation.
+// ValidateCandidateArtifact is the one canonical acceptance path for a
+// CandidateArtifact (hard law 14a). Neither a digest recomputation nor
+// semantic checks alone certify a document -- a re-stamped document can have
+// an internally-correct outer digest and a self-consistent manifest while
+// still violating the closed schema (wrong schema_version, an empty
+// required string, an out-of-range generation/attempt number, a malformed
+// referenced digest, or nil Content/SymlinkTarget that marshals as JSON
+// null where the schema requires a string). So this function runs, in
+// order:
+//
+//  1. marshal a and validate it against the embedded closed schema
+//     (ValidateCandidateArtifactSchema);
+//  2. every manifest entry's path/mode/content-digest consistency (the same
+//     checks CanonicalizeManifest already applies);
+//  3. FinalCandidateContentDigestSHA256 == ManifestDigest(Manifest);
+//  4. the declared CandidateArtifactDigestSHA256 equals a fresh
+//     recomputation.
+//
 // CandidateArtifactStore.Put/Get must call this to truthfully promise
-// "verified" -- CandidateArtifactDigest alone only computes what the digest
-// would be; it does not prove the document is internally consistent.
+// "verified".
 func ValidateCandidateArtifact(a CandidateArtifact) error {
+	data, err := json.Marshal(a)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+	if err := ValidateCandidateArtifactSchema(data); err != nil {
+		return fmt.Errorf("schema: %w", err)
+	}
+
 	finalDigest, err := ManifestDigest(a.Manifest)
 	if err != nil {
 		return fmt.Errorf("manifest: %w", err)
@@ -31,14 +53,32 @@ func ValidateCandidateArtifact(a CandidateArtifact) error {
 	return nil
 }
 
-// ValidateRunnerReceipt performs the semantic checks a bare digest
-// recomputation does not (hard law 14a): Disposition is one of the eight
-// closed values, every digest field's presence matches
-// FieldPresenceFor(Disposition) exactly (the design doc's disposition
-// matrix), FailureDetail/CleanupSucceeded/CleanupFailureDetail follow their
-// own presence rules, and the declared RunnerReceiptDigestSHA256 equals a
-// fresh recomputation.
+// ValidateRunnerReceipt is the one canonical acceptance path for a
+// RunnerReceipt (hard law 14a), running, in order:
+//
+//  1. marshal r and validate it against the embedded closed schema
+//     (ValidateRunnerReceiptSchema);
+//  2. Disposition is one of the ten closed values, and every digest field's
+//     presence matches FieldPresenceFor(Disposition) exactly (the design
+//     doc's disposition matrix);
+//  3. FailureDetail's presence rule (non-empty unless verified);
+//  4. CleanupSucceeded's presence rule per CleanupRequirementFor(Disposition)
+//     -- nil for snapshot-failure, a non-nil boolean for every disposition
+//     from provider-construction-failure onward, and EITHER for
+//     workspace-init-failure specifically, since whether an ephemeral
+//     surface existed before that failure is not generally knowable;
+//     CleanupFailureDetail's presence rule (non-empty iff CleanupSucceeded
+//     is false);
+//  5. the declared RunnerReceiptDigestSHA256 equals a fresh recomputation.
 func ValidateRunnerReceipt(r RunnerReceipt) error {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+	if err := ValidateRunnerReceiptSchema(data); err != nil {
+		return fmt.Errorf("schema: %w", err)
+	}
+
 	want, err := FieldPresenceFor(r.Disposition)
 	if err != nil {
 		return err
@@ -70,12 +110,22 @@ func ValidateRunnerReceipt(r RunnerReceipt) error {
 		return fmt.Errorf("failure_detail must be non-empty when disposition is %q", r.Disposition)
 	}
 
-	if r.Disposition == DispositionSnapshotFailure {
+	cleanupReq, err := CleanupRequirementFor(r.Disposition)
+	if err != nil {
+		return err
+	}
+	switch cleanupReq {
+	case CleanupNotApplicable:
 		if r.CleanupSucceeded != nil {
-			return fmt.Errorf("cleanup_succeeded must be nil for disposition snapshot-failure -- no ephemeral surface was ever created")
+			return fmt.Errorf("cleanup_succeeded must be nil for disposition %q -- no ephemeral surface can exist yet", r.Disposition)
 		}
-	} else if r.CleanupSucceeded == nil {
-		return fmt.Errorf("cleanup_succeeded must be non-nil for disposition %q", r.Disposition)
+	case CleanupRequired:
+		if r.CleanupSucceeded == nil {
+			return fmt.Errorf("cleanup_succeeded must be non-nil for disposition %q", r.Disposition)
+		}
+	case CleanupAmbiguous:
+		// Either nil or a non-nil boolean is valid for
+		// DispositionWorkspaceInitFailure -- no check.
 	}
 	if r.CleanupSucceeded != nil && !*r.CleanupSucceeded && r.CleanupFailureDetail == "" {
 		return fmt.Errorf("cleanup_failure_detail must be non-empty when cleanup_succeeded is false")

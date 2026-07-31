@@ -89,6 +89,26 @@ func TestValidateRunnerReceiptAcceptsEveryValidDisposition(t *testing.T) {
 	}
 }
 
+// TestValidateRunnerReceiptAcceptsBothCleanupShapesForWorkspaceInitFailure is
+// the Go-level (not schema-level) analogue of
+// TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure:
+// ValidateRunnerReceipt itself, not just the embedded schema validator, must
+// accept EITHER a nil or a boolean CleanupSucceeded for
+// DispositionWorkspaceInitFailure.
+func TestValidateRunnerReceiptAcceptsBothCleanupShapesForWorkspaceInitFailure(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+
+	withBoolean := fixtureRunnerReceipt(t, DispositionWorkspaceInitFailure, a)
+	if err := ValidateRunnerReceipt(withBoolean); err != nil {
+		t.Errorf("workspace-init-failure with a boolean cleanup_succeeded rejected: %v", err)
+	}
+
+	withNil := fixtureRunnerReceiptWorkspaceInitFailureCleanupUnknown(t, a)
+	if err := ValidateRunnerReceipt(withNil); err != nil {
+		t.Errorf("workspace-init-failure with a nil cleanup_succeeded rejected: %v", err)
+	}
+}
+
 // TestValidateRunnerReceiptRejectsDigestCorrectButWrongPresence is the
 // RunnerReceipt analogue of the CandidateArtifact adversarial proof above:
 // a receipt whose RunnerReceiptDigestSHA256 is internally correct for its
@@ -126,5 +146,143 @@ func TestValidateRunnerReceiptRejectsMismatchedOuterDigest(t *testing.T) {
 	r.RunnerReceiptDigestSHA256 = zeroDigest
 	if err := ValidateRunnerReceipt(r); err == nil {
 		t.Error("expected a mismatched runner_receipt_digest_sha256 to be rejected")
+	}
+}
+
+// --- schema-enforcement adversarial proofs: a document that is semantically
+// self-consistent AND has a correct, re-stamped outer digest, but violates
+// the closed schema, must still be rejected. Neither semantic checks nor
+// digest recomputation alone can catch these -- only running the embedded
+// schema validator does (hard law 14a). Each test confirms the digest is
+// genuinely re-stamped correct, so a semantic-only ValidateCandidateArtifact/
+// ValidateRunnerReceipt would have accepted it.
+
+func TestValidateCandidateArtifactRejectsEmptyRepositoryDomainDespiteCorrectDigest(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+	tampered := a
+	tampered.RepositoryDomain = "" // schema requires minLength 1
+	digest, err := CandidateArtifactDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.CandidateArtifactDigestSHA256 = digest
+
+	if err := ValidateCandidateArtifact(tampered); err == nil {
+		t.Error("expected ValidateCandidateArtifact to reject an empty repository_domain even with a correct outer digest, but it passed")
+	}
+}
+
+func TestValidateCandidateArtifactRejectsZeroPlanGenerationDespiteCorrectDigest(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+	tampered := a
+	tampered.PlanGeneration = 0 // schema requires minimum 1
+	digest, err := CandidateArtifactDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.CandidateArtifactDigestSHA256 = digest
+
+	if err := ValidateCandidateArtifact(tampered); err == nil {
+		t.Error("expected ValidateCandidateArtifact to reject plan_generation=0 even with a correct outer digest, but it passed")
+	}
+}
+
+func TestValidateCandidateArtifactRejectsZeroAttemptNumberDespiteCorrectDigest(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+	tampered := a
+	tampered.AttemptNumber = 0 // schema requires minimum 1
+	digest, err := CandidateArtifactDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.CandidateArtifactDigestSHA256 = digest
+
+	if err := ValidateCandidateArtifact(tampered); err == nil {
+		t.Error("expected ValidateCandidateArtifact to reject attempt_number=0 even with a correct outer digest, but it passed")
+	}
+}
+
+// TestValidateCandidateArtifactRejectsNilManifestContentDespiteCorrectDigests
+// is the concrete "nil content that serializes as JSON null" case. sha256 of
+// a nil []byte and sha256 of an empty, non-nil []byte are IDENTICAL (both
+// the well-known empty-string digest), so an entry whose true content is
+// empty and whose ContentDigestSHA256 is that empty digest passes
+// CanonicalizeManifest/ManifestDigest/CandidateArtifactDigest cleanly
+// whether Content is nil or []byte{} -- the digest layer cannot distinguish
+// them. Only the schema catches that a nil []byte marshals to JSON null
+// where the schema requires a string.
+func TestValidateCandidateArtifactRejectsNilManifestContentDespiteCorrectDigests(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+	emptyDigest := sha256Hex(nil)
+	tampered := a
+	tampered.Manifest = append([]CandidateManifestEntry{}, a.Manifest...)
+	tampered.Manifest = append(tampered.Manifest, CandidateManifestEntry{
+		Path:                "empty.txt",
+		Mode:                ModeRegular,
+		Content:             nil, // marshals as JSON null
+		ContentDigestSHA256: emptyDigest,
+	})
+
+	finalDigest, err := ManifestDigest(tampered.Manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.FinalCandidateContentDigestSHA256 = finalDigest
+	digest, err := CandidateArtifactDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.CandidateArtifactDigestSHA256 = digest
+
+	if err := ValidateCandidateArtifact(tampered); err == nil {
+		t.Error("expected ValidateCandidateArtifact to reject a manifest entry with nil Content (serializes as JSON null) even with correct digests, but it passed")
+	}
+}
+
+func TestValidateRunnerReceiptRejectsEmptyReceiptIDDespiteCorrectDigest(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+	r := fixtureRunnerReceipt(t, DispositionVerified, a)
+	tampered := r
+	tampered.ReceiptID = "" // schema requires minLength 1
+	digest, err := RunnerReceiptDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.RunnerReceiptDigestSHA256 = digest
+
+	if err := ValidateRunnerReceipt(tampered); err == nil {
+		t.Error("expected ValidateRunnerReceipt to reject an empty receipt_id even with a correct outer digest, but it passed")
+	}
+}
+
+func TestValidateRunnerReceiptRejectsMalformedReferencedDigestPatternDespiteCorrectDigest(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+	r := fixtureRunnerReceipt(t, DispositionVerified, a)
+	tampered := r
+	tampered.ResultDigestSHA256 = stringPtr("not-a-valid-hex-digest") // schema requires ^[0-9a-f]{64}$
+	digest, err := RunnerReceiptDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.RunnerReceiptDigestSHA256 = digest
+
+	if err := ValidateRunnerReceipt(tampered); err == nil {
+		t.Error("expected ValidateRunnerReceipt to reject a malformed result_digest_sha256 pattern even with a correct outer digest, but it passed")
+	}
+}
+
+func TestValidateRunnerReceiptRejectsWrongSchemaVersionDespiteCorrectDigest(t *testing.T) {
+	a := fixtureCandidateArtifact(t)
+	r := fixtureRunnerReceipt(t, DispositionVerified, a)
+	tampered := r
+	tampered.SchemaVersion = "sensei.runnercomposition.runnerreceipt.v0" // schema requires the const v1 value
+	digest, err := RunnerReceiptDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered.RunnerReceiptDigestSHA256 = digest
+
+	if err := ValidateRunnerReceipt(tampered); err == nil {
+		t.Error("expected ValidateRunnerReceipt to reject a wrong schema_version even with a correct outer digest, but it passed")
 	}
 }

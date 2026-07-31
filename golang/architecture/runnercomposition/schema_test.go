@@ -245,11 +245,17 @@ func TestRunnerReceiptSchemaEnforcesFailureDetailPresence(t *testing.T) {
 
 // TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence proves
 // cleanup_succeeded is null only for snapshot-failure and a boolean for
-// every other disposition -- orthogonal to, but still checked per,
-// Disposition.
+// every disposition from provider-construction-failure onward -- orthogonal
+// to, but still checked per, Disposition. DispositionWorkspaceInitFailure is
+// deliberately excluded from this "wrong presence must be rejected" loop --
+// see TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure,
+// since both shapes are valid for it.
 func TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence(t *testing.T) {
 	artifact := fixtureCandidateArtifact(t)
 	for _, d := range AllDispositions() {
+		if d == DispositionWorkspaceInitFailure {
+			continue
+		}
 		d := d
 		t.Run(string(d), func(t *testing.T) {
 			r := fixtureRunnerReceipt(t, d, artifact)
@@ -266,6 +272,28 @@ func TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence(t *testing.T) {
 				t.Errorf("disposition %q with wrong cleanup_succeeded presence was accepted", d)
 			}
 		})
+	}
+}
+
+// TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure
+// proves DispositionWorkspaceInitFailure genuinely accepts EITHER a nil or a
+// boolean cleanup_succeeded -- the one disposition whose ephemeral-surface
+// existence is not knowable in general.
+func TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure(t *testing.T) {
+	artifact := fixtureCandidateArtifact(t)
+
+	withBoolean := fixtureRunnerReceipt(t, DispositionWorkspaceInitFailure, artifact)
+	if data, err := json.Marshal(withBoolean); err != nil {
+		t.Fatal(err)
+	} else if err := ValidateRunnerReceiptSchema(data); err != nil {
+		t.Errorf("workspace-init-failure with a boolean cleanup_succeeded rejected: %v", err)
+	}
+
+	withNil := fixtureRunnerReceiptWorkspaceInitFailureCleanupUnknown(t, artifact)
+	if data, err := json.Marshal(withNil); err != nil {
+		t.Fatal(err)
+	} else if err := ValidateRunnerReceiptSchema(data); err != nil {
+		t.Errorf("workspace-init-failure with a nil cleanup_succeeded rejected: %v", err)
 	}
 }
 
