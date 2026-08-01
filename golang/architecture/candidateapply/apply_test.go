@@ -92,19 +92,18 @@ func TestApplyRefusesArtifactTampering(t *testing.T) {
 	}
 }
 
-func TestApplyRefusesTargetContentDriftEvenWhenGitStatusIsCleaned(t *testing.T) {
+func TestApplyRefusesTargetContentDriftHiddenFromGitStatus(t *testing.T) {
 	fixture := newApplyFixture(t)
 	path := filepath.Join(fixture.input.TargetRoot, "a.txt")
+	runGit(t, fixture.input.TargetRoot, "update-index", "--assume-unchanged", "a.txt")
 	if err := os.WriteFile(path, []byte("drift\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	runGit(t, fixture.input.TargetRoot, "add", "a.txt")
-	runGit(t, fixture.input.TargetRoot, "commit", "-qm", "drift")
-	fixture.input.CandidateArtifact.BaseRevision = runGit(t, fixture.input.TargetRoot, "rev-parse", "HEAD")
-	fixture.input.AdmissionRequest.BaseRevision = fixture.input.CandidateArtifact.BaseRevision
-	fixture.input.Decision.Binding.Revision = fixture.input.CandidateArtifact.BaseRevision
+	if status := runGit(t, fixture.input.TargetRoot, "status", "--porcelain", "--untracked-files=all"); status != "" {
+		t.Fatalf("fixture did not hide target drift: %q", status)
+	}
 	if _, _, err := Apply(context.Background(), fixture.input, "2026-08-02T00:00:00Z"); err == nil {
-		t.Fatal("expected target content mismatch refusal")
+		t.Fatal("expected manifest-bound target content mismatch refusal")
 	}
 }
 
@@ -122,21 +121,20 @@ func TestAttachVerificationBindsDecisionAndPatch(t *testing.T) {
 	if finalReceipt.Disposition != DispositionVerificationRecorded || finalReceipt.AdmissionVerificationDigestSHA256 == nil {
 		t.Fatalf("verification not attached: %#v", finalReceipt)
 	}
-	verification.PatchDigestSHA256 = hex64("wrong-patch")
-	verification = canonicalVerificationFixture(t, fixture.input.Decision, verification.PatchDigestSHA256, admission.VerificationScopeCompliant)
-	if _, err := AttachVerification(receipt, fixture.input.Decision, verification, "2026-08-02T00:01:00Z"); err == nil {
+	wrong := canonicalVerificationFixture(t, fixture.input.Decision, hex64("wrong-patch"), admission.VerificationScopeCompliant)
+	if _, err := AttachVerification(receipt, fixture.input.Decision, wrong, "2026-08-02T00:01:00Z"); err == nil {
 		t.Fatal("expected patch-binding refusal")
 	}
 }
 
 func TestReceiptIdentityExcludesObservationTime(t *testing.T) {
-	fixtureA := newApplyFixture(t)
-	_, first, err := Apply(context.Background(), fixtureA.input, "2026-08-02T00:00:00Z")
+	fixture := newApplyFixture(t)
+	_, first, err := Apply(context.Background(), fixture.input, "2026-08-02T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixtureB := newApplyFixture(t)
-	_, second, err := Apply(context.Background(), fixtureB.input, "2026-08-02T03:00:00Z")
+	runGit(t, fixture.input.TargetRoot, "reset", "--hard", fixture.head)
+	_, second, err := Apply(context.Background(), fixture.input, "2026-08-02T03:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
