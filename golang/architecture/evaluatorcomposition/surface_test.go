@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/runnercomposition"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
