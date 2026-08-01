@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/admissioncomposition-request-v1.json",
+  "title": "Sensei ARCHER Admission Composition Request V1",
+  "description": "O5A's closed request document binding an exact candidate-ready O1/O3/O4 chain to a manifest-derived admission scope without modifying the frozen O1 receipt or replacing the existing admission owner.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "generated_by",
+    "synthesis_receipt_digest_sha256",
+    "runner_receipt_digest_sha256",
+    "evaluation_receipt_digest_sha256",
+    "candidate_artifact_digest_sha256",
+    "repository_domain",
+    "base_revision",
+    "derived_scope",
+    "unsupported_operations",
+    "admission_eligible",
+    "admission_request_digest_sha256",
+    "admission_request_identity_digest_sha256",
+    "request_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.admissioncomposition.request.v1" },
+    "request_id": { "type": "string", "minLength": 1 },
+    "generated_by": { "const": "sensei-admission-composition" },
+    "synthesis_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "runner_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "evaluation_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "repository_domain": { "type": "string", "minLength": 1 },
+    "base_revision": { "type": "string", "minLength": 1 },
+    "derived_scope": { "$ref": "#/$defs/changeScope" },
+    "unsupported_operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/unsupportedOperation" }
+    },
+    "admission_eligible": { "type": "boolean" },
+    "admission_request_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "admission_request_identity_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "request_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "admission_eligible": { "const": true } }, "required": ["admission_eligible"] },
+      "then": {
+        "properties": {
+          "unsupported_operations": { "maxItems": 0 },
+          "derived_scope": {
+            "properties": {
+              "files": { "minItems": 1 }
+            },
+            "required": ["files"]
+          },
+          "admission_request_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "admission_request_identity_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      },
+      "else": {
+        "properties": {
+          "admission_request_digest_sha256": { "type": "null" },
+          "admission_request_identity_digest_sha256": { "type": "null" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "optionalSha256Hex": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
+    },
+    "fileOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "operation"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "operation": { "const": "modify" }
+      }
+    },
+    "changeScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "files": { "type": "array", "items": { "$ref": "#/$defs/fileOperation" } },
+        "symbols": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "components": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "claim_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "proposition_keys": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "unsupportedOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "operation", "detail"],
+      "properties": {
+        "path": { "type": "string" },
+        "operation": { "type": "string", "minLength": 1 },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
