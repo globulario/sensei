@@ -10,16 +10,26 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // ValidateCandidatePath enforces hard law 9's canonical path rules: POSIX-
 // relative, "/"-separated, no leading "/", no "." or ".." segment, no
-// embedded NUL or newline byte, and no backslash. A path failing any of
-// these is rejected before it can appear in any manifest, so a traversal
-// sequence can never address outside the candidate tree. Backslash is
-// rejected outright -- rather than relying on an argument that it could
-// never be interpreted as a separator on some platform -- since Windows'
-// filesystem APIs treat it as one.
+// embedded NUL or newline byte, no backslash, and valid UTF-8. A path
+// failing any of these is rejected before it can appear in any manifest, so
+// a traversal sequence can never address outside the candidate tree.
+// Backslash is rejected outright -- rather than relying on an argument that
+// it could never be interpreted as a separator on some platform -- since
+// Windows' filesystem APIs treat it as one.
+//
+// The UTF-8 requirement exists because Path is a Go string, and Go strings
+// carrying invalid UTF-8 are not safe to round-trip through JSON: encoding/
+// json silently replaces an invalid byte sequence with U+FFFD on marshal,
+// changing the actual bytes with no error -- so a stored CandidateArtifact
+// could diverge from the raw git path its digest was computed over. Git
+// itself is encoding-agnostic for tree entry names (a path is just bytes),
+// so this is reachable from real, if unusual, repository content -- not a
+// hypothetical.
 func ValidateCandidatePath(path string) error {
 	if path == "" {
 		return fmt.Errorf("candidate path must not be empty")
@@ -29,6 +39,9 @@ func ValidateCandidatePath(path string) error {
 	}
 	if strings.ContainsAny(path, "\x00\n\\") {
 		return fmt.Errorf("candidate path %q must not contain a NUL, newline, or backslash byte", path)
+	}
+	if !utf8.ValidString(path) {
+		return fmt.Errorf("candidate path %q is not valid UTF-8", path)
 	}
 	for _, seg := range strings.Split(path, "/") {
 		if seg == "" {
@@ -81,6 +94,13 @@ func CanonicalizeManifest(entries []CandidateManifestEntry) ([]CandidateManifest
 		case ModeSymlink:
 			if len(e.Content) != 0 {
 				return nil, fmt.Errorf("path %q: content must be empty for mode symlink", e.Path)
+			}
+			// SymlinkTarget is a Go string, subject to the same JSON
+			// silent-U+FFFD-replacement hazard ValidateCandidatePath's UTF-8
+			// check documents -- and git's symlink blob content is exactly
+			// as encoding-agnostic as a path.
+			if !utf8.ValidString(e.SymlinkTarget) {
+				return nil, fmt.Errorf("path %q: symlink_target is not valid UTF-8", e.Path)
 			}
 			want := sha256Hex([]byte(e.SymlinkTarget))
 			if e.ContentDigestSHA256 != want {

@@ -2,7 +2,11 @@
 
 package runnercomposition
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 func TestValidateCandidatePathRejectsInvalidPaths(t *testing.T) {
 	cases := []string{
@@ -49,6 +53,53 @@ func TestValidateCandidatePathAcceptsValidPaths(t *testing.T) {
 		if err := ValidateCandidatePath(p); err != nil {
 			t.Errorf("ValidateCandidatePath(%q) = %v, want nil", p, err)
 		}
+	}
+}
+
+func TestValidateCandidatePathRejectsInvalidUTF8(t *testing.T) {
+	if err := ValidateCandidatePath("a/\xff\xfeb.txt"); err == nil {
+		t.Error("expected an invalid-UTF-8 path to be rejected")
+	}
+}
+
+func TestCanonicalizeManifestRejectsInvalidUTF8SymlinkTarget(t *testing.T) {
+	entries := []CandidateManifestEntry{
+		{
+			Path:                "link",
+			Mode:                ModeSymlink,
+			SymlinkTarget:       "bad-\xff\xfe-target",
+			ContentDigestSHA256: sha256Hex([]byte("bad-\xff\xfe-target")),
+		},
+	}
+	if _, err := CanonicalizeManifest(entries); err == nil {
+		t.Error("expected an invalid-UTF-8 symlink_target to be rejected")
+	}
+}
+
+// TestInvalidUTF8JSONRoundTripCorruptsSilently is a direct reproduction of
+// the hazard ValidateCandidatePath's and CanonicalizeManifest's UTF-8
+// checks exist to prevent: encoding/json silently replaces an invalid byte
+// sequence with U+FFFD on marshal of a Go string, with no error -- so a
+// CandidateManifestEntry's Path or SymlinkTarget, both plain string fields,
+// could diverge from the raw git bytes their ContentDigestSHA256/manifest
+// digest were computed over, purely by being stored and reloaded as JSON.
+// This test does not exercise this package's code at all; it proves the
+// hazard the rejection above avoids is real, not hypothetical.
+func TestInvalidUTF8JSONRoundTripCorruptsSilently(t *testing.T) {
+	invalid := "a\xff\xfeb"
+	b, err := json.Marshal(invalid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var roundTripped string
+	if err := json.Unmarshal(b, &roundTripped); err != nil {
+		t.Fatal(err)
+	}
+	if roundTripped == invalid {
+		t.Fatal("expected the JSON round-trip to corrupt invalid UTF-8 -- got an exact match instead, this reproduction no longer demonstrates the hazard")
+	}
+	if !strings.Contains(roundTripped, "�") {
+		t.Errorf("expected the JSON round-trip to introduce U+FFFD replacement characters, got %q", roundTripped)
 	}
 }
 

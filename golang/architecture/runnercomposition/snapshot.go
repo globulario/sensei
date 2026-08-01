@@ -433,24 +433,40 @@ func fetchBlobContents(ctx context.Context, repositoryRoot, isolatedHome string,
 }
 
 // InitializeCandidateBuffer creates a fresh, independent directory as a
-// full copy of snapshotDir (hard law 8). Immediately after this call,
-// BuildManifest(bufferDir) is identical to BuildManifest(snapshotDir) --
-// no mutation has happened yet, since nothing has touched the buffer.
+// full copy of snapshotDir (hard law 8), then BINDS the result to
+// snapshotManifest's identity rather than trusting the copy blindly: it
+// rebuilds the freshly-copied buffer's manifest from the filesystem
+// (BuildManifest) and compares that manifest's digest against
+// ManifestDigest(snapshotManifest) -- the same digest ExtractSnapshot
+// returns as InputCandidateDigestSHA256. A mismatch (a copyTree bug, a
+// caller passing a manifest that does not actually describe snapshotDir's
+// content, concurrent modification of snapshotDir between extraction and
+// buffer initialization) is reported as an error rather than silently
+// producing a buffer whose starting content does not match the pinned
+// input identity it is supposed to start from.
 //
 // snapshotDir must be an absolute, real (non-symlink) directory.
+// snapshotManifest is validated via ManifestDigest/CanonicalizeManifest --
+// the same validation every manifest in this package goes through.
 //
-// On success, returns the buffer directory's path and a cleanup function
-// the caller must call once the buffer is no longer needed; its error must
-// not be discarded, for the same reason ExtractSnapshot's is not. On error,
+// On success, returns the buffer directory's path, its (freshly rebuilt,
+// canonical) manifest, and that manifest's digest -- identical to
+// snapshotManifest's digest, per hard law 8, which the internal comparison
+// above already proved. The returned cleanup function's error must not be
+// discarded, for the same reason ExtractSnapshot's is not. On error,
 // nothing is left behind.
-func InitializeCandidateBuffer(snapshotDir string) (bufferDir string, cleanup func() error, err error) {
+func InitializeCandidateBuffer(snapshotDir string, snapshotManifest []CandidateManifestEntry) (bufferDir string, bufferManifest []CandidateManifestEntry, bufferDigestSHA256 string, cleanup func() error, err error) {
 	if err := validateAbsoluteRealDirectory("snapshotDir", snapshotDir); err != nil {
-		return "", nil, err
+		return "", nil, "", nil, err
+	}
+	expectedDigest, err := ManifestDigest(snapshotManifest)
+	if err != nil {
+		return "", nil, "", nil, fmt.Errorf("InitializeCandidateBuffer: snapshotManifest: %w", err)
 	}
 
 	parent, err := os.MkdirTemp("", "runnercomposition-buffer-")
 	if err != nil {
-		return "", nil, fmt.Errorf("InitializeCandidateBuffer: create staging directory: %w", err)
+		return "", nil, "", nil, fmt.Errorf("InitializeCandidateBuffer: create staging directory: %w", err)
 	}
 	succeeded := false
 	defer func() {
@@ -461,9 +477,25 @@ func InitializeCandidateBuffer(snapshotDir string) (bufferDir string, cleanup fu
 
 	dest := filepath.Join(parent, "buffer")
 	if err := copyTree(snapshotDir, dest); err != nil {
-		return "", nil, fmt.Errorf("InitializeCandidateBuffer: %w", err)
+		return "", nil, "", nil, fmt.Errorf("InitializeCandidateBuffer: %w", err)
+	}
+
+	diskEntries, err := BuildManifest(dest)
+	if err != nil {
+		return "", nil, "", nil, fmt.Errorf("InitializeCandidateBuffer: rebuild buffer manifest: %w", err)
+	}
+	diskCanonical, err := CanonicalizeManifest(diskEntries)
+	if err != nil {
+		return "", nil, "", nil, fmt.Errorf("InitializeCandidateBuffer: %w", err)
+	}
+	diskDigest, err := ManifestDigest(diskEntries)
+	if err != nil {
+		return "", nil, "", nil, fmt.Errorf("InitializeCandidateBuffer: %w", err)
+	}
+	if diskDigest != expectedDigest {
+		return "", nil, "", nil, fmt.Errorf("InitializeCandidateBuffer: freshly copied buffer's manifest digest %q does not match snapshotManifest's digest %q -- buffer is not bound to the pinned snapshot identity", diskDigest, expectedDigest)
 	}
 
 	succeeded = true
-	return dest, func() error { return os.RemoveAll(parent) }, nil
+	return dest, diskCanonical, diskDigest, func() error { return os.RemoveAll(parent) }, nil
 }

@@ -148,7 +148,10 @@ func TestExtractSnapshotBypassesExportSubst(t *testing.T) {
 // TestExtractSnapshotAndInitializeCandidateBufferProduceIdenticalManifests
 // proves hard law 8: immediately after buffer initialization, the buffer's
 // manifest (and therefore its ManifestDigest) is identical to the
-// snapshot's -- no mutation has happened yet.
+// snapshot's -- no mutation has happened yet. Unlike an external
+// before/after comparison, this also exercises InitializeCandidateBuffer's
+// own internal rebuild-and-compare check (it would have returned an error
+// here if that check itself were wrong).
 func TestExtractSnapshotAndInitializeCandidateBufferProduceIdenticalManifests(t *testing.T) {
 	root := initTestRepo(t, func(root string) {
 		if err := os.MkdirAll(filepath.Join(root, "sub"), 0o755); err != nil {
@@ -165,28 +168,112 @@ func TestExtractSnapshotAndInitializeCandidateBufferProduceIdenticalManifests(t 
 	})
 	rev := runGit(t, root, "rev-parse", "HEAD")
 
-	snapshotDir, _, snapshotDigest, snapshotCleanup, err := ExtractSnapshot(context.Background(), root, rev)
+	snapshotDir, snapshotManifest, snapshotDigest, snapshotCleanup, err := ExtractSnapshot(context.Background(), root, rev)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer snapshotCleanup()
 
-	bufferDir, bufferCleanup, err := InitializeCandidateBuffer(snapshotDir)
+	bufferDir, bufferManifest, bufferDigest, bufferCleanup, err := InitializeCandidateBuffer(snapshotDir, snapshotManifest)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer bufferCleanup()
 
-	bufferEntries, err := BuildManifest(bufferDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bufferDigest, err := ManifestDigest(bufferEntries)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if snapshotDigest != bufferDigest {
 		t.Errorf("snapshot digest %q != freshly-initialized buffer digest %q", snapshotDigest, bufferDigest)
+	}
+
+	// Cross-check the returned bufferManifest against an independent
+	// rebuild from the filesystem, the same way ExtractSnapshot's binding
+	// is cross-checked.
+	diskEntries, err := BuildManifest(bufferDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diskDigest, err := ManifestDigest(diskEntries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diskDigest != bufferDigest {
+		t.Errorf("digest returned by InitializeCandidateBuffer (%q) does not match ManifestDigest(BuildManifest(bufferDir)) (%q)", bufferDigest, diskDigest)
+	}
+	wantDigest, err := ManifestDigest(bufferManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wantDigest != bufferDigest {
+		t.Errorf("digest returned by InitializeCandidateBuffer (%q) does not equal ManifestDigest(bufferManifest) (%q)", bufferDigest, wantDigest)
+	}
+}
+
+// TestInitializeCandidateBufferRejectsMismatchedSnapshotManifest proves the
+// rebuild-and-compare binding is real: passing a snapshotManifest that does
+// not actually describe snapshotDir's content must be rejected, not
+// silently accepted because the directory copy itself succeeded.
+func TestInitializeCandidateBufferRejectsMismatchedSnapshotManifest(t *testing.T) {
+	root := initTestRepo(t, func(root string) {
+		os.WriteFile(filepath.Join(root, "a.txt"), []byte("real content"), 0o644)
+		runGit(t, root, "add", "-A")
+		runGit(t, root, "commit", "-q", "-m", "init")
+	})
+	rev := runGit(t, root, "rev-parse", "HEAD")
+
+	snapshotDir, _, _, snapshotCleanup, err := ExtractSnapshot(context.Background(), root, rev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer snapshotCleanup()
+
+	wrongManifest := []CandidateManifestEntry{
+		{
+			Path:                "a.txt",
+			Mode:                ModeRegular,
+			Content:             []byte("not the real content"),
+			ContentDigestSHA256: sha256Hex([]byte("not the real content")),
+		},
+	}
+
+	if _, _, _, _, err := InitializeCandidateBuffer(snapshotDir, wrongManifest); err == nil {
+		t.Error("expected a snapshotManifest that does not describe snapshotDir's actual content to be rejected")
+	}
+}
+
+// TestInitializeCandidateBufferMutationDoesNotAffectSnapshot proves mutation
+// independence directly, rather than only at digest-equality-at-creation-
+// time: writing into the buffer after initialization must not be visible
+// in the snapshot, i.e. copyTree produced a real, independent byte copy,
+// not a shared reference to the same underlying storage.
+func TestInitializeCandidateBufferMutationDoesNotAffectSnapshot(t *testing.T) {
+	root := initTestRepo(t, func(root string) {
+		os.WriteFile(filepath.Join(root, "a.txt"), []byte("original"), 0o644)
+		runGit(t, root, "add", "-A")
+		runGit(t, root, "commit", "-q", "-m", "init")
+	})
+	rev := runGit(t, root, "rev-parse", "HEAD")
+
+	snapshotDir, snapshotManifest, _, snapshotCleanup, err := ExtractSnapshot(context.Background(), root, rev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer snapshotCleanup()
+
+	bufferDir, _, _, bufferCleanup, err := InitializeCandidateBuffer(snapshotDir, snapshotManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bufferCleanup()
+
+	if err := os.WriteFile(filepath.Join(bufferDir, "a.txt"), []byte("mutated"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(snapshotDir, "a.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "original" {
+		t.Errorf("snapshotDir/a.txt = %q after mutating bufferDir/a.txt, want unchanged %q -- buffer and snapshot share storage", got, "original")
 	}
 }
 
@@ -302,6 +389,75 @@ func TestExtractSnapshotRejectsSubmodule(t *testing.T) {
 	}
 }
 
+// gitHashObjectStdin writes content as a new blob via `git hash-object -w
+// --stdin` and returns its object ID. Used to construct tree entries git's
+// normal working-tree commands would never produce (like a symlink target
+// containing invalid UTF-8), via the low-level update-index plumbing.
+func gitHashObjectStdin(t *testing.T, dir string, content []byte) string {
+	t.Helper()
+	cmd := exec.Command("git", "hash-object", "-w", "--stdin")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1")
+	cmd.Stdin = strings.NewReader(string(content))
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git hash-object: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// TestExtractSnapshotRejectsInvalidUTF8Path proves a tree entry whose path
+// is not valid UTF-8 is rejected rather than silently converted into a Go
+// string that would later corrupt on a JSON round-trip (encoding/json
+// replaces an invalid byte sequence with U+FFFD on marshal, with no error
+// -- see TestInvalidUTF8JSONRoundTripCorruptsSilently in manifest_test.go
+// for a direct reproduction of that hazard). Git itself is
+// encoding-agnostic for tree entry names, so this is reachable from real
+// repository content, constructed here via the low-level update-index
+// plumbing since normal working-tree commands would refuse such a path on
+// most platforms.
+func TestExtractSnapshotRejectsInvalidUTF8Path(t *testing.T) {
+	root := initTestRepo(t, func(root string) {
+		os.WriteFile(filepath.Join(root, "seed.txt"), []byte("seed"), 0o644)
+		runGit(t, root, "add", "-A")
+		runGit(t, root, "commit", "-q", "-m", "seed")
+	})
+	blobOID := gitHashObjectStdin(t, root, []byte("content"))
+	invalidPath := "bad-\xff\xfe-name.txt"
+	cmd := exec.Command("git", "update-index", "--add", "--cacheinfo", "100644,"+blobOID+","+invalidPath)
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git update-index: %v\n%s", err, out)
+	}
+	runGit(t, root, "commit", "-q", "-m", "invalid utf8 path")
+	rev := runGit(t, root, "rev-parse", "HEAD")
+
+	if _, _, _, _, err := ExtractSnapshot(context.Background(), root, rev); err == nil {
+		t.Error("expected an invalid-UTF-8 path to be rejected")
+	}
+}
+
+// TestExtractSnapshotRejectsInvalidUTF8SymlinkTarget is
+// TestExtractSnapshotRejectsInvalidUTF8Path's counterpart for symlink blob
+// content: git's symlink blob content (the literal target string) is just
+// as encoding-agnostic as a path.
+func TestExtractSnapshotRejectsInvalidUTF8SymlinkTarget(t *testing.T) {
+	root := initTestRepo(t, func(root string) {
+		os.WriteFile(filepath.Join(root, "seed.txt"), []byte("seed"), 0o644)
+		runGit(t, root, "add", "-A")
+		runGit(t, root, "commit", "-q", "-m", "seed")
+	})
+	invalidTargetOID := gitHashObjectStdin(t, root, []byte("bad-\xff\xfe-target"))
+	runGit(t, root, "update-index", "--add", "--cacheinfo", "120000,"+invalidTargetOID+",badlink")
+	runGit(t, root, "commit", "-q", "-m", "invalid utf8 symlink target")
+	rev := runGit(t, root, "rev-parse", "HEAD")
+
+	if _, _, _, _, err := ExtractSnapshot(context.Background(), root, rev); err == nil {
+		t.Error("expected an invalid-UTF-8 symlink target to be rejected")
+	}
+}
+
 // TestExtractSnapshotLeavesNothingBehindOnFailure is the "honest
 // partial-cleanup" proof: a run that fails partway (here, after listing the
 // tree succeeds but the revision itself is bogus so listing fails
@@ -350,13 +506,13 @@ func TestInitializeCandidateBufferRejectsSymlinkRoot(t *testing.T) {
 	if err := os.Symlink(real, link); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := InitializeCandidateBuffer(link); err == nil {
+	if _, _, _, _, err := InitializeCandidateBuffer(link, nil); err == nil {
 		t.Error("expected a symlink snapshotDir to be rejected")
 	}
 }
 
 func TestInitializeCandidateBufferRejectsRelativeRoot(t *testing.T) {
-	if _, _, err := InitializeCandidateBuffer("relative/path"); err == nil {
+	if _, _, _, _, err := InitializeCandidateBuffer("relative/path", nil); err == nil {
 		t.Error("expected a relative snapshotDir to be rejected")
 	}
 }
@@ -370,7 +526,11 @@ func TestInitializeCandidateBufferCleanupReportsSuccessAndRemovesDirectory(t *te
 	if err := os.WriteFile(filepath.Join(snapshotDir, "a.txt"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	bufferDir, cleanup, err := InitializeCandidateBuffer(snapshotDir)
+	snapshotManifest, err := BuildManifest(snapshotDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bufferDir, _, _, cleanup, err := InitializeCandidateBuffer(snapshotDir, snapshotManifest)
 	if err != nil {
 		t.Fatal(err)
 	}
