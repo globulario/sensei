@@ -90,7 +90,7 @@ jobs:
         run: examples/orders-money-scar/run.sh
 
   pr126-review-closure:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/agent/governed-evaluator-composition-o4'
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 126
     runs-on: ubuntu-latest
 
     steps:
