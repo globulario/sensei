@@ -128,17 +128,17 @@ func closeEvaluatorFailure(surface EvaluatorSurface, failure error) error {
 // truth, re-digests the result, and validates it again. A cleanup failure is an
 // attributable limitation, not permission to rewrite the evaluator's checks.
 func ExecuteEvaluator(ctx context.Context, evaluator Evaluator, input EvaluationInput, surface EvaluatorSurface) (EvaluatorExecution, error) {
-	if evaluator == nil {
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: nil evaluator")
-	}
 	if surface == nil {
 		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: nil surface")
 	}
+	if evaluator == nil {
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: nil evaluator"))
+	}
 	if input.EvaluatorSurfaceRef != surface.Ref() {
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: input surface ref %q does not match surface %q", input.EvaluatorSurfaceRef, surface.Ref())
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: input surface ref %q does not match surface %q", input.EvaluatorSurfaceRef, surface.Ref()))
 	}
 	if err := ValidateEvaluationInput(input); err != nil {
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: invalid input: %w", err)
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: invalid input: %w", err))
 	}
 
 	descriptor, err := evaluator.Describe(ctx)

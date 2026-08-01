@@ -191,3 +191,40 @@ func TestExecuteEvaluatorClosesSurfaceOnEvaluatorErrorAndBindingRefusal(t *testi
 		}
 	})
 }
+
+func TestExecuteEvaluatorRevokesSurfaceOnEarlyInputRefusal(t *testing.T) {
+	t.Run("nil evaluator", func(t *testing.T) {
+		surface := &recordingEvaluatorSurface{ref: "surface://test/nil-evaluator/plain", root: t.TempDir(), mode: SurfaceModePlain}
+		input := evaluationInputForSurface(t, surface)
+		if _, err := ExecuteEvaluator(context.Background(), nil, input, surface); err == nil {
+			t.Fatal("nil evaluator was accepted")
+		}
+		if surface.closed != 1 {
+			t.Fatalf("surface Close calls = %d, want 1", surface.closed)
+		}
+	})
+	t.Run("surface ref mismatch", func(t *testing.T) {
+		surface := &recordingEvaluatorSurface{ref: "surface://test/ref-mismatch/plain", root: t.TempDir(), mode: SurfaceModePlain}
+		input := evaluationInputForSurface(t, surface)
+		input.EvaluatorSurfaceRef = "surface://different"
+		evaluator := EvaluatorFunc{}
+		if _, err := ExecuteEvaluator(context.Background(), evaluator, input, surface); err == nil || !strings.Contains(err.Error(), "surface ref") {
+			t.Fatalf("surface ref refusal = %v", err)
+		}
+		if surface.closed != 1 {
+			t.Fatalf("surface Close calls = %d, want 1", surface.closed)
+		}
+	})
+	t.Run("invalid input", func(t *testing.T) {
+		surface := &recordingEvaluatorSurface{ref: "surface://test/invalid-input/plain", root: t.TempDir(), mode: SurfaceModePlain}
+		input := evaluationInputForSurface(t, surface)
+		input.EvaluationInputDigestSHA256 = strings.Repeat("0", 64)
+		evaluator := EvaluatorFunc{}
+		if _, err := ExecuteEvaluator(context.Background(), evaluator, input, surface); err == nil || !strings.Contains(err.Error(), "invalid input") {
+			t.Fatalf("invalid input refusal = %v", err)
+		}
+		if surface.closed != 1 {
+			t.Fatalf("surface Close calls = %d, want 1", surface.closed)
+		}
+	})
+}

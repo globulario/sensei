@@ -142,10 +142,8 @@ func (m *CandidateMaterializer) Materialize(ctx context.Context, artifact runner
 	if mode != SurfaceModePlain && mode != SurfaceModeGitDiff {
 		return nil, fmt.Errorf("CandidateMaterializer.Materialize: unsupported surface mode %q", mode)
 	}
-	if mode == SurfaceModeGitDiff {
-		if err := validateGitControlPaths(artifact.Manifest); err != nil {
-			return nil, fmt.Errorf("CandidateMaterializer.Materialize: %w", err)
-		}
+	if err := validateGitControlPaths(artifact.Manifest); err != nil {
+		return nil, fmt.Errorf("CandidateMaterializer.Materialize: %w", err)
 	}
 
 	baseDir, baseManifest, baseDigest, baseCleanup, err := runnercomposition.ExtractSnapshot(ctx, m.RepositoryRoot, artifact.BaseRevision)
@@ -268,7 +266,13 @@ func validateGitControlPaths(entries []runnercomposition.CandidateManifestEntry)
 	for _, entry := range entries {
 		folded := strings.ToLower(entry.Path)
 		if folded == ".git" || strings.HasPrefix(folded, ".git/") {
-			return fmt.Errorf("candidate manifest path %q targets the disposable Git control directory", entry.Path)
+			return fmt.Errorf("candidate manifest path %q targets the reserved Git control directory", entry.Path)
+		}
+		if entry.Mode == runnercomposition.ModeSymlink {
+			resolved := strings.ToLower(path.Clean(path.Join(path.Dir(entry.Path), entry.SymlinkTarget)))
+			if resolved == ".git" || strings.HasPrefix(resolved, ".git/") {
+				return fmt.Errorf("candidate symlink %q targets the reserved Git control directory through %q", entry.Path, entry.SymlinkTarget)
+			}
 		}
 	}
 	return nil

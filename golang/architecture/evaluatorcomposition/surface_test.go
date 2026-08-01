@@ -226,31 +226,55 @@ func TestCandidateMaterializerRejectsEscapingSymlinkBeforeWritingSurface(t *test
 	}
 }
 
-func TestCandidateMaterializerGitDiffRejectsCandidateGitControlPaths(t *testing.T) {
+func TestCandidateMaterializerRejectsCandidateGitControlPathsAndSymlinks(t *testing.T) {
 	artifact, _, _, repoRoot := checkpoint4Fixture(t)
 	materializer, err := NewCandidateMaterializer(artifact.RepositoryDomain, repoRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, candidatePath := range []string{".git/config", ".GIT/hooks/pre-commit"} {
-		t.Run(candidatePath, func(t *testing.T) {
+	tests := []struct {
+		name  string
+		entry runnercomposition.CandidateManifestEntry
+	}{
+		{name: "direct lower", entry: gitControlRegularEntry(t, ".git/config")},
+		{name: "direct folded", entry: gitControlRegularEntry(t, ".GIT/hooks/pre-commit")},
+		{name: "symlink", entry: gitControlSymlinkEntry(t, "leak", ".git/config")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			tampered := artifact
-			content := []byte("candidate-controlled Git configuration\n")
-			sum := sha256.Sum256(content)
-			tampered.Manifest = append(tampered.Manifest, runnercomposition.CandidateManifestEntry{
-				Path: candidatePath, Mode: runnercomposition.ModeRegular,
-				Content: content, SymlinkTarget: "", ContentDigestSHA256: hex.EncodeToString(sum[:]),
-			})
+			tampered.Manifest = append(tampered.Manifest, test.entry)
 			finalDigest, err := runnercomposition.ManifestDigest(tampered.Manifest)
 			if err != nil {
 				t.Fatal(err)
 			}
 			tampered.FinalCandidateContentDigestSHA256 = finalDigest
 			tampered = finishSurfaceArtifact(t, tampered)
-			if _, err := materializer.Materialize(context.Background(), tampered, "sensei-gate", SurfaceModeGitDiff); err == nil || !strings.Contains(err.Error(), "Git control directory") {
-				t.Fatalf("candidate Git control path rejection = %v", err)
+			for _, mode := range []SurfaceMode{SurfaceModePlain, SurfaceModeGitDiff} {
+				if _, err := materializer.Materialize(context.Background(), tampered, "evaluator", mode); err == nil || !strings.Contains(err.Error(), "Git control directory") {
+					t.Fatalf("mode %q candidate Git control rejection = %v", mode, err)
+				}
 			}
 		})
+	}
+}
+
+func gitControlRegularEntry(t *testing.T, candidatePath string) runnercomposition.CandidateManifestEntry {
+	t.Helper()
+	content := []byte("candidate-controlled Git configuration\n")
+	sum := sha256.Sum256(content)
+	return runnercomposition.CandidateManifestEntry{
+		Path: candidatePath, Mode: runnercomposition.ModeRegular,
+		Content: content, SymlinkTarget: "", ContentDigestSHA256: hex.EncodeToString(sum[:]),
+	}
+}
+
+func gitControlSymlinkEntry(t *testing.T, candidatePath, target string) runnercomposition.CandidateManifestEntry {
+	t.Helper()
+	sum := sha256.Sum256([]byte(target))
+	return runnercomposition.CandidateManifestEntry{
+		Path: candidatePath, Mode: runnercomposition.ModeSymlink,
+		Content: []byte{}, SymlinkTarget: target, ContentDigestSHA256: hex.EncodeToString(sum[:]),
 	}
 }
 
