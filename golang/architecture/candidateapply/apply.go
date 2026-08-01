@@ -21,7 +21,7 @@ import (
 )
 
 type stagedReplacement struct {
-	path       string
+	path        string
 	destination string
 	temporary   string
 	backup      string
@@ -142,20 +142,20 @@ func Apply(ctx context.Context, in ApplyInput, completedAt string) (Request, Rec
 	}
 
 	receipt := NormalizeReceipt(Receipt{
-		SchemaVersion:                             ReceiptSchemaVersion,
-		ReceiptID:                                 "o5b-receipt." + req.RequestDigestSHA256[:16],
-		GeneratedBy:                               GeneratedBy,
-		RequestDigestSHA256:                       req.RequestDigestSHA256,
-		AdmissionCompositionReceiptDigestSHA256:   req.AdmissionCompositionReceiptDigestSHA256,
-		AdmissionDecisionDigestSHA256:             req.AdmissionDecisionDigestSHA256,
-		CandidateArtifactDigestSHA256:             req.CandidateArtifactDigestSHA256,
-		InputCandidateDigestSHA256:                req.InputCandidateDigestSHA256,
-		FinalCandidateContentDigestSHA256:         req.FinalCandidateContentDigestSHA256,
-		PatchDigestSHA256:                         patchDigest,
-		AppliedPaths:                              append([]string{}, req.ModifyPaths...),
-		Disposition:                              DispositionApplied,
-		Detail:                                   "admitted sealed candidate applied to clean pinned worktree",
-		CompletedAt:                              completedAt,
+		SchemaVersion:                           ReceiptSchemaVersion,
+		ReceiptID:                               "o5b-receipt." + req.RequestDigestSHA256[:16],
+		GeneratedBy:                             GeneratedBy,
+		RequestDigestSHA256:                     req.RequestDigestSHA256,
+		AdmissionCompositionReceiptDigestSHA256: req.AdmissionCompositionReceiptDigestSHA256,
+		AdmissionDecisionDigestSHA256:           req.AdmissionDecisionDigestSHA256,
+		CandidateArtifactDigestSHA256:           req.CandidateArtifactDigestSHA256,
+		InputCandidateDigestSHA256:              req.InputCandidateDigestSHA256,
+		FinalCandidateContentDigestSHA256:       req.FinalCandidateContentDigestSHA256,
+		PatchDigestSHA256:                       patchDigest,
+		AppliedPaths:                            append([]string{}, req.ModifyPaths...),
+		Disposition:                             DispositionApplied,
+		Detail:                                  "admitted sealed candidate applied to clean pinned worktree",
+		CompletedAt:                             completedAt,
 	})
 	digest, err := ReceiptDigest(receipt)
 	if err != nil {
