@@ -133,8 +133,9 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		return nil, status.Errorf(codes.Unavailable, "code symbol query failed: %v", err)
 	}
 	impact = limitImpactResponseWithProfile(impact, profile)
+	sectionScope := briefingScope(requestedDomain, resolvedScope, s.homeDomain)
 	codeSyms = focusCodeSymbolsForTask(task, codeSyms)
-	codeSyms, err = s.attachKnownStaticCallers(ctx, codeSyms)
+	codeSyms, err = s.attachKnownStaticCallers(ctx, codeSyms, sectionScope)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "code symbol caller query failed: %v", err)
 	}
@@ -157,8 +158,8 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	// Every briefing SECTION is scoped to the same resolved domain as the
 	// impact above — a domain-scoped briefing must not leak another repo's
 	// implementation patterns or intent triggers (shared nodes always pass).
-	// An unanchored file resolves to "", so fall back to the home domain.
-	sectionScope := briefingScope(requestedDomain, resolvedScope, s.homeDomain)
+	// An unanchored file resolves to "", so the already-computed sectionScope
+	// falls back to the home domain.
 
 	// Governed briefing feedback (Phase 9.6): file-scoped against the exact resolved domain.
 	// The selector invokes the canonical owner only when the domain matches the configured

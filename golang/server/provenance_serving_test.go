@@ -59,7 +59,7 @@ func TestBriefing_Provenance_RenderedForPromotedRule(t *testing.T) {
 		testIRI := mintedIRI(rdf.ClassTestSymbol, "render/json_test.go:TestJSONRender")
 		callerID := "handlers/api.go:writeJSON"
 
-		targetServer := newServer(fakeStore{
+		targetServer := newServer(&domainAwareCallerStore{fakeStore: fakeStore{
 			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 				return nil, nil
 			},
@@ -80,7 +80,10 @@ func TestBriefing_Provenance_RenderedForPromotedRule(t *testing.T) {
 				}
 				return []store.InboundTriple{{Subject: mintedIRI(rdf.ClassCodeSymbol, callerID), Predicate: rdf.PropReferences}}, nil
 			},
-		})
+		}, domains: map[string][]string{
+			mintedIRI(rdf.ClassCodeSymbol, callerID): {"globular"},
+		}})
+		targetServer.homeDomain = "globular"
 		resp, err := targetServer.Briefing(context.Background(), &awarenesspb.BriefingRequest{
 			File: "render/json.go",
 			Task: "preserve JSON.Render response behavior",
