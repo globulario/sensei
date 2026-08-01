@@ -108,9 +108,11 @@ jobs:
           go-version: '1.25'
           cache-dependency-path: go.sum
       - name: Apply bounded review repair
-        run: python3 .github/pr106_review_fix.txt
+        run: |
+          python3 .github/pr106_review_fix.txt
+          python3 .github/pr106_review_test_fix.txt
       - name: Format repaired files
-        run: gofmt -w golang/server/code_symbol.go golang/server/briefing.go golang/server/reference_sites.go golang/server/reference_sites_test.go
+        run: gofmt -w golang/server/code_symbol.go golang/server/briefing.go golang/server/reference_sites.go golang/server/reference_sites_test.go golang/server/provenance_serving_test.go
       - name: Prove symbol-aware briefing closure
         run: go test ./golang/scipingest ./golang/server -count=1 -timeout 300s
       - name: Commit verified repair
@@ -120,7 +122,8 @@ jobs:
           git add golang/server/code_symbol.go \
                   golang/server/briefing.go \
                   golang/server/reference_sites.go \
-                  golang/server/reference_sites_test.go
+                  golang/server/reference_sites_test.go \
+                  golang/server/provenance_serving_test.go
           git diff --cached --quiet && { echo "::error::review repair produced no source change"; exit 1; }
           git commit -m "fix(briefing): close symbol identity and domain scope gaps"
           git push origin HEAD:codex/symbol-aware-briefing
