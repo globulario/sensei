@@ -1,0 +1,39 @@
+name: PR 126 review closure
+
+on:
+  push:
+    branches:
+      - agent/governed-evaluator-composition-o4
+    paths:
+      - .github/workflows/pr126-review-closure.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair-and-prove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/governed-evaluator-composition-o4
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Apply review repair
+        run: python scripts/pr126_checkpoint5_review_fix.py
+      - name: Format
+        run: gofmt -w golang/architecture/evaluatorcomposition/compose.go golang/architecture/evaluatorcomposition/complete.go golang/architecture/evaluatorcomposition/complete_test.go
+      - name: Prove evaluator composition
+        run: go test ./golang/architecture/evaluatorcomposition -count=1 -timeout 240s
+      - name: Commit repair
+        run: |
+          git config user.name "sensei-pr126-review"
+          git config user.email "sensei-pr126-review@users.noreply.github.com"
+          git add golang/architecture/evaluatorcomposition/compose.go \
+                  golang/architecture/evaluatorcomposition/complete.go \
+                  golang/architecture/evaluatorcomposition/complete_test.go
+          git commit -m "fix(synthesis): preserve accepted evaluator bindings on terminal paths"
+          git push origin HEAD:agent/governed-evaluator-composition-o4
