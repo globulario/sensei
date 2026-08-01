@@ -12,13 +12,13 @@ import (
 
 func TestCompleteEvaluationAppliesExactlyOneSecondTransitionForEveryRecommendation(t *testing.T) {
 	tests := []struct {
-		name              string
-		recommendation    synthesis.Recommendation
-		remainingRetry    int
-		remainingReplan   int
-		wantPhase         synthesis.Phase
-		wantRetry         int
-		wantReplan        int
+		name               string
+		recommendation     synthesis.Recommendation
+		remainingRetry     int
+		remainingReplan    int
+		wantPhase          synthesis.Phase
+		wantRetry          int
+		wantReplan         int
 		wantTerminalDigest bool
 		wantTerminalReason synthesis.TerminalReason
 	}{

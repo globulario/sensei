@@ -115,9 +115,9 @@ func checkpoint5Execution(
 
 func checkpoint5Check(id string, status synthesis.CheckObservationStatus) synthesis.CheckObservation {
 	return synthesis.CheckObservation{
-		CheckID: id,
-		Status: status,
-		Detail: "checkpoint-5 test observation " + id,
+		CheckID:            id,
+		Status:             status,
+		Detail:             "checkpoint-5 test observation " + id,
 		EvidenceReferences: []string{},
 	}
 }
