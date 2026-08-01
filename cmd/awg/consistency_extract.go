@@ -4,6 +4,7 @@ package main
 
 import (
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"os"
@@ -82,6 +83,10 @@ func extractConsistencyCandidates(root string) ([]consistencyCandidate, error) {
 			return nil
 		}
 		if !strings.HasSuffix(entry.Name(), ".go") || isTestFile(entry.Name()) || !isSourceFile(entry.Name()) {
+			return nil
+		}
+		matched, matchErr := build.Default.MatchFile(filepath.Dir(path), entry.Name())
+		if matchErr != nil || !matched {
 			return nil
 		}
 		rel, relErr := filepath.Rel(root, path)
@@ -347,30 +352,92 @@ func consistencyDetectDispatchIdiom(fi *consistencyFuncInfo) bool {
 		t := consistencyExprText(fi.src, fi.fset, e)
 		return t == selfText || t == handlerText
 	}
+
+	var containsHandler func(ast.Expr) bool
+	containsHandler = func(e ast.Expr) bool {
+		switch v := e.(type) {
+		case *ast.UnaryExpr:
+			return v.Op == token.AND && containsHandler(v.X)
+		case *ast.CompositeLit:
+			for _, elt := range v.Elts {
+				kv, ok := elt.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				id, ok := kv.Key.(*ast.Ident)
+				if ok && id.Name == "Handler" && isHandlerArg(kv.Value) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	serverVars := map[string]bool{}
+	ast.Inspect(fi.body, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.AssignStmt:
+			for i, rhs := range v.Rhs {
+				if !containsHandler(rhs) || i >= len(v.Lhs) {
+					continue
+				}
+				if id, ok := v.Lhs[i].(*ast.Ident); ok {
+					serverVars[id.Name] = true
+				}
+			}
+		case *ast.DeclStmt:
+			decl, ok := v.Decl.(*ast.GenDecl)
+			if !ok {
+				break
+			}
+			for _, spec := range decl.Specs {
+				values, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for i, value := range values.Values {
+					if containsHandler(value) && i < len(values.Names) {
+						serverVars[values.Names[i].Name] = true
+					}
+				}
+			}
+		}
+		return true
+	})
+
 	found := false
 	ast.Inspect(fi.body, func(n ast.Node) bool {
 		if found {
 			return false
 		}
-		switch v := n.(type) {
-		case *ast.CallExpr:
-			var name string
-			switch fn := v.Fun.(type) {
-			case *ast.SelectorExpr:
-				name = fn.Sel.Name
-			case *ast.Ident:
-				name = fn.Name
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		var name string
+		var receiverVar string
+		switch fn := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			name = fn.Sel.Name
+			if id, ok := fn.X.(*ast.Ident); ok {
+				receiverVar = id.Name
 			}
-			if consistencyDispatchCallNames[name] {
-				for _, a := range v.Args {
-					if isHandlerArg(a) {
-						found = true
-						return false
-					}
-				}
+		case *ast.Ident:
+			name = fn.Name
+		}
+		if !consistencyDispatchCallNames[name] {
+			return true
+		}
+		if serverVars[receiverVar] {
+			found = true
+			return false
+		}
+		for _, arg := range call.Args {
+			if isHandlerArg(arg) {
+				found = true
+				return false
 			}
-		case *ast.KeyValueExpr:
-			if id, ok := v.Key.(*ast.Ident); ok && id.Name == "Handler" && isHandlerArg(v.Value) {
+			if id, ok := arg.(*ast.Ident); ok && serverVars[id.Name] {
 				found = true
 				return false
 			}
@@ -623,6 +690,19 @@ func consistencyCheckAsymmetricCall(dir string, methods []*consistencyFuncInfo) 
 		for _, idxs := range prefixGroups {
 			for i := 1; i < len(idxs); i++ {
 				uf.union(idxs[0], idxs[i])
+			}
+		}
+		var prefixKeys []string
+		for key := range prefixGroups {
+			prefixKeys = append(prefixKeys, key)
+		}
+		sort.Strings(prefixKeys)
+		for i := 0; i < len(prefixKeys); i++ {
+			for j := i + 1; j < len(prefixKeys); j++ {
+				a, b := prefixKeys[i], prefixKeys[j]
+				if strings.HasPrefix(a, b+".") || strings.HasPrefix(b, a+".") {
+					uf.union(prefixGroups[a][0], prefixGroups[b][0])
+				}
 			}
 		}
 

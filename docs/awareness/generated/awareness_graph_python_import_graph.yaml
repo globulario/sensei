@@ -23,6 +23,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - scripts/pr123_closure_fix.py
       - scripts/sync-principle-pack.py
     uml:
       kind: Component

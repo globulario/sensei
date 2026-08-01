@@ -254,3 +254,65 @@ func (e *Engine) RunTLS() error {
 		t.Fatalf("expected updateRouteTrees asymmetry to still be caught when ServeHTTP itself doesn't call it, got %+v", got)
 	}
 }
+
+func TestConsistencyCheckBuildConstraints_IgnoreMutuallyExclusiveFile(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "active.go"), `package sample
+
+type node struct { children []*node }
+func (n *node) active() *node { return n.children[0] }
+`)
+	writeFile(t, filepath.Join(root, "ignored.go"), `//go:build ignore
+
+package sample
+
+type ignoredNode struct { children []*ignoredNode }
+func (n *ignoredNode) ignored() *ignoredNode { return n.children[len(n.children)-1] }
+`)
+	got, err := extractConsistencyCandidates(root)
+	if err != nil {
+		t.Fatalf("extractConsistencyCandidates: %v", err)
+	}
+	if c := findConsistencyCandidate(got, "divergent_index_shape", "children"); c != nil {
+		t.Fatalf("build-incompatible file contributed evidence: %+v", c)
+	}
+}
+
+func TestConsistencyCheckDispatchIdiom_HandlerConstructionWithoutServeDoesNotBridge(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "engine.go"), `package engine
+
+type Server struct{ Handler *Engine }
+type Engine struct{}
+func (e *Engine) updateRouteTrees() {}
+func (e *Engine) ServeHTTP() { e.updateRouteTrees() }
+func (e *Engine) Run() error { e.updateRouteTrees(); return nil }
+func (e *Engine) RunTLS() error { _ = &Server{Handler: e}; return nil }
+`)
+	got, err := extractConsistencyCandidates(root)
+	if err != nil {
+		t.Fatalf("extractConsistencyCandidates: %v", err)
+	}
+	if c := findConsistencyCandidate(got, "asymmetric_setup_call", "updateroutetrees"); c == nil {
+		t.Fatalf("handler construction without a serve call suppressed the real asymmetry: %+v", got)
+	}
+}
+
+func TestConsistencyCheckAsymmetricCall_NestedPrefixFamiliesAreUnified(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "store.go"), `package store
+
+type Store struct{}
+func (s *Store) prepare() {}
+func (s *Store) GetUser() { s.prepare() }
+func (s *Store) GetUserByID() {}
+func (s *Store) GetUserByName() {}
+`)
+	got, err := extractConsistencyCandidates(root)
+	if err != nil {
+		t.Fatalf("extractConsistencyCandidates: %v", err)
+	}
+	if c := findConsistencyCandidate(got, "asymmetric_setup_call", "prepare"); c == nil {
+		t.Fatalf("nested Get.User and Get.User.By prefix families were not unified: %+v", got)
+	}
+}
