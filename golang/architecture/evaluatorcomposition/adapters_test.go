@@ -4,6 +4,8 @@ package evaluatorcomposition
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -133,20 +135,33 @@ func senseiGateOutput(t *testing.T, input EvaluationInput, blocked bool, wouldBl
 	return data
 }
 
-func newSenseiGateTestEvaluator(t *testing.T, surface EvaluatorSurface, runner CommandRunner) *SenseiGateEvaluator {
+func newSenseiGateTestEvaluator(t *testing.T, surface EvaluatorSurface, runner CommandRunner) (*SenseiGateEvaluator, string, []byte) {
 	t.Helper()
 	executable := absoluteTestExecutable(t)
+	root, err := surface.RootPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	policyContent := []byte("version: 1\nrules: {}\n")
+	policyPath := filepath.Join(t.TempDir(), "gate-policy.yaml")
+	if err := os.WriteFile(policyPath, policyContent, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	evaluator, err := NewSenseiGateEvaluator(SenseiGateConfig{
 		EvaluatorID:      "sensei.gate",
 		EvaluatorVersion: "v1",
 		SenseiExecutable: executable,
 		Address:          "127.0.0.1:10120",
+		PolicyPath:       policyPath,
 		Environment:      []string{"LANG=C"},
 	}, surface, runner, NewMemoryEvidenceSink())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return evaluator
+	return evaluator, policyPath, policyContent
 }
 
 func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
@@ -198,7 +213,7 @@ func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
 			input := evaluationInputForSurface(t, surface)
 			runner := &scriptedCommandRunner{}
 			runner.results = []CommandResult{test.command(input)}
-			evaluator := newSenseiGateTestEvaluator(t, surface, runner)
+			evaluator, _, _ := newSenseiGateTestEvaluator(t, surface, runner)
 
 			result, err := evaluator.Evaluate(context.Background(), input)
 			if err != nil {
@@ -219,7 +234,11 @@ func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
 			}
 			request := runner.requests[0]
 			joined := strings.Join(request.Args, " ")
-			for _, required := range []string{"gate", "--diff HEAD", "--domain " + input.RepositoryDomain, "--repo-root " + surface.root, "--enforce", "--json"} {
+			for _, required := range []string{
+				"gate", "--diff HEAD", "--domain " + input.RepositoryDomain,
+				"--repo-root " + surface.root, "--enforce", "--json",
+				"--policy " + filepath.Join(surface.root, ".git", "sensei-o4-policy.yaml"),
+			} {
 				if !strings.Contains(joined, required) {
 					t.Errorf("gate args %q do not contain %q", joined, required)
 				}
@@ -228,6 +247,63 @@ func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
 				t.Fatalf("gate command escaped exact surface/environment: %+v", request)
 			}
 		})
+	}
+}
+
+func TestSenseiGateEvaluatorFreezesExternalPolicyAndBindsItsDigest(t *testing.T) {
+	surface := &recordingEvaluatorSurface{ref: "surface://test/sensei-gate-freeze/git-diff", root: t.TempDir(), mode: SurfaceModeGitDiff}
+	input := evaluationInputForSurface(t, surface)
+	runner := &scriptedCommandRunner{results: []CommandResult{{
+		Outcome: CommandOutcomeCompleted,
+		ExitCode: 0,
+		Stdout: senseiGateOutput(t, input, false, 0, 0, "PASS"),
+	}}}
+	evaluator, policyPath, originalPolicy := newSenseiGateTestEvaluator(t, surface, runner)
+	if err := os.WriteFile(policyPath, []byte("candidate-era replacement\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := evaluator.Evaluate(context.Background(), input); err != nil {
+		t.Fatal(err)
+	}
+	materialized, err := os.ReadFile(filepath.Join(surface.root, ".git", "sensei-o4-policy.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(materialized) != string(originalPolicy) {
+		t.Fatalf("gate policy was reread after construction: %q", materialized)
+	}
+	sum := sha256.Sum256(originalPolicy)
+	capability := "sensei-gate-policy-sha256:" + hex.EncodeToString(sum[:])
+	found := false
+	for _, got := range evaluator.descriptor.RequiredCapabilities {
+		if got == capability {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("descriptor does not bind frozen policy digest %q: %v", capability, evaluator.descriptor.RequiredCapabilities)
+	}
+}
+
+func TestSenseiGateEvaluatorRejectsCandidateOwnedPolicyPath(t *testing.T) {
+	surface := &recordingEvaluatorSurface{ref: "surface://test/sensei-gate-policy/git-diff", root: t.TempDir(), mode: SurfaceModeGitDiff}
+	policyDir := filepath.Join(surface.root, ".sensei")
+	if err := os.MkdirAll(policyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	policyPath := filepath.Join(policyDir, "policy.yaml")
+	if err := os.WriteFile(policyPath, []byte("version: 1\nrules: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewSenseiGateEvaluator(SenseiGateConfig{
+		EvaluatorID:      "sensei.gate",
+		EvaluatorVersion: "v1",
+		SenseiExecutable: absoluteTestExecutable(t),
+		PolicyPath:       policyPath,
+	}, surface, &scriptedCommandRunner{}, NewMemoryEvidenceSink())
+	if err == nil || !strings.Contains(err.Error(), "inside the candidate surface") {
+		t.Fatalf("candidate-owned policy rejection = %v", err)
 	}
 }
 
