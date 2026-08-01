@@ -54,13 +54,13 @@ func TestCompleteEvaluationAppliesExactlyOneSecondTransitionForEveryRecommendati
 			name: "architect review", recommendation: synthesis.RecommendArchitectReview,
 			remainingRetry: 3, remainingReplan: 1,
 			wantPhase: synthesis.PhaseFailed, wantRetry: 3, wantReplan: 1,
-			wantTerminalDigest: true, wantTerminalReason: synthesis.ReasonArchitectReview,
+			wantTerminalDigest: true, wantTerminalReason: synthesis.ReasonArchitectReviewRequired,
 		},
 		{
 			name: "abort", recommendation: synthesis.RecommendAbort,
 			remainingRetry: 3, remainingReplan: 1,
 			wantPhase: synthesis.PhaseFailed, wantRetry: 3, wantReplan: 1,
-			wantTerminalDigest: true, wantTerminalReason: synthesis.ReasonAbort,
+			wantTerminalDigest: true, wantTerminalReason: synthesis.ReasonExplicitlyAborted,
 		},
 	}
 
