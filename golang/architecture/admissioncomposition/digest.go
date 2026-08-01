@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
+	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 )
 
