@@ -155,7 +155,8 @@ func Run(
 		}
 
 		unavailableAt := now().UTC().Format(time.RFC3339)
-		finalState, finalEvents, err := synthesis.Transition(nextState, synthesis.EvaluatorUnavailableCommand{Detail: bindDetail, At: unavailableAt})
+		unavailableDetail := evaluatorUnavailableDetail(receipt)
+		finalState, finalEvents, err := synthesis.Transition(nextState, synthesis.EvaluatorUnavailableCommand{Detail: unavailableDetail, At: unavailableAt})
 		if err != nil {
 			return Result{}, fmt.Errorf("evaluatorcomposition.Run: second transition (EvaluatorUnavailableCommand) rejected: %w", err)
 		}
@@ -183,9 +184,10 @@ func Run(
 //
 // providerport.MapToCommand independently re-validates Request/Result
 // again as part of its own contract (schema, digest, request-result
-// binding, parent chain, session identity) -- this function does not
-// duplicate that binding check, only what MapToCommand has no way to see:
-// O2Receipt is not one of MapToCommand's parameters at all.
+// binding, parent chain, session identity). O2Receipt is not one of
+// MapToCommand's parameters, so this function additionally cross-binds the
+// receipt's request/result/outcome/payload references to the exact Request
+// and Result in the handoff before O1 records anything.
 func validateHandoffO2Documents(handoff runnercomposition.VerifiedGenerationHandoff) (requestDigest, resultDigest, o2ReceiptDigest string, err error) {
 	reqData, err := json.Marshal(handoff.Request)
 	if err != nil {
@@ -231,8 +233,31 @@ func validateHandoffO2Documents(handoff runnercomposition.VerifiedGenerationHand
 	if handoff.O2Receipt.ReceiptDigestSHA256 != o2ReceiptDigest {
 		return "", "", "", fmt.Errorf("o2 receipt declares digest %q but its actual computed digest is %q", handoff.O2Receipt.ReceiptDigestSHA256, o2ReceiptDigest)
 	}
+	if handoff.O2Receipt.RequestDigestSHA256 != requestDigest {
+		return "", "", "", fmt.Errorf("o2 receipt references request digest %q, does not match handoff.Request's recomputed digest %q", handoff.O2Receipt.RequestDigestSHA256, requestDigest)
+	}
+	if handoff.O2Receipt.ResultDigestSHA256 != resultDigest {
+		return "", "", "", fmt.Errorf("o2 receipt references result digest %q, does not match handoff.Result's recomputed digest %q", handoff.O2Receipt.ResultDigestSHA256, resultDigest)
+	}
+	if handoff.O2Receipt.TerminalOutcome != handoff.Result.TerminalOutcome {
+		return "", "", "", fmt.Errorf("o2 receipt terminal_outcome %q does not match handoff.Result terminal_outcome %q", handoff.O2Receipt.TerminalOutcome, handoff.Result.TerminalOutcome)
+	}
+	if (handoff.O2Receipt.PayloadDigestSHA256 == nil) != (handoff.Result.PayloadDigestSHA256 == nil) {
+		return "", "", "", fmt.Errorf("o2 receipt payload_digest_sha256 presence does not match handoff.Result")
+	}
+	if handoff.O2Receipt.PayloadDigestSHA256 != nil && *handoff.O2Receipt.PayloadDigestSHA256 != *handoff.Result.PayloadDigestSHA256 {
+		return "", "", "", fmt.Errorf("o2 receipt payload_digest_sha256 %q does not match handoff.Result payload_digest_sha256 %q", *handoff.O2Receipt.PayloadDigestSHA256, *handoff.Result.PayloadDigestSHA256)
+	}
 
 	return requestDigest, resultDigest, o2ReceiptDigest, nil
+}
+
+// evaluatorUnavailableDetail binds the O1 terminal consequence back to the
+// exact O4 evidence document under construction. ReceiptID is stable before
+// the second Transition; the receipt digest cannot be included because it
+// must itself bind the O1 terminal receipt digest produced by that call.
+func evaluatorUnavailableDetail(receipt EvaluationReceipt) string {
+	return fmt.Sprintf("o4_receipt_id=%q disposition=%q failure_detail=%q", receipt.ReceiptID, receipt.Disposition, receipt.FailureDetail)
 }
 
 // crossBindCandidate verifies every cross-binding the design doc's
