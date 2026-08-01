@@ -104,7 +104,10 @@ var (
 // path's existing CleanupSucceeded/CleanupFailureDetail aggregate instead,
 // since the design doc names no disposition for "construction/O2 failed
 // AND the resulting close also failed" distinctly from the failure that
-// was already occurring.
+// was already occurring. On those folded paths, Close always runs FIRST,
+// before either directory's removal -- a retained or still-unwinding
+// provider handle must be revoked before its backing directories can be
+// removed out from under it, never concurrently with or after.
 func Run(
 	ctx context.Context,
 	sessionState synthesis.SessionState,
@@ -137,6 +140,18 @@ func Run(
 	planDigest, err := synthesis.PlanDigest(plan)
 	if err != nil {
 		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: compute plan digest: %w", err)
+	}
+	// plan's own declared digest must equal this fresh recomputation --
+	// the same "declared must equal recomputed" self-consistency law
+	// applied everywhere else in this codebase, checked BEFORE the
+	// authority check below. Without it, a plan whose CONTENT genuinely is
+	// the accepted one (so the recomputed-vs-session check below would
+	// pass) but whose own PlanDigestSHA256 field is stale or wrong would
+	// still poison buildGenerationRequest's ParentArtifactDigestSHA256 and
+	// the sealed CandidateArtifact.PlanDigestSHA256 downstream, both of
+	// which use plan.PlanDigestSHA256 directly, not the recomputed value.
+	if plan.PlanDigestSHA256 != planDigest {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: plan's declared digest %q does not match its own recomputed content digest %q", plan.PlanDigestSHA256, planDigest)
 	}
 	if planDigest != sessionState.LatestPlanDigestSHA256 {
 		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: plan's actual digest %q does not match sessionState.LatestPlanDigestSHA256 %q -- plan is not the session's currently accepted plan", planDigest, sessionState.LatestPlanDigestSHA256)
@@ -199,7 +214,7 @@ func Run(
 		// (hard law 6: any handle a provider retained fails closed), folded
 		// into this path's own cleanup aggregate rather than a dedicated
 		// disposition, since none is named for this combination.
-		cleanups = append(cleanups, workspace.Close)
+		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionProviderConstructionFailure, "construct provider: "+err.Error(), &succeeded, now, detail)
 	}
@@ -208,7 +223,7 @@ func Run(
 	// reused verbatim, unchanged.
 	result, _, o2Receipt, err := providerport.Run(ctx, provider, request, now)
 	if err != nil {
-		cleanups = append(cleanups, workspace.Close)
+		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionO2RunError, "o2 run: "+err.Error(), &succeeded, now, detail)
 	}
@@ -218,12 +233,12 @@ func Run(
 	receipt.O2ReceiptDigestSHA256 = &o2ReceiptDigest
 
 	if result.TerminalOutcome != providerport.OutcomeCompleted {
-		cleanups = append(cleanups, workspace.Close)
+		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionO2NonCompleted, "o2 non-completed: "+string(result.TerminalOutcome)+": "+result.Detail, &succeeded, now, detail)
 	}
 	if result.GenerationPayload == nil {
-		cleanups = append(cleanups, workspace.Close)
+		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionO2NonCompleted, "o2 reported completed with a nil generation payload", &succeeded, now, detail)
 	}

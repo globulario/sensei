@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -988,5 +989,127 @@ func TestRunClosesWorkspaceOnEveryEarlyFailurePath(t *testing.T) {
 				t.Error("workspace.Close was never called on this failure path -- a retained provider handle would survive the run")
 			}
 		})
+	}
+}
+
+// closeRecordingWorkspace wraps a real CandidateWorkspace and appends
+// "workspace-close" to a shared, mutex-protected order log when Close is
+// called, delegating to the real Close otherwise.
+type closeRecordingWorkspace struct {
+	CandidateWorkspace
+	record func(string)
+}
+
+func (w *closeRecordingWorkspace) Close() error {
+	w.record("workspace-close")
+	return w.CandidateWorkspace.Close()
+}
+
+// TestRunClosesWorkspaceBeforeRemovingBackingDirectories is review
+// 4833568574's deterministic ordering proof: on an early failure path
+// (provider-construction-failure here), workspace.Close must be recorded
+// BEFORE either the snapshot or buffer directory's own cleanup function
+// runs -- proving revocation happens before removal, not merely that both
+// eventually happen (which TestRunClosesWorkspaceOnEveryEarlyFailurePath
+// already proves, but without ordering). Wraps all three of
+// extractSnapshotFn/initializeCandidateBufferFn/newCandidateWorkspaceFn so
+// every relevant operation is recorded into one shared, ordered log.
+func TestRunClosesWorkspaceBeforeRemovingBackingDirectories(t *testing.T) {
+	repoRoot, baseRevision := runTestRepo(t)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
+	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+
+	var mu sync.Mutex
+	var order []string
+	record := func(name string) {
+		mu.Lock()
+		defer mu.Unlock()
+		order = append(order, name)
+	}
+
+	origExtract := extractSnapshotFn
+	extractSnapshotFn = func(ctx context.Context, repositoryRoot, baseRevision string) (string, []CandidateManifestEntry, string, func() error, error) {
+		dir, manifest, digest, cleanup, err := origExtract(ctx, repositoryRoot, baseRevision)
+		if err != nil {
+			return dir, manifest, digest, cleanup, err
+		}
+		return dir, manifest, digest, func() error {
+			record("snapshot-cleanup")
+			return cleanup()
+		}, nil
+	}
+	t.Cleanup(func() { extractSnapshotFn = origExtract })
+
+	origInit := initializeCandidateBufferFn
+	initializeCandidateBufferFn = func(snapshotDir string, snapshotManifest []CandidateManifestEntry) (string, []CandidateManifestEntry, string, func() error, error) {
+		dir, manifest, digest, cleanup, err := origInit(snapshotDir, snapshotManifest)
+		if err != nil {
+			return dir, manifest, digest, cleanup, err
+		}
+		return dir, manifest, digest, func() error {
+			record("buffer-cleanup")
+			return cleanup()
+		}, nil
+	}
+	t.Cleanup(func() { initializeCandidateBufferFn = origInit })
+
+	origNewWorkspace := newCandidateWorkspaceFn
+	newCandidateWorkspaceFn = func(snapshotRoot, bufferRoot string) (CandidateWorkspace, error) {
+		real, err := origNewWorkspace(snapshotRoot, bufferRoot)
+		if err != nil {
+			return nil, err
+		}
+		return &closeRecordingWorkspace{CandidateWorkspace: real, record: record}, nil
+	}
+	t.Cleanup(func() { newCandidateWorkspaceFn = origNewWorkspace })
+
+	factory := &fakeProviderFactory{newProviderErr: errors.New("simulated factory failure")}
+	storeRoot := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(order) != 3 {
+		t.Fatalf("expected 3 recorded operations (workspace-close, buffer-cleanup, snapshot-cleanup in some order), got %d: %v", len(order), order)
+	}
+	if order[0] != "workspace-close" {
+		t.Errorf("workspace.Close did not run first: recorded order = %v", order)
+	}
+}
+
+// TestRunRejectsPlanWithStaleDeclaredDigest proves the self-consistency
+// check specifically: a plan whose CONTENT genuinely is the session's
+// accepted plan (so a recomputed-vs-LatestPlanDigestSHA256 check alone
+// would pass) but whose own PlanDigestSHA256 FIELD has been tampered to a
+// stale/wrong value must still be rejected -- otherwise that wrong value
+// would flow into the O2 request and the sealed candidate artifact
+// unnoticed.
+func TestRunRejectsPlanWithStaleDeclaredDigest(t *testing.T) {
+	repoRoot, baseRevision := runTestRepo(t)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
+	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+
+	tamperedPlan := plan
+	tamperedPlan.PlanDigestSHA256 = sha256Hex([]byte("stale, unrelated digest"))
+
+	factory := &fakeProviderFactory{buildResult: func(CandidateWorkspace, providerport.Request) providerport.Result {
+		panic("provider must never be invoked when plan's declared digest fails self-consistency") // t.Fatal is unsafe in a goroutine.
+	}}
+	storeRoot := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Run(context.Background(), sessionState, identity, repoRoot, tamperedPlan, factory, store, runTestPolicy(), fixedNow)
+	if err == nil {
+		t.Fatal("expected an error for a plan whose declared digest does not match its own recomputed content digest")
 	}
 }
