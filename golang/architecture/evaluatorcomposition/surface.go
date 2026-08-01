@@ -195,6 +195,9 @@ func (m *CandidateMaterializer) Materialize(ctx context.Context, artifact runner
 		if err := materializeManifestIntoExistingRoot(root, artifact.Manifest); err != nil {
 			return nil, fmt.Errorf("CandidateMaterializer.Materialize: install sealed candidate in disposable gate repository: %w", err)
 		}
+		if err := stageDisposableGitCandidate(ctx, root, parent); err != nil {
+			return nil, fmt.Errorf("CandidateMaterializer.Materialize: stage sealed candidate for exact HEAD diff: %w", err)
+		}
 	}
 
 	if err := baseCleanup(); err != nil {
@@ -320,6 +323,17 @@ func initializeDisposableGitBase(ctx context.Context, repoRoot, parent string) e
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
 		}
+	}
+	return nil
+}
+
+func stageDisposableGitCandidate(ctx context.Context, repoRoot, parent string) error {
+	home := filepath.Join(parent, "git-home")
+	cmd := exec.CommandContext(ctx, "git", "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A")
+	cmd.Dir = repoRoot
+	cmd.Env = isolatedGitEnvironment(home)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git add -A: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }

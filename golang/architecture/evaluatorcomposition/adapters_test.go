@@ -172,7 +172,7 @@ func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
 			},
 			wantOutcome:      EvaluatorOutcomeCompleted,
 			wantStatus:       synthesis.CheckFailed,
-			wantFailureClass: string(FailureClassAuditForbiddenFix),
+			wantFailureClass: failureClassSenseiGateBlockingFinding,
 		},
 		{
 			name: "cannot verify",

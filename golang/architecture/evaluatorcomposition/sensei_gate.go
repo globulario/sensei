@@ -13,6 +13,12 @@ import (
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
+// failureClassSenseiGateBlockingFinding is intentionally not a
+// GovernedFailureClass. A blocking gate verdict may represent an
+// invariant, contract, scope, or forbidden-fix finding; the adapter
+// must preserve that evidence without silently choosing abort.
+const failureClassSenseiGateBlockingFinding = "sensei-gate-blocking-finding"
+
 // SenseiGateConfig names the existing Sensei CLI owner and its explicit
 // runtime inputs. The adapter never implements gate policy itself.
 type SenseiGateConfig struct {
@@ -220,7 +226,7 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 		if command.ExitCode == 1 && parsed != nil && parsed.Enforced && parsed.Blocked && parsed.Domain == input.RepositoryDomain {
 			observation.Status = synthesis.CheckFailed
 			observation.Detail = parsed.Verdict
-			failureReasons = append(failureReasons, string(FailureClassAuditForbiddenFix))
+			failureReasons = append(failureReasons, failureClassSenseiGateBlockingFinding)
 		} else if command.ExitCode == 2 {
 			observation.Status = synthesis.CheckUnavailable
 			if parsed != nil && parsed.Verdict != "" {
