@@ -401,6 +401,7 @@ components:
       - golang/architecture/admissioncomposition/compose.go
       - golang/architecture/admissioncomposition/digest.go
       - golang/architecture/admissioncomposition/lineage.go
+      - golang/architecture/admissioncomposition/schema.go
       - golang/architecture/admissioncomposition/scope.go
       - golang/architecture/admissioncomposition/types.go
       - golang/architecture/admissioncomposition/validate.go
