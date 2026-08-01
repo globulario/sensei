@@ -1,0 +1,50 @@
+name: O4 freeze gate policy v2
+
+on:
+  push:
+    branches:
+      - agent/governed-evaluator-composition-o4
+    paths:
+      - .github/workflows/o4-freeze-policy-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  freeze-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/governed-evaluator-composition-o4
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Apply and prove repair
+        shell: bash
+        run: |
+          set +e
+          {
+            python scripts/o4_freeze_policy_patch.py
+            gofmt -w golang/architecture/evaluatorcomposition/sensei_gate.go golang/architecture/evaluatorcomposition/evaluator.go golang/architecture/evaluatorcomposition/adapters_test.go golang/architecture/evaluatorcomposition/evaluator_test.go
+            go test ./golang/architecture/evaluatorcomposition -count=1 -timeout 120s
+            make import-graph-check
+          } > /tmp/o4-freeze-policy.log 2>&1
+          status=$?
+
+          git config user.name "sensei-o4-maintenance"
+          git config user.email "sensei-o4-maintenance@users.noreply.github.com"
+
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/o4-freeze-policy.log o4-freeze-policy-error.log
+            git add o4-freeze-policy-error.log
+            git commit -m "test(synthesis): capture checkpoint-4 authority repair failure"
+            git push origin HEAD:agent/governed-evaluator-composition-o4
+            exit "$status"
+          fi
+
+          git add golang/architecture/evaluatorcomposition
+          git commit -m "fix(synthesis): freeze Sensei gate policy outside candidate authority"
+          git push origin HEAD:agent/governed-evaluator-composition-o4
