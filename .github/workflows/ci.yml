@@ -106,9 +106,10 @@ jobs:
         run: go test ./cmd/awg/... ./golang/extractor/coldsource/... -count=1 -timeout 300s
       - name: Rebuild awareness artifacts
         run: scripts/build-awareness-graph-self.sh
-      - name: Verify generated contracts
+      - name: Regenerate and verify generated contracts
         run: |
           make proto-contracts-check
+          make import-graph
           make import-graph-check
       - name: Commit verified closure repair
         run: |
