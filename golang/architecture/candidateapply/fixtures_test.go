@@ -75,20 +75,20 @@ func newApplyFixture(t *testing.T) applyFixture {
 	identity := hex64("admission-request-identity")
 	requestDocument := hex64("admission-request-document")
 	o5aRequest := admissioncomposition.NormalizeRequest(admissioncomposition.Request{
-		SchemaVersion:                         admissioncomposition.RequestSchemaVersion,
-		RequestID:                             "o5a.test",
-		GeneratedBy:                           admissioncomposition.GeneratedBy,
-		SynthesisReceiptDigestSHA256:          hex64("o1"),
-		RunnerReceiptDigestSHA256:             hex64("o3"),
-		EvaluationReceiptDigestSHA256:         hex64("o4"),
-		CandidateArtifactDigestSHA256:         artifactDigest,
-		RepositoryDomain:                      artifact.RepositoryDomain,
-		BaseRevision:                          head,
-		DerivedScope:                          scope,
-		UnsupportedOperations:                 []admissioncomposition.UnsupportedOperation{},
-		AdmissionEligible:                     true,
-		AdmissionRequestDigestSHA256:           &requestDocument,
-		AdmissionRequestIdentityDigestSHA256:   &identity,
+		SchemaVersion:                        admissioncomposition.RequestSchemaVersion,
+		RequestID:                            "o5a.test",
+		GeneratedBy:                          admissioncomposition.GeneratedBy,
+		SynthesisReceiptDigestSHA256:         hex64("o1"),
+		RunnerReceiptDigestSHA256:            hex64("o3"),
+		EvaluationReceiptDigestSHA256:        hex64("o4"),
+		CandidateArtifactDigestSHA256:        artifactDigest,
+		RepositoryDomain:                     artifact.RepositoryDomain,
+		BaseRevision:                         head,
+		DerivedScope:                         scope,
+		UnsupportedOperations:                []admissioncomposition.UnsupportedOperation{},
+		AdmissionEligible:                    true,
+		AdmissionRequestDigestSHA256:         &requestDocument,
+		AdmissionRequestIdentityDigestSHA256: &identity,
 	})
 	o5aRequestDigest, err := admissioncomposition.RequestDigest(o5aRequest)
 	if err != nil {
@@ -103,16 +103,16 @@ func newApplyFixture(t *testing.T) applyFixture {
 	decisionValue := decision.Decision
 	decisionDigest := decision.DecisionDigestSHA256
 	o5aReceipt := admissioncomposition.Receipt{
-		SchemaVersion:                     admissioncomposition.ReceiptSchemaVersion,
-		ReceiptID:                         "o5a-receipt.test",
-		GeneratedBy:                       admissioncomposition.GeneratedBy,
-		RequestDigestSHA256:               o5aRequestDigest,
-		SynthesisReceiptDigestSHA256:      o5aRequest.SynthesisReceiptDigestSHA256,
-		CandidateArtifactDigestSHA256:     artifactDigest,
-		AdmissionDecision:                 &decisionValue,
-		AdmissionDecisionDigestSHA256:     &decisionDigest,
-		Disposition:                       admissioncomposition.DispositionAdmissionDecided,
-		CompletedAt:                       "2026-08-01T23:50:00Z",
+		SchemaVersion:                 admissioncomposition.ReceiptSchemaVersion,
+		ReceiptID:                     "o5a-receipt.test",
+		GeneratedBy:                   admissioncomposition.GeneratedBy,
+		RequestDigestSHA256:           o5aRequestDigest,
+		SynthesisReceiptDigestSHA256:  o5aRequest.SynthesisReceiptDigestSHA256,
+		CandidateArtifactDigestSHA256: artifactDigest,
+		AdmissionDecision:             &decisionValue,
+		AdmissionDecisionDigestSHA256: &decisionDigest,
+		Disposition:                   admissioncomposition.DispositionAdmissionDecided,
+		CompletedAt:                   "2026-08-01T23:50:00Z",
 	}
 	o5aReceiptDigest, err := admissioncomposition.ReceiptDigest(o5aReceipt)
 	if err != nil {
