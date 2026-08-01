@@ -1,0 +1,156 @@
+name: Phase 10 final certification
+
+on:
+  push:
+    branches:
+      - phase10-architectural-investigation
+
+permissions:
+  contents: write
+
+jobs:
+  certify:
+    if: contains(github.event.head_commit.message, '[phase10-certify]')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout reconciled Phase 10 branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase10-architectural-investigation
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Configure certification identity and remove this workflow
+        run: |
+          git config user.name "sensei-phase10-certify"
+          git config user.email "sensei-phase10-certify@users.noreply.github.com"
+          git rm .github/workflows/phase10-final-certification.yml
+
+      - name: Verify formatting, static analysis, and generated truth
+        run: |
+          unformatted=$(gofmt -l $(git ls-files '*.go' | grep -vE '\.pb\.go$|/pb/|/testdata/'))
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed on:"; echo "$unformatted"; exit 1
+          fi
+          go vet ./...
+          scripts/build-awareness-graph-self.sh --check
+          make proto-contracts-check
+          make import-graph-check
+
+      - name: Run cmd/awg tests
+        run: go test ./cmd/awg -count=1 -timeout 5m
+
+      - name: Run remaining repository tests
+        shell: bash
+        run: |
+          packages=$(go list ./... | grep -v '^github.com/globulario/sensei/cmd/awg$')
+          go test $packages -count=1 -timeout 4m -p 2
+
+      - name: Cold-start and money-scar smokes
+        run: |
+          scripts/fetch-oxigraph.sh
+          scripts/smoke-cold-start.sh
+          examples/orders-money-scar/run.sh
+
+      - name: Entrypoint and Compose contracts
+        run: |
+          sh deploy/appliance-entrypoint_test.sh
+          SENSEI_REPO="${GITHUB_WORKSPACE}" docker compose -f deploy/docker-compose.yml config --quiet
+
+      - name: Build exact appliance image
+        run: |
+          set +e
+          docker build \
+            --file deploy/Dockerfile \
+            --build-arg SENSEI_VERSION=phase10-certified \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --tag sensei-appliance:phase10-certified \
+            . > /tmp/sensei-appliance-build.log 2>&1
+          rc=$?
+          if (( rc != 0 )); then
+            tail -n 160 /tmp/sensei-appliance-build.log
+            exit "${rc}"
+          fi
+          tail -n 40 /tmp/sensei-appliance-build.log
+
+      - name: Enforce lightweight image ceiling
+        run: |
+          size=$(docker image inspect sensei-appliance:phase10-certified --format '{{.Size}}')
+          limit=$((250 * 1024 * 1024))
+          echo "appliance image bytes: ${size}"
+          if (( size > limit )); then
+            echo "::error::Sensei appliance is larger than 250 MiB (${size} bytes)"
+            exit 1
+          fi
+
+      - name: Cold bootstrap and hardened appliance smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture=$(mktemp -d)
+          chmod 0755 "${fixture}"
+          cleanup() {
+            rc=$?
+            docker logs sensei-phase10-certified > /tmp/sensei-phase10-container.log 2>&1 || true
+            docker rm -f sensei-phase10-certified >/dev/null 2>&1 || true
+            docker volume rm sensei-phase10-certified >/dev/null 2>&1 || true
+            rm -rf "${fixture}"
+            return "${rc}"
+          }
+          trap cleanup EXIT
+
+          git -C "${fixture}" init -q
+          cat > "${fixture}/main.go" <<'GO'
+          package main
+          func main() {}
+          GO
+
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --volume "${fixture}:/workspace" \
+            sensei-appliance:phase10-certified bootstrap --skip-history
+
+          test -d "${fixture}/docs/awareness"
+          test -f "${fixture}/docs/awareness/invariants.yaml"
+
+          docker volume create sensei-phase10-certified >/dev/null
+          docker run -d \
+            --name sensei-phase10-certified \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --cap-drop ALL \
+            --security-opt no-new-privileges:true \
+            --volume "${fixture}:/workspace:ro" \
+            --volume sensei-phase10-certified:/var/lib/sensei \
+            sensei-appliance:phase10-certified >/dev/null
+
+          for _ in $(seq 1 60); do
+            status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' sensei-phase10-certified)
+            [ "${status}" = healthy ] && break
+            [ "${status}" = unhealthy ] && { docker logs sensei-phase10-certified; exit 1; }
+            sleep 1
+          done
+
+          [ "$(docker inspect --format '{{.State.Health.Status}}' sensei-phase10-certified)" = healthy ] \
+            || { docker logs sensei-phase10-certified; exit 1; }
+
+          docker exec sensei-phase10-certified sensei-appliance health
+          docker exec sensei-phase10-certified sensei metadata -addr 127.0.0.1:10120 >/dev/null
+          docker exec sensei-phase10-certified sensei version
+          docker exec sensei-phase10-certified awareness-graph --version
+          docker exec sensei-phase10-certified oxigraph --version
+
+          test ! -e "${fixture}/.sensei/graph-authority.json"
+          docker logs sensei-phase10-certified 2>&1 | grep -q 'Oxigraph is private at 127.0.0.1:7878'
+
+      - name: Publish certification marker commit
+        run: |
+          git add -A
+          git diff --cached --quiet && { echo "::error::self-removal did not produce the certification commit"; exit 1; }
+          git commit -m "chore(phase10): certify reconciled investigation foundation"
+          git push origin HEAD:phase10-architectural-investigation
