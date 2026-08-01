@@ -142,6 +142,11 @@ func (m *CandidateMaterializer) Materialize(ctx context.Context, artifact runner
 	if mode != SurfaceModePlain && mode != SurfaceModeGitDiff {
 		return nil, fmt.Errorf("CandidateMaterializer.Materialize: unsupported surface mode %q", mode)
 	}
+	if mode == SurfaceModeGitDiff {
+		if err := validateGitControlPaths(artifact.Manifest); err != nil {
+			return nil, fmt.Errorf("CandidateMaterializer.Materialize: %w", err)
+		}
+	}
 
 	baseDir, baseManifest, baseDigest, baseCleanup, err := runnercomposition.ExtractSnapshot(ctx, m.RepositoryRoot, artifact.BaseRevision)
 	if err != nil {
@@ -259,6 +264,16 @@ func materializeManifestIntoExistingRoot(rootPath string, entries []runnercompos
 	return nil
 }
 
+func validateGitControlPaths(entries []runnercomposition.CandidateManifestEntry) error {
+	for _, entry := range entries {
+		folded := strings.ToLower(entry.Path)
+		if folded == ".git" || strings.HasPrefix(folded, ".git/") {
+			return fmt.Errorf("candidate manifest path %q targets the disposable Git control directory", entry.Path)
+		}
+	}
+	return nil
+}
+
 func validateManifestFilesystemCollisions(entries []runnercomposition.CandidateManifestEntry) error {
 	byFold := make(map[string]string, len(entries))
 	byNFC := make(map[string]string, len(entries))
@@ -315,7 +330,7 @@ func initializeDisposableGitBase(ctx context.Context, repoRoot, parent string) e
 	for _, args := range [][]string{
 		{"init", "-q"},
 		{"-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A"},
-		{"-c", "user.name=Sensei O4", "-c", "user.email=sensei-o4@invalid", "-c", "commit.gpgsign=false", "commit", "-q", "--no-gpg-sign", "-m", "sealed base"},
+		{"-c", "user.name=Sensei O4", "-c", "user.email=sensei-o4@invalid", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "--no-gpg-sign", "-m", "sealed base"},
 	} {
 		cmd := exec.CommandContext(ctx, "git", args...)
 		cmd.Dir = repoRoot

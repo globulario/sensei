@@ -109,6 +109,9 @@ func NewSenseiGateEvaluator(config SenseiGateConfig, surface EvaluatorSurface, r
 	policySum := sha256.Sum256(policyContent)
 	policyDigest := hex.EncodeToString(policySum[:])
 
+	if _, err := environmentKeys(config.Environment); err != nil {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: environment: %w", err)
+	}
 	config.Environment = append([]string(nil), config.Environment...)
 	if config.TotalTimeout <= 0 {
 		config.TotalTimeout = 5 * time.Minute
@@ -182,14 +185,14 @@ type senseiGateJSON struct {
 }
 
 type senseiGateEvidence struct {
-	SchemaVersion string          `json:"schema_version"`
-	Executable    string          `json:"executable"`
-	Args          []string        `json:"args"`
-	Environment   []string        `json:"environment"`
-	SurfaceRef    string          `json:"surface_ref"`
-	PolicyDigest  string          `json:"policy_digest_sha256"`
-	Command       CommandResult   `json:"command"`
-	Parsed        *senseiGateJSON `json:"parsed,omitempty"`
+	SchemaVersion   string          `json:"schema_version"`
+	Executable      string          `json:"executable"`
+	Args            []string        `json:"args"`
+	EnvironmentKeys []string        `json:"environment_keys"`
+	SurfaceRef      string          `json:"surface_ref"`
+	PolicyDigest    string          `json:"policy_digest_sha256"`
+	Command         CommandResult   `json:"command"`
+	Parsed          *senseiGateJSON `json:"parsed,omitempty"`
 }
 
 func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInput) (EvaluatorResult, error) {
@@ -250,15 +253,19 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 			parsed = &value
 		}
 	}
+	envKeys, err := environmentKeys(e.config.Environment)
+	if err != nil {
+		return EvaluatorResult{}, fmt.Errorf("SenseiGateEvaluator.Evaluate: environment: %w", err)
+	}
 	evidence := senseiGateEvidence{
-		SchemaVersion: "sensei.evaluatorcomposition.sensei-gate-evidence.v1",
-		Executable:    e.config.SenseiExecutable,
-		Args:          append([]string(nil), args...),
-		Environment:   append([]string(nil), e.config.Environment...),
-		SurfaceRef:    input.EvaluatorSurfaceRef,
-		PolicyDigest:  e.policyDigest,
-		Command:       command,
-		Parsed:        parsed,
+		SchemaVersion:   "sensei.evaluatorcomposition.sensei-gate-evidence.v1",
+		Executable:      e.config.SenseiExecutable,
+		Args:            append([]string(nil), args...),
+		EnvironmentKeys: envKeys,
+		SurfaceRef:      input.EvaluatorSurfaceRef,
+		PolicyDigest:    e.policyDigest,
+		Command:         command,
+		Parsed:          parsed,
 	}
 	evidenceBytes, err := json.Marshal(evidence)
 	if err != nil {

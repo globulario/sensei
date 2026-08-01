@@ -49,8 +49,8 @@ func TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority(t *te
 	sink := NewMemoryEvidenceSink()
 	executable := absoluteTestExecutable(t)
 	evaluator, err := NewMechanicalEvaluator("mechanical.test", "v1", true, surface, runner, sink, []MechanicalCommand{
-		{CheckID: "build", Executable: executable, Args: []string{"build"}, Env: []string{"LANG=C"}},
-		{CheckID: "test", Executable: executable, Args: []string{"test"}, Env: []string{"LANG=C"}},
+		{CheckID: "build", Executable: executable, Args: []string{"build"}, Env: []string{"LANG=C", "TOKEN=super-secret"}},
+		{CheckID: "test", Executable: executable, Args: []string{"test"}, Env: []string{"LANG=C", "TOKEN=super-secret"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -75,6 +75,16 @@ func TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority(t *te
 	if len(result.EvidenceReferences) != 1 || len(result.Checks[0].EvidenceReferences) != 1 || result.Checks[0].EvidenceReferences[0] != result.EvidenceReferences[0].Reference {
 		t.Fatalf("mechanical evidence attribution = %+v", result)
 	}
+	if len(result.EvidenceReferences) != 1 {
+		t.Fatal("mechanical result did not bind its evidence bundle")
+	}
+	evidenceBytes, ok := sink.Get(result.EvidenceReferences[0].DigestSHA256)
+	if !ok {
+		t.Fatal("mechanical evidence bundle missing from sink")
+	}
+	if strings.Contains(string(evidenceBytes), "super-secret") || !strings.Contains(string(evidenceBytes), "TOKEN") {
+		t.Fatalf("mechanical evidence leaked environment values or omitted keys: %s", evidenceBytes)
+	}
 	if len(runner.requests) != 2 {
 		t.Fatalf("command requests = %d, want 2", len(runner.requests))
 	}
@@ -82,7 +92,7 @@ func TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority(t *te
 		if request.Dir != surface.root || request.Executable != executable {
 			t.Fatalf("mechanical command escaped exact surface/executable: %+v", request)
 		}
-		if len(request.Env) != 1 || request.Env[0] != "LANG=C" {
+		if len(request.Env) != 2 || request.Env[0] != "LANG=C" || request.Env[1] != "TOKEN=super-secret" {
 			t.Fatalf("mechanical command inherited or changed environment: %v", request.Env)
 		}
 	}

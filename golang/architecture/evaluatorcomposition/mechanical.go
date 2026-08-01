@@ -60,6 +60,9 @@ func NewMechanicalEvaluator(evaluatorID, version string, deterministic bool, sur
 		if !filepath.IsAbs(command.Executable) {
 			return nil, fmt.Errorf("NewMechanicalEvaluator: command %q executable %q must be absolute", command.CheckID, command.Executable)
 		}
+		if _, err := environmentKeys(command.Env); err != nil {
+			return nil, fmt.Errorf("NewMechanicalEvaluator: command %q environment: %w", command.CheckID, err)
+		}
 		command.Args = append([]string(nil), command.Args...)
 		command.Env = append([]string(nil), command.Env...)
 		copied[i] = command
@@ -101,7 +104,7 @@ type mechanicalCommandEvidence struct {
 	CheckID           string         `json:"check_id"`
 	Executable        string         `json:"executable"`
 	Args              []string       `json:"args"`
-	Env               []string       `json:"env"`
+	EnvironmentKeys   []string       `json:"environment_keys"`
 	WorkingSurfaceRef string         `json:"working_surface_ref"`
 	Outcome           CommandOutcome `json:"outcome"`
 	ExitCode          int            `json:"exit_code"`
@@ -150,6 +153,10 @@ func (e *MechanicalEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 			checks = append(checks, synthesis.CheckObservation{CheckID: command.CheckID, Status: synthesis.CheckSkipped, Detail: "not run after evaluator terminal outcome", EvidenceReferences: []string{}})
 			continue
 		}
+		envKeys, envErr := environmentKeys(command.Env)
+		if envErr != nil {
+			return EvaluatorResult{}, fmt.Errorf("MechanicalEvaluator.Evaluate: check %q environment: %w", command.CheckID, envErr)
+		}
 		result, runErr := e.runner.Run(runCtx, CommandRequest{
 			Executable: command.Executable,
 			Args:       append([]string(nil), command.Args...),
@@ -166,7 +173,7 @@ func (e *MechanicalEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 		remainingBytes -= used
 		commandEvidence = append(commandEvidence, mechanicalCommandEvidence{
 			CheckID: command.CheckID, Executable: command.Executable,
-			Args: append([]string(nil), command.Args...), Env: append([]string(nil), command.Env...),
+			Args: append([]string(nil), command.Args...), EnvironmentKeys: envKeys,
 			WorkingSurfaceRef: input.EvaluatorSurfaceRef, Outcome: result.Outcome,
 			ExitCode: result.ExitCode, Stdout: result.Stdout, Stderr: result.Stderr,
 			Truncated: result.Truncated, Detail: result.Detail,
@@ -215,7 +222,7 @@ func (e *MechanicalEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 	if int64(len(bundleBytes)) > input.MaxEvidenceBytes {
 		return EvaluatorResult{}, fmt.Errorf("MechanicalEvaluator.Evaluate: evidence bundle size %d exceeds max_evidence_bytes %d", len(bundleBytes), input.MaxEvidenceBytes)
 	}
-	reference, err := e.sink.Put(ctx, bundleBytes)
+	reference, err := e.sink.Put(runCtx, bundleBytes)
 	if err != nil {
 		return EvaluatorResult{}, fmt.Errorf("MechanicalEvaluator.Evaluate: persist evidence: %w", err)
 	}

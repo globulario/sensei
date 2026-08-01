@@ -61,6 +61,9 @@ func TestOSCommandRunnerClassifiesExitAndBoundsCombinedOutput(t *testing.T) {
 	if len(emit.Stdout)+len(emit.Stderr) != 12 {
 		t.Fatalf("captured bytes = %d, want exactly 12", len(emit.Stdout)+len(emit.Stderr))
 	}
+	if string(emit.Stdout) != "abcdefghij" || string(emit.Stderr) != "AB" {
+		t.Fatalf("deterministic capture = stdout %q stderr %q, want full stdout then stderr remainder", emit.Stdout, emit.Stderr)
+	}
 
 	exited, err := runner.Run(context.Background(), commandHelperRequest(t, "exit"), 1024)
 	if err != nil {

@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -69,14 +71,18 @@ func (OSCommandRunner) Run(ctx context.Context, request CommandRequest, maxCaptu
 		return CommandResult{}, fmt.Errorf("OSCommandRunner.Run: maxCapturedBytes must be non-negative")
 	}
 
-	capture := newBoundedProcessCapture(maxCapturedBytes)
+	stdoutCapture := newBoundedStreamCapture(maxCapturedBytes)
+	stderrCapture := newBoundedStreamCapture(maxCapturedBytes)
 	cmd := exec.CommandContext(ctx, request.Executable, request.Args...)
 	cmd.Dir = request.Dir
 	cmd.Env = append([]string(nil), request.Env...)
-	cmd.Stdout = capture.stdoutWriter()
-	cmd.Stderr = capture.stderrWriter()
+	cmd.Stdout = stdoutCapture
+	cmd.Stderr = stderrCapture
 	err := cmd.Run()
-	stdout, stderr, truncated := capture.snapshot()
+	stdoutFull, stdoutStreamTruncated := stdoutCapture.snapshot()
+	stderrFull, stderrStreamTruncated := stderrCapture.snapshot()
+	stdout, stderr, budgetTruncated := trimCapturedOutput(stdoutFull, stderrFull, maxCapturedBytes)
+	truncated := stdoutStreamTruncated || stderrStreamTruncated || budgetTruncated
 
 	result := CommandResult{ExitCode: -1, Stdout: stdout, Stderr: stderr, Truncated: truncated}
 	if ctxErr := ctx.Err(); ctxErr != nil {
@@ -106,55 +112,84 @@ func (OSCommandRunner) Run(ctx context.Context, request CommandRequest, maxCaptu
 	return result, nil
 }
 
-type boundedProcessCapture struct {
+type boundedStreamCapture struct {
 	mu        sync.Mutex
-	remaining int64
-	stdout    bytes.Buffer
-	stderr    bytes.Buffer
+	limit     int64
+	buffer    bytes.Buffer
 	truncated bool
 }
 
-func newBoundedProcessCapture(max int64) *boundedProcessCapture {
-	return &boundedProcessCapture{remaining: max}
+func newBoundedStreamCapture(limit int64) *boundedStreamCapture {
+	return &boundedStreamCapture{limit: limit}
 }
 
-type captureWriter struct {
-	capture *boundedProcessCapture
-	stderr  bool
-}
-
-func (c *boundedProcessCapture) stdoutWriter() *captureWriter { return &captureWriter{capture: c} }
-func (c *boundedProcessCapture) stderrWriter() *captureWriter {
-	return &captureWriter{capture: c, stderr: true}
-}
-
-func (w *captureWriter) Write(p []byte) (int, error) {
-	w.capture.mu.Lock()
-	defer w.capture.mu.Unlock()
+func (c *boundedStreamCapture) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	accepted := len(p)
+	remaining := c.limit - int64(c.buffer.Len())
+	if remaining < 0 {
+		remaining = 0
+	}
 	writeN := int64(len(p))
-	if writeN > w.capture.remaining {
-		writeN = w.capture.remaining
-		w.capture.truncated = true
+	if writeN > remaining {
+		writeN = remaining
+		c.truncated = true
 	}
 	if writeN > 0 {
-		if w.stderr {
-			_, _ = w.capture.stderr.Write(p[:writeN])
-		} else {
-			_, _ = w.capture.stdout.Write(p[:writeN])
-		}
-		w.capture.remaining -= writeN
+		_, _ = c.buffer.Write(p[:writeN])
 	}
 	if writeN < int64(len(p)) {
-		w.capture.truncated = true
+		c.truncated = true
 	}
 	return accepted, nil
 }
 
-func (c *boundedProcessCapture) snapshot() ([]byte, []byte, bool) {
+func (c *boundedStreamCapture) snapshot() ([]byte, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return append([]byte(nil), c.stdout.Bytes()...), append([]byte(nil), c.stderr.Bytes()...), c.truncated
+	return append([]byte(nil), c.buffer.Bytes()...), c.truncated
+}
+
+// trimCapturedOutput applies the shared evidence budget deterministically:
+// stdout is retained first because structured machine evidence such as
+// Sensei gate JSON is emitted there; stderr receives the remaining bytes.
+func trimCapturedOutput(stdoutFull, stderrFull []byte, limit int64) (stdout, stderr []byte, truncated bool) {
+	stdoutN := int64(len(stdoutFull))
+	if stdoutN > limit {
+		stdoutN = limit
+		truncated = true
+	}
+	stdout = append([]byte(nil), stdoutFull[:stdoutN]...)
+	remaining := limit - stdoutN
+	stderrN := int64(len(stderrFull))
+	if stderrN > remaining {
+		stderrN = remaining
+		truncated = true
+	}
+	stderr = append([]byte(nil), stderrFull[:stderrN]...)
+	return stdout, stderr, truncated
+}
+
+// environmentKeys returns a stable, secret-free description of an exact
+// process environment. Evidence records names only; values still reach the
+// subprocess but are never persisted in O4 evidence.
+func environmentKeys(environment []string) ([]string, error) {
+	seen := make(map[string]bool, len(environment))
+	keys := make([]string, 0, len(environment))
+	for i, item := range environment {
+		key, _, ok := strings.Cut(item, "=")
+		if !ok || strings.TrimSpace(key) == "" {
+			return nil, fmt.Errorf("environment[%d] must be KEY=value with a non-empty key", i)
+		}
+		if seen[key] {
+			return nil, fmt.Errorf("environment key %q appears more than once", key)
+		}
+		seen[key] = true
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys, nil
 }
 
 // EvidenceSink persists captured evidence and returns a stable digest-bound

@@ -226,6 +226,46 @@ func TestCandidateMaterializerRejectsEscapingSymlinkBeforeWritingSurface(t *test
 	}
 }
 
+func TestCandidateMaterializerGitDiffRejectsCandidateGitControlPaths(t *testing.T) {
+	artifact, _, _, repoRoot := checkpoint4Fixture(t)
+	materializer, err := NewCandidateMaterializer(artifact.RepositoryDomain, repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, candidatePath := range []string{".git/config", ".GIT/hooks/pre-commit"} {
+		t.Run(candidatePath, func(t *testing.T) {
+			tampered := artifact
+			content := []byte("candidate-controlled Git configuration\n")
+			sum := sha256.Sum256(content)
+			tampered.Manifest = append(tampered.Manifest, runnercomposition.CandidateManifestEntry{
+				Path: candidatePath, Mode: runnercomposition.ModeRegular,
+				Content: content, SymlinkTarget: "", ContentDigestSHA256: hex.EncodeToString(sum[:]),
+			})
+			finalDigest, err := runnercomposition.ManifestDigest(tampered.Manifest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tampered.FinalCandidateContentDigestSHA256 = finalDigest
+			tampered = finishSurfaceArtifact(t, tampered)
+			if _, err := materializer.Materialize(context.Background(), tampered, "sensei-gate", SurfaceModeGitDiff); err == nil || !strings.Contains(err.Error(), "Git control directory") {
+				t.Fatalf("candidate Git control path rejection = %v", err)
+			}
+		})
+	}
+}
+
+func TestInitializeDisposableGitBaseAllowsEmptySnapshot(t *testing.T) {
+	repoRoot := t.TempDir()
+	parent := t.TempDir()
+	if err := initializeDisposableGitBase(context.Background(), repoRoot, parent); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("git", "-C", repoRoot, "rev-parse", "--verify", "HEAD")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("empty disposable base has no commit: %v: %s", err, out)
+	}
+}
+
 func finishSurfaceArtifact(t *testing.T, artifact runnercomposition.CandidateArtifact) runnercomposition.CandidateArtifact {
 	t.Helper()
 	artifact = runnercomposition.NormalizeCandidateArtifact(artifact)
