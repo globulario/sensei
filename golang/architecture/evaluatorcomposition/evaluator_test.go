@@ -7,6 +7,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
 type recordingEvaluatorSurface struct {
