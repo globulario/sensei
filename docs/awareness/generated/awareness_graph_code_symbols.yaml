@@ -9318,6 +9318,517 @@ test_symbols:
     symbol: TestParseDiff_ValidMultiFile
     package: diffaudit
     language: go
+  - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority
+    file: golang/architecture/evaluatorcomposition/adapters_test.go
+    symbol: TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestMechanicalEvaluatorStopsAfterUnavailableCommand
+    file: golang/architecture/evaluatorcomposition/adapters_test.go
+    symbol: TestMechanicalEvaluatorStopsAfterUnavailableCommand
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestSenseiGateEvaluatorFreezesExternalPolicyAndBindsItsDigest
+    file: golang/architecture/evaluatorcomposition/adapters_test.go
+    symbol: TestSenseiGateEvaluatorFreezesExternalPolicyAndBindsItsDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestSenseiGateEvaluatorMapsExistingOwnerVerdicts
+    file: golang/architecture/evaluatorcomposition/adapters_test.go
+    symbol: TestSenseiGateEvaluatorMapsExistingOwnerVerdicts
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestSenseiGateEvaluatorRejectsCandidateOwnedPolicyPath
+    file: golang/architecture/evaluatorcomposition/adapters_test.go
+    symbol: TestSenseiGateEvaluatorRejectsCandidateOwnedPolicyPath
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestSenseiGateEvaluatorRejectsNonGitSurface
+    file: golang/architecture/evaluatorcomposition/adapters_test.go
+    symbol: TestSenseiGateEvaluatorRejectsNonGitSurface
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/authority_immutability_test.go:TestGovernedFailureClassMinimumRecommendationForIsReferentiallyStable
+    file: golang/architecture/evaluatorcomposition/authority_immutability_test.go
+    symbol: TestGovernedFailureClassMinimumRecommendationForIsReferentiallyStable
+    package: evaluatorcomposition
+    language: go
+    doc: "TestGovernedFailureClassMinimumRecommendationForIsReferentiallyStable\nproves the lookup is a pure function of its input across repeated calls\n-- there is no package-level mutable state left for anything (this\npackage's own code, a future refactor, or an external consumer via any\nexported symbol) to have perturbed between calls."
+  - id: golang/architecture/evaluatorcomposition/authority_immutability_test.go:TestNoExportedMutableAuthorityState
+    file: golang/architecture/evaluatorcomposition/authority_immutability_test.go
+    symbol: TestNoExportedMutableAuthorityState
+    package: evaluatorcomposition
+    language: go
+    doc: "TestNoExportedMutableAuthorityState is a permanent regression guard\nagainst exactly the authority leak flagged in architect review\n4834886202: GovernedFailureClassMinimumRecommendation used to be an\nexported package-level map, a mutable reference type any importing\npackage could rewrite in place (e.g. lowering audit-forbidden-fix's\nfloor from abort to retry-generation before validation ever runs),\nsilently defeating ValidateEvaluationPolicy's downgrade check without\neven needing reflection or unsafe -- an ordinary assignment from another\npackage would do it.\n\nThis test parses every non-test .go file in this package directory and\nfails if any exported package-level var declares a map or slice type\n(whether via an explicit type, a composite literal, or make(...)). A\nclosed authority table in this package must be private, or -- as\nGovernedFailureClassMinimumRecommendationFor and\nrecommendationSeverityRank now are -- expressed as a function/switch\nwith no mutable value for anything outside this package to reach at all.\nAn external consumer literally cannot rewrite what does not exist as a\nreachable value."
+  - id: golang/architecture/evaluatorcomposition/command_test.go:TestEvidenceSinksAreContentAddressedAndRefuseConflictingBytes
+    file: golang/architecture/evaluatorcomposition/command_test.go
+    symbol: TestEvidenceSinksAreContentAddressedAndRefuseConflictingBytes
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/command_test.go:TestOSCommandRunnerClassifiesDeadline
+    file: golang/architecture/evaluatorcomposition/command_test.go
+    symbol: TestOSCommandRunnerClassifiesDeadline
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/command_test.go:TestOSCommandRunnerClassifiesExitAndBoundsCombinedOutput
+    file: golang/architecture/evaluatorcomposition/command_test.go
+    symbol: TestOSCommandRunnerClassifiesExitAndBoundsCombinedOutput
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/command_test.go:TestOSCommandRunnerHelperProcess
+    file: golang/architecture/evaluatorcomposition/command_test.go
+    symbol: TestOSCommandRunnerHelperProcess
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/complete_test.go:TestCompleteEvaluationAppliesExactlyOneSecondTransitionForEveryRecommendation
+    file: golang/architecture/evaluatorcomposition/complete_test.go
+    symbol: TestCompleteEvaluationAppliesExactlyOneSecondTransitionForEveryRecommendation
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/complete_test.go:TestCompleteEvaluationRejectsReplayAndMismatchedCheckpointBeforeTransition
+    file: golang/architecture/evaluatorcomposition/complete_test.go
+    symbol: TestCompleteEvaluationRejectsReplayAndMismatchedCheckpointBeforeTransition
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/complete_test.go:TestCompleteEvaluationRequiredUnavailableReceiptUsesAcceptedBindingsIndependentOfOrder
+    file: golang/architecture/evaluatorcomposition/complete_test.go
+    symbol: TestCompleteEvaluationRequiredUnavailableReceiptUsesAcceptedBindingsIndependentOfOrder
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/complete_test.go:TestCompleteEvaluationTerminatesRequiredEvaluatorAndCompositionFailures
+    file: golang/architecture/evaluatorcomposition/complete_test.go
+    symbol: TestCompleteEvaluationTerminatesRequiredEvaluatorAndCompositionFailures
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/complete_test.go:TestTerminateEvaluationUnavailableRecordsMaterializationFailure
+    file: golang/architecture/evaluatorcomposition/complete_test.go
+    symbol: TestTerminateEvaluationUnavailableRecordsMaterializationFailure
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_proof_test.go:TestComposeEvaluationRejectsMissingInvalidOrUncitedProofDischarge
+    file: golang/architecture/evaluatorcomposition/compose_proof_test.go
+    symbol: TestComposeEvaluationRejectsMissingInvalidOrUncitedProofDischarge
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_proof_test.go:TestComposeEvaluationValidatesExactClosureProofDischargeBytes
+    file: golang/architecture/evaluatorcomposition/compose_proof_test.go
+    symbol: TestComposeEvaluationValidatesExactClosureProofDischargeBytes
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_test.go:TestComposeEvaluationAppliesFixedNonAcceptPrecedence
+    file: golang/architecture/evaluatorcomposition/compose_test.go
+    symbol: TestComposeEvaluationAppliesFixedNonAcceptPrecedence
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_test.go:TestComposeEvaluationDistinguishesRequiredAndOptionalEvaluatorUnavailability
+    file: golang/architecture/evaluatorcomposition/compose_test.go
+    symbol: TestComposeEvaluationDistinguishesRequiredAndOptionalEvaluatorUnavailability
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_test.go:TestComposeEvaluationEnforcesRequiredChecksAndPolicyCoverage
+    file: golang/architecture/evaluatorcomposition/compose_test.go
+    symbol: TestComposeEvaluationEnforcesRequiredChecksAndPolicyCoverage
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_test.go:TestComposeEvaluationExcludesUnavailableRequiredEvaluatorFromAcceptedBindings
+    file: golang/architecture/evaluatorcomposition/compose_test.go
+    symbol: TestComposeEvaluationExcludesUnavailableRequiredEvaluatorFromAcceptedBindings
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_test.go:TestComposeEvaluationIsOrderIndependentAndAcceptsOnlyCompletePassingEvidence
+    file: golang/architecture/evaluatorcomposition/compose_test.go
+    symbol: TestComposeEvaluationIsOrderIndependentAndAcceptsOnlyCompletePassingEvidence
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/compose_test.go:TestComposeEvaluationRejectsDuplicateCheckIDsAcrossEvaluators
+    file: golang/architecture/evaluatorcomposition/compose_test.go
+    symbol: TestComposeEvaluationRejectsDuplicateCheckIDsAcrossEvaluators
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationInputDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationInputDigestEqualsIndependentlyRecomputedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationInputDigestInvalidatedByMutatingAttemptNumber
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationInputDigestInvalidatedByMutatingAttemptNumber
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationPolicyDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationPolicyDigestEqualsIndependentlyRecomputedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationPolicyDigestInvalidatedByMutatingContent
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationPolicyDigestInvalidatedByMutatingContent
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationReceiptDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationReceiptDigestEqualsIndependentlyRecomputedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationReceiptDigestExcludesCompletedAt
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationReceiptDigestExcludesCompletedAt
+    package: evaluatorcomposition
+    language: go
+    doc: "TestEvaluationReceiptDigestExcludesCompletedAt proves receipt identity\ndoes not depend on wall-clock time, the same convention synthesis.Receipt\nand runnercomposition.RunnerReceipt already follow."
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationReceiptDigestInvalidatedByMutatingDisposition
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationReceiptDigestInvalidatedByMutatingDisposition
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluationReceiptDigestInvalidatedByMutatingReferencedDigest
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluationReceiptDigestInvalidatedByMutatingReferencedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluatorDescriptorDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluatorDescriptorDigestEqualsIndependentlyRecomputedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluatorDescriptorDigestInvalidatedByMutatingVersion
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluatorDescriptorDigestInvalidatedByMutatingVersion
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluatorResultDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluatorResultDigestEqualsIndependentlyRecomputedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/digest_integrity_test.go:TestEvaluatorResultDigestInvalidatedByMutatingEvidenceReferenceDigest
+    file: golang/architecture/evaluatorcomposition/digest_integrity_test.go
+    symbol: TestEvaluatorResultDigestInvalidatedByMutatingEvidenceReferenceDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/evaluator_test.go:TestExecuteEvaluatorClosesSurfaceOnEvaluatorErrorAndBindingRefusal
+    file: golang/architecture/evaluatorcomposition/evaluator_test.go
+    symbol: TestExecuteEvaluatorClosesSurfaceOnEvaluatorErrorAndBindingRefusal
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/evaluator_test.go:TestExecuteEvaluatorOwnsCleanupTruthAndRedigestsResult
+    file: golang/architecture/evaluatorcomposition/evaluator_test.go
+    symbol: TestExecuteEvaluatorOwnsCleanupTruthAndRedigestsResult
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/evaluator_test.go:TestExecuteEvaluatorRecordsCleanupFailureWithoutRewritingChecks
+    file: golang/architecture/evaluatorcomposition/evaluator_test.go
+    symbol: TestExecuteEvaluatorRecordsCleanupFailureWithoutRewritingChecks
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/evaluator_test.go:TestExecuteEvaluatorRevokesSurfaceOnEarlyInputRefusal
+    file: golang/architecture/evaluatorcomposition/evaluator_test.go
+    symbol: TestExecuteEvaluatorRevokesSurfaceOnEarlyInputRefusal
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_lineage_test.go:TestRunCandidateLoadFailureCommandBindsO4ReceiptIdentityAndDisposition
+    file: golang/architecture/evaluatorcomposition/run_lineage_test.go
+    symbol: TestRunCandidateLoadFailureCommandBindsO4ReceiptIdentityAndDisposition
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_lineage_test.go:TestRunRejectsSelfConsistentO2ReceiptLineageMismatches
+    file: golang/architecture/evaluatorcomposition/run_lineage_test.go
+    symbol: TestRunRejectsSelfConsistentO2ReceiptLineageMismatches
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunLoadsAndCrossBindsCandidateOnHappyPath
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunLoadsAndCrossBindsCandidateOnHappyPath
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunProducesCandidateLoadFailureOnCrossBindingMismatch
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunProducesCandidateLoadFailureOnCrossBindingMismatch
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunProducesCandidateLoadFailureWithGovernedSecondTransition
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunProducesCandidateLoadFailureWithGovernedSecondTransition
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunProducesInvalidOutputTerminatedAfterExactlyOneTransition
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunProducesInvalidOutputTerminatedAfterExactlyOneTransition
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunRejectsInvalidPolicy
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunRejectsInvalidPolicy
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunRejectsNonVerifiedDisposition
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunRejectsNonVerifiedDisposition
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunRejectsPolicyBoundToAnUnrelatedCandidateArtifact
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunRejectsPolicyBoundToAnUnrelatedCandidateArtifact
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunRejectsPolicyBoundToAnUnrelatedSession
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunRejectsPolicyBoundToAnUnrelatedSession
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunRejectsRunnerReceiptReferencingAnUnrelatedResult
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunRejectsRunnerReceiptReferencingAnUnrelatedResult
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunRejectsTamperedO2Receipt
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunRejectsTamperedO2Receipt
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/run_test.go:TestRunRejectsWrongSessionPhase
+    file: golang/architecture/evaluatorcomposition/run_test.go
+    symbol: TestRunRejectsWrongSessionPhase
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
+    file: golang/architecture/evaluatorcomposition/schema_test.go
+    symbol: TestEmbeddedSchemasMatchCanonicalSource
+    package: evaluatorcomposition
+    language: go
+    doc: "TestEmbeddedSchemasMatchCanonicalSource proves the go:embed'd copy under\nschemas/ is byte-identical to the canonical, cross-repo-pinned source\nunder docs/schemas/evaluatorcomposition/v1/ -- go:embed cannot reach\noutside this package directory with a \"..\" pattern, so the canonical\nfile is mechanically copied here at commit time, and this test is what\nstops the two from silently drifting apart."
+  - id: golang/architecture/evaluatorcomposition/schema_test.go:TestEvaluationReceiptSchemaAllowsBothO1TerminalReceiptVariantsOnlyForEvaluated
+    file: golang/architecture/evaluatorcomposition/schema_test.go
+    symbol: TestEvaluationReceiptSchemaAllowsBothO1TerminalReceiptVariantsOnlyForEvaluated
+    package: evaluatorcomposition
+    language: go
+    doc: "TestEvaluationReceiptSchemaAllowsBothO1TerminalReceiptVariantsOnlyForEvaluated\nproves O1TerminalReceiptDigestSHA256's ambiguity is scoped exactly to\nDispositionEvaluated: both presence and absence validate for evaluated,\nbut every other disposition rejects absence."
+  - id: golang/architecture/evaluatorcomposition/schema_test.go:TestEvaluationReceiptSchemaEnforcesDispositionMatrixExactly
+    file: golang/architecture/evaluatorcomposition/schema_test.go
+    symbol: TestEvaluationReceiptSchemaEnforcesDispositionMatrixExactly
+    package: evaluatorcomposition
+    language: go
+    doc: "TestEvaluationReceiptSchemaEnforcesDispositionMatrixExactly is the\ntable-first presence-matrix proof: for every one of the six closed\ndispositions, flipping CandidateArtifactVerified, forcing a non-empty\nEvaluatorResultBindings where it must be empty, or flipping\nEvaluationDigestSHA256's nil-ness away from what FieldPresenceFor(d)\nrequires -- each independently, leaving every other field and the\ndisposition itself untouched -- must be rejected."
+  - id: golang/architecture/evaluatorcomposition/schema_test.go:TestSchemaVersionIdentifiersMatchAdopted
+    file: golang/architecture/evaluatorcomposition/schema_test.go
+    symbol: TestSchemaVersionIdentifiersMatchAdopted
+    package: evaluatorcomposition
+    language: go
+    doc: "TestSchemaVersionIdentifiersMatchAdopted confirms every vendored schema's\nconst schema_version exactly matches this package's Go constant."
+  - id: golang/architecture/evaluatorcomposition/schema_test.go:TestSchemasParseAndAreClosed
+    file: golang/architecture/evaluatorcomposition/schema_test.go
+    symbol: TestSchemasParseAndAreClosed
+    package: evaluatorcomposition
+    language: go
+    doc: "TestSchemasParseAndAreClosed proves every vendored schema parses as JSON\nand keeps additionalProperties:false at its object root."
+  - id: golang/architecture/evaluatorcomposition/schema_test.go:TestValidateSchemasAcceptValidFixtures
+    file: golang/architecture/evaluatorcomposition/schema_test.go
+    symbol: TestValidateSchemasAcceptValidFixtures
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateSchemasAcceptValidFixtures proves every schema accepts its\nown package's valid fixtures, for every one of the six closed\ndispositions (both evaluated variants, plus a cleanup-failed variant for\nevery disposition where cleanup applies), under the real Draft 2020-12\nvalidator."
+  - id: golang/architecture/evaluatorcomposition/surface_test.go:TestCandidateMaterializerCreatesFreshIsolatedPlainSurfacesAndRevokesBeforeRemoval
+    file: golang/architecture/evaluatorcomposition/surface_test.go
+    symbol: TestCandidateMaterializerCreatesFreshIsolatedPlainSurfacesAndRevokesBeforeRemoval
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/surface_test.go:TestCandidateMaterializerGitDiffSurfaceUsesPinnedBaseNotDirtyLiveCheckout
+    file: golang/architecture/evaluatorcomposition/surface_test.go
+    symbol: TestCandidateMaterializerGitDiffSurfaceUsesPinnedBaseNotDirtyLiveCheckout
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/surface_test.go:TestCandidateMaterializerRejectsCandidateGitControlPathsAndSymlinks
+    file: golang/architecture/evaluatorcomposition/surface_test.go
+    symbol: TestCandidateMaterializerRejectsCandidateGitControlPathsAndSymlinks
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/surface_test.go:TestCandidateMaterializerRejectsEscapingSymlinkBeforeWritingSurface
+    file: golang/architecture/evaluatorcomposition/surface_test.go
+    symbol: TestCandidateMaterializerRejectsEscapingSymlinkBeforeWritingSurface
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/surface_test.go:TestCandidateMaterializerRejectsWrongDomainAndTamperedLineage
+    file: golang/architecture/evaluatorcomposition/surface_test.go
+    symbol: TestCandidateMaterializerRejectsWrongDomainAndTamperedLineage
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/surface_test.go:TestInitializeDisposableGitBaseAllowsEmptySnapshot
+    file: golang/architecture/evaluatorcomposition/surface_test.go
+    symbol: TestInitializeDisposableGitBaseAllowsEmptySnapshot
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationInputAcceptsValidFixture
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationInputAcceptsValidFixture
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationInputRejectsMutatedDigest
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationInputRejectsMutatedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyAcceptsGovernedFailureClassAtItsMinimum
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyAcceptsGovernedFailureClassAtItsMinimum
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationPolicyAcceptsGovernedFailureClassAtItsMinimum proves\na policy mapping a governed failure class to exactly its canonical\nminimum recommendation is accepted (equal severity)."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyAcceptsGovernedFailureClassEscalation
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyAcceptsGovernedFailureClassEscalation
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationPolicyAcceptsGovernedFailureClassEscalation proves a\npolicy mapping a governed failure class to something MORE severe than its\ncanonical minimum is accepted."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyAcceptsValidFixture
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyAcceptsValidFixture
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyIgnoresMinimumForUngovernedFailureClass
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyIgnoresMinimumForUngovernedFailureClass
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationPolicyIgnoresMinimumForUngovernedFailureClass proves\na failure_class outside the governed registry is not bound to any floor\n-- evaluators and policies remain free to define their own ad hoc\nclasses."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyRejectsDuplicateEvaluatorID
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyRejectsDuplicateEvaluatorID
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyRejectsDuplicateFailureClass
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyRejectsDuplicateFailureClass
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyRejectsGovernedFailureClassDowngrade
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyRejectsGovernedFailureClassDowngrade
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationPolicyRejectsGovernedFailureClassDowngrade proves a\npolicy mapping a governed failure class to something LESS severe than its\ncanonical minimum -- the exact \"forbidden-fix mapped from abort to\nretry-generation\" scenario the architect flagged -- is rejected before\nany O1 interaction (ValidateEvaluationPolicy is pure and has no side\neffects, so rejection here structurally precedes the first Transition\ncall once checkpoint 3 wires this validator into that precondition)."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyRejectsGovernedFailureClassPrecedenceReordering
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyRejectsGovernedFailureClassPrecedenceReordering
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationPolicyRejectsGovernedFailureClassPrecedenceReordering\nproves every level below a governed class's minimum is rejected, not just\nthe adjacent one -- i.e. the check is a true severity-rank comparison,\nnot a single-step-down special case."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationPolicyRejectsMutatedDigest
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationPolicyRejectsMutatedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptAcceptsCanonicallyOrderedMultipleBindings
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptAcceptsCanonicallyOrderedMultipleBindings
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationReceiptAcceptsCanonicallyOrderedMultipleBindings\nproves a receipt with several distinct, strictly ascending EvaluatorID\nbindings is accepted -- not just the single-binding fixture shape."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptAcceptsValidFixtures
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptAcceptsValidFixtures
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationReceiptAcceptsValidFixtures proves every disposition\n(both evaluated variants, plus cleanup-failed variants where applicable)\npasses full validation, not just schema validation."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsCleanupFailureDetailMismatch
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsCleanupFailureDetailMismatch
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsDuplicateEvaluatorIDBinding
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsDuplicateEvaluatorIDBinding
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationReceiptRejectsDuplicateEvaluatorIDBinding proves a\nreceipt naming the same evaluator twice in evaluator_result_bindings is\nrejected -- the receipt cannot answer \"which evaluator produced this\nresult\" if the same evaluator ID is ambiguous within it."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsFailureDetailAbsentWhenNotEvaluated
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsFailureDetailAbsentWhenNotEvaluated
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsFailureDetailPresentWhenEvaluated
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsFailureDetailPresentWhenEvaluated
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsMissingRequiredO1TerminalReceipt
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsMissingRequiredO1TerminalReceipt
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationReceiptRejectsMissingRequiredO1TerminalReceipt\nproves every disposition except DispositionEvaluated requires\nO1TerminalReceiptDigestSHA256 to be non-nil at the Go validation layer,\nnot merely at the schema layer."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsMutatedDigest
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsMutatedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsOutOfOrderEvaluatorIDBindings
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsOutOfOrderEvaluatorIDBindings
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationReceiptRejectsOutOfOrderEvaluatorIDBindings proves a\nreceipt whose evaluator_result_bindings are NOT in strictly ascending\nEvaluatorID order is rejected, not silently reordered."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluationReceiptRejectsWrongCandidateArtifactVerified
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluationReceiptRejectsWrongCandidateArtifactVerified
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluationReceiptRejectsWrongCandidateArtifactVerified proves\nthe Go-level cross-check (redundant with the schema, per hard law\ndefense-in-depth) fires for every disposition when\nCandidateArtifactVerified is flipped away from FieldPresenceFor(d)."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorDescriptorAcceptsValidFixture
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorDescriptorAcceptsValidFixture
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorDescriptorRejectsMutatedDigest
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorDescriptorRejectsMutatedDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultAcceptsMultipleDistinctChecksAndEvidence
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultAcceptsMultipleDistinctChecksAndEvidence
+    package: evaluatorcomposition
+    language: go
+    doc: "TestValidateEvaluatorResultAcceptsMultipleDistinctChecksAndEvidence proves\na result with several checks and evidence references, all correctly\ncross-referenced, is accepted -- not just the single-check fixture shape."
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultAcceptsValidFixture
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultAcceptsValidFixture
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultRejectsConflictingEvidenceDigest
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultRejectsConflictingEvidenceDigest
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultRejectsDanglingCheckEvidenceReference
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultRejectsDanglingCheckEvidenceReference
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultRejectsDuplicateCheckID
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultRejectsDuplicateCheckID
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultRejectsDuplicateEvidenceReference
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultRejectsDuplicateEvidenceReference
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultRejectsDuplicateFailureClassification
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultRejectsDuplicateFailureClassification
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultRejectsEmptyFailureClassification
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultRejectsEmptyFailureClassification
+    package: evaluatorcomposition
+    language: go
+  - id: golang/architecture/evaluatorcomposition/validate_test.go:TestValidateEvaluatorResultRejectsMutatedDigest
+    file: golang/architecture/evaluatorcomposition/validate_test.go
+    symbol: TestValidateEvaluatorResultRejectsMutatedDigest
+    package: evaluatorcomposition
+    language: go
   - id: golang/architecture/evidencereceipt/coverage_test.go:TestEvaluateCoverage
     file: golang/architecture/evidencereceipt/coverage_test.go
     symbol: TestEvaluateCoverage
