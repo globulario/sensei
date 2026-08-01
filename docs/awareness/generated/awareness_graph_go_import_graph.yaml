@@ -472,6 +472,11 @@ components:
       - golang/architecture/diffaudit/evaluator.go
       - golang/architecture/diffaudit/model.go
       - golang/architecture/diffaudit/parser.go
+      - golang/architecture/evaluatorcomposition/digest.go
+      - golang/architecture/evaluatorcomposition/normalize.go
+      - golang/architecture/evaluatorcomposition/schema.go
+      - golang/architecture/evaluatorcomposition/types.go
+      - golang/architecture/evaluatorcomposition/validate.go
       - golang/architecture/evidencereceipt/coverage.go
       - golang/architecture/evidencereceipt/freshness.go
       - golang/architecture/evidencereceipt/model.go
