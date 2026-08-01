@@ -60,7 +60,7 @@ complete = replace_once(
 complete = replace_once(
     complete,
     "\treceipt.EvaluatorResultBindings = bindingsFromExecutions(executions)\n",
-    "\treceipt.EvaluatorResultBindings = canonicalBindings(bindings)\n",
+    "\treceipt.EvaluatorResultBindings = append([]EvaluatorResultBinding{}, canonicalBindings(bindings)...)\n",
     "terminal accepted bindings",
 )
 complete_path.write_text(complete)
