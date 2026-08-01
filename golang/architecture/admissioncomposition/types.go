@@ -4,7 +4,8 @@
 // admission owners without replacing any of them. It validates the exact
 // candidate-ready lineage, derives the requested mutation scope from sealed
 // manifests, and records admission/verification evidence beside the frozen
-// O1 receipt.
+// O1 receipt. Its request and receipt surfaces are closed Draft 2020-12
+// documents validated from byte-identical embedded and canonical schemas.
 package admissioncomposition
 
 import (
