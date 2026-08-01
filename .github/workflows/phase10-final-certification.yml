@@ -154,3 +154,5 @@ jobs:
           git diff --cached --quiet && { echo "::error::self-removal did not produce the certification commit"; exit 1; }
           git commit -m "chore(phase10): certify reconciled investigation foundation"
           git push origin HEAD:phase10-architectural-investigation
+
+# This second merge activates the workflow already present in the parent branch.
