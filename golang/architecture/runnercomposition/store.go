@@ -3,12 +3,14 @@
 package runnercomposition
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 )
@@ -20,10 +22,12 @@ var ErrCandidateArtifactNotFound = errors.New("candidate artifact not found")
 
 // ErrCandidateArtifactCorrupted is returned (wrapped) by
 // CandidateArtifactStore.Get when something IS sealed under the requested
-// digest, but it fails ValidateCandidateArtifact, or its own
-// CandidateArtifactDigestSHA256 does not match the digest it was retrieved
-// by -- a distinct failure mode from "not found," since the store answered
-// with content it must refuse to hand back as if it were trustworthy.
+// digest, but it fails raw-schema validation, strict decoding,
+// ValidateCandidateArtifact, its own CandidateArtifactDigestSHA256 does not
+// match the digest it was retrieved by, or the stored entry is not a plain
+// regular file -- a distinct failure mode from "not found," since the
+// store found SOMETHING under that key but must refuse to hand it back as
+// if it were trustworthy.
 var ErrCandidateArtifactCorrupted = errors.New("candidate artifact corrupted")
 
 // sealedDigestPattern matches exactly the shape sha256Hex ever produces: 64
@@ -50,28 +54,40 @@ type CandidateArtifactStore interface {
 	// rejected before it can be persisted (hard law 14a) -- Put alone
 	// carries the "verified" promise this store's whole contract rests on.
 	//
-	// The write is transactional: on any error, nothing new is left
-	// readable under artifact's digest -- a caller that sees a Put error
-	// can safely conclude the artifact was NOT sealed, never that it was
-	// partially or ambiguously sealed.
+	// Publication is atomic no-clobber sealing, not replace-capable: the
+	// content is staged, then committed via a hard link that ONLY
+	// succeeds if no entry already exists under the digest (the OS makes
+	// this check-and-create a single atomic operation -- there is no
+	// window between "does it exist" and "create it" for a second
+	// publisher, in this process or another, to win a race and overwrite
+	// an already-sealed entry). If the digest is already occupied, the
+	// existing entry is read back (via a no-follow, regular-file-only
+	// reader) and strictly compared to what this call would have sealed;
+	// identical content is an idempotent no-op, and different content is
+	// refused -- a sealed entry is immutable, never silently overwritten.
 	//
-	// Put is idempotent for identical content: re-sealing the same
-	// artifact under the same digest a second time succeeds without
-	// re-writing. An attempt to seal DIFFERENT content under a digest that
-	// is already sealed is rejected -- a sealed entry is immutable, never
-	// silently overwritten, since two different Put calls agreeing on a
-	// digest but disagreeing on content is either a caller bug or (at the
-	// digest's collision-resistance limit) something this store must
-	// refuse to paper over.
+	// On any error, nothing new is left readable under artifact's digest:
+	// a caller that sees a Put error can safely conclude the artifact was
+	// NOT sealed, never that it was partially or ambiguously sealed. A
+	// staging-cleanup failure is always surfaced (joined with any other
+	// error, or returned on its own after an otherwise-successful seal),
+	// never silently discarded.
 	Put(ctx context.Context, artifact CandidateArtifact) error
 
 	// Get retrieves the CandidateArtifact previously sealed under
-	// digestSHA256. It re-validates the artifact (ValidateCandidateArtifact)
-	// before returning it, and additionally confirms the artifact's own
-	// CandidateArtifactDigestSHA256 equals digestSHA256, before returning
-	// it -- so an entry corrupted after being sealed (truncated, bit-rotted,
-	// or otherwise no longer matching the key it is stored under) is
-	// refused rather than silently handed back as if it were trustworthy.
+	// digestSHA256. It reads the stored entry through the same no-follow,
+	// regular-file-only reader Put's conflict check uses, validates the
+	// RAW bytes against CandidateArtifact's closed schema before any typed
+	// decoding (so an injected unknown field cannot be silently dropped by
+	// json.Unmarshal before additionalProperties:false ever sees it),
+	// decodes strictly (rejecting unknown fields and requiring exactly one
+	// complete JSON document) as a second, redundant layer, then runs
+	// ValidateCandidateArtifact for semantic/digest verification, then
+	// confirms the artifact's own CandidateArtifactDigestSHA256 equals
+	// digestSHA256 -- so an entry corrupted after being sealed (truncated,
+	// bit-rotted, replaced by a symlink or FIFO, tampered with an extra
+	// field, or no longer matching the key it is stored under) is refused
+	// rather than silently handed back as if it were trustworthy.
 	//
 	// Returns an error satisfying errors.Is(err, ErrCandidateArtifactNotFound)
 	// if nothing is sealed under digestSHA256, or
@@ -96,6 +112,11 @@ type fsCandidateArtifactStore struct {
 // constructors (newFSCandidateWorkspace, ExtractSnapshot's destination)
 // apply, and for the same reason: this function does not create or own
 // root's lifecycle, only what is written inside it.
+//
+// Multiple independent Go values returned by this function -- including
+// from separate process instances pointed at the same root -- may safely
+// address the same store concurrently; Put's atomicity does not depend on
+// in-process locking.
 func NewFSCandidateArtifactStore(root string) (CandidateArtifactStore, error) {
 	if err := validateAbsoluteRealDirectory("root", root); err != nil {
 		return nil, fmt.Errorf("NewFSCandidateArtifactStore: %w", err)
@@ -122,23 +143,10 @@ func (s *fsCandidateArtifactStore) Put(ctx context.Context, artifact CandidateAr
 	if err != nil {
 		return fmt.Errorf("CandidateArtifactStore.Put: marshal: %w", err)
 	}
-
 	finalName := digest + ".json"
-	existing, err := s.root.ReadFile(finalName)
-	switch {
-	case err == nil:
-		if string(existing) == string(marshaled) {
-			return nil // already sealed, identical content -- idempotent no-op.
-		}
-		return fmt.Errorf("CandidateArtifactStore.Put: an artifact is already sealed under digest %q with different content -- a sealed entry is immutable and is never overwritten", digest)
-	case os.IsNotExist(err):
-		// Nothing sealed yet -- proceed to write.
-	default:
-		return fmt.Errorf("CandidateArtifactStore.Put: check existing entry: %w", err)
-	}
 
-	if err := s.root.MkdirAll(".tmp", 0o755); err != nil {
-		return fmt.Errorf("CandidateArtifactStore.Put: create staging directory: %w", err)
+	if err := s.ensureTmpDir(); err != nil {
+		return fmt.Errorf("CandidateArtifactStore.Put: %w", err)
 	}
 	var suffix [8]byte
 	if _, err := rand.Read(suffix[:]); err != nil {
@@ -146,14 +154,43 @@ func (s *fsCandidateArtifactStore) Put(ctx context.Context, artifact CandidateAr
 	}
 	tmpName := ".tmp/" + digest + "." + hex.EncodeToString(suffix[:]) + ".tmp"
 	if err := s.root.WriteFile(tmpName, marshaled, 0o644); err != nil {
-		s.root.Remove(tmpName)
-		return fmt.Errorf("CandidateArtifactStore.Put: write staged content: %w", err)
+		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.Put: write staged content: %w", err), s.root.Remove(tmpName))
 	}
-	if err := s.root.Rename(tmpName, finalName); err != nil {
-		s.root.Remove(tmpName)
-		return fmt.Errorf("CandidateArtifactStore.Put: commit (rename) failed: %w", err)
+
+	// Commit is a single atomic "create final only if absent" operation --
+	// link(2) either creates finalName pointing at the staged content's
+	// inode, or fails with EEXIST, with no window in between for a second
+	// publisher to observe "absent" and also proceed to create it: exactly
+	// one Link call across any number of concurrent racers can ever
+	// succeed for a given finalName.
+	linkErr := s.root.Link(tmpName, finalName)
+	if linkErr == nil {
+		// The staging name is now a second, redundant link to the same
+		// inode finalName already names -- remove it.
+		if removeErr := s.root.Remove(tmpName); removeErr != nil {
+			return fmt.Errorf("CandidateArtifactStore.Put: sealed successfully under digest %q, but removing staged content %q failed: %w", digest, tmpName, removeErr)
+		}
+		return nil
 	}
-	return nil
+	removeErr := s.root.Remove(tmpName) // always clean up our own staging file.
+
+	if !os.IsExist(linkErr) {
+		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.Put: commit (link) failed: %w", linkErr), removeErr)
+	}
+
+	// Something is already sealed under this digest. Read it back through
+	// the no-follow, regular-file-only reader -- an existing entry that is
+	// not a plain regular file (a symlink, FIFO, or other special file)
+	// cannot be safely compared, and is refused as an unverifiable,
+	// immutable conflicting entry rather than tolerated.
+	existing, readErr := s.readSealedEntry(finalName)
+	if readErr != nil {
+		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.Put: digest %q is already occupied by an entry that could not be safely verified: %w", digest, readErr), removeErr)
+	}
+	if string(existing) == string(marshaled) {
+		return joinCleanupErr(nil, removeErr) // identical content -- idempotent no-op.
+	}
+	return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.Put: an artifact is already sealed under digest %q with different content -- a sealed entry is immutable and is never overwritten", digest), removeErr)
 }
 
 func (s *fsCandidateArtifactStore) Get(ctx context.Context, digestSHA256 string) (CandidateArtifact, error) {
@@ -164,17 +201,17 @@ func (s *fsCandidateArtifactStore) Get(ctx context.Context, digestSHA256 string)
 		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: digestSHA256 %q is not a well-formed sha256 hex digest", digestSHA256)
 	}
 
-	data, err := s.root.ReadFile(digestSHA256 + ".json")
+	data, err := s.readSealedEntry(digestSHA256 + ".json")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: %s: %w", digestSHA256, ErrCandidateArtifactNotFound)
 		}
-		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: read: %w", err)
+		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: %s: %v: %w", digestSHA256, err, ErrCandidateArtifactCorrupted)
 	}
 
-	var artifact CandidateArtifact
-	if err := json.Unmarshal(data, &artifact); err != nil {
-		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: %s: unmarshal: %v: %w", digestSHA256, err, ErrCandidateArtifactCorrupted)
+	artifact, err := decodeCandidateArtifactStrict(data)
+	if err != nil {
+		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: %s: %v: %w", digestSHA256, err, ErrCandidateArtifactCorrupted)
 	}
 	if err := ValidateCandidateArtifact(artifact); err != nil {
 		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: %s: %v: %w", digestSHA256, err, ErrCandidateArtifactCorrupted)
@@ -183,4 +220,100 @@ func (s *fsCandidateArtifactStore) Get(ctx context.Context, digestSHA256 string)
 		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: entry stored under %q actually carries digest %q: %w", digestSHA256, artifact.CandidateArtifactDigestSHA256, ErrCandidateArtifactCorrupted)
 	}
 	return artifact, nil
+}
+
+// decodeCandidateArtifactStrict validates raw against CandidateArtifact's
+// closed schema BEFORE any typed decoding -- so additionalProperties:false
+// sees exactly the bytes that were actually stored, not whatever survives
+// json.Unmarshal's default behavior of silently discarding unrecognized
+// keys before ValidateCandidateArtifact would ever re-marshal and check
+// the now-clean struct. It then decodes strictly (rejecting unknown
+// fields, a second and redundant layer) into exactly one complete JSON
+// document -- trailing content after the first value is rejected too.
+func decodeCandidateArtifactStrict(raw []byte) (CandidateArtifact, error) {
+	if err := ValidateCandidateArtifactSchema(raw); err != nil {
+		return CandidateArtifact{}, fmt.Errorf("raw schema: %w", err)
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	var artifact CandidateArtifact
+	if err := dec.Decode(&artifact); err != nil {
+		return CandidateArtifact{}, fmt.Errorf("strict decode: %w", err)
+	}
+	if dec.More() {
+		return CandidateArtifact{}, fmt.Errorf("trailing content after one JSON document")
+	}
+	return artifact, nil
+}
+
+// ensureTmpDir creates the internal staging directory if it does not
+// already exist, and refuses to proceed if ".tmp" exists as anything other
+// than a real directory. os.Root follows an internal symlink, so MkdirAll
+// alone would silently accept ".tmp" being a symlink to some other
+// directory within root, staging every Put's content through a followed
+// alias instead of the store's own dedicated area.
+func (s *fsCandidateArtifactStore) ensureTmpDir() error {
+	if err := s.root.MkdirAll(".tmp", 0o755); err != nil {
+		return fmt.Errorf("create staging directory: %w", err)
+	}
+	info, err := s.root.Lstat(".tmp")
+	if err != nil {
+		return fmt.Errorf("inspect staging directory: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf(".tmp is not a real directory (mode %v) -- refusing to stage through a followed alias", info.Mode())
+	}
+	return nil
+}
+
+// readSealedEntry reads name (a path directly inside root) as sealed
+// artifact bytes, refusing to follow a symlink or open anything other than
+// a plain regular file. os.Root contains a symlink's target within root,
+// but does not refuse to follow one -- so a digest-named symlink could
+// otherwise alias a different file's content, and a digest-named FIFO
+// would block Open (and any read from it) indefinitely rather than
+// erroring, if this function ever attempted to open one. The identity
+// check after Open closes the remaining inspect-then-open race: if name
+// were replaced between Lstat and Open -- by a symlink, or by a different
+// regular file -- the freshly opened file's identity would not match what
+// Lstat observed, and this refuses it too.
+//
+// Returns an error satisfying os.IsNotExist if name does not exist.
+func (s *fsCandidateArtifactStore) readSealedEntry(name string) ([]byte, error) {
+	info, err := s.root.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%q is not a regular file (mode %v)", name, info.Mode())
+	}
+	f, err := s.root.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	openedInfo, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !openedInfo.Mode().IsRegular() || !os.SameFile(info, openedInfo) {
+		return nil, fmt.Errorf("%q was replaced between inspection and open", name)
+	}
+	return io.ReadAll(f)
+}
+
+// joinCleanupErr never discards a cleanup failure: cleanupErr, if non-nil,
+// is always represented in the returned error, either standing alone (when
+// primary is nil -- the main operation succeeded but cleanup did not) or
+// joined alongside primary (errors.Join, so both remain independently
+// inspectable via errors.Is/As).
+func joinCleanupErr(primary, cleanupErr error) error {
+	if cleanupErr == nil {
+		return primary
+	}
+	wrapped := fmt.Errorf("cleanup: remove staged content: %w", cleanupErr)
+	if primary == nil {
+		return wrapped
+	}
+	return errors.Join(primary, wrapped)
 }
