@@ -73,7 +73,9 @@ type VerifiedGenerationHandoff struct {
 }
 ```
 
-Durability: this carrier is process-local, not crash-resume durable. Today, `providerport.Run` returns `Request`/`Result`/`O2Receipt` as plain Go values, and O3's `Run` returns `RunnerReceipt` as a plain Go value -- neither package writes any of the four to a store. Only the sealed `CandidateArtifact` bytes are durable (`CandidateArtifactStore`). `VerifiedGenerationHandoff` therefore exists only for the span of one caller's synchronous O3-`Run` -> O4-handoff-validation -> first-`Transition` call chain within a single process invocation. A crash anywhere in that span is recovered by re-running O3's `Run` from scratch against the same Session/Plan/identity, never by resuming a persisted handoff -- O3's evidence forge is deterministic and content-addressed, so re-running it is safe and produces the same sealed artifact. Durable, crash-resume handoff persistence is out of scope through checkpoint 5 and would require its own explicit design decision if ever added.
+Durability: this carrier is process-local, not crash-resume durable. Today, `providerport.Run` returns `Request`/`Result`/`O2Receipt` as plain Go values, and O3's `Run` returns `RunnerReceipt` as a plain Go value -- neither package writes any of the four to a store. Only the sealed `CandidateArtifact` bytes are durable (`CandidateArtifactStore`). `VerifiedGenerationHandoff` therefore exists only for the span of one caller's synchronous O3-`Run` -> O4-handoff-validation -> first-`Transition` call chain within a single process invocation.
+
+Crash recovery does not claim reproducibility, only legitimacy. Only O3's own evidence forge -- the read-only snapshot and manifest built from git objects at the fixed base revision -- is deterministic and content-addressed. `Run` constructs a *fresh* generation provider and calls its `Execute`, which is untrusted, external, and not assumed deterministic: a provider may legitimately produce a different candidate on every invocation, even from the identical input snapshot. A rerun after a crash is therefore not guaranteed, and must not be documented as guaranteed, to reproduce the same sealed `CandidateArtifact` digest as the crashed attempt. What makes re-running safe is not reproducibility -- it is that a crash anywhere before O4's first `Transition` call means `RecordAttemptCommand` never fired, so O1 recorded nothing for the crashed attempt (`SessionState` is still at `PhaseAttempting` with the same `ExpectedAttemptNumber`). Recovery is therefore "attempt the same expected attempt number again," a legitimate fresh attempt independently validated on its own merits by every law in this section, never "resume or reproduce the specific in-flight candidate that was being produced when the process crashed." Durable, crash-resume handoff persistence is out of scope through checkpoint 5 and would require its own explicit design decision if ever added.
 
 It must satisfy all of these laws:
 
@@ -225,7 +227,7 @@ Policy is execution configuration, not canonical architectural truth. O4 must no
 
 This contract fixes the precedence among the four non-accept recommendations now; it is not deferred to checkpoint 5. When more than one applies to the same evaluation, the highest-precedence recommendation wins, evaluated in this fixed order regardless of evaluator completion order (hard law 18):
 
-1. **`abort`** -- reserved for evidence that no retry or replan of this session could possibly resolve: a blocking Sensei audit/forbidden-fix violation, or a proof obligation classified as permanently undischargeable against this candidate.
+1. **`abort`** -- reserved for evidence that no retry or replan of this session could possibly resolve: a blocking `sensei edit-check`/`sensei gate --enforce` forbidden-fix violation, or a proof obligation classified as permanently undischargeable against this candidate.
 2. **`architect-review`** -- evidence that is ambiguous, policy-boundary, or otherwise not safely automatable: an incident/scar match flagged as concerning but not itself blocking, or a required-evaluator failure classification the policy does not map cleanly to `retry-generation` or `replan`.
 3. **`replan`** -- evidence that the current *plan* (not merely this attempt) cannot reach the objective as structured: a proof obligation that is structurally undischargeable under the plan's current step sequence, or a mechanical/audit failure the policy classifies as plan-level rather than attempt-level.
 4. **`retry-generation`** -- the default, lowest-severity non-accept outcome: evidence that is attempt-local and plausibly resolved by a fresh generation attempt against the same plan (e.g. a mechanical test failure with no plan- or policy-level classification).
@@ -264,7 +266,7 @@ Regardless of configurable non-success policy, `accept-candidate` is legal only 
 - no required check was skipped or unavailable;
 - every required proof obligation was discharged against this exact candidate;
 - no blocking limitation remains;
-- Sensei audit reports no blocking invariant, contract, forbidden-fix, or scope violation;
+- `sensei edit-check`/`sensei gate --enforce` (the real diff/edit-governance owner named in evaluator class 2 -- not `sensei audit`, which self-audits the awareness-graph corpus) reports no blocking invariant, contract, forbidden-fix, or scope violation, and was not itself unreachable or degraded;
 - the final Evaluation and every referenced evaluator result pass declared-versus-computed digest validation.
 
 A required skipped or unavailable check is never equivalent to pass.
@@ -290,32 +292,38 @@ This path is distinct from:
 
 O4 introduces one closed receipt document binding the entire evaluation composition without replacing O1's `synthesis.Evaluation` or terminal `synthesis.Receipt`.
 
-The receipt references at minimum:
+Fields present on **every** disposition, because they come from the already-validated generation handoff and exist before O4 does anything else: Session digest, accepted Attempt digest, O3 RunnerReceipt digest, O2 generation Request/Result/Receipt digests, terminal O4 disposition, and the O4 receipt's own digest. The remaining fields vary by disposition -- see the matrix below:
 
-- Session digest;
-- accepted Attempt digest;
-- candidate artifact digest;
-- O3 RunnerReceipt digest;
-- O2 generation Request, Result, and Receipt digests;
+- candidate artifact digest (present as an unverified reference from the O3 receipt, or present as a verified-loaded artifact digest, or absent, per disposition);
 - evaluation-policy digest;
-- ordered evaluator descriptor/result digests;
-- final O1 Evaluation digest when produced;
-- terminal O4 disposition;
-- materialization cleanup truth;
-- receipt digest.
+- ordered evaluator descriptor/result digests (zero or more; whichever evaluators reached a terminal result before any failure);
+- final O1 Evaluation digest;
+- **O1 terminal receipt digest** -- `synthesis.Receipt.ReceiptDigestSHA256` (equivalently, the `ReceiptDigestSHA256` carried on the `SessionTerminatedEvent` the triggering Transition call returned), present whenever O1 has actually produced a terminal receipt as a result of either Transition call, absent when the session is still open (`PhaseRetry`/`PhaseReplan`) or was never reached;
+- materialization cleanup truth.
 
-Initial disposition vocabulary:
+### Disposition/evidence-presence matrix
 
-| Disposition | Meaning | Evaluation digest | O1 command |
-|---|---|---:|---|
-| `invalid-output-terminated` | The accepted Attempt's own `TerminalProviderStatus` was `invalid_output`. O1's first `RecordAttemptCommand` Transition call already terminated the session (`ReasonInvalidProviderOutput`) before `PhaseEvaluating` was ever entered. | nil | none -- O1 already terminated via the *first* Transition call; this disposition only binds O4's own evidence to that already-recorded O1 receipt |
-| `candidate-load-failure` | The exact sealed artifact could not be loaded or validated after the generation handoff was accepted. | nil | `EvaluatorUnavailableCommand` |
-| `materialization-failure` | A required evaluator surface could not be constructed from the sealed artifact. | nil | `EvaluatorUnavailableCommand` |
-| `required-evaluator-unavailable` | A required evaluator could not produce a valid terminal result. | nil | `EvaluatorUnavailableCommand` |
-| `composition-failure` | Evaluator results existed but could not be composed into a valid Evaluation under the accepted policy. | nil | `EvaluatorUnavailableCommand` |
-| `evaluated` | A valid O1 Evaluation was composed and accepted by `synthesis.Transition`. | present | `RecordEvaluationCommand` |
+| Disposition | Meaning | Transitions | Resulting phase | O1 terminal receipt digest | 2nd O1 command |
+|---|---|---:|---|---|---|
+| `invalid-output-terminated` | The accepted Attempt's own `TerminalProviderStatus` was `invalid_output`. O1's *first* `RecordAttemptCommand` Transition call already terminated the session (`ReasonInvalidProviderOutput`) before `PhaseEvaluating` was ever entered. | 1 | `PhaseFailed` | present -- bound from the first call's own `SessionTerminatedEvent` | none; O4 makes no second call |
+| `candidate-load-failure` | The exact sealed artifact could not be loaded or validated after the generation handoff was accepted. | 2 | `PhaseFailed` | present -- bound from the second call | `EvaluatorUnavailableCommand` |
+| `materialization-failure` | A required evaluator surface could not be constructed from the sealed artifact. | 2 | `PhaseFailed` | present -- bound from the second call | `EvaluatorUnavailableCommand` |
+| `required-evaluator-unavailable` | A required evaluator could not produce a valid terminal result. | 2 | `PhaseFailed` | present -- bound from the second call | `EvaluatorUnavailableCommand` |
+| `composition-failure` | Evaluator results existed but could not be composed into a valid Evaluation under the accepted policy. | 2 | `PhaseFailed` | present -- bound from the second call | `EvaluatorUnavailableCommand` |
+| `evaluated` | A valid O1 Evaluation was composed and accepted by `synthesis.Transition`. | 2 | varies by `Recommendation` and remaining budget: `PhaseSucceeded` (`accept-candidate`); `PhaseRetry` if retry budget remains, else `PhaseFailed`/budget-exhausted (`retry-generation`); `PhaseReplan` if replan budget remains, else `PhaseFailed`/budget-exhausted (`replan`); `PhaseFailed` (`architect-review`, `abort`) | present only when the resulting phase is terminal (`PhaseSucceeded`/`PhaseFailed`); **absent** when the resulting phase is `PhaseRetry` or `PhaseReplan` -- O1 does not construct a Receipt for a non-terminal transition | `RecordEvaluationCommand` |
 
-Every disposition now ends in an O1-recorded consequence: `invalid-output-terminated` binds evidence to a termination O1 already recorded on the first Transition call; the four `EvaluatorUnavailableCommand` dispositions each produce their own governed O1 termination on the second Transition call; `evaluated` produces `RecordEvaluationCommand`. No disposition leaves SessionState parked with nothing O1-recorded -- there is exactly one Transition call for `invalid-output-terminated` and exactly two for every other disposition, never zero and never a dangling first call with no second.
+Evidence-presence for the remaining O4-receipt fields, per disposition:
+
+| Disposition | Candidate artifact digest | Policy digest | Evaluator descriptor/result digests | Evaluation digest | Cleanup truth |
+|---|---|---|---|---:|---|
+| `invalid-output-terminated` | present, unverified (O4 never attempts to load it) | absent (O4 stops before validating policy) | none | nil | not applicable (nil) -- no evaluator surface was ever constructed |
+| `candidate-load-failure` | present, unverified (load/validation is what failed) | present (policy is validated immediately after entering `PhaseEvaluating`, before candidate load) | none | nil | not applicable (nil) -- no evaluator surface was ever constructed |
+| `materialization-failure` | present, verified-loaded | present | zero or more (whichever evaluators, if any, completed before the failing one) | nil | present -- covers whichever surfaces were actually constructed |
+| `required-evaluator-unavailable` | present, verified-loaded | present | zero or more (excludes the unavailable evaluator; includes any that did complete) | nil | present |
+| `composition-failure` | present, verified-loaded | present | the complete set that ran | nil | present |
+| `evaluated` | present, verified-loaded | present | the complete, policy-required set | present | present |
+
+Every disposition ends in an O1-recorded consequence: `invalid-output-terminated` binds evidence to a termination O1 already recorded on the first Transition call; the four `EvaluatorUnavailableCommand` dispositions each produce their own governed O1 termination on the second Transition call; `evaluated` produces `RecordEvaluationCommand`, which may itself be terminal or may hand the session to `PhaseRetry`/`PhaseReplan` for the caller to continue. No disposition leaves SessionState parked with nothing O1-recorded -- there is exactly one Transition call for `invalid-output-terminated` and exactly two for every other disposition, never zero and never a dangling first call with no second.
 
 The implementation may refine this vocabulary only during contract review. It must not collapse contract failure, evaluator unavailability, failed checks, and composition failure into one ambiguous error.
 
