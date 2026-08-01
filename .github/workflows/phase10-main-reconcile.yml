@@ -96,3 +96,5 @@ jobs:
           git diff --cached --quiet && { echo "::error::reconciliation produced no publishable change"; exit 1; }
           git commit -m "chore(phase10): reconcile certified foundation with current main"
           git push origin HEAD:phase10-architectural-investigation
+
+# The workflow already exists in the base branch; this second merge activates it.
