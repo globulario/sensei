@@ -473,6 +473,8 @@ components:
       - golang/architecture/diffaudit/model.go
       - golang/architecture/diffaudit/parser.go
       - golang/architecture/evaluatorcomposition/command.go
+      - golang/architecture/evaluatorcomposition/complete.go
+      - golang/architecture/evaluatorcomposition/compose.go
       - golang/architecture/evaluatorcomposition/digest.go
       - golang/architecture/evaluatorcomposition/evaluator.go
       - golang/architecture/evaluatorcomposition/mechanical.go

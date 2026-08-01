@@ -25,6 +25,7 @@ type Result struct {
 	Events       []synthesis.Event
 	Receipt      *EvaluationReceipt
 	Candidate    *runnercomposition.CandidateArtifact
+	Evaluation   *synthesis.Evaluation
 }
 
 // Run closes O4's exact generation-handoff seam

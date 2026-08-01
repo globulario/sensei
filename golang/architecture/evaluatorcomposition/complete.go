@@ -182,9 +182,9 @@ func bindingsFromExecutions(executions []EvaluatorExecution) []EvaluatorResultBi
 		}
 		seen[id] = true
 		bindings = append(bindings, EvaluatorResultBinding{
-			EvaluatorID: id,
+			EvaluatorID:            id,
 			DescriptorDigestSHA256: execution.Descriptor.DescriptorDigestSHA256,
-			ResultDigestSHA256: execution.Result.ResultDigestSHA256,
+			ResultDigestSHA256:     execution.Result.ResultDigestSHA256,
 		})
 	}
 	sort.Slice(bindings, func(i, j int) bool { return bindings[i].EvaluatorID < bindings[j].EvaluatorID })

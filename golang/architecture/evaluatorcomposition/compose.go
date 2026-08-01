@@ -23,9 +23,9 @@ import (
 // Recommendation in EvaluationPolicy. O4 never supplies a hidden default.
 const (
 	FailureClassOptionalEvaluatorUnavailable = "optional-evaluator-unavailable"
-	FailureClassRequiredCheckUnsatisfied      = "required-check-unsatisfied"
-	FailureClassIncompleteObservation         = "incomplete-evaluator-observation"
-	FailureClassBlockingLimitation             = "blocking-limitation"
+	FailureClassRequiredCheckUnsatisfied     = "required-check-unsatisfied"
+	FailureClassIncompleteObservation        = "incomplete-evaluator-observation"
+	FailureClassBlockingLimitation           = "blocking-limitation"
 )
 
 const (
@@ -45,11 +45,11 @@ type EvidenceResolver interface {
 // composition-failure. The latter two carry bounded detail for the already
 // contracted EvaluatorUnavailableCommand path.
 type Composition struct {
-	Disposition         Disposition
-	Evaluation          *synthesis.Evaluation
-	EvaluatorBindings   []EvaluatorResultBinding
-	FailureDetail       string
-	CleanupSucceeded    bool
+	Disposition          Disposition
+	Evaluation           *synthesis.Evaluation
+	EvaluatorBindings    []EvaluatorResultBinding
+	FailureDetail        string
+	CleanupSucceeded     bool
 	CleanupFailureDetail string
 }
 
@@ -109,7 +109,6 @@ func ComposeEvaluation(
 	limitations := make([]synthesis.Limitation, 0)
 	evidence := make([]EvidenceReference, 0)
 	referencedEvidence := make(map[string]bool)
-	cleanupFailures := make([]string, 0)
 
 	for _, execution := range ordered {
 		id := execution.Descriptor.EvaluatorID
@@ -132,31 +131,28 @@ func ComposeEvaluation(
 		}
 		executionByID[id] = execution
 		bindings = append(bindings, EvaluatorResultBinding{
-			EvaluatorID: id,
+			EvaluatorID:            id,
 			DescriptorDigestSHA256: execution.Descriptor.DescriptorDigestSHA256,
-			ResultDigestSHA256: execution.Result.ResultDigestSHA256,
+			ResultDigestSHA256:     execution.Result.ResultDigestSHA256,
 		})
 		if execution.Result.CleanupSucceeded == nil {
 			base.FailureDetail = fmt.Sprintf("evaluator %q result has no O4-owned cleanup truth", id)
 			return withCompositionEvidence(base, bindings, ordered)
 		}
-		if !*execution.Result.CleanupSucceeded {
-			cleanupFailures = append(cleanupFailures, id)
-		}
 
 		if execution.Result.TerminalOutcome != EvaluatorOutcomeCompleted {
 			if spec.Required {
 				unavailable := Composition{
-					Disposition: DispositionRequiredEvaluatorUnavailable,
+					Disposition:       DispositionRequiredEvaluatorUnavailable,
 					EvaluatorBindings: append([]EvaluatorResultBinding(nil), bindings...),
-					FailureDetail: fmt.Sprintf("required evaluator %q ended with terminal outcome %q", id, execution.Result.TerminalOutcome),
+					FailureDetail:     fmt.Sprintf("required evaluator %q ended with terminal outcome %q", id, execution.Result.TerminalOutcome),
 				}
 				return finalizeCompositionCleanup(unavailable, ordered)
 			}
 			failureClasses = append(failureClasses, FailureClassOptionalEvaluatorUnavailable)
 			limitations = append(limitations, synthesis.Limitation{
 				Source: "evaluatorcomposition", Scope: id,
-				Reason: fmt.Sprintf("optional evaluator ended with terminal outcome %q", execution.Result.TerminalOutcome),
+				Reason:   fmt.Sprintf("optional evaluator ended with terminal outcome %q", execution.Result.TerminalOutcome),
 				Blocking: true,
 			})
 		}
@@ -181,9 +177,9 @@ func ComposeEvaluation(
 		}
 		if spec.Required {
 			unavailable := Composition{
-				Disposition: DispositionRequiredEvaluatorUnavailable,
+				Disposition:       DispositionRequiredEvaluatorUnavailable,
 				EvaluatorBindings: append([]EvaluatorResultBinding(nil), bindings...),
-				FailureDetail: fmt.Sprintf("required evaluator %q produced no finalized result", spec.EvaluatorID),
+				FailureDetail:     fmt.Sprintf("required evaluator %q produced no finalized result", spec.EvaluatorID),
 			}
 			return finalizeCompositionCleanup(unavailable, ordered)
 		}
@@ -234,14 +230,14 @@ func ComposeEvaluation(
 	}
 
 	evaluation := synthesis.Evaluation{
-		SchemaVersion: synthesis.EvaluationSchemaVersion,
-		AttemptDigestSHA256: state.LatestAttemptDigestSHA256,
-		EvaluatorKind: compositionEvaluatorKind,
-		EvaluatorVersion: compositionEvaluatorVersion,
-		Checks: checks,
+		SchemaVersion:            synthesis.EvaluationSchemaVersion,
+		AttemptDigestSHA256:      state.LatestAttemptDigestSHA256,
+		EvaluatorKind:            compositionEvaluatorKind,
+		EvaluatorVersion:         compositionEvaluatorVersion,
+		Checks:                   checks,
 		ClassifiedFailureReasons: failureClasses,
-		Recommendation: recommendation,
-		Limitations: limitations,
+		Recommendation:           recommendation,
+		Limitations:              limitations,
 	}
 	evaluation.EvaluationID, err = compositionEvaluationID(state, candidate, policy, bindings, evaluation)
 	if err != nil {
@@ -270,8 +266,8 @@ func ComposeEvaluation(
 	}
 
 	composed := Composition{
-		Disposition: DispositionEvaluated,
-		Evaluation: &evaluation,
+		Disposition:       DispositionEvaluated,
+		Evaluation:        &evaluation,
 		EvaluatorBindings: bindings,
 	}
 	return finalizeCompositionCleanup(composed, ordered)
@@ -321,27 +317,23 @@ func verifyRequiredProofDischarges(ctx context.Context, required []string, evide
 	if resolver == nil {
 		return fmt.Errorf("no evidence resolver was supplied for %d required proof discharges", len(required))
 	}
-	refsByDigest := make(map[string][]EvidenceReference)
+	byReference := make(map[string]EvidenceReference, len(evidence))
 	for _, reference := range evidence {
-		refsByDigest[reference.DigestSHA256] = append(refsByDigest[reference.DigestSHA256], reference)
+		if existing, ok := byReference[reference.Reference]; ok && existing.DigestSHA256 != reference.DigestSHA256 {
+			return fmt.Errorf("evidence reference %q has conflicting digests", reference.Reference)
+		}
+		byReference[reference.Reference] = reference
 	}
-	for _, digest := range required {
-		refs := refsByDigest[digest]
-		if len(refs) == 0 {
-			return fmt.Errorf("required discharge digest %q is absent from evaluator evidence", digest)
+	references := make([]EvidenceReference, 0, len(byReference))
+	for _, reference := range byReference {
+		if cited[reference.Reference] {
+			references = append(references, reference)
 		}
-		sort.Slice(refs, func(i, j int) bool { return refs[i].Reference < refs[j].Reference })
-		var reference *EvidenceReference
-		for i := range refs {
-			if cited[refs[i].Reference] {
-				reference = &refs[i]
-				break
-			}
-		}
-		if reference == nil {
-			return fmt.Errorf("required discharge digest %q is not cited by any evaluator check", digest)
-		}
-		content, err := resolver.Resolve(ctx, *reference)
+	}
+	sort.Slice(references, func(i, j int) bool { return references[i].Reference < references[j].Reference })
+	validated := make(map[string]bool, len(required))
+	for _, reference := range references {
+		content, err := resolver.Resolve(ctx, reference)
 		if err != nil {
 			return fmt.Errorf("resolve %q: %w", reference.Reference, err)
 		}
@@ -350,27 +342,39 @@ func verifyRequiredProofDischarges(ctx context.Context, required []string, evide
 		if actual != reference.DigestSHA256 {
 			return fmt.Errorf("evidence reference %q declares digest %q but bytes hash to %q", reference.Reference, reference.DigestSHA256, actual)
 		}
+		var marker struct {
+			DischargeDigestSHA256 string `json:"discharge_digest_sha256"`
+		}
+		if err := json.Unmarshal(content, &marker); err != nil || marker.DischargeDigestSHA256 == "" {
+			continue
+		}
 		var discharge closureprotocol.ProofDischarge
 		decoder := json.NewDecoder(bytes.NewReader(content))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&discharge); err != nil {
-			return fmt.Errorf("decode ProofDischarge %q: %w", digest, err)
+			return fmt.Errorf("decode ProofDischarge %q: %w", marker.DischargeDigestSHA256, err)
 		}
 		if err := ensureJSONEOF(decoder); err != nil {
-			return fmt.Errorf("decode ProofDischarge %q: %w", digest, err)
+			return fmt.Errorf("decode ProofDischarge %q: %w", marker.DischargeDigestSHA256, err)
 		}
 		if err := closureprotocol.ValidateProofDischarge(discharge); err != nil {
-			return fmt.Errorf("validate ProofDischarge %q: %w", digest, err)
+			return fmt.Errorf("validate ProofDischarge %q: %w", marker.DischargeDigestSHA256, err)
 		}
 		recomputed, err := closureprotocol.ProofDischargeDigest(discharge)
 		if err != nil {
-			return fmt.Errorf("digest ProofDischarge %q: %w", digest, err)
+			return fmt.Errorf("digest ProofDischarge %q: %w", marker.DischargeDigestSHA256, err)
 		}
-		if discharge.DischargeDigestSHA256 != digest || recomputed != digest {
-			return fmt.Errorf("ProofDischarge digest binding mismatch: required %q, declared %q, recomputed %q", digest, discharge.DischargeDigestSHA256, recomputed)
+		if discharge.DischargeDigestSHA256 != recomputed {
+			return fmt.Errorf("ProofDischarge declared digest %q does not match recomputed %q", discharge.DischargeDigestSHA256, recomputed)
 		}
 		if discharge.Status != closureprotocol.ReceiptValid {
-			return fmt.Errorf("ProofDischarge %q status is %q, not valid", digest, discharge.Status)
+			return fmt.Errorf("ProofDischarge %q status is %q, not valid", recomputed, discharge.Status)
+		}
+		validated[recomputed] = true
+	}
+	for _, digest := range required {
+		if !validated[digest] {
+			return fmt.Errorf("required discharge digest %q is absent from check-cited, validated evaluator evidence", digest)
 		}
 	}
 	return nil
@@ -418,25 +422,25 @@ func recommendationForClasses(policy EvaluationPolicy, classes []string) (synthe
 
 func compositionEvaluationID(state synthesis.SessionState, candidate runnercomposition.CandidateArtifact, policy EvaluationPolicy, bindings []EvaluatorResultBinding, evaluation synthesis.Evaluation) (string, error) {
 	identity := struct {
-		SessionDigestSHA256   string                   `json:"session_digest_sha256"`
-		AttemptDigestSHA256   string                   `json:"attempt_digest_sha256"`
-		CandidateDigestSHA256 string                   `json:"candidate_digest_sha256"`
-		PolicyDigestSHA256    string                   `json:"policy_digest_sha256"`
-		Bindings              []EvaluatorResultBinding `json:"bindings"`
+		SessionDigestSHA256   string                       `json:"session_digest_sha256"`
+		AttemptDigestSHA256   string                       `json:"attempt_digest_sha256"`
+		CandidateDigestSHA256 string                       `json:"candidate_digest_sha256"`
+		PolicyDigestSHA256    string                       `json:"policy_digest_sha256"`
+		Bindings              []EvaluatorResultBinding     `json:"bindings"`
 		Checks                []synthesis.CheckObservation `json:"checks"`
-		FailureClasses        []string                 `json:"failure_classes"`
-		Recommendation        synthesis.Recommendation `json:"recommendation"`
-		Limitations           []synthesis.Limitation   `json:"limitations"`
+		FailureClasses        []string                     `json:"failure_classes"`
+		Recommendation        synthesis.Recommendation     `json:"recommendation"`
+		Limitations           []synthesis.Limitation       `json:"limitations"`
 	}{
-		SessionDigestSHA256: state.Session.SessionDigestSHA256,
-		AttemptDigestSHA256: state.LatestAttemptDigestSHA256,
+		SessionDigestSHA256:   state.Session.SessionDigestSHA256,
+		AttemptDigestSHA256:   state.LatestAttemptDigestSHA256,
 		CandidateDigestSHA256: candidate.CandidateArtifactDigestSHA256,
-		PolicyDigestSHA256: policy.PolicyDigestSHA256,
-		Bindings: bindings,
-		Checks: evaluation.Checks,
-		FailureClasses: evaluation.ClassifiedFailureReasons,
-		Recommendation: evaluation.Recommendation,
-		Limitations: evaluation.Limitations,
+		PolicyDigestSHA256:    policy.PolicyDigestSHA256,
+		Bindings:              bindings,
+		Checks:                evaluation.Checks,
+		FailureClasses:        evaluation.ClassifiedFailureReasons,
+		Recommendation:        evaluation.Recommendation,
+		Limitations:           evaluation.Limitations,
 	}
 	data, err := json.Marshal(identity)
 	if err != nil {

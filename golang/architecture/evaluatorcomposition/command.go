@@ -229,6 +229,20 @@ func (s *MemoryEvidenceSink) Get(digest string) ([]byte, bool) {
 	return append([]byte(nil), content...), ok
 }
 
+func (s *MemoryEvidenceSink) Resolve(ctx context.Context, reference EvidenceReference) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	content, ok := s.Get(reference.DigestSHA256)
+	if !ok {
+		return nil, fmt.Errorf("MemoryEvidenceSink.Resolve: digest %q not found", reference.DigestSHA256)
+	}
+	if err := validateResolvedEvidence(reference, content); err != nil {
+		return nil, err
+	}
+	return content, nil
+}
+
 // FSEvidenceSink is a content-addressed filesystem evidence sink. Each blob is
 // written once under <sha256>.blob; an existing entry must contain identical
 // bytes or Put refuses it.
@@ -282,6 +296,35 @@ func (s *FSEvidenceSink) Put(ctx context.Context, content []byte) (EvidenceRefer
 		return EvidenceReference{}, fmt.Errorf("FSEvidenceSink.Put: create: %w", err)
 	}
 	return EvidenceReference{Reference: "evidence://sha256/" + digest, DigestSHA256: digest}, nil
+}
+
+func (s *FSEvidenceSink) Resolve(ctx context.Context, reference EvidenceReference) ([]byte, error) {
+	if s == nil {
+		return nil, fmt.Errorf("FSEvidenceSink.Resolve: nil sink")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	content, err := os.ReadFile(filepath.Join(s.root, reference.DigestSHA256+".blob"))
+	if err != nil {
+		return nil, fmt.Errorf("FSEvidenceSink.Resolve: read: %w", err)
+	}
+	if err := validateResolvedEvidence(reference, content); err != nil {
+		return nil, err
+	}
+	return content, nil
+}
+
+func validateResolvedEvidence(reference EvidenceReference, content []byte) error {
+	wantReference := "evidence://sha256/" + reference.DigestSHA256
+	if reference.Reference != wantReference {
+		return fmt.Errorf("evidence reference %q does not match digest-bound reference %q", reference.Reference, wantReference)
+	}
+	actual := evidenceDigest(content)
+	if actual != reference.DigestSHA256 {
+		return fmt.Errorf("evidence reference digest %q does not match bytes %q", reference.DigestSHA256, actual)
+	}
+	return nil
 }
 
 func evidenceDigest(content []byte) string {
