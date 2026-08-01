@@ -22,21 +22,31 @@ jobs:
         with:
           go-version: '1.25'
           cache-dependency-path: go.sum
-      - name: Apply review repair
-        run: python scripts/pr126_checkpoint5_review_fix.py
-      - name: Format
-        run: gofmt -w golang/architecture/evaluatorcomposition/compose.go golang/architecture/evaluatorcomposition/complete.go golang/architecture/evaluatorcomposition/complete_test.go
-      - name: Prove evaluator composition
-        run: go test ./golang/architecture/evaluatorcomposition -count=1 -timeout 240s
-      - name: Commit repair
+      - name: Apply, format, and prove repair
+        shell: bash
         run: |
+          set +e
+          {
+            python scripts/pr126_checkpoint5_review_fix.py
+            gofmt -w golang/architecture/evaluatorcomposition/compose.go \
+                      golang/architecture/evaluatorcomposition/complete.go \
+                      golang/architecture/evaluatorcomposition/complete_test.go
+            go test ./golang/architecture/evaluatorcomposition -count=1 -timeout 240s
+          } > /tmp/pr126-review-closure.log 2>&1
+          status=$?
+
           git config user.name "sensei-pr126-review"
           git config user.email "sensei-pr126-review@users.noreply.github.com"
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/pr126-review-closure.log pr126-review-closure-error.log
+            git add pr126-review-closure-error.log
+            git commit -m "test(synthesis): capture PR 126 closure failure"
+            git push origin HEAD:agent/governed-evaluator-composition-o4
+            exit "$status"
+          fi
+
           git add golang/architecture/evaluatorcomposition/compose.go \
                   golang/architecture/evaluatorcomposition/complete.go \
                   golang/architecture/evaluatorcomposition/complete_test.go
           git commit -m "fix(synthesis): preserve accepted evaluator bindings on terminal paths"
           git push origin HEAD:agent/governed-evaluator-composition-o4
-
-# The workflow already exists in the parent commit; this update supplies the
-# normal matching push event used to execute the bounded closure repair.
