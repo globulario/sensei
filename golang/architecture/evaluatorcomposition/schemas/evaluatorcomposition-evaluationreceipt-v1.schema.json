@@ -18,7 +18,7 @@
     "policy_digest_sha256",
     "candidate_artifact_digest_sha256",
     "candidate_artifact_verified",
-    "evaluator_result_digests_sha256",
+    "evaluator_result_bindings",
     "evaluation_digest_sha256",
     "o1_terminal_receipt_digest_sha256",
     "disposition",
@@ -46,10 +46,10 @@
       "$ref": "#/$defs/sha256Hex"
     },
     "candidate_artifact_verified": { "type": "boolean" },
-    "evaluator_result_digests_sha256": {
-      "$comment": "Ordered by evaluator ID. Must be empty for invalid-output-terminated and candidate-load-failure (no evaluator surface was ever constructed); may be any length, including empty, for every other disposition.",
+    "evaluator_result_bindings": {
+      "$comment": "Must be sorted in strictly ascending evaluator_id order with no duplicate evaluator_id (enforced in Go, not schema-expressible over a variable-length array) -- see ValidateEvaluationReceipt. Must be empty for invalid-output-terminated and candidate-load-failure (no evaluator surface was ever constructed); may be any length, including empty, for every other disposition.",
       "type": "array",
-      "items": { "$ref": "#/$defs/sha256Hex" }
+      "items": { "$ref": "#/$defs/evaluatorResultBinding" }
     },
     "evaluation_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
     "o1_terminal_receipt_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
@@ -90,7 +90,7 @@
       "then": {
         "properties": {
           "candidate_artifact_verified": { "const": false },
-          "evaluator_result_digests_sha256": { "maxItems": 0 },
+          "evaluator_result_bindings": { "maxItems": 0 },
           "evaluation_digest_sha256": { "type": "null" },
           "o1_terminal_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
           "cleanup_succeeded": { "type": "null" }
@@ -155,6 +155,16 @@
         "composition-failure",
         "evaluated"
       ]
+    },
+    "evaluatorResultBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluator_id", "descriptor_digest_sha256", "result_digest_sha256"],
+      "properties": {
+        "evaluator_id": { "type": "string", "minLength": 1 },
+        "descriptor_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "result_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+      }
     }
   }
 }

@@ -198,7 +198,7 @@ type receiptDigestField struct {
 // TestEvaluationReceiptSchemaEnforcesDispositionMatrixExactly is the
 // table-first presence-matrix proof: for every one of the six closed
 // dispositions, flipping CandidateArtifactVerified, forcing a non-empty
-// EvaluatorResultDigestsSHA256 where it must be empty, or flipping
+// EvaluatorResultBindings where it must be empty, or flipping
 // EvaluationDigestSHA256's nil-ness away from what FieldPresenceFor(d)
 // requires -- each independently, leaving every other field and the
 // disposition itself untouched -- must be rejected.
@@ -223,10 +223,14 @@ func TestEvaluationReceiptSchemaEnforcesDispositionMatrixExactly(t *testing.T) {
 				"candidate_artifact_verified",
 				func(r *EvaluationReceipt) { r.CandidateArtifactVerified = !presence.CandidateArtifactVerified },
 			})
-			if presence.EvaluatorResultDigestsMustBeEmpty {
+			if presence.EvaluatorResultBindingsMustBeEmpty {
 				fields = append(fields, receiptDigestField{
-					"evaluator_result_digests_sha256",
-					func(r *EvaluationReceipt) { r.EvaluatorResultDigestsSHA256 = []string{zeroDigest} },
+					"evaluator_result_bindings",
+					func(r *EvaluationReceipt) {
+						r.EvaluatorResultBindings = []EvaluatorResultBinding{
+							{EvaluatorID: "mechanical.go-test", DescriptorDigestSHA256: zeroDigest, ResultDigestSHA256: zeroDigest},
+						}
+					},
 				})
 			}
 			fields = append(fields, receiptDigestField{

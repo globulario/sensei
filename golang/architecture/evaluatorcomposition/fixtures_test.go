@@ -175,10 +175,12 @@ func fixtureEvaluationReceipt(t *testing.T, d Disposition, evaluatedTerminal boo
 		CompletedAt:                   "2026-08-01T00:00:00Z",
 	}
 
-	if presence.EvaluatorResultDigestsMustBeEmpty {
-		r.EvaluatorResultDigestsSHA256 = []string{}
+	if presence.EvaluatorResultBindingsMustBeEmpty {
+		r.EvaluatorResultBindings = []EvaluatorResultBinding{}
 	} else {
-		r.EvaluatorResultDigestsSHA256 = []string{zeroDigest}
+		r.EvaluatorResultBindings = []EvaluatorResultBinding{
+			{EvaluatorID: "mechanical.go-test", DescriptorDigestSHA256: zeroDigest, ResultDigestSHA256: zeroDigest},
+		}
 	}
 
 	if presence.EvaluationDigest {

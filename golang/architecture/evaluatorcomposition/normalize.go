@@ -69,14 +69,15 @@ func NormalizeEvaluatorResult(r EvaluatorResult) EvaluatorResult {
 }
 
 // NormalizeEvaluationReceipt returns a copy of r with its slice field
-// defaulted to a non-nil empty slice. EvaluatorResultDigestsSHA256's
-// canonical "ordered by evaluator ID" shape is a composition-time
-// (checkpoint 5) concern -- this receipt type carries no evaluator-ID-to-
-// digest mapping of its own to sort by, so this function does not reorder
-// it.
+// defaulted to a non-nil empty slice. It deliberately does NOT sort
+// EvaluatorResultBindings into ascending EvaluatorID order -- canonical
+// ordering here is a validation requirement (ValidateEvaluationReceipt
+// rejects an out-of-order or duplicate-EvaluatorID document outright), not
+// a normalization side effect that would silently launder a wrongly
+// ordered document into a passing digest.
 func NormalizeEvaluationReceipt(r EvaluationReceipt) EvaluationReceipt {
-	if r.EvaluatorResultDigestsSHA256 == nil {
-		r.EvaluatorResultDigestsSHA256 = []string{}
+	if r.EvaluatorResultBindings == nil {
+		r.EvaluatorResultBindings = []EvaluatorResultBinding{}
 	}
 	return r
 }

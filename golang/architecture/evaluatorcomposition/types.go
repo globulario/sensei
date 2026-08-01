@@ -44,16 +44,86 @@ type EvaluatorSpec struct {
 // four non-accept Recommendation values. Recommendation is never
 // synthesis.RecommendAcceptCandidate here -- accept-candidate is legal only
 // through the unanimous Recommendation hard floor (design doc), never a
-// per-failure-class policy assignment. A policy's FailureClassRecommendations
-// may narrow the contract's fixed initial recommendation precedence (e.g. by
-// omitting a class, or by choosing a more severe outcome than the default
-// for one it does name) but must never reorder that precedence or introduce
-// a fifth outcome -- ValidateEvaluationPolicy enforces the closed-vocabulary
-// half of that; the ordering half is a checkpoint 5 composition-time concern
-// this package does not implement.
+// per-failure-class policy assignment. When FailureClass names a
+// GovernedFailureClass, ValidateEvaluationPolicy additionally rejects any
+// Recommendation less severe than that class's canonical minimum -- a
+// policy may narrow the contract's fixed initial recommendation precedence
+// by choosing an equally or more severe outcome (escalation) but may never
+// downgrade a governed class below its floor or reorder the precedence
+// itself.
 type FailureClassRecommendation struct {
 	FailureClass   string                   `json:"failure_class"`
 	Recommendation synthesis.Recommendation `json:"recommendation"`
+}
+
+// GovernedFailureClass names a failure class this contract itself
+// recognizes, drawn directly from the design doc's "Initial recommendation
+// precedence" section's own illustrative examples, and binds to a
+// canonical minimum severity. A failure_class string outside this registry
+// is not bound to any floor by this package -- evaluators and policies
+// remain free to define their own ad hoc classes, subject only to the
+// general closed-recommendation-vocabulary constraint every
+// FailureClassRecommendation already carries.
+type GovernedFailureClass string
+
+const (
+	// FailureClassAuditForbiddenFix: "a blocking sensei edit-check/sensei
+	// gate --enforce forbidden-fix violation" -- design doc, abort example.
+	FailureClassAuditForbiddenFix GovernedFailureClass = "audit-forbidden-fix"
+	// FailureClassProofPermanentlyUndischargeable: "a proof obligation
+	// classified as permanently undischargeable against this candidate" --
+	// design doc, abort example.
+	FailureClassProofPermanentlyUndischargeable GovernedFailureClass = "proof-obligation-permanently-undischargeable"
+	// FailureClassIncidentScarConcerning: "an incident/scar match flagged
+	// as concerning but not itself blocking" -- design doc, architect-review
+	// example.
+	FailureClassIncidentScarConcerning GovernedFailureClass = "incident-scar-concerning"
+	// FailureClassProofPlanStructural: "a proof obligation that is
+	// structurally undischargeable under the plan's current step sequence"
+	// -- design doc, replan example.
+	FailureClassProofPlanStructural GovernedFailureClass = "proof-obligation-plan-structural"
+	// FailureClassAuditPlanLevel: "a mechanical/audit failure the policy
+	// classifies as plan-level rather than attempt-level" -- design doc,
+	// replan example.
+	FailureClassAuditPlanLevel GovernedFailureClass = "audit-plan-level-failure"
+	// FailureClassMechanicalCheckFailure: "a mechanical test failure with
+	// no plan- or policy-level classification" -- design doc,
+	// retry-generation example, and the default/lowest-severity outcome.
+	FailureClassMechanicalCheckFailure GovernedFailureClass = "mechanical-check-failure"
+)
+
+// GovernedFailureClassMinimumRecommendation is the closed registry binding
+// each GovernedFailureClass to its canonical minimum (most lenient
+// permitted) Recommendation. It is the "canonical minimum recommendation
+// for governed failure classes" the design doc's precedence section
+// requires: a policy may map a governed class to its minimum or to
+// anything strictly more severe, never to anything less severe.
+var GovernedFailureClassMinimumRecommendation = map[GovernedFailureClass]synthesis.Recommendation{
+	FailureClassAuditForbiddenFix:               synthesis.RecommendAbort,
+	FailureClassProofPermanentlyUndischargeable: synthesis.RecommendAbort,
+	FailureClassIncidentScarConcerning:          synthesis.RecommendArchitectReview,
+	FailureClassProofPlanStructural:             synthesis.RecommendReplan,
+	FailureClassAuditPlanLevel:                  synthesis.RecommendReplan,
+	FailureClassMechanicalCheckFailure:          synthesis.RecommendRetryGeneration,
+}
+
+// recommendationSeverityRank orders the four non-accept Recommendation
+// values from most severe (0) to least severe (3), exactly matching the
+// design doc's fixed "Initial recommendation precedence": abort >
+// architect-review > replan > retry-generation.
+var recommendationSeverityRank = map[synthesis.Recommendation]int{
+	synthesis.RecommendAbort:           0,
+	synthesis.RecommendArchitectReview: 1,
+	synthesis.RecommendReplan:          2,
+	synthesis.RecommendRetryGeneration: 3,
+}
+
+// GovernedFailureClassMinimumRecommendationFor returns class's canonical
+// minimum Recommendation and true when class is a recognized
+// GovernedFailureClass, or the zero Recommendation and false otherwise.
+func GovernedFailureClassMinimumRecommendationFor(class string) (synthesis.Recommendation, bool) {
+	r, ok := GovernedFailureClassMinimumRecommendation[GovernedFailureClass(class)]
+	return r, ok
 }
 
 // EvaluationPolicy is the one immutable, self-digested, caller-supplied
@@ -179,6 +249,9 @@ func AllEvaluatorTerminalOutcomes() []EvaluatorTerminalOutcome {
 // observation -- reference is a stable identifier (a captured-log path, a
 // command's stdout blob ID, and so on); DigestSHA256 lets a consumer verify
 // the referenced content has not silently changed underneath the reference.
+// Reference is unique within one EvaluatorResult's EvidenceReferences list
+// -- ValidateEvaluatorResult rejects a repeated Reference, whether or not
+// its DigestSHA256 also conflicts.
 type EvidenceReference struct {
 	Reference    string `json:"reference"`
 	DigestSHA256 string `json:"digest_sha256"`
@@ -188,6 +261,15 @@ type EvidenceReference struct {
 // O1 synthesis.Evaluation, never authoritative (hard law 7). It has no
 // Recommendation field at all: only the O4 composer maps evidence into
 // synthesis.Evaluation.Recommendation.
+//
+// A digest-valid EvaluatorResult is not automatically a semantically
+// coherent one: ValidateEvaluatorResult additionally rejects duplicate
+// Checks[i].CheckID values, a check-level EvidenceReferences entry that
+// does not resolve to some top-level EvidenceReferences[j].Reference,
+// duplicate or digest-conflicting top-level EvidenceReferences, and empty
+// or duplicate ClassifiedFailureReasons -- an evaluator must not be able to
+// report impossible or self-contradictory evidence just because its shape
+// happens to validate.
 type EvaluatorResult struct {
 	SchemaVersion string `json:"schema_version"`
 
@@ -266,6 +348,17 @@ func AllDispositions() []Disposition {
 	}
 }
 
+// EvaluatorResultBinding names the exact evaluator an EvaluationReceipt's
+// result digest belongs to, plus that evaluator's descriptor digest -- the
+// design doc's "ordered evaluator descriptor/result digests" as one typed
+// pair per evaluator, rather than a bare digest list a reader would have to
+// dereference every EvaluatorResult to attribute.
+type EvaluatorResultBinding struct {
+	EvaluatorID            string `json:"evaluator_id"`
+	DescriptorDigestSHA256 string `json:"descriptor_digest_sha256"`
+	ResultDigestSHA256     string `json:"result_digest_sha256"`
+}
+
 // EvaluationReceipt is O4's own closed evidence document binding the entire
 // evaluation composition without replacing O1's synthesis.Evaluation or
 // terminal synthesis.Receipt.
@@ -306,11 +399,18 @@ type EvaluationReceipt struct {
 	CandidateArtifactDigestSHA256 string `json:"candidate_artifact_digest_sha256"`
 	CandidateArtifactVerified     bool   `json:"candidate_artifact_verified"`
 
-	// EvaluatorResultDigestsSHA256 is ordered by evaluator ID. Must be
-	// empty for DispositionInvalidOutputTerminated/
-	// DispositionCandidateLoadFailure; may be any length, including
-	// empty, for every other disposition.
-	EvaluatorResultDigestsSHA256 []string `json:"evaluator_result_digests_sha256"`
+	// EvaluatorResultBindings binds each contributing evaluator's own
+	// identity to its result -- a bare digest list cannot answer "which
+	// evaluator produced this result" without loading and cross-referencing
+	// every EvaluatorResult in turn, which is exactly the kind of
+	// reconstruction this contract forbids elsewhere. Must be sorted in
+	// strictly ascending EvaluatorID order with no duplicate EvaluatorID
+	// (ValidateEvaluationReceipt enforces both -- the design doc's
+	// "evaluator results ordered by evaluator ID" canonical-ordering
+	// requirement, hard law 18). Must be empty for
+	// DispositionInvalidOutputTerminated/DispositionCandidateLoadFailure;
+	// may be any length, including empty, for every other disposition.
+	EvaluatorResultBindings []EvaluatorResultBinding `json:"evaluator_result_bindings"`
 
 	// EvaluationDigestSHA256 is non-nil only for DispositionEvaluated.
 	EvaluationDigestSHA256 *string `json:"evaluation_digest_sha256"`
@@ -351,10 +451,10 @@ type EvaluationReceipt struct {
 // O1TerminalReceiptDigestSHA256 (see O1TerminalReceiptRequirementFor for
 // that one, since it is not a strict function of Disposition alone).
 type EvaluationReceiptFieldPresence struct {
-	CandidateArtifactVerified         bool
-	EvaluatorResultDigestsMustBeEmpty bool
-	EvaluationDigest                  bool
-	CleanupSucceeded                  bool
+	CandidateArtifactVerified          bool
+	EvaluatorResultBindingsMustBeEmpty bool
+	EvaluationDigest                   bool
+	CleanupSucceeded                   bool
 }
 
 // FieldPresenceFor returns the required presence shape for d. Returns an
@@ -363,24 +463,24 @@ func FieldPresenceFor(d Disposition) (EvaluationReceiptFieldPresence, error) {
 	switch d {
 	case DispositionInvalidOutputTerminated, DispositionCandidateLoadFailure:
 		return EvaluationReceiptFieldPresence{
-			CandidateArtifactVerified:         false,
-			EvaluatorResultDigestsMustBeEmpty: true,
-			EvaluationDigest:                  false,
-			CleanupSucceeded:                  false,
+			CandidateArtifactVerified:          false,
+			EvaluatorResultBindingsMustBeEmpty: true,
+			EvaluationDigest:                   false,
+			CleanupSucceeded:                   false,
 		}, nil
 	case DispositionMaterializationFailure, DispositionRequiredEvaluatorUnavailable, DispositionCompositionFailure:
 		return EvaluationReceiptFieldPresence{
-			CandidateArtifactVerified:         true,
-			EvaluatorResultDigestsMustBeEmpty: false,
-			EvaluationDigest:                  false,
-			CleanupSucceeded:                  true,
+			CandidateArtifactVerified:          true,
+			EvaluatorResultBindingsMustBeEmpty: false,
+			EvaluationDigest:                   false,
+			CleanupSucceeded:                   true,
 		}, nil
 	case DispositionEvaluated:
 		return EvaluationReceiptFieldPresence{
-			CandidateArtifactVerified:         true,
-			EvaluatorResultDigestsMustBeEmpty: false,
-			EvaluationDigest:                  true,
-			CleanupSucceeded:                  true,
+			CandidateArtifactVerified:          true,
+			EvaluatorResultBindingsMustBeEmpty: false,
+			EvaluationDigest:                   true,
+			CleanupSucceeded:                   true,
 		}, nil
 	default:
 		return EvaluationReceiptFieldPresence{}, fmt.Errorf("evaluatorcomposition: %q is not one of the six closed Disposition values", d)
