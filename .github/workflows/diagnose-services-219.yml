@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/refresh-seed-for-services-219
+  pull_request:
+    branches:
+      - main
 
 jobs:
   diagnose:
