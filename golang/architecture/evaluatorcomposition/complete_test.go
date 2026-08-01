@@ -4,6 +4,7 @@ package evaluatorcomposition
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -159,6 +160,56 @@ func TestCompleteEvaluationTerminatesRequiredEvaluatorAndCompositionFailures(t *
 			t.Fatalf("composition-failure receipt lost evaluator evidence: %+v", result.Receipt.EvaluatorResultBindings)
 		}
 	})
+}
+
+func TestCompleteEvaluationRequiredUnavailableReceiptUsesAcceptedBindingsIndependentOfOrder(t *testing.T) {
+	handoff, checkpoint, policy := checkpoint5ReadyFixture(t, func(policy *EvaluationPolicy) {
+		policy.Evaluators = []EvaluatorSpec{
+			{EvaluatorID: "a.unavailable", Required: true},
+			{EvaluatorID: "z.completed", Required: true},
+		}
+		policy.RequiredCheckIDs = []string{}
+	})
+	unavailable := checkpoint5Execution(t, checkpoint, policy, "a.unavailable", EvaluatorOutcomeUnavailable,
+		[]synthesis.CheckObservation{}, nil, nil, true)
+	completed := checkpoint5Execution(t, checkpoint, policy, "z.completed", EvaluatorOutcomeCompleted,
+		[]synthesis.CheckObservation{checkpoint5Check("z.completed-check", synthesis.CheckPassed)}, nil, nil, true)
+
+	orders := []struct {
+		name       string
+		executions []EvaluatorExecution
+	}{
+		{name: "unavailable first", executions: []EvaluatorExecution{unavailable, completed}},
+		{name: "completed first", executions: []EvaluatorExecution{completed, unavailable}},
+	}
+
+	var firstBindings []EvaluatorResultBinding
+	var firstReceiptDigest string
+	for i, order := range orders {
+		t.Run(order.name, func(t *testing.T) {
+			result, err := CompleteEvaluation(context.Background(), checkpoint, handoff, policy,
+				order.executions, nil, runFixedNow)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertEvaluatorUnavailableCompletion(t, result, DispositionRequiredEvaluatorUnavailable)
+			bindings := result.Receipt.EvaluatorResultBindings
+			if len(bindings) != 1 || bindings[0].EvaluatorID != "z.completed" {
+				t.Fatalf("required-unavailable receipt bindings = %+v, want only z.completed", bindings)
+			}
+			if i == 0 {
+				firstBindings = append([]EvaluatorResultBinding(nil), bindings...)
+				firstReceiptDigest = result.Receipt.ReceiptDigestSHA256
+				return
+			}
+			if !reflect.DeepEqual(bindings, firstBindings) {
+				t.Fatalf("receipt bindings depend on execution order: first=%+v second=%+v", firstBindings, bindings)
+			}
+			if result.Receipt.ReceiptDigestSHA256 != firstReceiptDigest {
+				t.Fatalf("receipt digest depends on execution order: first=%q second=%q", firstReceiptDigest, result.Receipt.ReceiptDigestSHA256)
+			}
+		})
+	}
 }
 
 func TestTerminateEvaluationUnavailableRecordsMaterializationFailure(t *testing.T) {

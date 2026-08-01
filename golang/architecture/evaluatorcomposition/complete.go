@@ -34,16 +34,16 @@ func CompleteEvaluation(
 	switch composition.Disposition {
 	case DispositionEvaluated:
 		if composition.Evaluation == nil {
-			return TerminateEvaluationUnavailable(checkpoint, handoff, policy, DispositionCompositionFailure,
-				"composer returned evaluated disposition with no Evaluation", executions, now)
+			return terminateEvaluationUnavailableWithBindings(checkpoint, handoff, policy, DispositionCompositionFailure,
+				"composer returned evaluated disposition with no Evaluation", composition.EvaluatorBindings, executions, now)
 		}
 		return completeEvaluated(checkpoint, handoff, policy, composition, now)
 	case DispositionRequiredEvaluatorUnavailable, DispositionCompositionFailure:
-		return TerminateEvaluationUnavailable(checkpoint, handoff, policy, composition.Disposition,
-			composition.FailureDetail, executions, now)
+		return terminateEvaluationUnavailableWithBindings(checkpoint, handoff, policy, composition.Disposition,
+			composition.FailureDetail, composition.EvaluatorBindings, executions, now)
 	default:
-		return TerminateEvaluationUnavailable(checkpoint, handoff, policy, DispositionCompositionFailure,
-			fmt.Sprintf("composer returned illegal checkpoint-5 disposition %q", composition.Disposition), executions, now)
+		return terminateEvaluationUnavailableWithBindings(checkpoint, handoff, policy, DispositionCompositionFailure,
+			fmt.Sprintf("composer returned illegal checkpoint-5 disposition %q", composition.Disposition), composition.EvaluatorBindings, executions, now)
 	}
 }
 
@@ -58,6 +58,20 @@ func TerminateEvaluationUnavailable(
 	policy EvaluationPolicy,
 	disposition Disposition,
 	failureDetail string,
+	executions []EvaluatorExecution,
+	now func() time.Time,
+) (Result, error) {
+	return terminateEvaluationUnavailableWithBindings(checkpoint, handoff, policy, disposition, failureDetail,
+		bindingsFromExecutions(executions), executions, now)
+}
+
+func terminateEvaluationUnavailableWithBindings(
+	checkpoint Result,
+	handoff runnercomposition.VerifiedGenerationHandoff,
+	policy EvaluationPolicy,
+	disposition Disposition,
+	failureDetail string,
+	bindings []EvaluatorResultBinding,
 	executions []EvaluatorExecution,
 	now func() time.Time,
 ) (Result, error) {
@@ -76,7 +90,7 @@ func TerminateEvaluationUnavailable(
 	if err != nil {
 		return Result{}, fmt.Errorf("TerminateEvaluationUnavailable: build receipt: %w", err)
 	}
-	receipt.EvaluatorResultBindings = bindingsFromExecutions(executions)
+	receipt.EvaluatorResultBindings = append([]EvaluatorResultBinding{}, canonicalBindings(bindings)...)
 	cleanupSucceeded, cleanupDetail := cleanupSummary(executions)
 	receipt.CleanupSucceeded = &cleanupSucceeded
 	receipt.CleanupFailureDetail = cleanupDetail

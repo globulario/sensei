@@ -110,6 +110,7 @@ func ComposeEvaluation(
 	limitations := make([]synthesis.Limitation, 0)
 	evidence := make([]EvidenceReference, 0)
 	referencedEvidence := make(map[string]bool)
+	requiredUnavailableDetails := make([]string, 0)
 
 	for _, execution := range ordered {
 		id := execution.Descriptor.EvaluatorID
@@ -137,12 +138,9 @@ func ComposeEvaluation(
 		}
 
 		if execution.Result.TerminalOutcome != EvaluatorOutcomeCompleted && spec.Required {
-			unavailable := Composition{
-				Disposition:       DispositionRequiredEvaluatorUnavailable,
-				EvaluatorBindings: append([]EvaluatorResultBinding(nil), bindings...),
-				FailureDetail:     fmt.Sprintf("required evaluator %q ended with terminal outcome %q", id, execution.Result.TerminalOutcome),
-			}
-			return finalizeCompositionCleanup(unavailable, ordered)
+			requiredUnavailableDetails = append(requiredUnavailableDetails,
+				fmt.Sprintf("required evaluator %q ended with terminal outcome %q", id, execution.Result.TerminalOutcome))
+			continue
 		}
 
 		bindings = append(bindings, EvaluatorResultBinding{
@@ -185,12 +183,9 @@ func ComposeEvaluation(
 			continue
 		}
 		if spec.Required {
-			unavailable := Composition{
-				Disposition:       DispositionRequiredEvaluatorUnavailable,
-				EvaluatorBindings: append([]EvaluatorResultBinding(nil), bindings...),
-				FailureDetail:     fmt.Sprintf("required evaluator %q produced no finalized result", spec.EvaluatorID),
-			}
-			return finalizeCompositionCleanup(unavailable, ordered)
+			requiredUnavailableDetails = append(requiredUnavailableDetails,
+				fmt.Sprintf("required evaluator %q produced no finalized result", spec.EvaluatorID))
+			continue
 		}
 		failureClasses = append(failureClasses, FailureClassOptionalEvaluatorUnavailable)
 		limitations = append(limitations, synthesis.Limitation{
@@ -199,10 +194,20 @@ func ComposeEvaluation(
 		})
 	}
 
+	bindings = canonicalBindings(bindings)
+	if len(requiredUnavailableDetails) > 0 {
+		sort.Strings(requiredUnavailableDetails)
+		unavailable := Composition{
+			Disposition:       DispositionRequiredEvaluatorUnavailable,
+			EvaluatorBindings: bindings,
+			FailureDetail:     strings.Join(requiredUnavailableDetails, "; "),
+		}
+		return finalizeCompositionCleanup(unavailable, ordered)
+	}
+
 	checks = canonicalChecks(checks)
 	limitations = canonicalLimitations(limitations)
 	failureClasses = canonicalStrings(failureClasses)
-	bindings = canonicalBindings(bindings)
 
 	if reason := requiredCheckFailure(policy.RequiredCheckIDs, checks); reason != "" {
 		failureClasses = canonicalStrings(append(failureClasses, FailureClassRequiredCheckUnsatisfied))
