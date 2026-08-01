@@ -1,0 +1,98 @@
+name: Phase 10 main reconciliation
+
+on:
+  push:
+    branches:
+      - phase10-architectural-investigation
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: contains(github.event.head_commit.message, '[phase10-reconcile]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Phase 10 integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase10-architectural-investigation
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Configure reconciliation identity
+        run: |
+          git config user.name "sensei-phase10-reconcile"
+          git config user.email "sensei-phase10-reconcile@users.noreply.github.com"
+
+      - name: Merge current main and preserve current authority on conflicts
+        run: |
+          git fetch origin main
+          if ! git merge -X theirs origin/main --no-edit; then
+            echo "Automatic recursive merge left explicit conflicts. Resolving every conflicted path from current main."
+            while IFS= read -r path; do
+              [ -n "$path" ] || continue
+              if git cat-file -e "origin/main:$path" 2>/dev/null; then
+                git checkout origin/main -- "$path"
+                git add -- "$path"
+              else
+                git rm -f -- "$path"
+              fi
+            done < <(git diff --name-only --diff-filter=U)
+            if git diff --name-only --diff-filter=U | grep -q .; then
+              echo "::error::unresolved conflicts remain"
+              git diff --name-only --diff-filter=U
+              exit 1
+            fi
+            git commit --no-edit
+          fi
+
+      - name: Remove one-shot reconciliation workflow from candidate tree
+        run: git rm .github/workflows/phase10-main-reconcile.yml
+
+      - name: Canonical formatting and generated artifacts
+        run: |
+          gofmt -w $(git ls-files '*.go' | grep -vE '\.pb\.go$|/pb/|/testdata/')
+          make proto-contracts
+          make import-graph
+          scripts/build-awareness-graph-self.sh
+
+      - name: Verify static and generated contracts
+        run: |
+          go vet ./...
+          scripts/build-awareness-graph-self.sh --check
+          make proto-contracts-check
+          make import-graph-check
+          scripts/check-commit-scope.sh HEAD
+
+      - name: Run cmd/awg tests
+        run: go test ./cmd/awg -count=1 -timeout 5m
+
+      - name: Run remaining repository tests
+        shell: bash
+        run: |
+          packages=$(go list ./... | grep -v '^github.com/globulario/sensei/cmd/awg$')
+          go test $packages -count=1 -timeout 4m -p 2
+
+      - name: Cold-start smoke
+        run: |
+          scripts/fetch-oxigraph.sh
+          scripts/smoke-cold-start.sh
+
+      - name: Money-scar smoke
+        run: examples/orders-money-scar/run.sh
+
+      - name: Appliance entrypoint proof
+        run: bash deploy/appliance-entrypoint_test.sh
+
+      - name: Publish verified reconciliation
+        run: |
+          git add -A
+          git diff --cached --quiet && { echo "::error::reconciliation produced no publishable change"; exit 1; }
+          git commit -m "chore(phase10): reconcile certified foundation with current main"
+          git push origin HEAD:phase10-architectural-investigation
