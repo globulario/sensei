@@ -62,7 +62,7 @@ O3 deliberately stopped before `providerport.MapToCommand` and `synthesis.Transi
 
 The current O3 `RunnerReceipt` references O2's Request, Result, and Receipt by digest. Digests are identity references, not storage. O4 therefore requires an exact generation handoff carrying the original O2 values together with the O3 receipt and candidate artifact identity.
 
-Conceptually:
+`VerifiedGenerationHandoff` is the one canonical carrier. There is no alternative shape:
 
 ```go
 type VerifiedGenerationHandoff struct {
@@ -73,7 +73,9 @@ type VerifiedGenerationHandoff struct {
 }
 ```
 
-The exact implementation shape may instead be an O3 detailed outcome, a callback, or a private composition value. It must satisfy all of these laws:
+Durability: this carrier is process-local, not crash-resume durable. Today, `providerport.Run` returns `Request`/`Result`/`O2Receipt` as plain Go values, and O3's `Run` returns `RunnerReceipt` as a plain Go value -- neither package writes any of the four to a store. Only the sealed `CandidateArtifact` bytes are durable (`CandidateArtifactStore`). `VerifiedGenerationHandoff` therefore exists only for the span of one caller's synchronous O3-`Run` -> O4-handoff-validation -> first-`Transition` call chain within a single process invocation. A crash anywhere in that span is recovered by re-running O3's `Run` from scratch against the same Session/Plan/identity, never by resuming a persisted handoff -- O3's evidence forge is deterministic and content-addressed, so re-running it is safe and produces the same sealed artifact. Durable, crash-resume handoff persistence is out of scope through checkpoint 5 and would require its own explicit design decision if ever added.
+
+It must satisfy all of these laws:
 
 1. The Request, Result, and O2 Receipt are the exact values O3 observed, never reconstructed from `RunnerReceipt` digests.
 2. O4 recomputes and verifies every document digest again because mutable Go values may have changed after O3 validated them.
@@ -202,6 +204,8 @@ Before implementation, each concrete evaluator adapter must name the existing Se
 
 Evaluator selection and recommendation rules are precommitted before execution in one closed, digest-addressed O4 policy document.
 
+**Authority is fixed, not deferred**: the O4 *caller* -- the same authority that owns invoking O3's `Run` and driving the session -- selects and supplies one immutable, self-digested policy document before O4's first `Transition` call. O4 validates that policy (schema, self-consistency of its own declared digest against its recomputed content digest, and that it binds the exact Session/Attempt/candidate identity in play) and applies it. O4 never constructs a default policy, never fills in an absent policy, and never amends one after validating it. A policy that fails validation is a contract/programming failure (a Go error, same category as a handoff failure), never an evaluator observation.
+
 The policy includes at minimum:
 
 - exact Session and Attempt identity;
@@ -210,12 +214,23 @@ The policy includes at minimum:
 - required versus optional evaluator status;
 - deadlines and evidence limits;
 - required check IDs where applicable;
-- deterministic failure-class-to-recommendation rules;
+- deterministic failure-class-to-recommendation rules, narrowing (never reordering -- see "Initial recommendation precedence" below) the fixed precedence this contract establishes;
 - policy digest.
 
 Providers and evaluators cannot add evaluators, mark themselves optional, enlarge limits, alter recommendation precedence, or rewrite the policy after observing results.
 
-Policy is execution configuration, not canonical architectural truth. Its authority source must be explicit in the implementation handoff. O4 must not infer policy from provider capability claims.
+Policy is execution configuration, not canonical architectural truth. O4 must not infer policy from provider capability claims.
+
+### Initial recommendation precedence
+
+This contract fixes the precedence among the four non-accept recommendations now; it is not deferred to checkpoint 5. When more than one applies to the same evaluation, the highest-precedence recommendation wins, evaluated in this fixed order regardless of evaluator completion order (hard law 18):
+
+1. **`abort`** -- reserved for evidence that no retry or replan of this session could possibly resolve: a blocking Sensei audit/forbidden-fix violation, or a proof obligation classified as permanently undischargeable against this candidate.
+2. **`architect-review`** -- evidence that is ambiguous, policy-boundary, or otherwise not safely automatable: an incident/scar match flagged as concerning but not itself blocking, or a required-evaluator failure classification the policy does not map cleanly to `retry-generation` or `replan`.
+3. **`replan`** -- evidence that the current *plan* (not merely this attempt) cannot reach the objective as structured: a proof obligation that is structurally undischargeable under the plan's current step sequence, or a mechanical/audit failure the policy classifies as plan-level rather than attempt-level.
+4. **`retry-generation`** -- the default, lowest-severity non-accept outcome: evidence that is attempt-local and plausibly resolved by a fresh generation attempt against the same plan (e.g. a mechanical test failure with no plan- or policy-level classification).
+
+A policy may narrow this precedence for its own session (e.g. disable a class entirely by declaring no evaluator that can produce it), but must not reorder it, and must not introduce a fifth outcome. `accept-candidate` sits outside this precedence entirely -- it is legal only when the unanimous "Recommendation hard floor" below holds, never by falling through an empty precedence chain.
 
 ## Deterministic composition
 
@@ -256,19 +271,20 @@ A required skipped or unavailable check is never equivalent to pass.
 
 Optional evaluator unavailability remains visible as a limitation and may not silently increase confidence.
 
-The mapping among evidenced failure classes and `retry-generation`, `replan`, `architect-review`, or `abort` must be explicit and deterministic in policy. No language-model prose may choose among them implicitly.
+The mapping among evidenced failure classes and `retry-generation`, `replan`, `architect-review`, or `abort` follows the fixed precedence in "Initial recommendation precedence" above, narrowed (never reordered) by the caller-supplied policy. No language-model prose may choose among them implicitly.
 
-## Required evaluator unavailable
+## Required evaluator unavailable, and every other non-evaluated O4 stop
 
-When a required evaluator cannot produce a valid result at all, O4 does not fabricate a partial passing Evaluation.
+When a required evaluator cannot produce a valid result at all, O4 does not fabricate a partial passing Evaluation. The same governed-terminal principle applies to every failure that occurs once O4 owns the session -- `candidate-load-failure`, `materialization-failure`, `required-evaluator-unavailable`, and `composition-failure` all produce an O4 receipt carrying the precise disposition, then all four map that receipt's bounded detail (the disposition and its `FailureDetail`) into `synthesis.EvaluatorUnavailableCommand.Detail`. O1 performs its one existing terminal transition (`ReasonEvaluatorUnavailable`) using its existing semantics -- unconditionally, with no retry/replan budget check, exactly as `transitionEvaluatorUnavailable` already behaves today.
 
-It produces an O4 receipt with disposition `required-evaluator-unavailable`, then maps that receipt's bounded detail into `synthesis.EvaluatorUnavailableCommand`. O1 performs the terminal transition using its existing semantics.
+This closes what checkpoint 1's first review round flagged as an infinitely-retryable "parked in `PhaseEvaluating`" limbo: none of these four failures may leave SessionState parked with no O1-recorded consequence. Every one of them ends the session through the same governed terminal command, distinguishable afterward only by the O4 receipt's own disposition and by `EvaluatorUnavailableCommand.Detail`, never by silence.
 
 This path is distinct from:
 
-- a required evaluator completing with failed checks, which produces an Evaluation and a policy-derived non-accept recommendation;
-- an optional evaluator being unavailable, which remains a limitation inside a completed Evaluation;
-- an O4 contract/programming failure where no valid O4 receipt can be constructed, which returns a Go error and leaves state unchanged.
+- a required evaluator completing with failed checks, which produces an Evaluation and a policy-derived non-accept recommendation (disposition `evaluated`);
+- an optional evaluator being unavailable, which remains a limitation inside a completed Evaluation (also disposition `evaluated`);
+- the accepted Attempt's own `TerminalProviderStatus` being `invalid_output`, which O1 already terminated directly on the *first* Transition call, before `PhaseEvaluating` was ever entered (disposition `invalid-output-terminated`, below) -- O4 makes no second Transition call for this case, because O1 has nothing left to be told;
+- an O4 contract/programming failure where no valid O4 receipt can be constructed at all (e.g. the policy document itself fails validation), which returns a Go error and leaves state unchanged.
 
 ## O4 receipt
 
@@ -292,13 +308,14 @@ Initial disposition vocabulary:
 
 | Disposition | Meaning | Evaluation digest | O1 command |
 |---|---|---:|---|
-| `candidate-load-failure` | The exact sealed artifact could not be loaded or validated after the generation handoff was accepted. | nil | none; evidenced O4 stop returned to caller |
-| `materialization-failure` | A required evaluator surface could not be constructed from the sealed artifact. | nil | none; evidenced O4 stop returned to caller |
+| `invalid-output-terminated` | The accepted Attempt's own `TerminalProviderStatus` was `invalid_output`. O1's first `RecordAttemptCommand` Transition call already terminated the session (`ReasonInvalidProviderOutput`) before `PhaseEvaluating` was ever entered. | nil | none -- O1 already terminated via the *first* Transition call; this disposition only binds O4's own evidence to that already-recorded O1 receipt |
+| `candidate-load-failure` | The exact sealed artifact could not be loaded or validated after the generation handoff was accepted. | nil | `EvaluatorUnavailableCommand` |
+| `materialization-failure` | A required evaluator surface could not be constructed from the sealed artifact. | nil | `EvaluatorUnavailableCommand` |
 | `required-evaluator-unavailable` | A required evaluator could not produce a valid terminal result. | nil | `EvaluatorUnavailableCommand` |
-| `composition-failure` | Evaluator results existed but could not be composed into a valid Evaluation under the accepted policy. | nil | none; evidenced O4 stop returned to caller |
+| `composition-failure` | Evaluator results existed but could not be composed into a valid Evaluation under the accepted policy. | nil | `EvaluatorUnavailableCommand` |
 | `evaluated` | A valid O1 Evaluation was composed and accepted by `synthesis.Transition`. | present | `RecordEvaluationCommand` |
 
-`candidate-load-failure`, `materialization-failure`, and `composition-failure` all occur after the first Transition call has already moved SessionState into `PhaseEvaluating`, but none of them calls Transition a second time -- SessionState remains parked in `PhaseEvaluating` with no further O1-recorded consequence. Whether and how a caller may safely retry O4 from that parked state (re-running candidate load, materialization, and composition against the same already-recorded Attempt) is not decided by this document and must be resolved no later than checkpoint 3.
+Every disposition now ends in an O1-recorded consequence: `invalid-output-terminated` binds evidence to a termination O1 already recorded on the first Transition call; the four `EvaluatorUnavailableCommand` dispositions each produce their own governed O1 termination on the second Transition call; `evaluated` produces `RecordEvaluationCommand`. No disposition leaves SessionState parked with nothing O1-recorded -- there is exactly one Transition call for `invalid-output-terminated` and exactly two for every other disposition, never zero and never a dangling first call with no second.
 
 The implementation may refine this vocabulary only during contract review. It must not collapse contract failure, evaluator unavailability, failed checks, and composition failure into one ambiguous error.
 
@@ -308,8 +325,8 @@ Cleanup success is orthogonal to disposition. A sealed candidate remains immutab
 
 O4 may call `synthesis.Transition` at most twice:
 
-1. once to record the exact verified generation Attempt and enter `PhaseEvaluating`;
-2. once to record the composed Evaluation, or to record required evaluator unavailability.
+1. once to record the exact verified generation Attempt -- this either enters `PhaseEvaluating`, or (disposition `invalid-output-terminated`) O1 itself terminates the session immediately, in which case O4 makes no second call;
+2. once, only when the first call entered `PhaseEvaluating`, to record either the composed Evaluation (`RecordEvaluationCommand`, disposition `evaluated`) or a governed unavailability termination (`EvaluatorUnavailableCommand`, dispositions `candidate-load-failure`, `materialization-failure`, `required-evaluator-unavailable`, or `composition-failure`).
 
 O4 returns the resulting state and events. It does not call:
 
@@ -330,7 +347,7 @@ The caller owns continuation beyond this one bounded evaluation stage.
 6. **Evaluator mutation is not candidate mutation.** Generated files and caches remain evaluation evidence only.
 7. **Evaluator claims are observations, not authority.** No evaluator directly creates the final O1 Recommendation.
 8. **External O2 evaluation output is not mapped directly into O1.** O4 composes it as one observation source.
-9. **Selection and limits are precommitted.** Evaluators cannot add themselves, enlarge budgets, or change required/optional status.
+9. **Selection and limits are precommitted, and policy is caller-supplied.** Evaluators cannot add themselves, enlarge budgets, or change required/optional status. The O4 caller selects and supplies one immutable, self-digested policy before O4's first Transition call; O4 validates and applies it but never constructs, defaults, or rewrites it.
 10. **Required skipped/unavailable never means pass.** Absence of evidence cannot become positive evidence.
 11. **Accept requires unanimous required success.** Every required check and proof obligation must bind to the exact candidate.
 12. **Failure classification is deterministic.** Provider prose cannot silently choose retry, replan, review, or abort.
@@ -342,6 +359,7 @@ The caller owns continuation beyond this one bounded evaluation stage.
 18. **Same evidence, same result.** Normalization, composition, recommendation, receipt identity, and O1 commands are deterministic.
 19. **Negative controls are mandatory.** Every authority, lineage, availability, and recommendation law must fail when its old bug is restored.
 20. **No owner is approximated.** Existing audit, incident, proof, admission, and completion owners are called or referenced, never recreated.
+21. **No disposition without an O1-recorded consequence.** Every disposition ends in an O1 Transition call that already recorded, or now records, a governed terminal or evaluation outcome. SessionState is never left parked in `PhaseEvaluating` with no O1-recorded trace of what happened.
 
 ## Required adversarial proofs
 
@@ -363,6 +381,9 @@ Implementation must prove at minimum:
 - identical inputs with evaluators returned in different completion order produce identical normalized Evaluation and receipt digests;
 - retry/replan budgets are changed only by O1 Transition, never by O4 policy or evaluator output;
 - O4 performs no third transition and no autonomous continuation;
+- an O4-constructed or O4-defaulted policy is rejected; only a caller-supplied, self-digest-verified policy is accepted, and no evaluator, provider, or O4 code path can rewrite it after validation;
+- when multiple evidenced failure classes apply to one evaluation, the fixed precedence (`abort` > `architect-review` > `replan` > `retry-generation`) determines the recommendation regardless of evaluator completion or evidence-discovery order, and a policy that attempts to reorder rather than narrow this precedence is rejected;
+- every disposition other than `evaluated` produces exactly one O1-recorded terminal consequence (either the first Transition call terminating directly for `invalid-output-terminated`, or a second `EvaluatorUnavailableCommand` call for the other four) -- no disposition leaves SessionState parked in `PhaseEvaluating` with zero O1-recorded trace;
 - the old defective behavior is restored in each negative control and the new test fails for the exact claimed reason.
 
 ## Bounded checkpoint sequence
