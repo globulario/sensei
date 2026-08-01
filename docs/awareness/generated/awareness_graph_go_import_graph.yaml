@@ -398,6 +398,12 @@ components:
       - golang/architecture/admission/decision_v2.go
       - golang/architecture/admission/ledger_load.go
       - golang/architecture/admission/scope_v2.go
+      - golang/architecture/admissioncomposition/compose.go
+      - golang/architecture/admissioncomposition/digest.go
+      - golang/architecture/admissioncomposition/lineage.go
+      - golang/architecture/admissioncomposition/scope.go
+      - golang/architecture/admissioncomposition/types.go
+      - golang/architecture/admissioncomposition/validate.go
       - golang/architecture/adoption/receipt.go
       - golang/architecture/authority/actor.go
       - golang/architecture/authority/delegation_verify.go
