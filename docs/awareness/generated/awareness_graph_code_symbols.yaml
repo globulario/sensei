@@ -4140,6 +4140,56 @@ test_symbols:
     package: main
     language: go
     doc: "A task-directory resolution failure is surfaced as an explicit, typed `unavailable`\ncompletion envelope — never silently omitted, never a fabricated terminal state."
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckAsymmetricCall_DispatchIdiomClosesGap
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckAsymmetricCall_DispatchIdiomClosesGap
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckAsymmetricCall_DispatchIdiomStillCatchesRealAsymmetry
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckAsymmetricCall_DispatchIdiomStillCatchesRealAsymmetry
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckAsymmetricCall_NestedPrefixFamiliesAreUnified
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckAsymmetricCall_NestedPrefixFamiliesAreUnified
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckAsymmetricCall_RunFamilyFlagged
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckAsymmetricCall_RunFamilyFlagged
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckAsymmetricCall_SignatureFamilyBridgesUnnamedPeers
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckAsymmetricCall_SignatureFamilyBridgesUnnamedPeers
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckAsymmetricCall_SymmetricNotFlagged
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckAsymmetricCall_SymmetricNotFlagged
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckBuildConstraints_IgnoreMutuallyExclusiveFile
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckBuildConstraints_IgnoreMutuallyExclusiveFile
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckDispatchIdiom_HandlerConstructionWithoutServeDoesNotBridge
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckDispatchIdiom_HandlerConstructionWithoutServeDoesNotBridge
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckIndexShape_DivergentShapeFlagged
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckIndexShape_DivergentShapeFlagged
+    package: main
+    language: go
+  - id: cmd/awg/consistency_extract_test.go:TestConsistencyCheckIndexShape_SingleShapeNotFlagged
+    file: cmd/awg/consistency_extract_test.go
+    symbol: TestConsistencyCheckIndexShape_SingleShapeNotFlagged
+    package: main
+    language: go
   - id: cmd/awg/contract_verification_wiring_test.go:TestVerificationWiring_HomeBackedPasses
     file: cmd/awg/contract_verification_wiring_test.go
     symbol: TestVerificationWiring_HomeBackedPasses
@@ -17255,6 +17305,11 @@ test_symbols:
   - id: golang/extractor/coldsource/intent_extract_test.go:TestLLMIntentDrafter_AcceptsTopLevelCandidateArray
     file: golang/extractor/coldsource/intent_extract_test.go
     symbol: TestLLMIntentDrafter_AcceptsTopLevelCandidateArray
+    package: coldsource
+    language: go
+  - id: golang/extractor/coldsource/intent_extract_test.go:TestLLMIntentDrafter_ToleratesDroppedFileSchemePrefix
+    file: golang/extractor/coldsource/intent_extract_test.go
+    symbol: TestLLMIntentDrafter_ToleratesDroppedFileSchemePrefix
     package: coldsource
     language: go
   - id: golang/extractor/coldsource/intent_extract_test.go:TestMaterialize_MintsHostOwnedIntentID

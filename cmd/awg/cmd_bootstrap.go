@@ -476,6 +476,25 @@ Flags:
 		}
 	}
 
+	// Consistency candidates: deterministic Go-source checks for the shape of
+	// bug a sibling-function disagreement produces (divergent index shape into
+	// the same field; an unexported call reached by some peer methods on a
+	// type but not others). Conservative, status: candidate, never promoted.
+	if cst, cerr := extractConsistencyCandidates(root); cerr != nil {
+		rep.notes = append(rep.notes, "consistency candidates: "+cerr.Error())
+	} else if len(cst) > 0 {
+		rep.candidateConsistency = len(cst)
+		if writeCands {
+			if data, rerr := renderGenerated("Consistency candidates from deterministic Go-source checks (assertion: inferred, status: candidate).", consistencyCandidateDoc{ConsistencyFindings: cst}); rerr != nil {
+				rep.notes = append(rep.notes, "consistency candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "consistency candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "consistency_candidates.yaml"), data, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "consistency candidates: write: "+werr.Error())
+			}
+		}
+	}
+
 	// ── Stage 6b: derive + publish the effective protection snapshot ──
 	// Participates in normal write/dry-run/--check behavior per contract §8.
 	if protCov, protErr := protection.Derive(root); protErr != nil {
@@ -848,6 +867,7 @@ type bootstrapReport struct {
 	candidateLibraryAPIs          int // Go public-package API candidates; extension points require type-checked local implementations
 	candidateLibraryAPIBoundaries int // Candidate Boundary nodes projected from public Go library APIs
 	candidateBoundaries           int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
+	candidateConsistency          int // Divergent-index-shape + asymmetric-setup-call candidates from deterministic Go-source checks
 	candidateInvariants           int // Invariant candidates inferred from rule-signaling test names
 	historyCandidates             int // -1 = skipped
 	validationFindings            int
@@ -932,6 +952,7 @@ func (r *bootstrapReport) print(w *os.File) {
 	fmt.Fprintf(w, "  library API candidates:     %d\n", r.candidateLibraryAPIs)
 	fmt.Fprintf(w, "  library API boundaries:     %d\n", r.candidateLibraryAPIBoundaries)
 	fmt.Fprintf(w, "  boundary candidates found:  %d\n", r.candidateBoundaries)
+	fmt.Fprintf(w, "  consistency candidates:     %d\n", r.candidateConsistency)
 	fmt.Fprintf(w, "  invariant candidates found: %d\n", r.candidateInvariants)
 	fmt.Fprintf(w, "  history-derived candidates: %s\n", hist)
 	fmt.Fprintf(w, "  validation findings:        %d\n", r.validationFindings)
