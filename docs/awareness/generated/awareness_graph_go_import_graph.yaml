@@ -655,6 +655,7 @@ components:
       - golang/architecture/runnercomposition/normalize.go
       - golang/architecture/runnercomposition/schema.go
       - golang/architecture/runnercomposition/snapshot.go
+      - golang/architecture/runnercomposition/store.go
       - golang/architecture/runnercomposition/tree.go
       - golang/architecture/runnercomposition/types.go
       - golang/architecture/runnercomposition/validate.go
