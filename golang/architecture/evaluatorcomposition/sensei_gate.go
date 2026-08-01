@@ -4,8 +4,11 @@ package evaluatorcomposition
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,13 +17,15 @@ import (
 )
 
 // failureClassSenseiGateBlockingFinding is intentionally not a
-// GovernedFailureClass. A blocking gate verdict may represent an
-// invariant, contract, scope, or forbidden-fix finding; the adapter
-// must preserve that evidence without silently choosing abort.
+// GovernedFailureClass. A blocking gate verdict may represent an invariant,
+// contract, scope, or forbidden-fix finding; the adapter preserves that
+// evidence without silently choosing abort.
 const failureClassSenseiGateBlockingFinding = "sensei-gate-blocking-finding"
 
 // SenseiGateConfig names the existing Sensei CLI owner and its explicit
-// runtime inputs. The adapter never implements gate policy itself.
+// runtime inputs. PolicyPath is caller-owned and frozen at construction. The
+// adapter never reads policy from the candidate surface or implements gate
+// policy itself.
 type SenseiGateConfig struct {
 	EvaluatorID      string
 	EvaluatorVersion string
@@ -35,13 +40,18 @@ type SenseiGateConfig struct {
 // SenseiGateEvaluator invokes the existing `sensei gate --enforce --json`
 // owner against a disposable git-diff surface. Its repository is private and
 // reconstructed from the exact verified base commit plus sealed candidate;
-// the user's live checkout is never passed to gate.
+// the user's live checkout is never passed to gate. The caller-owned gate
+// policy is copied and digested at construction, then materialized under the
+// disposable .git directory for each invocation so the candidate cannot
+// select or rewrite its own evaluator policy.
 type SenseiGateEvaluator struct {
-	descriptor EvaluatorDescriptor
-	config     SenseiGateConfig
-	surface    EvaluatorSurface
-	runner     CommandRunner
-	sink       EvidenceSink
+	descriptor    EvaluatorDescriptor
+	config        SenseiGateConfig
+	policyContent []byte
+	policyDigest  string
+	surface       EvaluatorSurface
+	runner        CommandRunner
+	sink          EvidenceSink
 }
 
 func NewSenseiGateEvaluator(config SenseiGateConfig, surface EvaluatorSurface, runner CommandRunner, sink EvidenceSink) (*SenseiGateEvaluator, error) {
@@ -59,6 +69,46 @@ func NewSenseiGateEvaluator(config SenseiGateConfig, surface EvaluatorSurface, r
 	if runner == nil || sink == nil {
 		return nil, fmt.Errorf("NewSenseiGateEvaluator: runner and sink are required")
 	}
+	if strings.TrimSpace(config.PolicyPath) == "" || !filepath.IsAbs(config.PolicyPath) {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: PolicyPath must be a non-empty absolute path outside the candidate surface")
+	}
+
+	surfaceRoot, err := surface.RootPath()
+	if err != nil {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: surface root: %w", err)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(surfaceRoot)
+	if err != nil {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: resolve surface root: %w", err)
+	}
+	policyInfo, err := os.Lstat(config.PolicyPath)
+	if err != nil {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: inspect policy: %w", err)
+	}
+	if policyInfo.Mode()&os.ModeSymlink != 0 || !policyInfo.Mode().IsRegular() {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: PolicyPath must name a real, non-symlink regular file")
+	}
+	resolvedPolicy, err := filepath.EvalSymlinks(config.PolicyPath)
+	if err != nil {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: resolve policy: %w", err)
+	}
+	rel, err := filepath.Rel(resolvedRoot, resolvedPolicy)
+	if err != nil {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: compare policy and surface paths: %w", err)
+	}
+	if rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: PolicyPath %q is inside the candidate surface; a candidate must never select or rewrite its own gate policy", config.PolicyPath)
+	}
+	policyContent, err := os.ReadFile(resolvedPolicy)
+	if err != nil {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: read policy snapshot: %w", err)
+	}
+	if len(policyContent) == 0 {
+		return nil, fmt.Errorf("NewSenseiGateEvaluator: policy snapshot must not be empty")
+	}
+	policySum := sha256.Sum256(policyContent)
+	policyDigest := hex.EncodeToString(policySum[:])
+
 	config.Environment = append([]string(nil), config.Environment...)
 	if config.TotalTimeout <= 0 {
 		config.TotalTimeout = 5 * time.Minute
@@ -74,7 +124,7 @@ func NewSenseiGateEvaluator(config SenseiGateConfig, surface EvaluatorSurface, r
 		EvaluatorVersion:     config.EvaluatorVersion,
 		SupportedCheckIDs:    []string{"sensei-gate"},
 		Deterministic:        false,
-		RequiredCapabilities: []string{"sensei-gate-cli", "sealed-candidate-git-diff-surface"},
+		RequiredCapabilities: []string{"sensei-gate-cli", "sealed-candidate-git-diff-surface", "sensei-gate-policy-sha256:" + policyDigest},
 		Limitations: []synthesis.Limitation{
 			{Source: "sensei gate", Scope: config.EvaluatorID, Reason: "the existing gate depends on the configured Sensei graph/server or frozen-contract owner; unavailability is recorded as unavailable, never passing", Blocking: false},
 		},
@@ -88,7 +138,15 @@ func NewSenseiGateEvaluator(config SenseiGateConfig, surface EvaluatorSurface, r
 	if err := ValidateEvaluatorDescriptor(descriptor); err != nil {
 		return nil, fmt.Errorf("NewSenseiGateEvaluator: descriptor: %w", err)
 	}
-	return &SenseiGateEvaluator{descriptor: descriptor, config: config, surface: surface, runner: runner, sink: sink}, nil
+	return &SenseiGateEvaluator{
+		descriptor: descriptor,
+		config: config,
+		policyContent: append([]byte(nil), policyContent...),
+		policyDigest: policyDigest,
+		surface: surface,
+		runner: runner,
+		sink: sink,
+	}, nil
 }
 
 func (e *SenseiGateEvaluator) Describe(context.Context) (EvaluatorDescriptor, error) {
@@ -96,6 +154,19 @@ func (e *SenseiGateEvaluator) Describe(context.Context) (EvaluatorDescriptor, er
 		return EvaluatorDescriptor{}, fmt.Errorf("SenseiGateEvaluator.Describe: nil evaluator")
 	}
 	return e.descriptor, nil
+}
+
+func materializeSenseiGatePolicy(rootPath string, content []byte) (string, error) {
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	name := filepath.Join(".git", "sensei-o4-policy.yaml")
+	if err := root.WriteFile(name, content, 0o600); err != nil {
+		return "", err
+	}
+	return filepath.Join(rootPath, name), nil
 }
 
 type senseiGateJSON struct {
@@ -116,6 +187,7 @@ type senseiGateEvidence struct {
 	Args          []string        `json:"args"`
 	Environment   []string        `json:"environment"`
 	SurfaceRef    string          `json:"surface_ref"`
+	PolicyDigest  string          `json:"policy_digest_sha256"`
 	Command       CommandResult   `json:"command"`
 	Parsed        *senseiGateJSON `json:"parsed,omitempty"`
 }
@@ -134,6 +206,10 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 	if err != nil {
 		return EvaluatorResult{}, fmt.Errorf("SenseiGateEvaluator.Evaluate: surface: %w", err)
 	}
+	policyPath, err := materializeSenseiGatePolicy(root, e.policyContent)
+	if err != nil {
+		return EvaluatorResult{}, fmt.Errorf("SenseiGateEvaluator.Evaluate: materialize frozen policy %s: %w", e.policyDigest, err)
+	}
 
 	args := []string{
 		"gate",
@@ -143,14 +219,12 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 		"--enforce",
 		"--json",
 		"--event-log", "",
+		"--policy", policyPath,
 		"--total-timeout", e.config.TotalTimeout.String(),
 		"--rpc-timeout", e.config.RPCTimeout.String(),
 	}
 	if strings.TrimSpace(e.config.Address) != "" {
 		args = append(args, "--addr", e.config.Address)
-	}
-	if strings.TrimSpace(e.config.PolicyPath) != "" {
-		args = append(args, "--policy", e.config.PolicyPath)
 	}
 
 	deadline, err := time.Parse(time.RFC3339, input.DeadlineAt)
@@ -179,8 +253,12 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 	evidence := senseiGateEvidence{
 		SchemaVersion: "sensei.evaluatorcomposition.sensei-gate-evidence.v1",
 		Executable:    e.config.SenseiExecutable,
-		Args:          append([]string(nil), args...), Environment: append([]string(nil), e.config.Environment...),
-		SurfaceRef: input.EvaluatorSurfaceRef, Command: command, Parsed: parsed,
+		Args:          append([]string(nil), args...),
+		Environment:   append([]string(nil), e.config.Environment...),
+		SurfaceRef:    input.EvaluatorSurfaceRef,
+		PolicyDigest:  e.policyDigest,
+		Command:       command,
+		Parsed:        parsed,
 	}
 	evidenceBytes, err := json.Marshal(evidence)
 	if err != nil {
@@ -192,7 +270,7 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 	if int64(len(evidenceBytes)) > input.MaxEvidenceBytes {
 		return EvaluatorResult{}, fmt.Errorf("SenseiGateEvaluator.Evaluate: evidence size %d exceeds max_evidence_bytes %d", len(evidenceBytes), input.MaxEvidenceBytes)
 	}
-	reference, err := e.sink.Put(ctx, evidenceBytes)
+	reference, err := e.sink.Put(runCtx, evidenceBytes)
 	if err != nil {
 		return EvaluatorResult{}, fmt.Errorf("SenseiGateEvaluator.Evaluate: persist evidence: %w", err)
 	}
@@ -212,9 +290,6 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 			observation.Detail = "Sensei gate returned invalid or identity-mismatched JSON evidence"
 			terminalOutcome = EvaluatorOutcomeUnavailable
 		} else if parsed.Blocked || parsed.WouldBlock > 0 || parsed.ScopeErrors > 0 {
-			// Exit 0 with blocked/scope-error JSON contradicts enforcing gate
-			// semantics. Refuse the impossible world rather than treating it as
-			// a pass.
 			observation.Status = synthesis.CheckUnavailable
 			observation.Detail = "Sensei gate exit code contradicted its enforcing JSON verdict"
 			terminalOutcome = EvaluatorOutcomeUnavailable
