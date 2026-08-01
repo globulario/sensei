@@ -9,6 +9,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
+	"github.com/globulario/sensei/golang/architecture/workspacecontract"
 )
 
 // RequestPolicy carries the caller-supplied execution constraints
@@ -23,6 +24,23 @@ type RequestPolicy struct {
 	MaxObservationBytes int
 }
 
+// extractSnapshotFn/initializeCandidateBufferFn/newCandidateWorkspaceFn/
+// buildFinalManifestFn are indirections over this package's own real,
+// already-hardened functions -- Run calls through these package variables
+// rather than the functions directly, purely so a test can substitute a
+// controlled failure for one internal step without needing to fabricate an
+// external condition (filesystem permissions, TMPDIR, ...) that would
+// necessarily also break an EARLIER step (every earlier step already uses
+// the same real function, so sabotaging it externally cannot be isolated to
+// one specific later stage). Production code never reassigns these; they
+// default to, and always call through to, the real functions below.
+var (
+	extractSnapshotFn           = ExtractSnapshot
+	initializeCandidateBufferFn = InitializeCandidateBuffer
+	newCandidateWorkspaceFn     = newFSCandidateWorkspace
+	buildFinalManifestFn        = BuildManifest
+)
+
 // Run is O3's governed runner: composes the O1 session (in PhaseAttempting)
 // with O2's Run for exactly one OperationGeneration attempt, per
 // docs/design/governed-runner-composition-o3.md's architectural-position
@@ -30,22 +48,42 @@ type RequestPolicy struct {
 // O2 Run -> workspace freeze -> evidence computation -> verification ->
 // sealing -> RunnerReceipt).
 //
-// sessionState.Phase must be synthesis.PhaseAttempting; any other phase is
-// rejected before a snapshot is ever taken (hard law 4), with a plain Go
-// error -- there is no disposition for "wrong phase," since no runner
-// sequence stage was ever attempted. Every other outcome -- however far the
-// sequence progressed -- returns a nil error alongside a fully populated,
-// schema-and-semantically-valid RunnerReceipt (mirroring providerport.Run's
-// own error-reservation convention: a non-nil error means no receipt could
-// be built at all).
+// Four checks are rejected with a plain Go error before any snapshot is
+// ever taken -- there is no disposition for any of them, since no runner
+// sequence stage was ever attempted:
+//
+//   - sessionState.Phase must be synthesis.PhaseAttempting (hard law 4);
+//   - identity must be the EXACT workspacecontract.Identity
+//     sessionState.Session.WorkspaceIdentityDigestSHA256 references (a
+//     fresh recomputation must match, not merely a caller's own account of
+//     it -- the same "declared must equal recomputed" law applied
+//     everywhere else in this codebase), and its Binding.RepositoryDomain/
+//     Binding.Revision must agree with Session's own copies -- the
+//     canonical workspace identity owner is what repositoryRoot's
+//     authority actually traces to, not a bare, unverified caller string;
+//   - plan must be the session's CURRENT accepted plan: its digest must
+//     equal sessionState.LatestPlanDigestSHA256 and its PlanGeneration must
+//     equal sessionState.PlanGeneration -- O1 itself treats those
+//     SessionState fields as the current accepted plan authority, so a
+//     caller cannot substitute a different, unrelated (even if internally
+//     valid) Plan.
+//
+// Every other outcome -- however far the sequence progressed -- returns a
+// nil error alongside a fully populated, schema-and-semantically-valid
+// RunnerReceipt (mirroring providerport.Run's own error-reservation
+// convention: a non-nil error means no receipt could be built at all).
 //
 // repositoryRoot is the caller-owned local checkout the session's
 // RepositoryDomain corresponds to; O3 does not resolve a repository domain
-// to a filesystem location itself (out of scope). plan is the parent O1
-// Plan this attempt extends -- Request.GenerationPayload. now supplies the
-// wall-clock reading for CompletedAt and is threaded through to
-// providerport.Run, mirroring its own now parameter, so tests are
-// deterministic.
+// to a filesystem location itself (out of scope) -- identity's own
+// verification above is what binds repositoryRoot's use to the canonical
+// workspace owner; O3 has no independent way to confirm repositoryRoot's
+// physical bytes correspond to that domain (workspacecontract.Identity
+// carries no filesystem path field, by design -- see its package doc
+// comment on why git remote origin is never a source of governed identity).
+// now supplies the wall-clock reading for CompletedAt and is threaded
+// through to providerport.Run, mirroring its own now parameter, so tests
+// are deterministic.
 //
 // RepositoryDomain/BaseRevision are sourced ONLY from sessionState.Session
 // (hard law 3): Run builds the providerport.Request itself, from Session
@@ -53,9 +91,24 @@ type RequestPolicy struct {
 // copies of these fields would need independent verification against
 // Session -- there is exactly one source of truth for them, by
 // construction.
+//
+// Workspace revocation (CandidateWorkspace.Close, hard law 6) is attempted
+// on EVERY path once a workspace has been constructed -- not only the path
+// that reaches a completed O2 result. A provider that retained a handle
+// across a construction failure, an O2 hard error, or an O2 non-completion
+// must still find every further call failing closed; skipping Close on
+// those earlier-failure paths would let such a handle silently keep
+// working. Only once O2 reports a completed result does Close become its
+// own dedicated, disposition-defining step (workspace-freeze-failure) --
+// on every earlier failure path, Close's own outcome is folded into that
+// path's existing CleanupSucceeded/CleanupFailureDetail aggregate instead,
+// since the design doc names no disposition for "construction/O2 failed
+// AND the resulting close also failed" distinctly from the failure that
+// was already occurring.
 func Run(
 	ctx context.Context,
 	sessionState synthesis.SessionState,
+	identity workspacecontract.Identity,
 	repositoryRoot string,
 	plan synthesis.Plan,
 	factory GenerationProviderFactory,
@@ -65,6 +118,31 @@ func Run(
 ) (RunnerReceipt, error) {
 	if sessionState.Phase != synthesis.PhaseAttempting {
 		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: session phase %q is not %q -- rejected before any snapshot is taken", sessionState.Phase, synthesis.PhaseAttempting)
+	}
+
+	identityDigest, err := workspacecontract.IdentityDigest(identity)
+	if err != nil {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: compute workspace identity digest: %w", err)
+	}
+	if identityDigest != sessionState.Session.WorkspaceIdentityDigestSHA256 {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: identity's actual digest %q does not match session's workspace_identity_digest_sha256 %q -- rejected before any snapshot is taken", identityDigest, sessionState.Session.WorkspaceIdentityDigestSHA256)
+	}
+	if identity.Binding.RepositoryDomain != sessionState.Session.RepositoryDomain {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: identity.Binding.RepositoryDomain %q does not match session.RepositoryDomain %q", identity.Binding.RepositoryDomain, sessionState.Session.RepositoryDomain)
+	}
+	if identity.Binding.Revision == nil || *identity.Binding.Revision != sessionState.Session.BaseRevision {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: identity.Binding.Revision does not match session.BaseRevision %q", sessionState.Session.BaseRevision)
+	}
+
+	planDigest, err := synthesis.PlanDigest(plan)
+	if err != nil {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: compute plan digest: %w", err)
+	}
+	if planDigest != sessionState.LatestPlanDigestSHA256 {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: plan's actual digest %q does not match sessionState.LatestPlanDigestSHA256 %q -- plan is not the session's currently accepted plan", planDigest, sessionState.LatestPlanDigestSHA256)
+	}
+	if plan.PlanGeneration != sessionState.PlanGeneration {
+		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: plan.PlanGeneration %d does not match sessionState.PlanGeneration %d", plan.PlanGeneration, sessionState.PlanGeneration)
 	}
 
 	request, err := buildGenerationRequest(sessionState, plan, policy)
@@ -82,7 +160,7 @@ func Run(
 	// BaseRevision. ExtractSnapshot itself refuses anything other than a
 	// full, verified commit object ID -- there is no fallback to HEAD or
 	// the live working tree anywhere in this call.
-	snapshotDir, _, inputDigest, snapshotCleanup, err := ExtractSnapshot(ctx, repositoryRoot, sessionState.Session.BaseRevision)
+	snapshotDir, snapshotManifest, inputDigest, snapshotCleanup, err := extractSnapshotFn(ctx, repositoryRoot, sessionState.Session.BaseRevision)
 	if err != nil {
 		return finalize(receipt, DispositionSnapshotFailure, "snapshot: "+err.Error(), nil, now)
 	}
@@ -91,13 +169,13 @@ func Run(
 	receipt.InputCandidateDigestSHA256 = &inputDigest
 
 	// Step 2: ephemeral candidate buffer, a full copy of the snapshot,
-	// bound to the snapshot's own manifest identity.
-	snapshotManifest, err := BuildManifest(snapshotDir)
-	if err != nil {
-		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionWorkspaceInitFailure, "rebuild snapshot manifest: "+err.Error(), &succeeded, now, detail)
-	}
-	bufferDir, _, _, bufferCleanup, err := InitializeCandidateBuffer(snapshotDir, snapshotManifest)
+	// bound to the EXACT manifest ExtractSnapshot itself returned -- never
+	// rebuilt from disk. Rebuilding would re-read snapshotDir independently
+	// of the bytes InputCandidateDigestSHA256 was actually computed over;
+	// any divergence between the two reads (however it could arise) would
+	// silently present mutated bytes under the original, already-sealed
+	// digest.
+	bufferDir, _, _, bufferCleanup, err := initializeCandidateBufferFn(snapshotDir, snapshotManifest)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionWorkspaceInitFailure, "initialize candidate buffer: "+err.Error(), &succeeded, now, detail)
@@ -106,7 +184,7 @@ func Run(
 
 	// Step 3: CandidateWorkspace -- the typed, closable channel a provider
 	// reads/writes through. Never O2's Execute signature, never ambient.
-	workspace, err := newFSCandidateWorkspace(snapshotDir, bufferDir)
+	workspace, err := newCandidateWorkspaceFn(snapshotDir, bufferDir)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionWorkspaceInitFailure, "construct candidate workspace: "+err.Error(), &succeeded, now, detail)
@@ -116,6 +194,12 @@ func Run(
 	// never reused across attempts or sessions (hard law 5).
 	provider, err := factory.NewProvider(workspace)
 	if err != nil {
+		// The workspace itself was already constructed above even though
+		// the factory failed to build a Provider from it -- close it too
+		// (hard law 6: any handle a provider retained fails closed), folded
+		// into this path's own cleanup aggregate rather than a dedicated
+		// disposition, since none is named for this combination.
+		cleanups = append(cleanups, workspace.Close)
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionProviderConstructionFailure, "construct provider: "+err.Error(), &succeeded, now, detail)
 	}
@@ -124,6 +208,7 @@ func Run(
 	// reused verbatim, unchanged.
 	result, _, o2Receipt, err := providerport.Run(ctx, provider, request, now)
 	if err != nil {
+		cleanups = append(cleanups, workspace.Close)
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionO2RunError, "o2 run: "+err.Error(), &succeeded, now, detail)
 	}
@@ -133,10 +218,12 @@ func Run(
 	receipt.O2ReceiptDigestSHA256 = &o2ReceiptDigest
 
 	if result.TerminalOutcome != providerport.OutcomeCompleted {
+		cleanups = append(cleanups, workspace.Close)
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionO2NonCompleted, "o2 non-completed: "+string(result.TerminalOutcome)+": "+result.Detail, &succeeded, now, detail)
 	}
 	if result.GenerationPayload == nil {
+		cleanups = append(cleanups, workspace.Close)
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionO2NonCompleted, "o2 reported completed with a nil generation payload", &succeeded, now, detail)
 	}
@@ -146,7 +233,8 @@ func Run(
 	// whatever they say. Nothing below this point ever mutates result,
 	// o2Receipt, attempt, or their referenced digests.
 
-	// Step 7: freeze the workspace before verification. Any handle a
+	// Step 7: freeze the workspace before verification -- its own
+	// dedicated disposition now that O2 reported completed. Any handle a
 	// provider retained past this point fails closed.
 	if closeErr := workspace.Close(); closeErr != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
@@ -155,7 +243,7 @@ func Run(
 
 	// Step 8: independently compute repository evidence -- never trusted
 	// from the provider's own declared values (hard law 11).
-	finalManifest, err := BuildManifest(bufferDir)
+	finalManifest, err := buildFinalManifestFn(bufferDir)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
 		return finalize(receipt, DispositionEvidenceComputationFailure, "build final manifest: "+err.Error(), &succeeded, now, detail)

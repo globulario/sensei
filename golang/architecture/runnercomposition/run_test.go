@@ -12,10 +12,12 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
+	"github.com/globulario/sensei/golang/architecture/workspacecontract"
 )
 
-// --- run.go fixture builders: a real git repo, a valid Session/SessionState/
-// Plan chain, and a controllable fake Provider/GenerationProviderFactory. ---
+// --- run.go fixture builders: a real git repo, a valid Session/Identity/
+// SessionState/Plan chain, and a controllable fake Provider/
+// GenerationProviderFactory. ---
 
 func fixedNow() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }
 
@@ -31,15 +33,45 @@ func runTestRepo(t *testing.T) (repoRoot, baseRevision string) {
 	return repoRoot, runGit(t, repoRoot, "rev-parse", "HEAD")
 }
 
-func runTestSession(t *testing.T, repositoryDomain, baseRevision string) synthesis.Session {
+// runTestIdentity builds a minimal, real workspacecontract.Identity bound to
+// repositoryDomain/baseRevision -- the canonical workspace owner Run cross-
+// checks a session's WorkspaceIdentityDigestSHA256 reference against.
+func runTestIdentity(t *testing.T, repositoryDomain, baseRevision string) workspacecontract.Identity {
 	t.Helper()
+	revision := baseRevision
+	id := workspacecontract.Identity{
+		SchemaVersion:          workspacecontract.IdentitySchemaVersion,
+		GeneratedBy:            workspacecontract.GeneratedBy,
+		CompositionState:       workspacecontract.CompositionComplete,
+		RepositoryDomainSource: workspacecontract.RepositoryDomainConfigured,
+		Binding: workspacecontract.Binding{
+			RepositoryDomain: repositoryDomain,
+			Revision:         &revision,
+			RevisionStatus:   workspacecontract.RevisionResolved,
+		},
+		CoverageState: "not_requested",
+		TaskIdentity:  workspacecontract.TaskIdentity{State: workspacecontract.TaskIdentityNotRequested},
+	}
+	return workspacecontract.NormalizeIdentity(id)
+}
+
+// runTestSessionAndIdentity builds a matched (Session, Identity) pair:
+// identity is built first, then session's WorkspaceIdentityDigestSHA256 is
+// set to identity's own real digest -- exactly the binding Run verifies.
+func runTestSessionAndIdentity(t *testing.T, repositoryDomain, baseRevision string) (synthesis.Session, workspacecontract.Identity) {
+	t.Helper()
+	identity := runTestIdentity(t, repositoryDomain, baseRevision)
+	identityDigest, err := workspacecontract.IdentityDigest(identity)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s := synthesis.Session{
 		SchemaVersion:                 synthesis.SessionSchemaVersion,
 		SessionID:                     "session.run-fixture.001",
 		GeneratedBy:                   synthesis.GeneratedBy,
 		RepositoryDomain:              repositoryDomain,
 		BaseRevision:                  baseRevision,
-		WorkspaceIdentityDigestSHA256: zeroDigest,
+		WorkspaceIdentityDigestSHA256: identityDigest,
 		GraphAuthorityDigestSHA256:    zeroDigest,
 		TaskSessionDigestSHA256:       zeroDigest,
 		ClosureDigestSHA256:           zeroDigest,
@@ -53,7 +85,7 @@ func runTestSession(t *testing.T, repositoryDomain, baseRevision string) synthes
 		t.Fatal(err)
 	}
 	s.SessionDigestSHA256 = digest
-	return synthesis.NormalizeSession(s)
+	return synthesis.NormalizeSession(s), identity
 }
 
 func runTestPlan(t *testing.T, interpretationDigest string) synthesis.Plan {
@@ -76,14 +108,20 @@ func runTestPlan(t *testing.T, interpretationDigest string) synthesis.Plan {
 	return synthesis.NormalizePlan(p)
 }
 
-func runTestSessionState(t *testing.T, session synthesis.Session) synthesis.SessionState {
+// runTestSessionState builds a SessionState in PhaseAttempting whose
+// LatestPlanDigestSHA256/PlanGeneration match plan exactly -- the "current
+// accepted plan" authority Run verifies plan against -- with the next
+// attempt reserved.
+func runTestSessionState(t *testing.T, session synthesis.Session, plan synthesis.Plan) synthesis.SessionState {
 	t.Helper()
 	state, err := synthesis.NewSessionState(session)
 	if err != nil {
 		t.Fatal(err)
 	}
 	state.Phase = synthesis.PhaseAttempting
-	state.ExpectedPlanGeneration = 1
+	state.PlanGeneration = plan.PlanGeneration
+	state.LatestPlanDigestSHA256 = plan.PlanDigestSHA256
+	state.ExpectedPlanGeneration = plan.PlanGeneration
 	state.ExpectedAttemptNumber = 1
 	return state
 }
@@ -153,15 +191,11 @@ func runTestPolicy() RequestPolicy {
 // digests.
 func precomputeExpectedDigests(t *testing.T, repoRoot, baseRevision, editPath, editContent string) (inputDigest, proposedChangeDigest, finalDigest string, finalManifest []CandidateManifestEntry) {
 	t.Helper()
-	snapshotDir, _, inputDigest, snapshotCleanup, err := ExtractSnapshot(context.Background(), repoRoot, baseRevision)
+	snapshotDir, snapshotManifest, inputDigest, snapshotCleanup, err := ExtractSnapshot(context.Background(), repoRoot, baseRevision)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer snapshotCleanup()
-	snapshotManifest, err := BuildManifest(snapshotDir)
-	if err != nil {
-		t.Fatal(err)
-	}
 	bufferDir, _, _, bufferCleanup, err := InitializeCandidateBuffer(snapshotDir, snapshotManifest)
 	if err != nil {
 		t.Fatal(err)
@@ -227,13 +261,30 @@ func generationResult(t *testing.T, requestDigest string, attempt synthesis.Atte
 	return providerport.NormalizeResult(r)
 }
 
+// unavailableResult builds a providerport.Result with TerminalOutcome
+// unavailable, referencing requestDigest, for tests that just need O2 to
+// stop early without a real generation payload.
+func unavailableResult(t *testing.T, requestDigest string) providerport.Result {
+	t.Helper()
+	r := providerport.Result{
+		SchemaVersion: providerport.ResultSchemaVersion, RequestDigestSHA256: requestDigest,
+		Operation: providerport.OperationGeneration, TerminalOutcome: providerport.OutcomeUnavailable, Detail: "stop early",
+	}
+	digest, err := providerport.ResultDigest(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.ResultDigestSHA256 = digest
+	return providerport.NormalizeResult(r)
+}
+
 // --- tests ---
 
 func TestRunProducesVerifiedDispositionOnHappyPath(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	wantInput, wantProposedChange, wantFinal, wantManifest := precomputeExpectedDigests(t, repoRoot, baseRevision, "new.txt", "added by provider\n")
 	attempt := runTestAttempt(t, plan, wantInput, wantProposedChange)
@@ -251,7 +302,7 @@ func TestRunProducesVerifiedDispositionOnHappyPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -305,14 +356,13 @@ func TestRunProducesVerifiedDispositionOnHappyPath(t *testing.T) {
 
 func TestRunRejectsWrongPhaseBeforeAnySnapshot(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
-	sessionState.Phase = synthesis.PhasePlanning // not PhaseAttempting
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+	sessionState.Phase = synthesis.PhasePlanning // not PhaseAttempting
 
 	factory := &fakeProviderFactory{buildResult: func(CandidateWorkspace, providerport.Request) providerport.Result {
-		t.Fatal("provider must never be constructed/invoked for a session in the wrong phase")
-		return providerport.Result{}
+		panic("provider must never be constructed/invoked for a session in the wrong phase") // t.Fatal is unsafe in a goroutine.
 	}}
 	storeRoot := t.TempDir()
 	store, err := NewFSCandidateArtifactStore(storeRoot)
@@ -320,7 +370,7 @@ func TestRunRejectsWrongPhaseBeforeAnySnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	_, err = Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err == nil {
 		t.Fatal("expected an error for a session not in PhaseAttempting")
 	}
@@ -334,15 +384,22 @@ func TestRunRejectsWrongPhaseBeforeAnySnapshot(t *testing.T) {
 	}
 }
 
-func TestRunProducesSnapshotFailureForInvalidBaseRevision(t *testing.T) {
-	repoRoot, _ := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", "0000000000000000000000000000000000000000") // well-formed hex, does not exist
-	sessionState := runTestSessionState(t, session)
+// TestRunRejectsIdentityNotMatchingSessionDigest proves the structural
+// binding blocker's identity half: an Identity whose own recomputed digest
+// does not equal Session.WorkspaceIdentityDigestSHA256 is rejected before
+// any snapshot, even though its Binding fields otherwise look plausible.
+func TestRunRejectsIdentityNotMatchingSessionDigest(t *testing.T) {
+	repoRoot, baseRevision := runTestRepo(t)
+	session, _ := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+
+	// A DIFFERENT, unrelated identity -- never the one session's digest
+	// reference actually points to.
+	wrongIdentity := runTestIdentity(t, "github.com/example/unrelated-repo", baseRevision)
 
 	factory := &fakeProviderFactory{buildResult: func(CandidateWorkspace, providerport.Request) providerport.Result {
-		t.Fatal("provider must never be invoked when the snapshot itself fails")
-		return providerport.Result{}
+		panic("provider must never be invoked when identity fails verification") // t.Fatal is unsafe in a goroutine.
 	}}
 	storeRoot := t.TempDir()
 	store, err := NewFSCandidateArtifactStore(storeRoot)
@@ -350,7 +407,57 @@ func TestRunProducesSnapshotFailureForInvalidBaseRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	_, err = Run(context.Background(), sessionState, wrongIdentity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	if err == nil {
+		t.Fatal("expected an error for an identity not matching session.WorkspaceIdentityDigestSHA256")
+	}
+}
+
+// TestRunRejectsPlanNotMatchingSessionState proves the structural binding
+// blocker's plan half: a Plan that is internally valid but does not match
+// sessionState.LatestPlanDigestSHA256 is rejected before any snapshot.
+func TestRunRejectsPlanNotMatchingSessionState(t *testing.T) {
+	repoRoot, baseRevision := runTestRepo(t)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
+	acceptedPlan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, acceptedPlan)
+
+	// A DIFFERENT, unrelated (but internally valid) plan -- never the
+	// session's currently accepted one.
+	unrelatedPlan := runTestPlan(t, sha256Hex([]byte("a different interpretation entirely")))
+
+	factory := &fakeProviderFactory{buildResult: func(CandidateWorkspace, providerport.Request) providerport.Result {
+		panic("provider must never be invoked when plan authority fails verification") // t.Fatal is unsafe in a goroutine.
+	}}
+	storeRoot := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Run(context.Background(), sessionState, identity, repoRoot, unrelatedPlan, factory, store, runTestPolicy(), fixedNow)
+	if err == nil {
+		t.Fatal("expected an error for a plan not matching sessionState.LatestPlanDigestSHA256")
+	}
+}
+
+func TestRunProducesSnapshotFailureForInvalidBaseRevision(t *testing.T) {
+	repoRoot, _ := runTestRepo(t)
+	nonexistentRevision := "0000000000000000000000000000000000000000" // well-formed hex, does not exist
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", nonexistentRevision)
+	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+
+	factory := &fakeProviderFactory{buildResult: func(CandidateWorkspace, providerport.Request) providerport.Result {
+		panic("provider must never be invoked when the snapshot itself fails") // t.Fatal is unsafe in a goroutine.
+	}}
+	storeRoot := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error rather than a snapshot-failure receipt: %v", err)
 	}
@@ -370,9 +477,9 @@ func TestRunProducesSnapshotFailureForInvalidBaseRevision(t *testing.T) {
 
 func TestRunProducesProviderConstructionFailure(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	factory := &fakeProviderFactory{newProviderErr: errors.New("simulated factory failure")}
 	storeRoot := t.TempDir()
@@ -381,7 +488,7 @@ func TestRunProducesProviderConstructionFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -392,7 +499,7 @@ func TestRunProducesProviderConstructionFailure(t *testing.T) {
 		t.Errorf("invalid RunnerReceipt: %v", err)
 	}
 	if receipt.CleanupSucceeded == nil || !*receipt.CleanupSucceeded {
-		t.Errorf("CleanupSucceeded = %v, want true (snapshot must have been cleaned up)", receipt.CleanupSucceeded)
+		t.Errorf("CleanupSucceeded = %v, want true (snapshot AND workspace close must have succeeded)", receipt.CleanupSucceeded)
 	}
 	if receipt.InputCandidateDigestSHA256 == nil {
 		t.Error("InputCandidateDigestSHA256 must be present for provider-construction-failure")
@@ -407,9 +514,9 @@ func TestRunProducesProviderConstructionFailure(t *testing.T) {
 // DispositionO2RunError.
 func TestRunProducesO2NonCompletedWhenExecuteReturnsAnError(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	factory := &fakeProviderFactory{executeErr: errors.New("simulated provider crash")}
 	storeRoot := t.TempDir()
@@ -418,7 +525,7 @@ func TestRunProducesO2NonCompletedWhenExecuteReturnsAnError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -427,6 +534,9 @@ func TestRunProducesO2NonCompletedWhenExecuteReturnsAnError(t *testing.T) {
 	}
 	if err := ValidateRunnerReceipt(receipt); err != nil {
 		t.Errorf("invalid RunnerReceipt: %v", err)
+	}
+	if receipt.CleanupSucceeded == nil || !*receipt.CleanupSucceeded {
+		t.Errorf("CleanupSucceeded = %v, want true (workspace close must be attempted even on this path)", receipt.CleanupSucceeded)
 	}
 }
 
@@ -437,9 +547,9 @@ func TestRunProducesO2NonCompletedWhenExecuteReturnsAnError(t *testing.T) {
 // DispositionO2RunError: "no valid Result/Receipt was constructed at all."
 func TestRunProducesO2RunError(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	factory := &fakeProviderFactory{describeErr: errors.New("simulated describe failure")}
 	storeRoot := t.TempDir()
@@ -448,7 +558,7 @@ func TestRunProducesO2RunError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -462,24 +572,12 @@ func TestRunProducesO2RunError(t *testing.T) {
 
 func TestRunProducesO2NonCompleted(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	factory := &fakeProviderFactory{buildResult: func(workspace CandidateWorkspace, request providerport.Request) providerport.Result {
-		r := providerport.Result{
-			SchemaVersion:       providerport.ResultSchemaVersion,
-			RequestDigestSHA256: request.RequestDigestSHA256,
-			Operation:           providerport.OperationGeneration,
-			TerminalOutcome:     providerport.OutcomeUnavailable,
-			Detail:              "simulated provider-reported unavailability",
-		}
-		digest, err := providerport.ResultDigest(r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		r.ResultDigestSHA256 = digest
-		return providerport.NormalizeResult(r)
+		return unavailableResult(t, request.RequestDigestSHA256)
 	}}
 	storeRoot := t.TempDir()
 	store, err := NewFSCandidateArtifactStore(storeRoot)
@@ -487,7 +585,7 @@ func TestRunProducesO2NonCompleted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -508,9 +606,9 @@ func TestRunProducesO2NonCompleted(t *testing.T) {
 // records the disposition, but Result itself is never altered anywhere.
 func TestRunProducesDigestMismatchWithoutRepairingTheResult(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	wantInput, _, _, _ := precomputeExpectedDigests(t, repoRoot, baseRevision, "new.txt", "added by provider\n")
 	// Declares a WRONG proposed-change digest -- never what O3 will
@@ -531,7 +629,7 @@ func TestRunProducesDigestMismatchWithoutRepairingTheResult(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -575,9 +673,9 @@ func TestRunProducesDigestMismatchWithoutRepairingTheResult(t *testing.T) {
 // (read-only store root) after every earlier stage succeeded and matched.
 func TestRunProducesSealFailure(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	wantInput, wantProposedChange, _, _ := precomputeExpectedDigests(t, repoRoot, baseRevision, "new.txt", "added by provider\n")
 	attempt := runTestAttempt(t, plan, wantInput, wantProposedChange)
@@ -598,7 +696,7 @@ func TestRunProducesSealFailure(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(storeRoot, 0o755) })
 
-	receipt, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -620,23 +718,14 @@ func TestRunProducesSealFailure(t *testing.T) {
 // against the same factory each receive a distinct Provider instance.
 func TestRunGivesEachAttemptAFreshProvider(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	var seen []CandidateWorkspace
 	factory := &fakeProviderFactory{buildResult: func(workspace CandidateWorkspace, request providerport.Request) providerport.Result {
 		seen = append(seen, workspace)
-		r := providerport.Result{
-			SchemaVersion: providerport.ResultSchemaVersion, RequestDigestSHA256: request.RequestDigestSHA256,
-			Operation: providerport.OperationGeneration, TerminalOutcome: providerport.OutcomeUnavailable, Detail: "stop early",
-		}
-		digest, err := providerport.ResultDigest(r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		r.ResultDigestSHA256 = digest
-		return providerport.NormalizeResult(r)
+		return unavailableResult(t, request.RequestDigestSHA256)
 	}}
 	storeRoot := t.TempDir()
 	store, err := NewFSCandidateArtifactStore(storeRoot)
@@ -644,10 +733,10 @@ func TestRunGivesEachAttemptAFreshProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow); err != nil {
+	if _, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Run(context.Background(), sessionState, repoRoot, plan, factory, store, runTestPolicy(), fixedNow); err != nil {
+	if _, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow); err != nil {
 		t.Fatal(err)
 	}
 	if len(seen) != 2 {
@@ -663,21 +752,12 @@ func TestRunGivesEachAttemptAFreshProvider(t *testing.T) {
 // InputCandidateDigestSHA256.
 func TestRunStableInputCandidateDigestAcrossAttempts(t *testing.T) {
 	repoRoot, baseRevision := runTestRepo(t)
-	session := runTestSession(t, "github.com/example/repo", baseRevision)
-	sessionState := runTestSessionState(t, session)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
 	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
 
 	stopEarly := func(workspace CandidateWorkspace, request providerport.Request) providerport.Result {
-		r := providerport.Result{
-			SchemaVersion: providerport.ResultSchemaVersion, RequestDigestSHA256: request.RequestDigestSHA256,
-			Operation: providerport.OperationGeneration, TerminalOutcome: providerport.OutcomeUnavailable, Detail: "stop early",
-		}
-		digest, err := providerport.ResultDigest(r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		r.ResultDigestSHA256 = digest
-		return providerport.NormalizeResult(r)
+		return unavailableResult(t, request.RequestDigestSHA256)
 	}
 	storeRoot := t.TempDir()
 	store, err := NewFSCandidateArtifactStore(storeRoot)
@@ -685,16 +765,228 @@ func TestRunStableInputCandidateDigestAcrossAttempts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r1, err := Run(context.Background(), sessionState, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
+	r1, err := Run(context.Background(), sessionState, identity, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sessionState.ExpectedAttemptNumber = 2
-	r2, err := Run(context.Background(), sessionState, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
+	r2, err := Run(context.Background(), sessionState, identity, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r1.InputCandidateDigestSHA256 == nil || r2.InputCandidateDigestSHA256 == nil || *r1.InputCandidateDigestSHA256 != *r2.InputCandidateDigestSHA256 {
 		t.Errorf("InputCandidateDigestSHA256 diverged across attempts in the same plan generation: %v vs %v", r1.InputCandidateDigestSHA256, r2.InputCandidateDigestSHA256)
+	}
+}
+
+// --- injection-based, deterministic proofs for the three dispositions the
+// public API alone cannot cleanly isolate (each requires forcing an
+// internal step to fail independently of an EARLIER step that uses the
+// same underlying primitive also failing). Overrides the package-level
+// indirection vars run.go calls through, always restored via t.Cleanup. ---
+
+func TestRunProducesWorkspaceInitFailureWhenBufferInitFails(t *testing.T) {
+	repoRoot, baseRevision := runTestRepo(t)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
+	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+
+	orig := initializeCandidateBufferFn
+	initializeCandidateBufferFn = func(snapshotDir string, snapshotManifest []CandidateManifestEntry) (string, []CandidateManifestEntry, string, func() error, error) {
+		return "", nil, "", nil, errors.New("simulated candidate buffer initialization failure")
+	}
+	t.Cleanup(func() { initializeCandidateBufferFn = orig })
+
+	factory := &fakeProviderFactory{buildResult: func(CandidateWorkspace, providerport.Request) providerport.Result {
+		panic("provider must never be invoked when buffer initialization fails") // t.Fatal is unsafe in a goroutine.
+	}}
+	storeRoot := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	if err != nil {
+		t.Fatalf("Run returned an error: %v", err)
+	}
+	if receipt.Disposition != DispositionWorkspaceInitFailure {
+		t.Fatalf("Disposition = %q, want %q (detail: %q)", receipt.Disposition, DispositionWorkspaceInitFailure, receipt.FailureDetail)
+	}
+	if err := ValidateRunnerReceipt(receipt); err != nil {
+		t.Errorf("invalid RunnerReceipt: %v", err)
+	}
+	// The real snapshot WAS created (extractSnapshotFn was not overridden)
+	// and must still have been cleaned up despite the later failure.
+	if receipt.CleanupSucceeded == nil || !*receipt.CleanupSucceeded {
+		t.Errorf("CleanupSucceeded = %v, want true (the real snapshot must still have been cleaned up)", receipt.CleanupSucceeded)
+	}
+}
+
+// closeFailingWorkspace wraps a real CandidateWorkspace, delegating every
+// method except Close, which deterministically fails -- letting a fake
+// provider read/write through a fully functional workspace while Run's own
+// freeze step is guaranteed to fail.
+type closeFailingWorkspace struct {
+	CandidateWorkspace
+	closeErr error
+}
+
+func (w *closeFailingWorkspace) Close() error {
+	w.CandidateWorkspace.Close()
+	return w.closeErr
+}
+
+func TestRunProducesWorkspaceFreezeFailureWhenCloseFails(t *testing.T) {
+	repoRoot, baseRevision := runTestRepo(t)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
+	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+
+	orig := newCandidateWorkspaceFn
+	newCandidateWorkspaceFn = func(snapshotRoot, bufferRoot string) (CandidateWorkspace, error) {
+		real, err := orig(snapshotRoot, bufferRoot)
+		if err != nil {
+			return nil, err
+		}
+		return &closeFailingWorkspace{CandidateWorkspace: real, closeErr: errors.New("simulated workspace close failure")}, nil
+	}
+	t.Cleanup(func() { newCandidateWorkspaceFn = orig })
+
+	wantInput, wantProposedChange, _, _ := precomputeExpectedDigests(t, repoRoot, baseRevision, "new.txt", "added by provider\n")
+	attempt := runTestAttempt(t, plan, wantInput, wantProposedChange)
+	factory := &fakeProviderFactory{buildResult: func(workspace CandidateWorkspace, request providerport.Request) providerport.Result {
+		if err := workspace.WriteCandidate("new.txt", []byte("added by provider\n")); err != nil {
+			panic(err)
+		}
+		return generationResult(t, request.RequestDigestSHA256, attempt)
+	}}
+	storeRoot := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	if err != nil {
+		t.Fatalf("Run returned an error: %v", err)
+	}
+	if receipt.Disposition != DispositionWorkspaceFreezeFailure {
+		t.Fatalf("Disposition = %q, want %q (detail: %q)", receipt.Disposition, DispositionWorkspaceFreezeFailure, receipt.FailureDetail)
+	}
+	if err := ValidateRunnerReceipt(receipt); err != nil {
+		t.Errorf("invalid RunnerReceipt: %v", err)
+	}
+}
+
+func TestRunProducesEvidenceComputationFailureWhenFinalManifestBuildFails(t *testing.T) {
+	repoRoot, baseRevision := runTestRepo(t)
+	session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
+	plan := runTestPlan(t, zeroDigest)
+	sessionState := runTestSessionState(t, session, plan)
+
+	orig := buildFinalManifestFn
+	buildFinalManifestFn = func(root string) ([]CandidateManifestEntry, error) {
+		return nil, errors.New("simulated final manifest build failure")
+	}
+	t.Cleanup(func() { buildFinalManifestFn = orig })
+
+	wantInput, wantProposedChange, _, _ := precomputeExpectedDigests(t, repoRoot, baseRevision, "new.txt", "added by provider\n")
+	attempt := runTestAttempt(t, plan, wantInput, wantProposedChange)
+	factory := &fakeProviderFactory{buildResult: func(workspace CandidateWorkspace, request providerport.Request) providerport.Result {
+		if err := workspace.WriteCandidate("new.txt", []byte("added by provider\n")); err != nil {
+			panic(err)
+		}
+		return generationResult(t, request.RequestDigestSHA256, attempt)
+	}}
+	storeRoot := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(storeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	if err != nil {
+		t.Fatalf("Run returned an error: %v", err)
+	}
+	if receipt.Disposition != DispositionEvidenceComputationFailure {
+		t.Fatalf("Disposition = %q, want %q (detail: %q)", receipt.Disposition, DispositionEvidenceComputationFailure, receipt.FailureDetail)
+	}
+	if err := ValidateRunnerReceipt(receipt); err != nil {
+		t.Errorf("invalid RunnerReceipt: %v", err)
+	}
+	// The workspace WAS successfully closed before this failure (step 7
+	// succeeds; step 8 is where buildFinalManifestFn is invoked) -- cleanup
+	// must still reflect that.
+	if receipt.CleanupSucceeded == nil || !*receipt.CleanupSucceeded {
+		t.Errorf("CleanupSucceeded = %v, want true", receipt.CleanupSucceeded)
+	}
+}
+
+// closeTrackingWorkspace wraps a real CandidateWorkspace and records whether
+// Close was ever called, delegating to the real Close otherwise.
+type closeTrackingWorkspace struct {
+	CandidateWorkspace
+	closed *bool
+}
+
+func (w *closeTrackingWorkspace) Close() error {
+	*w.closed = true
+	return w.CandidateWorkspace.Close()
+}
+
+// TestRunClosesWorkspaceOnEveryEarlyFailurePath proves blocker-3's fix
+// directly: workspace.Close is actually INVOKED (not merely "cleanup still
+// reports success," which would stay true even if Close were never called,
+// since the other cleanups would still succeed on their own) on every path
+// where a workspace was constructed but the run stops before reaching a
+// completed O2 result -- provider-construction-failure, o2-run-error, and
+// o2-non-completed.
+func TestRunClosesWorkspaceOnEveryEarlyFailurePath(t *testing.T) {
+	cases := []struct {
+		name    string
+		factory func() *fakeProviderFactory
+	}{
+		{"provider-construction-failure", func() *fakeProviderFactory {
+			return &fakeProviderFactory{newProviderErr: errors.New("simulated factory failure")}
+		}},
+		{"o2-run-error", func() *fakeProviderFactory {
+			return &fakeProviderFactory{describeErr: errors.New("simulated describe failure")}
+		}},
+		{"o2-non-completed", func() *fakeProviderFactory {
+			return &fakeProviderFactory{executeErr: errors.New("simulated provider crash")}
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			repoRoot, baseRevision := runTestRepo(t)
+			session, identity := runTestSessionAndIdentity(t, "github.com/example/repo", baseRevision)
+			plan := runTestPlan(t, zeroDigest)
+			sessionState := runTestSessionState(t, session, plan)
+
+			closed := false
+			orig := newCandidateWorkspaceFn
+			newCandidateWorkspaceFn = func(snapshotRoot, bufferRoot string) (CandidateWorkspace, error) {
+				real, err := orig(snapshotRoot, bufferRoot)
+				if err != nil {
+					return nil, err
+				}
+				return &closeTrackingWorkspace{CandidateWorkspace: real, closed: &closed}, nil
+			}
+			t.Cleanup(func() { newCandidateWorkspaceFn = orig })
+
+			storeRoot := t.TempDir()
+			store, err := NewFSCandidateArtifactStore(storeRoot)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := Run(context.Background(), sessionState, identity, repoRoot, plan, c.factory(), store, runTestPolicy(), fixedNow); err != nil {
+				t.Fatal(err)
+			}
+			if !closed {
+				t.Error("workspace.Close was never called on this failure path -- a retained provider handle would survive the run")
+			}
+		})
 	}
 }
