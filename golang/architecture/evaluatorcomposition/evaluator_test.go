@@ -167,7 +167,8 @@ func TestExecuteEvaluatorClosesSurfaceOnEvaluatorErrorAndBindingRefusal(t *testi
 	})
 
 	t.Run("descriptor result mismatch", func(t *testing.T) {
-		surface := &recordingEvaluatorSurface{ref: "surface://test/binding-error/plain", root: t.TempDir(), mode: SurfaceModePlain}
+		cleanupErr := errors.New("binding cleanup failed")
+		surface := &recordingEvaluatorSurface{ref: "surface://test/binding-error/plain", root: t.TempDir(), mode: SurfaceModePlain, closeErr: cleanupErr}
 		input := evaluationInputForSurface(t, surface)
 		descriptor := evaluatorDescriptorForExecution(t, "evaluator.binding")
 		result := evaluatorResultForExecution(t, descriptor, input)
@@ -182,8 +183,8 @@ func TestExecuteEvaluatorClosesSurfaceOnEvaluatorErrorAndBindingRefusal(t *testi
 			DescribeFunc: func(context.Context) (EvaluatorDescriptor, error) { return descriptor, nil },
 			EvaluateFunc: func(context.Context, EvaluationInput) (EvaluatorResult, error) { return result, nil },
 		}
-		if _, err := ExecuteEvaluator(context.Background(), evaluator, input, surface); err == nil || !strings.Contains(err.Error(), "evaluator_id") {
-			t.Fatalf("binding refusal error = %v", err)
+		if _, err := ExecuteEvaluator(context.Background(), evaluator, input, surface); err == nil || !strings.Contains(err.Error(), "evaluator_id") || !strings.Contains(err.Error(), cleanupErr.Error()) {
+			t.Fatalf("binding refusal did not preserve cleanup failure: %v", err)
 		}
 		if surface.closed != 1 {
 			t.Fatalf("surface Close calls = %d, want 1", surface.closed)
