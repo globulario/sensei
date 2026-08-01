@@ -110,6 +110,31 @@ invariants:
 	}
 }
 
+func TestCollectYAMLFiles_ExcludesNestedCandidatesButAllowsExplicitRoot(t *testing.T) {
+	root := t.TempDir()
+	writeValidateFile(t, root, "docs/awareness/architecture/decisions.yaml", "decisions: []\n")
+	writeValidateFile(t, root, "docs/awareness/candidates/draft.yaml", "candidates: []\n")
+	writeValidateFile(t, root, "docs/awareness/generated/canonical.yaml", "components: []\n")
+
+	awareness := filepath.Join(root, "docs/awareness")
+	files, err := collectYAMLFiles([]string{awareness})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		if filepath.Base(filepath.Dir(file)) == "candidates" || filepath.Base(filepath.Dir(file)) == "generated" {
+			t.Fatalf("nested non-canonical tree included: %s", file)
+		}
+	}
+	files, err = collectYAMLFiles([]string{filepath.Join(awareness, "candidates")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || filepath.Base(files[0]) != "draft.yaml" {
+		t.Fatalf("explicit candidates root=%v", files)
+	}
+}
+
 func TestDoValidate_GenericExternalRefsFailInFullScope(t *testing.T) {
 	root := t.TempDir()
 	writeValidateFile(t, root, "docs/awareness/generic/patterns.yaml", `
@@ -256,7 +281,7 @@ candidates:
     title: ""
     statement: ""
 `)
-	report, err := doValidate(root, []string{filepath.Join(root, "docs/awareness")}, nil, []string{root}, validateScopeLocal)
+	report, err := doValidate(root, []string{filepath.Join(root, "docs/awareness", "candidates")}, nil, []string{root}, validateScopeLocal)
 	if err != nil {
 		t.Fatalf("doValidate: %v", err)
 	}

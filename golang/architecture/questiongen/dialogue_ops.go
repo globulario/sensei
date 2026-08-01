@@ -205,6 +205,9 @@ func AdjudicateAnswer(doc architecture.DialogueDocument, opts AdjudicateAnswerOp
 			replacement.QuestionTemplateID = ""
 			replacement.QuestionTemplateVersion = ""
 			replacement.SourceClosureAssessmentDigestSHA256 = ""
+			replacement.QuestionSourceKind = ""
+			replacement.SourceArtifactDigestSHA256 = ""
+			replacement.SourceReferenceIDs = nil
 			replacement.ID = architecture.StableOpenQuestionID(replacement)
 			if existing := questionIndex(doc.OpenQuestions, replacement.ID); existing < 0 {
 				doc.OpenQuestions = append(doc.OpenQuestions, replacement)

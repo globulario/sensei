@@ -1,46 +1,49 @@
-# Self-host the awareness-graph service: Oxigraph (store) + awareness-graph
-# (gRPC :10120). The server seeds the store from its embedded corpus on first
-# start, so `docker compose up` is all you need.
+# One-container Sensei appliance.
 #
-#   cd deploy && docker compose up --build
-#   # then point a client at localhost:10120:
+#   SENSEI_REPO=/absolute/path/to/repo docker compose -f deploy/docker-compose.yml up -d --build
 #   SENSEI_ADDR=localhost:10120 sensei metadata
 #
-# Bearer-token auth is OFF by default (trusted-network default). To require a
-# token, set SENSEI_TOKEN in the environment (or a .env file next to this
-# compose) and pass the SAME token from clients via $SENSEI_TOKEN. Put TLS in
-# front (a reverse proxy) for untrusted networks.
+# Normal service mode mounts the repository read-only. Runtime graph identity and
+# Oxigraph data live in the named volume. Only governed gRPC is published;
+# Oxigraph remains bound to loopback inside the container.
 services:
-  oxigraph:
-    image: ghcr.io/oxigraph/oxigraph:latest
-    command: ["serve", "--location", "/data", "--bind", "0.0.0.0:7878"]
-    volumes:
-      - awg-oxigraph:/data
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:7878/"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  awareness-graph:
+  sensei:
+    image: "${SENSEI_IMAGE:-ghcr.io/globulario/sensei-appliance:local}"
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    command:
-      - "-addr"
-      - ":10120"
-      - "-oxigraph-url"
-      - "http://oxigraph:7878/query"
-      - "-require-store"
+      args:
+        SENSEI_VERSION: "${SENSEI_VERSION:-0.0.0-dev}"
+        VCS_REF: "${SENSEI_VCS_REF:-local}"
+        OXIGRAPH_VERSION: "${OXIGRAPH_VERSION:-0.5.9}"
     environment:
-      # Opt-in bearer-token auth. Empty => open. Set to require a token.
+      SENSEI_WORKSPACE: /workspace
+      SENSEI_DATA_DIR: /var/lib/sensei
+      SENSEI_LISTEN_ADDR: 0.0.0.0:10120
+      SENSEI_CLIENT_ADDR: 127.0.0.1:10120
+      SENSEI_OXIGRAPH_BIND: 127.0.0.1:7878
+      SENSEI_HOME_DOMAIN: "${SENSEI_HOME_DOMAIN:-project}"
+      SENSEI_REPO_DOMAIN: "${SENSEI_REPO_DOMAIN:-}"
+      SENSEI_NO_SEED: "${SENSEI_NO_SEED:-true}"
+      SENSEI_AUTO_BUILD: "${SENSEI_AUTO_BUILD:-true}"
+      SENSEI_BUILD_STRICT: "${SENSEI_BUILD_STRICT:-true}"
+      SENSEI_ENABLE_PROPOSE: "${SENSEI_ENABLE_PROPOSE:-false}"
       SENSEI_TOKEN: "${SENSEI_TOKEN:-}"
-      AWG_TOKEN: "${AWG_TOKEN:-}"
+    volumes:
+      - "${SENSEI_REPO:-..}:/workspace:ro"
+      - sensei-data:/var/lib/sensei
     ports:
-      - "10120:10120"
-    depends_on:
-      oxigraph:
-        condition: service_healthy
+      - "127.0.0.1:${SENSEI_PORT:-10120}:10120"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 10s
 
 volumes:
-  awg-oxigraph:
+  sensei-data:

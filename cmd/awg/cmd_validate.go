@@ -981,11 +981,13 @@ func collectYAMLFiles(dirs []string) ([]string, error) {
 				return nil
 			}
 			if info.IsDir() {
-				if filepath.Base(p) == "cache" {
+				switch filepath.Base(p) {
+				case "cache":
 					return filepath.SkipDir
-				}
-				if filepath.Base(p) == "generated" && p != root {
-					return filepath.SkipDir
+				case "generated", "candidates":
+					if p != root {
+						return filepath.SkipDir
+					}
 				}
 				return nil
 			}

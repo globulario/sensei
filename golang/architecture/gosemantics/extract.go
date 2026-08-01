@@ -429,9 +429,6 @@ func sourceFiles(root string, includeGenerated bool) ([]string, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if d.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlink in searched source set refused: %s", path)
-		}
 
 		rel, relErr := filepath.Rel(absRoot, path)
 		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
@@ -447,8 +444,12 @@ func sourceFiles(root string, includeGenerated bool) ([]string, error) {
 		if IsExcludedPath(relSlash) {
 			return nil
 		}
-		if relSlash != "go.mod" && relSlash != "go.sum" && filepath.Ext(relSlash) != ".go" {
+		semanticInput := relSlash == "go.mod" || relSlash == "go.sum" || filepath.Ext(relSlash) == ".go"
+		if !semanticInput {
 			return nil
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in searched source set refused: %s", path)
 		}
 		if !includeGenerated && filepath.Ext(relSlash) == ".go" && IsGeneratedFile(path) {
 			return nil
@@ -527,7 +528,7 @@ func objectKind(obj types.Object) string {
 
 func excludedPath(path string) bool {
 	path = "/" + filepath.ToSlash(path) + "/"
-	for _, segment := range []string{"/vendor/", "/.git/", "/.sensei/", "/generated/", "/testdata/", "/examples/", "/example/"} {
+	for _, segment := range []string{"/vendor/", "/node_modules/", "/.git/", "/.sensei/", "/generated/", "/testdata/", "/examples/", "/example/"} {
 		if strings.Contains(path, segment) {
 			return true
 		}

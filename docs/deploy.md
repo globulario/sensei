@@ -1,74 +1,144 @@
-# Deploying Sensei (self-host)
+# Sensei Docker appliance
 
-Sensei is two things: a **service** (the awareness-graph gRPC server + an Oxigraph
-store) and **client tools** (`sensei` CLI, `awareness-mcp` bridge) that agents and
-CI point at it. This guide self-hosts both. Managed hosting comes later; the
-same client tools will point at it unchanged.
+The appliance is the shortest path from a Sensei-aware repository to a live
+agent service. One image contains:
 
-## 1. Run the service
+- the `sensei` CLI;
+- the `awareness-graph` gRPC service;
+- the `awareness-mcp` stdio bridge;
+- a pinned and release-digest-verified Oxigraph binary.
 
-```bash
-cd deploy
-docker compose up --build       # Oxigraph + awareness-graph on :10120
-```
+Sensei already owns the local process lifecycle, so the image does not run a
+second container or duplicate service orchestration. Oxigraph binds only to
+`127.0.0.1` inside the container. The only published port is governed gRPC on
+`10120`.
 
-The server seeds the store from its embedded corpus on first start (idempotent —
-it skips seeding a non-empty store), so there is nothing else to load. The store
-lives in the `awg-oxigraph` volume and survives restarts.
+## Fast path
 
-> **Local dev without Docker?** `sensei serve` runs the same server directly, but it
-> needs an `oxigraph` binary on PATH (or `--no-oxigraph` pointing at an external
-> one) — `go install` does not provide it. Compose bundles Oxigraph, so it is the
-> recommended path; reach for `sensei serve` only when you already have Oxigraph.
-
-Verify it:
+A repository must contain `docs/awareness`. Initialize it once using a local
+Sensei installation or the image itself:
 
 ```bash
-SENSEI_ADDR=localhost:10120 sensei metadata  # coverage + freshness
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/workspace" \
+  ghcr.io/globulario/sensei-appliance:latest \
+  bootstrap --skip-history
 ```
 
-## 2. Install the client tools
+Bootstrap intentionally writes governed project files. Normal service mode does
+not. Start the appliance with the repository mounted read-only:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/globulario/sensei/master/deploy/install.sh | sh
-# or, from a checkout:  ./deploy/install.sh
+docker run -d \
+  --name sensei \
+  -p 127.0.0.1:10120:10120 \
+  -v "$PWD:/workspace:ro" \
+  -v sensei-data:/var/lib/sensei \
+  ghcr.io/globulario/sensei-appliance:latest
 ```
 
-This installs `sensei` and `awareness-mcp` with Go into `$(go env GOBIN)` (or
-`$GOPATH/bin`). Point every client at the service with `SENSEI_ADDR` (or each
-command's `--addr`). Legacy `AWG_ADDR` still works as a fallback.
+The appliance starts its private Oxigraph child, starts awareness-graph, builds
+`docs/awareness` into the live store, verifies the service, and becomes healthy.
+Runtime graph identity and database state stay in the `sensei-data` volume.
+Nothing writes `.sensei/graph-authority.json` into the mounted repository.
 
-## 3. Enable auth (optional, opt-in)
-
-By default the service is **open** — correct for a trusted local network or a
-single-host dev setup. To require a bearer token, set `SENSEI_TOKEN` for the
-service and give clients the **same** token:
+Verify it from a locally installed client:
 
 ```bash
-# service (deploy/.env or the environment):
-echo "SENSEI_TOKEN=$(openssl rand -hex 24)" > deploy/.env
-docker compose up -d
-
-# clients:
-export SENSEI_TOKEN=<the same token>
-sensei metadata                       # now authenticated
+SENSEI_ADDR=localhost:10120 sensei metadata
 ```
 
-- Health and reflection stay open so liveness probes and tooling keep working.
-- The token rides in the gRPC `authorization: Bearer …` metadata and is allowed
-  over plaintext, so put a **TLS-terminating reverse proxy** in front for any
-  untrusted network. (mTLS via the Globular cert path remains available for the
-  managed tier.)
-- A client without the token gets `Unauthenticated: missing bearer token`; a
-  wrong token gets `invalid bearer token`.
+Or use the bundled client:
 
-## 4. Wire it to an agent
+```bash
+docker exec sensei sensei metadata -addr 127.0.0.1:10120
+```
 
-- **CI gate:** see `docs/awg-gate.example.yml` (`sensei gate --enforce`), and
-  `SENSEI_EVENT_LOG` + `sensei evidence` for outcome tracking (`docs/awg-gate.example.yml`).
-- **Any agent over MCP:** run `awareness-mcp --awareness-addr localhost:10120`;
-  every tool returns structured `structuredContent` (see Pillar 3.1).
-- **Pre-edit guard, any agent:** `sensei edit-guard --format exit-code`
-  (`docs/awg-edit-guard-neutral.example.md`).
+## Docker Compose
 
-All three honor `SENSEI_TOKEN`, so enabling auth secures the whole surface at once.
+From the Sensei checkout:
+
+```bash
+SENSEI_REPO=/absolute/path/to/project \
+  docker compose -f deploy/docker-compose.yml up -d --build
+```
+
+The Compose file keeps the root filesystem read-only, drops Linux capabilities,
+binds the host port to loopback, and stores only runtime data in a named volume.
+
+## Agent access
+
+Run the MCP bridge over stdio inside the appliance:
+
+```bash
+docker exec -i sensei sensei-appliance mcp
+```
+
+Generic agents can use the bundled CLI without MCP:
+
+```bash
+docker exec sensei sensei briefing \
+  -addr 127.0.0.1:10120 \
+  -file path/to/file.go \
+  -task "describe the intended change"
+```
+
+For cloud agents that cannot reach local Docker, run the same image in GitHub
+Actions and surface its result as a check. A persistent remote gateway can later
+reuse the same image and contracts without changing Sensei's graph owners.
+
+## Authentication
+
+Bearer authentication is opt-in. Set the same token for the service and clients:
+
+```bash
+docker run -d \
+  --name sensei \
+  -e SENSEI_TOKEN="$(openssl rand -hex 24)" \
+  -p 127.0.0.1:10120:10120 \
+  -v "$PWD:/workspace:ro" \
+  -v sensei-data:/var/lib/sensei \
+  ghcr.io/globulario/sensei-appliance:latest
+```
+
+The port remains plaintext gRPC. Keep it on loopback or place a TLS/mTLS gateway
+in front before exposing it to an untrusted network.
+
+## Commands
+
+The image entrypoint keeps common operations compact:
+
+```text
+serve                       default appliance service
+health                      readiness plus live metadata check
+bootstrap [flags]           initialize/extract a writable mounted repository
+mcp [flags]                 run awareness-mcp against the local service
+sensei <command> [flags]    run the bundled CLI
+<command> [flags]           shorthand for a Sensei CLI command
+shell                       open /bin/sh
+```
+
+## Configuration
+
+| Environment variable | Default | Purpose |
+|---|---|---|
+| `SENSEI_WORKSPACE` | `/workspace` | Mounted repository root |
+| `SENSEI_DATA_DIR` | `/var/lib/sensei` | Oxigraph, marker, transaction, readiness state |
+| `SENSEI_LISTEN_ADDR` | `0.0.0.0:10120` | gRPC listener |
+| `SENSEI_OXIGRAPH_BIND` | `127.0.0.1:7878` | Private Oxigraph listener |
+| `SENSEI_HOME_DOMAIN` | `project` | Home domain for untagged graph nodes |
+| `SENSEI_REPO_DOMAIN` | empty | Optional canonical repository domain for feedback verification |
+| `SENSEI_NO_SEED` | `true` | Use the mounted project's graph instead of the embedded Globular graph |
+| `SENSEI_AUTO_BUILD` | `true` | Publish `docs/awareness` at startup |
+| `SENSEI_BUILD_STRICT` | `true` | Refuse unrecognized awareness schemas during startup build |
+| `SENSEI_ENABLE_PROPOSE` | `false` | Enable the candidate-writing RPC |
+| `SENSEI_TOKEN` | empty | Require bearer authentication when non-empty |
+
+## Image discipline
+
+The final image contains no Go compiler, Git checkout, Homebrew installation, or
+package-manager cache. Homebrew remains a useful client-install and packaging
+validation route, but the appliance copies pinned release binaries into a small
+runtime image. CI enforces a 250 MiB uncompressed image ceiling and performs a
+cold bootstrap, graph publication, health, binary, and read-only-workspace smoke.

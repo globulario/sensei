@@ -70,15 +70,36 @@ func (s *server) ReferenceSites(ctx context.Context, req *awarenesspb.ReferenceS
 // at symbolID. The target itself is excluded (a self-reference is not a sibling
 // site). Result is sorted for determinism.
 func (s *server) referencingSites(ctx context.Context, symbolID string) ([]string, error) {
+	return s.referencingSitesInScope(ctx, symbolID, "")
+}
+
+// referencingSitesInScope preserves the resolved briefing domain all the way
+// to inbound caller evidence. A multi-domain graph may contain identical raw
+// file:symbol ids; callers outside the selected repository are never rendered
+// as local architectural evidence. A store that cannot expose node domains
+// fails closed for a scoped request rather than silently widening the query.
+func (s *server) referencingSitesInScope(ctx context.Context, symbolID, scope string) ([]string, error) {
 	iri := mintedIRI(rdf.ClassCodeSymbol, symbolID)
 	inbound, err := s.store.DescribeInbound(ctx, iri)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}
+	var keep map[string]bool
+	scope = strings.TrimSpace(scope)
+	if scope != "" {
+		var ok bool
+		keep, ok = s.inScopeClassIRIs(ctx, rdf.ClassCodeSymbol, s.homeDomain, scope)
+		if !ok {
+			return nil, status.Errorf(codes.Unavailable, "domain-scoped caller lookup is unavailable for %q", scope)
+		}
+	}
 	out := make([]string, 0, len(inbound))
 	seen := map[string]bool{}
 	for _, t := range inbound {
 		if t.Predicate != rdf.PropReferences {
+			continue
+		}
+		if keep != nil && !keep[t.Subject] {
 			continue
 		}
 		siteID, ok := codeSymbolIDFromIRI(t.Subject)

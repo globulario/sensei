@@ -1,0 +1,10 @@
+.git
+.github/workflows/sensei-appliance-export-temp.yml
+.sensei
+.awg
+bin
+coverage*
+*.log
+*.pdf
+image
+/tmp

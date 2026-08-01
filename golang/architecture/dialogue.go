@@ -38,6 +38,12 @@ const (
 	QuestionStatusAcceptedUnknown   = "accepted_unknown"
 	QuestionStatusSuperseded        = "superseded"
 
+	SourceClosureBlocker         QuestionSourceKind = "closure_blocker"
+	SourceInvestigationCandidate QuestionSourceKind = "investigation_candidate"
+	SourceCounterexample         QuestionSourceKind = "counterexample"
+	SourceEvidenceGap            QuestionSourceKind = "evidence_gap"
+	SourceDeviationPattern       QuestionSourceKind = "deviation_pattern"
+
 	AnswerTypeIntentStatement           = "intent_statement"
 	AnswerTypeDesiredDirection          = "desired_direction"
 	AnswerTypeGovernedDecisionCandidate = "governed_decision_candidate"
@@ -59,6 +65,18 @@ var dialogueTokenRE = regexp.MustCompile(`^[a-z][a-z0-9_.-]*$`)
 var closureBlockerIDRE = regexp.MustCompile(`^blocker\.(structural|authority|contract|behavioral|evidence|contradiction|direction|agent)\.[a-f0-9]{12}$`)
 var lowercaseSHA256RE = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
+// QuestionSourceKind identifies the governed source class that produced a question.
+type QuestionSourceKind string
+
+func isQuestionSourceKind(kind QuestionSourceKind) bool {
+	switch kind {
+	case SourceClosureBlocker, SourceInvestigationCandidate, SourceCounterexample, SourceEvidenceGap, SourceDeviationPattern:
+		return true
+	default:
+		return false
+	}
+}
+
 type OpenQuestion struct {
 	ID                                  string               `json:"id" yaml:"id"`
 	Label                               string               `json:"label,omitempty" yaml:"label,omitempty"`
@@ -71,10 +89,17 @@ type OpenQuestion struct {
 	QuestionTemplateID                  string               `json:"question_template_id,omitempty" yaml:"question_template_id,omitempty"`
 	QuestionTemplateVersion             string               `json:"question_template_version,omitempty" yaml:"question_template_version,omitempty"`
 	SourceClosureAssessmentDigestSHA256 string               `json:"source_closure_assessment_digest_sha256,omitempty" yaml:"source_closure_assessment_digest_sha256,omitempty"`
+	QuestionSourceKind                  QuestionSourceKind   `json:"question_source_kind,omitempty" yaml:"question_source_kind,omitempty"`
+	SourceArtifactDigestSHA256          string               `json:"source_artifact_digest_sha256,omitempty" yaml:"source_artifact_digest_sha256,omitempty"`
+	SourceReferenceIDs                  []string             `json:"source_reference_ids,omitempty" yaml:"source_reference_ids,omitempty"`
 	AcceptedAnswerTypes                 []string             `json:"accepted_answer_types" yaml:"accepted_answer_types"`
 	ReasonsOpen                         []string             `json:"reasons_open" yaml:"reasons_open"`
 	KnownFactIDs                        []string             `json:"known_fact_ids,omitempty" yaml:"known_fact_ids,omitempty"`
 	KnownEvidence                       []string             `json:"known_evidence,omitempty" yaml:"known_evidence,omitempty"`
+	SupportingEvidence                  []string             `json:"supporting_evidence,omitempty" yaml:"supporting_evidence,omitempty"`
+	RefutingEvidence                    []string             `json:"refuting_evidence,omitempty" yaml:"refuting_evidence,omitempty"`
+	FalsificationConditions             []string             `json:"falsification_conditions,omitempty" yaml:"falsification_conditions,omitempty"`
+	SuggestedAnswerOwner                string               `json:"suggested_answer_owner,omitempty" yaml:"suggested_answer_owner,omitempty"`
 	CompetingHypotheses                 []QuestionHypothesis `json:"competing_hypotheses,omitempty" yaml:"competing_hypotheses,omitempty"`
 	MissingEvidence                     []string             `json:"missing_evidence,omitempty" yaml:"missing_evidence,omitempty"`
 	Priority                            string               `json:"priority" yaml:"priority"`
@@ -147,6 +172,17 @@ func StableOpenQuestionID(q OpenQuestion) string {
 			q.QuestionTemplateVersion,
 			strings.Join(q.BlocksNodes, ","),
 			strings.Join(q.BlocksClosureBlockers, ","),
+		)
+	}
+	if q.QuestionSourceKind != "" || q.SourceArtifactDigestSHA256 != "" || len(q.SourceReferenceIDs) > 0 {
+		parts = append(parts,
+			string(q.QuestionSourceKind),
+			q.SourceArtifactDigestSHA256,
+			strings.Join(q.SourceReferenceIDs, ","),
+			strings.Join(q.SupportingEvidence, ","),
+			strings.Join(q.RefutingEvidence, ","),
+			strings.Join(q.FalsificationConditions, ","),
+			q.SuggestedAnswerOwner,
 		)
 	}
 	return "question." + shortDialogueHash(strings.Join(parts, "|"))
@@ -250,32 +286,69 @@ func ValidateOpenQuestion(q OpenQuestion) error {
 			break
 		}
 	}
-	generatedFields := 0
-	if q.QuestionTemplateID != "" {
-		generatedFields++
+	hasTemplateMetadata := q.QuestionTemplateID != "" || q.QuestionTemplateVersion != ""
+	hasClosureSource := q.SourceClosureAssessmentDigestSHA256 != "" || q.QuestionSourceKind == SourceClosureBlocker
+	hasArtifactSource := (q.QuestionSourceKind != "" && q.QuestionSourceKind != SourceClosureBlocker) || q.SourceArtifactDigestSHA256 != "" || len(q.SourceReferenceIDs) > 0
+	if hasClosureSource && hasArtifactSource {
+		errs = append(errs, "closure and investigation question sources are mutually exclusive")
 	}
-	if q.QuestionTemplateVersion != "" {
-		generatedFields++
-	}
-	if q.SourceClosureAssessmentDigestSHA256 != "" {
-		generatedFields++
-	}
-	if generatedFields != 0 {
-		if generatedFields != 3 {
-			errs = append(errs, "generated question metadata must be all-or-none")
-		}
-		if len(q.BlocksClosureBlockers) == 0 {
-			errs = append(errs, "generated question requires at least one closure blocker")
-		}
+	if hasTemplateMetadata || hasClosureSource || hasArtifactSource {
 		if !dialogueTokenRE.MatchString(q.QuestionTemplateID) {
 			errs = append(errs, "question_template_id must be a conservative token")
 		}
 		if q.QuestionTemplateVersion == "" {
 			errs = append(errs, "question_template_version is required")
 		}
+	}
+	if hasClosureSource {
+		generatedFields := 0
+		if q.QuestionTemplateID != "" {
+			generatedFields++
+		}
+		if q.QuestionTemplateVersion != "" {
+			generatedFields++
+		}
+		if q.SourceClosureAssessmentDigestSHA256 != "" {
+			generatedFields++
+		}
+		if generatedFields != 3 {
+			errs = append(errs, "generated question metadata must be all-or-none")
+		}
+		if q.QuestionSourceKind != "" && q.QuestionSourceKind != SourceClosureBlocker {
+			errs = append(errs, "closure-generated question source kind must be closure_blocker")
+		}
+		if len(q.BlocksClosureBlockers) == 0 {
+			errs = append(errs, "generated question requires at least one closure blocker")
+		}
 		if !lowercaseSHA256RE.MatchString(q.SourceClosureAssessmentDigestSHA256) {
 			errs = append(errs, "source_closure_assessment_digest_sha256 must be lowercase SHA-256 hex")
 		}
+	}
+	if hasArtifactSource {
+		if q.QuestionSourceKind == "" || !isQuestionSourceKind(q.QuestionSourceKind) || q.QuestionSourceKind == SourceClosureBlocker {
+			errs = append(errs, "unknown question_source_kind")
+		}
+		if !lowercaseSHA256RE.MatchString(q.SourceArtifactDigestSHA256) {
+			errs = append(errs, "source_artifact_digest_sha256 must be lowercase SHA-256 hex")
+		}
+		if len(q.SourceReferenceIDs) == 0 {
+			errs = append(errs, "source_reference_ids is required")
+		}
+		for _, id := range q.SourceReferenceIDs {
+			if strings.TrimSpace(id) == "" {
+				errs = append(errs, "source_reference_ids must not contain empty values")
+				break
+			}
+		}
+		if len(q.FalsificationConditions) == 0 {
+			errs = append(errs, "investigation-backed question requires falsification_conditions")
+		}
+		if q.SuggestedAnswerOwner == "" {
+			errs = append(errs, "investigation-backed question requires suggested_answer_owner")
+		}
+	}
+	if hasTemplateMetadata && !hasClosureSource && !hasArtifactSource {
+		errs = append(errs, "generated question source binding is required")
 	}
 	if len(q.AcceptedAnswerTypes) == 0 {
 		errs = append(errs, "accepted_answer_types is required")
@@ -302,6 +375,27 @@ func ValidateOpenQuestion(q OpenQuestion) error {
 		class, _, ok := ParseClassQualifiedReference(ref)
 		if !ok || class != "evidence" {
 			errs = append(errs, "known evidence must be class-qualified as evidence:<id>")
+			break
+		}
+	}
+	for _, refs := range [][]string{q.SupportingEvidence, q.RefutingEvidence} {
+		for _, ref := range refs {
+			class, _, ok := ParseClassQualifiedReference(ref)
+			if !ok || class != "evidence" {
+				errs = append(errs, "supporting and refuting evidence must be class-qualified as evidence:<id>")
+				break
+			}
+		}
+	}
+	for _, ref := range q.SupportingEvidence {
+		if contains(q.RefutingEvidence, ref) {
+			errs = append(errs, "supporting and refuting evidence must remain distinct")
+			break
+		}
+	}
+	for _, condition := range q.FalsificationConditions {
+		if strings.TrimSpace(condition) == "" {
+			errs = append(errs, "falsification_conditions must not contain empty values")
 			break
 		}
 	}
@@ -417,10 +511,17 @@ func canonicalizeOpenQuestion(in OpenQuestion) OpenQuestion {
 	q.QuestionTemplateID = strings.TrimSpace(q.QuestionTemplateID)
 	q.QuestionTemplateVersion = strings.TrimSpace(q.QuestionTemplateVersion)
 	q.SourceClosureAssessmentDigestSHA256 = strings.TrimSpace(q.SourceClosureAssessmentDigestSHA256)
+	q.QuestionSourceKind = QuestionSourceKind(strings.TrimSpace(string(q.QuestionSourceKind)))
+	q.SourceArtifactDigestSHA256 = strings.TrimSpace(q.SourceArtifactDigestSHA256)
+	q.SourceReferenceIDs = cleanStringList(q.SourceReferenceIDs, false)
 	q.AcceptedAnswerTypes = cleanStringList(q.AcceptedAnswerTypes, false)
 	q.ReasonsOpen = cleanStringList(q.ReasonsOpen, false)
 	q.KnownFactIDs = cleanStringList(q.KnownFactIDs, false)
 	q.KnownEvidence = normalizeClassRefs(q.KnownEvidence)
+	q.SupportingEvidence = normalizeClassRefs(q.SupportingEvidence)
+	q.RefutingEvidence = normalizeClassRefs(q.RefutingEvidence)
+	q.FalsificationConditions = cleanStringList(q.FalsificationConditions, false)
+	q.SuggestedAnswerOwner = strings.TrimSpace(q.SuggestedAnswerOwner)
 	q.CompetingHypotheses = canonicalizeQuestionHypotheses(q.CompetingHypotheses)
 	q.MissingEvidence = cleanStringList(q.MissingEvidence, false)
 	q.Priority = strings.TrimSpace(q.Priority)
