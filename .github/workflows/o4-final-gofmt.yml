@@ -1,0 +1,35 @@
+name: O4 final gofmt
+
+on:
+  push:
+    branches:
+      - agent/governed-evaluator-composition-o4
+    paths:
+      - .github/workflows/o4-final-gofmt.yml
+
+permissions:
+  contents: write
+
+jobs:
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/governed-evaluator-composition-o4
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Format exact files
+        run: |
+          gofmt -w golang/architecture/evaluatorcomposition/sensei_gate.go golang/architecture/evaluatorcomposition/adapters_test.go
+          git config user.name "sensei-o4-maintenance"
+          git config user.email "sensei-o4-maintenance@users.noreply.github.com"
+          git add golang/architecture/evaluatorcomposition/sensei_gate.go golang/architecture/evaluatorcomposition/adapters_test.go
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(synthesis): format final checkpoint-4 gate files"
+          git push origin HEAD:agent/governed-evaluator-composition-o4
