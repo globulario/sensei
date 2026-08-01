@@ -151,10 +151,10 @@ func newSenseiGateTestEvaluator(t *testing.T, surface EvaluatorSurface, runner C
 
 func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
 	tests := []struct {
-		name            string
-		command         func(EvaluationInput) CommandResult
-		wantOutcome     EvaluatorTerminalOutcome
-		wantStatus      synthesis.CheckObservationStatus
+		name             string
+		command          func(EvaluationInput) CommandResult
+		wantOutcome      EvaluatorTerminalOutcome
+		wantStatus       synthesis.CheckObservationStatus
 		wantFailureClass string
 	}{
 		{
