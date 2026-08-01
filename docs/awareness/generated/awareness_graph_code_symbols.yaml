@@ -689,6 +689,16 @@ test_symbols:
     symbol: TestToolCall_MapsGRPCErrorsExplicitly
     package: main
     language: go
+  - id: cmd/awareness-mcp/phase10_tools_test.go:TestPhase10ToolArgumentsFailClosed
+    file: cmd/awareness-mcp/phase10_tools_test.go
+    symbol: TestPhase10ToolArgumentsFailClosed
+    package: main
+    language: go
+  - id: cmd/awareness-mcp/phase10_tools_test.go:TestPhase10ToolsAreRegisteredAndReadOnly
+    file: cmd/awareness-mcp/phase10_tools_test.go
+    symbol: TestPhase10ToolsAreRegisteredAndReadOnly
+    package: main
+    language: go
   - id: cmd/awareness-mcp/recovery_tools_test.go:TestCompletionToolsRejectNonStringIdentity
     file: cmd/awareness-mcp/recovery_tools_test.go
     symbol: TestCompletionToolsRejectNonStringIdentity
@@ -2575,6 +2585,31 @@ test_symbols:
     symbol: TestProjectBaseGraphExcludesMachineAdoptedIntentSubjects
     package: main
     language: go
+  - id: cmd/awg/cmd_import_test.go:TestProjectFamilyClassifier
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestProjectFamilyClassifier
+    package: main
+    language: go
+  - id: cmd/awg/cmd_import_test.go:TestProjectPublication
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestProjectPublication
+    package: main
+    language: go
+  - id: cmd/awg/cmd_import_test.go:TestProjectPublicationConcurrency
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestProjectPublicationConcurrency
+    package: main
+    language: go
+  - id: cmd/awg/cmd_import_test.go:TestProjectPublicationRevisionChange
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestProjectPublicationRevisionChange
+    package: main
+    language: go
+  - id: cmd/awg/cmd_import_test.go:TestProjectPublicationWithInvalidAndAbsentPrior
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestProjectPublicationWithInvalidAndAbsentPrior
+    package: main
+    language: go
   - id: cmd/awg/cmd_import_test.go:TestReconstructImportedProjectWritesBoundClaimsAndReadiness
     file: cmd/awg/cmd_import_test.go
     symbol: TestReconstructImportedProjectWritesBoundClaimsAndReadiness
@@ -3897,6 +3932,11 @@ test_symbols:
   - id: cmd/awg/cmd_validate_test.go:TestCheck_Strict_SelfAwareness_Green
     file: cmd/awg/cmd_validate_test.go
     symbol: TestCheck_Strict_SelfAwareness_Green
+    package: main
+    language: go
+  - id: cmd/awg/cmd_validate_test.go:TestCollectYAMLFiles_ExcludesNestedCandidatesButAllowsExplicitRoot
+    file: cmd/awg/cmd_validate_test.go
+    symbol: TestCollectYAMLFiles_ExcludesNestedCandidatesButAllowsExplicitRoot
     package: main
     language: go
   - id: cmd/awg/cmd_validate_test.go:TestDoValidate_AGNativeSeverityVocabPasses
@@ -9028,6 +9068,41 @@ test_symbols:
     symbol: TestValidateRejectsUnsupportedSchemaVersion
     package: dashboardprojection
     language: go
+  - id: golang/architecture/deviation/deviation_test.go:TestAnalysisReceiptIndexesAreMandatoryAndExact
+    file: golang/architecture/deviation/deviation_test.go
+    symbol: TestAnalysisReceiptIndexesAreMandatoryAndExact
+    package: deviation
+    language: go
+  - id: golang/architecture/deviation/deviation_test.go:TestAnalyzeCreatesAdvisoryCandidateWithoutWeakeningArchitecture
+    file: golang/architecture/deviation/deviation_test.go
+    symbol: TestAnalyzeCreatesAdvisoryCandidateWithoutWeakeningArchitecture
+    package: deviation
+    language: go
+  - id: golang/architecture/deviation/deviation_test.go:TestAnalyzeIsOrderIndependentAndOneOccurrenceStaysLocalEvidence
+    file: golang/architecture/deviation/deviation_test.go
+    symbol: TestAnalyzeIsOrderIndependentAndOneOccurrenceStaysLocalEvidence
+    package: deviation
+    language: go
+  - id: golang/architecture/deviation/deviation_test.go:TestClusterCountsIndependentOccurrencesOnly
+    file: golang/architecture/deviation/deviation_test.go
+    symbol: TestClusterCountsIndependentOccurrencesOnly
+    package: deviation
+    language: go
+  - id: golang/architecture/deviation/deviation_test.go:TestClusterRefusesOneOccurrenceKeyBoundToDifferentEvents
+    file: golang/architecture/deviation/deviation_test.go
+    symbol: TestClusterRefusesOneOccurrenceKeyBoundToDifferentEvents
+    package: deviation
+    language: go
+  - id: golang/architecture/deviation/deviation_test.go:TestPatternIdentityIgnoresOccurrenceMetadataButBindsScope
+    file: golang/architecture/deviation/deviation_test.go
+    symbol: TestPatternIdentityIgnoresOccurrenceMetadataButBindsScope
+    package: deviation
+    language: go
+  - id: golang/architecture/deviation/deviation_test.go:TestRecordIsDeterministicAndFailClosed
+    file: golang/architecture/deviation/deviation_test.go
+    symbol: TestRecordIsDeterministicAndFailClosed
+    package: deviation
+    language: go
   - id: golang/architecture/dialogue_document_test.go:TestAcceptedUnknownRequiresUnknownAcknowledgement
     file: golang/architecture/dialogue_document_test.go
     symbol: TestAcceptedUnknownRequiresUnknownAcknowledgement
@@ -9101,6 +9176,21 @@ test_symbols:
   - id: golang/architecture/dialogue_document_test.go:TestUnboundDialogueCannotResolveQuestion
     file: golang/architecture/dialogue_document_test.go
     symbol: TestUnboundDialogueCannotResolveQuestion
+    package: architecture
+    language: go
+  - id: golang/architecture/dialogue_investigation_test.go:TestInvestigationQuestionIdentityBindsExactSourceArtifact
+    file: golang/architecture/dialogue_investigation_test.go
+    symbol: TestInvestigationQuestionIdentityBindsExactSourceArtifact
+    package: architecture
+    language: go
+  - id: golang/architecture/dialogue_investigation_test.go:TestInvestigationQuestionSourceBindingFailsClosed
+    file: golang/architecture/dialogue_investigation_test.go
+    symbol: TestInvestigationQuestionSourceBindingFailsClosed
+    package: architecture
+    language: go
+  - id: golang/architecture/dialogue_investigation_test.go:TestInvestigationQuestionSourceBindingIsValidWithoutClosureBlocker
+    file: golang/architecture/dialogue_investigation_test.go
+    symbol: TestInvestigationQuestionSourceBindingIsValidWithoutClosureBlocker
     package: architecture
     language: go
   - id: golang/architecture/dialogue_test.go:TestArchitectAnswerIDIgnoresGovernanceStatus
@@ -10200,6 +10290,11 @@ test_symbols:
     symbol: TestGoSemanticFactsIncludeTestToProductionCalls
     package: gosemantics
     language: go
+  - id: golang/architecture/gosemantics/extract_test.go:TestSemanticInputFilesRespectExcludedPathsAndRefuseEligibleSymlinks
+    file: golang/architecture/gosemantics/extract_test.go
+    symbol: TestSemanticInputFilesRespectExcludedPathsAndRefuseEligibleSymlinks
+    package: gosemantics
+    language: go
   - id: golang/architecture/gosemantics/extract_test.go:TestUnresolvedBoundaryProvenanceRegression
     file: golang/architecture/gosemantics/extract_test.go
     symbol: TestUnresolvedBoundaryProvenanceRegression
@@ -11081,6 +11176,111 @@ test_symbols:
     package: investigation
     language: go
     doc: "Test Repository/Evidence Binding Mismatch Refusal"
+  - id: golang/architecture/investigationsurface/surface_test.go:TestCoveragePreservesUnavailableAndNoResult
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestCoveragePreservesUnavailableAndNoResult
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigationsurface/surface_test.go:TestEvidenceSnapshotIsDeterministicAndTamperEvident
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestEvidenceSnapshotIsDeterministicAndTamperEvident
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigationsurface/surface_test.go:TestGroundingFromResultExcludesGeneratedCandidateClaims
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestGroundingFromResultExcludesGeneratedCandidateClaims
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigationsurface/surface_test.go:TestImportEvidenceKeepsManifestOutsideEvidenceScan
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestImportEvidenceKeepsManifestOutsideEvidenceScan
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigationsurface/surface_test.go:TestReadArtifactFailureDoesNotMutateDestination
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestReadArtifactFailureDoesNotMutateDestination
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigationsurface/surface_test.go:TestRunArchitectureRefusesNonCanonicalGrounding
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestRunArchitectureRefusesNonCanonicalGrounding
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigationsurface/surface_test.go:TestRunArchitectureRefusesPreCompositionCandidates
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestRunArchitectureRefusesPreCompositionCandidates
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigationsurface/surface_test.go:TestValidateArtifactRecognizesGroundingSnapshot
+    file: golang/architecture/investigationsurface/surface_test.go
+    symbol: TestValidateArtifactRecognizesGroundingSnapshot
+    package: investigationsurface
+    language: go
+  - id: golang/architecture/investigator/composer_test.go:TestComposeCreatesOwnerCandidateOnlyForSingleWriter
+    file: golang/architecture/investigator/composer_test.go
+    symbol: TestComposeCreatesOwnerCandidateOnlyForSingleWriter
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/composer_test.go:TestComposeIgnoresUnregisteredObservationPredicates
+    file: golang/architecture/investigator/composer_test.go
+    symbol: TestComposeIgnoresUnregisteredObservationPredicates
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/composer_test.go:TestComposePreservesBoundRefutingEvidenceAsCounterexample
+    file: golang/architecture/investigator/composer_test.go
+    symbol: TestComposePreservesBoundRefutingEvidenceAsCounterexample
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/composer_test.go:TestComposeProducesDeterministicBoundaryCandidate
+    file: golang/architecture/investigator/composer_test.go
+    symbol: TestComposeProducesDeterministicBoundaryCandidate
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/composer_test.go:TestComposeRefusesMismatchedHOWBinding
+    file: golang/architecture/investigator/composer_test.go
+    symbol: TestComposeRefusesMismatchedHOWBinding
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/contracts_test.go:TestCandidateIdentityIsDeterministicAndIgnoresRankingMetadata
+    file: golang/architecture/investigator/contracts_test.go
+    symbol: TestCandidateIdentityIsDeterministicAndIgnoresRankingMetadata
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/contracts_test.go:TestClosedVocabulariesRefuseUnknownValues
+    file: golang/architecture/investigator/contracts_test.go
+    symbol: TestClosedVocabulariesRefuseUnknownValues
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/contracts_test.go:TestGroundingSnapshotDigestIsDeterministic
+    file: golang/architecture/investigator/contracts_test.go
+    symbol: TestGroundingSnapshotDigestIsDeterministic
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/contracts_test.go:TestValidateRefusesMissingMandatoryReceipt
+    file: golang/architecture/investigator/contracts_test.go
+    symbol: TestValidateRefusesMissingMandatoryReceipt
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/receipt_spine_test.go:TestCandidateIDUsesExtendedDigestPrefix
+    file: golang/architecture/investigator/receipt_spine_test.go
+    symbol: TestCandidateIDUsesExtendedDigestPrefix
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/receipt_spine_test.go:TestValidateAcceptsCompleteReceiptSpine
+    file: golang/architecture/investigator/receipt_spine_test.go
+    symbol: TestValidateAcceptsCompleteReceiptSpine
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/receipt_spine_test.go:TestValidateRefusesMissingAndStaleCandidateSemanticEntries
+    file: golang/architecture/investigator/receipt_spine_test.go
+    symbol: TestValidateRefusesMissingAndStaleCandidateSemanticEntries
+    package: investigator
+    language: go
+  - id: golang/architecture/investigator/receipt_spine_test.go:TestValidateRefusesReceiptSemanticSpineMutations
+    file: golang/architecture/investigator/receipt_spine_test.go
+    symbol: TestValidateRefusesReceiptSemanticSpineMutations
+    package: investigator
+    language: go
   - id: golang/architecture/knowledgeadoption/engine_test.go:TestCompilerEnforcedInternalBoundaryIsMachineAdopted
     file: golang/architecture/knowledgeadoption/engine_test.go
     symbol: TestCompilerEnforcedInternalBoundaryIsMachineAdopted
@@ -12884,6 +13084,56 @@ test_symbols:
     file: golang/architecture/questiondisposition/model_test.go
     symbol: TestValidateRejectsPerDispositionViolations
     package: questiondisposition_test
+    language: go
+  - id: golang/architecture/questiongen/deviation_questions_test.go:TestDeviationQuestionAnswerPathDoesNotPromoteOrWeakenCandidate
+    file: golang/architecture/questiongen/deviation_questions_test.go
+    symbol: TestDeviationQuestionAnswerPathDoesNotPromoteOrWeakenCandidate
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/deviation_questions_test.go:TestGenerateFromDeviationIsDeterministicAndDeduplicates
+    file: golang/architecture/questiongen/deviation_questions_test.go
+    symbol: TestGenerateFromDeviationIsDeterministicAndDeduplicates
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/deviation_questions_test.go:TestGenerateFromDeviationOneOccurrenceRemainsEvidenceOnly
+    file: golang/architecture/questiongen/deviation_questions_test.go
+    symbol: TestGenerateFromDeviationOneOccurrenceRemainsEvidenceOnly
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/deviation_questions_test.go:TestGenerateFromDeviationRefusesStaleAnalysisReceipt
+    file: golang/architecture/questiongen/deviation_questions_test.go
+    symbol: TestGenerateFromDeviationRefusesStaleAnalysisReceipt
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/deviation_questions_test.go:TestGenerateFromDeviationRoutesOnlyRepeatedPatterns
+    file: golang/architecture/questiongen/deviation_questions_test.go
+    symbol: TestGenerateFromDeviationRoutesOnlyRepeatedPatterns
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/investigation_questions_test.go:TestGenerateFromInvestigationIsDeterministicAndDeduplicates
+    file: golang/architecture/questiongen/investigation_questions_test.go
+    symbol: TestGenerateFromInvestigationIsDeterministicAndDeduplicates
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/investigation_questions_test.go:TestGenerateFromInvestigationRefusesStaleReceipt
+    file: golang/architecture/questiongen/investigation_questions_test.go
+    symbol: TestGenerateFromInvestigationRefusesStaleReceipt
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/investigation_questions_test.go:TestGenerateFromInvestigationRoutesContestedChallengeThroughExistingAnswerPath
+    file: golang/architecture/questiongen/investigation_questions_test.go
+    symbol: TestGenerateFromInvestigationRoutesContestedChallengeThroughExistingAnswerPath
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/investigation_questions_test.go:TestGenerateFromInvestigationRoutesEvidenceRequestIntoDialogue
+    file: golang/architecture/questiongen/investigation_questions_test.go
+    symbol: TestGenerateFromInvestigationRoutesEvidenceRequestIntoDialogue
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/investigation_questions_test.go:TestGenerateFromInvestigationUsesStableCandidateTemplateWhenCoverageWasSearched
+    file: golang/architecture/questiongen/investigation_questions_test.go
+    symbol: TestGenerateFromInvestigationUsesStableCandidateTemplateWhenCoverageWasSearched
+    package: questiongen
     language: go
   - id: golang/architecture/questiongen/questiongen_test.go:TestAdjudicateUnknownAnswerSetsAcceptedUnknown
     file: golang/architecture/questiongen/questiongen_test.go
@@ -16110,6 +16360,31 @@ test_symbols:
   - id: golang/architecture/whyinvestigation/git_test.go:TestShallowHistoryKeepsEvidenceButSignalsLimitation
     file: golang/architecture/whyinvestigation/git_test.go
     symbol: TestShallowHistoryKeepsEvidenceButSignalsLimitation
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/orchestrate_test.go:TestImmutableEvidenceSnapshotFreeze
+    file: golang/architecture/whyinvestigation/orchestrate_test.go
+    symbol: TestImmutableEvidenceSnapshotFreeze
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/orchestrate_test.go:TestMultiProviderOrchestration
+    file: golang/architecture/whyinvestigation/orchestrate_test.go
+    symbol: TestMultiProviderOrchestration
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/orchestrate_test.go:TestPartialHistoryAndContradictions
+    file: golang/architecture/whyinvestigation/orchestrate_test.go
+    symbol: TestPartialHistoryAndContradictions
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/orchestrate_test.go:TestProvenanceAndCaptureFailurePreservation
+    file: golang/architecture/whyinvestigation/orchestrate_test.go
+    symbol: TestProvenanceAndCaptureFailurePreservation
+    package: whyinvestigation
+    language: go
+  - id: golang/architecture/whyinvestigation/orchestrate_test.go:TestProviderAndPlanDigestBindings
+    file: golang/architecture/whyinvestigation/orchestrate_test.go
+    symbol: TestProviderAndPlanDigestBindings
     package: whyinvestigation
     language: go
   - id: golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_AcceptsMatchingPair
@@ -20907,9 +21182,24 @@ test_symbols:
     symbol: TestBriefingSpine_NoDuplicateOutput
     package: main
     language: go
+  - id: golang/server/reference_sites_test.go:TestAttachKnownStaticCallers_UsesEquivalentLookupIDs
+    file: golang/server/reference_sites_test.go
+    symbol: TestAttachKnownStaticCallers_UsesEquivalentLookupIDs
+    package: main
+    language: go
   - id: golang/server/reference_sites_test.go:TestCodeSymbolIDFromIRI
     file: golang/server/reference_sites_test.go
     symbol: TestCodeSymbolIDFromIRI
+    package: main
+    language: go
+  - id: golang/server/reference_sites_test.go:TestFocusCodeSymbols_ReconcilesAnnotatedAndSCIPTwin
+    file: golang/server/reference_sites_test.go
+    symbol: TestFocusCodeSymbols_ReconcilesAnnotatedAndSCIPTwin
+    package: main
+    language: go
+  - id: golang/server/reference_sites_test.go:TestFocusCodeSymbols_UniqueQualifiedLeafAlias
+    file: golang/server/reference_sites_test.go
+    symbol: TestFocusCodeSymbols_UniqueQualifiedLeafAlias
     package: main
     language: go
   - id: golang/server/reference_sites_test.go:TestReferenceSites
@@ -20924,6 +21214,11 @@ test_symbols:
     package: main
     language: go
     doc: "A store failure while reading inbound edges must surface as an error, never\nas an empty (falsely \"complete\") family. GraphFreshness stays current so the\nfailure under test is the inbound read, not the authority gate."
+  - id: golang/server/reference_sites_test.go:TestReferencingSitesInScope_ExcludesForeignDomainCallers
+    file: golang/server/reference_sites_test.go
+    symbol: TestReferencingSitesInScope_ExcludesForeignDomainCallers
+    package: main
+    language: go
   - id: golang/server/repair_plans_golden_test.go:TestBriefingIncludesContractCenteredRepairContext
     file: golang/server/repair_plans_golden_test.go
     symbol: TestBriefingIncludesContractCenteredRepairContext

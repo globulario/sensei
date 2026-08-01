@@ -21,6 +21,7 @@ components:
     assertion: inferred
     source_files:
       - cmd/awareness-mcp/main.go
+      - cmd/awareness-mcp/phase10_tools.go
       - cmd/awareness-mcp/workspace_tools.go
     depends_on:
       - component.golang.architecture
@@ -473,6 +474,10 @@ components:
       - golang/architecture/dashboardprojection/schemavalidate.go
       - golang/architecture/dashboardprojection/types.go
       - golang/architecture/dashboardprojection/validate.go
+      - golang/architecture/deviation/candidate.go
+      - golang/architecture/deviation/cluster.go
+      - golang/architecture/deviation/model.go
+      - golang/architecture/deviation/record.go
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
       - golang/architecture/diffaudit/evaluator.go
@@ -734,6 +739,11 @@ components:
       - golang/architecture/whyinvestigation/contracts.go
       - golang/architecture/whyinvestigation/documentation.go
       - golang/architecture/whyinvestigation/git.go
+      - golang/architecture/whyinvestigation/imported_evidence.go
+      - golang/architecture/whyinvestigation/orchestrate.go
+      - golang/architecture/whyinvestigation/registry.go
+      - golang/architecture/whyinvestigation/scars.go
+      - golang/architecture/whyinvestigation/tests_provider.go
       - golang/architecture/workspacecontract/admission.go
       - golang/architecture/workspacecontract/digest.go
       - golang/architecture/workspacecontract/identity.go
