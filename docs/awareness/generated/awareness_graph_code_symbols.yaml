@@ -5936,6 +5936,51 @@ test_symbols:
     symbol: TestVerifyScopeRejectsUnboundConsumption
     package: admission
     language: go
+  - id: golang/architecture/admissioncomposition/admissioncomposition_test.go:TestComposeRequestDerivesExactModifyScope
+    file: golang/architecture/admissioncomposition/admissioncomposition_test.go
+    symbol: TestComposeRequestDerivesExactModifyScope
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/admissioncomposition_test.go:TestComposeRequestRejectsCrossLayerLineageTampering
+    file: golang/architecture/admissioncomposition/admissioncomposition_test.go
+    symbol: TestComposeRequestRejectsCrossLayerLineageTampering
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/admissioncomposition_test.go:TestDecisionAndVerificationRemainBesideFrozenO1Receipt
+    file: golang/architecture/admissioncomposition/admissioncomposition_test.go
+    symbol: TestDecisionAndVerificationRemainBesideFrozenO1Receipt
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/admissioncomposition_test.go:TestDeriveScopePreservesUnsupportedOperations
+    file: golang/architecture/admissioncomposition/admissioncomposition_test.go
+    symbol: TestDeriveScopePreservesUnsupportedOperations
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/admissioncomposition_test.go:TestReceiptIdentityExcludesObservationTime
+    file: golang/architecture/admissioncomposition/admissioncomposition_test.go
+    symbol: TestReceiptIdentityExcludesObservationTime
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/admissioncomposition_test.go:TestUnsupportedReceiptCarriesNoAdmissionEvidence
+    file: golang/architecture/admissioncomposition/admissioncomposition_test.go
+    symbol: TestUnsupportedReceiptCarriesNoAdmissionEvidence
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
+    file: golang/architecture/admissioncomposition/schema_test.go
+    symbol: TestEmbeddedSchemasMatchCanonicalSource
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/schema_test.go:TestSchemasAcceptValidDocuments
+    file: golang/architecture/admissioncomposition/schema_test.go
+    symbol: TestSchemasAcceptValidDocuments
+    package: admissioncomposition
+    language: go
+  - id: golang/architecture/admissioncomposition/schema_test.go:TestSchemasRejectUnknownFieldsAndInvalidPresence
+    file: golang/architecture/admissioncomposition/schema_test.go
+    symbol: TestSchemasRejectUnknownFieldsAndInvalidPresence
+    package: admissioncomposition
+    language: go
   - id: golang/architecture/adoption/receipt_test.go:TestAdoptionReceiptDoesNotAffectStableKnowledgeID
     file: golang/architecture/adoption/receipt_test.go
     symbol: TestAdoptionReceiptDoesNotAffectStableKnowledgeID
