@@ -16,6 +16,8 @@ permissions:
 jobs:
   build-snapshot:
     runs-on: ubuntu-latest
+    outputs:
+      pages_configured: ${{ steps.pages.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,7 +89,14 @@ jobs:
           [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && kill "${pid}" 2>/dev/null || true
 
       - name: Configure Pages
+        id: pages
+        continue-on-error: true
         uses: actions/configure-pages@v5
+
+      - name: Report unavailable Pages deployment
+        if: steps.pages.outcome != 'success'
+        run: |
+          echo "::warning::Dashboard snapshot was built successfully, but GitHub Pages is not enabled for this repository. Enable Settings > Pages > Build and deployment > GitHub Actions to activate deployment."
 
       - name: Upload dashboard artifact
         uses: actions/upload-pages-artifact@v3
@@ -96,6 +105,7 @@ jobs:
 
   deploy:
     needs: build-snapshot
+    if: needs.build-snapshot.outputs.pages_configured == 'success'
     permissions:
       pages: write
       id-token: write
