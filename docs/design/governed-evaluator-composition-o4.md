@@ -84,6 +84,8 @@ The exact implementation shape may instead be an O3 detailed outcome, a callback
 7. `synthesis.Transition` must accept that command from the current `PhaseAttempting` state and move to `PhaseEvaluating`.
 8. O4 must never synthesize an Attempt from `CandidateArtifact`, `RunnerReceipt`, or matching field values.
 
+`RecordAttemptCommand`'s Transition call does not unconditionally enter `PhaseEvaluating`: when the accepted Attempt's own `TerminalProviderStatus` is `invalid_output`, `synthesis.Transition` short-circuits directly to a terminal `Failed`/invalid-provider-output receipt, bypassing `PhaseEvaluating` entirely. This is legitimate existing O1 behavior, not an O4 failure -- a `verified` O3 disposition only proves O3's own evidence integrity and says nothing about `TerminalProviderStatus`. O4 must check the resulting phase after this first Transition call and, when the session has already terminated, stop and return that state and its events without attempting candidate loading, evaluator materialization, evaluator composition, or a second Transition call.
+
 A handoff failure is a contract/programming failure. O4 returns a non-nil Go error and leaves O1 state unchanged. It is not an evaluator observation and must not be converted into a recommendation.
 
 ## Candidate identity and evaluator surfaces
@@ -173,17 +175,18 @@ The initial composition must support these classes:
    - command success is an observation, never proof of admission or architectural correctness.
 
 2. **Sensei edit/diff audit**
-   - evaluates the exact O3 proposed-change identity and sealed candidate content through the existing Sensei audit/preflight owner;
-   - must not rebuild a different diff from an unrelated checkout and call it equivalent;
+   - evaluates the exact O3 proposed-change identity and sealed candidate content through the existing per-file/per-diff advisory surface (`sensei edit-check`, and `sensei gate --diff <range> --enforce` for its diff-scoped enforce-mode form) -- not `sensei audit`, which self-audits the awareness-graph corpus (embeddata freshness, YAML validity, coverage) and has no candidate-diff scope;
+   - must not rebuild a different diff from an unrelated checkout and call it equivalent; `sensei gate` currently sources its diff from a live git ref range (`git diff --unified=0 <range>`), so the exact seam by which it consumes a sealed, disposable candidate materialization instead of a live checkout is an open integration question, to be resolved no later than checkpoint 4, not by this document;
+   - `edit-check`'s RPC and `gate`'s report-only mode are advisory and fail-open by original design (built for interactive authoring, where an unreachable server must never block a developer). O4 must treat an unreachable or degraded result from either as `CheckUnavailable`, never as a passing check, per hard law 10;
    - forbidden fixes and binding invariants remain visible in check evidence.
 
 3. **Incident and behavioral-scar matching**
-   - matches evaluator failures, diagnostics, or stack traces against governed incident/scar memory;
+   - matches evaluator failures, diagnostics, or stack traces first against this session's own already-governed, already-digested `synthesis.Interpretation.KnownFailureModes` / `ForbiddenFixes` (bound into Session identity at interpretation time), then, for anything not already captured there, against the generic awareness-graph query surface over `failure_mode` graph nodes. There is no separate purpose-built "incident memory" component today, and O4 must not create one;
    - a match classifies evidence and may strengthen retry, replan, review, or abort rationale;
    - memory output is advisory evidence unless an existing invariant or contract gives it blocking force.
 
 4. **Proof-obligation checks**
-   - verifies the exact proof obligations bound into the O1 Session;
+   - verifies the exact proof obligations referenced by `synthesis.Session.ProofObligationDigests` against the existing `closureprotocol.ProofDischarge` owner, matched by `DischargeDigestSHA256`;
    - absence, staleness, wrong candidate binding, or unverifiable proof is never silently treated as discharged;
    - O4 does not redefine the proof owner or proof semantics.
 
@@ -294,6 +297,8 @@ Initial disposition vocabulary:
 | `required-evaluator-unavailable` | A required evaluator could not produce a valid terminal result. | nil | `EvaluatorUnavailableCommand` |
 | `composition-failure` | Evaluator results existed but could not be composed into a valid Evaluation under the accepted policy. | nil | none; evidenced O4 stop returned to caller |
 | `evaluated` | A valid O1 Evaluation was composed and accepted by `synthesis.Transition`. | present | `RecordEvaluationCommand` |
+
+`candidate-load-failure`, `materialization-failure`, and `composition-failure` all occur after the first Transition call has already moved SessionState into `PhaseEvaluating`, but none of them calls Transition a second time -- SessionState remains parked in `PhaseEvaluating` with no further O1-recorded consequence. Whether and how a caller may safely retry O4 from that parked state (re-running candidate load, materialization, and composition against the same already-recorded Attempt) is not decided by this document and must be resolved no later than checkpoint 3.
 
 The implementation may refine this vocabulary only during contract review. It must not collapse contract failure, evaluator unavailability, failed checks, and composition failure into one ambiguous error.
 
