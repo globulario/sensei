@@ -24,6 +24,35 @@ type RequestPolicy struct {
 	MaxObservationBytes int
 }
 
+// VerifiedGenerationHandoff is the one canonical, process-local carrier of
+// the exact O2 values Run observed for one generation attempt, together
+// with O3's own RunnerReceipt -- see
+// docs/design/governed-evaluator-composition-o4.md, "The generation-handoff
+// seam". There is no alternative shape for this carrier.
+//
+// Request is always populated: Run builds it before any snapshot is taken,
+// so it exists regardless of how far the runner sequence progressed.
+// Result/O2Receipt are populated only once providerport.Run has actually
+// returned a value -- from RunnerReceipt.Disposition
+// DispositionO2NonCompleted onward; they are the zero value on every
+// earlier-failure disposition. This is safe because O4 never reads them
+// unless RunnerReceipt.Disposition is DispositionVerified (hard law 2:
+// "Only O3 verified may be recorded as an Attempt. Every other O3
+// disposition stops before MapToCommand").
+//
+// This carrier is process-local, not crash-resume durable (see the O4
+// design doc's own "Durability" note under "The generation-handoff seam"):
+// it exists only for the span of one caller's synchronous Run ->
+// handoff-validation -> first-Transition call chain within a single
+// process invocation. The caller may forward this value but must never
+// reconstruct it from digests, a store, or any other derived source.
+type VerifiedGenerationHandoff struct {
+	Request       providerport.Request
+	Result        providerport.Result
+	O2Receipt     providerport.Receipt
+	RunnerReceipt RunnerReceipt
+}
+
 // extractSnapshotFn/initializeCandidateBufferFn/newCandidateWorkspaceFn/
 // buildFinalManifestFn are indirections over this package's own real,
 // already-hardened functions -- Run calls through these package variables
@@ -46,7 +75,9 @@ var (
 // docs/design/governed-runner-composition-o3.md's architectural-position
 // sequence (snapshot -> workspace/buffer init -> provider construction ->
 // O2 Run -> workspace freeze -> evidence computation -> verification ->
-// sealing -> RunnerReceipt).
+// sealing -> RunnerReceipt), returning the exact VerifiedGenerationHandoff
+// O4 requires to close its own generation-handoff seam without
+// reconstruction.
 //
 // Four checks are rejected with a plain Go error before any snapshot is
 // ever taken -- there is no disposition for any of them, since no runner
@@ -70,8 +101,9 @@ var (
 //
 // Every other outcome -- however far the sequence progressed -- returns a
 // nil error alongside a fully populated, schema-and-semantically-valid
-// RunnerReceipt (mirroring providerport.Run's own error-reservation
-// convention: a non-nil error means no receipt could be built at all).
+// VerifiedGenerationHandoff (mirroring providerport.Run's own
+// error-reservation convention: a non-nil error means no handoff could be
+// built at all).
 //
 // repositoryRoot is the caller-owned local checkout the session's
 // RepositoryDomain corresponds to; O3 does not resolve a repository domain
@@ -118,28 +150,28 @@ func Run(
 	store CandidateArtifactStore,
 	policy RequestPolicy,
 	now func() time.Time,
-) (RunnerReceipt, error) {
+) (VerifiedGenerationHandoff, error) {
 	if sessionState.Phase != synthesis.PhaseAttempting {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: session phase %q is not %q -- rejected before any snapshot is taken", sessionState.Phase, synthesis.PhaseAttempting)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: session phase %q is not %q -- rejected before any snapshot is taken", sessionState.Phase, synthesis.PhaseAttempting)
 	}
 
 	identityDigest, err := workspacecontract.IdentityDigest(identity)
 	if err != nil {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: compute workspace identity digest: %w", err)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: compute workspace identity digest: %w", err)
 	}
 	if identityDigest != sessionState.Session.WorkspaceIdentityDigestSHA256 {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: identity's actual digest %q does not match session's workspace_identity_digest_sha256 %q -- rejected before any snapshot is taken", identityDigest, sessionState.Session.WorkspaceIdentityDigestSHA256)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: identity's actual digest %q does not match session's workspace_identity_digest_sha256 %q -- rejected before any snapshot is taken", identityDigest, sessionState.Session.WorkspaceIdentityDigestSHA256)
 	}
 	if identity.Binding.RepositoryDomain != sessionState.Session.RepositoryDomain {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: identity.Binding.RepositoryDomain %q does not match session.RepositoryDomain %q", identity.Binding.RepositoryDomain, sessionState.Session.RepositoryDomain)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: identity.Binding.RepositoryDomain %q does not match session.RepositoryDomain %q", identity.Binding.RepositoryDomain, sessionState.Session.RepositoryDomain)
 	}
 	if identity.Binding.Revision == nil || *identity.Binding.Revision != sessionState.Session.BaseRevision {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: identity.Binding.Revision does not match session.BaseRevision %q", sessionState.Session.BaseRevision)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: identity.Binding.Revision does not match session.BaseRevision %q", sessionState.Session.BaseRevision)
 	}
 
 	planDigest, err := synthesis.PlanDigest(plan)
 	if err != nil {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: compute plan digest: %w", err)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: compute plan digest: %w", err)
 	}
 	// plan's own declared digest must equal this fresh recomputation --
 	// the same "declared must equal recomputed" self-consistency law
@@ -151,24 +183,27 @@ func Run(
 	// the sealed CandidateArtifact.PlanDigestSHA256 downstream, both of
 	// which use plan.PlanDigestSHA256 directly, not the recomputed value.
 	if plan.PlanDigestSHA256 != planDigest {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: plan's declared digest %q does not match its own recomputed content digest %q", plan.PlanDigestSHA256, planDigest)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: plan's declared digest %q does not match its own recomputed content digest %q", plan.PlanDigestSHA256, planDigest)
 	}
 	if planDigest != sessionState.LatestPlanDigestSHA256 {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: plan's actual digest %q does not match sessionState.LatestPlanDigestSHA256 %q -- plan is not the session's currently accepted plan", planDigest, sessionState.LatestPlanDigestSHA256)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: plan's actual digest %q does not match sessionState.LatestPlanDigestSHA256 %q -- plan is not the session's currently accepted plan", planDigest, sessionState.LatestPlanDigestSHA256)
 	}
 	if plan.PlanGeneration != sessionState.PlanGeneration {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: plan.PlanGeneration %d does not match sessionState.PlanGeneration %d", plan.PlanGeneration, sessionState.PlanGeneration)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: plan.PlanGeneration %d does not match sessionState.PlanGeneration %d", plan.PlanGeneration, sessionState.PlanGeneration)
 	}
 
 	request, err := buildGenerationRequest(sessionState, plan, policy)
 	if err != nil {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: build request: %w", err)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: build request: %w", err)
 	}
 
-	receipt := RunnerReceipt{
-		SchemaVersion:       RunnerReceiptSchemaVersion,
-		ReceiptID:           "runner-receipt." + request.RequestID,
-		RequestDigestSHA256: request.RequestDigestSHA256,
+	handoff := VerifiedGenerationHandoff{
+		Request: request,
+		RunnerReceipt: RunnerReceipt{
+			SchemaVersion:       RunnerReceiptSchemaVersion,
+			ReceiptID:           "runner-receipt." + request.RequestID,
+			RequestDigestSHA256: request.RequestDigestSHA256,
+		},
 	}
 
 	// Step 1: bounded, read-only snapshot at the session's exact
@@ -177,11 +212,11 @@ func Run(
 	// the live working tree anywhere in this call.
 	snapshotDir, snapshotManifest, inputDigest, snapshotCleanup, err := extractSnapshotFn(ctx, repositoryRoot, sessionState.Session.BaseRevision)
 	if err != nil {
-		return finalize(receipt, DispositionSnapshotFailure, "snapshot: "+err.Error(), nil, now)
+		return finalize(handoff, DispositionSnapshotFailure, "snapshot: "+err.Error(), nil, now)
 	}
 
 	cleanups := []func() error{snapshotCleanup}
-	receipt.InputCandidateDigestSHA256 = &inputDigest
+	handoff.RunnerReceipt.InputCandidateDigestSHA256 = &inputDigest
 
 	// Step 2: ephemeral candidate buffer, a full copy of the snapshot,
 	// bound to the EXACT manifest ExtractSnapshot itself returned -- never
@@ -193,7 +228,7 @@ func Run(
 	bufferDir, _, _, bufferCleanup, err := initializeCandidateBufferFn(snapshotDir, snapshotManifest)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionWorkspaceInitFailure, "initialize candidate buffer: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionWorkspaceInitFailure, "initialize candidate buffer: "+err.Error(), &succeeded, now, detail)
 	}
 	cleanups = append(cleanups, bufferCleanup)
 
@@ -202,7 +237,7 @@ func Run(
 	workspace, err := newCandidateWorkspaceFn(snapshotDir, bufferDir)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionWorkspaceInitFailure, "construct candidate workspace: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionWorkspaceInitFailure, "construct candidate workspace: "+err.Error(), &succeeded, now, detail)
 	}
 
 	// Step 4: a fresh, workspace-bound Provider for this attempt alone --
@@ -216,7 +251,7 @@ func Run(
 		// disposition, since none is named for this combination.
 		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionProviderConstructionFailure, "construct provider: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionProviderConstructionFailure, "construct provider: "+err.Error(), &succeeded, now, detail)
 	}
 
 	// Step 5: one capability-driven O2 Provider.Execute call, via O2's Run,
@@ -225,22 +260,24 @@ func Run(
 	if err != nil {
 		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionO2RunError, "o2 run: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionO2RunError, "o2 run: "+err.Error(), &succeeded, now, detail)
 	}
+	handoff.Result = result
+	handoff.O2Receipt = o2Receipt
 	resultDigest := result.ResultDigestSHA256
 	o2ReceiptDigest := o2Receipt.ReceiptDigestSHA256
-	receipt.ResultDigestSHA256 = &resultDigest
-	receipt.O2ReceiptDigestSHA256 = &o2ReceiptDigest
+	handoff.RunnerReceipt.ResultDigestSHA256 = &resultDigest
+	handoff.RunnerReceipt.O2ReceiptDigestSHA256 = &o2ReceiptDigest
 
 	if result.TerminalOutcome != providerport.OutcomeCompleted {
 		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionO2NonCompleted, "o2 non-completed: "+string(result.TerminalOutcome)+": "+result.Detail, &succeeded, now, detail)
+		return finalize(handoff, DispositionO2NonCompleted, "o2 non-completed: "+string(result.TerminalOutcome)+": "+result.Detail, &succeeded, now, detail)
 	}
 	if result.GenerationPayload == nil {
 		cleanups = append([]func() error{workspace.Close}, cleanups...) // Close must run BEFORE directory removal, not after.
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionO2NonCompleted, "o2 reported completed with a nil generation payload", &succeeded, now, detail)
+		return finalize(handoff, DispositionO2NonCompleted, "o2 reported completed with a nil generation payload", &succeeded, now, detail)
 	}
 	attempt := *result.GenerationPayload
 
@@ -253,7 +290,7 @@ func Run(
 	// provider retained past this point fails closed.
 	if closeErr := workspace.Close(); closeErr != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionWorkspaceFreezeFailure, "workspace close: "+closeErr.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionWorkspaceFreezeFailure, "workspace close: "+closeErr.Error(), &succeeded, now, detail)
 	}
 
 	// Step 8: independently compute repository evidence -- never trusted
@@ -261,21 +298,21 @@ func Run(
 	finalManifest, err := buildFinalManifestFn(bufferDir)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionEvidenceComputationFailure, "build final manifest: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionEvidenceComputationFailure, "build final manifest: "+err.Error(), &succeeded, now, detail)
 	}
 	finalDigest, err := ManifestDigest(finalManifest)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionEvidenceComputationFailure, "compute final candidate content digest: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionEvidenceComputationFailure, "compute final candidate content digest: "+err.Error(), &succeeded, now, detail)
 	}
 	proposedChangeDigest, err := GitChangeDigest(ctx, snapshotDir, bufferDir)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionEvidenceComputationFailure, "compute proposed change digest: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionEvidenceComputationFailure, "compute proposed change digest: "+err.Error(), &succeeded, now, detail)
 	}
 
-	receipt.ProposedChangeDigestSHA256 = &proposedChangeDigest
-	receipt.FinalCandidateContentDigestSHA256 = &finalDigest
+	handoff.RunnerReceipt.ProposedChangeDigestSHA256 = &proposedChangeDigest
+	handoff.RunnerReceipt.FinalCandidateContentDigestSHA256 = &finalDigest
 
 	// A mismatch is a finding, not a stop: the design doc is explicit that
 	// "the candidate is still sealed, as evidence of what the mismatch
@@ -310,7 +347,7 @@ func Run(
 	artifactDigest, err := CandidateArtifactDigest(artifact)
 	if err != nil {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionSealFailure, "compute candidate artifact digest: "+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionSealFailure, "compute candidate artifact digest: "+err.Error(), &succeeded, now, detail)
 	}
 	artifact.CandidateArtifactDigestSHA256 = artifactDigest
 
@@ -328,18 +365,18 @@ func Run(
 			detailPrefix = "seal candidate artifact (during mismatch evidence sealing, " + mismatchDetail + "): "
 		}
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionSealFailure, detailPrefix+err.Error(), &succeeded, now, detail)
+		return finalize(handoff, DispositionSealFailure, detailPrefix+err.Error(), &succeeded, now, detail)
 	}
-	receipt.CandidateArtifactDigestSHA256 = &artifactDigest
+	handoff.RunnerReceipt.CandidateArtifactDigestSHA256 = &artifactDigest
 
 	if mismatched {
 		succeeded, detail := runCleanupsTracked(cleanups)
-		return finalize(receipt, DispositionDigestMismatch, mismatchDetail, &succeeded, now, detail)
+		return finalize(handoff, DispositionDigestMismatch, mismatchDetail, &succeeded, now, detail)
 	}
 
 	// Step 10/11: verified, and the ephemeral capture surface is destroyed.
 	succeeded, detail := runCleanupsTracked(cleanups)
-	return finalize(receipt, DispositionVerified, "", &succeeded, now, detail)
+	return finalize(handoff, DispositionVerified, "", &succeeded, now, detail)
 }
 
 // buildGenerationRequest constructs a schema-valid, correctly-digested
@@ -392,14 +429,15 @@ func runCleanupsTracked(cleanups []func() error) (succeeded bool, detail string)
 	return succeeded, detail
 }
 
-// finalize stamps disposition/failureDetail/cleanup fields onto receipt,
-// sets CompletedAt, computes RunnerReceiptDigestSHA256, and returns the
-// normalized, digest-complete RunnerReceipt. cleanupSucceeded is nil only
-// for DispositionSnapshotFailure (the one caller that never runs any
-// cleanup, since ExtractSnapshot's own contract guarantees nothing was left
-// behind on its own failure -- there is structurally nothing to clean up
-// yet, not merely "not attempted").
-func finalize(receipt RunnerReceipt, disposition Disposition, failureDetail string, cleanupSucceeded *bool, now func() time.Time, cleanupFailureDetail ...string) (RunnerReceipt, error) {
+// finalize stamps disposition/failureDetail/cleanup fields onto
+// handoff.RunnerReceipt, sets CompletedAt, computes RunnerReceiptDigestSHA256,
+// and returns the normalized, digest-complete VerifiedGenerationHandoff.
+// cleanupSucceeded is nil only for DispositionSnapshotFailure (the one
+// caller that never runs any cleanup, since ExtractSnapshot's own contract
+// guarantees nothing was left behind on its own failure -- there is
+// structurally nothing to clean up yet, not merely "not attempted").
+func finalize(handoff VerifiedGenerationHandoff, disposition Disposition, failureDetail string, cleanupSucceeded *bool, now func() time.Time, cleanupFailureDetail ...string) (VerifiedGenerationHandoff, error) {
+	receipt := handoff.RunnerReceipt
 	receipt.Disposition = disposition
 	receipt.FailureDetail = failureDetail
 	receipt.CleanupSucceeded = cleanupSucceeded
@@ -411,12 +449,13 @@ func finalize(receipt RunnerReceipt, disposition Disposition, failureDetail stri
 	receipt = NormalizeRunnerReceipt(receipt)
 	digest, err := RunnerReceiptDigest(receipt)
 	if err != nil {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: compute runner receipt digest: %w", err)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: compute runner receipt digest: %w", err)
 	}
 	receipt.RunnerReceiptDigestSHA256 = digest
 
 	if err := ValidateRunnerReceipt(receipt); err != nil {
-		return RunnerReceipt{}, fmt.Errorf("runnercomposition.Run: internal error: constructed an invalid RunnerReceipt: %w", err)
+		return VerifiedGenerationHandoff{}, fmt.Errorf("runnercomposition.Run: internal error: constructed an invalid RunnerReceipt: %w", err)
 	}
-	return receipt, nil
+	handoff.RunnerReceipt = receipt
+	return handoff, nil
 }
