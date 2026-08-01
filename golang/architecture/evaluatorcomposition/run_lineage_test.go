@@ -38,7 +38,7 @@ func finishTamperedO2Receipt(t *testing.T, handoff runnercomposition.VerifiedGen
 	}
 	handoff.RunnerReceipt.RunnerReceiptDigestSHA256 = runnerDigest
 
-	if err := providerport.ValidateReceiptSchema(mustJSON(t, handoff.O2Receipt)); err != nil {
+	if err := providerport.ValidateReceiptSchema(mustJSONLineage(t, handoff.O2Receipt)); err != nil {
 		t.Fatalf("test fixture bug: tampered O2 receipt is not schema-valid: %v", err)
 	}
 	if err := runnercomposition.ValidateRunnerReceipt(handoff.RunnerReceipt); err != nil {
@@ -47,7 +47,7 @@ func finishTamperedO2Receipt(t *testing.T, handoff runnercomposition.VerifiedGen
 	return handoff
 }
 
-func mustJSON(t *testing.T, value any) []byte {
+func mustJSONLineage(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)
 	if err != nil {
