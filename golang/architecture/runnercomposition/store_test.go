@@ -894,3 +894,75 @@ func TestFSCandidateArtifactStoreGetRejectsSymlinkToSameInodeAlias(t *testing.T)
 		t.Errorf("expected errors.Is(err, ErrCandidateArtifactCorrupted), got %v", err)
 	}
 }
+
+// TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename
+// is review 4833317738's deterministic root-rename/replacement negative
+// control: construct a store, seal an artifact, then rename the store's
+// root directory away and create a REPLACEMENT directory at the original
+// path with unrelated, invalid content under the same digest filename.
+// Put and Get must both continue to operate on the SAME original
+// directory os.Root itself tracks -- Get must never silently start
+// reading whatever now sits at the store's original path, and a
+// subsequent Put must land in the original directory too.
+func TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename(t *testing.T) {
+	parent := t.TempDir()
+	storePath := filepath.Join(parent, "store")
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewFSCandidateArtifactStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact := fixtureCandidateArtifact(t)
+	if err := store.Put(context.Background(), artifact); err != nil {
+		t.Fatal(err)
+	}
+
+	// The attack: rename the store's root away, then create a replacement
+	// directory at the original path with unrelated content under the
+	// SAME digest filename.
+	oldPath := filepath.Join(parent, "store-old")
+	if err := os.Rename(storePath, oldPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	replacementDigestFile := filepath.Join(storePath, artifact.CandidateArtifactDigestSHA256+".json")
+	if err := os.WriteFile(replacementDigestFile, []byte(`{"replacement":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Get must still see the ORIGINAL artifact -- the same directory Put
+	// sealed into -- never the replacement's unrelated (and invalid)
+	// content.
+	got, err := store.Get(context.Background(), artifact.CandidateArtifactDigestSHA256)
+	if err != nil {
+		t.Fatalf("Get failed after root rename+replacement: %v", err)
+	}
+	gotJSON, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantJSON, err := json.Marshal(artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotJSON) != string(wantJSON) {
+		t.Errorf("Get returned content diverging from the originally sealed artifact after rename+replacement:\ngot:  %s\nwant: %s", gotJSON, wantJSON)
+	}
+
+	// A second Put for a NEW artifact must also land in the ORIGINAL
+	// directory, not the replacement.
+	other := fixtureCandidateArtifactWithContent(t, "sealed after the rename, still in the original directory\n")
+	if err := store.Put(context.Background(), other); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(oldPath, other.CandidateArtifactDigestSHA256+".json")); err != nil {
+		t.Errorf("expected the post-rename Put to land in the ORIGINAL directory (now at %q): %v", oldPath, err)
+	}
+	if _, err := os.Stat(filepath.Join(storePath, other.CandidateArtifactDigestSHA256+".json")); !os.IsNotExist(err) {
+		t.Errorf("post-rename Put leaked into the REPLACEMENT directory: err=%v", err)
+	}
+}
