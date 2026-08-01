@@ -54,6 +54,7 @@ func ComposeRequest(in ComposeInput) (Request, *admission.Request, error) {
 		if err != nil {
 			return Request{}, nil, err
 		}
+		r.DerivedScope = normalized.Scope
 		r.AdmissionEligible = true
 		r.AdmissionRequestDigestSHA256 = &documentDigest
 		r.AdmissionRequestIdentityDigestSHA256 = &identityDigest
