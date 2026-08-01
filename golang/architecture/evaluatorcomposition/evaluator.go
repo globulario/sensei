@@ -115,6 +115,13 @@ type EvaluatorExecution struct {
 	Result     EvaluatorResult
 }
 
+func closeEvaluatorFailure(surface EvaluatorSurface, failure error) error {
+	if cleanupErr := surface.Close(); cleanupErr != nil {
+		return fmt.Errorf("%v; cleanup: %w", failure, cleanupErr)
+	}
+	return failure
+}
+
 // ExecuteEvaluator performs one evaluator invocation and owns the disposable
 // surface lifecycle. The evaluator must return a schema/digest-valid result
 // with CleanupSucceeded unset; O4 revokes/removes the surface, records cleanup
@@ -143,8 +150,7 @@ func ExecuteEvaluator(ctx context.Context, evaluator Evaluator, input Evaluation
 		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: describe: %w", err)
 	}
 	if err := ValidateEvaluatorDescriptor(descriptor); err != nil {
-		_ = surface.Close()
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: invalid descriptor: %w", err)
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: invalid descriptor: %w", err))
 	}
 
 	result, evalErr := evaluator.Evaluate(ctx, input)
@@ -156,24 +162,19 @@ func ExecuteEvaluator(ctx context.Context, evaluator Evaluator, input Evaluation
 		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: evaluate: %w", evalErr)
 	}
 	if result.EvaluatorID != descriptor.EvaluatorID {
-		_ = surface.Close()
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: result evaluator_id %q does not match descriptor %q", result.EvaluatorID, descriptor.EvaluatorID)
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: result evaluator_id %q does not match descriptor %q", result.EvaluatorID, descriptor.EvaluatorID))
 	}
 	if result.EvaluatorDescriptorDigestSHA256 != descriptor.DescriptorDigestSHA256 {
-		_ = surface.Close()
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: result descriptor digest does not match accepted descriptor")
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: result descriptor digest does not match accepted descriptor"))
 	}
 	if result.EvaluationInputDigestSHA256 != input.EvaluationInputDigestSHA256 {
-		_ = surface.Close()
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: result input digest does not match exact EvaluationInput")
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: result input digest does not match exact EvaluationInput"))
 	}
 	if result.CleanupSucceeded != nil {
-		_ = surface.Close()
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: evaluator must leave cleanup_succeeded nil; O4 owns surface cleanup truth")
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: evaluator must leave cleanup_succeeded nil; O4 owns surface cleanup truth"))
 	}
 	if err := ValidateEvaluatorResult(result); err != nil {
-		_ = surface.Close()
-		return EvaluatorExecution{}, fmt.Errorf("ExecuteEvaluator: evaluator returned invalid result: %w", err)
+		return EvaluatorExecution{}, closeEvaluatorFailure(surface, fmt.Errorf("ExecuteEvaluator: evaluator returned invalid result: %w", err))
 	}
 
 	cleanupErr := surface.Close()
