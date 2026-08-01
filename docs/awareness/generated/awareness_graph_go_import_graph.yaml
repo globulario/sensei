@@ -708,6 +708,7 @@ components:
       - component.golang.store
     external_imports:
       - github.com/santhosh-tekuri/jsonschema/v5
+      - golang.org/x/text/unicode/norm
       - golang.org/x/tools/go/packages
       - golang.org/x/tools/go/ssa
       - golang.org/x/tools/go/ssa/ssautil
