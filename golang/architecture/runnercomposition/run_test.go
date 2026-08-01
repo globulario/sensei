@@ -303,7 +303,8 @@ func TestRunProducesVerifiedDispositionOnHappyPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -327,6 +328,29 @@ func TestRunProducesVerifiedDispositionOnHappyPath(t *testing.T) {
 	}
 	if receipt.CandidateArtifactDigestSHA256 == nil {
 		t.Fatal("CandidateArtifactDigestSHA256 is nil on a verified receipt")
+	}
+
+	// The handoff's Request/Result/O2Receipt must be the exact O2 values
+	// observed, not zero, and must match the digests the receipt itself
+	// declares -- this is what makes the handoff a real value carrier, not
+	// merely a second copy of the digests already on RunnerReceipt.
+	if handoff.Request.RequestDigestSHA256 == "" {
+		t.Error("handoff.Request is zero-valued on a verified handoff")
+	}
+	if handoff.Request.RequestDigestSHA256 != receipt.RequestDigestSHA256 {
+		t.Errorf("handoff.Request.RequestDigestSHA256 = %q, want %q (receipt's own reference)", handoff.Request.RequestDigestSHA256, receipt.RequestDigestSHA256)
+	}
+	if handoff.Result.ResultDigestSHA256 == "" {
+		t.Error("handoff.Result is zero-valued on a verified handoff")
+	}
+	if receipt.ResultDigestSHA256 == nil || handoff.Result.ResultDigestSHA256 != *receipt.ResultDigestSHA256 {
+		t.Errorf("handoff.Result.ResultDigestSHA256 = %q, want %v (receipt's own reference)", handoff.Result.ResultDigestSHA256, receipt.ResultDigestSHA256)
+	}
+	if handoff.O2Receipt.ReceiptDigestSHA256 == "" {
+		t.Error("handoff.O2Receipt is zero-valued on a verified handoff")
+	}
+	if receipt.O2ReceiptDigestSHA256 == nil || handoff.O2Receipt.ReceiptDigestSHA256 != *receipt.O2ReceiptDigestSHA256 {
+		t.Errorf("handoff.O2Receipt.ReceiptDigestSHA256 = %q, want %v (receipt's own reference)", handoff.O2Receipt.ReceiptDigestSHA256, receipt.O2ReceiptDigestSHA256)
 	}
 
 	// The sealed artifact must be independently retrievable and carry the
@@ -458,7 +482,8 @@ func TestRunProducesSnapshotFailureForInvalidBaseRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error rather than a snapshot-failure receipt: %v", err)
 	}
@@ -473,6 +498,19 @@ func TestRunProducesSnapshotFailureForInvalidBaseRevision(t *testing.T) {
 	}
 	if receipt.InputCandidateDigestSHA256 != nil {
 		t.Error("InputCandidateDigestSHA256 must be nil for snapshot-failure")
+	}
+
+	// Request is always populated -- it is built before any snapshot is
+	// taken -- but Result/O2Receipt must remain zero-valued: O2's Run was
+	// never invoked on this path.
+	if handoff.Request.RequestDigestSHA256 == "" {
+		t.Error("handoff.Request must still be populated on snapshot-failure -- it is built before the snapshot is taken")
+	}
+	if handoff.Result.ResultDigestSHA256 != "" {
+		t.Error("handoff.Result must be zero-valued on snapshot-failure -- O2's Run was never invoked")
+	}
+	if handoff.O2Receipt.ReceiptDigestSHA256 != "" {
+		t.Error("handoff.O2Receipt must be zero-valued on snapshot-failure -- O2's Run was never invoked")
 	}
 }
 
@@ -489,7 +527,8 @@ func TestRunProducesProviderConstructionFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -526,7 +565,8 @@ func TestRunProducesO2NonCompletedWhenExecuteReturnsAnError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -559,7 +599,8 @@ func TestRunProducesO2RunError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -586,7 +627,8 @@ func TestRunProducesO2NonCompleted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -630,7 +672,8 @@ func TestRunProducesDigestMismatchWithoutRepairingTheResult(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -697,7 +740,8 @@ func TestRunProducesSealFailure(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(storeRoot, 0o755) })
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -766,12 +810,14 @@ func TestRunStableInputCandidateDigestAcrossAttempts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r1, err := Run(context.Background(), sessionState, identity, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
+	h1, err := Run(context.Background(), sessionState, identity, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
+	r1 := h1.RunnerReceipt
 	if err != nil {
 		t.Fatal(err)
 	}
 	sessionState.ExpectedAttemptNumber = 2
-	r2, err := Run(context.Background(), sessionState, identity, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
+	h2, err := Run(context.Background(), sessionState, identity, repoRoot, plan, &fakeProviderFactory{buildResult: stopEarly}, store, runTestPolicy(), fixedNow)
+	r2 := h2.RunnerReceipt
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -807,7 +853,8 @@ func TestRunProducesWorkspaceInitFailureWhenBufferInitFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -868,7 +915,8 @@ func TestRunProducesWorkspaceFreezeFailureWhenCloseFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
@@ -906,7 +954,8 @@ func TestRunProducesEvidenceComputationFailureWhenFinalManifestBuildFails(t *tes
 		t.Fatal(err)
 	}
 
-	receipt, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	handoff, err := Run(context.Background(), sessionState, identity, repoRoot, plan, factory, store, runTestPolicy(), fixedNow)
+	receipt := handoff.RunnerReceipt
 	if err != nil {
 		t.Fatalf("Run returned an error: %v", err)
 	}
