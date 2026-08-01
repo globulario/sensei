@@ -47,9 +47,9 @@ type Request struct {
 	RepositoryDomain string `json:"repository_domain"`
 	BaseRevision     string `json:"base_revision"`
 
-	DerivedScope          admission.ChangeScope    `json:"derived_scope"`
-	UnsupportedOperations []UnsupportedOperation   `json:"unsupported_operations"`
-	AdmissionEligible     bool                     `json:"admission_eligible"`
+	DerivedScope          admission.ChangeScope  `json:"derived_scope"`
+	UnsupportedOperations []UnsupportedOperation `json:"unsupported_operations"`
+	AdmissionEligible     bool                   `json:"admission_eligible"`
 
 	AdmissionRequestDigestSHA256         *string `json:"admission_request_digest_sha256"`
 	AdmissionRequestIdentityDigestSHA256 *string `json:"admission_request_identity_digest_sha256"`
