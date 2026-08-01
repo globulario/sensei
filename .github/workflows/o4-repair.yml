@@ -1,0 +1,102 @@
+name: O4 targeted repair
+
+on:
+  push:
+    branches:
+      - agent/governed-evaluator-composition-o4
+    paths:
+      - .github/workflows/o4-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/governed-evaluator-composition-o4
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Apply reviewed repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          surface = Path('golang/architecture/evaluatorcomposition/surface.go')
+          text = surface.read_text()
+          old = '''\t\tif err := materializeManifestIntoExistingRoot(root, artifact.Manifest); err != nil {
+          \t\t\treturn nil, fmt.Errorf("CandidateMaterializer.Materialize: install sealed candidate in disposable gate repository: %w", err)
+          \t\t}
+          \t}
+          '''
+          new = '''\t\tif err := materializeManifestIntoExistingRoot(root, artifact.Manifest); err != nil {
+          \t\t\treturn nil, fmt.Errorf("CandidateMaterializer.Materialize: install sealed candidate in disposable gate repository: %w", err)
+          \t\t}
+          \t\tif err := stageDisposableGitCandidate(ctx, root, parent); err != nil {
+          \t\t\treturn nil, fmt.Errorf("CandidateMaterializer.Materialize: stage sealed candidate for exact HEAD diff: %w", err)
+          \t\t}
+          \t}
+          '''
+          if old not in text:
+              raise SystemExit('surface materialization block not found')
+          text = text.replace(old, new, 1)
+          marker = 'func isolatedGitEnvironment(home string) []string {'
+          helper = '''func stageDisposableGitCandidate(ctx context.Context, repoRoot, parent string) error {
+          \thome := filepath.Join(parent, "git-home")
+          \tcmd := exec.CommandContext(ctx, "git", "-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "add", "-A")
+          \tcmd.Dir = repoRoot
+          \tcmd.Env = isolatedGitEnvironment(home)
+          \tif out, err := cmd.CombinedOutput(); err != nil {
+          \t\treturn fmt.Errorf("git add -A: %w: %s", err, strings.TrimSpace(string(out)))
+          \t}
+          \treturn nil
+          }
+
+          '''
+          if marker not in text:
+              raise SystemExit('isolatedGitEnvironment marker not found')
+          text = text.replace(marker, helper + marker, 1)
+          surface.write_text(text)
+
+          gate = Path('golang/architecture/evaluatorcomposition/sensei_gate.go')
+          text = gate.read_text()
+          import_end = ')\n\n// SenseiGateConfig'
+          const_block = ''')
+
+          // failureClassSenseiGateBlockingFinding is intentionally not a
+          // GovernedFailureClass. A blocking gate verdict may represent an
+          // invariant, contract, scope, or forbidden-fix finding; the adapter
+          // must preserve that evidence without silently choosing abort.
+          const failureClassSenseiGateBlockingFinding = "sensei-gate-blocking-finding"
+
+          // SenseiGateConfig'''
+          if import_end not in text:
+              raise SystemExit('sensei gate import marker not found')
+          text = text.replace(import_end, const_block, 1)
+          old_class = 'failureReasons = append(failureReasons, string(FailureClassAuditForbiddenFix))'
+          if old_class not in text:
+              raise SystemExit('old gate failure classification not found')
+          text = text.replace(old_class, 'failureReasons = append(failureReasons, failureClassSenseiGateBlockingFinding)', 1)
+          gate.write_text(text)
+
+          test = Path('golang/architecture/evaluatorcomposition/adapters_test.go')
+          text = test.read_text()
+          old_expectation = 'wantFailureClass: string(FailureClassAuditForbiddenFix),'
+          if old_expectation not in text:
+              raise SystemExit('adapter test expectation not found')
+          text = text.replace(old_expectation, 'wantFailureClass: failureClassSenseiGateBlockingFinding,', 1)
+          test.write_text(text)
+          PY
+          gofmt -w golang/architecture/evaluatorcomposition/surface.go golang/architecture/evaluatorcomposition/sensei_gate.go golang/architecture/evaluatorcomposition/adapters_test.go
+          go test ./golang/architecture/evaluatorcomposition -count=1 -timeout 120s
+          make import-graph-check
+          git config user.name "sensei-o4-maintenance"
+          git config user.email "sensei-o4-maintenance@users.noreply.github.com"
+          git add golang/architecture/evaluatorcomposition
+          git commit -m "fix(synthesis): stage sealed gate diff and preserve policy authority"
+          git push origin HEAD:agent/governed-evaluator-composition-o4
