@@ -139,13 +139,13 @@ func NewSenseiGateEvaluator(config SenseiGateConfig, surface EvaluatorSurface, r
 		return nil, fmt.Errorf("NewSenseiGateEvaluator: descriptor: %w", err)
 	}
 	return &SenseiGateEvaluator{
-		descriptor: descriptor,
-		config: config,
+		descriptor:    descriptor,
+		config:        config,
 		policyContent: append([]byte(nil), policyContent...),
-		policyDigest: policyDigest,
-		surface: surface,
-		runner: runner,
-		sink: sink,
+		policyDigest:  policyDigest,
+		surface:       surface,
+		runner:        runner,
+		sink:          sink,
 	}, nil
 }
 

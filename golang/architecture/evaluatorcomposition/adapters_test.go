@@ -254,9 +254,9 @@ func TestSenseiGateEvaluatorFreezesExternalPolicyAndBindsItsDigest(t *testing.T)
 	surface := &recordingEvaluatorSurface{ref: "surface://test/sensei-gate-freeze/git-diff", root: t.TempDir(), mode: SurfaceModeGitDiff}
 	input := evaluationInputForSurface(t, surface)
 	runner := &scriptedCommandRunner{results: []CommandResult{{
-		Outcome: CommandOutcomeCompleted,
+		Outcome:  CommandOutcomeCompleted,
 		ExitCode: 0,
-		Stdout: senseiGateOutput(t, input, false, 0, 0, "PASS"),
+		Stdout:   senseiGateOutput(t, input, false, 0, 0, "PASS"),
 	}}}
 	evaluator, policyPath, originalPolicy := newSenseiGateTestEvaluator(t, surface, runner)
 	if err := os.WriteFile(policyPath, []byte("candidate-era replacement\n"), 0o600); err != nil {
