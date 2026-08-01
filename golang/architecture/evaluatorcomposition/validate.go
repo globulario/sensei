@@ -19,7 +19,8 @@ import (
 //     mapping the same failure class to two different recommendations
 //     would make composition non-deterministic (hard law 12);
 //  4. no FailureClassRecommendation naming a GovernedFailureClass downgrades
-//     below GovernedFailureClassMinimumRecommendation -- e.g. a policy
+//     below its canonical minimum recommendation
+//     (GovernedFailureClassMinimumRecommendationFor) -- e.g. a policy
 //     cannot map audit-forbidden-fix (minimum abort) to retry-generation;
 //     equal-severity and escalating (more severe) assignments are legal;
 //  5. the declared PolicyDigestSHA256 equals a fresh recomputation.
@@ -48,7 +49,7 @@ func ValidateEvaluationPolicy(p EvaluationPolicy) error {
 		seenClasses[rule.FailureClass] = true
 
 		if minimum, ok := GovernedFailureClassMinimumRecommendationFor(rule.FailureClass); ok {
-			if recommendationSeverityRank[rule.Recommendation] > recommendationSeverityRank[minimum] {
+			if recommendationSeverityRank(rule.Recommendation) > recommendationSeverityRank(minimum) {
 				return fmt.Errorf("failure_class %q maps to %q, which downgrades below its governed minimum recommendation %q", rule.FailureClass, rule.Recommendation, minimum)
 			}
 		}

@@ -92,38 +92,56 @@ const (
 	FailureClassMechanicalCheckFailure GovernedFailureClass = "mechanical-check-failure"
 )
 
-// GovernedFailureClassMinimumRecommendation is the closed registry binding
-// each GovernedFailureClass to its canonical minimum (most lenient
-// permitted) Recommendation. It is the "canonical minimum recommendation
-// for governed failure classes" the design doc's precedence section
-// requires: a policy may map a governed class to its minimum or to
-// anything strictly more severe, never to anything less severe.
-var GovernedFailureClassMinimumRecommendation = map[GovernedFailureClass]synthesis.Recommendation{
-	FailureClassAuditForbiddenFix:               synthesis.RecommendAbort,
-	FailureClassProofPermanentlyUndischargeable: synthesis.RecommendAbort,
-	FailureClassIncidentScarConcerning:          synthesis.RecommendArchitectReview,
-	FailureClassProofPlanStructural:             synthesis.RecommendReplan,
-	FailureClassAuditPlanLevel:                  synthesis.RecommendReplan,
-	FailureClassMechanicalCheckFailure:          synthesis.RecommendRetryGeneration,
-}
-
-// recommendationSeverityRank orders the four non-accept Recommendation
-// values from most severe (0) to least severe (3), exactly matching the
-// design doc's fixed "Initial recommendation precedence": abort >
-// architect-review > replan > retry-generation.
-var recommendationSeverityRank = map[synthesis.Recommendation]int{
-	synthesis.RecommendAbort:           0,
-	synthesis.RecommendArchitectReview: 1,
-	synthesis.RecommendReplan:          2,
-	synthesis.RecommendRetryGeneration: 3,
-}
-
 // GovernedFailureClassMinimumRecommendationFor returns class's canonical
-// minimum Recommendation and true when class is a recognized
-// GovernedFailureClass, or the zero Recommendation and false otherwise.
+// minimum (most lenient permitted) Recommendation and true when class is a
+// recognized GovernedFailureClass, or the zero Recommendation and false
+// otherwise. This is the "canonical minimum recommendation for governed
+// failure classes" the design doc's precedence section requires: a policy
+// may map a governed class to its minimum or to anything strictly more
+// severe, never to anything less severe -- see recommendationSeverityRank
+// and ValidateEvaluationPolicy.
+//
+// Deliberately a closed switch, not an exported package-level map: an
+// exported map is a mutable reference type any importing package could
+// rewrite in place (e.g. lowering audit-forbidden-fix's floor from abort to
+// retry-generation before validation ever runs), silently defeating the
+// entire downgrade check below. A switch statement has no value at all for
+// anything outside this function to reach, so there is nothing to rewrite.
 func GovernedFailureClassMinimumRecommendationFor(class string) (synthesis.Recommendation, bool) {
-	r, ok := GovernedFailureClassMinimumRecommendation[GovernedFailureClass(class)]
-	return r, ok
+	switch GovernedFailureClass(class) {
+	case FailureClassAuditForbiddenFix, FailureClassProofPermanentlyUndischargeable:
+		return synthesis.RecommendAbort, true
+	case FailureClassIncidentScarConcerning:
+		return synthesis.RecommendArchitectReview, true
+	case FailureClassProofPlanStructural, FailureClassAuditPlanLevel:
+		return synthesis.RecommendReplan, true
+	case FailureClassMechanicalCheckFailure:
+		return synthesis.RecommendRetryGeneration, true
+	default:
+		return "", false
+	}
+}
+
+// recommendationSeverityRank returns r's precedence rank among the four
+// non-accept Recommendation values, from most severe (0) to least severe
+// (3), exactly matching the design doc's fixed "Initial recommendation
+// precedence": abort > architect-review > replan > retry-generation.
+// Returns -1 for any other value (unreachable for a schema-valid non-accept
+// Recommendation). A closed switch for the same immutable-authority reason
+// as GovernedFailureClassMinimumRecommendationFor.
+func recommendationSeverityRank(r synthesis.Recommendation) int {
+	switch r {
+	case synthesis.RecommendAbort:
+		return 0
+	case synthesis.RecommendArchitectReview:
+		return 1
+	case synthesis.RecommendReplan:
+		return 2
+	case synthesis.RecommendRetryGeneration:
+		return 3
+	default:
+		return -1
+	}
 }
 
 // EvaluationPolicy is the one immutable, self-digested, caller-supplied
