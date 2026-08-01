@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/evaluatorcomposition-evaluationinput-v1.json",
+  "title": "Sensei Governed Evaluator Composition Evaluation Input V1",
+  "description": "The exact, closed input one evaluator invocation binds to: O1 Session digest, accepted Attempt digest, candidate artifact digest, repository domain/base revision, plan generation/attempt number, a disposable evaluator-surface reference, the precommitted deadline and evidence limits, and the required proof-obligation digests relevant to this session.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/evaluatorcomposition. evaluator_surface_ref is an opaque reference to a fresh, disposable per-evaluator materialization -- checkpoint 2 defines only its shape as data; checkpoint 4 gives it real filesystem-backed meaning.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_digest_sha256",
+    "attempt_digest_sha256",
+    "candidate_artifact_digest_sha256",
+    "repository_domain",
+    "base_revision",
+    "plan_generation",
+    "attempt_number",
+    "evaluator_surface_ref",
+    "deadline_at",
+    "max_evidence_count",
+    "max_evidence_bytes",
+    "required_proof_obligation_digests",
+    "evaluation_input_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.evaluatorcomposition.evaluationinput.v1" },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "attempt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "repository_domain": { "type": "string", "minLength": 1 },
+    "base_revision": { "type": "string", "minLength": 1 },
+    "plan_generation": { "type": "integer", "minimum": 1 },
+    "attempt_number": { "type": "integer", "minimum": 1 },
+    "evaluator_surface_ref": { "type": "string", "minLength": 1 },
+    "deadline_at": { "type": "string", "minLength": 1 },
+    "max_evidence_count": { "type": "integer", "minimum": 0 },
+    "max_evidence_bytes": { "type": "integer", "minimum": 0 },
+    "required_proof_obligation_digests": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "evaluation_input_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
