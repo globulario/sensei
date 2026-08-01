@@ -1,0 +1,43 @@
+name: PR 126 gofmt repair
+
+on:
+  push:
+    branches:
+      - agent/governed-evaluator-composition-o4
+    paths:
+      - .github/workflows/pr126-gofmt-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/governed-evaluator-composition-o4
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Format checkpoint 5 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          gofmt -w \
+            golang/architecture/evaluatorcomposition/complete_test.go \
+            golang/architecture/evaluatorcomposition/compose_test.go
+          git diff --check
+          git config user.name "sensei-pr126-repair"
+          git config user.email "sensei-pr126-repair@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "Files already formatted"
+            exit 0
+          fi
+          git add \
+            golang/architecture/evaluatorcomposition/complete_test.go \
+            golang/architecture/evaluatorcomposition/compose_test.go
+          git commit -m "fix(synthesis): format checkpoint-5 tests"
+          git push origin HEAD:agent/governed-evaluator-composition-o4
