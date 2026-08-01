@@ -163,6 +163,27 @@ func validateCompletionCheckpoint(checkpoint Result, handoff runnercomposition.V
 	if *handoff.RunnerReceipt.CandidateArtifactDigestSHA256 != checkpoint.Candidate.CandidateArtifactDigestSHA256 {
 		return fmt.Errorf("completion handoff candidate digest does not match checkpoint candidate")
 	}
+	requestDigest, resultDigest, o2ReceiptDigest, err := validateHandoffO2Documents(handoff)
+	if err != nil {
+		return fmt.Errorf("completion handoff O2 documents: %w", err)
+	}
+	if handoff.RunnerReceipt.RequestDigestSHA256 != requestDigest || handoff.RunnerReceipt.ResultDigestSHA256 == nil || *handoff.RunnerReceipt.ResultDigestSHA256 != resultDigest || handoff.RunnerReceipt.O2ReceiptDigestSHA256 == nil || *handoff.RunnerReceipt.O2ReceiptDigestSHA256 != o2ReceiptDigest {
+		return fmt.Errorf("completion handoff O2 document digests do not match the accepted RunnerReceipt")
+	}
+	if handoff.Result.GenerationPayload == nil {
+		return fmt.Errorf("completion handoff carries no generation payload")
+	}
+	attempt := *handoff.Result.GenerationPayload
+	attemptDigest, err := synthesis.AttemptDigest(attempt)
+	if err != nil {
+		return fmt.Errorf("completion handoff attempt digest: %w", err)
+	}
+	if attemptDigest != checkpoint.SessionState.LatestAttemptDigestSHA256 {
+		return fmt.Errorf("completion handoff attempt digest %q does not match checkpoint %q", attemptDigest, checkpoint.SessionState.LatestAttemptDigestSHA256)
+	}
+	if err := crossBindCandidate(*checkpoint.Candidate, checkpoint.SessionState, attempt); err != nil {
+		return fmt.Errorf("completion checkpoint candidate binding: %w", err)
+	}
 	if err := ValidateEvaluationPolicy(policy); err != nil {
 		return fmt.Errorf("completion policy: %w", err)
 	}

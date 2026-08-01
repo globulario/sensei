@@ -232,8 +232,11 @@ func TestComposeEvaluationDistinguishesRequiredAndOptionalEvaluatorUnavailabilit
 		if !containsString(composition.Evaluation.ClassifiedFailureReasons, FailureClassOptionalEvaluatorUnavailable) {
 			t.Fatalf("optional missing failure classes = %v", composition.Evaluation.ClassifiedFailureReasons)
 		}
-		if !hasBlockingLimitation(composition.Evaluation.Limitations) {
-			t.Fatal("optional missing evidence did not preserve a blocking limitation")
+		if len(composition.Evaluation.Limitations) == 0 {
+			t.Fatal("optional missing evidence did not preserve a limitation")
+		}
+		if hasBlockingLimitation(composition.Evaluation.Limitations) {
+			t.Fatal("optional missing evidence was incorrectly promoted to a blocking limitation")
 		}
 	})
 }
@@ -283,4 +286,39 @@ func containsString(values []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+func TestComposeEvaluationRejectsDuplicateCheckIDsAcrossEvaluators(t *testing.T) {
+	_, checkpoint, policy := checkpoint5ReadyFixture(t, func(policy *EvaluationPolicy) {
+		policy.Evaluators = []EvaluatorSpec{{EvaluatorID: "first", Required: true}, {EvaluatorID: "second", Required: true}}
+		policy.RequiredCheckIDs = []string{}
+	})
+	first := checkpoint5Execution(t, checkpoint, policy, "first", EvaluatorOutcomeCompleted,
+		[]synthesis.CheckObservation{checkpoint5Check("shared-check", synthesis.CheckPassed)}, nil, nil, true)
+	second := checkpoint5Execution(t, checkpoint, policy, "second", EvaluatorOutcomeCompleted,
+		[]synthesis.CheckObservation{checkpoint5Check("shared-check", synthesis.CheckPassed)}, nil, nil, true)
+	composition := ComposeEvaluation(context.Background(), checkpoint.SessionState, *checkpoint.Candidate, policy,
+		[]EvaluatorExecution{second, first}, nil)
+	if composition.Disposition != DispositionCompositionFailure || !strings.Contains(composition.FailureDetail, "duplicate check_id") {
+		t.Fatalf("duplicate cross-evaluator check composition = %+v", composition)
+	}
+}
+
+func TestComposeEvaluationExcludesUnavailableRequiredEvaluatorFromAcceptedBindings(t *testing.T) {
+	_, checkpoint, policy := checkpoint5ReadyFixture(t, func(policy *EvaluationPolicy) {
+		policy.Evaluators = []EvaluatorSpec{{EvaluatorID: "complete", Required: true}, {EvaluatorID: "unavailable", Required: true}}
+		policy.RequiredCheckIDs = []string{}
+	})
+	complete := checkpoint5Execution(t, checkpoint, policy, "complete", EvaluatorOutcomeCompleted,
+		[]synthesis.CheckObservation{checkpoint5Check("complete-check", synthesis.CheckPassed)}, nil, nil, true)
+	unavailable := checkpoint5Execution(t, checkpoint, policy, "unavailable", EvaluatorOutcomeUnavailable,
+		[]synthesis.CheckObservation{}, nil, nil, true)
+	composition := ComposeEvaluation(context.Background(), checkpoint.SessionState, *checkpoint.Candidate, policy,
+		[]EvaluatorExecution{unavailable, complete}, nil)
+	if composition.Disposition != DispositionRequiredEvaluatorUnavailable {
+		t.Fatalf("required unavailable composition = %+v", composition)
+	}
+	if len(composition.EvaluatorBindings) != 1 || composition.EvaluatorBindings[0].EvaluatorID != "complete" {
+		t.Fatalf("required unavailable bindings include unaccepted evaluator: %+v", composition.EvaluatorBindings)
+	}
 }

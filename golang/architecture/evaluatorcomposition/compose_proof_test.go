@@ -95,26 +95,48 @@ func proofAwareCheckpoint5Fixture(t *testing.T, proofDigest string) (runnercompo
 
 func proofExecution(t *testing.T, checkpoint Result, policy EvaluationPolicy, reference EvidenceReference) EvaluatorExecution {
 	t.Helper()
-	execution := checkpoint5Execution(t, checkpoint, policy, "proof.evaluator", EvaluatorOutcomeCompleted,
-		[]synthesis.CheckObservation{
-			{
-				CheckID:            "proof-check",
-				Status:             synthesis.CheckPassed,
-				Detail:             "closure proof discharged",
-				EvidenceReferences: []string{reference.Reference},
-			},
-		}, nil, nil, true)
-	execution.Result.EvidenceReferences = []EvidenceReference{reference}
-	execution.Result = NormalizeEvaluatorResult(execution.Result)
-	digest, err := EvaluatorResultDigest(execution.Result)
+	surface := &recordingEvaluatorSurface{ref: "surface://checkpoint5/proof.evaluator/plain", root: t.TempDir(), mode: SurfaceModePlain}
+	input, err := BuildEvaluationInput(checkpoint.SessionState, *checkpoint.Candidate, policy, surface)
 	if err != nil {
 		t.Fatal(err)
 	}
-	execution.Result.ResultDigestSHA256 = digest
-	if err := ValidateEvaluatorResult(execution.Result); err != nil {
+	descriptor := evaluatorDescriptorForExecution(t, "proof.evaluator")
+	descriptor.SupportedCheckIDs = []string{"proof-check"}
+	descriptor.Limitations = []synthesis.Limitation{}
+	descriptor = NormalizeEvaluatorDescriptor(descriptor)
+	descriptorDigest, err := EvaluatorDescriptorDigest(descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor.DescriptorDigestSHA256 = descriptorDigest
+	cleanupSucceeded := true
+	result := EvaluatorResult{
+		SchemaVersion:                   EvaluatorResultSchemaVersion,
+		EvaluatorID:                     descriptor.EvaluatorID,
+		EvaluatorDescriptorDigestSHA256: descriptor.DescriptorDigestSHA256,
+		EvaluationInputDigestSHA256:     input.EvaluationInputDigestSHA256,
+		TerminalOutcome:                 EvaluatorOutcomeCompleted,
+		Checks: []synthesis.CheckObservation{{
+			CheckID:            "proof-check",
+			Status:             synthesis.CheckPassed,
+			Detail:             "closure proof discharged",
+			EvidenceReferences: []string{reference.Reference},
+		}},
+		EvidenceReferences:       []EvidenceReference{reference},
+		ClassifiedFailureReasons: []string{},
+		Limitations:              []synthesis.Limitation{},
+		CleanupSucceeded:         &cleanupSucceeded,
+	}
+	result = NormalizeEvaluatorResult(result)
+	resultDigest, err := EvaluatorResultDigest(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result.ResultDigestSHA256 = resultDigest
+	if err := ValidateEvaluatorResult(result); err != nil {
 		t.Fatalf("proof execution result invalid: %v", err)
 	}
-	return execution
+	return EvaluatorExecution{Descriptor: descriptor, Input: input, Result: result}
 }
 
 func TestComposeEvaluationValidatesExactClosureProofDischargeBytes(t *testing.T) {

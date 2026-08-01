@@ -103,6 +103,7 @@ func ComposeEvaluation(
 	}
 
 	executionByID := make(map[string]EvaluatorExecution, len(ordered))
+	checkOwner := make(map[string]string)
 	bindings := make([]EvaluatorResultBinding, 0, len(ordered))
 	checks := make([]synthesis.CheckObservation, 0)
 	failureClasses := make([]string, 0)
@@ -130,33 +131,41 @@ func ComposeEvaluation(
 			return withCompositionEvidence(base, bindings, ordered)
 		}
 		executionByID[id] = execution
-		bindings = append(bindings, EvaluatorResultBinding{
-			EvaluatorID:            id,
-			DescriptorDigestSHA256: execution.Descriptor.DescriptorDigestSHA256,
-			ResultDigestSHA256:     execution.Result.ResultDigestSHA256,
-		})
 		if execution.Result.CleanupSucceeded == nil {
 			base.FailureDetail = fmt.Sprintf("evaluator %q result has no O4-owned cleanup truth", id)
 			return withCompositionEvidence(base, bindings, ordered)
 		}
 
-		if execution.Result.TerminalOutcome != EvaluatorOutcomeCompleted {
-			if spec.Required {
-				unavailable := Composition{
-					Disposition:       DispositionRequiredEvaluatorUnavailable,
-					EvaluatorBindings: append([]EvaluatorResultBinding(nil), bindings...),
-					FailureDetail:     fmt.Sprintf("required evaluator %q ended with terminal outcome %q", id, execution.Result.TerminalOutcome),
-				}
-				return finalizeCompositionCleanup(unavailable, ordered)
+		if execution.Result.TerminalOutcome != EvaluatorOutcomeCompleted && spec.Required {
+			unavailable := Composition{
+				Disposition:       DispositionRequiredEvaluatorUnavailable,
+				EvaluatorBindings: append([]EvaluatorResultBinding(nil), bindings...),
+				FailureDetail:     fmt.Sprintf("required evaluator %q ended with terminal outcome %q", id, execution.Result.TerminalOutcome),
 			}
+			return finalizeCompositionCleanup(unavailable, ordered)
+		}
+
+		bindings = append(bindings, EvaluatorResultBinding{
+			EvaluatorID:            id,
+			DescriptorDigestSHA256: execution.Descriptor.DescriptorDigestSHA256,
+			ResultDigestSHA256:     execution.Result.ResultDigestSHA256,
+		})
+		if execution.Result.TerminalOutcome != EvaluatorOutcomeCompleted {
 			failureClasses = append(failureClasses, FailureClassOptionalEvaluatorUnavailable)
 			limitations = append(limitations, synthesis.Limitation{
 				Source: "evaluatorcomposition", Scope: id,
 				Reason:   fmt.Sprintf("optional evaluator ended with terminal outcome %q", execution.Result.TerminalOutcome),
-				Blocking: true,
+				Blocking: false,
 			})
 		}
 
+		for _, check := range execution.Result.Checks {
+			if owner, duplicate := checkOwner[check.CheckID]; duplicate {
+				base.FailureDetail = fmt.Sprintf("duplicate check_id %q is reported by evaluators %q and %q", check.CheckID, owner, id)
+				return withCompositionEvidence(base, bindings, ordered)
+			}
+			checkOwner[check.CheckID] = id
+		}
 		resultChecks := append([]synthesis.CheckObservation(nil), execution.Result.Checks...)
 		sort.Slice(resultChecks, func(i, j int) bool { return resultChecks[i].CheckID < resultChecks[j].CheckID })
 		checks = append(checks, resultChecks...)
@@ -186,7 +195,7 @@ func ComposeEvaluation(
 		failureClasses = append(failureClasses, FailureClassOptionalEvaluatorUnavailable)
 		limitations = append(limitations, synthesis.Limitation{
 			Source: "evaluatorcomposition", Scope: spec.EvaluatorID,
-			Reason: "optional evaluator produced no finalized result", Blocking: true,
+			Reason: "optional evaluator produced no finalized result", Blocking: false,
 		})
 	}
 
@@ -198,7 +207,7 @@ func ComposeEvaluation(
 	if reason := requiredCheckFailure(policy.RequiredCheckIDs, checks); reason != "" {
 		failureClasses = canonicalStrings(append(failureClasses, FailureClassRequiredCheckUnsatisfied))
 		limitations = canonicalLimitations(append(limitations, synthesis.Limitation{
-			Source: "evaluatorcomposition", Scope: "required-checks", Reason: reason, Blocking: true,
+			Source: "evaluatorcomposition", Scope: "required-checks", Reason: reason, Blocking: false,
 		}))
 	}
 	if hasIncompleteObservation(checks) {
