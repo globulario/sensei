@@ -87,6 +87,7 @@ It must satisfy all of these laws:
 6. `providerport.MapToCommand` must produce `synthesis.RecordAttemptCommand` from this exact Request/Result pair.
 7. `synthesis.Transition` must accept that command from the current `PhaseAttempting` state and move to `PhaseEvaluating`.
 8. O4 must never synthesize an Attempt from `CandidateArtifact`, `RunnerReceipt`, or matching field values.
+9. The caller-supplied evaluation policy is validated -- schema, self-digest consistency, and that it binds the exact Session/Attempt/candidate identity referenced by the O3 receipt -- as a precondition alongside laws 1-8, before this first `Transition` call, not after. An invalid policy is rejected here, in the same failure category as a handoff failure (a Go error, no `Transition` call made, O1 state left unchanged) -- never discovered only after `PhaseEvaluating` has already been entered, which would leave SessionState parked with no O1-recorded consequence exactly as hard law 21 forbids. Because policy validation only needs the candidate's *identity* (already known from the O3 receipt), not the loaded candidate content, it does not need to wait for candidate loading either.
 
 `RecordAttemptCommand`'s Transition call does not unconditionally enter `PhaseEvaluating`: when the accepted Attempt's own `TerminalProviderStatus` is `invalid_output`, `synthesis.Transition` short-circuits directly to a terminal `Failed`/invalid-provider-output receipt, bypassing `PhaseEvaluating` entirely. This is legitimate existing O1 behavior, not an O4 failure -- a `verified` O3 disposition only proves O3's own evidence integrity and says nothing about `TerminalProviderStatus`. O4 must check the resulting phase after this first Transition call and, when the session has already terminated, stop and return that state and its events without attempting candidate loading, evaluator materialization, evaluator composition, or a second Transition call.
 
@@ -206,7 +207,7 @@ Before implementation, each concrete evaluator adapter must name the existing Se
 
 Evaluator selection and recommendation rules are precommitted before execution in one closed, digest-addressed O4 policy document.
 
-**Authority is fixed, not deferred**: the O4 *caller* -- the same authority that owns invoking O3's `Run` and driving the session -- selects and supplies one immutable, self-digested policy document before O4's first `Transition` call. O4 validates that policy (schema, self-consistency of its own declared digest against its recomputed content digest, and that it binds the exact Session/Attempt/candidate identity in play) and applies it. O4 never constructs a default policy, never fills in an absent policy, and never amends one after validating it. A policy that fails validation is a contract/programming failure (a Go error, same category as a handoff failure), never an evaluator observation.
+**Authority is fixed, not deferred**: the O4 *caller* -- the same authority that owns invoking O3's `Run` and driving the session -- selects and supplies one immutable, self-digested policy document before O4's first `Transition` call. O4 validates that policy (schema, self-consistency of its own declared digest against its recomputed content digest, and that it binds the exact Session/Attempt/candidate identity in play) and applies it. O4 never constructs a default policy, never fills in an absent policy, and never amends one after validating it. A policy that fails validation is a contract/programming failure (a Go error, same category as a handoff failure), never an evaluator observation -- see generation-handoff law 9: policy validation is a precondition alongside handoff validation, both completing before the first `Transition` call, never deferred to after `PhaseEvaluating` is entered.
 
 The policy includes at minimum:
 
@@ -292,10 +293,9 @@ This path is distinct from:
 
 O4 introduces one closed receipt document binding the entire evaluation composition without replacing O1's `synthesis.Evaluation` or terminal `synthesis.Receipt`.
 
-Fields present on **every** disposition, because they come from the already-validated generation handoff and exist before O4 does anything else: Session digest, accepted Attempt digest, O3 RunnerReceipt digest, O2 generation Request/Result/Receipt digests, terminal O4 disposition, and the O4 receipt's own digest. The remaining fields vary by disposition -- see the matrix below:
+Fields present on **every** disposition, because they come from the already-validated generation handoff and policy validation and exist before O4's first `Transition` call (laws 1-9): Session digest, accepted Attempt digest, O3 RunnerReceipt digest, O2 generation Request/Result/Receipt digests, evaluation-policy digest, terminal O4 disposition, and the O4 receipt's own digest. Policy validates alongside the handoff, before the first `Transition` call, so its digest is never conditional on how far past that call O4 gets -- not even `invalid-output-terminated` lacks it. The remaining fields vary by disposition -- see the matrix below:
 
-- candidate artifact digest (present as an unverified reference from the O3 receipt, or present as a verified-loaded artifact digest, or absent, per disposition);
-- evaluation-policy digest;
+- candidate artifact digest (present as an unverified reference from the O3 receipt for the two dispositions that never reach candidate loading, or present as a verified-loaded artifact digest for the rest -- always present, but its verification state varies);
 - ordered evaluator descriptor/result digests (zero or more; whichever evaluators reached a terminal result before any failure);
 - final O1 Evaluation digest;
 - **O1 terminal receipt digest** -- `synthesis.Receipt.ReceiptDigestSHA256` (equivalently, the `ReceiptDigestSHA256` carried on the `SessionTerminatedEvent` the triggering Transition call returned), present whenever O1 has actually produced a terminal receipt as a result of either Transition call, absent when the session is still open (`PhaseRetry`/`PhaseReplan`) or was never reached;
@@ -312,16 +312,16 @@ Fields present on **every** disposition, because they come from the already-vali
 | `composition-failure` | Evaluator results existed but could not be composed into a valid Evaluation under the accepted policy. | 2 | `PhaseFailed` | present -- bound from the second call | `EvaluatorUnavailableCommand` |
 | `evaluated` | A valid O1 Evaluation was composed and accepted by `synthesis.Transition`. | 2 | varies by `Recommendation` and remaining budget: `PhaseSucceeded` (`accept-candidate`); `PhaseRetry` if retry budget remains, else `PhaseFailed`/budget-exhausted (`retry-generation`); `PhaseReplan` if replan budget remains, else `PhaseFailed`/budget-exhausted (`replan`); `PhaseFailed` (`architect-review`, `abort`) | present only when the resulting phase is terminal (`PhaseSucceeded`/`PhaseFailed`); **absent** when the resulting phase is `PhaseRetry` or `PhaseReplan` -- O1 does not construct a Receipt for a non-terminal transition | `RecordEvaluationCommand` |
 
-Evidence-presence for the remaining O4-receipt fields, per disposition:
+Evidence-presence for the remaining O4-receipt fields, per disposition. (Policy digest is omitted here because it is always present, per law 9 -- see above; it does not vary by disposition and needs no per-row repetition.)
 
-| Disposition | Candidate artifact digest | Policy digest | Evaluator descriptor/result digests | Evaluation digest | Cleanup truth |
-|---|---|---|---|---:|---|
-| `invalid-output-terminated` | present, unverified (O4 never attempts to load it) | absent (O4 stops before validating policy) | none | nil | not applicable (nil) -- no evaluator surface was ever constructed |
-| `candidate-load-failure` | present, unverified (load/validation is what failed) | present (policy is validated immediately after entering `PhaseEvaluating`, before candidate load) | none | nil | not applicable (nil) -- no evaluator surface was ever constructed |
-| `materialization-failure` | present, verified-loaded | present | zero or more (whichever evaluators, if any, completed before the failing one) | nil | present -- covers whichever surfaces were actually constructed |
-| `required-evaluator-unavailable` | present, verified-loaded | present | zero or more (excludes the unavailable evaluator; includes any that did complete) | nil | present |
-| `composition-failure` | present, verified-loaded | present | the complete set that ran | nil | present |
-| `evaluated` | present, verified-loaded | present | the complete, policy-required set | present | present |
+| Disposition | Candidate artifact digest | Evaluator descriptor/result digests | Evaluation digest | Cleanup truth |
+|---|---|---|---:|---|
+| `invalid-output-terminated` | present, unverified (O4 never attempts to load it; O4 stops immediately after the first `Transition` call terminates the session, per the generation-handoff seam) | none | nil | not applicable (nil) -- no evaluator surface was ever constructed |
+| `candidate-load-failure` | present, unverified (load/validation is what failed) | none | nil | not applicable (nil) -- no evaluator surface was ever constructed |
+| `materialization-failure` | present, verified-loaded | zero or more (whichever evaluators, if any, completed before the failing one) | nil | present -- covers whichever surfaces were actually constructed |
+| `required-evaluator-unavailable` | present, verified-loaded | zero or more (excludes the unavailable evaluator; includes any that did complete) | nil | present |
+| `composition-failure` | present, verified-loaded | the complete set that ran | nil | present |
+| `evaluated` | present, verified-loaded | the complete, policy-required set | present | present |
 
 Every disposition ends in an O1-recorded consequence: `invalid-output-terminated` binds evidence to a termination O1 already recorded on the first Transition call; the four `EvaluatorUnavailableCommand` dispositions each produce their own governed O1 termination on the second Transition call; `evaluated` produces `RecordEvaluationCommand`, which may itself be terminal or may hand the session to `PhaseRetry`/`PhaseReplan` for the caller to continue. No disposition leaves SessionState parked with nothing O1-recorded -- there is exactly one Transition call for `invalid-output-terminated` and exactly two for every other disposition, never zero and never a dangling first call with no second.
 
@@ -390,6 +390,7 @@ Implementation must prove at minimum:
 - retry/replan budgets are changed only by O1 Transition, never by O4 policy or evaluator output;
 - O4 performs no third transition and no autonomous continuation;
 - an O4-constructed or O4-defaulted policy is rejected; only a caller-supplied, self-digest-verified policy is accepted, and no evaluator, provider, or O4 code path can rewrite it after validation;
+- an invalid policy is rejected before the first `Transition` call (law 9), never discovered only after `PhaseEvaluating` has already been entered -- a negative control that reintroduces post-transition policy validation must show it can leave SessionState parked with no O1-recorded consequence, then must fail once law 9's ordering is restored;
 - when multiple evidenced failure classes apply to one evaluation, the fixed precedence (`abort` > `architect-review` > `replan` > `retry-generation`) determines the recommendation regardless of evaluator completion or evidence-discovery order, and a policy that attempts to reorder rather than narrow this precedence is rejected;
 - every disposition other than `evaluated` produces exactly one O1-recorded terminal consequence (either the first Transition call terminating directly for `invalid-output-terminated`, or a second `EvaluatorUnavailableCommand` call for the other four) -- no disposition leaves SessionState parked in `PhaseEvaluating` with zero O1-recorded trace;
 - the old defective behavior is restored in each negative control and the new test fails for the exact claimed reason.
@@ -422,7 +423,7 @@ No process execution, candidate materialization, O2 call, or O1 transition wirin
 
 Add:
 
-- durable exact O2 value handoff from O3;
+- O3 producing one process-local `VerifiedGenerationHandoff` from the exact O2 values it observed -- the caller may forward that value but must never reconstruct it from digests, a store, or any other derived source;
 - cross-digest validation;
 - candidate artifact loading and Attempt binding;
 - `MapToCommand` plus first O1 transition into `PhaseEvaluating`.
