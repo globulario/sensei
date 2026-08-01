@@ -13563,6 +13563,968 @@ test_symbols:
     package: rigor
     language: go
     doc: "An unknown/off-vocabulary class fails closed to Class A's obligations (never weaker)."
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestDetectsAddedFile
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestDetectsAddedFile
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestDetectsContentChange
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestDetectsContentChange
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestIdenticalDirsProduceSameDigest
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestIdenticalDirsProduceSameDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestIsConfigIndependent
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestIsConfigIndependent
+    package: runnercomposition
+    language: go
+    doc: "TestGitChangeDigestIsConfigIndependent is the architect's second blocker,\nproven directly against a config value CONFIRMED to actually change git\ndiff --no-index's output in this git version (verified by hand before\nwriting this test -- see the commit message): core.autocrlf against\nCRLF-terminated content. A poisoned ambient environment -- HOME pointed\nat a directory whose global gitconfig sets core.autocrlf=true, plus\nGIT_CONFIG_GLOBAL pointed directly at that same poisoned config -- must\nnot change GitChangeDigest's output at all, since it builds its own\nfrom-scratch environment (and explicitly forces core.autocrlf=false)\nrather than inheriting the calling process's."
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestIsPathIndependent
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestIsPathIndependent
+    package: runnercomposition
+    language: go
+    doc: "TestGitChangeDigestIsPathIndependent is the architect's first blocker,\nproven directly: the identical logical change (the same file content\ntransition), computed from two COMPLETELY SEPARATE pairs of ephemeral\ndirectories (different t.TempDir() calls, so different random names,\ndifferent depths, different parents), must produce the identical digest.\nA naive `git diff --no-index oldDir newDir` invocation would embed each\npair's own random path in its output and fail this."
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestNeverMutatesInputDirectories
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestNeverMutatesInputDirectories
+    package: runnercomposition
+    language: go
+    doc: "TestGitChangeDigestNeverMutatesInputDirectories proves oldDir/newDir are\nread-only from GitChangeDigest's perspective: their content is byte-for-\nbyte identical before and after the call, and neither path is moved or\nremoved."
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestPropagatesRealError
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestPropagatesRealError
+    package: runnercomposition
+    language: go
+    doc: "TestGitChangeDigestPropagatesRealError proves a genuine git failure\n(a nonexistent path, which git diff --no-index reports as a hard error,\nnot \"no difference\") is surfaced as an error, not silently treated as an\nempty/identical diff."
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestRejectsEmptyDirs
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestRejectsEmptyDirs
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestRejectsFileRoots
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestRejectsFileRoots
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestRejectsRelativePaths
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestRejectsRelativePaths
+    package: runnercomposition
+    language: go
+    doc: "TestGitChangeDigestRejectsRelativePaths proves oldDir/newDir must be\nabsolute -- a relative path's identity depends on the calling process's\nambient current-working-directory state, which GitChangeDigest does not\ncontrol."
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestRejectsSymlinkRoots
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestRejectsSymlinkRoots
+    package: runnercomposition
+    language: go
+    doc: "TestGitChangeDigestRejectsSymlinkRoots is the architect's root-identity\nblocker, proven directly: os.Stat FOLLOWS a symlink root, so the prior\nvalidation would have let one pass; copyTree's filepath.WalkDir does NOT\nfollow it, so it would have copied the symlink itself into staging rather\nthan the real directory's content, and git diff --no-index would then\nhave hashed the symlink's TARGET STRING rather than the candidate tree\n(see the negative control in the accompanying commit message for a direct\ndemonstration)."
+  - id: golang/architecture/runnercomposition/changedigest_test.go:TestGitChangeDigestWorksOutsideAnyGitRepository
+    file: golang/architecture/runnercomposition/changedigest_test.go
+    symbol: TestGitChangeDigestWorksOutsideAnyGitRepository
+    package: runnercomposition
+    language: go
+    doc: "TestGitChangeDigestWorksOutsideAnyGitRepository proves --no-index does\nwhat O3 needs: oldDir/newDir are plain ephemeral directories, never\ngit-initialized, and GitChangeDigest still succeeds."
+  - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestCandidateArtifactDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/runnercomposition/digest_integrity_test.go
+    symbol: TestCandidateArtifactDigestEqualsIndependentlyRecomputedDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestCandidateArtifactDigestInvalidatedByMutatingIdentity
+    file: golang/architecture/runnercomposition/digest_integrity_test.go
+    symbol: TestCandidateArtifactDigestInvalidatedByMutatingIdentity
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestCandidateArtifactDigestInvalidatedByMutatingManifestContent
+    file: golang/architecture/runnercomposition/digest_integrity_test.go
+    symbol: TestCandidateArtifactDigestInvalidatedByMutatingManifestContent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestRunnerReceiptDigestEqualsIndependentlyRecomputedDigest
+    file: golang/architecture/runnercomposition/digest_integrity_test.go
+    symbol: TestRunnerReceiptDigestEqualsIndependentlyRecomputedDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestRunnerReceiptDigestExcludesCompletedAt
+    file: golang/architecture/runnercomposition/digest_integrity_test.go
+    symbol: TestRunnerReceiptDigestExcludesCompletedAt
+    package: runnercomposition
+    language: go
+    doc: "TestRunnerReceiptDigestExcludesCompletedAt proves receipt identity does\nnot depend on wall-clock time, the same convention synthesis.Receipt and\nproviderport.Receipt already follow."
+  - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestRunnerReceiptDigestInvalidatedByMutatingDisposition
+    file: golang/architecture/runnercomposition/digest_integrity_test.go
+    symbol: TestRunnerReceiptDigestInvalidatedByMutatingDisposition
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestRunnerReceiptDigestInvalidatedByMutatingReferencedDigest
+    file: golang/architecture/runnercomposition/digest_integrity_test.go
+    symbol: TestRunnerReceiptDigestInvalidatedByMutatingReferencedDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestCanonicalizeManifestRejectsDuplicatePaths
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestCanonicalizeManifestRejectsDuplicatePaths
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestCanonicalizeManifestRejectsInvalidUTF8SymlinkTarget
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestCanonicalizeManifestRejectsInvalidUTF8SymlinkTarget
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestCanonicalizeManifestRejectsMismatchedContentDigest
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestCanonicalizeManifestRejectsMismatchedContentDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestCanonicalizeManifestRejectsRegularWithSymlinkTarget
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestCanonicalizeManifestRejectsRegularWithSymlinkTarget
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestCanonicalizeManifestRejectsSymlinkWithContent
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestCanonicalizeManifestRejectsSymlinkWithContent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestCanonicalizeManifestSortsByPath
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestCanonicalizeManifestSortsByPath
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestInvalidUTF8JSONRoundTripCorruptsSilently
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestInvalidUTF8JSONRoundTripCorruptsSilently
+    package: runnercomposition
+    language: go
+    doc: "TestInvalidUTF8JSONRoundTripCorruptsSilently is a direct reproduction of\nthe hazard ValidateCandidatePath's and CanonicalizeManifest's UTF-8\nchecks exist to prevent: encoding/json silently replaces an invalid byte\nsequence with U+FFFD on marshal of a Go string, with no error -- so a\nCandidateManifestEntry's Path or SymlinkTarget, both plain string fields,\ncould diverge from the raw git bytes their ContentDigestSHA256/manifest\ndigest were computed over, purely by being stored and reloaded as JSON.\nThis test does not exercise this package's code at all; it proves the\nhazard the rejection above avoids is real, not hypothetical."
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestChangesWhenContentChanges
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestChangesWhenContentChanges
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestChangesWhenModeChanges
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestChangesWhenModeChanges
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestChangesWhenPathChanges
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestChangesWhenPathChanges
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestCollisionSafety
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestCollisionSafety
+    package: runnercomposition
+    language: go
+    doc: "TestManifestDigestCollisionSafety proves the length-prefixed encoding\nprevents a real, entry-boundary concatenation collision. It has two\nhalves, in order:\n\n 1. Prove the deliberately UNFRAMED encoding (naiveManifestEncoding)\n    actually collides for a genuinely different two-entry vs. one-entry\n    manifest pair -- not asserted, demonstrated: both encode to\n    byte-identical output.\n 2. Prove the real, length-prefixed ManifestDigest keeps that exact same\n    pair distinct.\n\nProving only the second half (as an earlier version of this test did)\nleaves open whether the \"collision\" being guarded against was ever real."
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestIndependentOfInputOrder
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestIndependentOfInputOrder
+    package: runnercomposition
+    language: go
+    doc: "TestManifestDigestIndependentOfInputOrder proves the digest depends only\non the entry set, not the order entries were supplied in -- canonical\nsorting makes this true."
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestIsDeterministic
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestIsDeterministic
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestNeverFollowsSymlinkTarget
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestNeverFollowsSymlinkTarget
+    package: runnercomposition
+    language: go
+    doc: "TestManifestDigestNeverFollowsSymlinkTarget proves a symlink's target is\ntreated as opaque data affecting the digest like any other content, never\nresolved to a path that could be validated or traversed."
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestManifestDigestRejectsPathTraversal
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestManifestDigestRejectsPathTraversal
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestValidateCandidatePathAcceptsValidPaths
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestValidateCandidatePathAcceptsValidPaths
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestValidateCandidatePathRejectsBackslashOutright
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestValidateCandidatePathRejectsBackslashOutright
+    package: runnercomposition
+    language: go
+    doc: "TestValidateCandidatePathRejectsBackslashOutright proves backslash is\nrejected unconditionally, per hard law 9 -- not merely \"backslash can\nnever become a separator here\" reasoning, but an outright ban, since\nWindows filesystem APIs do treat '\\' as a path separator and this\nmanifest's canonical paths must mean the same thing on every platform\nthat might ever read one."
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestValidateCandidatePathRejectsInvalidPaths
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestValidateCandidatePathRejectsInvalidPaths
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/manifest_test.go:TestValidateCandidatePathRejectsInvalidUTF8
+    file: golang/architecture/runnercomposition/manifest_test.go
+    symbol: TestValidateCandidatePathRejectsInvalidUTF8
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunClosesWorkspaceBeforeRemovingBackingDirectories
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunClosesWorkspaceBeforeRemovingBackingDirectories
+    package: runnercomposition
+    language: go
+    doc: "TestRunClosesWorkspaceBeforeRemovingBackingDirectories is review\n4833568574's deterministic ordering proof: on an early failure path\n(provider-construction-failure here), workspace.Close must be recorded\nBEFORE either the snapshot or buffer directory's own cleanup function\nruns -- proving revocation happens before removal, not merely that both\neventually happen (which TestRunClosesWorkspaceOnEveryEarlyFailurePath\nalready proves, but without ordering). Wraps all three of\nextractSnapshotFn/initializeCandidateBufferFn/newCandidateWorkspaceFn so\nevery relevant operation is recorded into one shared, ordered log."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunClosesWorkspaceOnEveryEarlyFailurePath
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunClosesWorkspaceOnEveryEarlyFailurePath
+    package: runnercomposition
+    language: go
+    doc: "TestRunClosesWorkspaceOnEveryEarlyFailurePath proves blocker-3's fix\ndirectly: workspace.Close is actually INVOKED (not merely \"cleanup still\nreports success,\" which would stay true even if Close were never called,\nsince the other cleanups would still succeed on their own) on every path\nwhere a workspace was constructed but the run stops before reaching a\ncompleted O2 result -- provider-construction-failure, o2-run-error, and\no2-non-completed."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunGivesEachAttemptAFreshProvider
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunGivesEachAttemptAFreshProvider
+    package: runnercomposition
+    language: go
+    doc: "TestRunGivesEachAttemptAFreshProvider proves hard law 5: two Run calls\nagainst the same factory each receive a distinct Provider instance."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesDigestMismatchWithoutRepairingTheResult
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesDigestMismatchWithoutRepairingTheResult
+    package: runnercomposition
+    language: go
+    doc: "TestRunProducesDigestMismatchWithoutRepairingTheResult proves declared-\nvs-computed comparison, not repair: a provider that declares a wrong\nProposedChangeDigestSHA256 is rejected byte-for-byte -- the RunnerReceipt\nrecords the disposition, but Result itself is never altered anywhere."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesEvidenceComputationFailureWhenFinalManifestBuildFails
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesEvidenceComputationFailureWhenFinalManifestBuildFails
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesO2NonCompleted
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesO2NonCompleted
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesO2NonCompletedWhenExecuteReturnsAnError
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesO2NonCompletedWhenExecuteReturnsAnError
+    package: runnercomposition
+    language: go
+    doc: "TestRunProducesO2NonCompletedWhenExecuteReturnsAnError proves\nproviderport.Run's own documented convention: a Go error FROM\nProvider.Execute is local/infrastructure failure that Run itself maps to\na data-carrying OutcomeUnavailable Result, never propagated as Run's own\nerror return -- so this lands on DispositionO2NonCompleted, not\nDispositionO2RunError."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesO2RunError
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesO2RunError
+    package: runnercomposition
+    language: go
+    doc: "TestRunProducesO2RunError forces providerport.Run ITSELF to fail (a\nDescribe error, which describeBounded propagates as Run's own error --\ndistinct from an Execute error, which Run absorbs into OutcomeUnavailable\ndata instead, per the test above) -- the one genuine reachable path to\nDispositionO2RunError: \"no valid Result/Receipt was constructed at all.\""
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesProviderConstructionFailure
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesProviderConstructionFailure
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesSealFailure
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesSealFailure
+    package: runnercomposition
+    language: go
+    doc: "TestRunProducesSealFailure forces CandidateArtifactStore.Put to fail\n(read-only store root) after every earlier stage succeeded and matched."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesSnapshotFailureForInvalidBaseRevision
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesSnapshotFailureForInvalidBaseRevision
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesVerifiedDispositionOnHappyPath
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesVerifiedDispositionOnHappyPath
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesWorkspaceFreezeFailureWhenCloseFails
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesWorkspaceFreezeFailureWhenCloseFails
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunProducesWorkspaceInitFailureWhenBufferInitFails
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunProducesWorkspaceInitFailureWhenBufferInitFails
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunRejectsIdentityNotMatchingSessionDigest
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunRejectsIdentityNotMatchingSessionDigest
+    package: runnercomposition
+    language: go
+    doc: "TestRunRejectsIdentityNotMatchingSessionDigest proves the structural\nbinding blocker's identity half: an Identity whose own recomputed digest\ndoes not equal Session.WorkspaceIdentityDigestSHA256 is rejected before\nany snapshot, even though its Binding fields otherwise look plausible."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunRejectsPlanNotMatchingSessionState
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunRejectsPlanNotMatchingSessionState
+    package: runnercomposition
+    language: go
+    doc: "TestRunRejectsPlanNotMatchingSessionState proves the structural binding\nblocker's plan half: a Plan that is internally valid but does not match\nsessionState.LatestPlanDigestSHA256 is rejected before any snapshot."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunRejectsPlanWithStaleDeclaredDigest
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunRejectsPlanWithStaleDeclaredDigest
+    package: runnercomposition
+    language: go
+    doc: "TestRunRejectsPlanWithStaleDeclaredDigest proves the self-consistency\ncheck specifically: a plan whose CONTENT genuinely is the session's\naccepted plan (so a recomputed-vs-LatestPlanDigestSHA256 check alone\nwould pass) but whose own PlanDigestSHA256 FIELD has been tampered to a\nstale/wrong value must still be rejected -- otherwise that wrong value\nwould flow into the O2 request and the sealed candidate artifact\nunnoticed."
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunRejectsWrongPhaseBeforeAnySnapshot
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunRejectsWrongPhaseBeforeAnySnapshot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/run_test.go:TestRunStableInputCandidateDigestAcrossAttempts
+    file: golang/architecture/runnercomposition/run_test.go
+    symbol: TestRunStableInputCandidateDigestAcrossAttempts
+    package: runnercomposition
+    language: go
+    doc: "TestRunStableInputCandidateDigestAcrossAttempts proves hard law 7: two\nattempts in the same plan generation produce the same\nInputCandidateDigestSHA256."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestEmbeddedSchemasMatchCanonicalSource
+    package: runnercomposition
+    language: go
+    doc: "TestEmbeddedSchemasMatchCanonicalSource proves the go:embed'd copy under\nschemas/ is byte-identical to the canonical, cross-repo-pinned source\nunder docs/schemas/runnercomposition/v1/ -- go:embed cannot reach outside\nthis package directory with a \"..\" pattern, so the canonical file is\nmechanically copied here at commit time, and this test is what stops the\ntwo from silently drifting apart."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure
+    package: runnercomposition
+    language: go
+    doc: "TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure\nproves DispositionWorkspaceInitFailure genuinely accepts EITHER a nil or a\nboolean cleanup_succeeded -- the one disposition whose ephemeral-surface\nexistence is not knowable in general."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestRunnerReceiptSchemaEnforcesCleanupFailureDetailPresence
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestRunnerReceiptSchemaEnforcesCleanupFailureDetailPresence
+    package: runnercomposition
+    language: go
+    doc: "TestRunnerReceiptSchemaEnforcesCleanupFailureDetailPresence proves\ncleanup_failure_detail is required non-empty exactly when\ncleanup_succeeded is false."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence
+    package: runnercomposition
+    language: go
+    doc: "TestRunnerReceiptSchemaEnforcesCleanupSucceededPresence proves\ncleanup_succeeded is null only for snapshot-failure and a boolean for\nevery disposition from provider-construction-failure onward -- orthogonal\nto, but still checked per, Disposition. DispositionWorkspaceInitFailure is\ndeliberately excluded from this \"wrong presence must be rejected\" loop --\nsee TestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure,\nsince both shapes are valid for it."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestRunnerReceiptSchemaEnforcesDispositionMatrixExactly
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestRunnerReceiptSchemaEnforcesDispositionMatrixExactly
+    package: runnercomposition
+    language: go
+    doc: "TestRunnerReceiptSchemaEnforcesDispositionMatrixExactly is the\ntable-first presence-matrix proof the architect asked for: for every one\nof the ten closed dispositions, and for every one of the six nullable\ndigest fields, flipping that single field's presence (nil<->non-nil)\nwhile leaving every other field and the disposition itself untouched\nmust be rejected. This exhaustively covers all 10*6 = 60 combinations, not\na sampled subset -- including proving that digest-mismatch and verified\nrequire ALL six fields, and that seal-failure requires every field except\ncandidate_artifact_digest_sha256."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestRunnerReceiptSchemaEnforcesFailureDetailPresence
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestRunnerReceiptSchemaEnforcesFailureDetailPresence
+    package: runnercomposition
+    language: go
+    doc: "TestRunnerReceiptSchemaEnforcesFailureDetailPresence proves\nfailure_detail's presence rule holds for every disposition, not just\nverified/digest-mismatch."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestSchemaVersionIdentifiersMatchAdopted
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestSchemaVersionIdentifiersMatchAdopted
+    package: runnercomposition
+    language: go
+    doc: "TestSchemaVersionIdentifiersMatchAdopted confirms every vendored schema's\nconst schema_version exactly matches this package's Go constant."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestSchemasParseAndAreClosed
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestSchemasParseAndAreClosed
+    package: runnercomposition
+    language: go
+    doc: "TestSchemasParseAndAreClosed proves every vendored schema parses as JSON\nand keeps additionalProperties:false at its object root."
+  - id: golang/architecture/runnercomposition/schema_test.go:TestValidateSchemasAcceptValidFixtures
+    file: golang/architecture/runnercomposition/schema_test.go
+    symbol: TestValidateSchemasAcceptValidFixtures
+    package: runnercomposition
+    language: go
+    doc: "TestValidateSchemasAcceptValidFixtures proves both schemas accept their\nown package's valid fixtures, for every one of the ten closed\ndispositions plus a cleanup-failed variant, under the real Draft 2020-12\nvalidator."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotAndInitializeCandidateBufferProduceIdenticalManifests
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotAndInitializeCandidateBufferProduceIdenticalManifests
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotAndInitializeCandidateBufferProduceIdenticalManifests\nproves hard law 8: immediately after buffer initialization, the buffer's\nmanifest (and therefore its ManifestDigest) is identical to the\nsnapshot's -- no mutation has happened yet. Unlike an external\nbefore/after comparison, this also exercises InitializeCandidateBuffer's\nown internal rebuild-and-compare check (it would have returned an error\nhere if that check itself were wrong)."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotBypassesExportSubst
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotBypassesExportSubst
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotBypassesExportSubst is the core correctness proof:\ngit archive would substitute $Format:%H$ with the real commit hash for a\nfile marked export-subst; ExtractSnapshot must return the RAW,\nunsubstituted blob bytes, matching git show/cat-file exactly."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotLeavesNothingBehindOnFailure
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotLeavesNothingBehindOnFailure
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotLeavesNothingBehindOnFailure is the \"honest\npartial-cleanup\" proof: a run that fails partway (here, after listing the\ntree succeeds but the revision itself is bogus so listing fails\nimmediately) must not leave a staging directory behind."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotNeverFallsBackToHEAD
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotNeverFallsBackToHEAD
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotNeverFallsBackToHEAD proves there is no default\nrevision anywhere in ExtractSnapshot: an invalid revision must fail, not\nsilently resolve to HEAD or the live working tree."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotPreservesRegularExecutableAndSymlink
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotPreservesRegularExecutableAndSymlink
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotRejectsEmptyBaseRevision
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotRejectsEmptyBaseRevision
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotRejectsFlagLikeBaseRevision
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotRejectsFlagLikeBaseRevision
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotRejectsFlagLikeBaseRevision defends against\nbaseRevision being misinterpreted as a git option rather than a\npositional revision."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotRejectsInvalidUTF8Path
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotRejectsInvalidUTF8Path
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotRejectsInvalidUTF8Path proves a tree entry whose path\nis not valid UTF-8 is rejected rather than silently converted into a Go\nstring that would later corrupt on a JSON round-trip (encoding/json\nreplaces an invalid byte sequence with U+FFFD on marshal, with no error\n-- see TestInvalidUTF8JSONRoundTripCorruptsSilently in manifest_test.go\nfor a direct reproduction of that hazard). Git itself is\nencoding-agnostic for tree entry names, so this is reachable from real\nrepository content, constructed here via the low-level update-index\nplumbing since normal working-tree commands would refuse such a path on\nmost platforms."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotRejectsInvalidUTF8SymlinkTarget
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotRejectsInvalidUTF8SymlinkTarget
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotRejectsInvalidUTF8SymlinkTarget is\nTestExtractSnapshotRejectsInvalidUTF8Path's counterpart for symlink blob\ncontent: git's symlink blob content (the literal target string) is just\nas encoding-agnostic as a path."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotRejectsNonCommitObjectID
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotRejectsNonCommitObjectID
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotRejectsNonCommitObjectID proves the structural-pinning\ncheck goes beyond shape: a full, syntactically valid 40-hex object ID\nthat names a tree or a blob (not a commit) must still be rejected."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotRejectsSubmodule
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotRejectsSubmodule
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotRejectsSubmodule proves a submodule (gitlink) entry is\nrejected outright -- there is no representation for it in the closed\nregular/executable/symlink mode vocabulary. Uses the low-level\nupdate-index plumbing to add a gitlink entry without needing a second\nreal repository to submodule."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestExtractSnapshotRejectsSymbolicRevisions
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestExtractSnapshotRejectsSymbolicRevisions
+    package: runnercomposition
+    language: go
+    doc: "TestExtractSnapshotRejectsSymbolicRevisions is the architect's\nstructural-pinning blocker, proven directly: a branch name, \"HEAD\", an\nabbreviated SHA, and a relative expression are all valid Git tree-ish\nvalues that `git ls-tree`/`git archive` would happily resolve, but none\nof them is a structurally pinned commit identity -- a branch can move, an\nabbreviated SHA is ambiguous as history grows, and \"HEAD\"/relative\nexpressions depend on ambient repository state at resolution time, not on\nwhat the caller actually pinned."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestFetchBlobContentsAbortsPromptlyOnMissingObjectEvenUnderBackpressure
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestFetchBlobContentsAbortsPromptlyOnMissingObjectEvenUnderBackpressure
+    package: runnercomposition
+    language: go
+    doc: "TestFetchBlobContentsAbortsPromptlyOnMissingObjectEvenUnderBackpressure\nreproduces the deadlock fetchBlobContents' abort helper exists to avoid:\na batch large enough that the OS pipe buffer fills before git drains it\n(forcing the writer goroutine to block on a stdin write) combined with an\nerror on the very first object read (a bogus, nonexistent oid placed\nfirst), so the read loop returns while the writer goroutine is still\nblocked. Without cancelling the process before Wait, this hangs forever;\nbounded in a goroutine + timeout so a regression fails the test cleanly\ninstead of hanging the whole test binary."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestInitializeCandidateBufferCleanupReportsSuccessAndRemovesDirectory
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestInitializeCandidateBufferCleanupReportsSuccessAndRemovesDirectory
+    package: runnercomposition
+    language: go
+    doc: "TestInitializeCandidateBufferCleanupReportsSuccessAndRemovesDirectory\nproves the cleanup callback's error is real, not discarded: it returns\nnil on a normal removal, and the buffer directory is actually gone\nafterward."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestInitializeCandidateBufferMutationDoesNotAffectSnapshot
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestInitializeCandidateBufferMutationDoesNotAffectSnapshot
+    package: runnercomposition
+    language: go
+    doc: "TestInitializeCandidateBufferMutationDoesNotAffectSnapshot proves mutation\nindependence directly, rather than only at digest-equality-at-creation-\ntime: writing into the buffer after initialization must not be visible\nin the snapshot, i.e. copyTree produced a real, independent byte copy,\nnot a shared reference to the same underlying storage."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestInitializeCandidateBufferRejectsMismatchedSnapshotManifest
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestInitializeCandidateBufferRejectsMismatchedSnapshotManifest
+    package: runnercomposition
+    language: go
+    doc: "TestInitializeCandidateBufferRejectsMismatchedSnapshotManifest proves the\nrebuild-and-compare binding is real: passing a snapshotManifest that does\nnot actually describe snapshotDir's content must be rejected, not\nsilently accepted because the directory copy itself succeeded."
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestInitializeCandidateBufferRejectsRelativeRoot
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestInitializeCandidateBufferRejectsRelativeRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestInitializeCandidateBufferRejectsSymlinkRoot
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestInitializeCandidateBufferRejectsSymlinkRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestValidateForMaterializationAcceptsDistinctNonConflictingPaths
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestValidateForMaterializationAcceptsDistinctNonConflictingPaths
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestValidateForMaterializationRejectsCaseInsensitiveCollision
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestValidateForMaterializationRejectsCaseInsensitiveCollision
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestValidateForMaterializationRejectsDuplicatePaths
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestValidateForMaterializationRejectsDuplicatePaths
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestValidateForMaterializationRejectsSymlinkParentConflict
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestValidateForMaterializationRejectsSymlinkParentConflict
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/snapshot_test.go:TestValidateForMaterializationRejectsUnicodeNormalizationCollision
+    file: golang/architecture/runnercomposition/snapshot_test.go
+    symbol: TestValidateForMaterializationRejectsUnicodeNormalizationCollision
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsCorruptedJSON
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetRejectsCorruptedJSON
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsDigestKeyMismatch
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetRejectsDigestKeyMismatch
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreGetRejectsDigestKeyMismatch proves the store\nrefuses to hand back content whose own digest does not match the key it\nwas retrieved by, even though the content is otherwise a fully valid\nCandidateArtifact on its own terms -- defending against an on-disk\nkey/content association corrupted independently of the content itself\n(e.g. a filesystem-level rename/swap between two sealed entries)."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsFIFOWithoutHanging
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetRejectsFIFOWithoutHanging
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreGetRejectsFIFOWithoutHanging proves a\ndigest-named FIFO is refused rather than blocking Get indefinitely --\nos.Root.Open on a FIFO opened for reading blocks until a writer opens\nit, which the no-follow reader must never reach. Bounded by a timeout so\na regression fails the test cleanly instead of hanging the suite,\nmatching this package's established FIFO-hang-prevention pattern\n(TestBuildManifestRejectsFIFOWithoutHanging)."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsInjectedUnknownProperty
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetRejectsInjectedUnknownProperty
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreGetRejectsInjectedUnknownProperty is review\n4833186007's concrete failure scenario, reproduced exactly: seal a valid\nartifact, add an unknown property to the raw stored JSON while leaving\nevery governed field untouched, and confirm Get refuses it. Before the\nfix, json.Unmarshal silently dropped the unknown field before\nValidateCandidateArtifact ever re-marshaled and validated the clean\nstruct, so this would have passed."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsSemanticallyTamperedContent
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetRejectsSemanticallyTamperedContent
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreGetRejectsSemanticallyTamperedContent proves\nGet re-runs full verification (ValidateCandidateArtifact), not just a\ndigest-filename match: flipping one field after sealing, while leaving\neverything else (including the stale outer digest) untouched, must be\ncaught on read."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsSymlinkAlias
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetRejectsSymlinkAlias
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreGetRejectsSymlinkAlias is diagnostic for the\nno-follow fix specifically -- constructed so the symlink's target, if\nmerely followed and read, would pass every content and digest check:\nthe target holds fully valid content whose own recomputed\nCandidateArtifactDigestSHA256 equals the digest being requested. Only\nthe \"the digest entry itself must be a regular file\" check catches this."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsSymlinkToSameInodeAlias
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetRejectsSymlinkToSameInodeAlias
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreGetRejectsSymlinkToSameInodeAlias is the\nprecise, non-racy reproduction of review 4833229539's second point: \"a\nsymlink targeting the same inode can pass the later SameFile check.\" A\nsymlink whose target is ITSELF a hard link to the exact same inode the\noriginal regular file had would fool a post-open os.SameFile comparison\n-- same device, same inode -- even though what sits at the digest name\nis, structurally, a symlink, not a regular file. This needs no race or\ntiming at all: the swapped state is simply set up before Get is called.\nO_NOFOLLOW rejects it unconditionally, independent of what its target\nultimately resolves to."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetReturnsNotFoundForUnknownDigest
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreGetReturnsNotFoundForUnknownDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreLinkCommitIsAtomicNoClobberUnderConcurrency
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreLinkCommitIsAtomicNoClobberUnderConcurrency
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreLinkCommitIsAtomicNoClobberUnderConcurrency\nis the deterministic race proof review 4833186007 required: two\ngoroutines each stage DIFFERENT payloads under their own names, then a\ncommit barrier releases both to call Root.Link into the SAME final name\nas close to simultaneously as possible -- the exact primitive Put's\ncommit step relies on. Exactly one Link call may succeed; the loser must\nfail with an EEXIST-class error, and the final content on disk must be\nexactly the winner's, never a mixture, never silently replaced."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename\nis review 4833317738's deterministic root-rename/replacement negative\ncontrol: construct a store, seal an artifact, then rename the store's\nroot directory away and create a REPLACEMENT directory at the original\npath with unrelated, invalid content under the same digest filename.\nPut and Get must both continue to operate on the SAME original\ndirectory os.Root itself tracks -- Get must never silently start\nreading whatever now sits at the store's original path, and a\nsubsequent Put must land in the original directory too."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutConcurrentIdenticalPutsAreSafe
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutConcurrentIdenticalPutsAreSafe
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutConcurrentIdenticalPutsAreSafe proves the\nrealistic \"two store instances (or processes) addressing the same root\"\nscenario the review named: two independently-constructed stores, both\nsealing the SAME artifact concurrently, must both succeed (idempotent),\nand the final content must be exactly the artifact's own canonical\nbytes."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutIsIdempotentForIdenticalContent
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutIsIdempotentForIdenticalContent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutIsTransactional
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutIsTransactional
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutIsTransactional forces the commit\n(rename) step specifically to fail -- by pre-seeding the store's internal\n.tmp staging directory (writable throughout) via a first successful Put,\nthen revoking write permission on root itself (blocking the creation of\na NEW final entry, which rename requires, while leaving .tmp's own\npermissions, and therefore staged writes and their cleanup, untouched) --\nand proves nothing is visible under the failed Put's digest afterward: no\npartially-sealed entry, no leaked staging file."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutJoinsStagingWriteAndCleanupErrors
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutJoinsStagingWriteAndCleanupErrors
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutJoinsStagingWriteAndCleanupErrors proves\nreview 4833186007's \"propagate or join staging-cleanup errors rather\nthan discarding Remove(tmpName) failures\": makes .tmp itself read-only\nafter it has already been created by a bootstrap Put, so a second Put's\nstaged-content write AND its own cleanup Remove both fail, and confirms\nboth failures are present in the single returned error -- not just the\nfirst one, with the second silently swallowed."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutRefusesToOverwriteDifferingContent
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutRefusesToOverwriteDifferingContent
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutRefusesToOverwriteDifferingContent proves\nimmutability directly: since a valid CandidateArtifact's digest is a\nfunction of its own content, two DIFFERENT valid artifacts can never\nlegitimately share a digest -- so this simulates the only way the\nscenario can arise in practice, tampering with the store's file directly\nbetween two Put calls, and confirms Put detects the mismatch and refuses\nto silently overwrite the sealed entry."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutRejectsInvalidArtifactWithoutWritingAnything
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutRejectsInvalidArtifactWithoutWritingAnything
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutRejectsInvalidArtifactWithoutWritingAnything\nproves ValidateCandidateArtifact runs before any filesystem write: an\nartifact with a wrong declared digest is rejected, and no file appears\nanywhere under root."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutRejectsSymlinkConflictingEntry
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutRejectsSymlinkConflictingEntry
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutRejectsSymlinkConflictingEntry is Get's\nsymlink-alias rejection's Put-side counterpart: a pre-existing symlink\nat the digest name must be treated as an unverifiable conflicting entry,\nnot silently tolerated because Link's EEXIST fallback happens to read\nthrough it successfully."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutSucceedsDespiteOrphanedStagingEntries
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutSucceedsDespiteOrphanedStagingEntries
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutSucceedsDespiteOrphanedStagingEntries is\nreview 4833229539's \"unambiguous sealed-versus-failed outcome truth\"\nblocker, tested at the level of the invariant Put's fix actually relies\non: an entry left behind in .tmp under a NAME Put would never itself\ngenerate for a live seal (simulating what a hypothetical earlier failed\nstaging-cleanup could leave) must never cause Put or Get to behave\nincorrectly for ANY digest -- proving a leftover \".tmp/*\" name is truly\ninert, which is exactly why Put's Link-success branch is allowed to\nreturn nil unconditionally regardless of whether its own cleanup\nRemove(tmpName) succeeds."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutThenGetRoundTrips
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutThenGetRoundTrips
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreReadSealedEntryRejectsSwapUnderConcurrentRace
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreReadSealedEntryRejectsSwapUnderConcurrentRace
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreReadSealedEntryRejectsSwapUnderConcurrentRace\nis review 4833229539's \"deterministic swap-race\" requirement for the\nno-follow reader: while one goroutine repeatedly seals and re-reads a\ndigest via the real Put/Get API, another continuously swaps that exact\npath between a valid regular file and a symlink pointing at a DIFFERENT\nsealed artifact's file (chosen so the swap, if ever followed, would\nsilently return that unrelated artifact's content instead of an error).\nThe atomic O_NOFOLLOW|O_NONBLOCK open collapses \"inspect\" and \"open\"\ninto one syscall, so there is no window left for a swap to land in\nbetween them -- every single Get across many iterations under continuous\nconcurrent swapping must EITHER return the correct artifact for the\nrequested digest, or fail with ErrCandidateArtifactCorrupted; it must\nnever return the OTHER artifact's content, and it must never hang.\nBounded by an overall timeout so a regression fails cleanly."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreSurvivesAfterBufferCleanup
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreSurvivesAfterBufferCleanup
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreSurvivesAfterBufferCleanup is the end-to-end\nproof of hard law 14: seal a CandidateArtifact built from a real\nExtractSnapshot/InitializeCandidateBuffer buffer, destroy BOTH the\nsnapshot and buffer directories entirely, and confirm Get still returns\nthe full, byte-exact content -- proving the store made an independent,\ndurable copy rather than referencing the ephemeral capture surface in\nany way."
+  - id: golang/architecture/runnercomposition/store_test.go:TestNewFSCandidateArtifactStoreRejectsFileRoot
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestNewFSCandidateArtifactStoreRejectsFileRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestNewFSCandidateArtifactStoreRejectsMissingRoot
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestNewFSCandidateArtifactStoreRejectsMissingRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestNewFSCandidateArtifactStoreRejectsRelativeRoot
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestNewFSCandidateArtifactStoreRejectsRelativeRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/store_test.go:TestNewFSCandidateArtifactStoreRejectsSymlinkRoot
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestNewFSCandidateArtifactStoreRejectsSymlinkRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestDeterministic
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestDeterministic
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestDoesNotDescendIntoSymlinkedDirectory
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestDoesNotDescendIntoSymlinkedDirectory
+    package: runnercomposition
+    language: go
+    doc: "TestBuildManifestDoesNotDescendIntoSymlinkedDirectory proves a symlink to\na directory is recorded as its own opaque symlink entry, and BuildManifest\nnever walks INTO it -- the real directory it points at is only visited\nvia its own real path, not duplicated via the symlink's path."
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestNestedDirectories
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestNestedDirectories
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestOmitsDirectoriesAsEntries
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestOmitsDirectoriesAsEntries
+    package: runnercomposition
+    language: go
+    doc: "TestBuildManifestOmitsDirectoriesAsEntries proves an empty directory\nproduces no manifest entry of its own -- directories are implicit,\nreconstructed from their children's paths."
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestReadsRegularFilesAndExecutables
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestReadsRegularFilesAndExecutables
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestReadsSymlinkAsOpaqueEntryWithoutFollowing
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestReadsSymlinkAsOpaqueEntryWithoutFollowing
+    package: runnercomposition
+    language: go
+    doc: "TestBuildManifestReadsSymlinkAsOpaqueEntryWithoutFollowing proves a\nsymlink becomes its own manifest entry with the raw target string,\nwithout BuildManifest ever dereferencing it -- even a target that does\nnot exist must not cause an error."
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestRejectsFIFOWithoutHanging
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestRejectsFIFOWithoutHanging
+    package: runnercomposition
+    language: go
+    doc: "TestBuildManifestRejectsFIFOWithoutHanging is the architect's third\nblocker, proven directly: a FIFO has no representation in the closed\nregular/executable/symlink mode vocabulary, and a naive os.ReadFile on\none with no writer attached blocks forever. This proves BuildManifest\nrejects it with an error, and does so promptly -- run in a goroutine with\na bounded timeout, since a regression back to the hanging behavior would\notherwise hang this test (and the whole test binary) rather than fail it\ncleanly."
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestRejectsFileRoot
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestRejectsFileRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestRejectsMissingRoot
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestRejectsMissingRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestRejectsSymlinkRoot
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestRejectsSymlinkRoot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/tree_test.go:TestBuildManifestResultIsUsableByManifestDigest
+    file: golang/architecture/runnercomposition/tree_test.go
+    symbol: TestBuildManifestResultIsUsableByManifestDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactAcceptsValidFixture
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactAcceptsValidFixture
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactRejectsDigestCorrectButSemanticallyInvalid
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactRejectsDigestCorrectButSemanticallyInvalid
+    package: runnercomposition
+    language: go
+    doc: "TestValidateCandidateArtifactRejectsDigestCorrectButSemanticallyInvalid is\nthe adversarial proof the architect asked for: a document whose OWN\ndeclared CandidateArtifactDigestSHA256 is internally correct (it really is\nCandidateArtifactDigest of the tampered value) must still be rejected,\nbecause the underlying manifest content it certifies is not\nself-consistent. A digest recomputation alone cannot catch this --\nCandidateArtifactDigest happily hashes whatever it is given."
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactRejectsEmptyRepositoryDomainDespiteCorrectDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactRejectsEmptyRepositoryDomainDespiteCorrectDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactRejectsMismatchedOuterDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactRejectsMismatchedOuterDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactRejectsNilManifestContentDespiteCorrectDigests
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactRejectsNilManifestContentDespiteCorrectDigests
+    package: runnercomposition
+    language: go
+    doc: "TestValidateCandidateArtifactRejectsNilManifestContentDespiteCorrectDigests\nis the concrete \"nil content that serializes as JSON null\" case. sha256 of\na nil []byte and sha256 of an empty, non-nil []byte are IDENTICAL (both\nthe well-known empty-string digest), so an entry whose true content is\nempty and whose ContentDigestSHA256 is that empty digest passes\nCanonicalizeManifest/ManifestDigest/CandidateArtifactDigest cleanly\nwhether Content is nil or []byte{} -- the digest layer cannot distinguish\nthem. Only the schema catches that a nil []byte marshals to JSON null\nwhere the schema requires a string."
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactRejectsStaleFinalContentDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactRejectsStaleFinalContentDigest
+    package: runnercomposition
+    language: go
+    doc: "TestValidateCandidateArtifactRejectsStaleFinalContentDigest proves\nFinalCandidateContentDigestSHA256 must equal ManifestDigest(Manifest) --\nre-stamping the outer artifact digest around a stale value is still\nrejected."
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactRejectsZeroAttemptNumberDespiteCorrectDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactRejectsZeroAttemptNumberDespiteCorrectDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateCandidateArtifactRejectsZeroPlanGenerationDespiteCorrectDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateCandidateArtifactRejectsZeroPlanGenerationDespiteCorrectDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptAcceptsBothCleanupShapesForWorkspaceInitFailure
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptAcceptsBothCleanupShapesForWorkspaceInitFailure
+    package: runnercomposition
+    language: go
+    doc: "TestValidateRunnerReceiptAcceptsBothCleanupShapesForWorkspaceInitFailure is\nthe Go-level (not schema-level) analogue of\nTestRunnerReceiptSchemaAcceptsBothCleanupShapesForWorkspaceInitFailure:\nValidateRunnerReceipt itself, not just the embedded schema validator, must\naccept EITHER a nil or a boolean CleanupSucceeded for\nDispositionWorkspaceInitFailure."
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptAcceptsEveryValidDisposition
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptAcceptsEveryValidDisposition
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptRejectsDigestCorrectButWrongPresence
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptRejectsDigestCorrectButWrongPresence
+    package: runnercomposition
+    language: go
+    doc: "TestValidateRunnerReceiptRejectsDigestCorrectButWrongPresence is the\nRunnerReceipt analogue of the CandidateArtifact adversarial proof above:\na receipt whose RunnerReceiptDigestSHA256 is internally correct for its\n(wrong) content must still be rejected, because its digest-field presence\ndoes not match its own declared disposition."
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptRejectsEmptyReceiptIDDespiteCorrectDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptRejectsEmptyReceiptIDDespiteCorrectDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptRejectsMalformedReferencedDigestPatternDespiteCorrectDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptRejectsMalformedReferencedDigestPatternDespiteCorrectDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptRejectsMismatchedOuterDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptRejectsMismatchedOuterDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptRejectsUnknownDisposition
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptRejectsUnknownDisposition
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/validate_test.go:TestValidateRunnerReceiptRejectsWrongSchemaVersionDespiteCorrectDigest
+    file: golang/architecture/runnercomposition/validate_test.go
+    symbol: TestValidateRunnerReceiptRejectsWrongSchemaVersionDespiteCorrectDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceCloseFailsClosedForEveryMethod
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceCloseFailsClosedForEveryMethod
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceCloseIsIdempotent
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceCloseIsIdempotent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceCloseWaitsForInFlightOperation
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceCloseWaitsForInFlightOperation
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceCloseWaitsForInFlightOperation is the freeze-\nbarrier proof: Close must not return while an operation that acquired its\nlock before Close was called is still running. This holds the read lock\ndirectly (the same lock every real method holds for its duration) to\ndeterministically simulate a long-running in-flight operation, rather\nthan relying on timing an actual filesystem call."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceConcurrentOperationsRaceAgainstClose
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceConcurrentOperationsRaceAgainstClose
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceConcurrentOperationsRaceAgainstClose races\nWriteCandidate calls directly against Close, under the race detector,\nproving no data race on the shared closed flag or *os.Root handles --\nevery WriteCandidate call must observe either success (completed before\nClose's write lock was granted) or ErrWorkspaceClosed, never a panic or a\nuse of a closed handle."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceConcurrentOperationsRaceDetectorClean
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceConcurrentOperationsRaceDetectorClean
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceConcurrentOperationsRaceDetectorClean is the\nconcurrent race-detector proof required alongside the sequential\nafter-Close assertions above: many goroutines call WriteCandidate\nconcurrently, then Close, with no synchronization beyond what\nfsCandidateWorkspace itself provides. Meaningful only under `go test\n-race`."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceDelete
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceDelete
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceDeleteNonexistentIsNotAnError
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceDeleteNonexistentIsNotAnError
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceMutatingOperationsAreMutuallyExclusive
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceMutatingOperationsAreMutuallyExclusive
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceMutatingOperationsAreMutuallyExclusive is the\nconcurrency closure the architect asked for: os.Root plus noFollowGuard\ncloses aliasing WITHIN one operation's own check-then-act sequence, but\nwithout this, a DIFFERENT concurrent operation could still swap a\nchecked-clean parent or final entry into a symlink in the gap between\nanother operation's noFollowGuard check and its filesystem action --\nnothing escapes bufferRoot, but the logical path would still act on a\ndifferent candidate-tree entry.\n\nThis deliberately holds the SHARED read lock (raw.mu.RLock), not the\nexclusive one, to simulate the held lock. That distinction is the whole\npoint: sync.RWMutex allows any number of concurrent RLock holders, so if\na mutating method incorrectly used RLock (as it did before this fix, and\nas ReadSnapshot legitimately still does), a second RLock-based call would\nproceed immediately alongside this one -- it would NOT block. Only a\nmethod that correctly takes the EXCLUSIVE lock is forced to wait for this\nheld read lock to release. Using raw.mu.Lock() here instead would prove\nnothing about which lock Symlink takes, since an exclusive lock blocks a\nsubsequent acquisition of EITHER kind."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceNeverWritesToSnapshotRoot
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceNeverWritesToSnapshotRoot
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceNeverWritesToSnapshotRoot proves the snapshot\ndirectory is never mutated by any buffer-mutating method -- ReadSnapshot\nis the only method that ever touches snapshotRoot, and it never writes."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceReadSnapshot
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceReadSnapshot
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceReadSnapshotCannotEscapeThroughPreexistingSymlink
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceReadSnapshotCannotEscapeThroughPreexistingSymlink
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceReadSnapshotCannotEscapeThroughPreexistingSymlink\ncovers the case a symlink is not created via Symlink() at all, but was\nalready present in the snapshot before the workspace was constructed --\nexactly what a real git tree can legitimately contain (a checked-in\nsymlink pointing anywhere, including outside the repository)."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceReadSnapshotConcurrentWithMutatingOperations
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceReadSnapshotConcurrentWithMutatingOperations
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceReadSnapshotConcurrentWithMutatingOperations\nproves ReadSnapshot's continued use of the shared lock is still safe:\nmany concurrent ReadSnapshot calls (which never touch bufferRoot) run\nalongside many concurrent buffer-mutating calls with no data race.\nMeaningful only under `go test -race`."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceReadSnapshotRejectsInternalSymlinkedParent
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceReadSnapshotRejectsInternalSymlinkedParent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceReadSnapshotThroughFinalSymlinkIsRejected
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceReadSnapshotThroughFinalSymlinkIsRejected
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceRejectsInvalidPathsBeforeTouchingFilesystem
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceRejectsInvalidPathsBeforeTouchingFilesystem
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceRejectsInvalidPathsBeforeTouchingFilesystem proves\nevery method rejects a traversal/absolute/backslash path via\nValidateCandidatePath before any filesystem call."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceRename
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceRename
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceRenameDestinationCannotEscapeThroughSymlinkedParent
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceRenameDestinationCannotEscapeThroughSymlinkedParent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceRenameDestinationThroughFinalSymlinkReplacesRatherThanAliases
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceRenameDestinationThroughFinalSymlinkReplacesRatherThanAliases
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceSetMode
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceSetMode
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceSetModeCannotEscapeThroughSymlinkedFile
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceSetModeCannotEscapeThroughSymlinkedFile
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceSetModeRejectsInternalSymlinkedParent
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceSetModeRejectsInternalSymlinkedParent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceSetModeRejectsSymlinkMode
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceSetModeRejectsSymlinkMode
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceSetModeThroughFinalSymlinkIsRejected
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceSetModeThroughFinalSymlinkIsRejected
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceSymlinkNeverResolvesTarget
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceSymlinkNeverResolvesTarget
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateWorkspaceSymlinkNeverResolvesTarget proves the symlink\ntarget is stored verbatim, even when it points somewhere nonexistent or\noutside the buffer entirely -- creating the symlink itself is always\npermitted (hard law 9); it is TRAVERSING through it that containment\nblocks, proven separately below."
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceWriteAndReadBackViaFilesystem
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceWriteAndReadBackViaFilesystem
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceWriteCandidateCannotEscapeThroughSymlinkedParent
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceWriteCandidateCannotEscapeThroughSymlinkedParent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceWriteCandidateRejectsInternalSymlinkedParent
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceWriteCandidateRejectsInternalSymlinkedParent
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestFSCandidateWorkspaceWriteCandidateThroughFinalSymlinkReplacesRatherThanAliases
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestFSCandidateWorkspaceWriteCandidateThroughFinalSymlinkReplacesRatherThanAliases
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestNewFSCandidateWorkspaceAcceptsValidDistinctRoots
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestNewFSCandidateWorkspaceAcceptsValidDistinctRoots
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestNewFSCandidateWorkspaceRejectsEmptyPaths
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestNewFSCandidateWorkspaceRejectsEmptyPaths
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestNewFSCandidateWorkspaceRejectsMissingPath
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestNewFSCandidateWorkspaceRejectsMissingPath
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestNewFSCandidateWorkspaceRejectsNestedRoots
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestNewFSCandidateWorkspaceRejectsNestedRoots
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestNewFSCandidateWorkspaceRejectsRegularFileInsteadOfDirectory
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestNewFSCandidateWorkspaceRejectsRegularFileInsteadOfDirectory
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestNewFSCandidateWorkspaceRejectsSameDirectory
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestNewFSCandidateWorkspaceRejectsSameDirectory
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/workspace_test.go:TestNewFSCandidateWorkspaceRejectsSymlinkAlias
+    file: golang/architecture/runnercomposition/workspace_test.go
+    symbol: TestNewFSCandidateWorkspaceRejectsSymlinkAlias
+    package: runnercomposition
+    language: go
   - id: golang/architecture/runtimeboundary/assess_test.go:TestProof_AmbiguousIdentityRefused
     file: golang/architecture/runtimeboundary/assess_test.go
     symbol: TestProof_AmbiguousIdentityRefused
