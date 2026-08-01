@@ -35,11 +35,11 @@ type Request struct {
 	AdmissionDecisionDigestSHA256           string `json:"admission_decision_digest_sha256"`
 	CandidateArtifactDigestSHA256           string `json:"candidate_artifact_digest_sha256"`
 
-	RepositoryDomain                  string `json:"repository_domain"`
-	BaseRevision                      string `json:"base_revision"`
-	InputCandidateDigestSHA256        string `json:"input_candidate_digest_sha256"`
-	FinalCandidateContentDigestSHA256 string `json:"final_candidate_content_digest_sha256"`
-	ProposedChangeDigestSHA256        string `json:"proposed_change_digest_sha256"`
+	RepositoryDomain                  string   `json:"repository_domain"`
+	BaseRevision                      string   `json:"base_revision"`
+	InputCandidateDigestSHA256        string   `json:"input_candidate_digest_sha256"`
+	FinalCandidateContentDigestSHA256 string   `json:"final_candidate_content_digest_sha256"`
+	ProposedChangeDigestSHA256        string   `json:"proposed_change_digest_sha256"`
 	ModifyPaths                       []string `json:"modify_paths"`
 
 	RequestDigestSHA256 string `json:"request_digest_sha256"`
@@ -50,12 +50,13 @@ type Receipt struct {
 	ReceiptID     string `json:"receipt_id"`
 	GeneratedBy   string `json:"generated_by"`
 
-	RequestDigestSHA256                   string `json:"request_digest_sha256"`
-	AdmissionCompositionReceiptDigestSHA256 string `json:"admission_composition_receipt_digest_sha256"`
-	AdmissionDecisionDigestSHA256           string `json:"admission_decision_digest_sha256"`
-	CandidateArtifactDigestSHA256           string `json:"candidate_artifact_digest_sha256"`
-	InputCandidateDigestSHA256              string `json:"input_candidate_digest_sha256"`
-	FinalCandidateContentDigestSHA256       string `json:"final_candidate_content_digest_sha256"`
+	RequestDigestSHA256                     string   `json:"request_digest_sha256"`
+	AdmissionCompositionReceiptDigestSHA256 string   `json:"admission_composition_receipt_digest_sha256"`
+	AdmissionDecisionDigestSHA256           string   `json:"admission_decision_digest_sha256"`
+	CandidateArtifactDigestSHA256           string   `json:"candidate_artifact_digest_sha256"`
+	InputCandidateDigestSHA256              string   `json:"input_candidate_digest_sha256"`
+	FinalCandidateContentDigestSHA256       string   `json:"final_candidate_content_digest_sha256"`
+	PatchDigestSHA256                       string   `json:"patch_digest_sha256"`
 	AppliedPaths                            []string `json:"applied_paths"`
 
 	AdmissionVerificationStatus       *string `json:"admission_verification_status"`
