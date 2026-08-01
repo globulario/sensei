@@ -59,7 +59,7 @@ type fsEvaluatorSurface struct {
 	err    error
 }
 
-func (s *fsEvaluatorSurface) Ref() string        { return s.ref }
+func (s *fsEvaluatorSurface) Ref() string       { return s.ref }
 func (s *fsEvaluatorSurface) Mode() SurfaceMode { return s.mode }
 
 func (s *fsEvaluatorSurface) RootPath() (string, error) {

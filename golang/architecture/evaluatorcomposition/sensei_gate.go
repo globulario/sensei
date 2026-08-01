@@ -97,7 +97,7 @@ type senseiGateJSON struct {
 	Domain      string          `json:"domain"`
 	Enforced    bool            `json:"enforced"`
 	Blocked     bool            `json:"blocked"`
-	WouldBlock int             `json:"would_block"`
+	WouldBlock  int             `json:"would_block"`
 	Warn        int             `json:"warn"`
 	ScopeErrors int             `json:"scope_errors"`
 	Verdict     string          `json:"verdict"`
@@ -105,12 +105,12 @@ type senseiGateJSON struct {
 }
 
 type senseiGateEvidence struct {
-	SchemaVersion string         `json:"schema_version"`
-	Executable    string         `json:"executable"`
-	Args          []string       `json:"args"`
-	Environment   []string       `json:"environment"`
-	SurfaceRef    string         `json:"surface_ref"`
-	Command       CommandResult  `json:"command"`
+	SchemaVersion string          `json:"schema_version"`
+	Executable    string          `json:"executable"`
+	Args          []string        `json:"args"`
+	Environment   []string        `json:"environment"`
+	SurfaceRef    string          `json:"surface_ref"`
+	Command       CommandResult   `json:"command"`
 	Parsed        *senseiGateJSON `json:"parsed,omitempty"`
 }
 
@@ -172,8 +172,8 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 	}
 	evidence := senseiGateEvidence{
 		SchemaVersion: "sensei.evaluatorcomposition.sensei-gate-evidence.v1",
-		Executable: e.config.SenseiExecutable,
-		Args: append([]string(nil), args...), Environment: append([]string(nil), e.config.Environment...),
+		Executable:    e.config.SenseiExecutable,
+		Args:          append([]string(nil), args...), Environment: append([]string(nil), e.config.Environment...),
 		SurfaceRef: input.EvaluatorSurfaceRef, Command: command, Parsed: parsed,
 	}
 	evidenceBytes, err := json.Marshal(evidence)

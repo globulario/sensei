@@ -80,18 +80,18 @@ func BuildEvaluationInput(state synthesis.SessionState, artifact runnercompositi
 	}
 
 	input := EvaluationInput{
-		SchemaVersion:                    EvaluationInputSchemaVersion,
-		SessionDigestSHA256:              state.Session.SessionDigestSHA256,
-		AttemptDigestSHA256:              state.LatestAttemptDigestSHA256,
-		CandidateArtifactDigestSHA256:    artifact.CandidateArtifactDigestSHA256,
-		RepositoryDomain:                 state.Session.RepositoryDomain,
-		BaseRevision:                     state.Session.BaseRevision,
-		PlanGeneration:                   state.PlanGeneration,
-		AttemptNumber:                    state.AttemptNumber,
-		EvaluatorSurfaceRef:              ref,
-		DeadlineAt:                       policy.DeadlineAt,
-		MaxEvidenceCount:                 policy.MaxEvidenceCount,
-		MaxEvidenceBytes:                 policy.MaxEvidenceBytes,
+		SchemaVersion:                  EvaluationInputSchemaVersion,
+		SessionDigestSHA256:            state.Session.SessionDigestSHA256,
+		AttemptDigestSHA256:            state.LatestAttemptDigestSHA256,
+		CandidateArtifactDigestSHA256:  artifact.CandidateArtifactDigestSHA256,
+		RepositoryDomain:               state.Session.RepositoryDomain,
+		BaseRevision:                   state.Session.BaseRevision,
+		PlanGeneration:                 state.PlanGeneration,
+		AttemptNumber:                  state.AttemptNumber,
+		EvaluatorSurfaceRef:            ref,
+		DeadlineAt:                     policy.DeadlineAt,
+		MaxEvidenceCount:               policy.MaxEvidenceCount,
+		MaxEvidenceBytes:               policy.MaxEvidenceBytes,
 		RequiredProofObligationDigests: append([]string(nil), state.Session.ProofObligationDigests...),
 	}
 	input = NormalizeEvaluationInput(input)

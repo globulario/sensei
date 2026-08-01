@@ -67,12 +67,12 @@ func NewMechanicalEvaluator(evaluatorID, version string, deterministic bool, sur
 	}
 	sort.Strings(checkIDs)
 	descriptor := EvaluatorDescriptor{
-		SchemaVersion:       EvaluatorDescriptorSchemaVersion,
-		EvaluatorID:         evaluatorID,
-		EvaluatorKind:       "mechanical-command",
-		EvaluatorVersion:    version,
-		SupportedCheckIDs:   checkIDs,
-		Deterministic:       deterministic,
+		SchemaVersion:        EvaluatorDescriptorSchemaVersion,
+		EvaluatorID:          evaluatorID,
+		EvaluatorKind:        "mechanical-command",
+		EvaluatorVersion:     version,
+		SupportedCheckIDs:    checkIDs,
+		Deterministic:        deterministic,
 		RequiredCapabilities: []string{"bounded-process-execution", "sealed-candidate-surface"},
 		Limitations: []synthesis.Limitation{
 			{Source: "evaluatorcomposition.mechanical", Scope: evaluatorID, Reason: "process isolation is cooperative host-process execution, not a kernel sandbox", Blocking: false},

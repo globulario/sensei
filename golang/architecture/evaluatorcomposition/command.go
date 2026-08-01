@@ -124,7 +124,9 @@ type captureWriter struct {
 }
 
 func (c *boundedProcessCapture) stdoutWriter() *captureWriter { return &captureWriter{capture: c} }
-func (c *boundedProcessCapture) stderrWriter() *captureWriter { return &captureWriter{capture: c, stderr: true} }
+func (c *boundedProcessCapture) stderrWriter() *captureWriter {
+	return &captureWriter{capture: c, stderr: true}
+}
 
 func (w *captureWriter) Write(p []byte) (int, error) {
 	w.capture.mu.Lock()
