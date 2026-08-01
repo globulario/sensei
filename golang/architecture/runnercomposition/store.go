@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
+	"syscall"
 )
 
 // ErrCandidateArtifactNotFound is returned (wrapped) by
@@ -66,17 +68,24 @@ type CandidateArtifactStore interface {
 	// identical content is an idempotent no-op, and different content is
 	// refused -- a sealed entry is immutable, never silently overwritten.
 	//
-	// On any error, nothing new is left readable under artifact's digest:
-	// a caller that sees a Put error can safely conclude the artifact was
-	// NOT sealed, never that it was partially or ambiguously sealed. A
-	// staging-cleanup failure is always surfaced (joined with any other
-	// error, or returned on its own after an otherwise-successful seal),
-	// never silently discarded.
+	// Put's error return is an unambiguous, unconditional promise: nil
+	// means the artifact is now durably, verifiably sealed and retrievable
+	// by Get; non-nil means it is NOT sealed. This holds even if removing
+	// the now-redundant internal staging link fails after a successful
+	// seal -- that is best-effort tidying, never part of the seal itself,
+	// and its failure is never surfaced as a Put error, since doing so
+	// would itself be the broken promise: telling a caller "not sealed"
+	// about content that unambiguously is. A staging-cleanup failure on a
+	// genuine failure path (the content was never sealed by this call) IS
+	// surfaced, joined with the real failure, never silently discarded.
 	Put(ctx context.Context, artifact CandidateArtifact) error
 
 	// Get retrieves the CandidateArtifact previously sealed under
 	// digestSHA256. It reads the stored entry through the same no-follow,
-	// regular-file-only reader Put's conflict check uses, validates the
+	// regular-file-only reader Put's conflict check uses -- a single
+	// atomic open(2) with O_NOFOLLOW|O_NONBLOCK, not a separate
+	// inspect-then-open sequence, so there is no window in which the
+	// entry could be replaced between a check and a read -- validates the
 	// RAW bytes against CandidateArtifact's closed schema before any typed
 	// decoding (so an injected unknown field cannot be silently dropped by
 	// json.Unmarshal before additionalProperties:false ever sees it),
@@ -104,6 +113,16 @@ type CandidateArtifactStore interface {
 // package already being filesystem-based.
 type fsCandidateArtifactStore struct {
 	root *os.Root
+	// realRoot is root's validated absolute real path, kept alongside the
+	// *os.Root handle specifically so readSealedEntry can open a sealed
+	// entry via a raw, real-path syscall.Open with O_NOFOLLOW|O_NONBLOCK --
+	// os.Root's own OpenFile does not honor O_NOFOLLOW (verified directly:
+	// opening a symlink through os.Root with O_NOFOLLOW set in the flag
+	// argument still succeeds and follows it), so there is no way to ask
+	// os.Root itself for an atomic no-follow open of the final path
+	// component. See readSealedEntry's doc comment for why bypassing
+	// os.Root's containment is safe specifically for that function's use.
+	realRoot string
 }
 
 // NewFSCandidateArtifactStore constructs a CandidateArtifactStore backed by
@@ -125,7 +144,7 @@ func NewFSCandidateArtifactStore(root string) (CandidateArtifactStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("NewFSCandidateArtifactStore: open root: %w", err)
 	}
-	return &fsCandidateArtifactStore{root: r}, nil
+	return &fsCandidateArtifactStore{root: r, realRoot: root}, nil
 }
 
 func (s *fsCandidateArtifactStore) Put(ctx context.Context, artifact CandidateArtifact) error {
@@ -165,14 +184,19 @@ func (s *fsCandidateArtifactStore) Put(ctx context.Context, artifact CandidateAr
 	// succeed for a given finalName.
 	linkErr := s.root.Link(tmpName, finalName)
 	if linkErr == nil {
-		// The staging name is now a second, redundant link to the same
-		// inode finalName already names -- remove it.
-		if removeErr := s.root.Remove(tmpName); removeErr != nil {
-			return fmt.Errorf("CandidateArtifactStore.Put: sealed successfully under digest %q, but removing staged content %q failed: %w", digest, tmpName, removeErr)
-		}
+		// Sealed. From here Put's contract is unconditional: nil means
+		// sealed. Removing the now-redundant staging link is best-effort
+		// tidying, not part of the seal -- even if it fails, the leftover
+		// link inside .tmp is inert: nothing ever treats a ".tmp/*" name
+		// as a sealed entry, only a literal "<digest>.json" name directly
+		// in root is (readSealedEntry, and everything that calls it, only
+		// ever looks there). Returning an error in this branch would
+		// itself be the broken promise: it would tell a caller "not
+		// sealed" about content that unambiguously is.
+		s.root.Remove(tmpName)
 		return nil
 	}
-	removeErr := s.root.Remove(tmpName) // always clean up our own staging file.
+	removeErr := s.root.Remove(tmpName) // always attempt cleanup of our own staging file.
 
 	if !os.IsExist(linkErr) {
 		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.Put: commit (link) failed: %w", linkErr), removeErr)
@@ -188,7 +212,12 @@ func (s *fsCandidateArtifactStore) Put(ctx context.Context, artifact CandidateAr
 		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.Put: digest %q is already occupied by an entry that could not be safely verified: %w", digest, readErr), removeErr)
 	}
 	if string(existing) == string(marshaled) {
-		return joinCleanupErr(nil, removeErr) // identical content -- idempotent no-op.
+		// Already sealed (by this call or an earlier one) with identical
+		// content: an idempotent success, unconditionally, regardless of
+		// whether removing THIS call's own now-useless staging link
+		// succeeded -- see the comment on the Link-success branch above
+		// for why that cannot change this outcome.
+		return nil
 	}
 	return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.Put: an artifact is already sealed under digest %q with different content -- a sealed entry is immutable and is never overwritten", digest), removeErr)
 }
@@ -266,38 +295,60 @@ func (s *fsCandidateArtifactStore) ensureTmpDir() error {
 	return nil
 }
 
-// readSealedEntry reads name (a path directly inside root) as sealed
-// artifact bytes, refusing to follow a symlink or open anything other than
-// a plain regular file. os.Root contains a symlink's target within root,
-// but does not refuse to follow one -- so a digest-named symlink could
-// otherwise alias a different file's content, and a digest-named FIFO
-// would block Open (and any read from it) indefinitely rather than
-// erroring, if this function ever attempted to open one. The identity
-// check after Open closes the remaining inspect-then-open race: if name
-// were replaced between Lstat and Open -- by a symlink, or by a different
-// regular file -- the freshly opened file's identity would not match what
-// Lstat observed, and this refuses it too.
+// readSealedEntry reads name (a single flat filename directly inside root
+// -- both of readSealedEntry's callers only ever pass a digest-derived
+// "<digest>.json" name, never a nested path) as sealed artifact bytes.
+//
+// This deliberately bypasses os.Root for the open itself and opens the
+// real absolute path directly with raw syscall.O_NOFOLLOW|syscall.O_NONBLOCK
+// flags, because os.Root's own OpenFile does not honor O_NOFOLLOW --
+// verified directly: opening a symlink through os.Root with O_NOFOLLOW set
+// in the flag argument still succeeds and follows it, so there is no way
+// to ask os.Root itself for an atomic no-follow open of the final path
+// component. A raw open(2) with these two flags is the POSIX primitive for
+// exactly this, in ONE atomic syscall:
+//
+//   - O_NOFOLLOW makes the kernel refuse a symlink as the final path
+//     component as part of the SAME syscall that opens the file -- there
+//     is no separate inspect-then-open window at all, so a symlink that
+//     replaces name between an earlier check and a later open (which,
+//     under a two-step Lstat-then-Open design, could pass a same-inode
+//     os.SameFile check even though the entry itself is, structurally, a
+//     symlink -- exactly the gap the previous design left open) can never
+//     be followed, regardless of timing.
+//   - O_NONBLOCK makes opening a FIFO return immediately instead of
+//     blocking until a writer opens it, closing the hang this reader must
+//     never expose, again with no separate check-first step that a FIFO
+//     could be swapped in after.
+//
+// After the open, an fstat on the resulting descriptor confirms it is a
+// plain regular file: O_NOFOLLOW alone only excludes symlinks, not
+// directories, FIFOs (opened non-blocking, but still not something this
+// function may return), sockets, or devices.
+//
+// Bypassing os.Root's containment here is safe specifically because name
+// is never attacker-influenced path segments -- it is always exactly a
+// sealedDigestPattern-validated, flat "<digest>.json" filename directly
+// inside root, never nested, never containing "..". This is Linux/POSIX-
+// specific (syscall.O_NOFOLLOW/O_NONBLOCK), consistent with this
+// package's other POSIX-only assumptions (os.Root.Link's hard-link
+// semantics, git subprocess invocation) and this repository's CI, which
+// only runs ubuntu-latest.
 //
 // Returns an error satisfying os.IsNotExist if name does not exist.
 func (s *fsCandidateArtifactStore) readSealedEntry(name string) ([]byte, error) {
-	info, err := s.root.Lstat(name)
+	path := filepath.Join(s.realRoot, name)
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("%q is not a regular file (mode %v)", name, info.Mode())
-	}
-	f, err := s.root.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	openedInfo, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !openedInfo.Mode().IsRegular() || !os.SameFile(info, openedInfo) {
-		return nil, fmt.Errorf("%q was replaced between inspection and open", name)
 	}
 	return io.ReadAll(f)
 }

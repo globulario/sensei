@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -322,6 +323,165 @@ func TestFSCandidateArtifactStorePutJoinsStagingWriteAndCleanupErrors(t *testing
 	}
 	if !strings.Contains(err.Error(), "remove staged content") {
 		t.Errorf("expected the cleanup failure to be joined (not discarded) in the error, got %v", err)
+	}
+}
+
+// TestFSCandidateArtifactStorePutSucceedsDespiteOrphanedStagingEntries is
+// review 4833229539's "unambiguous sealed-versus-failed outcome truth"
+// blocker, tested at the level of the invariant Put's fix actually relies
+// on: an entry left behind in .tmp under a NAME Put would never itself
+// generate for a live seal (simulating what a hypothetical earlier failed
+// staging-cleanup could leave) must never cause Put or Get to behave
+// incorrectly for ANY digest -- proving a leftover ".tmp/*" name is truly
+// inert, which is exactly why Put's Link-success branch is allowed to
+// return nil unconditionally regardless of whether its own cleanup
+// Remove(tmpName) succeeds.
+func TestFSCandidateArtifactStorePutSucceedsDespiteOrphanedStagingEntries(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact := fixtureCandidateArtifact(t)
+
+	// Seal once normally, to create .tmp with its ordinary permissions.
+	if err := store.Put(context.Background(), artifact); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate a leftover staging file an earlier, hypothetical failed
+	// cleanup could have left behind: a hard link to the SAME sealed
+	// content, sitting in .tmp under an arbitrary staging-shaped name.
+	sealedPath := filepath.Join(root, artifact.CandidateArtifactDigestSHA256+".json")
+	orphanPath := filepath.Join(root, ".tmp", artifact.CandidateArtifactDigestSHA256+".orphaned.tmp")
+	if err := os.Link(sealedPath, orphanPath); err != nil {
+		t.Fatal(err)
+	}
+
+	// A fresh Put for the SAME artifact (idempotent no-op path) must still
+	// succeed cleanly with the orphan present.
+	if err := store.Put(context.Background(), artifact); err != nil {
+		t.Errorf("Put failed with an orphaned .tmp entry present: %v", err)
+	}
+	// A Put for a DIFFERENT artifact (fresh-seal path) must also succeed.
+	other := fixtureCandidateArtifactWithContent(t, "unrelated content, unrelated digest\n")
+	if err := store.Put(context.Background(), other); err != nil {
+		t.Errorf("Put of an unrelated artifact failed with an orphaned .tmp entry present: %v", err)
+	}
+	// Get for both digests must still return correct content, unaffected
+	// by the orphan's presence.
+	got, err := store.Get(context.Background(), artifact.CandidateArtifactDigestSHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CandidateArtifactDigestSHA256 != artifact.CandidateArtifactDigestSHA256 {
+		t.Errorf("Get returned wrong digest with an orphan present: %q", got.CandidateArtifactDigestSHA256)
+	}
+	if _, err := os.Stat(orphanPath); err != nil {
+		t.Errorf("orphan entry unexpectedly disappeared: %v", err)
+	}
+}
+
+// TestFSCandidateArtifactStoreReadSealedEntryRejectsSwapUnderConcurrentRace
+// is review 4833229539's "deterministic swap-race" requirement for the
+// no-follow reader: while one goroutine repeatedly seals and re-reads a
+// digest via the real Put/Get API, another continuously swaps that exact
+// path between a valid regular file and a symlink pointing at a DIFFERENT
+// sealed artifact's file (chosen so the swap, if ever followed, would
+// silently return that unrelated artifact's content instead of an error).
+// The atomic O_NOFOLLOW|O_NONBLOCK open collapses "inspect" and "open"
+// into one syscall, so there is no window left for a swap to land in
+// between them -- every single Get across many iterations under continuous
+// concurrent swapping must EITHER return the correct artifact for the
+// requested digest, or fail with ErrCandidateArtifactCorrupted; it must
+// never return the OTHER artifact's content, and it must never hang.
+// Bounded by an overall timeout so a regression fails cleanly.
+func TestFSCandidateArtifactStoreReadSealedEntryRejectsSwapUnderConcurrentRace(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := fixtureCandidateArtifact(t)
+	decoy := fixtureCandidateArtifactWithContent(t, "decoy content from an unrelated sealed artifact\n")
+	if err := store.Put(context.Background(), target); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(context.Background(), decoy); err != nil {
+		t.Fatal(err)
+	}
+
+	targetPath := filepath.Join(root, target.CandidateArtifactDigestSHA256+".json")
+	decoyPath := filepath.Join(root, decoy.CandidateArtifactDigestSHA256+".json")
+	targetBackup := targetPath + ".backup"
+	if err := os.Rename(targetPath, targetBackup); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(targetBackup, targetPath); err != nil {
+		t.Fatal(err)
+	}
+
+	const iterations = 500
+	done := make(chan struct{})
+	swapErrs := make(chan error, 1)
+	go func() {
+		defer close(done)
+		for i := 0; i < iterations; i++ {
+			if err := os.Remove(targetPath); err != nil {
+				swapErrs <- err
+				return
+			}
+			if err := os.Symlink(decoyPath, targetPath); err != nil {
+				swapErrs <- err
+				return
+			}
+			if err := os.Remove(targetPath); err != nil {
+				swapErrs <- err
+				return
+			}
+			if err := os.Link(targetBackup, targetPath); err != nil {
+				swapErrs <- err
+				return
+			}
+		}
+	}()
+
+	readsDone := make(chan error, 1)
+	go func() {
+		for i := 0; i < iterations; i++ {
+			got, err := store.Get(context.Background(), target.CandidateArtifactDigestSHA256)
+			if err != nil {
+				if errors.Is(err, ErrCandidateArtifactCorrupted) || errors.Is(err, ErrCandidateArtifactNotFound) {
+					// The swap landed mid-transition: either the symlink
+					// state (correctly refused) or the brief
+					// removed-but-not-yet-relinked window (correctly
+					// reported as absent). Neither is a leak or a hang.
+					continue
+				}
+				readsDone <- fmt.Errorf("iteration %d: unexpected error: %w", i, err)
+				return
+			}
+			if got.CandidateArtifactDigestSHA256 != target.CandidateArtifactDigestSHA256 {
+				readsDone <- fmt.Errorf("iteration %d: Get(target) returned digest %q -- the decoy's content leaked through a followed symlink", i, got.CandidateArtifactDigestSHA256)
+				return
+			}
+		}
+		readsDone <- nil
+	}()
+
+	select {
+	case err := <-readsDone:
+		<-done
+		select {
+		case swapErr := <-swapErrs:
+			t.Fatalf("swap goroutine failed: %v", swapErr)
+		default:
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("did not complete within 20s -- likely hung opening a swapped entry")
 	}
 }
 
@@ -685,5 +845,52 @@ func TestFSCandidateArtifactStoreSurvivesAfterBufferCleanup(t *testing.T) {
 	}
 	if len(got.Manifest) != 1 || string(got.Manifest[0].Content) != "candidate content" {
 		t.Errorf("Get after cleanup returned unexpected content: %+v", got.Manifest)
+	}
+}
+
+// TestFSCandidateArtifactStoreGetRejectsSymlinkToSameInodeAlias is the
+// precise, non-racy reproduction of review 4833229539's second point: "a
+// symlink targeting the same inode can pass the later SameFile check." A
+// symlink whose target is ITSELF a hard link to the exact same inode the
+// original regular file had would fool a post-open os.SameFile comparison
+// -- same device, same inode -- even though what sits at the digest name
+// is, structurally, a symlink, not a regular file. This needs no race or
+// timing at all: the swapped state is simply set up before Get is called.
+// O_NOFOLLOW rejects it unconditionally, independent of what its target
+// ultimately resolves to.
+func TestFSCandidateArtifactStoreGetRejectsSymlinkToSameInodeAlias(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact := fixtureCandidateArtifact(t)
+	if err := store.Put(context.Background(), artifact); err != nil {
+		t.Fatal(err)
+	}
+
+	sealedPath := filepath.Join(root, artifact.CandidateArtifactDigestSHA256+".json")
+	aliasPath := filepath.Join(root, "alias-same-inode.json")
+	if err := os.Link(sealedPath, aliasPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(sealedPath); err != nil {
+		t.Fatal(err)
+	}
+	// A relative target -- what os.Root actually permits (it rejects an
+	// absolute symlink target outright as escaping the root, which would
+	// make this reproduction pass for the wrong reason: os.Root's own
+	// absolute-path containment, not the regular-file-only guard this test
+	// exists to prove).
+	if err := os.Symlink("alias-same-inode.json", sealedPath); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = store.Get(context.Background(), artifact.CandidateArtifactDigestSHA256)
+	if err == nil {
+		t.Fatal("expected Get to reject a symlink whose target shares the sealed content's own inode")
+	}
+	if !errors.Is(err, ErrCandidateArtifactCorrupted) {
+		t.Errorf("expected errors.Is(err, ErrCandidateArtifactCorrupted), got %v", err)
 	}
 }
