@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/evaluatorcomposition-evaluationreceipt-v1.json",
+  "title": "Sensei Governed Evaluator Composition Evaluation Receipt V1",
+  "description": "O4's own closed evidence document binding the entire evaluation composition without replacing O1's synthesis.Evaluation or terminal synthesis.Receipt. Records exactly how far one evaluation composition progressed via a closed, six-value disposition, referencing the generation handoff, policy, evaluator results, and O1's own terminal-receipt digest without altering any of them.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/evaluatorcomposition. Per docs/design/governed-evaluator-composition-o4.md's disposition/evidence-presence matrix and hard law 21 (no disposition without an O1-recorded consequence): session_digest_sha256, attempt_digest_sha256, runner_receipt_digest_sha256, request_digest_sha256, result_digest_sha256, o2_receipt_digest_sha256, policy_digest_sha256, candidate_artifact_digest_sha256, and disposition are present on every disposition (laws 1-9 validate before the first Transition call). The remaining fields' presence is exactly this matrix, encoded below as allOf conditionals -- see the design doc's two disposition tables for the authoritative source this schema mirrors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "session_digest_sha256",
+    "attempt_digest_sha256",
+    "runner_receipt_digest_sha256",
+    "request_digest_sha256",
+    "result_digest_sha256",
+    "o2_receipt_digest_sha256",
+    "policy_digest_sha256",
+    "candidate_artifact_digest_sha256",
+    "candidate_artifact_verified",
+    "evaluator_result_bindings",
+    "evaluation_digest_sha256",
+    "o1_terminal_receipt_digest_sha256",
+    "disposition",
+    "failure_detail",
+    "cleanup_succeeded",
+    "cleanup_failure_detail",
+    "completed_at",
+    "receipt_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.evaluatorcomposition.evaluationreceipt.v1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "attempt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "runner_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "request_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "result_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "o2_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "policy_digest_sha256": {
+      "$comment": "Always present -- policy validates as a precondition alongside generation-handoff validation, before the first Transition call (law 9), so its digest is never conditional on how far past that call O4 gets.",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "candidate_artifact_digest_sha256": {
+      "$comment": "Always present as a reference from the O3 receipt; candidate_artifact_verified states whether it was additionally loaded and cross-bound.",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "candidate_artifact_verified": { "type": "boolean" },
+    "evaluator_result_bindings": {
+      "$comment": "Must be sorted in strictly ascending evaluator_id order with no duplicate evaluator_id (enforced in Go, not schema-expressible over a variable-length array) -- see ValidateEvaluationReceipt. Must be empty for invalid-output-terminated and candidate-load-failure (no evaluator surface was ever constructed); may be any length, including empty, for every other disposition.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/evaluatorResultBinding" }
+    },
+    "evaluation_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "o1_terminal_receipt_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "disposition": { "$ref": "#/$defs/disposition" },
+    "failure_detail": {
+      "$comment": "Required non-empty exactly when disposition is not evaluated; empty when evaluated.",
+      "type": "string"
+    },
+    "cleanup_succeeded": {
+      "$comment": "Nil for invalid-output-terminated and candidate-load-failure (no evaluator surface was ever constructed); a non-nil boolean for every other disposition.",
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "cleanup_failure_detail": {
+      "$comment": "Required non-empty exactly when cleanup_succeeded is false; empty when cleanup_succeeded is null or true.",
+      "type": "string"
+    },
+    "completed_at": {
+      "$comment": "Observation timestamp, explicitly excluded from receipt_digest_sha256 so receipt identity does not depend on wall-clock time.",
+      "type": "string",
+      "minLength": 1
+    },
+    "receipt_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "invalid-output-terminated, candidate-load-failure: no evaluator surface was ever constructed.",
+      "if": {
+        "properties": {
+          "disposition": { "enum": ["invalid-output-terminated", "candidate-load-failure"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "candidate_artifact_verified": { "const": false },
+          "evaluator_result_bindings": { "maxItems": 0 },
+          "evaluation_digest_sha256": { "type": "null" },
+          "o1_terminal_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "cleanup_succeeded": { "type": "null" }
+        }
+      }
+    },
+    {
+      "$comment": "materialization-failure, required-evaluator-unavailable, composition-failure: the candidate was loaded and at least one evaluator surface was constructed; composition never reached a valid Evaluation.",
+      "if": {
+        "properties": {
+          "disposition": { "enum": ["materialization-failure", "required-evaluator-unavailable", "composition-failure"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "candidate_artifact_verified": { "const": true },
+          "evaluation_digest_sha256": { "type": "null" },
+          "o1_terminal_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "cleanup_succeeded": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "$comment": "evaluated: a valid O1 Evaluation was composed. o1_terminal_receipt_digest_sha256 is deliberately NOT constrained here -- it is present only when the resulting O1 phase is terminal (PhaseSucceeded/PhaseFailed) and absent when RecordEvaluationCommand hands the session to PhaseRetry/PhaseReplan; that is a runtime fact this schema cannot decide from the receipt's own fields alone.",
+      "if": { "properties": { "disposition": { "const": "evaluated" } } },
+      "then": {
+        "properties": {
+          "candidate_artifact_verified": { "const": true },
+          "evaluation_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "cleanup_succeeded": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "evaluated" } } },
+      "then": { "properties": { "failure_detail": { "const": "" } } },
+      "else": { "properties": { "failure_detail": { "minLength": 1 } } }
+    },
+    {
+      "if": { "properties": { "cleanup_succeeded": { "const": false } } },
+      "then": { "properties": { "cleanup_failure_detail": { "minLength": 1 } } },
+      "else": { "properties": { "cleanup_failure_detail": { "const": "" } } }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "optionalSha256Hex": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "invalid-output-terminated",
+        "candidate-load-failure",
+        "materialization-failure",
+        "required-evaluator-unavailable",
+        "composition-failure",
+        "evaluated"
+      ]
+    },
+    "evaluatorResultBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluator_id", "descriptor_digest_sha256", "result_digest_sha256"],
+      "properties": {
+        "evaluator_id": { "type": "string", "minLength": 1 },
+        "descriptor_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "result_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+      }
+    }
+  }
+}

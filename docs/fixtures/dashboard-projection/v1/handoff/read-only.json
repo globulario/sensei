@@ -1,0 +1,36 @@
+{
+  "schema_version": "sensei.dashboard.agent-handoff.v1",
+  "repository": {
+    "key": "github.com/globulario/sensei",
+    "display_name": "sensei"
+  },
+  "revision": {
+    "id": "0000000000000000000000000000000000fix1"
+  },
+  "graph_authority": {
+    "observed": "yes",
+    "current": "yes",
+    "identity": null,
+    "summary": "fixture"
+  },
+  "selected_element": {
+    "id": "component.awareness_graph_service",
+    "kind": "component"
+  },
+  "lens": "structure",
+  "visible_concern": {
+    "route": "/element/component.awareness_graph_service",
+    "summary": "Focus on AwarenessGraphService"
+  },
+  "referenced_ids": {
+    "contract_refs": [
+      "contract.awareness_graph.query"
+    ]
+  },
+  "active_context": null,
+  "requested_intent": "explain",
+  "observation_limitations": [
+    "architecture_health is not yet evaluated by this producer"
+  ],
+  "capability": "read_only"
+}

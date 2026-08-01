@@ -1,0 +1,28 @@
+{
+  "schema_version": "sensei.workspace.identity.v1",
+  "generated_by": "sensei workspacecontract",
+  "composition_state": "unavailable",
+  "binding": {
+    "repository_domain": "",
+    "revision": null,
+    "revision_status": "not_requested",
+    "tree_digest_sha256": null,
+    "graph_digest_sha256": null,
+    "graph_digest_status": "not_requested"
+  },
+  "repository_domain_source": "unbound",
+  "graph_authority": null,
+  "coverage_state": "COVERAGE_STATE_UNSPECIFIED",
+  "task_identity": {
+    "state": "not_requested",
+    "task_id": null
+  },
+  "limitations": [
+    {
+      "source": "golang/architecture/repodomain",
+      "scope": "repository_domain",
+      "reason": "no repository.domain is configured in .sensei/config.yaml for this checkout",
+      "blocking": true
+    }
+  ]
+}

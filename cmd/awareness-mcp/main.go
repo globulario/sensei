@@ -20,6 +20,17 @@
 // graph). advance_task is the only task-state write: it is task-locked,
 // static-read-only, bounded, and atomically receipted.
 //
+// sensei_workspace_status/sensei_workspace_admit_change/
+// sensei_workspace_verify_admission (workspace_tools.go) are canonical
+// producers of the closed, versioned sensei.workspace.identity.v1 and
+// sensei.workspace.admission.v1 external contracts
+// (docs/design/workspace-identity-admission-contracts.md). They compose or
+// project the exact same owners the tools above already call (Metadata,
+// admit_change/verify_admission's admission.Evaluate/admission.Verify, the
+// local task-session owner, and this checkout's configured
+// .sensei/config.yaml repository.domain) — they add no new admission
+// semantics and never mutate admit_change/verify_admission's own output.
+//
 // Responses carry BOTH a compact human `text` block (one-line authority) and a
 // machine-parseable `structuredContent` object, so any agent parses JSON
 // instead of regexing prose.
@@ -328,6 +339,49 @@ func (b *bridge) tools() []tool {
 					"detail":        map[string]interface{}{"type": "string", "enum": []string{"compact", "full"}},
 				},
 				"required": []string{"decision_path", "bundle_dir", "repo"},
+			},
+		},
+		{
+			Name:        "sensei_workspace_status",
+			Description: "Canonical sensei.workspace.identity.v1 receipt: configured checkout identity, revision/tree binding, graph authority, coverage, and optional task identity. Evidence, not permission — never mutation admission or a merge recommendation. repository domain comes only from this checkout's configured .sensei/config.yaml; no domain override is accepted.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"repo": map[string]interface{}{"type": "string"},
+					"task": map[string]interface{}{"type": "string", "description": "optional; resolves task_identity through the existing task-session owner (\"\" means the active task, matching task_status/task_briefing). Omit entirely for task_identity.state=not_requested."},
+				},
+				"required":             []string{"repo"},
+				"additionalProperties": false,
+			},
+		},
+		{
+			Name:        "sensei_workspace_admit_change",
+			Description: "Canonical sensei.workspace.admission.v1 decision record: delegates exactly once to the existing admit_change admission owner and projects the result into the closed external contract. Does not redefine admission; does not change admit_change's own output.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"bundle_dir":   map[string]interface{}{"type": "string"},
+					"request_path": map[string]interface{}{"type": "string"},
+					"graph_nt":     map[string]interface{}{"type": "string"},
+					"repo":         map[string]interface{}{"type": "string"},
+					"policy":       map[string]interface{}{"type": "string"},
+				},
+				"required":             []string{"bundle_dir", "request_path", "graph_nt", "repo"},
+				"additionalProperties": false,
+			},
+		},
+		{
+			Name:        "sensei_workspace_verify_admission",
+			Description: "Canonical sensei.workspace.admission.v1 verification record: loads the exact referenced decision artifact, delegates exactly once to the existing verify_admission verification owner, and projects both together. Scope compliance is not correctness certification.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"decision_path": map[string]interface{}{"type": "string"},
+					"bundle_dir":    map[string]interface{}{"type": "string"},
+					"repo":          map[string]interface{}{"type": "string"},
+				},
+				"required":             []string{"decision_path", "bundle_dir", "repo"},
+				"additionalProperties": false,
 			},
 		},
 		{
@@ -657,6 +711,15 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 			return nil, err
 		}
 		return &toolResult{Text: admission.RenderVerificationText(verification), Structured: structAdmissionVerification(verification)}, nil
+
+	case "sensei_workspace_status":
+		return b.callWorkspaceStatus(ctx, args)
+
+	case "sensei_workspace_admit_change":
+		return b.callWorkspaceAdmitChange(args)
+
+	case "sensei_workspace_verify_admission":
+		return b.callWorkspaceVerifyAdmission(args)
 
 	case "complete_task":
 		// Reject unknown properties at runtime, not by schema alone: a schema declaration

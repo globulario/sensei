@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/evaluatorcomposition-evaluatordescriptor-v1.json",
+  "title": "Sensei Governed Evaluator Composition Evaluator Descriptor V1",
+  "description": "One evaluator's closed, self-describing identity: stable ID, kind, version, supported check IDs or classes, a deterministic/nondeterministic declaration, required runtime capabilities, and known limitations. Evaluator kind is data, not interface shape -- every evaluator, mechanical or Sensei-owned or external, describes itself through this one document.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/evaluatorcomposition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluator_id",
+    "evaluator_kind",
+    "evaluator_version",
+    "supported_check_ids",
+    "deterministic",
+    "required_capabilities",
+    "limitations",
+    "descriptor_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.evaluatorcomposition.evaluatordescriptor.v1" },
+    "evaluator_id": { "type": "string", "minLength": 1 },
+    "evaluator_kind": { "type": "string", "minLength": 1 },
+    "evaluator_version": { "type": "string", "minLength": 1 },
+    "supported_check_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "deterministic": { "type": "boolean" },
+    "required_capabilities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    },
+    "descriptor_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}

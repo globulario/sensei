@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
 	yaml "gopkg.in/yaml.v3"
 )
@@ -332,6 +333,203 @@ type bootstrapCodeSymbol struct {
 
 type bootstrapCodeSymbolsDoc struct {
 	CodeSymbols []bootstrapCodeSymbol `yaml:"code_symbols"`
+}
+
+// goLibraryAPICandidate is a review-only description of a Go package's public
+// surface. It deliberately does not use the governed Contract schema: an
+// exported Go declaration is evidence of a library API, not an assertion about
+// application behaviour.
+type goLibraryAPICandidate struct {
+	ID              string   `yaml:"id"`
+	Name            string   `yaml:"name"`
+	Kind            string   `yaml:"kind"`
+	Status          string   `yaml:"status"`
+	Assertion       string   `yaml:"assertion"`
+	Description     string   `yaml:"description"`
+	Package         string   `yaml:"package"`
+	PublicSymbols   []string `yaml:"public_symbols"`
+	ExtensionPoints []string `yaml:"extension_points,omitempty"`
+	SourceFiles     []string `yaml:"source_files"`
+}
+
+type goLibraryAPICandidateDoc struct {
+	LibraryAPIs []goLibraryAPICandidate `yaml:"library_apis"`
+}
+
+type goLibraryAPIContract struct {
+	ID          string   `yaml:"id"`
+	Name        string   `yaml:"name"`
+	Description string   `yaml:"description"`
+	Kind        string   `yaml:"kind"`
+	Status      string   `yaml:"status"`
+	Assertion   string   `yaml:"assertion"`
+	SourceFiles []string `yaml:"source_files"`
+}
+
+type goLibraryAPIContractDoc struct {
+	Contracts []goLibraryAPIContract `yaml:"contracts"`
+}
+
+func goLibraryAPIContracts(apis []goLibraryAPICandidate) []goLibraryAPIContract {
+	out := make([]goLibraryAPIContract, 0, len(apis))
+	for _, api := range apis {
+		out = append(out, goLibraryAPIContract{
+			ID:          "contract." + api.ID,
+			Name:        api.Name,
+			Description: "Candidate Go library API contract inferred from exported declarations; review required before it can govern behavior.",
+			Kind:        "go_library_api",
+			Status:      "candidate",
+			Assertion:   "inferred",
+			SourceFiles: api.SourceFiles,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// goLibraryAPIBoundaryCandidates makes the observed package surface visible to
+// graph consumers without promoting it to a Contract. The detailed declaration
+// inventory remains in the review-only library API candidate document.
+func goLibraryAPIBoundaryCandidates(apis []goLibraryAPICandidate) []boundaryCandidate {
+	out := make([]boundaryCandidate, 0, len(apis))
+	for _, api := range apis {
+		out = append(out, boundaryCandidate{
+			ID:          "boundary." + api.ID,
+			Name:        api.Name + " boundary",
+			Kind:        "library_api",
+			Status:      "candidate",
+			Assertion:   "inferred",
+			Description: "Candidate Go library API boundary inferred from exported declarations; it is structural evidence, not a governed application contract.",
+			SourceFiles: api.SourceFiles,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// extractGoLibraryAPICandidates identifies externally importable Go packages
+// with exported declarations. An exported interface becomes an extension-point
+// candidate only when the semantic extractor has proven a local implementation.
+// internal/ packages are intentionally omitted: their visibility boundary is
+// already emitted separately and they are not public library API.
+func extractGoLibraryAPICandidates(root string, facts []architecture.Fact) ([]goLibraryAPICandidate, error) {
+	implemented := map[string]bool{}
+	for _, fact := range facts {
+		if fact.Predicate == "implements_interface" {
+			implemented[fact.Object] = true
+		}
+	}
+	type packageSurface struct {
+		name       string
+		files      []string
+		symbols    []string
+		interfaces []string
+	}
+	surfaces := map[string]*packageSurface{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			if path != root && (bootstrapExcludedDir(entry.Name()) || strings.HasPrefix(entry.Name(), ".")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || isTestFile(entry.Name()) || !isSourceFile(entry.Name()) {
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil || isUnderInternal(rel) {
+			return nil
+		}
+		file, parseErr := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
+		if parseErr != nil || file.Name.Name == "main" {
+			return nil
+		}
+		dir := filepath.ToSlash(filepath.Dir(rel))
+		if dir == "." {
+			dir = "root"
+		}
+		surface := surfaces[dir]
+		if surface == nil {
+			surface = &packageSurface{name: file.Name.Name}
+			surfaces[dir] = surface
+		}
+		surface.files = append(surface.files, filepath.ToSlash(rel))
+		for _, decl := range file.Decls {
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				if ast.IsExported(decl.Name.Name) {
+					symbol := file.Name.Name + "." + decl.Name.Name
+					if decl.Recv != nil && len(decl.Recv.List) > 0 {
+						if receiver := goReceiverName(decl.Recv.List[0].Type); receiver != "" {
+							symbol = file.Name.Name + "." + receiver + "." + decl.Name.Name
+						}
+					}
+					surface.symbols = append(surface.symbols, symbol)
+				}
+			case *ast.GenDecl:
+				for _, spec := range decl.Specs {
+					switch spec := spec.(type) {
+					case *ast.TypeSpec:
+						if ast.IsExported(spec.Name.Name) {
+							symbol := file.Name.Name + "." + spec.Name.Name
+							surface.symbols = append(surface.symbols, symbol)
+							if _, ok := spec.Type.(*ast.InterfaceType); ok && implemented[symbol] {
+								surface.interfaces = append(surface.interfaces, symbol)
+							}
+						}
+					case *ast.ValueSpec:
+						for _, ident := range spec.Names {
+							if ast.IsExported(ident.Name) {
+								surface.symbols = append(surface.symbols, file.Name.Name+"."+ident.Name)
+							}
+						}
+					}
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []goLibraryAPICandidate
+	for dir, surface := range surfaces {
+		symbols := dedupSorted(surface.symbols)
+		if len(symbols) == 0 {
+			continue
+		}
+		extensions := dedupSorted(surface.interfaces)
+		name := surface.name
+		if dir != "root" {
+			name += " (" + dir + ")"
+		}
+		out = append(out, goLibraryAPICandidate{
+			ID:              "library_api." + dotSlug(dir),
+			Name:            name + " public API",
+			Kind:            "go_library_api",
+			Status:          "candidate",
+			Assertion:       "inferred",
+			Description:     "Exported Go declarations form this package's externally importable library API boundary.",
+			Package:         surface.name,
+			PublicSymbols:   symbols,
+			ExtensionPoints: extensions,
+			SourceFiles:     dedupSorted(surface.files),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+func isUnderInternal(path string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+		if part == "internal" {
+			return true
+		}
+	}
+	return false
 }
 
 func extractGoCodeSymbols(root string, components []bootstrapComponent) ([]bootstrapCodeSymbol, error) {

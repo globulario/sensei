@@ -1,0 +1,30 @@
+invariants:
+  - id: awareness.graph_publication_stages_rdf_before_atomic_promotion
+    title: Graph publication stages RDF before atomic promotion
+    severity: critical
+    status: active
+    description: >
+      Repository files are the durable governed source and Oxigraph is a compiled
+      serving projection. A scoped refresh must derive and validate the complete
+      candidate generation before touching the active default graph, load RDF bytes
+      through Graph Store Protocol into an isolated named graph, promote with one
+      control-only transaction, and independently verify the live whole-generation
+      marker before publishing completion receipts. Raw N-Triples must never be
+      concatenated into SPARQL update text.
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+        - golang/store/oxigraph/oxigraph.go
+    related_failure_modes:
+      - awareness.graph_publication_embeds_rdf_or_exposes_partial_generation
+    required_tests:
+      - cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_NonDestructive
+      - cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_StageFailurePreservesLiveGraph
+      - cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_PromotionFailurePreservesLiveGraphAndCleansStage
+      - cmd/awg/cmd_build_test.go:TestRunBuild_ScopedRepoUpdate_AmbiguousResponseResolvedByLiveMarker
+      - cmd/awg/cmd_build_integration_test.go:TestIntegration_ScopedRepoPublication_RealOxigraph
+    contract: >
+      Build and validate the complete candidate first; stage RDF through the RDF
+      protocol; promote only control operations transactionally; preserve the prior
+      active generation on staging or rejected-promotion failure; resolve ambiguous
+      outcomes from the live marker; report success only after exact verification.

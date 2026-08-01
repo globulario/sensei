@@ -1,0 +1,100 @@
+{
+  "schema_version": "sensei.dashboard.projection.v1",
+  "identity": {
+    "projection_id": "projection.fixture",
+    "repository": {
+      "key": "github.com/globulario/sensei",
+      "display_name": "sensei"
+    },
+    "revision": {
+      "id": "0000000000000000000000000000000000fix1"
+    },
+    "graph_authority": {
+      "observed": "unknown",
+      "current": "unknown",
+      "identity": null,
+      "summary": "fixture"
+    },
+    "generated_at": "2026-07-23T00:00:00Z"
+  },
+  "availability": {
+    "state": "unavailable",
+    "summary": "the awareness corpus failed to compile; no architecture is claimed for this revision",
+    "limitations": [
+      "docs/awareness/architecture/components.yaml failed to parse"
+    ],
+    "sources": [
+      {
+        "owner": "docs/awareness/architecture",
+        "availability": "unavailable",
+        "summary": "corpus did not compile"
+      }
+    ]
+  },
+  "assessments": {
+    "architecture_health": {
+      "state": "unknown",
+      "label": "Architecture health",
+      "summary": "unavailable",
+      "severity": "not_applicable",
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    "projection_integrity": {
+      "state": "unknown",
+      "label": "Projection integrity",
+      "summary": "unavailable",
+      "severity": "not_applicable",
+      "provenance": {
+        "evidence_refs": []
+      }
+    },
+    "observation_completeness": {
+      "state": "unknown",
+      "label": "Observation completeness",
+      "summary": "unavailable",
+      "severity": "not_applicable",
+      "coverage": {
+        "observed": null,
+        "total": null,
+        "unit": "authored architectural elements"
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  },
+  "active_context": null,
+  "briefing": [
+    {
+      "id": "briefing.orientation",
+      "kind": "orientation",
+      "text": "This revision's architecture is unavailable: the awareness corpus did not compile. No architectural claim is made.",
+      "severity": "high",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "regions": [],
+  "components": [],
+  "boundaries": [],
+  "contracts": [],
+  "flows": [],
+  "attention": [],
+  "evolution": {
+    "availability": "unavailable",
+    "base_revision": null,
+    "head_revision": "0000000000000000000000000000000000fix2",
+    "changes": []
+  },
+  "focus_records": [],
+  "capabilities": {
+    "live_refresh": false,
+    "revision_compare": false,
+    "agent_handoff": "none",
+    "source_deep_links": false
+  }
+}

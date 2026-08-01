@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/workspace-admission-v1.json",
+  "title": "Sensei Workspace Admission V1",
+  "description": "A closed, versioned external projection of Sensei's existing local admission.Decision and admission.Verification owners. Does not redefine admission: permission to attempt is not correctness, and scope compliance is not correctness certification.",
+  "$comment": "Canonical producer/owner: globulario/sensei. This projects admission.Decision (record_kind=decision) and admission.Verification (record_kind=verification) verbatim; it invents no new outcome, reason, or correctness vocabulary. A consumer must pin an exact accepted Sensei commit and this file's sha256 digest, and must reject any document whose schema_version it does not exactly recognize. A decision record always carries verification: null; a verification record always carries a non-null verification bound to the exact admission_id/decision_digest_sha256/binding of the decision it verifies — a verification record is never free-floating. correctness_certified is never inferred by this projection from admission, tests, CI, or scope compliance: it is whatever the existing admission.Decision/admission.Verification owner already reported, verbatim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "admission_id",
+    "decision_digest_sha256",
+    "policy_id",
+    "policy_version",
+    "decision",
+    "requested_mode",
+    "binding",
+    "session_receipt",
+    "request_receipt",
+    "inspection_capability",
+    "mutation_capability",
+    "envelope",
+    "reasons",
+    "limitations",
+    "scope_only",
+    "correctness_certified",
+    "verification"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.workspace.admission.v1" },
+    "record_kind": { "enum": ["decision", "verification"] },
+    "admission_id": { "type": "string", "minLength": 1 },
+    "decision_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "policy_id": { "type": "string", "minLength": 1 },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "decision": { "$ref": "#/$defs/decisionOutcome" },
+    "requested_mode": { "enum": ["inspect", "modify"] },
+    "binding": { "$ref": "#/$defs/binding" },
+    "session_receipt": { "$ref": "#/$defs/sessionReceipt" },
+    "request_receipt": { "$ref": "#/$defs/requestReceipt" },
+    "inspection_capability": { "$ref": "#/$defs/decisionOutcome" },
+    "mutation_capability": { "$ref": "#/$defs/decisionOutcome" },
+    "envelope": { "$ref": "#/$defs/envelope" },
+    "reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reason" }
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    },
+    "scope_only": { "type": "boolean" },
+    "correctness_certified": { "type": "boolean" },
+    "verification": {
+      "oneOf": [
+        { "$ref": "#/$defs/verification" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "record_kind": { "const": "decision" } } },
+      "then": { "properties": { "verification": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "record_kind": { "const": "verification" } } },
+      "then": { "properties": { "verification": { "$ref": "#/$defs/verification" } } }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decisionOutcome": {
+      "enum": ["admitted", "admitted_with_conditions", "waiting", "refused", "uncertifiable"]
+    },
+    "binding": {
+      "$comment": "Identical shape to sensei.workspace.identity.v1's binding $defs/binding — both project the exact same architecture.ClaimDocumentBinding. Duplicated here (not $ref'd cross-file) because this schema must remain independently valid and pinnable without requiring the identity schema to also be fetched.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_domain", "revision", "revision_status", "tree_digest_sha256", "graph_digest_sha256", "graph_digest_status"],
+      "properties": {
+        "repository_domain": { "type": "string" },
+        "revision": {
+          "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+        },
+        "revision_status": { "enum": ["resolved", "unavailable", "not_git", "not_requested"] },
+        "tree_digest_sha256": {
+          "oneOf": [{ "$ref": "#/$defs/sha256Hex" }, { "type": "null" }]
+        },
+        "graph_digest_sha256": {
+          "oneOf": [{ "$ref": "#/$defs/sha256Hex" }, { "type": "null" }]
+        },
+        "graph_digest_status": { "enum": ["resolved", "unavailable", "not_requested"] }
+      }
+    },
+    "sessionReceipt": {
+      "$comment": "Mirrors admission.SessionReceipt verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "latest_iteration", "iteration_digest_sha256", "semantic_state_digest_sha256", "status", "closure_verdict"],
+      "properties": {
+        "session_id": { "type": "string", "minLength": 1 },
+        "latest_iteration": { "type": "integer", "minimum": 0 },
+        "iteration_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "semantic_state_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "status": { "type": "string", "minLength": 1 },
+        "closure_verdict": { "type": "string", "minLength": 1 }
+      }
+    },
+    "fileOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "operation"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "operation": { "enum": ["read", "modify"] }
+      }
+    },
+    "changeScope": {
+      "$comment": "Mirrors admission.ChangeScope verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "symbols", "components", "claim_ids", "proposition_keys"],
+      "properties": {
+        "files": { "type": "array", "items": { "$ref": "#/$defs/fileOperation" } },
+        "symbols": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "components": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "claim_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "proposition_keys": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "requestReceipt": {
+      "$comment": "Mirrors admission.RequestReceipt verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_sha256", "scope", "mode", "task_class"],
+      "properties": {
+        "digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "scope": { "$ref": "#/$defs/changeScope" },
+        "mode": { "enum": ["inspect", "modify"] },
+        "task_class": { "type": "string", "minLength": 1 }
+      }
+    },
+    "envelope": {
+      "$comment": "Mirrors admission.ChangeEnvelope verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_paths", "modify_paths", "symbols", "components", "claim_ids", "proposition_keys", "unsupported_operations"],
+      "properties": {
+        "read_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "modify_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "symbols": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "components": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "claim_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "proposition_keys": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "unsupported_operations": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "reason": {
+      "$comment": "Mirrors admission.Reason verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "detail": { "type": "string" }
+      }
+    },
+    "limitation": {
+      "$comment": "Mirrors architecture.Limitation verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    },
+    "changeReceipt": {
+      "$comment": "Mirrors admission.ChangeReceipt verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "change_type"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "old_path": { "type": "string" },
+        "change_type": {
+          "enum": ["modified", "added", "deleted", "renamed", "copied", "type_changed", "unmerged", "untracked"]
+        },
+        "current_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "current_size": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "violation": {
+      "$comment": "Mirrors admission.Violation verbatim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "path": { "type": "string" },
+        "observed_operation": { "type": "string" },
+        "expected_operation": { "type": "string" },
+        "detail": { "type": "string" }
+      }
+    },
+    "verification": {
+      "$comment": "verification_digest_sha256 is this record's own content digest; decision_digest_sha256 (at the record's top level) is the digest of the DECISION this verification is bound to — the two must never be confused. pending_condition_ids/pending_test_ids/pending_proof_obligation_ids/pending_runtime_evidence_ids are id-only projections of admission.Verification's PendingConditions/PendingTests/PendingProofObligations/PendingRuntimeEvidence — the external contract carries stable identity, not the full internal guidance objects.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "verification_digest_sha256",
+        "iteration_digest_sha256",
+        "patch_digest_sha256",
+        "changes",
+        "violations",
+        "pending_condition_ids",
+        "pending_test_ids",
+        "pending_proof_obligation_ids",
+        "pending_runtime_evidence_ids",
+        "reasons",
+        "limitations",
+        "scope_only",
+        "correctness_certified"
+      ],
+      "properties": {
+        "status": { "enum": ["scope_compliant", "scope_violated", "stale", "uncertifiable"] },
+        "verification_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "iteration_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "patch_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+        "changes": { "type": "array", "items": { "$ref": "#/$defs/changeReceipt" } },
+        "violations": { "type": "array", "items": { "$ref": "#/$defs/violation" } },
+        "pending_condition_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "pending_test_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "pending_proof_obligation_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "pending_runtime_evidence_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "reasons": { "type": "array", "items": { "$ref": "#/$defs/reason" } },
+        "limitations": { "type": "array", "items": { "$ref": "#/$defs/limitation" } },
+        "scope_only": { "type": "boolean" },
+        "correctness_certified": { "type": "boolean" }
+      }
+    }
+  }
+}

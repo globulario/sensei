@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesis-session-v1.json",
+  "title": "Sensei Governed Synthesis Session V1",
+  "description": "The O1 canonical session document: a bounded, deterministic orchestration record binding a provider-independent session to exact repository, workspace-identity, graph-authority, task-session, and architectural-closure identity, plus a precommitted retry/replan budget. It coordinates work; it does not replace closure, admission, verification, completion, or promotion, and it carries no admission or verification identity of its own (that is recorded on the terminal Receipt, once produced).",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/synthesis. schema_version is a const, not a range: any field addition, removal, rename, or semantic change requires a new schema identifier. Every identity binding below is a reference (a plain value or an exact digest) to an existing typed owner elsewhere in Sensei — workspace_identity_digest_sha256 to workspacecontract.Identity, graph_authority_digest_sha256 to workspace/graph authority, task_session_digest_sha256 to tasksession.Session.SessionDigestSHA256, closure_digest_sha256 to the architectural closure/briefing artifact, proof_obligation_digests to closureprotocol.ProofDischarge records. This package never recreates or re-derives those owners' facts; it only composes their exact digests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "generated_by",
+    "repository_domain",
+    "base_revision",
+    "workspace_identity_digest_sha256",
+    "graph_authority_digest_sha256",
+    "task_session_digest_sha256",
+    "closure_digest_sha256",
+    "proof_obligation_digests",
+    "objective",
+    "retry_budget",
+    "replan_budget",
+    "created_at",
+    "session_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesis.session.v1" },
+    "session_id": { "type": "string", "minLength": 1 },
+    "generated_by": { "type": "string", "minLength": 1 },
+    "repository_domain": { "type": "string", "minLength": 1 },
+    "base_revision": { "type": "string", "minLength": 1 },
+    "workspace_identity_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "graph_authority_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "task_session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "closure_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "proof_obligation_digests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sha256Hex" }
+    },
+    "objective": { "type": "string", "minLength": 1 },
+    "retry_budget": {
+      "$comment": "Precommitted at session creation. Immutable for the life of the session; the (Step 2) transition engine enforces monotonic non-increase, never enlargement.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "replan_budget": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "created_at": {
+      "$comment": "RFC 3339 timestamp. An observation field: included here for bookkeeping, but session identity/equality for resumption purposes is carried by the digest fields above, not by this timestamp.",
+      "type": "string",
+      "minLength": 1
+    },
+    "session_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing (closureprotocol.SemanticDigest convention).",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

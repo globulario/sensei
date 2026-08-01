@@ -1246,3 +1246,45 @@ failure_modes:
     related_invariants:
       - controlstate.proto_evolution_must_be_additive
     evidence: Phase 9.5 Checkpoint 2 additions use new field numbers only; field 7 is pinned by compatibility tests.
+  - id: failure.briefing_session_marker_bound_only_to_file_path_not_domain
+    title: Briefing session marker bound only to file path, not domain
+    description: record-briefing.sh and enforce-briefing.sh hashed only the resolved absolute file path to gate protected edits. A briefing obtained against one loaded domain could therefore authorize an edit evaluated under a different domain in the same checkout, since the marker carried no domain identity at all.
+    protects:
+      files:
+        - .claude/hooks/record-briefing.sh
+        - .claude/hooks/enforce-briefing.sh
+    evidence:
+      - 'cmd/awg/hook_lifecycle_integration_test.go step 4: a briefing recorded with domain=github.com/somebody-else/renamed-repo still authorized an edit before the fix'
+    contract: 'docs/design/checkout-repository-domain-binding.md §3: briefing markers must bind hash(repository root + repository domain + file path)'
+  - id: failure.projectverification_composed_a_verification_record_without_c
+    title: ProjectVerification composed a verification record without checking it referenced the same decision
+    protects:
+      files:
+        - golang/architecture/workspacecontract/admission.go
+    related_invariants:
+      - workspace.admission.decision_verification_binding
+    required_tests:
+      - golang/architecture/workspacecontract/admission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID
+    evidence:
+      - reachable via direct package use with two independently-constructed admission.Decision/admission.Verification values, no filesystem race needed
+  - id: failure.synthesis_unbounded_retry_if_caller_bypasses_transition
+    title: Unbounded autonomous retry if a caller bypasses Transition's budget enforcement
+    protects:
+      files:
+        - golang/architecture/synthesis/transition.go
+    related_invariants:
+      - invariant.synthesis.retry_and_replan_budgets_are_precommitted
+    required_tests:
+      - golang/architecture/synthesis/adversarial_gaps_test.go:TestBudgetsNeverIncreaseAcrossAFullSequence
+    evidence:
+      - 'Transition provably enforces RemainingRetryBudget/RemainingReplanBudget non-increase and exact-once-per-accepted-evaluation consumption (TestBudgetsNeverIncreaseAcrossAFullSequence), but this guarantee holds only for callers that route every retry/replan decision through a RecordEvaluationCommand. Transition has no way to observe calls that never reach it: a hand-rolled orchestration loop that invokes a provider directly and retries on failure, without ever submitting an Evaluation and driving the loop through Transition, would retry without any budget check at all — the state machine cannot prevent misuse of itself that bypasses its own API.'
+
+  - id: failure.intent_mine_citation_cage_rejected_claude_cli_citations_miss
+    title: 'Intent-mine citation cage rejected claude-cli citations missing the file: prefix'
+    protects:
+      files:
+        - golang/extractor/coldsource/intent_draft.go
+    evidence:
+      - 'Regression proof: golang/extractor/coldsource/intent_extract_test.go:TestLLMIntentDrafter_ToleratesDroppedFileSchemePrefix'
+      - "12/12 claude-cli-drafted intents for a cold-imported gin checkout were rejected as fabricated although every citation resolved after restoring the dropped file: scheme prefix."
+    contract: Every LLM-drafted intent source citation must resolve to a real gathered excerpt citation id or be rejected as fabricated.

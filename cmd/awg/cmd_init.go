@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	"github.com/globulario/sensei/golang/statedir"
 )
 
@@ -47,6 +48,7 @@ func runInit(args []string) int {
 	withMCP := fs.Bool("mcp", false, "write/merge the Sensei MCP server into .mcp.json (opt-in)")
 	withSkills := fs.Bool("skills", true, "install bundled Sensei project skills under .sensei/skills and native agent skill folders")
 	skillsForce := fs.Bool("skills-force", false, "replace locally modified Sensei-managed skill copies")
+	domain := fs.String("domain", "", "explicit repository domain to bind (default: derive from git origin, or leave unbound)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei init [flags]
 
@@ -96,6 +98,24 @@ Flags:
 		return 1
 	}
 
+	if domRes, domErr := establishRepositoryDomain(root, *domain); domErr != nil {
+		// Checkout identity is an authority boundary (contract §3.6
+		// correction): a malformed/invalid repository domain must fail
+		// visibly, never just be noted in passing while init otherwise
+		// reports success.
+		fmt.Fprintf(os.Stderr, "sensei init: repository domain could not be established: %v\n", domErr)
+		return 1
+	} else {
+		switch {
+		case domRes.Domain == "":
+			fmt.Fprintln(os.Stdout, "\nRepository domain: unbound (no git origin found and no --domain given; briefing/preflight will require an explicit --domain until one is configured).")
+		case domRes.Mismatch:
+			fmt.Fprintf(os.Stdout, "\nRepository domain: %s (source=%s) — NOTE: this disagrees with the current git origin (%s); the configured domain was preserved, not overwritten.\n", domRes.Domain, domRes.Source, domRes.OriginURL)
+		default:
+			fmt.Fprintf(os.Stdout, "\nRepository domain: %s (source=%s)\n", domRes.Domain, domRes.Source)
+		}
+	}
+
 	fmt.Fprintf(os.Stdout, "Sensei initialized. Created:\n")
 	for _, f := range report.created {
 		rel, _ := filepath.Rel(root, f)
@@ -108,23 +128,48 @@ Flags:
 		fmt.Fprintf(os.Stdout, "Notice: %s\n", notice)
 	}
 
+	printProtectionInitStatus(root)
+
 	fmt.Fprintf(os.Stdout, `
 Next steps:
-  1. Edit docs/awareness/high_risk_files.yaml — add your critical paths
-  2. Edit docs/awareness/invariants.yaml — add your first rule
+  1. Edit docs/awareness/invariants.yaml — add your first rule
      (the 8-category meta-principle pack is already installed:
       docs/awareness/meta_principles.yaml — link your rules to it
       via related_invariants)
-  3. The Sensei Architect skill is installed at .sensei/skills/sensei-architect
+     docs/awareness/high_risk_files.yaml is an ADDITIVE manual seed, not the
+     only source of protection — see `+"`sensei protection-status`"+` above.
+  2. The Sensei Architect skill is installed at .sensei/skills/sensei-architect
      and native agent skill locations when supported. It is model-invoked for
      architecture-sensitive work and uses MCP tools when --mcp is configured.
-  4. Start the server:  sensei serve -no-seed &
+  3. Start the server:  sensei serve -no-seed &
      (-no-seed: your project builds its own graph — without it the
       server seeds the embedded Globular reference graph)
-  5. Compile your graph: sensei build
-  6. First briefing:     sensei briefing -file <your-critical-file>
+  4. Compile your graph: sensei build
+  5. First briefing:     sensei briefing -file <your-critical-file>
 `)
 	return 0
+}
+
+// printProtectionInitStatus reports the repository's effective protection
+// coverage honestly (contract §7.5): a fresh/not-yet-bootstrapped repository
+// must never be presented as fully protected merely because hook files
+// exist. Publishes the offline snapshot when derivation succeeds, so the
+// pre-edit hook works immediately without a running server.
+func printProtectionInitStatus(root string) {
+	cov, err := protection.Derive(root)
+	if err != nil {
+		fmt.Fprintf(os.Stdout, "\nProtection coverage: could not be derived (%v).\n", err)
+		return
+	}
+	if pubErr := protection.PublishSnapshot(root, cov); pubErr != nil {
+		fmt.Fprintf(os.Stdout, "\nProtection coverage: %s (snapshot publish failed: %v)\n", cov.Status, pubErr)
+		return
+	}
+	fmt.Fprintf(os.Stdout, "\nProtection coverage: %s — %d effective protected path(s) (manual=%d derived=%d).\n",
+		cov.Status, len(cov.ProtectedPaths), cov.ManualCount, cov.DerivedCount)
+	if cov.Status == protection.CoverageEmpty {
+		fmt.Fprintln(os.Stdout, "This is an awareness gap, not a safety guarantee — run `sensei bootstrap` to derive structural protection, or add paths to high_risk_files.yaml.")
+	}
 }
 
 func scaffoldProject(root string, opts initOptions) ([]string, error) {

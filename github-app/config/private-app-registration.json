@@ -1,0 +1,30 @@
+{
+  "schema": "sensei.github_app.registration.v1",
+  "name": "sensei-globulario-private-beta",
+  "description": "Private-beta zero-install architectural briefings for pull requests.",
+  "homepage_url": "https://github.com/globulario/sensei/tree/main/github-app",
+  "visibility": "private",
+  "webhook": {
+    "active": true,
+    "url_template": "https://<SENSEI_GITHUB_HOSTNAME>/webhooks/github",
+    "secret_required": true
+  },
+  "repository_permissions": {
+    "metadata": "read",
+    "pull_requests": "read",
+    "issues": "write",
+    "checks": "write"
+  },
+  "subscribed_events": [
+    "pull_request"
+  ],
+  "installation_policy": {
+    "owner": "globulario",
+    "repository_selection": "selected"
+  },
+  "oauth": {
+    "request_user_authorization_on_install": false,
+    "callback_urls": []
+  },
+  "marketplace": false
+}

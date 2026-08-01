@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/globulario/sensei/golang/architecture/protection"
 )
 
 func TestScaffoldProject(t *testing.T) {
@@ -661,5 +663,34 @@ func TestScaffoldProject_StarterCorpusValidatesCleanly(t *testing.T) {
 	}
 	if len(report.Findings) != 0 {
 		t.Fatalf("starter corpus must validate cleanly, got findings: %+v", report.Findings)
+	}
+}
+
+// contract §7.4/§7.5: init publishes the offline protection snapshot when
+// possible, and a freshly scaffolded repository's own governed sources are
+// already effectively protected — never presented as EMPTY safety just
+// because high_risk_files.yaml's manual files: list is still empty.
+func TestScaffoldProject_PublishesProtectionSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := scaffoldProject(dir, initOptions{}); err != nil {
+		t.Fatalf("scaffoldProject: %v", err)
+	}
+	printProtectionInitStatus(dir)
+
+	cov, exists, err := protection.LoadSnapshot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("expected init to publish the protection snapshot")
+	}
+	if cov.Status != protection.CoverageComplete {
+		t.Fatalf("a freshly scaffolded repository's own governed sources must yield COMPLETE coverage, got %s", cov.Status)
+	}
+	if cov.ManualCount != 0 {
+		t.Fatalf("the scaffolded high_risk_files.yaml files: list starts empty, expected manual_count=0, got %d", cov.ManualCount)
+	}
+	if cov.DerivedCount == 0 {
+		t.Fatal("expected non-zero derived protection from the scaffolded governed sources themselves")
 	}
 }

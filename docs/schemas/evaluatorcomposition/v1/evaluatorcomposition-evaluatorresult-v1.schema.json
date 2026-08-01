@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/evaluatorcomposition-evaluatorresult-v1.json",
+  "title": "Sensei Governed Evaluator Composition Evaluator Result V1",
+  "description": "One evaluator's own observation document -- never an O1 synthesis.Evaluation, never authoritative. Binds the exact evaluator descriptor and evaluation-input digests, reports a closed terminal outcome, ordered check observations, evidence references, classified failure observations, limitations, and its own disposable-surface cleanup truth.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/evaluatorcomposition. An evaluator never returns an authoritative O1 Recommendation (hard law 7) -- this document has no recommendation field at all; only the O4 composer maps evidence into synthesis.Evaluation.Recommendation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluator_id",
+    "evaluator_descriptor_digest_sha256",
+    "evaluation_input_digest_sha256",
+    "terminal_outcome",
+    "checks",
+    "evidence_references",
+    "classified_failure_reasons",
+    "limitations",
+    "cleanup_succeeded",
+    "result_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.evaluatorcomposition.evaluatorresult.v1" },
+    "evaluator_id": { "type": "string", "minLength": 1 },
+    "evaluator_descriptor_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "evaluation_input_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "terminal_outcome": {
+      "enum": ["completed", "unavailable", "timed_out", "cancelled"]
+    },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/checkObservation" }
+    },
+    "evidence_references": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidenceReference" }
+    },
+    "classified_failure_reasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    },
+    "cleanup_succeeded": {
+      "$comment": "Nullable: this evaluator's own disposable-surface cleanup truth. Real conditional semantics (tied to terminal_outcome and whether a surface was ever constructed) arrive at checkpoint 4, when materialization itself is implemented; checkpoint 2 only fixes the shape.",
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "result_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "checkObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "status", "evidence_references"],
+      "properties": {
+        "check_id": { "type": "string", "minLength": 1 },
+        "status": {
+          "enum": ["passed", "failed", "skipped", "unavailable"]
+        },
+        "detail": { "type": "string" },
+        "evidence_references": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "digest_sha256"],
+      "properties": {
+        "reference": { "type": "string", "minLength": 1 },
+        "digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+      }
+    },
+    "limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/evaluatorcomposition-evaluationpolicy-v1.json",
+  "title": "Sensei Governed Evaluator Composition Evaluation Policy V1",
+  "description": "The precommitted, caller-supplied, immutable evaluation policy O4 validates and applies but never constructs or rewrites (docs/design/governed-evaluator-composition-o4.md hard law 9). Binds the exact Session/Attempt/candidate identity in play, the ordered evaluator specifications and their required/optional status, deadlines and evidence limits, required check IDs, and the deterministic failure-class-to-recommendation rules that narrow (never reorder) the contract's fixed initial recommendation precedence (abort > architect-review > replan > retry-generation).",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/evaluatorcomposition. Providers and evaluators cannot add evaluators, mark themselves optional, enlarge limits, alter recommendation precedence, or rewrite the policy after observing results. A recommendation value here is never accept-candidate -- accept-candidate is legal only via the unanimous Recommendation hard floor, never a per-failure-class policy assignment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_id",
+    "session_digest_sha256",
+    "attempt_digest_sha256",
+    "candidate_artifact_digest_sha256",
+    "evaluators",
+    "deadline_at",
+    "max_evidence_count",
+    "max_evidence_bytes",
+    "required_check_ids",
+    "failure_class_recommendations",
+    "policy_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.evaluatorcomposition.evaluationpolicy.v1" },
+    "policy_id": { "type": "string", "minLength": 1 },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "attempt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "evaluators": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evaluatorSpec" }
+    },
+    "deadline_at": { "type": "string", "minLength": 1 },
+    "max_evidence_count": { "type": "integer", "minimum": 0 },
+    "max_evidence_bytes": { "type": "integer", "minimum": 0 },
+    "required_check_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "failure_class_recommendations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/failureClassRecommendation" }
+    },
+    "policy_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evaluatorSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluator_id", "required"],
+      "properties": {
+        "evaluator_id": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" }
+      }
+    },
+    "failureClassRecommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failure_class", "recommendation"],
+      "properties": {
+        "failure_class": { "type": "string", "minLength": 1 },
+        "recommendation": {
+          "$comment": "Never accept-candidate -- see the top-level description.",
+          "enum": ["retry-generation", "replan", "architect-review", "abort"]
+        }
+      }
+    }
+  }
+}

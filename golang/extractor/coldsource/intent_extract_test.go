@@ -169,6 +169,40 @@ func TestLLMIntentDrafter_AcceptsTopLevelCandidateArray(t *testing.T) {
 	}
 }
 
+func TestLLMIntentDrafter_ToleratesDroppedFileSchemePrefix(t *testing.T) {
+	ex := []IntentExcerpt{{
+		Kind:     "docs",
+		Citation: "file:README.md:1",
+		Text:     "Router middleware order must be preserved.",
+	}}
+	// The model cites the excerpt's path:line but drops the "file:" scheme —
+	// observed in practice from claude-cli: a real, grounded citation that the
+	// cage must still accept, not reject as fabricated.
+	reply := `[{"title":"Router middleware order","claim":"Router middleware order must be preserved.","category":"api-contract","source_citations":["README.md:1"]}]`
+
+	cands, rejected, err := DraftAndCageIntents(context.Background(), LLMIntentDrafter{Client: fakeLLM{reply: reply}, Max: 1}, ex, 1)
+	if err != nil {
+		t.Fatalf("DraftAndCageIntents: %v", err)
+	}
+	if rejected != 0 || len(cands) != 1 {
+		t.Fatalf("rejected=%d cands=%d, want 0/1 (dropped file: prefix must still resolve to the real excerpt)", rejected, len(cands))
+	}
+	if len(cands[0].Sources.Docs) != 1 || cands[0].Sources.Docs[0] != "README.md" {
+		t.Fatalf("citation did not resolve to the canonical excerpt: %+v", cands[0].Sources)
+	}
+
+	// A citation that doesn't match any excerpt, with or without the "file:"
+	// prefix, must still be rejected as fabricated.
+	fabricatedReply := `[{"title":"Fake rule","claim":"Fake rule.","category":"api-contract","source_citations":["NOPE.md:1"]}]`
+	_, rejected, err = DraftAndCageIntents(context.Background(), LLMIntentDrafter{Client: fakeLLM{reply: fabricatedReply}, Max: 1}, ex, 1)
+	if err != nil {
+		t.Fatalf("DraftAndCageIntents: %v", err)
+	}
+	if rejected != 1 {
+		t.Fatalf("rejected=%d, want 1 (a citation absent from gathered excerpts must still be fabricated)", rejected)
+	}
+}
+
 func TestValidIntentIDRejectsMalformedPrefixIDs(t *testing.T) {
 	for _, id := range []string{"intent.", "intent..router", "intent.-router", "intent.router.", "intent._router"} {
 		if ValidIntentID(id) {

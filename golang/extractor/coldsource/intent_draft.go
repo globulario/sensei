@@ -61,6 +61,25 @@ func validateIntentDraft(d intentDraft, allowed map[string]string) []string {
 	return v
 }
 
+// resolveCitation looks up a drafter-emitted citation against the gathered
+// excerpts, tolerating a dropped "file:" scheme prefix: LLM drafters
+// consistently echo back "docs/doc.md:12" instead of the exact
+// "file:docs/doc.md:12" shown in the prompt, even though they are citing the
+// real excerpt. Returns the canonical citation and whether it resolved to a
+// real, gathered excerpt — anything that doesn't resolve either way is still
+// treated as fabricated by the cage.
+func resolveCitation(sc string, allowed map[string]string) (string, bool) {
+	if _, ok := allowed[sc]; ok {
+		return sc, true
+	}
+	if withFile := "file:" + sc; !strings.HasPrefix(sc, "file:") {
+		if _, ok := allowed[withFile]; ok {
+			return withFile, true
+		}
+	}
+	return sc, false
+}
+
 // materialize routes a validated draft into a grounded-ready IntentCandidate:
 // source citations split by their excerpt KIND into Sources vs Evidence, and
 // inferred CodeAnchors into Evidence.Code/Tests.
@@ -202,6 +221,11 @@ func DraftAndCageIntents(ctx context.Context, dr IntentDrafter, excerpts []Inten
 	seen := map[string]bool{}
 	rejected := 0
 	for _, d := range drafts {
+		for i, sc := range d.SourceCitations {
+			if canonical, ok := resolveCitation(sc, allowed); ok {
+				d.SourceCitations[i] = canonical
+			}
+		}
 		if len(validateIntentDraft(d, allowed)) > 0 {
 			rejected++
 			continue

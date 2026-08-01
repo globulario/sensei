@@ -1,0 +1,112 @@
+name: Architecture dashboard
+
+# Generates a static, read-only snapshot of this repo's Sensei architecture
+# state (invariant coverage, attention items, artifact list) and publishes it
+# to GitHub Pages. Runs on push to main only — GitHub Pages serves one
+# canonical site per repo, so per-PR previews are deliberately out of scope
+# here (see dashboard/ and scripts/dashboard-snapshot.sh for the design
+# rationale). This is a read-only view: no mutation RPC is ever called.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Install grpcurl
+        # Pinned tag, not @latest — this repo's CI is otherwise fully
+        # deterministic (pinned protoc-gen-go/protoc-gen-go-grpc in the
+        # Makefile) and grpcurl is the one new tool this workflow adds.
+        run: go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.1
+
+      - name: Fetch Oxigraph
+        run: scripts/fetch-oxigraph.sh
+
+      - name: Build sensei + awareness-graph from source
+        run: |
+          mkdir -p "${RUNNER_TEMP}/dashboard-bin"
+          go build -o "${RUNNER_TEMP}/dashboard-bin/sensei" ./cmd/awg
+          go build -o "${RUNNER_TEMP}/dashboard-bin/awareness-graph" ./golang/server
+          cp bin/oxigraph "${RUNNER_TEMP}/dashboard-bin/oxigraph"
+
+      - name: Start sensei serve -no-seed
+        env:
+          GRPC_PORT: '10199'
+          OXI_PORT: '7899'
+        run: |
+          "${RUNNER_TEMP}/dashboard-bin/sensei" serve \
+            -addr ":${GRPC_PORT}" \
+            -oxigraph-bind "127.0.0.1:${OXI_PORT}" \
+            -data "${RUNNER_TEMP}/dashboard-oxigraph" \
+            -no-seed > "${RUNNER_TEMP}/serve.log" 2>&1 &
+          echo $! > "${RUNNER_TEMP}/serve.pid"
+
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null -X POST -H "Content-Type: application/sparql-query" \
+              --data 'ASK {}' "http://127.0.0.1:${OXI_PORT}/query" 2>/dev/null && break
+            sleep 1
+            [[ $i -eq 30 ]] && { cat "${RUNNER_TEMP}/serve.log"; echo "::error::oxigraph did not come up"; exit 1; }
+          done
+          for i in $(seq 1 30); do
+            grep -q "listening on" "${RUNNER_TEMP}/serve.log" 2>/dev/null && break
+            sleep 1
+            [[ $i -eq 30 ]] && { cat "${RUNNER_TEMP}/serve.log"; echo "::error::gRPC server did not come up"; exit 1; }
+          done
+
+      - name: Build the graph (self-only, untagged — see domain-scoping note in dashboard-snapshot.sh)
+        env:
+          OXI_PORT: '7899'
+        run: |
+          "${RUNNER_TEMP}/dashboard-bin/sensei" build -strict -all \
+            -input docs/awareness \
+            -store-url "http://127.0.0.1:${OXI_PORT}/store?default"
+
+      - name: Fetch the dashboard snapshot
+        env:
+          GRPC_PORT: '10199'
+          SERVE_LOG: ${{ runner.temp }}/serve.log
+        run: scripts/dashboard-snapshot.sh "${{ github.workspace }}/dashboard/snapshot"
+
+      - name: Stop sensei serve
+        if: always()
+        run: |
+          pid=$(cat "${RUNNER_TEMP}/serve.pid" 2>/dev/null || true)
+          [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && kill "${pid}" 2>/dev/null || true
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload dashboard artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard
+
+  deploy:
+    needs: build-snapshot
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

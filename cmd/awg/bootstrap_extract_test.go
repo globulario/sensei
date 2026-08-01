@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
 )
 
@@ -184,6 +185,83 @@ func (e *Engine) Run() {}
 	}
 	if got := bySymbol["gin.Engine.Run"].Component; got != "component.gin" {
 		t.Fatalf("method component=%q want component.gin", got)
+	}
+}
+
+func TestExtractGoLibraryAPICandidates(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module acme.test/library\n")
+	writeFile(t, filepath.Join(root, "library.go"), `package library
+type Plugin interface { Run() }
+type localPlugin struct{}
+func (localPlugin) Run() {}
+type private struct{}
+func New() Plugin { return localPlugin{} }
+type Engine struct{}
+func (Engine) Run() {}
+func privateHelper() {}
+`)
+	writeFile(t, filepath.Join(root, "internal", "secret", "secret.go"), `package secret
+func Hidden() {}
+`)
+	candidates, err := extractGoLibraryAPICandidates(root, []architecture.Fact{{
+		Kind: "interface", Subject: "library.localPlugin", Predicate: "implements_interface", Object: "library.Plugin",
+	}})
+	if err != nil {
+		t.Fatalf("extract Go library APIs: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("candidate count=%d want 1: %+v", len(candidates), candidates)
+	}
+	got := candidates[0]
+	if got.ID != "library_api.root" || got.Kind != "go_library_api" || got.Status != "candidate" {
+		t.Fatalf("candidate identity=%+v", got)
+	}
+	if len(got.ExtensionPoints) != 1 || got.ExtensionPoints[0] != "library.Plugin" {
+		t.Fatalf("extension points=%v want [library.Plugin]", got.ExtensionPoints)
+	}
+	for _, want := range []string{"library.Plugin", "library.New", "library.Engine.Run"} {
+		found := false
+		for _, symbol := range got.PublicSymbols {
+			found = found || symbol == want
+		}
+		if !found {
+			t.Errorf("missing public symbol %q in %v", want, got.PublicSymbols)
+		}
+	}
+	for _, symbol := range got.PublicSymbols {
+		if symbol == "secret.Hidden" || symbol == "library.privateHelper" {
+			t.Errorf("non-public symbol leaked into candidate: %q", symbol)
+		}
+	}
+}
+
+func TestGoLibraryAPIBoundaryCandidatesRemainCandidates(t *testing.T) {
+	boundaries := goLibraryAPIBoundaryCandidates([]goLibraryAPICandidate{{
+		ID: "library_api.root", Name: "library public API", SourceFiles: []string{"library.go"},
+	}})
+	if len(boundaries) != 1 {
+		t.Fatalf("boundary count=%d want 1", len(boundaries))
+	}
+	got := boundaries[0]
+	if got.ID != "boundary.library_api.root" || got.Kind != "library_api" || got.Status != "candidate" {
+		t.Fatalf("boundary=%+v", got)
+	}
+	if got.Description == "" || len(got.SourceFiles) != 1 || got.SourceFiles[0] != "library.go" {
+		t.Fatalf("boundary detail=%+v", got)
+	}
+}
+
+func TestGoLibraryAPIContractsRemainCandidates(t *testing.T) {
+	contracts := goLibraryAPIContracts([]goLibraryAPICandidate{{
+		ID: "library_api.root", Name: "library public API", SourceFiles: []string{"library.go"},
+	}})
+	if len(contracts) != 1 {
+		t.Fatalf("contract count=%d want 1", len(contracts))
+	}
+	got := contracts[0]
+	if got.ID != "contract.library_api.root" || got.Kind != "go_library_api" || got.Status != "candidate" || got.Assertion != "inferred" {
+		t.Fatalf("contract=%+v", got)
 	}
 }
 

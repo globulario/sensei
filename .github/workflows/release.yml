@@ -175,7 +175,7 @@ jobs:
           scripts/build-awareness-graph-self.sh --check
 
       - name: Run tests
-        run: go test ./... -count=1 -timeout 120s
+        run: go test ./... -count=1 -timeout 300s
 
       - name: Download all platform tarballs
         uses: actions/download-artifact@v4

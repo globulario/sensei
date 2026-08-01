@@ -1,0 +1,44 @@
+name: Graph publication integration
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'cmd/awg/cmd_build.go'
+      - 'cmd/awg/cmd_build*_test.go'
+      - 'cmd/awg/graph_publication_lock*.go'
+      - 'golang/store/oxigraph/**'
+      - 'scripts/fetch-oxigraph.sh'
+      - '.github/workflows/graph-publication-integration.yml'
+  pull_request:
+    branches: ['**']
+    paths:
+      - 'cmd/awg/cmd_build.go'
+      - 'cmd/awg/cmd_build*_test.go'
+      - 'cmd/awg/graph_publication_lock*.go'
+      - 'golang/store/oxigraph/**'
+      - 'scripts/fetch-oxigraph.sh'
+      - '.github/workflows/graph-publication-integration.yml'
+
+jobs:
+  real-oxigraph:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Sensei
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Install pinned Oxigraph
+        run: scripts/fetch-oxigraph.sh 0.5.9
+
+      - name: Prove staged publication against real Oxigraph
+        run: |
+          go test -tags=integration ./cmd/awg \
+            -run '^TestIntegration_ScopedRepoPublication_RealOxigraph$' \
+            -count=1 -timeout 5m

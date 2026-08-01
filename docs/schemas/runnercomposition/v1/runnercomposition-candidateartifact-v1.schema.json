@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/runnercomposition-candidateartifact-v1.json",
+  "title": "Sensei Governed Runner Composition Candidate Artifact V1",
+  "description": "The O3 immutable, content-addressed sealing of one generation attempt's candidate tree. Binds repository/base/workspace identity, session/plan/generation/attempt identity, three distinct digests (input snapshot, proposed change, final candidate content), and the final tree's own canonical manifest -- preserving actual candidate bytes, not merely their hashes.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/runnercomposition. Written and read only through a CandidateArtifactStore with verified Put/Get (docs/design/governed-runner-composition-o3.md hard law 14) -- O4/O5/retry/resume address a candidate by candidate_artifact_digest_sha256 against that store, never a temporary directory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "repository_domain",
+    "base_revision",
+    "workspace_identity_digest_sha256",
+    "session_digest_sha256",
+    "plan_digest_sha256",
+    "plan_generation",
+    "attempt_number",
+    "input_candidate_digest_sha256",
+    "proposed_change_digest_sha256",
+    "final_candidate_content_digest_sha256",
+    "manifest",
+    "candidate_artifact_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.runnercomposition.candidateartifact.v1" },
+    "repository_domain": { "type": "string", "minLength": 1 },
+    "base_revision": { "type": "string", "minLength": 1 },
+    "workspace_identity_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "plan_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "plan_generation": { "type": "integer", "minimum": 1 },
+    "attempt_number": { "type": "integer", "minimum": 1 },
+    "input_candidate_digest_sha256": {
+      "$comment": "Computed by ManifestDigest over the pinned input snapshot's manifest, before any provider runs (hard law 10).",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "proposed_change_digest_sha256": {
+      "$comment": "The git-diff-shaped digest from the input snapshot to the final candidate tree -- a distinct identity from either tree's own manifest digest (hard law 10).",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "final_candidate_content_digest_sha256": {
+      "$comment": "Computed by ManifestDigest over the final candidate tree's own manifest -- the same scheme as input_candidate_digest_sha256, applied to the ending state (hard law 10).",
+      "$ref": "#/$defs/sha256Hex"
+    },
+    "manifest": {
+      "$comment": "The final candidate tree's canonical, sorted entry list. final_candidate_content_digest_sha256 is ManifestDigest(manifest).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/manifestEntry" }
+    },
+    "candidate_artifact_digest_sha256": {
+      "$comment": "Self-referential semantic digest of this document with this field zeroed before hashing.",
+      "$ref": "#/$defs/sha256Hex"
+    }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidateFileMode": {
+      "enum": ["regular", "executable", "symlink"]
+    },
+    "manifestEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mode", "content", "symlink_target", "content_digest_sha256"],
+      "properties": {
+        "path": {
+          "$comment": "POSIX-relative, '/'-separated, no leading '/', no '.'/'..' segment, no embedded NUL or newline byte.",
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": { "$ref": "#/$defs/candidateFileMode" },
+        "content": {
+          "$comment": "Raw file bytes, base64-encoded by Go's JSON encoding. Meaningful only for mode regular/executable; empty for mode symlink. Never nil at the Go level, so this is always a string, never null.",
+          "type": "string"
+        },
+        "symlink_target": {
+          "$comment": "Literal, unresolved symlink target -- never resolved or followed. Meaningful only for mode symlink; empty for mode regular/executable.",
+          "type": "string"
+        },
+        "content_digest_sha256": {
+          "$comment": "sha256 of content (mode regular/executable) or of symlink_target's raw bytes (mode symlink).",
+          "$ref": "#/$defs/sha256Hex"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,59 @@
+name: sensei-github-app-private
+
+services:
+  sensei-github-app:
+    image: ${SENSEI_GITHUB_IMAGE:?set SENSEI_GITHUB_IMAGE to a pinned ghcr.io image reference}
+    restart: unless-stopped
+    init: true
+    environment:
+      SENSEI_GITHUB_APP_ID: ${SENSEI_GITHUB_APP_ID:?set SENSEI_GITHUB_APP_ID}
+      SENSEI_GITHUB_PRIVATE_KEY_FILE: /run/secrets/github_app_private_key
+      SENSEI_GITHUB_WEBHOOK_SECRET_FILE: /run/secrets/github_webhook_secret
+      SENSEI_GITHUB_LISTEN_ADDR: :8080
+      SENSEI_GITHUB_API_URL: https://api.github.com
+    secrets:
+      - github_app_private_key
+      - github_webhook_secret
+    expose:
+      - "8080"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      sensei-github-app:
+        condition: service_healthy
+    environment:
+      SENSEI_GITHUB_HOSTNAME: ${SENSEI_GITHUB_HOSTNAME:?set SENSEI_GITHUB_HOSTNAME}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - private
+
+secrets:
+  github_app_private_key:
+    file: ./secrets/github-app-private-key.pem
+  github_webhook_secret:
+    file: ./secrets/github-webhook-secret.txt
+
+networks:
+  private:
+    internal: false
+
+volumes:
+  caddy_data:
+  caddy_config:

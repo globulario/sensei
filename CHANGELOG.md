@@ -3,6 +3,102 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v1.5.0 — serve reuse safety + semantic protection coverage
+
+- **`sensei serve` no longer reuses a listening process just because its port
+  answers.** A bare TCP dial was the only reuse check — an occupied port got
+  reused even when it belonged to a different checkout, store, or graph
+  marker. Worse, a checkout's own `.sensei/graph-authority.json` could be
+  silently overwritten with state read from a foreign, shared service before
+  that service's own marker was ever touched, leaving `sensei
+  metadata`/`preflight` reporting stale despite a scoped build genuinely
+  succeeding. Each process `sensei serve` starts (or the awareness-graph
+  binary itself, when invoked directly) now writes a durable runtime
+  descriptor — PID, listen address, and every field specific to that process
+  kind — keyed by `(process kind, listen address)`. Reuse requires an exact
+  match on all of it; an occupied port with no provable, live descriptor is a
+  hard failure with a diagnostic naming the mismatched fields, never a silent
+  reuse. Marker-file mutation is now gated to run only after compatibility is
+  proven (or a fresh child has actually bound its address), reused services
+  are left strictly in a monitor-only capacity, and shutdown no longer
+  orphans an owned Oxigraph a reused awareness-graph service still depends
+  on. See `docs/design/serve-runtime-compatibility.md`.
+- **Semantic protection coverage bootstrap.** `sensei init`/`bootstrap` no
+  longer scaffold an empty manual high-risk registry — file-level briefing
+  enforcement is now the deterministic union of manual protection,
+  unconditional governed-source protection, structural contract/invariant
+  protection, and graph-derived protection when available, behind explicit
+  COMPLETE/PARTIAL/DEGRADED/EMPTY coverage semantics (never treating empty
+  configuration as safe). Checkout-scoped commands (briefing, preflight,
+  hooks) now bind automatically to a durable repository domain recorded in
+  `.sensei/config.yaml`, so a multi-domain store no longer makes ordinary
+  invocations ambiguous — repository configuration outranks ambient
+  `SENSEI_DOMAIN`/legacy `AWG_DOMAIN` fallbacks, with `--domain` remaining an
+  explicit one-invocation override. New `sensei protection-status` /
+  `protection-check` CLI surfaces expose the resolved coverage state
+  directly.
+
+## v1.4.0 — transactional graph publication + GitHub App incubation
+
+- **`sensei build --repo` no longer risks corrupting the live graph.** The
+  scoped repository-refresh path previously concatenated compiled N-Triples
+  directly into a SPARQL `INSERT DATA` block — a corpus valid for RDF ingestion
+  could still be rejected by the SPARQL parser, and a delete-then-append
+  window meant a mid-failure could leave the served store stale or corrupted.
+  It now derives and validates the complete candidate generation offline,
+  stages the replacement RDF through the Graph Store Protocol into an isolated
+  named graph, and promotes it with one control-only SPARQL transaction
+  (`ADD GRAPH ... TO DEFAULT; DROP GRAPH ...`) — raw RDF is never embedded in
+  SPARQL text again. A cross-platform publication lock serializes concurrent
+  local publishers, an ambiguous post-promotion response is resolved against
+  the live whole-generation marker instead of guessed at, and a first
+  publication into an empty store is now supported. Proven against a real
+  Oxigraph instance (`-tags integration`), not just mocks. See
+  `docs/architecture/repository-authority-and-graph-publication.md` for the
+  full authority/publication model.
+- **Governance self-audit repair.** Wired `required_tests` for 26 critical/high
+  invariants that had a real proving test but no graph linkage, backfilled
+  severity on 9 invariants that had none, and fixed `sensei repo-eval` to
+  compare a self-only build's freshness against a self-only regeneration
+  instead of a broader combined one (which was reading as false drift).
+- **`sensei bootstrap` extracts Go library API candidates** — boundary and
+  contract candidates inferred from exported declarations, written to
+  `docs/awareness/generated/` alongside the existing candidate extractors.
+- **Sensei GitHub App (first slice, incubating).** A standalone `github-app/`
+  service: verifies webhook signatures, exchanges a signed JWT for
+  installation tokens, handles `pull_request` open/reopen/synchronize events,
+  posts a deterministic mechanical briefing as a sticky PR comment, and
+  creates/updates one Check Run per head revision. Static-only inspection —
+  no repository code execution. Governed architectural reasoning (invariants,
+  contracts, proof obligations) is deferred to the next slice; see issue #111.
+- **Phase 10 architectural-investigation groundwork** — deterministic HOW/WHY
+  extraction (compiler-bound data-shape capture, Git-history-bound evidence)
+  and the underlying investigation contract/validation model. Internal
+  reasoning infrastructure for now; no new CLI surface yet.
+
+## v1.3.0 — proportional rigor
+
+- **`sensei rigor`** — reports the proportional-rigor class (and proof
+  obligations owed) for a proposed change, classifying by the **governed
+  surfaces** it touches rather than by filename. Surfaces are declared in
+  `docs/rigor_classes.yaml` and bound to code through owned package prefixes.
+  Advisory only: it names the obligations existing guards/CI enforce, it
+  enforces nothing itself.
+  - Classes: **A** semantic owner/authority/certification/identity · **B**
+    evidence ingestion/admission/binding · **C** projection/transport/rendering
+    · **D** cosmetic/explanatory local UI.
+  - Fail-closed laws: effective rigor is the **strictest** class among every
+    governed surface touched; a file owned by no surface is unclassified →
+    **Class A**; an unknown class fails closed to A; a `--declared` class can
+    only *raise* strictness, never downgrade contact with an A/B surface; and
+    Class D still owes every repository-integrity gate (ownership,
+    determinism, licensing, generated-artifact, build) — it only lightens
+    *semantic* proof.
+- **Control-panel polish** — actionable Unknown (owner-projected explanation,
+  stable Kind), distinct non-positive states, and honest coverage (owned
+  tallies only, no denominator → no fabricated percentage). Ships documented
+  in the VS Code extension's own changelog.
+
 ## v1.2.1 — init wires every agent tool
 
 - **`sensei init` sets up all your agent surfaces, not just Claude Code.** It now

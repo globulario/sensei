@@ -21,7 +21,7 @@ components:
     assertion: inferred
     source_files:
       - cmd/awareness-mcp/main.go
-      - cmd/awareness-mcp/phase10_tools.go
+      - cmd/awareness-mcp/workspace_tools.go
     depends_on:
       - component.golang.architecture
       - component.golang.client
@@ -76,6 +76,7 @@ components:
       - cmd/awg/cmd_contract_assess.go
       - cmd/awg/cmd_contract_bootstrap.go
       - cmd/awg/cmd_corpus.go
+      - cmd/awg/cmd_dashboard_projection.go
       - cmd/awg/cmd_demo.go
       - cmd/awg/cmd_disposition_question.go
       - cmd/awg/cmd_draft_candidate.go
@@ -119,6 +120,7 @@ components:
       - cmd/awg/cmd_promote_realization.go
       - cmd/awg/cmd_proof_plan.go
       - cmd/awg/cmd_propose.go
+      - cmd/awg/cmd_protection.go
       - cmd/awg/cmd_query.go
       - cmd/awg/cmd_rebuild.go
       - cmd/awg/cmd_reconcile.go
@@ -148,6 +150,7 @@ components:
       - cmd/awg/cmd_visual_audit.go
       - cmd/awg/completion_decision.go
       - cmd/awg/completion_policy.go
+      - cmd/awg/consistency_extract.go
       - cmd/awg/cross_repo_atomic.go
       - cmd/awg/cross_repo_guard.go
       - cmd/awg/defaults.go
@@ -157,13 +160,17 @@ components:
       - cmd/awg/governance_helpers.go
       - cmd/awg/governance_publish_helpers.go
       - cmd/awg/graph_marker.go
+      - cmd/awg/graph_publication_lock_unix.go
+      - cmd/awg/graph_publication_lock_windows.go
       - cmd/awg/helpers.go
       - cmd/awg/json_output.go
       - cmd/awg/lock_unix.go
       - cmd/awg/lock_windows.go
       - cmd/awg/main.go
       - cmd/awg/proofrequirements_adapter.go
+      - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
+      - cmd/awg/serve_compatibility.go
     depends_on:
       - component.golang.architecture
       - component.golang.client
@@ -176,6 +183,7 @@ components:
       - component.golang.propose
       - component.golang.rdf
       - component.golang.repoeval
+      - component.golang.runtimedescriptor
       - component.golang.scanner
       - component.golang.scipingest
       - component.golang.seedmeta
@@ -185,6 +193,7 @@ components:
     external_imports:
       - github.com/gorilla/websocket
       - github.com/scip-code/scip/bindings/go/scip
+      - golang.org/x/sys/windows
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
       - google.golang.org/grpc/status
@@ -358,6 +367,24 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.github_app
+    name: github-app
+    kind: service
+    assertion: inferred
+    source_files:
+      - github-app/cmd/sensei-github-app/main.go
+      - github-app/internal/app/handler.go
+      - github-app/internal/briefing/briefing.go
+      - github-app/internal/config/config.go
+      - github-app/internal/github/auth.go
+      - github-app/internal/github/client.go
+      - github-app/internal/webhook/payload.go
+      - github-app/internal/webhook/verify.go
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture
     name: architecture
     kind: module
@@ -442,15 +469,28 @@ components:
       - golang/architecture/controlstate/types_closure.go
       - golang/architecture/controlstate/util.go
       - golang/architecture/convergence/convergence.go
-      - golang/architecture/deviation/candidate.go
-      - golang/architecture/deviation/cluster.go
-      - golang/architecture/deviation/model.go
-      - golang/architecture/deviation/record.go
+      - golang/architecture/dashboardprojection/digest.go
+      - golang/architecture/dashboardprojection/schemavalidate.go
+      - golang/architecture/dashboardprojection/types.go
+      - golang/architecture/dashboardprojection/validate.go
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
       - golang/architecture/diffaudit/evaluator.go
       - golang/architecture/diffaudit/model.go
       - golang/architecture/diffaudit/parser.go
+      - golang/architecture/evaluatorcomposition/command.go
+      - golang/architecture/evaluatorcomposition/complete.go
+      - golang/architecture/evaluatorcomposition/compose.go
+      - golang/architecture/evaluatorcomposition/digest.go
+      - golang/architecture/evaluatorcomposition/evaluator.go
+      - golang/architecture/evaluatorcomposition/mechanical.go
+      - golang/architecture/evaluatorcomposition/normalize.go
+      - golang/architecture/evaluatorcomposition/run.go
+      - golang/architecture/evaluatorcomposition/schema.go
+      - golang/architecture/evaluatorcomposition/sensei_gate.go
+      - golang/architecture/evaluatorcomposition/surface.go
+      - golang/architecture/evaluatorcomposition/types.go
+      - golang/architecture/evaluatorcomposition/validate.go
       - golang/architecture/evidencereceipt/coverage.go
       - golang/architecture/evidencereceipt/freshness.go
       - golang/architecture/evidencereceipt/model.go
@@ -574,6 +614,24 @@ components:
       - golang/architecture/proofrequirements/obligations.go
       - golang/architecture/proofrequirements/parse.go
       - golang/architecture/proofrequirements/proofrequirements.go
+      - golang/architecture/protection/assessment.go
+      - golang/architecture/protection/classify.go
+      - golang/architecture/protection/derive.go
+      - golang/architecture/protection/governed.go
+      - golang/architecture/protection/manual.go
+      - golang/architecture/protection/pathmatch.go
+      - golang/architecture/protection/relations.go
+      - golang/architecture/protection/snapshot.go
+      - golang/architecture/protection/structural.go
+      - golang/architecture/protection/types.go
+      - golang/architecture/protection/util.go
+      - golang/architecture/providerport/digest.go
+      - golang/architecture/providerport/execution.go
+      - golang/architecture/providerport/mapping.go
+      - golang/architecture/providerport/normalize.go
+      - golang/architecture/providerport/provider.go
+      - golang/architecture/providerport/schema.go
+      - golang/architecture/providerport/types.go
       - golang/architecture/questiondisposition/errors.go
       - golang/architecture/questiondisposition/load.go
       - golang/architecture/questiondisposition/model.go
@@ -599,6 +657,7 @@ components:
       - golang/architecture/questionresolution/model.go
       - golang/architecture/questionresolution/persist.go
       - golang/architecture/questionresolution/summarize.go
+      - golang/architecture/repodomain/repodomain.go
       - golang/architecture/repograph/build.go
       - golang/architecture/repograph/provenance_input.go
       - golang/architecture/repograph/repograph.go
@@ -626,6 +685,19 @@ components:
       - golang/architecture/resulttransition/confine.go
       - golang/architecture/resulttransition/observe.go
       - golang/architecture/rigor/rigor.go
+      - golang/architecture/runnercomposition/changedigest.go
+      - golang/architecture/runnercomposition/digest.go
+      - golang/architecture/runnercomposition/gitenv.go
+      - golang/architecture/runnercomposition/manifest.go
+      - golang/architecture/runnercomposition/normalize.go
+      - golang/architecture/runnercomposition/run.go
+      - golang/architecture/runnercomposition/schema.go
+      - golang/architecture/runnercomposition/snapshot.go
+      - golang/architecture/runnercomposition/store.go
+      - golang/architecture/runnercomposition/tree.go
+      - golang/architecture/runnercomposition/types.go
+      - golang/architecture/runnercomposition/validate.go
+      - golang/architecture/runnercomposition/workspace.go
       - golang/architecture/runtimeboundary/assess.go
       - golang/architecture/runtimeboundary/binding.go
       - golang/architecture/runtimeboundary/common.go
@@ -639,6 +711,14 @@ components:
       - golang/architecture/runtimeprobe/observation.go
       - golang/architecture/runtimeprobe/probesource/fromprobe.go
       - golang/architecture/runtimeprobe/receipt.go
+      - golang/architecture/synthesis/commands.go
+      - golang/architecture/synthesis/digest.go
+      - golang/architecture/synthesis/events.go
+      - golang/architecture/synthesis/normalize.go
+      - golang/architecture/synthesis/schema.go
+      - golang/architecture/synthesis/state.go
+      - golang/architecture/synthesis/transition.go
+      - golang/architecture/synthesis/types.go
       - golang/architecture/taskcontrol/model.go
       - golang/architecture/taskcontrol/project.go
       - golang/architecture/tasksession/advance_result.go
@@ -654,18 +734,24 @@ components:
       - golang/architecture/whyinvestigation/contracts.go
       - golang/architecture/whyinvestigation/documentation.go
       - golang/architecture/whyinvestigation/git.go
-      - golang/architecture/whyinvestigation/imported_evidence.go
-      - golang/architecture/whyinvestigation/orchestrate.go
-      - golang/architecture/whyinvestigation/registry.go
-      - golang/architecture/whyinvestigation/scars.go
-      - golang/architecture/whyinvestigation/tests_provider.go
+      - golang/architecture/workspacecontract/admission.go
+      - golang/architecture/workspacecontract/digest.go
+      - golang/architecture/workspacecontract/identity.go
+      - golang/architecture/workspacecontract/normalize.go
+      - golang/architecture/workspacecontract/schema.go
+      - golang/architecture/workspacecontract/types.go
+      - golang/architecture/workspacecontract/validate.go
     depends_on:
       - component.golang.extractor
       - component.golang.propose
       - component.golang.rdf
+      - component.golang.scanner
       - component.golang.seedmeta
+      - component.golang.statedir
       - component.golang.store
     external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+      - golang.org/x/text/unicode/norm
       - golang.org/x/tools/go/packages
       - golang.org/x/tools/go/ssa
       - golang.org/x/tools/go/ssa/ssautil
@@ -788,6 +874,7 @@ components:
       - golang/extractor/importgraph/rust.go
       - golang/extractor/importgraph/typescript.go
       - golang/extractor/intent_yaml_import.go
+      - golang/extractor/jsonschemascan/jsonschemascan.go
       - golang/extractor/learning_event_yaml_import.go
       - golang/extractor/ntriples_validator.go
       - golang/extractor/openapiscan/openapiscan.go
@@ -886,6 +973,19 @@ components:
     assertion: inferred
     source_files:
       - golang/repoeval/repoeval.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.runtimedescriptor
+    name: runtimedescriptor
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/runtimedescriptor/liveness_unix.go
+      - golang/runtimedescriptor/liveness_windows.go
+      - golang/runtimedescriptor/runtimedescriptor.go
     uml:
       kind: Component
       stereotype: module
@@ -1001,6 +1101,7 @@ components:
       - component.golang.netcfg
       - component.golang.propose
       - component.golang.rdf
+      - component.golang.runtimedescriptor
       - component.golang.seedmeta
       - component.golang.store
     external_imports:

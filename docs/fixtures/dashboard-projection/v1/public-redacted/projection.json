@@ -1,0 +1,3945 @@
+{
+  "schema_version": "sensei.dashboard.projection.v1",
+  "identity": {
+    "projection_id": "projection.69f1940cf50cea6eca84e572b613f38f4b747814",
+    "repository": {
+      "key": "github.com/globulario/sensei",
+      "display_name": "sensei",
+      "url": "https://github.com/globulario/sensei"
+    },
+    "revision": {
+      "id": "69f1940cf50cea6eca84e572b613f38f4b747814",
+      "ref": "feat/dashboard-projection-v1-producer",
+      "committed_at": "2026-07-23T19:05:49-04:00"
+    },
+    "graph_authority": {
+      "observed": "yes",
+      "current": "yes",
+      "identity": null,
+      "summary": "Check mode: fresh (no changes)"
+    },
+    "generated_at": "2026-07-24T00:24:57Z"
+  },
+  "availability": {
+    "state": "partial",
+    "summary": "projection is usable but incomplete: components, boundaries, contracts, and attention items are drawn from the authored corpus, but regions and flows have no authored source and architecture_health is not evaluated in this producer version — see limitations and per-source availability",
+    "limitations": [
+      "regions are not authored: components are grouped under one synthetic 'Ungrouped' placeholder region because no owner-authored region entity exists yet in this repository's awareness corpus (components.yaml carries a bare 'owner' tag with no name/responsibility text) — see PR non-blocking note",
+      "flows are not populated: docs/awareness/architecture/contract_realizations.yaml (the natural flow source) currently has zero authored realizations — see PR non-blocking note",
+      "architecture_health is unknown: see assessments.architecture_health.provenance.limitations"
+    ],
+    "sources": [
+      {
+        "owner": "docs/awareness/architecture",
+        "availability": "available",
+        "summary": "authored components.yaml, boundaries.yaml, and contracts.yaml corpus"
+      },
+      {
+        "owner": "regions",
+        "availability": "unavailable",
+        "summary": "no owner-authored region entity exists yet; a synthetic, explicitly non-authoritative placeholder is emitted instead"
+      },
+      {
+        "owner": "flows",
+        "availability": "unavailable",
+        "summary": "contract_realizations.yaml has zero authored realizations"
+      },
+      {
+        "owner": "architecture_health",
+        "availability": "unavailable",
+        "summary": "not evaluated by this producer version"
+      }
+    ]
+  },
+  "assessments": {
+    "architecture_health": {
+      "state": "unknown",
+      "label": "Architecture health",
+      "summary": "not yet evaluated by this producer; wiring requires exporting sensei repo-eval's input-gathering surface (deferred, see PR non-blocking notes)",
+      "severity": "not_applicable",
+      "provenance": {
+        "evidence_refs": [],
+        "limitations": [
+          "architecture_health is not computed by this producer version; preserved as unknown rather than guessed"
+        ]
+      }
+    },
+    "projection_integrity": {
+      "state": "healthy",
+      "label": "Projection integrity",
+      "summary": "embeddata-freshness (sensei rebuild --check): Check mode: fresh (no changes)",
+      "severity": "not_applicable",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/server/embeddata/awareness.nt"
+        ],
+        "limitations": [
+          "scoped to the embeddata-freshness dimension only (via `sensei rebuild --check`); the full sensei audit check suite (yaml-validity, seed-orphans, coverage-gaps, stale-file-refs, test-coverage) is not yet wired into this producer"
+        ]
+      }
+    },
+    "observation_completeness": {
+      "state": "attention",
+      "label": "Observation completeness",
+      "summary": "coverage is the count of authored architectural elements in this revision; the total real architectural surface of the repository is not computed, so total is left unknown rather than estimated",
+      "severity": "medium",
+      "coverage": {
+        "observed": 192,
+        "total": null,
+        "unit": "authored architectural elements"
+      },
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  },
+  "active_context": null,
+  "briefing": [
+    {
+      "id": "briefing.orientation",
+      "kind": "orientation",
+      "text": "Revision 69f1940cf50c of github.com/globulario/sensei. The authored architecture corpus documents 5 component(s), 5 boundary(ies), and 18 contract(s); 164 attention item(s) (failure modes and forbidden fixes) are tracked. Regions and flows have no authored source yet. Architecture-health scoring is not yet wired into this producer.",
+      "severity": "info",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": []
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "region.ungrouped.synthetic-placeholder",
+      "name": "Ungrouped",
+      "responsibility": "Components not yet assigned to an owner-authored architectural region. This is a placeholder grouping, not a claim about the system's real region structure.",
+      "state": "unknown",
+      "component_refs": [
+        "component.awareness_graph_service",
+        "component.corpus_loader",
+        "component.dashboard_architecture_view",
+        "component.golang.pb",
+        "component.oxigraph_store"
+      ],
+      "visual_anchor": {
+        "order": 0
+      },
+      "provenance": {
+        "evidence_refs": [],
+        "limitations": [
+          "synthetic placeholder: no owner-authored region entity exists yet for this repository (see availability.limitations)"
+        ]
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "component.awareness_graph_service",
+      "name": "AwarenessGraphService",
+      "region_ref": "region.ungrouped.synthetic-placeholder",
+      "responsibility": "The read-only gRPC server. Compiles awareness into typed Query / Resolve / Metadata / Briefing / Preflight answers. It is the only legitimate read path into the graph for agents and the dashboard.",
+      "state": "proven",
+      "authority_refs": [
+        "boundary.dashboard_read_only_grpc",
+        "boundary.domain_scope"
+      ],
+      "visual_anchor": {
+        "order": 0
+      },
+      "provenance": {
+        "evidence_refs": [
+          "evidence.ci_green"
+        ],
+        "source_refs": [
+          "golang/server/resolve.go",
+          "golang/server/query.go",
+          "golang/server/metadata.go",
+          "golang/server/briefing.go"
+        ]
+      }
+    },
+    {
+      "id": "component.corpus_loader",
+      "name": "CorpusLoader",
+      "region_ref": "region.ungrouped.synthetic-placeholder",
+      "responsibility": "The YAML→RDF importer. Walks docs/awareness, classifies each file by schema, and emits validated N-Triples. The single writer that turns authored YAML into the compiled graph; the seed is generated, never hand-edited.",
+      "state": "proven",
+      "authority_refs": [
+        "boundary.corpus_cli_mutation",
+        "boundary.generated_seed"
+      ],
+      "visual_anchor": {
+        "order": 1
+      },
+      "provenance": {
+        "evidence_refs": [
+          "evidence.awg_rebuild_check_pass",
+          "evidence.awg_validate_zero_dangling"
+        ],
+        "source_refs": [
+          "golang/extractor/yaml_import_dir.go",
+          "golang/extractor/yaml_import.go"
+        ]
+      }
+    },
+    {
+      "id": "component.dashboard_architecture_view",
+      "name": "DashboardArchitectureView",
+      "region_ref": "region.ungrouped.synthetic-placeholder",
+      "responsibility": "The VS Code \"Project Awareness\" webview. Reads the graph over gRPC (Metadata / Query / Resolve / related) and renders counts, lists, and a local-neighborhood focus graph. Read-only: it must not mutate corpus or promote candidates.",
+      "state": "open",
+      "authority_refs": [
+        "boundary.dashboard_read_only_grpc"
+      ],
+      "visual_anchor": {
+        "order": 2
+      },
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "editor/vscode/src/dashboardPanel.ts",
+          "editor/vscode/media/dashboard.js"
+        ]
+      }
+    },
+    {
+      "id": "component.golang.pb",
+      "name": "GeneratedProtoBindings",
+      "region_ref": "region.ungrouped.synthetic-placeholder",
+      "responsibility": "Generated protobuf and gRPC bindings shared by the client, server, and MCP bridge. This is the typed wire contract boundary compiled from proto/awareness_graph.proto.",
+      "state": "open",
+      "authority_refs": [],
+      "visual_anchor": {
+        "order": 3
+      },
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto",
+          "golang/pb/awareness_graph.pb.go",
+          "golang/pb/awareness_graph_grpc.pb.go"
+        ]
+      }
+    },
+    {
+      "id": "component.oxigraph_store",
+      "name": "OxigraphStore",
+      "region_ref": "region.ungrouped.synthetic-placeholder",
+      "responsibility": "The RDF triple store backing the graph. Holds bytes; it is not the semantic authority — the service that writes and interprets the triples is. Read via the service, never bypassed.",
+      "state": "open",
+      "authority_refs": [],
+      "visual_anchor": {
+        "order": 4
+      },
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/store/oxigraph/oxigraph.go"
+        ]
+      }
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "boundary.candidate_promotion",
+      "name": "Candidate promotion boundary",
+      "kind": "other",
+      "member_refs": [
+        "component.corpus_loader"
+      ],
+      "state": "healthy",
+      "summary": "Promoting a candidate into the active corpus is a guarded CLI step with human review. No automatic or UI-driven promotion.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "cmd/awg/cmd_promote.go"
+        ]
+      }
+    },
+    {
+      "id": "boundary.corpus_cli_mutation",
+      "name": "Corpus CLI mutation boundary",
+      "kind": "other",
+      "member_refs": [
+        "component.corpus_loader"
+      ],
+      "state": "healthy",
+      "summary": "All corpus mutation flows through the awg CLI (rebuild / promote), never through the UI or a direct store write. The owner-legal write path.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "cmd/awg/cmd_promote.go",
+          "cmd/awg/cmd_rebuild.go"
+        ]
+      }
+    },
+    {
+      "id": "boundary.dashboard_read_only_grpc",
+      "name": "Dashboard read-only gRPC boundary",
+      "kind": "other",
+      "member_refs": [
+        "component.dashboard_architecture_view",
+        "component.awareness_graph_service"
+      ],
+      "state": "healthy",
+      "summary": "The dashboard may read Metadata / Query / Resolve / Briefing over gRPC, but it must not mutate the graph. Candidate promotion stays CLI/file guarded until a safe mutation API exists.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/server/resolve.go",
+          "editor/vscode/src/dashboardPanel.ts"
+        ]
+      }
+    },
+    {
+      "id": "boundary.domain_scope",
+      "name": "Domain scope boundary",
+      "kind": "domain",
+      "member_refs": [],
+      "state": "healthy",
+      "summary": "A knowledge node belongs to exactly one domain so truth never crosses repos accidentally. A query scoped to one domain returns only that domain's nodes plus shared meta-principles.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/server/scope.go"
+        ]
+      }
+    },
+    {
+      "id": "boundary.generated_seed",
+      "name": "Generated seed boundary",
+      "kind": "other",
+      "member_refs": [
+        "component.corpus_loader"
+      ],
+      "state": "healthy",
+      "summary": "embeddata/awareness.nt is a generated artifact, regenerated by awg rebuild and never hand-edited. Editing it directly bypasses the YAML source of truth and the validation pipeline.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "cmd/awg/cmd_rebuild.go"
+        ]
+      }
+    }
+  ],
+  "contracts": [
+    {
+      "id": "contract.awareness_graph",
+      "name": "AwarenessGraph",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "gRPC service AwarenessGraph with 15 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.briefing",
+      "name": "AwarenessGraph.Briefing",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "Briefing composes a ~500-token prose briefing for editing a file or tackling a task. The single entry point agents should call before significant code changes. Composed from the same SPARQL queries that back Impact; the difference is presentation, not data. — rpc Briefing(BriefingRequest) returns (BriefingResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.edit_check",
+      "name": "AwarenessGraph.EditCheck",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "EditCheck evaluates a proposed edit's content against the active repo-scoped advisory rules (\"detect\" blocks) that apply to the file, in the caller's resolved domain. It is WARNING-ONLY: it never blocks, never modifies code, and returns warnings naming the rule a bad-shape edit would violate (e.g. replacing dispenser.Errf with fmt.Errorf in a Caddy Caddyfile unmarshaler). Domain scoping is identical to Briefing/Impact: a multi-domain graph with no domain fails closed; cross-domain rules never apply. See golang/server/scope.go. — rpc EditCheck(EditCheckRequest) returns (EditCheckResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.get_architecture_artifact_state",
+      "name": "AwarenessGraph.GetArchitectureArtifactState",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE exact node IRI. The canonical class is resolved by the controlstate registry from observed graph classes — never supplied by the caller. — rpc GetArchitectureArtifactState(GetArchitectureArtifactStateRequest) returns (GetArchitectureArtifactStateResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.get_architecture_control_snapshot",
+      "name": "AwarenessGraph.GetArchitectureControlSnapshot",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 — the bounded repository overview (typed counts, attention, authority). — rpc GetArchitectureControlSnapshot(GetArchitectureControlSnapshotRequest) returns (GetArchitectureControlSnapshotResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.get_ontology_navigation_descriptor",
+      "name": "AwarenessGraph.GetOntologyNavigationDescriptor",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 — registry-derived, repository-independent; requires no filesystem context. — rpc GetOntologyNavigationDescriptor(GetOntologyNavigationDescriptorRequest) returns (GetOntologyNavigationDescriptorResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.impact",
+      "name": "AwarenessGraph.Impact",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "Impact returns the structured data the Briefing composer uses. Direct (file is the explicit subject of the node) vs Inferred (reached via package/symbol walks) partition matches the existing services-repo analysis package contract. — rpc Impact(ImpactRequest) returns (ImpactResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.list_architecture_artifacts",
+      "name": "AwarenessGraph.ListArchitectureArtifacts",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "ListArchitectureArtifacts returns one page of architecture.artifact_index/v1. The cursor is OPAQUE: produced and validated only by the controlstate owner, bound to snapshot/registry/filter identity, rejected on mismatch. — rpc ListArchitectureArtifacts(ListArchitectureArtifactsRequest) returns (ListArchitectureArtifactsResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.metadata",
+      "name": "AwarenessGraph.Metadata",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "Metadata returns coverage and freshness signals about the graph itself — not about any specific file. Agents call this at session start so they can tell whether an EMPTY briefing means \"no rules apply here\" (graph is well-covered) vs \"this area is unannotated\" (graph coverage is thin in this domain).  Cheap: counts are computed live via SPARQL but the queries are bounded and small. Safe to call once per session or per task. — rpc Metadata(MetadataRequest) returns (MetadataResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.preflight",
+      "name": "AwarenessGraph.Preflight",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "Preflight is the agent's pre-edit decision-support call. Given a task and optional file list, it returns a single risk_class the agent can branch on, plus required_actions, forbidden_fixes, tests_to_run, and files_to_read assembled from anchored graph facts (never invented).  Reuses Briefing's matching engine; adds risk classification, coverage discipline, and action-oriented response shape on top. EMPTY does NOT become LOW_RISK unless coverage explicitly says coverage is sufficient — if the graph doesn't know the area, the response is UNKNOWN_IMPACT and the agent is told to proceed carefully.  Store unavailable degrades to PREFLIGHT_STATUS_DEGRADED with UNKNOWN_IMPACT and blind_spots=\"awareness_store_unavailable\" rather than hard-failing. Only returns codes.Unavailable if the handler cannot construct any response at all. — rpc Preflight(PreflightRequest) returns (PreflightResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.prepare_architect_answer_disposition",
+      "name": "AwarenessGraph.PrepareArchitectAnswerDisposition",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "── Phase 9.5 Checkpoint 5: the guarded architect-answer mutation family ── The FIRST and ONLY mutation RPCs in the control-panel surface. Each is a guarded delegation to an existing owner (questiondisposition / questionpromotion); the server assigns no authority. A refused mutation is a SUCCESSFUL response carrying a typed refusal (mirrors Propose REJECTED), never a transport error. Requests carry LOGICAL identities + an actor identity only — filesystem roots come from the startup-owned context. — rpc PrepareArchitectAnswerDisposition(PrepareArchitectAnswerDispositionRequest) returns (PrepareArchitectAnswerDispositionResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.propose",
+      "name": "AwarenessGraph.Propose",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "Propose submits a typed feedback entry (failure_mode, invariant, required_test, forbidden_fix, or contract_unknown) to the awareness corpus's review queue. It is the agent write path: an agent that learned something durable proposes it here.  The entry is validated with the SAME contract-first rules as `awg propose` and written as a candidate under docs/awareness/candidates/proposals/ — it is NOT a live graph node and does NOT trigger a rebuild. Promotion into the canonical corpus stays a human/CI-gated step, so the served graph never silently mutates durable truth (preserving the CLI-not-durable-mutation contract; the RPC only queues a proposal). Requires the server to be configured with a candidates directory; returns Unavailable otherwise. — rpc Propose(ProposeRequest) returns (ProposeResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.query",
+      "name": "AwarenessGraph.Query",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "Query exposes constrained typed graph browsing only. ArchitectureClaim, OpenQuestion, and ArchitectAnswer are available here only when explicitly requested; they remain non-authoritative and are not surfaced through Briefing, Impact, or Preflight. — rpc Query(QueryRequest) returns (QueryResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.record_architect_answer_disposition",
+      "name": "AwarenessGraph.RecordArchitectAnswerDisposition",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "rpc RecordArchitectAnswerDisposition(RecordArchitectAnswerDispositionRequest) returns (RecordArchitectAnswerDispositionResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.reference_sites",
+      "name": "AwarenessGraph.ReferenceSites",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "ReferenceSites returns, for each requested code-symbol id, the set of OTHER code symbols that reference it (inbound aw:references edges from ingested SCIP occurrences). This is the completeness primitive: given the symbols a change touches, it answers \"N sites share this reference; which ones did the diff miss?\". Directed and complete — it reads inbound edges straight from the store, so a target with many OUTGOING references does not crowd out its referencing sites (as a bidirectional related-walk would). External targets (stdlib/third-party, id \"external:\u003cname\u003e\") have no in-repo definition and are ignored. Cheap: one inbound describe per id. — rpc ReferenceSites(ReferenceSitesRequest) returns (ReferenceSitesResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.awareness_graph.resolve",
+      "name": "AwarenessGraph.Resolve",
+      "source_ref": "component.awareness_graph_service",
+      "target_ref": "component.awareness_graph_service",
+      "kind": "grpc",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "Resolve fetches a single node by its annotation ID (e.g. \"invariant:foo\", \"pat.bar\"). Returns the node's triples plus any code-anchor provenance. This is the tool agents call after reading a // @invariant: X comment, or when explicitly inspecting a non-authoritative architecture_claim, open_question, or architect_answer. — rpc Resolve(ResolveRequest) returns (ResolveResponse)",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "id": "contract.candidate_yaml_schema",
+      "name": "Candidate YAML corpus schema",
+      "source_ref": "component.corpus_loader",
+      "target_ref": "component.corpus_loader",
+      "kind": "yaml_schema",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "The authored-YAML schema (invariants, failure_modes, components, boundaries, …) the importer recognises. The single authoring substrate.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/extractor/yaml_import_dir.go"
+        ]
+      }
+    },
+    {
+      "id": "contract.yaml2nt_ntriples_output",
+      "name": "yaml2nt N-Triples output contract",
+      "source_ref": "component.corpus_loader",
+      "target_ref": "component.corpus_loader",
+      "kind": "file_format",
+      "direction": "undirected",
+      "state": "open",
+      "summary": "The importer emits N-Triples that are grammar-validated before write; an invalid stream is refused, never persisted.",
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/extractor/yaml_import.go"
+        ]
+      }
+    }
+  ],
+  "flows": [],
+  "attention": [
+    {
+      "id": "failure_mode.awareness.briefing_context_bloat",
+      "kind": "failure_mode",
+      "title": "Briefing emits oversized context and long text bodies",
+      "summary": "Briefing emits oversized context and long text bodies",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.empty_graph_silently_treated_as_no_awareness",
+      "kind": "failure_mode",
+      "title": "Empty graph or store outage silently treated as no-awareness",
+      "summary": "Empty graph or store outage silently treated as no-awareness",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.graph_used_as_authority",
+      "kind": "failure_mode",
+      "title": "Graph results treated as operational authority",
+      "summary": "Graph results treated as operational authority",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.greedy_importer_claims_foreign_files",
+      "kind": "failure_mode",
+      "title": "A new file-extension importer without a directory scope claims unrelated files (audit_history.jsonl imported as agent runs)",
+      "summary": "A new file-extension importer without a directory scope claims unrelated files (audit_history.jsonl imported as agent runs)",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.legacy_mechanism_reintroduced",
+      "kind": "failure_mode",
+      "title": "Legacy SQLite session or preflight machinery is reintroduced",
+      "summary": "Legacy SQLite session or preflight machinery is reintroduced",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.ontology_vocab_drift",
+      "kind": "failure_mode",
+      "title": "Ontology vocab importer and proto drift out of alignment",
+      "summary": "Ontology vocab importer and proto drift out of alignment",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.raw_sparql_exposed_to_agent",
+      "kind": "failure_mode",
+      "title": "Query surface accepts or forwards raw SPARQL",
+      "summary": "Query surface accepts or forwards raw SPARQL",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store",
+      "kind": "failure_mode",
+      "title": "Unvalidated N-Triples written to Oxigraph silently corrupt the awareness graph",
+      "summary": "Unvalidated N-Triples written to Oxigraph silently corrupt the awareness graph",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.awareness.weak_pattern_match_pollutes_actions",
+      "kind": "failure_mode",
+      "title": "A medium/narrow keyword-overlap pattern match injects its required/forbidden calls into Preflight actions, burying the real repair guidance",
+      "summary": "A medium/narrow keyword-overlap pattern match injects its required/forbidden calls into Preflight actions, burying the real repair guidance",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.behavioral.awareness_source_mutation_without_enforcement",
+      "kind": "failure_mode",
+      "title": "Canonical awareness-source mutation lacks deterministic enforcement support",
+      "summary": "Canonical awareness-source mutation lacks deterministic enforcement support",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.behavioral.task_claim_scope_blocker_explosion",
+      "kind": "failure_mode",
+      "title": "Repository-wide claim debt is promoted into a local task's blocker surface by proximity instead of explainable impact",
+      "summary": "Repository-wide claim debt is promoted into a local task's blocker surface by proximity instead of explainable impact",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.ci.destructive_test_must_be_double_gated",
+      "kind": "failure_mode",
+      "title": "A destructive test (mutates/replaces/deletes live external state) was guarded only by a build tag plus a comment, and clobbered a live store",
+      "summary": "A destructive test (mutates/replaces/deletes live external state) was guarded only by a build tag plus a comment, and clobbered a live store",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.accepted_answer_stranded_outside_governed_promotion",
+      "kind": "failure_mode",
+      "title": "An accepted reusable answer is stranded outside governed promotion",
+      "summary": "An accepted reusable answer is stranded outside governed promotion",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.briefing_feedback_reimplements_or_broadens_or_leaks_promotion",
+      "kind": "failure_mode",
+      "title": "Briefing feedback reimplemented verification, trusted graph/claim metadata, broadened scope, leaked task-local answers, or let debris poison scope",
+      "summary": "Briefing feedback reimplemented verification, trusted graph/claim metadata, broadened scope, leaked task-local answers, or let debris poison scope",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.briefing_feedback_server_reconstructs_promotion_verification",
+      "kind": "failure_mode",
+      "title": "The server reconstructed promotion verification or owner policy from graph or filesystem artifacts",
+      "summary": "The server reconstructed promotion verification or owner policy from graph or filesystem artifacts",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.briefing_feedback_server_selects_filesystem_repository_from_request_or_cwd",
+      "kind": "failure_mode",
+      "title": "The server selected a filesystem repository from the caller, cwd, or a foreign-domain request",
+      "summary": "The server selected a filesystem repository from the caller, cwd, or a foreign-domain request",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.briefing_feedback_server_treats_task_text_as_canonical_identity",
+      "kind": "failure_mode",
+      "title": "The server treated natural-language task text as canonical task identity",
+      "summary": "The server treated natural-language task text as canonical task identity",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.briefing_feedback_structured_and_prose_diverge_or_unavailability_disappears",
+      "kind": "failure_mode",
+      "title": "Structured feedback and prose diverged, or unavailable feedback silently disappeared",
+      "summary": "Structured feedback and prose diverged, or unavailable feedback silently disappeared",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.caller_supplied_disposition_terminal_status_or_correctness",
+      "kind": "failure_mode",
+      "title": "Caller-supplied disposition, terminal status, or correctness truth",
+      "summary": "Caller-supplied disposition, terminal status, or correctness truth",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.certification_or_completion_over_unresolved_or_stale_promotion",
+      "kind": "failure_mode",
+      "title": "Certification or completion proceeds over an unresolved or stale promotion",
+      "summary": "Certification or completion proceeds over an unresolved or stale promotion",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.certification_profile_erases_governed_runtime_mandate",
+      "kind": "failure_mode",
+      "title": "Certification profile erases a governed runtime proof requirement",
+      "summary": "Certification profile erases a governed runtime proof requirement",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.change_task_binding_launders_a_completion_onto_an_unrelated_change",
+      "kind": "failure_mode",
+      "title": "A change-to-task binding laundered a valid completion onto an unrelated change",
+      "summary": "A change-to-task binding laundered a valid completion onto an unrelated change",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.completion_gate_conflates_unavailability_with_a_broken_verdict",
+      "kind": "failure_mode",
+      "title": "The completion gate conflated an outage with a broken verdict, or enforced without opt-in",
+      "summary": "The completion gate conflated an outage with a broken verdict, or enforced without opt-in",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.completion_surface_collapses_or_remaps_terminal_state",
+      "kind": "failure_mode",
+      "title": "A surface collapsed or independently re-mapped completion terminal state",
+      "summary": "A surface collapsed or independently re-mapped completion terminal state",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.contradictory_canonical_id_overwritten",
+      "kind": "failure_mode",
+      "title": "A contradictory canonical governed record is overwritten",
+      "summary": "A contradictory canonical governed record is overwritten",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.dialogue_answer_mistaken_for_governed_truth",
+      "kind": "failure_mode",
+      "title": "A dialogue or ledger answer is mistaken for governed truth",
+      "summary": "A dialogue or ledger answer is mistaken for governed truth",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.duplicate_attempt_or_record_on_retry",
+      "kind": "failure_mode",
+      "title": "Retry mints a second attempt, record, receipt, or node",
+      "summary": "Retry mints a second attempt, record, receipt, or node",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.duplicate_promotion_or_duplicate_completion",
+      "kind": "failure_mode",
+      "title": "Duplicate promotion or duplicate completion",
+      "summary": "Duplicate promotion or duplicate completion",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.governed_knowledge_present_but_non_consumable",
+      "kind": "failure_mode",
+      "title": "Governed architectural direction exists but closure cannot consume it",
+      "summary": "Governed architectural direction exists but closure cannot consume it",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.graph_rebuilt_without_question_answer_provenance",
+      "kind": "failure_mode",
+      "title": "The graph is rebuilt without question/answer provenance",
+      "summary": "The graph is rebuilt without question/answer provenance",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.graph_verified_against_wrong_source_world",
+      "kind": "failure_mode",
+      "title": "The graph is verified against a different source world than was committed",
+      "summary": "The graph is verified against a different source world than was committed",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.incomplete_source_commit_reported_governed",
+      "kind": "failure_mode",
+      "title": "A committed source mutation is reported governed before graph verification",
+      "summary": "A committed source mutation is reported governed before graph verification",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.offline_query_diverges_from_graph_owner",
+      "kind": "failure_mode",
+      "title": "The offline provenance query diverges from normal graph-owner semantics",
+      "summary": "The offline provenance query diverges from normal graph-owner semantics",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.partial_governed_source_or_graph_commit",
+      "kind": "failure_mode",
+      "title": "A partial governed-source or graph commit leaves an inconsistent world",
+      "summary": "A partial governed-source or graph commit leaves an inconsistent world",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.phase8_report_or_integration_treated_as_completion_authority",
+      "kind": "failure_mode",
+      "title": "The Phase-8 closure report or integration verifier was treated as completion authority, or collapsed the three closure claims",
+      "summary": "The Phase-8 closure report or integration verifier was treated as completion authority, or collapsed the three closure claims",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.phase9_projection_or_report_treated_as_terminal_authority",
+      "kind": "failure_mode",
+      "title": "A Phase-9 projection or the closure report was treated as terminal completion authority",
+      "summary": "A Phase-9 projection or the closure report was treated as terminal completion authority",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.phase9_surface_manufactures_or_reinterprets_completion",
+      "kind": "failure_mode",
+      "title": "A Phase-9 surface manufactured or reinterpreted completion truth",
+      "summary": "A Phase-9 surface manufactured or reinterpreted completion truth",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.phase9_surface_shipped_without_a_reviewed_slice",
+      "kind": "failure_mode",
+      "title": "A Phase-9 surface shipped without its own reviewed slice",
+      "summary": "A Phase-9 surface shipped without its own reviewed slice",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.promotion_event_leaks_into_task_projection",
+      "kind": "failure_mode",
+      "title": "A promotion journal event leaks into task phase/status truth",
+      "summary": "A promotion journal event leaks into task phase/status truth",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.promotion_journal_mistaken_for_governed_truth",
+      "kind": "failure_mode",
+      "title": "A promotion attempt journal is treated as governed truth",
+      "summary": "A promotion attempt journal is treated as governed truth",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.readiness_evaluation_asserts_or_performs_completion",
+      "kind": "failure_mode",
+      "title": "The readiness evaluator asserted or performed terminal completion, or reported ready on incomplete evidence",
+      "summary": "The readiness evaluator asserted or performed terminal completion, or reported ready on incomplete evidence",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.receipt_authoritative_before_projection_verified",
+      "kind": "failure_mode",
+      "title": "The promotion receipt is made authoritative before projection verification",
+      "summary": "The promotion receipt is made authoritative before projection verification",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.recovery_blesses_residue_or_normalizes_contradiction",
+      "kind": "failure_mode",
+      "title": "Terminal reconstruction or recovery blessed residue, accepted a broken completion, or normalized contradictory history",
+      "summary": "Terminal reconstruction or recovery blessed residue, accepted a broken completion, or normalized contradictory history",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.repo_graph_confused_with_combined_seed",
+      "kind": "failure_mode",
+      "title": "The repository graph is confused with the combined embedded seed",
+      "summary": "The repository graph is confused with the combined embedded seed",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.status_blind_unresolved_question_computation",
+      "kind": "failure_mode",
+      "title": "A status-blind unresolved-question computation satisfies a blocking question by omission",
+      "summary": "A status-blind unresolved-question computation satisfies a blocking question by omission",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.task_local_answer_leaks_into_global_briefing",
+      "kind": "failure_mode",
+      "title": "A task-local answer leaks into a repository-wide or foreign-domain briefing",
+      "summary": "A task-local answer leaks into a repository-wide or foreign-domain briefing",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.closure.unauthorized_stale_or_contradictory_promotion",
+      "kind": "failure_mode",
+      "title": "Unauthorized, stale, or contradictory governed promotion",
+      "summary": "Unauthorized, stale, or contradictory governed promotion",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.attention_severity_derived_from_text_or_color",
+      "kind": "failure_mode",
+      "title": "Attention severity was derived from text or color",
+      "summary": "Attention severity was derived from text or color",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.client_supplied_class_treated_as_artifact_authority",
+      "kind": "failure_mode",
+      "title": "A client-supplied class was treated as artifact class authority",
+      "summary": "A client-supplied class was treated as artifact class authority",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.graph_adjacency_treated_as_closure_evidence",
+      "kind": "failure_mode",
+      "title": "Graph adjacency was treated as closure or feedback evidence",
+      "summary": "Graph adjacency was treated as closure or feedback evidence",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.handler_infers_dimension_state_from_raw_graph_edges",
+      "kind": "failure_mode",
+      "title": "A handler inferred dimension state from raw graph edges",
+      "summary": "A handler inferred dimension state from raw graph edges",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.lifecycle_defaulted_to_active",
+      "kind": "failure_mode",
+      "title": "Lifecycle defaulted to active from absent evidence",
+      "summary": "Lifecycle defaulted to active from absent evidence",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.missing_source_rendered_as_zero",
+      "kind": "failure_mode",
+      "title": "A missing source was rendered as zero instead of unavailable",
+      "summary": "A missing source was rendered as zero instead of unavailable",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.pagination_cursor_reused_against_another_snapshot",
+      "kind": "failure_mode",
+      "title": "A pagination cursor was reused against a different snapshot",
+      "summary": "A pagination cursor was reused against a different snapshot",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.partial_projection_returned_as_transport_failure",
+      "kind": "failure_mode",
+      "title": "A partial projection was returned as a transport failure",
+      "summary": "A partial projection was returned as a transport failure",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.proto_field_renumbering_breaks_existing_consumers",
+      "kind": "failure_mode",
+      "title": "Protobuf field renumbering broke existing consumers",
+      "summary": "Protobuf field renumbering broke existing consumers",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.protobuf_mapping_collapses_unknown_to_zero",
+      "kind": "failure_mode",
+      "title": "The protobuf mapping collapsed unknown into zero",
+      "summary": "The protobuf mapping collapsed unknown into zero",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.read_rpc_mutates_dialogue_or_completion_state",
+      "kind": "failure_mode",
+      "title": "A read RPC mutated dialogue or completion state",
+      "summary": "A read RPC mutated dialogue or completion state",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.repository_wide_feedback_scan_invented",
+      "kind": "failure_mode",
+      "title": "A repository-wide feedback scan was invented",
+      "summary": "A repository-wide feedback scan was invented",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.rpc_accepts_caller_selected_filesystem_root",
+      "kind": "failure_mode",
+      "title": "An RPC accepted a caller-selected filesystem root",
+      "summary": "An RPC accepted a caller-selected filesystem root",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.server_or_editor_reclassifies_control_state",
+      "kind": "failure_mode",
+      "title": "The server or editor reclassified control state instead of consuming the owner",
+      "summary": "The server or editor reclassified control state instead of consuming the owner",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.task_verdict_copied_to_arbitrary_artifact",
+      "kind": "failure_mode",
+      "title": "A task/scope closure verdict was copied onto an arbitrary artifact",
+      "summary": "A task/scope closure verdict was copied onto an arbitrary artifact",
+      "severity": "critical",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.transport_recomputes_a_different_digest",
+      "kind": "failure_mode",
+      "title": "The transport recomputed a different projection digest",
+      "summary": "The transport recomputed a different projection digest",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.controlstate.unsupported_class_hidden_or_marked_closed",
+      "kind": "failure_mode",
+      "title": "An unsupported or unknown class was hidden or marked closed/not_applicable",
+      "summary": "An unsupported or unknown class was hidden or marked closed/not_applicable",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.components_owner_registry_launders_or_overclaims_authority",
+      "kind": "failure_mode",
+      "title": "Canonical owner registry launders or overclaims authority",
+      "summary": "Canonical owner registry launders or overclaims authority",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.contract_scope_underconstrained_allows_repair_drift",
+      "kind": "failure_mode",
+      "title": "Contract scope underconstrained allows repair drift",
+      "summary": "Contract scope underconstrained allows repair drift",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.forwarding_graph_transaction_file_when_loading_a_foreign_onl",
+      "kind": "failure_mode",
+      "title": "Forwarding --graph-transaction-file when loading a foreign-only scoped slice turns the expected uncertified transaction into a hard build failure",
+      "summary": "Forwarding --graph-transaction-file when loading a foreign-only scoped slice turns the expected uncertified transaction into a hard build failure",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.globular.dashboard_domain_list_only_shows_loaded_graph_domains",
+      "kind": "failure_mode",
+      "title": "Dashboard domain list only shows loaded graph domains",
+      "summary": "Dashboard domain list only shows loaded graph domains",
+      "severity": "unknown",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.import.preexisting_awareness_skips_agent_scaffold",
+      "kind": "failure_mode",
+      "title": "Pre-existing awareness directory suppresses agent scaffold",
+      "summary": "Pre-existing awareness directory suppresses agent scaffold",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.importgraph.go_dangling_dependson_edge_to_unscanned_package",
+      "kind": "failure_mode",
+      "title": "import-graph emits a dangling depends_on edge to a generated-only (unscanned) package",
+      "summary": "import-graph emits a dangling depends_on edge to a generated-only (unscanned) package",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.importgraph.go_no_edges_when_gomod_in_subdir",
+      "kind": "failure_mode",
+      "title": "Go import-graph extractor emits 0 dependency edges when go.mod is not at repo root",
+      "summary": "Go import-graph extractor emits 0 dependency edges when go.mod is not at repo root",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.rebuild.authoredin_records_per_run_temp_path",
+      "kind": "failure_mode",
+      "title": "rebuild bakes a per-run temp path into authoredIn, so embeddata-freshness can never pass",
+      "summary": "rebuild bakes a per-run temp path into authoredIn, so embeddata-freshness can never pass",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.repo_sends_a_foreign_import_to_the_wrong_place_it_is_a_check",
+      "kind": "failure_mode",
+      "title": "--repo sends a foreign import to the wrong place: it is a checkout PATH on bootstrap/cold-bootstrap/intent-mine but a DOMAIN on build",
+      "summary": "--repo sends a foreign import to the wrong place: it is a checkout PATH on bootstrap/cold-bootstrap/intent-mine but a DOMAIN on build",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.sensei.closure_control_query_classes_rejected_by_stale_server_binar",
+      "kind": "failure_mode",
+      "title": "Closure control query classes rejected by stale server binary",
+      "summary": "Closure control query classes rejected by stale server binary",
+      "severity": "unknown",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.failure.sensei.flat_task_closure_output_hides_the_load_bearing_next_action",
+      "kind": "failure_mode",
+      "title": "Flat task closure output hides the load-bearing next action",
+      "summary": "Flat task closure output hides the load-bearing next action",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "failure_mode.governance.self_coherence_findings_require_source_of_truth_diagnosis",
+      "kind": "failure_mode",
+      "title": "A self-coherence/lifecycle/audit finding was \"fixed\" by mutating the governed corpus before diagnosing where the defect actually lived",
+      "summary": "A self-coherence/lifecycle/audit finding was \"fixed\" by mutating the governed corpus before diagnosing where the defect actually lived",
+      "severity": "high",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/failure_modes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.add_second_package_identity_authority",
+      "kind": "forbidden_move",
+      "title": "add a second package-identity authority",
+      "summary": "Introduce a second surface that defines which packages exist or their identity (kind/version/build_id) — a generated manifest, installer mirror, or tarball name — alongside packages/registry.yaml.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.consume_generated_workspace_as_release_authority",
+      "kind": "forbidden_move",
+      "title": "consume the generated workspace as release authority",
+      "summary": "Consume services/generated as the authoritative release source instead of a disposable derived workspace.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.delete_generated_mid_flow_without_regeneration",
+      "kind": "forbidden_move",
+      "title": "delete generated/ mid-flow without regenerating",
+      "summary": "Delete services/generated mid-flow without regenerating it, leaving the build to consume stale or missing inputs.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.run_sensei_audit_fix_to_resolve_embeddata_freshness_in_this",
+      "kind": "forbidden_move",
+      "title": "Run sensei audit --fix to resolve embeddata-freshness in this repo",
+      "summary": "In a checkout with a sibling ../services repo present, 'sensei audit --fix' resolves svcRepo to that sibling and its embeddata-freshness fix path regenerates the COMBINED (services+awareness-graph) seed, then writes it straight over golang/server/embeddata/awareness.nt — inflating the file by ~174k lines and leaking internal services-repo content into what must stay a self-only public artifact. Discovered while closing issue #95: after correctly rebuilding the self-only seed via scripts/build-awareness-graph-self.sh, running 'sensei audit --fix' to clear a residual 13-triple STALE reading silently overwrote it with the combined regeneration. Always use scripts/build-awareness-graph-self.sh (optionally --check first) to refresh this repo's committed seed; never run 'sensei audit --fix' for embeddata-freshness when a sibling services checkout is present.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.auto_promote_or_auto_complete_after_a_successful_disposition",
+      "kind": "forbidden_move",
+      "title": "Auto-promote or auto-complete after a successful disposition",
+      "summary": "Recording an accepted answer must never trigger governed promotion; a promotion must never trigger task completion or certification. Each lifecycle step is a separate, explicitly-authorized guarded action.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.carry_architectural_state_in_color_alone",
+      "kind": "forbidden_move",
+      "title": "Carry architectural state in color alone",
+      "summary": "A badge/row/tag whose meaning is conveyed only by color fails proof 22. Every state must also carry a text label or glyph.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.classify_rigor_by_filename_let_a_declaration_downgrade_an_a",
+      "kind": "forbidden_move",
+      "title": "Classify rigor by filename, let a declaration downgrade an A/B surface, or exempt Class D from integrity gates",
+      "summary": "Assigning a rigor class to a raw filename (instead of a governed surface), letting a declared C/D class downgrade a change that touches an A/B-owned surface, or exempting Class D from the repository-integrity gates all defeat proportional rigor's purpose: they let ceremony land away from where the structural weight is, or let a light declaration bypass integrity. Effective rigor must be the strictest touched surface, fail closed to Class A on the unknown, and keep every integrity gate at Class D.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.compose_an_incompleteness_explanation_or_coverage_percentage",
+      "kind": "forbidden_move",
+      "title": "Compose an incompleteness explanation or coverage percentage in the UI or from a missing denominator",
+      "summary": "Composing the known/missing/next-evidence wording in the webview (a client decision table), or rendering a coverage percentage without an observed denominator (or an observed-zero population as 0%/100%), launders absence into apparent knowledge and re-opens the collapse the Phase-9 laws forbid. The panel must render owner-projected strings verbatim and emit a percentage only for an observed denominator \u003e 0.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.copy_raw_architect_answer_text_into_a_governed_record_or_pro",
+      "kind": "forbidden_move",
+      "title": "Copy raw architect answer text into a governed record or promotion prose",
+      "summary": "The raw answer is opaque bytes hashed by the owner (AnswerID + digest). Governed prose is an independently-authored ProposeRequest; copying answer text into it launders unverified prose into authority (Phase 9.6 provenance != authority).",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.expose_the_unguarded_questiongen_dialogue_op_as_an_authorita",
+      "kind": "forbidden_move",
+      "title": "Expose the unguarded questiongen dialogue op as an authoritative mutation",
+      "summary": "questiongen RecordAnswer/AdjudicateAnswer carry no identity, authority, or ledger. Only questiondisposition/questionpromotion are guarded; exposing the dialogue layer as authority bypasses actor binding and the ledger.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.first_row_win_over_contested_evidence_receipts",
+      "kind": "forbidden_move",
+      "title": "First-row-win over contested evidence receipts",
+      "summary": "Silently accepting the first receipt when a later receipt observes the same owner-path subject with a different payload. Same-subject/different-payload must be CONTESTED with both preserved; exact-digest is REPLAYED.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.first_row_wins_on_conflicting_runtime_evidence",
+      "kind": "forbidden_move",
+      "title": "First-row-wins on conflicting runtime evidence",
+      "summary": "Taking the first observation's classification when the same crossing is observed with conflicting evidence. Conflicting evidence must be preserved (all conflicting ids recorded) and yield contradictory_observations/degraded, never a silent satisfied.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.gate_cp6_closure_on_a_flaky_vs_code_host_launch_harness",
+      "kind": "forbidden_move",
+      "title": "Gate CP6 closure on a flaky VS Code host-launch harness",
+      "summary": "Adding @vscode/test-electron (real host download + xvfb) to the closure path introduces cross-platform flake that can block a green Ubuntu+Windows gate. Packaged validation must stay a deterministic pure-Node content assertion over the .vsix.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.hardcode_ontology_class_membership_capabilities_or_families",
+      "kind": "forbidden_move",
+      "title": "Hardcode ontology class membership capabilities or families in the editor",
+      "summary": "Navigation families, class membership, capabilities, and default visibility come only from the ontology navigation descriptor. A client-side ASPECTS/CLASS_COLOR/capability/family table drifts from the owner registry.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.infer_question_state_next_action_closure_or_lifecycle_in_the",
+      "kind": "forbidden_move",
+      "title": "Infer question-state next-action closure or lifecycle in the inspector",
+      "summary": "The inspector must render artifact_state fields verbatim; questions/evidence/next-action are owner ids with no state, and closure/lifecycle/severity come from the owner. Any client inference fabricates architectural truth.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.invent_a_caller_callee_or_contract_from_a_probe_observation",
+      "kind": "forbidden_move",
+      "title": "Invent a caller, callee, or contract from a probe observation",
+      "summary": "Populating RuntimeObservation caller/callee/EndpointOrContract with fabricated identities so an owner-path probe becomes an admissible crossing. Probe data has none of these; the adapter must leave the crossing identity unresolved and let the owner refuse it.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.invent_a_promotion_owner_to_satisfy_proof_13",
+      "kind": "forbidden_move",
+      "title": "Invent a promotion owner to satisfy proof 13",
+      "summary": "Adding a server-side promotion RPC or any fact-writing path to display 'promoted knowledge' violates graph_truth_must_come_from_approved_corpus and the briefing-feedback ownership boundary. Proof 13 is met by DISPLAYING existing Phase-9.6 ScopedFeedbackRef lineage; promotion stays deferred and visibly unavailable.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.let_a_narrow_width_force_horizontal_scroll_or_hide_critical",
+      "kind": "forbidden_move",
+      "title": "Let a narrow width force horizontal scroll or hide critical attention",
+      "summary": "Collapsing the panel by horizontally scrolling the body, or hiding the rail/inspector/attention list at narrow widths, breaks proof 23. The narrow layout must stack into a single vertically-scrolling column with nothing hidden.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.let_caller_input_select_a_boundary_s_canonical_class",
+      "kind": "forbidden_move",
+      "title": "Let caller input select a boundary's canonical class",
+      "summary": "Trusting a caller-supplied canonical class instead of resolving it from observed rdf:type. A fabricated Boundary class must never make an arbitrary node runtime-assessable; the class is recomputed and disagreement is refused.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.map_a_probe_result_to_a_satisfied_crossing_verdict",
+      "kind": "forbidden_move",
+      "title": "Map a probe result to a satisfied crossing verdict",
+      "summary": "Any path where evidence-level probe data yields satisfied/violated on a boundary crossing. Composed through the runtimeboundary owner, an honest probe observation must resolve to unknown/required_evidence_absent, never a positive verdict.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.map_an_absent_optional_count_to_zero",
+      "kind": "forbidden_move",
+      "title": "Map an absent optional count to zero",
+      "summary": "proto3 optional counts decode to undefined when unobserved; rendering absence as 0 (e.g. Number(x||0)) launders unknown state into a false healthy zero. Presence must be read via the synthetic-oneof marker.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.mark_a_degraded_stale_or_unavailable_probe_as_available_fres",
+      "kind": "forbidden_move",
+      "title": "Mark a degraded, stale, or unavailable probe as available/fresh",
+      "summary": "Reporting Availability=available or Freshness=fresh (or IntegrityVerified=true) for a probe that was inconclusive/failed/unavailable/stale/incomplete. Availability, freshness, and integrity must be mapped honestly from the probe result.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.mint_or_authorize_a_boundary_from_observed_traffic",
+      "kind": "forbidden_move",
+      "title": "Mint or authorize a boundary from observed traffic",
+      "summary": "Letting a runtime observation create a boundary, or admitting an observation without an explicit non-self-authorizing binding (in scope, target-matched), lets traffic author architecture. Observations are admissible only through a validated binding; unbound traffic is refused.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.mutate_without_the_expected_ledger_head_precondition_or_pres",
+      "kind": "forbidden_move",
+      "title": "Mutate without the expected-ledger-head precondition or present a refusal as mutation success",
+      "summary": "A commit must CAS against the client's expected ledger head (stale -\u003e refuse, write nothing) and never silently re-prepare; a domain refusal must expose mutation_applied=false with the unchanged ledger identity, never a transport success that looks applied.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.re_derive_graph_authority_or_severity_in_the_webview",
+      "kind": "forbidden_move",
+      "title": "Re-derive graph authority or severity in the webview",
+      "summary": "The CP3 control panel must read authority (observed/current/integrity) and severity from the control snapshot verbatim. Re-deriving them client-side (the pre-CP3 graphAuthority.ts/dashboard.js cockpit derivation) reintroduces the drift the migration removed.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.recompute_the_runtime_boundary_verdict_in_controlstate_or_th",
+      "kind": "forbidden_move",
+      "title": "Recompute the runtime-boundary verdict in controlstate or the server",
+      "summary": "Re-deriving a runtime-boundary verdict downstream (importing runtimeboundary from controlstate/server, or reimplementing crossing classification / verdict / severity so the control panel decides compliance instead of projecting the owner's decision) spawns a semantic doppelganger: two owners disagree and telemetry can launder itself into architecture. The only admissible path is the runtimeboundarycompose bridge projecting the already-decided verdict verbatim; controlstate carries a typed DimensionObservation and the server carries it through the generic transport.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.render_a_non_applicable_dimension_as_open",
+      "kind": "forbidden_move",
+      "title": "Render a non-applicable dimension as open",
+      "summary": "Only owner-marked applicable dimensions are shown; a non-applicable dimension must never appear or count as open (missing non-applicable dimensions do not open an artifact).",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.render_completion_or_authoritative_completion_as_correctness",
+      "kind": "forbidden_move",
+      "title": "Render completion or authoritative_completion as correctness",
+      "summary": "Showing the top-strip completion state (or the 'authoritative' qualifier) as a correctness/certification claim conflates completion with correctness (proof 4). Phase 6 alone certifies; the panel must word completion as a workflow terminal state, never truth.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.reuse_legacy_graph_adjacency_as_relationships_in_the_control",
+      "kind": "forbidden_move",
+      "title": "Reuse legacy graph-adjacency as relationships in the control panel",
+      "summary": "No owner projection carries relationship/edge data. Relationships and the focus graph must render honestly unavailable, never fall back to legacy graph adjacency / CLASS_COLOR / DIR (which stay quarantined in dashboard.js).",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.treat_missing_or_absent_telemetry_as_satisfied",
+      "kind": "forbidden_move",
+      "title": "Treat missing or absent telemetry as satisfied",
+      "summary": "Returning satisfied (or any compliant verdict) when required runtime evidence is absent or the collector is unavailable. Missing telemetry must yield unavailable/unknown, never satisfied — and collector outage must stay distinct from no-violation-observed.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.trust_producer_declared_freshness_or_trust_on_an_evidence_re",
+      "kind": "forbidden_move",
+      "title": "Trust producer-declared freshness or trust on an evidence receipt",
+      "summary": "Never accept a receipt's self-declared freshness/trust/status as authoritative to reach PASS. The validator must recompute effective status against the proof request and binding. Producer-supplied freshness with no observed time is UNKNOWN, not PASS.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.use_ambient_admission_to_judge_a_caller_supplied_diff",
+      "kind": "forbidden_move",
+      "title": "Use ambient admission to judge a caller-supplied diff",
+      "summary": "awareness_audit_diff evaluates only the caller-supplied diff as a read-only, non-authoritative projection. It must not invoke repository admission or inspect ambient working-tree mutations, because those represent a different change subject and can produce a verdict unrelated to the submitted evidence.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.forbidden_fix.sensei.yield_satisfied_under_stale_or_unverified_graph_authority",
+      "kind": "forbidden_move",
+      "title": "Yield satisfied under stale or unverified graph authority",
+      "summary": "Concluding satisfied when the boundary identity is not current or not integrity-verified. Stale/unverified authority means the boundary definition itself is untrusted, so no observation can be admitted as authoritative — the verdict is at best degraded.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.infer_package_identity_from_binary_or_tarball",
+      "kind": "forbidden_move",
+      "title": "infer package identity from a binary or tarball",
+      "summary": "Derive a package's name/kind/version/build_id by inspecting a built binary or .tgz filename instead of reading packages/registry.yaml.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.keep_undeclared_binary_aliases_in_packages_bin",
+      "kind": "forbidden_move",
+      "title": "keep undeclared binary aliases in packages/bin",
+      "summary": "Leave binaries in packages/bin that are not declared by a registry-backed canonical spec (stale or alias binaries).",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_adoption_receipt_or_node_alone_as_promotion_proof",
+      "kind": "forbidden_move",
+      "title": "treat an adoption.Receipt or a graph node alone as authoritative promotion",
+      "summary": "Accept an adoption.Receipt (candidate evidence) or the mere existence of a governed graph node as proof that a reusable answer was authorized and correctly promoted, instead of a QuestionPromotionReceipt binding the full question -\u003e answer -\u003e authority -\u003e result -\u003e governed mutation -\u003e rebuilt graph lineage.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_arbitrary_actor_or_implicit_authority_reuse",
+      "kind": "forbidden_move",
+      "title": "use an arbitrary actor string or implicitly reuse another authority for disposition/promotion/completion",
+      "summary": "Derive the answering actor, promotion actor, or completing actor from an arbitrary caller string, or silently reuse the certifying actor, instead of an explicit authority-bound actor verified via authority.VerifyActorBinding — with answer authority and promotion authority as separate typed operations.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_bespoke_provenance_semantics",
+      "kind": "forbidden_move",
+      "title": "implement a bespoke RDF interpretation for the provenance query",
+      "summary": "Implement the offline provenance reader with a second, divergent RDF interpretation (IRI parsing, edge direction, literal handling) instead of reusing or matching store.Store semantics with parity tests.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_completion_repairs_the_feedback_loop",
+      "kind": "forbidden_move",
+      "title": "let completion answer, promote, rebuild, re-certify, or otherwise repair the loop it verifies",
+      "summary": "Have the completion transaction record a disposition, promote an answer, mutate governed sources, rebuild the graph, or re-run certification to make a task completable, instead of verify-only fail-closed behavior over the separate question/promotion owner and the certification receipt.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_convert_deferred_dismissed_to_resolved_without_disposition",
+      "kind": "forbidden_move",
+      "title": "convert a deferred or dismissed question into resolved without an authorized disposition",
+      "summary": "Reclassify a deferred/dismissed question as resolved (or drop it from the resolution summary) without a new authority-verified disposition, instead of keeping deferred/dismissed questions durable and explainable.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_copy_task_local_answer_into_governed_sources",
+      "kind": "forbidden_move",
+      "title": "copy a task-local answer into governed sources or a repository briefing",
+      "summary": "Promote or surface a task_local disposition into docs/awareness governed sources or a repository-wide/foreign-domain briefing, instead of keeping it confined to its exact task/session/result and effective scope.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_delete_question_to_improve_closure",
+      "kind": "forbidden_move",
+      "title": "delete or drop an architect question to improve closure",
+      "summary": "Remove, hide, or drop a closure-blocking architect question (or rely on a rebuild that removes its backing blocker) to make proving/certification/completion pass, instead of an explicit authorized disposition preserved as lineage.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_direct_graph_or_projection_write",
+      "kind": "forbidden_move",
+      "title": "write the graph or briefing projection directly during disposition/promotion/completion",
+      "summary": "Have a Phase-8 package write the awareness graph, seed, or a briefing/ledger projection directly instead of mutating the governed source and rebuilding through the deterministic owner path (and rebuilding ledger projections from the verified chain).",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_overwrite_contradictory_governed_record",
+      "kind": "forbidden_move",
+      "title": "overwrite an existing governed record to force a promotion",
+      "summary": "Overwrite or edit-in-place an existing canonical governed record whose semantics differ, to make a promotion succeed, instead of raising a typed collision/contradiction.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_production_calls_cli_handler_or_duplicates_policy",
+      "kind": "forbidden_move",
+      "title": "call a CLI handler from a production package or duplicate CLI promotion policy",
+      "summary": "Have a Phase-8 production package invoke a cmd/awg run* handler (e.g. runPropose) or re-implement propose/rebuild policy inline, instead of a reusable governed-promotion owner sitting beneath sensei propose that both the CLI and Phase 8 call.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_promotion_events_as_task_events",
+      "kind": "forbidden_move",
+      "title": "model promotion journal states as task lifecycle events",
+      "summary": "Add the four promotion states to closureprotocol task LedgerEventTypes, project them into task phase/status, or let task-ledger reducers consume them, instead of a promotion-local typed vocabulary and validator.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_promotion_writes_combined_seed",
+      "kind": "forbidden_move",
+      "title": "promote by writing or partial-regenerating the combined embedded seed",
+      "summary": "Have the promotion path edit, partial-regenerate, or claim convergence of golang/server/embeddata/awareness.nt (the cross-repository combined seed) instead of persisting only the repository-scoped .sensei/project/graph.nt and reporting the combined-seed obligation separately.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_release_lock_before_graph_verified",
+      "kind": "forbidden_move",
+      "title": "release the promotion lock after source commit but before graph verification",
+      "summary": "Release the repository-scoped promotion/mutation lock after governed_source_committed and before governed_graph_verified, allowing a concurrent writer to change docs/awareness before the rebuild re-reads it from disk.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_rollback_by_deletion_as_recovery",
+      "kind": "forbidden_move",
+      "title": "recover a failed promotion by deleting the committed source mutation",
+      "summary": "Use rollback-by-deletion of a durably committed governed-source mutation as the recovery strategy, instead of resuming and reconciling the same content-addressed attempt from its journal.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_temporary_compile_reported_as_promoted",
+      "kind": "forbidden_move",
+      "title": "report a temporary graph compile as completed promotion",
+      "summary": "Treat an in-memory or throwaway graph compile as graph_verified, instead of requiring the canonical persisted .sensei/project/graph.nt plus authority marker to be independently reloaded and verified against the committed manifest.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase8_trust_caller_governed_status_or_graph_digest",
+      "kind": "forbidden_move",
+      "title": "trust a caller-supplied governed status, graph digest, node IRI, or promotion status",
+      "summary": "Accept a caller-supplied governed=true, graph digest, node IRI, source digest, provenance verdict, or promotion status as authoritative instead of recomputing every trusted value from the committed source and reloaded graph.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_accept_artifact_class_from_client",
+      "kind": "forbidden_move",
+      "title": "accept an artifact class from the client",
+      "summary": "Add a request field (or reuse an index filter) that lets the caller supply the canonical class used to select an artifact assessment policy.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_convert_missing_optional_counts_to_zero",
+      "kind": "forbidden_move",
+      "title": "convert missing optional counts to zero",
+      "summary": "Fill an unobserved controlstate count/summary with an explicit zero on the wire (or drop proto3 optional and let absent decode as 0) so the response looks complete.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_derive_repository_identity_from_cwd_or_workspace",
+      "kind": "forbidden_move",
+      "title": "derive repository identity from cwd or workspace folder",
+      "summary": "Establish repository root/domain from the current working directory, a workspace folder guess, or homeDomain, instead of the immutable startup-owned Phase 9.6 repository context.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_duplicate_closure_or_severity_tables_in_server",
+      "kind": "forbidden_move",
+      "title": "duplicate closure or severity tables in the server",
+      "summary": "Copy the controlstate closure, severity, lifecycle, or applicability vocabularies/mappings into the server, mapper, or client so a transport layer can classify state itself.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_expose_raw_errors_or_absolute_paths",
+      "kind": "forbidden_move",
+      "title": "expose raw internal errors or absolute repository paths",
+      "summary": "Serialize raw internal error strings, stack details, or absolute filesystem/repository paths into a control-panel response or gRPC status message.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_hardcode_semantic_class_membership_in_editor",
+      "kind": "forbidden_move",
+      "title": "hardcode semantic class membership or capabilities in the editor",
+      "summary": "Carry ontology class membership, families, capabilities, or semantic visibility in the VS Code client instead of consuming the registry-derived navigation descriptor.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_infer_active_from_absent_lifecycle",
+      "kind": "forbidden_move",
+      "title": "infer an active lifecycle from absent lifecycle evidence",
+      "summary": "Report lifecycle active when no authoritative lifecycle source was observed.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_infer_closure_from_edge_counts",
+      "kind": "forbidden_move",
+      "title": "infer closure (or a satisfied dimension) from graph edge counts",
+      "summary": "Declare a dimension satisfied or an artifact closed from graph-edge presence/adjacency alone, without an explicit typed owner or verification making the evidence admissible.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_infer_not_applicable_from_missing_policy",
+      "kind": "forbidden_move",
+      "title": "infer not_applicable from a missing assessment policy",
+      "summary": "Mark an artifact or dimension not_applicable because no reviewed policy exists, instead of unknown/unsupported.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_parse_error_text_for_attention_severity",
+      "kind": "forbidden_move",
+      "title": "parse error text (or a label/color) to assign attention severity",
+      "summary": "Derive an attention class or severity from error strings, labels, or colors, or map severity client-side, or silently downgrade a critical source condition.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_parse_reason_prose_to_choose_proto_enum",
+      "kind": "forbidden_move",
+      "title": "parse reason prose to choose a protobuf enum",
+      "summary": "Inspect a reason code or human-readable detail string in the mapper/handler to decide which protobuf enum value (availability, closure, severity) to emit.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_reconstruct_models_from_labels_or_colors",
+      "kind": "forbidden_move",
+      "title": "reconstruct controlstate models from labels or colors",
+      "summary": "Rebuild closure/severity/availability state client- or server-side from display labels, colors, prose, or protobuf string fields instead of consuming the typed canonical projection.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_replace_unknown_with_friendly_closed",
+      "kind": "forbidden_move",
+      "title": "replace unknown/unavailable state with a friendly closed or zero state",
+      "summary": "Render unknown, unsupported, or unavailable state as closed, not_applicable, or zero to make the panel look healthier.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_treat_partial_projection_as_empty_success",
+      "kind": "forbidden_move",
+      "title": "treat partial or unavailable projections as empty success objects",
+      "summary": "Return an empty/zeroed response object (or a transport error) for a semantically partial/unavailable projection instead of the typed projection carrying availability, sources, and reasons.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_5_use_closure_report_verdict_as_artifact_closure",
+      "kind": "forbidden_move",
+      "title": "use closure.Report.Verdict as artifact closure",
+      "summary": "Copy a task/scope closure verdict or its dimension list onto an arbitrary graph artifact, or invent a repository-wide feedback scan from graph adjacency.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_briefing_feedback_add_repository_root_to_request",
+      "kind": "forbidden_move",
+      "title": "add a filesystem repository root (or repo selector) to BriefingRequest",
+      "summary": "Add a repository-root or filesystem-path field to BriefingRequest, or otherwise let a remote caller select which repository's promotions the server verifies.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_briefing_feedback_erase_graph_prose_on_degraded_or_unavailable",
+      "kind": "forbidden_move",
+      "title": "erase the base graph briefing when feedback is degraded or unavailable",
+      "summary": "Drop or blank the existing graph/intent/implementation-pattern briefing, or upgrade combined status to OK, when feedback is degraded, unavailable, or invalid — instead of preserving the base briefing and composing status by the frozen table.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_briefing_feedback_infer_active_task_for_task_only_feedback",
+      "kind": "forbidden_move",
+      "title": "infer an active task (or task directory) for task-only server feedback",
+      "summary": "For a task-only server briefing, manufacture a task binding — call a tasksession active-task fallback, read the only task directory, or emit a fabricated task id/session — instead of returning typed feedback_unavailable (canonical_task_scope_not_established).",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_briefing_feedback_infers_scope_or_leaks_or_owns_feedback_elsewhere",
+      "kind": "forbidden_move",
+      "title": "infer promotion scope by normalization/fallback, leak task-local answers, let debris poison scope, or move the feedback owner into server/editor",
+      "summary": "Admit a promotion by trimming/case-folding/basename/prefix/suffix/domain-or-file fallback, treat graph adjacency / claimed scope / issuer / status as authority, let an unrelated broken promotion degrade the requested briefing, render raw answer text as reusable governed knowledge, treat a feedback outage as proof no promoted knowledge exists, or let the future server/editor become the feedback owner.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_briefing_feedback_parses_promotion_error_text_or_reimplements_verification",
+      "kind": "forbidden_move",
+      "title": "parse questionpromotion error strings or reimplement/duplicate promotion verification for briefing feedback",
+      "summary": "Classify a promotion verification outcome by parsing its error message, re-read promotion journals/receipts/governed-source/graph in briefingfeedback to reconstruct verification, or reimplement committed-promotion verification / scope / relevance / classification in the server or task briefing instead of the one canonical owner.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_briefing_feedback_server_constructs_authoritative_projection",
+      "kind": "forbidden_move",
+      "title": "manually construct an authoritative-looking feedback projection in the server",
+      "summary": "Hand-build a briefingfeedback.Projection (records or availability) in the server instead of obtaining it from briefingfeedback.Build or the narrow canonical unavailable-projection constructor, or map an unvalidated projection to the wire.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_briefing_feedback_use_home_or_requested_domain_as_repository_proof",
+      "kind": "forbidden_move",
+      "title": "use homeDomain or the requested domain as proof of filesystem repository identity",
+      "summary": "Treat homeDomain, the requested domain, cwd, a basename, or the first checkout as proof of which filesystem repository to verify, or verify promotions for a request whose exact resolved graph domain is not the configured repository domain.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_change_task_binding_normalizes_or_infers_identity",
+      "kind": "forbidden_move",
+      "title": "normalize or infer change-to-task identity instead of exact typed matching",
+      "summary": "Trim, case-fold, shorten, path-clean, or basename/prefix-match any change-to-task identity value, or infer the task from a branch name, commit message, --task-dir, or ambient Git state, or accept a stale-head or cross-repository binding, or resolve a contradictory publication set by selecting a record.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_change_task_binding_producer_failure_enters_runtime_degradation",
+      "kind": "forbidden_move",
+      "title": "express a producer failure as a 9.4b runtime degradation or promote local Git state to authoritative",
+      "summary": "Route a change-to-task producer failure (unsupported event, checkout mismatch, absent task/completion, unverifiable provenance, contradictory publication, write failure) through projection_owner_runtime_error or any 9.4b degraded-pass reason, or treat local/ambient Git execution as GitHub-authoritative, or publish a non-authoritative/partially-valid binding.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_completion_enforced_without_authoritative_change_binding",
+      "kind": "forbidden_move",
+      "title": "enforce completion without first validating an authoritative change binding, or let an invalid binding degrade",
+      "summary": "Invoke the completion projection/owner (the 9.4b runtime lane) before an authoritative change-to-task binding is accepted, accept a binding on its self-described fields instead of exact current-subject correspondence, select one binding from a contradictory set, or let an absent/malformed/stale/mismatched/unverifiable binding reach a degraded pass.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_gate_enforces_without_per_domain_opt_in",
+      "kind": "forbidden_move",
+      "title": "enforce the completion gate without per-domain opt-in",
+      "summary": "Make the completion gate block merges on a repo/domain that has not explicitly adopted enforce via its per-repo gate policy.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_gate_fails_closed_on_sensei_unavailability",
+      "kind": "forbidden_move",
+      "title": "fail the completion gate closed when Sensei is unavailable",
+      "summary": "Turn a Sensei/store/owner outage — where the closure verdict cannot be computed — into a blocking gate failure instead of a degraded (fail-open) pass.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_gate_treats_missing_required_task_identity_as_runtime_unavailability",
+      "kind": "forbidden_move",
+      "title": "treat missing required task identity as runtime unavailability",
+      "summary": "Under enforce, classify an absent, ambiguous, malformed, or mismatched required task binding as \"unavailable\" and return a degraded pass, instead of failing closed as cannot-verify.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_invent_a_gnn_or_ml_capability_without_repository_evidence",
+      "kind": "forbidden_move",
+      "title": "invent a GNN or ML capability without repository evidence",
+      "summary": "Introduce a graph-neural-network / embedding-similarity / ML memory capability that has no grounding in repository evidence.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_reinterpret_or_rederive_completion_truth_in_a_surface",
+      "kind": "forbidden_move",
+      "title": "reinterpret or re-derive completion truth inside a surface",
+      "summary": "Re-derive readiness, correctness, question resolution, or terminal cardinality in a CLI/MCP/server/CI/editor surface instead of reading the owner's reconstruction.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_ship_a_surface_without_a_reviewed_slice",
+      "kind": "forbidden_move",
+      "title": "ship a Phase-9 surface without a reviewed slice",
+      "summary": "Implement or enable a CLI, MCP, CI/GitHub, or editor surface without an open, reviewed Phase-9 slice carrying acceptance criteria, failure modes, and a proof matrix.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_surface_appends_completed_or_writes_receipt",
+      "kind": "forbidden_move",
+      "title": "a Phase-9 surface appends a completed event or writes a completion receipt",
+      "summary": "Let a CLI/MCP/server/CI/editor surface append a completed ledger event or produce/replace a completion receipt instead of delegating to the completion owner.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.phase9_treat_projection_or_closure_report_as_completion_authority",
+      "kind": "forbidden_move",
+      "title": "treat a projection or the Phase-8 closure report as completion authority",
+      "summary": "Use a task-status view, CI gate projection, editor cockpit, or the Phase-8 closure report as if it were terminal completion authority or a task-completion fact.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.restore_dist_bin_as_long_lived_authority_path",
+      "kind": "forbidden_move",
+      "title": "restore dist/bin as a long-lived authority path",
+      "summary": "Restore or depend on services/dist/bin as a long-lived authoritative binary path.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.revive_legacy_spec_forest_in_consumed_paths",
+      "kind": "forbidden_move",
+      "title": "revive a legacy spec forest in consumed paths",
+      "summary": "Reintroduce legacy or duplicate spec trees in consumed paths as an active authority.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.treat_dist_as_persistent_source_tree",
+      "kind": "forbidden_move",
+      "title": "treat services/dist as a persistent source tree",
+      "summary": "Edit services/dist in place, or depend on its contents surviving across builds, instead of treating it as disposable release output. Observed this session: running the installer against dist/ in-place created root-owned files that blocked the next build's wipe.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_fix.treat_generated_specs_as_canonical_recipe",
+      "kind": "forbidden_move",
+      "title": "treat generated specs as the canonical recipe",
+      "summary": "Treat services/generated/specs (or any generated spec copy) as the canonical install recipe.",
+      "severity": "medium",
+      "state": "open",
+      "element_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "docs/awareness/forbidden_fixes.yaml"
+        ]
+      }
+    }
+  ],
+  "evolution": {
+    "availability": "available",
+    "base_revision": null,
+    "head_revision": "69f1940cf50cea6eca84e572b613f38f4b747814",
+    "summary": "first observed revision for this producer; no prior authoritative projection exists to compare against",
+    "changes": []
+  },
+  "focus_records": [
+    {
+      "element_ref": "region.ungrouped.synthetic-placeholder",
+      "element_kind": "region",
+      "name": "Ungrouped",
+      "responsibility": "Components not yet assigned to an owner-authored architectural region.",
+      "state": "unknown",
+      "owner_refs": [],
+      "owned_refs": [
+        "component.awareness_graph_service",
+        "component.corpus_loader",
+        "component.dashboard_architecture_view",
+        "component.golang.pb",
+        "component.oxigraph_store"
+      ],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "provenance": {
+        "evidence_refs": [],
+        "limitations": [
+          "synthetic placeholder: no owner-authored region entity exists yet for this repository (see availability.limitations)"
+        ]
+      }
+    },
+    {
+      "element_ref": "component.awareness_graph_service",
+      "element_kind": "component",
+      "name": "AwarenessGraphService",
+      "responsibility": "The read-only gRPC server. Compiles awareness into typed Query / Resolve / Metadata / Briefing / Preflight answers. It is the only legitimate read path into the graph for agents and the dashboard.",
+      "state": "proven",
+      "owner_refs": [],
+      "contract_refs": [
+        "contract.awareness_graph.query",
+        "contract.awareness_graph.resolve",
+        "contract.awareness_graph.metadata",
+        "contract.awareness_graph.briefing"
+      ],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "resolve.go",
+          "target": "golang/server/resolve.go"
+        },
+        {
+          "label": "query.go",
+          "target": "golang/server/query.go"
+        },
+        {
+          "label": "metadata.go",
+          "target": "golang/server/metadata.go"
+        },
+        {
+          "label": "briefing.go",
+          "target": "golang/server/briefing.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [
+          "evidence.ci_green"
+        ],
+        "source_refs": [
+          "golang/server/resolve.go",
+          "golang/server/query.go",
+          "golang/server/metadata.go",
+          "golang/server/briefing.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "component.corpus_loader",
+      "element_kind": "component",
+      "name": "CorpusLoader",
+      "responsibility": "The YAML→RDF importer. Walks docs/awareness, classifies each file by schema, and emits validated N-Triples. The single writer that turns authored YAML into the compiled graph; the seed is generated, never hand-edited.",
+      "state": "proven",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "yaml_import_dir.go",
+          "target": "golang/extractor/yaml_import_dir.go"
+        },
+        {
+          "label": "yaml_import.go",
+          "target": "golang/extractor/yaml_import.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [
+          "evidence.awg_rebuild_check_pass",
+          "evidence.awg_validate_zero_dangling"
+        ],
+        "source_refs": [
+          "golang/extractor/yaml_import_dir.go",
+          "golang/extractor/yaml_import.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "component.dashboard_architecture_view",
+      "element_kind": "component",
+      "name": "DashboardArchitectureView",
+      "responsibility": "The VS Code \"Project Awareness\" webview. Reads the graph over gRPC (Metadata / Query / Resolve / related) and renders counts, lists, and a local-neighborhood focus graph. Read-only: it must not mutate corpus or promote candidates.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "dashboardPanel.ts",
+          "target": "editor/vscode/src/dashboardPanel.ts"
+        },
+        {
+          "label": "dashboard.js",
+          "target": "editor/vscode/media/dashboard.js"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "editor/vscode/src/dashboardPanel.ts",
+          "editor/vscode/media/dashboard.js"
+        ]
+      }
+    },
+    {
+      "element_ref": "component.golang.pb",
+      "element_kind": "component",
+      "name": "GeneratedProtoBindings",
+      "responsibility": "Generated protobuf and gRPC bindings shared by the client, server, and MCP bridge. This is the typed wire contract boundary compiled from proto/awareness_graph.proto.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [
+        "contract.awareness_graph.query",
+        "contract.awareness_graph.resolve",
+        "contract.awareness_graph.metadata",
+        "contract.awareness_graph.briefing"
+      ],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        },
+        {
+          "label": "awareness_graph.pb.go",
+          "target": "golang/pb/awareness_graph.pb.go"
+        },
+        {
+          "label": "awareness_graph_grpc.pb.go",
+          "target": "golang/pb/awareness_graph_grpc.pb.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto",
+          "golang/pb/awareness_graph.pb.go",
+          "golang/pb/awareness_graph_grpc.pb.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "component.oxigraph_store",
+      "element_kind": "component",
+      "name": "OxigraphStore",
+      "responsibility": "The RDF triple store backing the graph. Holds bytes; it is not the semantic authority — the service that writes and interprets the triples is. Read via the service, never bypassed.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "oxigraph.go",
+          "target": "golang/store/oxigraph/oxigraph.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/store/oxigraph/oxigraph.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "boundary.candidate_promotion",
+      "element_kind": "boundary",
+      "name": "Candidate promotion boundary",
+      "responsibility": "Promoting a candidate into the active corpus is a guarded CLI step with human review. No automatic or UI-driven promotion.",
+      "state": "healthy",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "cmd_promote.go",
+          "target": "cmd/awg/cmd_promote.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "cmd/awg/cmd_promote.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "boundary.corpus_cli_mutation",
+      "element_kind": "boundary",
+      "name": "Corpus CLI mutation boundary",
+      "responsibility": "All corpus mutation flows through the awg CLI (rebuild / promote), never through the UI or a direct store write. The owner-legal write path.",
+      "state": "healthy",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "cmd_promote.go",
+          "target": "cmd/awg/cmd_promote.go"
+        },
+        {
+          "label": "cmd_rebuild.go",
+          "target": "cmd/awg/cmd_rebuild.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "cmd/awg/cmd_promote.go",
+          "cmd/awg/cmd_rebuild.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "boundary.dashboard_read_only_grpc",
+      "element_kind": "boundary",
+      "name": "Dashboard read-only gRPC boundary",
+      "responsibility": "The dashboard may read Metadata / Query / Resolve / Briefing over gRPC, but it must not mutate the graph. Candidate promotion stays CLI/file guarded until a safe mutation API exists.",
+      "state": "healthy",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "resolve.go",
+          "target": "golang/server/resolve.go"
+        },
+        {
+          "label": "dashboardPanel.ts",
+          "target": "editor/vscode/src/dashboardPanel.ts"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/server/resolve.go",
+          "editor/vscode/src/dashboardPanel.ts"
+        ]
+      }
+    },
+    {
+      "element_ref": "boundary.domain_scope",
+      "element_kind": "boundary",
+      "name": "Domain scope boundary",
+      "responsibility": "A knowledge node belongs to exactly one domain so truth never crosses repos accidentally. A query scoped to one domain returns only that domain's nodes plus shared meta-principles.",
+      "state": "healthy",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "scope.go",
+          "target": "golang/server/scope.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/server/scope.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "boundary.generated_seed",
+      "element_kind": "boundary",
+      "name": "Generated seed boundary",
+      "responsibility": "embeddata/awareness.nt is a generated artifact, regenerated by awg rebuild and never hand-edited. Editing it directly bypasses the YAML source of truth and the validation pipeline.",
+      "state": "healthy",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "cmd_rebuild.go",
+          "target": "cmd/awg/cmd_rebuild.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "cmd/awg/cmd_rebuild.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph",
+      "element_kind": "contract",
+      "name": "AwarenessGraph",
+      "responsibility": "gRPC service AwarenessGraph with 15 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.briefing",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.Briefing",
+      "responsibility": "Briefing composes a ~500-token prose briefing for editing a file or tackling a task. The single entry point agents should call before significant code changes. Composed from the same SPARQL queries that back Impact; the difference is presentation, not data. — rpc Briefing(BriefingRequest) returns (BriefingResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.edit_check",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.EditCheck",
+      "responsibility": "EditCheck evaluates a proposed edit's content against the active repo-scoped advisory rules (\"detect\" blocks) that apply to the file, in the caller's resolved domain. It is WARNING-ONLY: it never blocks, never modifies code, and returns warnings naming the rule a bad-shape edit would violate (e.g. replacing dispenser.Errf with fmt.Errorf in a Caddy Caddyfile unmarshaler). Domain scoping is identical to Briefing/Impact: a multi-domain graph with no domain fails closed; cross-domain rules never apply. See golang/server/scope.go. — rpc EditCheck(EditCheckRequest) returns (EditCheckResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.get_architecture_artifact_state",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.GetArchitectureArtifactState",
+      "responsibility": "GetArchitectureArtifactState returns architecture.artifact_state/v1 for ONE exact node IRI. The canonical class is resolved by the controlstate registry from observed graph classes — never supplied by the caller. — rpc GetArchitectureArtifactState(GetArchitectureArtifactStateRequest) returns (GetArchitectureArtifactStateResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.get_architecture_control_snapshot",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.GetArchitectureControlSnapshot",
+      "responsibility": "GetArchitectureControlSnapshot returns architecture.control_snapshot/v1 — the bounded repository overview (typed counts, attention, authority). — rpc GetArchitectureControlSnapshot(GetArchitectureControlSnapshotRequest) returns (GetArchitectureControlSnapshotResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.get_ontology_navigation_descriptor",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.GetOntologyNavigationDescriptor",
+      "responsibility": "GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 — registry-derived, repository-independent; requires no filesystem context. — rpc GetOntologyNavigationDescriptor(GetOntologyNavigationDescriptorRequest) returns (GetOntologyNavigationDescriptorResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.impact",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.Impact",
+      "responsibility": "Impact returns the structured data the Briefing composer uses. Direct (file is the explicit subject of the node) vs Inferred (reached via package/symbol walks) partition matches the existing services-repo analysis package contract. — rpc Impact(ImpactRequest) returns (ImpactResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.list_architecture_artifacts",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.ListArchitectureArtifacts",
+      "responsibility": "ListArchitectureArtifacts returns one page of architecture.artifact_index/v1. The cursor is OPAQUE: produced and validated only by the controlstate owner, bound to snapshot/registry/filter identity, rejected on mismatch. — rpc ListArchitectureArtifacts(ListArchitectureArtifactsRequest) returns (ListArchitectureArtifactsResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.metadata",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.Metadata",
+      "responsibility": "Metadata returns coverage and freshness signals about the graph itself — not about any specific file. Agents call this at session start so they can tell whether an EMPTY briefing means \"no rules apply here\" (graph is well-covered) vs \"this area is unannotated\" (graph coverage is thin in this domain).  Cheap: counts are computed live via SPARQL but the queries are bounded and small. Safe to call once per session or per task. — rpc Metadata(MetadataRequest) returns (MetadataResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.preflight",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.Preflight",
+      "responsibility": "Preflight is the agent's pre-edit decision-support call. Given a task and optional file list, it returns a single risk_class the agent can branch on, plus required_actions, forbidden_fixes, tests_to_run, and files_to_read assembled from anchored graph facts (never invented).  Reuses Briefing's matching engine; adds risk classification, coverage discipline, and action-oriented response shape on top. EMPTY does NOT become LOW_RISK unless coverage explicitly says coverage is sufficient — if the graph doesn't know the area, the response is UNKNOWN_IMPACT and the agent is told to proceed carefully.  Store unavailable degrades to PREFLIGHT_STATUS_DEGRADED with UNKNOWN_IMPACT and blind_spots=\"awareness_store_unavailable\" rather than hard-failing. Only returns codes.Unavailable if the handler cannot construct any response at all. — rpc Preflight(PreflightRequest) returns (PreflightResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.prepare_architect_answer_disposition",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.PrepareArchitectAnswerDisposition",
+      "responsibility": "── Phase 9.5 Checkpoint 5: the guarded architect-answer mutation family ── The FIRST and ONLY mutation RPCs in the control-panel surface. Each is a guarded delegation to an existing owner (questiondisposition / questionpromotion); the server assigns no authority. A refused mutation is a SUCCESSFUL response carrying a typed refusal (mirrors Propose REJECTED), never a transport error. Requests carry LOGICAL identities + an actor identity only — filesystem roots come from the startup-owned context. — rpc PrepareArchitectAnswerDisposition(PrepareArchitectAnswerDispositionRequest) returns (PrepareArchitectAnswerDispositionResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.propose",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.Propose",
+      "responsibility": "Propose submits a typed feedback entry (failure_mode, invariant, required_test, forbidden_fix, or contract_unknown) to the awareness corpus's review queue. It is the agent write path: an agent that learned something durable proposes it here.  The entry is validated with the SAME contract-first rules as `awg propose` and written as a candidate under docs/awareness/candidates/proposals/ — it is NOT a live graph node and does NOT trigger a rebuild. Promotion into the canonical corpus stays a human/CI-gated step, so the served graph never silently mutates durable truth (preserving the CLI-not-durable-mutation contract; the RPC only queues a proposal). Requires the server to be configured with a candidates directory; returns Unavailable otherwise. — rpc Propose(ProposeRequest) returns (ProposeResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.query",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.Query",
+      "responsibility": "Query exposes constrained typed graph browsing only. ArchitectureClaim, OpenQuestion, and ArchitectAnswer are available here only when explicitly requested; they remain non-authoritative and are not surfaced through Briefing, Impact, or Preflight. — rpc Query(QueryRequest) returns (QueryResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.record_architect_answer_disposition",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.RecordArchitectAnswerDisposition",
+      "responsibility": "rpc RecordArchitectAnswerDisposition(RecordArchitectAnswerDispositionRequest) returns (RecordArchitectAnswerDispositionResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.reference_sites",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.ReferenceSites",
+      "responsibility": "ReferenceSites returns, for each requested code-symbol id, the set of OTHER code symbols that reference it (inbound aw:references edges from ingested SCIP occurrences). This is the completeness primitive: given the symbols a change touches, it answers \"N sites share this reference; which ones did the diff miss?\". Directed and complete — it reads inbound edges straight from the store, so a target with many OUTGOING references does not crowd out its referencing sites (as a bidirectional related-walk would). External targets (stdlib/third-party, id \"external:\u003cname\u003e\") have no in-repo definition and are ignored. Cheap: one inbound describe per id. — rpc ReferenceSites(ReferenceSitesRequest) returns (ReferenceSitesResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.awareness_graph.resolve",
+      "element_kind": "contract",
+      "name": "AwarenessGraph.Resolve",
+      "responsibility": "Resolve fetches a single node by its annotation ID (e.g. \"invariant:foo\", \"pat.bar\"). Returns the node's triples plus any code-anchor provenance. This is the tool agents call after reading a // @invariant: X comment, or when explicitly inspecting a non-authoritative architecture_claim, open_question, or architect_answer. — rpc Resolve(ResolveRequest) returns (ResolveResponse)",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "awareness_graph.proto",
+          "target": "proto/awareness_graph.proto"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "proto/awareness_graph.proto"
+        ],
+        "limitations": [
+          "generator-derived from proto/awareness_graph.proto (assertion: inferred), not independently governed"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.candidate_yaml_schema",
+      "element_kind": "contract",
+      "name": "Candidate YAML corpus schema",
+      "responsibility": "The authored-YAML schema (invariants, failure_modes, components, boundaries, …) the importer recognises. The single authoring substrate.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "yaml_import_dir.go",
+          "target": "golang/extractor/yaml_import_dir.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/extractor/yaml_import_dir.go"
+        ]
+      }
+    },
+    {
+      "element_ref": "contract.yaml2nt_ntriples_output",
+      "element_kind": "contract",
+      "name": "yaml2nt N-Triples output contract",
+      "responsibility": "The importer emits N-Triples that are grammar-validated before write; an invalid stream is refused, never persisted.",
+      "state": "open",
+      "owner_refs": [],
+      "contract_refs": [],
+      "flow_refs": [],
+      "attention_refs": [],
+      "decision_refs": [],
+      "source_links": [
+        {
+          "label": "yaml_import.go",
+          "target": "golang/extractor/yaml_import.go"
+        }
+      ],
+      "provenance": {
+        "evidence_refs": [],
+        "source_refs": [
+          "golang/extractor/yaml_import.go"
+        ]
+      }
+    }
+  ],
+  "capabilities": {
+    "live_refresh": false,
+    "revision_compare": false,
+    "agent_handoff": "export",
+    "source_deep_links": true
+  }
+}

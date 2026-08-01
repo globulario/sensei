@@ -1,0 +1,23 @@
+failure_modes:
+  - id: awareness.graph_publication_embeds_rdf_or_exposes_partial_generation
+    title: Graph publication embeds RDF in SPARQL or exposes a partial generation
+    severity: critical
+    description: >
+      A valid N-Triples corpus is pasted into INSERT DATA and rejected by the SPARQL
+      parser, or delete/insert/marker steps are published as separately interruptible
+      mutations. The refresh either cannot load a valid repository corpus or can
+      expose a missing domain, stale marker, or mixed generation to agents and the
+      VS Code extension.
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+        - cmd/awg/cmd_build_test.go
+        - cmd/awg/cmd_build_integration_test.go
+    related_invariants:
+      - awareness.graph_publication_stages_rdf_before_atomic_promotion
+      - awareness.graph.compiled_context_not_authority
+    evidence:
+      - A live scoped Sensei build returned Oxigraph 400 expected OPTIONAL while the same compiled payload was valid N-Triples.
+    contract: >
+      RDF ingestion and SPARQL control must remain separate grammars, and the active
+      default graph must move only between complete marker-verified generations.

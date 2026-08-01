@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/protection"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/extractor/grpcwebscan"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
@@ -42,6 +43,7 @@ func runBootstrap(args []string) int {
 	check := fs.Bool("check", false, "compare generated output to committed files; exit non-zero if stale")
 	dryRun := fs.Bool("dry-run", false, "print the report without writing generated/candidate files")
 	scipPath := fs.String("scip", "", "path to a SCIP index to ingest symbol-level nodes; defaults to <repo>/index.scip when present")
+	domain := fs.String("domain", "", "explicit repository domain to bind (default: preserve existing config, else derive from git origin)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei bootstrap --path <checkout> [flags]
 
@@ -403,6 +405,39 @@ Flags:
 	} else {
 		rep.candidateInvariants = len(report.Candidates)
 		rep.candidateAuthority = len(report.AuthoritySurfaces)
+		if libraryAPIs, lerr := extractGoLibraryAPICandidates(root, report.Facts); lerr != nil {
+			rep.notes = append(rep.notes, "Go library API candidates: "+lerr.Error())
+		} else {
+			rep.candidateLibraryAPIs = len(libraryAPIs)
+			if writeCands && len(libraryAPIs) > 0 {
+				doc := goLibraryAPICandidateDoc{LibraryAPIs: libraryAPIs}
+				if data, rerr := renderGenerated("Go library API candidates inferred from exported declarations; extension points require a proven local implementation (status: candidate).", doc); rerr != nil {
+					rep.notes = append(rep.notes, "Go library API candidates: render: "+rerr.Error())
+				} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+					rep.notes = append(rep.notes, "Go library API candidates: mkdir: "+merr.Error())
+				} else if werr := os.WriteFile(filepath.Join(candidatesDir, "go_library_api_candidates.yaml"), data, 0o644); werr != nil {
+					rep.notes = append(rep.notes, "Go library API candidates: write: "+werr.Error())
+				}
+			}
+			if contracts := goLibraryAPIContracts(libraryAPIs); len(contracts) > 0 && writeCands {
+				doc := goLibraryAPIContractDoc{Contracts: contracts}
+				if data, rerr := renderGenerated("Candidate Go library API contracts inferred from exported declarations; review required before governing behavior.", doc); rerr != nil {
+					rep.notes = append(rep.notes, "Go library API contracts: render: "+rerr.Error())
+				} else if merr := os.MkdirAll(generatedDir, 0o755); merr != nil {
+					rep.notes = append(rep.notes, "Go library API contracts: mkdir: "+merr.Error())
+				} else if werr := os.WriteFile(filepath.Join(generatedDir, "library_api_contracts.yaml"), data, 0o644); werr != nil {
+					rep.notes = append(rep.notes, "Go library API contracts: write: "+werr.Error())
+				}
+			}
+			if boundaries := goLibraryAPIBoundaryCandidates(libraryAPIs); len(boundaries) > 0 {
+				rep.candidateLibraryAPIBoundaries = len(boundaries)
+				if data, rerr := renderGenerated("Candidate Go library API boundaries inferred from exported declarations; not governed contracts.", boundaryCandidateDoc{Boundaries: boundaries}); rerr != nil {
+					rep.notes = append(rep.notes, "Go library API boundaries: render: "+rerr.Error())
+				} else {
+					generated = append(generated, genFile{filepath.Join(generatedDir, "library_api_boundaries.yaml"), data})
+				}
+			}
+		}
 		if writeCands && len(report.Candidates) > 0 {
 			doc := struct {
 				Invariants []extractedInvariantCandidate `yaml:"invariants"`
@@ -437,6 +472,105 @@ Flags:
 				rep.notes = append(rep.notes, "boundary candidates: mkdir: "+merr.Error())
 			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "boundary_candidates.yaml"), data, 0o644); werr != nil {
 				rep.notes = append(rep.notes, "boundary candidates: write: "+werr.Error())
+			}
+		}
+	}
+
+	// Consistency candidates: deterministic Go-source checks for the shape of
+	// bug a sibling-function disagreement produces (divergent index shape into
+	// the same field; an unexported call reached by some peer methods on a
+	// type but not others). Conservative, status: candidate, never promoted.
+	if cst, cerr := extractConsistencyCandidates(root); cerr != nil {
+		rep.notes = append(rep.notes, "consistency candidates: "+cerr.Error())
+	} else if len(cst) > 0 {
+		rep.candidateConsistency = len(cst)
+		if writeCands {
+			if data, rerr := renderGenerated("Consistency candidates from deterministic Go-source checks (assertion: inferred, status: candidate).", consistencyCandidateDoc{ConsistencyFindings: cst}); rerr != nil {
+				rep.notes = append(rep.notes, "consistency candidates: render: "+rerr.Error())
+			} else if merr := os.MkdirAll(candidatesDir, 0o755); merr != nil {
+				rep.notes = append(rep.notes, "consistency candidates: mkdir: "+merr.Error())
+			} else if werr := os.WriteFile(filepath.Join(candidatesDir, "consistency_candidates.yaml"), data, 0o644); werr != nil {
+				rep.notes = append(rep.notes, "consistency candidates: write: "+werr.Error())
+			}
+		}
+	}
+
+	// ── Stage 6b: derive + publish the effective protection snapshot ──
+	// Participates in normal write/dry-run/--check behavior per contract §8.
+	if protCov, protErr := protection.Derive(root); protErr != nil {
+		rep.notes = append(rep.notes, "protection: derive: "+protErr.Error())
+	} else {
+		rep.protectionStatus = string(protCov.Status)
+		rep.protectionCount = len(protCov.ProtectedPaths)
+		rep.protectionManualCount = protCov.ManualCount
+		rep.protectionDerivedCount = protCov.DerivedCount
+		rep.protectionProvisionalCount = protCov.ProvisionalCount
+		rep.protectionGaps = protCov.Gaps
+		switch {
+		case *dryRun:
+			// dry-run: report only, never publish.
+		case *check:
+			switch state, cmpErr := protection.CompareSnapshot(root, protCov); state {
+			case protection.SnapshotInvalid:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (unreadable: "+cmpErr.Error()+")")
+			case protection.SnapshotMissing:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (missing)")
+			case protection.SnapshotStale:
+				rep.stale = append(rep.stale, "protection-coverage.yaml (stale)")
+			}
+		default:
+			if pubErr := protection.PublishSnapshot(root, protCov); pubErr != nil {
+				rep.notes = append(rep.notes, "protection: publish snapshot: "+pubErr.Error())
+			}
+		}
+		// A repository with real governed/contract signal and zero effective
+		// protection is a bootstrap failure, not success (contract §8).
+		if protCov.Status == protection.CoverageDegraded {
+			rep.protectionHardFailure = true
+		} else if protCov.Status == protection.CoverageEmpty {
+			if governed, gerr := protection.GovernedSourceFiles(root); gerr == nil && len(governed) > 0 {
+				rep.protectionHardFailure = true
+			}
+		}
+	}
+
+	// ── Stage 6c: establish the checkout-scoped repository domain ──
+	// Participates in normal write/dry-run/--check behavior per contract §8:
+	// dry-run reports only, --check reports a stale/missing/mismatched binding
+	// without writing, and normal mode establishes it (never rewriting an
+	// existing configured domain — see establishRepositoryDomain).
+	switch {
+	case *dryRun:
+		domRes := resolveRepositoryDomain(root, *domain)
+		if domRes.Err != nil {
+			rep.notes = append(rep.notes, "repository domain: "+domRes.Err.Error())
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+		}
+	case *check:
+		domRes := resolveRepositoryDomain(root, *domain)
+		if domRes.Err != nil {
+			rep.stale = append(rep.stale, "repository domain ("+domRes.Err.Error()+")")
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+			if domRes.Domain == "" {
+				rep.stale = append(rep.stale, "repository domain (unbound)")
+			} else if origin := gitRemoteDomain(root); origin != "" && origin != domRes.Domain {
+				rep.repositoryDomainStale = true
+				rep.stale = append(rep.stale, fmt.Sprintf("repository domain (configured=%s, git origin=%s)", domRes.Domain, origin))
+			}
+		}
+	default:
+		if domRes, domErr := establishRepositoryDomain(root, *domain); domErr != nil {
+			rep.notes = append(rep.notes, "repository domain: "+domErr.Error())
+			rep.repositoryDomainHardFailure = true
+		} else {
+			rep.repositoryDomain = domRes.Domain
+			rep.repositoryDomainSource = domRes.Source
+			if domRes.Mismatch {
+				rep.notes = append(rep.notes, fmt.Sprintf("repository domain: configured domain %q preserved despite git origin now resolving to %q", domRes.Domain, domRes.OriginURL))
 			}
 		}
 	}
@@ -496,6 +630,12 @@ Flags:
 	rep.print(os.Stdout)
 
 	if *check && len(rep.stale) > 0 {
+		return 1
+	}
+	if !*dryRun && rep.protectionHardFailure {
+		return 1
+	}
+	if !*dryRun && rep.repositoryDomainHardFailure {
 		return 1
 	}
 	return 0
@@ -594,16 +734,17 @@ func countYAML(dir string) int {
 // On a curated repo (awareness_graph_* present) these are deferred to the
 // targeted extractors so bootstrap never duplicates their node ids.
 var bootstrapOwnedGenerated = map[string]bool{
-	"contracts.yaml":            true,
-	"rest_contracts.yaml":       true,
-	"components.yaml":           true,
-	"web_components.yaml":       true,
-	"contract_consumption.yaml": true,
-	"source_symbols.yaml":       true,
-	"source_edges.yaml":         true,
-	"scip_symbols.yaml":         true,
-	"scip_references.yaml":      true,
-	"tests.yaml":                true,
+	"contracts.yaml":              true,
+	"rest_contracts.yaml":         true,
+	"components.yaml":             true,
+	"web_components.yaml":         true,
+	"contract_consumption.yaml":   true,
+	"library_api_boundaries.yaml": true,
+	"source_symbols.yaml":         true,
+	"source_edges.yaml":           true,
+	"scip_symbols.yaml":           true,
+	"scip_references.yaml":        true,
+	"tests.yaml":                  true,
 }
 
 // hasCuratedGenerated reports whether the generated dir already carries the
@@ -706,32 +847,55 @@ func syncBootstrapScaffold(root string, rep *bootstrapReport) error {
 // ── report ──
 
 type bootstrapReport struct {
-	root                  string
-	dryRun                bool
-	check                 bool
-	scaffolded            []string
-	writtenGenerated      []string
-	components            int
-	contracts             int
-	operations            int
-	webComponents         int // native custom elements (customElements.define / @customElement)
-	contractConsumptions  int // contracts consumed via gRPC-web service clients (consumed_by edges)
-	importEdges           int // component dependsOn edges from Go imports
-	importEdgesClassified int // semantic edges (reads_from/writes_to/exposes) from the classifier
-	tests                 int
-	sourceAnchors         int
-	candidatePatterns     int
-	candidateMisuses      int
-	candidateAuthority    int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
-	candidateBoundaries   int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
-	candidateInvariants   int // Invariant candidates inferred from rule-signaling test names
-	historyCandidates     int // -1 = skipped
-	validationFindings    int
-	validationByCheck     map[string]int
-	buildStatus           string
-	stale                 []string
-	notes                 []string
-	nextActions           []string
+	root                          string
+	dryRun                        bool
+	check                         bool
+	scaffolded                    []string
+	writtenGenerated              []string
+	components                    int
+	contracts                     int
+	operations                    int
+	webComponents                 int // native custom elements (customElements.define / @customElement)
+	contractConsumptions          int // contracts consumed via gRPC-web service clients (consumed_by edges)
+	importEdges                   int // component dependsOn edges from Go imports
+	importEdgesClassified         int // semantic edges (reads_from/writes_to/exposes) from the classifier
+	tests                         int
+	sourceAnchors                 int
+	candidatePatterns             int
+	candidateMisuses              int
+	candidateAuthority            int // AuthoritySurface candidates from Go source (handlers/guards/lifecycle/state)
+	candidateLibraryAPIs          int // Go public-package API candidates; extension points require type-checked local implementations
+	candidateLibraryAPIBoundaries int // Candidate Boundary nodes projected from public Go library APIs
+	candidateBoundaries           int // Boundary candidates inferred from the import graph (internal/ + contract exposure)
+	candidateConsistency          int // Divergent-index-shape + asymmetric-setup-call candidates from deterministic Go-source checks
+	candidateInvariants           int // Invariant candidates inferred from rule-signaling test names
+	historyCandidates             int // -1 = skipped
+	validationFindings            int
+	validationByCheck             map[string]int
+	buildStatus                   string
+	stale                         []string
+	notes                         []string
+	nextActions                   []string
+
+	protectionStatus           string
+	protectionCount            int
+	protectionManualCount      int
+	protectionDerivedCount     int
+	protectionProvisionalCount int
+	protectionGaps             []string
+	// protectionHardFailure is true when governed/contract signal exists but
+	// zero effective protection was derived (DEGRADED, or a conclusive EMPTY
+	// scan despite present governed sources) — contract §8's "not success."
+	protectionHardFailure bool
+
+	repositoryDomain       string // resolved/established repository.domain, "" if unbound
+	repositoryDomainSource string // "explicit" | "existing_config" | "git_origin" | "unbound"
+	repositoryDomainStale  bool   // --check: config.yaml domain disagrees with the current git origin
+	// repositoryDomainHardFailure is true when the repository domain
+	// configuration is malformed or an explicit/configured value is
+	// invalid — checkout identity is an authority boundary (contract §3.6
+	// correction), so this must gate a non-zero exit, never just a note.
+	repositoryDomainHardFailure bool
 }
 
 func (r *bootstrapReport) computeNextActions() {
@@ -749,6 +913,13 @@ func (r *bootstrapReport) computeNextActions() {
 	}
 	if strings.HasPrefix(r.buildStatus, "failed") {
 		r.nextActions = append(r.nextActions, "Fix build errors before serving the graph.")
+	}
+	if r.protectionHardFailure {
+		r.nextActions = append(r.nextActions,
+			"Repair protection coverage (`sensei protection-status`) — governed sources exist but the effective protected set is empty or degraded.")
+	} else if r.protectionProvisionalCount > 0 {
+		r.nextActions = append(r.nextActions,
+			fmt.Sprintf("Review %d candidate-derived provisional protection path(s) (`sensei protection-status`) — distinct from reviewing candidate architecture itself.", r.protectionProvisionalCount))
 	}
 }
 
@@ -778,7 +949,10 @@ func (r *bootstrapReport) print(w *os.File) {
 	fmt.Fprintf(w, "  candidate patterns found:   %d\n", r.candidatePatterns)
 	fmt.Fprintf(w, "  candidate misuses found:    %d\n", r.candidateMisuses)
 	fmt.Fprintf(w, "  authority surfaces found:   %d\n", r.candidateAuthority)
+	fmt.Fprintf(w, "  library API candidates:     %d\n", r.candidateLibraryAPIs)
+	fmt.Fprintf(w, "  library API boundaries:     %d\n", r.candidateLibraryAPIBoundaries)
 	fmt.Fprintf(w, "  boundary candidates found:  %d\n", r.candidateBoundaries)
+	fmt.Fprintf(w, "  consistency candidates:     %d\n", r.candidateConsistency)
 	fmt.Fprintf(w, "  invariant candidates found: %d\n", r.candidateInvariants)
 	fmt.Fprintf(w, "  history-derived candidates: %s\n", hist)
 	fmt.Fprintf(w, "  validation findings:        %d\n", r.validationFindings)
@@ -793,6 +967,18 @@ func (r *bootstrapReport) print(w *os.File) {
 		}
 	}
 	fmt.Fprintf(w, "  build status:               %s\n", r.buildStatus)
+	if r.protectionStatus != "" {
+		fmt.Fprintf(w, "  protection coverage:        %s (%d path(s): manual=%d derived=%d provisional=%d)\n",
+			r.protectionStatus, r.protectionCount, r.protectionManualCount, r.protectionDerivedCount, r.protectionProvisionalCount)
+		if r.protectionHardFailure {
+			fmt.Fprintln(w, "      governed sources exist but effective protection is empty/degraded — see next actions")
+		}
+	}
+	if r.repositoryDomain != "" {
+		fmt.Fprintf(w, "  repository domain:          %s (source=%s)\n", r.repositoryDomain, r.repositoryDomainSource)
+	} else {
+		fmt.Fprintln(w, "  repository domain:          unbound (briefing/preflight will require an explicit --domain)")
+	}
 	if len(r.writtenGenerated) > 0 {
 		fmt.Fprintf(w, "  wrote generated:            %s\n", strings.Join(r.writtenGenerated, ", "))
 	}

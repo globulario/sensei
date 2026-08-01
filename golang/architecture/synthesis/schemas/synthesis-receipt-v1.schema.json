@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesis-receipt-v1.json",
+  "title": "Sensei Governed Synthesis Receipt V1",
+  "description": "The terminal receipt stating exactly why a session stopped. candidate-ready-for-admission means only that a candidate may be submitted to the existing admission owner — it must not be read as accepted, correct, complete, approved, mergeable, or merged.",
+  "$comment": "Canonical producer/owner: globulario/sensei, golang/architecture/synthesis. admission_decision_digest_sha256/admission_verification_digest_sha256 are opaque digest references only, following the closureprotocol.CompletionReceipt precedent verbatim (same field names). They deliberately do not name or depend on which admission framework (v1 golang/architecture/admission, or v2 closureprotocol.AdmissionDecision) produced them — that producer selection is an open question explicitly deferred to O5 (the admission bridge). Both are null on every receipt whose terminal_reason is not candidate-ready-for-admission, since no candidate was ever submitted for admission.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "session_digest_sha256",
+    "terminal_reason",
+    "final_attempt_digest_sha256",
+    "final_evaluation_digest_sha256",
+    "admission_decision_digest_sha256",
+    "admission_verification_digest_sha256",
+    "retry_count",
+    "replan_count",
+    "summary",
+    "limitations",
+    "completed_at",
+    "receipt_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesis.receipt.v1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "terminal_reason": {
+      "enum": [
+        "candidate-ready-for-admission",
+        "retry-budget-exhausted",
+        "replan-budget-exhausted",
+        "architect-review-required",
+        "identity-drift-refused",
+        "invalid-provider-output",
+        "evaluator-unavailable",
+        "explicitly-aborted"
+      ]
+    },
+    "final_attempt_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "final_evaluation_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "admission_decision_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "admission_verification_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "replan_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "summary": { "type": "string" },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    },
+    "completed_at": { "type": "string", "minLength": 1 },
+    "receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "terminal_reason": { "const": "candidate-ready-for-admission" } } },
+      "else": {
+        "properties": {
+          "admission_decision_digest_sha256": { "type": "null" },
+          "admission_verification_digest_sha256": { "type": "null" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "optionalSha256Hex": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
+    },
+    "limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}
