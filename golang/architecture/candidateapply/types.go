@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Package candidateapply implements O5B of the governed synthesis loop. It
-// applies only an admitted, sealed CandidateArtifact to a clean worktree at
-// the admitted base revision, then records existing admission verification
-// evidence without committing, pushing, approving, or merging.
+// applies only an admitted, sealed CandidateArtifact to a clean, dedicated
+// Git worktree at the admitted base revision, then records existing admission
+// verification evidence without committing, pushing, approving, or merging.
 package candidateapply
 
 import (
