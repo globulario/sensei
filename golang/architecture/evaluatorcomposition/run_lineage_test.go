@@ -4,6 +4,7 @@ package evaluatorcomposition
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -48,17 +49,11 @@ func finishTamperedO2Receipt(t *testing.T, handoff runnercomposition.VerifiedGen
 
 func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
-	data, err := jsonMarshal(value)
+	data, err := json.Marshal(value)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return data
-}
-
-// jsonMarshal is a small indirection so the lineage fixtures remain focused
-// on their semantic mutation rather than repeating error handling.
-var jsonMarshal = func(value any) ([]byte, error) {
-	return json.Marshal(value)
 }
 
 func TestRunRejectsSelfConsistentO2ReceiptLineageMismatches(t *testing.T) {
