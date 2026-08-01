@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/admissioncomposition-receipt-v1.json",
+  "title": "Sensei ARCHER Admission Composition Receipt V1",
+  "description": "O5A's immutable evidence document recording unsupported candidate operations, an existing admission decision, or an existing admission verification beside the unchanged candidate-ready O1 receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "generated_by",
+    "request_digest_sha256",
+    "synthesis_receipt_digest_sha256",
+    "candidate_artifact_digest_sha256",
+    "admission_decision",
+    "admission_decision_digest_sha256",
+    "admission_verification_status",
+    "admission_verification_digest_sha256",
+    "disposition",
+    "detail",
+    "completed_at",
+    "receipt_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.admissioncomposition.receipt.v1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "generated_by": { "const": "sensei-admission-composition" },
+    "request_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "synthesis_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "admission_decision": { "$ref": "#/$defs/optionalAdmissionDecision" },
+    "admission_decision_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "admission_verification_status": { "$ref": "#/$defs/optionalVerificationStatus" },
+    "admission_verification_digest_sha256": { "$ref": "#/$defs/optionalSha256Hex" },
+    "disposition": {
+      "enum": [
+        "unsupported-operation-refused",
+        "admission-decided",
+        "verification-recorded"
+      ]
+    },
+    "detail": { "type": "string" },
+    "completed_at": { "type": "string", "minLength": 1 },
+    "receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "disposition": { "const": "unsupported-operation-refused" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "admission_decision": { "type": "null" },
+          "admission_decision_digest_sha256": { "type": "null" },
+          "admission_verification_status": { "type": "null" },
+          "admission_verification_digest_sha256": { "type": "null" },
+          "detail": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "admission-decided" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "admission_decision": { "$ref": "#/$defs/admissionDecision" },
+          "admission_decision_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "admission_verification_status": { "type": "null" },
+          "admission_verification_digest_sha256": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "verification-recorded" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "admission_decision": { "$ref": "#/$defs/admissionDecision" },
+          "admission_decision_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "admission_verification_status": { "$ref": "#/$defs/verificationStatus" },
+          "admission_verification_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "optionalSha256Hex": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
+    },
+    "admissionDecision": {
+      "enum": ["admitted", "admitted_with_conditions", "waiting", "refused", "uncertifiable"]
+    },
+    "optionalAdmissionDecision": {
+      "oneOf": [
+        { "$ref": "#/$defs/admissionDecision" },
+        { "type": "null" }
+      ]
+    },
+    "verificationStatus": {
+      "enum": ["scope_compliant", "scope_violated", "stale", "uncertifiable"]
+    },
+    "optionalVerificationStatus": {
+      "oneOf": [
+        { "$ref": "#/$defs/verificationStatus" },
+        { "type": "null" }
+      ]
+    }
+  }
+}
