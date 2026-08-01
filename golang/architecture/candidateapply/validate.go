@@ -62,6 +62,7 @@ func ValidateReceipt(in Receipt) error {
 		r.CandidateArtifactDigestSHA256,
 		r.InputCandidateDigestSHA256,
 		r.FinalCandidateContentDigestSHA256,
+		r.PatchDigestSHA256,
 		r.ReceiptDigestSHA256,
 	} {
 		if !isSHA256(digest) {
