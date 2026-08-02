@@ -6131,6 +6131,16 @@ test_symbols:
     symbol: TestMutationPlanSchemaAcceptsCanonicalPlanAndRejectsAuthorityField
     package: agentcommand
     language: go
+  - id: golang/architecture/agentcommand/structured_agent_test.go:TestClaudeEnvelopeRejectsDuplicateResultKeys
+    file: golang/architecture/agentcommand/structured_agent_test.go
+    symbol: TestClaudeEnvelopeRejectsDuplicateResultKeys
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/structured_agent_test.go:TestStructuredVendorProfilesReuseConfinedCommandConfiguration
+    file: golang/architecture/agentcommand/structured_agent_test.go
+    symbol: TestStructuredVendorProfilesReuseConfinedCommandConfiguration
+    package: agentcommand
+    language: go
   - id: golang/architecture/authority/actor_test.go:TestVerifyActorBindingRejectsUnknownIssuer
     file: golang/architecture/authority/actor_test.go
     symbol: TestVerifyActorBindingRejectsUnknownIssuer
@@ -8006,6 +8016,36 @@ test_symbols:
     file: golang/architecture/closureprotocol/schema_test.go
     symbol: TestSchemasParseAndAreClosed
     package: closureprotocol
+    language: go
+  - id: golang/architecture/cognitivecommand/provider_test.go:TestCognitiveProviderPlansFromGroundedInterpretationThroughO2AndO1
+    file: golang/architecture/cognitivecommand/provider_test.go
+    symbol: TestCognitiveProviderPlansFromGroundedInterpretationThroughO2AndO1
+    package: cognitivecommand
+    language: go
+  - id: golang/architecture/cognitivecommand/provider_test.go:TestCognitiveProviderRefusesInterpretationCapability
+    file: golang/architecture/cognitivecommand/provider_test.go
+    symbol: TestCognitiveProviderRefusesInterpretationCapability
+    package: cognitivecommand
+    language: go
+  - id: golang/architecture/cognitivecommand/provider_test.go:TestCognitiveProviderRejectsDuplicateKeysAsTypedInvalidOutput
+    file: golang/architecture/cognitivecommand/provider_test.go
+    symbol: TestCognitiveProviderRejectsDuplicateKeysAsTypedInvalidOutput
+    package: cognitivecommand
+    language: go
+  - id: golang/architecture/cognitivecommand/provider_test.go:TestCognitiveProviderRejectsIdentityOverrideAsTypedInvalidOutput
+    file: golang/architecture/cognitivecommand/provider_test.go
+    symbol: TestCognitiveProviderRejectsIdentityOverrideAsTypedInvalidOutput
+    package: cognitivecommand
+    language: go
+  - id: golang/architecture/cognitivecommand/schema_test.go:TestEmbeddedPlanProposalSchemaMatchesCanonicalSource
+    file: golang/architecture/cognitivecommand/schema_test.go
+    symbol: TestEmbeddedPlanProposalSchemaMatchesCanonicalSource
+    package: cognitivecommand
+    language: go
+  - id: golang/architecture/cognitivecommand/schema_test.go:TestPlanProposalSchemaRejectsIdentityAndAuthorityFields
+    file: golang/architecture/cognitivecommand/schema_test.go
+    symbol: TestPlanProposalSchemaRejectsIdentityAndAuthorityFields
+    package: cognitivecommand
     language: go
   - id: golang/architecture/commandprovider/adapter_test.go:TestArgumentsArePassedWithoutShellInterpolation
     file: golang/architecture/commandprovider/adapter_test.go
@@ -16120,6 +16160,11 @@ test_symbols:
     file: golang/architecture/synthesis/transition_test.go
     symbol: TestTerminalSessionRejectsAnyCommand
     package: synthesis
+    language: go
+  - id: golang/architecture/synthesisdriver/cognitive_o8_integration_test.go:TestO7CompletesWithGroundedInterpretationAndO8Planning
+    file: golang/architecture/synthesisdriver/cognitive_o8_integration_test.go
+    symbol: TestO7CompletesWithGroundedInterpretationAndO8Planning
+    package: synthesisdriver
     language: go
   - id: golang/architecture/synthesisdriver/e2e_test.go:TestRunHappyPathThroughRealOwners
     file: golang/architecture/synthesisdriver/e2e_test.go
