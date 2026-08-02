@@ -35,6 +35,8 @@ jobs:
             exit 0
           fi
           python3 scripts/agent_dogfood_audit_fix.py
+          sed -i '/^[[:space:]]*"path\/filepath"$/d' golang/architecture/protection/relation_targets.go
+          sed -i '/^[[:space:]]*"gopkg.in\/yaml.v3"$/d' golang/architecture/protection/structural.go
           gofmt -w golang/architecture/protection/*.go cmd/awg/audit_test_coverage*.go
           go test ./golang/architecture/protection
           go test ./cmd/awg -run 'Test(Candidate|GovernedRelation|AssessRepositoryTestCoverage)'
