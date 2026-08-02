@@ -4553,6 +4553,27 @@ test_symbols:
     package: main
     language: go
     doc: "contract §3.7 correction (fourth review round): a backslash-separated\npath cannot match the slash-separated canonical domain a git remote\nproduces — writeRepositoryDomain must refuse to persist it, exactly like\nany other non-canonical value."
+  - id: cmd/awg/seedfreshness_object_identity_test.go:TestClassifySeedDiff_RemovedExternalLiteralOnSharedEdgeStaysExternal
+    file: cmd/awg/seedfreshness_object_identity_test.go
+    symbol: TestClassifySeedDiff_RemovedExternalLiteralOnSharedEdgeStaysExternal
+    package: main
+    language: go
+    doc: "Both repositories may emit literals under one shared subject and predicate.\nRemoving a services-authored value from a combined artifact must remain\nexternal when the committed seed already carries Sensei's current exact value."
+  - id: cmd/awg/seedfreshness_object_identity_test.go:TestNtObjectTermPreservesCompleteIdentity
+    file: cmd/awg/seedfreshness_object_identity_test.go
+    symbol: TestNtObjectTermPreservesCompleteIdentity
+    package: main
+    language: go
+  - id: cmd/awg/seedfreshness_object_identity_test.go:TestNtOwnershipKeyKeepsBlankNodesSerializationLocal
+    file: cmd/awg/seedfreshness_object_identity_test.go
+    symbol: TestNtOwnershipKeyKeepsBlankNodesSerializationLocal
+    package: main
+    language: go
+  - id: cmd/awg/seedfreshness_object_identity_test.go:TestNtOwnershipKeyPreservesStableExternalObjectIdentity
+    file: cmd/awg/seedfreshness_object_identity_test.go
+    symbol: TestNtOwnershipKeyPreservesStableExternalObjectIdentity
+    package: main
+    language: go
   - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_AGEdgeRemoved_StillOwned
     file: cmd/awg/seedfreshness_ownership_test.go
     symbol: TestOwnership_AGEdgeRemoved_StillOwned
