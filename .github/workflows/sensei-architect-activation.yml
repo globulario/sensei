@@ -11,8 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   activation:
@@ -114,8 +112,12 @@ jobs:
     if: >-
       always() &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      review_available: ${{ steps.persist-review.outputs.available }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
@@ -144,7 +146,7 @@ jobs:
         run: |
           echo "Codex architect review was not executed because OPENAI_API_KEY is not configured." | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Run read-only Codex architect review
+      - name: Run capability-read-only Codex architect review
         if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY != ''
         id: codex
         uses: openai/codex-action@v1
@@ -156,30 +158,98 @@ jobs:
           safety-strategy: drop-sudo
           allow-users: davecourtois
 
-      - name: Publish Codex review summary
+      - name: Persist closed Codex review
         if: steps.codex.outputs.final-message != ''
+        id: persist-review
         env:
           CODEX_REVIEW: ${{ steps.codex.outputs.final-message }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p codex-review
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          review = json.loads(os.environ["CODEX_REVIEW"])
+          if review.get("verdict") not in {"pass", "warn", "block", "cannot_verify"}:
+              raise SystemExit("Codex review has an invalid verdict")
+          Path("codex-review/review.json").write_text(
+              json.dumps(review, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Codex review evidence
+        if: steps.persist-review.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensei-codex-architect-review
+          path: codex-review/review.json
+          if-no-files-found: error
+
+      - name: Publish Codex review summary
+        if: steps.persist-review.outputs.available == 'true'
+        shell: bash
         run: |
           {
             echo "## Codex Sensei architect review"
             echo
             echo '```json'
-            printf '%s\n' "$CODEX_REVIEW"
+            cat codex-review/review.json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Enforce Codex architectural verdict
+        if: steps.persist-review.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          verdict=$(python3 -c 'import json; print(json.load(open("codex-review/review.json"))["verdict"])')
+          case "$verdict" in
+            pass)
+              ;;
+            warn)
+              echo "::warning::Codex architect review returned warn"
+              ;;
+            block|cannot_verify)
+              echo "::error::Codex architect review returned $verdict"
+              exit 1
+              ;;
+            *)
+              echo "::error::Unknown Codex verdict: $verdict"
+              exit 1
+              ;;
+          esac
+
+  publish-codex-review:
+    needs: codex-architect
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.codex-architect.outputs.review_available == 'true'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download closed Codex review
+        uses: actions/download-artifact@v4
+        with:
+          name: sensei-codex-architect-review
+          path: codex-review
+
       - name: Upsert PR architect comment
-        if: >-
-          github.event_name == 'pull_request' &&
-          steps.codex.outputs.final-message != ''
         uses: actions/github-script@v7
-        env:
-          CODEX_REVIEW: ${{ steps.codex.outputs.final-message }}
         with:
           script: |
+            const fs = require('fs');
             const marker = '<!-- sensei-codex-architect -->';
-            const body = `${marker}\n## Sensei Codex architect review\n\n\`\`\`json\n${process.env.CODEX_REVIEW}\n\`\`\``;
+            const review = fs.readFileSync('codex-review/review.json', 'utf8').trim();
+            JSON.parse(review);
+            const body = `${marker}\n## Sensei Codex architect review\n\n\`\`\`json\n${review}\n\`\`\``;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, {
