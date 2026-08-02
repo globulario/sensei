@@ -16,7 +16,7 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 4. Exactly one closed `providerport.Result` is decoded from stdout.
 5. Stderr is bounded observation evidence only.
 6. Ambient environment variables are absent unless their names are explicitly allowlisted.
-7. Cancellation and deadlines terminate the process group.
+7. Cancellation and deadlines terminate the complete provider process tree on Unix and Windows.
 8. Malformed JSON, unknown fields, multiple JSON documents, trailing non-whitespace, oversized stdout, digest mismatch, request/operation mismatch, and unsupported operation become `providerport.OutcomeInvalidOutput` or `providerport.OutcomeUnsupportedCapability` as typed result data.
 9. Returned result payloads remain untrusted until existing `providerport.Run`, mapping, and O1 transition owners accept them.
 10. Tests use deterministic helper processes and require no external provider credentials.
@@ -29,7 +29,7 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 - `process_unix.go` terminates the complete process group on cancellation;
 - `process_windows.go` terminates the complete provider tree through the operating system task-tree facility;
 - `process_other.go` supplies the bounded direct-process fallback for remaining platforms;
-- `adapter_test.go` proves schema closure, digest binding, environment isolation, immutable literal argv construction, typed unsupported capability, O2 `Run` composition, and Unix descendant cleanup;
+- `adapter_test.go` proves schema closure, digest binding, environment isolation, immutable literal argv construction, typed unsupported capability, O2 `Run` composition, and descendant process cleanup on the supported CI platforms;
 - the canonical generated Go import graph records the package's dependencies on `providerport` and `synthesis`.
 
 No vendor constructor, authentication policy, provider selection, prompt template, worktree mutation, session driver, admission call, candidate application, commit, push, pull request, merge, or promotion capability is present.
