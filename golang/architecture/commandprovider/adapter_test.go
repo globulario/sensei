@@ -128,6 +128,10 @@ func writeUnavailable(request providerport.Request, detail string) {
 }
 
 func testAdapter(t *testing.T, mode string, extraAllowlist ...string) *Adapter {
+	return testAdapterWithArgs(t, mode, nil, extraAllowlist...)
+}
+
+func testAdapterWithArgs(t *testing.T, mode string, extraArgs []string, extraAllowlist ...string) *Adapter {
 	t.Helper()
 	command, err := filepath.Abs(os.Args[0])
 	if err != nil {
@@ -144,8 +148,9 @@ func testAdapter(t *testing.T, mode string, extraAllowlist ...string) *Adapter {
 
 	adapter, err := New(Config{
 		ProviderID:           "test.command",
+		ObservedAt:           "2026-08-02T00:00:00Z",
 		Command:              command,
-		Args:                 []string{"-test.run=TestCommandProviderHelperProcess"},
+		Args:                 append([]string{"-test.run=TestCommandProviderHelperProcess"}, extraArgs...),
 		WorkDir:              t.TempDir(),
 		EnvironmentAllowlist: allowlist,
 		SupportedOperations:  []providerport.Operation{providerport.OperationInterpretation},
@@ -304,11 +309,10 @@ func TestEnvironmentIsExplicitlyAllowlisted(t *testing.T) {
 }
 
 func TestArgumentsArePassedWithoutShellInterpolation(t *testing.T) {
-	adapter := testAdapter(t, "arguments")
-	adapter.config.Args = append(
-		adapter.config.Args,
-		"$(printf injected)",
-		";touch /tmp/commandprovider-forbidden",
+	adapter := testAdapterWithArgs(
+		t,
+		"arguments",
+		[]string{"$(printf injected)", ";touch /tmp/commandprovider-forbidden"},
 	)
 	result, err := adapter.Execute(
 		context.Background(),
@@ -397,6 +401,7 @@ func TestNewRejectsImplicitOrUnboundedConfiguration(t *testing.T) {
 
 	_, err = New(Config{
 		ProviderID:          "relative.command",
+		ObservedAt:          "2026-08-02T00:00:00Z",
 		Command:             "codex",
 		SupportedOperations: []providerport.Operation{providerport.OperationInterpretation},
 		MaxStdoutBytes:      1,
@@ -404,5 +409,21 @@ func TestNewRejectsImplicitOrUnboundedConfiguration(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "absolute path") {
 		t.Fatalf("relative command error = %v", err)
+	}
+
+	command, absErr := filepath.Abs(os.Args[0])
+	if absErr != nil {
+		t.Fatal(absErr)
+	}
+	_, err = New(Config{
+		ProviderID:          "invalid.time",
+		ObservedAt:          "not-a-time",
+		Command:             command,
+		SupportedOperations: []providerport.Operation{providerport.OperationInterpretation},
+		MaxStdoutBytes:      1,
+		MaxStderrBytes:      1,
+	})
+	if err == nil || !strings.Contains(err.Error(), "RFC3339") {
+		t.Fatalf("invalid observed-at error = %v", err)
 	}
 }

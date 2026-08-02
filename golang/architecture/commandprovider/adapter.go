@@ -85,7 +85,7 @@ func (a *Adapter) Execute(
 			fmt.Sprintf("stdout exceeded configured limit of %d bytes", a.config.MaxStdoutBytes),
 		)
 	}
-	if stderr.exceeded() {
+	if stderr.exceeded() && observer != nil {
 		_ = observer.Observe(fmt.Sprintf(
 			"stderr truncated at configured limit of %d bytes",
 			a.config.MaxStderrBytes,
