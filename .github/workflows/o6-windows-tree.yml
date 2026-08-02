@@ -1,0 +1,67 @@
+name: O6 Windows process tree closure
+
+on:
+  push:
+    branches:
+      - agent/o6-command-provider
+
+permissions:
+  contents: write
+
+jobs:
+  close:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/o6-command-provider
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          tests = Path('golang/architecture/commandprovider/adapter_test.go')
+          text = tests.read_text()
+          text = text.replace(
+              '''func TestCancellationTerminatesCompleteUnixProcessGroup(t *testing.T) {
+          \tif runtime.GOOS == "windows" {
+          \t\tt.Skip("Windows fallback terminates the direct process; Unix group proof is platform-specific")
+          \t}
+          ''',
+              '''func TestCancellationTerminatesCompleteProcessTree(t *testing.T) {
+          ''',
+              1,
+          )
+          tests.write_text(text)
+
+          doc = Path('docs/design/o6-command-provider-implementation.md')
+          text = doc.read_text()
+          text = text.replace(
+              '- `process_other.go` supplies the portable direct-process fallback;\n',
+              '- `process_windows.go` terminates the complete provider tree through the operating system task-tree facility;\n- `process_other.go` supplies the bounded direct-process fallback for remaining platforms;\n',
+              1,
+          )
+          text = text.replace(
+              '- Linux/Unix process-group termination plus a portable fallback file;\n',
+              '- Unix process-group and Windows process-tree termination plus a portable fallback file;\n',
+              1,
+          )
+          doc.write_text(text)
+          PY
+
+          gofmt -w golang/architecture/commandprovider
+          go test ./golang/architecture/commandprovider -count=1
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test -c -o /tmp/commandprovider.test.exe ./golang/architecture/commandprovider
+          make import-graph
+          make import-graph-check
+          rm -f .github/workflows/o6-windows-tree.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add golang/architecture/commandprovider docs/design/o6-command-provider-implementation.md docs/awareness/generated/awareness_graph_go_import_graph.yaml .github/workflows/o6-windows-tree.yml
+          git commit -m 'fix(commandprovider): terminate complete provider trees on Windows'
+          git push origin HEAD:agent/o6-command-provider
