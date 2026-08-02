@@ -1,0 +1,176 @@
+name: Repair seed ownership identity
+
+on:
+  push:
+    branches:
+      - fix/seed-ownership-object-identity
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/seed-ownership-object-identity
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+      - name: Reconcile PR 133 onto current main
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          source = Path('cmd/awg/seedfreshness.go')
+          text = source.read_text()
+          replacement = r'''// ntOwnershipKey returns the ownership bucket for a triple: subject +
+          // predicate + object ownership-term. For a minted awareness IRI the term is the
+          // full id. Stable external IRIs and literals retain their complete N-Triples
+          // identity, so two repositories cannot claim each other's value merely because
+          // they share a subject and predicate. Blank-node identifiers remain local to a
+          // serialization and therefore collapse to the bnode kind.
+          func ntOwnershipKey(line string) string {
+          	fields := strings.Fields(line)
+          	if len(fields) < 3 {
+          		return line
+          	}
+          	return fields[0] + " " + fields[1] + " " + ntObjectOwnershipTerm(ntObjectTerm(line))
+          }
+
+          // ntObjectTerm returns the complete object term from one N-Triples statement.
+          // Unlike strings.Fields, it preserves spaces inside literals together with
+          // language tags and datatype suffixes.
+          func ntObjectTerm(line string) string {
+          	line = strings.TrimSpace(line)
+          	first := strings.IndexByte(line, ' ')
+          	if first < 0 {
+          		return ""
+          	}
+          	rest := strings.TrimSpace(line[first+1:])
+          	second := strings.IndexByte(rest, ' ')
+          	if second < 0 {
+          		return ""
+          	}
+          	object := strings.TrimSpace(rest[second+1:])
+          	if strings.HasSuffix(object, " .") {
+          		object = strings.TrimSpace(strings.TrimSuffix(object, "."))
+          	}
+          	return object
+          }
+
+          // ntObjectOwnershipTerm preserves stable RDF object identity. Awareness IRIs
+          // keep their compact minted id for readable diagnostics; other IRIs and
+          // literals remain exact. Blank nodes collapse because their labels are scoped
+          // to one serialization and cannot provide cross-artifact identity.
+          func ntObjectOwnershipTerm(term string) string {
+          	if strings.HasPrefix(term, "<https://globular.io/awareness#") {
+          		trimmed := strings.TrimPrefix(term, "<https://globular.io/awareness#")
+          		return strings.TrimSuffix(trimmed, ">")
+          	}
+          	if strings.HasPrefix(term, "_:") {
+          		return "bnode"
+          	}
+          	return term
+          }
+
+          func ntOwnershipKeys'''
+          pattern = re.compile(r'// ntOwnershipKey returns.*?\nfunc ntOwnershipKeys', re.S)
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit('seedfreshness.go ownership block not found exactly once')
+          source.write_text(text)
+
+          tests = Path('cmd/awg/seedfreshness_test.go')
+          text = tests.read_text()
+          additions = r'''
+
+          // Both repositories may emit literals under one shared subject and predicate.
+          // Removing a services-authored value from a combined artifact must remain
+          // external even when Sensei owns another value on that edge.
+          func TestClassifySeedDiff_SharedSubjectPredicateDifferentLiteralIsExternal(t *testing.T) {
+          	agLabel := `<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <http://www.w3.org/2000/01/rdf-schema#label> "engine.go" .`
+          	svcLabel := `<https://globular.io/awareness#sourceFile/golang%2Fworkflow%2Fengine%2Fengine.go> <http://www.w3.org/2000/01/rdf-schema#label> "workflow engine source" .`
+          	agOnly := nt(agLabel)
+          	committed := nt(agLabel, svcLabel)
+          	generated := nt(agLabel)
+
+          	owned, external := classifySeedDiff(committed, generated, agOnly)
+          	if len(owned) != 0 {
+          		t.Fatalf("services literal on a shared edge must stay external, got owned=%v", owned)
+          	}
+          	if len(external) != 1 || external[0] != svcLabel {
+          		t.Fatalf("services literal must be external, got %v", external)
+          	}
+          }
+
+          func TestNtObjectTermPreservesLiteralIdentity(t *testing.T) {
+          	cases := map[string]string{
+          		`<s> <p> "literal with spaces"@en .`:                         `"literal with spaces"@en`,
+          		`<s> <p> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .`: `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`,
+          		`<s> <p> <https://example.test/object> .`:                    `<https://example.test/object>`,
+          	}
+          	for line, want := range cases {
+          		if got := ntObjectTerm(line); got != want {
+          			t.Fatalf("ntObjectTerm(%q)=%q, want %q", line, got, want)
+          		}
+          	}
+          }
+
+          func TestNtOwnershipKeyPreservesStableExternalObjects(t *testing.T) {
+          	left := `<https://globular.io/awareness#sourceFile/x> <https://globular.io/awareness#relatedTo> <https://example.test/left> .`
+          	right := `<https://globular.io/awareness#sourceFile/x> <https://globular.io/awareness#relatedTo> <https://example.test/right> .`
+          	if ntOwnershipKey(left) == ntOwnershipKey(right) {
+          		t.Fatal("different stable external IRIs must not share an ownership key")
+          	}
+          }
+          '''
+          if 'TestClassifySeedDiff_SharedSubjectPredicateDifferentLiteralIsExternal' not in text:
+              text += additions
+          tests.write_text(text)
+
+          matrix = Path('cmd/awg/seedfreshness_ownership_test.go')
+          text = matrix.read_text()
+          replacement = r'''// Case 6 — a changed literal on an AG-owned edge must still fail because the
+          // freshly generated AG value is an exact owned line. The removed old value has
+          // different RDF identity and is therefore external rather than being falsely
+          // claimed by the new value's ownership key.
+          func TestOwnership_LiteralValueChange_StaysOwned(t *testing.T) {
+          	label := `<http://www.w3.org/2000/01/rdf-schema#label>`
+          	oldLabel := bSrc + " " + label + ` "old" .`
+          	newLabel := bSrc + " " + label + ` "new" .`
+          	agOnly := nt(newLabel)
+          	committed := nt(oldLabel)
+          	generated := nt(newLabel)
+          	owned, external := classifySeedDiff(committed, generated, agOnly)
+          	if len(owned) != 1 || owned[0] != newLabel {
+          		t.Fatalf("new AG literal must remain owned drift; got owned=%v", owned)
+          	}
+          	if len(external) != 1 || external[0] != oldLabel {
+          		t.Fatalf("removed value with different RDF identity must be external; got %v", external)
+          	}
+          }
+
+          // ── seed-marker exclusion'''
+          pattern = re.compile(r'// Case 6.*?\n// ── seed-marker exclusion', re.S)
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit('seedfreshness_ownership_test.go case 6 block not found exactly once')
+          matrix.write_text(text)
+          PY
+
+          gofmt -w cmd/awg/seedfreshness.go cmd/awg/seedfreshness_test.go cmd/awg/seedfreshness_ownership_test.go
+          go test ./cmd/awg -run 'Test(ClassifySeedDiff|Ownership|NtObject|NtOwnership)' -count=1
+
+          rm -f .github/workflows/repair-seed-ownership.yml .github/seed-ownership-repair.trigger
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cmd/awg/seedfreshness.go cmd/awg/seedfreshness_test.go cmd/awg/seedfreshness_ownership_test.go .github
+          git commit -m 'fix(seed): preserve full RDF object identity'
+          git push origin HEAD:fix/seed-ownership-object-identity
