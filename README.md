@@ -253,6 +253,32 @@ The terminal architectural-closure lifecycle remains under active development
 and is deliberately not represented as complete before its immutable completion
 and evolution boundaries exist.
 
+### Governed synthesis loop
+
+Alongside deciding whether a change may proceed, Sensei has a bounded,
+deterministic loop for producing the change in the first place:
+
+```text
+interpretation -> plan -> generation -> evaluation -> bounded retry/replan
+  -> candidate-ready -> admission -> apply -> verification -> completion evidence
+```
+
+A typed session (`golang/architecture/synthesis`) drives an external coding
+agent through a provider-neutral execution port, snapshots and seals the
+result as a candidate artifact, evaluates it deterministically, and only ever
+submits an accepted candidate to Sensei's existing admission and verification
+owners — never granting the provider architectural, mutation, admission, or
+merge authority itself. A rejected or malformed provider output is caught by
+the schema/evaluation boundary and stopped, not silently applied.
+
+This is real, merged code, not a proposal — but it is not yet a finished
+product surface: it is a Go library
+(`golang/architecture/synthesisdriver.Run`) with no CLI entrypoint yet, and it
+can only drive the loop against a repository Sensei has already onboarded
+(served graph authority, a task session, and closure state must already
+exist). See [`docs/design/archer-integration-closure.md`](docs/design/archer-integration-closure.md)
+for the exact contract, what's merged, and what's still open.
+
 ---
 
 ## A briefing before an edit
@@ -706,6 +732,13 @@ Sensei has two deliberately distinct maturity surfaces.
 - revocation, migration, and learning lifecycle
 - self-hosted closure of Sensei changes
 
+### Merged, not yet a finished surface
+
+- the governed synthesis loop (interpretation, planning, generation,
+  evaluation, admission, apply) — a real Go library today, with no CLI
+  entrypoint yet and usable only against a repository Sensei has already
+  onboarded
+
 Sensei does not call an intermediate result "architecturally closed." The term is
 earned only when the exact result, proof, freshness, and immutable completion
 boundaries all hold.
@@ -734,6 +767,19 @@ repairs became required mechanisms. The required confidence became proof
 obligations. Their recurring shapes became portable meta-principles.
 
 Sensei grew from memory into governance, and from governance toward closure.
+
+Deciding whether a change may proceed is only half the problem; the other half
+is how the change gets produced. For that half, Sensei's governed synthesis
+loop (interpretation, planning, generation, evaluation, bounded retry/replan)
+acknowledges [ARCHER](https://arxiv.org/abs/2607.25566), a research paper on
+governed multi-agent code synthesis for regulatory compliance, as the source
+of that control-loop pattern. Sensei did not adopt ARCHER's domain-specific
+mechanics — its label vocabulary, its accuracy metric, or its compliance
+documents are all specific to building-code review and have no analogue here.
+What carried over is the shape of the loop itself, composed with an authority
+chain ARCHER does not define: a produced candidate is never self-admitting —
+it still passes through Sensei's own admission, application, and verification
+owners before anything is accepted.
 
 ---
 

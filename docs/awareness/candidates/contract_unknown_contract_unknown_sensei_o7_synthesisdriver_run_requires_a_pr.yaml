@@ -1,0 +1,14 @@
+contract_unknown:
+  - id: contract_unknown.sensei.o7_synthesisdriver_run_requires_a_pre_onboarded_repository_u
+    kind: contract_unknown
+    title: O7 synthesisdriver.Run requires a pre-onboarded repository (undocumented prerequisite)
+    description: 'Attempted to construct a fresh synthesis.SessionState to drive golang/architecture/synthesisdriver.Run against gin-gonic/gin (an external repo never imported into Sensei) for a Mode B vs Mode D benchmark pilot. Session construction requires four real digest-bound owners: workspacecontract.Identity (needs a live graph-authority Metadata RPC), tasksession.Session (only created via a real sensei prepare-change flow), and a closureprotocol closure assessment -- none of which can exist for a repo Sensei has never imported or graphed. golang/architecture/synthesis''s own test fixtures fill all four session digest fields with a literal zeroDigest placeholder rather than deriving them for real, confirming there is no existing real end-to-end example for any repo, home or foreign. The O7 design doc documents dispositions for external capability unavailability (provider-stopped, runner-stopped) but never states this prerequisite.'
+    proposed_contract: golang/architecture/synthesisdriver.Run MUST NOT be treated as capable of governing code generation against an arbitrary fresh repository. A valid initial synthesis.SessionState requires real (non-placeholder) WorkspaceIdentityDigestSHA256, GraphAuthorityDigestSHA256, TaskSessionDigestSHA256, and ClosureDigestSHA256, each derived from that repository's own completed sensei-import + served graph authority + prepare-change task-session + closure assessment. This should be documented as a hard precondition of O7, distinct from the runtime capability-unavailable dispositions it already handles.
+    source_files:
+      - golang/architecture/synthesisdriver/driver.go
+      - golang/architecture/synthesis/types.go
+      - golang/architecture/workspacecontract/identity.go
+    evidence:
+      - golang/architecture/synthesis/fixtures_test.go populates all four session digest fields with a literal zeroDigest placeholder -- no real derivation path exists in any test or example
+      - workspacecontract.ComposeIdentity requires a GraphAuthority resolved from a live gRPC Metadata RPC, which presupposes the target repo is already served by Sensei
+    domain: github.com/globulario/sensei

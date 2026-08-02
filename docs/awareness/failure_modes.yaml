@@ -1288,3 +1288,17 @@ failure_modes:
       - 'Regression proof: golang/extractor/coldsource/intent_extract_test.go:TestLLMIntentDrafter_ToleratesDroppedFileSchemePrefix'
       - "12/12 claude-cli-drafted intents for a cold-imported gin checkout were rejected as fabricated although every citation resolved after restoring the dropped file: scheme prefix."
     contract: Every LLM-drafted intent source citation must resolve to a real gathered excerpt citation id or be rejected as fabricated.
+  - id: failure.sensei.agentcommand_encodeagentprompt_omits_the_mode_const_empty_ru
+    title: agentcommand.encodeAgentPrompt omits the mode-const-empty rule for non-set-mode operations
+    severity: warning
+    description: 'Observed during a real end-to-end O1-O7 self-pilot run (synthesisdriver.Run against Sensei''s own repo, real claude CLI subprocess calls for interpretation/planning/O3-generation). Interpretation and planning completed correctly. O3 generation''s real claude call produced a mutation-plan operation with kind=write and mode="regular", which agentcommand-mutation-plan-v1.schema.json correctly rejected (mode must be const "" for write/delete/rename/symlink; only kind=set-mode allows regular/executable) -- this is the intended governance behavior, a plausible-but-wrong LLM output mechanically caught rather than silently applied, and the driver correctly stopped with Disposition=runner-stopped rather than pushing through. But the rejection was avoidable: command_agent.go''s encodeAgentPrompt tells the model ''each operation must contain all fields ... mode ... Modes: regular or executable'' without ever stating that mode must be the empty string for every kind except set-mode. The prompt instructs the model into producing schema-invalid output for the common case.'
+    protects:
+      files:
+        - golang/architecture/agentcommand/command_agent.go
+        - golang/architecture/agentcommand/schemas/agentcommand-mutation-plan-v1.schema.json
+    required_tests:
+      - golang/architecture/agentcommand/command_agent_test.go:TestEncodeAgentPrompt_StatesModeConstEmptyForNonSetModeKinds
+    evidence:
+      - 'Real O7 self-pilot run: a real claude CLI call for O3 generation produced kind=write with mode="regular"; validation failed at /operations/0/mode ''value must be ""'' per the schema''s const constraint for non-set-mode kinds'
+      - 'command_agent.go:180 says only ''Modes: regular or executable'', never stating this applies exclusively to kind=set-mode and must be empty-string otherwise'
+    contract: agentcommand.encodeAgentPrompt's generated instructions must fully and correctly describe the mutation-plan schema's per-kind field constraints, since the schema is the sole ground truth an LLM-generated plan is validated against -- an incomplete prompt wastes real generation attempts on avoidable, predictable schema rejections.

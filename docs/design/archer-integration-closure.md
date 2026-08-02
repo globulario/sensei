@@ -1,6 +1,7 @@
 # ARCHER Integration Closure
 
-Status: architecture contract
+Status: contract accepted; O5A/O5B/O6/O6C/O7 merged; **not yet closed** (see
+[Current state vs. this contract](#current-state-vs-this-contract))
 
 ## Purpose
 
@@ -199,3 +200,58 @@ No later PR may merge before the preceding contract is accepted on an exact head
 ARCHER integration is complete when the following statement is demonstrably true:
 
 > Given an exact repository, base revision, task, graph and closure identity, immutable budgets, provider configuration, evaluator policy, and admission context, Sensei can obtain an interpretation and plan, generate a sealed candidate, evaluate it, retry or replan within precommitted limits, submit only the accepted candidate to the existing admission owner, apply only the admitted artifact into a dedicated governed target, verify the exact result through the existing verification owner, and preserve a complete digest-bound receipt chain without granting the provider architectural, mutation, admission, completion, approval, merge, or promotion authority.
+
+## Current state vs. this contract
+
+As of 2026-08-02, checkpoints 1-4 of the pull request order are merged to
+`main`: O5A (`admissioncomposition`, PR #135), O5B (`candidateapply`, PR #138),
+O6 (`commandprovider`, PR #143) plus the O6C Claude/Codex command bridge
+(PR #144), and O7 (`synthesisdriver`, PR #145). Checkpoint 5, "ARCHER
+end-to-end closure proof," has not happened. This contract is therefore
+**accepted but not closed** — the Final completion truth statement above has
+not been demonstrated end-to-end on any real repository.
+
+Two gaps were found empirically (by trying to actually run the driver, not by
+inspection) that this contract did not anticipate:
+
+1. **No CLI surface exists.** Hard law O7-9 above assumes a `sensei
+   synthesis-run` command. `golang/architecture/synthesisdriver` is a pure Go
+   library — `Run(ctx, initial synthesis.SessionState, config Config) (Result,
+   error)` — with zero references anywhere in `cmd/awg`. There is no
+   `--apply`/no-application-by-default flag to enforce because there is no
+   flag at all. Driving the loop today requires a caller-authored program that
+   imports the package directly.
+
+2. **The driver requires a repository Sensei has already onboarded.**
+   Constructing a legal, non-placeholder `synthesis.SessionState` needs a real
+   `workspacecontract.Identity` (resolved from a *live* graph-authority gRPC
+   Metadata RPC), a real `tasksession.Session` (produced by an actual `sensei
+   prepare-change` run), and a real `closureprotocol` closure assessment —
+   all three presuppose the target repository already has served graph
+   authority, a task session, and closure state. `golang/architecture/synthesis`'s
+   own test fixtures fill these four session digest fields with a literal
+   `zeroDigest` placeholder rather than deriving them for real, because no
+   real end-to-end example exists for any repository, home or foreign. This
+   was discovered while trying to benchmark the loop against gin-gonic/gin (a
+   repository Sensei has never imported) and is filed as
+   `contract_unknown.sensei.o7_synthesisdriver_run_requires_a_pre_onboarded_repository_u`
+   — neither this design doc nor `bounded-synthesis-driver-o7.md` documents
+   this prerequisite anywhere.
+
+Sensei's *own* repository already has real graph authority and task-session
+machinery (the same `prepare-change`/`task-briefing`/`advance-task` surface
+this repo dogfoods on itself), so gap 2 does not block running the loop
+against Sensei's own codebase — only against a not-yet-onboarded external one.
+A real end-to-end run of the loop against Sensei itself did complete through
+interpretation and planning via a real command-provider call, then correctly
+stopped at O3 generation on a schema-rejected provider output (see
+`failure.sensei.agentcommand_encodeagentprompt_omits_the_mode_const_empty_ru`)
+— governance caught a plausible-but-wrong output rather than silently applying
+it, which is the mechanism this contract exists to prove, even though the run
+itself did not reach `candidate-ready`.
+
+Closing this contract for real requires, in order: (a) either wire the missing
+CLI or accept "library only" as the permanent interface and update hard law
+O7-9 accordingly; (b) run the completion proof matrix above end-to-end on at
+least one real repository; (c) resolve the pre-onboarded-repository question
+above as an explicit, authored contract rather than an implicit precondition.
