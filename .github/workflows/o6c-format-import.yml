@@ -1,0 +1,39 @@
+name: O6C format and import graph
+
+on:
+  push:
+    branches:
+      - archer/o6c-governed-agent-command-bridge
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: archer/o6c-governed-agent-command-bridge
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Format and regenerate
+        shell: bash
+        run: |
+          gofmt -w \
+            golang/architecture/agentcommand/*.go \
+            golang/architecture/commandprovider/raw.go \
+            golang/architecture/runnercomposition/evidence_preview*.go
+          make import-graph
+          rm -f .github/workflows/o6c-format-import.yml .github/o6c-format-trigger
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'chore(archer): format final O6C contract and refresh import graph'
+          git push origin HEAD:archer/o6c-governed-agent-command-bridge
