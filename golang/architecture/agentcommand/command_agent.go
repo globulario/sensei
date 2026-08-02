@@ -25,6 +25,13 @@ const (
 	ProfileClaude CommandProfile = "claude"
 )
 
+// StructuredAgent runs one bounded vendor command and returns only the final
+// textual payload extracted from that vendor's noninteractive envelope. It
+// assigns no O1/O2/O3 meaning to those bytes.
+type StructuredAgent interface {
+	Complete(ctx context.Context, prompt []byte, observer providerport.Observer) ([]byte, error)
+}
+
 // CommandAgentConfig is the complete process capability granted to one vendor
 // command. WorkDir must be an empty, dedicated, real directory. No repository
 // or candidate-buffer path is added by this package.
@@ -37,29 +44,56 @@ type CommandAgentConfig struct {
 	EnvironmentAllowlist []string
 	MaxStdoutBytes       int64
 	MaxStderrBytes       int64
-	MaxMutationPlanBytes int
+
+	// MaxStructuredPayloadBytes bounds the vendor's extracted final textual
+	// answer. MaxMutationPlanBytes is the generation-specific compatibility
+	// name retained for O6C. When MaxStructuredPayloadBytes is zero, the
+	// mutation-plan limit is used as the structured payload limit.
+	MaxStructuredPayloadBytes int
+	MaxMutationPlanBytes      int
 }
 
 type commandAgent struct {
 	config CommandAgentConfig
 }
 
-// NewCodexAgent returns a direct-argv Codex Exec profile. The default argv
-// uses a read-only sandbox, refuses approvals, skips ambient repository
-// discovery, and reads the prompt from stdin. ExtraArgs are inserted before
-// the final stdin marker so callers may select a model or profile explicitly.
+// NewCodexAgent returns the O6C generation-facing Agent profile.
 func NewCodexAgent(config CommandAgentConfig) (Agent, error) {
+	if config.MaxMutationPlanBytes <= 0 {
+		return nil, fmt.Errorf("agentcommand: mutation-plan limit must be positive")
+	}
+	return newCommandAgent(codexConfig(config))
+}
+
+// NewClaudeAgent returns the O6C generation-facing Agent profile.
+func NewClaudeAgent(config CommandAgentConfig) (Agent, error) {
+	if config.MaxMutationPlanBytes <= 0 {
+		return nil, fmt.Errorf("agentcommand: mutation-plan limit must be positive")
+	}
+	return newCommandAgent(claudeConfig(config))
+}
+
+// NewCodexStructuredAgent returns the same confined Codex process boundary
+// without assigning generation semantics to the returned bytes.
+func NewCodexStructuredAgent(config CommandAgentConfig) (StructuredAgent, error) {
+	return newCommandAgent(codexConfig(config))
+}
+
+// NewClaudeStructuredAgent returns the same confined Claude process boundary
+// without assigning generation semantics to the returned bytes.
+func NewClaudeStructuredAgent(config CommandAgentConfig) (StructuredAgent, error) {
+	return newCommandAgent(claudeConfig(config))
+}
+
+func codexConfig(config CommandAgentConfig) CommandAgentConfig {
 	config.Profile = ProfileCodex
 	base := []string{"exec", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check"}
 	base = append(base, config.Args...)
 	config.Args = append(base, "-")
-	return newCommandAgent(config)
+	return config
 }
 
-// NewClaudeAgent returns a noninteractive, single-turn Claude Code profile.
-// Built-in filesystem, shell, Git-like discovery, and web tools are denied;
-// the model receives only the prompt bytes Sensei writes to stdin.
-func NewClaudeAgent(config CommandAgentConfig) (Agent, error) {
+func claudeConfig(config CommandAgentConfig) CommandAgentConfig {
 	config.Profile = ProfileClaude
 	base := []string{
 		"-p",
@@ -69,15 +103,18 @@ func NewClaudeAgent(config CommandAgentConfig) (Agent, error) {
 		"--disallowedTools", "Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch",
 	}
 	config.Args = append(base, config.Args...)
-	return newCommandAgent(config)
+	return config
 }
 
-func newCommandAgent(config CommandAgentConfig) (Agent, error) {
+func newCommandAgent(config CommandAgentConfig) (*commandAgent, error) {
 	if config.Profile != ProfileCodex && config.Profile != ProfileClaude {
 		return nil, fmt.Errorf("agentcommand: unsupported command profile %q", config.Profile)
 	}
-	if config.MaxStdoutBytes <= 0 || config.MaxStderrBytes <= 0 || config.MaxMutationPlanBytes <= 0 {
-		return nil, fmt.Errorf("agentcommand: command and mutation-plan limits must be positive")
+	if config.MaxStructuredPayloadBytes <= 0 {
+		config.MaxStructuredPayloadBytes = config.MaxMutationPlanBytes
+	}
+	if config.MaxStdoutBytes <= 0 || config.MaxStderrBytes <= 0 || config.MaxStructuredPayloadBytes <= 0 {
+		return nil, fmt.Errorf("agentcommand: command and structured-payload limits must be positive")
 	}
 	if err := validateAgentCommandPath(config.Command); err != nil {
 		return nil, err
@@ -90,16 +127,12 @@ func newCommandAgent(config CommandAgentConfig) (Agent, error) {
 	return &commandAgent{config: config}, nil
 }
 
-func (a *commandAgent) Generate(ctx context.Context, prompt GenerationPrompt, observer providerport.Observer) (MutationPlan, error) {
+func (a *commandAgent) Complete(ctx context.Context, prompt []byte, observer providerport.Observer) ([]byte, error) {
 	// Revalidate immediately before execution. The directory was empty at
 	// construction, but callers retain the path and could populate it later.
 	// Refusing here prevents cwd from becoming an ambient repository channel.
 	if err := validateEmptyAgentWorkDir(a.config.WorkDir); err != nil {
-		return MutationPlan{}, err
-	}
-	promptBytes, err := encodeAgentPrompt(prompt)
-	if err != nil {
-		return MutationPlan{}, err
+		return nil, err
 	}
 	result, err := commandprovider.RunRawCommand(ctx, commandprovider.RawCommand{
 		Command:              a.config.Command,
@@ -108,7 +141,7 @@ func (a *commandAgent) Generate(ctx context.Context, prompt GenerationPrompt, ob
 		EnvironmentAllowlist: a.config.EnvironmentAllowlist,
 		MaxStdoutBytes:       a.config.MaxStdoutBytes,
 		MaxStderrBytes:       a.config.MaxStderrBytes,
-	}, promptBytes)
+	}, append([]byte{}, prompt...))
 	if len(result.Stderr) != 0 && observer != nil {
 		for _, line := range strings.Split(strings.TrimSpace(string(result.Stderr)), "\n") {
 			line = strings.TrimSpace(line)
@@ -120,14 +153,28 @@ func (a *commandAgent) Generate(ctx context.Context, prompt GenerationPrompt, ob
 		}
 	}
 	if err != nil {
-		return MutationPlan{}, err
+		return nil, err
 	}
-
 	payload, err := a.extractFinalPayload(result.Stdout)
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) > a.config.MaxStructuredPayloadBytes {
+		return nil, invalidOutput("structured payload exceeded %d bytes", a.config.MaxStructuredPayloadBytes)
+	}
+	return append([]byte{}, payload...), nil
+}
+
+func (a *commandAgent) Generate(ctx context.Context, prompt GenerationPrompt, observer providerport.Observer) (MutationPlan, error) {
+	promptBytes, err := encodeAgentPrompt(prompt)
 	if err != nil {
 		return MutationPlan{}, err
 	}
-	if len(payload) > a.config.MaxMutationPlanBytes {
+	payload, err := a.Complete(ctx, promptBytes, observer)
+	if err != nil {
+		return MutationPlan{}, err
+	}
+	if a.config.MaxMutationPlanBytes > 0 && len(payload) > a.config.MaxMutationPlanBytes {
 		return MutationPlan{}, invalidOutput("mutation plan exceeded %d bytes", a.config.MaxMutationPlanBytes)
 	}
 	return decodeMutationPlanProposal(payload)
