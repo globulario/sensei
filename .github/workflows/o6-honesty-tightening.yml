@@ -1,0 +1,144 @@
+name: O6 honesty tightening
+
+on:
+  push:
+    branches:
+      - agent/o6-command-provider
+
+permissions:
+  contents: write
+
+jobs:
+  tighten:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/o6-command-provider
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          tests = Path('golang/architecture/commandprovider/adapter_test.go')
+          text = tests.read_text()
+          old = '''func testAdapter(t *testing.T, mode string, extraAllowlist ...string) *Adapter {
+          \tt.Helper()
+          \tcommand, err := filepath.Abs(os.Args[0])
+          '''
+          new = '''func testAdapter(t *testing.T, mode string, extraAllowlist ...string) *Adapter {
+          \treturn testAdapterWithArgs(t, mode, nil, extraAllowlist...)
+          }
+
+          func testAdapterWithArgs(t *testing.T, mode string, extraArgs []string, extraAllowlist ...string) *Adapter {
+          \tt.Helper()
+          \tcommand, err := filepath.Abs(os.Args[0])
+          '''
+          if old not in text:
+              raise SystemExit('testAdapter opening block not found')
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              '''\t\tProviderID:           "test.command",
+          \t\tCommand:              command,
+          \t\tArgs:                 []string{"-test.run=TestCommandProviderHelperProcess"},''',
+              '''\t\tProviderID:           "test.command",
+          \t\tObservedAt:           "2026-08-02T00:00:00Z",
+          \t\tCommand:              command,
+          \t\tArgs:                 append([]string{"-test.run=TestCommandProviderHelperProcess"}, extraArgs...),''',
+              1,
+          )
+          old = '''func TestArgumentsArePassedWithoutShellInterpolation(t *testing.T) {
+          \tadapter := testAdapter(t, "arguments")
+          \tadapter.config.Args = append(
+          \t\tadapter.config.Args,
+          \t\t"$(printf injected)",
+          \t\t";touch /tmp/commandprovider-forbidden",
+          \t)
+          '''
+          new = '''func TestArgumentsArePassedWithoutShellInterpolation(t *testing.T) {
+          \tadapter := testAdapterWithArgs(
+          \t\tt,
+          \t\t"arguments",
+          \t\t[]string{"$(printf injected)", ";touch /tmp/commandprovider-forbidden"},
+          \t)
+          '''
+          if old not in text:
+              raise SystemExit('argument mutation test block not found')
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              '''\t_, err = New(Config{
+          \t\tProviderID:          "relative.command",
+          \t\tCommand:             "codex",''',
+              '''\t_, err = New(Config{
+          \t\tProviderID:          "relative.command",
+          \t\tObservedAt:          "2026-08-02T00:00:00Z",
+          \t\tCommand:             "codex",''',
+              1,
+          )
+          text = text.replace(
+              '''\tif err == nil || !strings.Contains(err.Error(), "absolute path") {
+          \t\tt.Fatalf("relative command error = %v", err)
+          \t}
+          }
+          ''',
+              '''\tif err == nil || !strings.Contains(err.Error(), "absolute path") {
+          \t\tt.Fatalf("relative command error = %v", err)
+          \t}
+
+          \tcommand, absErr := filepath.Abs(os.Args[0])
+          \tif absErr != nil {
+          \t\tt.Fatal(absErr)
+          \t}
+          \t_, err = New(Config{
+          \t\tProviderID:          "invalid.time",
+          \t\tObservedAt:          "not-a-time",
+          \t\tCommand:             command,
+          \t\tSupportedOperations: []providerport.Operation{providerport.OperationInterpretation},
+          \t\tMaxStdoutBytes:      1,
+          \t\tMaxStderrBytes:      1,
+          \t})
+          \tif err == nil || !strings.Contains(err.Error(), "RFC3339") {
+          \t\tt.Fatalf("invalid observed-at error = %v", err)
+          \t}
+          }
+          ''',
+              1,
+          )
+          tests.write_text(text)
+
+          adapter = Path('golang/architecture/commandprovider/adapter.go')
+          text = adapter.read_text()
+          text = text.replace(
+              '''\tif stderr.exceeded() {
+          \t\t_ = observer.Observe(fmt.Sprintf(
+          \t\t\t"stderr truncated at configured limit of %d bytes",
+          \t\t\ta.config.MaxStderrBytes,
+          \t\t))
+          \t}
+          ''',
+              '''\tif stderr.exceeded() && observer != nil {
+          \t\t_ = observer.Observe(fmt.Sprintf(
+          \t\t\t"stderr truncated at configured limit of %d bytes",
+          \t\t\ta.config.MaxStderrBytes,
+          \t\t))
+          \t}
+          ''',
+              1,
+          )
+          adapter.write_text(text)
+          PY
+
+          gofmt -w golang/architecture/commandprovider
+          go test ./golang/architecture/commandprovider -count=1
+          go test ./golang/architecture/providerport -count=1
+          rm -f .github/workflows/o6-honesty-tightening.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add golang/architecture/commandprovider .github/workflows/o6-honesty-tightening.yml
+          git commit -m 'fix(commandprovider): keep capability evidence explicit and immutable'
+          git push origin HEAD:agent/o6-command-provider
