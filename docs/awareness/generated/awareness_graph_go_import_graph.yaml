@@ -409,6 +409,7 @@ components:
       - golang/architecture/agentcommand/command_agent.go
       - golang/architecture/agentcommand/plan.go
       - golang/architecture/agentcommand/provider.go
+      - golang/architecture/agentcommand/schema.go
       - golang/architecture/agentcommand/types.go
       - golang/architecture/authority/actor.go
       - golang/architecture/authority/delegation_verify.go
