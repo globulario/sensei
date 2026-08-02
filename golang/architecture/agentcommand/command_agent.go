@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/commandprovider"
@@ -24,8 +26,8 @@ const (
 )
 
 // CommandAgentConfig is the complete process capability granted to one vendor
-// command. WorkDir should be an empty, dedicated directory. No repository or
-// candidate-buffer path is added by this package.
+// command. WorkDir must be an empty, dedicated, real directory. No repository
+// or candidate-buffer path is added by this package.
 type CommandAgentConfig struct {
 	Profile CommandProfile
 	Command string
@@ -77,12 +79,24 @@ func newCommandAgent(config CommandAgentConfig) (Agent, error) {
 	if config.MaxStdoutBytes <= 0 || config.MaxStderrBytes <= 0 || config.MaxMutationPlanBytes <= 0 {
 		return nil, fmt.Errorf("agentcommand: command and mutation-plan limits must be positive")
 	}
+	if err := validateAgentCommandPath(config.Command); err != nil {
+		return nil, err
+	}
+	if err := validateEmptyAgentWorkDir(config.WorkDir); err != nil {
+		return nil, err
+	}
 	config.Args = append([]string{}, config.Args...)
 	config.EnvironmentAllowlist = append([]string{}, config.EnvironmentAllowlist...)
 	return &commandAgent{config: config}, nil
 }
 
 func (a *commandAgent) Generate(ctx context.Context, prompt GenerationPrompt, observer providerport.Observer) (MutationPlan, error) {
+	// Revalidate immediately before execution. The directory was empty at
+	// construction, but callers retain the path and could populate it later.
+	// Refusing here prevents cwd from becoming an ambient repository channel.
+	if err := validateEmptyAgentWorkDir(a.config.WorkDir); err != nil {
+		return MutationPlan{}, err
+	}
 	promptBytes, err := encodeAgentPrompt(prompt)
 	if err != nil {
 		return MutationPlan{}, err
@@ -117,6 +131,43 @@ func (a *commandAgent) Generate(ctx context.Context, prompt GenerationPrompt, ob
 		return MutationPlan{}, invalidOutput("mutation plan exceeded %d bytes", a.config.MaxMutationPlanBytes)
 	}
 	return decodeMutationPlanProposal(payload)
+}
+
+func validateAgentCommandPath(command string) error {
+	command = strings.TrimSpace(command)
+	if !filepath.IsAbs(command) {
+		return fmt.Errorf("agentcommand: command must be an absolute path: %q", command)
+	}
+	info, err := os.Stat(command)
+	if err != nil {
+		return fmt.Errorf("agentcommand: inspect command: %w", err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("agentcommand: command is a directory: %q", command)
+	}
+	return nil
+}
+
+func validateEmptyAgentWorkDir(workDir string) error {
+	workDir = strings.TrimSpace(workDir)
+	if !filepath.IsAbs(workDir) {
+		return fmt.Errorf("agentcommand: work directory must be an absolute path: %q", workDir)
+	}
+	info, err := os.Lstat(workDir)
+	if err != nil {
+		return fmt.Errorf("agentcommand: inspect work directory: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("agentcommand: work directory must be a real, non-symlink directory: %q", workDir)
+	}
+	entries, err := os.ReadDir(workDir)
+	if err != nil {
+		return fmt.Errorf("agentcommand: read work directory: %w", err)
+	}
+	if len(entries) != 0 {
+		return fmt.Errorf("agentcommand: work directory must be empty, found %d entries", len(entries))
+	}
+	return nil
 }
 
 func encodeAgentPrompt(prompt GenerationPrompt) ([]byte, error) {
