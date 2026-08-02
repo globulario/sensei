@@ -4565,6 +4565,12 @@ test_symbols:
     package: main
     language: go
     doc: "Case 1 — AG-owned invariant edge on a services-file subject: drift stays OWNED."
+  - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_CollidingGuardrailID_ServicesLiteralIsExternal
+    file: cmd/awg/seedfreshness_ownership_test.go
+    symbol: TestOwnership_CollidingGuardrailID_ServicesLiteralIsExternal
+    package: main
+    language: go
+    doc: "Case 9 — the colliding-guardrail-id case. Both repos author\ndocs/awareness/activation_rules.yaml and the ids are minted without a repo\nnamespace, so guardrail/activation_empty_policy.low_risk is one IRI with two\nrdfs:comment values. The services value must be EXTERNAL: AG's regeneration\nnever emits it, so no AG commit could ever resolve it as staleness."
   - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_FileImplementsBothInvariants_PerEdge
     file: cmd/awg/seedfreshness_ownership_test.go
     symbol: TestOwnership_FileImplementsBothInvariants_PerEdge
@@ -4577,6 +4583,18 @@ test_symbols:
     package: main
     language: go
     doc: "Case 6 — regression guard: a changed LITERAL value on an AG-owned subject+predicate\nmust still be owned drift (B must NOT touch literal collapse)."
+  - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_SeedMarkerExclusion_DoesNotHideRealDrift
+    file: cmd/awg/seedfreshness_ownership_test.go
+    symbol: TestOwnership_SeedMarkerExclusion_DoesNotHideRealDrift
+    package: main
+    language: go
+    doc: "Case 8 — excluding the marker must not blind the gate. A real owned drift\nsitting alongside a differing marker still fails."
+  - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_SeedMarker_DiffersAcrossBuildModes_IsNotDrift
+    file: cmd/awg/seedfreshness_ownership_test.go
+    symbol: TestOwnership_SeedMarker_DiffersAcrossBuildModes_IsNotDrift
+    package: main
+    language: go
+    doc: "Case 7 — the #218/#219 deadlock. Committed carries the self-only marker,\ngenerated carries the combined marker, and agOnly reproduces the self-only one.\nNeither marker may be reported as drift."
   - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_ServicesInvariantEdge_OnSharedSourceFile_IsExternal
     file: cmd/awg/seedfreshness_ownership_test.go
     symbol: TestOwnership_ServicesInvariantEdge_OnSharedSourceFile_IsExternal
@@ -4589,6 +4607,12 @@ test_symbols:
     package: main
     language: go
     doc: "Case 5 — legitimate cross-repo external drift (a services edge on a subject the\nAG corpus does not own) stays external (unchanged by B)."
+  - id: cmd/awg/seedfreshness_ownership_test.go:TestOwnership_StaleSeed_OnCollidingGuardrailID_StaysOwned
+    file: cmd/awg/seedfreshness_ownership_test.go
+    symbol: TestOwnership_StaleSeed_OnCollidingGuardrailID_StaysOwned
+    package: main
+    language: go
+    doc: "Case 10 — the exact-line rule must not blind ADDED owned drift. A genuinely\nstale seed (AG emits a line the committed seed lacks) still hard-fails, even\nwhen the paired repo also mints the same subject+predicate."
   - id: cmd/awg/seedfreshness_test.go:TestClassifySeedDiff_AgSeedPRAheadOfServicesMaster
     file: cmd/awg/seedfreshness_test.go
     symbol: TestClassifySeedDiff_AgSeedPRAheadOfServicesMaster
