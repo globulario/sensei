@@ -16,7 +16,8 @@ The first O7 checkpoint drives one in-process session from `created` through int
 - a current-phase-only dispatcher for created, planning, planned, attempting, retry, replan, succeeded, and failed;
 - typed nonterminal provider, runner, and step-limit stops;
 - a timestamp-independent, self-digested O7 run receipt binding every O2, O3, O4, O1, and candidate identity;
-- explicit refusal to resume an external half-finished evaluating phase while O3's verified handoff remains process-local.
+- explicit refusal to resume an external half-finished evaluating phase while O3's verified handoff remains process-local;
+- an end-to-end proof using a real Git object database, exact workspace identity, O2 cognitive providers, the O6C generation bridge, O3 candidate sealing, fresh O4 materialization, deterministic evaluator execution, O1 success, and content-addressed artifact reload.
 
 ## Exact owner sequence
 
