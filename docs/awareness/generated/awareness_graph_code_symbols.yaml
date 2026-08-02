@@ -6509,6 +6509,46 @@ test_symbols:
     symbol: TestResultManifestForbidsUnsafeAndCyclicInputs
     package: buildtransaction
     language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestApplyAdmittedArtifactWithoutCommitting
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestApplyAdmittedArtifactWithoutCommitting
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestApplyRefusesArtifactTampering
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestApplyRefusesArtifactTampering
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestApplyRefusesDirtyTarget
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestApplyRefusesDirtyTarget
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestApplyRefusesNonAdmittedDecision
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestApplyRefusesNonAdmittedDecision
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestApplyRefusesTargetContentDriftHiddenFromGitStatus
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestApplyRefusesTargetContentDriftHiddenFromGitStatus
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestApplyRefusesWrongBaseRevision
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestApplyRefusesWrongBaseRevision
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestAttachVerificationBindsDecisionAndPatch
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestAttachVerificationBindsDecisionAndPatch
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/apply_test.go:TestReceiptIdentityExcludesObservationTime
+    file: golang/architecture/candidateapply/apply_test.go
+    symbol: TestReceiptIdentityExcludesObservationTime
+    package: candidateapply
+    language: go
   - id: golang/architecture/certification/adversarial_test.go:TestAntiForgery_CleanLookingBundleCannotBuyMissingProof
     file: golang/architecture/certification/adversarial_test.go
     symbol: TestAntiForgery_CleanLookingBundleCannotBuyMissingProof
