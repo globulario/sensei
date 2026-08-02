@@ -1,0 +1,41 @@
+name: Agent dogfood audit fix
+
+on:
+  push:
+    branches:
+      - agent/dogfood-audit-contract-closure
+    paths:
+      - scripts/agent_dogfood_audit_fix.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/dogfood-audit-contract-closure
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Apply governed audit repair
+        run: python3 scripts/agent_dogfood_audit_fix.py
+      - name: Format
+        run: gofmt -w golang/architecture/protection/*.go cmd/awg/audit_test_coverage*.go
+      - name: Focused verification
+        run: |
+          go test ./golang/architecture/protection
+          go test ./cmd/awg -run 'Test(Candidate|GovernedRelation|AssessRepositoryTestCoverage)'
+      - name: Full command verification
+        run: go test ./cmd/awg
+      - name: Commit implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'fix(audit): close dogfood coverage contract gaps'
+          git push origin HEAD:agent/dogfood-audit-contract-closure
