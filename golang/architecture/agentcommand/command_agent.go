@@ -236,6 +236,9 @@ func (a *commandAgent) extractFinalPayload(stdout []byte) ([]byte, error) {
 	case ProfileCodex:
 		return bytes.TrimSpace(stdout), nil
 	case ProfileClaude:
+		if err := rejectDuplicateJSONKeys(stdout); err != nil {
+			return nil, invalidOutput("decode Claude JSON envelope: %v", err)
+		}
 		decoder := json.NewDecoder(bytes.NewReader(stdout))
 		var envelope struct {
 			Result string `json:"result"`
