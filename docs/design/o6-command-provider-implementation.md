@@ -10,7 +10,7 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 
 ## Accepted laws
 
-1. Command, arguments, working-directory capability, environment allowlist, supported operations, and output/observation limits are explicit immutable configuration.
+1. Command, arguments, working-directory capability, environment allowlist, supported operations, output/observation limits, and the capability observation timestamp are explicit immutable configuration.
 2. Execution uses direct argv. No shell interpolation or shell command string exists.
 3. Exactly one closed `providerport.Request` is encoded to stdin.
 4. Exactly one closed `providerport.Result` is decoded from stdout.
@@ -23,12 +23,12 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 
 ## Implemented surface
 
-- `config.go` owns explicit immutable capability and deterministic `Describe` identity;
+- `config.go` owns explicit immutable capability, caller-supplied RFC3339 observation evidence, and deterministic `Describe` identity;
 - `adapter.go` owns direct argv execution and the closed stdin/stdout protocol;
 - `buffer.go` owns bounded stdout and stderr observation collection;
 - `process_unix.go` terminates the complete process group on cancellation;
 - `process_other.go` supplies the portable direct-process fallback;
-- `adapter_test.go` proves schema closure, digest binding, environment isolation, literal argv handling, typed unsupported capability, O2 `Run` composition, and Unix descendant cleanup;
+- `adapter_test.go` proves schema closure, digest binding, environment isolation, immutable literal argv construction, typed unsupported capability, O2 `Run` composition, and Unix descendant cleanup;
 - the canonical generated Go import graph records the package's dependencies on `providerport` and `synthesis`.
 
 No vendor constructor, authentication policy, provider selection, prompt template, worktree mutation, session driver, admission call, candidate application, commit, push, pull request, merge, or promotion capability is present.
