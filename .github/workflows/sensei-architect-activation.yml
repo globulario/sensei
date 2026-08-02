@@ -6,11 +6,81 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
+  repair-phase10-dispatch:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.repair.outputs.changed }}
+    steps:
+      - name: Checkout activation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/sensei-full-activation
+          fetch-depth: 0
+
+      - name: Apply anchored dispatcher repair
+        id: repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=false
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("cmd/awg/main.go")
+          text = path.read_text()
+          needle = '\tcase "evidence":\n\t\treturn runEvidence(args)\n\tcase "resolve":\n'
+          replacement = '\tcase "evidence":\n\t\treturn runEvidence(args)\n\tcase "investigate":\n\t\treturn runInvestigate(args)\n\tcase "candidates":\n\t\treturn runCandidates(args)\n\tcase "resolve":\n'
+          if replacement in text:
+              pass
+          elif needle in text:
+              path.write_text(text.replace(needle, replacement, 1))
+          else:
+              raise SystemExit("anchored evidence/resolve dispatch block not found")
+          PY
+
+          cat > cmd/awg/main_phase10_dispatch_test.go <<'EOF'
+          // SPDX-License-Identifier: AGPL-3.0-only
+
+          package main
+
+          import "testing"
+
+          func TestDispatchExposesPhase10Investigation(t *testing.T) {
+          	if got := dispatch("investigate", []string{"--help"}); got != 0 {
+          		t.Fatalf("dispatch investigate --help exit=%d, want 0", got)
+          	}
+          }
+
+          func TestDispatchExposesPhase10CandidateReview(t *testing.T) {
+          	if got := dispatch("candidates", []string{"--help"}); got != 0 {
+          		t.Fatalf("dispatch candidates --help exit=%d, want 0", got)
+          	}
+          }
+          EOF
+
+          if [[ -f .github/workflows/activation-dispatch-repair.yml ]]; then
+            git rm .github/workflows/activation-dispatch-repair.yml
+          fi
+          gofmt -w cmd/awg/main.go cmd/awg/main_phase10_dispatch_test.go
+          go test ./cmd/awg -run 'TestDispatchExposesPhase10' -count=1
+
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            changed=true
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add cmd/awg/main.go cmd/awg/main_phase10_dispatch_test.go .github/workflows/activation-dispatch-repair.yml
+            git commit -m "fix(activation): expose Phase 10 CLI surfaces"
+            git push origin HEAD:agent/sensei-full-activation
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
   activation:
+    needs: repair-phase10-dispatch
+    if: needs.repair-phase10-dispatch.outputs.changed != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact change head
@@ -102,9 +172,10 @@ jobs:
           fi
 
   codex-architect:
-    needs: activation
+    needs: [repair-phase10-dispatch, activation]
     if: >-
       always() &&
+      needs.repair-phase10-dispatch.outputs.changed != 'true' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     env:
