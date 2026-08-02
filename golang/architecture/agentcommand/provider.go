@@ -21,12 +21,12 @@ var _ providerport.Provider = (*generationProvider)(nil)
 
 // Config freezes one agent bridge's capability and observation identity.
 type Config struct {
-	Agent           Agent
-	ProviderID      string
-	ProviderKind    string
-	ModelIdentifier string
-	ObservedAt      string
-	ProducedAt      string
+	Agent            Agent
+	ProviderID       string
+	ProviderKind     string
+	ModelIdentifier  string
+	ObservedAt       string
+	ProducedAt       string
 	MaxSnapshotBytes int
 }
 
@@ -146,20 +146,20 @@ func (p *generationProvider) Execute(ctx context.Context, request providerport.R
 	}
 
 	attempt := synthesis.NormalizeAttempt(synthesis.Attempt{
-		SchemaVersion:                   synthesis.AttemptSchemaVersion,
-		AttemptID:                      fmt.Sprintf("attempt.%s.%d.%d", request.GenerationPayload.PlanID, *request.ExpectedPlanGeneration, *request.ExpectedAttemptNumber),
-		AttemptNumber:                  *request.ExpectedAttemptNumber,
-		PlanGeneration:                 *request.ExpectedPlanGeneration,
-		PlanDigestSHA256:               request.GenerationPayload.PlanDigestSHA256,
-		InputCandidateDigestSHA256:     evidence.InputCandidateDigestSHA256,
-		ProviderObservation:            p.capabilities.ProviderObservation,
-		ProposedChangeDigestSHA256:     evidence.ProposedChangeDigestSHA256,
+		SchemaVersion:              synthesis.AttemptSchemaVersion,
+		AttemptID:                  fmt.Sprintf("attempt.%s.%d.%d", request.GenerationPayload.PlanID, *request.ExpectedPlanGeneration, *request.ExpectedAttemptNumber),
+		AttemptNumber:              *request.ExpectedAttemptNumber,
+		PlanGeneration:             *request.ExpectedPlanGeneration,
+		PlanDigestSHA256:           request.GenerationPayload.PlanDigestSHA256,
+		InputCandidateDigestSHA256: evidence.InputCandidateDigestSHA256,
+		ProviderObservation:        p.capabilities.ProviderObservation,
+		ProposedChangeDigestSHA256: evidence.ProposedChangeDigestSHA256,
 		EvidenceReferences: []string{
 			"mutation-plan:" + plan.MutationPlanDigestSHA256,
 			"final-candidate:" + evidence.FinalCandidateContentDigestSHA256,
 		},
 		TerminalProviderStatus: synthesis.ProviderStatusCompleted,
-		ProducedAt:              p.config.ProducedAt,
+		ProducedAt:             p.config.ProducedAt,
 	})
 	attemptDigest, err := synthesis.AttemptDigest(attempt)
 	if err != nil {
@@ -220,10 +220,10 @@ func (p *generationProvider) buildPrompt(plan synthesis.Plan, request providerpo
 	return GenerationPrompt{
 		SchemaVersion:       GenerationPromptSchemaVersion,
 		RequestDigestSHA256: request.RequestDigestSHA256,
-		RepositoryDomain:   request.RepositoryDomain,
-		BaseRevision:       request.BaseRevision,
-		Plan:               synthesis.NormalizePlan(plan),
-		SnapshotFiles:      files,
+		RepositoryDomain:    request.RepositoryDomain,
+		BaseRevision:        request.BaseRevision,
+		Plan:                synthesis.NormalizePlan(plan),
+		SnapshotFiles:       files,
 	}, nil
 }
 

@@ -33,9 +33,9 @@ type CommandAgentConfig struct {
 	WorkDir string
 
 	EnvironmentAllowlist []string
-	MaxStdoutBytes        int64
-	MaxStderrBytes        int64
-	MaxMutationPlanBytes  int
+	MaxStdoutBytes       int64
+	MaxStderrBytes       int64
+	MaxMutationPlanBytes int
 }
 
 type commandAgent struct {

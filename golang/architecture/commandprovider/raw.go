@@ -23,8 +23,8 @@ type RawCommand struct {
 	WorkDir string
 
 	EnvironmentAllowlist []string
-	MaxStdoutBytes        int64
-	MaxStderrBytes        int64
+	MaxStdoutBytes       int64
+	MaxStderrBytes       int64
 }
 
 // RawResult contains bounded process output. Exceeded is reported as an error;

@@ -30,13 +30,13 @@ const (
 // MutationOperation carries every field in a fixed closed shape. Fields that
 // do not apply to Kind must remain at their zero value.
 type MutationOperation struct {
-	OperationID   string                                  `json:"operation_id"`
-	Kind          MutationKind                            `json:"kind"`
-	Path          string                                  `json:"path"`
-	NewPath       string                                  `json:"new_path"`
-	Content       []byte                                  `json:"content"`
-	Mode          runnercomposition.CandidateFileMode     `json:"mode"`
-	SymlinkTarget string                                  `json:"symlink_target"`
+	OperationID   string                              `json:"operation_id"`
+	Kind          MutationKind                        `json:"kind"`
+	Path          string                              `json:"path"`
+	NewPath       string                              `json:"new_path"`
+	Content       []byte                              `json:"content"`
+	Mode          runnercomposition.CandidateFileMode `json:"mode"`
+	SymlinkTarget string                              `json:"symlink_target"`
 }
 
 // MutationPlan is the sole semantic output accepted from the external agent.
@@ -61,12 +61,12 @@ type SnapshotFile struct {
 // repository root, candidate-buffer path, shell command, credential, admission
 // decision, Git branch, or GitHub identity.
 type GenerationPrompt struct {
-	SchemaVersion       string             `json:"schema_version"`
-	RequestDigestSHA256 string             `json:"request_digest_sha256"`
-	RepositoryDomain   string             `json:"repository_domain"`
-	BaseRevision       string             `json:"base_revision"`
-	Plan               synthesis.Plan     `json:"plan"`
-	SnapshotFiles      []SnapshotFile     `json:"snapshot_files"`
+	SchemaVersion       string         `json:"schema_version"`
+	RequestDigestSHA256 string         `json:"request_digest_sha256"`
+	RepositoryDomain    string         `json:"repository_domain"`
+	BaseRevision        string         `json:"base_revision"`
+	Plan                synthesis.Plan `json:"plan"`
+	SnapshotFiles       []SnapshotFile `json:"snapshot_files"`
 }
 
 const GenerationPromptSchemaVersion = "sensei.agentcommand.generationprompt.v1"
