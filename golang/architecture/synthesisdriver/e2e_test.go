@@ -57,22 +57,22 @@ func (p *cognitiveProvider) Execute(_ context.Context, request providerport.Requ
 	switch request.Operation {
 	case providerport.OperationInterpretation:
 		interpretation := synthesis.NormalizeInterpretation(synthesis.Interpretation{
-			SchemaVersion:               synthesis.InterpretationSchemaVersion,
-			InterpretationID:            "interpretation.o7.test",
-			SessionDigestSHA256:         request.SessionDigestSHA256,
-			GeneratedBy:                 synthesis.GeneratedBy,
-			Objective:                   request.InterpretationPayload.Objective,
-			ApplicableIntent:            []string{"intent.o7.test"},
-			BindingInvariants:           []string{},
-			RelevantContracts:          []string{},
-			AuthorityBoundaries:        []string{"providers-have-no-admission-authority"},
-			KnownFailureModes:          []string{},
-			ForbiddenFixes:             []string{"ambient-repository-mutation"},
-			RequiredProofObligations:   []string{},
-			Assumptions:                []string{},
-			UnresolvedQuestions:        []string{},
-			SourceReferences:           []synthesis.SourceReference{},
-			Limitations:                []synthesis.Limitation{},
+			SchemaVersion:            synthesis.InterpretationSchemaVersion,
+			InterpretationID:         "interpretation.o7.test",
+			SessionDigestSHA256:      request.SessionDigestSHA256,
+			GeneratedBy:              synthesis.GeneratedBy,
+			Objective:                request.InterpretationPayload.Objective,
+			ApplicableIntent:         []string{"intent.o7.test"},
+			BindingInvariants:        []string{},
+			RelevantContracts:        []string{},
+			AuthorityBoundaries:      []string{"providers-have-no-admission-authority"},
+			KnownFailureModes:        []string{},
+			ForbiddenFixes:           []string{"ambient-repository-mutation"},
+			RequiredProofObligations: []string{},
+			Assumptions:              []string{},
+			UnresolvedQuestions:      []string{},
+			SourceReferences:         []synthesis.SourceReference{},
+			Limitations:              []synthesis.Limitation{},
 		})
 		digest, err := synthesis.InterpretationDigest(interpretation)
 		if err != nil {
@@ -116,13 +116,13 @@ func (p *cognitiveProvider) Execute(_ context.Context, request providerport.Requ
 
 func finishCompletedResult(request providerport.Request, payloadDigest string, interpretation *synthesis.Interpretation, plan *synthesis.Plan) (providerport.Result, error) {
 	result := providerport.NormalizeResult(providerport.Result{
-		SchemaVersion:          providerport.ResultSchemaVersion,
-		RequestDigestSHA256:    request.RequestDigestSHA256,
-		Operation:              request.Operation,
-		TerminalOutcome:        providerport.OutcomeCompleted,
-		PayloadDigestSHA256:    &payloadDigest,
-		InterpretationPayload:  interpretation,
-		PlanningPayload:        plan,
+		SchemaVersion:         providerport.ResultSchemaVersion,
+		RequestDigestSHA256:   request.RequestDigestSHA256,
+		Operation:             request.Operation,
+		TerminalOutcome:       providerport.OutcomeCompleted,
+		PayloadDigestSHA256:   &payloadDigest,
+		InterpretationPayload: interpretation,
+		PlanningPayload:       plan,
 	})
 	return finishProviderResult(result)
 }
@@ -267,11 +267,11 @@ func passingPolicyFactory(t *testing.T) EvaluationPolicyFactory {
 			Evaluators: []evaluatorcomposition.EvaluatorSpec{{
 				EvaluatorID: "o7.candidate-content", Required: true,
 			}},
-			DeadlineAt:                     "2099-01-01T00:00:00Z",
-			MaxEvidenceCount:               8,
-			MaxEvidenceBytes:               4096,
-			RequiredCheckIDs:               []string{"candidate-content"},
-			FailureClassRecommendations:    []evaluatorcomposition.FailureClassRecommendation{},
+			DeadlineAt:                  "2099-01-01T00:00:00Z",
+			MaxEvidenceCount:            8,
+			MaxEvidenceBytes:            4096,
+			RequiredCheckIDs:            []string{"candidate-content"},
+			FailureClassRecommendations: []evaluatorcomposition.FailureClassRecommendation{},
 		}
 		digest, err := evaluatorcomposition.EvaluationPolicyDigest(policy)
 		if err != nil {
@@ -328,7 +328,7 @@ func passingEvaluatorFactory(t *testing.T) EvaluatorFactory {
 					Checks: []synthesis.CheckObservation{{
 						CheckID: "candidate-content", Status: status, EvidenceReferences: []string{},
 					}},
-					EvidenceReferences:        []evaluatorcomposition.EvidenceReference{},
+					EvidenceReferences:       []evaluatorcomposition.EvidenceReference{},
 					ClassifiedFailureReasons: failures,
 					Limitations:              []synthesis.Limitation{},
 					CleanupSucceeded:         nil,
