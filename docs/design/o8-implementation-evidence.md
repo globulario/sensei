@@ -10,4 +10,5 @@ The implementation includes:
 - Go-owned plan interpretation binding, plan generation, provider observation, and digest;
 - typed O2 invalid-output for unknown fields, malformed JSON, extra documents, schema drift, or vendor-envelope ambiguity;
 - `providerport.Run`, `MapToCommand`, and O1 transition proofs;
-- an O7 integration proof using O8 interpretation/planning, O6C generation, O3 candidate sealing, and O4 evaluation with deterministic local agents and no external credentials.
+- an O7 integration proof using O8 interpretation/planning, O6C generation, O3 candidate sealing, and O4 evaluation with deterministic local agents and no external credentials;
+- a focused clean-tree proof running `agentcommand`, `cognitivecommand`, and `synthesisdriver` together after the shared command refactor. The diagnostic lane removed itself on success and left no workflow or failure artifact in the candidate diff.
