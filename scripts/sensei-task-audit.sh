@@ -49,7 +49,17 @@ jsonl="$tmp/tasks.jsonl"
 
 active_session_path=""
 if [[ -f "$tasks_root/active.yaml" ]]; then
-  active_session_path=$(sed -nE 's/^[[:space:]]*session_path:[[:space:]]*["'"']?([^"'"']+)["'"']?[[:space:]]*$/\1/p' "$tasks_root/active.yaml" | head -n1 || true)
+  active_session_path=$(python3 - "$tasks_root/active.yaml" <<'PY'
+import re, sys
+from pathlib import Path
+
+for line in Path(sys.argv[1]).read_text(errors="replace").splitlines():
+    match = re.match(r"^\s*session_path\s*:\s*['\"]?([^'\"#]+?)['\"]?\s*$", line)
+    if match:
+        print(match.group(1).strip())
+        break
+PY
+)
 fi
 
 if [[ -d "$tasks_root" ]]; then
