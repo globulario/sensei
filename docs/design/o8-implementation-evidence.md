@@ -1,14 +1,18 @@
 # O8 Implementation Evidence
 
-O8 reuses O6C's confined vendor process as a semantic `StructuredAgent` and assigns no O1 or O2 meaning to raw command bytes until the cognitive provider validates one closed proposal.
+O8 reuses O6C's confined vendor process as a planning `StructuredAgent` and assigns no O1 or O2 meaning to raw command bytes until the cognitive provider validates one closed proposal.
 
 The implementation includes:
 
 - direct Codex and Claude structured constructors using the existing argv, empty working-directory, environment allowlist, byte-limit, and process-tree boundaries;
-- canonical and embedded Draft 2020-12 schemas for interpretation and plan proposals;
-- Go-owned interpretation objective, session identity, generated-by identity, source-reference policy, mandatory context limitation, and digest;
+- one canonical and embedded Draft 2020-12 planning-proposal schema;
+- the exact embedded canonical schema included in every O8 planning prompt;
+- explicit refusal to advertise or construct an interpretation-capable O8 provider until a governed source resolver exists;
+- consumption of an already accepted O1 Interpretation carrying digest-bound source references;
 - Go-owned plan interpretation binding, plan generation, provider observation, and digest;
-- typed O2 invalid-output for unknown fields, malformed JSON, extra documents, schema drift, or vendor-envelope ambiguity;
+- typed O2 invalid-output for unknown fields, duplicate object keys, malformed JSON, extra documents, schema drift, or vendor-envelope ambiguity;
 - `providerport.Run`, `MapToCommand`, and O1 transition proofs;
-- an O7 integration proof using O8 interpretation/planning, O6C generation, O3 candidate sealing, and O4 evaluation with deterministic local agents and no external credentials;
-- a focused clean-tree proof running `agentcommand`, `cognitivecommand`, and `synthesisdriver` together after the shared command refactor. The diagnostic lane removed itself on success and left no workflow or failure artifact in the candidate diff.
+- an O7 integration proof using a deterministic grounded interpretation provider, O8 planning, O6C generation, O3 candidate sealing, and O4 evaluation with no external credentials;
+- a focused proof running `agentcommand`, `cognitivecommand`, and `synthesisdriver` together after the shared command refactor.
+
+The former session-only interpretation path was removed because it could produce actionable architectural fields without resolved graph or closure evidence. Missing architectural content now remains missing rather than becoming a candidate-ready interpretation.
