@@ -19,12 +19,13 @@ A raw Codex or Claude process does not natively speak Sensei's closed O2 request
 
 - `runnercomposition.CandidateEvidencePreviewer` computes a read-locked preview through O3's existing manifest and Git-change owners;
 - `agentcommand.MutationPlan` defines the closed five-operation vocabulary and a Go-owned semantic digest;
+- `docs/schemas/agentcommand/v1/agentcommand-mutation-plan-v1.schema.json` publishes the Draft 2020-12 contract, byte-identical to the embedded runtime validator;
 - `agentcommand.Factory` creates a fresh workspace-bound generation provider for each O3 attempt;
 - accepted-plan file paths are the only snapshot bytes disclosed to an external agent;
 - mutation plans are applied only through `CandidateWorkspace`;
 - `commandprovider.RunRawCommand` reuses O6's direct argv, environment allowlist, byte limits, and process-tree cancellation;
 - Codex and Claude constructors freeze noninteractive direct argv and decode only the vendor's final textual answer;
-- helper-free tests cover operation routing, evidence binding, path traversal, duplicate IDs, unknown fields, vendor-envelope parity, filesystem-authority absence, and closed-workspace behavior.
+- helper-free tests cover operation routing, evidence binding, path traversal, duplicate IDs, unknown fields, vendor-envelope parity, filesystem-authority absence, schema closure, and closed-workspace behavior.
 
 ## New bounded contracts
 
