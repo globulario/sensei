@@ -16081,6 +16081,56 @@ test_symbols:
     symbol: TestTerminalSessionRejectsAnyCommand
     package: synthesis
     language: go
+  - id: golang/architecture/synthesisdriver/e2e_test.go:TestRunHappyPathThroughRealOwners
+    file: golang/architecture/synthesisdriver/e2e_test.go
+    symbol: TestRunHappyPathThroughRealOwners
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunConsumesExactlyOneReplan
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunConsumesExactlyOneReplan
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunConsumesExactlyOneRetry
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunConsumesExactlyOneRetry
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunO3NonVerifiedStopsBeforeO4
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunO3NonVerifiedStopsBeforeO4
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunProviderStopPreservesO1Phase
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunProviderStopPreservesO1Phase
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunReceiptDigestExcludesObservationTimestamps
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunReceiptDigestExcludesObservationTimestamps
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunRequiredEvaluatorUnavailableUsesO4TerminalPath
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunRequiredEvaluatorUnavailableUsesO4TerminalPath
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunStepLimitCannotEnlargeSessionBudgets
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunStepLimitCannotEnlargeSessionBudgets
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/schema_test.go:TestEmbeddedRunReceiptSchemaMatchesCanonicalSource
+    file: golang/architecture/synthesisdriver/schema_test.go
+    symbol: TestEmbeddedRunReceiptSchemaMatchesCanonicalSource
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/schema_test.go:TestRunReceiptSchemaRejectsInventedMergeAuthority
+    file: golang/architecture/synthesisdriver/schema_test.go
+    symbol: TestRunReceiptSchemaRejectsInventedMergeAuthority
+    package: synthesisdriver
+    language: go
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
