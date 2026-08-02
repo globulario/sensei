@@ -6056,6 +6056,66 @@ test_symbols:
     symbol: TestAdoptionReceiptRequiresRevisionAndGraphBinding
     package: adoption_test
     language: go
+  - id: golang/architecture/agentcommand/command_agent_test.go:TestAgentPromptContainsNoFilesystemAuthority
+    file: golang/architecture/agentcommand/command_agent_test.go
+    symbol: TestAgentPromptContainsNoFilesystemAuthority
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/command_agent_test.go:TestCodexAndClaudeProfilesUseBoundedDirectArgv
+    file: golang/architecture/agentcommand/command_agent_test.go
+    symbol: TestCodexAndClaudeProfilesUseBoundedDirectArgv
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/command_agent_test.go:TestVendorEnvelopeExtractionAndClosedMutationPlan
+    file: golang/architecture/agentcommand/command_agent_test.go
+    symbol: TestVendorEnvelopeExtractionAndClosedMutationPlan
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/command_agent_workdir_test.go:TestCommandAgentRechecksWorkDirectoryBeforeExecution
+    file: golang/architecture/agentcommand/command_agent_workdir_test.go
+    symbol: TestCommandAgentRechecksWorkDirectoryBeforeExecution
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/command_agent_workdir_test.go:TestCommandAgentRefusesNonEmptyWorkDirectory
+    file: golang/architecture/agentcommand/command_agent_workdir_test.go
+    symbol: TestCommandAgentRefusesNonEmptyWorkDirectory
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/o3_integration_test.go:TestAgentBridgeProducesO3VerifiedSealedCandidate
+    file: golang/architecture/agentcommand/o3_integration_test.go
+    symbol: TestAgentBridgeProducesO3VerifiedSealedCandidate
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/provider_test.go:TestFactoryRequiresO3EvidenceCapability
+    file: golang/architecture/agentcommand/provider_test.go
+    symbol: TestFactoryRequiresO3EvidenceCapability
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/provider_test.go:TestGenerationProviderAppliesOnlyTypedWorkspaceOperations
+    file: golang/architecture/agentcommand/provider_test.go
+    symbol: TestGenerationProviderAppliesOnlyTypedWorkspaceOperations
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/provider_test.go:TestGenerationProviderMapsAgentInvalidOutputToTypedResult
+    file: golang/architecture/agentcommand/provider_test.go
+    symbol: TestGenerationProviderMapsAgentInvalidOutputToTypedResult
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/provider_test.go:TestMutationPlanRejectsTraversalDuplicateAndUnknownKind
+    file: golang/architecture/agentcommand/provider_test.go
+    symbol: TestMutationPlanRejectsTraversalDuplicateAndUnknownKind
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/schema_test.go:TestEmbeddedMutationPlanSchemaMatchesCanonicalSource
+    file: golang/architecture/agentcommand/schema_test.go
+    symbol: TestEmbeddedMutationPlanSchemaMatchesCanonicalSource
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/schema_test.go:TestMutationPlanSchemaAcceptsCanonicalPlanAndRejectsAuthorityField
+    file: golang/architecture/agentcommand/schema_test.go
+    symbol: TestMutationPlanSchemaAcceptsCanonicalPlanAndRejectsAuthorityField
+    package: agentcommand
+    language: go
   - id: golang/architecture/authority/actor_test.go:TestVerifyActorBindingRejectsUnknownIssuer
     file: golang/architecture/authority/actor_test.go
     symbol: TestVerifyActorBindingRejectsUnknownIssuer
@@ -14655,6 +14715,11 @@ test_symbols:
   - id: golang/architecture/runnercomposition/digest_integrity_test.go:TestRunnerReceiptDigestInvalidatedByMutatingReferencedDigest
     file: golang/architecture/runnercomposition/digest_integrity_test.go
     symbol: TestRunnerReceiptDigestInvalidatedByMutatingReferencedDigest
+    package: runnercomposition
+    language: go
+  - id: golang/architecture/runnercomposition/evidence_preview_test.go:TestCandidateEvidencePreviewMatchesCanonicalOwnersAndCloses
+    file: golang/architecture/runnercomposition/evidence_preview_test.go
+    symbol: TestCandidateEvidencePreviewMatchesCanonicalOwnersAndCloses
     package: runnercomposition
     language: go
   - id: golang/architecture/runnercomposition/manifest_test.go:TestCanonicalizeManifestRejectsDuplicatePaths
