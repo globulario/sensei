@@ -13,16 +13,18 @@ The activation sequence is:
 ```text
 graph metadata and domain scope
   -> exact diff preflight
-  -> active task and local task-debt inspection
-  -> Phase 10 evidence extraction and validation
+  -> tracked task-state inspection
+  -> bounded Phase 10 surface proof
   -> enforce-mode Sensei gate
-  -> read-only Codex architectural challenge
+  -> read-only Codex architectural challenge when configured
   -> human or repository-owned merge authority
 ```
 
 This sequence activates the already-merged awareness, task-session, Phase 10,
-and gate surfaces on every pull request. It does not claim that the separate
-O1-O8 governed synthesis loop is closed.
+and gate surfaces on pull requests. It does not claim that the separate O1-O8
+governed synthesis loop is closed, that an ephemeral CI runner can see a
+developer workstation's untracked task directories, or that a whole-repository
+HOW extraction is cheap enough to be a blocking per-PR operation.
 
 ## Authority boundaries
 
@@ -43,41 +45,90 @@ O1-O8 governed synthesis loop is closed.
 The first activation checkpoint adds:
 
 - `scripts/sensei-architect-activation.sh`, which binds metadata, preflight,
-  task audit, Phase 10 HOW/WHY validation, and the final gate to one exact diff;
-- `scripts/sensei-task-audit.sh`, a read-only audit of every local task directory
-  through the canonical `task-status --verify` reader;
+  tracked task-state audit, bounded Phase 10 proof, and the final gate to one
+  exact diff;
+- `scripts/sensei-task-audit.sh`, a read-only audit of each task directory
+  visible in the selected checkout through the canonical
+  `task-status --verify` reader;
 - `.github/workflows/sensei-architect-activation.yml`, which runs the activation
   path in enforce mode for pull requests and preserves all evidence as an
   artifact;
 - a read-only `openai/codex-action` review that consumes the repository-owned
   `sensei-architect` skill and the activation evidence, returns closed-schema
-  JSON, and updates one bounded PR comment when the required secret is present.
+  JSON, and updates one bounded PR comment when the required secret is present;
+- top-level dispatch for the already-implemented `investigate` and `candidates`
+  command families, with regression tests proving both surfaces are reachable.
+
+## Phase 10 activation levels
+
+Phase 10 is split deliberately rather than represented as one binary switch.
+
+### Blocking surface proof
+
+Every activation run executes and validates deterministic HOW and WHY artifacts
+against the repository-owned small fixture. WHY uses an explicit target,
+explicit Git range, and the declared `git_history_provider`. This proves that
+the shipped dispatcher, artifact writer, validators, provider registry, and
+history path remain operational.
+
+### Bounded full-repository probe
+
+A full-repository HOW extraction is attempted under an explicit wall-clock
+budget. A valid completed artifact is recorded when it finishes. Timeout is
+recorded as `bounded_timeout`, not rewritten as success and not allowed to hang
+the PR indefinitely.
+
+The current HOW implementation records `resource-limit` values in the artifact
+but does not use them to bound semantic or AST extraction. Therefore the
+full-repository probe is advisory until extraction gains a real incremental or
+budget-enforcing contract.
+
+### Not yet ready
+
+Architecture composition, candidate listing, blast radius, and challenge remain
+unavailable in the generic PR workflow until canonical owners can provide the
+exact graph, claims, closure-state, existing-question, and review-history
+digests required by the Phase 10 composition contract. Their absence is
+reported explicitly instead of manufacturing placeholder digests.
+
+## Task-state coverage
+
+CI audits only task directories present in the repository checkout. It cannot
+see the additional local task directories on a developer machine. The same
+read-only script must be run locally to audit that debt. Invalid or unreadable
+tasks are reported and preserved; the audit never deletes, clears, supersedes,
+or repairs state.
 
 ## Degraded worlds
 
 Activation must report, not blur, the following worlds:
 
-- no local `.sensei/tasks` directory on the ephemeral runner;
-- local task directories unavailable to CI but present on a developer machine;
+- no `.sensei/tasks` directory in the selected checkout;
+- tracked task debt versus additional local-only task debt;
 - missing MCP capability in GitHub Actions, requiring an explicit CLI fallback;
 - Phase 10 command compiled but unreachable from the top-level dispatcher;
-- WHY provider unavailable or not configured;
-- graph metadata unavailable, stale, empty, degraded, or scoped to another
-  repository domain;
+- fixture HOW or WHY failure;
+- full-repository HOW bounded timeout;
+- canonical architecture-composition digests unavailable;
+- graph metadata unavailable, stale, empty, degraded, or scoped differently
+  from the canonical host/path repository identity;
 - Codex Action secret unavailable, in which case the deterministic Sensei gate
   still runs and the missing review is visible.
 
-In enforce mode, unavailable graph metadata, an unreachable Phase 10 surface,
-or a failing Sensei gate blocks the activation job. Candidate absence or
-provider unavailability remains explicit evidence and is not rewritten as a
+In enforce mode, unavailable graph metadata, failed exact-diff preflight, a
+failing Sensei gate, or failed fixture HOW/WHY proof blocks the activation job.
+Tracked task debt, full-repository HOW timeout, unavailable composition digests,
+and unavailable Codex credentials remain visible but do not masquerade as a
 clean architectural result.
 
 ## MCP and CLI
 
 Interactive agents must use the MCP surface first when it is available and must
-record when they fall back to CLI. GitHub Actions has no ambient MCP session, so
-its CLI use is an explicit execution environment constraint, not a claim that
-CLI and MCP availability are equivalent.
+record when they fall back to CLI. GitHub Actions has no ambient MCP session,
+so its CLI use is an explicit execution-environment constraint, not a claim
+that CLI and MCP availability are equivalent. The current Phase 10 MCP tools
+consume and inspect existing artifacts; artifact creation remains a CLI/library
+surface.
 
 The architect skill remains responsible for routing interactive work through:
 
@@ -87,6 +138,10 @@ The architect skill remains responsible for routing interactive work through:
 - `awareness_investigate`, evidence coverage, candidate review, and challenge;
 - `awareness_edit_check` before architecture-sensitive edits;
 - `awareness_propose` for durable review candidates.
+
+`prepare-change` cannot be applied retroactively to an already-completed edit.
+Activation therefore establishes the forward contract and reports existing task
+debt rather than fabricating prior authorization.
 
 ## Separate governed-synthesis closure
 
@@ -110,16 +165,18 @@ completion matrix and preserve these laws:
 
 This activation checkpoint is accepted only when an exact PR head proves:
 
-- the new workflow parses and runs on a real pull request;
+- the workflow parses and runs on a real pull request;
 - metadata and the exact diff are bound into the activation artifact;
-- task audit is read-only and reports zero, valid, superseded, active, and
+- canonical repository identity and selectable graph scope remain distinct;
+- tracked task audit is read-only and reports valid, superseded, active, and
   unreadable worlds without deleting anything;
-- Phase 10 HOW and WHY artifacts validate, or their typed unavailable state is
-  visible and enforce mode blocks where required;
+- fixture HOW and WHY artifacts validate under explicit bounds;
+- the full-repository HOW probe terminates within its declared budget;
+- unavailable Phase 10 composition digests remain explicit;
 - `sensei gate --enforce` is the blocking PR gate;
 - Codex Action has read-only repository access and closed-schema output;
 - absence of `OPENAI_API_KEY` is visible and does not silently pretend a Codex
   review occurred;
-- no workflow step commits, pushes, approves, or merges;
+- no production workflow step commits, pushes, approves, or merges;
 - existing repository tests, seed freshness, generated graphs, and smokes stay
   green.
