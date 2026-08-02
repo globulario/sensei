@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesisdriver-receipt-v1.json",
+  "title": "Sensei Bounded Synthesis Driver Receipt V1",
+  "description": "The O7 orchestration receipt binding ordered O2, O3, O4, O1, and candidate evidence without granting admission, application, completion, or GitHub authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "generated_by",
+    "session_digest_sha256",
+    "final_phase",
+    "disposition",
+    "step_count",
+    "o2_receipt_digests_sha256",
+    "runner_receipt_digests_sha256",
+    "evaluation_receipt_digests_sha256",
+    "synthesis_receipt_digest_sha256",
+    "candidate_artifact_digest_sha256",
+    "detail",
+    "started_at",
+    "completed_at",
+    "receipt_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesisdriver.receipt.v1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "generated_by": { "const": "sensei-synthesis-driver" },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "final_phase": { "$ref": "#/$defs/phase" },
+    "disposition": { "$ref": "#/$defs/disposition" },
+    "step_count": { "type": "integer", "minimum": 0 },
+    "o2_receipt_digests_sha256": { "$ref": "#/$defs/digestList" },
+    "runner_receipt_digests_sha256": { "$ref": "#/$defs/digestList" },
+    "evaluation_receipt_digests_sha256": { "$ref": "#/$defs/digestList" },
+    "synthesis_receipt_digest_sha256": { "$ref": "#/$defs/optionalSha256" },
+    "candidate_artifact_digest_sha256": { "$ref": "#/$defs/optionalSha256" },
+    "detail": { "type": "string" },
+    "started_at": { "type": "string", "minLength": 1 },
+    "completed_at": { "type": "string", "minLength": 1 },
+    "receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "disposition": { "const": "candidate-ready" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "final_phase": { "const": "succeeded" },
+          "synthesis_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+          "candidate_artifact_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "disposition": { "const": "terminal-failure" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "final_phase": { "const": "failed" },
+          "synthesis_receipt_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "disposition": { "enum": ["provider-stopped", "runner-stopped", "step-limit-reached"] }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "synthesis_receipt_digest_sha256": { "type": "null" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "optionalSha256": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256Hex" },
+        { "type": "null" }
+      ]
+    },
+    "digestList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sha256Hex" }
+    },
+    "phase": {
+      "enum": ["created", "planning", "planned", "attempting", "evaluating", "retry", "replan", "succeeded", "failed"]
+    },
+    "disposition": {
+      "enum": ["candidate-ready", "terminal-failure", "provider-stopped", "runner-stopped", "step-limit-reached"]
+    }
+  }
+}
