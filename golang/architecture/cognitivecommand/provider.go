@@ -220,7 +220,7 @@ func decodeOne(data []byte, destination any) error {
 func rejectDuplicateObjectKeys(data []byte) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
-	if err := scanJSONValue(decoder, "$" ); err != nil {
+	if err := scanJSONValue(decoder, "$"); err != nil {
 		return invalidOutput("ambiguous proposal JSON: %v", err)
 	}
 	return nil
