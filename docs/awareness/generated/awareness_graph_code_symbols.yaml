@@ -20975,6 +20975,11 @@ test_symbols:
     symbol: TestBriefing_LogsUsageShape
     package: main
     language: go
+  - id: golang/server/main_test.go:TestBriefing_MentionsGovernedSynthesisLoopWhenSubstantive
+    file: golang/server/main_test.go
+    symbol: TestBriefing_MentionsGovernedSynthesisLoopWhenSubstantive
+    package: main
+    language: go
   - id: golang/server/main_test.go:TestBriefing_MultipleClasses_ReferencedIDFormat
     file: golang/server/main_test.go
     symbol: TestBriefing_MultipleClasses_ReferencedIDFormat
@@ -20983,6 +20988,11 @@ test_symbols:
   - id: golang/server/main_test.go:TestBriefing_OKWithReferencedIDsAndTask
     file: golang/server/main_test.go
     symbol: TestBriefing_OKWithReferencedIDsAndTask
+    package: main
+    language: go
+  - id: golang/server/main_test.go:TestBriefing_OmitsGovernedSynthesisLoopWhenEmpty
+    file: golang/server/main_test.go
+    symbol: TestBriefing_OmitsGovernedSynthesisLoopWhenEmpty
     package: main
     language: go
   - id: golang/server/main_test.go:TestBriefing_ReferencedIDsAreDedupedAndCapped
