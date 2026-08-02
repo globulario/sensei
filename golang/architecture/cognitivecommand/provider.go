@@ -20,10 +20,8 @@ import (
 
 var _ providerport.Provider = (*Provider)(nil)
 
-const sessionOnlyContextReason = "command provider received the closed O2 session payload and digest references only; no external closure or repository content was resolved"
-
-// Provider is a bounded interpretation/planning provider backed by one
-// StructuredAgent.
+// Provider is a bounded planning provider backed by one StructuredAgent. It
+// consumes an already-grounded O1 Interpretation and cannot create one.
 type Provider struct {
 	config       Config
 	capabilities providerport.Capabilities
@@ -82,6 +80,9 @@ func (p *Provider) Execute(ctx context.Context, request providerport.Request, ob
 	if !supports(p.config.SupportedOperations, request.Operation) {
 		return terminalResult(request, providerport.OutcomeUnsupportedCapability, fmt.Sprintf("cognitive command does not support operation %q", request.Operation))
 	}
+	if request.Operation != providerport.OperationPlanning {
+		return terminalResult(request, providerport.OutcomeUnsupportedCapability, "cognitive command is planning-only; interpretation requires governed, digest-bound source evidence")
+	}
 	prompt, err := encodePrompt(request)
 	if err != nil {
 		return providerport.Result{}, err
@@ -94,68 +95,12 @@ func (p *Provider) Execute(ctx context.Context, request providerport.Request, ob
 		}
 		return providerport.Result{}, fmt.Errorf("cognitivecommand: execute structured agent: %w", err)
 	}
-
-	switch request.Operation {
-	case providerport.OperationInterpretation:
-		return p.interpretationResult(request, payload)
-	case providerport.OperationPlanning:
-		return p.planResult(request, payload)
-	default:
-		return terminalResult(request, providerport.OutcomeUnsupportedCapability, fmt.Sprintf("unsupported cognitive operation %q", request.Operation))
-	}
-}
-
-func (p *Provider) interpretationResult(request providerport.Request, payload []byte) (providerport.Result, error) {
-	if request.InterpretationPayload == nil {
-		return terminalResult(request, providerport.OutcomeInvalidOutput, "interpretation request has no session payload")
-	}
-	proposal, err := decodeInterpretationProposal(payload)
-	if err != nil {
-		return invalidResult(request, err)
-	}
-	limitations := append([]synthesis.Limitation{}, proposal.Limitations...)
-	limitations = append(limitations, synthesis.Limitation{
-		Source:   "cognitivecommand",
-		Scope:    "interpretation-context",
-		Reason:   sessionOnlyContextReason,
-		Blocking: false,
-	})
-	interpretation := synthesis.NormalizeInterpretation(synthesis.Interpretation{
-		SchemaVersion:            synthesis.InterpretationSchemaVersion,
-		InterpretationID:         "interpretation." + requestPrefix(request),
-		SessionDigestSHA256:      request.SessionDigestSHA256,
-		GeneratedBy:              synthesis.GeneratedBy,
-		Objective:                request.InterpretationPayload.Objective,
-		ApplicableIntent:         proposal.ApplicableIntent,
-		BindingInvariants:        proposal.BindingInvariants,
-		RelevantContracts:        proposal.RelevantContracts,
-		AuthorityBoundaries:      proposal.AuthorityBoundaries,
-		KnownFailureModes:        proposal.KnownFailureModes,
-		ForbiddenFixes:           proposal.ForbiddenFixes,
-		RequiredProofObligations: proposal.RequiredProofObligations,
-		Assumptions:              proposal.Assumptions,
-		UnresolvedQuestions:      proposal.UnresolvedQuestions,
-		SourceReferences:         []synthesis.SourceReference{},
-		Limitations:              limitations,
-	})
-	digest, err := synthesis.InterpretationDigest(interpretation)
-	if err != nil {
-		return providerport.Result{}, fmt.Errorf("cognitivecommand: interpretation digest: %w", err)
-	}
-	interpretation.InterpretationDigestSHA256 = digest
-	data, err := json.Marshal(interpretation)
-	if err != nil {
-		return providerport.Result{}, err
-	}
-	if err := synthesis.ValidateInterpretationSchema(data); err != nil {
-		return terminalResult(request, providerport.OutcomeInvalidOutput, "mapped interpretation failed O1 schema: "+err.Error())
-	}
-	return completedResult(request, digest, &interpretation, nil)
+	return p.planResult(request, payload)
 }
 
 func (p *Provider) planResult(request providerport.Request, payload []byte) (providerport.Result, error) {
 	if request.PlanningPayload == nil || request.ExpectedPlanGeneration == nil {
-		return terminalResult(request, providerport.OutcomeInvalidOutput, "planning request has no interpretation or expected plan generation")
+		return terminalResult(request, providerport.OutcomeInvalidOutput, "planning request has no grounded interpretation or expected plan generation")
 	}
 	proposal, err := decodePlanProposal(payload)
 	if err != nil {
@@ -184,18 +129,17 @@ func (p *Provider) planResult(request providerport.Request, payload []byte) (pro
 	if err := synthesis.ValidatePlanSchema(data); err != nil {
 		return terminalResult(request, providerport.OutcomeInvalidOutput, "mapped plan failed O1 schema: "+err.Error())
 	}
-	return completedResult(request, digest, nil, &plan)
+	return completedResult(request, digest, &plan)
 }
 
-func completedResult(request providerport.Request, payloadDigest string, interpretation *synthesis.Interpretation, plan *synthesis.Plan) (providerport.Result, error) {
+func completedResult(request providerport.Request, payloadDigest string, plan *synthesis.Plan) (providerport.Result, error) {
 	result := providerport.NormalizeResult(providerport.Result{
-		SchemaVersion:         providerport.ResultSchemaVersion,
-		RequestDigestSHA256:   request.RequestDigestSHA256,
-		Operation:             request.Operation,
-		TerminalOutcome:       providerport.OutcomeCompleted,
-		PayloadDigestSHA256:   &payloadDigest,
-		InterpretationPayload: interpretation,
-		PlanningPayload:       plan,
+		SchemaVersion:       providerport.ResultSchemaVersion,
+		RequestDigestSHA256: request.RequestDigestSHA256,
+		Operation:           request.Operation,
+		TerminalOutcome:     providerport.OutcomeCompleted,
+		PayloadDigestSHA256: &payloadDigest,
+		PlanningPayload:     plan,
 	})
 	digest, err := providerport.ResultDigest(result)
 	if err != nil {
@@ -229,33 +173,10 @@ func terminalResult(request providerport.Request, outcome providerport.TerminalO
 	return result, nil
 }
 
-func decodeInterpretationProposal(data []byte) (InterpretationProposal, error) {
-	if err := ValidateInterpretationProposalSchema(data); err != nil {
-		return InterpretationProposal{}, invalidOutput("interpretation proposal schema: %v", err)
-	}
-	var proposal InterpretationProposal
-	if err := decodeOne(data, &proposal); err != nil {
-		return InterpretationProposal{}, err
-	}
-	if proposal.SchemaVersion != InterpretationProposalSchemaVersion {
-		return InterpretationProposal{}, invalidOutput("interpretation schema_version %q", proposal.SchemaVersion)
-	}
-	proposal.ApplicableIntent = normalizeStrings(proposal.ApplicableIntent)
-	proposal.BindingInvariants = normalizeStrings(proposal.BindingInvariants)
-	proposal.RelevantContracts = normalizeStrings(proposal.RelevantContracts)
-	proposal.AuthorityBoundaries = normalizeStrings(proposal.AuthorityBoundaries)
-	proposal.KnownFailureModes = normalizeStrings(proposal.KnownFailureModes)
-	proposal.ForbiddenFixes = normalizeStrings(proposal.ForbiddenFixes)
-	proposal.RequiredProofObligations = normalizeStrings(proposal.RequiredProofObligations)
-	proposal.Assumptions = normalizeStrings(proposal.Assumptions)
-	proposal.UnresolvedQuestions = normalizeStrings(proposal.UnresolvedQuestions)
-	if proposal.Limitations == nil {
-		proposal.Limitations = []synthesis.Limitation{}
-	}
-	return proposal, nil
-}
-
 func decodePlanProposal(data []byte) (PlanProposal, error) {
+	if err := rejectDuplicateObjectKeys(data); err != nil {
+		return PlanProposal{}, err
+	}
 	if err := ValidatePlanProposalSchema(data); err != nil {
 		return PlanProposal{}, invalidOutput("plan proposal schema: %v", err)
 	}
@@ -296,24 +217,78 @@ func decodeOne(data []byte, destination any) error {
 	return nil
 }
 
+func rejectDuplicateObjectKeys(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := scanJSONValue(decoder, "$" ); err != nil {
+		return invalidOutput("ambiguous proposal JSON: %v", err)
+	}
+	return nil
+}
+
+func scanJSONValue(decoder *json.Decoder, path string) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delimiter, ok := token.(json.Delim)
+	if !ok {
+		return nil
+	}
+	switch delimiter {
+	case '{':
+		seen := map[string]struct{}{}
+		for decoder.More() {
+			keyToken, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := keyToken.(string)
+			if !ok {
+				return fmt.Errorf("object key at %s is not a string", path)
+			}
+			if _, exists := seen[key]; exists {
+				return fmt.Errorf("duplicate object key %q at %s", key, path)
+			}
+			seen[key] = struct{}{}
+			if err := scanJSONValue(decoder, path+"."+key); err != nil {
+				return err
+			}
+		}
+		_, err = decoder.Token()
+		return err
+	case '[':
+		index := 0
+		for decoder.More() {
+			if err := scanJSONValue(decoder, fmt.Sprintf("%s[%d]", path, index)); err != nil {
+				return err
+			}
+			index++
+		}
+		_, err = decoder.Token()
+		return err
+	default:
+		return fmt.Errorf("unexpected delimiter %q at %s", delimiter, path)
+	}
+}
+
 func encodePrompt(request providerport.Request) ([]byte, error) {
+	if request.Operation != providerport.OperationPlanning {
+		return nil, fmt.Errorf("cognitivecommand: cannot prompt for operation %q", request.Operation)
+	}
 	requestJSON, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
-	var instruction string
-	switch request.Operation {
-	case providerport.OperationInterpretation:
-		instruction = "Return exactly one interpretation proposal JSON object. It must contain schema_version=sensei.cognitivecommand.interpretationproposal.v1 and all fields: applicable_intent, binding_invariants, relevant_contracts, authority_boundaries, known_failure_modes, forbidden_fixes, required_proof_obligations, assumptions, unresolved_questions, limitations. Do not include objective, identity, source references, provider identity, digests, repository paths, commands, or authority claims. Use empty arrays where evidence is unavailable."
-	case providerport.OperationPlanning:
-		instruction = "Return exactly one plan proposal JSON object. It must contain schema_version=sensei.cognitivecommand.planproposal.v1 and all fields: steps, assumptions, risks, stop_conditions. Every step must contain step_id, description, intended_files, intended_symbols, expected_evidence. Do not include identity, plan generation, provider identity, digests, commands, repository paths, or authority claims."
-	default:
-		return nil, fmt.Errorf("cognitivecommand: cannot prompt for operation %q", request.Operation)
+	schemaJSON, err := PlanProposalSchemaBytes()
+	if err != nil {
+		return nil, fmt.Errorf("cognitivecommand: load plan proposal schema: %w", err)
 	}
 	var prompt bytes.Buffer
-	prompt.WriteString("You are a bounded software interpretation and planning provider. You have no tools and no authority to inspect a repository, run commands, mutate files, admit changes, declare completion, or interact with GitHub.\n")
-	prompt.WriteString(instruction)
-	prompt.WriteString("\nBase every statement only on the closed O2 request below. Preserve uncertainty explicitly.\n\nO2_REQUEST_JSON\n")
+	prompt.WriteString("You are a bounded software planning provider. You have no tools and no authority to inspect a repository, run commands, mutate files, admit changes, declare completion, or interact with GitHub.\n")
+	prompt.WriteString("Return exactly one JSON object conforming to the supplied closed schema. Use only the grounded O1 Interpretation embedded in the O2 request. Preserve uncertainty explicitly. intended_files may contain repository-relative logical file references already justified by that Interpretation; never emit an absolute path, repository root, worktree path, command, identity, digest, provider identity, plan generation, or authority claim.\n\nPROPOSAL_JSON_SCHEMA\n")
+	prompt.Write(schemaJSON)
+	prompt.WriteString("\n\nO2_REQUEST_JSON\n")
 	prompt.Write(requestJSON)
 	prompt.WriteByte('\n')
 	return prompt.Bytes(), nil
@@ -322,13 +297,13 @@ func encodePrompt(request providerport.Request) ([]byte, error) {
 func normalizeOperations(in []providerport.Operation) ([]providerport.Operation, error) {
 	set := map[providerport.Operation]struct{}{}
 	for _, operation := range in {
-		if operation != providerport.OperationInterpretation && operation != providerport.OperationPlanning {
-			return nil, fmt.Errorf("cognitivecommand: unsupported configured operation %q", operation)
+		if operation != providerport.OperationPlanning {
+			return nil, fmt.Errorf("cognitivecommand: unsupported configured operation %q; O8 is planning-only until interpretation has a governed source resolver", operation)
 		}
 		set[operation] = struct{}{}
 	}
 	if len(set) == 0 {
-		return nil, errors.New("cognitivecommand: at least one interpretation or planning operation is required")
+		return nil, errors.New("cognitivecommand: planning operation is required")
 	}
 	out := make([]providerport.Operation, 0, len(set))
 	for operation := range set {
