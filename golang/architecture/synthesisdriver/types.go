@@ -35,7 +35,7 @@ const (
 type ProviderPolicy struct {
 	DeadlineAt          string
 	MaxObservationCount int
-	MaxObservationBytes int64
+	MaxObservationBytes int
 }
 
 // ProviderExecution preserves the exact O2 evidence for one interpretation or
