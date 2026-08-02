@@ -21,9 +21,10 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "candidatePath": {
+      "$comment": "Portable structural guard only. O3's ValidateCandidatePath owns traversal, separator, reserved-component, and cross-platform semantics.",
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+      "pattern": "^[^/].*$"
     },
     "operation": {
       "type": "object",
