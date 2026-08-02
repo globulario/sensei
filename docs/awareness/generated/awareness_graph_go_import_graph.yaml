@@ -460,6 +460,9 @@ components:
       - golang/architecture/closureprotocol/predicate.go
       - golang/architecture/closureprotocol/validate.go
       - golang/architecture/closureprotocol/vocabulary.go
+      - golang/architecture/cognitivecommand/provider.go
+      - golang/architecture/cognitivecommand/schema.go
+      - golang/architecture/cognitivecommand/types.go
       - golang/architecture/commandprovider/adapter.go
       - golang/architecture/commandprovider/buffer.go
       - golang/architecture/commandprovider/config.go
