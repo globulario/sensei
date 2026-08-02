@@ -449,7 +449,7 @@ func verifyCapturedChanges(wantPaths []string, changes []admission.ChangeReceipt
 	sort.Strings(want)
 	got := make([]string, 0, len(changes))
 	for _, change := range changes {
-		if change.ChangeType != admission.ChangeModified || change.OldPath != "" {
+		if change.ChangeType != admission.ChangeModified || (change.OldPath != "" && change.OldPath != change.Path) {
 			return fmt.Errorf("candidateapply: observed unsupported change %s:%s", change.ChangeType, change.Path)
 		}
 		got = append(got, change.Path)
