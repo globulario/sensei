@@ -1296,8 +1296,6 @@ failure_modes:
       files:
         - golang/architecture/agentcommand/command_agent.go
         - golang/architecture/agentcommand/schemas/agentcommand-mutation-plan-v1.schema.json
-    required_tests:
-      - golang/architecture/agentcommand/command_agent_test.go:TestEncodeAgentPrompt_StatesModeConstEmptyForNonSetModeKinds
     evidence:
       - 'Real O7 self-pilot run: a real claude CLI call for O3 generation produced kind=write with mode="regular"; validation failed at /operations/0/mode ''value must be ""'' per the schema''s const constraint for non-set-mode kinds'
       - 'command_agent.go:180 says only ''Modes: regular or executable'', never stating this applies exclusively to kind=set-mode and must be empty-string otherwise'
