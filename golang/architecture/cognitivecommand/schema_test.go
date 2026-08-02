@@ -12,58 +12,26 @@ import (
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
-func TestEmbeddedProposalSchemasMatchCanonicalSources(t *testing.T) {
+func TestEmbeddedPlanProposalSchemaMatchesCanonicalSource(t *testing.T) {
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
 	root := filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "docs", "schemas", "cognitivecommand", "v1")
-	for _, filename := range []string{InterpretationProposalSchemaFilename, PlanProposalSchemaFilename} {
-		canonical, err := os.ReadFile(filepath.Join(root, filename))
-		if err != nil {
-			t.Fatal(err)
-		}
-		embedded, err := embeddedSchemas.ReadFile("schemas/" + filename)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(canonical) != string(embedded) {
-			t.Fatalf("embedded %s drifted from canonical source", filename)
-		}
-	}
-}
-
-func TestProposalSchemasRejectIdentityAndAuthorityFields(t *testing.T) {
-	interpretation := InterpretationProposal{
-		SchemaVersion:            InterpretationProposalSchemaVersion,
-		ApplicableIntent:         []string{},
-		BindingInvariants:        []string{},
-		RelevantContracts:        []string{},
-		AuthorityBoundaries:      []string{},
-		KnownFailureModes:        []string{},
-		ForbiddenFixes:           []string{},
-		RequiredProofObligations: []string{},
-		Assumptions:              []string{},
-		UnresolvedQuestions:      []string{},
-		Limitations:              []synthesis.Limitation{},
-	}
-	data, err := json.Marshal(interpretation)
+	canonical, err := os.ReadFile(filepath.Join(root, PlanProposalSchemaFilename))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ValidateInterpretationProposalSchema(data); err != nil {
+	embedded, err := PlanProposalSchemaBytes()
+	if err != nil {
 		t.Fatal(err)
 	}
-	var document map[string]any
-	if err := json.Unmarshal(data, &document); err != nil {
-		t.Fatal(err)
+	if string(canonical) != string(embedded) {
+		t.Fatalf("embedded %s drifted from canonical source", PlanProposalSchemaFilename)
 	}
-	document["admission_decision"] = "admitted"
-	mutated, _ := json.Marshal(document)
-	if err := ValidateInterpretationProposalSchema(mutated); err == nil {
-		t.Fatal("interpretation proposal schema accepted admission authority")
-	}
+}
 
+func TestPlanProposalSchemaRejectsIdentityAndAuthorityFields(t *testing.T) {
 	plan := PlanProposal{
 		SchemaVersion:  PlanProposalSchemaVersion,
 		Steps:          []synthesis.PlanStep{},
@@ -78,6 +46,7 @@ func TestProposalSchemasRejectIdentityAndAuthorityFields(t *testing.T) {
 	if err := ValidatePlanProposalSchema(planData); err != nil {
 		t.Fatal(err)
 	}
+	var document map[string]any
 	if err := json.Unmarshal(planData, &document); err != nil {
 		t.Fatal(err)
 	}
