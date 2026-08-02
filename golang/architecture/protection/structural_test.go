@@ -152,3 +152,43 @@ func TestDerive_CompleteIsReachableWithNoGaps(t *testing.T) {
 		t.Fatalf("expected zero gaps, got %v", cov.Gaps)
 	}
 }
+
+func TestCandidateSignalReasons_DirectTopLevelCandidates(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/candidates/session_discovered_invariants.yaml", `
+candidates:
+  - id: candidate.invariant.direct
+    source_files:
+      - src/direct.go
+`)
+	reasons, malformed, err := CandidateSignalReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(malformed) != 0 {
+		t.Fatalf("direct candidate list must parse cleanly, got %v", malformed)
+	}
+	if len(reasons["src/direct.go"]) != 1 {
+		t.Fatalf("direct candidate entry was not consumed: %v", reasons)
+	}
+}
+
+func TestCandidateSignalReasons_MixedDirectAndWrappedIsMalformed(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/candidates/mixed.yaml", `
+candidates:
+  - id: candidate.direct
+    source_files: [src/direct.go]
+wrapped:
+  candidates:
+    - id: candidate.wrapped
+      source_files: [src/wrapped.go]
+`)
+	reasons, malformed, err := CandidateSignalReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reasons) != 0 || len(malformed) != 1 {
+		t.Fatalf("mixed candidate authorities must fail closed, reasons=%v malformed=%v", reasons, malformed)
+	}
+}

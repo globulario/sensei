@@ -41,6 +41,7 @@ components:
     kind: service
     assertion: inferred
     source_files:
+      - cmd/awg/audit_test_coverage.go
       - cmd/awg/authority_output.go
       - cmd/awg/authority_read_errors.go
       - cmd/awg/bootstrap_candidates.go
@@ -643,11 +644,13 @@ components:
       - golang/architecture/proofrequirements/parse.go
       - golang/architecture/proofrequirements/proofrequirements.go
       - golang/architecture/protection/assessment.go
+      - golang/architecture/protection/candidate_document.go
       - golang/architecture/protection/classify.go
       - golang/architecture/protection/derive.go
       - golang/architecture/protection/governed.go
       - golang/architecture/protection/manual.go
       - golang/architecture/protection/pathmatch.go
+      - golang/architecture/protection/relation_targets.go
       - golang/architecture/protection/relations.go
       - golang/architecture/protection/snapshot.go
       - golang/architecture/protection/structural.go
