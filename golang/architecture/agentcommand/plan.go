@@ -47,6 +47,9 @@ func ValidateMutationPlan(plan MutationPlan) error {
 	if plan.SchemaVersion != MutationPlanSchemaVersion {
 		return invalidOutput("schema_version %q is not %q", plan.SchemaVersion, MutationPlanSchemaVersion)
 	}
+	if err := ValidateMutationPlanSchema(plan); err != nil {
+		return invalidOutput("mutation plan schema: %v", err)
+	}
 	computed, err := MutationPlanDigest(plan)
 	if err != nil {
 		return invalidOutput("compute mutation plan digest: %v", err)
