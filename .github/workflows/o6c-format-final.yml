@@ -1,0 +1,36 @@
+name: O6C final formatting
+
+on:
+  push:
+    branches:
+      - archer/o6c-governed-agent-command-bridge
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: archer/o6c-governed-agent-command-bridge
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Format final O6C sources
+        shell: bash
+        run: |
+          gofmt -w golang/architecture/agentcommand/*.go
+          make import-graph
+          rm -f .github/workflows/o6c-format-final.yml .github/o6c-format-final-trigger
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'chore(archer): format O6C integration proof'
+          git push origin HEAD:archer/o6c-governed-agent-command-bridge
