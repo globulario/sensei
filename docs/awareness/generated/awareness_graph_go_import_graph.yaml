@@ -406,6 +406,11 @@ components:
       - golang/architecture/admissioncomposition/types.go
       - golang/architecture/admissioncomposition/validate.go
       - golang/architecture/adoption/receipt.go
+      - golang/architecture/agentcommand/command_agent.go
+      - golang/architecture/agentcommand/plan.go
+      - golang/architecture/agentcommand/provider.go
+      - golang/architecture/agentcommand/schema.go
+      - golang/architecture/agentcommand/types.go
       - golang/architecture/authority/actor.go
       - golang/architecture/authority/delegation_verify.go
       - golang/architecture/authority/model.go
@@ -460,6 +465,7 @@ components:
       - golang/architecture/commandprovider/process_other.go
       - golang/architecture/commandprovider/process_unix.go
       - golang/architecture/commandprovider/process_windows.go
+      - golang/architecture/commandprovider/raw.go
       - golang/architecture/completion/authority.go
       - golang/architecture/completion/closure_report.go
       - golang/architecture/completion/complete.go
@@ -709,6 +715,7 @@ components:
       - golang/architecture/rigor/rigor.go
       - golang/architecture/runnercomposition/changedigest.go
       - golang/architecture/runnercomposition/digest.go
+      - golang/architecture/runnercomposition/evidence_preview.go
       - golang/architecture/runnercomposition/gitenv.go
       - golang/architecture/runnercomposition/manifest.go
       - golang/architecture/runnercomposition/normalize.go
