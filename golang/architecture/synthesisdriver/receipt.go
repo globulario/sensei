@@ -73,7 +73,7 @@ func ValidateRunReceipt(receipt RunReceipt) error {
 			if !isSHA256(digest) {
 				return fmt.Errorf("synthesisdriver: invalid evidence digest %q", digest)
 			}
-	}
+		}
 	}
 	if receipt.SynthesisReceiptDigestSHA256 != nil && !isSHA256(*receipt.SynthesisReceiptDigestSHA256) {
 		return errors.New("synthesisdriver: invalid synthesis receipt digest")

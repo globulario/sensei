@@ -752,6 +752,7 @@ components:
       - golang/architecture/synthesisdriver/engine.go
       - golang/architecture/synthesisdriver/receipt.go
       - golang/architecture/synthesisdriver/request.go
+      - golang/architecture/synthesisdriver/schema.go
       - golang/architecture/synthesisdriver/types.go
       - golang/architecture/taskcontrol/model.go
       - golang/architecture/taskcontrol/project.go
