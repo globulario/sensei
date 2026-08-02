@@ -13,24 +13,25 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
-const (
-	defaultProviderKind = "command"
-	configurationTime   = "1970-01-01T00:00:00Z"
-)
+const defaultProviderKind = "command"
 
 // Config is the complete immutable capability granted to one command adapter.
 // Command must be an absolute executable path. Args are passed directly, never
 // through a shell. WorkDir, environment inheritance, supported operations, and
-// stdout/stderr limits are all explicit and fixed before execution.
+// stdout/stderr limits are all explicit and fixed before execution. ObservedAt
+// is caller-supplied evidence and must be an RFC3339 timestamp; the adapter does
+// not invent a clock reading while claiming to describe provider capability.
 type Config struct {
 	ProviderID      string
 	ProviderKind    string
 	ModelIdentifier string
+	ObservedAt      string
 
 	Command string
 	Args    []string
@@ -64,7 +65,7 @@ func New(cfg Config) (*Adapter, error) {
 			ProviderID:      cfg.ProviderID,
 			ProviderKind:    cfg.ProviderKind,
 			ModelIdentifier: cfg.ModelIdentifier,
-			ObservedAt:      configurationTime,
+			ObservedAt:      cfg.ObservedAt,
 		},
 		SupportedOperations: append([]providerport.Operation(nil), cfg.SupportedOperations...),
 	}
@@ -84,6 +85,7 @@ func normalizeConfig(cfg Config) Config {
 		cfg.ProviderKind = defaultProviderKind
 	}
 	cfg.ModelIdentifier = strings.TrimSpace(cfg.ModelIdentifier)
+	cfg.ObservedAt = strings.TrimSpace(cfg.ObservedAt)
 	cfg.Command = strings.TrimSpace(cfg.Command)
 	cfg.WorkDir = strings.TrimSpace(cfg.WorkDir)
 	cfg.Args = append([]string(nil), cfg.Args...)
@@ -95,6 +97,12 @@ func normalizeConfig(cfg Config) Config {
 func validateConfig(cfg Config) error {
 	if cfg.ProviderID == "" {
 		return errors.New("commandprovider: provider id is required")
+	}
+	if cfg.ObservedAt == "" {
+		return errors.New("commandprovider: observed at is required")
+	}
+	if _, err := time.Parse(time.RFC3339, cfg.ObservedAt); err != nil {
+		return fmt.Errorf("commandprovider: observed at must be RFC3339: %w", err)
 	}
 	if cfg.Command == "" {
 		return errors.New("commandprovider: command is required")
