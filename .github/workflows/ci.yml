@@ -17,6 +17,7 @@ jobs:
       - name: Checkout awareness-graph
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           # depth 2 so the commit-scope guard can diff HEAD against its parent
           fetch-depth: 2
 
@@ -27,7 +28,7 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Apply one-shot dogfood audit repair
-        if: github.event_name == 'push' && github.ref == 'refs/heads/agent/dogfood-audit-contract-closure'
+        if: github.ref == 'refs/heads/agent/dogfood-audit-contract-closure' || github.head_ref == 'agent/dogfood-audit-contract-closure'
         run: |
           if [ ! -f scripts/agent_dogfood_audit_fix.py ]; then
             echo 'one-shot repair already consumed'
