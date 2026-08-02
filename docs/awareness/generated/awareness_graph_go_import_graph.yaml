@@ -420,6 +420,10 @@ components:
       - golang/architecture/briefingfeedback/scope.go
       - golang/architecture/briefingfeedback/unavailable.go
       - golang/architecture/buildtransaction/result_manifest.go
+      - golang/architecture/candidateapply/apply.go
+      - golang/architecture/candidateapply/digest.go
+      - golang/architecture/candidateapply/types.go
+      - golang/architecture/candidateapply/validate.go
       - golang/architecture/certification/errors.go
       - golang/architecture/certification/evaluate.go
       - golang/architecture/certification/lanes.go
