@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: ['**']
 
-permissions:
-  contents: write
-
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -17,7 +14,6 @@ jobs:
       - name: Checkout awareness-graph
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           # depth 2 so the commit-scope guard can diff HEAD against its parent
           fetch-depth: 2
 
@@ -26,24 +22,6 @@ jobs:
         with:
           go-version: '1.25'
           cache-dependency-path: go.sum
-
-      - name: Format the dogfood audit implementation
-        if: github.ref == 'refs/heads/agent/dogfood-audit-contract-closure' || github.head_ref == 'agent/dogfood-audit-contract-closure'
-        run: |
-          gofmt -w cmd/awg/cmd_audit.go cmd/awg/audit_test_coverage.go cmd/awg/audit_test_coverage_test.go golang/architecture/protection/candidate_document.go golang/architecture/protection/relation_targets.go golang/architecture/protection/relations.go golang/architecture/protection/relations_test.go golang/architecture/protection/structural.go golang/architecture/protection/structural_test.go
-          go test ./golang/architecture/protection
-          go test ./cmd/awg -run 'Test(Candidate|GovernedRelation|AssessRepositoryTestCoverage)'
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          if git diff --cached --quiet; then
-            echo 'implementation already formatted'
-          else
-            git commit -m 'style(audit): format dogfood coverage implementation [engine-ack]'
-            git push origin HEAD:agent/dogfood-audit-contract-closure
-          fi
 
       - name: gofmt is clean
         run: |

@@ -1211,19 +1211,18 @@ func seedNodeShortID(subj string) string {
 // ── check 6: test coverage ──────────────────────────────────────────────
 
 func checkTestCoverage(svcRepo string) auditResult {
-    assessment, err := assessRepositoryTestCoverage(svcRepo)
-    if err != nil {
-        return auditResult{name: "test-coverage", level: auditWARN, summary: err.Error()}
-    }
-    if len(assessment.Missing) == 0 {
-        return auditResult{name: "test-coverage", level: auditPASS,
-            summary: fmt.Sprintf("all %d critical/high invariants covered", assessment.CriticalHigh)}
-    }
-    return auditResult{name: "test-coverage", level: auditWARN,
-        summary: fmt.Sprintf("%d/%d critical/high invariants missing tests", len(assessment.Missing), assessment.CriticalHigh),
-        details: assessment.Missing}
+	assessment, err := assessRepositoryTestCoverage(svcRepo)
+	if err != nil {
+		return auditResult{name: "test-coverage", level: auditWARN, summary: err.Error()}
+	}
+	if len(assessment.Missing) == 0 {
+		return auditResult{name: "test-coverage", level: auditPASS,
+			summary: fmt.Sprintf("all %d critical/high invariants covered", assessment.CriticalHigh)}
+	}
+	return auditResult{name: "test-coverage", level: auditWARN,
+		summary: fmt.Sprintf("%d/%d critical/high invariants missing tests", len(assessment.Missing), assessment.CriticalHigh),
+		details: assessment.Missing}
 }
-
 
 // ── check 7: contract assessment (report-only) ───────────────────────────
 
