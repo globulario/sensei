@@ -58,8 +58,8 @@ func ValidateRunReceipt(receipt RunReceipt) error {
 	if receipt.StepCount < 0 {
 		return errors.New("synthesisdriver: receipt step_count is negative")
 	}
-	if _, err := synthesis.ParsePhase(receipt.FinalPhase); err != nil {
-		return fmt.Errorf("synthesisdriver: receipt final_phase: %w", err)
+	if !validPhase(synthesis.Phase(receipt.FinalPhase)) {
+		return fmt.Errorf("synthesisdriver: receipt final_phase %q is outside O1 vocabulary", receipt.FinalPhase)
 	}
 	for _, digests := range [][]string{
 		receipt.O2ReceiptDigestsSHA256,
@@ -102,6 +102,23 @@ func ValidateRunReceipt(receipt RunReceipt) error {
 		return fmt.Errorf("synthesisdriver: receipt declares digest %q but computed %q", receipt.ReceiptDigestSHA256, computed)
 	}
 	return nil
+}
+
+func validPhase(phase synthesis.Phase) bool {
+	switch phase {
+	case synthesis.PhaseCreated,
+		synthesis.PhasePlanning,
+		synthesis.PhasePlanned,
+		synthesis.PhaseAttempting,
+		synthesis.PhaseEvaluating,
+		synthesis.PhaseRetry,
+		synthesis.PhaseReplan,
+		synthesis.PhaseSucceeded,
+		synthesis.PhaseFailed:
+		return true
+	default:
+		return false
+	}
 }
 
 func isSHA256(value string) bool {
