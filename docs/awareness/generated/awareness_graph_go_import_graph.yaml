@@ -454,6 +454,11 @@ components:
       - golang/architecture/closureprotocol/predicate.go
       - golang/architecture/closureprotocol/validate.go
       - golang/architecture/closureprotocol/vocabulary.go
+      - golang/architecture/commandprovider/adapter.go
+      - golang/architecture/commandprovider/buffer.go
+      - golang/architecture/commandprovider/config.go
+      - golang/architecture/commandprovider/process_other.go
+      - golang/architecture/commandprovider/process_unix.go
       - golang/architecture/completion/authority.go
       - golang/architecture/completion/closure_report.go
       - golang/architecture/completion/complete.go
