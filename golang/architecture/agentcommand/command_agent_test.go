@@ -85,9 +85,9 @@ func TestVendorEnvelopeExtractionAndClosedMutationPlan(t *testing.T) {
 	}
 
 	claudeEnvelope, err := json.Marshal(map[string]any{
-		"result":      string(payload),
-		"session_id":  "untrusted-vendor-metadata",
-		"total_cost":  0,
+		"result":     string(payload),
+		"session_id": "untrusted-vendor-metadata",
+		"total_cost": 0,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,8 +115,8 @@ func TestAgentPromptContainsNoFilesystemAuthority(t *testing.T) {
 	prompt := GenerationPrompt{
 		SchemaVersion:       GenerationPromptSchemaVersion,
 		RequestDigestSHA256: strings.Repeat("a", 64),
-		RepositoryDomain:   "github.com/globulario/sensei",
-		BaseRevision:       strings.Repeat("b", 40),
+		RepositoryDomain:    "github.com/globulario/sensei",
+		BaseRevision:        strings.Repeat("b", 40),
 		SnapshotFiles: []SnapshotFile{{
 			Path:    "a.txt",
 			Content: []byte("hello"),

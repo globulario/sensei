@@ -98,10 +98,10 @@ func requestFixture(t *testing.T) providerport.Request {
 		InterpretationDigestSHA256: strings.Repeat("a", 64),
 		PlanGeneration:             1,
 		Steps: []synthesis.PlanStep{{
-			StepID:          "step-1",
-			Description:     "modify the accepted files",
-			IntendedFiles:   []string{"a.txt", "missing.txt"},
-			IntendedSymbols: []string{},
+			StepID:           "step-1",
+			Description:      "modify the accepted files",
+			IntendedFiles:    []string{"a.txt", "missing.txt"},
+			IntendedSymbols:  []string{},
 			ExpectedEvidence: []string{},
 		}},
 		Assumptions:    []string{},
@@ -263,10 +263,10 @@ func TestFactoryRequiresO3EvidenceCapability(t *testing.T) {
 
 type workspaceWithoutPreview struct{}
 
-func (workspaceWithoutPreview) ReadSnapshot(string) ([]byte, error) { return nil, errors.New("unused") }
-func (workspaceWithoutPreview) WriteCandidate(string, []byte) error { return nil }
-func (workspaceWithoutPreview) Delete(string) error { return nil }
-func (workspaceWithoutPreview) Rename(string, string) error { return nil }
+func (workspaceWithoutPreview) ReadSnapshot(string) ([]byte, error)                       { return nil, errors.New("unused") }
+func (workspaceWithoutPreview) WriteCandidate(string, []byte) error                       { return nil }
+func (workspaceWithoutPreview) Delete(string) error                                       { return nil }
+func (workspaceWithoutPreview) Rename(string, string) error                               { return nil }
 func (workspaceWithoutPreview) SetMode(string, runnercomposition.CandidateFileMode) error { return nil }
-func (workspaceWithoutPreview) Symlink(string, string) error { return nil }
-func (workspaceWithoutPreview) Close() error { return nil }
+func (workspaceWithoutPreview) Symlink(string, string) error                              { return nil }
+func (workspaceWithoutPreview) Close() error                                              { return nil }
