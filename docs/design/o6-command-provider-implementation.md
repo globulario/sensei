@@ -32,6 +32,10 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 - `adapter_test.go` proves schema closure, digest binding, environment isolation, immutable literal argv construction, typed unsupported capability, O2 `Run` composition, and descendant process cleanup on the supported CI platforms;
 - the canonical generated Go import graph records the package's dependencies on `providerport` and `synthesis`.
 
+## Verification surface
+
+The command-provider and provider-port suites run without external credentials. Linux executes the complete repository test and cold-start paths. A Windows-native package run executes the same command-provider process-tree test through the Windows task-tree implementation. Normal Sensei dogfood also builds and reviews the branch on Ubuntu and Windows.
+
 No vendor constructor, authentication policy, provider selection, prompt template, worktree mutation, session driver, admission call, candidate application, commit, push, pull request, merge, or promotion capability is present.
 
 ## Initial scope
