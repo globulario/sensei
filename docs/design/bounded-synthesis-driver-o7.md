@@ -1,12 +1,22 @@
 # Bounded Synthesis Driver O7
 
-Status: implementation contract
+Status: implementation checkpoint
 
 ## Purpose
 
 O7 is the deterministic orchestration layer that turns the already-accepted O1 through O6C contracts in their permitted order. It does not reason about architecture, choose authority, enlarge budgets, or give a provider mutation outside O3.
 
 The first O7 checkpoint drives one in-process session from `created` through interpretation, planning, generation, evaluation, retry/replan, and a terminal O1 outcome. A successful run stops at `candidate-ready-for-admission`. Admission, candidate application, verification, commit, push, pull-request creation, review, and merge remain a separate final closure checkpoint.
+
+## Implemented surface
+
+- exact O2 interpretation and planning request construction, execution, receipt capture, command mapping, and O1 transition;
+- a separate O3 generation factory and content-addressed candidate store;
+- a concrete O4 engine with caller-bound policy, materializer, evaluator bindings, evidence resolver, cleanup, composition, and terminal unavailability;
+- a current-phase-only dispatcher for created, planning, planned, attempting, retry, replan, succeeded, and failed;
+- typed nonterminal provider, runner, and step-limit stops;
+- a timestamp-independent, self-digested O7 run receipt binding every O2, O3, O4, O1, and candidate identity;
+- explicit refusal to resume an external half-finished evaluating phase while O3's verified handoff remains process-local.
 
 ## Exact owner sequence
 
