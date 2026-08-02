@@ -46,3 +46,8 @@ in protection generation identity. Runtime root `/` is forbidden because it
 would erase the boundary. Candidate files do not inherit this external-target
 permission: candidates remain provisional signals about files in their own
 checkout only.
+
+## Verification
+
+Focused protection and audit tests cover all three target classifications,
+both candidate document shapes, and exact invariant-to-test registry bindings.
