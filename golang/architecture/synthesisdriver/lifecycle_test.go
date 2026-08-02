@@ -316,9 +316,9 @@ func lifecycleEvaluatorFactory(shouldFail failPredicate, failureClass string) Ev
 					TerminalOutcome:                 evaluatorcomposition.EvaluatorOutcomeCompleted,
 					Checks:                          []synthesis.CheckObservation{{CheckID: "lifecycle-check", Status: status, EvidenceReferences: []string{}}},
 					EvidenceReferences:              []evaluatorcomposition.EvidenceReference{},
-					ClassifiedFailureReasons:       failures,
-					Limitations:                    []synthesis.Limitation{},
-					CleanupSucceeded:               nil,
+					ClassifiedFailureReasons:        failures,
+					Limitations:                     []synthesis.Limitation{},
+					CleanupSucceeded:                nil,
 				})
 				digest, err := evaluatorcomposition.EvaluatorResultDigest(result)
 				if err != nil {
