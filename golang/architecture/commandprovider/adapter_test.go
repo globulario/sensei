@@ -143,14 +143,14 @@ func testAdapter(t *testing.T, mode string, extraAllowlist ...string) *Adapter {
 	}
 
 	adapter, err := New(Config{
-		ProviderID:             "test.command",
-		Command:                command,
-		Args:                   []string{"-test.run=TestCommandProviderHelperProcess"},
-		WorkDir:                t.TempDir(),
-		EnvironmentAllowlist:   allowlist,
-		SupportedOperations:    []providerport.Operation{providerport.OperationInterpretation},
-		MaxStdoutBytes:         4096,
-		MaxStderrBytes:         4096,
+		ProviderID:           "test.command",
+		Command:              command,
+		Args:                 []string{"-test.run=TestCommandProviderHelperProcess"},
+		WorkDir:              t.TempDir(),
+		EnvironmentAllowlist: allowlist,
+		SupportedOperations:  []providerport.Operation{providerport.OperationInterpretation},
+		MaxStdoutBytes:       4096,
+		MaxStderrBytes:       4096,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -166,11 +166,11 @@ func requestFixture(t *testing.T) providerport.Request {
 	shaD := strings.Repeat("d", 64)
 
 	session := synthesis.NormalizeSession(synthesis.Session{
-		SchemaVersion:                synthesis.SessionSchemaVersion,
-		SessionID:                    "session.commandprovider.test",
-		GeneratedBy:                  synthesis.GeneratedBy,
-		RepositoryDomain:             "github.com/globulario/sensei",
-		BaseRevision:                 strings.Repeat("1", 40),
+		SchemaVersion:                 synthesis.SessionSchemaVersion,
+		SessionID:                     "session.commandprovider.test",
+		GeneratedBy:                   synthesis.GeneratedBy,
+		RepositoryDomain:              "github.com/globulario/sensei",
+		BaseRevision:                  strings.Repeat("1", 40),
 		WorkspaceIdentityDigestSHA256: shaA,
 		GraphAuthorityDigestSHA256:    shaB,
 		TaskSessionDigestSHA256:       shaC,
@@ -188,22 +188,22 @@ func requestFixture(t *testing.T) providerport.Request {
 	session.SessionDigestSHA256 = sessionDigest
 
 	request := providerport.NormalizeRequest(providerport.Request{
-		SchemaVersion:                  providerport.RequestSchemaVersion,
-		RequestID:                      "request.commandprovider.test",
-		Operation:                      providerport.OperationInterpretation,
-		SessionDigestSHA256:            sessionDigest,
-		RepositoryDomain:               session.RepositoryDomain,
-		BaseRevision:                   session.BaseRevision,
-		ParentArtifactDigestSHA256:     sessionDigest,
-		ExpectedPlanGeneration:         nil,
-		ExpectedAttemptNumber:          nil,
-		DeadlineAt:                     time.Now().Add(time.Minute).UTC().Format(time.RFC3339),
-		MaxObservationCount:            8,
-		MaxObservationBytes:            4096,
-		InterpretationPayload:          &session,
-		PlanningPayload:                nil,
-		GenerationPayload:              nil,
-		EvaluationObservationPayload:   nil,
+		SchemaVersion:                providerport.RequestSchemaVersion,
+		RequestID:                    "request.commandprovider.test",
+		Operation:                    providerport.OperationInterpretation,
+		SessionDigestSHA256:          sessionDigest,
+		RepositoryDomain:             session.RepositoryDomain,
+		BaseRevision:                 session.BaseRevision,
+		ParentArtifactDigestSHA256:   sessionDigest,
+		ExpectedPlanGeneration:       nil,
+		ExpectedAttemptNumber:        nil,
+		DeadlineAt:                   time.Now().Add(time.Minute).UTC().Format(time.RFC3339),
+		MaxObservationCount:          8,
+		MaxObservationBytes:          4096,
+		InterpretationPayload:        &session,
+		PlanningPayload:              nil,
+		GenerationPayload:            nil,
+		EvaluationObservationPayload: nil,
 	})
 	requestDigest, err := providerport.RequestDigest(request)
 	if err != nil {
