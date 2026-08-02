@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 // Cross-repo seed freshness.
@@ -48,22 +50,48 @@ import (
 // a kind so a changed literal value on an owned edge still counts as owned drift.
 func classifySeedDiff(committed, generated, agOnly []byte) (owned, external []string) {
 	agOwnershipKeys := ntOwnershipKeys(agOnly)
+	agLines := ntLineSet(agOnly)
 	committedSet := ntLineSet(committed)
 	generatedSet := ntLineSet(generated)
 
-	var diffs []string
-	for _, l := range ntLines(generated) { // present in generated, missing from committed
-		if !committedSet[l] {
-			diffs = append(diffs, l)
+	// ADDED drift — present in generated, missing from the committed seed.
+	//
+	// Ownership here is EXACT-LINE, not key-based. Awareness-graph staleness means
+	// "regenerating the AG corpus alone produces a line the committed seed lacks",
+	// which is a statement about the exact triple. Sharing an ownership key with the
+	// paired repo is not evidence AG authored THIS line — and for literal objects the
+	// key collapses to "literal", so any (subject, predicate) both repos mint claims
+	// every value either repo gives it.
+	//
+	// That is the #141 misclassification recurring one layer down. Both repos author
+	// docs/awareness/activation_rules.yaml, and the ids are minted WITHOUT a repo
+	// namespace (rdf.MintIRI(ClassGuardrail, "activation_rule."+id)), so
+	// guardrail/activation_rule.auto_briefing and the activation_empty_policy.* tiers
+	// collide exactly. Each repo's rdfs:comment then matched the other's ownership
+	// key, and 5 services-authored comments were reported as awareness-graph-owned
+	// drift that no AG commit could resolve — AG's regeneration never emits the
+	// services text. Fixtures: globulario/services#218, #219.
+	for _, l := range ntLines(generated) {
+		if committedSet[l] || isSeedMarkerLine(l) {
+			continue
 		}
-	}
-	for _, l := range ntLines(committed) { // present in committed, missing from generated
-		if !generatedSet[l] {
-			diffs = append(diffs, l)
+		if agLines[l] {
+			owned = append(owned, l)
+		} else {
+			external = append(external, l)
 		}
 	}
 
-	for _, l := range diffs {
+	// REMOVED drift — present in the committed seed, missing from generated.
+	//
+	// Key-based, deliberately. A removal cannot be matched exact-line against agOnly
+	// (agOnly no longer produces it — that is what "removed" means), so the ownership
+	// key is the only available signal, and treating a shared key as owned is
+	// fail-closed in the safe direction: a dropped AG triple still hard-fails.
+	for _, l := range ntLines(committed) {
+		if generatedSet[l] || isSeedMarkerLine(l) {
+			continue
+		}
 		if agOwnershipKeys[ntOwnershipKey(l)] {
 			owned = append(owned, l)
 		} else {
@@ -71,6 +99,33 @@ func classifySeedDiff(committed, generated, agOnly []byte) (owned, external []st
 		}
 	}
 	return owned, external
+}
+
+// seedMarkerSubjectPrefix is the subject prefix of the self-describing SeedBuild
+// marker that seedmeta.AppendMarker stamps onto every generated artifact.
+const seedMarkerSubjectPrefix = "<" + seedmeta.NamespaceIRI + "seedBuild/sha256-"
+
+// isSeedMarkerLine reports whether a triple belongs to the seed's self-describing
+// SeedBuild marker rather than to the corpus.
+//
+// The marker names its own sha256 and triple count, so its subject and objects are
+// a function of the artifact it is attached to. That makes it structurally
+// incomparable across build modes: the awareness-graph repo commits a SELF-ONLY
+// seed, while paired-repo CI regenerates a COMBINED one, so the two markers can
+// never agree — by construction, not because anything is stale. Worse, the
+// committed marker's subject is reproduced exactly by the agOnly regeneration
+// (agOnly IS the self-only build), so ownership classification claims it as
+// awareness-graph-owned drift and hard-fails the gate.
+//
+// That is what made embeddata-freshness unsatisfiable: it failed identically on
+// services master and on every services PR (globulario/services#218, #219 are the
+// fixtures), reporting 6 marker triples as owned drift that no commit on either
+// side could reconcile. The marker is metadata ABOUT the artifact, never corpus
+// content, so freshness must not compare it at all — in either direction. The real
+// integrity guarantee for the marker is seedmeta verification (digest and triple
+// count must match the body it is stamped on), which is a different check.
+func isSeedMarkerLine(line string) bool {
+	return strings.HasPrefix(line, seedMarkerSubjectPrefix)
 }
 
 // ntLines returns the non-empty, trimmed triple lines of an N-Triples buffer.

@@ -109,3 +109,113 @@ func TestOwnership_LiteralValueChange_StaysOwned(t *testing.T) {
 		t.Fatalf("changed literal value on owned edge must stay owned; got owned=%v external=%v", owned, external)
 	}
 }
+
+// ── seed-marker exclusion (globulario/services#218, #219) ────────────────────
+//
+// The SeedBuild marker names the sha256 and triple count of the artifact it is
+// stamped on. The awareness-graph repo commits a SELF-ONLY seed; paired-repo CI
+// regenerates a COMBINED one. The two markers therefore differ by construction,
+// and because agOnly IS the self-only build, the committed marker's subject is
+// reproduced exactly by the ownership probe — so it classified as AG-owned drift
+// and hard-failed embeddata-freshness on services master and every services PR
+// alike. No commit on either side could reconcile it.
+//
+// Freshness must ignore the marker in BOTH directions. Marker integrity is
+// seedmeta's job (digest + count must match the stamped body), not freshness's.
+
+// markerLines returns the 6 self-describing triples for a synthetic digest.
+func markerLines(digest, count string) []string {
+	s := "<https://globular.io/awareness#seedBuild/sha256-" + digest + ">"
+	return []string{
+		bTriple(s, "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>", "<https://globular.io/awareness#SeedBuild>"),
+		bTriple(s, "<http://www.w3.org/2000/01/rdf-schema#label>", `"Embedded seed sha256 `+digest[:12]+`"`),
+		bTriple(s, "<https://globular.io/awareness#seedDigestSha256>", `"`+digest+`"`),
+		bTriple(s, "<https://globular.io/awareness#seedTripleCount>", `"`+count+`"`),
+		bTriple(s, "<https://globular.io/awareness#seedMarkerVersion>", `"v2"`),
+		bTriple(s, "<https://globular.io/awareness#authoredIn>", `"generated:seed_marker"`),
+	}
+}
+
+// Case 7 — the #218/#219 deadlock. Committed carries the self-only marker,
+// generated carries the combined marker, and agOnly reproduces the self-only one.
+// Neither marker may be reported as drift.
+func TestOwnership_SeedMarker_DiffersAcrossBuildModes_IsNotDrift(t *testing.T) {
+	agEdge := bTriple(bSrc, bImpl, bAGInv)
+	selfOnly := markerLines("eb97beb98c8e09bee6b4c59434a2eaabaa111f1c350f6a0861330819c7bad826", "7865")
+	combined := markerLines("9e9a2dd0000000000000000000000000000000000000000000000000000000ff", "185774")
+
+	agOnly := nt(append([]string{agEdge}, selfOnly...)...)
+	committed := nt(append([]string{agEdge}, selfOnly...)...)
+	generated := nt(append([]string{agEdge}, combined...)...)
+
+	owned, external := classifySeedDiff(committed, generated, agOnly)
+	if len(owned) != 0 {
+		t.Fatalf("seed marker must never be owned drift (the #218/#219 deadlock); got owned=%v", owned)
+	}
+	if len(external) != 0 {
+		t.Fatalf("seed marker must not be reported as external context either; got external=%v", external)
+	}
+}
+
+// Case 8 — excluding the marker must not blind the gate. A real owned drift
+// sitting alongside a differing marker still fails.
+func TestOwnership_SeedMarkerExclusion_DoesNotHideRealDrift(t *testing.T) {
+	agEdge := bTriple(bSrc, bImpl, bAGInv)
+	selfOnly := markerLines("eb97beb98c8e09bee6b4c59434a2eaabaa111f1c350f6a0861330819c7bad826", "7865")
+	combined := markerLines("9e9a2dd0000000000000000000000000000000000000000000000000000000ff", "185774")
+
+	agOnly := nt(append([]string{agEdge}, selfOnly...)...)
+	committed := nt(selfOnly...) // agEdge genuinely missing → real drift
+	generated := nt(append([]string{agEdge}, combined...)...)
+
+	owned, _ := classifySeedDiff(committed, generated, agOnly)
+	if len(owned) != 1 || owned[0] != agEdge {
+		t.Fatalf("real AG-owned drift must survive marker exclusion; got owned=%v", owned)
+	}
+}
+
+// Case 9 — the colliding-guardrail-id case. Both repos author
+// docs/awareness/activation_rules.yaml and the ids are minted without a repo
+// namespace, so guardrail/activation_empty_policy.low_risk is one IRI with two
+// rdfs:comment values. The services value must be EXTERNAL: AG's regeneration
+// never emits it, so no AG commit could ever resolve it as staleness.
+func TestOwnership_CollidingGuardrailID_ServicesLiteralIsExternal(t *testing.T) {
+	subj := `<https://globular.io/awareness#guardrail/activation_empty_policy.low_risk>`
+	comment := `<http://www.w3.org/2000/01/rdf-schema#comment>`
+	agComment := bTriple(subj, comment, `"Typo fix, formatting, comment, import reorder"`)
+	svcComment := bTriple(subj, comment, `"Edit changes no behavior (formatting, typos, comments, import reorder, dependency bump with no API change)."`)
+
+	agOnly := nt(agComment)
+	committed := nt(agComment)             // AG's self-only seed, current
+	generated := nt(agComment, svcComment) // combined build carries both values
+
+	owned, external := classifySeedDiff(committed, generated, agOnly)
+	if len(owned) != 0 {
+		t.Fatalf("services literal on a colliding guardrail id must not be owned drift (#218/#219); got owned=%v", owned)
+	}
+	if len(external) != 1 || external[0] != svcComment {
+		t.Fatalf("services literal must be external context; got external=%v", external)
+	}
+}
+
+// Case 10 — the exact-line rule must not blind ADDED owned drift. A genuinely
+// stale seed (AG emits a line the committed seed lacks) still hard-fails, even
+// when the paired repo also mints the same subject+predicate.
+func TestOwnership_StaleSeed_OnCollidingGuardrailID_StaysOwned(t *testing.T) {
+	subj := `<https://globular.io/awareness#guardrail/activation_empty_policy.low_risk>`
+	comment := `<http://www.w3.org/2000/01/rdf-schema#comment>`
+	agNew := bTriple(subj, comment, `"AG rewrote this tier"`)
+	svcComment := bTriple(subj, comment, `"services text"`)
+
+	agOnly := nt(agNew)
+	committed := nt() // seed predates AG's rewrite → genuinely stale
+	generated := nt(agNew, svcComment)
+
+	owned, external := classifySeedDiff(committed, generated, agOnly)
+	if len(owned) != 1 || owned[0] != agNew {
+		t.Fatalf("genuine AG staleness must stay owned even on a colliding id; got owned=%v", owned)
+	}
+	if len(external) != 1 || external[0] != svcComment {
+		t.Fatalf("services literal must stay external; got external=%v", external)
+	}
+}
