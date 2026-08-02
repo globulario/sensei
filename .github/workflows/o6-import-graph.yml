@@ -1,0 +1,32 @@
+name: O6 import graph regeneration
+
+on:
+  push:
+    branches:
+      - agent/o6-command-provider
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/o6-command-provider
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: |
+          set -euo pipefail
+          make import-graph
+          make import-graph-check
+          rm -f .github/workflows/o6-import-graph.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/awareness/generated/awareness_graph_go_import_graph.yaml .github/workflows/o6-import-graph.yml
+          git commit -m 'awareness(commandprovider): regenerate Go import graph'
+          git push origin HEAD:agent/o6-command-provider
