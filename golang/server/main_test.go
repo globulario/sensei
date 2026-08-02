@@ -826,6 +826,39 @@ func TestBriefing_OKWithReferencedIDsAndTask(t *testing.T) {
 	}
 }
 
+func TestBriefing_MentionsGovernedSynthesisLoopWhenSubstantive(t *testing.T) {
+	s := newServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+			return []store.ImpactFact{
+				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: rdf.ClassInvariant, Predicate: rdf.PropLabel, Object: "Test fixture invariant"},
+				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: rdf.ClassInvariant, Predicate: rdf.PropSeverity, Object: "high"},
+			}, nil
+		},
+	})
+	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
+	if err != nil {
+		t.Fatalf("Briefing: %v", err)
+	}
+	if !strings.Contains(resp.GetProse(), "Governed synthesis loop available") {
+		t.Fatalf("expected governed synthesis loop mention:\n%s", resp.GetProse())
+	}
+}
+
+func TestBriefing_OmitsGovernedSynthesisLoopWhenEmpty(t *testing.T) {
+	s := newServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+			return nil, nil
+		},
+	})
+	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
+	if err != nil {
+		t.Fatalf("Briefing: %v", err)
+	}
+	if strings.Contains(resp.GetProse(), "Governed synthesis loop") {
+		t.Fatalf("empty briefing should not mention the governed synthesis loop:\n%s", resp.GetProse())
+	}
+}
+
 func TestBriefing_DecisionFocusComesBeforeDetailSections(t *testing.T) {
 	s := newServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {

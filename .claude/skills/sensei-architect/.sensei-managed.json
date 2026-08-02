@@ -5,13 +5,14 @@
   "source_dir": "templates/skills/sensei-architect",
   "files": {
     "README.md": "61efe20d5e3bf9f7232a7c0eb75f86391a7471458ef884e122356017ca2e190c",
-    "SKILL.md": "8956aede5ac5016366506240ed50b624a707e179cfdf0e95129c39b218e27a27",
+    "SKILL.md": "b6b62b7e58d4ce0713275af518983ee766a91a7cdd12a53333ffc2eb92c75594",
     "references/ARCHITECTURE-VIEW.md": "d1b0fdee0245789c29134143e62a6e30047252d3ad7e7f2b400c790d1b0f3259",
     "references/DURABLE-FEEDBACK.md": "3b2d8c1eb4a9db0d663ebb23011b8b31a06299d7daaea535f83afc08f044e330",
     "references/FINDING-RUBRIC.md": "bdd526094007d521121cab83a4f52adb7bdf61db490788e8ad2fa4f6d6662fa4",
+    "references/GOVERNED-SYNTHESIS.md": "e94b7cb5d491ec753f59b475b47c8c352e96ac86b9ab5226ce5319ebb3477fd1",
     "references/OPERATING-MODEL.md": "6c89de6aa89c4f9db469eb9ab9de84e920e754c7a80b7154bcc0b85cc4e38cca",
     "references/SPECIALIZED-SKILLS.md": "120839ddb556692dd7517a0161894e6d5db45bd0df3cfc811baff4bf369aa0a6",
-    "references/TOOL-PLAYBOOK.md": "9bc0f746e868f4975dfde18e748a2af4f253ed0ed588557ad815ad49a74b9354",
+    "references/TOOL-PLAYBOOK.md": "91422f5d7707429e68307227d623b9cd0a7dfeccfa3c5a6eeb4ceae81ccbd99d",
     "references/WORKFLOW-BRANCHES.md": "67f95bb550d1670a1c2ee01d773028f4e6934ebad0c7904f3e5faff173fdeaca"
   }
 }

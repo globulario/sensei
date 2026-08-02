@@ -343,7 +343,41 @@ func composeBriefingProseWithPrinciples(file, task string, impact *awarenesspb.I
 	appendBriefingSection(&b, "Forbidden fixes", impact.GetForbiddenFixes(), false)
 	appendBriefingSection(&b, "Required tests", impact.GetRequiredTests(), false)
 	appendImplementationPatternsSection(&b, implPatterns)
+	if hasSubstantiveBriefingContent(impact, codeSyms, implPatterns) {
+		appendGovernedSynthesisNote(&b)
+	}
 	return b.String()
+}
+
+// hasSubstantiveBriefingContent reports whether the main render path actually
+// found something -- it is reached even when every field is empty (a file with
+// no governed knowledge is a normal OK result, not BRIEFING_STATUS_EMPTY), and
+// the governed synthesis loop note must not pad a briefing that found nothing.
+func hasSubstantiveBriefingContent(impact *awarenesspb.ImpactResponse, codeSyms []codeSymbol, implPatterns []*awarenesspb.MatchedImplementationPattern) bool {
+	if len(codeSyms) > 0 || len(implPatterns) > 0 {
+		return true
+	}
+	if impact == nil {
+		return false
+	}
+	return len(impact.GetDirectInvariants()) > 0 ||
+		len(impact.GetDirectFailureModes()) > 0 ||
+		len(impact.GetDirectIncidentPatterns()) > 0 ||
+		len(impact.GetDirectIntents()) > 0 ||
+		len(impact.GetDirectArchitecture()) > 0 ||
+		len(impact.GetForbiddenFixes()) > 0 ||
+		len(impact.GetRequiredTests()) > 0
+}
+
+// appendGovernedSynthesisNote surfaces the governed synthesis loop
+// (interpretation -> plan -> generation -> evaluation -> admission) so an
+// agent reading a substantive briefing learns it exists as an alternative to
+// ad hoc editing. It is deliberately terse and always the same: briefing has
+// no signal here for task mode, risk class, or whether a task session and
+// closure bundle already exist for this specific task, so the note can only
+// point at the capability and its real precondition, not assert it applies.
+func appendGovernedSynthesisNote(b *strings.Builder) {
+	b.WriteString("\n\nGoverned synthesis loop available: for a repository Sensei has already onboarded (served graph authority, a task session, and closure state), golang/architecture/synthesisdriver can drive interpretation -> plan -> generation -> evaluation -> admission instead of ad hoc editing. Library only today, no CLI -- see docs/design/archer-integration-closure.md before assuming it is wired up for this task.")
 }
 
 func appendDecisionFocusSection(b *strings.Builder, impact *awarenesspb.ImpactResponse) {

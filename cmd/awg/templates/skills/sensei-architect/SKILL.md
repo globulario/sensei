@@ -79,6 +79,12 @@ See [references/SPECIALIZED-SKILLS.md](references/SPECIALIZED-SKILLS.md).
      may continue, but mutation must not begin. Inspection admission is not
      mutation admission. Route the primary blocker to `sensei-closure`; never
      replace a valid project claim document with an empty one.
+   - Once this checkpoint exists, candidate generation itself may optionally
+     go through Sensei's governed synthesis loop instead of ad hoc editing.
+     See [references/GOVERNED-SYNTHESIS.md](references/GOVERNED-SYNTHESIS.md)
+     before treating this as available by default -- it is library-only today,
+     with no CLI, and only reachable on a repository this checkpoint already
+     covers.
 
 5. Build the internal architecture view.
    - Use `awareness_impact`, `awareness_query`, and `awareness_resolve` for typed structure.
@@ -149,6 +155,7 @@ Read the relevant reference before acting:
 - [references/WORKFLOW-BRANCHES.md](references/WORKFLOW-BRANCHES.md) for design, audit, implementation, incident, review, recovery, migration, security, post-fix, and sparse-coverage branches.
 - [references/DURABLE-FEEDBACK.md](references/DURABLE-FEEDBACK.md) for proposal discipline.
 - [references/SPECIALIZED-SKILLS.md](references/SPECIALIZED-SKILLS.md) for routing to admission, closure, import, and benchmark skills.
+- [references/GOVERNED-SYNTHESIS.md](references/GOVERNED-SYNTHESIS.md) for the governed synthesis loop: what is merged, its real precondition, and why it is not available by default.
 
 ## Non-Negotiables
 
