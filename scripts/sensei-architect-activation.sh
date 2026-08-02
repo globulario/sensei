@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/preflight-verdict.sh
+source "$script_dir/lib/preflight-verdict.sh"
+
 repo="."
 sensei="./bin/sensei"
 addr="localhost:10120"
@@ -117,27 +121,40 @@ else
 fi
 
 preflight_failures=0
+preflight_degraded_files=()
 while IFS= read -r file; do
   [[ -n "$file" ]] || continue
   safe_name=$(printf '%s' "$file" | sha256sum | cut -d' ' -f1)
+  json_path="$out_dir/preflight/${safe_name}.json"
   set +e
   timeout --foreground 30s "$sensei" preflight \
     --task "Review exact diff $diff_range" \
     --file "$file" \
-    --domain "$repository_domain" \
+    --domain "$graph_domain" \
     --mode standard \
     --addr "$addr" \
-    >"$out_dir/preflight/${safe_name}.txt" 2>"$out_dir/preflight/${safe_name}.err"
+    --json \
+    >"$json_path" 2>"$out_dir/preflight/${safe_name}.err"
   rc=$?
   set -e
-  if ((rc != 0)); then
+  # A nonzero exit is a real process failure (RPC unreachable, bad flags).
+  # But sensei preflight's own contract is to exit 0 whenever the RPC
+  # succeeds, even when the response body reports DEGRADED/UNKNOWN_IMPACT/
+  # insufficient coverage -- that is an explicit finding, not a process
+  # failure, so the exit code alone cannot be trusted here. Read the payload.
+  verdict="malformed:process_exit_$rc"
+  if ((rc == 0)); then
+    verdict=$(preflight_verdict "$json_path")
+  fi
+  if [[ "$verdict" != "ok" ]]; then
     preflight_failures=$((preflight_failures + 1))
+    preflight_degraded_files+=("${file}:${verdict}")
   fi
 done < "$changed_file_list"
 if ((preflight_failures == 0)); then
   record_status preflight available
 else
-  record_status preflight degraded "failed_files=$preflight_failures"
+  record_status preflight degraded "failed_files=$preflight_failures ($(IFS=,; echo "${preflight_degraded_files[*]}"))"
 fi
 
 set +e

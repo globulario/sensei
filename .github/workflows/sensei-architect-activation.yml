@@ -43,6 +43,7 @@ jobs:
           ./bin/sensei serve -no-seed -allow-stale-seed \
             -data "$DATA_DIR" -addr :19120 -oxigraph-bind 127.0.0.1:19878 \
             -graph-marker-file "$MARKER_FILE" \
+            -home-domain "github.com/globulario/sensei" \
             > /tmp/sensei-architect-serve.log 2>&1 &
           echo "SENSEI_SERVER_PID=$!" >> "$GITHUB_ENV"
           echo "SENSEI_MARKER_FILE=$MARKER_FILE" >> "$GITHUB_ENV"
@@ -75,7 +76,7 @@ jobs:
             --sensei ./bin/sensei \
             --addr localhost:19120 \
             --repository-domain github.com/globulario/sensei \
-            --graph-domain globular \
+            --graph-domain github.com/globulario/sensei \
             --diff "$SENSEI_DIFF" \
             --mode enforce \
             --full-how-timeout 60 \
