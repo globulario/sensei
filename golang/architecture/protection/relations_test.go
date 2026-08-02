@@ -145,3 +145,91 @@ invariants:
 		t.Fatalf("an invalid governed-relation target must not allow COMPLETE, got %s (gaps=%v)", cov.Status, cov.Gaps)
 	}
 }
+
+func TestGovernedRelationReasons_DeclaredExternalTargetsAreAccepted(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, RelationTargetsFile, `
+relation_targets:
+  runtime_roots:
+    - /var/lib/globular/etcd
+  sibling_repositories:
+    - globular-installer
+    - packages
+`)
+	writeFile(t, root, "docs/awareness/invariants.yaml", `
+invariants:
+  - id: test.external.targets
+    title: External targets are explicit
+    severity: high
+    protects:
+      files:
+        - src/local.go
+        - /var/lib/globular/etcd/member/snap/db
+        - ../packages/registry.yaml
+        - ../globular-installer/scripts/install-day0.sh
+    required_tests:
+      - ../globular-installer:make check-specs
+`)
+
+	reasons, malformed, err := GovernedRelationReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(malformed) != 0 {
+		t.Fatalf("declared external targets must be accepted, got %v", malformed)
+	}
+	if len(reasons["src/local.go"]) == 0 {
+		t.Fatal("local target must still produce local protection")
+	}
+	if _, exists := reasons["/var/lib/globular/etcd/member/snap/db"]; exists {
+		t.Fatal("runtime target must not become a local ProtectedPath")
+	}
+
+	cov, err := Derive(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cov.Status != CoverageComplete {
+		t.Fatalf("declared external targets must not degrade coverage, got %s: %v", cov.Status, cov.Gaps)
+	}
+}
+
+func TestGovernedRelationReasons_UndeclaredRuntimeTargetRemainsMalformed(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/awareness/invariants.yaml", `
+invariants:
+  - id: test.external.undeclared
+    title: Undeclared runtime target
+    severity: high
+    protects:
+      files:
+        - /var/lib/globular/etcd/member/snap/db
+`)
+	_, malformed, err := GovernedRelationReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(malformed) != 1 || !strings.Contains(malformed[0], "/var/lib/globular/etcd") {
+		t.Fatalf("undeclared runtime path must remain malformed, got %v", malformed)
+	}
+}
+
+func TestGovernedRelationReasons_MalformedExternalPolicyIsVisible(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, RelationTargetsFile, `
+relation_targets:
+  runtime_roots:
+    - relative/runtime
+    - /
+  sibling_repositories:
+    - nested/repo
+`)
+	writeFile(t, root, "docs/awareness/invariants.yaml", testInvariantsYAML)
+	_, malformed, err := GovernedRelationReasons(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(malformed) != 3 {
+		t.Fatalf("expected three visible policy defects, got %v", malformed)
+	}
+}

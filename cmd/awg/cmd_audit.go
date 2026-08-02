@@ -1211,44 +1211,19 @@ func seedNodeShortID(subj string) string {
 // ── check 6: test coverage ──────────────────────────────────────────────
 
 func checkTestCoverage(svcRepo string) auditResult {
-	invPath := filepath.Join(svcRepo, "docs", "awareness", "invariants.yaml")
-	raw, err := os.ReadFile(invPath)
-	if err != nil {
-		return auditResult{name: "test-coverage", level: auditWARN, summary: "cannot read invariants.yaml"}
-	}
-	var doc struct {
-		Invariants []struct {
-			ID                      string   `yaml:"id"`
-			Severity                string   `yaml:"severity"`
-			RequiredTests           []string `yaml:"required_tests"`
-			TestNotApplicableReason string   `yaml:"test_not_applicable_reason"`
-		} `yaml:"invariants"`
-	}
-	if err := yaml.Unmarshal(raw, &doc); err != nil {
-		return auditResult{name: "test-coverage", level: auditWARN, summary: "parse error: " + err.Error()}
-	}
-
-	var critical, missing int
-	var details []string
-	for _, inv := range doc.Invariants {
-		if inv.Severity != "critical" && inv.Severity != "high" {
-			continue
-		}
-		critical++
-		if len(inv.RequiredTests) == 0 && inv.TestNotApplicableReason == "" {
-			missing++
-			details = append(details, fmt.Sprintf("[%s] %s", inv.Severity, inv.ID))
-		}
-	}
-	if missing == 0 {
-		return auditResult{name: "test-coverage", level: auditPASS,
-			summary: fmt.Sprintf("all %d critical/high invariants covered", critical)}
-	}
-	return auditResult{name: "test-coverage", level: auditWARN,
-		summary: fmt.Sprintf("%d/%d critical/high invariants missing tests", missing, critical),
-		details: details,
-	}
+    assessment, err := assessRepositoryTestCoverage(svcRepo)
+    if err != nil {
+        return auditResult{name: "test-coverage", level: auditWARN, summary: err.Error()}
+    }
+    if len(assessment.Missing) == 0 {
+        return auditResult{name: "test-coverage", level: auditPASS,
+            summary: fmt.Sprintf("all %d critical/high invariants covered", assessment.CriticalHigh)}
+    }
+    return auditResult{name: "test-coverage", level: auditWARN,
+        summary: fmt.Sprintf("%d/%d critical/high invariants missing tests", len(assessment.Missing), assessment.CriticalHigh),
+        details: assessment.Missing}
 }
+
 
 // ── check 7: contract assessment (report-only) ───────────────────────────
 

@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/globulario/sensei/golang/extractor/jsonschemascan"
 	"github.com/globulario/sensei/golang/extractor/openapiscan"
 	"github.com/globulario/sensei/golang/extractor/protoscan"
@@ -150,9 +148,9 @@ func findNamespaceRegistry(repoRoot string) string {
 }
 
 // candidateFile is the loose generic shape shared by every
-// docs/awareness/candidates/*.yaml file: exactly one top-level key whose
-// value has a `candidates:` list, each entry carrying an `id` and either
-// `source_files` or `files`.
+// docs/awareness/candidates/*.yaml entry. Candidate documents may use a
+// direct top-level `candidates:` list or a generator metadata wrapper containing
+// that list; parseCandidateEntries owns the two accepted shapes.
 type candidateEntry struct {
 	ID          string   `yaml:"id"`
 	SourceFiles []string `yaml:"source_files"`
@@ -198,35 +196,30 @@ func CandidateSignalReasons(repoRoot string) (reasons map[string][]ProtectionRea
 			malformed = append(malformed, fmt.Sprintf("%s: unreadable: %v", relSource, readErr))
 			continue
 		}
-		var doc map[string]struct {
-			Candidates []candidateEntry `yaml:"candidates"`
-		}
-		if parseErr := yaml.Unmarshal(raw, &doc); parseErr != nil {
+		candidates, parseErr := parseCandidateEntries(raw)
+		if parseErr != nil {
 			malformed = append(malformed, fmt.Sprintf("%s: %v", relSource, parseErr))
 			continue
 		}
-		for _, section := range doc {
-			for _, c := range section.Candidates {
-				targets := c.SourceFiles
-				targets = append(targets, c.Files...)
-				for _, target := range targets {
-					norm, ok := NormalizePath(target)
-					if !ok {
-						// contract §4/§6 correction: an invalid candidate
-						// target (empty, or escaping the repository) must
-						// never be silently dropped — it is a gap forcing
-						// at least PARTIAL coverage, not a clean no-op.
-						malformed = append(malformed, fmt.Sprintf("%s: candidate %q has invalid target %q", relSource, c.ID, target))
-						continue
-					}
-					out[norm] = append(out[norm], ProtectionReason{
-						Origin:       OriginCandidateSignal,
-						Kind:         "candidate_source_file",
-						Source:       relSource,
-						KnowledgeRef: c.ID,
-						Provisional:  true,
-					})
+		for _, c := range candidates {
+			targets := append([]string(nil), c.SourceFiles...)
+			targets = append(targets, c.Files...)
+			for _, target := range targets {
+				norm, ok := NormalizePath(target)
+				if !ok {
+					// Candidate targets are always files in this repository.
+					// External relation declarations do not grant candidates
+					// provisional authority outside the checkout.
+					malformed = append(malformed, fmt.Sprintf("%s: candidate %q has invalid target %q", relSource, c.ID, target))
+					continue
 				}
+				out[norm] = append(out[norm], ProtectionReason{
+					Origin:       OriginCandidateSignal,
+					Kind:         "candidate_source_file",
+					Source:       relSource,
+					KnowledgeRef: c.ID,
+					Provisional:  true,
+				})
 			}
 		}
 	}

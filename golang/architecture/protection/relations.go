@@ -69,22 +69,26 @@ func GovernedRelationReasons(repoRoot string) (reasons map[string][]ProtectionRe
 		return nil, nil, err
 	}
 	out := map[string][]ProtectionReason{}
+	targetPolicy, policyMalformed := loadRelationTargetPolicy(repoRoot)
+	malformed = append(malformed, policyMalformed...)
 	add := func(target, kind, source, knowledgeRef string) {
-		norm, ok := NormalizePath(target)
-		if !ok {
-			// contract §4/§6 correction: an invalid governed-relation
-			// target (empty, or escaping the repository) must never be
-			// silently dropped — it is a gap forcing at least PARTIAL
-			// coverage, not a clean no-op.
-			malformed = append(malformed, fmt.Sprintf("%s: invalid target %q for %s (id=%s)", source, target, kind, knowledgeRef))
+		norm, disposition := targetPolicy.classify(target)
+		switch disposition {
+		case relationTargetExternal:
+			// A declared runtime/sibling target is a valid relation anchor,
+			// but it is outside this checkout's editable protection domain.
 			return
+		case relationTargetLocal:
+			out[norm] = append(out[norm], ProtectionReason{
+				Origin:       OriginGovernedRelation,
+				Kind:         kind,
+				Source:       source,
+				KnowledgeRef: knowledgeRef,
+			})
+		default:
+			// Undeclared absolute paths and repository escapes stay fail-closed.
+			malformed = append(malformed, fmt.Sprintf("%s: invalid or undeclared external target %q for %s (id=%s)", source, target, kind, knowledgeRef))
 		}
-		out[norm] = append(out[norm], ProtectionReason{
-			Origin:       OriginGovernedRelation,
-			Kind:         kind,
-			Source:       source,
-			KnowledgeRef: knowledgeRef,
-		})
 	}
 	for _, f := range files {
 		// Governed sources include non-YAML authored files (design docs,
