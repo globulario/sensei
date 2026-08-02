@@ -7932,6 +7932,56 @@ test_symbols:
     symbol: TestSchemasParseAndAreClosed
     package: closureprotocol
     language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestArgumentsArePassedWithoutShellInterpolation
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestArgumentsArePassedWithoutShellInterpolation
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestCancellationTerminatesCompleteProcessTree
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestCancellationTerminatesCompleteProcessTree
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestCommandProviderHelperProcess
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestCommandProviderHelperProcess
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestDescribeIsDeterministicAndDetached
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestDescribeIsDeterministicAndDetached
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestEnvironmentIsExplicitlyAllowlisted
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestEnvironmentIsExplicitlyAllowlisted
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestExecuteRejectsClosedProtocolViolationsAsTypedInvalidOutput
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestExecuteRejectsClosedProtocolViolationsAsTypedInvalidOutput
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestNewRejectsImplicitOrUnboundedConfiguration
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestNewRejectsImplicitOrUnboundedConfiguration
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestProviderPortRunComposesWithoutGrantingResultAuthority
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestProviderPortRunComposesWithoutGrantingResultAuthority
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestStderrIsBoundedObservationEvidenceOnly
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestStderrIsBoundedObservationEvidenceOnly
+    package: commandprovider
+    language: go
+  - id: golang/architecture/commandprovider/adapter_test.go:TestUnsupportedOperationIsTypedData
+    file: golang/architecture/commandprovider/adapter_test.go
+    symbol: TestUnsupportedOperationIsTypedData
+    package: commandprovider
+    language: go
   - id: golang/architecture/completion/assess_test.go:TestAssessClosureAndProofSubsumed
     file: golang/architecture/completion/assess_test.go
     symbol: TestAssessClosureAndProofSubsumed
