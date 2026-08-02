@@ -28,7 +28,8 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 - `buffer.go` owns bounded stdout and stderr observation collection;
 - `process_unix.go` terminates the complete process group on cancellation;
 - `process_other.go` supplies the portable direct-process fallback;
-- `adapter_test.go` proves schema closure, digest binding, environment isolation, literal argv handling, typed unsupported capability, O2 `Run` composition, and Unix descendant cleanup.
+- `adapter_test.go` proves schema closure, digest binding, environment isolation, literal argv handling, typed unsupported capability, O2 `Run` composition, and Unix descendant cleanup;
+- the canonical generated Go import graph records the package's dependencies on `providerport` and `synthesis`.
 
 No vendor constructor, authentication policy, provider selection, prompt template, worktree mutation, session driver, admission call, candidate application, commit, push, pull request, merge, or promotion capability is present.
 
