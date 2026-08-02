@@ -55,3 +55,11 @@ func TestStructuredVendorProfilesReuseConfinedCommandConfiguration(t *testing.T)
 		t.Fatal("structured profiles changed the explicit environment allowlist")
 	}
 }
+
+func TestClaudeEnvelopeRejectsDuplicateResultKeys(t *testing.T) {
+	agent := &commandAgent{config: CommandAgentConfig{Profile: ProfileClaude}}
+	_, err := agent.extractFinalPayload([]byte(`{"result":"first","result":"second"}`))
+	if err == nil || !strings.Contains(err.Error(), "duplicate object key") || !strings.Contains(err.Error(), "result") {
+		t.Fatalf("err=%v", err)
+	}
+}
