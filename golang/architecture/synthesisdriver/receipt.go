@@ -46,6 +46,9 @@ func finalizeRunReceipt(receipt RunReceipt) (RunReceipt, error) {
 
 func ValidateRunReceipt(receipt RunReceipt) error {
 	receipt = NormalizeRunReceipt(receipt)
+	if err := ValidateRunReceiptSchema(receipt); err != nil {
+		return fmt.Errorf("synthesisdriver: receipt schema: %w", err)
+	}
 	if receipt.SchemaVersion != RunReceiptSchemaVersion {
 		return fmt.Errorf("synthesisdriver: receipt schema_version %q", receipt.SchemaVersion)
 	}
@@ -70,7 +73,7 @@ func ValidateRunReceipt(receipt RunReceipt) error {
 			if !isSHA256(digest) {
 				return fmt.Errorf("synthesisdriver: invalid evidence digest %q", digest)
 			}
-		}
+	}
 	}
 	if receipt.SynthesisReceiptDigestSHA256 != nil && !isSHA256(*receipt.SynthesisReceiptDigestSHA256) {
 		return errors.New("synthesisdriver: invalid synthesis receipt digest")
