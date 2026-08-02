@@ -1,20 +1,21 @@
 name: O5B backup observation repair
 
 on:
-  pull_request:
-    branches: ['**']
+  push:
+    branches:
+      - archer/o5b-governed-candidate-apply
 
 permissions:
   contents: write
 
 jobs:
   repair:
-    if: github.event.pull_request.number == 138
+    if: contains(github.event.head_commit.message, '[o5b-backup-fix]')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: archer/o5b-governed-candidate-apply
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
@@ -132,11 +133,14 @@ func restoreManifestEntry(destination string, entry runnercomposition.CandidateM
           gofmt -w golang/architecture/candidateapply/*.go
           go test ./golang/architecture/candidateapply -count=1
           make import-graph
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
           git rm .github/workflows/o5b-backup-boundary-fix.yml
+          git rm -f --ignore-unmatch .o5b-backup-repair-trigger
       - name: Publish repaired clean head
         run: |
           git config user.name "sensei-archer-o5b"
           git config user.email "sensei-archer-o5b@users.noreply.github.com"
           git add -A
           git commit -m "fix(archer): hide O5B transaction backups from governance"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git push origin HEAD:archer/o5b-governed-candidate-apply
