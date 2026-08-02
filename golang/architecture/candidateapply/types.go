@@ -4,6 +4,8 @@
 // applies only an admitted, sealed CandidateArtifact to a clean, dedicated
 // Git worktree at the admitted base revision, then records existing admission
 // verification evidence without committing, pushing, approving, or merging.
+// Transaction staging and backup files are removed before the admission owner
+// observes the resulting patch, while rollback remains bound to base evidence.
 package candidateapply
 
 import (
