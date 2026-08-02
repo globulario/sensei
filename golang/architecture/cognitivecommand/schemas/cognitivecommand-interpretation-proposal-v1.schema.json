@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/cognitivecommand-interpretation-proposal-v1.json",
+  "title": "Sensei Cognitive Command Interpretation Proposal V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "applicable_intent",
+    "binding_invariants",
+    "relevant_contracts",
+    "authority_boundaries",
+    "known_failure_modes",
+    "forbidden_fixes",
+    "required_proof_obligations",
+    "assumptions",
+    "unresolved_questions",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.cognitivecommand.interpretationproposal.v1" },
+    "applicable_intent": { "$ref": "#/$defs/stringList" },
+    "binding_invariants": { "$ref": "#/$defs/stringList" },
+    "relevant_contracts": { "$ref": "#/$defs/stringList" },
+    "authority_boundaries": { "$ref": "#/$defs/stringList" },
+    "known_failure_modes": { "$ref": "#/$defs/stringList" },
+    "forbidden_fixes": { "$ref": "#/$defs/stringList" },
+    "required_proof_obligations": { "$ref": "#/$defs/stringList" },
+    "assumptions": { "$ref": "#/$defs/stringList" },
+    "unresolved_questions": { "$ref": "#/$defs/stringList" },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/limitation" }
+    }
+  },
+  "$defs": {
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "scope", "reason", "blocking"],
+      "properties": {
+        "source": { "type": "string" },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "blocking": { "type": "boolean" }
+      }
+    }
+  }
+}
