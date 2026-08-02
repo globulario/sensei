@@ -5,6 +5,7 @@ package synthesisdriver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -24,28 +25,89 @@ type cognitiveSequenceAgent struct {
 
 func (a *cognitiveSequenceAgent) Complete(_ context.Context, prompt []byte, _ providerport.Observer) ([]byte, error) {
 	a.prompts = append(a.prompts, append([]byte{}, prompt...))
+	if len(a.outputs) == 0 {
+		return nil, fmt.Errorf("cognitive sequence exhausted")
+	}
 	output := append([]byte{}, a.outputs[0]...)
 	a.outputs = a.outputs[1:]
 	return output, nil
 }
 
-func TestO7CompletesWithO8CognitiveProviders(t *testing.T) {
-	interpretationJSON, err := json.Marshal(cognitivecommand.InterpretationProposal{
-		SchemaVersion:            cognitivecommand.InterpretationProposalSchemaVersion,
-		ApplicableIntent:         []string{"intent.o8.integration"},
-		BindingInvariants:        []string{},
-		RelevantContracts:        []string{},
-		AuthorityBoundaries:      []string{"command-output-is-not-authority"},
-		KnownFailureModes:        []string{},
-		ForbiddenFixes:           []string{"ambient-repository-discovery"},
-		RequiredProofObligations: []string{},
-		Assumptions:              []string{},
-		UnresolvedQuestions:      []string{"closure content is represented only by digest"},
-		Limitations:              []synthesis.Limitation{},
-	})
-	if err != nil {
-		t.Fatal(err)
+type groundedInterpretationProvider struct{}
+
+func (groundedInterpretationProvider) Describe(ctx context.Context) (providerport.Capabilities, error) {
+	if err := ctx.Err(); err != nil {
+		return providerport.Capabilities{}, err
 	}
+	capabilities := providerport.Capabilities{
+		SchemaVersion: providerport.CapabilitiesSchemaVersion,
+		ProviderObservation: synthesis.ProviderObservation{
+			ProviderID:      "o8.grounded-interpretation",
+			ProviderKind:    "deterministic-grounded-test",
+			ModelIdentifier: "fixture-v1",
+			ObservedAt:      "2026-08-02T00:00:00Z",
+		},
+		SupportedOperations: []providerport.Operation{providerport.OperationInterpretation},
+	}
+	digest, err := providerport.CapabilitiesDigest(capabilities)
+	if err != nil {
+		return providerport.Capabilities{}, err
+	}
+	capabilities.CapabilitiesDigestSHA256 = digest
+	return capabilities, nil
+}
+
+func (groundedInterpretationProvider) Execute(ctx context.Context, request providerport.Request, _ providerport.Observer) (providerport.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return providerport.Result{}, err
+	}
+	if request.Operation != providerport.OperationInterpretation || request.InterpretationPayload == nil {
+		return providerport.Result{}, fmt.Errorf("grounded interpretation provider received %q", request.Operation)
+	}
+	session := request.InterpretationPayload
+	interpretation := synthesis.NormalizeInterpretation(synthesis.Interpretation{
+		SchemaVersion:            synthesis.InterpretationSchemaVersion,
+		InterpretationID:         "interpretation.o8.grounded",
+		SessionDigestSHA256:      request.SessionDigestSHA256,
+		GeneratedBy:              synthesis.GeneratedBy,
+		Objective:                session.Objective,
+		ApplicableIntent:         []string{"intent.o8.integration"},
+		BindingInvariants:        []string{"invariant.o8.grounded_interpretation_required"},
+		RelevantContracts:        []string{"contract.o8.planning_only"},
+		AuthorityBoundaries:      []string{"command-output-is-not-authority"},
+		KnownFailureModes:        []string{"session-only-interpretation-hallucination"},
+		ForbiddenFixes:           []string{"ambient-repository-discovery"},
+		RequiredProofObligations: []string{"proof.o8.grounded-source-reference"},
+		Assumptions:              []string{},
+		UnresolvedQuestions:      []string{},
+		SourceReferences: []synthesis.SourceReference{{
+			Reference:          "awareness:intent.o8.integration",
+			SourceDigestSHA256: strings.Repeat("e", 64),
+		}},
+		Limitations: []synthesis.Limitation{},
+	})
+	interpretationDigest, err := synthesis.InterpretationDigest(interpretation)
+	if err != nil {
+		return providerport.Result{}, err
+	}
+	interpretation.InterpretationDigestSHA256 = interpretationDigest
+	result := providerport.NormalizeResult(providerport.Result{
+		SchemaVersion:         providerport.ResultSchemaVersion,
+		RequestDigestSHA256:   request.RequestDigestSHA256,
+		Operation:             request.Operation,
+		TerminalOutcome:       providerport.OutcomeCompleted,
+		InterpretationPayload: &interpretation,
+		PayloadDigestSHA256:   &interpretationDigest,
+	})
+	resultDigest, err := providerport.ResultDigest(result)
+	if err != nil {
+		return providerport.Result{}, err
+	}
+	result.ResultDigestSHA256 = resultDigest
+	return result, nil
+}
+
+func TestO7CompletesWithGroundedInterpretationAndO8Planning(t *testing.T) {
 	planJSON, err := json.Marshal(cognitivecommand.PlanProposal{
 		SchemaVersion: cognitivecommand.PlanProposalSchemaVersion,
 		Steps: []synthesis.PlanStep{{
@@ -62,14 +124,14 @@ func TestO7CompletesWithO8CognitiveProviders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cognitiveAgent := &cognitiveSequenceAgent{outputs: [][]byte{interpretationJSON, planJSON}}
-	cognitiveProvider, err := cognitivecommand.New(cognitivecommand.Config{
+	cognitiveAgent := &cognitiveSequenceAgent{outputs: [][]byte{planJSON}}
+	planningProvider, err := cognitivecommand.New(cognitivecommand.Config{
 		Agent:               cognitiveAgent,
-		ProviderID:          "o8.cognitive.integration",
+		ProviderID:          "o8.cognitive.planning",
 		ProviderKind:        "deterministic-structured-agent",
 		ModelIdentifier:     "fixture-v1",
 		ObservedAt:          "2026-08-02T00:00:00Z",
-		SupportedOperations: []providerport.Operation{providerport.OperationInterpretation, providerport.OperationPlanning},
+		SupportedOperations: []providerport.Operation{providerport.OperationPlanning},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -111,8 +173,8 @@ func TestO7CompletesWithO8CognitiveProviders(t *testing.T) {
 		WorkspaceIdentity:      identity,
 		RepositoryRoot:         repoRoot,
 		CandidateStore:         store,
-		InterpretationProvider: cognitiveProvider,
-		PlanningProvider:       cognitiveProvider,
+		InterpretationProvider: groundedInterpretationProvider{},
+		PlanningProvider:       planningProvider,
 		GenerationFactory:      generationFactory,
 		EvaluationEngine: &O4Engine{
 			Store:         store,
@@ -137,18 +199,15 @@ func TestO7CompletesWithO8CognitiveProviders(t *testing.T) {
 	if result.Receipt.Disposition != DispositionCandidateReady || result.SessionState.Phase != synthesis.PhaseSucceeded {
 		t.Fatalf("disposition=%q phase=%q detail=%q", result.Receipt.Disposition, result.SessionState.Phase, result.Receipt.Detail)
 	}
-	if len(cognitiveAgent.prompts) != 2 {
+	if len(cognitiveAgent.prompts) != 1 {
 		t.Fatalf("cognitive prompt count=%d", len(cognitiveAgent.prompts))
 	}
-	for _, prompt := range cognitiveAgent.prompts {
-		text := string(prompt)
-		for _, forbidden := range []string{"repository_root", "candidate-buffer", repoRoot} {
-			if strings.Contains(text, forbidden) {
-				t.Fatalf("cognitive prompt leaked %q", forbidden)
-			}
+	for _, forbidden := range []string{"repository_root", "candidate-buffer", repoRoot} {
+		if strings.Contains(string(cognitiveAgent.prompts[0]), forbidden) {
+			t.Fatalf("cognitive prompt leaked %q", forbidden)
 		}
 	}
-	if result.Interpretation == nil || len(result.Interpretation.Limitations) == 0 {
-		t.Fatal("O8 interpretation omitted the mandatory context limitation")
+	if result.Interpretation == nil || len(result.Interpretation.SourceReferences) == 0 {
+		t.Fatal("O8 planning did not consume a grounded interpretation")
 	}
 }
