@@ -227,33 +227,33 @@ func finishResult(
 		candidateDigest = &value
 	}
 	receipt := RunReceipt{
-		SchemaVersion:                       RunReceiptSchemaVersion,
-		ReceiptID:                           fmt.Sprintf("o7.%s.%d.%s", state.Session.SessionDigestSHA256[:16], step, disposition),
-		GeneratedBy:                         GeneratedBy,
-		SessionDigestSHA256:                 state.Session.SessionDigestSHA256,
-		FinalPhase:                          string(state.Phase),
-		Disposition:                         disposition,
-		StepCount:                           step,
-		O2ReceiptDigestsSHA256:              o2,
-		RunnerReceiptDigestsSHA256:          runners,
-		EvaluationReceiptDigestsSHA256:      evaluations,
-		SynthesisReceiptDigestSHA256:        synthesisReceipt,
-		CandidateArtifactDigestSHA256:       candidateDigest,
-		Detail:                              strings.TrimSpace(detail),
-		StartedAt:                           startedAt,
-		CompletedAt:                         now().UTC().Format(time.RFC3339),
+		SchemaVersion:                  RunReceiptSchemaVersion,
+		ReceiptID:                      fmt.Sprintf("o7.%s.%d.%s", state.Session.SessionDigestSHA256[:16], step, disposition),
+		GeneratedBy:                    GeneratedBy,
+		SessionDigestSHA256:            state.Session.SessionDigestSHA256,
+		FinalPhase:                     string(state.Phase),
+		Disposition:                    disposition,
+		StepCount:                      step,
+		O2ReceiptDigestsSHA256:         o2,
+		RunnerReceiptDigestsSHA256:     runners,
+		EvaluationReceiptDigestsSHA256: evaluations,
+		SynthesisReceiptDigestSHA256:   synthesisReceipt,
+		CandidateArtifactDigestSHA256:  candidateDigest,
+		Detail:                         strings.TrimSpace(detail),
+		StartedAt:                      startedAt,
+		CompletedAt:                    now().UTC().Format(time.RFC3339),
 	}
 	finalized, err := finalizeRunReceipt(receipt)
 	if err != nil {
 		return Result{}, err
 	}
 	return Result{
-		SessionState:  state,
+		SessionState:   state,
 		Interpretation: interpretation,
-		Plan:            plan,
-		Candidate:       candidate,
-		Trace:           trace,
-		Receipt:         finalized,
+		Plan:           plan,
+		Candidate:      candidate,
+		Trace:          trace,
+		Receipt:        finalized,
 	}, nil
 }
 

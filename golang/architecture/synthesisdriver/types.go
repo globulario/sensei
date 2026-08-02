@@ -33,7 +33,7 @@ const (
 
 // ProviderPolicy is the exact O2 execution budget for one operation.
 type ProviderPolicy struct {
-	DeadlineAt         string
+	DeadlineAt          string
 	MaxObservationCount int
 	MaxObservationBytes int64
 }
@@ -85,12 +85,12 @@ type Trace struct {
 // latest accepted O1 artifacts needed for inspection or a later resumable
 // checkpoint. Candidate is populated once O3 sealed one.
 type Result struct {
-	SessionState  synthesis.SessionState
+	SessionState   synthesis.SessionState
 	Interpretation *synthesis.Interpretation
-	Plan            *synthesis.Plan
-	Candidate       *runnercomposition.CandidateArtifact
-	Trace           Trace
-	Receipt         RunReceipt
+	Plan           *synthesis.Plan
+	Candidate      *runnercomposition.CandidateArtifact
+	Trace          Trace
+	Receipt        RunReceipt
 }
 
 // RunReceipt binds the ordered O2/O3/O4 evidence to the final O1 state. The
@@ -100,10 +100,10 @@ type RunReceipt struct {
 	ReceiptID     string `json:"receipt_id"`
 	GeneratedBy   string `json:"generated_by"`
 
-	SessionDigestSHA256 string `json:"session_digest_sha256"`
-	FinalPhase          string `json:"final_phase"`
+	SessionDigestSHA256 string      `json:"session_digest_sha256"`
+	FinalPhase          string      `json:"final_phase"`
 	Disposition         Disposition `json:"disposition"`
-	StepCount           int `json:"step_count"`
+	StepCount           int         `json:"step_count"`
 
 	O2ReceiptDigestsSHA256         []string `json:"o2_receipt_digests_sha256"`
 	RunnerReceiptDigestsSHA256     []string `json:"runner_receipt_digests_sha256"`
