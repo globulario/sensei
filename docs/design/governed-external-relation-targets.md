@@ -51,3 +51,5 @@ checkout only.
 
 Focused protection and audit tests cover all three target classifications,
 both candidate document shapes, and exact invariant-to-test registry bindings.
+The generated Go import graph is refreshed in the same change so repository
+freshness checks exercise the final implementation tree.
