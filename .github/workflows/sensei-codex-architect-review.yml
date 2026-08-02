@@ -1,0 +1,233 @@
+name: Sensei Codex architect review
+
+# workflow_run always executes the version of THIS file committed on the
+# default branch, never a PR's own copy -- unlike the pull_request trigger,
+# where a same-repo PR's modified workflow YAML runs as-is. That is the whole
+# reason this job lives in its own workflow_run-triggered file instead of a
+# second job inside sensei-architect-activation.yml: OPENAI_API_KEY must
+# never be reachable by code a PR branch can edit.
+on:
+  workflow_run:
+    workflows: ["Sensei architect activation"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  codex-architect:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      review_available: ${{ steps.persist-review.outputs.available }}
+      pr_number: ${{ steps.pr-context.outputs.pr_number }}
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Resolve and validate PR context from the triggering run
+        id: pr-context
+        env:
+          WORKFLOW_RUN_JSON: ${{ toJSON(github.event.workflow_run) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr_number=$(python3 -c 'import json, os; run = json.loads(os.environ["WORKFLOW_RUN_JSON"]); prs = run.get("pull_requests") or []; print(prs[0]["number"] if prs else "")')
+          if [[ -z "$pr_number" ]]; then
+            echo "::error::workflow_run event carries no associated pull request; refusing to guess one"
+            exit 1
+          fi
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      # The PR's own file content is read-only DATA for the sandboxed Codex
+      # review, not code this trusted workflow executes -- so it is safe to
+      # check out at the repo root, matching what the review prompt expects
+      # (repository paths and sensei-activation/ as siblings). The one thing
+      # that must NOT come from this checkout is the prompt/schema pair that
+      # tells the model what to do; those are overwritten from the default
+      # branch below, after this checkout, so a PR can never rewrite its own
+      # review instructions.
+      - name: Checkout exact PR head as read-only review data
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download Sensei activation evidence from the triggering run
+        id: activation-evidence
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: sensei-architect-activation
+          path: sensei-activation
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Explain unavailable activation evidence
+        if: steps.activation-evidence.outcome != 'success'
+        run: |
+          echo "Codex architect review was not executed because the activation evidence artifact is unavailable." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Bind evidence to the exact triggering run head
+        if: steps.activation-evidence.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          recorded=$(python3 -c 'import json; print(json.load(open("sensei-activation/activation.json"))["head_revision"])')
+          expected="${{ github.event.workflow_run.head_sha }}"
+          if [[ "$recorded" != "$expected" ]]; then
+            echo "::error::activation evidence head_revision ($recorded) does not match the triggering run head ($expected) -- refusing to review a mismatched pair"
+            exit 1
+          fi
+
+      - name: Explain unavailable Codex review
+        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY == ''
+        run: |
+          echo "Codex architect review was not executed because OPENAI_API_KEY is not configured." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Overwrite the PR's own copies of the prompt/schema with the default
+      # branch's versions. actions/checkout with no ref resolves to this
+      # repository's default branch on a workflow_run event (never the PR
+      # head), so trusted-config/.github/codex/* is guaranteed untouched by
+      # the PR regardless of what review-instructing content it shipped.
+      - name: Fetch trusted review instructions from the default branch
+        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY != ''
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/codex
+          sparse-checkout-cone-mode: false
+          path: trusted-config
+
+      - name: Overlay trusted review instructions
+        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .github/codex
+          cp -f trusted-config/.github/codex/sensei-architect-review.md .github/codex/sensei-architect-review.md
+          cp -f trusted-config/.github/codex/sensei-architect-review.schema.json .github/codex/sensei-architect-review.schema.json
+
+      - name: Run capability-read-only Codex architect review
+        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY != ''
+        id: codex
+        # Pinned to the commit the "v1" tag resolved to on 2026-08-02.
+        # A mutable tag would let a future upstream release change what this
+        # secret-bearing step executes without this workflow ever changing.
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1
+        with:
+          openai-api-key: ${{ env.OPENAI_API_KEY }}
+          prompt-file: .github/codex/sensei-architect-review.md
+          output-schema-file: .github/codex/sensei-architect-review.schema.json
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          allow-users: davecourtois
+
+      - name: Persist closed Codex review
+        if: steps.codex.outputs.final-message != ''
+        id: persist-review
+        env:
+          CODEX_REVIEW: ${{ steps.codex.outputs.final-message }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p codex-review
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          review = json.loads(os.environ["CODEX_REVIEW"])
+          if review.get("verdict") not in {"pass", "warn", "block", "cannot_verify"}:
+              raise SystemExit("Codex review has an invalid verdict")
+          Path("codex-review/review.json").write_text(
+              json.dumps(review, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Codex review evidence
+        if: steps.persist-review.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensei-codex-architect-review
+          path: codex-review/review.json
+          if-no-files-found: error
+
+      - name: Publish Codex review summary
+        if: steps.persist-review.outputs.available == 'true'
+        shell: bash
+        run: |
+          {
+            echo "## Codex Sensei architect review"
+            echo
+            echo '```json'
+            cat codex-review/review.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce Codex architectural verdict
+        if: steps.persist-review.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          verdict=$(python3 -c 'import json; print(json.load(open("codex-review/review.json"))["verdict"])')
+          case "$verdict" in
+            pass)
+              ;;
+            warn)
+              echo "::warning::Codex architect review returned warn"
+              ;;
+            block|cannot_verify)
+              echo "::error::Codex architect review returned $verdict"
+              exit 1
+              ;;
+            *)
+              echo "::error::Unknown Codex verdict: $verdict"
+              exit 1
+              ;;
+          esac
+
+  publish-codex-review:
+    needs: codex-architect
+    if: always() && needs.codex-architect.outputs.review_available == 'true'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download closed Codex review
+        uses: actions/download-artifact@v4
+        with:
+          name: sensei-codex-architect-review
+          path: codex-review
+
+      - name: Upsert PR architect comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- sensei-codex-architect -->';
+            const review = fs.readFileSync('codex-review/review.json', 'utf8').trim();
+            JSON.parse(review);
+            const body = `${marker}\n## Sensei Codex architect review\n\n\`\`\`json\n${review}\n\`\`\``;
+            const { owner, repo } = context.repo;
+            const issue_number = Number(${{ needs.codex-architect.outputs.pr_number }});
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const prior = comments.find(comment => comment.body && comment.body.includes(marker));
+            if (prior) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: prior.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
