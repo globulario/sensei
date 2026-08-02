@@ -249,9 +249,15 @@ func lifecyclePolicyFactory(failureClass string, recommendation synthesis.Recomm
 	return EvaluationPolicyFactoryFunc(func(_ context.Context, state synthesis.SessionState, handoff runnercomposition.VerifiedGenerationHandoff) (evaluatorcomposition.EvaluationPolicy, error) {
 		mappings := []evaluatorcomposition.FailureClassRecommendation{}
 		if failureClass != "" {
-			mappings = append(mappings, evaluatorcomposition.FailureClassRecommendation{
-				FailureClass: failureClass, Recommendation: recommendation,
-			})
+			mappings = append(mappings,
+				evaluatorcomposition.FailureClassRecommendation{
+					FailureClass: failureClass, Recommendation: recommendation,
+				},
+				evaluatorcomposition.FailureClassRecommendation{
+					FailureClass:   evaluatorcomposition.FailureClassRequiredCheckUnsatisfied,
+					Recommendation: recommendation,
+				},
+			)
 		}
 		policy := evaluatorcomposition.EvaluationPolicy{
 			SchemaVersion:                 evaluatorcomposition.EvaluationPolicySchemaVersion,
