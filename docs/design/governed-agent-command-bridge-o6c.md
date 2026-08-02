@@ -1,6 +1,6 @@
 # Governed Agent Command Bridge O6C
 
-Status: implementation contract
+Status: implementation checkpoint
 
 ## Purpose
 
@@ -14,6 +14,17 @@ A raw Codex or Claude process does not natively speak Sensei's closed O2 request
 4. O3 supplies a canonical preview of input, proposed-change, and final-candidate evidence.
 5. The bridge composes one closed O2 `Result` carrying the corresponding `synthesis.Attempt`.
 6. O3 closes the workspace and independently recomputes the same evidence before sealing the candidate. Any divergence remains `digest-mismatch`.
+
+## Implemented surface
+
+- `runnercomposition.CandidateEvidencePreviewer` computes a read-locked preview through O3's existing manifest and Git-change owners;
+- `agentcommand.MutationPlan` defines the closed five-operation vocabulary and a Go-owned semantic digest;
+- `agentcommand.Factory` creates a fresh workspace-bound generation provider for each O3 attempt;
+- accepted-plan file paths are the only snapshot bytes disclosed to an external agent;
+- mutation plans are applied only through `CandidateWorkspace`;
+- `commandprovider.RunRawCommand` reuses O6's direct argv, environment allowlist, byte limits, and process-tree cancellation;
+- Codex and Claude constructors freeze noninteractive direct argv and decode only the vendor's final textual answer;
+- helper-free tests cover operation routing, evidence binding, path traversal, duplicate IDs, unknown fields, vendor-envelope parity, filesystem-authority absence, and closed-workspace behavior.
 
 ## New bounded contracts
 
@@ -43,7 +54,7 @@ The mutation plan contains no repository root, command, shell, environment, admi
 
 ## Provider profiles
 
-Codex and Claude profiles are configuration constructors over a common `AgentCommand` interface. They define only:
+Codex and Claude profiles are configuration constructors over a common `Agent` interface. They define only:
 
 - provider identity and model observation;
 - executable and direct argv;
@@ -54,7 +65,7 @@ Codex and Claude profiles are configuration constructors over a common `AgentCom
 
 Profiles do not choose providers dynamically and do not own authentication. Credentials are inherited only when their variable names are explicitly allowlisted by the caller.
 
-The command process receives a prompt containing the closed task, plan, bounded snapshot files selected by the accepted plan, and the mutation-plan JSON schema. It receives no candidate worktree path. All built-in filesystem, shell, Git, network, commit, and GitHub tools must be disabled by profile configuration. The bridge accepts only the mutation-plan JSON returned in the command's textual result.
+The command process receives a prompt containing the accepted plan, bounded snapshot files selected by that plan, and the mutation-plan field contract. It receives no candidate worktree path. Built-in filesystem, shell, discovery, and web tools are disabled by profile configuration. The bridge accepts only the mutation-plan JSON returned in the command's textual result.
 
 ## Hard laws
 
@@ -87,5 +98,5 @@ The command process receives a prompt containing the closed task, plan, bounded 
 - provider cannot mutate after workspace close;
 - evidence preview is O3-computed and post-close recomputation catches divergence;
 - Codex and Claude profiles produce deterministic direct argv and deny ambient credentials unless explicitly allowlisted;
-- deterministic helper-command tests require no external credentials;
+- deterministic tests require no external credentials;
 - full repository CI, dogfood, generated import graph, and cold-start smokes pass on the exact accepted head.
