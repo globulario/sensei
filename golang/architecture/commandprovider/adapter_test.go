@@ -368,10 +368,7 @@ func TestProviderPortRunComposesWithoutGrantingResultAuthority(t *testing.T) {
 	}
 }
 
-func TestCancellationTerminatesCompleteUnixProcessGroup(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows fallback terminates the direct process; Unix group proof is platform-specific")
-	}
+func TestCancellationTerminatesCompleteProcessTree(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "child-survived")
 	t.Setenv(helperMarker, marker)
 	adapter := testAdapter(t, "sleep-tree")

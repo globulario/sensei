@@ -459,6 +459,7 @@ components:
       - golang/architecture/commandprovider/config.go
       - golang/architecture/commandprovider/process_other.go
       - golang/architecture/commandprovider/process_unix.go
+      - golang/architecture/commandprovider/process_windows.go
       - golang/architecture/completion/authority.go
       - golang/architecture/completion/closure_report.go
       - golang/architecture/completion/complete.go

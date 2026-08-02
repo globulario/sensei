@@ -27,7 +27,8 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 - `adapter.go` owns direct argv execution and the closed stdin/stdout protocol;
 - `buffer.go` owns bounded stdout and stderr observation collection;
 - `process_unix.go` terminates the complete process group on cancellation;
-- `process_other.go` supplies the portable direct-process fallback;
+- `process_windows.go` terminates the complete provider tree through the operating system task-tree facility;
+- `process_other.go` supplies the bounded direct-process fallback for remaining platforms;
 - `adapter_test.go` proves schema closure, digest binding, environment isolation, immutable literal argv construction, typed unsupported capability, O2 `Run` composition, and Unix descendant cleanup;
 - the canonical generated Go import graph records the package's dependencies on `providerport` and `synthesis`.
 
@@ -36,7 +37,7 @@ No vendor constructor, authentication policy, provider selection, prompt templat
 ## Initial scope
 
 - generic command adapter;
-- Linux/Unix process-group termination plus a portable fallback file;
+- Unix process-group and Windows process-tree termination plus a portable fallback file;
 - deterministic configuration validation;
 - capability snapshot generation;
 - closed stdin/stdout protocol;
