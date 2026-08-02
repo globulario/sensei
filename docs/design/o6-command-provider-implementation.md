@@ -21,6 +21,17 @@ This checkpoint composes `golang/architecture/providerport`; it does not drive O
 9. Returned result payloads remain untrusted until existing `providerport.Run`, mapping, and O1 transition owners accept them.
 10. Tests use deterministic helper processes and require no external provider credentials.
 
+## Implemented surface
+
+- `config.go` owns explicit immutable capability and deterministic `Describe` identity;
+- `adapter.go` owns direct argv execution and the closed stdin/stdout protocol;
+- `buffer.go` owns bounded stdout and stderr observation collection;
+- `process_unix.go` terminates the complete process group on cancellation;
+- `process_other.go` supplies the portable direct-process fallback;
+- `adapter_test.go` proves schema closure, digest binding, environment isolation, literal argv handling, typed unsupported capability, O2 `Run` composition, and Unix descendant cleanup.
+
+No vendor constructor, authentication policy, provider selection, prompt template, worktree mutation, session driver, admission call, candidate application, commit, push, pull request, merge, or promotion capability is present.
+
 ## Initial scope
 
 - generic command adapter;
