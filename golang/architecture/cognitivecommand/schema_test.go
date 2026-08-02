@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
 func TestEmbeddedProposalSchemasMatchCanonicalSources(t *testing.T) {
