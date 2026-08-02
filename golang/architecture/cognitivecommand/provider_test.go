@@ -168,7 +168,7 @@ func TestCognitiveProviderRejectsIdentityOverrideAsTypedInvalidOutput(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.TerminalOutcome != providerport.OutcomeInvalidOutput || !strings.Contains(result.Detail, "unknown field") {
+	if result.TerminalOutcome != providerport.OutcomeInvalidOutput || !strings.Contains(result.Detail, "additionalProperties") || !strings.Contains(result.Detail, "objective") {
 		t.Fatalf("result=%#v", result)
 	}
 }
