@@ -70,18 +70,18 @@ func Apply(ctx context.Context, in ApplyInput, completedAt string) (Request, Rec
 	}
 	root, err := validateTargetRoot(ctx, in.TargetRoot, req.BaseRevision)
 	if err != nil {
-		return Request{}, Receipt{}, err
+		return req, Receipt{}, err
 	}
 	baseByPath, finalByPath, err := indexedManifests(in.BaseManifest, in.CandidateArtifact.Manifest)
 	if err != nil {
-		return Request{}, Receipt{}, err
+		return req, Receipt{}, err
 	}
 
 	staged := make([]*stagedReplacement, 0, len(req.ModifyPaths))
 	cleanup := func() {
 		for _, item := range staged {
 			_ = os.Remove(item.temporary)
-			if !item.applied {
+			if item.backup != "" {
 				_ = os.Remove(item.backup)
 			}
 		}
@@ -92,52 +92,57 @@ func Apply(ctx context.Context, in ApplyInput, completedAt string) (Request, Rec
 		before, okBefore := baseByPath[path]
 		after, okAfter := finalByPath[path]
 		if !okBefore || !okAfter {
-			return Request{}, Receipt{}, fmt.Errorf("candidateapply: modify path %q is missing from base or final manifest", path)
+			return req, Receipt{}, fmt.Errorf("candidateapply: modify path %q is missing from base or final manifest", path)
 		}
 		item, err := stageReplacement(root, before, after)
 		if err != nil {
-			return Request{}, Receipt{}, err
+			return req, Receipt{}, err
 		}
 		staged = append(staged, item)
 	}
 
 	for i, item := range staged {
 		if err := verifyFile(item.destination, item.before); err != nil {
-			rollback(staged[:i])
-			return Request{}, Receipt{}, fmt.Errorf("candidateapply: target changed during staging for %q: %w", item.path, err)
+			cause := fmt.Errorf("candidateapply: target changed during staging for %q: %w", item.path, err)
+			return req, Receipt{}, withRollback(staged[:i], cause)
 		}
 		if err := os.Rename(item.destination, item.backup); err != nil {
-			rollback(staged[:i])
-			return Request{}, Receipt{}, fmt.Errorf("candidateapply: backup %q: %w", item.path, err)
-		}
-		if err := os.Rename(item.temporary, item.destination); err != nil {
-			_ = os.Rename(item.backup, item.destination)
-			rollback(staged[:i])
-			return Request{}, Receipt{}, fmt.Errorf("candidateapply: replace %q: %w", item.path, err)
+			cause := fmt.Errorf("candidateapply: backup %q: %w", item.path, err)
+			return req, Receipt{}, withRollback(staged[:i], cause)
 		}
 		item.applied = true
+		if err := os.Rename(item.temporary, item.destination); err != nil {
+			cause := fmt.Errorf("candidateapply: replace %q: %w", item.path, err)
+			return req, Receipt{}, withRollback(staged[:i+1], cause)
+		}
 	}
 
 	for _, item := range staged {
 		if err := verifyFile(item.destination, item.after); err != nil {
-			rollback(staged)
-			return Request{}, Receipt{}, fmt.Errorf("candidateapply: post-apply verification for %q: %w", item.path, err)
+			cause := fmt.Errorf("candidateapply: post-apply verification for %q: %w", item.path, err)
+			return req, Receipt{}, withRollback(staged, cause)
 		}
+	}
+
+	// Backup files are transaction-local evidence. Remove them before the
+	// admission owner observes the worktree. Rollback remains possible from
+	// the immutable base manifest if capture or scope verification fails.
+	for _, item := range staged {
+		if err := os.Remove(item.backup); err != nil {
+			cause := fmt.Errorf("candidateapply: remove backup for %q: %w", item.path, err)
+			return req, Receipt{}, withRollback(staged, cause)
+		}
+		item.backup = ""
 	}
 
 	changes, patchDigest, err := admission.CaptureChanges(root, req.BaseRevision)
 	if err != nil {
-		rollback(staged)
-		return Request{}, Receipt{}, fmt.Errorf("candidateapply: capture changes: %w", err)
+		return req, Receipt{}, withRollback(staged, fmt.Errorf("candidateapply: capture changes: %w", err))
 	}
 	if err := verifyCapturedChanges(req.ModifyPaths, changes); err != nil {
-		rollback(staged)
-		return Request{}, Receipt{}, err
+		return req, Receipt{}, withRollback(staged, err)
 	}
 	for _, item := range staged {
-		if err := os.Remove(item.backup); err != nil {
-			return Request{}, Receipt{}, fmt.Errorf("candidateapply: remove backup for %q: %w", item.path, err)
-		}
 		item.applied = false
 	}
 
@@ -159,7 +164,7 @@ func Apply(ctx context.Context, in ApplyInput, completedAt string) (Request, Rec
 	})
 	digest, err := ReceiptDigest(receipt)
 	if err != nil {
-		return Request{}, Receipt{}, err
+		return req, Receipt{}, err
 	}
 	receipt.ReceiptDigestSHA256 = digest
 	return req, receipt, ValidateReceipt(receipt)
@@ -380,16 +385,63 @@ func verifyFile(path string, expected runnercomposition.CandidateManifestEntry) 
 	return nil
 }
 
-func rollback(items []*stagedReplacement) {
+func withRollback(items []*stagedReplacement, cause error) error {
+	if err := rollback(items); err != nil {
+		return fmt.Errorf("%w; rollback failed: %v", cause, err)
+	}
+	return cause
+}
+
+func rollback(items []*stagedReplacement) error {
+	var failures []string
 	for i := len(items) - 1; i >= 0; i-- {
 		item := items[i]
 		if !item.applied {
 			continue
 		}
 		_ = os.Remove(item.destination)
-		_ = os.Rename(item.backup, item.destination)
+		if item.backup != "" {
+			if err := os.Rename(item.backup, item.destination); err == nil {
+				item.backup = ""
+				item.applied = false
+				continue
+			}
+		}
+		if err := restoreManifestEntry(item.destination, item.before); err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", item.path, err))
+		}
 		item.applied = false
 	}
+	if len(failures) != 0 {
+		return errors.New(strings.Join(failures, "; "))
+	}
+	return nil
+}
+
+func restoreManifestEntry(destination string, entry runnercomposition.CandidateManifestEntry) error {
+	dir := filepath.Dir(destination)
+	tmp, err := os.CreateTemp(dir, ".sensei-candidateapply-restore-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if _, err := tmp.Write(entry.Content); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpName, fileMode(entry.Mode)); err != nil {
+		return err
+	}
+	_ = os.Remove(destination)
+	return os.Rename(tmpName, destination)
 }
 
 func verifyCapturedChanges(wantPaths []string, changes []admission.ChangeReceipt) error {
