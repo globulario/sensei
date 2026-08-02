@@ -22,12 +22,10 @@ import (
 // "fresh" against the other's master until the other has already merged.
 //
 // The fix is ownership-aware comparison. A differing triple is OWNED by this
-// repo only if its subject is produced by regenerating from the
-// awareness-graph-owned corpus alone (agOnly). Owned drift fails the gate (real
-// in-repo staleness/drift). Any other differing triple is EXTERNAL context: it
-// originates from the paired repo's YAML, which may legitimately lead or lag its
-// own master during a cross-repo change — it is reported but never fails this
-// repo's gate (the owning repo's gate is responsible for it).
+// repo only if its precise RDF statement identity is produced by regenerating
+// from the awareness-graph-owned corpus alone (agOnly). Owned drift fails the
+// gate. Any other differing triple is EXTERNAL context and is reported without
+// failing this repo's gate; the owning repo remains responsible for it.
 //
 // This does NOT hide real errors: owned drift still fails, and dangling refs /
 // N-Triples validity / stale generated files are enforced by their own checks.
@@ -35,22 +33,10 @@ import (
 // classifySeedDiff partitions the line-level difference between a committed seed
 // and a freshly generated seed into owned (ag-authored) and external diffs.
 // agOnly is the seed regenerated from the awareness-graph-owned corpus alone.
-//
-// Ownership is keyed by subject+predicate+object-ownership-term, not subject
-// alone. A shared subject can legitimately carry triples from both repos (for
-// example a source file referenced by awareness-graph docs and also annotated
-// from services YAML). Subject-only ownership would misclassify any
-// services-authored edge on that shared subject as awareness-graph-owned drift;
-// subject+predicate is still too coarse when both repos emit different relation
-// targets under the same predicate. The object-ownership-term is the FULL minted
-// id for awareness IRIs (B/#141) — collapsing to the class family ("invariant",
-// "failureMode", ...) was itself too coarse when both repos point the same
-// (subject, predicate) at DIFFERENT objects of the same family (for example AG and
-// services invariants both protecting one source file). Literals still collapse to
-// a kind so a changed literal value on an owned edge still counts as owned drift.
 func classifySeedDiff(committed, generated, agOnly []byte) (owned, external []string) {
 	agOwnershipKeys := ntOwnershipKeys(agOnly)
 	agLines := ntLineSet(agOnly)
+	agLinesBySubjectPredicate := ntLinesBySubjectPredicate(agOnly)
 	committedSet := ntLineSet(committed)
 	generatedSet := ntLineSet(generated)
 
@@ -59,18 +45,7 @@ func classifySeedDiff(committed, generated, agOnly []byte) (owned, external []st
 	// Ownership here is EXACT-LINE, not key-based. Awareness-graph staleness means
 	// "regenerating the AG corpus alone produces a line the committed seed lacks",
 	// which is a statement about the exact triple. Sharing an ownership key with the
-	// paired repo is not evidence AG authored THIS line — and for literal objects the
-	// key collapses to "literal", so any (subject, predicate) both repos mint claims
-	// every value either repo gives it.
-	//
-	// That is the #141 misclassification recurring one layer down. Both repos author
-	// docs/awareness/activation_rules.yaml, and the ids are minted WITHOUT a repo
-	// namespace (rdf.MintIRI(ClassGuardrail, "activation_rule."+id)), so
-	// guardrail/activation_rule.auto_briefing and the activation_empty_policy.* tiers
-	// collide exactly. Each repo's rdfs:comment then matched the other's ownership
-	// key, and 5 services-authored comments were reported as awareness-graph-owned
-	// drift that no AG commit could resolve — AG's regeneration never emits the
-	// services text. Fixtures: globulario/services#218, #219.
+	// paired repo is not evidence AG authored THIS line.
 	for _, l := range ntLines(generated) {
 		if committedSet[l] || isSeedMarkerLine(l) {
 			continue
@@ -84,15 +59,17 @@ func classifySeedDiff(committed, generated, agOnly []byte) (owned, external []st
 
 	// REMOVED drift — present in the committed seed, missing from generated.
 	//
-	// Key-based, deliberately. A removal cannot be matched exact-line against agOnly
-	// (agOnly no longer produces it — that is what "removed" means), so the ownership
-	// key is the only available signal, and treating a shared key as owned is
-	// fail-closed in the safe direction: a dropped AG triple still hard-fails.
+	// Full object identity distinguishes services-authored literals and stable IRIs
+	// on shared subject+predicate edges. A narrow literal-replacement fallback keeps
+	// the gate fail-closed when an AG-owned literal changes value: the new exact AG
+	// line is owned as an addition, and the old line is also owned only when the
+	// committed seed contains no current AG value for that edge. An extra services
+	// literal coexisting with the current AG line therefore remains external.
 	for _, l := range ntLines(committed) {
 		if generatedSet[l] || isSeedMarkerLine(l) {
 			continue
 		}
-		if agOwnershipKeys[ntOwnershipKey(l)] {
+		if agOwnershipKeys[ntOwnershipKey(l)] || removedOwnedLiteralReplacement(l, committedSet, agLinesBySubjectPredicate) {
 			owned = append(owned, l)
 		} else {
 			external = append(external, l)
@@ -112,18 +89,8 @@ const seedMarkerSubjectPrefix = "<" + seedmeta.NamespaceIRI + "seedBuild/sha256-
 // a function of the artifact it is attached to. That makes it structurally
 // incomparable across build modes: the awareness-graph repo commits a SELF-ONLY
 // seed, while paired-repo CI regenerates a COMBINED one, so the two markers can
-// never agree — by construction, not because anything is stale. Worse, the
-// committed marker's subject is reproduced exactly by the agOnly regeneration
-// (agOnly IS the self-only build), so ownership classification claims it as
-// awareness-graph-owned drift and hard-fails the gate.
-//
-// That is what made embeddata-freshness unsatisfiable: it failed identically on
-// services master and on every services PR (globulario/services#218, #219 are the
-// fixtures), reporting 6 marker triples as owned drift that no commit on either
-// side could reconcile. The marker is metadata ABOUT the artifact, never corpus
-// content, so freshness must not compare it at all — in either direction. The real
-// integrity guarantee for the marker is seedmeta verification (digest and triple
-// count must match the body it is stamped on), which is a different check.
+// never agree by construction. Marker integrity is verified separately by
+// seedmeta; freshness must ignore marker triples in both directions.
 func isSeedMarkerLine(line string) bool {
 	return strings.HasPrefix(line, seedMarkerSubjectPrefix)
 }
@@ -176,45 +143,56 @@ func ntSubjectPredicate(line string) string {
 }
 
 // ntOwnershipKey returns the ownership bucket for a triple: subject +
-// predicate + object ownership-term. For a minted awareness IRI the term is the
-// FULL id (e.g. invariant/convergence.identity_is_build_id), NOT the collapsed
-// class family.
-//
-// B (#141): collapsing every invariant object to the family "invariant" mis-owned
-// a services-invariant edge as awareness-graph-owned whenever an AG-owned invariant
-// referenced the SAME source file in its protects.files — the
-// subject+predicate+family key collided (e.g. AG `state_authority_invariants.yaml`
-// and the services `convergence.identity_is_build_id` both protect
-// release_runtime_convergence.go). Keying by the full minted id distinguishes the
-// specific target so each repo's invariant edge classifies by its own owner.
-// Non-awareness IRIs/bnodes/literals still collapse to a kind so a changed literal
-// value on an owned edge still counts as owned drift.
+// predicate + object ownership term. Minted awareness IRIs keep their compact
+// full id. Stable external IRIs and literals keep their complete N-Triples
+// identity so repositories cannot claim each other's values merely because they
+// share a subject and predicate. Blank-node labels remain serialization-local
+// and therefore collapse to the bnode kind.
 func ntOwnershipKey(line string) string {
 	fields := strings.Fields(line)
 	if len(fields) < 3 {
 		return line
 	}
-	return fields[0] + " " + fields[1] + " " + ntObjectOwnershipTerm(fields[2])
+	object := ntObjectTerm(line)
+	if object == "" {
+		return line
+	}
+	return fields[0] + " " + fields[1] + " " + ntObjectOwnershipTerm(object)
 }
 
-// ntObjectOwnershipTerm returns the ownership-distinguishing term for a triple's
-// object. A minted awareness IRI returns its FULL id so edges to different
-// invariants (or any minted node) classify by the specific target's owner, not a
-// collapsed family (B/#141). Non-awareness IRIs, bnodes, and literals collapse to
-// a kind, preserving owned-drift detection on changed literal values.
+// ntObjectTerm extracts the complete N-Triples object, preserving literals with
+// spaces, language tags, and datatype suffixes. Subject and predicate are
+// whitespace-free RDF terms, so the object begins after the second token and
+// ends before the terminal " .".
+func ntObjectTerm(line string) string {
+	line = strings.TrimSpace(line)
+	first := strings.IndexAny(line, " \t")
+	if first < 0 {
+		return ""
+	}
+	rest := strings.TrimLeft(line[first:], " \t")
+	second := strings.IndexAny(rest, " \t")
+	if second < 0 {
+		return ""
+	}
+	object := strings.TrimSpace(rest[second:])
+	if strings.HasSuffix(object, " .") {
+		object = strings.TrimSpace(object[:len(object)-2])
+	}
+	return object
+}
+
+// ntObjectOwnershipTerm preserves stable RDF object identity. Awareness IRIs
+// retain their compact minted id for readable diagnostics; other IRIs and
+// literals remain exact. Blank nodes collapse because their labels are scoped to
+// one serialization and cannot provide cross-artifact identity.
 func ntObjectOwnershipTerm(term string) string {
 	if strings.HasPrefix(term, "<https://globular.io/awareness#") {
 		trimmed := strings.TrimPrefix(term, "<https://globular.io/awareness#")
 		return strings.TrimSuffix(trimmed, ">")
 	}
-	if strings.HasPrefix(term, "<") {
-		return "iri"
-	}
 	if strings.HasPrefix(term, "_:") {
 		return "bnode"
-	}
-	if strings.HasPrefix(term, "\"") {
-		return "literal"
 	}
 	return term
 }
@@ -227,11 +205,39 @@ func ntOwnershipKeys(b []byte) map[string]bool {
 	return m
 }
 
+func ntLinesBySubjectPredicate(b []byte) map[string][]string {
+	m := map[string][]string{}
+	for _, l := range ntLines(b) {
+		key := ntSubjectPredicate(l)
+		m[key] = append(m[key], l)
+	}
+	return m
+}
+
+// removedOwnedLiteralReplacement recognizes the removed side of a genuine
+// AG-owned literal value change without reintroducing literal-kind collisions.
+// It applies only when AG owns the subject+predicate and the committed seed does
+// not already contain any current exact AG line for that edge.
+func removedOwnedLiteralReplacement(line string, committedSet map[string]bool, agLinesBySubjectPredicate map[string][]string) bool {
+	if !strings.HasPrefix(ntObjectTerm(line), "\"") {
+		return false
+	}
+	agLines := agLinesBySubjectPredicate[ntSubjectPredicate(line)]
+	if len(agLines) == 0 {
+		return false
+	}
+	for _, agLine := range agLines {
+		if committedSet[agLine] {
+			return false
+		}
+	}
+	return true
+}
+
 // generateAgOnlyNT regenerates the seed from the awareness-graph-owned corpus
-// alone (this repo's docs/awareness). The resulting subjects define what this
-// repo "owns" for ownership-aware freshness. On any error it returns a nil slice
-// — callers MUST treat nil as "ownership unknown" and fall back to strict
-// comparison so a generation failure can never silently hide drift.
+// alone (this repo's docs/awareness). The resulting statements define what this
+// repo owns. On any error it returns nil; callers must then fall back to strict
+// comparison so a generation failure cannot silently hide drift.
 func generateAgOnlyNT(agRepo string) []byte {
 	if strings.TrimSpace(agRepo) == "" {
 		return nil
@@ -249,9 +255,7 @@ func generateAgOnlyNT(agRepo string) []byte {
 
 // runSeedFreshness is the `sensei seed-freshness` subcommand. It performs an
 // ownership-aware comparison of a committed seed against a freshly generated
-// one, exiting non-zero only when this repo's OWNED triples drift. It is the
-// awareness-graph-side gate (called by build-awareness-graph.sh), the mirror of
-// the services-side embeddata-freshness audit check.
+// one, exiting non-zero only when this repo's owned triples drift.
 func runSeedFreshness(args []string) int {
 	fs := flag.NewFlagSet("sensei seed-freshness", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -294,8 +298,6 @@ reported as cross-repo context and never fail this repo's gate.
 
 	agOnly := generateAgOnlyNT(root)
 	if agOnly == nil {
-		// Ownership unknown — fall back to strict whole-file comparison so a
-		// generation failure cannot hide drift.
 		fmt.Fprintln(os.Stderr, "sensei seed-freshness: WARNING could not derive owned corpus; falling back to strict comparison")
 		if string(committed) == string(generated) {
 			fmt.Println("seed-freshness: current (strict)")
