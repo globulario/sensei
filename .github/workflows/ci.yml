@@ -76,6 +76,33 @@ jobs:
       - name: Run tests
         run: go test ./... -count=1 -timeout 300s
 
+      - name: "Sensei gates its own diff (report-only)"
+        # Advisory only: never blocks CI (see --report-only in `sensei gate
+        # --help`). This repo has never gated its own PRs before -- this step
+        # exists to let real findings accumulate and be seen before any future
+        # decision to switch this same diff check to --enforce.
+        run: |
+          scripts/fetch-oxigraph.sh
+          make sensei
+          DATA_DIR="$(mktemp -d)"
+          MARKER_FILE="$(mktemp)"
+          ./bin/sensei serve -no-seed -allow-stale-seed \
+            -data "$DATA_DIR" -addr :19120 -oxigraph-bind 127.0.0.1:19878 \
+            -graph-marker-file "$MARKER_FILE" \
+            > /tmp/sensei-gate-serve.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 3
+          ./bin/sensei build --all -store-url "http://127.0.0.1:19878/store?default" -graph-marker-file "$MARKER_FILE"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=200 --quiet
+            DIFF_RANGE="origin/${{ github.event.pull_request.base.ref }}...HEAD"
+          else
+            DIFF_RANGE="HEAD~1...HEAD"
+          fi
+          echo "diff range: ${DIFF_RANGE}"
+          ./bin/sensei gate --diff "${DIFF_RANGE}" --report-only --addr localhost:19120
+
       - name: "Cold-start smoke (stranger path: init -> serve -no-seed -> build -> briefing)"
         # Fetches the upstream Oxigraph binary, scaffolds a throwaway project in
         # /tmp, and proves the standalone path end to end.
