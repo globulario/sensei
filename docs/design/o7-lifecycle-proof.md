@@ -12,4 +12,6 @@ The O7 implementation is exercised through the same typed driver entry point for
 - receipt identity: changing observation timestamps does not change the O7 semantic digest;
 - receipt closure: the canonical and embedded Draft 2020-12 schemas are byte-identical and reject invented GitHub or merge authority.
 
+The retry and replan policies explicitly map both the evaluator-owned failure class and O4's policy-owned `required-check-unsatisfied` class. O4 never guesses a recommendation for an unmapped class, so the test policy proves the same complete disposition contract a production caller must provide.
+
 All generation and evaluation tests use deterministic local implementations and require no external credentials.
