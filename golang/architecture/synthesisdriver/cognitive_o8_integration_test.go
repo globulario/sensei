@@ -31,9 +31,9 @@ func (a *cognitiveSequenceAgent) Complete(_ context.Context, prompt []byte, _ pr
 
 func TestO7CompletesWithO8CognitiveProviders(t *testing.T) {
 	interpretationJSON, err := json.Marshal(cognitivecommand.InterpretationProposal{
-		SchemaVersion:             cognitivecommand.InterpretationProposalSchemaVersion,
-		ApplicableIntent:          []string{"intent.o8.integration"},
-		BindingInvariants:         []string{},
+		SchemaVersion:            cognitivecommand.InterpretationProposalSchemaVersion,
+		ApplicableIntent:         []string{"intent.o8.integration"},
+		BindingInvariants:        []string{},
 		RelevantContracts:        []string{},
 		AuthorityBoundaries:      []string{"command-output-is-not-authority"},
 		KnownFailureModes:        []string{},
