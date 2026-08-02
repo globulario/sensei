@@ -866,6 +866,21 @@ test_symbols:
     symbol: TestArchitectSkillLabelsDialogueNonAuthoritative
     package: main
     language: go
+  - id: cmd/awg/audit_test_coverage_test.go:TestAssessRepositoryTestCoverage_InlineRegistryAndMissing
+    file: cmd/awg/audit_test_coverage_test.go
+    symbol: TestAssessRepositoryTestCoverage_InlineRegistryAndMissing
+    package: main
+    language: go
+  - id: cmd/awg/audit_test_coverage_test.go:TestAssessRepositoryTestCoverage_MalformedRegistryIsVisible
+    file: cmd/awg/audit_test_coverage_test.go
+    symbol: TestAssessRepositoryTestCoverage_MalformedRegistryIsVisible
+    package: main
+    language: go
+  - id: cmd/awg/audit_test_coverage_test.go:TestAssessRepositoryTestCoverage_RequiresExactRegistryBinding
+    file: cmd/awg/audit_test_coverage_test.go
+    symbol: TestAssessRepositoryTestCoverage_RequiresExactRegistryBinding
+    package: main
+    language: go
   - id: cmd/awg/authority_output_test.go:TestPrintGraphAuthority_ShowsFreshnessAndProvenance
     file: cmd/awg/authority_output_test.go
     symbol: TestPrintGraphAuthority_ShowsFreshnessAndProvenance
@@ -12811,6 +12826,11 @@ test_symbols:
     symbol: TestResolveRepoPath_WindowsDriveAndUNCPathsFail
     package: protection
     language: go
+  - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_DeclaredExternalTargetsAreAccepted
+    file: golang/architecture/protection/relations_test.go
+    symbol: TestGovernedRelationReasons_DeclaredExternalTargetsAreAccepted
+    package: protection
+    language: go
   - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_DirectRolesOnly
     file: golang/architecture/protection/relations_test.go
     symbol: TestGovernedRelationReasons_DirectRolesOnly
@@ -12822,6 +12842,11 @@ test_symbols:
     package: protection
     language: go
     doc: "contract §4/§6 correction (second review round): an invalid governed-\nrelation target (one that escapes the repository) must be reported as\nmalformed, not silently dropped — the prior behavior let the target just\nvanish with no diagnostic, which could hide a real authoring mistake\nbehind an apparently-clean COMPLETE result."
+  - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_MalformedExternalPolicyIsVisible
+    file: golang/architecture/protection/relations_test.go
+    symbol: TestGovernedRelationReasons_MalformedExternalPolicyIsVisible
+    package: protection
+    language: go
   - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed
     file: golang/architecture/protection/relations_test.go
     symbol: TestGovernedRelationReasons_NonYAMLGovernedSourceIsNotMalformed
@@ -12831,6 +12856,11 @@ test_symbols:
   - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_RequiredTestSplitsFileFromTestName
     file: golang/architecture/protection/relations_test.go
     symbol: TestGovernedRelationReasons_RequiredTestSplitsFileFromTestName
+    package: protection
+    language: go
+  - id: golang/architecture/protection/relations_test.go:TestGovernedRelationReasons_UndeclaredRuntimeTargetRemainsMalformed
+    file: golang/architecture/protection/relations_test.go
+    symbol: TestGovernedRelationReasons_UndeclaredRuntimeTargetRemainsMalformed
     package: protection
     language: go
   - id: golang/architecture/protection/snapshot_test.go:TestCompareSnapshot_AllFourStates
@@ -12860,12 +12890,22 @@ test_symbols:
     symbol: TestSnapshot_PublishThenLoadRoundTrips
     package: protection
     language: go
+  - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_DirectTopLevelCandidates
+    file: golang/architecture/protection/structural_test.go
+    symbol: TestCandidateSignalReasons_DirectTopLevelCandidates
+    package: protection
+    language: go
   - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped
     file: golang/architecture/protection/structural_test.go
     symbol: TestCandidateSignalReasons_InvalidTargetIsReportedMalformedNotSilentlyDropped
     package: protection
     language: go
     doc: "contract §4/§6 correction (second review round): an invalid candidate\ntarget (escaping the repository) must be reported as malformed, not\nsilently dropped."
+  - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_MixedDirectAndWrappedIsMalformed
+    file: golang/architecture/protection/structural_test.go
+    symbol: TestCandidateSignalReasons_MixedDirectAndWrappedIsMalformed
+    package: protection
+    language: go
   - id: golang/architecture/protection/structural_test.go:TestCandidateSignalReasons_ProvisionalOnly
     file: golang/architecture/protection/structural_test.go
     symbol: TestCandidateSignalReasons_ProvisionalOnly
