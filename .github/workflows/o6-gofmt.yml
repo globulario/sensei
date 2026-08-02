@@ -1,0 +1,30 @@
+name: O6 gofmt repair
+
+on:
+  push:
+    branches:
+      - agent/o6-command-provider
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/o6-command-provider
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: |
+          set -euo pipefail
+          gofmt -w golang/architecture/commandprovider
+          rm -f .github/workflows/o6-gofmt.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add golang/architecture/commandprovider .github/workflows/o6-gofmt.yml
+          git commit -m 'style(commandprovider): apply gofmt'
+          git push origin HEAD:agent/o6-command-provider
