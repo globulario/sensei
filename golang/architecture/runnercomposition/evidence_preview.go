@@ -5,7 +5,6 @@ package runnercomposition
 import (
 	"context"
 	"fmt"
-	"sync"
 )
 
 // CandidateEvidence is O3's read-only preview of the exact evidence a
@@ -18,99 +17,20 @@ type CandidateEvidence struct {
 	FinalCandidateContentDigestSHA256 string
 }
 
-// CandidateEvidencePreviewer is an optional capability implemented by the
-// concrete workspace O3 passes to GenerationProviderFactory. A provider may
-// use it only after applying its proposed operations through CandidateWorkspace.
-// The preview grants no write access and does not replace Run's post-close
-// recomputation and digest comparison.
+// CandidateEvidencePreviewer is an optional capability implemented by O3's
+// concrete filesystem workspace. A provider may use it only after applying
+// its proposed operations through CandidateWorkspace. The preview grants no
+// write access and never replaces Run's post-close recomputation and digest
+// comparison.
 type CandidateEvidencePreviewer interface {
 	PreviewCandidateEvidence(ctx context.Context) (CandidateEvidence, error)
 }
 
-type evidencePreviewWorkspace struct {
-	mu sync.RWMutex
-
-	workspace    CandidateWorkspace
-	snapshotDir  string
-	bufferDir    string
-	inputDigest  string
-	closed       bool
-}
-
-func newEvidencePreviewWorkspace(workspace CandidateWorkspace, snapshotDir, bufferDir, inputDigest string) CandidateWorkspace {
-	return &evidencePreviewWorkspace{
-		workspace:   workspace,
-		snapshotDir: snapshotDir,
-		bufferDir:   bufferDir,
-		inputDigest: inputDigest,
-	}
-}
-
-func (w *evidencePreviewWorkspace) ReadSnapshot(path string) ([]byte, error) {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	if w.closed {
-		return nil, ErrWorkspaceClosed
-	}
-	return w.workspace.ReadSnapshot(path)
-}
-
-func (w *evidencePreviewWorkspace) WriteCandidate(path string, content []byte) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.closed {
-		return ErrWorkspaceClosed
-	}
-	return w.workspace.WriteCandidate(path, content)
-}
-
-func (w *evidencePreviewWorkspace) Delete(path string) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.closed {
-		return ErrWorkspaceClosed
-	}
-	return w.workspace.Delete(path)
-}
-
-func (w *evidencePreviewWorkspace) Rename(oldPath, newPath string) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.closed {
-		return ErrWorkspaceClosed
-	}
-	return w.workspace.Rename(oldPath, newPath)
-}
-
-func (w *evidencePreviewWorkspace) SetMode(path string, mode CandidateFileMode) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.closed {
-		return ErrWorkspaceClosed
-	}
-	return w.workspace.SetMode(path, mode)
-}
-
-func (w *evidencePreviewWorkspace) Symlink(path, target string) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.closed {
-		return ErrWorkspaceClosed
-	}
-	return w.workspace.Symlink(path, target)
-}
-
-func (w *evidencePreviewWorkspace) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.closed {
-		return nil
-	}
-	w.closed = true
-	return w.workspace.Close()
-}
-
-func (w *evidencePreviewWorkspace) PreviewCandidateEvidence(ctx context.Context) (CandidateEvidence, error) {
+// PreviewCandidateEvidence computes evidence from the exact snapshot and
+// candidate-buffer roots owned by this workspace. The workspace read lock
+// excludes Close and every candidate mutation for the complete computation,
+// so the three returned digests describe one stable candidate state.
+func (w *fsCandidateWorkspace) PreviewCandidateEvidence(ctx context.Context) (CandidateEvidence, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	if w.closed {
@@ -120,7 +40,10 @@ func (w *evidencePreviewWorkspace) PreviewCandidateEvidence(ctx context.Context)
 		return CandidateEvidence{}, err
 	}
 
-	snapshotManifest, err := BuildManifest(w.snapshotDir)
+	snapshotDir := w.snapshotRoot.Name()
+	bufferDir := w.bufferRoot.Name()
+
+	snapshotManifest, err := BuildManifest(snapshotDir)
 	if err != nil {
 		return CandidateEvidence{}, fmt.Errorf("runnercomposition: preview snapshot manifest: %w", err)
 	}
@@ -128,11 +51,8 @@ func (w *evidencePreviewWorkspace) PreviewCandidateEvidence(ctx context.Context)
 	if err != nil {
 		return CandidateEvidence{}, fmt.Errorf("runnercomposition: preview input digest: %w", err)
 	}
-	if inputDigest != w.inputDigest {
-		return CandidateEvidence{}, fmt.Errorf("runnercomposition: preview input digest %q does not match O3 snapshot digest %q", inputDigest, w.inputDigest)
-	}
 
-	finalManifest, err := BuildManifest(w.bufferDir)
+	finalManifest, err := BuildManifest(bufferDir)
 	if err != nil {
 		return CandidateEvidence{}, fmt.Errorf("runnercomposition: preview final manifest: %w", err)
 	}
@@ -140,7 +60,7 @@ func (w *evidencePreviewWorkspace) PreviewCandidateEvidence(ctx context.Context)
 	if err != nil {
 		return CandidateEvidence{}, fmt.Errorf("runnercomposition: preview final digest: %w", err)
 	}
-	changeDigest, err := GitChangeDigest(ctx, w.snapshotDir, w.bufferDir)
+	changeDigest, err := GitChangeDigest(ctx, snapshotDir, bufferDir)
 	if err != nil {
 		return CandidateEvidence{}, fmt.Errorf("runnercomposition: preview change digest: %w", err)
 	}
