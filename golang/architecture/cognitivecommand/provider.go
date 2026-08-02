@@ -121,22 +121,22 @@ func (p *Provider) interpretationResult(request providerport.Request, payload []
 		Blocking: false,
 	})
 	interpretation := synthesis.NormalizeInterpretation(synthesis.Interpretation{
-		SchemaVersion:               synthesis.InterpretationSchemaVersion,
-		InterpretationID:            "interpretation." + requestPrefix(request),
-		SessionDigestSHA256:         request.SessionDigestSHA256,
-		GeneratedBy:                 synthesis.GeneratedBy,
-		Objective:                   request.InterpretationPayload.Objective,
-		ApplicableIntent:            proposal.ApplicableIntent,
-		BindingInvariants:           proposal.BindingInvariants,
-		RelevantContracts:          proposal.RelevantContracts,
-		AuthorityBoundaries:        proposal.AuthorityBoundaries,
-		KnownFailureModes:          proposal.KnownFailureModes,
-		ForbiddenFixes:             proposal.ForbiddenFixes,
-		RequiredProofObligations:   proposal.RequiredProofObligations,
-		Assumptions:                proposal.Assumptions,
-		UnresolvedQuestions:        proposal.UnresolvedQuestions,
-		SourceReferences:           []synthesis.SourceReference{},
-		Limitations:                limitations,
+		SchemaVersion:            synthesis.InterpretationSchemaVersion,
+		InterpretationID:         "interpretation." + requestPrefix(request),
+		SessionDigestSHA256:      request.SessionDigestSHA256,
+		GeneratedBy:              synthesis.GeneratedBy,
+		Objective:                request.InterpretationPayload.Objective,
+		ApplicableIntent:         proposal.ApplicableIntent,
+		BindingInvariants:        proposal.BindingInvariants,
+		RelevantContracts:        proposal.RelevantContracts,
+		AuthorityBoundaries:      proposal.AuthorityBoundaries,
+		KnownFailureModes:        proposal.KnownFailureModes,
+		ForbiddenFixes:           proposal.ForbiddenFixes,
+		RequiredProofObligations: proposal.RequiredProofObligations,
+		Assumptions:              proposal.Assumptions,
+		UnresolvedQuestions:      proposal.UnresolvedQuestions,
+		SourceReferences:         []synthesis.SourceReference{},
+		Limitations:              limitations,
 	})
 	digest, err := synthesis.InterpretationDigest(interpretation)
 	if err != nil {
@@ -230,6 +230,9 @@ func terminalResult(request providerport.Request, outcome providerport.TerminalO
 }
 
 func decodeInterpretationProposal(data []byte) (InterpretationProposal, error) {
+	if err := ValidateInterpretationProposalSchema(data); err != nil {
+		return InterpretationProposal{}, invalidOutput("interpretation proposal schema: %v", err)
+	}
 	var proposal InterpretationProposal
 	if err := decodeOne(data, &proposal); err != nil {
 		return InterpretationProposal{}, err
@@ -253,6 +256,9 @@ func decodeInterpretationProposal(data []byte) (InterpretationProposal, error) {
 }
 
 func decodePlanProposal(data []byte) (PlanProposal, error) {
+	if err := ValidatePlanProposalSchema(data); err != nil {
+		return PlanProposal{}, invalidOutput("plan proposal schema: %v", err)
+	}
 	var proposal PlanProposal
 	if err := decodeOne(data, &proposal); err != nil {
 		return PlanProposal{}, err

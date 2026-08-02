@@ -23,26 +23,26 @@ const (
 type InterpretationProposal struct {
 	SchemaVersion string `json:"schema_version"`
 
-	ApplicableIntent         []string `json:"applicable_intent"`
-	BindingInvariants        []string `json:"binding_invariants"`
-	RelevantContracts        []string `json:"relevant_contracts"`
-	AuthorityBoundaries      []string `json:"authority_boundaries"`
-	KnownFailureModes        []string `json:"known_failure_modes"`
-	ForbiddenFixes           []string `json:"forbidden_fixes"`
-	RequiredProofObligations []string `json:"required_proof_obligations"`
-	Assumptions              []string `json:"assumptions"`
-	UnresolvedQuestions      []string `json:"unresolved_questions"`
+	ApplicableIntent         []string               `json:"applicable_intent"`
+	BindingInvariants        []string               `json:"binding_invariants"`
+	RelevantContracts        []string               `json:"relevant_contracts"`
+	AuthorityBoundaries      []string               `json:"authority_boundaries"`
+	KnownFailureModes        []string               `json:"known_failure_modes"`
+	ForbiddenFixes           []string               `json:"forbidden_fixes"`
+	RequiredProofObligations []string               `json:"required_proof_obligations"`
+	Assumptions              []string               `json:"assumptions"`
+	UnresolvedQuestions      []string               `json:"unresolved_questions"`
 	Limitations              []synthesis.Limitation `json:"limitations"`
 }
 
 // PlanProposal contains only the semantic planning fields. Interpretation
 // identity, plan generation, provider observation, and digest remain Go-owned.
 type PlanProposal struct {
-	SchemaVersion string `json:"schema_version"`
+	SchemaVersion  string               `json:"schema_version"`
 	Steps          []synthesis.PlanStep `json:"steps"`
-	Assumptions    []string `json:"assumptions"`
-	Risks          []string `json:"risks"`
-	StopConditions []string `json:"stop_conditions"`
+	Assumptions    []string             `json:"assumptions"`
+	Risks          []string             `json:"risks"`
+	StopConditions []string             `json:"stop_conditions"`
 }
 
 // Config freezes one O2 cognitive provider's command and identity capability.

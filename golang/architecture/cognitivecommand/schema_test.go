@@ -35,9 +35,9 @@ func TestEmbeddedProposalSchemasMatchCanonicalSources(t *testing.T) {
 
 func TestProposalSchemasRejectIdentityAndAuthorityFields(t *testing.T) {
 	interpretation := InterpretationProposal{
-		SchemaVersion:             InterpretationProposalSchemaVersion,
-		ApplicableIntent:          []string{},
-		BindingInvariants:         []string{},
+		SchemaVersion:            InterpretationProposalSchemaVersion,
+		ApplicableIntent:         []string{},
+		BindingInvariants:        []string{},
 		RelevantContracts:        []string{},
 		AuthorityBoundaries:      []string{},
 		KnownFailureModes:        []string{},
@@ -65,7 +65,7 @@ func TestProposalSchemasRejectIdentityAndAuthorityFields(t *testing.T) {
 	}
 
 	plan := PlanProposal{
-		SchemaVersion: PlanProposalSchemaVersion,
+		SchemaVersion:  PlanProposalSchemaVersion,
 		Steps:          []synthesis.PlanStep{},
 		Assumptions:    []string{},
 		Risks:          []string{},

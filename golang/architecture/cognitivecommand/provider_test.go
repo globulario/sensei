@@ -34,9 +34,9 @@ func (*invalidScriptError) Error() string { return "script exhausted" }
 
 func TestCognitiveProviderAdvancesInterpretationAndPlanningThroughO2AndO1(t *testing.T) {
 	interpretationProposal := InterpretationProposal{
-		SchemaVersion:             InterpretationProposalSchemaVersion,
-		ApplicableIntent:          []string{"intent.test"},
-		BindingInvariants:         []string{"invariant.test"},
+		SchemaVersion:            InterpretationProposalSchemaVersion,
+		ApplicableIntent:         []string{"intent.test"},
+		BindingInvariants:        []string{"invariant.test"},
 		RelevantContracts:        []string{"contract.test"},
 		AuthorityBoundaries:      []string{"provider-output-is-not-authority"},
 		KnownFailureModes:        []string{},
@@ -202,17 +202,17 @@ func cognitiveSession(t *testing.T) synthesis.Session {
 func interpretationRequest(t *testing.T, session synthesis.Session) providerport.Request {
 	t.Helper()
 	request := providerport.NormalizeRequest(providerport.Request{
-		SchemaVersion:                  providerport.RequestSchemaVersion,
-		RequestID:                      "request.cognitive.interpretation",
-		Operation:                      providerport.OperationInterpretation,
-		SessionDigestSHA256:            session.SessionDigestSHA256,
-		RepositoryDomain:               session.RepositoryDomain,
-		BaseRevision:                   session.BaseRevision,
-		ParentArtifactDigestSHA256:     session.SessionDigestSHA256,
-		DeadlineAt:                     "2099-01-01T00:00:00Z",
-		MaxObservationCount:            8,
-		MaxObservationBytes:            4096,
-		InterpretationPayload:          &session,
+		SchemaVersion:              providerport.RequestSchemaVersion,
+		RequestID:                  "request.cognitive.interpretation",
+		Operation:                  providerport.OperationInterpretation,
+		SessionDigestSHA256:        session.SessionDigestSHA256,
+		RepositoryDomain:           session.RepositoryDomain,
+		BaseRevision:               session.BaseRevision,
+		ParentArtifactDigestSHA256: session.SessionDigestSHA256,
+		DeadlineAt:                 "2099-01-01T00:00:00Z",
+		MaxObservationCount:        8,
+		MaxObservationBytes:        4096,
+		InterpretationPayload:      &session,
 	})
 	digest, err := providerport.RequestDigest(request)
 	if err != nil {
