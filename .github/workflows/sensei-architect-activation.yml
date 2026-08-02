@@ -70,7 +70,7 @@ jobs:
             --repo . \
             --sensei ./bin/sensei \
             --addr localhost:19120 \
-            --domain github.com/globulario/sensei \
+            --domain globular \
             --diff "$SENSEI_DIFF" \
             --mode enforce \
             --out sensei-activation
