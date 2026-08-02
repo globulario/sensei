@@ -9,6 +9,7 @@ The O7 implementation is exercised through the same typed driver entry point for
 - runner stop: non-verified O3 evidence stops before any O4 call;
 - required evaluator absence: O4 terminates through its governed unavailable disposition;
 - step limit: the separate O7 bound stops a run without changing O1 retry or replan budgets;
-- receipt identity: changing observation timestamps does not change the O7 semantic digest.
+- receipt identity: changing observation timestamps does not change the O7 semantic digest;
+- receipt closure: the canonical and embedded Draft 2020-12 schemas are byte-identical and reject invented GitHub or merge authority.
 
 All generation and evaluation tests use deterministic local implementations and require no external credentials.
