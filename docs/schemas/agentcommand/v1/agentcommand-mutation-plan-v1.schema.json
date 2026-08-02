@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/agentcommand-mutation-plan-v1.json",
+  "title": "Sensei Agent Command Mutation Plan V1",
+  "description": "The canonical Go-owned mutation plan produced from one external agent proposal. It contains only ordered CandidateWorkspace operations and no repository path, command, admission, completion, Git, or GitHub authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "summary", "operations", "mutation_plan_digest_sha256"],
+  "properties": {
+    "schema_version": { "const": "sensei.agentcommand.mutationplan.v1" },
+    "summary": { "type": "string" },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operation" }
+    },
+    "mutation_plan_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "$defs": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidatePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "kind", "path", "new_path", "content", "mode", "symlink_target"],
+      "properties": {
+        "operation_id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["write", "delete", "rename", "set-mode", "symlink"] },
+        "path": { "$ref": "#/$defs/candidatePath" },
+        "new_path": { "type": "string" },
+        "content": { "type": "string", "contentEncoding": "base64" },
+        "mode": { "enum": ["", "regular", "executable"] },
+        "symlink_target": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "write" } }, "required": ["kind"] },
+          "then": {
+            "properties": {
+              "new_path": { "const": "" },
+              "mode": { "const": "" },
+              "symlink_target": { "const": "" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "delete" } }, "required": ["kind"] },
+          "then": {
+            "properties": {
+              "new_path": { "const": "" },
+              "content": { "const": "" },
+              "mode": { "const": "" },
+              "symlink_target": { "const": "" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "rename" } }, "required": ["kind"] },
+          "then": {
+            "properties": {
+              "new_path": { "$ref": "#/$defs/candidatePath" },
+              "content": { "const": "" },
+              "mode": { "const": "" },
+              "symlink_target": { "const": "" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "set-mode" } }, "required": ["kind"] },
+          "then": {
+            "properties": {
+              "new_path": { "const": "" },
+              "content": { "const": "" },
+              "mode": { "enum": ["regular", "executable"] },
+              "symlink_target": { "const": "" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "symlink" } }, "required": ["kind"] },
+          "then": {
+            "properties": {
+              "new_path": { "const": "" },
+              "content": { "const": "" },
+              "mode": { "const": "" },
+              "symlink_target": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
