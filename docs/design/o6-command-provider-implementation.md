@@ -1,0 +1,52 @@
+# O6 Command Provider Adapter
+
+Status: implementation checkpoint
+
+## Purpose
+
+Implement the first real `providerport.Provider` adapter behind the accepted O2 contract. The adapter executes one explicitly configured external command through direct argv, sends one closed O2 request on stdin, accepts one closed O2 result on stdout, and exposes bounded stderr as observation evidence.
+
+This checkpoint composes `golang/architecture/providerport`; it does not drive O1, evaluate candidates, mutate repositories, perform admission, apply candidates, commit, push, open pull requests, merge, or promote artifacts.
+
+## Accepted laws
+
+1. Command, arguments, working-directory capability, environment allowlist, supported operations, output/observation limits, and the capability observation timestamp are explicit immutable configuration.
+2. Execution uses direct argv. No shell interpolation or shell command string exists.
+3. Exactly one closed `providerport.Request` is encoded to stdin.
+4. Exactly one closed `providerport.Result` is decoded from stdout.
+5. Stderr is bounded observation evidence only.
+6. Ambient environment variables are absent unless their names are explicitly allowlisted.
+7. Cancellation and deadlines terminate the complete provider process tree on Unix and Windows.
+8. Malformed JSON, unknown fields, multiple JSON documents, trailing non-whitespace, oversized stdout, digest mismatch, request/operation mismatch, and unsupported operation become `providerport.OutcomeInvalidOutput` or `providerport.OutcomeUnsupportedCapability` as typed result data.
+9. Returned result payloads remain untrusted until existing `providerport.Run`, mapping, and O1 transition owners accept them.
+10. Tests use deterministic helper processes and require no external provider credentials.
+
+## Implemented surface
+
+- `config.go` owns explicit immutable capability, caller-supplied RFC3339 observation evidence, and deterministic `Describe` identity;
+- `adapter.go` owns direct argv execution and the closed stdin/stdout protocol;
+- `buffer.go` owns bounded stdout and stderr observation collection;
+- `process_unix.go` terminates the complete process group on cancellation;
+- `process_windows.go` terminates the complete provider tree through the operating system task-tree facility;
+- `process_other.go` supplies the bounded direct-process fallback for remaining platforms;
+- `adapter_test.go` proves schema closure, digest binding, environment isolation, immutable literal argv construction, typed unsupported capability, O2 `Run` composition, and descendant process cleanup on the supported CI platforms;
+- the canonical generated Go import graph records the package's dependencies on `providerport` and `synthesis`.
+
+## Verification surface
+
+The command-provider and provider-port suites run without external credentials. Linux executes the complete repository test and cold-start paths. A Windows-native package run executes the same command-provider process-tree test through the Windows task-tree implementation. Normal Sensei dogfood also builds and reviews the branch on Ubuntu and Windows.
+
+No vendor constructor, authentication policy, provider selection, prompt template, worktree mutation, session driver, admission call, candidate application, commit, push, pull request, merge, or promotion capability is present.
+
+## Initial scope
+
+- generic command adapter;
+- Unix process-group and Windows process-tree termination plus a portable fallback file;
+- deterministic configuration validation;
+- capability snapshot generation;
+- closed stdin/stdout protocol;
+- bounded stderr observations;
+- output and process-lifecycle adversarial tests;
+- no Claude- or Codex-specific authentication or vendor policy.
+
+Thin CLI constructors remain a later checkpoint after this generic adapter is accepted.
