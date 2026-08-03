@@ -1,7 +1,7 @@
 {
   "managed_by": "sensei init",
   "skill": "sensei-benchmark",
-  "version": "2026.07.14.1",
+  "version": "2026.08.03.1",
   "source_dir": "templates/skills/sensei-benchmark",
   "files": {
     "README.md": "384551186453f75bc4ff12eaed7e606b18b47ddc0231df4f681b1efdda178217",

@@ -113,6 +113,11 @@ See [references/SPECIALIZED-SKILLS.md](references/SPECIALIZED-SKILLS.md).
    - Run `sensei audit --check --domain <repo-domain>` when checking corpus quality for a repo in a multi-domain graph.
    - Run `sensei gate --diff HEAD --domain <repo-domain> --enforce` when the repository uses a final Sensei gate.
    - Treat gate scope errors, backend errors, and `CANNOT VERIFY` as blockers in enforce mode; use report-only output only as advisory evidence.
+   - Some repositories additionally run this activation sequence automatically
+     in CI on every PR, plus a read-only Codex architectural review. See
+     [references/CI-ACTIVATION-GATE.md](references/CI-ACTIVATION-GATE.md)
+     before treating a CI verdict as this skill's own conclusion, or before
+     touching the workflow files that implement it.
 
 9. Close the learning loop.
    - If the work clarified a contract, invariant, failure mode, forbidden fix, required test, pattern condition, pattern misuse, architecture decision, contract unknown, or coverage gap, propose it as reviewable Sensei knowledge.
@@ -172,6 +177,7 @@ Read the relevant reference before acting:
 - [references/DURABLE-FEEDBACK.md](references/DURABLE-FEEDBACK.md) for proposal discipline.
 - [references/SPECIALIZED-SKILLS.md](references/SPECIALIZED-SKILLS.md) for routing to admission, closure, import, and benchmark skills.
 - [references/GOVERNED-SYNTHESIS.md](references/GOVERNED-SYNTHESIS.md) for the governed synthesis loop: what is merged, its real precondition, and why it is not available by default.
+- [references/CI-ACTIVATION-GATE.md](references/CI-ACTIVATION-GATE.md) for the CI-enforced activation sequence and read-only Codex review some repositories run on every PR, its authority boundaries, and its current honest-red state on this repository.
 
 ## Non-Negotiables
 

@@ -1,7 +1,7 @@
 {
   "managed_by": "sensei init",
   "skill": "sensei-import",
-  "version": "2026.07.14.1",
+  "version": "2026.08.03.1",
   "source_dir": "templates/skills/sensei-import",
   "files": {
     "README.md": "a93dc22769dfe8791168ae0a370a021d52df25c14f5a700760a3a6fe449956b1",

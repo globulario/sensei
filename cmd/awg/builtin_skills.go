@@ -15,7 +15,7 @@ import (
 )
 
 const skillManifestName = ".sensei-managed.json"
-const builtinSkillVersion = "2026.07.14.1"
+const builtinSkillVersion = "2026.08.03.1"
 
 type builtinSkill struct {
 	Name      string

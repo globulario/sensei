@@ -113,6 +113,13 @@ Stop conditions:
 
 ## Code Review and Pull-Request Review
 
+Some repositories also run this branch automatically in CI on every PR (a
+private per-PR governed graph plus a read-only Codex architectural review).
+See [CI-ACTIVATION-GATE.md](CI-ACTIVATION-GATE.md) before treating an
+automated verdict as equivalent to this branch's own completion criteria —
+it is advisory evidence with the same authority limits as any other Sensei
+surface, not a substitute for it.
+
 Review separate axes:
 
 - requested behavior

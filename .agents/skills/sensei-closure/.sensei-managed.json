@@ -1,7 +1,7 @@
 {
   "managed_by": "sensei init",
   "skill": "sensei-closure",
-  "version": "2026.07.14.1",
+  "version": "2026.08.03.1",
   "source_dir": "templates/skills/sensei-closure",
   "files": {
     "README.md": "b31f6b3fff76274ec84bad6edf10e876ec067b6904af5af376cefb74f66733e7",
