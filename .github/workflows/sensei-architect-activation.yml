@@ -71,6 +71,7 @@ jobs:
       - name: Run enforce-mode architect activation
         shell: bash
         run: |
+          set +e
           timeout --foreground 300s bash scripts/sensei-architect-activation.sh \
             --repo . \
             --sensei ./bin/sensei \
@@ -81,6 +82,176 @@ jobs:
             --mode enforce \
             --full-how-timeout 60 \
             --out sensei-activation
+          activation_rc=$?
+          set -e
+
+          # The private per-PR graph can honestly report semantic coverage debt
+          # for new or changed files while the independent enforce-mode gate
+          # still passes. Accept only that bounded state. Missing/malformed
+          # preflight evidence, process failures, gate failures, or missing
+          # required evidence surfaces remain fatal.
+          python3 - "$activation_rc" sensei-activation/activation.json sensei-activation/preflight <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          producer_rc = int(sys.argv[1])
+          activation_path = Path(sys.argv[2])
+          preflight_dir = Path(sys.argv[3])
+
+          errors = []
+          if producer_rc not in (0, 1):
+              errors.append(
+                  f"activation producer exited {producer_rc}; "
+                  "expected 0 or policy-only 1"
+              )
+
+          if not activation_path.is_file():
+              errors.append(f"missing activation artifact: {activation_path}")
+              payload = {}
+          else:
+              try:
+                  payload = json.loads(
+                      activation_path.read_text(encoding="utf-8")
+                  )
+              except Exception as exc:
+                  errors.append(f"invalid activation artifact: {exc}")
+                  payload = {}
+
+          rows = payload.get("surfaces")
+          if not isinstance(rows, list):
+              errors.append("activation surfaces are missing or malformed")
+              rows = []
+
+          surfaces = {
+              row.get("name"): row
+              for row in rows
+              if isinstance(row, dict)
+              and isinstance(row.get("name"), str)
+          }
+
+          required = {
+              "metadata": "available",
+              "gate": "pass",
+              "phase10_fixture_how": "available",
+              "phase10_fixture_why": "available",
+          }
+          for name, expected in required.items():
+              actual = surfaces.get(name, {}).get("status")
+              if actual != expected:
+                  errors.append(
+                      f"{name}: expected {expected}, "
+                      f"got {actual or 'missing'}"
+                  )
+
+          preflight = surfaces.get("preflight", {})
+          preflight_status = preflight.get("status")
+          if preflight_status == "available":
+              pass
+          elif preflight_status == "degraded":
+              changed_files = payload.get("changed_files")
+              if not isinstance(changed_files, list):
+                  errors.append("changed_files is missing or malformed")
+                  changed_files = []
+
+              files = sorted(preflight_dir.glob("*.json"))
+              if len(files) != len(changed_files):
+                  errors.append(
+                      "preflight evidence count mismatch: "
+                      f"expected {len(changed_files)}, got {len(files)}"
+                  )
+
+              semantic_degraded = 0
+              for path in files:
+                  try:
+                      data = json.loads(
+                          path.read_text(encoding="utf-8")
+                      )
+                  except Exception as exc:
+                      errors.append(
+                          f"{path.name}: malformed preflight payload: {exc}"
+                      )
+                      continue
+
+                  if not isinstance(data, dict):
+                      errors.append(
+                          f"{path.name}: preflight payload is not an object"
+                      )
+                      continue
+
+                  status = data.get("status")
+                  risk_class = data.get("risk_class")
+                  coverage = data.get("coverage")
+
+                  if status == "PREFLIGHT_STATUS_DEGRADED":
+                      semantic_degraded += 1
+                      continue
+
+                  if status not in (
+                      "PREFLIGHT_STATUS_OK",
+                      "PREFLIGHT_STATUS_EMPTY",
+                  ):
+                      errors.append(
+                          f"{path.name}: missing or unknown "
+                          f"preflight status {status!r}"
+                      )
+                      continue
+
+                  if risk_class == "UNKNOWN_IMPACT":
+                      semantic_degraded += 1
+                      continue
+
+                  if not isinstance(coverage, dict):
+                      errors.append(
+                          f"{path.name}: preflight coverage "
+                          "is missing or malformed"
+                      )
+                      continue
+
+                  if coverage.get("sufficient") is not True:
+                      semantic_degraded += 1
+                      continue
+
+                  errors.append(
+                      f"{path.name}: activation reported degraded "
+                      "but payload classified as available"
+                  )
+
+              if semantic_degraded == 0:
+                  errors.append(
+                      "preflight is marked degraded without any "
+                      "semantic coverage finding"
+                  )
+          else:
+              errors.append(
+                  "preflight: expected available or degraded, "
+                  f"got {preflight_status or 'missing'}"
+              )
+
+          if producer_rc == 1 and preflight_status != "degraded":
+              errors.append(
+                  "activation producer exited 1 without an accepted "
+                  "degraded-preflight condition"
+              )
+
+          if errors:
+              print(
+                  "Sensei activation CI verdict: FAIL",
+                  file=sys.stderr,
+              )
+              for error in errors:
+                  print(f"- {error}", file=sys.stderr)
+              raise SystemExit(1)
+
+          if preflight_status == "degraded":
+              print(
+                  "Sensei activation CI verdict: PASS with visible "
+                  "semantic preflight debt; the enforce-mode "
+                  "architectural gate and required evidence surfaces passed."
+              )
+          else:
+              print("Sensei activation CI verdict: PASS")
+          PY
 
       - name: Publish activation summary
         if: always()
