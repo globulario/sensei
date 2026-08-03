@@ -211,14 +211,41 @@ func TestArchitectSpecializedSkillReferenceResolves(t *testing.T) {
 	assertSkillFiles(t, "sensei-architect", []string{"references/SPECIALIZED-SKILLS.md"})
 }
 
-func TestSenseiArchitectSkillSurfaceConsistency(t *testing.T) {
-	skillText := allBundledSkillText(t)
-
-	mcpSource, err := os.ReadFile(filepath.Join("..", "awareness-mcp", "main.go"))
+// readAwarenessMCPSource concatenates every non-test .go file in
+// cmd/awareness-mcp. The tool registry is not confined to main.go:
+// phase10_tools.go and workspace_tools.go register tools too
+// (phase10Tools() is merged into bridge.tools() from main.go, but the
+// Name: literals themselves live in the sibling file). Reading only main.go
+// previously produced a false "unregistered" failure for every Phase 10
+// tool -- they were, and are, genuinely registered (see
+// TestPhase10ToolsAreRegisteredAndReadOnly in cmd/awareness-mcp).
+func readAwarenessMCPSource(t *testing.T) string {
+	t.Helper()
+	mcpDir := filepath.Join("..", "awareness-mcp")
+	entries, err := os.ReadDir(mcpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mcpTools := extractMCPTools(string(mcpSource))
+	var src strings.Builder
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(mcpDir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		src.Write(b)
+		src.WriteByte('\n')
+	}
+	return src.String()
+}
+
+func TestSenseiArchitectSkillSurfaceConsistency(t *testing.T) {
+	skillText := allBundledSkillText(t)
+	mcpSourceText := readAwarenessMCPSource(t)
+	mcpTools := extractMCPTools(mcpSourceText)
 	for _, tool := range referencedAwarenessTools(skillText) {
 		if !mcpTools[tool] {
 			t.Fatalf("skill references MCP tool %s, but cmd/awareness-mcp does not register it", tool)
@@ -235,7 +262,7 @@ func TestSenseiArchitectSkillSurfaceConsistency(t *testing.T) {
 			t.Fatalf("skill does not describe status %s", status)
 		}
 	}
-	for _, class := range extractMCPQueryClasses(string(mcpSource)) {
+	for _, class := range extractMCPQueryClasses(mcpSourceText) {
 		if !protoQueryClassExists(class) {
 			t.Fatalf("MCP query class %q is not backed by the proto QueryClass enum", class)
 		}
@@ -301,11 +328,7 @@ func TestSkillCommandExamplesUseKnownFlags(t *testing.T) {
 
 func TestAdmissionSkillReferencesActualMCPTools(t *testing.T) {
 	text := bundledSkillText(t, "sensei-admission")
-	mcpSource, err := os.ReadFile(filepath.Join("..", "awareness-mcp", "main.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	mcpTools := extractMCPTools(string(mcpSource))
+	mcpTools := extractMCPTools(readAwarenessMCPSource(t))
 	for _, tool := range []string{"admit_change", "verify_admission"} {
 		if !strings.Contains(text, tool) {
 			t.Fatalf("admission skill does not reference MCP tool %s", tool)
