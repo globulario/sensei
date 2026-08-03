@@ -29,6 +29,7 @@ sensei version              # print version and exit
 | [Setup & build](#setup--build) | `init` · `import` · `bootstrap` · `build` · `rebuild` · `serve` |
 | [Query (agent-facing)](#query-agent-facing) | `briefing` · `impact` · `preflight` · `resolve` · `query` · `metadata` · `domains` · `edit-check` |
 | [Task sessions](#task-sessions) | `prepare-change` · `task-status` · `advance-task` · `task-briefing` |
+| [Governed synthesis](#governed-synthesis) | `synthesis-run` |
 | [Authoring & feedback](#authoring--feedback) | `propose` · `feedback-check` · `promote` · `ingest` · `skill-ingest` |
 | [Validation & audit](#validation--audit) | `check` · `validate` · `validate-draft` · `audit` · `repo-eval` (+ `fix`, `draft-upgrade`) · `architecture-extract` · `extract-invariants` |
 | [Gating](#gating) | `gate` · `rigor` · `contract-assess` · `contract-bootstrap` |
@@ -393,6 +394,69 @@ sensei briefing --repo . --task active --file path/to/file.go
 
 The default claim budget is 12. Additional items remain in full task artifacts;
 compact briefing is context selection, not correctness proof.
+
+---
+
+## Governed synthesis
+
+### `sensei synthesis-run` — Server
+
+Drive one synchronous, bounded O1-O4 governed synthesis session
+(`golang/architecture/synthesisdriver.Run`) against an already-prepared task:
+interpretation -> planning -> generation -> evaluation, stopping at
+candidate-ready-for-admission or a governed terminal/stopped/step-limit
+disposition. This command never admits, applies, commits, pushes, or merges
+anything -- a sealed candidate is only ever a proposal on disk. Run
+`sensei admit-change` / `sensei verify-admission` as a separate, deliberate
+step to review and apply it.
+
+Requires a repository with served graph authority and an already-prepared
+task (`sensei prepare-change`) -- this command creates neither. The O4
+evaluator additionally requires `.sensei/gate-policy.yaml` to exist (a
+deliberate security check: the policy path must resolve to a real file
+outside the candidate surface, so a sealed candidate cannot supply its own
+weakened policy); a minimal `default: inherit` file is enough if the
+repository has no per-rule overrides.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | repository checkout |
+| `--addr` | `localhost:10120` | Sensei gRPC server address |
+| `--task` | active task | task directory (`.sensei/tasks/<id>`) |
+| `--interpretation` | — | path to an authored `synthesis.Interpretation` JSON file (required) — hand-authored, since no governed interpretation resolver exists yet |
+| `--objective` | task's own description | session objective |
+| `--retry-budget` / `--replan-budget` | `0` / `0` | O1 `Session` retry/replan budgets (content-level evaluator rejections only -- a crashed/flaky provider is never retried by budget) |
+| `--max-steps` | `20` | O7 step limit |
+| `--agent` | — | `codex` or `claude` (required) |
+| `--agent-command` | — | absolute path to the installed vendor binary (required; no PATH lookup) |
+| `--agent-workdir` | fresh temp dir | empty, absolute directory for the vendor subprocess |
+| `--agent-env` (rep.) | none | environment variable name to allowlist through to the vendor CLI |
+| `--gate-policy` | `<repo>/.sensei/gate-policy.yaml` | O4 gate policy path |
+| `--sensei-executable` | running binary | absolute path to the `sensei` binary the gate evaluator invokes |
+| `--candidate-store` / `--evidence-store` | `<taskDir>/synthesis-run/{candidates,evidence}` | FS stores |
+| `--deadline-minutes` | `10` | shared deadline for every policy -- real vendor CLI generation of a whole file (base64-encoded, not a diff) can take well over this for larger files; raise it rather than assume a hang |
+| `--max-observation-count` / `--max-observation-bytes` | `32` / `65536` | provider observation count/byte bounds |
+| `--max-snapshot-bytes` | `1<<20` | O3 generation snapshot byte bound |
+| `--max-stdout-bytes` / `--max-stderr-bytes` | `4<<20` / `1<<20` | vendor subprocess stdout/stderr byte bounds |
+| `--max-structured-payload-bytes` | `1<<20` | vendor subprocess structured-output byte bound |
+| `--force-unconverged` | `false` | proceed even though the task's control state has an active primary blocker |
+| `--format` | `text` | `text` \| `json` |
+
+```bash
+sensei synthesis-run \
+  --task .sensei/tasks/<task-id> \
+  --interpretation interpretation.json \
+  --agent claude --agent-command "$(command -v claude)" --agent-env HOME \
+  --deadline-minutes 30 \
+  --format json
+```
+
+The printed report names the task/session identity, the disposition and its
+distinct exit code (candidate-ready, governed terminal failure, provider
+stop, runner stop, step limit, invalid invocation, or infrastructure
+failure), every O4 evaluation verdict and check the run produced, and the
+one explicit next permitted operation -- it never suggests `admit-change`
+except when a candidate genuinely exists.
 
 ---
 

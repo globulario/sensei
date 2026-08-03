@@ -1472,3 +1472,10 @@ required_tests:
       files:
         - golang/architecture/synthesis/transition.go
         - golang/architecture/synthesis/digest_integrity_test.go
+  - id: golang/architecture/agentcommand/command_agent_test.go:TestAgentPromptStatesModeConstEmptyRule
+    title: encodeAgentPrompt states the mode-const-empty rule for non-set-mode operations
+    protects:
+      failure_modes:
+        - failure.sensei.agentcommand_encodeagentprompt_omits_the_mode_const_empty_ru
+      files:
+        - golang/architecture/agentcommand/command_agent.go

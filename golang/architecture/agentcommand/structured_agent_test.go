@@ -3,6 +3,7 @@
 package agentcommand
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -29,7 +30,7 @@ func TestStructuredVendorProfilesReuseConfinedCommandConfiguration(t *testing.T)
 		t.Fatal(err)
 	}
 	codex := codexAgent.(*commandAgent)
-	wantCodex := []string{"exec", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check", "-"}
+	wantCodex := []string{"exec", "--sandbox", "read-only", "--skip-git-repo-check", "-"}
 	if !reflect.DeepEqual(codex.config.Args, wantCodex) {
 		t.Fatalf("Codex structured argv=%#v, want %#v", codex.config.Args, wantCodex)
 	}
@@ -61,5 +62,70 @@ func TestClaudeEnvelopeRejectsDuplicateResultKeys(t *testing.T) {
 	_, err := agent.extractFinalPayload([]byte(`{"result":"first","result":"second"}`))
 	if err == nil || !strings.Contains(err.Error(), "duplicate object key") || !strings.Contains(err.Error(), "result") {
 		t.Fatalf("err=%v", err)
+	}
+}
+
+// TestClaudeEnvelopeStripsWholeMessageCodeFence covers a real failure
+// observed driving an actual `claude` CLI subprocess: it fenced its JSON
+// answer in Markdown (```json ... ```) despite the O8 planning prompt asking
+// for exactly one JSON object and nothing else, which broke the downstream
+// JSON parse on the leading backtick.
+func TestClaudeEnvelopeStripsWholeMessageCodeFence(t *testing.T) {
+	agent := &commandAgent{config: CommandAgentConfig{Profile: ProfileClaude}}
+	payload, err := agent.extractFinalPayload(marshalClaudeEnvelope(t, "```json\n{\"a\":1}\n```"))
+	if err != nil {
+		t.Fatalf("extractFinalPayload: %v", err)
+	}
+	if string(payload) != `{"a":1}` {
+		t.Fatalf("payload = %q, want %q", payload, `{"a":1}`)
+	}
+}
+
+func TestClaudeEnvelopeStripsPlainCodeFenceWithoutLanguageTag(t *testing.T) {
+	agent := &commandAgent{config: CommandAgentConfig{Profile: ProfileClaude}}
+	payload, err := agent.extractFinalPayload(marshalClaudeEnvelope(t, "```\n{\"a\":1}\n```"))
+	if err != nil {
+		t.Fatalf("extractFinalPayload: %v", err)
+	}
+	if string(payload) != `{"a":1}` {
+		t.Fatalf("payload = %q, want %q", payload, `{"a":1}`)
+	}
+}
+
+func TestClaudeEnvelopeLeavesUnfencedResultUnchanged(t *testing.T) {
+	agent := &commandAgent{config: CommandAgentConfig{Profile: ProfileClaude}}
+	payload, err := agent.extractFinalPayload(marshalClaudeEnvelope(t, `{"a":1}`))
+	if err != nil {
+		t.Fatalf("extractFinalPayload: %v", err)
+	}
+	if string(payload) != `{"a":1}` {
+		t.Fatalf("payload = %q, want %q", payload, `{"a":1}`)
+	}
+}
+
+func marshalClaudeEnvelope(t *testing.T, result string) []byte {
+	t.Helper()
+	envelope, err := json.Marshal(struct {
+		Result string `json:"result"`
+	}{Result: result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return envelope
+}
+
+// TestClaudeEnvelopeDoesNotStripFenceAlongsideOtherText guards the
+// conservative half of stripWholeMessageCodeFence: a fence that does not
+// span the entire message is left alone -- passed through verbatim so the
+// caller's own JSON parse fails on it, rather than guessed at here.
+func TestClaudeEnvelopeDoesNotStripFenceAlongsideOtherText(t *testing.T) {
+	agent := &commandAgent{config: CommandAgentConfig{Profile: ProfileClaude}}
+	const resultText = "Here is the plan:\n```json\n{\"a\":1}\n```"
+	payload, err := agent.extractFinalPayload(marshalClaudeEnvelope(t, resultText))
+	if err != nil {
+		t.Fatalf("extractFinalPayload: %v", err)
+	}
+	if string(payload) != resultText {
+		t.Fatalf("payload = %q, want unchanged %q", payload, resultText)
 	}
 }

@@ -63,6 +63,7 @@
 //	sensei task-status                      Inspect an active task session
 //	sensei advance-task                     Run safe evidence and advance one task iteration
 //	sensei task-briefing                    Show bounded file context for an active task
+//	sensei synthesis-run                    Drive one O1-O8 governed synthesis session to candidate-ready
 //	sensei proof-plan                       Show required proof before a repair can be promoted
 //	sensei repair-plan                      Build an authoritative governed repair plan
 //	sensei seed-status                      Check generated/committed/live seed authority alignment
@@ -295,6 +296,8 @@ func dispatch(cmd string, args []string) int {
 		return runAdvanceTask(args)
 	case "task-briefing":
 		return runTaskBriefing(args)
+	case "synthesis-run":
+		return runSynthesisRun(args)
 	case "task-ledger":
 		return runTaskLedger(args)
 	case "proof-plan":
