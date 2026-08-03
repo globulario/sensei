@@ -29,15 +29,18 @@ jobs:
       review_available: ${{ steps.persist-review.outputs.available }}
       pr_number: ${{ steps.pr-context.outputs.pr_number }}
     steps:
-      # The only place this job asks whether the secret exists. Deliberately
-      # a boolean-only output, never the value itself: `secrets.*` in an `if:`
-      # is evaluated by the runner before any step process starts, so this
-      # never puts the raw key into a shell environment just to check
-      # presence. Every later step reads has_key, never OPENAI_API_KEY.
+      # The only place this job asks whether the secret exists. `secrets.*` is
+      # not a permitted context in a step `if:` at all (GitHub Actions rejects
+      # the whole workflow file for that), so presence is instead computed as
+      # a boolean comparison result inside a step-scoped `env:` -- the raw key
+      # never appears here, only the true/false of the comparison, and that
+      # env value is visible only to this one step, not the whole job. Every
+      # later step reads has_key, never OPENAI_API_KEY.
       - name: Check whether OPENAI_API_KEY is configured
         id: secret-check
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
-        run: echo "has_key=true" >> "$GITHUB_OUTPUT"
+        env:
+          HAS_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+        run: echo "has_key=$HAS_KEY" >> "$GITHUB_OUTPUT"
 
       - name: Resolve and validate PR context from the triggering run
         id: pr-context
