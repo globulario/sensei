@@ -4,6 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/preflight-verdict.sh
 source "$script_dir/lib/preflight-verdict.sh"
+# shellcheck source=lib/diff-range.sh
+source "$script_dir/lib/diff-range.sh"
 
 repo="."
 sensei="./bin/sensei"
@@ -83,16 +85,24 @@ fi
 if [[ -z "$diff_range" ]]; then
   diff_range="HEAD~1...HEAD"
 fi
-if ! git -C "$repo" diff --name-only "$diff_range" >/dev/null 2>&1; then
+resolved=$(resolve_diff_range "$repo" "$diff_range") || {
   echo "sensei-architect-activation: invalid diff range: $diff_range" >&2
+  exit 2
+}
+base_sha=$(sed -n '1p' <<<"$resolved")
+head_sha=$(sed -n '2p' <<<"$resolved")
+# resolve_diff_range already refused a right side that is not the current
+# checkout HEAD; this is a second, redundant fail-closed check on the exact
+# thing every downstream artifact is bound to, kept because a single check
+# guarding a whole evidence bundle's integrity is worth the duplication.
+checkout_head=$(git -C "$repo" rev-parse HEAD)
+if [[ "$head_sha" != "$checkout_head" ]]; then
+  echo "sensei-architect-activation: resolved diff head ($head_sha) does not match checkout HEAD ($checkout_head); refusing" >&2
   exit 2
 fi
 
 mkdir -p "$out_dir/preflight" "$out_dir/phase10"
 out_dir=$(cd "$out_dir" && pwd)
-head_sha=$(git -C "$repo" rev-parse HEAD)
-base_ref=${diff_range%%...*}
-base_sha=$(git -C "$repo" rev-parse "$base_ref" 2>/dev/null || git -C "$repo" rev-parse HEAD^)
 captured_at=$(git -C "$repo" show -s --format=%cI "$head_sha")
 changed_file_list="$out_dir/changed-files.txt"
 git -C "$repo" diff --name-only --diff-filter=ACDMRTUXB "$diff_range" | sed '/^[[:space:]]*$/d' > "$changed_file_list"
