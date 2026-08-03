@@ -1300,3 +1300,14 @@ failure_modes:
       - 'Real O7 self-pilot run: a real claude CLI call for O3 generation produced kind=write with mode="regular"; validation failed at /operations/0/mode ''value must be ""'' per the schema''s const constraint for non-set-mode kinds'
       - 'command_agent.go:180 says only ''Modes: regular or executable'', never stating this applies exclusively to kind=set-mode and must be empty-string otherwise'
     contract: agentcommand.encodeAgentPrompt's generated instructions must fully and correctly describe the mutation-plan schema's per-kind field constraints, since the schema is the sole ground truth an LLM-generated plan is validated against -- an incomplete prompt wastes real generation attempts on avoidable, predictable schema rejections.
+  - id: failure.job_level_env_exposed_openai_api_key_to_every_step_defeating
+    title: Job-level env exposed OPENAI_API_KEY to every step, defeating the pinned action's own proxy isolation
+    severity: critical
+    description: 'Round 1 of PR #148''s secret-restructuring fix (4e40a852) moved Codex execution to a workflow_run-triggered workflow (closing the PR-can-edit-the-workflow-YAML attack) but still set ''env: OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}'' at job level solely so the job''s own if: conditions could branch on key presence. Every step in that job -- including whatever codex exec spawns as a subprocess -- inherited it. openai/codex-action deliberately exposes the key as PROXY_API_KEY to one proxy-startup step only, then runs ''env -u PROXY_API_KEY'' before launching the long-running proxy process the agent actually talks to, specifically so the agent''s own subprocess never retains the raw key. Ambient job-level env silently put it back within reach.'
+    protects:
+      files:
+        - .github/workflows/sensei-codex-architect-review.yml
+    evidence:
+      - 'PR #148 review at head c0785e11 (2026-08-02): ''The trusted workflow places OPENAI_API_KEY in job-level environment scope... This defeats the pinned action''s own isolation mechanism.'''
+      - 'Detected by scripts/lib/codex-workflow-guardrails_test.sh, a shell-script regression check -- not citable via required_tests, whose identifier grammar is restricted to Go-test-shaped IDs (path/to/file_test.go:TestName).'
+    contract: Secret-bearing pinned actions must receive credentials only through their documented input channel; ambient job/step env is forbidden because every sibling step and any subprocess a composite action spawns inherits it.
