@@ -22,6 +22,32 @@ func defaultTransactionPath(agRepo string) string {
 	return filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.transaction.tsv")
 }
 
+// combinedSeedDir is deliberately OUTSIDE golang/server/embeddata/: that
+// directory's whole purpose is go:embed source for the self-only PUBLIC seed
+// (golang/server/main.go embeds exactly this path), and the combined seed
+// must never be committed there — it includes the paired services corpus and
+// leaks internal detail the public seed intentionally omits. .cache/ is
+// already the convention for non-committed build artifacts (see
+// scripts/build-awareness-graph.sh's SCAN_CACHE_DIR).
+const combinedSeedDir = ".cache/awareness-combined"
+
+// seedArtifactPaths resolves where a rebuild's compiled seed and transaction
+// stamp belong, keyed on topology. Self-only and combined MUST resolve to
+// different paths: a shared path is what let a self-only rebuild silently
+// replace a combined artifact (or vice versa) in the past, since either mode
+// would write over whatever the other had left there. Production code and
+// tests both call this so there is exactly one place that knows the mapping.
+func seedArtifactPaths(combined bool, agRepo string) (seedPath, transactionPath string) {
+	if agRepo == "" {
+		return "", ""
+	}
+	if combined {
+		return filepath.Join(agRepo, filepath.FromSlash(combinedSeedDir), "awareness.nt"),
+			filepath.Join(agRepo, filepath.FromSlash(combinedSeedDir), "awareness.transaction.tsv")
+	}
+	return filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt"), defaultTransactionPath(agRepo)
+}
+
 func buildTransactionTSV(agRepo, svcRepo string, ntBytes []byte) ([]byte, error) {
 	marker, ok := seedmeta.ParseMarker(ntBytes)
 	if !ok {

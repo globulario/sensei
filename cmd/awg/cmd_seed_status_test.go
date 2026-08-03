@@ -22,7 +22,7 @@ func TestSeedStatus_CurrentAcrossGeneratedCommittedAndLive(t *testing.T) {
 	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
-	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
+	seedPath, _ := seedArtifactPaths(true, agRepo)
 	seedBytes, err := os.ReadFile(seedPath)
 	if err != nil {
 		t.Fatalf("read seed: %v", err)
@@ -58,7 +58,7 @@ func TestSeedStatus_SplitWhenCommittedLiveMatchButGeneratedDrifted(t *testing.T)
 	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
-	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
+	seedPath, _ := seedArtifactPaths(true, agRepo)
 	seedBytes, err := os.ReadFile(seedPath)
 	if err != nil {
 		t.Fatalf("read seed: %v", err)
@@ -150,7 +150,7 @@ func TestSeedStatus_LiveStoreUnknownWhenQueryFails(t *testing.T) {
 	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
-	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
+	seedPath, _ := seedArtifactPaths(true, agRepo)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "backend unavailable", http.StatusServiceUnavailable)
 	}))
@@ -184,7 +184,7 @@ func TestSeedStatus_LiveStoreDownWhenQueryEndpointIsUnreachable(t *testing.T) {
 	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
-	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
+	seedPath, _ := seedArtifactPaths(true, agRepo)
 
 	out := captureStdout(t, func() {
 		if code := runSeedStatus([]string{
@@ -214,7 +214,7 @@ func TestSeedStatus_BlockedWhenCombinedSeedLosesServicesRepo(t *testing.T) {
 	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
 		t.Fatalf("runRebuild code=%d, want 0", code)
 	}
-	seedPath := filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
+	seedPath, _ := seedArtifactPaths(true, agRepo)
 	seedBytes, err := os.ReadFile(seedPath)
 	if err != nil {
 		t.Fatalf("read seed: %v", err)

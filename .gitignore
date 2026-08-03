@@ -44,6 +44,13 @@
 *.pyc
 __pycache__/
 
+# Combined cross-repository awareness seed: MUST NEVER be committed (it
+# includes the paired services corpus and leaks internal detail the public
+# self-only seed intentionally omits). Kept structurally separate from
+# golang/server/embeddata/ (the self-only go:embed source) so neither build
+# mode can overwrite the other's output at a shared path.
+/.cache/awareness-combined/
+
 # VS Code extension (editor/vscode) — Node build artifacts.
 # package-lock.json IS committed (npm ci in CI needs it); the proto under
 # editor/vscode/proto/ is committed (vendored, freshness-checked).

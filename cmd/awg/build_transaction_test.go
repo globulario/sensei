@@ -51,7 +51,7 @@ func TestRunRebuildCheck_AllowsAdvisoryCrossRepoTransactionDrift(t *testing.T) {
 		t.Fatalf("initial rebuild code=%d, want 0", code)
 	}
 
-	txPath := defaultTransactionPath(agRepo)
+	_, txPath := seedArtifactPaths(true, agRepo)
 	b, err := os.ReadFile(txPath)
 	if err != nil {
 		t.Fatalf("read transaction stamp: %v", err)

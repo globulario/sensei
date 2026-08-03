@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -65,10 +64,15 @@ func requireAtomicCrossRepoGraphState(agRepo, svcRepo string) error {
 	if len(inputDirs) == 0 {
 		return fmt.Errorf("cannot prove cross-repo atomicity: no awareness input directories found")
 	}
-	seedPath := resolveAtomicSeedPath(agRepo)
+	// The self-only committed seed (golang/server/embeddata/awareness.nt)
+	// never carries services content at all — self-only always stamps
+	// "repo services missing" (see seedArtifactPaths) — so it cannot prove
+	// cross-repo atomicity. The combined artifact's own cached path is the
+	// only thing that can carry a services-inclusive committed baseline.
+	seedPath, txPath := seedArtifactPaths(true, agRepo)
 	committedSeed, err := os.ReadFile(seedPath)
 	if err != nil {
-		return fmt.Errorf("cannot prove cross-repo atomicity: read committed seed: %w", err)
+		return fmt.Errorf("cannot prove cross-repo atomicity: read combined seed (run 'sensei rebuild --combined' first): %w", err)
 	}
 	generated, _, _, err := generateNT(inputDirs, intentDir, svcRepo, agRepo, false)
 	if err != nil {
@@ -77,9 +81,8 @@ func requireAtomicCrossRepoGraphState(agRepo, svcRepo string) error {
 	agOnly := generateAgOnlyNT(agRepo)
 	seedFreshness := evaluateSeedFreshness(committedSeed, generated, agOnly)
 	if seedFreshness.level != auditPASS {
-		return fmt.Errorf("cross-repo atomicity failed: committed seed is stale (%s)", seedFreshness.summary)
+		return fmt.Errorf("cross-repo atomicity failed: combined seed is stale (%s)", seedFreshness.summary)
 	}
-	txPath := defaultTransactionPath(agRepo)
 	committedTx, err := os.ReadFile(txPath)
 	if err != nil {
 		return fmt.Errorf("cannot prove cross-repo atomicity: read committed transaction stamp: %w", err)
@@ -93,8 +96,4 @@ func requireAtomicCrossRepoGraphState(agRepo, svcRepo string) error {
 		return fmt.Errorf("cross-repo atomicity failed: committed transaction stamp is stale (%s)", txFreshness.summary)
 	}
 	return nil
-}
-
-func resolveAtomicSeedPath(agRepo string) string {
-	return filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
 }

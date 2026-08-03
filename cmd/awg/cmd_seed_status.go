@@ -113,7 +113,7 @@ Flags:
 	res.LiveDigestSHA256 = verification.Live.Digest
 	res.LiveTripleCount = verification.LiveTripleCount
 	res.LiveStore = seedStatusLaneFromFreshness(verification)
-	populateRepoStatus(&res, agRepo, svcRepo, seedBytes)
+	populateRepoStatus(&res, agRepo, svcRepo, seedPath, seedBytes)
 	res.OverallState, res.OverallDetail = classifySeedStatusOverall(res)
 	return printSeedStatusResult(res, *asJSON)
 }
@@ -163,7 +163,7 @@ func printSeedStatusResult(res seedStatusResult, asJSON bool) int {
 	return 0
 }
 
-func populateRepoStatus(res *seedStatusResult, agRepo, svcRepo string, committedSeed []byte) {
+func populateRepoStatus(res *seedStatusResult, agRepo, svcRepo, seedPath string, committedSeed []byte) {
 	res.GeneratedVsCommitted = seedStatusLane{State: "unknown", Detail: "repo context unavailable"}
 	res.TransactionStamp = seedStatusLane{State: "unknown", Detail: "repo context unavailable"}
 	if strings.TrimSpace(agRepo) == "" {
@@ -175,7 +175,12 @@ func populateRepoStatus(res *seedStatusResult, agRepo, svcRepo string, committed
 		res.TransactionStamp = seedStatusLane{State: "blocked", Detail: detail}
 		return
 	}
-	res.TransactionPath = defaultTransactionPath(agRepo)
+	// The transaction stamp is always a sibling of whichever seed file is
+	// actually being checked (self-only embeddata/ or the combined .cache/
+	// dir) — never the self-only default unconditionally, or checking a
+	// --seed pointed at the combined artifact would compare it against the
+	// wrong transaction file.
+	res.TransactionPath = filepath.Join(filepath.Dir(seedPath), "awareness.transaction.tsv")
 	inputDirs, intentDir, err := collectInputDirs(svcRepo, agRepo)
 	if err != nil || len(inputDirs) == 0 {
 		if err != nil {

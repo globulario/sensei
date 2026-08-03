@@ -224,6 +224,16 @@ func writeVerificationQuery(t *testing.T, w http.ResponseWriter, loaded []byte, 
 	t.Helper()
 	marker, ok := seedmeta.ParseMarker(loaded)
 	if !ok {
+		// Nothing PUT yet is a legitimate state to query, not a fixture bug:
+		// the anti-clobber guard (guardAgainstLiveShrink) counts the live
+		// store BEFORE the reload PUT happens, so an empty/unloaded store
+		// must answer a plain triple-count query with 0, matching real
+		// Oxigraph's behavior for an empty store, rather than fail.
+		if strings.Contains(body, "COUNT(*)") {
+			w.Header().Set("Content-Type", "application/sparql-results+json")
+			_, _ = w.Write([]byte(`{"results":{"bindings":[{"n":{"value":"0"}}]}}`))
+			return
+		}
 		t.Fatalf("verification fixture missing marker")
 	}
 	w.Header().Set("Content-Type", "application/sparql-results+json")

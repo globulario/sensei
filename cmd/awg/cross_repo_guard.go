@@ -31,7 +31,11 @@ func requiresCombinedServicesRepo(agRepo string) bool {
 	if strings.TrimSpace(agRepo) == "" {
 		return false
 	}
-	txPath := defaultTransactionPath(agRepo)
+	// The combined transaction stamp's own history is the signal, not the
+	// self-only one: self-only and combined write to separate paths (see
+	// seedArtifactPaths), so a prior combined build's services-repo presence
+	// can only be read back from the combined path's own stamp.
+	_, txPath := seedArtifactPaths(true, agRepo)
 	b, err := os.ReadFile(txPath)
 	if err != nil {
 		return false

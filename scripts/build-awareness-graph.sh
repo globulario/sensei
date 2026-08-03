@@ -79,8 +79,17 @@ REGISTRY="$SVC/docs/awareness/namespaces.yaml"
 AG_GENERATED="$AG/docs/awareness/generated"
 SVC_GENERATED="$SVC/docs/awareness/generated"
 SCAN_TARGETS_FILE="$AG/scripts/awareness-scan-targets.tsv"
-SEED="$AG/golang/server/embeddata/awareness.nt"
-TRANSACTION_STAMP="$AG/golang/server/embeddata/awareness.transaction.tsv"
+# This script always compiles the combined (sensei + paired services) corpus,
+# so its output must never land at golang/server/embeddata/ -- that path is
+# go:embed'd into the self-only PUBLIC seed (golang/server/main.go) and the
+# combined artifact leaks internal detail the public seed intentionally
+# omits. .cache/awareness-combined/ is gitignored and matches the path
+# cmd/awg's own `sensei rebuild --combined` writes to (see
+# cmd/awg/build_transaction.go:seedArtifactPaths) so both tools agree on
+# where the combined artifact lives.
+SEED="$AG/.cache/awareness-combined/awareness.nt"
+TRANSACTION_STAMP="$AG/.cache/awareness-combined/awareness.transaction.tsv"
+mkdir -p "$(dirname "$SEED")"
 SCAN_CACHE_DIR="$AG/.cache/build-awareness-graph"
 SEED_CACHE_META="$SCAN_CACHE_DIR/seed.meta"
 BENCH_CONTRACTS_DIR="$AG/eval/multi-swe-bench/contracts"

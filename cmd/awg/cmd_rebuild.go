@@ -21,6 +21,7 @@ import (
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
+	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
 func runRebuild(args []string) int {
@@ -35,6 +36,7 @@ func runRebuild(args []string) int {
 	combined := fs.Bool("combined", false, "include paired services awareness corpus in the embedded seed (internal/combined build; default is self-only public seed)")
 	tagByRepo := fs.Bool("tag-by-repo", false, "tag each input repo's nodes with its own domain (from its git remote), so a multi-repo graph stays filterable per repo instead of collapsing to one home domain")
 	strict := fs.Bool("strict", false, "deprecated: rebuild now fails on reload/verification errors unless --no-runtime-reload is set")
+	force := fs.Bool("force", false, "allow a live reload that would shrink the store's triple count by more than half (bypasses the anti-clobber guard)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei rebuild [flags]
 
@@ -50,7 +52,14 @@ Steps:
 
 Use --combined to include the paired services repo. That internal build mode is
 explicit so a standalone/self-only seed is never overwritten by combined output
-by accident.
+by accident. Self-only and combined write to different paths (embeddata/ vs
+.cache/awareness-combined/) so the two can never collide at a shared path
+either.
+
+Before step 6, a live store already holding triples is checked: if this
+build's content is less than half its current size, the reload is refused
+(pass --force to override) — a self-only rebuild silently replacing a live
+combined deployment, or the reverse, is refused rather than applied.
 
 Use --check for CI: regenerate in memory, compare with committed seed, exit 1 if stale.
 
@@ -104,12 +113,7 @@ Flags:
 		return 1
 	}
 
-	seedPath := ""
-	transactionPath := ""
-	if agRepo != "" {
-		seedPath = filepath.Join(agRepo, "golang", "server", "embeddata", "awareness.nt")
-		transactionPath = defaultTransactionPath(agRepo)
-	}
+	seedPath, transactionPath := seedArtifactPaths(*combined, agRepo)
 
 	// Generate N-Triples.
 	fmt.Println("Scanning YAML sources...")
@@ -213,6 +217,12 @@ Flags:
 	} else {
 		if *strict {
 			fmt.Println("  Oxigraph reload:    strict mode is now implicit when reload is enabled")
+		}
+		if !*force {
+			if err := guardAgainstLiveShrink(*oxigraphURL, totalTriples); err != nil {
+				fmt.Fprintf(os.Stderr, "sensei rebuild: refusing reload: %v\n", err)
+				return 1
+			}
 		}
 		if err := reloadOxigraphStore(ntBytes, *oxigraphURL); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei rebuild: Oxigraph reload failed: %v\n", err)
@@ -522,6 +532,48 @@ func printArtifactUpdateStatus(seedPath, transactionPath string, seedUpdated, tx
 	} else {
 		fmt.Println("  transaction stamp: no (already current)")
 	}
+}
+
+// guardAgainstLiveShrink refuses a reload that would replace a substantially
+// larger live store with a much smaller one — the exact shape of a self-only
+// rebuild silently clobbering a live combined deployment (or vice versa),
+// which is what "PUT replaces whatever ntBytes is, with no regard for what
+// was there before" allowed to happen undetected. It never blocks a normal,
+// idempotent refresh: only a live store holding triples right now (current >
+// 0) AND this build's triple count being less than half of that trips it. An
+// unreachable or empty live store is never treated as a shrink — there is
+// nothing there yet to lose, so cold-start and first-time loads are
+// unaffected.
+func guardAgainstLiveShrink(rawURL string, newCount int) error {
+	endpoint, err := normalizeOxigraphURL(rawURL)
+	if err != nil {
+		return nil // let reloadOxigraphStore's own validation surface this
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil
+	}
+	u.Path = queryEndpointPath(u.Path)
+	u.RawQuery = ""
+	client, err := oxigraph.New(u.String())
+	if err != nil {
+		return nil
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	current, err := client.CountTriples(ctx)
+	if err != nil || current == 0 {
+		return nil
+	}
+	if int64(newCount) >= current/2 {
+		return nil
+	}
+	return fmt.Errorf(
+		"live store at %s currently holds %d triples; this build would replace it with only %d (more than half smaller). "+
+			"This is very likely a topology mismatch -- e.g. a self-only rebuild about to overwrite a combined deployment, or the reverse. "+
+			"Pass --force if this shrink is genuinely intended",
+		rawURL, current, newCount)
 }
 
 func reloadOxigraphStore(ntBytes []byte, rawURL string) error {
