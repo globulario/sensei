@@ -496,6 +496,19 @@ failure), every O4 evaluation verdict and check the run produced, and the
 one explicit next permitted operation -- it never suggests `admit-change`
 except when a candidate genuinely exists.
 
+On `candidate-ready`, the report also names an **admission lineage
+bundle** (`<candidate-store>/<candidate-digest>.lineage.json`) --
+the full `synthesis.Receipt`, `runnercomposition.RunnerReceipt`, and
+`evaluatorcomposition.EvaluationReceipt` documents
+`admissioncomposition.ComposeInput` requires (not merely their digests,
+which the receipt above already carries, but which cannot by themselves
+reconstruct those documents). Without this file, those documents exist
+only in this process's memory and are lost once it exits. The admission
+request template and base-revision manifest `ComposeInput` also needs are
+deliberately *not* included -- both are the admission step's own inputs to
+author or derive at admission time, outside this command's stated
+boundary.
+
 ---
 
 ## Authoring & feedback

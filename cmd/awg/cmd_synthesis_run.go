@@ -530,8 +530,106 @@ Flags:
 		return exitInternalDefect
 	}
 
-	printSynthesisRunResult(result, taskSession.TaskID, *candidateStoreDir, *maxSteps, *format)
+	lineagePath, err := persistAdmissionLineage(result, *candidateStoreDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: persist admission lineage: %v\n", err)
+		return exitInternalDefect
+	}
+
+	printSynthesisRunResult(result, taskSession.TaskID, *candidateStoreDir, lineagePath, *maxSteps, *format)
 	return exitCodeForDisposition(result.Receipt.Disposition)
+}
+
+// synthesisRunLineage is the complete O5 admission input chain a
+// candidate-ready run produces: the full synthesis/runner/evaluation
+// receipt documents (not merely their digests, which RunReceipt already
+// carries) and the candidate's own identity. A real review found that
+// without this, the sealed candidate artifact this command already
+// persists separately (<candidateStoreDir>/<digest>.json) was reachable,
+// but the receipt DOCUMENTS admissioncomposition.ComposeInput actually
+// requires (SynthesisReceipt, RunnerReceipt, EvaluationReceipt -- full
+// objects, not digests) existed only in-memory and vanished when this
+// process exited, leaving no durable way for a caller directing the
+// operator to `sensei admit-change` to actually construct that input.
+//
+// AdmissionTemplate (the fourth ComposeInput field) and BaseManifest are
+// deliberately NOT persisted here: both are the admission step's own
+// inputs to author/derive at admission time (an explicit request template
+// a human or admit-change constructs, and a base-revision manifest more
+// honestly computed fresh from git at admission time than frozen here) --
+// persisting them would overstep this command's own stated boundary
+// (stops at candidate-ready, never constructs or presumes admission
+// inputs).
+type synthesisRunLineage struct {
+	SchemaVersion                 string                                 `json:"schema_version"`
+	CandidateArtifactDigestSHA256 string                                 `json:"candidate_artifact_digest_sha256"`
+	CandidateArtifactPath         string                                 `json:"candidate_artifact_path"`
+	SynthesisReceipt              synthesis.Receipt                      `json:"synthesis_receipt"`
+	RunnerReceipt                 runnercomposition.RunnerReceipt        `json:"runner_receipt"`
+	EvaluationReceipt             evaluatorcomposition.EvaluationReceipt `json:"evaluation_receipt"`
+}
+
+const synthesisRunLineageSchemaVersion = "sensei.synthesis-run.lineage.v1"
+
+// persistAdmissionLineage writes the complete O5 input chain to
+// <candidateStoreDir>/<candidate-digest>.lineage.json when (and only when)
+// the run reached candidate-ready -- every other disposition has no
+// sealed candidate, so there is no lineage to persist. Returns an empty
+// path, nil error for every other disposition.
+func persistAdmissionLineage(result synthesisdriver.Result, candidateStoreDir string) (string, error) {
+	r := result.Receipt
+	if r.Disposition != synthesisdriver.DispositionCandidateReady {
+		return "", nil
+	}
+	if r.CandidateArtifactDigestSHA256 == nil {
+		return "", errors.New("candidate-ready receipt carries no candidate artifact digest")
+	}
+	candidateDigest := *r.CandidateArtifactDigestSHA256
+
+	if result.SessionState.Receipt == nil {
+		return "", errors.New("candidate-ready result carries no synthesis.Receipt")
+	}
+
+	var runnerReceipt *runnercomposition.RunnerReceipt
+	for _, handoff := range result.Trace.GenerationHandoffs {
+		if handoff.RunnerReceipt.CandidateArtifactDigestSHA256 != nil && *handoff.RunnerReceipt.CandidateArtifactDigestSHA256 == candidateDigest {
+			receipt := handoff.RunnerReceipt
+			runnerReceipt = &receipt
+			break
+		}
+	}
+	if runnerReceipt == nil {
+		return "", fmt.Errorf("no runner receipt in this run's trace matches candidate artifact digest %s", candidateDigest)
+	}
+
+	var evaluationReceipt *evaluatorcomposition.EvaluationReceipt
+	for _, evalResult := range result.Trace.EvaluationResults {
+		if evalResult.Receipt != nil && evalResult.Receipt.CandidateArtifactDigestSHA256 == candidateDigest {
+			evaluationReceipt = evalResult.Receipt
+			break
+		}
+	}
+	if evaluationReceipt == nil {
+		return "", fmt.Errorf("no evaluation receipt in this run's trace matches candidate artifact digest %s", candidateDigest)
+	}
+
+	lineage := synthesisRunLineage{
+		SchemaVersion:                 synthesisRunLineageSchemaVersion,
+		CandidateArtifactDigestSHA256: candidateDigest,
+		CandidateArtifactPath:         filepath.Join(candidateStoreDir, candidateDigest+".json"),
+		SynthesisReceipt:              *result.SessionState.Receipt,
+		RunnerReceipt:                 *runnerReceipt,
+		EvaluationReceipt:             *evaluationReceipt,
+	}
+	data, err := json.MarshalIndent(lineage, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("marshal admission lineage: %w", err)
+	}
+	path := filepath.Join(candidateStoreDir, candidateDigest+".lineage.json")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", fmt.Errorf("write admission lineage %q: %w", path, err)
+	}
+	return path, nil
 }
 
 // Exit code contract. Every distinct outcome gets its own code so a caller
@@ -683,7 +781,13 @@ type synthesisRunReport struct {
 	ExitCode        int                        `json:"exit_code"`
 	ExitMeaning     string                     `json:"exit_meaning"`
 	CandidatePath   string                     `json:"candidate_path,omitempty"`
-	NextStep        string                     `json:"next_step"`
+	// LineagePath names the durable file admit-change can load directly to
+	// construct admissioncomposition.ComposeInput's SynthesisReceipt/
+	// RunnerReceipt/EvaluationReceipt fields -- populated only when
+	// Receipt.Disposition is candidate-ready (every other disposition has
+	// no sealed candidate, so there is nothing to persist).
+	LineagePath string `json:"lineage_path,omitempty"`
+	NextStep    string `json:"next_step"`
 	// Evaluations carries every O4 evaluator verdict this run produced --
 	// the RunReceipt's evaluation_receipt_digests_sha256 is only a digest
 	// list, which leaves an operator unable to see *why* a real evaluator
@@ -699,7 +803,7 @@ type synthesisRunReport struct {
 	EvaluationReceipts []*evaluatorcomposition.EvaluationReceipt `json:"evaluation_receipts,omitempty"`
 }
 
-func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateStoreDir string, configuredMaxSteps int, format string) {
+func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateStoreDir, lineagePath string, configuredMaxSteps int, format string) {
 	r := result.Receipt
 	exitCode := exitCodeForDisposition(r.Disposition)
 	report := synthesisRunReport{
@@ -708,6 +812,7 @@ func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateSto
 		ConfiguredSteps: configuredMaxSteps,
 		ExitCode:        exitCode,
 		ExitMeaning:     exitMeaning(exitCode),
+		LineagePath:     lineagePath,
 		NextStep:        nextStep(r.Disposition),
 	}
 	if r.CandidateArtifactDigestSHA256 != nil {
@@ -741,6 +846,7 @@ func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateSto
 	if r.CandidateArtifactDigestSHA256 != nil {
 		fmt.Printf("candidate:    %s\n", *r.CandidateArtifactDigestSHA256)
 		fmt.Printf("candidate store: %s\n", report.CandidatePath)
+		fmt.Printf("admission lineage: %s\n", report.LineagePath)
 	}
 	for i, eval := range report.Evaluations {
 		fmt.Printf("evaluation[%d]: %s %s recommendation=%s\n", i, eval.EvaluatorKind, eval.EvaluatorVersion, eval.Recommendation)
@@ -788,7 +894,7 @@ func exitMeaning(code int) string {
 func nextStep(d synthesisdriver.Disposition) string {
 	switch d {
 	case synthesisdriver.DispositionCandidateReady:
-		return "Candidate sealed. Nothing has been applied. Run `sensei admit-change` / `sensei verify-admission` as a separate step to review and apply it."
+		return "Candidate sealed. Nothing has been applied. The admission lineage bundle (synthesis/runner/evaluation receipts) needed to construct admissioncomposition.ComposeInput is at the path named above -- run `sensei admit-change` / `sensei verify-admission` as a separate step to review and apply it."
 	case synthesisdriver.DispositionTerminalFailure:
 		return "O1 reached a governed terminal failure. No candidate exists. Inspect the receipt detail and the task's control state before authoring a new interpretation or task."
 	case synthesisdriver.DispositionProviderStopped:
