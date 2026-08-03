@@ -4405,6 +4405,16 @@ test_symbols:
     package: main
     language: go
     doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
+  - id: cmd/awg/main_phase10_dispatch_test.go:TestDispatchExposesPhase10CandidateReview
+    file: cmd/awg/main_phase10_dispatch_test.go
+    symbol: TestDispatchExposesPhase10CandidateReview
+    package: main
+    language: go
+  - id: cmd/awg/main_phase10_dispatch_test.go:TestDispatchExposesPhase10Investigation
+    file: cmd/awg/main_phase10_dispatch_test.go
+    symbol: TestDispatchExposesPhase10Investigation
+    package: main
+    language: go
   - id: cmd/awg/observed_change_test.go:TestVerifyAdmissionRecordsChangeObservedBeforeScopeVerified
     file: cmd/awg/observed_change_test.go
     symbol: TestVerifyAdmissionRecordsChangeObservedBeforeScopeVerified
