@@ -1,0 +1,109 @@
+name: Sensei architect activation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: sensei-architect-activation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  activation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact change head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Build Sensei
+        run: make sensei
+
+      - name: Start private governed graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/fetch-oxigraph.sh
+          DATA_DIR="$(mktemp -d)"
+          MARKER_FILE="$(mktemp)"
+          ./bin/sensei serve -no-seed -allow-stale-seed \
+            -data "$DATA_DIR" -addr :19120 -oxigraph-bind 127.0.0.1:19878 \
+            -graph-marker-file "$MARKER_FILE" \
+            -home-domain "github.com/globulario/sensei" \
+            > /tmp/sensei-architect-serve.log 2>&1 &
+          echo "SENSEI_SERVER_PID=$!" >> "$GITHUB_ENV"
+          echo "SENSEI_MARKER_FILE=$MARKER_FILE" >> "$GITHUB_ENV"
+          for _ in $(seq 1 30); do
+            if ./bin/sensei metadata --addr localhost:19120 >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          ./bin/sensei build --all \
+            -store-url "http://127.0.0.1:19878/store?default" \
+            -graph-marker-file "$MARKER_FILE"
+
+      - name: Resolve exact diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags origin "${{ github.event.pull_request.base.sha }}" --depth=1
+            echo "SENSEI_DIFF=${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
+          else
+            echo "SENSEI_DIFF=HEAD~1...HEAD" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run enforce-mode architect activation
+        shell: bash
+        run: |
+          timeout --foreground 300s bash scripts/sensei-architect-activation.sh \
+            --repo . \
+            --sensei ./bin/sensei \
+            --addr localhost:19120 \
+            --repository-domain github.com/globulario/sensei \
+            --graph-domain github.com/globulario/sensei \
+            --diff "$SENSEI_DIFF" \
+            --mode enforce \
+            --full-how-timeout 60 \
+            --out sensei-activation
+
+      - name: Publish activation summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f sensei-activation/summary.md ]]; then
+            cat sensei-activation/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Sensei activation did not produce a summary." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload activation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sensei-architect-activation
+          path: sensei-activation/
+          if-no-files-found: warn
+
+      - name: Stop private graph
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${SENSEI_SERVER_PID:-}" ]]; then
+            kill "$SENSEI_SERVER_PID" 2>/dev/null || true
+          fi

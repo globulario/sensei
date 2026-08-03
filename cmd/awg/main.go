@@ -165,6 +165,10 @@ func dispatch(cmd string, args []string) int {
 		return runProduceChangeBinding(args)
 	case "evidence":
 		return runEvidence(args)
+	case "investigate":
+		return runInvestigate(args)
+	case "candidates":
+		return runCandidates(args)
 	case "resolve":
 		return runResolve(args)
 	case "query":
