@@ -440,6 +440,29 @@ func ControlStatus(repoRoot, taskDir string, active bool) (taskcontrol.TaskContr
 	return projectControlStatus(repoRoot, taskDir, active, true)
 }
 
+// ResolveClosureReportPath returns the exact closure-report path
+// projectControlStatus itself loads for this task: the generation-scoped
+// snapshot under control/generations/<digest>/convergence/latest/ once
+// control/latest-generation.yaml points at a published generation, or the
+// prepare-time snapshot under <taskDir>/convergence/latest/ before any
+// generation has been published. Callers driving a session or receipt off
+// a task's closure state (e.g. sensei synthesis-run) must resolve through
+// this function rather than reconstructing the path themselves -- a
+// parallel, hardcoded path silently binds to the stale prepare-time
+// snapshot once a generation exists, exactly the drift this exists to
+// prevent.
+func ResolveClosureReportPath(repoRoot, taskDir string, active bool) (string, error) {
+	_, resolvedTaskDir, _, err := resolveControlTask(repoRoot, taskDir, active)
+	if err != nil {
+		return "", err
+	}
+	paths, _, err := currentControlPaths(resolvedTaskDir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(paths.Convergence, "latest", "closure-after-dialogue.yaml"), nil
+}
+
 func projectControlStatus(repoRoot, taskDir string, active, useLatest bool) (taskcontrol.TaskControlState, string, error) {
 	repoRoot, taskDir, ptr, err := resolveControlTask(repoRoot, taskDir, active)
 	if err != nil {

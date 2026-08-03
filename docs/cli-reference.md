@@ -418,8 +418,8 @@ outside the candidate surface, so a sealed candidate cannot supply its own
 weakened policy); a minimal `default: inherit` file is enough if the
 repository has no per-rule overrides.
 
-Two preconditions are checked, and refused before planning or generation
-ever runs, before the O1 session is even constructed:
+Several preconditions are checked, and refused before planning or
+generation ever runs, before the O1 session is even constructed:
 
 - **The authored `--interpretation` file's `objective` must exactly match
   the resolved session objective** (`--objective`, or the task's own
@@ -430,10 +430,28 @@ ever runs, before the O1 session is even constructed:
   empty.** No production `EvidenceResolver` exists yet to bind a declared
   obligation to a verified discharge digest, so a non-empty declaration
   refuses the run rather than being silently dropped.
-  `synthesis.Session.ProofObligationDigests` is only ever constructed empty
-  after this check passes -- that empty slice means "the accepted authored
-  interpretation declared none," never "Sensei searched every authority
-  surface and found none."
+- **The task's own admission decision must declare zero proof
+  obligations too.** `sensei prepare-change` already projects real
+  `ProofObligation`/`ProofSlot` graph nodes into the task's persisted
+  admission decision (`Decision.ProofObligations`) -- this is authoritative
+  and checked independently of the interpretation file, which may add
+  context but can never erase or override obligations `prepare-change`
+  already recorded. `synthesis.Session.ProofObligationDigests` is only
+  ever constructed empty once both checks pass -- that empty slice means
+  "the accepted interpretation and the task's own admission decision both
+  declared none," never "Sensei searched every authority surface and found
+  none."
+- **The closure snapshot binds to the task's current control generation**,
+  not a possibly-stale prepare-time snapshot: resolved via
+  `tasksession.ResolveClosureReportPath`, the same generation-pointer
+  resolution `sensei task-status`/`sensei advance-task` themselves use.
+- **Workspace identity composition now also requires sufficient graph
+  coverage**, not just an authoritative (fresh, stamped) graph --
+  `workspacecontract`'s `CompositionComplete` state requires
+  `coverage_state = COVERAGE_STATE_SUFFICIENT` in addition to
+  authoritative/resolved, since a graph can be genuinely current while
+  still knowing too little about the repository to safely ground a
+  governed operation.
 
 | Flag | Default | Purpose |
 |---|---|---|

@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/agentcommand"
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
@@ -181,7 +182,17 @@ Flags:
 	baseRevision := *identity.Binding.Revision
 
 	// --- step 5: closure report -> ClosureDigestSHA256 ---
-	closureReport, err := closure.LoadReport(filepath.Join(taskDir, "convergence", "latest", "closure-after-dialogue.yaml"))
+	// Resolved through tasksession.ResolveClosureReportPath, the same
+	// generation-aware path projectControlStatus itself uses -- never a
+	// hardcoded <taskDir>/convergence/latest/... path, which silently binds
+	// to the stale prepare-time closure snapshot once at least one
+	// `sensei advance-task` has published a control generation.
+	closureReportPath, err := tasksession.ResolveClosureReportPath(absRepo, taskDir, false)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: resolve closure report path: %v\n", err)
+		return exitResolutionFailure
+	}
+	closureReport, err := closure.LoadReport(closureReportPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: load closure report (run 'sensei advance-task' to converge closure first): %v\n", err)
 		return exitResolutionFailure
@@ -219,6 +230,23 @@ Flags:
 	}
 
 	if err := validateNoRequiredProofObligations(interpretationProvider.RequiredProofObligations()); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
+		return exitResolutionFailure
+	}
+
+	// The task's own admission decision -- already computed by
+	// `sensei prepare-change` (admission.buildDecision projects real
+	// ProofObligation/ProofSlot graph nodes into Decision.ProofObligations)
+	// and persisted to disk -- is authoritative. The interpretation file's
+	// own (empty) declaration checked above is necessary but not
+	// sufficient: it must never be read as clearing or overriding
+	// obligations the decision already recorded.
+	taskDecision, err := admission.LoadDecision(filepath.Join(taskDir, "admission", "decision.yaml"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: load task admission decision: %v\n", err)
+		return exitResolutionFailure
+	}
+	if err := validateNoDecisionProofObligations(taskDecision.ProofObligations); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
 		return exitResolutionFailure
 	}
@@ -590,6 +618,26 @@ func validateNoRequiredProofObligations(obligations []string) error {
 	}
 	return fmt.Errorf("authored interpretation declares %d required proof obligation(s) (%s); no production EvidenceResolver exists yet to bind these to verified discharge digests, so this run cannot proceed -- author an interpretation whose required_proof_obligations is empty, or wait for O2 proof-obligation binding to land",
 		len(obligations), strings.Join(obligations, "; "))
+}
+
+// validateNoDecisionProofObligations refuses when the task's own admission
+// decision -- authoritative, already computed by `sensei prepare-change`,
+// never something the caller-authored interpretation may erase or override
+// -- declares any required proof obligation. Complements
+// validateNoRequiredProofObligations: an interpretation's own empty
+// declaration is necessary but not sufficient, since this is a real,
+// already-wired obligation source independent of whatever the
+// interpretation claims.
+func validateNoDecisionProofObligations(obligations []admission.ProofReceipt) error {
+	if len(obligations) == 0 {
+		return nil
+	}
+	ids := make([]string, len(obligations))
+	for i, o := range obligations {
+		ids[i] = o.ID
+	}
+	return fmt.Errorf("task admission decision declares %d required proof obligation(s) (%s); no production EvidenceResolver exists yet to bind these to verified discharge digests, so this run cannot proceed -- the authored interpretation may not erase obligations already projected by 'sensei prepare-change'",
+		len(obligations), strings.Join(ids, "; "))
 }
 
 // resolveAgentWorkdirs returns two distinct, empty, absolute directories for

@@ -79,10 +79,32 @@ func ComposeIdentity(in IdentityInputs) Identity {
 	return NormalizeIdentity(id)
 }
 
+// coverageStateSufficient is the exact proto CoverageState string
+// CoverageState must equal for deriveCompositionState to treat graph
+// coverage as sufficient for a governed operation. See CoverageState's own
+// doc comment for the full enum this is one member of.
+const coverageStateSufficient = "COVERAGE_STATE_SUFFICIENT"
+
 // deriveCompositionState is the single source of truth both ComposeIdentity
 // and ValidateIdentity use: an identity receipt is "complete" only when the
 // repository domain came from configured checkout identity, revision is
-// resolved, and graph_authority is present and authoritative.
+// resolved, graph_authority is present and authoritative, AND graph
+// coverage is sufficient.
+//
+// Authority and coverage are deliberately kept as two separate dimensions,
+// never merged into one another: GraphAuthority.Authoritative answers "is
+// this genuinely the live, current, provenance-stamped graph" (freshness,
+// seed state, build provenance -- see golang/client/authority.go's
+// isCurrentMetadataAuthority, which this field's value already reflects),
+// while CoverageState answers "does that graph actually know enough about
+// this repository to ground a governed operation." A graph can be
+// authoritative in the first sense while still being COVERAGE_STATE_THIN or
+// COVERAGE_STATE_EMPTY in the second -- composing on a technically-genuine
+// but functionally-uninformed graph is exactly the kind of degraded-not-safe
+// state this package's own non-negotiables forbid treating as complete.
+// GraphAuthority.Authoritative's own meaning and computation are untouched
+// by this: this function only changed what combination of already-computed
+// facts it requires before returning CompositionComplete.
 //
 // Two states are hard "unavailable" regardless of what else resolved: an
 // unbound repository domain (without a governed checkout identity, no other
@@ -91,7 +113,8 @@ func ComposeIdentity(in IdentityInputs) Identity {
 // receipt could not be meaningfully composed at all, not merely partially,
 // when the graph backend itself could not be reached. "partial" is reserved
 // for a configured domain with a *reachable* backend that is not fully
-// current/authoritative (e.g. a stale graph) or an unresolved revision.
+// current/authoritative, not sufficiently covered (e.g. a stale or thin
+// graph), or an unresolved revision.
 //
 // binding.graph_digest_status/task_identity are deliberately NOT inputs to
 // this derivation: sensei_workspace_status never resolves a task/snapshot-
@@ -108,7 +131,7 @@ func deriveCompositionState(id Identity) CompositionState {
 	if id.GraphAuthority == nil {
 		return CompositionUnavailable
 	}
-	if id.Binding.RevisionStatus == RevisionResolved && id.GraphAuthority.Authoritative {
+	if id.Binding.RevisionStatus == RevisionResolved && id.GraphAuthority.Authoritative && id.CoverageState == coverageStateSufficient {
 		return CompositionComplete
 	}
 	return CompositionPartial

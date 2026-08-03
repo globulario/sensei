@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/agentcommand"
 	"github.com/globulario/sensei/golang/architecture/synthesisdriver"
 )
@@ -128,6 +129,32 @@ func TestValidateNoRequiredProofObligations_NonEmptyIsRefused(t *testing.T) {
 		t.Fatal("expected an error for a declared required proof obligation")
 	}
 	if !containsAll(err.Error(), "obligation.security_review", "EvidenceResolver") {
+		t.Fatalf("error should name the obligation and explain why it cannot proceed: %v", err)
+	}
+}
+
+func TestValidateNoDecisionProofObligations_EmptyPasses(t *testing.T) {
+	if err := validateNoDecisionProofObligations(nil); err != nil {
+		t.Fatalf("unexpected error for zero task-decision obligations: %v", err)
+	}
+	if err := validateNoDecisionProofObligations([]admission.ProofReceipt{}); err != nil {
+		t.Fatalf("unexpected error for zero task-decision obligations: %v", err)
+	}
+}
+
+// TestValidateNoDecisionProofObligations_NonEmptyIsRefused covers a live
+// review finding: the task's own admission decision (already computed by
+// `sensei prepare-change`, authoritative, and never something the
+// caller-authored interpretation may erase or override) declaring a real
+// proof obligation must refuse the run -- this is a distinct check from
+// validateNoRequiredProofObligations, which only ever sees what the
+// interpretation file itself claims.
+func TestValidateNoDecisionProofObligations_NonEmptyIsRefused(t *testing.T) {
+	err := validateNoDecisionProofObligations([]admission.ProofReceipt{{ID: "obligation.security_review"}})
+	if err == nil {
+		t.Fatal("expected an error for a task admission decision declaring a required proof obligation")
+	}
+	if !containsAll(err.Error(), "obligation.security_review", "EvidenceResolver", "prepare-change") {
 		t.Fatalf("error should name the obligation and explain why it cannot proceed: %v", err)
 	}
 }
