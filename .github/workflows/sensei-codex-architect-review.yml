@@ -28,9 +28,17 @@ jobs:
     outputs:
       review_available: ${{ steps.persist-review.outputs.available }}
       pr_number: ${{ steps.pr-context.outputs.pr_number }}
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
+      # The only place this job asks whether the secret exists. Deliberately
+      # a boolean-only output, never the value itself: `secrets.*` in an `if:`
+      # is evaluated by the runner before any step process starts, so this
+      # never puts the raw key into a shell environment just to check
+      # presence. Every later step reads has_key, never OPENAI_API_KEY.
+      - name: Check whether OPENAI_API_KEY is configured
+        id: secret-check
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        run: echo "has_key=true" >> "$GITHUB_OUTPUT"
+
       - name: Resolve and validate PR context from the triggering run
         id: pr-context
         env:
@@ -88,43 +96,53 @@ jobs:
           fi
 
       - name: Explain unavailable Codex review
-        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY == ''
+        if: steps.activation-evidence.outcome == 'success' && steps.secret-check.outputs.has_key != 'true'
         run: |
           echo "Codex architect review was not executed because OPENAI_API_KEY is not configured." | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # Overwrite the PR's own copies of the prompt/schema with the default
-      # branch's versions. actions/checkout with no ref resolves to this
-      # repository's default branch on a workflow_run event (never the PR
-      # head), so trusted-config/.github/codex/* is guaranteed untouched by
-      # the PR regardless of what review-instructing content it shipped.
+      # Overwrite the PR's own copies of every file the prompt treats as a
+      # governing instruction with the default branch's versions.
+      # actions/checkout with no ref resolves to this repository's default
+      # branch on a workflow_run event (never the PR head), so
+      # trusted-config/* is guaranteed untouched by the PR regardless of what
+      # review-instructing content it shipped. This must cover not just the
+      # prompt/schema pair but everything sensei-architect-review.md itself
+      # tells Codex to read as "repository-owned instructions" -- the skill
+      # and the activation design doc -- or a PR could rewrite its own
+      # governing review instructions through those files instead.
       - name: Fetch trusted review instructions from the default branch
-        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY != ''
+        if: steps.activation-evidence.outcome == 'success' && steps.secret-check.outputs.has_key == 'true'
         uses: actions/checkout@v4
         with:
           persist-credentials: false
           sparse-checkout: |
             .github/codex
+            .claude/skills/sensei-architect
+            docs/design/sensei-full-activation.md
           sparse-checkout-cone-mode: false
           path: trusted-config
 
       - name: Overlay trusted review instructions
-        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY != ''
+        if: steps.activation-evidence.outcome == 'success' && steps.secret-check.outputs.has_key == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .github/codex
+          mkdir -p .github/codex .claude/skills docs/design
           cp -f trusted-config/.github/codex/sensei-architect-review.md .github/codex/sensei-architect-review.md
           cp -f trusted-config/.github/codex/sensei-architect-review.schema.json .github/codex/sensei-architect-review.schema.json
+          rm -rf .claude/skills/sensei-architect
+          cp -r trusted-config/.claude/skills/sensei-architect .claude/skills/sensei-architect
+          cp -f trusted-config/docs/design/sensei-full-activation.md docs/design/sensei-full-activation.md
 
       - name: Run capability-read-only Codex architect review
-        if: steps.activation-evidence.outcome == 'success' && env.OPENAI_API_KEY != ''
+        if: steps.activation-evidence.outcome == 'success' && steps.secret-check.outputs.has_key == 'true'
         id: codex
         # Pinned to the commit the "v1" tag resolved to on 2026-08-02.
         # A mutable tag would let a future upstream release change what this
         # secret-bearing step executes without this workflow ever changing.
         uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1
         with:
-          openai-api-key: ${{ env.OPENAI_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt-file: .github/codex/sensei-architect-review.md
           output-schema-file: .github/codex/sensei-architect-review.schema.json
           sandbox: read-only
