@@ -93,6 +93,7 @@ jobs:
           python3 - "$activation_rc" sensei-activation/activation.json sensei-activation/preflight <<'PY'
           import json
           from pathlib import Path
+          import re
           import sys
 
           producer_rc = int(sys.argv[1])
@@ -161,6 +162,16 @@ jobs:
                       f"expected {len(changed_files)}, got {len(files)}"
                   )
 
+              detail = preflight.get("detail", "")
+              match = re.search(r"\bfailed_files=(\d+)\b", detail)
+              if match is None:
+                  errors.append(
+                      "degraded preflight detail is missing failed_files count"
+                  )
+                  expected_degraded = None
+              else:
+                  expected_degraded = int(match.group(1))
+
               semantic_degraded = 0
               for path in files:
                   try:
@@ -212,15 +223,23 @@ jobs:
                       semantic_degraded += 1
                       continue
 
-                  errors.append(
-                      f"{path.name}: activation reported degraded "
-                      "but payload classified as available"
-                  )
+                  # This payload is healthy. The aggregate preflight
+                  # surface is degraded when any changed file is degraded,
+                  # so a mixed set of healthy and degraded payloads is valid.
 
               if semantic_degraded == 0:
                   errors.append(
                       "preflight is marked degraded without any "
                       "semantic coverage finding"
+                  )
+              if (
+                  expected_degraded is not None
+                  and semantic_degraded != expected_degraded
+              ):
+                  errors.append(
+                      "preflight degraded count mismatch: "
+                      f"summary reports {expected_degraded}, "
+                      f"payloads classify {semantic_degraded}"
                   )
           else:
               errors.append(
