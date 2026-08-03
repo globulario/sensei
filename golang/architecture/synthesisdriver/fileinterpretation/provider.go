@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -179,12 +178,26 @@ func New(config Config) (*Provider, error) {
 // resolution has even started, consistent with every other CLI
 // precondition check.
 func readAuthoredInterpretation(resolvedPath string, maxBytes int64) (AuthoredInterpretation, string, error) {
-	info, err := os.Lstat(resolvedPath)
+	// openNoFollow (platform-specific: open_unix.go / open_windows.go)
+	// refuses a symlink at the final path component atomically, in the
+	// same call that creates the file descriptor. A prior version used a
+	// separate os.Lstat check before a later os.OpenFile call, leaving a
+	// real TOCTOU race: another process with write access to the same
+	// directory could swap the checked regular file for a symlink between
+	// the two calls, so the run would consume different content than what
+	// was validated.
+	f, err := openNoFollow(resolvedPath)
 	if err != nil {
-		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: stat %q: %w", resolvedPath, err)
+		return AuthoredInterpretation{}, "", err
 	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: %q is a symlink, not a regular file -- pass the real path", resolvedPath)
+	defer f.Close()
+
+	// Stat the already-open file descriptor, not the path again -- an fd-
+	// based stat describes the exact entity this process now holds open
+	// and cannot itself be raced by a subsequent path-level swap.
+	info, err := f.Stat()
+	if err != nil {
+		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: stat open %q: %w", resolvedPath, err)
 	}
 	if !info.Mode().IsRegular() {
 		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: %q is not a regular file (mode %s)", resolvedPath, info.Mode())
@@ -192,12 +205,6 @@ func readAuthoredInterpretation(resolvedPath string, maxBytes int64) (AuthoredIn
 	if info.Size() > maxBytes {
 		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: %q is %d bytes, exceeds the %d byte limit", resolvedPath, info.Size(), maxBytes)
 	}
-
-	f, err := os.OpenFile(resolvedPath, os.O_RDONLY, 0)
-	if err != nil {
-		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: open %q: %w", resolvedPath, err)
-	}
-	defer f.Close()
 
 	hasher := sha256.New()
 	raw, err := io.ReadAll(io.TeeReader(io.LimitReader(f, maxBytes+1), hasher))
