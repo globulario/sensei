@@ -63,7 +63,7 @@
 //	sensei task-status                      Inspect an active task session
 //	sensei advance-task                     Run safe evidence and advance one task iteration
 //	sensei task-briefing                    Show bounded file context for an active task
-//	sensei synthesis-run                    Drive one O1-O8 governed synthesis session to candidate-ready
+//	sensei synthesis-run                    Drive one O1-O4 governed synthesis session to candidate-ready
 //	sensei proof-plan                       Show required proof before a repair can be promoted
 //	sensei repair-plan                      Build an authoritative governed repair plan
 //	sensei seed-status                      Check generated/committed/live seed authority alignment
@@ -467,6 +467,7 @@ Repair and evaluation helpers:
   task-status    Inspect an active architectural task session
   advance-task   Execute safe static evidence and advance one task iteration
   task-briefing  Show bounded file context for an active task
+  synthesis-run  Drive one O1-O4 governed synthesis session to candidate-ready
   task-ledger    Verify, import, and rebuild append-only task ledgers
   extract-authority Extract candidate authority surfaces from Go code
   extract-proof-obligations Generate proof obligations from authority surfaces

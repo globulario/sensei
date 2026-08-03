@@ -418,6 +418,23 @@ outside the candidate surface, so a sealed candidate cannot supply its own
 weakened policy); a minimal `default: inherit` file is enough if the
 repository has no per-rule overrides.
 
+Two preconditions are checked, and refused before planning or generation
+ever runs, before the O1 session is even constructed:
+
+- **The authored `--interpretation` file's `objective` must exactly match
+  the resolved session objective** (`--objective`, or the task's own
+  recorded description when omitted; both whitespace-normalized). A caller
+  cannot silently drive generation under one objective while the
+  session/receipt records a different one.
+- **`required_proof_obligations` in the authored interpretation must be
+  empty.** No production `EvidenceResolver` exists yet to bind a declared
+  obligation to a verified discharge digest, so a non-empty declaration
+  refuses the run rather than being silently dropped.
+  `synthesis.Session.ProofObligationDigests` is only ever constructed empty
+  after this check passes -- that empty slice means "the accepted authored
+  interpretation declared none," never "Sensei searched every authority
+  surface and found none."
+
 | Flag | Default | Purpose |
 |---|---|---|
 | `--repo` | `.` | repository checkout |

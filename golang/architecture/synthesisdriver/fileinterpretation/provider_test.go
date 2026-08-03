@@ -91,6 +91,49 @@ func TestProvider_DescribeAdvertisesOnlyInterpretation(t *testing.T) {
 	}
 }
 
+// TestProvider_ObjectiveReturnsAuthoredValue guards the accessor synthesis-run
+// uses to refuse a run whose authored interpretation objective diverges
+// from its session objective.
+func TestProvider_ObjectiveReturnsAuthoredValue(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	if err := os.WriteFile(path, []byte(validInterpretationJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p := mustNewProvider(t, path)
+	if got, want := p.Objective(), "prove the file-backed provider works"; got != want {
+		t.Fatalf("Objective() = %q, want %q", got, want)
+	}
+}
+
+// TestProvider_RequiredProofObligationsReturnsAuthoredValueAndCopy guards
+// the accessor synthesis-run uses to refuse a run whose authored
+// interpretation declares any required proof obligation, and confirms it
+// returns a defensive copy rather than aliasing internal state.
+func TestProvider_RequiredProofObligationsReturnsAuthoredValueAndCopy(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	withObligation := `{
+		"objective": "x",
+		"applicable_intent": [], "binding_invariants": [], "relevant_contracts": [],
+		"authority_boundaries": [], "known_failure_modes": [], "forbidden_fixes": [],
+		"required_proof_obligations": ["obligation.security_review"],
+		"assumptions": [], "unresolved_questions": [], "source_references": [], "limitations": []
+	}`
+	if err := os.WriteFile(path, []byte(withObligation), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p := mustNewProvider(t, path)
+	got := p.RequiredProofObligations()
+	if len(got) != 1 || got[0] != "obligation.security_review" {
+		t.Fatalf("RequiredProofObligations() = %v, want [obligation.security_review]", got)
+	}
+	got[0] = "mutated"
+	if second := p.RequiredProofObligations(); second[0] != "obligation.security_review" {
+		t.Fatalf("mutating the returned slice affected the provider's own state: %v", second)
+	}
+}
+
 func TestProvider_ExecuteValidFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "interpretation.json")

@@ -37,7 +37,15 @@ stopped, never silently applied.
   takes a hand-authored JSON file describing objective, invariants, contracts,
   and known failure modes -- no governed source resolver exists yet to derive
   this automatically from the graph, so an honest interpretation file should
-  say plainly that it is hand-authored.
+  say plainly that it is hand-authored. Its `objective` must exactly match
+  the resolved session objective (`--objective`, or the task's own recorded
+  description) -- a mismatch refuses the run before planning or generation,
+  rather than letting two silently divergent objectives drive generation and
+  the receipt. Its `required_proof_obligations` must be empty -- no
+  production `EvidenceResolver` exists yet to bind a declared obligation to
+  a verified discharge digest, so a non-empty declaration refuses the run
+  rather than being silently dropped in favor of an empty
+  `ProofObligationDigests`.
 - **The O4 evaluator needs `.sensei/gate-policy.yaml` to exist.** This is a
   deliberate security check (the policy path must resolve to a real file
   outside the candidate surface, so a malicious candidate cannot supply its

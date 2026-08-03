@@ -229,6 +229,28 @@ func (p *Provider) Describe(context.Context) (providerport.Capabilities, error) 
 	return p.caps, nil
 }
 
+// Objective returns the authored interpretation's objective, cached at
+// construction. Callers that also derive an objective from another source
+// (e.g. a task's own recorded description) must compare the two before
+// driving a session with either one -- see synthesis-run's own
+// objective-match precondition, added after a real review found that
+// nothing previously enforced the two could not silently diverge.
+func (p *Provider) Objective() string {
+	return p.authored.Objective
+}
+
+// RequiredProofObligations returns a defensive copy of the authored
+// interpretation's declared proof obligations, cached at construction.
+// This is currently the only concrete proof-obligation signal available to
+// synthesis-run: no production EvidenceResolver exists yet to discover
+// obligations from any other authority surface, so a caller that wants to
+// treat "declares none" as a real, bounded claim (rather than an
+// unqualified "Sensei found none") must gate on this being empty, not
+// silently default to an empty synthesis.Session.ProofObligationDigests.
+func (p *Provider) RequiredProofObligations() []string {
+	return append([]string(nil), p.authored.RequiredProofObligations...)
+}
+
 // Execute stamps and validates the interpretation cached at construction.
 // It never re-reads Path -- see Provider's doc comment. It reports the
 // cached content's sha256 as evidence via obs (when non-nil) before

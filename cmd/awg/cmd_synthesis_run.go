@@ -192,11 +192,38 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 6: build the O1 Session and its SessionState ---
-	objective := strings.TrimSpace(*objectiveFlag)
-	if objective == "" {
-		objective = taskSession.TaskRequest.Description
+	// --- step 6: file-backed interpretation provider, and the two
+	// preconditions a real review found this command previously let slide
+	// silently: the authored interpretation's objective must match the
+	// session objective exactly (never two silently divergent identities
+	// for what drove generation vs. what the receipt records), and the
+	// authored interpretation must declare zero required proof obligations
+	// (no production EvidenceResolver exists yet to bind any declared
+	// obligation to a verified discharge digest, so a non-empty declaration
+	// cannot proceed -- refusing beats silently discarding it). ---
+	now := time.Now().UTC().Format(time.RFC3339)
+	interpretationProvider, err := fileinterpretation.New(fileinterpretation.Config{
+		Path:       *interpretationPath,
+		ProviderID: "sensei-synthesis-run.o2.file",
+		ObservedAt: now,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct interpretation provider: %v\n", err)
+		return exitResolutionFailure
 	}
+
+	objective, err := resolveSynthesisRunObjective(*objectiveFlag, taskSession.TaskRequest.Description, interpretationProvider.Objective())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
+		return exitResolutionFailure
+	}
+
+	if err := validateNoRequiredProofObligations(interpretationProvider.RequiredProofObligations()); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
+		return exitResolutionFailure
+	}
+
+	// --- step 7: build the O1 Session and its SessionState ---
 	deadline := time.Now().Add(time.Duration(*deadlineMinutes) * time.Minute).UTC().Format(time.RFC3339)
 
 	session := synthesis.NormalizeSession(synthesis.Session{
@@ -213,10 +240,13 @@ Flags:
 		GraphAuthorityDigestSHA256: taskSession.Binding.GraphDigestSHA256,
 		TaskSessionDigestSHA256:    taskSession.SessionDigestSHA256,
 		ClosureDigestSHA256:        closureDigest,
-		// Left empty deliberately: no production EvidenceResolver exists
-		// yet, and verifyRequiredProofDischarges only touches the resolver
-		// (which we pass as nil below) when this is non-empty. A task with
-		// real proof obligations cannot run through O7 yet.
+		// Empty here means exactly one thing: the accepted authored
+		// interpretation validated above declared zero required proof
+		// obligations. It does not mean, and must never be read as meaning,
+		// "Sensei searched every authority surface and found none" -- no
+		// such search happens. Task-level obligation discovery beyond the
+		// authored interpretation is currently unavailable; see the step 6
+		// refusal above for the non-empty case this command refuses to run.
 		ProofObligationDigests: []string{},
 		Objective:              objective,
 		RetryBudget:            *retryBudget,
@@ -235,7 +265,7 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 7: vendor subprocess agents (O3 generation, O8 planning) ---
+	// --- step 8: vendor subprocess agents (O3 generation, O8 planning) ---
 	generationWorkdir, planningWorkdir, cleanupWorkdirs, err := resolveAgentWorkdirs(*agentWorkdir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
@@ -276,7 +306,6 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
 	generationFactory, err := agentcommand.NewFactory(agentcommand.Config{
 		Agent:            genAgent,
 		ProviderID:       "sensei-synthesis-run.o3." + *agentFlag,
@@ -301,17 +330,6 @@ Flags:
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct planning provider: %v\n", err)
-		return exitResolutionFailure
-	}
-
-	// --- step 8: file-backed interpretation provider ---
-	interpretationProvider, err := fileinterpretation.New(fileinterpretation.Config{
-		Path:       *interpretationPath,
-		ProviderID: "sensei-synthesis-run.o2.file",
-		ObservedAt: now,
-	})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct interpretation provider: %v\n", err)
 		return exitResolutionFailure
 	}
 
@@ -532,6 +550,46 @@ func exitCodeForDisposition(d synthesisdriver.Disposition) int {
 		// actually recognize.
 		return exitInternalDefect
 	}
+}
+
+// resolveSynthesisRunObjective resolves the session objective (--objective,
+// falling back to the task's own recorded description) and requires it to
+// exactly match the authored interpretation's own objective (both
+// whitespace-normalized). A real review found that nothing previously
+// enforced this: the authored interpretation could silently drive
+// generation under one objective while the session/receipt recorded a
+// different one -- a split identity between what happened and what was
+// claimed to have happened. On a mismatch, the caller must refuse before
+// planning or generation ever runs, not merely warn.
+func resolveSynthesisRunObjective(objectiveFlag, taskDescription, authoredObjective string) (string, error) {
+	objective := strings.TrimSpace(objectiveFlag)
+	source := "--objective"
+	if objective == "" {
+		objective = strings.TrimSpace(taskDescription)
+		source = "the task's own recorded description"
+	}
+	authored := strings.TrimSpace(authoredObjective)
+	if authored != objective {
+		return "", fmt.Errorf("interpretation objective %q does not match the session objective %q (from %s); the authored interpretation must state exactly the objective this run will be driven under, or a split identity forms between what drove generation and what the receipt records",
+			authored, objective, source)
+	}
+	return objective, nil
+}
+
+// validateNoRequiredProofObligations refuses an authored interpretation
+// that declares any required proof obligation. No production
+// EvidenceResolver exists yet to bind a declared obligation to a verified
+// discharge digest, so synthesis.Session.ProofObligationDigests can only
+// ever legitimately be constructed empty -- and only once this check has
+// passed. That makes the empty slice an honest, bounded claim ("the
+// accepted authored interpretation declared none"), never a silent
+// substitute for verification Sensei cannot yet perform.
+func validateNoRequiredProofObligations(obligations []string) error {
+	if len(obligations) == 0 {
+		return nil
+	}
+	return fmt.Errorf("authored interpretation declares %d required proof obligation(s) (%s); no production EvidenceResolver exists yet to bind these to verified discharge digests, so this run cannot proceed -- author an interpretation whose required_proof_obligations is empty, or wait for O2 proof-obligation binding to land",
+		len(obligations), strings.Join(obligations, "; "))
 }
 
 // resolveAgentWorkdirs returns two distinct, empty, absolute directories for
