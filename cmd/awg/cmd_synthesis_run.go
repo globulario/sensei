@@ -24,7 +24,6 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/agentcommand"
-	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/cognitivecommand"
 	"github.com/globulario/sensei/golang/architecture/evaluatorcomposition"
@@ -146,10 +145,18 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 3: refuse an unconverged task unless overridden ---
-	control, _, err := tasksession.ControlStatus(absRepo, taskDir, false)
+	// --- step 3: refuse an unconverged task unless overridden, and resolve
+	// the closure report this task's control readiness was itself derived
+	// from -- both from tasksession.ResolveControlAndClosure's single
+	// currentControlPaths resolution, never two independent calls. A
+	// concurrent `sensei advance-task` publishes a new generation as two
+	// separate, non-atomic writes (control/latest.yaml, then
+	// control/latest-generation.yaml); two independently-resolved reads can
+	// observe the pointer move in between and bind readiness and closure
+	// digest to a pair that never coexisted as one real generation. ---
+	control, closureReport, err := tasksession.ResolveControlAndClosure(absRepo, taskDir, false)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: load task control state: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: resolve task control state and closure report (run 'sensei advance-task' to converge closure first): %v\n", err)
 		return exitResolutionFailure
 	}
 	if control.PrimaryBlocker != nil && !*forceUnconverged {
@@ -181,22 +188,8 @@ Flags:
 	}
 	baseRevision := *identity.Binding.Revision
 
-	// --- step 5: closure report -> ClosureDigestSHA256 ---
-	// Resolved through tasksession.ResolveClosureReportPath, the same
-	// generation-aware path projectControlStatus itself uses -- never a
-	// hardcoded <taskDir>/convergence/latest/... path, which silently binds
-	// to the stale prepare-time closure snapshot once at least one
-	// `sensei advance-task` has published a control generation.
-	closureReportPath, err := tasksession.ResolveClosureReportPath(absRepo, taskDir, false)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: resolve closure report path: %v\n", err)
-		return exitResolutionFailure
-	}
-	closureReport, err := closure.LoadReport(closureReportPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: load closure report (run 'sensei advance-task' to converge closure first): %v\n", err)
-		return exitResolutionFailure
-	}
+	// --- step 5: closure digest, from the closure report step 3 already
+	// resolved atomically alongside control readiness ---
 	closureDigest, err := closureprotocol.SemanticDigest(closureReport)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: digest closure report: %v\n", err)

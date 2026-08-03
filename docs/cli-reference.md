@@ -441,10 +441,13 @@ generation ever runs, before the O1 session is even constructed:
   "the accepted interpretation and the task's own admission decision both
   declared none," never "Sensei searched every authority surface and found
   none."
-- **The closure snapshot binds to the task's current control generation**,
-  not a possibly-stale prepare-time snapshot: resolved via
-  `tasksession.ResolveClosureReportPath`, the same generation-pointer
-  resolution `sensei task-status`/`sensei advance-task` themselves use.
+- **Task readiness and the closure snapshot are resolved together,
+  atomically, from one control generation** -- via
+  `tasksession.ResolveControlAndClosure`, not two independent calls. A
+  concurrent `sensei advance-task` publishes a new generation as two
+  separate, non-atomic writes; two independently-resolved reads can
+  observe the pointer move in between and bind readiness to one
+  generation while binding the closure digest to another.
 - **Workspace identity composition now also requires sufficient graph
   coverage**, not just an authoritative (fresh, stamped) graph --
   `workspacecontract`'s `CompositionComplete` state requires

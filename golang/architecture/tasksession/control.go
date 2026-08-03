@@ -437,77 +437,96 @@ func LoadTaskControl(path string) (taskcontrol.TaskControlState, error) {
 }
 
 func ControlStatus(repoRoot, taskDir string, active bool) (taskcontrol.TaskControlState, string, error) {
-	return projectControlStatus(repoRoot, taskDir, active, true)
+	state, _, resolvedTaskDir, err := projectControlStatusAndClosure(repoRoot, taskDir, active, true, false)
+	return state, resolvedTaskDir, err
 }
 
-// ResolveClosureReportPath returns the exact closure-report path
-// projectControlStatus itself loads for this task: the generation-scoped
-// snapshot under control/generations/<digest>/convergence/latest/ once
-// control/latest-generation.yaml points at a published generation, or the
-// prepare-time snapshot under <taskDir>/convergence/latest/ before any
-// generation has been published. Callers driving a session or receipt off
-// a task's closure state (e.g. sensei synthesis-run) must resolve through
-// this function rather than reconstructing the path themselves -- a
-// parallel, hardcoded path silently binds to the stale prepare-time
-// snapshot once a generation exists, exactly the drift this exists to
-// prevent.
-func ResolveClosureReportPath(repoRoot, taskDir string, active bool) (string, error) {
-	_, resolvedTaskDir, _, err := resolveControlTask(repoRoot, taskDir, active)
-	if err != nil {
-		return "", err
-	}
-	paths, _, err := currentControlPaths(resolvedTaskDir)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(paths.Convergence, "latest", "closure-after-dialogue.yaml"), nil
+// ResolveControlAndClosure atomically resolves both a task's current
+// control state and its current closure report from exactly one
+// currentControlPaths generation resolution -- never two independent
+// reads a concurrent sensei advance-task could split across.
+//
+// AdvanceTask (below) publishes a new generation as two separate,
+// non-atomic writes: control/latest.yaml, then control/latest-generation.yaml
+// (see the writeFileAtomic pair a few dozen lines up in this file). A
+// caller that resolves control readiness and closure state through two
+// independent calls -- e.g. one call to ControlStatus, then a second,
+// later call re-resolving "the current generation" for the closure report
+// -- can observe the pointer move in between: the first call sees
+// generation N, the second sees generation N+1 (or vice versa), binding a
+// receipt to a control/closure pair that never coexisted as one real
+// generation. This function closes that window by resolving the
+// generation-scoped paths exactly once and loading both documents from
+// that single resolution before returning either.
+//
+// Unlike ControlStatus, this never takes the control/latest.yaml cache
+// shortcut projectControlStatus otherwise prefers (that shortcut never
+// loads a closure report at all, since taskcontrol.TaskControlState does
+// not carry one) -- it always rebuilds from the current generation's own
+// source documents, so both return values are guaranteed derived from the
+// same paths.
+func ResolveControlAndClosure(repoRoot, taskDir string, active bool) (taskcontrol.TaskControlState, closure.Report, error) {
+	state, report, _, err := projectControlStatusAndClosure(repoRoot, taskDir, active, true, true)
+	return state, report, err
 }
 
 func projectControlStatus(repoRoot, taskDir string, active, useLatest bool) (taskcontrol.TaskControlState, string, error) {
+	state, _, resolvedTaskDir, err := projectControlStatusAndClosure(repoRoot, taskDir, active, useLatest, false)
+	return state, resolvedTaskDir, err
+}
+
+// projectControlStatusAndClosure is the single shared implementation
+// behind ControlStatus, ResolveControlAndClosure, and Prepare's initial
+// control projection. forceRebuild, when true, skips the
+// control/latest.yaml cache shortcut (which never loads a closure report)
+// so the caller is guaranteed a real closure.Report resolved from the
+// exact same currentControlPaths call as the returned control state, not
+// a zero value.
+func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest, forceRebuild bool) (taskcontrol.TaskControlState, closure.Report, string, error) {
 	repoRoot, taskDir, ptr, err := resolveControlTask(repoRoot, taskDir, active)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 	}
 	var latestState *taskcontrol.TaskControlState
-	if state, loadErr := LoadTaskControl(filepath.Join(taskDir, "control", "latest.yaml")); useLatest && loadErr == nil {
+	if state, loadErr := LoadTaskControl(filepath.Join(taskDir, "control", "latest.yaml")); useLatest && !forceRebuild && loadErr == nil {
 		latestState = &state
-	} else if useLatest && !os.IsNotExist(loadErr) {
-		return taskcontrol.TaskControlState{}, "", loadErr
+	} else if useLatest && !forceRebuild && !os.IsNotExist(loadErr) {
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", loadErr
 	}
 	session, loadErrors, err := loadSessionForControl(filepath.Join(taskDir, "session.yaml"))
 	if err != nil {
-		return taskcontrol.TaskControlState{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 	}
 	verifyErrors := cleanStrings(append(loadErrors, verifySession(repoRoot, taskDir, session, ptr)...))
 	if len(verifyErrors) == 0 && latestState != nil {
-		return *latestState, taskDir, nil
+		return *latestState, closure.Report{}, taskDir, nil
 	}
 	paths := baseControlPaths(taskDir)
 	if useLatest {
 		paths, _, err = currentControlPaths(taskDir)
 		if err != nil {
-			return taskcontrol.TaskControlState{}, "", err
+			return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 		}
 	}
 	claims, err := architecture.LoadClaimDocument(paths.Claims)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 	}
 	dialogue, err := architecture.LoadDialogueDocument(paths.Dialogue)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 	}
 	probes, err := probe.LoadDocument(paths.Probes, nil)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 	}
 	closureReport, err := closure.LoadReport(filepath.Join(paths.Convergence, "latest", "closure-after-dialogue.yaml"))
 	if err != nil {
-		return taskcontrol.TaskControlState{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 	}
 	decision, err := admission.LoadDecision(filepath.Join(taskDir, "admission", "decision.yaml"))
 	if err != nil {
-		return taskcontrol.TaskControlState{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
 	}
 	inspectCapability := decision.InspectionCapability
 	mutationCapability := decision.MutationCapability
@@ -534,7 +553,7 @@ func projectControlStatus(repoRoot, taskDir string, active, useLatest bool) (tas
 		Closure:    closureReport, Dialogue: dialogue, Claims: claims, Probes: probes, Results: results,
 		BindingHealthy: len(verifyErrors) == 0, BindingErrors: verifyErrors, GeneratedAt: "1970-01-01T00:00:00Z", Receipts: receipts,
 	})
-	return state, taskDir, err
+	return state, closureReport, taskDir, err
 }
 
 func loadSessionForControl(path string) (Session, []string, error) {
