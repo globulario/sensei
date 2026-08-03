@@ -861,6 +861,37 @@ test_symbols:
     symbol: TestWorkspaceVerifyAdmission_RequiresAllArguments
     package: main
     language: go
+  - id: cmd/awg/anti_clobber_guard_test.go:TestGuardAgainstLiveShrink_AllowsGrowthAndSmallChange
+    file: cmd/awg/anti_clobber_guard_test.go
+    symbol: TestGuardAgainstLiveShrink_AllowsGrowthAndSmallChange
+    package: main
+    language: go
+  - id: cmd/awg/anti_clobber_guard_test.go:TestGuardAgainstLiveShrink_AllowsWhenLiveStoreEmpty
+    file: cmd/awg/anti_clobber_guard_test.go
+    symbol: TestGuardAgainstLiveShrink_AllowsWhenLiveStoreEmpty
+    package: main
+    language: go
+  - id: cmd/awg/anti_clobber_guard_test.go:TestGuardAgainstLiveShrink_AllowsWhenLiveStoreUnreachable
+    file: cmd/awg/anti_clobber_guard_test.go
+    symbol: TestGuardAgainstLiveShrink_AllowsWhenLiveStoreUnreachable
+    package: main
+    language: go
+  - id: cmd/awg/anti_clobber_guard_test.go:TestGuardAgainstLiveShrink_RefusesDramaticShrink
+    file: cmd/awg/anti_clobber_guard_test.go
+    symbol: TestGuardAgainstLiveShrink_RefusesDramaticShrink
+    package: main
+    language: go
+  - id: cmd/awg/anti_clobber_guard_test.go:TestRunRebuild_ForceFlagBypassesShrinkGuard
+    file: cmd/awg/anti_clobber_guard_test.go
+    symbol: TestRunRebuild_ForceFlagBypassesShrinkGuard
+    package: main
+    language: go
+  - id: cmd/awg/anti_clobber_guard_test.go:TestRunRebuild_RefusesLiveReloadThatWouldShrinkStore
+    file: cmd/awg/anti_clobber_guard_test.go
+    symbol: TestRunRebuild_RefusesLiveReloadThatWouldShrinkStore
+    package: main
+    language: go
+    doc: "TestRunRebuild_RefusesLiveReloadThatWouldShrinkStore is the end-to-end\nproof: a real runRebuild invocation (not --no-runtime-reload) against a\nlive store that currently holds a much larger graph must refuse, and\n--force must be required to override it. This is the exact incident this\nguard exists to prevent: a routine self-only rebuild/propose call silently\nreplacing a live combined deployment."
   - id: cmd/awg/architect_skill_dialogue_test.go:TestArchitectSkillLabelsDialogueNonAuthoritative
     file: cmd/awg/architect_skill_dialogue_test.go
     symbol: TestArchitectSkillLabelsDialogueNonAuthoritative
