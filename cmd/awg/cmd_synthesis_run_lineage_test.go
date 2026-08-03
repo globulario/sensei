@@ -14,6 +14,79 @@ import (
 	"github.com/globulario/sensei/golang/architecture/synthesisdriver"
 )
 
+// TestWriteRegularFileAtomicNoFollow_WritesAndReplaces covers the ordinary
+// case (no existing entry) and the legitimate replace case (an existing
+// regular file, e.g. a second run reproducing the same candidate digest
+// with fresh receipt content) -- both must succeed.
+func TestWriteRegularFileAtomicNoFollow_WritesAndReplaces(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeRegularFileAtomicNoFollow(dir, "x.json", []byte("first")); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "x.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "first" {
+		t.Fatalf("content = %q, want %q", got, "first")
+	}
+	if err := writeRegularFileAtomicNoFollow(dir, "x.json", []byte("second")); err != nil {
+		t.Fatalf("replace write: %v", err)
+	}
+	got, err = os.ReadFile(filepath.Join(dir, "x.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "second" {
+		t.Fatalf("content after replace = %q, want %q", got, "second")
+	}
+	// No leftover staging files.
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "x.json" {
+		t.Fatalf("directory contains unexpected entries: %v", entries)
+	}
+}
+
+// TestWriteRegularFileAtomicNoFollow_RefusesExistingSymlink is the direct
+// regression test for the live review finding: an existing symlink at the
+// target name (e.g. planted by another process, or a pre-existing
+// attacker-controlled entry) must be refused, never followed or
+// transparently overwritten by a plain path-based write.
+func TestWriteRegularFileAtomicNoFollow_RefusesExistingSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outsideTarget := filepath.Join(t.TempDir(), "outside.txt")
+	if err := os.WriteFile(outsideTarget, []byte("do not touch"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linkPath := filepath.Join(dir, "x.json")
+	if err := os.Symlink(outsideTarget, linkPath); err != nil {
+		t.Skipf("symlinks unsupported in this environment: %v", err)
+	}
+
+	if err := writeRegularFileAtomicNoFollow(dir, "x.json", []byte("attempted overwrite")); err == nil {
+		t.Fatal("expected an error writing through an existing symlink")
+	}
+
+	// The symlink itself, and its target, must be untouched.
+	info, err := os.Lstat(linkPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("the symlink at the target name was replaced instead of refused")
+	}
+	outsideContent, err := os.ReadFile(outsideTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(outsideContent) != "do not touch" {
+		t.Fatalf("symlink target was written through: %s", outsideContent)
+	}
+}
+
 // TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty covers every
 // disposition without a sealed candidate: there is nothing to persist, and
 // persistAdmissionLineage must not error or write a file.
