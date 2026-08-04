@@ -97,6 +97,91 @@ func TestRunStepLimitCannotEnlargeSessionBudgets(t *testing.T) {
 	}
 }
 
+// TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep is the direct
+// regression test for a live review finding: config.EvaluationEngine.Evaluate
+// can transition state all the way to PhaseSucceeded/PhaseFailed within a
+// single PhaseAttempting iteration (transitionRecordEvaluation resolves
+// PhaseEvaluating -> {Succeeded | Retry | Replan | Failed} in one call).
+// Before this fix, the driver loop only checked for that terminal phase at
+// the TOP of the NEXT iteration -- so a transition landing on the last
+// allowed step (step == config.MaxSteps) meant the loop exited with no next
+// iteration at all, falling through to the step-limit finishResult with a
+// terminal receipt already stamped on state, which ValidateRunReceipt's own
+// DispositionStepLimitReached case rejects outright ("nonterminal stop
+// cannot invent an O1 terminal receipt") -- turning a genuine success into
+// a hard Go error, silently orphaning a sealed candidate with no lineage
+// ever persisted.
+//
+// Determines the exact natural step count for an ordinary first-attempt
+// success (no retries/replans configured), then re-runs with MaxSteps
+// pinned to precisely that count -- the exact boundary the finding
+// describes -- and asserts it still succeeds cleanly.
+func TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep(t *testing.T) {
+	state, config := lifecycleHarness(t, 0, 0, "", "", nil)
+	config.MaxSteps = 20
+	baseline, err := Run(context.Background(), state, config)
+	if err != nil {
+		t.Fatalf("baseline run: %v", err)
+	}
+	if baseline.Receipt.Disposition != DispositionCandidateReady {
+		t.Fatalf("baseline disposition = %q, want candidate-ready", baseline.Receipt.Disposition)
+	}
+
+	state2, config2 := lifecycleHarness(t, 0, 0, "", "", nil)
+	config2.MaxSteps = baseline.Receipt.StepCount
+	result, err := Run(context.Background(), state2, config2)
+	if err != nil {
+		t.Fatalf("Run at the exact step-limit boundary returned an error instead of a valid result: %v", err)
+	}
+	if result.Receipt.Disposition != DispositionCandidateReady {
+		t.Fatalf("disposition = %q, want candidate-ready (MaxSteps=%d exactly matches the natural completion step)", result.Receipt.Disposition, config2.MaxSteps)
+	}
+	if result.SessionState.Phase != synthesis.PhaseSucceeded || result.SessionState.Receipt == nil {
+		t.Fatalf("phase=%q receipt=%v, want succeeded with a real O1 receipt", result.SessionState.Phase, result.SessionState.Receipt)
+	}
+	if result.Receipt.StepCount != config2.MaxSteps {
+		t.Fatalf("StepCount = %d, want %d (the step that actually produced the terminal transition, not one later)", result.Receipt.StepCount, config2.MaxSteps)
+	}
+}
+
+// TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep covers the
+// same boundary for the PhaseFailed side (RecommendAbort), not just
+// PhaseSucceeded.
+func TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep(t *testing.T) {
+	state, config := lifecycleHarness(
+		t, 0, 0,
+		string(evaluatorcomposition.FailureClassMechanicalCheckFailure),
+		synthesis.RecommendAbort,
+		func(input evaluatorcomposition.EvaluationInput) bool { return input.AttemptNumber == 1 },
+	)
+	config.MaxSteps = 20
+	baseline, err := Run(context.Background(), state, config)
+	if err != nil {
+		t.Fatalf("baseline run: %v", err)
+	}
+	if baseline.Receipt.Disposition != DispositionTerminalFailure {
+		t.Fatalf("baseline disposition = %q, want terminal-failure", baseline.Receipt.Disposition)
+	}
+
+	state2, config2 := lifecycleHarness(
+		t, 0, 0,
+		string(evaluatorcomposition.FailureClassMechanicalCheckFailure),
+		synthesis.RecommendAbort,
+		func(input evaluatorcomposition.EvaluationInput) bool { return input.AttemptNumber == 1 },
+	)
+	config2.MaxSteps = baseline.Receipt.StepCount
+	result, err := Run(context.Background(), state2, config2)
+	if err != nil {
+		t.Fatalf("Run at the exact step-limit boundary returned an error instead of a valid result: %v", err)
+	}
+	if result.Receipt.Disposition != DispositionTerminalFailure {
+		t.Fatalf("disposition = %q, want terminal-failure (MaxSteps=%d exactly matches the natural completion step)", result.Receipt.Disposition, config2.MaxSteps)
+	}
+	if result.SessionState.Phase != synthesis.PhaseFailed || result.SessionState.Receipt == nil {
+		t.Fatalf("phase=%q receipt=%v, want failed with a real O1 receipt", result.SessionState.Phase, result.SessionState.Receipt)
+	}
+}
+
 type invalidGenerationAgent struct{}
 
 func (invalidGenerationAgent) Generate(context.Context, agentcommand.GenerationPrompt, providerport.Observer) (agentcommand.MutationPlan, error) {

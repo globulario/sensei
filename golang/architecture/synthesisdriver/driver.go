@@ -162,6 +162,36 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 				}
 				candidate = &copyCandidate
 			}
+			// evaluated.SessionState can already be PhaseSucceeded or
+			// PhaseFailed here (config.EvaluationEngine.Evaluate fully
+			// resolves PhaseEvaluating -> {Succeeded | Retry | Replan |
+			// Failed} within this one call -- see synthesis.transitionRecordEvaluation).
+			// A live review found that finalizing lazily -- falling
+			// through to let the loop's next iteration hit the
+			// PhaseSucceeded/PhaseFailed cases below -- has two real
+			// costs: (1) if THIS was the last allowed step (step ==
+			// config.MaxSteps), the loop exits without a next iteration
+			// at all, and control falls to the step-limit finishResult
+			// below with a terminal receipt already stamped on state --
+			// which ValidateRunReceipt's own DispositionStepLimitReached
+			// case explicitly rejects ("nonterminal stop cannot invent
+			// an O1 terminal receipt"), turning a genuine success (or
+			// governed failure) into a hard Go error and an internal-
+			// defect exit for the CLI caller, silently orphaning a
+			// sealed candidate with no lineage ever persisted; (2) even
+			// on a non-boundary run, the lazily-finalized receipt's
+			// StepCount is stamped one step later than the step that
+			// actually produced the terminal transition. Finalizing
+			// immediately, at the exact step the transition happened,
+			// fixes both.
+			if state.Phase.Terminal() {
+				if state.Phase == synthesis.PhaseSucceeded {
+					return finishResult(state, interpretation, plan, candidate, trace, step, DispositionCandidateReady,
+						"candidate is ready to be submitted to O5 admission", startedAt, config.Now)
+				}
+				return finishResult(state, interpretation, plan, candidate, trace, step, DispositionTerminalFailure,
+					"O1 reached a governed terminal failure", startedAt, config.Now)
+			}
 
 		case synthesis.PhaseEvaluating:
 			return Result{}, errors.New("synthesisdriver: external evaluating state is not resumable in O7 v1; O4 must complete within the attempt step")
