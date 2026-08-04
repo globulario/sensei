@@ -399,7 +399,10 @@ func commitMirror(mirrorPath string, expected, next []byte) error {
 		return fmt.Errorf("the mirror changed while this run was deciding (now %s, expected %s); refusing to overwrite a concurrent edit",
 			short(sha256Hex(current)), short(sha256Hex(expected)))
 	}
-	return os.Rename(tmpName, mirrorPath)
+	if err := os.Rename(tmpName, mirrorPath); err != nil {
+		return err
+	}
+	return syncDir(dir)
 }
 
 // readManagedMirror refuses symlinks and irregular files rather than following
@@ -683,7 +686,24 @@ func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
 	if err := os.Chmod(tmpName, mode); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, path)
+	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	return syncDir(dir)
+}
+
+// syncDir fsyncs a directory's own entry so a preceding rename INTO it is
+// durable across a crash, not merely visible in the page cache. rename(2) is
+// atomic (a reader never observes a torn result) but not durable by itself:
+// without this, a crash right after a successful rename can still lose that
+// directory entry, reverting to whatever the name pointed at before.
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("open %s to sync its directory entry: %w", dir, err)
+	}
+	defer d.Close()
+	return d.Sync()
 }
 
 func senseiRevision() string {

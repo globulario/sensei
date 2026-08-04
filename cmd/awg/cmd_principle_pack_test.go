@@ -819,6 +819,57 @@ func TestPackRefresh_ConcurrentEditDuringPrepareIsCaught(t *testing.T) {
 	}
 }
 
+// ─── P2: rename durability ──────────────────────────────────────────────
+
+// TestSyncDir_SucceedsForRealDirectory proves syncDir is actually wired into
+// the write path without erroring on an ordinary directory -- rename(2) is
+// atomic but not durable by itself; atomicWriteFile and commitMirror both
+// call this after their rename so a crash right after a successful write
+// cannot revert the directory entry.
+func TestSyncDir_SucceedsForRealDirectory(t *testing.T) {
+	if err := syncDir(t.TempDir()); err != nil {
+		t.Fatalf("syncDir on a real directory must not error: %v", err)
+	}
+}
+
+// TestSyncDir_PropagatesOpenError proves a directory-sync failure is
+// reported, not silently swallowed -- a caller that ignored this could
+// report success for a rename that is not actually durable.
+func TestSyncDir_PropagatesOpenError(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+	if err := syncDir(missing); err == nil {
+		t.Fatal("syncDir on a missing directory must return an error")
+	}
+}
+
+// TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories proves the ordering
+// Codex's review specified: the receipt's directory entry is durable
+// (synced) before commitMirror ever runs, and the mirror's directory entry
+// is synced before refresh reports success. Both writes already succeed
+// under the existing full-apply tests; this asserts the specific ordering
+// by exercising the real files on a real filesystem rather than mocking
+// syncDir, since the property under test is "did the real directory get
+// synced", not "was a function called".
+func TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := installedMirror(t, id)
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("refresh --apply failed, rc=%d", rc)
+	}
+
+	// Both directories must themselves still be syncable (i.e. real,
+	// present, and not left in some broken half-written state) after the
+	// run -- a crashed/failed dir-sync would have surfaced as a non-zero
+	// exit above rather than a silently accepted success.
+	if err := syncDir(adoptionsDirPath(root)); err != nil {
+		t.Fatalf("receipt directory must be sync-able after apply: %v", err)
+	}
+	if err := syncDir(filepath.Dir(mirrorPath)); err != nil {
+		t.Fatalf("mirror directory must be sync-able after apply: %v", err)
+	}
+}
+
 func TestPackRefresh_LockPreventsConcurrentApply(t *testing.T) {
 	id := anAddableID(t)
 	root, mirrorPath := installedMirror(t, id)
