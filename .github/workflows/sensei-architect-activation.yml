@@ -198,17 +198,29 @@ jobs:
                       # Not every DEGRADED payload is the bounded
                       # coverage-debt case this block is meant to
                       # tolerate. golang/server/preflight.go sets
-                      # DEGRADED for at least four distinct reasons, only
-                      # one of which is "the graph genuinely has no
-                      # facts about this file yet" (the honest thin/
-                      # no-anchor case, marked by this exact blind_spots
-                      # string). The other three -- store unavailable,
-                      # domain scope unverified, and canonical
-                      # protection assessment itself degraded -- are
-                      # operational/derivation failures where Preflight
-                      # never established usable scoped awareness at
-                      # all, and must fail this check rather than be
-                      # silently counted as ordinary coverage debt.
+                      # DEGRADED for several distinct reasons, only one
+                      # of which is "the graph genuinely has no facts
+                      # about this file yet" (the honest thin/no-anchor
+                      # case, marked by this exact blind_spots string).
+                      # The others -- store unavailable, domain scope
+                      # unverified, canonical protection assessment
+                      # itself degraded, and a per-file impact query
+                      # that errored outright (preflight.go:141-145,
+                      # "impact_query_failed_for_<file>:", which can
+                      # co-occur with the honest-thin-coverage marker
+                      # since the failed file also ends up with zero
+                      # anchors) -- are operational/derivation failures
+                      # where Preflight never established usable scoped
+                      # awareness at all, and must fail this check
+                      # rather than be silently counted as ordinary
+                      # coverage debt. ("coverage_insufficient:" and the
+                      # "[deprecated]"/"[low-confidence]" trust-scoring
+                      # cautions are NOT in this list: both represent a
+                      # real, non-erroring query that genuinely found
+                      # nothing or found only demoted guidance -- the
+                      # same bounded debt the honest-thin-coverage
+                      # marker itself already describes, not an
+                      # operational failure.)
                       spots = data.get("blind_spots")
                       if not isinstance(spots, list):
                           spots = []
@@ -220,6 +232,7 @@ jobs:
                           s == "awareness_store_unavailable"
                           or s.startswith("domain_scope_unverified:")
                           or s.startswith("protection_assessment_degraded:")
+                          or s.startswith("impact_query_failed_for_")
                           for s in spots
                       )
                       if not honest_thin_coverage or known_bad:
