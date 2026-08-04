@@ -1162,3 +1162,74 @@ func TestFSCandidateArtifactStorePutAuxiliaryFileSharesStableRootIdentityAcrossR
 		t.Errorf("PutAuxiliaryFile leaked into the REPLACEMENT directory: err=%v", err)
 	}
 }
+
+// TestFSCandidateArtifactStoreVerifyRootIdentity_PassesForUnchangedPath
+// covers the ordinary case: nothing has happened to root since
+// construction, so VerifyRootIdentity(root) must succeed.
+func TestFSCandidateArtifactStoreVerifyRootIdentity_PassesForUnchangedPath(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.VerifyRootIdentity(root); err != nil {
+		t.Fatalf("VerifyRootIdentity(unchanged root): %v", err)
+	}
+}
+
+// TestFSCandidateArtifactStoreVerifyRootIdentity_DetectsRenameAndReplacement
+// is the direct regression test for a live review finding: after the
+// store's original root directory is renamed away and a DIFFERENT
+// directory is created at the original path, VerifyRootIdentity(the
+// original path) must fail -- that path string no longer identifies the
+// directory this store actually writes through, exactly the situation
+// that made a caller-reported candidate_path/lineage_path untrustworthy.
+func TestFSCandidateArtifactStoreVerifyRootIdentity_DetectsRenameAndReplacement(t *testing.T) {
+	parent := t.TempDir()
+	storePath := filepath.Join(parent, "store")
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewFSCandidateArtifactStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldPath := filepath.Join(parent, "store-old")
+	if err := os.Rename(storePath, oldPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.VerifyRootIdentity(storePath); err == nil {
+		t.Fatal("expected an error: storePath now names a REPLACEMENT directory, not the one this store was constructed against")
+	}
+	// The original path, however, still correctly identifies the store's
+	// real root.
+	if err := store.VerifyRootIdentity(oldPath); err != nil {
+		t.Fatalf("VerifyRootIdentity(original path after rename): %v", err)
+	}
+}
+
+// TestFSCandidateArtifactStoreVerifyRootIdentity_FailsForMissingPath
+// covers the companion case: the original directory renamed away with
+// nothing put back at the original path at all.
+func TestFSCandidateArtifactStoreVerifyRootIdentity_FailsForMissingPath(t *testing.T) {
+	parent := t.TempDir()
+	storePath := filepath.Join(parent, "store")
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewFSCandidateArtifactStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(storePath, filepath.Join(parent, "store-moved")); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.VerifyRootIdentity(storePath); err == nil {
+		t.Fatal("expected an error: storePath no longer exists")
+	}
+}

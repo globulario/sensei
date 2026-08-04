@@ -131,6 +131,19 @@ type CandidateArtifactStore interface {
 	// method refuses such a name rather than let its replace-capable
 	// commit defeat Put's create-only, no-clobber contract.
 	PutAuxiliaryFile(ctx context.Context, name string, data []byte) error
+
+	// VerifyRootIdentity confirms that path currently names the exact
+	// same directory this store's root was opened against -- i.e. that
+	// nothing has renamed the original directory away and replaced it
+	// with something else at the same path since construction. Every
+	// write this store performs (Put, PutAuxiliaryFile) goes through the
+	// stable, rename-immune root descriptor and is therefore unaffected
+	// by such a replacement -- but a caller who separately reports path
+	// (rather than through this store) after a long-running operation
+	// must not claim that reported path still identifies where content
+	// actually landed without checking. Returns a non-nil error if path
+	// cannot be stat'd, or if it now names a different directory.
+	VerifyRootIdentity(path string) error
 }
 
 // fsCandidateArtifactStore is a filesystem-backed CandidateArtifactStore:
@@ -341,6 +354,29 @@ func (s *fsCandidateArtifactStore) PutAuxiliaryFile(ctx context.Context, name st
 	}
 	if err := s.root.Rename(tmpName, name); err != nil {
 		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: commit (rename) failed: %w", err), s.root.Remove(tmpName))
+	}
+	return nil
+}
+
+// VerifyRootIdentity implements CandidateArtifactStore.VerifyRootIdentity
+// by comparing os.SameFile against s.dirFile -- the same open directory
+// descriptor Put/Get/PutAuxiliaryFile all address, derived from s.root at
+// construction (root.Open(".")) and therefore unaffected by any later
+// rename of the original path. os.Stat(path) re-resolves path fresh (it
+// does NOT go through s.root), so a stat that no longer identifies the
+// same underlying directory as s.dirFile proves path has been renamed
+// away, replaced, or removed since construction.
+func (s *fsCandidateArtifactStore) VerifyRootIdentity(path string) error {
+	pathInfo, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("CandidateArtifactStore.VerifyRootIdentity: stat %q: %w", path, err)
+	}
+	rootInfo, err := s.dirFile.Stat()
+	if err != nil {
+		return fmt.Errorf("CandidateArtifactStore.VerifyRootIdentity: stat opened root: %w", err)
+	}
+	if !os.SameFile(pathInfo, rootInfo) {
+		return fmt.Errorf("CandidateArtifactStore.VerifyRootIdentity: %q no longer identifies the directory this store was constructed against -- it was renamed, replaced, or removed since", path)
 	}
 	return nil
 }
