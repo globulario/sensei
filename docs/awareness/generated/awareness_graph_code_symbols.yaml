@@ -3992,7 +3992,7 @@ test_symbols:
     symbol: TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
     package: main
     language: go
-    doc: "TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\nis the direct regression test for a live review finding:\nDispositionTerminalFailure's text unconditionally claimed \"No candidate\nexists,\" directly contradicting the same report's candidate_path field\nwhenever a candidate actually was sealed. runnercomposition.Run seals a\ncandidate unconditionally on every O3-verified attempt, strictly before\nO4 evaluation runs -- so a candidate can be sealed and the run still end\nin DispositionTerminalFailure (this attempt's own O4 recommends abort)\nor DispositionRunnerStopped (an earlier attempt in the same retry loop\nsealed one, then a later attempt's O3 generation itself failed) --\nconfirmed via dedicated golang/architecture/synthesisdriver tests\n(TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep and direct\nempirical verification for RunnerStopped) before this fix."
+    doc: "TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\nis the direct regression test for a live review finding:\nDispositionTerminalFailure's text unconditionally claimed \"No candidate\nexists,\" directly contradicting the same report's candidate_path field\nwhenever a candidate actually was sealed. runnercomposition.Run seals a\ncandidate unconditionally on every O3-verified attempt, strictly before\nO4 evaluation runs -- so a candidate can be sealed and the run still end\nin DispositionTerminalFailure (this attempt's own O4 recommends abort)\nor DispositionRunnerStopped (an earlier attempt in the same retry loop\nsealed one, then a later attempt's O3 generation itself failed) --\nconfirmed via dedicated golang/architecture/synthesisdriver tests\n(TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep and direct\nempirical verification for RunnerStopped) before this fix.\nTestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\ncovers all four non-candidate-ready dispositions uniformly, including\nDispositionProviderStopped -- a live review found that a candidate\nsealed by an EARLIER attempt in the same run can survive into a\nDispositionProviderStopped outcome via the replan path (PhaseAttempting\n-> O4 recommends replan -> PhaseReplan -> PhasePlanning, a SECOND,\nlater call to the planning provider; if that later call itself fails,\nthe disposition is ProviderStopped despite a candidate already being\nsealed from before the replan), disproving an earlier assumption in\nthis same fix that ProviderStopped could never carry a candidate."
   - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
     file: cmd/awg/cmd_synthesis_run_test.go
     symbol: TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
@@ -16499,6 +16499,18 @@ test_symbols:
     symbol: TestO7CompletesWithGroundedInterpretationAndO8Planning
     package: synthesisdriver
     language: go
+  - id: golang/architecture/synthesisdriver/driver_test.go:TestFinishResult_CandidateTakesPrecedenceOverUncarriedDigest
+    file: golang/architecture/synthesisdriver/driver_test.go
+    symbol: TestFinishResult_CandidateTakesPrecedenceOverUncarriedDigest
+    package: synthesisdriver
+    language: go
+    doc: "TestFinishResult_CandidateTakesPrecedenceOverUncarriedDigest covers the\ncompanion case: when candidate (the full object) is non-nil, its own\ndigest is used, regardless of what sealedButUncarriedCandidateDigestSHA256\nsays -- the override parameter is a fallback for when candidate is nil,\nnever a competing source of truth."
+  - id: golang/architecture/synthesisdriver/driver_test.go:TestFinishResult_UsesSealedButUncarriedDigestWhenCandidateIsNil
+    file: golang/architecture/synthesisdriver/driver_test.go
+    symbol: TestFinishResult_UsesSealedButUncarriedDigestWhenCandidateIsNil
+    package: synthesisdriver
+    language: go
+    doc: "TestFinishResult_UsesSealedButUncarriedDigestWhenCandidateIsNil is the\ndirect regression test for a live review finding: runnercomposition.Run's\nDispositionDigestMismatch path seals a candidate artifact and stamps\nRunnerReceipt.CandidateArtifactDigestSHA256 BEFORE discovering the\nmismatch, but the driver's PhaseAttempting case only has the trace/\nhandoff at that point -- never a full runnercomposition.CandidateArtifact\nobject -- so `candidate` (the local var finishResult's own candidate\nparameter derives from) stays nil for a run's first, non-verified\nattempt. Without the sealedButUncarriedCandidateDigestSHA256 parameter,\nthe resulting Receipt.CandidateArtifactDigestSHA256 would incorrectly\nstay nil too, even though the artifact really is durably sealed."
   - id: golang/architecture/synthesisdriver/e2e_test.go:TestRunHappyPathThroughRealOwners
     file: golang/architecture/synthesisdriver/e2e_test.go
     symbol: TestRunHappyPathThroughRealOwners
