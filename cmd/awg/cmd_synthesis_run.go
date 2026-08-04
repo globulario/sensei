@@ -66,6 +66,7 @@ func runSynthesisRun(args []string) int {
 	maxStderrBytes := fs.Int64("max-stderr-bytes", 1<<20, "vendor subprocess stderr byte bound")
 	maxStructuredPayloadBytes := fs.Int("max-structured-payload-bytes", 1<<20, "vendor subprocess structured-output byte bound")
 	forceUnconverged := fs.Bool("force-unconverged", false, "proceed even though the task's control state has an active primary blocker")
+	forceThinCoverage := fs.Bool("force-thin-coverage", false, "proceed even though workspace identity coverage is not sufficient (e.g. a freshly-onboarded benchmark checkout); refused if identity is incomplete for any other reason (revision unresolved, graph not authoritative)")
 	format := fs.String("format", "text", "output format: text | json")
 
 	fs.Usage = func() {
@@ -189,11 +190,21 @@ Flags:
 		return exitResolutionFailure
 	}
 	if identity.CompositionState != workspacecontract.CompositionComplete {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: workspace identity is %s, not complete:\n", identity.CompositionState)
-		for _, l := range identity.Limitations {
-			fmt.Fprintf(os.Stderr, "  - %s: %s\n", l.Scope, l.Reason)
+		if *forceThinCoverage && identityPartialOnlyForThinCoverage(identity) {
+			fmt.Fprintln(os.Stderr, "sensei synthesis-run: WARNING: proceeding with --force-thin-coverage; workspace identity is partial (coverage is not sufficient) and this run's evidence will honestly carry that:")
+			for _, l := range identity.Limitations {
+				fmt.Fprintf(os.Stderr, "  - %s: %s\n", l.Scope, l.Reason)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "sensei synthesis-run: workspace identity is %s, not complete:\n", identity.CompositionState)
+			for _, l := range identity.Limitations {
+				fmt.Fprintf(os.Stderr, "  - %s: %s\n", l.Scope, l.Reason)
+			}
+			if identityPartialOnlyForThinCoverage(identity) {
+				fmt.Fprintln(os.Stderr, "sensei synthesis-run: pass --force-thin-coverage to proceed anyway (e.g. a freshly-onboarded benchmark checkout)")
+			}
+			return exitResolutionFailure
 		}
-		return exitResolutionFailure
 	}
 	identityDigest, err := workspacecontract.IdentityDigest(identity)
 	if err != nil {

@@ -141,3 +141,31 @@ func resolveSynthesisRunTaskIdentity(absRepo, taskDir string) (workspacecontract
 	resolvedTaskID := state.TaskID
 	return workspacecontract.TaskIdentity{State: workspacecontract.TaskIdentityResolved, TaskID: &resolvedTaskID}, nil
 }
+
+// identityPartialOnlyForThinCoverage reports whether identity is Partial
+// strictly because CoverageState is not sufficient, with every other
+// completeness dimension deriveCompositionState checks (revision resolved,
+// graph authority reachable and authoritative) otherwise satisfied. It
+// recomputes those same conditions directly from Identity's own exported
+// fields -- never by scanning Limitations text/scope strings, which are a
+// display concern, not the source of truth -- so it can never silently
+// drift out of sync with workspacecontract.deriveCompositionState's real
+// definition of Partial.
+//
+// --force-thin-coverage is gated on this returning true: a stale/dirty
+// revision or an unreachable/non-authoritative graph must always refuse,
+// regardless of the flag -- only "the graph is real and current but does
+// not yet know enough about this repository" (the expected, honest state
+// of a freshly-onboarded benchmark checkout) is ever overridable.
+func identityPartialOnlyForThinCoverage(identity workspacecontract.Identity) bool {
+	if identity.CompositionState != workspacecontract.CompositionPartial {
+		return false
+	}
+	if identity.Binding.RevisionStatus != workspacecontract.RevisionResolved {
+		return false
+	}
+	if identity.GraphAuthority == nil || !identity.GraphAuthority.Authoritative {
+		return false
+	}
+	return identity.CoverageState != workspacecontract.CoverageStateSufficient
+}

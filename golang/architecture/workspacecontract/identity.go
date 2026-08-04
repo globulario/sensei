@@ -115,6 +115,15 @@ func partialCompositionLimitations(id Identity) []Limitation {
 // doc comment for the full enum this is one member of.
 const coverageStateSufficient = "COVERAGE_STATE_SUFFICIENT"
 
+// CoverageStateSufficient is coverageStateSufficient's exported form, so a
+// caller outside this package can recognize this one specific value (e.g.
+// to tell "Identity is Partial only because coverage is thin" apart from
+// every other reason Partial can hold) without duplicating the magic
+// string. It changes no derivation: CompositionState is still only ever
+// computed by deriveCompositionState, never by a caller re-deciding
+// sufficiency for itself.
+const CoverageStateSufficient = coverageStateSufficient
+
 // deriveCompositionState is the single source of truth both ComposeIdentity
 // and ValidateIdentity use: an identity receipt is "complete" only when the
 // repository domain came from configured checkout identity, revision is
