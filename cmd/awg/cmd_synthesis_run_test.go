@@ -447,10 +447,21 @@ func TestNextStep_NeverSuggestsAdmissionExceptForCandidateReady(t *testing.T) {
 // confirmed via dedicated golang/architecture/synthesisdriver tests
 // (TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep and direct
 // empirical verification for RunnerStopped) before this fix.
+// TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
+// covers all four non-candidate-ready dispositions uniformly, including
+// DispositionProviderStopped -- a live review found that a candidate
+// sealed by an EARLIER attempt in the same run can survive into a
+// DispositionProviderStopped outcome via the replan path (PhaseAttempting
+// -> O4 recommends replan -> PhaseReplan -> PhasePlanning, a SECOND,
+// later call to the planning provider; if that later call itself fails,
+// the disposition is ProviderStopped despite a candidate already being
+// sealed from before the replan), disproving an earlier assumption in
+// this same fix that ProviderStopped could never carry a candidate.
 func TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions(t *testing.T) {
 	digest := strPtr("cand0000000000000000000000000000000000000000000000000000000000")
 	for _, d := range []synthesisdriver.Disposition{
 		synthesisdriver.DispositionTerminalFailure,
+		synthesisdriver.DispositionProviderStopped,
 		synthesisdriver.DispositionRunnerStopped,
 		synthesisdriver.DispositionStepLimitReached,
 	} {
@@ -468,11 +479,6 @@ func TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions(t 
 		if !contains(withoutCandidate, "No candidate") {
 			t.Fatalf("nextStep(%q) without a sealed candidate should say none exists: %s", d, withoutCandidate)
 		}
-	}
-	// ProviderStopped can never carry a candidate (fires strictly before
-	// O3/PhaseAttempting could ever run) -- its text stays unconditional.
-	if s := nextStep(synthesisdriver.DispositionProviderStopped, digest); !contains(s, "No candidate exists") {
-		t.Fatalf("nextStep(ProviderStopped) should unconditionally say no candidate exists, got: %s", s)
 	}
 }
 
