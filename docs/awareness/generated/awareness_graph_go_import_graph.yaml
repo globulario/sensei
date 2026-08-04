@@ -133,6 +133,7 @@ components:
       - cmd/awg/cmd_repo_eval.go
       - cmd/awg/cmd_repo_eval_draft_upgrade.go
       - cmd/awg/cmd_repo_eval_fix.go
+      - cmd/awg/cmd_report.go
       - cmd/awg/cmd_resolve.go
       - cmd/awg/cmd_review_realization.go
       - cmd/awg/cmd_rigor.go
@@ -751,6 +752,12 @@ components:
       - golang/architecture/runtimeprobe/observation.go
       - golang/architecture/runtimeprobe/probesource/fromprobe.go
       - golang/architecture/runtimeprobe/receipt.go
+      - golang/architecture/senseireport/build.go
+      - golang/architecture/senseireport/candidates.go
+      - golang/architecture/senseireport/contentdigest.go
+      - golang/architecture/senseireport/render_markdown.go
+      - golang/architecture/senseireport/types.go
+      - golang/architecture/senseireport/validate.go
       - golang/architecture/synthesis/commands.go
       - golang/architecture/synthesis/digest.go
       - golang/architecture/synthesis/events.go
@@ -1228,5 +1235,19 @@ components:
     uml:
       kind: Component
       stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.scratchpad
+    name: scratchpad
+    kind: service
+    assertion: inferred
+    source_files:
+      - scratchpad/provenance/graph-marker-incident/recovery-tool/main.go
+    depends_on:
+      - component.golang.seedmeta
+      - component.golang.store
+    uml:
+      kind: Component
+      stereotype: service
       view: structural
       confidence: inferred

@@ -215,6 +215,15 @@ func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
 			wantOutcome: EvaluatorOutcomeUnavailable,
 			wantStatus:  synthesis.CheckUnavailable,
 		},
+		{
+			name: "unchanged candidate",
+			command: func(EvaluationInput) CommandResult {
+				return CommandResult{Outcome: CommandOutcomeCompleted, ExitCode: 0, Stdout: []byte("sensei gate (dry-run): no added/changed lines in HEAD — nothing to check.\n")}
+			},
+			wantOutcome:      EvaluatorOutcomeCompleted,
+			wantStatus:       synthesis.CheckFailed,
+			wantFailureClass: failureClassSenseiGateEmptyCandidate,
+		},
 	}
 
 	for _, test := range tests {

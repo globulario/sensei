@@ -22,6 +22,12 @@ import (
 // evidence without silently choosing abort.
 const failureClassSenseiGateBlockingFinding = "sensei-gate-blocking-finding"
 
+// failureClassSenseiGateEmptyCandidate distinguishes an evaluator that is
+// unavailable from a candidate that contains no mutation for the evaluator to
+// assess. The latter is a completed, rejected evaluation: retry/replan policy
+// may respond to it, but it must never be presented as an infrastructure gap.
+const failureClassSenseiGateEmptyCandidate = "sensei-gate-empty-candidate"
+
 // SenseiGateConfig names the existing Sensei CLI owner and its explicit
 // runtime inputs. PolicyPath is caller-owned and frozen at construction. The
 // adapter never reads policy from the candidate surface or implements gate
@@ -292,7 +298,11 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 
 	switch command.Outcome {
 	case CommandOutcomeCompleted:
-		if parsed == nil || !parsed.Enforced || parsed.Diff != "HEAD" || parsed.Domain != input.RepositoryDomain {
+		if parsed == nil && isSenseiGateNoChangeOutput(command.Stdout) {
+			observation.Status = synthesis.CheckFailed
+			observation.Detail = "sealed candidate contains no changed lines"
+			failureReasons = append(failureReasons, failureClassSenseiGateEmptyCandidate)
+		} else if parsed == nil || !parsed.Enforced || parsed.Diff != "HEAD" || parsed.Domain != input.RepositoryDomain {
 			observation.Status = synthesis.CheckUnavailable
 			observation.Detail = "Sensei gate returned invalid or identity-mismatched JSON evidence"
 			terminalOutcome = EvaluatorOutcomeUnavailable
@@ -358,4 +368,9 @@ func (e *SenseiGateEvaluator) Evaluate(ctx context.Context, input EvaluationInpu
 		return EvaluatorResult{}, fmt.Errorf("SenseiGateEvaluator.Evaluate: constructed invalid result: %w", err)
 	}
 	return result, nil
+}
+
+func isSenseiGateNoChangeOutput(stdout []byte) bool {
+	return strings.Contains(string(stdout), "no added/changed lines") &&
+		strings.Contains(string(stdout), "nothing to check")
 }
