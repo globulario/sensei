@@ -1,0 +1,57 @@
+Server version:        0.0.6
+Server started:        2026-08-03T01:17:14Z
+
+Build provenance:
+  Graph build commit:  0a0a6d92225a
+  Graph build time:    2026-08-02T22:10:27Z
+  Source repo commit:  2945a2812486
+  Seed digest:         d130c13081b6b74cbd29277ac8e8d04314bc930d93edca0567d5bf179974c4b7
+  Live graph digest:   (unstamped)
+  Live graph triples:  186825
+  Provenance state:    stamped
+  Coverage state:      sufficient
+  Seed state:          stale
+  Freshness state:     stale
+  Freshness detail:    live store missing expected graph marker d130c13081b6b74cbd29277ac8e8d04314bc930d93edca0567d5bf179974c4b7
+
+Selectable domains:
+  globular
+
+Live counts:
+  Triples:             186825
+  Invariants:          616
+  Failure modes:       282
+  Incident patterns:   9
+  Intents:             219
+  Forbidden fixes:     963
+  Required tests:      6332
+  Source files:        3544
+  Code symbols:        7894
+
+Architectural spine:
+  Meta-principles:     163
+  Components:          125
+  Boundaries:          5
+  Contracts:           873
+  Decisions:           18
+  Evidence:            3
+  Design patterns:     5
+  Impl. patterns:      23
+  Pattern misuses:     4
+  Architecture claims: 0
+  Open questions:      0
+  Architect answers:   0
+  Evidence probes:     0
+
+Local review surfaces:
+  Candidate queue:     present
+  Candidate files:     18
+  Candidate entries:   15
+  Benchmark state:     not_detected
+  Benchmark contracts: 0
+  Learning events:     0
+  Governance pack:     not_detected
+  Combined digest:     d130c13081b6b74cbd29277ac8e8d04314bc930d93edca0567d5bf179974c4b7
+  Combined triples:    95586
+
+Generated in: 193 ms

@@ -2077,3 +2077,15 @@ invariants:
       - golang/architecture/synthesis/digest_integrity_test.go:TestNewSessionStateRejectsDeclaredDigestMismatch
       - golang/architecture/synthesis/digest_integrity_test.go:TestRecordCommandsRejectDeclaredDigestMismatch
     contract: A governed artifact's declared identity must equal its actual computed content digest before acceptance; schema shape validation is necessary but not sufficient to establish artifact identity, and provider output is untrusted input until independently verified (O1 hard law 9).
+  - id: awareness.graph_authority.marker_target_binding
+    title: A graph authority marker and the graph store it certifies must share one explicit target identity
+    severity: high
+    status: active
+    description: 'When any non-default graph target (--store-url, --oxigraph-bind, --data) is selected for a build or serve, Sensei must refuse to fall back to the repository-global default authority-marker/transaction-marker paths unless those paths are explicitly supplied for that same target. A partial target override (store given, marker omitted) must refuse rather than silently defaulting to the repo-global marker path. Protections: (1) explicit coupling of store target, authority marker, and transaction marker; (2) refusal on partial target override; (3) a test proving a scratch build cannot mutate the default live marker; (4) a test proving marker writes identify the store they certify; (5) atomic handling of marker and transaction metadata together.'
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+        - golang/seedmeta/markerfile.go
+        - cmd/awg/cmd_serve.go
+    related_failure_modes:
+      - awareness.graph_authority.scratch_build_overwrites_live_marker

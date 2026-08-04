@@ -1,0 +1,29 @@
+contract_unknown:
+  - id: awareness.workspace_identity.governance_state_binding_unknown
+    kind: contract_unknown
+    title: A governed Git worktree must be able to use canonical repository governance state without inheriting another checkout's task authority
+    description: |-
+      Discovered while working PR #154 (feat/principle-pack-refresh) in an isolated git worktree at ~/Documents/github.com/globulario/sensei-pr154-work, created deliberately after an earlier incident where a scratch sensei build in the main checkout corrupted the live :10120 server's graph-authority marker. The worktree has no .sensei/project/claims.yaml and no .sensei/tasks/ state at all -- only the main checkout does (.sensei/project/claims.yaml, 141MB, dozens of bootstrapped task sessions under .sensei/tasks/). Read-only inspection against the main checkout confirmed the danger precisely: 'sensei task-status --repo <main> --active --verify' returned binding to task.documentation.8b5971ee1097 @ ce47ef0ff7cd -- an unrelated task (documentation, not principle-pack/durability work) bound to a THIRD revision matching neither the main checkout's own HEAD (8fcab5907c, itself stale relative to origin/main) nor the worktree's HEAD (662e7238e9, the actual PR #154 work), with Modify: refused, Inspect: uncertifiable, and limitations including repository_revision_changed, ledger_head_mismatch, ledger_sequence_mismatch, task_control_digest_mismatch, and working_tree_outside_envelope. 'sensei task-briefing --repo <main> --active --file cmd/awg/cmd_principle_pack.go' correctly refused outright: 'task briefing refused: repair task binding before using architectural context'. So the safety layer (refuse a broken binding) already works. The gap is upstream of that: task-status/task-briefing/prepare-change/advance-task resolve governance state (.sensei/project/, .sensei/tasks/) purely from --repo's physical path, with no way to point a workspace at governance state living in a DIFFERENT checkout of the same repository identity. A worktree therefore looks ungoverned (no claims.yaml, no active task) even when the same repository has a real, bootstrapped governance store one directory over -- an agent working in the worktree has no path to discover or safely use it, and would only be prevented from misusing STALE state, never guided toward the CURRENT state that should exist for its actual branch/head.
+    
+      Important required properties for the eventual contract:
+      - repository identity is derived independently from physical path (matching git remote/repository fingerprint, not directory location)
+      - workspace path, branch, base, and head are recorded explicitly
+      - governance state may live outside the worktree (an explicit --state-repo or --state-dir binding)
+      - read-only architectural memory (graph queries, briefing, preflight) can be shared across checkouts when repository identity matches
+      - task authority requires exact task-to-workspace revision AND scope compatibility -- not just repository identity
+      - a stale or unrelated active task must fail closed exactly as observed here, never silently serve mismatched context
+      - no implicit .sensei fallback or symlink-based sharing between checkouts (that would let one branch mutate another branch's task state -- an ambient-authority leak)
+      - evidence and receipts record the actual mutation-workspace revision, not the governance-state checkout's revision
+      - marker/store targets remain independently explicit (per the sibling graph-marker-target-binding incident from earlier in this same session)
+      - parallel worktrees must not be able to mutate one another's task sessions accidentally
+    
+      This is necessary for safe parallel/concurrent agent work: multiple agents cannot all safely edit the same checkout, but they still need access to the same architectural memory and independently scoped task sessions.
+    proposed_contract: A governed Git worktree must be able to use canonical repository governance state without inheriting another checkout's task authority. Governance-state location and mutation-workspace identity must be explicit, independently verified, and bound to the same repository identity and compatible revision scope.
+    source_files:
+      - cmd/awg/cmd_task_session.go
+    evidence:
+      - 'sensei task-status --repo ~/Documents/github.com/globulario/sensei --active --verify: Binding: github.com/globulario/sensei @ ce47ef0ff7cd (graph 2f98fa014871); Modify: refused; Inspect: uncertifiable; Limitations: repository revision changed; task.binding.ledger_head_mismatch; task.binding.ledger_sequence_mismatch; task.binding.task_control_digest_mismatch; task.binding.working_tree_outside_envelope'
+      - 'sensei task-briefing --repo ~/Documents/github.com/globulario/sensei --active --file cmd/awg/cmd_principle_pack.go: refused outright with ''repair task binding before using architectural context'''
+      - worktree ~/Documents/github.com/globulario/sensei-pr154-work has no .sensei/project/claims.yaml and no .sensei/tasks/ state at all; main checkout has a 141MB claims.yaml and dozens of task sessions
+      - 'three distinct revisions in play: task binding ce47ef0ff7cd, main checkout HEAD 8fcab5907c, worktree HEAD 662e7238e9 -- none matching'
+    domain: github.com/globulario/sensei

@@ -1,0 +1,2 @@
+UID          PID    PPID  C STIME TTY          TIME CMD
+dave      436953       1  0 Aug02 ?        00:00:49 sensei serve -no-seed -data /home/dave/.local/share/sensei/oxigraph -addr :10120 -home-domain globular -graph-marker-file /home/dave/Documents/github.com/globulario/sensei/.sensei/graph-authority.json

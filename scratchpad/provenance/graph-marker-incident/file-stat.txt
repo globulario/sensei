@@ -1,0 +1,16 @@
+  File: .sensei/graph-authority.json
+  Size: 246       	Blocks: 8          IO Block: 4096   regular file
+Device: 259,3	Inode: 24007057    Links: 1
+Access: (0644/-rw-r--r--)  Uid: ( 1000/    dave)   Gid: ( 1000/    dave)
+Access: 2026-08-04 03:17:43.568324358 -0400
+Modify: 2026-08-04 03:16:59.893048856 -0400
+Change: 2026-08-04 03:16:59.893048856 -0400
+ Birth: 2026-08-04 03:16:59.893048856 -0400
+  File: .sensei/graph-authority.transaction.tsv
+  Size: 91860     	Blocks: 184        IO Block: 4096   regular file
+Device: 259,3	Inode: 24006490    Links: 1
+Access: (0644/-rw-r--r--)  Uid: ( 1000/    dave)   Gid: ( 1000/    dave)
+Access: 2026-08-04 03:17:58.735073341 -0400
+Modify: 2026-08-04 03:16:59.967047626 -0400
+Change: 2026-08-04 03:16:59.967047626 -0400
+ Birth: 2026-08-04 03:16:59.967047626 -0400
