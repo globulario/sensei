@@ -350,6 +350,8 @@ func dispatch(cmd string, args []string) int {
 		return runPrinciplePack(args)
 	case "corpus":
 		return runCorpus(args)
+	case "report":
+		return runReport(args)
 	case "version":
 		fmt.Println(Version)
 		return 0
@@ -376,6 +378,7 @@ Onboard or refresh a repo:
   rebuild        Rebuild self-only awareness.nt (--combined includes paired repo)
   serve          Start the gRPC awareness server
   demo           Stand up a private graph and return one real briefing
+  report         Generate SENSEI.md + SENSEI.report.json (--check to verify only)
 
 Query before editing:
   preflight      Risk classification before editing a file or task

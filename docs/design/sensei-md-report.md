@@ -53,7 +53,7 @@ Sensei authoritative state and evidence
              report model
               /       \
              v         v
-       SENSEI.md   .sensei/report.json
+       SENSEI.md   SENSEI.report.json
 ```
 
 Sensei may generate, compare, and validate the report, but must not parse claims from `SENSEI.md` back into the graph, task state, admission decisions, or verification state.
@@ -64,10 +64,17 @@ This preserves one canonical derivation path and prevents Markdown presentation 
 
 ```text
 SENSEI.md                         concise human-readable summary
-.sensei/report.json               versioned machine-readable equivalent
+SENSEI.report.json                versioned machine-readable equivalent
 .sensei/reports/<task-id>.md      optional detailed task reports
 .sensei/receipts/                 authoritative execution evidence
 ```
+
+The machine-readable equivalent lives at the repo root next to `SENSEI.md`,
+not under `.sensei/`: `.sensei/` is this repository's fully gitignored local
+runtime-state directory (`/.sensei/` in `.gitignore`), so a file that must be
+committed and versioned cannot live there without a fragile per-file
+`.gitignore` carve-out. A root-level sibling to `SENSEI.md` is trivially
+committable and keeps `.gitignore` untouched.
 
 The top-level report should remain small enough to understand in a few minutes. Detailed evidence belongs in receipts and task-specific reports.
 
@@ -136,16 +143,19 @@ Show only high-value candidates or recently promoted principles that are relevan
 Include the exact commands needed to regenerate or validate the report.
 
 ```sh
-sensei verify
 sensei report
 sensei report --check
 ```
+
+There is no `sensei verify` command. Reproduction is always exactly these
+two invocations of `sensei report` — the first version deliberately does not
+add a separate aggregate verification command.
 
 ## Proposed command surface
 
 ### `sensei report`
 
-Generate or refresh `SENSEI.md` and `.sensei/report.json` from the same internal report model.
+Generate or refresh `SENSEI.md` and `SENSEI.report.json` from the same internal report model.
 
 ### `sensei report --check`
 
@@ -254,10 +264,21 @@ Remaining blockers: None
 ## Reproduce
 
 ```sh
-sensei verify
+sensei report
 sensei report --check
 ```
 ```
+
+This example is illustrative of the intended shape and predates the
+narrower first implementation below; it is not a literal transcript of what
+`sensei report` v1 emits. In particular, v1 never renders an unqualified
+`Disposition: VERIFIED` or a `Build: passed`/`Tests: passed`-style
+repository-wide verification section — Sensei's own code does not execute
+`go build`/`go test` against a target repository anywhere today, so claiming
+that would be fabricating a capability it does not have. `CurrentWork.Disposition`
+is task-scoped only, and `Verification.RepositoryWideVerification` is always
+the honest, unconditional `NOT_RUN`. See a real, generated `SENSEI.md` for
+this repository's actual v1 output.
 
 ## Initial implementation boundary
 
@@ -289,7 +310,7 @@ Not required:
 - repository health scores;
 - project-management features.
 
-Future clients may consume `.sensei/report.json`, but they must remain projections of the same canonical report model rather than introduce a second interpretation path.
+Future clients may consume `SENSEI.report.json`, but they must remain projections of the same canonical report model rather than introduce a second interpretation path.
 
 ## Acceptance criteria
 
