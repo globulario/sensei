@@ -482,7 +482,14 @@ func refuseSymlinkedAncestors(root, path string) error {
 		cur = filepath.Join(cur, part)
 		fi, err := os.Lstat(cur)
 		if err != nil {
-			return fmt.Errorf("no managed mirror parent at %s (%v)", cur, err)
+			if os.IsNotExist(err) {
+				// Not there yet is fine -- callers preparing to create a
+				// directory tree (mkdirAllSynced) legitimately hit this;
+				// nothing deeper can exist either, so there is nothing
+				// further to check.
+				return nil
+			}
+			return fmt.Errorf("checking ancestor %s: %w", cur, err)
 		}
 		if fi.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("%s is a symlink; refusing to read or write through it", cur)
@@ -920,7 +927,29 @@ var syncDir = syncDirImpl
 // up: it left the state directory's OWN creation -- the entry for
 // ".sensei" inside root -- unsynced whenever this call was what created
 // it.
+//
+// Also refuses symlinks the same way readManagedMirror does for the
+// mirror: statedir.Path resolves ".sensei"/".awg" via os.Stat, which
+// FOLLOWS a symlink, and plain os.MkdirAll on an existing path that Stats
+// as a directory (even through a symlink) does nothing further and
+// succeeds silently. A project whose ".sensei" (or ".awg") is a symlink
+// to somewhere outside root would otherwise have --apply create
+// principle-pack/, its lock, and its adoption evidence outside the
+// repository named by --repo, before the mirror is ever even read.
 func mkdirAllSynced(path, boundary string, perm os.FileMode) error {
+	if err := refuseSymlinkedAncestors(boundary, path); err != nil {
+		return err
+	}
+	if fi, err := os.Lstat(path); err == nil {
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%s is a symlink; refusing to create or write through it", path)
+		}
+		if !fi.IsDir() {
+			return fmt.Errorf("%s exists and is not a directory", path)
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
 	if err := os.MkdirAll(path, perm); err != nil {
 		return err
 	}

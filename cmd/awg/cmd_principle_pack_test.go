@@ -438,6 +438,89 @@ func TestPackRefresh_SymlinkedParentDirectoryRefuses(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_SymlinkedStateDirRefusesWithoutMutatingTarget proves
+// mkdirAllSynced's ancestor/leaf symlink check for the ACTIVE STATE
+// DIRECTORY itself (".sensei" or ".awg"), not just the mirror's parent
+// path. statedir.Path resolves the state directory via os.Stat, which
+// follows a symlink, and plain os.MkdirAll on something that already
+// Stats as a directory (even through a symlink) does nothing further and
+// succeeds silently -- so a project whose ".sensei" is a symlink to
+// somewhere else entirely (standing in here for the real risk: another
+// checkout's real governance state, e.g. a worktree accidentally
+// resolving into the main checkout's ".sensei") would otherwise have
+// --apply create principle-pack/, its lock, and adoption evidence
+// there instead, before the mirror is ever even read.
+//
+// This asserts every property that finding actually requires, not just
+// "the call returns an error":
+//   - the state directory resolves without a competing real ".sensei" or
+//     ".awg" being created alongside/instead of the symlink;
+//   - the symlink's target -- standing in for another checkout's real
+//     governance state -- is left completely untouched, not just "the
+//     mirror wasn't written";
+//   - retrying behaves identically: same refusal, same untouched target,
+//     not a different error class or a partial mutation on a second try.
+func TestPackRefresh_SymlinkedStateDirRefusesWithoutMutatingTarget(t *testing.T) {
+	root := t.TempDir()
+	mirrorPath := filepath.Join(root, mirrorRelPath)
+	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	id := anAddableID(t)
+	body := packMinus(t, id)
+	if err := os.WriteFile(mirrorPath, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stands in for "another checkout's real .sensei/" -- the actual risk
+	// being closed. Must start, and remain, completely empty.
+	outsideState := t.TempDir()
+	before, err := os.ReadDir(outsideState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != 0 {
+		t.Fatalf("test setup: outside state dir must start empty, got %v", before)
+	}
+
+	if err := os.Symlink(outsideState, filepath.Join(root, ".sensei")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	assertUntouched := func(when string) {
+		t.Helper()
+		got, err := os.ReadDir(outsideState)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("%s: the symlink target was mutated despite the refusal: %v", when, got)
+		}
+		fi, err := os.Lstat(filepath.Join(root, ".sensei"))
+		if err != nil {
+			t.Fatalf("%s: %v", when, err)
+		}
+		if fi.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("%s: the .sensei symlink was replaced by a real directory", when)
+		}
+		if _, err := os.Stat(filepath.Join(root, ".awg")); !os.IsNotExist(err) {
+			t.Fatalf("%s: a competing .awg directory was created (statedir must not fall back), err=%v", when, err)
+		}
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("expected refusal when the active state directory is a symlink")
+	}
+	assertUntouched("first attempt")
+
+	// Retry must behave identically -- the same refusal for the same
+	// reason, not a different error class, and still no mutation.
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("expected refusal on retry too")
+	}
+	assertUntouched("retry")
+}
+
 // ─── receipt ────────────────────────────────────────────────────────────
 
 func TestPackRefresh_WritesReceiptBeforeReportingSuccess(t *testing.T) {
