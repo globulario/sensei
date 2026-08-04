@@ -260,6 +260,38 @@ func TestPackRefresh_PlanReplayDoesNotSync(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_ApplyReplayRefusesWhenMirrorChangedSinceInitialRead proves
+// the already-current --apply fast path does not trust the digest computed
+// at the top of this function as still true. Unlike commitMirror, this
+// path performs no write of its own to naturally re-validate against; an
+// editor changing the mirror in the gap between that initial read and this
+// fast path reporting success must be caught, not silently reported as a
+// successful apply against content that may no longer match the pack at
+// all.
+func TestPackRefresh_ApplyReplayRefusesWhenMirrorChangedSinceInitialRead(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := installedMirror(t, id)
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("first apply failed rc=%d", rc)
+	}
+	current := readMirror(t, mirrorPath)
+	tampered := append(append([]byte{}, current...), []byte("# an editor landed here after the initial read\n")...)
+
+	t.Cleanup(func() { applyAlreadyCurrentBeforeRevalidateHook = nil })
+	applyAlreadyCurrentBeforeRevalidateHook = func() {
+		if err := os.WriteFile(mirrorPath, tampered, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("expected refusal when the mirror changed since the initial read, not a reported success")
+	}
+	if string(readMirror(t, mirrorPath)) != string(tampered) {
+		t.Fatal("the concurrent edit was destroyed despite the refusal")
+	}
+}
+
 // ─── refusals ───────────────────────────────────────────────────────────
 
 func TestPackRefresh_ModifiedSharedEntryRefuses(t *testing.T) {
@@ -984,6 +1016,142 @@ func TestPackRefresh_ConcurrentEditDuringPrepareIsCaught(t *testing.T) {
 	}
 	if string(readMirror(t, mirrorPath)) != string(concurrent) {
 		t.Fatal("the concurrent edit was destroyed")
+	}
+}
+
+// ─── P2: true no-clobber creation ────────────────────────────────────────
+
+// TestAtomicCreateFile_SucceedsForNewFile is the sanity case: creating a
+// file that does not exist yet works and its content is correct.
+func TestAtomicCreateFile_SucceedsForNewFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "new.yaml")
+	if err := atomicCreateFile(path, []byte("hello\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello\n" {
+		t.Fatalf("wrong content: %q", got)
+	}
+}
+
+// TestAtomicCreateFile_RefusesWhenTargetExists proves atomicCreateFile has
+// true create-only semantics: unlike atomicWriteFile's rename (an
+// unconditional replace), it must fail -- with an error satisfying
+// os.IsExist -- and leave the existing target completely untouched, rather
+// than silently overwriting content that arrived between any absence-check
+// a caller might have done and this call.
+func TestAtomicCreateFile_RefusesWhenTargetExists(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "existing.yaml")
+	if err := os.WriteFile(path, []byte("original\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := atomicCreateFile(path, []byte("attempted overwrite\n"), 0o644)
+	if err == nil {
+		t.Fatal("expected an error when the target already exists")
+	}
+	if !os.IsExist(err) {
+		t.Fatalf("expected an os.IsExist error, got: %v", err)
+	}
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != "original\n" {
+		t.Fatalf("target was modified despite the refusal: %q", got)
+	}
+}
+
+// TestPackRefresh_ConcurrentReceiptCreationDuringRaceIsNotClobbered proves
+// the mechanism writePrinciplePackRecord actually relies on end to end: a
+// receipt that appears at the exact digest-named path AFTER this process's
+// own logical decision point (simulated here by writing it directly, since
+// the whole point of atomicCreateFile is that there is no observable gap
+// to land a hook in) is treated as "already there" -- read and compared --
+// never silently replaced by an unconditional rename.
+func TestPackRefresh_ConcurrentReceiptCreationDuringRaceIsNotClobbered(t *testing.T) {
+	id := anAddableID(t)
+	root, _ := installedMirror(t, id)
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packEntries, _, _, err := parsePrinciplePack(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := buildPrinciplePackRecord(sha256Hex(pack), len(packEntries), mirrorRelPath,
+		sha256Hex(readMirror(t, filepath.Join(root, mirrorRelPath))), sha256Hex(pack),
+		packDiff{UpstreamOnly: []string{id}}, "verified_baseline")
+
+	// A "concurrent writer" wins the race and creates the receipt first,
+	// with conflicting content.
+	dir := adoptionsDirPath(root)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, short(rec.Target.ResultingDigest)+".yaml")
+	conflicting := "kind: principle_pack_adoption\nfrom: a different writer\n"
+	if err := os.WriteFile(path, []byte(conflicting), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := writePrinciplePackRecord(root, rec); err == nil {
+		t.Fatal("expected refusal against a receipt with conflicting content")
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != conflicting {
+		t.Fatal("the concurrently created receipt was overwritten")
+	}
+}
+
+// TestPackRefresh_FreshStateDirCreationSyncsRoot proves mkdirAllSynced's
+// boundary is root itself, not statedir.Path(root): on a project with
+// NEITHER ".sensei" nor ".awg" yet, this call's own MkdirAll creates the
+// state directory fresh. Stopping the sync at the state directory (a
+// prior version of this function did) would leave ITS OWN creation --
+// the new ".sensei" entry inside root -- unsynced.
+func TestPackRefresh_FreshStateDirCreationSyncsRoot(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{".sensei", ".awg"} {
+		if _, err := os.Stat(filepath.Join(root, name)); !os.IsNotExist(err) {
+			t.Fatalf("test setup: %s must not exist yet, got err=%v", name, err)
+		}
+	}
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var synced []string
+	orig := syncDir
+	syncDir = func(dir string) error {
+		synced = append(synced, dir)
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if err := writeInstallRecord(root, pack); err != nil {
+		t.Fatalf("writeInstallRecord on a fresh root: %v", err)
+	}
+
+	found := false
+	for _, d := range synced {
+		if d == root {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("root %s was never synced despite this call creating its state directory fresh; synced=%v", root, synced)
 	}
 }
 

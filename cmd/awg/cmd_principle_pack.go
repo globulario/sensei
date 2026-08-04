@@ -271,14 +271,39 @@ func runPrinciplePackRefresh(args []string) int {
 	}
 
 	if mirrorDigest == packDigest {
-		// Current. An --apply replay of a prior successful adoption must not
-		// trust that "content is already right" as proof its directory sync
-		// ever succeeded -- commitMirror's own rename could have completed
-		// with the mirror's final syncDir failing transiently, and this
-		// branch would otherwise report success on every retry without ever
-		// confirming durability. Plan mode (no --apply) stays read-only, as
-		// everywhere else in this command.
+		// Current, as of the read at the top of this function. An --apply
+		// replay must not trust that stale digest as still true, nor treat
+		// "content was already right" as proof its directory sync ever
+		// succeeded:
+		//   - an editor could have changed the mirror since that initial
+		//     read, and unlike commitMirror this fast path performs no
+		//     write of its own to naturally re-validate against -- without
+		//     an explicit re-check it would report success against content
+		//     that may no longer match the pack at all;
+		//   - commitMirror's own rename from an EARLIER run could have
+		//     completed while its final syncDir failed transiently, and a
+		//     retry landing here would otherwise report success without
+		//     ever confirming that durability step.
+		// Plan mode (no --apply) stays read-only, as everywhere else in
+		// this command.
 		if *apply {
+			// Test-only seam: nil in production. Lets a test deterministically
+			// land an edit exactly between the initial digest computation at
+			// the top of this function and this fast path's own revalidation,
+			// instead of relying on timing.
+			if applyAlreadyCurrentBeforeRevalidateHook != nil {
+				applyAlreadyCurrentBeforeRevalidateHook()
+			}
+			current, err := readManagedMirror(root, mirrorPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: re-reading the mirror before reporting success: %v\n", err)
+				return 1
+			}
+			if sha256Hex(current) != packDigest {
+				fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: the mirror changed while this run was deciding (now %s, expected %s); refusing to report stale success\n",
+					short(sha256Hex(current)), short(packDigest))
+				return 1
+			}
 			if err := syncDir(filepath.Dir(mirrorPath)); err != nil {
 				fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: re-syncing mirror directory: %v\n", err)
 				return 1
@@ -374,37 +399,20 @@ func runPrinciplePackRefresh(args []string) int {
 // editor that does not participate in this repo's own refresh.lock.
 var commitMirrorAfterPrepareHook func()
 
+// applyAlreadyCurrentBeforeRevalidateHook is the equivalent seam for the
+// "mirrorDigest == packDigest" --apply fast path in runPrinciplePackRefresh,
+// which performs its own revalidation rather than going through
+// commitMirror (there is nothing to rename on that path). nil in
+// production.
+var applyAlreadyCurrentBeforeRevalidateHook func()
+
 func commitMirror(root, mirrorPath string, expected, next []byte) error {
 	dir := filepath.Dir(mirrorPath)
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(mirrorPath)+".tmp*")
+	tmpName, err := prepareTempFile(dir, filepath.Base(mirrorPath), next, 0o644)
 	if err != nil {
 		return err
 	}
-	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
-	// Mode set BEFORE write+sync, not after: CreateTemp always creates at
-	// 0600, and chmod is itself metadata that is only as durable as the
-	// sync that follows it. Chmod-then-sync-content (the old order) synced
-	// the content while it was still mode 0600, then changed the mode with
-	// no further sync -- a crash between that chmod and the rename could
-	// leave the eventual mirror at 0600 instead of 0644, inaccessible to
-	// other readers, even though the content itself survived. Setting the
-	// mode first means the one Sync below covers both.
-	if err := os.Chmod(tmpName, 0o644); err != nil {
-		tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(next); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
 
 	// Test-only seam: nil in production. Lets a test deterministically land a
 	// concurrent edit exactly between temp-file preparation and the
@@ -496,7 +504,7 @@ func acquireRefreshLock(root string) (func(), error) {
 	// including the receipt). The lock file ITSELF is still ephemeral, but
 	// the directory it happens to be first to create is not, the moment
 	// real evidence gets stored under it later in the same run.
-	if err := mkdirAllSynced(principlePackDirPath(root), statedir.Path(root), 0o755); err != nil {
+	if err := mkdirAllSynced(principlePackDirPath(root), root, 0o755); err != nil {
 		return nil, err
 	}
 	lock := refreshLockFilePath(root)
@@ -682,7 +690,7 @@ const principlePackRecordHeader = "# Immutable adoption record written by `sense
 // an identical adoption finds it already present and does not rewrite.
 func writePrinciplePackRecord(root string, r principlePackRecord) (string, error) {
 	dir := adoptionsDirPath(root)
-	if err := mkdirAllSynced(dir, statedir.Path(root), 0o755); err != nil {
+	if err := mkdirAllSynced(dir, root, 0o755); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, short(r.Target.ResultingDigest)+".yaml")
@@ -691,41 +699,58 @@ func writePrinciplePackRecord(root string, r principlePackRecord) (string, error
 		return "", err
 	}
 	full := principlePackRecordHeader + string(body)
+
+	// Try to create it with true no-clobber semantics first -- not merely
+	// "we checked absence a moment ago, then renamed unconditionally".
+	// atomicWriteFile's rename always replaces; if another writer creates
+	// this exact digest-named receipt between an absence-check and that
+	// rename, it would be silently destroyed despite being documented as
+	// immutable evidence, and refresh.lock cannot protect against a writer
+	// that does not participate in it. atomicCreateFile's hardlink instead
+	// fails atomically with EEXIST if the target already exists by the
+	// instant of that one syscall. If we lose that race, fall through to
+	// read-and-decide exactly as if the record had been there from the
+	// start -- unifying the "already existed" and "someone just won a race"
+	// cases into one path, since they are indistinguishable from here.
+	createErr := atomicCreateFile(path, []byte(full), 0o644)
+	if createErr == nil {
+		return path, nil
+	}
+	if !os.IsExist(createErr) {
+		return "", createErr
+	}
+
 	switch existing, err := os.ReadFile(path); {
 	case err == nil:
 		if string(existing) == full {
 			// Exact replay: the receipt's own bytes are already right, but
 			// that says nothing about whether the directory sync after the
-			// rename that wrote them ever actually succeeded. If a prior run
-			// renamed the receipt into place and then hit a transient sync
-			// error, a naive replay would return success here without ever
+			// write that produced them ever actually succeeded. If a prior
+			// run created the receipt and then hit a transient sync error,
+			// a naive replay would return success here without ever
 			// retrying the sync -- silently forgetting a failed durability
 			// step and letting the caller proceed to commitMirror believing
 			// the receipt is durable when it was never confirmed.
 			if err := syncDir(dir); err != nil {
 				return "", fmt.Errorf("re-syncing existing receipt directory: %w", err)
 			}
-			return path, nil // exact replay
+			return path, nil // exact replay (or a race this call just lost)
 		}
 		return "", fmt.Errorf("record %s already exists with different content; refusing to overwrite", path)
 	case os.IsNotExist(err):
-		// Fall through to create it below.
+		// The link reported EEXIST and then the file vanished before we
+		// could read it -- another writer racing us on this exact path.
+		// Neither "it's our own content" nor "it conflicts" can be proven
+		// from here; refuse rather than guess.
+		return "", fmt.Errorf("record %s existed then vanished during creation; refusing to guess at a concurrent writer's intent", path)
 	default:
 		// Exists but could not be read (permissions, a transient I/O error,
 		// anything not "absent"). This record is documented as immutable
-		// evidence; only proven absence may create one. Falling through to
-		// atomicWriteFile here would rename over content this process never
-		// actually verified, destroying potentially conflicting evidence
-		// instead of refusing on an honest "I don't know what's there".
+		// evidence; only proven absence may create one, and reading back
+		// "I don't know what's there" must never be treated as license to
+		// overwrite it.
 		return "", fmt.Errorf("record %s exists but could not be read; refusing to overwrite: %w", path, err)
 	}
-	if err := atomicWriteFile(path, []byte(full), 0o644); err != nil {
-		return "", err
-	}
-	if _, err := os.ReadFile(path); err != nil {
-		return "", err
-	}
-	return path, nil
 }
 
 // writeInstallRecord records the exact pack a project was initialized from, so
@@ -751,7 +776,7 @@ func writeInstallRecord(root string, packBytes []byte) error {
 		return err
 	}
 	path := installRecordFilePath(root)
-	if err := mkdirAllSynced(filepath.Dir(path), statedir.Path(root), 0o755); err != nil {
+	if err := mkdirAllSynced(filepath.Dir(path), root, 0o755); err != nil {
 		return err
 	}
 	header := "# Baseline written by `sensei init`: the exact principle pack this project\n" +
@@ -760,34 +785,69 @@ func writeInstallRecord(root string, packBytes []byte) error {
 	return atomicWriteFile(path, []byte(header+string(body)), 0o644)
 }
 
-func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp*")
+// prepareTempFile creates, chmods, writes, and syncs a temp file in dir,
+// returning its name for the caller to commit (rename or link) and clean up
+// on any subsequent failure. Mode is set BEFORE write+sync, not after: a
+// chmod with no sync of its own is only as durable as the next thing that
+// happens to sync it, so putting it first means the one content sync below
+// covers both -- see commitMirror's identical reasoning.
+func prepareTempFile(dir, base string, data []byte, mode os.FileMode) (string, error) {
+	tmp, err := os.CreateTemp(dir, "."+base+".tmp*")
 	if err != nil {
-		return err
+		return "", err
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	// Mode set BEFORE write+sync, not after -- see commitMirror's identical
-	// comment. A chmod with no sync of its own is only as durable as the
-	// next thing that happens to sync it; putting it first means the
-	// content sync below covers both.
 	if err := os.Chmod(tmpName, mode); err != nil {
 		tmp.Close()
-		return err
+		os.Remove(tmpName)
+		return "", err
 	}
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
-		return err
+		os.Remove(tmpName)
+		return "", err
 	}
 	if err := tmp.Sync(); err != nil {
 		tmp.Close()
-		return err
+		os.Remove(tmpName)
+		return "", err
 	}
 	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return "", err
+	}
+	return tmpName, nil
+}
+
+func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmpName, err := prepareTempFile(dir, filepath.Base(path), data, mode)
+	if err != nil {
 		return err
 	}
+	defer os.Remove(tmpName)
 	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	return syncDir(dir)
+}
+
+// atomicCreateFile writes data to a new file at path using a temp-file +
+// hardlink dance, succeeding only if path does not already exist at the
+// instant of that link. Unlike atomicWriteFile's rename (an unconditional
+// replace), os.Link fails atomically with EEXIST if the target is already
+// there -- true create-only semantics, not merely "we checked absence a
+// moment ago, then wrote unconditionally". Returns an error satisfying
+// os.IsExist(err) when the target already existed; the caller decides what
+// that means (replay, conflict, or a race with another writer).
+func atomicCreateFile(path string, data []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmpName, err := prepareTempFile(dir, filepath.Base(path), data, mode)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpName)
+	if err := os.Link(tmpName, path); err != nil {
 		return err
 	}
 	return syncDir(dir)
@@ -822,9 +882,15 @@ var syncDir = syncDirImpl
 // resyncing it. Unconditional, idempotent resyncing is the only fully
 // correct answer, and cheap enough at this call frequency that the
 // redundant work is not worth optimizing away. boundary must be an
-// ancestor of path that this function is not responsible for (typically
-// the project's state directory root) -- callers never durability-manage
-// past their own subtree.
+// ancestor of path that is proven to already exist independent of this
+// call (the project root itself, since it was already Stat'd as a
+// directory before any of this ran) -- NOT the state directory
+// (statedir.Path), which this same call may be the one creating on a
+// fresh repo with neither ".sensei" nor ".awg" yet. Stopping the sync at
+// the state directory rather than root was exactly this bug one level
+// up: it left the state directory's OWN creation -- the entry for
+// ".sensei" inside root -- unsynced whenever this call was what created
+// it.
 func mkdirAllSynced(path, boundary string, perm os.FileMode) error {
 	if err := os.MkdirAll(path, perm); err != nil {
 		return err
