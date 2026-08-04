@@ -3,8 +3,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -523,10 +525,37 @@ func acquireRefreshLock(root string) (func(), error) {
 // parsePrinciplePack enforces an EXACT document shape. Anything it merely
 // ignored could be silently deleted by a whole-document replacement — a
 // project's extra top-level key must refuse the refresh, not vanish in it.
+//
+// This includes a trailing "---" YAML document, not just extra keys within
+// one document: yaml.Unmarshal decodes only the FIRST document in a stream,
+// so a mirror with a second document would validate against that first
+// document alone, have its diff computed from it alone, and then have the
+// ENTIRE FILE -- including that unrecognized second document -- silently
+// replaced by --apply. A Decoder that must hit EOF after exactly one
+// document closes that gap the same way the single-top-level-key check
+// closes it within a document.
 func parsePrinciplePack(b []byte) (map[string]map[string]any, string, string, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(b))
 	var doc map[string]any
-	if err := yaml.Unmarshal(b, &doc); err != nil {
+	if err := dec.Decode(&doc); err != nil {
+		if err == io.EOF {
+			// Unlike yaml.Unmarshal (which leaves doc empty and falls
+			// through to the len(doc)==0 check below), Decode on truly
+			// empty input reports io.EOF as its own error. Normalize to
+			// the same "empty document" message rather than leaking that.
+			return nil, "", "", fmt.Errorf("empty document")
+		}
 		return nil, "", "", err
+	}
+	var extra any
+	switch err := dec.Decode(&extra); err {
+	case io.EOF:
+		// Exactly one document, as required.
+	case nil:
+		return nil, "", "", fmt.Errorf("document contains more than one YAML document; " +
+			"a whole-document refresh would discard everything after the first")
+	default:
+		return nil, "", "", fmt.Errorf("checking for a trailing YAML document: %w", err)
 	}
 	if len(doc) == 0 {
 		return nil, "", "", fmt.Errorf("empty document")

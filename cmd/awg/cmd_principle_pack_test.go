@@ -935,6 +935,36 @@ func TestPackRefresh_ExtraTopLevelKeyRefuses(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_TrailingYAMLDocumentRefuses proves a second "---"
+// document is caught the same way an extra top-level key within one
+// document already is. yaml.Unmarshal decodes only the FIRST document in a
+// stream, so a mirror whose first document is a valid, byte-identical pack
+// but which has a second document appended would otherwise pass shape
+// validation, have its diff computed from the first document alone, and
+// then have --apply replace the WHOLE FILE with the embedded pack --
+// silently deleting the second document, which parsePrinciplePack never
+// even looked at.
+func TestPackRefresh_TrailingYAMLDocumentRefuses(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := installedMirror(t, id)
+	trailing := "\n---\nlocal_notes:\n  - a second document the project added\n"
+	if err := os.WriteFile(mirrorPath, append(readMirror(t, mirrorPath), []byte(trailing)...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := readMirror(t, mirrorPath)
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("expected refusal: a whole-document replacement would silently delete the trailing document")
+	}
+	got := readMirror(t, mirrorPath)
+	if string(got) != string(before) {
+		t.Fatal("mirror was rewritten, discarding the project-authored trailing document")
+	}
+	if !strings.Contains(string(got), "a second document the project added") {
+		t.Fatal("the trailing document did not survive")
+	}
+}
+
 func TestPackRefresh_MalformedListMemberRefuses(t *testing.T) {
 	id := anAddableID(t)
 	root, mirrorPath := installedMirror(t, id)
