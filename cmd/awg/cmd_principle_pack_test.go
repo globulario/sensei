@@ -203,6 +203,63 @@ func TestPackRefresh_ExactReplayDoesNotRewrite(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_ApplyReplayResyncsMirrorDirectory proves the
+// "mirror already matches the pack" fast path does not treat correct
+// on-disk mirror bytes as proof commitMirror's earlier directory sync ever
+// succeeded. A prior --apply's rename could have completed while its final
+// syncDir failed transiently; a naive replay reporting success here would
+// leave that unconfirmed, letting a later crash still revert the mirror
+// despite the "successful" retry.
+func TestPackRefresh_ApplyReplayResyncsMirrorDirectory(t *testing.T) {
+	id := anAddableID(t)
+	root, _ := installedMirror(t, id)
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("first apply failed rc=%d", rc)
+	}
+
+	called := false
+	orig := syncDir
+	syncDir = func(dir string) error {
+		called = true
+		return fmt.Errorf("simulated transient sync failure")
+	}
+	defer func() { syncDir = orig }()
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("apply replay must surface a failed mirror directory re-sync, not silently succeed")
+	}
+	if !called {
+		t.Fatal("apply replay of an already-current mirror never attempted to re-sync its directory")
+	}
+}
+
+// TestPackRefresh_PlanReplayDoesNotSync proves plan mode (no --apply) stays
+// read-only even on the already-current fast path: it must not attempt any
+// directory sync, matching every other side-effecting step in this command
+// being gated on --apply.
+func TestPackRefresh_PlanReplayDoesNotSync(t *testing.T) {
+	id := anAddableID(t)
+	root, _ := installedMirror(t, id)
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("first apply failed rc=%d", rc)
+	}
+
+	called := false
+	orig := syncDir
+	syncDir = func(dir string) error {
+		called = true
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root}); rc != 0 {
+		t.Fatalf("plan-mode replay failed rc=%d", rc)
+	}
+	if called {
+		t.Fatal("plan mode (no --apply) must not sync anything, even on the already-current fast path")
+	}
+}
+
 // ─── refusals ───────────────────────────────────────────────────────────
 
 func TestPackRefresh_ModifiedSharedEntryRefuses(t *testing.T) {
@@ -304,6 +361,48 @@ func TestPackRefresh_DestinationReplacementCannotRedirectWrite(t *testing.T) {
 	}
 	if string(got) != "untouched\n" {
 		t.Fatal("write was redirected through the symlink to a file outside the project")
+	}
+}
+
+// TestPackRefresh_SymlinkedParentDirectoryRefuses proves the leaf-symlink
+// check above is not sufficient by itself: Lstat-ing only
+// meta_principles.yaml would pass here, since the LEAF is a real file --
+// but its PARENT, "docs/awareness", is a symlink to an outside directory.
+// The read and any later rename would still traverse it, redirecting
+// outside root exactly as the destination-replacement case above, just one
+// level up the path.
+func TestPackRefresh_SymlinkedParentDirectoryRefuses(t *testing.T) {
+	root := t.TempDir()
+	outsideAwareness := filepath.Join(t.TempDir(), "awareness")
+	if err := os.MkdirAll(outsideAwareness, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := packMinus(t, anAddableID(t))
+	outsideMirror := filepath.Join(outsideAwareness, "meta_principles.yaml")
+	if err := os.WriteFile(outsideMirror, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeInstallRecord(root, body); err != nil {
+		t.Fatal(err)
+	}
+
+	docsDir := filepath.Join(root, "docs")
+	if err := os.MkdirAll(docsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideAwareness, filepath.Join(docsDir, "awareness")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("expected refusal to read/write through a symlinked parent directory")
+	}
+	got, err := os.ReadFile(outsideMirror)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(body) {
+		t.Fatal("the outside mirror was modified despite the refusal")
 	}
 }
 
@@ -738,6 +837,42 @@ func TestPackRefresh_ConflictingExistingRecordRefuses(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_UnreadableExistingRecordRefuses proves an existing record
+// this process cannot read (permissions, a transient I/O error -- anything
+// short of proven absence) refuses rather than falling through to
+// atomicWriteFile and renaming over content that was never actually
+// verified. Only os.IsNotExist may permit creating a new one; this record
+// is documented as immutable evidence, so overwriting an unreadable one on
+// an honest "I don't know what's there" would be worse than refusing.
+func TestPackRefresh_UnreadableExistingRecordRefuses(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root: file mode 0000 does not block reads")
+	}
+	id := anAddableID(t)
+	root, mirrorPath := installedMirror(t, id)
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := adoptionsDirPath(root)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, short(sha256Hex(pack))+".yaml")
+	if err := os.WriteFile(path, []byte("unreadable\n"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(path, 0o644) }) // let TempDir cleanup remove it
+	before := readMirror(t, mirrorPath)
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("expected refusal rather than overwriting a record that could not be read")
+	}
+	if string(readMirror(t, mirrorPath)) != string(before) {
+		t.Fatal("mirror modified despite an unreadable existing record")
+	}
+}
+
 // ─── P2: unrecognized document shapes must refuse, never be discarded ───
 
 func TestPackRefresh_ExtraTopLevelKeyRefuses(t *testing.T) {
@@ -788,7 +923,7 @@ func TestPackRefresh_MalformedListMemberRefuses(t *testing.T) {
 
 func TestPackRefresh_ConcurrentMirrorEditRefusesAtCommit(t *testing.T) {
 	id := anAddableID(t)
-	_, mirrorPath := installedMirror(t, id)
+	root, mirrorPath := installedMirror(t, id)
 	pack, err := templates.ReadFile(packTemplatePath)
 	if err != nil {
 		t.Fatal(err)
@@ -801,7 +936,7 @@ func TestPackRefresh_ConcurrentMirrorEditRefusesAtCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = commitMirror(mirrorPath, validated, pack)
+	err = commitMirror(root, mirrorPath, validated, pack)
 	if err == nil {
 		t.Fatal("commit must refuse when the mirror changed after validation")
 	}
@@ -825,7 +960,7 @@ func TestPackRefresh_ConcurrentMirrorEditRefusesAtCommit(t *testing.T) {
 // concurrent editor's save can race.
 func TestPackRefresh_ConcurrentEditDuringPrepareIsCaught(t *testing.T) {
 	id := anAddableID(t)
-	_, mirrorPath := installedMirror(t, id)
+	root, mirrorPath := installedMirror(t, id)
 	pack, err := templates.ReadFile(packTemplatePath)
 	if err != nil {
 		t.Fatal(err)
@@ -840,7 +975,7 @@ func TestPackRefresh_ConcurrentEditDuringPrepareIsCaught(t *testing.T) {
 		}
 	}
 
-	err = commitMirror(mirrorPath, validated, pack)
+	err = commitMirror(root, mirrorPath, validated, pack)
 	if err == nil {
 		t.Fatal("commit must refuse when the mirror changed during preparation")
 	}
@@ -901,6 +1036,46 @@ func TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories(t *testing.T) {
 	if err := syncDir(filepath.Dir(mirrorPath)); err != nil {
 		t.Fatalf("mirror directory must be sync-able after apply: %v", err)
 	}
+}
+
+// TestPackRefresh_WrittenFilesHaveCorrectMode proves every file this
+// command writes (mirror, receipt, install baseline) ends up at its
+// intended mode. commitMirror and atomicWriteFile both chmod the temp file
+// BEFORE writing and syncing its content, not after: a chmod issued after
+// the content sync is itself unsynced metadata, so a crash between that
+// chmod and the rename could leave the eventual file at CreateTemp's
+// default 0600 instead of the intended 0644, invisible to a black-box
+// mode check that only runs after a clean (non-crashing) success. This
+// test can only confirm the reachable outcome is correct on every ordinary
+// run; the crash-durability property itself is structural (verified by
+// code review of the ordering), not something a unit test can force.
+func TestPackRefresh_WrittenFilesHaveCorrectMode(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root: umask/mode assertions are unreliable")
+	}
+	id := anAddableID(t)
+	root, mirrorPath := installedMirror(t, id)
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("refresh --apply failed, rc=%d", rc)
+	}
+
+	check := func(path string) {
+		t.Helper()
+		fi, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		if fi.Mode().Perm() != 0o644 {
+			t.Errorf("%s has mode %o, want 0644", path, fi.Mode().Perm())
+		}
+	}
+	check(mirrorPath)
+	check(installRecordFilePath(root))
+	receipts := receiptFiles(t, root)
+	if len(receipts) != 1 {
+		t.Fatalf("expected exactly 1 receipt, got %d", len(receipts))
+	}
+	check(receipts[0])
 }
 
 // TestMkdirAllSynced_SyncsEveryLevelUpToBoundary proves mkdirAllSynced syncs

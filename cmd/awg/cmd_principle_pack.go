@@ -213,7 +213,7 @@ func runPrinciplePackRefresh(args []string) int {
 	packDigest := sha256Hex(packBytes)
 
 	mirrorPath := filepath.Join(root, mirrorRelPath)
-	mirrorBytes, err := readManagedMirror(mirrorPath)
+	mirrorBytes, err := readManagedMirror(root, mirrorPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: %v\n", err)
 		return 1
@@ -262,7 +262,7 @@ func runPrinciplePackRefresh(args []string) int {
 			fmt.Printf("disposition: intent_open — re-run with --apply to complete it\n")
 			return 0
 		}
-		if err := commitMirror(mirrorPath, mirrorBytes, packBytes); err != nil {
+		if err := commitMirror(root, mirrorPath, mirrorBytes, packBytes); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: %v\n", err)
 			return 1
 		}
@@ -271,7 +271,20 @@ func runPrinciplePackRefresh(args []string) int {
 	}
 
 	if mirrorDigest == packDigest {
-		// Current. If an adoption put it here the record exists and derives to
+		// Current. An --apply replay of a prior successful adoption must not
+		// trust that "content is already right" as proof its directory sync
+		// ever succeeded -- commitMirror's own rename could have completed
+		// with the mirror's final syncDir failing transiently, and this
+		// branch would otherwise report success on every retry without ever
+		// confirming durability. Plan mode (no --apply) stays read-only, as
+		// everywhere else in this command.
+		if *apply {
+			if err := syncDir(filepath.Dir(mirrorPath)); err != nil {
+				fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: re-syncing mirror directory: %v\n", err)
+				return 1
+			}
+		}
+		// If an adoption put it here the record exists and derives to
 		// "applied"; if not, say so rather than implying evidence we lack.
 		if rec, ok := recordForResult(root, packDigest); ok {
 			fmt.Printf("\ndisposition: %s — mirror already matches the pack; record %s\n",
@@ -331,7 +344,7 @@ func runPrinciplePackRefresh(args []string) int {
 		fmt.Fprintf(os.Stderr, "  the mirror has NOT been modified\n")
 		return 1
 	}
-	if err := commitMirror(mirrorPath, mirrorBytes, packBytes); err != nil {
+	if err := commitMirror(root, mirrorPath, mirrorBytes, packBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: %v\n", err)
 		fmt.Fprintf(os.Stderr, "  intent %s remains open; re-run with --apply to resume\n", mustRel(root, recPath))
 		return 1
@@ -361,7 +374,7 @@ func runPrinciplePackRefresh(args []string) int {
 // editor that does not participate in this repo's own refresh.lock.
 var commitMirrorAfterPrepareHook func()
 
-func commitMirror(mirrorPath string, expected, next []byte) error {
+func commitMirror(root, mirrorPath string, expected, next []byte) error {
 	dir := filepath.Dir(mirrorPath)
 	tmp, err := os.CreateTemp(dir, "."+filepath.Base(mirrorPath)+".tmp*")
 	if err != nil {
@@ -369,6 +382,18 @@ func commitMirror(mirrorPath string, expected, next []byte) error {
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
+	// Mode set BEFORE write+sync, not after: CreateTemp always creates at
+	// 0600, and chmod is itself metadata that is only as durable as the
+	// sync that follows it. Chmod-then-sync-content (the old order) synced
+	// the content while it was still mode 0600, then changed the mode with
+	// no further sync -- a crash between that chmod and the rename could
+	// leave the eventual mirror at 0600 instead of 0644, inaccessible to
+	// other readers, even though the content itself survived. Setting the
+	// mode first means the one Sync below covers both.
+	if err := os.Chmod(tmpName, 0o644); err != nil {
+		tmp.Close()
+		return err
+	}
 	if _, err := tmp.Write(next); err != nil {
 		tmp.Close()
 		return err
@@ -380,9 +405,6 @@ func commitMirror(mirrorPath string, expected, next []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Chmod(tmpName, 0o644); err != nil {
-		return err
-	}
 
 	// Test-only seam: nil in production. Lets a test deterministically land a
 	// concurrent edit exactly between temp-file preparation and the
@@ -391,7 +413,7 @@ func commitMirror(mirrorPath string, expected, next []byte) error {
 		commitMirrorAfterPrepareHook()
 	}
 
-	current, err := readManagedMirror(mirrorPath)
+	current, err := readManagedMirror(root, mirrorPath)
 	if err != nil {
 		return fmt.Errorf("re-reading the mirror immediately before commit: %w", err)
 	}
@@ -406,8 +428,15 @@ func commitMirror(mirrorPath string, expected, next []byte) error {
 }
 
 // readManagedMirror refuses symlinks and irregular files rather than following
-// them, so a replaced path cannot redirect a read or a later write.
-func readManagedMirror(path string) ([]byte, error) {
+// them, so a replaced path cannot redirect a read or a later write. This
+// covers not just the leaf file but every parent directory component
+// between root and the leaf: Lstat-ing only the leaf would let a symlinked
+// "docs" or "docs/awareness" pass this check while the actual read and the
+// later rename still traverse it, redirecting outside root.
+func readManagedMirror(root, path string) ([]byte, error) {
+	if err := refuseSymlinkedAncestors(root, path); err != nil {
+		return nil, err
+	}
 	fi, err := os.Lstat(path)
 	if err != nil {
 		return nil, fmt.Errorf("no managed mirror at %s (%v)", mirrorRelPath, err)
@@ -419,6 +448,40 @@ func readManagedMirror(path string) ([]byte, error) {
 		return nil, fmt.Errorf("%s is not a regular file", mirrorRelPath)
 	}
 	return os.ReadFile(path)
+}
+
+// refuseSymlinkedAncestors Lstats every directory component strictly
+// between root and path (exclusive of both), refusing if any is a symlink
+// or anything other than a real directory. path itself is not checked
+// here -- callers Lstat the leaf separately, since leaf handling differs
+// (a file for the mirror, a directory for state-dir creation).
+func refuseSymlinkedAncestors(root, path string) error {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return fmt.Errorf("resolve %s relative to %s: %w", path, root, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("%s escapes %s", path, root)
+	}
+	dir := filepath.Dir(rel)
+	if dir == "." {
+		return nil // leaf lives directly under root, nothing intermediate to check
+	}
+	cur := root
+	for _, part := range strings.Split(dir, string(filepath.Separator)) {
+		cur = filepath.Join(cur, part)
+		fi, err := os.Lstat(cur)
+		if err != nil {
+			return fmt.Errorf("no managed mirror parent at %s (%v)", cur, err)
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%s is a symlink; refusing to read or write through it", cur)
+		}
+		if !fi.IsDir() {
+			return fmt.Errorf("%s is not a directory", cur)
+		}
+	}
+	return nil
 }
 
 func acquireRefreshLock(root string) (func(), error) {
@@ -628,7 +691,8 @@ func writePrinciplePackRecord(root string, r principlePackRecord) (string, error
 		return "", err
 	}
 	full := principlePackRecordHeader + string(body)
-	if existing, err := os.ReadFile(path); err == nil {
+	switch existing, err := os.ReadFile(path); {
+	case err == nil:
 		if string(existing) == full {
 			// Exact replay: the receipt's own bytes are already right, but
 			// that says nothing about whether the directory sync after the
@@ -644,6 +708,16 @@ func writePrinciplePackRecord(root string, r principlePackRecord) (string, error
 			return path, nil // exact replay
 		}
 		return "", fmt.Errorf("record %s already exists with different content; refusing to overwrite", path)
+	case os.IsNotExist(err):
+		// Fall through to create it below.
+	default:
+		// Exists but could not be read (permissions, a transient I/O error,
+		// anything not "absent"). This record is documented as immutable
+		// evidence; only proven absence may create one. Falling through to
+		// atomicWriteFile here would rename over content this process never
+		// actually verified, destroying potentially conflicting evidence
+		// instead of refusing on an honest "I don't know what's there".
+		return "", fmt.Errorf("record %s exists but could not be read; refusing to overwrite: %w", path, err)
 	}
 	if err := atomicWriteFile(path, []byte(full), 0o644); err != nil {
 		return "", err
@@ -694,6 +768,14 @@ func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
+	// Mode set BEFORE write+sync, not after -- see commitMirror's identical
+	// comment. A chmod with no sync of its own is only as durable as the
+	// next thing that happens to sync it; putting it first means the
+	// content sync below covers both.
+	if err := os.Chmod(tmpName, mode); err != nil {
+		tmp.Close()
+		return err
+	}
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
 		return err
@@ -703,9 +785,6 @@ func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmpName, mode); err != nil {
 		return err
 	}
 	if err := os.Rename(tmpName, path); err != nil {
