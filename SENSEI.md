@@ -1,8 +1,8 @@
 # Sensei Report
 
 Repository: github.com/globulario/sensei
-Evaluated commit: 6a7312a07b089890d47f719e87d2c396ca613dd2 (resolved)
-Evaluated content digest: aa961047cf19dab5c6f293c04540713259e5e87f57f27c54267897b07c6b96d3
+Evaluated commit: d79eebc3969fa63e6efedc705efcb408537ad8c5 (resolved)
+Evaluated content digest: 018d76e23c6fc05604c5b1fa99dd1331f1fcbdd38134c448770c581d8c53ba34
 Report schema: sensei.report.v1
 Report freshness: CURRENT
 

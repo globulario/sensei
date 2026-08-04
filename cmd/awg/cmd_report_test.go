@@ -95,6 +95,33 @@ func TestReportCheckPassesWhenCurrent(t *testing.T) {
 	}
 }
 
+// TestReportCheckPassesAfterCommittingReport proves --check survives the
+// one state transition that is otherwise guaranteed to happen to every
+// committed report: committing SENSEI.md/SENSEI.report.json necessarily
+// advances HEAD past the commit the report itself recorded as
+// evaluated_commit. --check must not treat that self-inflicted commit
+// mismatch as staleness or a hand-edit -- only a real content-digest
+// change (a tracked file edited after generation) may fail it.
+func TestReportCheckPassesAfterCommittingReport(t *testing.T) {
+	root := reportTestRepo(t)
+	if code := runReport([]string{"--repo", root}); code != 0 {
+		t.Fatalf("runReport exit = %d", code)
+	}
+	run := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("add", "SENSEI.md", "SENSEI.report.json")
+	run("commit", "-m", "add report")
+
+	if code := runReport([]string{"--repo", root, "--check"}); code != 0 {
+		t.Fatalf("runReport --check exit = %d, expected 0 (committing the report must not make it look stale)", code)
+	}
+}
+
 func TestReportCheckMissing(t *testing.T) {
 	root := reportTestRepo(t)
 	if code := runReport([]string{"--repo", root, "--check"}); code != 1 {
