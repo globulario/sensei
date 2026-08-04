@@ -573,6 +573,38 @@ func TestPackRefresh_InitDoesNotFabricateBaselineForCustomizedMirror(t *testing.
 	}
 }
 
+// TestPackRefresh_InitRetryResyncsExistingCorrectBaseline proves init does
+// not treat an already-present, byte-correct install record as proof its
+// directory sync ever succeeded. A prior init may have renamed
+// installed.yaml into place and then hit a transient sync failure; a naive
+// retry that only checks "does the record file already exist" would skip
+// writeInstallRecord entirely and silently report success without ever
+// retrying the sync that was never confirmed.
+func TestPackRefresh_InitRetryResyncsExistingCorrectBaseline(t *testing.T) {
+	root := t.TempDir()
+	if _, err := scaffoldProject(root, initOptions{}); err != nil {
+		t.Fatalf("first init: %v", err)
+	}
+	if _, err := os.Stat(installRecordFilePath(root)); err != nil {
+		t.Fatalf("test setup: first init must have written a baseline: %v", err)
+	}
+
+	called := false
+	orig := syncDir
+	syncDir = func(dir string) error {
+		called = true
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if _, err := scaffoldProject(root, initOptions{}); err != nil {
+		t.Fatalf("second init (retry over an already-correct baseline): %v", err)
+	}
+	if !called {
+		t.Fatal("retry over an already-existing, byte-correct baseline never attempted to re-sync its directory")
+	}
+}
+
 // TestPackRefresh_LegacyAwgStateDirUsedWhenSenseiAbsent proves the
 // principle-pack lock, baseline, and adoption paths route through
 // statedir.Path (the active state directory) rather than a hard-coded
@@ -871,15 +903,15 @@ func TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories(t *testing.T) {
 	}
 }
 
-// TestMkdirAllSynced_SyncsEveryNewlyCreatedLevelsParent proves mkdirAllSynced
-// syncs the PARENT of every directory level it actually creates, not just
-// the leaf -- creating ".sensei/principle-pack/adoptions" from scratch (a
-// pre-existing ".sensei" but neither "principle-pack" nor "adoptions" yet)
-// must sync both ".sensei" (to make "principle-pack" durable) and
-// ".sensei/principle-pack" (to make "adoptions" durable). A single sync of
-// the leaf's own contents proves nothing about whether the leaf itself
-// (or its own newly created parent) durably exists.
-func TestMkdirAllSynced_SyncsEveryNewlyCreatedLevelsParent(t *testing.T) {
+// TestMkdirAllSynced_SyncsEveryLevelUpToBoundary proves mkdirAllSynced syncs
+// every directory level from path up to (and including) boundary, not just
+// the leaf's own parent -- creating ".sensei/principle-pack/adoptions" from
+// scratch (an existing ".sensei" boundary, but neither "principle-pack" nor
+// "adoptions" yet) must sync both ".sensei" (to make "principle-pack"
+// durable) and ".sensei/principle-pack" (to make "adoptions" durable). A
+// single sync of the leaf's own contents proves nothing about whether the
+// leaf itself, or its own parent, durably exists.
+func TestMkdirAllSynced_SyncsEveryLevelUpToBoundary(t *testing.T) {
 	root := t.TempDir()
 	senseiDir := filepath.Join(root, ".sensei")
 	if err := os.MkdirAll(senseiDir, 0o755); err != nil {
@@ -896,7 +928,7 @@ func TestMkdirAllSynced_SyncsEveryNewlyCreatedLevelsParent(t *testing.T) {
 	}
 	defer func() { syncDir = orig }()
 
-	if err := mkdirAllSynced(adoptions, 0o755); err != nil {
+	if err := mkdirAllSynced(adoptions, senseiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(adoptions); err != nil {
@@ -911,28 +943,34 @@ func TestMkdirAllSynced_SyncsEveryNewlyCreatedLevelsParent(t *testing.T) {
 	}
 	for dir, got := range want {
 		if !got {
-			t.Errorf("parent %s of a newly created directory was never synced", dir)
+			t.Errorf("%s was never synced", dir)
 		}
-	}
-	// The already-existing ".sensei" and root must not themselves be
-	// reported as newly created, and no directory beyond the two real
-	// parents should be synced.
-	if len(synced) != 2 {
-		t.Fatalf("expected exactly 2 directory syncs (the two new levels' parents), got %d: %v", len(synced), synced)
 	}
 }
 
-// TestMkdirAllSynced_SkipsAlreadyExistingLevels proves that when only the
-// leaf is new, mkdirAllSynced syncs only the leaf's own (already-existing)
-// parent -- it does not needlessly re-sync ancestors that were already
-// durable before this call.
-func TestMkdirAllSynced_SkipsAlreadyExistingLevels(t *testing.T) {
+// TestMkdirAllSynced_AlwaysResyncsEvenWhenAlreadyExisting proves the actual
+// fix: mkdirAllSynced does NOT skip syncing a level merely because it
+// already exists on disk. A directory being visible is not proof its
+// creation was ever made durable -- a previous call may have created it and
+// then had its own sync fail transiently, and there is no on-disk marker
+// distinguishing "exists and durable" from "exists and never confirmed". A
+// prior version of this function detected "newly created" levels by
+// existence and skipped resyncing anything already visible; that was
+// exactly the bug Codex's review found (a retry after a transient sync
+// failure never re-attempted it). Calling mkdirAllSynced a second time, on
+// a path that already fully exists from the first call, must still sync
+// every level up to boundary.
+func TestMkdirAllSynced_AlwaysResyncsEvenWhenAlreadyExisting(t *testing.T) {
 	root := t.TempDir()
-	parent := filepath.Join(root, "already-here")
-	if err := os.MkdirAll(parent, 0o755); err != nil {
+	boundary := filepath.Join(root, ".sensei")
+	if err := os.MkdirAll(boundary, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	leaf := filepath.Join(parent, "new-leaf")
+	target := filepath.Join(boundary, "principle-pack", "adoptions")
+
+	if err := mkdirAllSynced(target, boundary, 0o755); err != nil {
+		t.Fatalf("first call: %v", err)
+	}
 
 	var synced []string
 	orig := syncDir
@@ -942,11 +980,19 @@ func TestMkdirAllSynced_SkipsAlreadyExistingLevels(t *testing.T) {
 	}
 	defer func() { syncDir = orig }()
 
-	if err := mkdirAllSynced(leaf, 0o755); err != nil {
-		t.Fatal(err)
+	if err := mkdirAllSynced(target, boundary, 0o755); err != nil {
+		t.Fatalf("second call (everything already exists): %v", err)
 	}
-	if len(synced) != 1 || synced[0] != parent {
-		t.Fatalf("expected exactly one sync of %s, got %v", parent, synced)
+	want := map[string]bool{boundary: false, filepath.Dir(target): false}
+	for _, d := range synced {
+		if _, ok := want[d]; ok {
+			want[d] = true
+		}
+	}
+	for dir, got := range want {
+		if !got {
+			t.Errorf("%s was not resynced on a call where it already existed", dir)
+		}
 	}
 }
 
@@ -959,8 +1005,19 @@ func TestMkdirAllSynced_RejectsPathThroughExistingFile(t *testing.T) {
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := mkdirAllSynced(filepath.Join(blocker, "child"), 0o755); err == nil {
+	if err := mkdirAllSynced(filepath.Join(blocker, "child"), root, 0o755); err == nil {
 		t.Fatal("expected an error when a path component is a regular file")
+	}
+}
+
+// TestMkdirAllSynced_RejectsPathNotUnderBoundary proves a path outside the
+// given boundary errors rather than climbing to the filesystem root and
+// syncing directories far outside anything this call is responsible for.
+func TestMkdirAllSynced_RejectsPathNotUnderBoundary(t *testing.T) {
+	a := filepath.Join(t.TempDir(), "a", "b")
+	unrelatedBoundary := t.TempDir()
+	if err := mkdirAllSynced(a, unrelatedBoundary, 0o755); err == nil {
+		t.Fatal("expected an error when path is not under boundary")
 	}
 }
 

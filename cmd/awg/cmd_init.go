@@ -231,10 +231,25 @@ func scaffoldProjectWithReport(root string, opts initOptions) (initReport, error
 		if name == "meta_principles.yaml" {
 			if onDisk, err := os.ReadFile(dst); err == nil && sha256Hex(onDisk) == sha256Hex(content) {
 				recordPath := installRecordFilePath(root)
-				if _, err := os.Stat(recordPath); os.IsNotExist(err) {
-					if err := writeInstallRecord(root, content); err != nil {
-						return initReport{}, fmt.Errorf("write principle-pack install record: %w", err)
-					}
+				_, statErrBefore := os.Stat(recordPath)
+				// Always (re)write, even when a record already exists at
+				// this path: existing, correct FILE CONTENT is not proof
+				// its directory sync ever succeeded. A prior init may have
+				// renamed installed.yaml into place and then hit a
+				// transient sync failure -- skipping the write here on a
+				// retry would silently trust that unconfirmed attempt.
+				// writeInstallRecord's own write+rename+sync is safe to
+				// repeat (identical bytes, same result each time), so
+				// retrying it unconditionally is the only way to actually
+				// confirm durability rather than assume it. `created` still
+				// only lists it when it is genuinely new here, though —
+				// init is otherwise idempotent (a second run against an
+				// already-initialized project reports nothing new created),
+				// and a resync-only retry is durability work, not creation.
+				if err := writeInstallRecord(root, content); err != nil {
+					return initReport{}, fmt.Errorf("write principle-pack install record: %w", err)
+				}
+				if statErrBefore != nil {
 					created = append(created, recordPath)
 				}
 			}

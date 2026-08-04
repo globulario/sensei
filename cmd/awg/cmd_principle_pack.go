@@ -422,13 +422,18 @@ func readManagedMirror(path string) ([]byte, error) {
 }
 
 func acquireRefreshLock(root string) (func(), error) {
-	// Deliberately plain MkdirAll, not mkdirAllSynced: the lock file is
-	// ephemeral process coordination, not evidence a crash must recover.
-	// Losing the directory's durability on crash just means the next run
-	// recreates it here, same as today with no lock ever having existed --
-	// the safe direction, unlike the receipt/mirror/baseline paths this
-	// file otherwise treats as crash-recoverable state.
-	if err := os.MkdirAll(principlePackDirPath(root), 0o755); err != nil {
+	// mkdirAllSynced, not plain MkdirAll: this may be the FIRST thing in the
+	// whole run to create principle-pack/ (e.g. --reconcile-legacy --apply
+	// on a project with no prior baseline or adoption at all). If that
+	// creation is not made durable here, a later mkdirAllSynced call for the
+	// adoptions/ receipt sees principle-pack/ already exists and has no way
+	// to know its own creation was never confirmed -- a crash could then
+	// preserve a synced, applied mirror while losing the unsynced
+	// principle-pack/ entry (and everything durability-managed under it,
+	// including the receipt). The lock file ITSELF is still ephemeral, but
+	// the directory it happens to be first to create is not, the moment
+	// real evidence gets stored under it later in the same run.
+	if err := mkdirAllSynced(principlePackDirPath(root), statedir.Path(root), 0o755); err != nil {
 		return nil, err
 	}
 	lock := refreshLockFilePath(root)
@@ -614,7 +619,7 @@ const principlePackRecordHeader = "# Immutable adoption record written by `sense
 // an identical adoption finds it already present and does not rewrite.
 func writePrinciplePackRecord(root string, r principlePackRecord) (string, error) {
 	dir := adoptionsDirPath(root)
-	if err := mkdirAllSynced(dir, 0o755); err != nil {
+	if err := mkdirAllSynced(dir, statedir.Path(root), 0o755); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, short(r.Target.ResultingDigest)+".yaml")
@@ -672,7 +677,7 @@ func writeInstallRecord(root string, packBytes []byte) error {
 		return err
 	}
 	path := installRecordFilePath(root)
-	if err := mkdirAllSynced(filepath.Dir(path), 0o755); err != nil {
+	if err := mkdirAllSynced(filepath.Dir(path), statedir.Path(root), 0o755); err != nil {
 		return err
 	}
 	header := "# Baseline written by `sensei init`: the exact principle pack this project\n" +
@@ -718,52 +723,43 @@ func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
 // A package-level var, not a plain func: tests override it to prove a
 // caller retries or surfaces a failed sync rather than silently treating
 // already-correct file bytes as proof the directory itself was made
-// durable. Never overridden in production.
-var syncDir = func(dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return fmt.Errorf("open %s to sync its directory entry: %w", dir, err)
-	}
-	defer d.Close()
-	return d.Sync()
-}
+// durable. Never overridden in production. The real implementation is
+// platform-specific (dirsync_unix.go / dirsync_windows.go) -- an
+// os.Open+File.Sync directory handle is fsync-able on Unix but not on
+// Windows (FlushFileBuffers cannot flush a read-only directory handle), and
+// NTFS's own metadata journaling does not need or support the same
+// explicit directory-entry flush ext4-family filesystems require.
+var syncDir = syncDirImpl
 
-// mkdirAllSynced is os.MkdirAll plus durability for the directories it
-// actually creates. Syncing a NEW directory's own contents (as
-// atomicWriteFile/commitMirror already do after their rename) proves
-// nothing about the directory's own existence: mkdir, like rename, is not
-// durable until the PARENT directory holding its entry is synced too. A
-// crash between MkdirAll and that sync can leave a directory (and anything
-// later synced into it) simply absent on reboot.
-func mkdirAllSynced(path string, perm os.FileMode) error {
-	var newDirs []string
-	for p := filepath.Clean(path); ; {
-		fi, err := os.Stat(p)
-		if err == nil {
-			if !fi.IsDir() {
-				return fmt.Errorf("%s exists and is not a directory", p)
-			}
-			break
-		}
-		if !os.IsNotExist(err) {
-			return err
-		}
-		newDirs = append(newDirs, p)
-		parent := filepath.Dir(p)
-		if parent == p {
-			break // reached filesystem root without finding an existing ancestor
-		}
-		p = parent
-	}
+// mkdirAllSynced is os.MkdirAll plus durability, unconditionally: every
+// directory level from path up to and including boundary is synced after
+// MkdirAll, whether or not THIS call is what created it. A directory
+// already being visible on disk is not proof its creation was ever made
+// durable -- a previous attempt may have created it and then failed the
+// sync itself (a transient error, a crash), and there is no on-disk marker
+// distinguishing "exists and durable" from "exists and never confirmed".
+// Trying to be clever about syncing only newly-created levels was exactly
+// that bug: a retry saw the level already existed and silently skipped
+// resyncing it. Unconditional, idempotent resyncing is the only fully
+// correct answer, and cheap enough at this call frequency that the
+// redundant work is not worth optimizing away. boundary must be an
+// ancestor of path that this function is not responsible for (typically
+// the project's state directory root) -- callers never durability-manage
+// past their own subtree.
+func mkdirAllSynced(path, boundary string, perm os.FileMode) error {
 	if err := os.MkdirAll(path, perm); err != nil {
 		return err
 	}
-	// newDirs is deepest-first; sync shallowest-first so each directory's
-	// parent is itself durable before the next level's existence depends on it.
-	for i := len(newDirs) - 1; i >= 0; i-- {
-		if err := syncDir(filepath.Dir(newDirs[i])); err != nil {
-			return fmt.Errorf("syncing parent of newly created %s: %w", newDirs[i], err)
+	boundary = filepath.Clean(boundary)
+	for p := filepath.Clean(path); p != boundary; {
+		parent := filepath.Dir(p)
+		if err := syncDir(parent); err != nil {
+			return fmt.Errorf("syncing %s: %w", parent, err)
 		}
+		if parent == p {
+			return fmt.Errorf("mkdirAllSynced: %s is not under boundary %s", path, boundary)
+		}
+		p = parent
 	}
 	return nil
 }
