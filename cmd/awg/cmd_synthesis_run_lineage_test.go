@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -14,83 +15,24 @@ import (
 	"github.com/globulario/sensei/golang/architecture/synthesisdriver"
 )
 
-// TestWriteRegularFileAtomicNoFollow_WritesAndReplaces covers the ordinary
-// case (no existing entry) and the legitimate replace case (an existing
-// regular file, e.g. a second run reproducing the same candidate digest
-// with fresh receipt content) -- both must succeed.
-func TestWriteRegularFileAtomicNoFollow_WritesAndReplaces(t *testing.T) {
+// newTestCandidateStore constructs a real runnercomposition.CandidateArtifactStore
+// rooted at a fresh temp dir, matching what runSynthesisRun actually
+// constructs and passes to persistAdmissionLineage.
+func newTestCandidateStore(t *testing.T) (runnercomposition.CandidateArtifactStore, string) {
+	t.Helper()
 	dir := t.TempDir()
-	if err := writeRegularFileAtomicNoFollow(dir, "x.json", []byte("first")); err != nil {
-		t.Fatalf("first write: %v", err)
-	}
-	got, err := os.ReadFile(filepath.Join(dir, "x.json"))
+	store, err := runnercomposition.NewFSCandidateArtifactStore(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != "first" {
-		t.Fatalf("content = %q, want %q", got, "first")
-	}
-	if err := writeRegularFileAtomicNoFollow(dir, "x.json", []byte("second")); err != nil {
-		t.Fatalf("replace write: %v", err)
-	}
-	got, err = os.ReadFile(filepath.Join(dir, "x.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != "second" {
-		t.Fatalf("content after replace = %q, want %q", got, "second")
-	}
-	// No leftover staging files.
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 1 || entries[0].Name() != "x.json" {
-		t.Fatalf("directory contains unexpected entries: %v", entries)
-	}
-}
-
-// TestWriteRegularFileAtomicNoFollow_RefusesExistingSymlink is the direct
-// regression test for the live review finding: an existing symlink at the
-// target name (e.g. planted by another process, or a pre-existing
-// attacker-controlled entry) must be refused, never followed or
-// transparently overwritten by a plain path-based write.
-func TestWriteRegularFileAtomicNoFollow_RefusesExistingSymlink(t *testing.T) {
-	dir := t.TempDir()
-	outsideTarget := filepath.Join(t.TempDir(), "outside.txt")
-	if err := os.WriteFile(outsideTarget, []byte("do not touch"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	linkPath := filepath.Join(dir, "x.json")
-	if err := os.Symlink(outsideTarget, linkPath); err != nil {
-		t.Skipf("symlinks unsupported in this environment: %v", err)
-	}
-
-	if err := writeRegularFileAtomicNoFollow(dir, "x.json", []byte("attempted overwrite")); err == nil {
-		t.Fatal("expected an error writing through an existing symlink")
-	}
-
-	// The symlink itself, and its target, must be untouched.
-	info, err := os.Lstat(linkPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode()&os.ModeSymlink == 0 {
-		t.Fatal("the symlink at the target name was replaced instead of refused")
-	}
-	outsideContent, err := os.ReadFile(outsideTarget)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(outsideContent) != "do not touch" {
-		t.Fatalf("symlink target was written through: %s", outsideContent)
-	}
+	return store, dir
 }
 
 // TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty covers every
 // disposition without a sealed candidate: there is nothing to persist, and
 // persistAdmissionLineage must not error or write a file.
 func TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty(t *testing.T) {
+	store, dir := newTestCandidateStore(t)
 	for _, d := range []synthesisdriver.Disposition{
 		synthesisdriver.DispositionTerminalFailure,
 		synthesisdriver.DispositionProviderStopped,
@@ -98,7 +40,7 @@ func TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty(t *testing.T) {
 		synthesisdriver.DispositionStepLimitReached,
 	} {
 		result := synthesisdriver.Result{Receipt: synthesisdriver.RunReceipt{Disposition: d}}
-		path, err := persistAdmissionLineage(result, t.TempDir())
+		path, err := persistAdmissionLineage(context.Background(), result, store, dir)
 		if err != nil {
 			t.Fatalf("disposition %q: unexpected error: %v", d, err)
 		}
@@ -155,8 +97,8 @@ func TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle(t *testing.T
 		},
 	}
 
-	storeDir := t.TempDir()
-	path, err := persistAdmissionLineage(result, storeDir)
+	store, storeDir := newTestCandidateStore(t)
+	path, err := persistAdmissionLineage(context.Background(), result, store, storeDir)
 	if err != nil {
 		t.Fatalf("persistAdmissionLineage: %v", err)
 	}
@@ -207,7 +149,8 @@ func TestPersistAdmissionLineage_MissingSynthesisReceiptErrors(t *testing.T) {
 			CandidateArtifactDigestSHA256: strPtr(candidateDigest),
 		},
 	}
-	if _, err := persistAdmissionLineage(result, t.TempDir()); err == nil {
+	store, dir := newTestCandidateStore(t)
+	if _, err := persistAdmissionLineage(context.Background(), result, store, dir); err == nil {
 		t.Fatal("expected an error when SessionState.Receipt is nil")
 	}
 }
@@ -228,7 +171,8 @@ func TestPersistAdmissionLineage_NoMatchingRunnerReceiptErrors(t *testing.T) {
 		},
 		// No matching GenerationHandoffs entry.
 	}
-	if _, err := persistAdmissionLineage(result, t.TempDir()); err == nil {
+	store, dir := newTestCandidateStore(t)
+	if _, err := persistAdmissionLineage(context.Background(), result, store, dir); err == nil {
 		t.Fatal("expected an error when no runner receipt matches the candidate digest")
 	}
 }

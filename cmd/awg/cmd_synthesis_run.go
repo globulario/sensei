@@ -13,8 +13,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -540,7 +538,7 @@ Flags:
 		return exitInternalDefect
 	}
 
-	lineagePath, err := persistAdmissionLineage(result, *candidateStoreDir)
+	lineagePath, err := persistAdmissionLineage(ctx, result, candidateStore, *candidateStoreDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: persist admission lineage: %v\n", err)
 		return exitInternalDefect
@@ -586,7 +584,22 @@ const synthesisRunLineageSchemaVersion = "sensei.synthesis-run.lineage.v1"
 // the run reached candidate-ready -- every other disposition has no
 // sealed candidate, so there is no lineage to persist. Returns an empty
 // path, nil error for every other disposition.
-func persistAdmissionLineage(result synthesisdriver.Result, candidateStoreDir string) (string, error) {
+//
+// The write itself goes through candidateStore.PutAuxiliaryFile, not a
+// freshly re-opened path -- a live review found that opening a fresh
+// os.Root(candidateStoreDir) here (as an earlier revision of this function
+// did) could split from the directory candidateStore actually sealed the
+// candidate artifact into, if --candidate-store's original path were
+// renamed or replaced by something else during this run's (potentially
+// long) generation/evaluation phases: the candidate would stay reachable
+// in the original directory while lineage silently landed in whatever
+// replacement now sits at the same path. Routing through candidateStore's
+// own already-open root closes that gap the same way its Put/Get already
+// do (see TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename).
+// candidateStoreDir is still threaded through separately, but only ever
+// used to build the human-facing CandidateArtifactPath/return-path
+// strings, never to perform the write itself.
+func persistAdmissionLineage(ctx context.Context, result synthesisdriver.Result, candidateStore runnercomposition.CandidateArtifactStore, candidateStoreDir string) (string, error) {
 	r := result.Receipt
 	if r.Disposition != synthesisdriver.DispositionCandidateReady {
 		return "", nil
@@ -636,56 +649,10 @@ func persistAdmissionLineage(result synthesisdriver.Result, candidateStoreDir st
 		return "", fmt.Errorf("marshal admission lineage: %w", err)
 	}
 	filename := candidateDigest + ".lineage.json"
-	if err := writeRegularFileAtomicNoFollow(candidateStoreDir, filename, data); err != nil {
+	if err := candidateStore.PutAuxiliaryFile(ctx, filename, data); err != nil {
 		return "", fmt.Errorf("write admission lineage: %w", err)
 	}
 	return filepath.Join(candidateStoreDir, filename), nil
-}
-
-// writeRegularFileAtomicNoFollow writes data to name inside dir through a
-// freshly opened os.Root(dir) handle -- the same directory-descriptor-
-// pinned, no-follow-safe primitives runnercomposition's own
-// CandidateArtifactStore already uses for the candidate artifact itself
-// (store.go's Put: stage under a random name, commit via a single atomic
-// rename), rather than a plain path-based os.WriteFile. A plain
-// os.WriteFile neither refuses a symlink an attacker (or another process)
-// has placed at name, nor is atomic -- a reader could observe a
-// partially-written file, and a concurrent replacement of dir itself
-// between candidate sealing and this write would go undetected. Unlike
-// the candidate artifact's own commit (Link, refuse-if-exists: sealed
-// content must never be silently overwritten), this uses Rename
-// (replace-capable): the same candidate digest reproduced by a second,
-// independent run legitimately carries different receipt content (fresh
-// session/receipt IDs each run), so lineage is not immutable the way a
-// sealed candidate artifact is -- last write wins, but only ever
-// atomically and only ever over an existing regular file, never a
-// symlink or other special file.
-func writeRegularFileAtomicNoFollow(dir, name string, data []byte) error {
-	root, err := os.OpenRoot(dir)
-	if err != nil {
-		return fmt.Errorf("open root %q: %w", dir, err)
-	}
-	defer root.Close()
-	if info, statErr := root.Lstat(name); statErr == nil {
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("%q exists in %q and is not a regular file (mode %s) -- refusing to write through it", name, dir, info.Mode())
-		}
-	} else if !os.IsNotExist(statErr) {
-		return fmt.Errorf("inspect %q in %q: %w", name, dir, statErr)
-	}
-	var suffix [8]byte
-	if _, err := rand.Read(suffix[:]); err != nil {
-		return fmt.Errorf("generate staging name: %w", err)
-	}
-	tmpName := name + "." + hex.EncodeToString(suffix[:]) + ".tmp"
-	if err := root.WriteFile(tmpName, data, 0o644); err != nil {
-		return fmt.Errorf("write staged content: %w", err)
-	}
-	if err := root.Rename(tmpName, name); err != nil {
-		_ = root.Remove(tmpName)
-		return fmt.Errorf("commit %q: %w", name, err)
-	}
-	return nil
 }
 
 // Exit code contract. Every distinct outcome gets its own code so a caller
