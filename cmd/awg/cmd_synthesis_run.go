@@ -34,6 +34,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 	"github.com/globulario/sensei/golang/architecture/synthesisdriver"
 	"github.com/globulario/sensei/golang/architecture/synthesisdriver/fileinterpretation"
+	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/architecture/tasksession"
 	"github.com/globulario/sensei/golang/architecture/workspacecontract"
 )
@@ -159,6 +160,13 @@ Flags:
 	control, closureReport, err := tasksession.ResolveControlAndClosure(absRepo, taskDir, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: resolve task control state and closure report (run 'sensei advance-task' to converge closure first): %v\n", err)
+		return exitResolutionFailure
+	}
+	// A stale binding is not necessarily represented by PrimaryBlocker; see
+	// validateCurrentBinding's own doc comment. Refused unconditionally,
+	// never something --force-unconverged is meant to bypass.
+	if err := validateCurrentBinding(control); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
 		return exitResolutionFailure
 	}
 	if control.PrimaryBlocker != nil && !*forceUnconverged {
@@ -751,6 +759,33 @@ func resolveSynthesisRunObjective(objectiveFlag, taskDescription, authoredObject
 // passed. That makes the empty slice an honest, bounded claim ("the
 // accepted authored interpretation declared none"), never a silent
 // substitute for verification Sensei cannot yet perform.
+// validateCurrentBinding refuses a task whose binding is stale (repository
+// revision, graph snapshot, or an out-of-envelope working tree change since
+// 'sensei prepare-change') or whose admission decision refuses mutation
+// capability. This is deliberately a separate, unconditional check from the
+// PrimaryBlocker gate: a task that converged with zero closure blockers
+// before its binding went stale has no blocker at all to classify as
+// uncertifiable, so the PrimaryBlocker check alone -- even without
+// --force-unconverged -- would let it through, while workspace identity is
+// then composed from the *current* revision and the closure report/digest
+// stay bound to the stale task-session's own recorded state. That
+// combination can seal a candidate-ready receipt whose architectural
+// closure was established for a repository state that no longer exists.
+// Unlike an unconverged-but-acknowledged closure, a stale binding is not
+// something --force-unconverged is meant to paper over: the only correct
+// repair is to re-run 'sensei prepare-change'/'sensei advance-task' and
+// re-establish a current binding. Mirrors tasksession.BuildTaskBriefing's
+// own unconditional "BindingHealth != current" refusal.
+func validateCurrentBinding(control taskcontrol.TaskControlState) error {
+	if control.BindingHealth != "current" {
+		return fmt.Errorf("task binding is stale (binding_health=%q); run 'sensei prepare-change' or 'sensei advance-task' to establish a current binding before synthesis", control.BindingHealth)
+	}
+	if control.Permission.Modify == admission.CapabilityRefused {
+		return fmt.Errorf("task mutation capability is %q; repair the task binding or admission decision before synthesis", control.Permission.Modify)
+	}
+	return nil
+}
+
 func validateNoRequiredProofObligations(obligations []string) error {
 	if len(obligations) == 0 {
 		return nil

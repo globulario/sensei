@@ -10,6 +10,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/agentcommand"
 	"github.com/globulario/sensei/golang/architecture/synthesisdriver"
+	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 )
 
 func captureSynthesisRunStderr(t *testing.T, args []string) (string, int) {
@@ -107,6 +108,58 @@ func TestResolveSynthesisRunObjective_TaskDefaultMismatchIsRefused(t *testing.T)
 	}
 	if !containsAll(err.Error(), "task's own recorded description") {
 		t.Fatalf("error should name the task's own recorded description as the objective source: %v", err)
+	}
+}
+
+// TestValidateCurrentBinding_CurrentAndAdmittedPasses covers the ordinary
+// case: a current binding with an admitted (or admitted-with-conditions)
+// mutation capability must not be refused.
+func TestValidateCurrentBinding_CurrentAndAdmittedPasses(t *testing.T) {
+	for _, modify := range []string{admission.CapabilityAdmitted, admission.CapabilityAdmittedWithConditions} {
+		control := taskcontrol.TaskControlState{
+			BindingHealth: "current",
+			Permission:    taskcontrol.PermissionSummary{Modify: modify},
+		}
+		if err := validateCurrentBinding(control); err != nil {
+			t.Fatalf("modify=%q: unexpected error: %v", modify, err)
+		}
+	}
+}
+
+// TestValidateCurrentBinding_StaleIsRefused is the direct regression test
+// for a live review finding: a task that converged with zero closure
+// blockers before its binding went stale has no PrimaryBlocker to trip the
+// separate --force-unconverged gate, so BindingHealth must be checked on
+// its own, and unconditionally (no override flag bypasses it).
+func TestValidateCurrentBinding_StaleIsRefused(t *testing.T) {
+	control := taskcontrol.TaskControlState{
+		BindingHealth: "stale",
+		Permission:    taskcontrol.PermissionSummary{Modify: admission.CapabilityAdmitted},
+	}
+	err := validateCurrentBinding(control)
+	if err == nil {
+		t.Fatal("expected an error for a stale binding")
+	}
+	if !containsAll(err.Error(), "stale", "prepare-change") {
+		t.Fatalf("error should name the staleness and the repair path: %v", err)
+	}
+}
+
+// TestValidateCurrentBinding_RefusedMutationCapabilityIsRefused covers the
+// companion condition named in the same finding: even with a current
+// binding, a task admission decision that itself refuses mutation
+// capability must not proceed into synthesis.
+func TestValidateCurrentBinding_RefusedMutationCapabilityIsRefused(t *testing.T) {
+	control := taskcontrol.TaskControlState{
+		BindingHealth: "current",
+		Permission:    taskcontrol.PermissionSummary{Modify: admission.CapabilityRefused},
+	}
+	err := validateCurrentBinding(control)
+	if err == nil {
+		t.Fatal("expected an error for a refused mutation capability")
+	}
+	if !containsAll(err.Error(), "mutation capability") {
+		t.Fatalf("error should name the refused capability: %v", err)
 	}
 }
 
