@@ -346,6 +346,8 @@ func dispatch(cmd string, args []string) int {
 		return runValidateDraft(args)
 	case "intent-mine":
 		return runIntentMine(args)
+	case "principle-pack":
+		return runPrinciplePack(args)
 	case "corpus":
 		return runCorpus(args)
 	case "version":
@@ -394,6 +396,7 @@ Record or promote a lesson:
   intent-mine    Mine and ground architectural-intent candidates
   cold-bootstrap Advanced miner: history/review candidates
   corpus         Review/hold/never classification for finding reports
+  principle-pack Refresh an installed project's managed principle mirror (plan-only by default)
 
 Gate or validate a change:
   gate           Hard gate over a git diff (--enforce to block)

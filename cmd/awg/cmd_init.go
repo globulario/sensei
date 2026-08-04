@@ -199,17 +199,61 @@ func scaffoldProjectWithReport(root string, opts initOptions) (initReport, error
 	}
 	for _, name := range awarenessFiles {
 		dst := filepath.Join(awarenessDir, name)
-		if _, err := os.Stat(dst); err == nil {
-			continue // don't overwrite existing files
-		}
 		content, err := templates.ReadFile("templates/awareness/" + name)
 		if err != nil {
 			return initReport{}, fmt.Errorf("read template %s: %w", name, err)
 		}
-		if err := os.WriteFile(dst, content, 0o644); err != nil {
-			return initReport{}, fmt.Errorf("write %s: %w", dst, err)
+		if _, err := os.Stat(dst); err != nil {
+			if err := os.WriteFile(dst, content, 0o644); err != nil {
+				return initReport{}, fmt.Errorf("write %s: %w", dst, err)
+			}
+			created = append(created, dst)
 		}
-		created = append(created, dst)
+
+		// Record the exact pack this project was initialized from. Without
+		// this baseline a later `principle-pack refresh` cannot tell an
+		// upstream addition from an entry the project deliberately deleted,
+		// and must refuse to apply.
+		//
+		// This runs whether dst was just written above OR already existed —
+		// deliberately outside the "don't overwrite existing files" gate. A
+		// prior init that wrote the mirror but failed (or was killed) before
+		// this baseline write left an untouched, template-identical mirror
+		// with no baseline on disk; the old code's early `continue` on
+		// "file already exists" skipped this block on retry, silently
+		// reporting success while leaving the project permanently
+		// unrecoverable by `principle-pack refresh` (it would see a real
+		// mirror with no baseline and refuse). Only write the baseline when
+		// the on-disk file still digests identically to the template we
+		// would have written — a project that customized meta_principles.yaml
+		// before this record existed must not get a fabricated baseline for
+		// content it never actually started from.
+		if name == "meta_principles.yaml" {
+			if onDisk, err := os.ReadFile(dst); err == nil && sha256Hex(onDisk) == sha256Hex(content) {
+				recordPath := installRecordFilePath(root)
+				_, statErrBefore := os.Stat(recordPath)
+				// Always (re)write, even when a record already exists at
+				// this path: existing, correct FILE CONTENT is not proof
+				// its directory sync ever succeeded. A prior init may have
+				// renamed installed.yaml into place and then hit a
+				// transient sync failure -- skipping the write here on a
+				// retry would silently trust that unconfirmed attempt.
+				// writeInstallRecord's own write+rename+sync is safe to
+				// repeat (identical bytes, same result each time), so
+				// retrying it unconditionally is the only way to actually
+				// confirm durability rather than assume it. `created` still
+				// only lists it when it is genuinely new here, though —
+				// init is otherwise idempotent (a second run against an
+				// already-initialized project reports nothing new created),
+				// and a resync-only retry is durability work, not creation.
+				if err := writeInstallRecord(root, content); err != nil {
+					return initReport{}, fmt.Errorf("write principle-pack install record: %w", err)
+				}
+				if statErrBefore != nil {
+					created = append(created, recordPath)
+				}
+			}
+		}
 	}
 
 	// Create the state directory (.sensei, or a pre-existing legacy .awg).

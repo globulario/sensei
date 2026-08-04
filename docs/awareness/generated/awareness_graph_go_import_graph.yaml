@@ -116,6 +116,7 @@ components:
       - cmd/awg/cmd_pattern_check.go
       - cmd/awg/cmd_plan_probes.go
       - cmd/awg/cmd_preflight.go
+      - cmd/awg/cmd_principle_pack.go
       - cmd/awg/cmd_produce_binding.go
       - cmd/awg/cmd_promote.go
       - cmd/awg/cmd_promote_answer.go
@@ -157,6 +158,8 @@ components:
       - cmd/awg/cross_repo_atomic.go
       - cmd/awg/cross_repo_guard.go
       - cmd/awg/defaults.go
+      - cmd/awg/dirsync_unix.go
+      - cmd/awg/dirsync_windows.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
       - cmd/awg/git_domain.go
