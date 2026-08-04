@@ -420,12 +420,59 @@ func TestNextStep_NeverSuggestsAdmissionExceptForCandidateReady(t *testing.T) {
 		synthesisdriver.DispositionRunnerStopped,
 		synthesisdriver.DispositionStepLimitReached,
 	} {
-		if s := nextStep(d); contains(s, "admit-change") {
-			t.Fatalf("nextStep(%q) suggests admit-change, but no candidate exists for this disposition: %s", d, s)
+		// Both with and without a sealed candidate digest: admit-change
+		// must never be suggested for any non-candidate-ready disposition,
+		// regardless of whether a (non-admission-ready) candidate exists.
+		for _, digest := range []*string{nil, strPtr("cand0000000000000000000000000000000000000000000000000000000000")} {
+			if s := nextStep(d, digest); contains(s, "admit-change") {
+				t.Fatalf("nextStep(%q, digest=%v) suggests admit-change, but this disposition is not candidate-ready: %s", d, digest, s)
+			}
 		}
 	}
-	if s := nextStep(synthesisdriver.DispositionCandidateReady); !contains(s, "admit-change") {
+	if s := nextStep(synthesisdriver.DispositionCandidateReady, strPtr("cand0000000000000000000000000000000000000000000000000000000000")); !contains(s, "admit-change") {
 		t.Fatalf("nextStep(candidate-ready) should point at admit-change, got: %s", s)
+	}
+}
+
+// TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
+// is the direct regression test for a live review finding:
+// DispositionTerminalFailure's text unconditionally claimed "No candidate
+// exists," directly contradicting the same report's candidate_path field
+// whenever a candidate actually was sealed. runnercomposition.Run seals a
+// candidate unconditionally on every O3-verified attempt, strictly before
+// O4 evaluation runs -- so a candidate can be sealed and the run still end
+// in DispositionTerminalFailure (this attempt's own O4 recommends abort)
+// or DispositionRunnerStopped (an earlier attempt in the same retry loop
+// sealed one, then a later attempt's O3 generation itself failed) --
+// confirmed via dedicated golang/architecture/synthesisdriver tests
+// (TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep and direct
+// empirical verification for RunnerStopped) before this fix.
+func TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions(t *testing.T) {
+	digest := strPtr("cand0000000000000000000000000000000000000000000000000000000000")
+	for _, d := range []synthesisdriver.Disposition{
+		synthesisdriver.DispositionTerminalFailure,
+		synthesisdriver.DispositionRunnerStopped,
+		synthesisdriver.DispositionStepLimitReached,
+	} {
+		withCandidate := nextStep(d, digest)
+		if contains(withCandidate, "No candidate exists") {
+			t.Fatalf("nextStep(%q) with a sealed candidate still claims none exists: %s", d, withCandidate)
+		}
+		if !contains(withCandidate, "candidate_path above") {
+			t.Fatalf("nextStep(%q) with a sealed candidate should point at candidate_path: %s", d, withCandidate)
+		}
+		if !contains(withCandidate, "not admission-ready") {
+			t.Fatalf("nextStep(%q) with a sealed candidate should say it is not admission-ready: %s", d, withCandidate)
+		}
+		withoutCandidate := nextStep(d, nil)
+		if !contains(withoutCandidate, "No candidate") {
+			t.Fatalf("nextStep(%q) without a sealed candidate should say none exists: %s", d, withoutCandidate)
+		}
+	}
+	// ProviderStopped can never carry a candidate (fires strictly before
+	// O3/PhaseAttempting could ever run) -- its text stays unconditional.
+	if s := nextStep(synthesisdriver.DispositionProviderStopped, digest); !contains(s, "No candidate exists") {
+		t.Fatalf("nextStep(ProviderStopped) should unconditionally say no candidate exists, got: %s", s)
 	}
 }
 
@@ -488,7 +535,7 @@ func TestHelp_DoesNotClaimAdmitChangeConsumesLineage(t *testing.T) {
 }
 
 func TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage(t *testing.T) {
-	s := nextStep(synthesisdriver.DispositionCandidateReady)
+	s := nextStep(synthesisdriver.DispositionCandidateReady, strPtr("cand0000000000000000000000000000000000000000000000000000000000"))
 	if !contains(s, "does not currently consume") && !contains(s, "not-yet-built") {
 		t.Fatalf("nextStep(candidate-ready) should honestly say admit-change/verify-admission do not yet consume the lineage bundle, got: %s", s)
 	}

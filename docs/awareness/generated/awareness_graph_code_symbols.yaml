@@ -3987,6 +3987,12 @@ test_symbols:
     package: main
     language: go
     doc: "TestHelp_DoesNotClaimAdmitChangeConsumesLineage is the direct\nregression test for a live review finding: the \"--help\" text (separate\nfrom nextStep's candidate-ready text, fixed in an earlier round) still\ntold the operator to run admit-change/verify-admission \"to review and\napply\" a sealed candidate, the same misleading implication that neither\ncommand currently consumes the lineage bundle."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
+    package: main
+    language: go
+    doc: "TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\nis the direct regression test for a live review finding:\nDispositionTerminalFailure's text unconditionally claimed \"No candidate\nexists,\" directly contradicting the same report's candidate_path field\nwhenever a candidate actually was sealed. runnercomposition.Run seals a\ncandidate unconditionally on every O3-verified attempt, strictly before\nO4 evaluation runs -- so a candidate can be sealed and the run still end\nin DispositionTerminalFailure (this attempt's own O4 recommends abort)\nor DispositionRunnerStopped (an earlier attempt in the same retry loop\nsealed one, then a later attempt's O3 generation itself failed) --\nconfirmed via dedicated golang/architecture/synthesisdriver tests\n(TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep and direct\nempirical verification for RunnerStopped) before this fix."
   - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
     file: cmd/awg/cmd_synthesis_run_test.go
     symbol: TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
@@ -16655,6 +16661,18 @@ test_symbols:
     symbol: TestRunConsumesExactlyOneRetry
     package: synthesisdriver
     language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep
+    package: synthesisdriver
+    language: go
+    doc: "TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep covers the\nsame boundary for the PhaseFailed side (RecommendAbort), not just\nPhaseSucceeded."
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep
+    package: synthesisdriver
+    language: go
+    doc: "TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep is the direct\nregression test for a live review finding: config.EvaluationEngine.Evaluate\ncan transition state all the way to PhaseSucceeded/PhaseFailed within a\nsingle PhaseAttempting iteration (transitionRecordEvaluation resolves\nPhaseEvaluating -> {Succeeded | Retry | Replan | Failed} in one call).\nBefore this fix, the driver loop only checked for that terminal phase at\nthe TOP of the NEXT iteration -- so a transition landing on the last\nallowed step (step == config.MaxSteps) meant the loop exited with no next\niteration at all, falling through to the step-limit finishResult with a\nterminal receipt already stamped on state, which ValidateRunReceipt's own\nDispositionStepLimitReached case rejects outright (\"nonterminal stop\ncannot invent an O1 terminal receipt\") -- turning a genuine success into\na hard Go error, silently orphaning a sealed candidate with no lineage\never persisted.\n\nDetermines the exact natural step count for an ordinary first-attempt\nsuccess (no retries/replans configured), then re-runs with MaxSteps\npinned to precisely that count -- the exact boundary the finding\ndescribes -- and asserts it still succeeds cleanly."
   - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunO3NonVerifiedStopsBeforeO4
     file: golang/architecture/synthesisdriver/lifecycle_test.go
     symbol: TestRunO3NonVerifiedStopsBeforeO4

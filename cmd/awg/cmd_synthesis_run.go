@@ -916,7 +916,7 @@ func buildSynthesisRunReport(result synthesisdriver.Result, taskID, candidateSto
 		ExitCode:        exitCode,
 		ExitMeaning:     exitMeaning(exitCode),
 		LineagePath:     lineagePath,
-		NextStep:        nextStep(r.Disposition),
+		NextStep:        nextStep(r.Disposition, r.CandidateArtifactDigestSHA256),
 	}
 	if r.CandidateArtifactDigestSHA256 != nil {
 		report.CandidatePath = filepath.Join(candidateStoreDir, *r.CandidateArtifactDigestSHA256+".json")
@@ -1000,18 +1000,45 @@ func exitMeaning(code int) string {
 // disposition. It never suggests admission, application, or any mutation --
 // this command's own authority boundary -- and it never suggests retrying
 // with different flags when the honest answer is "inspect what happened."
-func nextStep(d synthesisdriver.Disposition) string {
+// nextStep builds the operator-facing guidance for a run's outcome.
+// candidateArtifactDigestSHA256 is result.Receipt.CandidateArtifactDigestSHA256
+// verbatim -- NOT assumed nil for a non-candidate-ready disposition. A live
+// review found that DispositionTerminalFailure's text unconditionally
+// claimed "No candidate exists," directly contradicting the very same
+// report's candidate_path field whenever a candidate actually was sealed:
+// runnercomposition.Run seals a candidate into the store unconditionally on
+// every O3-verified attempt (run.go's own "seal the candidate before the
+// ephemeral buffer is destroyed" step), strictly BEFORE O4 evaluation ever
+// runs -- so a candidate can be durably sealed and then still end in
+// DispositionTerminalFailure (O4 recommends abort on THIS attempt) or even
+// DispositionRunnerStopped (an EARLIER attempt in the same run's retry loop
+// sealed a candidate, recommended retry, and a LATER attempt's O3
+// generation itself then failed) -- confirmed empirically for both via
+// dedicated driver-level tests before this fix, not merely inferred from
+// the disposition name. DispositionProviderStopped is the one case that
+// really can never carry a candidate (it only ever fires from PhaseCreated/
+// PhasePlanning, strictly before PhaseAttempting/O3 could run even once),
+// so its text stays an unconditional claim rather than a data-driven one.
+func nextStep(d synthesisdriver.Disposition, candidateArtifactDigestSHA256 *string) string {
+	candidateClause := "No candidate exists."
+	if candidateArtifactDigestSHA256 != nil {
+		candidateClause = "A candidate WAS sealed during this run (see candidate_path above), but it is not admission-ready: this run's own receipt did not reach candidate-ready, and no admission lineage was recorded for it."
+	}
 	switch d {
 	case synthesisdriver.DispositionCandidateReady:
 		return "Candidate sealed. Nothing has been applied. The admission lineage bundle (synthesis/runner/evaluation receipts) needed to construct admissioncomposition.ComposeInput is durably persisted at the path named above. No CLI command reads it yet: `sensei admit-change` and `sensei verify-admission` take their own separate inputs (a convergence bundle/request, or a task directory) and do not currently consume this bundle or call admissioncomposition.ComposeInput -- wiring this lineage bundle into an O5 admission command is a distinct, not-yet-built step. Until then, review the bundle directly before authoring an admission request by hand."
 	case synthesisdriver.DispositionTerminalFailure:
-		return "O1 reached a governed terminal failure. No candidate exists. Inspect the receipt detail and the task's control state before authoring a new interpretation or task."
+		return fmt.Sprintf("O1 reached a governed terminal failure. %s Inspect the receipt detail and the task's control state before authoring a new interpretation or task.", candidateClause)
 	case synthesisdriver.DispositionProviderStopped:
 		return "The interpretation or planning provider stopped before producing a candidate. No candidate exists. Inspect the receipt detail and the vendor CLI's own output; this is not a governance rejection of generated content."
 	case synthesisdriver.DispositionRunnerStopped:
-		return "O3 generation stopped before a candidate could be sealed. No candidate exists. Inspect the receipt detail; this may be a vendor CLI or workspace problem, not a content rejection."
+		return fmt.Sprintf("O3 generation stopped on this attempt. %s Inspect the receipt detail; this may be a vendor CLI or workspace problem, not a content rejection.", candidateClause)
 	case synthesisdriver.DispositionStepLimitReached:
-		return "The step limit was reached before reaching a terminal disposition. No candidate is guaranteed to exist. Re-run with a higher --max-steps only after understanding why this many steps were needed."
+		limitClause := "No candidate is guaranteed to exist."
+		if candidateArtifactDigestSHA256 != nil {
+			limitClause = candidateClause
+		}
+		return fmt.Sprintf("The step limit was reached before reaching a terminal disposition. %s Re-run with a higher --max-steps only after understanding why this many steps were needed.", limitClause)
 	default:
 		return "Unrecognized disposition. Treat this as an internal defect, not a governed outcome."
 	}
