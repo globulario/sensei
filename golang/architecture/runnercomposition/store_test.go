@@ -1077,6 +1077,47 @@ func TestFSCandidateArtifactStorePutAuxiliaryFileRejectsNestedPath(t *testing.T)
 	}
 }
 
+// TestFSCandidateArtifactStorePutAuxiliaryFileRejectsSealedCandidateNamespace
+// is the direct regression test for a live review finding: PutAuxiliaryFile's
+// replace-capable commit must not be usable to overwrite an already-sealed
+// candidate artifact -- Put's create-only, no-clobber contract is the whole
+// point of this store's immutability guarantee, and a name shaped exactly
+// like Put's own "<64-lowercase-hex-digest>.json" filename must be refused,
+// both when nothing is sealed under that name yet and when something
+// already is.
+func TestFSCandidateArtifactStorePutAuxiliaryFileRejectsSealedCandidateNamespace(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	artifact := fixtureCandidateArtifact(t)
+	if err := store.Put(ctx, artifact); err != nil {
+		t.Fatal(err)
+	}
+	sealedName := artifact.CandidateArtifactDigestSHA256 + ".json"
+
+	if err := store.PutAuxiliaryFile(ctx, sealedName, []byte("attempted overwrite")); err == nil {
+		t.Fatal("expected an error writing to a sealed-candidate-shaped name that is already sealed")
+	}
+	got, err := store.Get(ctx, artifact.CandidateArtifactDigestSHA256)
+	if err != nil {
+		t.Fatalf("Get after refused PutAuxiliaryFile: %v", err)
+	}
+	if got.CandidateArtifactDigestSHA256 != artifact.CandidateArtifactDigestSHA256 {
+		t.Fatal("sealed candidate was corrupted despite PutAuxiliaryFile being refused")
+	}
+
+	// Also refused for a digest with nothing sealed under it yet -- the
+	// namespace itself is reserved, not merely "don't overwrite existing
+	// content."
+	const unsealedDigest = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	if err := store.PutAuxiliaryFile(ctx, unsealedDigest+".json", []byte("x")); err == nil {
+		t.Fatal("expected an error writing to a sealed-candidate-shaped name even with nothing sealed under it yet")
+	}
+}
+
 // TestFSCandidateArtifactStorePutAuxiliaryFileSharesStableRootIdentityAcrossRename
 // is the direct regression test for the live review finding this method
 // exists to close: a candidate sealed via Put, followed by a rename of the

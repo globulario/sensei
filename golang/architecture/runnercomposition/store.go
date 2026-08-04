@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 )
 
@@ -123,6 +124,12 @@ type CandidateArtifactStore interface {
 	// contract (e.g. an admission lineage bundle, whose receipts carry
 	// fresh session/receipt IDs every run even for the same candidate
 	// digest) use this instead of Put.
+	//
+	// name must never be shaped like a sealed candidate's own filename
+	// ("<64-lowercase-hex-digest>.json", exactly what Put's finalName
+	// always is) -- that namespace is reserved for Put alone, and this
+	// method refuses such a name rather than let its replace-capable
+	// commit defeat Put's create-only, no-clobber contract.
 	PutAuxiliaryFile(ctx context.Context, name string, data []byte) error
 }
 
@@ -301,6 +308,18 @@ func (s *fsCandidateArtifactStore) PutAuxiliaryFile(ctx context.Context, name st
 	}
 	if name == "" || name != filepath.Base(name) || name == "." || name == ".." {
 		return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: name %q must be a flat filename", name)
+	}
+	// Reject any name shaped like a sealed candidate's own filename
+	// (Put's finalName is always exactly "<64-lowercase-hex-digest>.json")
+	// -- this method's replace-capable Rename commit would otherwise
+	// defeat Put's create-only, no-clobber contract by overwriting an
+	// already-sealed candidate with arbitrary auxiliary bytes, silently
+	// corrupting it from Get's perspective (raw schema validation would
+	// then fail, reported as ErrCandidateArtifactCorrupted). This
+	// namespace is reserved for Put alone; PutAuxiliaryFile callers use a
+	// name that cannot collide with it, e.g. "<digest>.lineage.json".
+	if strings.HasSuffix(name, ".json") && sealedDigestPattern.MatchString(strings.TrimSuffix(name, ".json")) {
+		return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: name %q is reserved for a sealed candidate artifact (Put), not an auxiliary file", name)
 	}
 	if info, statErr := s.root.Lstat(name); statErr == nil {
 		if !info.Mode().IsRegular() {
