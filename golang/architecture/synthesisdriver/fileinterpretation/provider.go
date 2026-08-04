@@ -18,6 +18,7 @@
 package fileinterpretation
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -215,6 +216,22 @@ func readAuthoredInterpretation(resolvedPath string, maxBytes int64) (AuthoredIn
 		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: %q exceeds the %d byte limit while reading", resolvedPath, maxBytes)
 	}
 
+	// A duplicate top-level key (e.g. two "required_proof_obligations"
+	// entries) is last-value-wins under plain json.Unmarshal, which can
+	// silently erase an authored obligation, invariant, or forbidden-fix
+	// declaration behind an empty duplicate of the same key while this
+	// provider still reports the file as validated. Reject that ambiguity
+	// before decoding at all, rather than decode first and hope nothing
+	// was shadowed. Mirrors the same check already applied to vendor
+	// agent output in agentcommand.rejectDuplicateJSONKeys and
+	// cognitivecommand.rejectDuplicateObjectKeys -- this package cannot
+	// import either (both sit above fileinterpretation and are scoped to
+	// vendor-process output, not authored architectural evidence), so the
+	// same small, self-contained algorithm is kept local here too.
+	if err := rejectDuplicateJSONKeys(raw); err != nil {
+		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: %q contains ambiguous JSON: %w", resolvedPath, err)
+	}
+
 	var authored AuthoredInterpretation
 	if err := json.Unmarshal(raw, &authored); err != nil {
 		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: parse %q: %w", resolvedPath, err)
@@ -349,4 +366,59 @@ func finishResult(result providerport.Result) (providerport.Result, error) {
 	}
 	result.ResultDigestSHA256 = digest
 	return result, nil
+}
+
+// rejectDuplicateJSONKeys rejects last-value-wins ambiguity in an authored
+// interpretation file before it is decoded into AuthoredInterpretation. It
+// walks nested objects and arrays as well as the top-level document.
+func rejectDuplicateJSONKeys(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	return scanUniqueJSONValue(decoder, "$")
+}
+
+func scanUniqueJSONValue(decoder *json.Decoder, path string) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delimiter, ok := token.(json.Delim)
+	if !ok {
+		return nil
+	}
+	switch delimiter {
+	case '{':
+		seen := map[string]struct{}{}
+		for decoder.More() {
+			keyToken, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := keyToken.(string)
+			if !ok {
+				return fmt.Errorf("object key at %s is not a string", path)
+			}
+			if _, exists := seen[key]; exists {
+				return fmt.Errorf("duplicate object key %q at %s", key, path)
+			}
+			seen[key] = struct{}{}
+			if err := scanUniqueJSONValue(decoder, path+"."+key); err != nil {
+				return err
+			}
+		}
+		_, err = decoder.Token()
+		return err
+	case '[':
+		index := 0
+		for decoder.More() {
+			if err := scanUniqueJSONValue(decoder, fmt.Sprintf("%s[%d]", path, index)); err != nil {
+				return err
+			}
+			index++
+		}
+		_, err = decoder.Token()
+		return err
+	default:
+		return fmt.Errorf("unexpected delimiter %q at %s", delimiter, path)
+	}
 }

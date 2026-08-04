@@ -285,6 +285,63 @@ func TestNew_MalformedJSON(t *testing.T) {
 	}
 }
 
+// TestNew_RejectsDuplicateTopLevelKey is the direct regression test for the
+// live review finding: a duplicate "required_proof_obligations" key (last
+// one empty) must never silently shadow the first, real declaration under
+// plain last-value-wins json.Unmarshal semantics.
+func TestNew_RejectsDuplicateTopLevelKey(t *testing.T) {
+	const duplicateKeyJSON = `{
+	"objective": "prove the file-backed provider works",
+	"applicable_intent": ["intent.test"],
+	"binding_invariants": [],
+	"relevant_contracts": [],
+	"authority_boundaries": ["providers-have-no-admission-authority"],
+	"known_failure_modes": [],
+	"forbidden_fixes": [],
+	"required_proof_obligations": ["proof.real-obligation"],
+	"required_proof_obligations": [],
+	"assumptions": ["hand-authored, not a governed resolver"],
+	"unresolved_questions": [],
+	"source_references": [],
+	"limitations": []
+}`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	if err := os.WriteFile(path, []byte(duplicateKeyJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
+		t.Fatal("expected an error for a duplicate top-level key")
+	}
+}
+
+// TestNew_RejectsDuplicateNestedKey covers the same ambiguity nested inside
+// an array element, not just at the top level.
+func TestNew_RejectsDuplicateNestedKey(t *testing.T) {
+	const duplicateNestedKeyJSON = `{
+	"objective": "prove the file-backed provider works",
+	"applicable_intent": ["intent.test"],
+	"binding_invariants": [],
+	"relevant_contracts": [],
+	"authority_boundaries": ["providers-have-no-admission-authority"],
+	"known_failure_modes": [],
+	"forbidden_fixes": [],
+	"required_proof_obligations": [],
+	"assumptions": ["hand-authored, not a governed resolver"],
+	"unresolved_questions": [],
+	"source_references": [{"kind": "file", "kind": "url", "reference": "x"}],
+	"limitations": []
+}`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	if err := os.WriteFile(path, []byte(duplicateNestedKeyJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
+		t.Fatal("expected an error for a duplicate nested key")
+	}
+}
+
 func TestNew_RejectsDirectory(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := New(Config{Path: dir, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
