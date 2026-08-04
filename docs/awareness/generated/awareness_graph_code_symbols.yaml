@@ -3940,6 +3940,46 @@ test_symbols:
     symbol: TestWalkRepoGoFiles_ScansRepoRootNotOnlyGolangDir
     package: main
     language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportCheckFailsOnHandEditedFile
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportCheckFailsOnHandEditedFile
+    package: main
+    language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportCheckMissing
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportCheckMissing
+    package: main
+    language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportCheckPassesWhenCurrent
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportCheckPassesWhenCurrent
+    package: main
+    language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportCheckStaleOnTrackedFileChange
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportCheckStaleOnTrackedFileChange
+    package: main
+    language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportDeterminism
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportDeterminism
+    package: main
+    language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportGenerate
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportGenerate
+    package: main
+    language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportNoActiveTaskRendersHonestNote
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportNoActiveTaskRendersHonestNote
+    package: main
+    language: go
+  - id: cmd/awg/cmd_report_test.go:TestReportStdoutWritesNothing
+    file: cmd/awg/cmd_report_test.go
+    symbol: TestReportStdoutWritesNothing
+    package: main
+    language: go
   - id: cmd/awg/cmd_review_realization_test.go:TestReview_DecisionEnumValidatedByCommand
     file: cmd/awg/cmd_review_realization_test.go
     symbol: TestReview_DecisionEnumValidatedByCommand
@@ -16517,6 +16557,96 @@ test_symbols:
     package: probesource
     language: go
     doc: "TestFromProbeResult_RealProbeData proves CP2 consumes a REAL probe.ProbeResult and produces an\nhonest input + a valid receipt + a well-formed (but crossing-unresolved) observation — with no\nfabricated caller/callee/contract."
+  - id: golang/architecture/senseireport/build_test.go:TestBuildActiveTask
+    file: golang/architecture/senseireport/build_test.go
+    symbol: TestBuildActiveTask
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/build_test.go:TestBuildNoActiveTask
+    file: golang/architecture/senseireport/build_test.go
+    symbol: TestBuildNoActiveTask
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/candidates_test.go:TestCandidatesAllThreeShapes
+    file: golang/architecture/senseireport/candidates_test.go
+    symbol: TestCandidatesAllThreeShapes
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/candidates_test.go:TestCandidatesMalformedYAMLNamedNotFatal
+    file: golang/architecture/senseireport/candidates_test.go
+    symbol: TestCandidatesMalformedYAMLNamedNotFatal
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/candidates_test.go:TestCandidatesMissingDirectory
+    file: golang/architecture/senseireport/candidates_test.go
+    symbol: TestCandidatesMissingDirectory
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/contentdigest_test.go:TestContentDigestChangesOnTrackedFileEdit
+    file: golang/architecture/senseireport/contentdigest_test.go
+    symbol: TestContentDigestChangesOnTrackedFileEdit
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/contentdigest_test.go:TestContentDigestIgnoresExcludedReportOutputs
+    file: golang/architecture/senseireport/contentdigest_test.go
+    symbol: TestContentDigestIgnoresExcludedReportOutputs
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/contentdigest_test.go:TestContentDigestStableAcrossRepeatedCalls
+    file: golang/architecture/senseireport/contentdigest_test.go
+    symbol: TestContentDigestStableAcrossRepeatedCalls
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/render_markdown_test.go:TestRenderMarkdownHasRequiredSections
+    file: golang/architecture/senseireport/render_markdown_test.go
+    symbol: TestRenderMarkdownHasRequiredSections
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/render_markdown_test.go:TestRenderMarkdownIsDeterministic
+    file: golang/architecture/senseireport/render_markdown_test.go
+    symbol: TestRenderMarkdownIsDeterministic
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/render_markdown_test.go:TestRenderMarkdownRendersNoActiveTaskLiterally
+    file: golang/architecture/senseireport/render_markdown_test.go
+    symbol: TestRenderMarkdownRendersNoActiveTaskLiterally
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/render_markdown_test.go:TestRenderMarkdownRendersReproductionCommands
+    file: golang/architecture/senseireport/render_markdown_test.go
+    symbol: TestRenderMarkdownRendersReproductionCommands
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/validate_test.go:TestValidateAcceptsWellFormedReport
+    file: golang/architecture/senseireport/validate_test.go
+    symbol: TestValidateAcceptsWellFormedReport
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/validate_test.go:TestValidateChecksSchemaVersionFirst
+    file: golang/architecture/senseireport/validate_test.go
+    symbol: TestValidateChecksSchemaVersionFirst
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/validate_test.go:TestValidateRejectsEmptyReproductionCommands
+    file: golang/architecture/senseireport/validate_test.go
+    symbol: TestValidateRejectsEmptyReproductionCommands
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/validate_test.go:TestValidateRejectsFabricatedRepositoryWideVerification
+    file: golang/architecture/senseireport/validate_test.go
+    symbol: TestValidateRejectsFabricatedRepositoryWideVerification
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/validate_test.go:TestValidateRequiresDispositionWhenActive
+    file: golang/architecture/senseireport/validate_test.go
+    symbol: TestValidateRequiresDispositionWhenActive
+    package: senseireport
+    language: go
+  - id: golang/architecture/senseireport/validate_test.go:TestValidateRequiresNoteWhenInactive
+    file: golang/architecture/senseireport/validate_test.go
+    symbol: TestValidateRequiresNoteWhenInactive
+    package: senseireport
+    language: go
   - id: golang/architecture/synthesis/adversarial_gaps_test.go:TestBudgetsNeverIncreaseAcrossAFullSequence
     file: golang/architecture/synthesis/adversarial_gaps_test.go
     symbol: TestBudgetsNeverIncreaseAcrossAFullSequence
