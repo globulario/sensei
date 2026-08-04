@@ -199,28 +199,45 @@ func scaffoldProjectWithReport(root string, opts initOptions) (initReport, error
 	}
 	for _, name := range awarenessFiles {
 		dst := filepath.Join(awarenessDir, name)
-		if _, err := os.Stat(dst); err == nil {
-			continue // don't overwrite existing files
-		}
 		content, err := templates.ReadFile("templates/awareness/" + name)
 		if err != nil {
 			return initReport{}, fmt.Errorf("read template %s: %w", name, err)
 		}
-		if err := os.WriteFile(dst, content, 0o644); err != nil {
-			return initReport{}, fmt.Errorf("write %s: %w", dst, err)
+		if _, err := os.Stat(dst); err != nil {
+			if err := os.WriteFile(dst, content, 0o644); err != nil {
+				return initReport{}, fmt.Errorf("write %s: %w", dst, err)
+			}
+			created = append(created, dst)
 		}
-		created = append(created, dst)
 
 		// Record the exact pack this project was initialized from. Without
 		// this baseline a later `principle-pack refresh` cannot tell an
 		// upstream addition from an entry the project deliberately deleted,
-		// and must refuse to apply. Writing it here is what makes future
-		// refreshes provable rather than guessed.
+		// and must refuse to apply.
+		//
+		// This runs whether dst was just written above OR already existed —
+		// deliberately outside the "don't overwrite existing files" gate. A
+		// prior init that wrote the mirror but failed (or was killed) before
+		// this baseline write left an untouched, template-identical mirror
+		// with no baseline on disk; the old code's early `continue` on
+		// "file already exists" skipped this block on retry, silently
+		// reporting success while leaving the project permanently
+		// unrecoverable by `principle-pack refresh` (it would see a real
+		// mirror with no baseline and refuse). Only write the baseline when
+		// the on-disk file still digests identically to the template we
+		// would have written — a project that customized meta_principles.yaml
+		// before this record existed must not get a fabricated baseline for
+		// content it never actually started from.
 		if name == "meta_principles.yaml" {
-			if err := writeInstallRecord(root, content); err != nil {
-				return initReport{}, fmt.Errorf("write principle-pack install record: %w", err)
+			if onDisk, err := os.ReadFile(dst); err == nil && sha256Hex(onDisk) == sha256Hex(content) {
+				recordPath := installRecordFilePath(root)
+				if _, err := os.Stat(recordPath); os.IsNotExist(err) {
+					if err := writeInstallRecord(root, content); err != nil {
+						return initReport{}, fmt.Errorf("write principle-pack install record: %w", err)
+					}
+					created = append(created, recordPath)
+				}
 			}
-			created = append(created, filepath.Join(root, installRecordPath))
 		}
 	}
 

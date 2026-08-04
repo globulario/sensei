@@ -116,7 +116,7 @@ func readMirror(t *testing.T, p string) []byte {
 
 func receiptFiles(t *testing.T, root string) []string {
 	t.Helper()
-	matches, _ := filepath.Glob(filepath.Join(root, adoptionsRelDir, "*.yaml"))
+	matches, _ := filepath.Glob(filepath.Join(adoptionsDirPath(root), "*.yaml"))
 	return matches
 }
 
@@ -481,7 +481,7 @@ func TestPackRefresh_InitWritesUsableBaseline(t *testing.T) {
 	if _, err := scaffoldProject(root, initOptions{}); err != nil {
 		t.Fatalf("scaffold: %v", err)
 	}
-	b, err := os.ReadFile(filepath.Join(root, installRecordPath))
+	b, err := os.ReadFile(installRecordFilePath(root))
 	if err != nil {
 		t.Fatalf("sensei init did not write an install baseline: %v", err)
 	}
@@ -505,6 +505,115 @@ func TestPackRefresh_InitWritesUsableBaseline(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_InitRetryAfterPartialWriteRecoversBaseline reproduces a
+// crash between writing the mirror and writing its install baseline: a
+// previous `sensei init` (or a process that died mid-run) left
+// meta_principles.yaml on disk, template-identical, with no
+// installed.yaml. The old code's early `continue` on "file already exists"
+// skipped the whole baseline block on retry, so re-running init reported
+// success while leaving the project permanently unrecoverable by
+// `principle-pack refresh` (a real mirror, no baseline, refuses forever).
+func TestPackRefresh_InitRetryAfterPartialWriteRecoversBaseline(t *testing.T) {
+	root := t.TempDir()
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mirrorPath := filepath.Join(root, mirrorRelPath)
+	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mirrorPath, pack, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(installRecordFilePath(root)); !os.IsNotExist(err) {
+		t.Fatalf("test setup: install record must not exist yet, got err=%v", err)
+	}
+
+	if _, err := scaffoldProject(root, initOptions{}); err != nil {
+		t.Fatalf("scaffold: %v", err)
+	}
+
+	if _, err := os.Stat(installRecordFilePath(root)); err != nil {
+		t.Fatalf("retry did not recover the missing install baseline: %v", err)
+	}
+	ok, why := verifyBaseline(root, sha256Hex(readMirror(t, mirrorPath)))
+	if !ok {
+		t.Fatalf("mirror left by a partial init must be a verified baseline after retry, got %q", why)
+	}
+}
+
+// TestPackRefresh_InitDoesNotFabricateBaselineForCustomizedMirror is the
+// other side of the retry fix: a mirror that already exists but does NOT
+// match the template (a project customized it before this baseline
+// mechanism existed) must never get a baseline recorded against content it
+// did not actually start from — that would let `principle-pack refresh`
+// treat a real local edit as a verified, untouched install.
+func TestPackRefresh_InitDoesNotFabricateBaselineForCustomizedMirror(t *testing.T) {
+	root := t.TempDir()
+	mirrorPath := filepath.Join(root, mirrorRelPath)
+	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	customized := packMinus(t, anAddableID(t))
+	if err := os.WriteFile(mirrorPath, customized, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := scaffoldProject(root, initOptions{}); err != nil {
+		t.Fatalf("scaffold: %v", err)
+	}
+
+	if _, err := os.Stat(installRecordFilePath(root)); !os.IsNotExist(err) {
+		t.Fatalf("must not fabricate a baseline for a mirror that was never the template, got err=%v", err)
+	}
+	if string(readMirror(t, mirrorPath)) != string(customized) {
+		t.Fatal("init must not overwrite an already-customized mirror")
+	}
+}
+
+// TestPackRefresh_LegacyAwgStateDirUsedWhenSenseiAbsent proves the
+// principle-pack lock, baseline, and adoption paths route through
+// statedir.Path (the active state directory) rather than a hard-coded
+// ".sensei/..." literal. A legacy repo with ".awg" but no ".sensei" must
+// have its principle-pack state written under ".awg", not a freshly
+// created ".sensei" — a hard-coded path would make statedir.Name prefer
+// ".sensei" from then on, splitting the project's state in two.
+func TestPackRefresh_LegacyAwgStateDirUsedWhenSenseiAbsent(t *testing.T) {
+	root := t.TempDir()
+	mirrorPath := filepath.Join(root, mirrorRelPath)
+	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	id := anAddableID(t)
+	body := packMinus(t, id)
+	if err := os.WriteFile(mirrorPath, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".awg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeInstallRecord(root, body); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".awg", "principle-pack", "installed.yaml")); err != nil {
+		t.Fatalf("install record must live under the active .awg state dir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".sensei")); err == nil {
+		t.Fatal("writing the baseline must not create a competing .sensei directory for a legacy .awg project")
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("refresh --apply failed, rc=%d", rc)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".awg", "principle-pack", "adoptions")); err != nil {
+		t.Fatalf("adoption record must be written under .awg, not .sensei: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".sensei")); err == nil {
+		t.Fatal("refresh --apply must not create .sensei for a legacy .awg project")
+	}
+}
+
 // ─── P1: partial apply must be recoverable ──────────────────────────────
 
 func TestPackRefresh_UnwritableRecordDirLeavesMirrorUntouched(t *testing.T) {
@@ -513,7 +622,7 @@ func TestPackRefresh_UnwritableRecordDirLeavesMirrorUntouched(t *testing.T) {
 	before := readMirror(t, mirrorPath)
 
 	// Make the adoptions directory unwritable so the record cannot be created.
-	dir := filepath.Join(root, adoptionsRelDir)
+	dir := adoptionsDirPath(root)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -578,7 +687,7 @@ func TestPackRefresh_ConflictingExistingRecordRefuses(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A record already at this digest name, but with different content.
-	dir := filepath.Join(root, adoptionsRelDir)
+	dir := adoptionsDirPath(root)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -671,6 +780,45 @@ func TestPackRefresh_ConcurrentMirrorEditRefusesAtCommit(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_ConcurrentEditDuringPrepareIsCaught lands the concurrent
+// edit from INSIDE commitMirror's own execution -- after the replacement
+// temp file is written, synced, and chmoded, immediately before the
+// pre-rename re-check -- rather than before commitMirror is even called.
+// TestPackRefresh_ConcurrentMirrorEditRefusesAtCommit above would already
+// pass against the OLD ordering (check first, then write+sync+chmod, then
+// rename): editing before the call was always caught. Only this ordering
+// (prepare first, re-check immediately before the rename) can catch an
+// edit that lands during preparation, which is the actual window a
+// concurrent editor's save can race.
+func TestPackRefresh_ConcurrentEditDuringPrepareIsCaught(t *testing.T) {
+	id := anAddableID(t)
+	_, mirrorPath := installedMirror(t, id)
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validated := readMirror(t, mirrorPath)
+
+	concurrent := append(append([]byte{}, validated...), []byte("# a concurrent editor landed mid-prepare\n")...)
+	t.Cleanup(func() { commitMirrorAfterPrepareHook = nil })
+	commitMirrorAfterPrepareHook = func() {
+		if err := os.WriteFile(mirrorPath, concurrent, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	err = commitMirror(mirrorPath, validated, pack)
+	if err == nil {
+		t.Fatal("commit must refuse when the mirror changed during preparation")
+	}
+	if !strings.Contains(err.Error(), "changed while this run was deciding") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(readMirror(t, mirrorPath)) != string(concurrent) {
+		t.Fatal("the concurrent edit was destroyed")
+	}
+}
+
 func TestPackRefresh_LockPreventsConcurrentApply(t *testing.T) {
 	id := anAddableID(t)
 	root, mirrorPath := installedMirror(t, id)
@@ -693,6 +841,6 @@ func TestPackRefresh_LockPreventsConcurrentApply(t *testing.T) {
 
 func receiptFilesIn(t *testing.T, root string) []string {
 	t.Helper()
-	m, _ := filepath.Glob(filepath.Join(root, adoptionsRelDir, "*.yaml"))
+	m, _ := filepath.Glob(filepath.Join(adoptionsDirPath(root), "*.yaml"))
 	return m
 }
