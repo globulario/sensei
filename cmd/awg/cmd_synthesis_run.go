@@ -830,7 +830,13 @@ type synthesisRunReport struct {
 	ConfiguredSteps int                        `json:"configured_max_steps"`
 	ExitCode        int                        `json:"exit_code"`
 	ExitMeaning     string                     `json:"exit_meaning"`
-	CandidatePath   string                     `json:"candidate_path,omitempty"`
+	// CandidatePath is the sealed candidate artifact's own file
+	// (<candidateStoreDir>/<digest>.json), not the store directory -- a
+	// live review found this previously named the directory while the
+	// field name promised a path to the candidate itself, so JSON
+	// automation opening the reported path received a directory instead
+	// of the artifact.
+	CandidatePath string `json:"candidate_path,omitempty"`
 	// LineagePath names the durable file admit-change can load directly to
 	// construct admissioncomposition.ComposeInput's SynthesisReceipt/
 	// RunnerReceipt/EvaluationReceipt fields -- populated only when
@@ -853,7 +859,12 @@ type synthesisRunReport struct {
 	EvaluationReceipts []*evaluatorcomposition.EvaluationReceipt `json:"evaluation_receipts,omitempty"`
 }
 
-func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateStoreDir, lineagePath string, configuredMaxSteps int, format string) {
+// buildSynthesisRunReport assembles the CLI's output envelope from a
+// driver Result -- pure and side-effect-free so its field derivations
+// (particularly CandidatePath, a live review finding: it must be the
+// sealed artifact's own file, not the candidate store directory) are
+// directly testable without capturing stdout.
+func buildSynthesisRunReport(result synthesisdriver.Result, taskID, candidateStoreDir, lineagePath string, configuredMaxSteps int) synthesisRunReport {
 	r := result.Receipt
 	exitCode := exitCodeForDisposition(r.Disposition)
 	report := synthesisRunReport{
@@ -866,7 +877,7 @@ func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateSto
 		NextStep:        nextStep(r.Disposition),
 	}
 	if r.CandidateArtifactDigestSHA256 != nil {
-		report.CandidatePath = candidateStoreDir
+		report.CandidatePath = filepath.Join(candidateStoreDir, *r.CandidateArtifactDigestSHA256+".json")
 	}
 	for _, evalResult := range result.Trace.EvaluationResults {
 		if evalResult.Evaluation != nil {
@@ -876,6 +887,12 @@ func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateSto
 			report.EvaluationReceipts = append(report.EvaluationReceipts, evalResult.Receipt)
 		}
 	}
+	return report
+}
+
+func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateStoreDir, lineagePath string, configuredMaxSteps int, format string) {
+	r := result.Receipt
+	report := buildSynthesisRunReport(result, taskID, candidateStoreDir, lineagePath, configuredMaxSteps)
 
 	if format == "json" {
 		enc := json.NewEncoder(os.Stdout)
@@ -895,7 +912,7 @@ func printSynthesisRunResult(result synthesisdriver.Result, taskID, candidateSto
 	fmt.Printf("detail:       %s\n", r.Detail)
 	if r.CandidateArtifactDigestSHA256 != nil {
 		fmt.Printf("candidate:    %s\n", *r.CandidateArtifactDigestSHA256)
-		fmt.Printf("candidate store: %s\n", report.CandidatePath)
+		fmt.Printf("candidate_path: %s\n", report.CandidatePath)
 		fmt.Printf("admission lineage: %s\n", report.LineagePath)
 	}
 	for i, eval := range report.Evaluations {
@@ -944,7 +961,7 @@ func exitMeaning(code int) string {
 func nextStep(d synthesisdriver.Disposition) string {
 	switch d {
 	case synthesisdriver.DispositionCandidateReady:
-		return "Candidate sealed. Nothing has been applied. The admission lineage bundle (synthesis/runner/evaluation receipts) needed to construct admissioncomposition.ComposeInput is at the path named above -- run `sensei admit-change` / `sensei verify-admission` as a separate step to review and apply it."
+		return "Candidate sealed. Nothing has been applied. The admission lineage bundle (synthesis/runner/evaluation receipts) needed to construct admissioncomposition.ComposeInput is durably persisted at the path named above. No CLI command reads it yet: `sensei admit-change` and `sensei verify-admission` take their own separate inputs (a convergence bundle/request, or a task directory) and do not currently consume this bundle or call admissioncomposition.ComposeInput -- wiring this lineage bundle into an O5 admission command is a distinct, not-yet-built step. Until then, review the bundle directly before authoring an admission request by hand."
 	case synthesisdriver.DispositionTerminalFailure:
 		return "O1 reached a governed terminal failure. No candidate exists. Inspect the receipt detail and the task's control state before authoring a new interpretation or task."
 	case synthesisdriver.DispositionProviderStopped:

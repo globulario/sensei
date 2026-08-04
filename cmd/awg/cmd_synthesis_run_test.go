@@ -396,3 +396,55 @@ func TestNextStep_NeverSuggestsAdmissionExceptForCandidateReady(t *testing.T) {
 		t.Fatalf("nextStep(candidate-ready) should point at admit-change, got: %s", s)
 	}
 }
+
+// TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage is the
+// direct regression test for a live review finding: the candidate-ready
+// text previously told the operator to "run admit-change / verify-admission
+// ... to review and apply it" using the lineage bundle, as if those
+// commands already read it -- but neither runAdmitChange (cmd_admit_change.go,
+// which takes --bundle/--request/--graph-nt/--repo) nor the v2 admit-change
+// (cmd_admission_v2.go, which takes --repo/--task-dir) accepts a lineage
+// file or calls admissioncomposition.ComposeInput anywhere in this
+// package. The text must say so honestly, not imply a wiring that does
+// not exist yet.
+// TestBuildSynthesisRunReport_CandidatePathIsTheArtifactFileNotTheStoreDir
+// is the direct regression test for a live review finding: CandidatePath
+// previously named the candidate store DIRECTORY while the field name and
+// downstream automation expectations promised a path to the candidate
+// itself. It must be exactly <candidateStoreDir>/<digest>.json, matching
+// the same filename Put seals under and the lineage bundle's own
+// CandidateArtifactPath already computes.
+func TestBuildSynthesisRunReport_CandidatePathIsTheArtifactFileNotTheStoreDir(t *testing.T) {
+	const digest = "cand0000000000000000000000000000000000000000000000000000000000"
+	result := synthesisdriver.Result{
+		Receipt: synthesisdriver.RunReceipt{
+			Disposition:                   synthesisdriver.DispositionCandidateReady,
+			CandidateArtifactDigestSHA256: strPtr(digest),
+		},
+	}
+	report := buildSynthesisRunReport(result, "task.test", "/store", "/store/"+digest+".lineage.json", 20)
+	want := "/store/" + digest + ".json"
+	if report.CandidatePath != want {
+		t.Fatalf("CandidatePath = %q, want %q", report.CandidatePath, want)
+	}
+}
+
+// TestBuildSynthesisRunReport_NonCandidateReadyLeavesCandidatePathEmpty
+// covers the companion case: with no sealed candidate, CandidatePath must
+// stay empty rather than naming a file that does not exist.
+func TestBuildSynthesisRunReport_NonCandidateReadyLeavesCandidatePathEmpty(t *testing.T) {
+	result := synthesisdriver.Result{
+		Receipt: synthesisdriver.RunReceipt{Disposition: synthesisdriver.DispositionTerminalFailure},
+	}
+	report := buildSynthesisRunReport(result, "task.test", "/store", "", 20)
+	if report.CandidatePath != "" {
+		t.Fatalf("CandidatePath = %q, want empty for a disposition with no sealed candidate", report.CandidatePath)
+	}
+}
+
+func TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage(t *testing.T) {
+	s := nextStep(synthesisdriver.DispositionCandidateReady)
+	if !contains(s, "does not currently consume") && !contains(s, "not-yet-built") {
+		t.Fatalf("nextStep(candidate-ready) should honestly say admit-change/verify-admission do not yet consume the lineage bundle, got: %s", s)
+	}
+}

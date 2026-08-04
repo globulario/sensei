@@ -519,6 +519,15 @@ deliberately *not* included -- both are the admission step's own inputs to
 author or derive at admission time, outside this command's stated
 boundary.
 
+**No CLI command reads this file yet.** `sensei admit-change` and
+`sensei verify-admission` (both the legacy and v2 forms) take their own
+separate inputs -- a convergence bundle/request, or a task directory -- and
+do not currently accept a lineage file or call
+`admissioncomposition.ComposeInput` anywhere. Wiring the persisted lineage
+bundle into an O5 admission command is a distinct, not-yet-built step;
+until then, the bundle is a durable, reviewable record, not an automated
+input.
+
 ---
 
 ## Authoring & feedback
