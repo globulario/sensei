@@ -3144,6 +3144,56 @@ test_symbols:
     symbol: TestRecordProbeResultBuildsOfflineReceipt
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_AdditiveUpstreamEntryApplies
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_AdditiveUpstreamEntryApplies
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_DestinationReplacementCannotRedirectWrite
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_DestinationReplacementCannotRedirectWrite
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_DoesNotTouchCandidateLedger
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_DoesNotTouchCandidateLedger
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ExactReplayDoesNotRewrite
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ExactReplayDoesNotRewrite
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_LocalExtraEntryRefuses
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_LocalExtraEntryRefuses
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_MissingMirrorRefuses
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_MissingMirrorRefuses
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ModifiedSharedEntryRefuses
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ModifiedSharedEntryRefuses
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReceiptBindsOldAndNewDigests
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ReceiptBindsOldAndNewDigests
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_UnknownGeneratedShapeRefuses
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_UnknownGeneratedShapeRefuses
+    package: main
+    language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_WritesReceiptBeforeReportingSuccess
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_WritesReceiptBeforeReportingSuccess
+    package: main
+    language: go
   - id: cmd/awg/cmd_produce_binding_test.go:TestProduceChangeBinding_LocalIsNotAuthoritative
     file: cmd/awg/cmd_produce_binding_test.go
     symbol: TestProduceChangeBinding_LocalIsNotAuthoritative

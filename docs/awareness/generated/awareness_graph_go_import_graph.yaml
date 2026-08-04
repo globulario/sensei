@@ -116,6 +116,7 @@ components:
       - cmd/awg/cmd_pattern_check.go
       - cmd/awg/cmd_plan_probes.go
       - cmd/awg/cmd_preflight.go
+      - cmd/awg/cmd_principle_pack.go
       - cmd/awg/cmd_produce_binding.go
       - cmd/awg/cmd_promote.go
       - cmd/awg/cmd_promote_answer.go
