@@ -288,6 +288,19 @@ meta_principle_coverage:
       incidents-page audit.
     tests:
       - globular-admin:scripts/check-element-identity.sh
+  - principle: meta.single_derivation_path_must_reach_its_consumer
+    tier: planned
+    intended_tier: behavioral
+    reason: >
+      Concrete instances are already protected by parity and hard-gate tests,
+      but no generalized gate yet proves BOTH halves of the principle: that
+      projections derive from one canonical authority, and that the canonical
+      derivation reaches every authority-bearing production consumer. The
+      intended behavioral enforcement is a producer-to-consumer obligation
+      covering projection parity, proof that parity gates actually assert and
+      block rather than skip, production-call reachability, actuator
+      invocation, and a governed disposition when immediate application is
+      unsafe. Not review_only: the mechanism is identifiable, only ungeneralized.
   - principle: meta.change_must_be_split_into_reviewable_slices
     tier: planned
     intended_tier: behavioral
