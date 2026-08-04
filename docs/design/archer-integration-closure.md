@@ -203,26 +203,33 @@ ARCHER integration is complete when the following statement is demonstrably true
 
 ## Current state vs. this contract
 
-As of 2026-08-02, checkpoints 1-4 of the pull request order are merged to
+As of 2026-08-03, checkpoints 1-4 of the pull request order are merged to
 `main`: O5A (`admissioncomposition`, PR #135), O5B (`candidateapply`, PR #138),
 O6 (`commandprovider`, PR #143) plus the O6C Claude/Codex command bridge
-(PR #144), and O7 (`synthesisdriver`, PR #145). Checkpoint 5, "ARCHER
-end-to-end closure proof," has not happened. This contract is therefore
-**accepted but not closed** — the Final completion truth statement above has
-not been demonstrated end-to-end on any real repository.
+(PR #144), and O7 (`synthesisdriver`, PR #145). A `sensei synthesis-run` CLI
+(closing gap 1 below) is implemented and real-run-verified on commit
+`a94bc860` of branch `feat/synthesis-run-cli-o7`, not yet merged to `main`.
+Checkpoint 5, "ARCHER end-to-end closure proof," has not happened in full —
+see "What this does and does not close" below. This contract is
+therefore **accepted but not closed** — the Final completion truth statement
+above has not been demonstrated end-to-end on any real repository through
+admission, apply, and verification.
 
-Two gaps were found empirically (by trying to actually run the driver, not by
-inspection) that this contract did not anticipate:
+One gap this contract did not anticipate is now closed; a second remains
+open. Both were found empirically (by trying to actually run the driver, not
+by inspection):
 
-1. **No CLI surface exists.** Hard law O7-9 above assumes a `sensei
-   synthesis-run` command. `golang/architecture/synthesisdriver` is a pure Go
-   library — `Run(ctx, initial synthesis.SessionState, config Config) (Result,
-   error)` — with zero references anywhere in `cmd/awg`. There is no
-   `--apply`/no-application-by-default flag to enforce because there is no
-   flag at all. Driving the loop today requires a caller-authored program that
-   imports the package directly.
+1. **No CLI surface exists — CLOSED.** Hard law O7-9 above assumes a
+   `sensei synthesis-run` command; `golang/architecture/synthesisdriver` had
+   zero references anywhere in `cmd/awg`. `cmd/awg/cmd_synthesis_run.go` now
+   wires it: interpretation -> planning -> generation -> evaluation, stopping
+   at candidate-ready-for-admission or a governed terminal/stopped/step-limit
+   disposition, mapped to a distinct exit code each. It never admits,
+   applies, commits, pushes, or merges — `sensei admit-change` /
+   `sensei verify-admission` remain the only, separate acceptance path.
 
-2. **The driver requires a repository Sensei has already onboarded.**
+2. **The driver requires a repository Sensei has already onboarded —
+   still open.**
    Constructing a legal, non-placeholder `synthesis.SessionState` needs a real
    `workspacecontract.Identity` (resolved from a *live* graph-authority gRPC
    Metadata RPC), a real `tasksession.Session` (produced by an actual `sensei
@@ -242,16 +249,70 @@ Sensei's *own* repository already has real graph authority and task-session
 machinery (the same `prepare-change`/`task-briefing`/`advance-task` surface
 this repo dogfoods on itself), so gap 2 does not block running the loop
 against Sensei's own codebase — only against a not-yet-onboarded external one.
-A real end-to-end run of the loop against Sensei itself did complete through
-interpretation and planning via a real command-provider call, then correctly
-stopped at O3 generation on a schema-rejected provider output (see
-`failure.sensei.agentcommand_encodeagentprompt_omits_the_mode_const_empty_ru`)
-— governance caught a plausible-but-wrong output rather than silently applying
-it, which is the mechanism this contract exists to prove, even though the run
-itself did not reach `candidate-ready`.
 
-Closing this contract for real requires, in order: (a) either wire the missing
-CLI or accept "library only" as the permanent interface and update hard law
-O7-9 accordingly; (b) run the completion proof matrix above end-to-end on at
-least one real repository; (c) resolve the pre-onboarded-repository question
-above as an explicit, authored contract rather than an implicit precondition.
+### A real `candidate-ready` run
+
+`sensei synthesis-run` was driven for real, repeatedly, against Sensei's own
+repository, with a real `claude` CLI subprocess (via its regular login
+session) and a real `sensei gate` evaluator subprocess against an isolated,
+self-scoped local graph server. The first ~20 attempts found and fixed 7
+genuine bugs (wrong task-directory resolution, an unstripped Markdown code
+fence in a vendor CLI's structured output, a `codex` flag that no longer
+exists in current `codex-cli`, an O3 generation prompt that never stated the
+mutation-plan `mode`-must-be-empty rule for non-`set-mode` operations, a
+missing `.sensei/gate-policy.yaml` the O4 evaluator's construction requires
+by design, an incomplete O4 failure-class-to-recommendation policy mapping,
+and a required-check-ID naming mismatch against the gate's own hyphenated
+check ID) and hit several classes of real, non-code vendor-CLI/infrastructure
+flakiness (truncated LLM output near the end of a large single-shot
+generation, transient evaluator-unavailable RPC hiccups) that no code change
+fixes, only retrying does.
+
+Run #21 reached `disposition: candidate-ready`, `exit_code: 0`. Verified, not
+merely claimed:
+
+- **No mutation occurred**: `git status --short` on the real checkout was
+  empty before and after; `HEAD` was unchanged; the task's
+  `admission/{decision,request}.yaml` file mtimes were unchanged from hours
+  before the run (no admission activity).
+- **The candidate is genuinely scope-correct**: diffed the full 2039-file
+  materialized manifest against `git show HEAD:<path>` for every entry —
+  exactly one file differed, `cmd/awg/cmd_validate.go`, matching the
+  intended documentation-only change.
+- **The real gate evaluator passed it cleanly**: `check_id: sensei-gate`,
+  `status: passed`, `"PASS: 0 blocking findings (0 advisory warning(s))"`,
+  `recommendation: accept-candidate`.
+- **The evaluator boundary's real input/output shape** was captured by
+  reproducing the evaluator's exact argv against a real git worktree
+  carrying this candidate's diff, archived as
+  `golang/architecture/evaluatorcomposition/testdata/sensei_gate_real_stdout.json`
+  and exercised by a new contract test,
+  `TestSenseiGateEvaluatorMapsRealCapturedGateOutput`, grounded in the real
+  captured shape rather than a hand-written guess at the schema.
+
+Full run evidence (exact command, interpretation file, receipt, sealed
+candidate artifact, extracted diff) is archived outside this repository at
+`~/Documents/sensei-synthesis-run-dogfood-evidence/` on the machine this run
+was performed on.
+
+### What this does and does not close
+
+This closes gap 1 and demonstrates the Final completion truth statement's
+core mechanism — interpretation through evaluation, with truthful evidence
+at every stage and zero unauthorized mutation — for real, on one small,
+low-risk, documentation-only task. It does **not** close checkpoint 5: the
+candidate was deliberately never submitted to `admit-change`/
+`verify-admission`/apply (out of this CLI's own scope), so none of the
+completion proof matrix's admission/apply/verification scenarios (accept
+followed by admission refusal, tampering, base-revision drift, dirty-target
+refusal, apply digest mismatch, verification scope violation, retry/replan
+exhaustion, deterministic replay, and the rest) have been demonstrated. Gap 2
+(the pre-onboarded-repository precondition) also remains an implicit
+precondition rather than an explicit, authored contract.
+
+Closing this contract for real still requires, in order: (a) run the
+completion proof matrix above end-to-end through real admission, apply, and
+verification on at least one real repository (gap 1's CLI now makes this
+possible to attempt); (b) resolve the pre-onboarded-repository question
+above as an explicit, authored contract rather than an implicit
+precondition.

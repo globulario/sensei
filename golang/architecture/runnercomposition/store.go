@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 )
 
@@ -102,6 +104,46 @@ type CandidateArtifactStore interface {
 	// errors.Is(err, ErrCandidateArtifactCorrupted) if something is sealed
 	// there but fails verification.
 	Get(ctx context.Context, digestSHA256 string) (CandidateArtifact, error)
+
+	// PutAuxiliaryFile atomically writes name (a flat filename directly
+	// inside the store's root, never a nested path) through the SAME
+	// directory descriptor Put and Get use -- not a freshly re-opened path
+	// -- so the write is guaranteed to land in the exact physical
+	// directory a candidate was actually sealed into, even if the
+	// original root path is renamed or replaced by something else while
+	// this store is in use (see
+	// TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename
+	// for why Put/Get already need, and get, this property).
+	//
+	// Unlike Put, this is replace-capable, not create-only-immutable: an
+	// existing regular file at name is overwritten; an existing entry
+	// that is not a regular file (a symlink, FIFO, or other special file)
+	// is refused rather than followed or silently replaced. Callers
+	// writing content that legitimately differs across independent calls
+	// for reasons unrelated to the store's own sealed-immutability
+	// contract (e.g. an admission lineage bundle, whose receipts carry
+	// fresh session/receipt IDs every run even for the same candidate
+	// digest) use this instead of Put.
+	//
+	// name must never be shaped like a sealed candidate's own filename
+	// ("<64-lowercase-hex-digest>.json", exactly what Put's finalName
+	// always is) -- that namespace is reserved for Put alone, and this
+	// method refuses such a name rather than let its replace-capable
+	// commit defeat Put's create-only, no-clobber contract.
+	PutAuxiliaryFile(ctx context.Context, name string, data []byte) error
+
+	// VerifyRootIdentity confirms that path currently names the exact
+	// same directory this store's root was opened against -- i.e. that
+	// nothing has renamed the original directory away and replaced it
+	// with something else at the same path since construction. Every
+	// write this store performs (Put, PutAuxiliaryFile) goes through the
+	// stable, rename-immune root descriptor and is therefore unaffected
+	// by such a replacement -- but a caller who separately reports path
+	// (rather than through this store) after a long-running operation
+	// must not claim that reported path still identifies where content
+	// actually landed without checking. Returns a non-nil error if path
+	// cannot be stat'd, or if it now names a different directory.
+	VerifyRootIdentity(path string) error
 }
 
 // fsCandidateArtifactStore is a filesystem-backed CandidateArtifactStore:
@@ -264,6 +306,79 @@ func (s *fsCandidateArtifactStore) Get(ctx context.Context, digestSHA256 string)
 		return CandidateArtifact{}, fmt.Errorf("CandidateArtifactStore.Get: entry stored under %q actually carries digest %q: %w", digestSHA256, artifact.CandidateArtifactDigestSHA256, ErrCandidateArtifactCorrupted)
 	}
 	return artifact, nil
+}
+
+// PutAuxiliaryFile implements CandidateArtifactStore.PutAuxiliaryFile. It
+// mirrors Put's own staged-write-then-commit discipline (stage under a
+// random name in .tmp, commit with a single atomic operation) but through
+// s.root -- the same descriptor Put and Get already use, not a fresh
+// os.OpenRoot(path) -- and commits via Rename (replace-capable) rather
+// than Link (create-only), since this method's whole contract is
+// replace-capable, unlike Put's sealed immutability.
+func (s *fsCandidateArtifactStore) PutAuxiliaryFile(ctx context.Context, name string, data []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if name == "" || name != filepath.Base(name) || name == "." || name == ".." {
+		return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: name %q must be a flat filename", name)
+	}
+	// Reject any name shaped like a sealed candidate's own filename
+	// (Put's finalName is always exactly "<64-lowercase-hex-digest>.json")
+	// -- this method's replace-capable Rename commit would otherwise
+	// defeat Put's create-only, no-clobber contract by overwriting an
+	// already-sealed candidate with arbitrary auxiliary bytes, silently
+	// corrupting it from Get's perspective (raw schema validation would
+	// then fail, reported as ErrCandidateArtifactCorrupted). This
+	// namespace is reserved for Put alone; PutAuxiliaryFile callers use a
+	// name that cannot collide with it, e.g. "<digest>.lineage.json".
+	if strings.HasSuffix(name, ".json") && sealedDigestPattern.MatchString(strings.TrimSuffix(name, ".json")) {
+		return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: name %q is reserved for a sealed candidate artifact (Put), not an auxiliary file", name)
+	}
+	if info, statErr := s.root.Lstat(name); statErr == nil {
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: %q exists and is not a regular file (mode %s) -- refusing to write through it", name, info.Mode())
+		}
+	} else if !os.IsNotExist(statErr) {
+		return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: inspect %q: %w", name, statErr)
+	}
+	if err := s.ensureTmpDir(); err != nil {
+		return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: %w", err)
+	}
+	var suffix [8]byte
+	if _, err := rand.Read(suffix[:]); err != nil {
+		return fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: generate staging name: %w", err)
+	}
+	tmpName := ".tmp/" + name + "." + hex.EncodeToString(suffix[:]) + ".tmp"
+	if err := s.root.WriteFile(tmpName, data, 0o644); err != nil {
+		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: write staged content: %w", err), s.root.Remove(tmpName))
+	}
+	if err := s.root.Rename(tmpName, name); err != nil {
+		return joinCleanupErr(fmt.Errorf("CandidateArtifactStore.PutAuxiliaryFile: commit (rename) failed: %w", err), s.root.Remove(tmpName))
+	}
+	return nil
+}
+
+// VerifyRootIdentity implements CandidateArtifactStore.VerifyRootIdentity
+// by comparing os.SameFile against s.dirFile -- the same open directory
+// descriptor Put/Get/PutAuxiliaryFile all address, derived from s.root at
+// construction (root.Open(".")) and therefore unaffected by any later
+// rename of the original path. os.Stat(path) re-resolves path fresh (it
+// does NOT go through s.root), so a stat that no longer identifies the
+// same underlying directory as s.dirFile proves path has been renamed
+// away, replaced, or removed since construction.
+func (s *fsCandidateArtifactStore) VerifyRootIdentity(path string) error {
+	pathInfo, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("CandidateArtifactStore.VerifyRootIdentity: stat %q: %w", path, err)
+	}
+	rootInfo, err := s.dirFile.Stat()
+	if err != nil {
+		return fmt.Errorf("CandidateArtifactStore.VerifyRootIdentity: stat opened root: %w", err)
+	}
+	if !os.SameFile(pathInfo, rootInfo) {
+		return fmt.Errorf("CandidateArtifactStore.VerifyRootIdentity: %q no longer identifies the directory this store was constructed against -- it was renamed, replaced, or removed since", path)
+	}
+	return nil
 }
 
 // decodeCandidateArtifactStrict validates raw against CandidateArtifact's

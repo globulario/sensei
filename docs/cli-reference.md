@@ -29,6 +29,7 @@ sensei version              # print version and exit
 | [Setup & build](#setup--build) | `init` · `import` · `bootstrap` · `build` · `rebuild` · `serve` |
 | [Query (agent-facing)](#query-agent-facing) | `briefing` · `impact` · `preflight` · `resolve` · `query` · `metadata` · `domains` · `edit-check` |
 | [Task sessions](#task-sessions) | `prepare-change` · `task-status` · `advance-task` · `task-briefing` |
+| [Governed synthesis](#governed-synthesis) | `synthesis-run` |
 | [Authoring & feedback](#authoring--feedback) | `propose` · `feedback-check` · `promote` · `ingest` · `skill-ingest` |
 | [Validation & audit](#validation--audit) | `check` · `validate` · `validate-draft` · `audit` · `repo-eval` (+ `fix`, `draft-upgrade`) · `architecture-extract` · `extract-invariants` |
 | [Gating](#gating) | `gate` · `rigor` · `contract-assess` · `contract-bootstrap` |
@@ -393,6 +394,139 @@ sensei briefing --repo . --task active --file path/to/file.go
 
 The default claim budget is 12. Additional items remain in full task artifacts;
 compact briefing is context selection, not correctness proof.
+
+---
+
+## Governed synthesis
+
+### `sensei synthesis-run` — Server
+
+Drive one synchronous, bounded O1-O4 governed synthesis session
+(`golang/architecture/synthesisdriver.Run`) against an already-prepared task:
+interpretation -> planning -> generation -> evaluation, stopping at
+candidate-ready-for-admission or a governed terminal/stopped/step-limit
+disposition. This command never admits, applies, commits, pushes, or merges
+anything -- a sealed candidate is only ever a proposal on disk. Run
+`sensei admit-change` / `sensei verify-admission` as a separate, deliberate
+step to review and apply it.
+
+Requires a repository with served graph authority and an already-prepared
+task (`sensei prepare-change`) -- this command creates neither. The O4
+evaluator additionally requires `.sensei/gate-policy.yaml` to exist (a
+deliberate security check: the policy path must resolve to a real file
+outside the candidate surface, so a sealed candidate cannot supply its own
+weakened policy); a minimal `default: inherit` file is enough if the
+repository has no per-rule overrides.
+
+Several preconditions are checked, and refused before planning or
+generation ever runs, before the O1 session is even constructed:
+
+- **The authored `--interpretation` file must declare every field of its
+  authored shape explicitly, and no others.** An omitted or misspelled
+  field name (e.g. `require_proof_obligations`) is indistinguishable from
+  that field being explicitly authored empty once decoded into Go, which
+  would let a typo silently satisfy the empty-proof-obligations check
+  below instead of being refused. An empty array or string is fine; an
+  absent or unrecognized key is not.
+- **The authored `--interpretation` file's `objective` must exactly match
+  the resolved session objective** (`--objective`, or the task's own
+  recorded description when omitted; both whitespace-normalized). A caller
+  cannot silently drive generation under one objective while the
+  session/receipt records a different one.
+- **`required_proof_obligations` in the authored interpretation must be
+  empty.** No production `EvidenceResolver` exists yet to bind a declared
+  obligation to a verified discharge digest, so a non-empty declaration
+  refuses the run rather than being silently dropped.
+- **The task's own admission decision must declare zero proof
+  obligations too.** This is authoritative and checked independently of
+  the interpretation file, which may add context but can never erase or
+  override obligations already recorded. `synthesis.Session.ProofObligationDigests`
+  is only ever constructed empty once both checks pass -- that empty slice
+  means "the accepted interpretation and the task's own admission decision
+  both declared none," never "Sensei searched every authority surface and
+  found none."
+- **Task readiness, the closure snapshot, and the admission decision are
+  all resolved together, atomically, from one control generation** -- via
+  `tasksession.ResolveControlAndClosure`, never independent calls or a
+  fixed prepare-time path. A concurrent `sensei advance-task` publishes a
+  new generation as two separate, non-atomic writes; independently-resolved
+  reads can observe the pointer move in between and bind readiness to one
+  generation while binding the closure digest to another. The admission
+  decision specifically must come from the *current* generation's own
+  recomputed decision, not the fixed prepare-time
+  `admission/decision.yaml` -- `sensei advance-task` re-derives proof
+  obligations from the current closure's relevant nodes on every advance,
+  so a task's decision can go from declaring zero obligations at
+  prepare-time to declaring real ones after a later advance.
+- **Workspace identity composition now also requires sufficient graph
+  coverage**, not just an authoritative (fresh, stamped) graph --
+  `workspacecontract`'s `CompositionComplete` state requires
+  `coverage_state = COVERAGE_STATE_SUFFICIENT` in addition to
+  authoritative/resolved, since a graph can be genuinely current while
+  still knowing too little about the repository to safely ground a
+  governed operation.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--repo` | `.` | repository checkout |
+| `--addr` | `localhost:10120` | Sensei gRPC server address |
+| `--task` | active task | task directory (`.sensei/tasks/<id>`) |
+| `--interpretation` | — | path to an authored `synthesis.Interpretation` JSON file (required) — hand-authored, since no governed interpretation resolver exists yet |
+| `--objective` | task's own description | session objective |
+| `--retry-budget` / `--replan-budget` | `0` / `0` | O1 `Session` retry/replan budgets (content-level evaluator rejections only -- a crashed/flaky provider is never retried by budget) |
+| `--max-steps` | `20` | O7 step limit |
+| `--agent` | — | `codex` or `claude` (required) |
+| `--agent-command` | — | absolute path to the installed vendor binary (required; no PATH lookup) |
+| `--agent-workdir` | fresh temp dir | empty, absolute directory for the vendor subprocess |
+| `--agent-env` (rep.) | none | environment variable name to allowlist through to the vendor CLI |
+| `--gate-policy` | `<repo>/.sensei/gate-policy.yaml` | O4 gate policy path |
+| `--sensei-executable` | running binary | absolute path to the `sensei` binary the gate evaluator invokes |
+| `--candidate-store` / `--evidence-store` | `<taskDir>/synthesis-run/{candidates,evidence}` | FS stores -- both require an absolute root internally; a relative value is resolved against `--repo` |
+| `--deadline-minutes` | `10` | shared deadline for every policy -- real vendor CLI generation of a whole file (base64-encoded, not a diff) can take well over this for larger files; raise it rather than assume a hang |
+| `--max-observation-count` / `--max-observation-bytes` | `32` / `65536` | provider observation count/byte bounds |
+| `--max-snapshot-bytes` | `1<<20` | O3 generation snapshot byte bound |
+| `--max-stdout-bytes` / `--max-stderr-bytes` | `4<<20` / `1<<20` | vendor subprocess stdout/stderr byte bounds |
+| `--max-structured-payload-bytes` | `1<<20` | vendor subprocess structured-output byte bound |
+| `--force-unconverged` | `false` | proceed even though the task's control state has an active primary blocker |
+| `--format` | `text` | `text` \| `json` |
+
+```bash
+sensei synthesis-run \
+  --task .sensei/tasks/<task-id> \
+  --interpretation interpretation.json \
+  --agent claude --agent-command "$(command -v claude)" --agent-env HOME \
+  --deadline-minutes 30 \
+  --format json
+```
+
+The printed report names the task/session identity, the disposition and its
+distinct exit code (candidate-ready, governed terminal failure, provider
+stop, runner stop, step limit, invalid invocation, or infrastructure
+failure), every O4 evaluation verdict and check the run produced, and the
+one explicit next permitted operation -- it never suggests `admit-change`
+except when a candidate genuinely exists.
+
+On `candidate-ready`, the report also names an **admission lineage
+bundle** (`<candidate-store>/<candidate-digest>.lineage.json`) --
+the full `synthesis.Receipt`, `runnercomposition.RunnerReceipt`, and
+`evaluatorcomposition.EvaluationReceipt` documents
+`admissioncomposition.ComposeInput` requires (not merely their digests,
+which the receipt above already carries, but which cannot by themselves
+reconstruct those documents). Without this file, those documents exist
+only in this process's memory and are lost once it exits. The admission
+request template and base-revision manifest `ComposeInput` also needs are
+deliberately *not* included -- both are the admission step's own inputs to
+author or derive at admission time, outside this command's stated
+boundary.
+
+**No CLI command reads this file yet.** `sensei admit-change` and
+`sensei verify-admission` (both the legacy and v2 forms) take their own
+separate inputs -- a convergence bundle/request, or a task directory -- and
+do not currently accept a lineage file or call
+`admissioncomposition.ComposeInput` anywhere. Wiring the persisted lineage
+bundle into an O5 admission command is a distinct, not-yet-built step;
+until then, the bundle is a durable, reviewable record, not an automated
+input.
 
 ---
 

@@ -3929,6 +3929,216 @@ test_symbols:
     symbol: TestSuggest_SkipsAlreadyAuthoritative
     package: main
     language: go
+  - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
+    file: cmd/awg/cmd_synthesis_run_lineage_test.go
+    symbol: TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
+    package: main
+    language: go
+    doc: "TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle is the\nreal regression test for a live review finding: a candidate-ready run's\nfull SynthesisReceipt/RunnerReceipt/EvaluationReceipt documents (not\nmerely their digests) must be durably persisted somewhere\nadmissioncomposition.ComposeInput can actually be constructed from --\nthey previously existed only in-memory and vanished when the process\nexited."
+  - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_MissingSynthesisReceiptErrors
+    file: cmd/awg/cmd_synthesis_run_lineage_test.go
+    symbol: TestPersistAdmissionLineage_MissingSynthesisReceiptErrors
+    package: main
+    language: go
+    doc: "TestPersistAdmissionLineage_MissingSynthesisReceiptErrors covers a\ndefensive check: a candidate-ready disposition is only ever reachable\nwith SessionState.Receipt populated in real synthesisdriver.Run output\n(Receipt is set once Phase.Terminal() is true), but persistAdmissionLineage\nmust fail loudly rather than persist an incomplete bundle if that\ninvariant is ever violated."
+  - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_NoMatchingRunnerReceiptErrors
+    file: cmd/awg/cmd_synthesis_run_lineage_test.go
+    symbol: TestPersistAdmissionLineage_NoMatchingRunnerReceiptErrors
+    package: main
+    language: go
+    doc: "TestPersistAdmissionLineage_NoMatchingRunnerReceiptErrors covers a\ntrace whose generation handoffs don't include one matching the sealed\ncandidate's digest -- persistAdmissionLineage must refuse rather than\nsilently persist an unrelated (or absent) runner receipt."
+  - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty
+    file: cmd/awg/cmd_synthesis_run_lineage_test.go
+    symbol: TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty
+    package: main
+    language: go
+    doc: "TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty covers every\ndisposition without a sealed candidate: there is nothing to persist, and\npersistAdmissionLineage must not error or write a file."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestAgentCommandConfig_RejectsRelativeCommand
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestAgentCommandConfig_RejectsRelativeCommand
+    package: main
+    language: go
+    doc: "Sanity check that the agentcommand package this command depends on rejects\nexactly the misconfigurations the CLI itself pre-checks for -- if this\never stops being true, the CLI's own pre-checks would be the only\nremaining defense and should be revisited."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestBuildSynthesisRunReport_CandidatePathIsTheArtifactFileNotTheStoreDir
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestBuildSynthesisRunReport_CandidatePathIsTheArtifactFileNotTheStoreDir
+    package: main
+    language: go
+    doc: "TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage is the\ndirect regression test for a live review finding: the candidate-ready\ntext previously told the operator to \"run admit-change / verify-admission\n... to review and apply it\" using the lineage bundle, as if those\ncommands already read it -- but neither runAdmitChange (cmd_admit_change.go,\nwhich takes --bundle/--request/--graph-nt/--repo) nor the v2 admit-change\n(cmd_admission_v2.go, which takes --repo/--task-dir) accepts a lineage\nfile or calls admissioncomposition.ComposeInput anywhere in this\npackage. The text must say so honestly, not imply a wiring that does\nnot exist yet.\nTestBuildSynthesisRunReport_CandidatePathIsTheArtifactFileNotTheStoreDir\nis the direct regression test for a live review finding: CandidatePath\npreviously named the candidate store DIRECTORY while the field name and\ndownstream automation expectations promised a path to the candidate\nitself. It must be exactly <candidateStoreDir>/<digest>.json, matching\nthe same filename Put seals under and the lineage bundle's own\nCandidateArtifactPath already computes."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestBuildSynthesisRunReport_NonCandidateReadyLeavesCandidatePathEmpty
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestBuildSynthesisRunReport_NonCandidateReadyLeavesCandidatePathEmpty
+    package: main
+    language: go
+    doc: "TestBuildSynthesisRunReport_NonCandidateReadyLeavesCandidatePathEmpty\ncovers the companion case: with no sealed candidate, CandidatePath must\nstay empty rather than naming a file that does not exist."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestExitCodeForDisposition_EveryDispositionHasADistinctCode
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestExitCodeForDisposition_EveryDispositionHasADistinctCode
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestExitCodeForDisposition_UnknownDispositionIsInternalDefect
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestExitCodeForDisposition_UnknownDispositionIsInternalDefect
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestHelp_DoesNotClaimAdmitChangeConsumesLineage
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestHelp_DoesNotClaimAdmitChangeConsumesLineage
+    package: main
+    language: go
+    doc: "TestHelp_DoesNotClaimAdmitChangeConsumesLineage is the direct\nregression test for a live review finding: the \"--help\" text (separate\nfrom nextStep's candidate-ready text, fixed in an earlier round) still\ntold the operator to run admit-change/verify-admission \"to review and\napply\" a sealed candidate, the same misleading implication that neither\ncommand currently consumes the lineage bundle."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
+    package: main
+    language: go
+    doc: "TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\nis the direct regression test for a live review finding:\nDispositionTerminalFailure's text unconditionally claimed \"No candidate\nexists,\" directly contradicting the same report's candidate_path field\nwhenever a candidate actually was sealed. runnercomposition.Run seals a\ncandidate unconditionally on every O3-verified attempt, strictly before\nO4 evaluation runs -- so a candidate can be sealed and the run still end\nin DispositionTerminalFailure (this attempt's own O4 recommends abort)\nor DispositionRunnerStopped (an earlier attempt in the same retry loop\nsealed one, then a later attempt's O3 generation itself failed) --\nconfirmed via dedicated golang/architecture/synthesisdriver tests\n(TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep and direct\nempirical verification for RunnerStopped) before this fix.\nTestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\ncovers all four non-candidate-ready dispositions uniformly, including\nDispositionProviderStopped -- a live review found that a candidate\nsealed by an EARLIER attempt in the same run can survive into a\nDispositionProviderStopped outcome via the replan path (PhaseAttempting\n-> O4 recommends replan -> PhaseReplan -> PhasePlanning, a SECOND,\nlater call to the planning provider; if that later call itself fails,\nthe disposition is ProviderStopped despite a candidate already being\nsealed from before the replan), disproving an earlier assumption in\nthis same fix that ProviderStopped could never carry a candidate."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_NeverSuggestsAdmissionExceptForCandidateReady
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestNextStep_NeverSuggestsAdmissionExceptForCandidateReady
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestPrintUsage_ListsSynthesisRun
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestPrintUsage_ListsSynthesisRun
+    package: main
+    language: go
+    doc: "TestPrintUsage_ListsSynthesisRun guards against a real review finding:\nsynthesis-run was dispatched in the command switch but never appeared in\nthe actual runtime usage listing a user sees from `sensei` / `sensei\n--help` -- only in a developer-facing doc comment above func main that\nnothing prints. Capture the real printUsage() output, not the comment."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveAgentWorkdirs_CreatesTwoDistinctEmptyDirs
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveAgentWorkdirs_CreatesTwoDistinctEmptyDirs
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveAgentWorkdirs_RejectsRelativeBase
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveAgentWorkdirs_RejectsRelativeBase
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveAgentWorkdirs_UsesGivenBase
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveAgentWorkdirs_UsesGivenBase
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveStoreDir_AbsoluteExplicitIsUsedAsIs
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveStoreDir_AbsoluteExplicitIsUsedAsIs
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveStoreDir_EmptyUsesDefault
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveStoreDir_EmptyUsesDefault
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveStoreDir_RelativeExplicitIsResolvedAgainstRepo
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveStoreDir_RelativeExplicitIsResolvedAgainstRepo
+    package: main
+    language: go
+    doc: "TestResolveStoreDir_RelativeExplicitIsResolvedAgainstRepo is the direct\nregression test for a live review finding: NewFSCandidateArtifactStore\nand NewFSEvidenceSink both require an absolute root, but a caller-\nsupplied relative --candidate-store/--evidence-store (e.g.\n\".sensei/output\") was passed through unresolved -- os.MkdirAll accepts\na relative path just fine, so the directory got created, and only the\nlater store constructor failed with a confusing \"must be absolute\"\nerror. A relative explicit value must resolve against absRepo, the same\nconvention --task itself already uses."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveSynthesisRunObjective_ExplicitFlagMatches
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveSynthesisRunObjective_ExplicitFlagMatches
+    package: main
+    language: go
+    doc: "TestResolveSynthesisRunObjective_ExplicitFlagMatches covers explicit\n--objective given, matching the authored interpretation exactly."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveSynthesisRunObjective_MismatchIsRefused
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveSynthesisRunObjective_MismatchIsRefused
+    package: main
+    language: go
+    doc: "TestResolveSynthesisRunObjective_MismatchIsRefused covers a real review\nfinding: the authored interpretation's objective silently diverging from\nthe session objective must refuse, not proceed with either one."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveSynthesisRunObjective_TaskDefaultMatches
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveSynthesisRunObjective_TaskDefaultMatches
+    package: main
+    language: go
+    doc: "TestResolveSynthesisRunObjective_TaskDefaultMatches covers no --objective\ngiven, falling back to the task's own recorded description, matching the\nauthored interpretation exactly (after whitespace normalization on both\nsides)."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestResolveSynthesisRunObjective_TaskDefaultMismatchIsRefused
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestResolveSynthesisRunObjective_TaskDefaultMismatchIsRefused
+    package: main
+    language: go
+    doc: "TestResolveSynthesisRunObjective_TaskDefaultMismatchIsRefused covers the\nsame refusal when the objective came from the task's own recorded\ndescription rather than an explicit flag."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestRunSynthesisRun_FailsWithoutActiveOrExplicitTask
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestRunSynthesisRun_FailsWithoutActiveOrExplicitTask
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestRunSynthesisRun_RejectsRelativeAgentCommand
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestRunSynthesisRun_RejectsRelativeAgentCommand
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestRunSynthesisRun_RejectsUnexpectedPositionalArg
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestRunSynthesisRun_RejectsUnexpectedPositionalArg
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestRunSynthesisRun_RejectsUnknownAgent
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestRunSynthesisRun_RejectsUnknownAgent
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestRunSynthesisRun_RejectsUnknownFormat
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestRunSynthesisRun_RejectsUnknownFormat
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestRunSynthesisRun_RequiresAgentCommand
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestRunSynthesisRun_RequiresAgentCommand
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestRunSynthesisRun_RequiresInterpretation
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestRunSynthesisRun_RequiresInterpretation
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestValidateCurrentBinding_CurrentAndAdmittedPasses
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestValidateCurrentBinding_CurrentAndAdmittedPasses
+    package: main
+    language: go
+    doc: "TestValidateCurrentBinding_CurrentAndAdmittedPasses covers the ordinary\ncase: a current binding with an admitted (or admitted-with-conditions)\nmutation capability must not be refused."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestValidateCurrentBinding_RefusedMutationCapabilityIsRefused
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestValidateCurrentBinding_RefusedMutationCapabilityIsRefused
+    package: main
+    language: go
+    doc: "TestValidateCurrentBinding_RefusedMutationCapabilityIsRefused covers the\ncompanion condition named in the same finding: even with a current\nbinding, a task admission decision that itself refuses mutation\ncapability must not proceed into synthesis."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestValidateCurrentBinding_StaleIsRefused
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestValidateCurrentBinding_StaleIsRefused
+    package: main
+    language: go
+    doc: "TestValidateCurrentBinding_StaleIsRefused is the direct regression test\nfor a live review finding: a task that converged with zero closure\nblockers before its binding went stale has no PrimaryBlocker to trip the\nseparate --force-unconverged gate, so BindingHealth must be checked on\nits own, and unconditionally (no override flag bypasses it)."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestValidateNoDecisionProofObligations_EmptyPasses
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestValidateNoDecisionProofObligations_EmptyPasses
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestValidateNoDecisionProofObligations_NonEmptyIsRefused
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestValidateNoDecisionProofObligations_NonEmptyIsRefused
+    package: main
+    language: go
+    doc: "TestValidateNoDecisionProofObligations_NonEmptyIsRefused covers a live\nreview finding: the task's own admission decision (already computed by\n`sensei prepare-change`, authoritative, and never something the\ncaller-authored interpretation may erase or override) declaring a real\nproof obligation must refuse the run -- this is a distinct check from\nvalidateNoRequiredProofObligations, which only ever sees what the\ninterpretation file itself claims."
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestValidateNoRequiredProofObligations_EmptyPasses
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestValidateNoRequiredProofObligations_EmptyPasses
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestValidateNoRequiredProofObligations_NonEmptyIsRefused
+    file: cmd/awg/cmd_synthesis_run_test.go
+    symbol: TestValidateNoRequiredProofObligations_NonEmptyIsRefused
+    package: main
+    language: go
+    doc: "TestValidateNoRequiredProofObligations_NonEmptyIsRefused covers a real\nreview finding: a non-empty declared obligation must refuse the run, not\nbe silently discarded in favor of an empty\nsynthesis.Session.ProofObligationDigests."
   - id: cmd/awg/cmd_task_ledger_test.go:TestTaskLedgerVerifyAndRebuildCLI
     file: cmd/awg/cmd_task_ledger_test.go
     symbol: TestTaskLedgerVerifyAndRebuildCLI
@@ -6117,6 +6327,12 @@ test_symbols:
     symbol: TestAgentPromptContainsNoFilesystemAuthority
     package: agentcommand
     language: go
+  - id: golang/architecture/agentcommand/command_agent_test.go:TestAgentPromptStatesModeConstEmptyRule
+    file: golang/architecture/agentcommand/command_agent_test.go
+    symbol: TestAgentPromptStatesModeConstEmptyRule
+    package: agentcommand
+    language: go
+    doc: "TestAgentPromptStatesModeConstEmptyRule guards against a real failure\nobserved driving an actual `claude` CLI subprocess for O3 generation: asked\nonly for \"Modes: regular or executable\" with no further qualification, it\nproduced kind=\"write\" with mode=\"regular\", which\nagentcommand-mutation-plan-v1.schema.json correctly rejects (mode must be\nthe empty string for every kind except set-mode). The prompt must state\nthat qualification explicitly so a real agent isn't invited into\nschema-invalid output for the common (non-set-mode) case."
   - id: golang/architecture/agentcommand/command_agent_test.go:TestCodexAndClaudeProfilesUseBoundedDirectArgv
     file: golang/architecture/agentcommand/command_agent_test.go
     symbol: TestCodexAndClaudeProfilesUseBoundedDirectArgv
@@ -6172,11 +6388,33 @@ test_symbols:
     symbol: TestMutationPlanSchemaAcceptsCanonicalPlanAndRejectsAuthorityField
     package: agentcommand
     language: go
+  - id: golang/architecture/agentcommand/structured_agent_test.go:TestClaudeEnvelopeDoesNotStripFenceAlongsideOtherText
+    file: golang/architecture/agentcommand/structured_agent_test.go
+    symbol: TestClaudeEnvelopeDoesNotStripFenceAlongsideOtherText
+    package: agentcommand
+    language: go
+    doc: "TestClaudeEnvelopeDoesNotStripFenceAlongsideOtherText guards the\nconservative half of stripWholeMessageCodeFence: a fence that does not\nspan the entire message is left alone -- passed through verbatim so the\ncaller's own JSON parse fails on it, rather than guessed at here."
+  - id: golang/architecture/agentcommand/structured_agent_test.go:TestClaudeEnvelopeLeavesUnfencedResultUnchanged
+    file: golang/architecture/agentcommand/structured_agent_test.go
+    symbol: TestClaudeEnvelopeLeavesUnfencedResultUnchanged
+    package: agentcommand
+    language: go
   - id: golang/architecture/agentcommand/structured_agent_test.go:TestClaudeEnvelopeRejectsDuplicateResultKeys
     file: golang/architecture/agentcommand/structured_agent_test.go
     symbol: TestClaudeEnvelopeRejectsDuplicateResultKeys
     package: agentcommand
     language: go
+  - id: golang/architecture/agentcommand/structured_agent_test.go:TestClaudeEnvelopeStripsPlainCodeFenceWithoutLanguageTag
+    file: golang/architecture/agentcommand/structured_agent_test.go
+    symbol: TestClaudeEnvelopeStripsPlainCodeFenceWithoutLanguageTag
+    package: agentcommand
+    language: go
+  - id: golang/architecture/agentcommand/structured_agent_test.go:TestClaudeEnvelopeStripsWholeMessageCodeFence
+    file: golang/architecture/agentcommand/structured_agent_test.go
+    symbol: TestClaudeEnvelopeStripsWholeMessageCodeFence
+    package: agentcommand
+    language: go
+    doc: "TestClaudeEnvelopeStripsWholeMessageCodeFence covers a real failure\nobserved driving an actual `claude` CLI subprocess: it fenced its JSON\nanswer in Markdown (```json ... ```) despite the O8 planning prompt asking\nfor exactly one JSON object and nothing else, which broke the downstream\nJSON parse on the leading backtick."
   - id: golang/architecture/agentcommand/structured_agent_test.go:TestStructuredVendorProfilesReuseConfinedCommandConfiguration
     file: golang/architecture/agentcommand/structured_agent_test.go
     symbol: TestStructuredVendorProfilesReuseConfinedCommandConfiguration
@@ -9814,6 +10052,12 @@ test_symbols:
     symbol: TestSenseiGateEvaluatorMapsExistingOwnerVerdicts
     package: evaluatorcomposition
     language: go
+  - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestSenseiGateEvaluatorMapsRealCapturedGateOutput
+    file: golang/architecture/evaluatorcomposition/adapters_test.go
+    symbol: TestSenseiGateEvaluatorMapsRealCapturedGateOutput
+    package: evaluatorcomposition
+    language: go
+    doc: "TestSenseiGateEvaluatorMapsRealCapturedGateOutput is a thin contract test\ngrounded in a real captured run, not a synthetic guess at the schema:\ntestdata/sensei_gate_real_stdout.json is the exact --json stdout produced\nby a real `sensei gate --diff HEAD --domain github.com/globulario/sensei\n--enforce --json --policy <repo>/.sensei/gate-policy.yaml --addr\nlocalhost:<port>` invocation (the same argv Evaluate builds below) run\nagainst a real git worktree carrying the real candidate diff a full\nsensei synthesis-run dogfood run produced and sealed (only\ncmd/awg/cmd_validate.go changed, a documentation-only edit). It also\ncarries two fields (`completeness`, `policy`) the hand-written synthetic\nfixture above never modeled -- proving senseiGateJSON's decode tolerates\nreal, evolved gate output shape, not just the fields this package already\nexpected."
   - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestSenseiGateEvaluatorRejectsCandidateOwnedPolicyPath
     file: golang/architecture/evaluatorcomposition/adapters_test.go
     symbol: TestSenseiGateEvaluatorRejectsCandidateOwnedPolicyPath
@@ -15290,6 +15534,36 @@ test_symbols:
     package: runnercomposition
     language: go
     doc: "TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename\nis review 4833317738's deterministic root-rename/replacement negative\ncontrol: construct a store, seal an artifact, then rename the store's\nroot directory away and create a REPLACEMENT directory at the original\npath with unrelated, invalid content under the same digest filename.\nPut and Get must both continue to operate on the SAME original\ndirectory os.Root itself tracks -- Get must never silently start\nreading whatever now sits at the store's original path, and a\nsubsequent Put must land in the original directory too."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutAuxiliaryFileRefusesExistingSymlink
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutAuxiliaryFileRefusesExistingSymlink
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutAuxiliaryFileRefusesExistingSymlink is the\ndirect regression test for a live review finding: an existing symlink at\nthe target name (planted by another process, or a pre-existing\nattacker-controlled entry) must be refused, never followed or\ntransparently overwritten."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutAuxiliaryFileRejectsNestedPath
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutAuxiliaryFileRejectsNestedPath
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutAuxiliaryFileRejectsNestedPath covers the\nflat-filename requirement: name must never be usable to escape or nest\nbeyond a single entry directly inside root."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutAuxiliaryFileRejectsSealedCandidateNamespace
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutAuxiliaryFileRejectsSealedCandidateNamespace
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutAuxiliaryFileRejectsSealedCandidateNamespace\nis the direct regression test for a live review finding: PutAuxiliaryFile's\nreplace-capable commit must not be usable to overwrite an already-sealed\ncandidate artifact -- Put's create-only, no-clobber contract is the whole\npoint of this store's immutability guarantee, and a name shaped exactly\nlike Put's own \"<64-lowercase-hex-digest>.json\" filename must be refused,\nboth when nothing is sealed under that name yet and when something\nalready is."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutAuxiliaryFileSharesStableRootIdentityAcrossRename
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutAuxiliaryFileSharesStableRootIdentityAcrossRename
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutAuxiliaryFileSharesStableRootIdentityAcrossRename\nis the direct regression test for the live review finding this method\nexists to close: a candidate sealed via Put, followed by a rename of the\nstore's root path and a replacement directory created at the original\npath, must still have its auxiliary file (e.g. an admission lineage\nbundle) land in the SAME physical directory the candidate was actually\nsealed into -- never split into the replacement directory that now\nhappens to sit at the original path string."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutAuxiliaryFileWritesAndReplaces
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStorePutAuxiliaryFileWritesAndReplaces
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStorePutAuxiliaryFileWritesAndReplaces covers the\nordinary case (no existing entry) and the legitimate replace case (an\nexisting regular file, e.g. a second run reproducing the same candidate\ndigest with fresh lineage receipt content) -- both must succeed, and no\nstaging file must be left behind."
   - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStorePutConcurrentIdenticalPutsAreSafe
     file: golang/architecture/runnercomposition/store_test.go
     symbol: TestFSCandidateArtifactStorePutConcurrentIdenticalPutsAreSafe
@@ -15354,6 +15628,24 @@ test_symbols:
     package: runnercomposition
     language: go
     doc: "TestFSCandidateArtifactStoreSurvivesAfterBufferCleanup is the end-to-end\nproof of hard law 14: seal a CandidateArtifact built from a real\nExtractSnapshot/InitializeCandidateBuffer buffer, destroy BOTH the\nsnapshot and buffer directories entirely, and confirm Get still returns\nthe full, byte-exact content -- proving the store made an independent,\ndurable copy rather than referencing the ephemeral capture surface in\nany way."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreVerifyRootIdentity_DetectsRenameAndReplacement
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreVerifyRootIdentity_DetectsRenameAndReplacement
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreVerifyRootIdentity_DetectsRenameAndReplacement\nis the direct regression test for a live review finding: after the\nstore's original root directory is renamed away and a DIFFERENT\ndirectory is created at the original path, VerifyRootIdentity(the\noriginal path) must fail -- that path string no longer identifies the\ndirectory this store actually writes through, exactly the situation\nthat made a caller-reported candidate_path/lineage_path untrustworthy."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreVerifyRootIdentity_FailsForMissingPath
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreVerifyRootIdentity_FailsForMissingPath
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreVerifyRootIdentity_FailsForMissingPath\ncovers the companion case: the original directory renamed away with\nnothing put back at the original path at all."
+  - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreVerifyRootIdentity_PassesForUnchangedPath
+    file: golang/architecture/runnercomposition/store_test.go
+    symbol: TestFSCandidateArtifactStoreVerifyRootIdentity_PassesForUnchangedPath
+    package: runnercomposition
+    language: go
+    doc: "TestFSCandidateArtifactStoreVerifyRootIdentity_PassesForUnchangedPath\ncovers the ordinary case: nothing has happened to root since\nconstruction, so VerifyRootIdentity(root) must succeed."
   - id: golang/architecture/runnercomposition/store_test.go:TestNewFSCandidateArtifactStoreRejectsFileRoot
     file: golang/architecture/runnercomposition/store_test.go
     symbol: TestNewFSCandidateArtifactStoreRejectsFileRoot
@@ -16207,11 +16499,170 @@ test_symbols:
     symbol: TestO7CompletesWithGroundedInterpretationAndO8Planning
     package: synthesisdriver
     language: go
+  - id: golang/architecture/synthesisdriver/driver_test.go:TestFinishResult_CandidateTakesPrecedenceOverUncarriedDigest
+    file: golang/architecture/synthesisdriver/driver_test.go
+    symbol: TestFinishResult_CandidateTakesPrecedenceOverUncarriedDigest
+    package: synthesisdriver
+    language: go
+    doc: "TestFinishResult_CandidateTakesPrecedenceOverUncarriedDigest covers the\ncompanion case: when candidate (the full object) is non-nil, its own\ndigest is used, regardless of what sealedButUncarriedCandidateDigestSHA256\nsays -- the override parameter is a fallback for when candidate is nil,\nnever a competing source of truth."
+  - id: golang/architecture/synthesisdriver/driver_test.go:TestFinishResult_UsesSealedButUncarriedDigestWhenCandidateIsNil
+    file: golang/architecture/synthesisdriver/driver_test.go
+    symbol: TestFinishResult_UsesSealedButUncarriedDigestWhenCandidateIsNil
+    package: synthesisdriver
+    language: go
+    doc: "TestFinishResult_UsesSealedButUncarriedDigestWhenCandidateIsNil is the\ndirect regression test for a live review finding: runnercomposition.Run's\nDispositionDigestMismatch path seals a candidate artifact and stamps\nRunnerReceipt.CandidateArtifactDigestSHA256 BEFORE discovering the\nmismatch, but the driver's PhaseAttempting case only has the trace/\nhandoff at that point -- never a full runnercomposition.CandidateArtifact\nobject -- so `candidate` (the local var finishResult's own candidate\nparameter derives from) stays nil for a run's first, non-verified\nattempt. Without the sealedButUncarriedCandidateDigestSHA256 parameter,\nthe resulting Receipt.CandidateArtifactDigestSHA256 would incorrectly\nstay nil too, even though the artifact really is durably sealed."
   - id: golang/architecture/synthesisdriver/e2e_test.go:TestRunHappyPathThroughRealOwners
     file: golang/architecture/synthesisdriver/e2e_test.go
     symbol: TestRunHappyPathThroughRealOwners
     package: synthesisdriver
     language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/open_test.go:TestOpenNoFollow_AllowsRegularFile
+    file: golang/architecture/synthesisdriver/fileinterpretation/open_test.go
+    symbol: TestOpenNoFollow_AllowsRegularFile
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/open_test.go:TestOpenNoFollow_RejectsDirectSymlink
+    file: golang/architecture/synthesisdriver/fileinterpretation/open_test.go
+    symbol: TestOpenNoFollow_RejectsDirectSymlink
+    package: fileinterpretation
+    language: go
+    doc: "TestOpenNoFollow_RejectsDirectSymlink covers a symlink already in place\nat call time -- the ordinary case TestNew_RejectsSymlink also covers at\nthe Provider level, repeated here at the openNoFollow unit level."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/open_test.go:TestOpenNoFollow_RejectsReplacementDuringRace
+    file: golang/architecture/synthesisdriver/fileinterpretation/open_test.go
+    symbol: TestOpenNoFollow_RejectsReplacementDuringRace
+    package: fileinterpretation
+    language: go
+    doc: "TestOpenNoFollow_RejectsReplacementDuringRace is the real regression\ntest for the TOCTOU race a live review found: a prior implementation\nchecked the path with a separate Lstat, then opened it in a later,\nindependent OpenFile call, leaving a window where another process could\nswap the checked regular file for a symlink in between. openNoFollow\ncloses that window by refusing to follow a symlink in the SAME call that\ncreates the file descriptor, so this drives many concurrent\nopen-vs-replace iterations and asserts the invariant that must hold on\nevery single one: openNoFollow never returns a file descriptor backed by\na symlink, regardless of how the replacement is timed. (It may\nlegitimately observe either the original regular file or a clean\nrejection -- both are correct; only a successful open of the symlinked\nreplacement would indicate the race survived.)"
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_DefaultMaxFileBytesAllowsOrdinaryFiles
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_DefaultMaxFileBytesAllowsOrdinaryFiles
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_MalformedJSON
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_MalformedJSON
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_MissingFile
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_MissingFile
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsDirectory
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsDirectory
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsDuplicateNestedKey
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsDuplicateNestedKey
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RejectsDuplicateNestedKey covers the same ambiguity nested inside\nan array element, not just at the top level."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsDuplicateTopLevelKey
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsDuplicateTopLevelKey
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RejectsDuplicateTopLevelKey is the direct regression test for the\nlive review finding: a duplicate \"required_proof_obligations\" key (last\none empty) must never silently shadow the first, real declaration under\nplain last-value-wins json.Unmarshal semantics."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsForeignStampedFields
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsForeignStampedFields
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RejectsForeignStampedFields covers what\nTestProvider_ExecuteStampsFieldsIgnoringForeignFileValues used to prove\nunder plain json.Unmarshal: a file that tries to claim a foreign\nsession_digest_sha256, schema version, or generator must not succeed in\ndoing so. Under the strict AuthoredInterpretation shape validation added\nafter a live review finding (validateAuthoredInterpretationTopLevelShape\n+ DisallowUnknownFields), those foreign keys don't just fail to leak\nthrough silently -- they now cause New() to refuse the file outright, a\nstrictly stronger guarantee than \"ignored.\""
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsMisspelledRequiredField
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsMisspelledRequiredField
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RejectsMisspelledRequiredField is the direct regression test for\na live review finding: a misspelled governance field name (here,\n\"require_proof_obligations\" instead of \"required_proof_obligations\")\nmust be rejected outright, not silently treated as an explicit empty\ndeclaration of the correctly-spelled field -- both used to be\nindistinguishable under plain json.Unmarshal, since a struct field a\nmisspelled key never populates is left at the same Go zero value an\nexplicit empty array would produce."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsNullRequiredField
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsNullRequiredField
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RejectsNullRequiredField is the direct regression test for a\nlive review finding: a JSON `null` value unmarshals into a []string\nfield as a silent no-op leaving it nil -- the same zero value an\nexplicit \"[]\" produces, and no error -- so an authored\n\"required_proof_obligations\": null previously passed the presence-only\nshape check (the key exists) and then satisfied\nvalidateNoRequiredProofObligations's empty check exactly as if the\nauthor had explicitly declared no obligations."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsNullStringField
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsNullStringField
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RejectsNullStringField covers the same null-is-zero-value gap\nfor a string field (Objective), not just a slice field -- encoding/json\ntreats null identically (a no-op producing the zero value) regardless\nof the target field's type."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsOmittedRequiredField
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsOmittedRequiredField
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RejectsOmittedRequiredField covers the companion case: a field\nleft out of the file entirely (not merely misspelled) must be rejected\nthe same way -- an authored interpretation must explicitly declare every\nfield, even an empty one."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsOversizedFile
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsOversizedFile
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RejectsSymlink
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RejectsSymlink
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RequiredTopLevelKeysMatchAuthoredInterpretationFields
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RequiredTopLevelKeysMatchAuthoredInterpretationFields
+    package: fileinterpretation
+    language: go
+    doc: "TestNew_RequiredTopLevelKeysMatchAuthoredInterpretationFields guards\nauthoredInterpretationFields (an explicit list, not reflection-derived)\nagainst drift: every json tag AuthoredInterpretation actually declares\nmust appear in the list exactly once, and vice versa. A future field\nadded to the struct without updating the list would otherwise silently\nstop being required, reopening the exact gap this shape check exists to\nclose."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RequiresPathAndProviderID
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RequiresPathAndProviderID
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_RequiresRFC3339ObservedAt
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_RequiresRFC3339ObservedAt
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_ResolvesRelativePathToAbsolute
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_ResolvesRelativePathToAbsolute
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestNew_SameContentSameHashAcrossInstances
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestNew_SameContentSameHashAcrossInstances
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestProvider_DescribeAdvertisesOnlyInterpretation
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestProvider_DescribeAdvertisesOnlyInterpretation
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestProvider_ExecuteNilObserverIsSafe
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestProvider_ExecuteNilObserverIsSafe
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestProvider_ExecuteRejectsNonInterpretationOperation
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestProvider_ExecuteRejectsNonInterpretationOperation
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestProvider_ExecuteValidFile
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestProvider_ExecuteValidFile
+    package: fileinterpretation
+    language: go
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestProvider_ObjectiveReturnsAuthoredValue
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestProvider_ObjectiveReturnsAuthoredValue
+    package: fileinterpretation
+    language: go
+    doc: "TestProvider_ObjectiveReturnsAuthoredValue guards the accessor synthesis-run\nuses to refuse a run whose authored interpretation objective diverges\nfrom its session objective."
+  - id: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go:TestProvider_RequiredProofObligationsReturnsAuthoredValueAndCopy
+    file: golang/architecture/synthesisdriver/fileinterpretation/provider_test.go
+    symbol: TestProvider_RequiredProofObligationsReturnsAuthoredValueAndCopy
+    package: fileinterpretation
+    language: go
+    doc: "TestProvider_RequiredProofObligationsReturnsAuthoredValueAndCopy guards\nthe accessor synthesis-run uses to refuse a run whose authored\ninterpretation declares any required proof obligation, and confirms it\nreturns a defensive copy rather than aliasing internal state."
   - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunConsumesExactlyOneReplan
     file: golang/architecture/synthesisdriver/lifecycle_test.go
     symbol: TestRunConsumesExactlyOneReplan
@@ -16222,6 +16673,18 @@ test_symbols:
     symbol: TestRunConsumesExactlyOneRetry
     package: synthesisdriver
     language: go
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep
+    package: synthesisdriver
+    language: go
+    doc: "TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep covers the\nsame boundary for the PhaseFailed side (RecommendAbort), not just\nPhaseSucceeded."
+  - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep
+    file: golang/architecture/synthesisdriver/lifecycle_test.go
+    symbol: TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep
+    package: synthesisdriver
+    language: go
+    doc: "TestRunFinalizesTerminalStateReachedOnTheLastAllowedStep is the direct\nregression test for a live review finding: config.EvaluationEngine.Evaluate\ncan transition state all the way to PhaseSucceeded/PhaseFailed within a\nsingle PhaseAttempting iteration (transitionRecordEvaluation resolves\nPhaseEvaluating -> {Succeeded | Retry | Replan | Failed} in one call).\nBefore this fix, the driver loop only checked for that terminal phase at\nthe TOP of the NEXT iteration -- so a transition landing on the last\nallowed step (step == config.MaxSteps) meant the loop exited with no next\niteration at all, falling through to the step-limit finishResult with a\nterminal receipt already stamped on state, which ValidateRunReceipt's own\nDispositionStepLimitReached case rejects outright (\"nonterminal stop\ncannot invent an O1 terminal receipt\") -- turning a genuine success into\na hard Go error, silently orphaning a sealed candidate with no lineage\never persisted.\n\nDetermines the exact natural step count for an ordinary first-attempt\nsuccess (no retries/replans configured), then re-runs with MaxSteps\npinned to precisely that count -- the exact boundary the finding\ndescribes -- and asserts it still succeeds cleanly."
   - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunO3NonVerifiedStopsBeforeO4
     file: golang/architecture/synthesisdriver/lifecycle_test.go
     symbol: TestRunO3NonVerifiedStopsBeforeO4
@@ -16515,6 +16978,36 @@ test_symbols:
     symbol: TestGovernedNextActionSurfacesConsumeThenVerify
     package: tasksession
     language: go
+  - id: golang/architecture/tasksession/control_and_closure_test.go:TestOldTwoCallPatternCanObserveDifferentGenerations
+    file: golang/architecture/tasksession/control_and_closure_test.go
+    symbol: TestOldTwoCallPatternCanObserveDifferentGenerations
+    package: tasksession
+    language: go
+    doc: "TestOldTwoCallPatternCanObserveDifferentGenerations is the direct\nregression demonstration for the bug this fix closes: two independent\ncurrentControlPaths resolutions -- exactly what the removed\nControlStatus-then-separate-ResolveClosureReportPath pattern performed\n-- can observe control/latest-generation.yaml pointing at two different\ngenerations if the pointer is rewritten in between, exactly what a\nconcurrent sensei advance-task's second, independent writeFileAtomic\ncall does. This reproduces that torn-write window deterministically\n(rewriting the pointer directly, not racing a real advance-task, so the\ntest is not timing-dependent/flaky) to prove the two-call pattern really\nwas vulnerable, not just theoretically."
+  - id: golang/architecture/tasksession/control_and_closure_test.go:TestResolveControlAndClosure_AfterPublishedGeneration
+    file: golang/architecture/tasksession/control_and_closure_test.go
+    symbol: TestResolveControlAndClosure_AfterPublishedGeneration
+    package: tasksession
+    language: go
+    doc: "TestResolveControlAndClosure_AfterPublishedGeneration covers the\ngeneration-scoped case: once advance-task has published a generation,\nboth the returned control state and closure report must come from that\ngeneration, not the stale prepare-time snapshot."
+  - id: golang/architecture/tasksession/control_and_closure_test.go:TestResolveControlAndClosure_BeforePublishedGeneration
+    file: golang/architecture/tasksession/control_and_closure_test.go
+    symbol: TestResolveControlAndClosure_BeforePublishedGeneration
+    package: tasksession
+    language: go
+    doc: "TestResolveControlAndClosure_BeforePublishedGeneration covers a task\nthat has never run advance-task: control/latest-generation.yaml does not\nexist yet, so both the control state and the closure report must come\nfrom the prepare-time base paths."
+  - id: golang/architecture/tasksession/control_and_closure_test.go:TestResolveControlAndClosure_ConcurrentPointerFlipNeverErrors
+    file: golang/architecture/tasksession/control_and_closure_test.go
+    symbol: TestResolveControlAndClosure_ConcurrentPointerFlipNeverErrors
+    package: tasksession
+    language: go
+    doc: "TestResolveControlAndClosure_ConcurrentPointerFlipNeverErrors is the\nconcurrency stress test for the actual fix: many goroutines repeatedly\ncall ResolveControlAndClosure (the single-resolution replacement) while\na separate goroutine repeatedly flips control/latest-generation.yaml\nbetween two real, valid generation directories -- simulating a\ncontinuous stream of concurrent advance-task publications. Every call\nmust either succeed with a complete, coherent state+report pair or fail\ncleanly; it must never panic, deadlock, or (verified separately by\nrunning this test under -race) exhibit a data race, regardless of how\nthe pointer flips land relative to any single call's one-time\ncurrentControlPaths resolution."
+  - id: golang/architecture/tasksession/control_and_closure_test.go:TestResolveControlAndClosure_UsesGenerationDecisionNotPrepareTimeDecision
+    file: golang/architecture/tasksession/control_and_closure_test.go
+    symbol: TestResolveControlAndClosure_UsesGenerationDecisionNotPrepareTimeDecision
+    package: tasksession
+    language: go
+    doc: "TestResolveControlAndClosure_UsesGenerationDecisionNotPrepareTimeDecision\nis the direct regression test for a live review finding: once\nadvance-task has published a generation, ResolveControlAndClosure must\nresolve the admission decision from that generation's own\nadmission-decision.yaml, never the fixed prepare-time\ntaskDir/admission/decision.yaml -- admission.projectProof derives\nobligations from the CURRENT closure's RelevantNodes, so the two\ndecisions can genuinely diverge (e.g. an initial decision declaring zero\nproof obligations, superseded by a current one that declares real\nones). This test forces that divergence directly (rather than trying to\nengineer a real claims/closure change that would newly surface an\nobligation) by mutating the on-disk generation decision after\nadvance-task publishes it, and asserts ResolveControlAndClosure returns\nTHAT mutated decision, not the untouched prepare-time one."
   - id: golang/architecture/tasksession/governance_integrity_test.go:TestGovernanceCorruptConsumptionCannotRestoreGrant
     file: golang/architecture/tasksession/governance_integrity_test.go
     symbol: TestGovernanceCorruptConsumptionCannotRestoreGrant
@@ -16934,6 +17427,30 @@ test_symbols:
     package: workspacecontract
     language: go
     doc: "TestValidIdentityFixturesPassSchemaAndProducerValidation proves every\ncommitted identity fixture passes both the real, canonical JSON Schema\nand this producer's cross-field validation."
+  - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_AuthoritativeButEmptyCoverageIsPartial
+    file: golang/architecture/workspacecontract/identity_test.go
+    symbol: TestComposeIdentity_AuthoritativeButEmptyCoverageIsPartial
+    package: workspacecontract
+    language: go
+    doc: "TestComposeIdentity_AuthoritativeButEmptyCoverageIsPartial covers the\nother non-sufficient CoverageState value below the sufficient threshold."
+  - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_AuthoritativeButThinCoverageIsPartial
+    file: golang/architecture/workspacecontract/identity_test.go
+    symbol: TestComposeIdentity_AuthoritativeButThinCoverageIsPartial
+    package: workspacecontract
+    language: go
+    doc: "TestComposeIdentity_AuthoritativeButThinCoverageIsPartial is the real\nregression test for a live review finding: a graph can be authoritative\n(fresh, stamped, seed matches) while still being COVERAGE_STATE_THIN --\ncomposing on a technically-genuine but functionally-uninformed graph must\nnot be reported as complete. No existing fixture exercised this\ncombination: docs/fixtures/workspace/v1/identity/partial.json is already\npartial for an unrelated reason (authoritative=false), so it passed both\nbefore and after this fix without ever exercising the new condition."
+  - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_NonAuthoritativeIsStillPartialRegardlessOfCoverage
+    file: golang/architecture/workspacecontract/identity_test.go
+    symbol: TestComposeIdentity_NonAuthoritativeIsStillPartialRegardlessOfCoverage
+    package: workspacecontract
+    language: go
+    doc: "TestComposeIdentity_NonAuthoritativeIsStillPartialRegardlessOfCoverage\nguards that GraphAuthority.Authoritative's own meaning is untouched by\nthis fix: a non-authoritative graph is partial even with sufficient\ncoverage, exactly as before."
+  - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_SufficientCoverageIsComplete
+    file: golang/architecture/workspacecontract/identity_test.go
+    symbol: TestComposeIdentity_SufficientCoverageIsComplete
+    package: workspacecontract
+    language: go
+    doc: "TestComposeIdentity_SufficientCoverageIsComplete is the positive control:\nevery existing condition true, plus sufficient coverage, is still\ncomplete."
   - id: golang/architecture/workspacecontract/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
     file: golang/architecture/workspacecontract/schema_test.go
     symbol: TestEmbeddedSchemasMatchCanonicalSource

@@ -145,6 +145,7 @@ components:
       - cmd/awg/cmd_skill_ingest.go
       - cmd/awg/cmd_source_check.go
       - cmd/awg/cmd_suggest_realizations.go
+      - cmd/awg/cmd_synthesis_run.go
       - cmd/awg/cmd_task_ledger.go
       - cmd/awg/cmd_task_session.go
       - cmd/awg/cmd_validate.go
@@ -173,6 +174,7 @@ components:
       - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
+      - cmd/awg/synthesis_run_identity.go
     depends_on:
       - component.golang.architecture
       - component.golang.client
@@ -756,6 +758,9 @@ components:
       - golang/architecture/synthesis/types.go
       - golang/architecture/synthesisdriver/driver.go
       - golang/architecture/synthesisdriver/engine.go
+      - golang/architecture/synthesisdriver/fileinterpretation/open_unix.go
+      - golang/architecture/synthesisdriver/fileinterpretation/open_windows.go
+      - golang/architecture/synthesisdriver/fileinterpretation/provider.go
       - golang/architecture/synthesisdriver/receipt.go
       - golang/architecture/synthesisdriver/request.go
       - golang/architecture/synthesisdriver/schema.go

@@ -29,7 +29,7 @@ func TestCodexAndClaudeProfilesUseBoundedDirectArgv(t *testing.T) {
 		t.Fatal(err)
 	}
 	codex := codexAgent.(*commandAgent)
-	wantCodex := []string{"exec", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check", "-"}
+	wantCodex := []string{"exec", "--sandbox", "read-only", "--skip-git-repo-check", "-"}
 	if !reflect.DeepEqual(codex.config.Args, wantCodex) {
 		t.Fatalf("Codex argv = %#v, want %#v", codex.config.Args, wantCodex)
 	}
@@ -134,5 +134,29 @@ func TestAgentPromptContainsNoFilesystemAuthority(t *testing.T) {
 	}
 	if !strings.Contains(text, "a.txt") || !strings.Contains(text, "GENERATION_PROMPT_JSON") {
 		t.Fatal("prompt omitted governed input")
+	}
+}
+
+// TestAgentPromptStatesModeConstEmptyRule guards against a real failure
+// observed driving an actual `claude` CLI subprocess for O3 generation: asked
+// only for "Modes: regular or executable" with no further qualification, it
+// produced kind="write" with mode="regular", which
+// agentcommand-mutation-plan-v1.schema.json correctly rejects (mode must be
+// the empty string for every kind except set-mode). The prompt must state
+// that qualification explicitly so a real agent isn't invited into
+// schema-invalid output for the common (non-set-mode) case.
+func TestAgentPromptStatesModeConstEmptyRule(t *testing.T) {
+	encoded, err := encodeAgentPrompt(GenerationPrompt{
+		SchemaVersion:       GenerationPromptSchemaVersion,
+		RequestDigestSHA256: strings.Repeat("a", 64),
+		RepositoryDomain:    "github.com/globulario/sensei",
+		BaseRevision:        strings.Repeat("b", 40),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(encoded)
+	if !strings.Contains(text, "set-mode") || !strings.Contains(strings.ToLower(text), `mode must be the empty string`) {
+		t.Fatalf("prompt does not state the mode-const-empty rule for non-set-mode kinds: %s", text)
 	}
 }

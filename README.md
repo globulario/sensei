@@ -271,12 +271,16 @@ owners — never granting the provider architectural, mutation, admission, or
 merge authority itself. A rejected or malformed provider output is caught by
 the schema/evaluation boundary and stopped, not silently applied.
 
-This is real, merged code, not a proposal — but it is not yet a finished
-product surface: it is a Go library
-(`golang/architecture/synthesisdriver.Run`) with no CLI entrypoint yet, and it
-can only drive the loop against a repository Sensei has already onboarded
-(served graph authority, a task session, and closure state must already
-exist). See [`docs/design/archer-integration-closure.md`](docs/design/archer-integration-closure.md)
+This is real, merged code, not a proposal. A CLI entrypoint exists —
+`sensei synthesis-run` (see [CLI reference](docs/cli-reference.md)) — but it
+is not yet a finished, hardened product surface: it can only drive the loop
+against a repository Sensei has already onboarded (served graph authority, a
+task session, and closure state must already exist), the O4 gate evaluator
+needs a real `.sensei/gate-policy.yaml` to exist, interpretation is a
+caller-supplied file rather than something Sensei derives automatically, and
+driving a real external coding agent through it is genuinely slow and
+occasionally flaky in the way any real LLM subprocess is. See
+[`docs/design/archer-integration-closure.md`](docs/design/archer-integration-closure.md)
 for the exact contract, what's merged, and what's still open.
 
 ---
@@ -735,9 +739,9 @@ Sensei has two deliberately distinct maturity surfaces.
 ### Merged, not yet a finished surface
 
 - the governed synthesis loop (interpretation, planning, generation,
-  evaluation, admission, apply) — a real Go library today, with no CLI
-  entrypoint yet and usable only against a repository Sensei has already
-  onboarded
+  evaluation, admission, apply) — real, merged code with a CLI entrypoint
+  (`sensei synthesis-run`), usable only against a repository Sensei has
+  already onboarded, and not yet a hardened, turnkey product surface
 
 Sensei does not call an intermediate result "architecturally closed." The term is
 earned only when the exact result, proof, freshness, and immutable completion
