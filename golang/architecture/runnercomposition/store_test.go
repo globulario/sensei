@@ -966,3 +966,270 @@ func TestFSCandidateArtifactStorePutAndGetShareStableRootIdentityAcrossRename(t 
 		t.Errorf("post-rename Put leaked into the REPLACEMENT directory: err=%v", err)
 	}
 }
+
+// TestFSCandidateArtifactStorePutAuxiliaryFileWritesAndReplaces covers the
+// ordinary case (no existing entry) and the legitimate replace case (an
+// existing regular file, e.g. a second run reproducing the same candidate
+// digest with fresh lineage receipt content) -- both must succeed, and no
+// staging file must be left behind.
+func TestFSCandidateArtifactStorePutAuxiliaryFileWritesAndReplaces(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := store.PutAuxiliaryFile(ctx, "x.lineage.json", []byte("first")); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "x.lineage.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "first" {
+		t.Fatalf("content = %q, want %q", got, "first")
+	}
+	if err := store.PutAuxiliaryFile(ctx, "x.lineage.json", []byte("second")); err != nil {
+		t.Fatalf("replace write: %v", err)
+	}
+	got, err = os.ReadFile(filepath.Join(root, "x.lineage.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "second" {
+		t.Fatalf("content after replace = %q, want %q", got, "second")
+	}
+	// .tmp (the staging directory) is expected to remain, matching Put's
+	// own established behavior -- only assert no stray "*.tmp" staging
+	// FILE was left behind at the top level.
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() != "x.lineage.json" && e.Name() != ".tmp" {
+			t.Fatalf("root contains unexpected entry: %v", e.Name())
+		}
+	}
+	tmpEntries, err := os.ReadDir(filepath.Join(root, ".tmp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tmpEntries) != 0 {
+		t.Fatalf(".tmp contains leftover staging entries: %v", tmpEntries)
+	}
+}
+
+// TestFSCandidateArtifactStorePutAuxiliaryFileRefusesExistingSymlink is the
+// direct regression test for a live review finding: an existing symlink at
+// the target name (planted by another process, or a pre-existing
+// attacker-controlled entry) must be refused, never followed or
+// transparently overwritten.
+func TestFSCandidateArtifactStorePutAuxiliaryFileRefusesExistingSymlink(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outsideTarget := filepath.Join(t.TempDir(), "outside.txt")
+	if err := os.WriteFile(outsideTarget, []byte("do not touch"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linkPath := filepath.Join(root, "x.lineage.json")
+	if err := os.Symlink(outsideTarget, linkPath); err != nil {
+		t.Skipf("symlinks unsupported in this environment: %v", err)
+	}
+
+	if err := store.PutAuxiliaryFile(context.Background(), "x.lineage.json", []byte("attempted overwrite")); err == nil {
+		t.Fatal("expected an error writing through an existing symlink")
+	}
+
+	info, err := os.Lstat(linkPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("the symlink at the target name was replaced instead of refused")
+	}
+	outsideContent, err := os.ReadFile(outsideTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(outsideContent) != "do not touch" {
+		t.Fatalf("symlink target was written through: %s", outsideContent)
+	}
+}
+
+// TestFSCandidateArtifactStorePutAuxiliaryFileRejectsNestedPath covers the
+// flat-filename requirement: name must never be usable to escape or nest
+// beyond a single entry directly inside root.
+func TestFSCandidateArtifactStorePutAuxiliaryFileRejectsNestedPath(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for _, name := range []string{"nested/x.json", "../x.json", "", ".", ".."} {
+		if err := store.PutAuxiliaryFile(ctx, name, []byte("x")); err == nil {
+			t.Fatalf("name %q: expected an error for a non-flat filename", name)
+		}
+	}
+}
+
+// TestFSCandidateArtifactStorePutAuxiliaryFileRejectsSealedCandidateNamespace
+// is the direct regression test for a live review finding: PutAuxiliaryFile's
+// replace-capable commit must not be usable to overwrite an already-sealed
+// candidate artifact -- Put's create-only, no-clobber contract is the whole
+// point of this store's immutability guarantee, and a name shaped exactly
+// like Put's own "<64-lowercase-hex-digest>.json" filename must be refused,
+// both when nothing is sealed under that name yet and when something
+// already is.
+func TestFSCandidateArtifactStorePutAuxiliaryFileRejectsSealedCandidateNamespace(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	artifact := fixtureCandidateArtifact(t)
+	if err := store.Put(ctx, artifact); err != nil {
+		t.Fatal(err)
+	}
+	sealedName := artifact.CandidateArtifactDigestSHA256 + ".json"
+
+	if err := store.PutAuxiliaryFile(ctx, sealedName, []byte("attempted overwrite")); err == nil {
+		t.Fatal("expected an error writing to a sealed-candidate-shaped name that is already sealed")
+	}
+	got, err := store.Get(ctx, artifact.CandidateArtifactDigestSHA256)
+	if err != nil {
+		t.Fatalf("Get after refused PutAuxiliaryFile: %v", err)
+	}
+	if got.CandidateArtifactDigestSHA256 != artifact.CandidateArtifactDigestSHA256 {
+		t.Fatal("sealed candidate was corrupted despite PutAuxiliaryFile being refused")
+	}
+
+	// Also refused for a digest with nothing sealed under it yet -- the
+	// namespace itself is reserved, not merely "don't overwrite existing
+	// content."
+	const unsealedDigest = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	if err := store.PutAuxiliaryFile(ctx, unsealedDigest+".json", []byte("x")); err == nil {
+		t.Fatal("expected an error writing to a sealed-candidate-shaped name even with nothing sealed under it yet")
+	}
+}
+
+// TestFSCandidateArtifactStorePutAuxiliaryFileSharesStableRootIdentityAcrossRename
+// is the direct regression test for the live review finding this method
+// exists to close: a candidate sealed via Put, followed by a rename of the
+// store's root path and a replacement directory created at the original
+// path, must still have its auxiliary file (e.g. an admission lineage
+// bundle) land in the SAME physical directory the candidate was actually
+// sealed into -- never split into the replacement directory that now
+// happens to sit at the original path string.
+func TestFSCandidateArtifactStorePutAuxiliaryFileSharesStableRootIdentityAcrossRename(t *testing.T) {
+	parent := t.TempDir()
+	storePath := filepath.Join(parent, "store")
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewFSCandidateArtifactStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	artifact := fixtureCandidateArtifact(t)
+	if err := store.Put(ctx, artifact); err != nil {
+		t.Fatal(err)
+	}
+
+	oldPath := filepath.Join(parent, "store-old")
+	if err := os.Rename(storePath, oldPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	lineageName := artifact.CandidateArtifactDigestSHA256 + ".lineage.json"
+	if err := store.PutAuxiliaryFile(ctx, lineageName, []byte(`{"lineage":true}`)); err != nil {
+		t.Fatalf("PutAuxiliaryFile after root rename+replacement: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(oldPath, lineageName)); err != nil {
+		t.Errorf("expected PutAuxiliaryFile to land in the ORIGINAL directory (now at %q), alongside the sealed candidate: %v", oldPath, err)
+	}
+	if _, err := os.Stat(filepath.Join(storePath, lineageName)); !os.IsNotExist(err) {
+		t.Errorf("PutAuxiliaryFile leaked into the REPLACEMENT directory: err=%v", err)
+	}
+}
+
+// TestFSCandidateArtifactStoreVerifyRootIdentity_PassesForUnchangedPath
+// covers the ordinary case: nothing has happened to root since
+// construction, so VerifyRootIdentity(root) must succeed.
+func TestFSCandidateArtifactStoreVerifyRootIdentity_PassesForUnchangedPath(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFSCandidateArtifactStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.VerifyRootIdentity(root); err != nil {
+		t.Fatalf("VerifyRootIdentity(unchanged root): %v", err)
+	}
+}
+
+// TestFSCandidateArtifactStoreVerifyRootIdentity_DetectsRenameAndReplacement
+// is the direct regression test for a live review finding: after the
+// store's original root directory is renamed away and a DIFFERENT
+// directory is created at the original path, VerifyRootIdentity(the
+// original path) must fail -- that path string no longer identifies the
+// directory this store actually writes through, exactly the situation
+// that made a caller-reported candidate_path/lineage_path untrustworthy.
+func TestFSCandidateArtifactStoreVerifyRootIdentity_DetectsRenameAndReplacement(t *testing.T) {
+	parent := t.TempDir()
+	storePath := filepath.Join(parent, "store")
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewFSCandidateArtifactStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldPath := filepath.Join(parent, "store-old")
+	if err := os.Rename(storePath, oldPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.VerifyRootIdentity(storePath); err == nil {
+		t.Fatal("expected an error: storePath now names a REPLACEMENT directory, not the one this store was constructed against")
+	}
+	// The original path, however, still correctly identifies the store's
+	// real root.
+	if err := store.VerifyRootIdentity(oldPath); err != nil {
+		t.Fatalf("VerifyRootIdentity(original path after rename): %v", err)
+	}
+}
+
+// TestFSCandidateArtifactStoreVerifyRootIdentity_FailsForMissingPath
+// covers the companion case: the original directory renamed away with
+// nothing put back at the original path at all.
+func TestFSCandidateArtifactStoreVerifyRootIdentity_FailsForMissingPath(t *testing.T) {
+	parent := t.TempDir()
+	storePath := filepath.Join(parent, "store")
+	if err := os.Mkdir(storePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewFSCandidateArtifactStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(storePath, filepath.Join(parent, "store-moved")); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.VerifyRootIdentity(storePath); err == nil {
+		t.Fatal("expected an error: storePath no longer exists")
+	}
+}

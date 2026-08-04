@@ -71,6 +71,7 @@ jobs:
       - name: Run enforce-mode architect activation
         shell: bash
         run: |
+          set +e
           timeout --foreground 300s bash scripts/sensei-architect-activation.sh \
             --repo . \
             --sensei ./bin/sensei \
@@ -81,6 +82,242 @@ jobs:
             --mode enforce \
             --full-how-timeout 60 \
             --out sensei-activation
+          activation_rc=$?
+          set -e
+
+          # The private per-PR graph can honestly report semantic coverage debt
+          # for new or changed files while the independent enforce-mode gate
+          # still passes. Accept only that bounded state. Missing/malformed
+          # preflight evidence, process failures, gate failures, or missing
+          # required evidence surfaces remain fatal.
+          python3 - "$activation_rc" sensei-activation/activation.json sensei-activation/preflight <<'PY'
+          import json
+          from pathlib import Path
+          import re
+          import sys
+
+          producer_rc = int(sys.argv[1])
+          activation_path = Path(sys.argv[2])
+          preflight_dir = Path(sys.argv[3])
+
+          errors = []
+          if producer_rc not in (0, 1):
+              errors.append(
+                  f"activation producer exited {producer_rc}; "
+                  "expected 0 or policy-only 1"
+              )
+
+          if not activation_path.is_file():
+              errors.append(f"missing activation artifact: {activation_path}")
+              payload = {}
+          else:
+              try:
+                  payload = json.loads(
+                      activation_path.read_text(encoding="utf-8")
+                  )
+              except Exception as exc:
+                  errors.append(f"invalid activation artifact: {exc}")
+                  payload = {}
+
+          rows = payload.get("surfaces")
+          if not isinstance(rows, list):
+              errors.append("activation surfaces are missing or malformed")
+              rows = []
+
+          surfaces = {
+              row.get("name"): row
+              for row in rows
+              if isinstance(row, dict)
+              and isinstance(row.get("name"), str)
+          }
+
+          required = {
+              "metadata": "available",
+              "gate": "pass",
+              "phase10_fixture_how": "available",
+              "phase10_fixture_why": "available",
+          }
+          for name, expected in required.items():
+              actual = surfaces.get(name, {}).get("status")
+              if actual != expected:
+                  errors.append(
+                      f"{name}: expected {expected}, "
+                      f"got {actual or 'missing'}"
+                  )
+
+          preflight = surfaces.get("preflight", {})
+          preflight_status = preflight.get("status")
+          if preflight_status == "available":
+              pass
+          elif preflight_status == "degraded":
+              changed_files = payload.get("changed_files")
+              if not isinstance(changed_files, list):
+                  errors.append("changed_files is missing or malformed")
+                  changed_files = []
+
+              files = sorted(preflight_dir.glob("*.json"))
+              if len(files) != len(changed_files):
+                  errors.append(
+                      "preflight evidence count mismatch: "
+                      f"expected {len(changed_files)}, got {len(files)}"
+                  )
+
+              detail = preflight.get("detail", "")
+              match = re.search(r"\bfailed_files=(\d+)\b", detail)
+              if match is None:
+                  errors.append(
+                      "degraded preflight detail is missing failed_files count"
+                  )
+                  expected_degraded = None
+              else:
+                  expected_degraded = int(match.group(1))
+
+              semantic_degraded = 0
+              for path in files:
+                  try:
+                      data = json.loads(
+                          path.read_text(encoding="utf-8")
+                      )
+                  except Exception as exc:
+                      errors.append(
+                          f"{path.name}: malformed preflight payload: {exc}"
+                      )
+                      continue
+
+                  if not isinstance(data, dict):
+                      errors.append(
+                          f"{path.name}: preflight payload is not an object"
+                      )
+                      continue
+
+                  status = data.get("status")
+                  risk_class = data.get("risk_class")
+                  coverage = data.get("coverage")
+
+                  if status == "PREFLIGHT_STATUS_DEGRADED":
+                      # Not every DEGRADED payload is the bounded
+                      # coverage-debt case this block is meant to
+                      # tolerate. golang/server/preflight.go sets
+                      # DEGRADED for several distinct reasons, only one
+                      # of which is "the graph genuinely has no facts
+                      # about this file yet" (the honest thin/no-anchor
+                      # case, marked by this exact blind_spots string).
+                      # The others -- store unavailable, domain scope
+                      # unverified, canonical protection assessment
+                      # itself degraded, and a per-file impact query
+                      # that errored outright (preflight.go:141-145,
+                      # "impact_query_failed_for_<file>:", which can
+                      # co-occur with the honest-thin-coverage marker
+                      # since the failed file also ends up with zero
+                      # anchors) -- are operational/derivation failures
+                      # where Preflight never established usable scoped
+                      # awareness at all, and must fail this check
+                      # rather than be silently counted as ordinary
+                      # coverage debt. ("coverage_insufficient:" and the
+                      # "[deprecated]"/"[low-confidence]" trust-scoring
+                      # cautions are NOT in this list: both represent a
+                      # real, non-erroring query that genuinely found
+                      # nothing or found only demoted guidance -- the
+                      # same bounded debt the honest-thin-coverage
+                      # marker itself already describes, not an
+                      # operational failure.)
+                      spots = data.get("blind_spots")
+                      if not isinstance(spots, list):
+                          spots = []
+                      honest_thin_coverage = any(
+                          s == "this is NOT proof of safety — the graph has no facts about this file"
+                          for s in spots
+                      )
+                      known_bad = any(
+                          s == "awareness_store_unavailable"
+                          or s.startswith("domain_scope_unverified:")
+                          or s.startswith("protection_assessment_degraded:")
+                          or s.startswith("impact_query_failed_for_")
+                          for s in spots
+                      )
+                      if not honest_thin_coverage or known_bad:
+                          errors.append(
+                              f"{path.name}: preflight degraded for a "
+                              "reason beyond bounded thin/no-anchor "
+                              f"coverage debt: {spots}"
+                          )
+                          continue
+                      semantic_degraded += 1
+                      continue
+
+                  if status not in (
+                      "PREFLIGHT_STATUS_OK",
+                      "PREFLIGHT_STATUS_EMPTY",
+                  ):
+                      errors.append(
+                          f"{path.name}: missing or unknown "
+                          f"preflight status {status!r}"
+                      )
+                      continue
+
+                  if risk_class == "UNKNOWN_IMPACT":
+                      semantic_degraded += 1
+                      continue
+
+                  if not isinstance(coverage, dict):
+                      errors.append(
+                          f"{path.name}: preflight coverage "
+                          "is missing or malformed"
+                      )
+                      continue
+
+                  if coverage.get("sufficient") is not True:
+                      semantic_degraded += 1
+                      continue
+
+                  # This payload is healthy. The aggregate preflight
+                  # surface is degraded when any changed file is degraded,
+                  # so a mixed set of healthy and degraded payloads is valid.
+
+              if semantic_degraded == 0:
+                  errors.append(
+                      "preflight is marked degraded without any "
+                      "semantic coverage finding"
+                  )
+              if (
+                  expected_degraded is not None
+                  and semantic_degraded != expected_degraded
+              ):
+                  errors.append(
+                      "preflight degraded count mismatch: "
+                      f"summary reports {expected_degraded}, "
+                      f"payloads classify {semantic_degraded}"
+                  )
+          else:
+              errors.append(
+                  "preflight: expected available or degraded, "
+                  f"got {preflight_status or 'missing'}"
+              )
+
+          if producer_rc == 1 and preflight_status != "degraded":
+              errors.append(
+                  "activation producer exited 1 without an accepted "
+                  "degraded-preflight condition"
+              )
+
+          if errors:
+              print(
+                  "Sensei activation CI verdict: FAIL",
+                  file=sys.stderr,
+              )
+              for error in errors:
+                  print(f"- {error}", file=sys.stderr)
+              raise SystemExit(1)
+
+          if preflight_status == "degraded":
+              print(
+                  "Sensei activation CI verdict: PASS with visible "
+                  "semantic preflight debt; the enforce-mode "
+                  "architectural gate and required evidence surfaces passed."
+              )
+          else:
+              print("Sensei activation CI verdict: PASS")
+          PY
 
       - name: Publish activation summary
         if: always()

@@ -51,7 +51,7 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 			}
 			trace.ProviderExecutions = append(trace.ProviderExecutions, execution)
 			if execution.Result.TerminalOutcome != providerport.OutcomeCompleted {
-				return finishResult(state, interpretation, plan, candidate, trace, step, DispositionProviderStopped,
+				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionProviderStopped,
 					fmt.Sprintf("interpretation provider ended with %q: %s", execution.Result.TerminalOutcome, execution.Result.Detail), startedAt, config.Now)
 			}
 			if execution.Result.InterpretationPayload == nil {
@@ -87,7 +87,7 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 			}
 			trace.ProviderExecutions = append(trace.ProviderExecutions, execution)
 			if execution.Result.TerminalOutcome != providerport.OutcomeCompleted {
-				return finishResult(state, interpretation, plan, candidate, trace, step, DispositionProviderStopped,
+				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionProviderStopped,
 					fmt.Sprintf("planning provider ended with %q: %s", execution.Result.TerminalOutcome, execution.Result.Detail), startedAt, config.Now)
 			}
 			if execution.Result.PlanningPayload == nil {
@@ -145,7 +145,31 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 			}
 			trace.GenerationHandoffs = append(trace.GenerationHandoffs, handoff)
 			if handoff.RunnerReceipt.Disposition != runnercomposition.DispositionVerified {
-				return finishResult(state, interpretation, plan, candidate, trace, step, DispositionRunnerStopped,
+				// A live review found this attempt's own handoff can
+				// already carry a sealed candidate digest even though
+				// it is NOT verified: runnercomposition.Run's
+				// DispositionDigestMismatch path seals the artifact
+				// (store.Put) and stamps
+				// RunnerReceipt.CandidateArtifactDigestSHA256 BEFORE
+				// discovering the mismatch (run.go's own hard law 11 --
+				// a mismatched candidate is sealed as exactly what it
+				// actually is, never repaired into agreement with what
+				// the provider claimed). `candidate` (the local var)
+				// only ever gets set from a VERIFIED attempt's O4
+				// evaluation, so for THIS attempt's own non-verified
+				// handoff it stays whatever an EARLIER attempt left it
+				// as (nil on a run's first attempt) -- passing
+				// handoff.RunnerReceipt.CandidateArtifactDigestSHA256
+				// here lets finishResult stamp the receipt correctly
+				// regardless: it is non-nil only for
+				// DispositionDigestMismatch (and DispositionVerified,
+				// which never reaches this branch), nil for every other
+				// non-verified disposition (snapshot/workspace-init/
+				// provider-construction/o2-run-error/o2-non-completed/
+				// workspace-freeze/evidence-computation/seal failures),
+				// exactly matching which of them actually sealed
+				// anything.
+				return finishResult(state, interpretation, plan, candidate, handoff.RunnerReceipt.CandidateArtifactDigestSHA256, trace, step, DispositionRunnerStopped,
 					fmt.Sprintf("O3 ended with %q: %s", handoff.RunnerReceipt.Disposition, handoff.RunnerReceipt.FailureDetail), startedAt, config.Now)
 			}
 			evaluated, err := config.EvaluationEngine.Evaluate(ctx, state, handoff)
@@ -162,23 +186,53 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 				}
 				candidate = &copyCandidate
 			}
+			// evaluated.SessionState can already be PhaseSucceeded or
+			// PhaseFailed here (config.EvaluationEngine.Evaluate fully
+			// resolves PhaseEvaluating -> {Succeeded | Retry | Replan |
+			// Failed} within this one call -- see synthesis.transitionRecordEvaluation).
+			// A live review found that finalizing lazily -- falling
+			// through to let the loop's next iteration hit the
+			// PhaseSucceeded/PhaseFailed cases below -- has two real
+			// costs: (1) if THIS was the last allowed step (step ==
+			// config.MaxSteps), the loop exits without a next iteration
+			// at all, and control falls to the step-limit finishResult
+			// below with a terminal receipt already stamped on state --
+			// which ValidateRunReceipt's own DispositionStepLimitReached
+			// case explicitly rejects ("nonterminal stop cannot invent
+			// an O1 terminal receipt"), turning a genuine success (or
+			// governed failure) into a hard Go error and an internal-
+			// defect exit for the CLI caller, silently orphaning a
+			// sealed candidate with no lineage ever persisted; (2) even
+			// on a non-boundary run, the lazily-finalized receipt's
+			// StepCount is stamped one step later than the step that
+			// actually produced the terminal transition. Finalizing
+			// immediately, at the exact step the transition happened,
+			// fixes both.
+			if state.Phase.Terminal() {
+				if state.Phase == synthesis.PhaseSucceeded {
+					return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionCandidateReady,
+						"candidate is ready to be submitted to O5 admission", startedAt, config.Now)
+				}
+				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionTerminalFailure,
+					"O1 reached a governed terminal failure", startedAt, config.Now)
+			}
 
 		case synthesis.PhaseEvaluating:
 			return Result{}, errors.New("synthesisdriver: external evaluating state is not resumable in O7 v1; O4 must complete within the attempt step")
 
 		case synthesis.PhaseSucceeded:
-			return finishResult(state, interpretation, plan, candidate, trace, step, DispositionCandidateReady,
+			return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionCandidateReady,
 				"candidate is ready to be submitted to O5 admission", startedAt, config.Now)
 
 		case synthesis.PhaseFailed:
-			return finishResult(state, interpretation, plan, candidate, trace, step, DispositionTerminalFailure,
+			return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionTerminalFailure,
 				"O1 reached a governed terminal failure", startedAt, config.Now)
 
 		default:
 			return Result{}, fmt.Errorf("synthesisdriver: unsupported O1 phase %q", state.Phase)
 		}
 	}
-	return finishResult(state, interpretation, plan, candidate, trace, config.MaxSteps, DispositionStepLimitReached,
+	return finishResult(state, interpretation, plan, candidate, nil, trace, config.MaxSteps, DispositionStepLimitReached,
 		fmt.Sprintf("O7 reached immutable max_steps=%d", config.MaxSteps), startedAt, config.Now)
 }
 
@@ -190,11 +244,26 @@ func executeProvider(ctx context.Context, provider providerport.Provider, reques
 	return ProviderExecution{Request: request, Result: result, ObservationBatch: batch, Receipt: receipt}, nil
 }
 
+// sealedButUncarriedCandidateDigestSHA256 lets a caller that only knows a
+// sealed candidate's digest -- not the full runnercomposition.CandidateArtifact
+// struct -- still have Receipt.CandidateArtifactDigestSHA256 stamped
+// correctly. This is deliberately separate from candidate/Result.Candidate:
+// runnercomposition.Run's DispositionDigestMismatch path seals the
+// artifact and stamps RunnerReceipt.CandidateArtifactDigestSHA256 before
+// discovering the mismatch, but the driver's PhaseAttempting case only
+// ever has the HANDOFF (receipts/digests) at that point, never the full
+// CandidateArtifact object the store actually holds -- fabricating one
+// with only the digest field populated to satisfy the `candidate`
+// parameter would populate Result.Candidate with a struct that looks
+// complete but is mostly zero-valued/fabricated, which is worse than
+// leaving it correctly nil. Pass nil here whenever candidate itself
+// already carries (or correctly lacks) the true digest.
 func finishResult(
 	state synthesis.SessionState,
 	interpretation *synthesis.Interpretation,
 	plan *synthesis.Plan,
 	candidate *runnercomposition.CandidateArtifact,
+	sealedButUncarriedCandidateDigestSHA256 *string,
 	trace Trace,
 	step int,
 	disposition Disposition,
@@ -224,6 +293,9 @@ func finishResult(
 	var candidateDigest *string
 	if candidate != nil {
 		value := candidate.CandidateArtifactDigestSHA256
+		candidateDigest = &value
+	} else if sealedButUncarriedCandidateDigestSHA256 != nil {
+		value := *sealedButUncarriedCandidateDigestSHA256
 		candidateDigest = &value
 	}
 	receipt := RunReceipt{

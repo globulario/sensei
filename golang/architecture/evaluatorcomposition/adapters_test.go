@@ -260,6 +260,41 @@ func TestSenseiGateEvaluatorMapsExistingOwnerVerdicts(t *testing.T) {
 	}
 }
 
+// TestSenseiGateEvaluatorMapsRealCapturedGateOutput is a thin contract test
+// grounded in a real captured run, not a synthetic guess at the schema:
+// testdata/sensei_gate_real_stdout.json is the exact --json stdout produced
+// by a real `sensei gate --diff HEAD --domain github.com/globulario/sensei
+// --enforce --json --policy <repo>/.sensei/gate-policy.yaml --addr
+// localhost:<port>` invocation (the same argv Evaluate builds below) run
+// against a real git worktree carrying the real candidate diff a full
+// sensei synthesis-run dogfood run produced and sealed (only
+// cmd/awg/cmd_validate.go changed, a documentation-only edit). It also
+// carries two fields (`completeness`, `policy`) the hand-written synthetic
+// fixture above never modeled -- proving senseiGateJSON's decode tolerates
+// real, evolved gate output shape, not just the fields this package already
+// expected.
+func TestSenseiGateEvaluatorMapsRealCapturedGateOutput(t *testing.T) {
+	realStdout, err := os.ReadFile(filepath.Join("testdata", "sensei_gate_real_stdout.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	surface := &recordingEvaluatorSurface{ref: "surface://test/sensei-gate/git-diff", root: t.TempDir(), mode: SurfaceModeGitDiff}
+	input := evaluationInputForSurface(t, surface)
+	runner := &scriptedCommandRunner{results: []CommandResult{{Outcome: CommandOutcomeCompleted, ExitCode: 0, Stdout: realStdout}}}
+	evaluator, _, _ := newSenseiGateTestEvaluator(t, surface, runner)
+
+	result, err := evaluator.Evaluate(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.TerminalOutcome != EvaluatorOutcomeCompleted || result.Checks[0].Status != synthesis.CheckPassed {
+		t.Fatalf("real gate output mapped to outcome/status = %q/%q, want completed/passed", result.TerminalOutcome, result.Checks[0].Status)
+	}
+	if len(result.ClassifiedFailureReasons) != 0 {
+		t.Fatalf("real passing gate output produced unexpected failure reasons: %v", result.ClassifiedFailureReasons)
+	}
+}
+
 func TestSenseiGateEvaluatorFreezesExternalPolicyAndBindsItsDigest(t *testing.T) {
 	surface := &recordingEvaluatorSurface{ref: "surface://test/sensei-gate-freeze/git-diff", root: t.TempDir(), mode: SurfaceModeGitDiff}
 	input := evaluationInputForSurface(t, surface)

@@ -87,7 +87,12 @@ func NewClaudeStructuredAgent(config CommandAgentConfig) (StructuredAgent, error
 
 func codexConfig(config CommandAgentConfig) CommandAgentConfig {
 	config.Profile = ProfileCodex
-	base := []string{"exec", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check"}
+	// --ask-for-approval does not exist in codex-cli 0.145.0+ ("error:
+	// unexpected argument '--ask-for-approval' found", confirmed against the
+	// installed binary) -- `codex exec`'s non-interactive mode already
+	// defaults to approval=never on its own, confirmed via its own printed
+	// run banner, so no replacement flag is needed.
+	base := []string{"exec", "--sandbox", "read-only", "--skip-git-repo-check"}
 	base = append(base, config.Args...)
 	config.Args = append(base, "-")
 	return config
@@ -224,7 +229,7 @@ func encodeAgentPrompt(prompt GenerationPrompt) ([]byte, error) {
 	}
 	var out bytes.Buffer
 	out.WriteString("You are a bounded software mutation planner. You have no repository tools and no authority to run commands, edit files, use Git, access the network, admit a change, or declare completion.\n")
-	out.WriteString("Return exactly one JSON object and nothing else. The object must contain schema_version=\"sensei.agentcommand.mutationplan.v1\", summary, and operations. Each operation must contain all fields: operation_id, kind, path, new_path, content, mode, symlink_target. content is base64 because it is a JSON byte string. Unused fields must be empty. Kinds: write, delete, rename, set-mode, symlink. Modes: regular or executable.\n")
+	out.WriteString("Return exactly one JSON object and nothing else. The object must contain schema_version=\"sensei.agentcommand.mutationplan.v1\", summary, and operations. Each operation must contain all fields: operation_id, kind, path, new_path, content, mode, symlink_target. content is base64 because it is a JSON byte string. Unused fields must be empty. Kinds: write, delete, rename, set-mode, symlink. mode must be the empty string \"\" for every kind except set-mode; only kind=set-mode sets mode to \"regular\" or \"executable\".\n")
 	out.WriteString("Use only files disclosed in snapshot_files and the accepted plan. Do not invent additional repository context.\n\nGENERATION_PROMPT_JSON\n")
 	out.Write(data)
 	out.WriteByte('\n')
@@ -253,13 +258,34 @@ func (a *commandAgent) extractFinalPayload(stdout []byte) ([]byte, error) {
 			}
 			return nil, invalidOutput("Claude output contained trailing data: %v", err)
 		}
-		if strings.TrimSpace(envelope.Result) == "" {
+		result := strings.TrimSpace(envelope.Result)
+		if result == "" {
 			return nil, invalidOutput("Claude JSON envelope has no result text")
 		}
-		return []byte(strings.TrimSpace(envelope.Result)), nil
+		return []byte(stripWholeMessageCodeFence(result)), nil
 	default:
 		return nil, invalidOutput("unsupported command profile %q", a.config.Profile)
 	}
+}
+
+// stripWholeMessageCodeFence removes a single Markdown code fence when it
+// wraps Claude's entire result text (e.g. "```json\n{...}\n```"), since
+// Claude routinely fences JSON answers despite being asked to return exactly
+// one JSON object and nothing else. It only strips when the fence spans the
+// whole trimmed message -- a fence appearing alongside other text is left
+// alone and reported as invalid output by the caller's JSON parse, rather
+// than guessed at.
+func stripWholeMessageCodeFence(result string) string {
+	lines := strings.Split(result, "\n")
+	if len(lines) < 2 {
+		return result
+	}
+	first := strings.TrimSpace(lines[0])
+	last := strings.TrimSpace(lines[len(lines)-1])
+	if !strings.HasPrefix(first, "```") || last != "```" {
+		return result
+	}
+	return strings.TrimSpace(strings.Join(lines[1:len(lines)-1], "\n"))
 }
 
 type mutationPlanProposal struct {

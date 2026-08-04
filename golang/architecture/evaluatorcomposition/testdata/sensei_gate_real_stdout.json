@@ -1,0 +1,17 @@
+{
+    "blocked": false,
+    "completeness": null,
+    "diff": "HEAD",
+    "domain": "github.com/globulario/sensei",
+    "enforced": true,
+    "files": null,
+    "policy": {
+        "default": "inherit",
+        "rule_overrides": 0,
+        "source": "<repo-root>/.sensei/gate-policy.yaml"
+    },
+    "scope_errors": 0,
+    "verdict": "PASS: 0 blocking findings (0 advisory warning(s))",
+    "warn": 0,
+    "would_block": 0
+}
