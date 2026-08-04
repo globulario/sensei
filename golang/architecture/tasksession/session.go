@@ -582,6 +582,25 @@ func MarshalTaskRequestYAML(req TaskRequest) ([]byte, error) {
 	return yaml.Marshal(taskRequestEnvelope{ArchitectureTaskRequest: req})
 }
 
+// LoadTaskRequest reads <taskDir>/task-request.yaml, the counterpart
+// MarshalTaskRequestYAML writes at task creation (session.go, "task-request.yaml"
+// filename per currentControlPaths). It is a plain, read-only loader -- no
+// caller of this package before it needed the task's own Description as a
+// standalone value (existing consumers read it embedded in Session via
+// LoadSession), so this is purely additive: it does not change what any
+// existing function reads or how it validates.
+func LoadTaskRequest(taskDir string) (TaskRequest, error) {
+	data, err := os.ReadFile(filepath.Join(taskDir, "task-request.yaml"))
+	if err != nil {
+		return TaskRequest{}, err
+	}
+	var env taskRequestEnvelope
+	if err := yaml.Unmarshal(data, &env); err != nil {
+		return TaskRequest{}, err
+	}
+	return normalizeTaskRequest(env.ArchitectureTaskRequest), nil
+}
+
 func LoadSession(path string) (Session, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

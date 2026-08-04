@@ -1,0 +1,111 @@
+{
+  "schema_version": "sensei.report.v1",
+  "generated_by": "sensei report",
+  "identity": {
+    "repository": {
+      "key": "github.com/globulario/sensei",
+      "display_name": "github.com/globulario/sensei"
+    },
+    "evaluated_commit": "0fc56979eeb79ff207329e57613ee1c0eb5e9890",
+    "evaluated_commit_status": "resolved",
+    "evaluated_content_digest_sha256": "3ac1a934b361b3a6ea070d83a92fe7c755f866c95bd3aecda227be3710417c50"
+  },
+  "summary": {
+    "blocking_findings": 1,
+    "advisory_findings": 4,
+    "candidates_awaiting_review": 17
+  },
+  "current_work": {
+    "active": true,
+    "task_id": "task.documentation.8b5971ee1097",
+    "title": "Add a doc comment to multiString in cmd/awg/cmd_validate.go explaining its purpose, since it is reused as a repeatable-flag.Var type by several unrelated commands with no comment today",
+    "disposition": "BLOCKED",
+    "scope": [
+      "cmd/awg/cmd_validate.go"
+    ],
+    "authority": "inspect: uncertifiable, modify: refused",
+    "remaining_blockers": 1,
+    "primary_blocker": "write or high-risk scope has no identifiable required Test"
+  },
+  "findings": [
+    {
+      "id": "blocker.agent.5ab07c4759c3",
+      "kind": "blocking",
+      "statement": "write or high-risk scope has no identifiable required Test"
+    },
+    {
+      "id": "blocker.authority.0f9353dce304",
+      "kind": "advisory",
+      "statement": "applicable authority records disagree",
+      "files": [
+        "cmd/awg/cmd_validate.go"
+      ]
+    },
+    {
+      "id": "blocker.authority.1a5277ac78ce",
+      "kind": "advisory",
+      "statement": "applicable authority records disagree",
+      "files": [
+        "cmd/awg/cmd_validate.go"
+      ]
+    },
+    {
+      "id": "blocker.authority.56b3da2dbe67",
+      "kind": "advisory",
+      "statement": "applicable authority records disagree",
+      "files": [
+        "cmd/awg/cmd_validate.go"
+      ]
+    },
+    {
+      "id": "blocker.direction.74f438760909",
+      "kind": "advisory",
+      "statement": "preserve requires current intended basis"
+    }
+  ],
+  "verification": {
+    "report_freshness": "CURRENT",
+    "repository_wide_verification": "NOT_RUN"
+  },
+  "memory": {
+    "candidates_awaiting_review": 17,
+    "highlighted": [
+      {
+        "id": "candidate.authority.cmd.awg.cmd.serve.runserve",
+        "class": "AuthoritySurface",
+        "source": "docs/awareness/candidates/authority_surface_candidates.yaml"
+      },
+      {
+        "id": "candidate.authority.golang.server.main.serve",
+        "class": "AuthoritySurface",
+        "source": "docs/awareness/candidates/authority_surface_candidates.yaml"
+      },
+      {
+        "id": "candidate.implementation_pattern.awareness_graph_read_only",
+        "class": "ImplementationPattern",
+        "source": "docs/awareness/candidates/implementation_pattern/candidate.implementation_pattern.awareness_graph_read_only.yaml"
+      },
+      {
+        "id": "imported.skill.engineering.ask_matt",
+        "class": "ImplementationPattern",
+        "source": "docs/awareness/candidates/skills/imported_skill_engineering_ask_matt.yaml"
+      },
+      {
+        "id": "imported.skill.engineering.grill_with_docs",
+        "class": "ImplementationPattern",
+        "source": "docs/awareness/candidates/skills/imported_skill_engineering_grill_with_docs.yaml"
+      }
+    ],
+    "limitations": [
+      "no status-bearing entry found (excluded from count): docs/awareness/candidates/contract_unknown_awareness_workspace_identity_governance_state_binding_unknown.yaml",
+      "no status-bearing entry found (excluded from count): docs/awareness/candidates/contract_unknown_contract_unknown_sensei_o7_synthesisdriver_run_requires_a_pr.yaml",
+      "no status-bearing entry found (excluded from count): docs/awareness/candidates/contract_unknown_contract_unknown_services_protects_files_required_test_on_in.yaml"
+    ]
+  },
+  "reproduction": {
+    "commands": [
+      "sensei report",
+      "sensei report --check"
+    ]
+  }
+}
