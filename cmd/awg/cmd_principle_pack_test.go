@@ -720,6 +720,69 @@ func TestPackRefresh_InitWritesUsableBaseline(t *testing.T) {
 	}
 }
 
+// TestPackRefresh_SymlinkedBaselineRecordNotTrustedAsVerified proves
+// verifyBaseline does not follow a symlinked installed.yaml. A digest
+// match through a symlink is not this project's own verified history --
+// it is, at best, another checkout's real install record (the concrete
+// risk: a worktree resolving into a different checkout's governance
+// state) -- and trusting it would let --apply classify genuinely missing
+// ids as upstream additions and replace this checkout's mirror without
+// real local adoption provenance.
+func TestPackRefresh_SymlinkedBaselineRecordNotTrustedAsVerified(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := installedMirrorNoBaseline(t, id)
+	mirrorDigest := sha256Hex(readMirror(t, mirrorPath))
+
+	outsideRecord := filepath.Join(t.TempDir(), "installed.yaml")
+	var ir installRecord
+	ir.SchemaVersion = principlePackReceiptSchemaVersion
+	ir.Kind = principlePackInstallKind
+	ir.PackDigest = mirrorDigest // matches, as if it were genuinely this project's baseline
+	body, err := yaml.Marshal(ir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outsideRecord, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	recordPath := installRecordFilePath(root)
+	if err := os.MkdirAll(filepath.Dir(recordPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideRecord, recordPath); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if ok, why := verifyBaseline(root, mirrorDigest); ok {
+		t.Fatalf("a symlinked install record must never be trusted as a verified baseline, got %q", why)
+	}
+}
+
+// TestPackRefresh_SymlinkedAdoptionRecordIgnored proves loadRecords (used
+// by both verifyBaseline's fallback check and openIntentFor/
+// recordForResult) does not follow a symlinked receipt either -- the same
+// class of risk as the baseline record, just for prior-adoption evidence
+// instead of the install baseline.
+func TestPackRefresh_SymlinkedAdoptionRecordIgnored(t *testing.T) {
+	root := t.TempDir()
+	dir := adoptionsDirPath(root)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "fake-receipt.yaml")
+	if err := os.WriteFile(outside, []byte("kind: principle_pack_adoption\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "deadbeef.yaml")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if recs := loadRecords(root); len(recs) != 0 {
+		t.Fatalf("a symlinked adoption record must not be loaded as this project's own evidence, got %d", len(recs))
+	}
+}
+
 // TestPackRefresh_InitRetryAfterPartialWriteRecoversBaseline reproduces a
 // crash between writing the mirror and writing its install baseline: a
 // previous `sensei init` (or a process that died mid-run) left
@@ -923,6 +986,97 @@ func TestPackRefresh_InterruptedApplyIsResumable(t *testing.T) {
 	}
 	if n := len(receiptFilesIn(t, root)); n != 1 {
 		t.Fatalf("resume should reuse the open intent, got %d record(s)", n)
+	}
+}
+
+// TestPackRefresh_RecoveredReceiptResyncedBeforeCommit proves the
+// openIntentFor recovery branch does not treat a visible receipt as proof
+// its own directory sync ever succeeded. The receipt existing here is not
+// evidence of that: an earlier run's atomicCreateFile could have linked it
+// successfully and then hit a transient sync failure, exactly the case
+// writePrinciplePackRecord's own exact-replay branch already guards. This
+// recovery branch never calls writePrinciplePackRecord again (the receipt
+// is already correct), so it must repeat the resync itself before
+// committing the mirror.
+func TestPackRefresh_RecoveredReceiptResyncedBeforeCommit(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := installedMirror(t, id)
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := sha256Hex(readMirror(t, mirrorPath))
+	entries, _, _, err := parsePrinciplePack(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := buildPrinciplePackRecord(sha256Hex(pack), len(entries), mirrorRelPath, previous, sha256Hex(pack),
+		packDiff{UpstreamOnly: []string{id}}, "verified_baseline")
+
+	// A real write, using the real syncDir, simulating a prior --apply
+	// that wrote the receipt and then crashed before touching the mirror.
+	if _, err := writePrinciplePackRecord(root, rec); err != nil {
+		t.Fatal(err)
+	}
+
+	called := false
+	orig := syncDir
+	syncDir = func(dir string) error {
+		if dir == adoptionsDirPath(root) {
+			called = true
+		}
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("resuming the open intent failed, rc=%d", rc)
+	}
+	if !called {
+		t.Fatal("recovering an open intent never re-synced the receipt directory before committing the mirror")
+	}
+	if sha256Hex(readMirror(t, mirrorPath)) != sha256Hex(pack) {
+		t.Fatal("mirror was not committed to the pack digest")
+	}
+}
+
+// TestPackRefresh_RecoveredReceiptResyncFailureRefusesAndLeavesMirrorAlone
+// proves a failed resync on the recovery path is surfaced, not silently
+// ignored, and the mirror is left untouched rather than committed against
+// an unconfirmed receipt.
+func TestPackRefresh_RecoveredReceiptResyncFailureRefusesAndLeavesMirrorAlone(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := installedMirror(t, id)
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := sha256Hex(readMirror(t, mirrorPath))
+	entries, _, _, err := parsePrinciplePack(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := buildPrinciplePackRecord(sha256Hex(pack), len(entries), mirrorRelPath, previous, sha256Hex(pack),
+		packDiff{UpstreamOnly: []string{id}}, "verified_baseline")
+	if _, err := writePrinciplePackRecord(root, rec); err != nil {
+		t.Fatal(err)
+	}
+	before := readMirror(t, mirrorPath)
+
+	orig := syncDir
+	syncDir = func(dir string) error {
+		if dir == adoptionsDirPath(root) {
+			return fmt.Errorf("simulated transient sync failure")
+		}
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("expected refusal when the recovered receipt's directory re-sync fails")
+	}
+	if string(readMirror(t, mirrorPath)) != string(before) {
+		t.Fatal("mirror was committed despite the receipt's re-sync failing")
 	}
 }
 

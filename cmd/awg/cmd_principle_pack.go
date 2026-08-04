@@ -264,6 +264,19 @@ func runPrinciplePackRefresh(args []string) int {
 			fmt.Printf("disposition: intent_open — re-run with --apply to complete it\n")
 			return 0
 		}
+		// The receipt being visible here (openIntentFor found it) is not
+		// proof its own directory sync ever succeeded -- the earlier
+		// atomicCreateFile could have linked it successfully and then hit
+		// a transient sync failure, same as the exact-replay case
+		// writePrinciplePackRecord itself already guards. This recovery
+		// branch never calls writePrinciplePackRecord again (the receipt
+		// already exists and is correct), so it must repeat that resync
+		// itself before committing the mirror, or a "successfully resumed"
+		// apply could still leave the receipt's own durability unconfirmed.
+		if err := syncDir(adoptionsDirPath(root)); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: re-syncing recovered receipt directory: %v\n", err)
+			return 1
+		}
 		if err := commitMirror(root, mirrorPath, mirrorBytes, packBytes); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: %v\n", err)
 			return 1
@@ -444,18 +457,34 @@ func commitMirror(root, mirrorPath string, expected, next []byte) error {
 // "docs" or "docs/awareness" pass this check while the actual read and the
 // later rename still traverse it, redirecting outside root.
 func readManagedMirror(root, path string) ([]byte, error) {
+	b, err := readNoFollow(root, path)
+	if err != nil {
+		return nil, fmt.Errorf("managed mirror %s: %w", mirrorRelPath, err)
+	}
+	return b, nil
+}
+
+// readNoFollow reads path after refusing every symlink between root and
+// path, INCLUDING the leaf itself -- not just the leaf, and not just the
+// ancestors. Any file this repo treats as authoritative evidence of its
+// own state (the mirror, the install baseline, an adoption receipt) must
+// be read this way: a symlinked ancestor OR leaf would otherwise let a
+// read (and a later write, for paths this file also writes to) silently
+// redirect outside root -- including, concretely, into another checkout's
+// real governance state.
+func readNoFollow(root, path string) ([]byte, error) {
 	if err := refuseSymlinkedAncestors(root, path); err != nil {
 		return nil, err
 	}
 	fi, err := os.Lstat(path)
 	if err != nil {
-		return nil, fmt.Errorf("no managed mirror at %s (%v)", mirrorRelPath, err)
+		return nil, fmt.Errorf("no file at %s (%v)", path, err)
 	}
 	if fi.Mode()&os.ModeSymlink != 0 {
-		return nil, fmt.Errorf("%s is a symlink; refusing to read or write through it", mirrorRelPath)
+		return nil, fmt.Errorf("%s is a symlink; refusing to read through it", path)
 	}
 	if !fi.Mode().IsRegular() {
-		return nil, fmt.Errorf("%s is not a regular file", mirrorRelPath)
+		return nil, fmt.Errorf("%s is not a regular file", path)
 	}
 	return os.ReadFile(path)
 }
@@ -645,7 +674,14 @@ func diffPrinciplePack(pack, mirror map[string]map[string]any, packPre, mirrorPr
 // verifyBaseline answers "do we know what this mirror started from?"
 func verifyBaseline(root, mirrorDigest string) (bool, string) {
 	var ir installRecord
-	if b, err := os.ReadFile(installRecordFilePath(root)); err == nil {
+	// readNoFollow, not a plain ReadFile: a symlinked installed.yaml
+	// pointing at another checkout's real install record must not be
+	// followed and trusted as this project's own verified baseline --
+	// that would let --apply classify genuinely missing ids as upstream
+	// additions and replace this checkout's mirror on a foreign baseline,
+	// bypassing the no-verified-baseline refusal this whole file exists
+	// to enforce.
+	if b, err := readNoFollow(root, installRecordFilePath(root)); err == nil {
 		if yaml.Unmarshal(b, &ir) == nil && ir.PackDigest == mirrorDigest {
 			return true, "verified (install record digest matches the mirror)"
 		}
@@ -662,7 +698,10 @@ func loadRecords(root string) []principlePackRecord {
 	matches, _ := filepath.Glob(filepath.Join(adoptionsDirPath(root), "*.yaml"))
 	var out []principlePackRecord
 	for _, m := range matches {
-		b, err := os.ReadFile(m)
+		// readNoFollow: a symlinked receipt is the same class of risk as a
+		// symlinked baseline -- refuse it rather than trust adoption
+		// "evidence" that actually lives outside this checkout.
+		b, err := readNoFollow(root, m)
 		if err != nil {
 			continue
 		}
