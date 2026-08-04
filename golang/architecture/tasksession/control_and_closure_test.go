@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/admission"
 	"gopkg.in/yaml.v3"
 )
 
@@ -19,7 +20,7 @@ import (
 func TestResolveControlAndClosure_BeforePublishedGeneration(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
 
-	state, report, err := ResolveControlAndClosure(repo, taskDir, false)
+	state, report, decision, err := ResolveControlAndClosure(repo, taskDir, false)
 	if err != nil {
 		t.Fatalf("ResolveControlAndClosure: %v", err)
 	}
@@ -28,6 +29,9 @@ func TestResolveControlAndClosure_BeforePublishedGeneration(t *testing.T) {
 	}
 	if report.SchemaVersion == "" {
 		t.Fatal("expected a real closure report, got a zero value")
+	}
+	if decision.SchemaVersion == "" {
+		t.Fatal("expected a real admission decision, got a zero value")
 	}
 }
 
@@ -41,7 +45,7 @@ func TestResolveControlAndClosure_AfterPublishedGeneration(t *testing.T) {
 		t.Fatalf("AdvanceTask: %v", err)
 	}
 
-	state, report, err := ResolveControlAndClosure(repo, taskDir, false)
+	state, report, decision, err := ResolveControlAndClosure(repo, taskDir, false)
 	if err != nil {
 		t.Fatalf("ResolveControlAndClosure: %v", err)
 	}
@@ -50,6 +54,9 @@ func TestResolveControlAndClosure_AfterPublishedGeneration(t *testing.T) {
 	}
 	if report.SchemaVersion == "" {
 		t.Fatal("expected a real closure report, got a zero value")
+	}
+	if decision.SchemaVersion == "" {
+		t.Fatal("expected a real admission decision, got a zero value")
 	}
 }
 
@@ -175,6 +182,61 @@ func TestOldTwoCallPatternCanObserveDifferentGenerations(t *testing.T) {
 	}
 }
 
+// TestResolveControlAndClosure_UsesGenerationDecisionNotPrepareTimeDecision
+// is the direct regression test for a live review finding: once
+// advance-task has published a generation, ResolveControlAndClosure must
+// resolve the admission decision from that generation's own
+// admission-decision.yaml, never the fixed prepare-time
+// taskDir/admission/decision.yaml -- admission.projectProof derives
+// obligations from the CURRENT closure's RelevantNodes, so the two
+// decisions can genuinely diverge (e.g. an initial decision declaring zero
+// proof obligations, superseded by a current one that declares real
+// ones). This test forces that divergence directly (rather than trying to
+// engineer a real claims/closure change that would newly surface an
+// obligation) by mutating the on-disk generation decision after
+// advance-task publishes it, and asserts ResolveControlAndClosure returns
+// THAT mutated decision, not the untouched prepare-time one.
+func TestResolveControlAndClosure_UsesGenerationDecisionNotPrepareTimeDecision(t *testing.T) {
+	repo, taskDir := enrolledPreparedTask(t)
+	if _, err := AdvanceTask(AdvanceTaskOptions{RepoRoot: repo, Active: true, ObservedAt: "2026-07-14T18:31:00Z"}); err != nil {
+		t.Fatalf("AdvanceTask: %v", err)
+	}
+
+	prepareTimeDecision, err := admission.LoadDecision(filepath.Join(taskDir, "admission", "decision.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prepareTimeDecision.ProofObligations) != 0 {
+		t.Fatalf("test fixture assumption violated: prepare-time decision already declares %d proof obligations", len(prepareTimeDecision.ProofObligations))
+	}
+
+	paths, _, err := currentControlPaths(taskDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	generationDecisionPath := filepath.Join(filepath.Dir(paths.Results), "admission-decision.yaml")
+	generationDecision, err := admission.LoadDecision(generationDecisionPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	generationDecision.ProofObligations = []admission.ProofReceipt{{ID: "obligation.forced-by-test"}}
+	mutatedBytes, err := admission.MarshalCanonicalDecisionYAML(generationDecision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(generationDecisionPath, mutatedBytes); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, decision, err := ResolveControlAndClosure(repo, taskDir, false)
+	if err != nil {
+		t.Fatalf("ResolveControlAndClosure: %v", err)
+	}
+	if len(decision.ProofObligations) != 1 || decision.ProofObligations[0].ID != "obligation.forced-by-test" {
+		t.Fatalf("ResolveControlAndClosure returned decision.ProofObligations = %+v, want the mutated generation decision's obligation -- it read the stale prepare-time decision.yaml instead of the current generation's admission-decision.yaml", decision.ProofObligations)
+	}
+}
+
 // TestResolveControlAndClosure_ConcurrentPointerFlipNeverErrors is the
 // concurrency stress test for the actual fix: many goroutines repeatedly
 // call ResolveControlAndClosure (the single-resolution replacement) while
@@ -227,12 +289,12 @@ func TestResolveControlAndClosure_ConcurrentPointerFlipNeverErrors(t *testing.T)
 					return
 				default:
 				}
-				state, report, err := ResolveControlAndClosure(repo, taskDir, false)
+				state, report, decision, err := ResolveControlAndClosure(repo, taskDir, false)
 				if err != nil {
 					errCh <- err
 					return
 				}
-				if state.TaskID == "" || report.SchemaVersion == "" {
+				if state.TaskID == "" || report.SchemaVersion == "" || decision.SchemaVersion == "" {
 					errCh <- err
 					return
 				}

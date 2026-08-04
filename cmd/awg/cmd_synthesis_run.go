@@ -147,15 +147,21 @@ Flags:
 	}
 
 	// --- step 3: refuse an unconverged task unless overridden, and resolve
-	// the closure report this task's control readiness was itself derived
-	// from -- both from tasksession.ResolveControlAndClosure's single
-	// currentControlPaths resolution, never two independent calls. A
+	// the closure report and admission decision this task's control
+	// readiness was itself derived from -- all three from
+	// tasksession.ResolveControlAndClosure's single currentControlPaths
+	// resolution, never independent calls or a fixed prepare-time path. A
 	// concurrent `sensei advance-task` publishes a new generation as two
 	// separate, non-atomic writes (control/latest.yaml, then
 	// control/latest-generation.yaml); two independently-resolved reads can
 	// observe the pointer move in between and bind readiness and closure
-	// digest to a pair that never coexisted as one real generation. ---
-	control, closureReport, err := tasksession.ResolveControlAndClosure(absRepo, taskDir, false)
+	// digest to a pair that never coexisted as one real generation. A live
+	// review also found that reading the admission decision from a fixed
+	// taskDir/admission/decision.yaml path (rather than this same
+	// generation-scoped resolution) could check a stale, prepare-time
+	// decision even after `sensei advance-task` recomputed a current one
+	// declaring real proof obligations the stale decision never had. ---
+	control, closureReport, taskDecision, err := tasksession.ResolveControlAndClosure(absRepo, taskDir, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: resolve task control state and closure report (run 'sensei advance-task' to converge closure first): %v\n", err)
 		return exitResolutionFailure
@@ -235,18 +241,12 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// The task's own admission decision -- already computed by
-	// `sensei prepare-change` (admission.buildDecision projects real
-	// ProofObligation/ProofSlot graph nodes into Decision.ProofObligations)
-	// and persisted to disk -- is authoritative. The interpretation file's
-	// own (empty) declaration checked above is necessary but not
-	// sufficient: it must never be read as clearing or overriding
-	// obligations the decision already recorded.
-	taskDecision, err := admission.LoadDecision(filepath.Join(taskDir, "admission", "decision.yaml"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: load task admission decision: %v\n", err)
-		return exitResolutionFailure
-	}
+	// The task's own admission decision -- already resolved above, from
+	// the same generation snapshot as control/closure (never a separately
+	// re-read, possibly stale, path) -- is authoritative. The
+	// interpretation file's own (empty) declaration checked above is
+	// necessary but not sufficient: it must never be read as clearing or
+	// overriding obligations the decision already recorded.
 	if err := validateNoDecisionProofObligations(taskDecision.ProofObligations); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
 		return exitResolutionFailure

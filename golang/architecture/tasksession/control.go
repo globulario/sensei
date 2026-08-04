@@ -437,41 +437,44 @@ func LoadTaskControl(path string) (taskcontrol.TaskControlState, error) {
 }
 
 func ControlStatus(repoRoot, taskDir string, active bool) (taskcontrol.TaskControlState, string, error) {
-	state, _, resolvedTaskDir, err := projectControlStatusAndClosure(repoRoot, taskDir, active, true, false)
+	state, _, _, resolvedTaskDir, err := projectControlStatusAndClosure(repoRoot, taskDir, active, true, false)
 	return state, resolvedTaskDir, err
 }
 
-// ResolveControlAndClosure atomically resolves both a task's current
-// control state and its current closure report from exactly one
-// currentControlPaths generation resolution -- never two independent
-// reads a concurrent sensei advance-task could split across.
+// ResolveControlAndClosure atomically resolves a task's current control
+// state, its current closure report, and its current admission decision
+// from exactly one currentControlPaths generation resolution -- never
+// independent reads a concurrent sensei advance-task could split across.
 //
 // AdvanceTask (below) publishes a new generation as two separate,
 // non-atomic writes: control/latest.yaml, then control/latest-generation.yaml
 // (see the writeFileAtomic pair a few dozen lines up in this file). A
-// caller that resolves control readiness and closure state through two
-// independent calls -- e.g. one call to ControlStatus, then a second,
-// later call re-resolving "the current generation" for the closure report
-// -- can observe the pointer move in between: the first call sees
-// generation N, the second sees generation N+1 (or vice versa), binding a
-// receipt to a control/closure pair that never coexisted as one real
-// generation. This function closes that window by resolving the
-// generation-scoped paths exactly once and loading both documents from
-// that single resolution before returning either.
+// caller that resolves control readiness, closure state, and the admission
+// decision through independent calls or paths -- e.g. one call to
+// ControlStatus, then a second, later call re-resolving "the current
+// generation" for the closure report, or a fixed read of the prepare-time
+// admission/decision.yaml instead of the current generation's own
+// recomputed decision -- can observe the pointer move in between, or miss
+// a decision AdvanceTask has since recomputed (admission.projectProof
+// derives obligations from the current closure's RelevantNodes, so an
+// initial decision can be empty while the current one is not). This
+// function closes that window by resolving the generation-scoped paths
+// exactly once and loading all three documents from that single
+// resolution before returning any of them.
 //
 // Unlike ControlStatus, this never takes the control/latest.yaml cache
 // shortcut projectControlStatus otherwise prefers (that shortcut never
 // loads a closure report at all, since taskcontrol.TaskControlState does
 // not carry one) -- it always rebuilds from the current generation's own
-// source documents, so both return values are guaranteed derived from the
-// same paths.
-func ResolveControlAndClosure(repoRoot, taskDir string, active bool) (taskcontrol.TaskControlState, closure.Report, error) {
-	state, report, _, err := projectControlStatusAndClosure(repoRoot, taskDir, active, true, true)
-	return state, report, err
+// source documents, so all three return values are guaranteed derived
+// from the same paths.
+func ResolveControlAndClosure(repoRoot, taskDir string, active bool) (taskcontrol.TaskControlState, closure.Report, admission.Decision, error) {
+	state, report, decision, _, err := projectControlStatusAndClosure(repoRoot, taskDir, active, true, true)
+	return state, report, decision, err
 }
 
 func projectControlStatus(repoRoot, taskDir string, active, useLatest bool) (taskcontrol.TaskControlState, string, error) {
-	state, _, resolvedTaskDir, err := projectControlStatusAndClosure(repoRoot, taskDir, active, useLatest, false)
+	state, _, _, resolvedTaskDir, err := projectControlStatusAndClosure(repoRoot, taskDir, active, useLatest, false)
 	return state, resolvedTaskDir, err
 }
 
@@ -482,51 +485,66 @@ func projectControlStatus(repoRoot, taskDir string, active, useLatest bool) (tas
 // so the caller is guaranteed a real closure.Report resolved from the
 // exact same currentControlPaths call as the returned control state, not
 // a zero value.
-func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest, forceRebuild bool) (taskcontrol.TaskControlState, closure.Report, string, error) {
+func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest, forceRebuild bool) (taskcontrol.TaskControlState, closure.Report, admission.Decision, string, error) {
 	repoRoot, taskDir, ptr, err := resolveControlTask(repoRoot, taskDir, active)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	var latestState *taskcontrol.TaskControlState
 	if state, loadErr := LoadTaskControl(filepath.Join(taskDir, "control", "latest.yaml")); useLatest && !forceRebuild && loadErr == nil {
 		latestState = &state
 	} else if useLatest && !forceRebuild && !os.IsNotExist(loadErr) {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", loadErr
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", loadErr
 	}
 	session, loadErrors, err := loadSessionForControl(filepath.Join(taskDir, "session.yaml"))
 	if err != nil {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	verifyErrors := cleanStrings(append(loadErrors, verifySession(repoRoot, taskDir, session, ptr)...))
 	if len(verifyErrors) == 0 && latestState != nil {
-		return *latestState, closure.Report{}, taskDir, nil
+		return *latestState, closure.Report{}, admission.Decision{}, taskDir, nil
 	}
 	paths := baseControlPaths(taskDir)
 	if useLatest {
 		paths, _, err = currentControlPaths(taskDir)
 		if err != nil {
-			return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+			return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 		}
 	}
 	claims, err := architecture.LoadClaimDocument(paths.Claims)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	dialogue, err := architecture.LoadDialogueDocument(paths.Dialogue)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	probes, err := probe.LoadDocument(paths.Probes, nil)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	closureReport, err := closure.LoadReport(filepath.Join(paths.Convergence, "latest", "closure-after-dialogue.yaml"))
 	if err != nil {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
-	decision, err := admission.LoadDecision(filepath.Join(taskDir, "admission", "decision.yaml"))
+	// The admission decision is resolved from the SAME generation as
+	// claims/dialogue/probes/closure above, mirroring BuildTaskBriefing's
+	// own decisionPath derivation (briefing.go) -- never the fixed
+	// prepare-time admission/decision.yaml once a generation exists. A
+	// live review found that reading the prepare-time file unconditionally
+	// let a task whose initial decision declared zero proof obligations
+	// reach candidate-ready even after `sensei advance-task` recomputed a
+	// CURRENT decision (control/generations/<digest>/admission-decision.yaml)
+	// declaring real ones: admission.projectProof derives obligations from
+	// the current closure's RelevantNodes, so the two decisions can
+	// genuinely diverge, and only the current one is authoritative.
+	decisionPath := filepath.Join(taskDir, "admission", "decision.yaml")
+	if paths.Results != "" {
+		decisionPath = filepath.Join(filepath.Dir(paths.Results), "admission-decision.yaml")
+	}
+	decision, err := admission.LoadDecision(decisionPath)
 	if err != nil {
-		return taskcontrol.TaskControlState{}, closure.Report{}, "", err
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	inspectCapability := decision.InspectionCapability
 	mutationCapability := decision.MutationCapability
@@ -553,7 +571,7 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 		Closure:    closureReport, Dialogue: dialogue, Claims: claims, Probes: probes, Results: results,
 		BindingHealthy: len(verifyErrors) == 0, BindingErrors: verifyErrors, GeneratedAt: "1970-01-01T00:00:00Z", Receipts: receipts,
 	})
-	return state, closureReport, taskDir, err
+	return state, closureReport, decision, taskDir, err
 }
 
 func loadSessionForControl(path string) (Session, []string, error) {

@@ -438,23 +438,26 @@ generation ever runs, before the O1 session is even constructed:
   obligation to a verified discharge digest, so a non-empty declaration
   refuses the run rather than being silently dropped.
 - **The task's own admission decision must declare zero proof
-  obligations too.** `sensei prepare-change` already projects real
-  `ProofObligation`/`ProofSlot` graph nodes into the task's persisted
-  admission decision (`Decision.ProofObligations`) -- this is authoritative
-  and checked independently of the interpretation file, which may add
-  context but can never erase or override obligations `prepare-change`
-  already recorded. `synthesis.Session.ProofObligationDigests` is only
-  ever constructed empty once both checks pass -- that empty slice means
-  "the accepted interpretation and the task's own admission decision both
-  declared none," never "Sensei searched every authority surface and found
-  none."
-- **Task readiness and the closure snapshot are resolved together,
-  atomically, from one control generation** -- via
-  `tasksession.ResolveControlAndClosure`, not two independent calls. A
-  concurrent `sensei advance-task` publishes a new generation as two
-  separate, non-atomic writes; two independently-resolved reads can
-  observe the pointer move in between and bind readiness to one
-  generation while binding the closure digest to another.
+  obligations too.** This is authoritative and checked independently of
+  the interpretation file, which may add context but can never erase or
+  override obligations already recorded. `synthesis.Session.ProofObligationDigests`
+  is only ever constructed empty once both checks pass -- that empty slice
+  means "the accepted interpretation and the task's own admission decision
+  both declared none," never "Sensei searched every authority surface and
+  found none."
+- **Task readiness, the closure snapshot, and the admission decision are
+  all resolved together, atomically, from one control generation** -- via
+  `tasksession.ResolveControlAndClosure`, never independent calls or a
+  fixed prepare-time path. A concurrent `sensei advance-task` publishes a
+  new generation as two separate, non-atomic writes; independently-resolved
+  reads can observe the pointer move in between and bind readiness to one
+  generation while binding the closure digest to another. The admission
+  decision specifically must come from the *current* generation's own
+  recomputed decision, not the fixed prepare-time
+  `admission/decision.yaml` -- `sensei advance-task` re-derives proof
+  obligations from the current closure's relevant nodes on every advance,
+  so a task's decision can go from declaring zero obligations at
+  prepare-time to declaring real ones after a later advance.
 - **Workspace identity composition now also requires sufficient graph
   coverage**, not just an authoritative (fresh, stamped) graph --
   `workspacecontract`'s `CompositionComplete` state requires
