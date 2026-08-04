@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -190,32 +191,28 @@ func TestProvider_ExecuteNilObserverIsSafe(t *testing.T) {
 	}
 }
 
-func TestProvider_ExecuteStampsFieldsIgnoringForeignFileValues(t *testing.T) {
+// TestNew_RejectsForeignStampedFields covers what
+// TestProvider_ExecuteStampsFieldsIgnoringForeignFileValues used to prove
+// under plain json.Unmarshal: a file that tries to claim a foreign
+// session_digest_sha256, schema version, or generator must not succeed in
+// doing so. Under the strict AuthoredInterpretation shape validation added
+// after a live review finding (validateAuthoredInterpretationTopLevelShape
+// + DisallowUnknownFields), those foreign keys don't just fail to leak
+// through silently -- they now cause New() to refuse the file outright, a
+// strictly stronger guarantee than "ignored."
+func TestNew_RejectsForeignStampedFields(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "interpretation.json")
-	// A file that tries to claim a foreign session_digest_sha256, schema
-	// version, or generator must not succeed in doing so -- those fields
-	// are unmarshaled by AuthoredInterpretation's deliberately narrower
-	// struct, which has no such fields at all.
-	if err := os.WriteFile(path, []byte(`{
-		"objective": "attempt to impersonate a different session",
+	body := strings.Replace(validInterpretationJSON, `"objective": "prove the file-backed provider works",`,
+		`"objective": "attempt to impersonate a different session",
 		"session_digest_sha256": "deadbeef",
 		"generated_by": "some-other-tool",
-		"schema_version": "not.a.real.version"
-	}`), 0o644); err != nil {
+		"schema_version": "not.a.real.version",`, 1)
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	p := mustNewProvider(t, path)
-	req := testRequest(t)
-	result, err := p.Execute(context.Background(), req, nil)
-	if err != nil {
-		t.Fatalf("Execute: %v", err)
-	}
-	if result.TerminalOutcome != providerport.OutcomeCompleted {
-		t.Fatalf("TerminalOutcome = %q, want completed; detail=%s", result.TerminalOutcome, result.Detail)
-	}
-	if result.InterpretationPayload.SessionDigestSHA256 != req.SessionDigestSHA256 {
-		t.Fatalf("foreign session_digest_sha256 leaked through: got %q, want %q", result.InterpretationPayload.SessionDigestSHA256, req.SessionDigestSHA256)
+	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
+		t.Fatal("expected an error for foreign stamped fields (session_digest_sha256, generated_by, schema_version)")
 	}
 }
 
@@ -282,6 +279,42 @@ func TestNew_MalformedJSON(t *testing.T) {
 	}
 	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
 		t.Fatal("expected an error for malformed JSON")
+	}
+}
+
+// TestNew_RejectsMisspelledRequiredField is the direct regression test for
+// a live review finding: a misspelled governance field name (here,
+// "require_proof_obligations" instead of "required_proof_obligations")
+// must be rejected outright, not silently treated as an explicit empty
+// declaration of the correctly-spelled field -- both used to be
+// indistinguishable under plain json.Unmarshal, since a struct field a
+// misspelled key never populates is left at the same Go zero value an
+// explicit empty array would produce.
+func TestNew_RejectsMisspelledRequiredField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	body := strings.Replace(validInterpretationJSON, `"required_proof_obligations": [],`, `"require_proof_obligations": [],`, 1)
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
+		t.Fatal("expected an error for a misspelled required field")
+	}
+}
+
+// TestNew_RejectsOmittedRequiredField covers the companion case: a field
+// left out of the file entirely (not merely misspelled) must be rejected
+// the same way -- an authored interpretation must explicitly declare every
+// field, even an empty one.
+func TestNew_RejectsOmittedRequiredField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	body := strings.Replace(validInterpretationJSON, `"required_proof_obligations": [],`, ``, 1)
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
+		t.Fatal("expected an error for an omitted required field")
 	}
 }
 
@@ -421,5 +454,42 @@ func TestNew_SameContentSameHashAcrossInstances(t *testing.T) {
 	p2 := mustNewProvider(t, path)
 	if p1.contentSHA256 == "" || p1.contentSHA256 != p2.contentSHA256 {
 		t.Fatalf("expected identical content hashes for identical content: %q vs %q", p1.contentSHA256, p2.contentSHA256)
+	}
+}
+
+// TestNew_RequiredTopLevelKeysMatchAuthoredInterpretationFields guards
+// authoredInterpretationFields (an explicit list, not reflection-derived)
+// against drift: every json tag AuthoredInterpretation actually declares
+// must appear in the list exactly once, and vice versa. A future field
+// added to the struct without updating the list would otherwise silently
+// stop being required, reopening the exact gap this shape check exists to
+// close.
+func TestNew_RequiredTopLevelKeysMatchAuthoredInterpretationFields(t *testing.T) {
+	structType := reflect.TypeOf(AuthoredInterpretation{})
+	fromStruct := make(map[string]struct{}, structType.NumField())
+	for i := 0; i < structType.NumField(); i++ {
+		tag := structType.Field(i).Tag.Get("json")
+		name, _, _ := strings.Cut(tag, ",")
+		if name == "" {
+			t.Fatalf("field %s has no json tag", structType.Field(i).Name)
+		}
+		fromStruct[name] = struct{}{}
+	}
+	fromList := make(map[string]struct{}, len(authoredInterpretationFields))
+	for _, name := range authoredInterpretationFields {
+		if _, dup := fromList[name]; dup {
+			t.Fatalf("authoredInterpretationFields lists %q more than once", name)
+		}
+		fromList[name] = struct{}{}
+	}
+	for name := range fromStruct {
+		if _, ok := fromList[name]; !ok {
+			t.Errorf("AuthoredInterpretation has json tag %q missing from authoredInterpretationFields", name)
+		}
+	}
+	for name := range fromList {
+		if _, ok := fromStruct[name]; !ok {
+			t.Errorf("authoredInterpretationFields lists %q, which AuthoredInterpretation has no json tag for", name)
+		}
 	}
 }

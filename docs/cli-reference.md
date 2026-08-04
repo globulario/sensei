@@ -421,6 +421,13 @@ repository has no per-rule overrides.
 Several preconditions are checked, and refused before planning or
 generation ever runs, before the O1 session is even constructed:
 
+- **The authored `--interpretation` file must declare every field of its
+  authored shape explicitly, and no others.** An omitted or misspelled
+  field name (e.g. `require_proof_obligations`) is indistinguishable from
+  that field being explicitly authored empty once decoded into Go, which
+  would let a typo silently satisfy the empty-proof-obligations check
+  below instead of being refused. An empty array or string is fine; an
+  absent or unrecognized key is not.
 - **The authored `--interpretation` file's `objective` must exactly match
   the resolved session objective** (`--objective`, or the task's own
   recorded description when omitted; both whitespace-normalized). A caller

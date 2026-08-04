@@ -232,8 +232,28 @@ func readAuthoredInterpretation(resolvedPath string, maxBytes int64) (AuthoredIn
 		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: %q contains ambiguous JSON: %w", resolvedPath, err)
 	}
 
+	// An omitted or misspelled top-level field (e.g.
+	// "require_proof_obligations" instead of "required_proof_obligations")
+	// is indistinguishable, under a plain json.Unmarshal into a Go struct,
+	// from that field being explicitly authored empty: both leave the Go
+	// field at its zero value, so RequiredProofObligations() reports
+	// empty either way. Downstream validateNoRequiredProofObligations then
+	// treats that as "the author explicitly declared no obligations" --
+	// the whole reason this provider requires a non-empty declaration to
+	// be an explicit, deliberate authoring act (see the objective-match
+	// and empty-obligations preconditions in cmd/awg's own review
+	// history), not silence surviving a typo. Require every top-level
+	// governance field to be explicitly present -- even if its value is
+	// an empty array or string -- and reject any top-level key this shape
+	// does not know about, before ever decoding into AuthoredInterpretation.
+	if err := validateAuthoredInterpretationTopLevelShape(raw); err != nil {
+		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: %q: %w", resolvedPath, err)
+	}
+
 	var authored AuthoredInterpretation
-	if err := json.Unmarshal(raw, &authored); err != nil {
+	strictDecoder := json.NewDecoder(bytes.NewReader(raw))
+	strictDecoder.DisallowUnknownFields()
+	if err := strictDecoder.Decode(&authored); err != nil {
 		return AuthoredInterpretation{}, "", fmt.Errorf("fileinterpretation: parse %q: %w", resolvedPath, err)
 	}
 
@@ -371,6 +391,53 @@ func finishResult(result providerport.Result) (providerport.Result, error) {
 // rejectDuplicateJSONKeys rejects last-value-wins ambiguity in an authored
 // interpretation file before it is decoded into AuthoredInterpretation. It
 // walks nested objects and arrays as well as the top-level document.
+// authoredInterpretationFields is exactly the set of JSON field names
+// AuthoredInterpretation's struct tags declare. Kept as an explicit list
+// (not derived via reflection) so this shape check has no runtime
+// dependency on struct-tag introspection succeeding -- a missing or
+// misspelled entry here would be caught immediately by
+// TestNew_RequiredTopLevelKeysMatchAuthoredInterpretationFields.
+var authoredInterpretationFields = []string{
+	"objective",
+	"applicable_intent",
+	"binding_invariants",
+	"relevant_contracts",
+	"authority_boundaries",
+	"known_failure_modes",
+	"forbidden_fixes",
+	"required_proof_obligations",
+	"assumptions",
+	"unresolved_questions",
+	"source_references",
+	"limitations",
+}
+
+// validateAuthoredInterpretationTopLevelShape requires raw's top-level
+// JSON object to carry exactly the keys authoredInterpretationFields
+// names -- every one present (even if its value is an empty array or
+// string), and no others. Called after rejectDuplicateJSONKeys has
+// already ruled out ambiguous duplicate keys, so a plain map decode here
+// carries no last-value-wins risk.
+func validateAuthoredInterpretationTopLevelShape(raw []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return fmt.Errorf("decode top-level shape: %w", err)
+	}
+	expected := make(map[string]struct{}, len(authoredInterpretationFields))
+	for _, name := range authoredInterpretationFields {
+		expected[name] = struct{}{}
+		if _, ok := fields[name]; !ok {
+			return fmt.Errorf("missing required field %q -- an authored interpretation must explicitly declare every field (an empty array or string is fine; an absent key is not)", name)
+		}
+	}
+	for name := range fields {
+		if _, ok := expected[name]; !ok {
+			return fmt.Errorf("unknown field %q -- not a field this provider's AuthoredInterpretation shape recognizes", name)
+		}
+	}
+	return nil
+}
+
 func rejectDuplicateJSONKeys(data []byte) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
