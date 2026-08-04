@@ -210,6 +210,18 @@ func scaffoldProjectWithReport(root string, opts initOptions) (initReport, error
 			return initReport{}, fmt.Errorf("write %s: %w", dst, err)
 		}
 		created = append(created, dst)
+
+		// Record the exact pack this project was initialized from. Without
+		// this baseline a later `principle-pack refresh` cannot tell an
+		// upstream addition from an entry the project deliberately deleted,
+		// and must refuse to apply. Writing it here is what makes future
+		// refreshes provable rather than guessed.
+		if name == "meta_principles.yaml" {
+			if err := writeInstallRecord(root, content); err != nil {
+				return initReport{}, fmt.Errorf("write principle-pack install record: %w", err)
+			}
+			created = append(created, filepath.Join(root, installRecordPath))
+		}
 	}
 
 	// Create the state directory (.sensei, or a pre-existing legacy .awg).
