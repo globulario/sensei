@@ -4906,6 +4906,15 @@
 <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> <https://globular.io/awareness#forbids> <https://globular.io/awareness#forbiddenFix/forbidden.silent_default_in_state_dispatch> .
 <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> <https://globular.io/awareness#severity> "high" .
 <https://globular.io/awareness#invariant/meta.silence_is_not_valid_for_unexpected> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <http://www.w3.org/2000/01/rdf-schema#label> "One canonical derivation, and it must arrive — projections may not reconstruct, derivations may not dead-end" .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.code_must_not_mirror_external_enumerations> .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.competing_writers_must_converge_or_be_fenced> .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.half_done_must_not_look_done> .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> <https://globular.io/awareness#status> "candidate" .
 <https://globular.io/awareness#invariant/meta.state_mutations_must_be_durably_committed_before_side_effects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.state_mutations_must_be_durably_committed_before_side_effects> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.state_mutations_must_be_durably_committed_before_side_effects> <http://www.w3.org/2000/01/rdf-schema#label> "Intent commits before action, retry is the only response to failure — no alternative paths once committed" .
@@ -7883,9 +7892,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-339022f05db38614dc9e9dea3acb512f7cb85fa226b6ed55a98845d8aaa85500> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-339022f05db38614dc9e9dea3acb512f7cb85fa226b6ed55a98845d8aaa85500> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 339022f05db3" .
-<https://globular.io/awareness#seedBuild/sha256-339022f05db38614dc9e9dea3acb512f7cb85fa226b6ed55a98845d8aaa85500> <https://globular.io/awareness#seedDigestSha256> "339022f05db38614dc9e9dea3acb512f7cb85fa226b6ed55a98845d8aaa85500" .
-<https://globular.io/awareness#seedBuild/sha256-339022f05db38614dc9e9dea3acb512f7cb85fa226b6ed55a98845d8aaa85500> <https://globular.io/awareness#seedTripleCount> "7891" .
-<https://globular.io/awareness#seedBuild/sha256-339022f05db38614dc9e9dea3acb512f7cb85fa226b6ed55a98845d8aaa85500> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-339022f05db38614dc9e9dea3acb512f7cb85fa226b6ed55a98845d8aaa85500> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-54fc732f80ebbdaafdf242fa033b3ae074a2ad8ab5cfa91dd831fad2970d1c1b> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-54fc732f80ebbdaafdf242fa033b3ae074a2ad8ab5cfa91dd831fad2970d1c1b> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 54fc732f80eb" .
+<https://globular.io/awareness#seedBuild/sha256-54fc732f80ebbdaafdf242fa033b3ae074a2ad8ab5cfa91dd831fad2970d1c1b> <https://globular.io/awareness#seedDigestSha256> "54fc732f80ebbdaafdf242fa033b3ae074a2ad8ab5cfa91dd831fad2970d1c1b" .
+<https://globular.io/awareness#seedBuild/sha256-54fc732f80ebbdaafdf242fa033b3ae074a2ad8ab5cfa91dd831fad2970d1c1b> <https://globular.io/awareness#seedTripleCount> "7900" .
+<https://globular.io/awareness#seedBuild/sha256-54fc732f80ebbdaafdf242fa033b3ae074a2ad8ab5cfa91dd831fad2970d1c1b> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-54fc732f80ebbdaafdf242fa033b3ae074a2ad8ab5cfa91dd831fad2970d1c1b> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .

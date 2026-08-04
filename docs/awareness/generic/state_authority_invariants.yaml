@@ -1198,6 +1198,123 @@ invariants:
     related_invariants:
       - meta.state_mutations_must_be_durably_committed_before_side_effects
 
+  - id: meta.single_derivation_path_must_reach_its_consumer
+    title: "One canonical derivation, and it must arrive — projections may not reconstruct, derivations may not dead-end"
+    category: authority
+    antipattern: "The value is computed correctly, therefore the behaviour is correct"
+    wrong_instinct: A correct derivation feels like a finished job. Reading the producer shows the right value being computed from the right authority, so the reviewer stops there. But a fact only governs behaviour at the point it is CONSUMED, and nothing in the producer reveals whether anyone consumes it. The absence of a consumer looks exactly like the presence of one — no error, no disagreement, no failing test — because there is no second representation to disagree with.
+    severity: high
+    status: candidate
+    summary: |
+      A fact used to authorize, enumerate, render, or actuate behaviour
+      must have ONE canonical derivation path. Consumers may PROJECT that
+      fact; they must not independently RECONSTRUCT it.
+
+      The principle has TWO failure sub-shapes. They must not be collapsed
+      into a single "duplicate truth" rule, because they have different
+      detection signatures and therefore need different proof obligations.
+
+      SUB-SHAPE 1 — enumeration fork.
+        Signature: both representations exist, both are populated, one is
+        intended to reflect the other, and they can silently drift.
+        Detection: COMPARISON is sufficient — regenerate-and-diff parity,
+        canonical enumeration comparison, missing/extra entry checks.
+        This is the shape of meta.code_must_not_mirror_external_enumerations,
+        which covers it fully.
+
+      SUB-SHAPE 2 — broken derivation chain.
+        Signature: the canonical derivation is CORRECT. No conflicting
+        representation exists. The derived value never reaches an
+        authority-bearing consumer. Nothing disagrees; the fact is simply
+        inert.
+        Detection: comparison CANNOT see this. Proof requires showing the
+        derivation REACHES its consumer — consumer-reachability checks,
+        producer-to-consumer obligations, wiring/handler-context tests,
+        actuator-invocation tests, and runtime verification where static
+        wiring cannot prove behavioural consumption.
+
+      No comparison test can detect a broken derivation chain when no
+      second representation exists.
+
+      Observed instances of sub-shape 2:
+        - A controller renderer computed correct database seed
+          configuration on every plan cycle from authoritative membership,
+          and no actuator ever applied the rendered result to an
+          already-configured node. The renderer was healthy; the actuator
+          was absent. Only a live multi-node run exposed it — static
+          reading of the renderer showed nothing but correct code.
+        - An authentication interceptor derived the authenticated subject
+          and propagated it into handler context, where ~20 production
+          call sites consume it — but the object-store topology approval
+          path had no production caller at all, so the identity it records
+          could not arrive. The chain broke one hop past where it looked
+          broken.
+        - A parity gate for sub-shape 1 searched for its canonical source
+          at a path the source repository had moved away from, so it took
+          its skip path and asserted nothing — in CI as well as locally —
+          while reporting the same green as a passing run. The guard was
+          itself a derivation that no longer reached its subject.
+
+      A third shape sits under the same parent but is neither of the above:
+      an AUTHORITY-SOURCE FORK, where two competing SOURCES exist for one
+      authority-bearing value rather than two copies of one enumeration —
+      for example a caller-supplied `approved_by` field competing with the
+      server-derived authenticated identity. Parity cannot detect it; it is
+      prevented by provenance enforcement (authority-bearing identity must
+      not be caller-supplied). Recorded here as a known variant, not yet
+      promoted to a full sub-shape: one prevented instance is not enough
+      evidence to justify a third family.
+
+      Related:
+        - meta.code_must_not_mirror_external_enumerations — the parent's
+          first sub-shape, fully covered there.
+        - meta.competing_writers_must_converge_or_be_fenced — there two
+          writers are alive and disagree; here the second consumer is
+          missing entirely and nothing disagrees.
+        - meta.half_done_must_not_look_done — the same family of silence:
+          an operation that has not arrived must not present as complete.
+    enforcement: |
+      Two obligations, one per sub-shape. Discharging the wrong one is the
+      most common error.
+
+      For FORKED REPRESENTATIONS (sub-shape 1) — PARITY:
+        A regenerate-and-diff, or walk-the-source-and-set-difference gate
+        that fails on entries missing from the projection AND on phantom
+        entries in it.
+
+        A parity obligation is NOT discharged by the existence of a parity
+        test. The test must be shown to have actually asserted: a guard
+        whose source-discovery silently misses will skip and report green
+        forever. Require the gate to state what it consumed (counts, source
+        path) and to fail — never skip — when its canonical input is
+        unavailable.
+
+      For DISCONNECTED DERIVATIONS (sub-shape 2) — CONSUMER REACHABILITY:
+        A producer-to-consumer obligation proving the derived value
+        arrives. Static wiring tests suffice when the consumer is a direct
+        call. Where static wiring cannot prove behavioural consumption —
+        configuration that must reach disk, an identity that must reach a
+        persisted record, a decision that must reach an actuator — runtime
+        verification is required.
+
+        A PARITY GATE MUST NOT BE ACCEPTED AS EVIDENCE FOR THIS SUB-SHAPE.
+        Parity proves agreement between representations. It never proves
+        arrival at a consumer.
+
+      When a derived value legitimately cannot be applied immediately
+      (restart-sensitive components, operator-gated topology changes), the
+      obligation is not waived — it becomes a recorded DISPOSITION
+      (applied / deferred-until-safe / operator-gated / refused-with-reason).
+      Silent omission is the failure; a governed refusal is not.
+
+      Review question that finds sub-shape 2 fastest: "who reads this, and
+      what breaks if nobody does?" If the honest answer to the second half
+      is "nothing", the derivation is inert and the code is decorative.
+    related_invariants:
+      - meta.code_must_not_mirror_external_enumerations
+      - meta.competing_writers_must_converge_or_be_fenced
+      - meta.half_done_must_not_look_done
+
   - id: meta.code_must_not_mirror_external_enumerations
     title: "Code mirrors of external truth drift silently — derive the set, don't author it"
     category: authority
