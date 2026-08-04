@@ -318,6 +318,42 @@ func TestNew_RejectsOmittedRequiredField(t *testing.T) {
 	}
 }
 
+// TestNew_RejectsNullRequiredField is the direct regression test for a
+// live review finding: a JSON `null` value unmarshals into a []string
+// field as a silent no-op leaving it nil -- the same zero value an
+// explicit "[]" produces, and no error -- so an authored
+// "required_proof_obligations": null previously passed the presence-only
+// shape check (the key exists) and then satisfied
+// validateNoRequiredProofObligations's empty check exactly as if the
+// author had explicitly declared no obligations.
+func TestNew_RejectsNullRequiredField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	body := strings.Replace(validInterpretationJSON, `"required_proof_obligations": [],`, `"required_proof_obligations": null,`, 1)
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
+		t.Fatal("expected an error for a null required field")
+	}
+}
+
+// TestNew_RejectsNullStringField covers the same null-is-zero-value gap
+// for a string field (Objective), not just a slice field -- encoding/json
+// treats null identically (a no-op producing the zero value) regardless
+// of the target field's type.
+func TestNew_RejectsNullStringField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "interpretation.json")
+	body := strings.Replace(validInterpretationJSON, `"objective": "prove the file-backed provider works",`, `"objective": null,`, 1)
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(Config{Path: path, ProviderID: "p", ObservedAt: testObservedAt}); err == nil {
+		t.Fatal("expected an error for a null string field")
+	}
+}
+
 // TestNew_RejectsDuplicateTopLevelKey is the direct regression test for the
 // live review finding: a duplicate "required_proof_obligations" key (last
 // one empty) must never silently shadow the first, real declaration under

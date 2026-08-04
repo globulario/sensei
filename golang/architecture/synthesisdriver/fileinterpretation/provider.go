@@ -426,8 +426,21 @@ func validateAuthoredInterpretationTopLevelShape(raw []byte) error {
 	expected := make(map[string]struct{}, len(authoredInterpretationFields))
 	for _, name := range authoredInterpretationFields {
 		expected[name] = struct{}{}
-		if _, ok := fields[name]; !ok {
+		value, ok := fields[name]
+		if !ok {
 			return fmt.Errorf("missing required field %q -- an authored interpretation must explicitly declare every field (an empty array or string is fine; an absent key is not)", name)
+		}
+		// A JSON `null` value unmarshals into any Go type (string, slice,
+		// struct slice) as a silent no-op leaving the zero value, with no
+		// error -- encoding/json's documented behavior for "null into any
+		// non-pointer type." That is exactly the same zero value an
+		// explicit "[]" or "" produces, so `null` would otherwise pass the
+		// presence check above and still satisfy an empty-declaration gate
+		// downstream, even though `null` is not a valid value for any of
+		// AuthoredInterpretation's array or string fields under
+		// synthesis.Interpretation's own JSON schema.
+		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return fmt.Errorf("field %q is null -- an authored interpretation must explicitly declare every field with a real value (an empty array or string is fine; null is not)", name)
 		}
 	}
 	for name := range fields {
