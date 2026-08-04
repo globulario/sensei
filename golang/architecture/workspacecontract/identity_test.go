@@ -71,3 +71,58 @@ func TestComposeIdentity_NonAuthoritativeIsStillPartialRegardlessOfCoverage(t *t
 		t.Fatalf("CompositionState = %q, want partial", id.CompositionState)
 	}
 }
+
+// TestComposeIdentity_PartialAlwaysNamesALimitation is the regression test
+// for a live finding: sensei synthesis-run's workspace-identity error path
+// prints identity.Limitations to explain a non-complete CompositionState,
+// but a caller (composeSynthesisRunIdentity) only ever appends a Limitation
+// for domain-unbound, revision-resolution, and RPC-connection failures --
+// never for a reachable-but-not-authoritative graph or insufficient
+// coverage, the other two conditions deriveCompositionState itself checks.
+// A run that hit CompositionPartial for exactly one of those two reasons
+// printed an empty limitations list: "workspace identity is partial, not
+// complete:" with nothing after it. ComposeIdentity must always name the
+// dimension(s) it found lacking, regardless of what the caller supplied.
+func TestComposeIdentity_PartialAlwaysNamesALimitation(t *testing.T) {
+	thinCoverage := baseComposableInputs()
+	thinCoverage.CoverageState = "COVERAGE_STATE_THIN"
+	id := ComposeIdentity(thinCoverage)
+	if len(id.Limitations) == 0 {
+		t.Fatal("thin-coverage partial identity carries zero limitations; the reason for partial is unexplained")
+	}
+	foundCoverage := false
+	for _, l := range id.Limitations {
+		if l.Scope == "coverage_state" {
+			foundCoverage = true
+		}
+	}
+	if !foundCoverage {
+		t.Fatalf("expected a coverage_state limitation, got %+v", id.Limitations)
+	}
+
+	nonAuthoritative := baseComposableInputs()
+	nonAuthoritative.GraphAuthority.Authoritative = false
+	id = ComposeIdentity(nonAuthoritative)
+	if len(id.Limitations) == 0 {
+		t.Fatal("non-authoritative partial identity carries zero limitations; the reason for partial is unexplained")
+	}
+	foundAuthority := false
+	for _, l := range id.Limitations {
+		if l.Scope == "graph_authority" {
+			foundAuthority = true
+		}
+	}
+	if !foundAuthority {
+		t.Fatalf("expected a graph_authority limitation, got %+v", id.Limitations)
+	}
+}
+
+// TestComposeIdentity_CompleteHasNoSyntheticLimitations guards against the
+// fix over-firing: a genuinely complete identity must not gain any of the
+// new partial-only limitations.
+func TestComposeIdentity_CompleteHasNoSyntheticLimitations(t *testing.T) {
+	id := ComposeIdentity(baseComposableInputs())
+	if len(id.Limitations) != 0 {
+		t.Fatalf("expected no limitations on a complete identity, got %+v", id.Limitations)
+	}
+}
