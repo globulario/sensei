@@ -3144,16 +3144,82 @@ test_symbols:
     symbol: TestRecordProbeResultBuildsOfflineReceipt
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestAtomicCreateFile_RefusesWhenTargetExists
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestAtomicCreateFile_RefusesWhenTargetExists
+    package: main
+    language: go
+    doc: "TestAtomicCreateFile_RefusesWhenTargetExists proves atomicCreateFile has\ntrue create-only semantics: unlike atomicWriteFile's rename (an\nunconditional replace), it must fail -- with an error satisfying\nos.IsExist -- and leave the existing target completely untouched, rather\nthan silently overwriting content that arrived between any absence-check\na caller might have done and this call."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestAtomicCreateFile_SucceedsForNewFile
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestAtomicCreateFile_SucceedsForNewFile
+    package: main
+    language: go
+    doc: "TestAtomicCreateFile_SucceedsForNewFile is the sanity case: creating a\nfile that does not exist yet works and its content is correct."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestMkdirAllSynced_AlwaysResyncsEvenWhenAlreadyExisting
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestMkdirAllSynced_AlwaysResyncsEvenWhenAlreadyExisting
+    package: main
+    language: go
+    doc: "TestMkdirAllSynced_AlwaysResyncsEvenWhenAlreadyExisting proves the actual\nfix: mkdirAllSynced does NOT skip syncing a level merely because it\nalready exists on disk. A directory being visible is not proof its\ncreation was ever made durable -- a previous call may have created it and\nthen had its own sync fail transiently, and there is no on-disk marker\ndistinguishing \"exists and durable\" from \"exists and never confirmed\". A\nprior version of this function detected \"newly created\" levels by\nexistence and skipped resyncing anything already visible; that was\nexactly the bug Codex's review found (a retry after a transient sync\nfailure never re-attempted it). Calling mkdirAllSynced a second time, on\na path that already fully exists from the first call, must still sync\nevery level up to boundary."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestMkdirAllSynced_RejectsPathNotUnderBoundary
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestMkdirAllSynced_RejectsPathNotUnderBoundary
+    package: main
+    language: go
+    doc: "TestMkdirAllSynced_RejectsPathNotUnderBoundary proves a path outside the\ngiven boundary errors rather than climbing to the filesystem root and\nsyncing directories far outside anything this call is responsible for."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestMkdirAllSynced_RejectsPathThroughExistingFile
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestMkdirAllSynced_RejectsPathThroughExistingFile
+    package: main
+    language: go
+    doc: "TestMkdirAllSynced_RejectsPathThroughExistingFile proves a regular file\nblocking a required directory level produces a clear error rather than\nmkdir's own less specific failure."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestMkdirAllSynced_SyncsEveryLevelUpToBoundary
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestMkdirAllSynced_SyncsEveryLevelUpToBoundary
+    package: main
+    language: go
+    doc: "TestMkdirAllSynced_SyncsEveryLevelUpToBoundary proves mkdirAllSynced syncs\nevery directory level from path up to (and including) boundary, not just\nthe leaf's own parent -- creating \".sensei/principle-pack/adoptions\" from\nscratch (an existing \".sensei\" boundary, but neither \"principle-pack\" nor\n\"adoptions\" yet) must sync both \".sensei\" (to make \"principle-pack\"\ndurable) and \".sensei/principle-pack\" (to make \"adoptions\" durable). A\nsingle sync of the leaf's own contents proves nothing about whether the\nleaf itself, or its own parent, durably exists."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_AdditiveUpstreamEntryApplies
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_AdditiveUpstreamEntryApplies
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ApplyReplayRefusesWhenMirrorChangedSinceInitialRead
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ApplyReplayRefusesWhenMirrorChangedSinceInitialRead
+    package: main
+    language: go
+    doc: "TestPackRefresh_ApplyReplayRefusesWhenMirrorChangedSinceInitialRead proves\nthe already-current --apply fast path does not trust the digest computed\nat the top of this function as still true. Unlike commitMirror, this\npath performs no write of its own to naturally re-validate against; an\neditor changing the mirror in the gap between that initial read and this\nfast path reporting success must be caught, not silently reported as a\nsuccessful apply against content that may no longer match the pack at\nall."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ApplyReplayResyncsMirrorDirectory
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ApplyReplayResyncsMirrorDirectory
+    package: main
+    language: go
+    doc: "TestPackRefresh_ApplyReplayResyncsMirrorDirectory proves the\n\"mirror already matches the pack\" fast path does not treat correct\non-disk mirror bytes as proof commitMirror's earlier directory sync ever\nsucceeded. A prior --apply's rename could have completed while its final\nsyncDir failed transiently; a naive replay reporting success here would\nleave that unconfirmed, letting a later crash still revert the mirror\ndespite the \"successful\" retry."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories
+    package: main
+    language: go
+    doc: "TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories proves the ordering\nCodex's review specified: the receipt's directory entry is durable\n(synced) before commitMirror ever runs, and the mirror's directory entry\nis synced before refresh reports success. Both writes already succeed\nunder the existing full-apply tests; this asserts the specific ordering\nby exercising the real files on a real filesystem rather than mocking\nsyncDir, since the property under test is \"did the real directory get\nsynced\", not \"was a function called\"."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ConcurrentEditDuringPrepareIsCaught
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ConcurrentEditDuringPrepareIsCaught
+    package: main
+    language: go
+    doc: "TestPackRefresh_ConcurrentEditDuringPrepareIsCaught lands the concurrent\nedit from INSIDE commitMirror's own execution -- after the replacement\ntemp file is written, synced, and chmoded, immediately before the\npre-rename re-check -- rather than before commitMirror is even called.\nTestPackRefresh_ConcurrentMirrorEditRefusesAtCommit above would already\npass against the OLD ordering (check first, then write+sync+chmod, then\nrename): editing before the call was always caught. Only this ordering\n(prepare first, re-check immediately before the rename) can catch an\nedit that lands during preparation, which is the actual window a\nconcurrent editor's save can race."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ConcurrentMirrorEditRefusesAtCommit
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_ConcurrentMirrorEditRefusesAtCommit
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ConcurrentReceiptCreationDuringRaceIsNotClobbered
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ConcurrentReceiptCreationDuringRaceIsNotClobbered
+    package: main
+    language: go
+    doc: "TestPackRefresh_ConcurrentReceiptCreationDuringRaceIsNotClobbered proves\nthe mechanism writePrinciplePackRecord actually relies on end to end: a\nreceipt that appears at the exact digest-named path AFTER this process's\nown logical decision point (simulated here by writing it directly, since\nthe whole point of atomicCreateFile is that there is no observable gap\nto land a hook in) is treated as \"already there\" -- read and compared --\nnever silently replaced by an unconditional rename."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ConflictingExistingRecordRefuses
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_ConflictingExistingRecordRefuses
@@ -3174,11 +3240,47 @@ test_symbols:
     symbol: TestPackRefresh_ExactReplayDoesNotRewrite
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ExactReplayRetriesDirectorySync
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ExactReplayRetriesDirectorySync
+    package: main
+    language: go
+    doc: "TestPackRefresh_ExactReplayRetriesDirectorySync proves the replay branch\nof writePrinciplePackRecord does not treat identical on-disk bytes as\nproof the directory sync ever succeeded. A prior run may have renamed the\nreceipt into place and then hit a transient sync failure; a naive replay\nwould see the correct bytes and return success without ever retrying the\nsync, letting the caller proceed to commitMirror on an unconfirmed\nreceipt."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ExtraTopLevelKeyRefuses
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_ExtraTopLevelKeyRefuses
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FirstAdoptionSyncsNewAdoptionsDirParent
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_FirstAdoptionSyncsNewAdoptionsDirParent
+    package: main
+    language: go
+    doc: "TestPackRefresh_FirstAdoptionSyncsNewAdoptionsDirParent is the integration\ncase Codex's review named directly: on a project's FIRST adoption,\n\".sensei/principle-pack/adoptions\" does not exist yet. A real --apply run\nmust sync its parent (\".sensei/principle-pack\") so the new \"adoptions\"\nentry itself is durable, not just the receipt written inside it."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FreshStateDirCreationSyncsRoot
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_FreshStateDirCreationSyncsRoot
+    package: main
+    language: go
+    doc: "TestPackRefresh_FreshStateDirCreationSyncsRoot proves mkdirAllSynced's\nboundary is root itself, not statedir.Path(root): on a project with\nNEITHER \".sensei\" nor \".awg\" yet, this call's own MkdirAll creates the\nstate directory fresh. Stopping the sync at the state directory (a\nprior version of this function did) would leave ITS OWN creation --\nthe new \".sensei\" entry inside root -- unsynced."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_InitDoesNotFabricateBaselineForCustomizedMirror
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_InitDoesNotFabricateBaselineForCustomizedMirror
+    package: main
+    language: go
+    doc: "TestPackRefresh_InitDoesNotFabricateBaselineForCustomizedMirror is the\nother side of the retry fix: a mirror that already exists but does NOT\nmatch the template (a project customized it before this baseline\nmechanism existed) must never get a baseline recorded against content it\ndid not actually start from — that would let `principle-pack refresh`\ntreat a real local edit as a verified, untouched install."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_InitRetryAfterPartialWriteRecoversBaseline
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_InitRetryAfterPartialWriteRecoversBaseline
+    package: main
+    language: go
+    doc: "TestPackRefresh_InitRetryAfterPartialWriteRecoversBaseline reproduces a\ncrash between writing the mirror and writing its install baseline: a\nprevious `sensei init` (or a process that died mid-run) left\nmeta_principles.yaml on disk, template-identical, with no\ninstalled.yaml. The old code's early `continue` on \"file already exists\"\nskipped the whole baseline block on retry, so re-running init reported\nsuccess while leaving the project permanently unrecoverable by\n`principle-pack refresh` (a real mirror, no baseline, refuses forever)."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_InitRetryResyncsExistingCorrectBaseline
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_InitRetryResyncsExistingCorrectBaseline
+    package: main
+    language: go
+    doc: "TestPackRefresh_InitRetryResyncsExistingCorrectBaseline proves init does\nnot treat an already-present, byte-correct install record as proof its\ndirectory sync ever succeeded. A prior init may have renamed\ninstalled.yaml into place and then hit a transient sync failure; a naive\nretry that only checks \"does the record file already exist\" would skip\nwriteInstallRecord entirely and silently report success without ever\nretrying the sync that was never confirmed."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_InitWritesUsableBaseline
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_InitWritesUsableBaseline
@@ -3189,6 +3291,12 @@ test_symbols:
     symbol: TestPackRefresh_InterruptedApplyIsResumable
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_LegacyAwgStateDirUsedWhenSenseiAbsent
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_LegacyAwgStateDirUsedWhenSenseiAbsent
+    package: main
+    language: go
+    doc: "TestPackRefresh_LegacyAwgStateDirUsedWhenSenseiAbsent proves the\nprinciple-pack lock, baseline, and adoption paths route through\nstatedir.Path (the active state directory) rather than a hard-coded\n\".sensei/...\" literal. A legacy repo with \".awg\" but no \".sensei\" must\nhave its principle-pack state written under \".awg\", not a freshly\ncreated \".sensei\" — a hard-coded path would make statedir.Name prefer\n\".sensei\" from then on, splitting the project's state in two."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_LocalExtraEntryRefuses
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_LocalExtraEntryRefuses
@@ -3224,6 +3332,12 @@ test_symbols:
     symbol: TestPackRefresh_NoBaselineReportsCauseUnknownNotAddition
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_PlanReplayDoesNotSync
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_PlanReplayDoesNotSync
+    package: main
+    language: go
+    doc: "TestPackRefresh_PlanReplayDoesNotSync proves plan mode (no --apply) stays\nread-only even on the already-current fast path: it must not attempt any\ndirectory sync, matching every other side-effecting step in this command\nbeing gated on --apply."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReceiptBindsOldAndNewDigests
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_ReceiptBindsOldAndNewDigests
@@ -3234,11 +3348,59 @@ test_symbols:
     symbol: TestPackRefresh_ReconcileLegacyAuthorizesAndIsRecorded
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_RecoveredReceiptResyncFailureRefusesAndLeavesMirrorAlone
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_RecoveredReceiptResyncFailureRefusesAndLeavesMirrorAlone
+    package: main
+    language: go
+    doc: "TestPackRefresh_RecoveredReceiptResyncFailureRefusesAndLeavesMirrorAlone\nproves a failed resync on the recovery path is surfaced, not silently\nignored, and the mirror is left untouched rather than committed against\nan unconfirmed receipt."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_RecoveredReceiptResyncedBeforeCommit
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_RecoveredReceiptResyncedBeforeCommit
+    package: main
+    language: go
+    doc: "TestPackRefresh_RecoveredReceiptResyncedBeforeCommit proves the\nopenIntentFor recovery branch does not treat a visible receipt as proof\nits own directory sync ever succeeded. The receipt existing here is not\nevidence of that: an earlier run's atomicCreateFile could have linked it\nsuccessfully and then hit a transient sync failure, exactly the case\nwritePrinciplePackRecord's own exact-replay branch already guards. This\nrecovery branch never calls writePrinciplePackRecord again (the receipt\nis already correct), so it must repeat the resync itself before\ncommitting the mirror."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_SymlinkedAdoptionRecordIgnored
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_SymlinkedAdoptionRecordIgnored
+    package: main
+    language: go
+    doc: "TestPackRefresh_SymlinkedAdoptionRecordIgnored proves loadRecords (used\nby both verifyBaseline's fallback check and openIntentFor/\nrecordForResult) does not follow a symlinked receipt either -- the same\nclass of risk as the baseline record, just for prior-adoption evidence\ninstead of the install baseline."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_SymlinkedBaselineRecordNotTrustedAsVerified
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_SymlinkedBaselineRecordNotTrustedAsVerified
+    package: main
+    language: go
+    doc: "TestPackRefresh_SymlinkedBaselineRecordNotTrustedAsVerified proves\nverifyBaseline does not follow a symlinked installed.yaml. A digest\nmatch through a symlink is not this project's own verified history --\nit is, at best, another checkout's real install record (the concrete\nrisk: a worktree resolving into a different checkout's governance\nstate) -- and trusting it would let --apply classify genuinely missing\nids as upstream additions and replace this checkout's mirror without\nreal local adoption provenance."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_SymlinkedParentDirectoryRefuses
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_SymlinkedParentDirectoryRefuses
+    package: main
+    language: go
+    doc: "TestPackRefresh_SymlinkedParentDirectoryRefuses proves the leaf-symlink\ncheck above is not sufficient by itself: Lstat-ing only\nmeta_principles.yaml would pass here, since the LEAF is a real file --\nbut its PARENT, \"docs/awareness\", is a symlink to an outside directory.\nThe read and any later rename would still traverse it, redirecting\noutside root exactly as the destination-replacement case above, just one\nlevel up the path."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_SymlinkedStateDirRefusesWithoutMutatingTarget
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_SymlinkedStateDirRefusesWithoutMutatingTarget
+    package: main
+    language: go
+    doc: "TestPackRefresh_SymlinkedStateDirRefusesWithoutMutatingTarget proves\nmkdirAllSynced's ancestor/leaf symlink check for the ACTIVE STATE\nDIRECTORY itself (\".sensei\" or \".awg\"), not just the mirror's parent\npath. statedir.Path resolves the state directory via os.Stat, which\nfollows a symlink, and plain os.MkdirAll on something that already\nStats as a directory (even through a symlink) does nothing further and\nsucceeds silently -- so a project whose \".sensei\" is a symlink to\nsomewhere else entirely (standing in here for the real risk: another\ncheckout's real governance state, e.g. a worktree accidentally\nresolving into the main checkout's \".sensei\") would otherwise have\n--apply create principle-pack/, its lock, and adoption evidence\nthere instead, before the mirror is ever even read.\n\nThis asserts every property that finding actually requires, not just\n\"the call returns an error\":\n  - the state directory resolves without a competing real \".sensei\" or\n    \".awg\" being created alongside/instead of the symlink;\n  - the symlink's target -- standing in for another checkout's real\n    governance state -- is left completely untouched, not just \"the\n    mirror wasn't written\";\n  - retrying behaves identically: same refusal, same untouched target,\n    not a different error class or a partial mutation on a second try."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_TrailingYAMLDocumentRefuses
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_TrailingYAMLDocumentRefuses
+    package: main
+    language: go
+    doc: "TestPackRefresh_TrailingYAMLDocumentRefuses proves a second \"---\"\ndocument is caught the same way an extra top-level key within one\ndocument already is. yaml.Unmarshal decodes only the FIRST document in a\nstream, so a mirror whose first document is a valid, byte-identical pack\nbut which has a second document appended would otherwise pass shape\nvalidation, have its diff computed from the first document alone, and\nthen have --apply replace the WHOLE FILE with the embedded pack --\nsilently deleting the second document, which parsePrinciplePack never\neven looked at."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_UnknownGeneratedShapeRefuses
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_UnknownGeneratedShapeRefuses
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_UnreadableExistingRecordRefuses
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_UnreadableExistingRecordRefuses
+    package: main
+    language: go
+    doc: "TestPackRefresh_UnreadableExistingRecordRefuses proves an existing record\nthis process cannot read (permissions, a transient I/O error -- anything\nshort of proven absence) refuses rather than falling through to\natomicWriteFile and renaming over content that was never actually\nverified. Only os.IsNotExist may permit creating a new one; this record\nis documented as immutable evidence, so overwriting an unreadable one on\nan honest \"I don't know what's there\" would be worse than refusing."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_UnwritableRecordDirLeavesMirrorUntouched
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_UnwritableRecordDirLeavesMirrorUntouched
@@ -3249,6 +3411,24 @@ test_symbols:
     symbol: TestPackRefresh_WritesReceiptBeforeReportingSuccess
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_WrittenFilesHaveCorrectMode
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_WrittenFilesHaveCorrectMode
+    package: main
+    language: go
+    doc: "TestPackRefresh_WrittenFilesHaveCorrectMode proves every file this\ncommand writes (mirror, receipt, install baseline) ends up at its\nintended mode. commitMirror and atomicWriteFile both chmod the temp file\nBEFORE writing and syncing its content, not after: a chmod issued after\nthe content sync is itself unsynced metadata, so a crash between that\nchmod and the rename could leave the eventual file at CreateTemp's\ndefault 0600 instead of the intended 0644, invisible to a black-box\nmode check that only runs after a clean (non-crashing) success. This\ntest can only confirm the reachable outcome is correct on every ordinary\nrun; the crash-durability property itself is structural (verified by\ncode review of the ordering), not something a unit test can force."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestSyncDir_PropagatesOpenError
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestSyncDir_PropagatesOpenError
+    package: main
+    language: go
+    doc: "TestSyncDir_PropagatesOpenError proves a directory-sync failure is\nreported, not silently swallowed -- a caller that ignored this could\nreport success for a rename that is not actually durable."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestSyncDir_SucceedsForRealDirectory
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestSyncDir_SucceedsForRealDirectory
+    package: main
+    language: go
+    doc: "TestSyncDir_SucceedsForRealDirectory proves syncDir is actually wired into\nthe write path without erroring on an ordinary directory -- rename(2) is\natomic but not durable by itself; atomicWriteFile and commitMirror both\ncall this after their rename so a crash right after a successful write\ncannot revert the directory entry."
   - id: cmd/awg/cmd_produce_binding_test.go:TestProduceChangeBinding_LocalIsNotAuthoritative
     file: cmd/awg/cmd_produce_binding_test.go
     symbol: TestProduceChangeBinding_LocalIsNotAuthoritative
