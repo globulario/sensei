@@ -481,7 +481,7 @@ generation ever runs, before the O1 session is even constructed:
 | `--agent-env` (rep.) | none | environment variable name to allowlist through to the vendor CLI |
 | `--gate-policy` | `<repo>/.sensei/gate-policy.yaml` | O4 gate policy path |
 | `--sensei-executable` | running binary | absolute path to the `sensei` binary the gate evaluator invokes |
-| `--candidate-store` / `--evidence-store` | `<taskDir>/synthesis-run/{candidates,evidence}` | FS stores |
+| `--candidate-store` / `--evidence-store` | `<taskDir>/synthesis-run/{candidates,evidence}` | FS stores -- both require an absolute root internally; a relative value is resolved against `--repo` |
 | `--deadline-minutes` | `10` | shared deadline for every policy -- real vendor CLI generation of a whole file (base64-encoded, not a diff) can take well over this for larger files; raise it rather than assume a hang |
 | `--max-observation-count` / `--max-observation-bytes` | `32` / `65536` | provider observation count/byte bounds |
 | `--max-snapshot-bytes` | `1<<20` | O3 generation snapshot byte bound |

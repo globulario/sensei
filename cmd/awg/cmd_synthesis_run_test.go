@@ -339,6 +339,38 @@ func TestResolveAgentWorkdirs_UsesGivenBase(t *testing.T) {
 	}
 }
 
+func TestResolveStoreDir_EmptyUsesDefault(t *testing.T) {
+	got := resolveStoreDir("", "/repo", "/repo/.sensei/tasks/t1/synthesis-run/candidates")
+	want := "/repo/.sensei/tasks/t1/synthesis-run/candidates"
+	if got != want {
+		t.Fatalf("resolveStoreDir(\"\", ...) = %q, want %q", got, want)
+	}
+}
+
+func TestResolveStoreDir_AbsoluteExplicitIsUsedAsIs(t *testing.T) {
+	got := resolveStoreDir("/elsewhere/candidates", "/repo", "/repo/default")
+	if got != "/elsewhere/candidates" {
+		t.Fatalf("resolveStoreDir with an absolute explicit value = %q, want it unchanged", got)
+	}
+}
+
+// TestResolveStoreDir_RelativeExplicitIsResolvedAgainstRepo is the direct
+// regression test for a live review finding: NewFSCandidateArtifactStore
+// and NewFSEvidenceSink both require an absolute root, but a caller-
+// supplied relative --candidate-store/--evidence-store (e.g.
+// ".sensei/output") was passed through unresolved -- os.MkdirAll accepts
+// a relative path just fine, so the directory got created, and only the
+// later store constructor failed with a confusing "must be absolute"
+// error. A relative explicit value must resolve against absRepo, the same
+// convention --task itself already uses.
+func TestResolveStoreDir_RelativeExplicitIsResolvedAgainstRepo(t *testing.T) {
+	got := resolveStoreDir(".sensei/output", "/repo", "/repo/default")
+	want := "/repo/.sensei/output"
+	if got != want {
+		t.Fatalf("resolveStoreDir(%q, ...) = %q, want %q", ".sensei/output", got, want)
+	}
+}
+
 // Sanity check that the agentcommand package this command depends on rejects
 // exactly the misconfigurations the CLI itself pre-checks for -- if this
 // ever stops being true, the CLI's own pre-checks would be the only
@@ -439,6 +471,19 @@ func TestBuildSynthesisRunReport_NonCandidateReadyLeavesCandidatePathEmpty(t *te
 	report := buildSynthesisRunReport(result, "task.test", "/store", "", 20)
 	if report.CandidatePath != "" {
 		t.Fatalf("CandidatePath = %q, want empty for a disposition with no sealed candidate", report.CandidatePath)
+	}
+}
+
+// TestHelp_DoesNotClaimAdmitChangeConsumesLineage is the direct
+// regression test for a live review finding: the "--help" text (separate
+// from nextStep's candidate-ready text, fixed in an earlier round) still
+// told the operator to run admit-change/verify-admission "to review and
+// apply" a sealed candidate, the same misleading implication that neither
+// command currently consumes the lineage bundle.
+func TestHelp_DoesNotClaimAdmitChangeConsumesLineage(t *testing.T) {
+	out, _ := captureSynthesisRunStderr(t, []string{"--help"})
+	if !contains(out, "does not currently consume") && !contains(out, "not-yet-built") {
+		t.Fatalf("--help should honestly say admit-change/verify-admission do not yet consume the lineage bundle, got: %s", out)
 	}
 }
 

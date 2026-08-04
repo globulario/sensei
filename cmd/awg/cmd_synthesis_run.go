@@ -78,9 +78,13 @@ candidate-ready-for-admission or a governed terminal/stopped/step-limit
 disposition.
 
 This command NEVER admits, applies, commits, pushes, or merges anything.
-A sealed candidate is only ever a proposal on disk -- run the existing
-'sensei admit-change' / 'sensei verify-admission' commands as a separate,
-deliberate step to review and apply it.
+A sealed candidate is only ever a proposal on disk. It persists an
+admission lineage bundle alongside the candidate; no CLI command reads
+that bundle yet -- 'sensei admit-change' / 'sensei verify-admission' take
+their own separate inputs and do not currently consume it. Wiring the
+lineage bundle into an O5 admission command is a distinct, not-yet-built
+step. Until then, review the bundle directly before authoring an
+admission request by hand.
 
 Requires a repository with served graph authority and an already-prepared
 task (run 'sensei prepare-change' first) -- this command creates neither.
@@ -363,12 +367,12 @@ Flags:
 	}
 
 	// --- step 9: O4 engine, wired to the real `sensei gate` evaluator ---
-	if strings.TrimSpace(*candidateStoreDir) == "" {
-		*candidateStoreDir = filepath.Join(taskDir, "synthesis-run", "candidates")
-	}
-	if strings.TrimSpace(*evidenceStoreDir) == "" {
-		*evidenceStoreDir = filepath.Join(taskDir, "synthesis-run", "evidence")
-	}
+	// NewFSCandidateArtifactStore and NewFSEvidenceSink both require an
+	// absolute root; resolveStoreDir's own doc comment explains why a
+	// caller-supplied relative value must be resolved here rather than
+	// left to fail deep inside those constructors.
+	*candidateStoreDir = resolveStoreDir(*candidateStoreDir, absRepo, filepath.Join(taskDir, "synthesis-run", "candidates"))
+	*evidenceStoreDir = resolveStoreDir(*evidenceStoreDir, absRepo, filepath.Join(taskDir, "synthesis-run", "evidence"))
 	if err := os.MkdirAll(*candidateStoreDir, 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: create candidate store dir: %v\n", err)
 		return exitResolutionFailure
@@ -542,6 +546,25 @@ Flags:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: persist admission lineage: %v\n", err)
 		return exitInternalDefect
+	}
+
+	// If a candidate was sealed, the report below names CandidatePath and
+	// LineagePath by joining *candidateStoreDir (a path STRING captured
+	// before this potentially long-running O3/O4 work started) with a
+	// filename. candidateStore/persistAdmissionLineage themselves always
+	// write through the store's stable, rename-immune root, so the
+	// content is safely wherever that root actually is -- but if another
+	// process renamed or replaced --candidate-store's original directory
+	// while this run was in progress, the STRING *candidateStoreDir no
+	// longer names that directory, and reporting success at that path
+	// would point automation at a missing or unrelated (possibly
+	// attacker-controlled) location. Verify before reporting rather than
+	// reporting a path that might be wrong.
+	if result.Receipt.CandidateArtifactDigestSHA256 != nil {
+		if err := candidateStore.VerifyRootIdentity(*candidateStoreDir); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei synthesis-run: candidate sealed, but its reported location cannot be trusted: %v\n", err)
+			return exitInternalDefect
+		}
 	}
 
 	printSynthesisRunResult(result, taskSession.TaskID, *candidateStoreDir, lineagePath, *maxSteps, *format)
@@ -787,6 +810,25 @@ func validateNoDecisionProofObligations(obligations []admission.ProofReceipt) er
 // construction and immediately before each call, and the driver can
 // interleave planning and generation calls across phases. If base is empty,
 // fresh temp dirs are created and the returned cleanup removes them.
+// resolveStoreDir resolves a --candidate-store/--evidence-store flag
+// value to the absolute path NewFSCandidateArtifactStore/NewFSEvidenceSink
+// require. explicit == "" uses defaultDir (already absolute, since it is
+// always built from the already-absolute taskDir). A non-empty explicit
+// value that is relative is resolved against absRepo -- the same
+// convention --task itself already uses -- rather than left to fail deep
+// inside a store constructor with a "must be absolute" error after
+// os.MkdirAll has already silently accepted and created the relative
+// path.
+func resolveStoreDir(explicit, absRepo, defaultDir string) string {
+	if strings.TrimSpace(explicit) == "" {
+		return defaultDir
+	}
+	if !filepath.IsAbs(explicit) {
+		return filepath.Join(absRepo, explicit)
+	}
+	return explicit
+}
+
 func resolveAgentWorkdirs(base string) (generation, planning string, cleanup func(), err error) {
 	if strings.TrimSpace(base) == "" {
 		root, err := os.MkdirTemp("", "sensei-synthesis-run-*")
