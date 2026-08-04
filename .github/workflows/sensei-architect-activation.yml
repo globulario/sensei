@@ -195,6 +195,40 @@ jobs:
                   coverage = data.get("coverage")
 
                   if status == "PREFLIGHT_STATUS_DEGRADED":
+                      # Not every DEGRADED payload is the bounded
+                      # coverage-debt case this block is meant to
+                      # tolerate. golang/server/preflight.go sets
+                      # DEGRADED for at least four distinct reasons, only
+                      # one of which is "the graph genuinely has no
+                      # facts about this file yet" (the honest thin/
+                      # no-anchor case, marked by this exact blind_spots
+                      # string). The other three -- store unavailable,
+                      # domain scope unverified, and canonical
+                      # protection assessment itself degraded -- are
+                      # operational/derivation failures where Preflight
+                      # never established usable scoped awareness at
+                      # all, and must fail this check rather than be
+                      # silently counted as ordinary coverage debt.
+                      spots = data.get("blind_spots")
+                      if not isinstance(spots, list):
+                          spots = []
+                      honest_thin_coverage = any(
+                          s == "this is NOT proof of safety — the graph has no facts about this file"
+                          for s in spots
+                      )
+                      known_bad = any(
+                          s == "awareness_store_unavailable"
+                          or s.startswith("domain_scope_unverified:")
+                          or s.startswith("protection_assessment_degraded:")
+                          for s in spots
+                      )
+                      if not honest_thin_coverage or known_bad:
+                          errors.append(
+                              f"{path.name}: preflight degraded for a "
+                              "reason beyond bounded thin/no-anchor "
+                              f"coverage debt: {spots}"
+                          )
+                          continue
                       semantic_degraded += 1
                       continue
 
