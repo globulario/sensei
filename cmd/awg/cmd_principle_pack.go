@@ -422,6 +422,12 @@ func readManagedMirror(path string) ([]byte, error) {
 }
 
 func acquireRefreshLock(root string) (func(), error) {
+	// Deliberately plain MkdirAll, not mkdirAllSynced: the lock file is
+	// ephemeral process coordination, not evidence a crash must recover.
+	// Losing the directory's durability on crash just means the next run
+	// recreates it here, same as today with no lock ever having existed --
+	// the safe direction, unlike the receipt/mirror/baseline paths this
+	// file otherwise treats as crash-recoverable state.
 	if err := os.MkdirAll(principlePackDirPath(root), 0o755); err != nil {
 		return nil, err
 	}
@@ -608,7 +614,7 @@ const principlePackRecordHeader = "# Immutable adoption record written by `sense
 // an identical adoption finds it already present and does not rewrite.
 func writePrinciplePackRecord(root string, r principlePackRecord) (string, error) {
 	dir := adoptionsDirPath(root)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := mkdirAllSynced(dir, 0o755); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, short(r.Target.ResultingDigest)+".yaml")
@@ -619,6 +625,17 @@ func writePrinciplePackRecord(root string, r principlePackRecord) (string, error
 	full := principlePackRecordHeader + string(body)
 	if existing, err := os.ReadFile(path); err == nil {
 		if string(existing) == full {
+			// Exact replay: the receipt's own bytes are already right, but
+			// that says nothing about whether the directory sync after the
+			// rename that wrote them ever actually succeeded. If a prior run
+			// renamed the receipt into place and then hit a transient sync
+			// error, a naive replay would return success here without ever
+			// retrying the sync -- silently forgetting a failed durability
+			// step and letting the caller proceed to commitMirror believing
+			// the receipt is durable when it was never confirmed.
+			if err := syncDir(dir); err != nil {
+				return "", fmt.Errorf("re-syncing existing receipt directory: %w", err)
+			}
 			return path, nil // exact replay
 		}
 		return "", fmt.Errorf("record %s already exists with different content; refusing to overwrite", path)
@@ -655,7 +672,7 @@ func writeInstallRecord(root string, packBytes []byte) error {
 		return err
 	}
 	path := installRecordFilePath(root)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := mkdirAllSynced(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	header := "# Baseline written by `sensei init`: the exact principle pack this project\n" +
@@ -697,13 +714,58 @@ func atomicWriteFile(path string, data []byte, mode os.FileMode) error {
 // atomic (a reader never observes a torn result) but not durable by itself:
 // without this, a crash right after a successful rename can still lose that
 // directory entry, reverting to whatever the name pointed at before.
-func syncDir(dir string) error {
+//
+// A package-level var, not a plain func: tests override it to prove a
+// caller retries or surfaces a failed sync rather than silently treating
+// already-correct file bytes as proof the directory itself was made
+// durable. Never overridden in production.
+var syncDir = func(dir string) error {
 	d, err := os.Open(dir)
 	if err != nil {
 		return fmt.Errorf("open %s to sync its directory entry: %w", dir, err)
 	}
 	defer d.Close()
 	return d.Sync()
+}
+
+// mkdirAllSynced is os.MkdirAll plus durability for the directories it
+// actually creates. Syncing a NEW directory's own contents (as
+// atomicWriteFile/commitMirror already do after their rename) proves
+// nothing about the directory's own existence: mkdir, like rename, is not
+// durable until the PARENT directory holding its entry is synced too. A
+// crash between MkdirAll and that sync can leave a directory (and anything
+// later synced into it) simply absent on reboot.
+func mkdirAllSynced(path string, perm os.FileMode) error {
+	var newDirs []string
+	for p := filepath.Clean(path); ; {
+		fi, err := os.Stat(p)
+		if err == nil {
+			if !fi.IsDir() {
+				return fmt.Errorf("%s exists and is not a directory", p)
+			}
+			break
+		}
+		if !os.IsNotExist(err) {
+			return err
+		}
+		newDirs = append(newDirs, p)
+		parent := filepath.Dir(p)
+		if parent == p {
+			break // reached filesystem root without finding an existing ancestor
+		}
+		p = parent
+	}
+	if err := os.MkdirAll(path, perm); err != nil {
+		return err
+	}
+	// newDirs is deepest-first; sync shallowest-first so each directory's
+	// parent is itself durable before the next level's existence depends on it.
+	for i := len(newDirs) - 1; i >= 0; i-- {
+		if err := syncDir(filepath.Dir(newDirs[i])); err != nil {
+			return fmt.Errorf("syncing parent of newly created %s: %w", newDirs[i], err)
+		}
+	}
+	return nil
 }
 
 func senseiRevision() string {

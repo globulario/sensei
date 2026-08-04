@@ -13,6 +13,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -867,6 +868,182 @@ func TestPackRefresh_ApplySyncsReceiptAndMirrorDirectories(t *testing.T) {
 	}
 	if err := syncDir(filepath.Dir(mirrorPath)); err != nil {
 		t.Fatalf("mirror directory must be sync-able after apply: %v", err)
+	}
+}
+
+// TestMkdirAllSynced_SyncsEveryNewlyCreatedLevelsParent proves mkdirAllSynced
+// syncs the PARENT of every directory level it actually creates, not just
+// the leaf -- creating ".sensei/principle-pack/adoptions" from scratch (a
+// pre-existing ".sensei" but neither "principle-pack" nor "adoptions" yet)
+// must sync both ".sensei" (to make "principle-pack" durable) and
+// ".sensei/principle-pack" (to make "adoptions" durable). A single sync of
+// the leaf's own contents proves nothing about whether the leaf itself
+// (or its own newly created parent) durably exists.
+func TestMkdirAllSynced_SyncsEveryNewlyCreatedLevelsParent(t *testing.T) {
+	root := t.TempDir()
+	senseiDir := filepath.Join(root, ".sensei")
+	if err := os.MkdirAll(senseiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	principlePackDir := filepath.Join(senseiDir, "principle-pack")
+	adoptions := filepath.Join(principlePackDir, "adoptions")
+
+	var synced []string
+	orig := syncDir
+	syncDir = func(dir string) error {
+		synced = append(synced, dir)
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if err := mkdirAllSynced(adoptions, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(adoptions); err != nil {
+		t.Fatalf("adoptions directory was not created: %v", err)
+	}
+
+	want := map[string]bool{senseiDir: false, principlePackDir: false}
+	for _, d := range synced {
+		if _, ok := want[d]; ok {
+			want[d] = true
+		}
+	}
+	for dir, got := range want {
+		if !got {
+			t.Errorf("parent %s of a newly created directory was never synced", dir)
+		}
+	}
+	// The already-existing ".sensei" and root must not themselves be
+	// reported as newly created, and no directory beyond the two real
+	// parents should be synced.
+	if len(synced) != 2 {
+		t.Fatalf("expected exactly 2 directory syncs (the two new levels' parents), got %d: %v", len(synced), synced)
+	}
+}
+
+// TestMkdirAllSynced_SkipsAlreadyExistingLevels proves that when only the
+// leaf is new, mkdirAllSynced syncs only the leaf's own (already-existing)
+// parent -- it does not needlessly re-sync ancestors that were already
+// durable before this call.
+func TestMkdirAllSynced_SkipsAlreadyExistingLevels(t *testing.T) {
+	root := t.TempDir()
+	parent := filepath.Join(root, "already-here")
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	leaf := filepath.Join(parent, "new-leaf")
+
+	var synced []string
+	orig := syncDir
+	syncDir = func(dir string) error {
+		synced = append(synced, dir)
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if err := mkdirAllSynced(leaf, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if len(synced) != 1 || synced[0] != parent {
+		t.Fatalf("expected exactly one sync of %s, got %v", parent, synced)
+	}
+}
+
+// TestMkdirAllSynced_RejectsPathThroughExistingFile proves a regular file
+// blocking a required directory level produces a clear error rather than
+// mkdir's own less specific failure.
+func TestMkdirAllSynced_RejectsPathThroughExistingFile(t *testing.T) {
+	root := t.TempDir()
+	blocker := filepath.Join(root, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := mkdirAllSynced(filepath.Join(blocker, "child"), 0o755); err == nil {
+		t.Fatal("expected an error when a path component is a regular file")
+	}
+}
+
+// TestPackRefresh_FirstAdoptionSyncsNewAdoptionsDirParent is the integration
+// case Codex's review named directly: on a project's FIRST adoption,
+// ".sensei/principle-pack/adoptions" does not exist yet. A real --apply run
+// must sync its parent (".sensei/principle-pack") so the new "adoptions"
+// entry itself is durable, not just the receipt written inside it.
+func TestPackRefresh_FirstAdoptionSyncsNewAdoptionsDirParent(t *testing.T) {
+	id := anAddableID(t)
+	root, _ := installedMirror(t, id)
+	principlePackDir := principlePackDirPath(root)
+	if _, err := os.Stat(adoptionsDirPath(root)); !os.IsNotExist(err) {
+		t.Fatalf("test setup: adoptions dir must not exist yet, got err=%v", err)
+	}
+
+	var synced []string
+	orig := syncDir
+	syncDir = func(dir string) error {
+		synced = append(synced, dir)
+		return orig(dir)
+	}
+	defer func() { syncDir = orig }()
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc != 0 {
+		t.Fatalf("refresh --apply failed, rc=%d", rc)
+	}
+
+	found := false
+	for _, d := range synced {
+		if d == principlePackDir {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("the newly created adoptions dir's parent (%s) was never synced; synced=%v", principlePackDir, synced)
+	}
+}
+
+// TestPackRefresh_ExactReplayRetriesDirectorySync proves the replay branch
+// of writePrinciplePackRecord does not treat identical on-disk bytes as
+// proof the directory sync ever succeeded. A prior run may have renamed the
+// receipt into place and then hit a transient sync failure; a naive replay
+// would see the correct bytes and return success without ever retrying the
+// sync, letting the caller proceed to commitMirror on an unconfirmed
+// receipt.
+func TestPackRefresh_ExactReplayRetriesDirectorySync(t *testing.T) {
+	id := anAddableID(t)
+	root, _ := installedMirror(t, id)
+	pack, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packEntries, _, _, err := parsePrinciplePack(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := buildPrinciplePackRecord(sha256Hex(pack), len(packEntries), mirrorRelPath,
+		sha256Hex(readMirror(t, filepath.Join(root, mirrorRelPath))), sha256Hex(pack),
+		packDiff{UpstreamOnly: []string{id}}, "verified_baseline")
+
+	// First write: real, succeeds normally.
+	if _, err := writePrinciplePackRecord(root, rec); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+
+	// Replay: identical content is already on disk. Force the sync to fail
+	// and confirm the replay branch (a) actually calls it and (b) surfaces
+	// the failure rather than returning success.
+	called := false
+	orig := syncDir
+	syncDir = func(dir string) error {
+		called = true
+		return fmt.Errorf("simulated transient sync failure")
+	}
+	defer func() { syncDir = orig }()
+
+	if _, err := writePrinciplePackRecord(root, rec); err == nil {
+		t.Fatal("replay must surface a failed directory re-sync, not silently succeed")
+	}
+	if !called {
+		t.Fatal("replay did not attempt to re-sync the receipt directory at all")
 	}
 }
 
