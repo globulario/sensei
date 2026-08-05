@@ -17854,12 +17854,24 @@ test_symbols:
     package: workspacecontract
     language: go
     doc: "TestComposeIdentity_AuthoritativeButThinCoverageIsPartial is the real\nregression test for a live review finding: a graph can be authoritative\n(fresh, stamped, seed matches) while still being COVERAGE_STATE_THIN --\ncomposing on a technically-genuine but functionally-uninformed graph must\nnot be reported as complete. No existing fixture exercised this\ncombination: docs/fixtures/workspace/v1/identity/partial.json is already\npartial for an unrelated reason (authoritative=false), so it passed both\nbefore and after this fix without ever exercising the new condition."
+  - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_CompleteHasNoSyntheticLimitations
+    file: golang/architecture/workspacecontract/identity_test.go
+    symbol: TestComposeIdentity_CompleteHasNoSyntheticLimitations
+    package: workspacecontract
+    language: go
+    doc: "TestComposeIdentity_CompleteHasNoSyntheticLimitations guards against the\nfix over-firing: a genuinely complete identity must not gain any of the\nnew partial-only limitations."
   - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_NonAuthoritativeIsStillPartialRegardlessOfCoverage
     file: golang/architecture/workspacecontract/identity_test.go
     symbol: TestComposeIdentity_NonAuthoritativeIsStillPartialRegardlessOfCoverage
     package: workspacecontract
     language: go
     doc: "TestComposeIdentity_NonAuthoritativeIsStillPartialRegardlessOfCoverage\nguards that GraphAuthority.Authoritative's own meaning is untouched by\nthis fix: a non-authoritative graph is partial even with sufficient\ncoverage, exactly as before."
+  - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_PartialAlwaysNamesALimitation
+    file: golang/architecture/workspacecontract/identity_test.go
+    symbol: TestComposeIdentity_PartialAlwaysNamesALimitation
+    package: workspacecontract
+    language: go
+    doc: "TestComposeIdentity_PartialAlwaysNamesALimitation is the regression test\nfor a live finding: sensei synthesis-run's workspace-identity error path\nprints identity.Limitations to explain a non-complete CompositionState,\nbut a caller (composeSynthesisRunIdentity) only ever appends a Limitation\nfor domain-unbound, revision-resolution, and RPC-connection failures --\nnever for a reachable-but-not-authoritative graph or insufficient\ncoverage, the other two conditions deriveCompositionState itself checks.\nA run that hit CompositionPartial for exactly one of those two reasons\nprinted an empty limitations list: \"workspace identity is partial, not\ncomplete:\" with nothing after it. ComposeIdentity must always name the\ndimension(s) it found lacking, regardless of what the caller supplied."
   - id: golang/architecture/workspacecontract/identity_test.go:TestComposeIdentity_SufficientCoverageIsComplete
     file: golang/architecture/workspacecontract/identity_test.go
     symbol: TestComposeIdentity_SufficientCoverageIsComplete
