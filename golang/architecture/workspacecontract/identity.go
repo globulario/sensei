@@ -76,7 +76,37 @@ func ComposeIdentity(in IdentityInputs) Identity {
 		Limitations:            in.Limitations,
 	}
 	id.CompositionState = deriveCompositionState(id)
+	if id.CompositionState == CompositionPartial {
+		id.Limitations = append(id.Limitations, partialCompositionLimitations(id)...)
+	}
 	return NormalizeIdentity(id)
+}
+
+// partialCompositionLimitations names the specific completeness dimension(s)
+// deriveCompositionState found lacking when it returns CompositionPartial,
+// so a caller printing id.Limitations (e.g. sensei synthesis-run's
+// workspace-identity error path) never renders an empty list under a
+// non-complete state. Domain-unbound, graph-authority-unreachable, and
+// revision-unresolved reasons are already appended by the caller that
+// gathers those facts (see composeSynthesisRunIdentity); this only covers
+// the two dimensions deriveCompositionState checks that no caller
+// currently narrates: a reachable-but-not-authoritative graph, and
+// insufficient graph coverage.
+func partialCompositionLimitations(id Identity) []Limitation {
+	var out []Limitation
+	if id.GraphAuthority != nil && !id.GraphAuthority.Authoritative {
+		out = append(out, Limitation{
+			Source: "golang/architecture/workspacecontract", Scope: "graph_authority",
+			Reason: "graph_authority is present but not authoritative (freshness, seed, or build-provenance state is not current)", Blocking: true,
+		})
+	}
+	if id.CoverageState != coverageStateSufficient {
+		out = append(out, Limitation{
+			Source: "golang/architecture/workspacecontract", Scope: "coverage_state",
+			Reason: "graph coverage for this domain is " + id.CoverageState + ", not " + coverageStateSufficient, Blocking: true,
+		})
+	}
+	return out
 }
 
 // coverageStateSufficient is the exact proto CoverageState string
