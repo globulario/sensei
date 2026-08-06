@@ -17734,6 +17734,18 @@ test_symbols:
     package: testobligation
     language: go
     doc: "A server that has not yet decoded ids hands back the wire form. The escaped\nslashes would make path.Dir see one segment, so every anchor keyed to \".\" and\nreported \"no result\" for a test that actually ran — a verdict that is right\nfor the wrong reason, which is precisely the quiet inaccuracy this tool\nexists to catch. Matching must survive either spelling."
+  - id: golang/architecture/testobligation/gotest_test.go:TestGap_DiscoveryUnavailableIsUnavailableNotMissing
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestGap_DiscoveryUnavailableIsUnavailableNotMissing
+    package: testobligation
+    language: go
+    doc: "Case 1 — discovery unavailable. The exact test cannot be found AND the Go\ndiscovery surface was not loaded (or not declared exhaustive). \"I could not\ninspect the evidence\" must not be reported as \"the evidence is gone\": that\nis the conflation that produced 193 findings where 1 was real."
+  - id: golang/architecture/testobligation/gotest_test.go:TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint
+    package: testobligation
+    language: go
+    doc: "Case 2 — the test moved. Discovery is complete over the anchor's package and\nthe anchored function is not there, while a same-named test exists elsewhere.\nThe obligation names an exact proof anchor: a test in another package is a\nreplacement CANDIDATE, and must not silently satisfy the old claim."
   - id: golang/architecture/testobligation/gotest_test.go:TestGoRunThatOnlySkipsDoesNotCertify
     file: golang/architecture/testobligation/gotest_test.go
     symbol: TestGoRunThatOnlySkipsDoesNotCertify
@@ -17745,6 +17757,12 @@ test_symbols:
     symbol: TestIsGoAnchor
     package: testobligation
     language: go
+  - id: golang/architecture/testobligation/gotest_test.go:TestMissingImplementationBlocksAndStaysDistinct
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestMissingImplementationBlocksAndStaysDistinct
+    package: testobligation
+    language: go
+    doc: "MISSING_IMPLEMENTATION blocks like every other unexecuted state, and stays\ndistinguishable from UNAVAILABLE in the report."
   - id: golang/architecture/testobligation/gotest_test.go:TestParseGoTestJSON_PassAndFail
     file: golang/architecture/testobligation/gotest_test.go
     symbol: TestParseGoTestJSON_PassAndFail
@@ -17780,6 +17798,12 @@ test_symbols:
     package: testobligation
     language: go
     doc: "An anchor nobody reported on is Unavailable with a stated reason, never\ndropped and never assumed passing."
+  - id: golang/architecture/testobligation/gotest_test.go:TestVerdictFollowsDeclaredCoverageNotPathInference
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestVerdictFollowsDeclaredCoverageNotPathInference
+    package: testobligation
+    language: go
+    doc: "Declared coverage, not path inference, decides the verdict: the SAME absent\nanchor flips between the two states purely on what the caller declared."
   - id: golang/architecture/testobligation/obligation_test.go:TestCertify_FailOutranksSkip
     file: golang/architecture/testobligation/obligation_test.go
     symbol: TestCertify_FailOutranksSkip
@@ -20179,6 +20203,13 @@ test_symbols:
     symbol: TestValidateTestReconciliation_MissingDiscoveredImplementationForRequiredGoTest
     package: extractor
     language: go
+    doc: "When the package WAS inspected — another test in it was discovered — and the\nanchored test still is not there, that is a claim about the repository and\nmust be reported as a genuine missing implementation."
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_NoDiscoverySurfaceIsUnavailableNotMissing
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_NoDiscoverySurfaceIsUnavailableNotMissing
+    package: extractor
+    language: go
+    doc: "A graph with no discovered test symbols for the anchor's package cannot say\nthe test is missing — it never looked. This is the shape the standalone self\nbuild produces, where the generated/ code-symbol root is excluded: without\nthe split it accused the repository of 195 missing tests, none of them real."
   - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_PythonConcreteAnchorMatchesDiscoveredSymbol
     file: golang/extractor/test_reconciliation_validator_test.go
     symbol: TestValidateTestReconciliation_PythonConcreteAnchorMatchesDiscoveredSymbol
