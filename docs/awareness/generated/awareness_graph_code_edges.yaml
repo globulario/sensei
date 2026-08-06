@@ -1,4 +1,7 @@
 code_edges:
+  - from: globular.awareness_graph:code.go.architecture.testobligation
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.missing_evidence_produces_unknown
   - from: globular.awareness_graph:code.go.build.loadnt.run
     relation: enforces
     to: globular.awareness_graph:invariant.awareness.rdf.ntriples_validated_before_write
@@ -10,7 +13,7 @@ code_edges:
     to: globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
   - from: globular.awareness_graph:code.go.build.loadnt.run
     relation: tested_by
-    to: cmd/loadnt/main_test.go:TestRunValidatesBeforeUpload
+    to: cmd/loadnt/main_test.go:TestRun_InvalidNTriples
   - from: globular.awareness_graph:code.go.build.loadnt.uploadNTriples
     relation: implements
     to: globular.awareness_graph:intent.awareness.oxigraph_is_external_runtime_state
@@ -31,7 +34,13 @@ code_edges:
     to: globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
   - from: globular.awareness_graph:code.go.build.yaml2nt.run
     relation: tested_by
-    to: cmd/yaml2nt/main_test.go:TestRunDeterministic
+    to: cmd/yaml2nt/main_test.go:TestRun_Deterministic
+  - from: globular.awareness_graph:code.go.build.yaml2nt.run
+    relation: tested_by
+    to: cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped
+  - from: globular.awareness_graph:code.go.command.verify_obligations.runVerifyObligations
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.missing_evidence_produces_unknown
   - from: globular.awareness_graph:code.go.extractor
     relation: enforces
     to: globular.awareness_graph:invariant.awareness.rdf.yaml_is_source_of_truth
@@ -85,7 +94,7 @@ code_edges:
     to: globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
   - from: globular.awareness_graph:code.go.server.briefing.server_Briefing
     relation: tested_by
-    to: golang/server/main_test.go:TestBriefingStoreNil
+    to: golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil
   - from: globular.awareness_graph:code.go.server.change_impact
     relation: implements
     to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
@@ -130,7 +139,7 @@ code_edges:
     to: globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
   - from: globular.awareness_graph:code.go.server.controlstate.server_ListArchitectureArtifacts
     relation: tested_by
-    to: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaque
+    to: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
   - from: globular.awareness_graph:code.go.server.impact
     relation: implements
     to: globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
@@ -145,7 +154,10 @@ code_edges:
     to: globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
   - from: globular.awareness_graph:code.go.server.impact.server_Impact
     relation: tested_by
-    to: golang/server/impact_test.go:TestImpactStoreNil
+    to: golang/server/main_test.go:TestImpact_UnavailableWhenStoreErrors
+  - from: globular.awareness_graph:code.go.server.impact.server_Impact
+    relation: tested_by
+    to: golang/server/main_test.go:TestImpact_UnavailableWhenStoreNil
   - from: globular.awareness_graph:code.go.server.implementation_patterns
     relation: implements
     to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority
@@ -187,7 +199,7 @@ code_edges:
     to: globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
   - from: globular.awareness_graph:code.go.server.query.server_Query
     relation: tested_by
-    to: golang/server/query_test.go:TestQueryUnknownMode
+    to: golang/server/main_test.go:TestQuery_RejectsUnsupportedMode
   - from: globular.awareness_graph:code.go.server.reference_sites.server_ReferenceSites
     relation: enforces
     to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
@@ -214,7 +226,7 @@ code_edges:
     to: globular.awareness_graph:intent.awareness.resolve_returns_precise_node_by_class_and_id
   - from: globular.awareness_graph:code.go.server.resolve.server_Resolve
     relation: tested_by
-    to: golang/server/resolve_test.go:TestResolveNotFound
+    to: golang/server/main_test.go:TestResolve_RejectsUnsupportedClass
   - from: globular.awareness_graph:code.go.server.runtime_evidence
     relation: implements
     to: globular.awareness_graph:intent.awg.graph_is_compiled_context_not_authority

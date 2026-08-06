@@ -118,7 +118,7 @@ func (s *server) GetArchitectureControlSnapshot(ctx context.Context, req *awaren
 // @awareness namespace=globular.awareness_graph
 // @awareness component=server.controlstate
 // @awareness implements=globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
-// @awareness tested_by=golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaque
+// @awareness tested_by=golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
 // @awareness risk=high
 func (s *server) ListArchitectureArtifacts(ctx context.Context, req *awarenesspb.ListArchitectureArtifactsRequest) (*awarenesspb.ListArchitectureArtifactsResponse, error) {
 	effective, err := s.resolveControlScope(ctx, req.GetRepositoryIdentity(), strings.TrimSpace(req.GetDomain()))

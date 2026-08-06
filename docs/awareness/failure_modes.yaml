@@ -1343,6 +1343,44 @@ failure_modes:
       - user had to ask directly ('why did you dont use it') before the agent invoked sensei-architect at all, and a second direct question ('is the fact that you work in a separate dir... can make sensei fail') before the worktree/governance-state asymmetry was investigated and confirmed
       - 'cross-linked: contract_unknown awareness.workspace_identity.governance_state_binding_unknown (same session, filed from the main checkout) proposes the tooling fix this failure_mode''s harm motivates'
     contract: CLAUDE.md's pre-edit consultation requirement (sensei briefing / Sensei Architect skill before editing files listed in docs/awareness/high_risk_files.yaml, especially for state/convergence/recovery work) must be satisfied based on the REPOSITORY's actual governance state, not merely the physical checkout's local .sensei/ contents -- an agent must not treat 'no local .sensei/project/claims.yaml in this exact directory' as proof no consultation obligation exists.
+  - id: failure.sensei.dangling_tested_by_annotation_asserted_proof_from_a_test_tha
+    title: Dangling tested_by annotation asserted proof from a test that does not exist
+    description: 'A tested_by code annotation named a test that no discovered test defines, so briefing/impact reported ''Tested by: <test>'' for a test that was never written. The reconciliation validator''s referenced-symbol leg skipped any anchor whose symbol was not discovered, making the dangling case the one shape it stayed silent about. 7 of 10 annotated source files were affected, including impact.go, briefing.go, resolve.go and query.go.'
+    protects:
+      files:
+        - golang/extractor/test_reconciliation_validator.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported
+    evidence:
+      - sensei briefing --file golang/server/resolve.go reported tested_by golang/server/resolve_test.go:TestResolveNotFound; neither that file nor that function exists anywhere in the repo
+      - ValidateTestReconciliation over the built code-symbol graph reported 0 findings before the fix and exactly 7 dangling anchors after adding ReferencedMissingImplementation
+  - id: failure.sensei.missing_test_implementation_conflated_with_excluded_discover
+    title: Missing test implementation conflated with excluded discovery scope
+    description: AuthoritativeMissingImplementation reports 'required test has no discovered implementation' without distinguishing whether the discovery surface was actually available. In the standalone self build the generated/ code-symbol root is excluded by design, so no TestSymbol is discovered at all and every concrete required-test anchor is reported as missing. This accuses the repository of ~193 absent tests when 192 exist and are discoverable, and it buries the one genuine missing implementation in the noise. Absent implementation and unavailable discovery are different states and must not share a verdict.
+    protects:
+      files:
+        - golang/extractor/test_reconciliation_validator.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    evidence:
+      - 'Controlled comparison on the same corpus: validating the self seed alone reports 193 AuthoritativeMissingImplementation; concatenating the generated code-symbol graph and revalidating reports 1'
+      - 'Chain established for 5 representatives (cmd_build/cmd_feedback_check/cmd_infer_claims/cmd_propose/cmd_bootstrap tests): authored reference exists, Go function exists in checkout, TestSymbol absent from self seed, symbol present in docs/awareness/generated'
+      - 'The single survivor with discovery available is genuine: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesTamperedPromotionWithFinding is referenced but defined nowhere in the repository'
+  - id: failure.sensei.test_run_exit_code_accepted_as_proof_that_required_tests_ran
+    title: Test-run exit code accepted as proof that required tests ran
+    description: go test prints ok and exits 0 for a package whose tests were all skipped, so a caller that certifies from the process exit code reports proof it never obtained. On this repository the required tests for golang/server preflight work are guarded by requireCombinedSeed and skip in the open-core checkout, so 'required tests pass' was reachable while nothing was proved. A skipped or unselected required test is unavailable proof, not satisfied proof, and must not certify.
+    protects:
+      files:
+        - golang/architecture/testobligation/obligation.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - golang/architecture/testobligation/obligation_test.go:TestCertify_RequiredSkipIsIndeterminateNotPass
+    evidence:
+      - 'go test -run TestPreflightCriticalSignalsLeadTheActionList exits 0 and prints ok while the test reports SKIP: combined-seed golden: standalone seed omits Globular/services content'
+      - sensei verify-obligations over the same run returns INDETERMINATE with exit 3, naming both obligations SKIPPED and preserving the skip reason
   - id: graph.wrong_workspace_publication_certifies_unrepresented_repository
     title: A publication from the wrong workspace certifies a repository it does not represent
     description: 'sensei build -input defaults to docs/awareness RELATIVE TO THE CURRENT WORKING DIRECTORY, and --repo <domain> replaces that domain''s entire slice. Run from the wrong repository, the build compiles a different corpus, replaces the target domain with it, and stamps a marker certifying the intended repository''s commit. Every downstream signal then reports health: the marker matches the last publication, freshness is CURRENT, seed is CURRENT, and the receipt names the correct certified commit. The graph is internally consistent and semantically wrong. Detection asymmetry makes it dangerous — briefings degrade to empty rather than erroring, so an agent reads ''no invariants apply here'' instead of ''the knowledge plane is not describing your repository''.'

@@ -1,4 +1,12 @@
 code_symbols:
+  - id: globular.awareness_graph:code.go.architecture.testobligation
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/architecture/testobligation/obligation.go
+    component: architecture.testobligation
+    annotations:
+      enforces:
+        - globular.awareness_graph:invariant.awareness.missing_evidence_produces_unknown
   - id: globular.awareness_graph:code.go.build.loadnt.run
     namespace: globular.awareness_graph
     language: go
@@ -15,7 +23,7 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
       tested_by:
-        - cmd/loadnt/main_test.go:TestRunValidatesBeforeUpload
+        - cmd/loadnt/main_test.go:TestRun_InvalidNTriples
   - id: globular.awareness_graph:code.go.build.loadnt.uploadNTriples
     namespace: globular.awareness_graph
     language: go
@@ -55,7 +63,8 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
       tested_by:
-        - cmd/yaml2nt/main_test.go:TestRunDeterministic
+        - cmd/yaml2nt/main_test.go:TestRun_Deterministic
+        - cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped
   - id: globular.awareness_graph:code.go.cli.feedback_check
     namespace: globular.awareness_graph
     language: go
@@ -68,6 +77,16 @@ code_symbols:
     file: cmd/awg/cmd_propose.go
     component: cli.propose
     risk: high
+  - id: globular.awareness_graph:code.go.command.verify_obligations.runVerifyObligations
+    namespace: globular.awareness_graph
+    language: go
+    file: cmd/awg/cmd_verify_obligations.go
+    symbol: runVerifyObligations
+    kind: function
+    component: command.verify_obligations
+    annotations:
+      enforces:
+        - globular.awareness_graph:invariant.awareness.missing_evidence_produces_unknown
   - id: globular.awareness_graph:code.go.extractor
     namespace: globular.awareness_graph
     language: go
@@ -183,7 +202,7 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
       tested_by:
-        - golang/server/main_test.go:TestBriefingStoreNil
+        - golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil
   - id: globular.awareness_graph:code.go.server.change_impact
     namespace: globular.awareness_graph
     language: go
@@ -270,7 +289,7 @@ code_symbols:
       implements:
         - globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
       tested_by:
-        - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaque
+        - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
   - id: globular.awareness_graph:code.go.server.impact
     namespace: globular.awareness_graph
     language: go
@@ -295,7 +314,8 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
       tested_by:
-        - golang/server/impact_test.go:TestImpactStoreNil
+        - golang/server/main_test.go:TestImpact_UnavailableWhenStoreNil
+        - golang/server/main_test.go:TestImpact_UnavailableWhenStoreErrors
   - id: globular.awareness_graph:code.go.server.implementation_patterns
     namespace: globular.awareness_graph
     language: go
@@ -385,7 +405,7 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
       tested_by:
-        - golang/server/query_test.go:TestQueryUnknownMode
+        - golang/server/main_test.go:TestQuery_RejectsUnsupportedMode
   - id: globular.awareness_graph:code.go.server.reference_sites
     namespace: globular.awareness_graph
     language: go
@@ -447,7 +467,7 @@ code_symbols:
       implements:
         - globular.awareness_graph:intent.awareness.resolve_returns_precise_node_by_class_and_id
       tested_by:
-        - golang/server/resolve_test.go:TestResolveNotFound
+        - golang/server/main_test.go:TestResolve_RejectsUnsupportedClass
   - id: globular.awareness_graph:code.go.server.risk_classify
     namespace: globular.awareness_graph
     language: go
@@ -5703,6 +5723,12 @@ test_symbols:
     symbol: TestDedupNTriples_NoDuplicates
     package: main
     language: go
+  - id: cmd/yaml2nt/main_test.go:TestRun_Deterministic
+    file: cmd/yaml2nt/main_test.go
+    symbol: TestRun_Deterministic
+    package: main
+    language: go
+    doc: "TestRun_Deterministic is the proof behind\nintent.awareness.yaml2nt_produces_deterministic_output: the same input tree\nmust serialize to byte-identical N-Triples across runs. Without this, a\nrebuild produces a different seed digest from unchanged sources, and every\ndownstream freshness/authority check that compares digests reports a phantom\ndrift. Map iteration order in the importer is the realistic regression, so\nrepeating the run in-process is what catches it."
   - id: cmd/yaml2nt/main_test.go:TestRun_InputIsFile_ReturnsUserError
     file: cmd/yaml2nt/main_test.go
     symbol: TestRun_InputIsFile_ReturnsUserError
@@ -17828,6 +17854,189 @@ test_symbols:
     symbol: TestWorkingTreeChangeOutsideModifyEnvelopeMakesTaskStale
     package: tasksession
     language: go
+  - id: golang/architecture/testobligation/gotest_test.go:TestAnchorKey_DoubleColonAndSemanticIDs
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestAnchorKey_DoubleColonAndSemanticIDs
+    package: testobligation
+    language: go
+  - id: golang/architecture/testobligation/gotest_test.go:TestAnchorKey_MatchesByPackageDirectory
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestAnchorKey_MatchesByPackageDirectory
+    package: testobligation
+    language: go
+    doc: "The file component of an anchor cannot be recovered from a package-level\nstream, so matching is by directory: a test that moved between files in the\nsame package still counts as observed."
+  - id: golang/architecture/testobligation/gotest_test.go:TestCallerAttestedCompletenessCannotAccuse
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestCallerAttestedCompletenessCannotAccuse
+    package: testobligation
+    language: go
+    doc: "THE AUTHORITY BOUNDARY. A completeness claim from whoever typed the command\nis unverifiable — a -run-filtered run is indistinguishable from an exhaustive\none in the stream — so it must not convert \"we did not observe the test\" into\n\"the test does not exist\". Without this, one flag rebuilds the exact\nconflation this package was written to remove."
+  - id: golang/architecture/testobligation/gotest_test.go:TestEncodedAnchorStillMatchesAndKeepsTheRealReason
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestEncodedAnchorStillMatchesAndKeepsTheRealReason
+    package: testobligation
+    language: go
+    doc: "A server that has not yet decoded ids hands back the wire form. The escaped\nslashes would make path.Dir see one segment, so every anchor keyed to \".\" and\nreported \"no result\" for a test that actually ran — a verdict that is right\nfor the wrong reason, which is precisely the quiet inaccuracy this tool\nexists to catch. Matching must survive either spelling."
+  - id: golang/architecture/testobligation/gotest_test.go:TestGap_DiscoveryUnavailableIsUnavailableNotMissing
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestGap_DiscoveryUnavailableIsUnavailableNotMissing
+    package: testobligation
+    language: go
+    doc: "Case 1 — discovery unavailable. The exact test cannot be found AND the Go\ndiscovery surface was not loaded (or not declared exhaustive). \"I could not\ninspect the evidence\" must not be reported as \"the evidence is gone\": that\nis the conflation that produced 193 findings where 1 was real."
+  - id: golang/architecture/testobligation/gotest_test.go:TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint
+    package: testobligation
+    language: go
+    doc: "Case 2 — the test moved. Discovery is complete over the anchor's package and\nthe anchored function is not there, while a same-named test exists elsewhere.\nThe obligation names an exact proof anchor: a test in another package is a\nreplacement CANDIDATE, and must not silently satisfy the old claim."
+  - id: golang/architecture/testobligation/gotest_test.go:TestGoRunThatOnlySkipsDoesNotCertify
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestGoRunThatOnlySkipsDoesNotCertify
+    package: testobligation
+    language: go
+    doc: "End-to-end over the exact situation on this repository: `go test` exits 0\nand prints ok, and certification must still refuse."
+  - id: golang/architecture/testobligation/gotest_test.go:TestIsGoAnchor
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestIsGoAnchor
+    package: testobligation
+    language: go
+  - id: golang/architecture/testobligation/gotest_test.go:TestMissingImplementationBlocksAndStaysDistinct
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestMissingImplementationBlocksAndStaysDistinct
+    package: testobligation
+    language: go
+    doc: "MISSING_IMPLEMENTATION blocks like every other unexecuted state, and stays\ndistinguishable from UNAVAILABLE in the report."
+  - id: golang/architecture/testobligation/gotest_test.go:TestParseGoTestJSON_PassAndFail
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestParseGoTestJSON_PassAndFail
+    package: testobligation
+    language: go
+  - id: golang/architecture/testobligation/gotest_test.go:TestParseGoTestJSON_ReasonIsTheSkipMessageNotTheFraming
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestParseGoTestJSON_ReasonIsTheSkipMessageNotTheFraming
+    package: testobligation
+    language: go
+    doc: "The recorded reason must be the test's own skip message, never test2json's\n\"--- SKIP: Name (0.00s)\" framing — that framing only restates the outcome\nand would leave the report unable to say WHY a proof is missing."
+  - id: golang/architecture/testobligation/gotest_test.go:TestParseGoTestJSON_SkipIsStructuralNotTextual
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestParseGoTestJSON_SkipIsStructuralNotTextual
+    package: testobligation
+    language: go
+    doc: "8. The outcome is taken from the structured Action field, not from console\nwording, and the package-level pass does not leak onto the test."
+  - id: golang/architecture/testobligation/gotest_test.go:TestParseGoTestJSON_SubtestsFoldIntoParent
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestParseGoTestJSON_SubtestsFoldIntoParent
+    package: testobligation
+    language: go
+    doc: "A skipped subtest must not make its parent skipped — the parent's own\nterminal event already states what the whole test did."
+  - id: golang/architecture/testobligation/gotest_test.go:TestResolveGoObligations_ForeignLanguageAnchorIsUnavailableAndBlocks
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestResolveGoObligations_ForeignLanguageAnchorIsUnavailableAndBlocks
+    package: testobligation
+    language: go
+    doc: "A Go run cannot speak for a TypeScript/Python/Rust anchor. Silence from the\nwrong runner is not evidence, so it blocks certification."
+  - id: golang/architecture/testobligation/gotest_test.go:TestResolveGoObligations_UnobservedAnchorIsUnavailable
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestResolveGoObligations_UnobservedAnchorIsUnavailable
+    package: testobligation
+    language: go
+    doc: "An anchor nobody reported on is Unavailable with a stated reason, never\ndropped and never assumed passing."
+  - id: golang/architecture/testobligation/gotest_test.go:TestUndeclaredCoverageCannotAccuse
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestUndeclaredCoverageCannotAccuse
+    package: testobligation
+    language: go
+    doc: "The undeclared zero value carries no authority either."
+  - id: golang/architecture/testobligation/gotest_test.go:TestUnknownProvenanceCannotAccuse
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestUnknownProvenanceCannotAccuse
+    package: testobligation
+    language: go
+    doc: "Fail closed on an unrecognized provenance: a value added later without\ndeciding its authority must not inherit the right to accuse."
+  - id: golang/architecture/testobligation/gotest_test.go:TestVerdictFollowsDeclaredCoverageNotPathInference
+    file: golang/architecture/testobligation/gotest_test.go
+    symbol: TestVerdictFollowsDeclaredCoverageNotPathInference
+    package: testobligation
+    language: go
+    doc: "Declared coverage, not path inference, decides the verdict: the SAME absent\nanchor flips between the two states purely on what the caller declared."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_FailOutranksSkip
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_FailOutranksSkip
+    package: testobligation
+    language: go
+    doc: "A definite failure outranks an unexecuted obligation: reporting FAIL as\n\"could not tell\" would understate a known negative."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_MixedPassAndRequiredSkipNeverCertifies
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_MixedPassAndRequiredSkipNeverCertifies
+    package: testobligation
+    language: go
+    doc: "6. a passing majority never rescues a required skip."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_NoRequiredObligationsIsIndeterminate
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_NoRequiredObligationsIsIndeterminate
+    package: testobligation
+    language: go
+    doc: "Zero required obligations is vacuous proof, not satisfied proof."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_OptionalSkipIsVisibleAndNonBlocking
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_OptionalSkipIsVisibleAndNonBlocking
+    package: testobligation
+    language: go
+    doc: "5. optional obligations are visible but never block."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_RequiredFailFails
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_RequiredFailFails
+    package: testobligation
+    language: go
+    doc: "2. required test fails -> FAIL."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_RequiredPassCertifies
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_RequiredPassCertifies
+    package: testobligation
+    language: go
+    doc: "1. required test passes -> certifies."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_RequiredSkipIsIndeterminateNotPass
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_RequiredSkipIsIndeterminateNotPass
+    package: testobligation
+    language: go
+    doc: "3. THE CASE THIS PACKAGE EXISTS FOR: the test skipped, so `go test` exited 0\nand printed ok, but nothing was proved. Certification must not follow the\nprocess result."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_RequiredUnavailableIsIndeterminate
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_RequiredUnavailableIsIndeterminate
+    package: testobligation
+    language: go
+    doc: "4. required test unavailable -> INDETERMINATE."
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_SkipReasonSurvives
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestCertify_SkipReasonSurvives
+    package: testobligation
+    language: go
+    doc: "7. the reason a proof is missing must survive into the report."
+  - id: golang/architecture/testobligation/obligation_test.go:TestUnknownOutcomeIsNotProof
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestUnknownOutcomeIsNotProof
+    package: testobligation
+    language: go
+    doc: "Same fail-closed requirement one level down: an unrecognized outcome must not\ncount as executed proof."
+  - id: golang/architecture/testobligation/obligation_test.go:TestUnknownVerdictFailsClosed
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestUnknownVerdictFailsClosed
+    package: testobligation
+    language: go
+    doc: "An unrecognized verdict must fail closed. A future constant added without\nupdating ExitCode/Certifies must not silently become a passing exit — that\nwould let a state nobody has reasoned about certify a change."
+  - id: golang/architecture/testobligation/obligation_test.go:TestVerdictExitCodesAreStable
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestVerdictExitCodesAreStable
+    package: testobligation
+    language: go
+    doc: "The exit codes are a CLI contract that CI branches on, so they are pinned\nrather than merely documented. 3 in particular must not drift or collapse\ninto a generic failure bucket: FAIL means the code is wrong, INDETERMINATE\nmeans the evidence is missing, and they call for different responses."
+  - id: golang/architecture/testobligation/obligation_test.go:TestZeroValuesAreNotProof
+    file: golang/architecture/testobligation/obligation_test.go
+    symbol: TestZeroValuesAreNotProof
+    package: testobligation
+    language: go
+    doc: "The zero values must be the honest ones: an obligation nobody reported on,\nand a report nobody filled in, must not read as proof."
   - id: golang/architecture/whyinvestigation/git_test.go:TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
     file: golang/architecture/whyinvestigation/git_test.go
     symbol: TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
@@ -20172,6 +20381,12 @@ test_symbols:
     symbol: TestValidateTestReconciliation_AuthoritativeAndDiscoveredAgree
     package: extractor
     language: go
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_DiscoveredReferenceStillReportsMissingSpecOnly
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_DiscoveredReferenceStillReportsMissingSpecOnly
+    package: extractor
+    language: go
+    doc: "A referenced anchor that IS discovered stays on the existing missing-spec\npath — the new check must not swallow or duplicate it."
   - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_DoubleColonRequiredTestMatchesDiscoveredAnchor
     file: golang/extractor/test_reconciliation_validator_test.go
     symbol: TestValidateTestReconciliation_DoubleColonRequiredTestMatchesDiscoveredAnchor
@@ -20197,11 +20412,30 @@ test_symbols:
     symbol: TestValidateTestReconciliation_MissingDiscoveredImplementationForRequiredGoTest
     package: extractor
     language: go
+    doc: "When the package WAS inspected — another test in it was discovered — and the\nanchored test still is not there, that is a claim about the repository and\nmust be reported as a genuine missing implementation."
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_NoDiscoverySurfaceIsUnavailableNotMissing
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_NoDiscoverySurfaceIsUnavailableNotMissing
+    package: extractor
+    language: go
+    doc: "A graph with no discovered test symbols for the anchor's package cannot say\nthe test is missing — it never looked. This is the shape the standalone self\nbuild produces, where the generated/ code-symbol root is excluded: without\nthe split it accused the repository of 195 missing tests, none of them real."
   - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_PythonConcreteAnchorMatchesDiscoveredSymbol
     file: golang/extractor/test_reconciliation_validator_test.go
     symbol: TestValidateTestReconciliation_PythonConcreteAnchorMatchesDiscoveredSymbol
     package: extractor
     language: go
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_ReferencedPlaceholderAnchorIsNotReported
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_ReferencedPlaceholderAnchorIsNotReported
+    package: extractor
+    language: go
+    doc: "A placeholder like \"<test>\" appears in documentation examples of the\nannotation syntax. It is not a claim about real coverage, so it must not be\nreported — otherwise the new check cries wolf and gets ignored."
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported
+    package: extractor
+    language: go
+    doc: "The dangling-proof case: an `@awareness tested_by=` annotation names a test\nthat no discovered test defines. Before ReferencedMissingImplementation\nexisted, the referenced-symbol loop skipped any anchor that was not\ndiscovered, so this — the one shape that lets the graph assert coverage the\ncode does not have — was the single case the validator stayed silent about."
   - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_RustConcreteAnchorMatchesDiscoveredSymbol
     file: golang/extractor/test_reconciliation_validator_test.go
     symbol: TestValidateTestReconciliation_RustConcreteAnchorMatchesDiscoveredSymbol
@@ -22853,6 +23087,30 @@ test_symbols:
     package: main
     language: go
     doc: "An implementation pattern governs by literal rules (requiresCall, mustFollow,\n…) that are not edges to other nodes, so they never appear as graph links.\nResolve must surface them as facts so the node reads as governed, not bare."
+  - id: golang/server/resolve_id_encoding_test.go:TestAwarenessIDFromIRI_DecodesEncodedPathSegment
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestAwarenessIDFromIRI_DecodesEncodedPathSegment
+    package: main
+    language: go
+    doc: "A Test node's id IS a file path (\"golang/server/foo_test.go:TestBar\"), so its\nIRI path segment is EncodeIRIPath-encoded on the wire. Agents copy the id\nstraight out of Impact/Briefing/Preflight to decide what to run, so leaking\nthe wire form (\"golang%2Fserver%2Ffoo_test.go:TestBar\") hands them a command\nthat does not exist. These tests pin the decoded form at the one boundary\nthat produces every surfaced id."
+  - id: golang/server/resolve_id_encoding_test.go:TestAwarenessRelatedID_DecodesEncodedPathSegment
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestAwarenessRelatedID_DecodesEncodedPathSegment
+    package: main
+    language: go
+    doc: "The \"class:id\" pairs in the Referenced IDs block are the agent's copy source\nfor a follow-up Resolve call, so they carry the same contract."
+  - id: golang/server/resolve_id_encoding_test.go:TestImpact_RequiredTestIDIsDecodedForAgents
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestImpact_RequiredTestIDIsDecodedForAgents
+    package: main
+    language: go
+    doc: "End-to-end through the RPC an agent actually calls: a required test reached\nby Impact must be reported in runnable form."
+  - id: golang/server/resolve_id_encoding_test.go:TestSurfacedTestIDRoundTripsBackToTheSameIRI
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestSurfacedTestIDRoundTripsBackToTheSameIRI
+    package: main
+    language: go
+    doc: "Decoding on the way out only stays safe because resolveIRIForClassAndID\nre-encodes on the way back in. If either side drifts, an agent that copies a\nsurfaced id into Resolve gets a double-encoded IRI that matches no node —\nthe exact bug the decode at resolveIRIForClassAndID:155 was added to fix."
   - id: golang/server/risk_classify_test.go:TestAssessCanonicalProtection_DegradesGracefullyWithoutRepoContext
     file: golang/server/risk_classify_test.go
     symbol: TestAssessCanonicalProtection_DegradesGracefullyWithoutRepoContext

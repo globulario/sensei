@@ -37,7 +37,7 @@ const (
 // @awareness enforces=globular.awareness_graph:invariant.awareness.query.no_arbitrary_sparql
 // @awareness enforces=globular.awareness_graph:invariant.awareness.store_unavailable_explicit
 // @awareness protects=globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
-// @awareness tested_by=golang/server/query_test.go:TestQueryUnknownMode
+// @awareness tested_by=golang/server/main_test.go:TestQuery_RejectsUnsupportedMode
 // @awareness risk=high
 func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awarenesspb.QueryResponse, error) {
 	if s.store == nil {

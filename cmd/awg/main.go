@@ -148,6 +148,8 @@ func dispatch(cmd string, args []string) int {
 		return runImpact(args)
 	case "preflight":
 		return runPreflight(args)
+	case "verify-obligations":
+		return runVerifyObligations(args)
 	case "contract-assess":
 		return runContractAssess(args)
 	case "contract-bootstrap":
@@ -384,6 +386,7 @@ Onboard or refresh a repo:
 
 Query before editing:
   preflight      Risk classification before editing a file or task
+  verify-obligations  Check the required tests actually ran (go test -json)
   briefing       Query the graph for a file or task
   edit-brief     Claude Code PreToolUse push: hand the agent a file briefing
   impact         Get structured knowledge nodes for a file

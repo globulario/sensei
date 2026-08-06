@@ -377,3 +377,42 @@ func TestDedupNTriples_Empty(t *testing.T) {
 		t.Fatalf("empty: out=%q uniq=%d dup=%d", out, uniq, dup)
 	}
 }
+
+// TestRun_Deterministic is the proof behind
+// intent.awareness.yaml2nt_produces_deterministic_output: the same input tree
+// must serialize to byte-identical N-Triples across runs. Without this, a
+// rebuild produces a different seed digest from unchanged sources, and every
+// downstream freshness/authority check that compares digests reports a phantom
+// drift. Map iteration order in the importer is the realistic regression, so
+// repeating the run in-process is what catches it.
+func TestRun_Deterministic(t *testing.T) {
+	runOnce := func() string {
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{"-input", fixtureDir}, &stdout, &stderr); code != exitOK {
+			t.Fatalf("exit code = %d, want %d. stderr:\n%s", code, exitOK, stderr.String())
+		}
+		if stdout.Len() == 0 {
+			t.Fatal("stdout is empty; expected N-Triples")
+		}
+		return stdout.String()
+	}
+
+	first := runOnce()
+	for i := 2; i <= 3; i++ {
+		next := runOnce()
+		if next == first {
+			continue
+		}
+		firstLines, nextLines := strings.Split(first, "\n"), strings.Split(next, "\n")
+		if len(firstLines) != len(nextLines) {
+			t.Fatalf("run %d emitted %d lines, run 1 emitted %d", i, len(nextLines), len(firstLines))
+		}
+		for n := range firstLines {
+			if firstLines[n] != nextLines[n] {
+				t.Fatalf("run %d diverges from run 1 at line %d:\n run 1: %s\n run %d: %s",
+					i, n+1, firstLines[n], i, nextLines[n])
+			}
+		}
+		t.Fatalf("run %d differs from run 1 despite matching lines", i)
+	}
+}

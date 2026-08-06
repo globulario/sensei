@@ -45,7 +45,7 @@ func main() {
 // @awareness implements=globular.awareness_graph:intent.awareness.loadnt_validates_before_loading
 // @awareness enforces=globular.awareness_graph:invariant.awareness.rdf.ntriples_validated_before_write
 // @awareness protects=globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
-// @awareness tested_by=cmd/loadnt/main_test.go:TestRunValidatesBeforeUpload
+// @awareness tested_by=cmd/loadnt/main_test.go:TestRun_InvalidNTriples
 // @awareness risk=medium
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("loadnt", flag.ContinueOnError)

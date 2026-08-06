@@ -27,7 +27,7 @@ import (
 // @awareness component=server.resolve
 // @awareness implements=globular.awareness_graph:intent.awareness.resolve_returns_precise_node_by_class_and_id
 // @awareness enforces=globular.awareness_graph:invariant.awareness.store_unavailable_explicit
-// @awareness tested_by=golang/server/resolve_test.go:TestResolveNotFound
+// @awareness tested_by=golang/server/main_test.go:TestResolve_RejectsUnsupportedClass
 // @awareness risk=low
 func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (*awarenesspb.ResolveResponse, error) {
 	if strings.TrimSpace(req.GetId()) == "" {
@@ -224,7 +224,10 @@ func awarenessRelatedID(iri string) (string, bool) {
 	if slash <= 0 || slash+1 >= len(rest) {
 		return "", false
 	}
-	classPart, idPart := rest[:slash], rest[slash+1:]
+	// Same contract as awarenessIDFromIRI: the "class:id" pairs in Referenced
+	// IDs are copied by agents into Resolve calls, so the id must be the human
+	// form. resolveIRIForClassAndID re-encodes it, so the round-trip is exact.
+	classPart, idPart := rest[:slash], rdf.DecodeIRIPath(rest[slash+1:])
 	switch classPart {
 	case "invariant":
 		return "invariant:" + idPart, true
@@ -292,7 +295,13 @@ func awarenessIDFromIRI(iri string) (string, bool) {
 	if slash <= 0 || slash+1 >= len(rest) {
 		return "", false
 	}
-	return rest[slash+1:], true
+	// The path segment is EncodeIRIPath-encoded, so a file-path id arrives as
+	// "golang%2Fserver%2Ffoo_test.go:TestBar". Agents read this id verbatim out
+	// of briefing/preflight/impact, so it must be the human id, not the wire
+	// form. Decoding here (rather than at each render site) is what keeps the
+	// two spellings from diverging: resolveIRIForClassAndID decodes on the way
+	// back in, so mintedIRI(decoded) round-trips to the same stored node.
+	return rdf.DecodeIRIPath(rest[slash+1:]), true
 }
 
 func applyNodeFact(node *awarenesspb.KnowledgeNode, t store.Triple) {
