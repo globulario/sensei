@@ -20,7 +20,7 @@ func TestPreflightSurfacesEvidenceRequirements(t *testing.T) {
 	invalidateAuthorityDomainCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "change repository publish workflow installability behavior",

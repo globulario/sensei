@@ -92,7 +92,7 @@ func TestPreflightGoldenUsefulness(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			invalidateImplementationPatternCacheForTest()
 			invalidateAuthorityDomainCacheForTest()
-			s := newServer(newEmbeddedSeedStore())
+			s := newTestServer(newEmbeddedSeedStore())
 
 			resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 				Task:  tc.task,

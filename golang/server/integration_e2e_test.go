@@ -87,7 +87,7 @@ func TestIntegration_EndToEnd_LoadAndQuery(t *testing.T) {
 
 	lis := bufconn.Listen(1 << 20)
 	s := grpc.NewServer()
-	awarenesspb.RegisterAwarenessGraphServer(s, newServer(storeClient))
+	awarenesspb.RegisterAwarenessGraphServer(s, newTestServer(storeClient))
 	go func() { _ = s.Serve(lis) }()
 	defer s.Stop()
 

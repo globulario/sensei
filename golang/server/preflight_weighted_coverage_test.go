@@ -35,7 +35,7 @@ func preflightWith(t *testing.T, authorityFacts []store.ImpactFact, file string)
 	t.Helper()
 	invalidateImplementationPatternCacheForTest()
 	invalidateAuthorityDomainCacheForTest()
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		// No file anchors — the whole point is the no-anchors path.
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) { return nil, nil },
 		classFacts: func(_ context.Context, classIRI string, _ int) ([]store.ImpactFact, error) {

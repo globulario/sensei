@@ -36,7 +36,7 @@ func codeSymbolFacts(id, file, language string, refs ...string) []store.ImpactFa
 func TestImpact_SurfacesSymbolsAndReferences(t *testing.T) {
 	symFacts := codeSymbolFacts("command/issue.go:issueClose", "command/issue.go", "go",
 		"external:Fprintf", "external:colorableErr")
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil // no architectural anchors — isolate the symbol surface
 		},

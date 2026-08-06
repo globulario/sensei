@@ -113,7 +113,7 @@ func TestBriefingFeedbackProse_PrivacyAndParity(t *testing.T) {
 // base graph prose is preserved. (This is a semantic improvement, not byte-for-byte compat.)
 func TestBriefing_UnconfiguredEmitsUnavailableAndDegrades(t *testing.T) {
 	// Base EMPTY (no anchors) → DEGRADED.
-	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
+	s := newTestServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
 	if err != nil {
 		t.Fatal(err)
@@ -138,7 +138,7 @@ func TestBriefing_UnconfiguredEmitsUnavailableAndDegrades(t *testing.T) {
 	}
 
 	// Base OK (an anchor) → DEGRADED.
-	s2 := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
+	s2 := newTestServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
 		return []store.ImpactFact{
 			{NodeIRI: "https://globular.io/awareness#invariant/test.x", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "x"},
 		}, nil
@@ -155,7 +155,7 @@ func TestBriefing_UnconfiguredEmitsUnavailableAndDegrades(t *testing.T) {
 // Configured server, matching domain, empty repo: field 7 present with feedback_empty; an OK
 // base stays OK (OK + empty = OK).
 func TestBriefing_ConfiguredEmptyFeedbackComposes(t *testing.T) {
-	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
+	s := newTestServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
 		return []store.ImpactFact{
 			{NodeIRI: "https://globular.io/awareness#invariant/test.x", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "x"},
 		}, nil
@@ -179,7 +179,7 @@ func TestBriefing_ConfiguredEmptyFeedbackComposes(t *testing.T) {
 // Configured server, foreign domain: feedback unavailable (domain mismatch) → DEGRADED, but the
 // base graph briefing prose is preserved (never erased).
 func TestBriefing_ForeignDomainDegradesButKeepsBase(t *testing.T) {
-	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
+	s := newTestServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
 		return []store.ImpactFact{
 			{NodeIRI: "https://globular.io/awareness#invariant/test.x", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "x"},
 		}, nil
@@ -232,7 +232,7 @@ func TestBriefingFeedback_PaddedIdentityNeverReachesOwner(t *testing.T) {
 // A padded raw file on a CONFIGURED server: feedback is invalid → DEGRADED, but the graph
 // briefing (which trims) still produces its base prose.
 func TestBriefing_PaddedFileInvalidKeepsGraphBriefing(t *testing.T) {
-	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
+	s := newTestServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) {
 		return []store.ImpactFact{
 			{NodeIRI: "https://globular.io/awareness#invariant/test.x", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "x"},
 		}, nil
@@ -307,7 +307,7 @@ var errBoom = fmt.Errorf("injected adapter failure")
 // When even the fallback cannot map, the RPC returns a typed gRPC internal error rather than a
 // divergent response (prose/status without field 7).
 func TestBriefing_DoubleAdapterFailureReturnsInternal(t *testing.T) {
-	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
+	s := newTestServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
 	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
 	s.feedbackMapper = func(briefingfeedback.Projection) (*awarenesspb.BriefingFeedbackProjection, error) {
 		return nil, errBoom

@@ -159,7 +159,7 @@ func newAuthorityTestServer(t *testing.T, authorityFacts []store.ImpactFact) *se
 	t.Helper()
 	invalidateImplementationPatternCacheForTest()
 	invalidateAuthorityDomainCacheForTest()
-	return newServer(fakeStore{
+	return newTestServer(fakeStore{
 		classFacts: func(_ context.Context, classIRI string, _ int) ([]store.ImpactFact, error) {
 			if classIRI == rdf.ClassAuthorityDomain {
 				return authorityFacts, nil

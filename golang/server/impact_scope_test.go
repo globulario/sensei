@@ -53,7 +53,7 @@ func hasID(ids []string, want string) bool {
 }
 
 func newScopeServer(facts []store.ImpactFact, home string) *server {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return facts, nil
 		},
@@ -84,7 +84,7 @@ func TestCollectImpact_SingleDomainUnscoped_ReturnsAll(t *testing.T) {
 }
 
 func TestCollectImpact_UnknownRequestedDomainFailsClosed(t *testing.T) {
-	s := newServer(fakeDomainListStore{
+	s := newTestServer(fakeDomainListStore{
 		fakeStore: fakeStore{
 			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 				return scopeFacts(map[string]string{"globular.rule.a": ""}), nil

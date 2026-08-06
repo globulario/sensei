@@ -2089,3 +2089,23 @@ invariants:
         - cmd/awg/cmd_serve.go
     related_failure_modes:
       - awareness.graph_authority.scratch_build_overwrites_live_marker
+  - id: graph.certified_domain_must_match_published_domain_content
+    title: A certified domain must actually be represented by the content published for it
+    status: active
+    description: 'GRAPH_FRESHNESS_STATE_CURRENT may mean only ''the store matches the latest publication transaction''. It must never imply semantic authority. A domain slice becomes authoritative only when the certified revision matches, the corpus census reconciles, every required identity declared by the certified source is present as a typed canonical subject, NO identity is present whose authoredIn provenance lies outside the certified source root, and post-publication probes pass. Coverage alone is insufficient: a slice built from the wrong working directory projects perfectly and is simply the wrong corpus. Presence of an id STRING is also insufficient — the subject must carry a governed rdf:type, because the graph is full of untyped subjects created as objects of other nodes'' relations.'
+    protects:
+      files:
+        - cmd/awg/domain_closure.go
+    required_tests:
+      - cmd/awg/domain_closure_test.go:TestWrongWorkspacePublicationFailsClosure
+    contract: authoritative requires proof that the slice represents its certified source, in both directions
+  - id: graph.publication_requires_pre_mutation_domain_source_admission
+    title: A publication must prove domain/source identity before it mutates the store
+    status: active
+    description: 'Closure proves a published slice is coherent with the input it was given; it cannot prove that input belonged to the requested domain. Once certified roots are derived from the corpus the build read, a wrong-workspace publication is perfectly self-consistent and reports closure PROVEN. So the domain must be resolved through a registry independent of both the current working directory and the corpus about to be certified, and the check must run BEFORE a publication transaction opens. Repository identity comes from the canonical git remote, never a directory basename, so a copied checkout or worktree still validates while another owner''s same-named repository does not. A corpus with uncommitted changes is refused: publishing would certify a revision while shipping bytes that revision does not contain. Fail-closed on every unverifiable path — missing registry, unregistered domain, corpus root outside the allowed list, unresolvable repository identity. There must be no skip flag; a production opt-out reinstates the hole.'
+    protects:
+      files:
+        - cmd/awg/domain_admission.go
+    required_tests:
+      - cmd/awg/domain_admission_test.go:TestWrongWorkspaceIsRefusedBeforeMutation
+    contract: no store mutation may begin until the requested domain is proven to belong to the source repository

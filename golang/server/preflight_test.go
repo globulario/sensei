@@ -51,7 +51,7 @@ func newPreflightTestServer(
 ) *server {
 	t.Helper()
 	invalidateImplementationPatternCacheForTest()
-	return newServer(fakeStore{
+	return newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
 			return perFileFacts[iri], nil
 		},
@@ -75,7 +75,7 @@ func fileIRI(path string) string {
 // ────────────────────────────────────────────────────────────────────────
 
 func TestPreflight_StoreUnavailableReturnsDegradedUnknownImpact(t *testing.T) {
-	s := newServer(nil)
+	s := newTestServer(nil)
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "do a thing",
 		Files: []string{"golang/node_agent/foo.go"},
@@ -113,7 +113,7 @@ func TestPreflight_StoreUnavailableReturnsDegradedUnknownImpact(t *testing.T) {
 }
 
 func TestPreflight_UnknownRequestedDomainReturnsDegradedUnknownImpact(t *testing.T) {
-	s := newServer(fakeDomainListStore{
+	s := newTestServer(fakeDomainListStore{
 		fakeStore: fakeStore{
 			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 				return invariantFacts("known.rule", "Known rule", "high"), nil
@@ -146,7 +146,7 @@ func TestPreflight_UnknownRequestedDomainReturnsDegradedUnknownImpact(t *testing
 }
 
 func TestPreflight_MissingDomainInMultiDomainGraphReturnsDegradedUnknownImpact(t *testing.T) {
-	s := newServer(fakeDomainListStore{
+	s := newTestServer(fakeDomainListStore{
 		fakeStore: fakeStore{
 			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 				return invariantFacts("known.rule", "Known rule", "high"), nil

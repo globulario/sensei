@@ -14,7 +14,7 @@ import (
 // Resolve must surface them as facts so the node reads as governed, not bare.
 func TestResolve_ImplementationPatternSurfacesLiteralRuleFacts(t *testing.T) {
 	requireCombinedSeed(t)
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	resp, err := s.Resolve(context.Background(), &awarenesspb.ResolveRequest{
 		Class: "implementation_pattern",
 		Id:    "globular.pattern.doctor_rule_diagnostic_only",

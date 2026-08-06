@@ -87,7 +87,7 @@ func dialogueClassFacts(classIRI, nodeIRI string, triples []store.Triple) []stor
 }
 
 func newArchitectureDialogueTestServer() *server {
-	return newServer(currentAuthorityStore(fakeStore{
+	return newTestServer(currentAuthorityStore(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			switch iri {
 			case openQuestionIRI(testQuestionID):

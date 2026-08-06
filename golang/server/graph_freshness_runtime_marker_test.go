@@ -64,7 +64,7 @@ func TestMetadata_UsesRuntimeMarkerFileForFreshness(t *testing.T) {
 		t.Fatalf("write marker file: %v", err)
 	}
 
-	s := newServer(runtimeMarkerStore{
+	s := newTestServer(runtimeMarkerStore{
 		describeFn: func(_ context.Context, iri string) ([]store.Triple, error) {
 			if iri != marker.IRI {
 				t.Fatalf("Describe called with %q, want %q", iri, marker.IRI)
@@ -113,7 +113,7 @@ func TestMetadata_UsesRuntimeTransactionStampWhenPresent(t *testing.T) {
 		t.Fatalf("write transaction file: %v", err)
 	}
 
-	s := newServer(runtimeMarkerStore{
+	s := newTestServer(runtimeMarkerStore{
 		describeFn: func(_ context.Context, iri string) ([]store.Triple, error) {
 			if iri != marker.IRI {
 				t.Fatalf("Describe called with %q, want %q", iri, marker.IRI)
@@ -151,7 +151,7 @@ func TestMetadata_UsesRuntimeTransactionStampWhenPresent(t *testing.T) {
 }
 
 func TestMetadata_RuntimeMarkerFileMissingMarksUnknown(t *testing.T) {
-	s := newServer(runtimeMarkerStore{
+	s := newTestServer(runtimeMarkerStore{
 		describeFn: func(context.Context, string) ([]store.Triple, error) { return nil, nil },
 		countFn:    func(context.Context) (int64, error) { return 0, nil },
 	})
@@ -180,7 +180,7 @@ func TestBriefing_RuntimeMarkerAllowsNonEmbeddedAuthoritativeGraph(t *testing.T)
 		t.Fatalf("write marker file: %v", err)
 	}
 
-	s := newServer(runtimeMarkerStore{
+	s := newTestServer(runtimeMarkerStore{
 		describeFn: func(_ context.Context, iri string) ([]store.Triple, error) {
 			if iri != marker.IRI {
 				t.Fatalf("Describe called with %q, want %q", iri, marker.IRI)

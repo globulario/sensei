@@ -34,7 +34,7 @@ func provenancedCaddyFacts() []store.ImpactFact {
 // repo, origin, review label, bundle, range, citations — so an agent can see
 // why a foreign rule should be trusted.
 func TestBriefing_Provenance_RenderedForPromotedRule(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return provenancedCaddyFacts(), nil
 		},
@@ -59,7 +59,7 @@ func TestBriefing_Provenance_RenderedForPromotedRule(t *testing.T) {
 		testIRI := mintedIRI(rdf.ClassTestSymbol, "render/json_test.go:TestJSONRender")
 		callerID := "handlers/api.go:writeJSON"
 
-		targetServer := newServer(&domainAwareCallerStore{fakeStore: fakeStore{
+		targetServer := newTestServer(&domainAwareCallerStore{fakeStore: fakeStore{
 			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 				return nil, nil
 			},
@@ -119,7 +119,7 @@ func TestBriefing_Provenance_RenderedForPromotedRule(t *testing.T) {
 // An untagged (home-domain) briefing carries NO provenance block — provenance is
 // only for promoted repo-scoped rules.
 func TestBriefing_NoProvenanceBlockForUntagged(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return scopeFacts(map[string]string{"globular.repository.publish_is_scylla_first": ""}), nil
 		},
@@ -140,7 +140,7 @@ func TestResolve_DomainScope_ForeignNodeInvisible(t *testing.T) {
 		{Predicate: rdf.PropLabel, Object: "Caddyfile errors must use dispenser.Errf"},
 		{Predicate: rdf.PropRepo, Object: caddyDomain},
 	}
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, _ string) ([]store.Triple, error) { return caddyTriples, nil },
 	})
 
