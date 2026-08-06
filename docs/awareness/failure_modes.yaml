@@ -1356,3 +1356,15 @@ failure_modes:
     evidence:
       - sensei briefing --file golang/server/resolve.go reported tested_by golang/server/resolve_test.go:TestResolveNotFound; neither that file nor that function exists anywhere in the repo
       - ValidateTestReconciliation over the built code-symbol graph reported 0 findings before the fix and exactly 7 dangling anchors after adding ReferencedMissingImplementation
+  - id: failure.sensei.missing_test_implementation_conflated_with_excluded_discover
+    title: Missing test implementation conflated with excluded discovery scope
+    description: AuthoritativeMissingImplementation reports 'required test has no discovered implementation' without distinguishing whether the discovery surface was actually available. In the standalone self build the generated/ code-symbol root is excluded by design, so no TestSymbol is discovered at all and every concrete required-test anchor is reported as missing. This accuses the repository of ~193 absent tests when 192 exist and are discoverable, and it buries the one genuine missing implementation in the noise. Absent implementation and unavailable discovery are different states and must not share a verdict.
+    protects:
+      files:
+        - golang/extractor/test_reconciliation_validator.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    evidence:
+      - 'Controlled comparison on the same corpus: validating the self seed alone reports 193 AuthoritativeMissingImplementation; concatenating the generated code-symbol graph and revalidating reports 1'
+      - 'Chain established for 5 representatives (cmd_build/cmd_feedback_check/cmd_infer_claims/cmd_propose/cmd_bootstrap tests): authored reference exists, Go function exists in checkout, TestSymbol absent from self seed, symbol present in docs/awareness/generated'
+      - 'The single survivor with discovery available is genuine: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesTamperedPromotionWithFinding is referenced but defined nowhere in the repository'
