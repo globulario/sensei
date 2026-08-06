@@ -153,6 +153,7 @@ components:
       - cmd/awg/cmd_task_session.go
       - cmd/awg/cmd_validate.go
       - cmd/awg/cmd_validate_draft.go
+      - cmd/awg/cmd_verify_obligations.go
       - cmd/awg/cmd_visual_audit.go
       - cmd/awg/completion_decision.go
       - cmd/awg/completion_policy.go
@@ -790,6 +791,8 @@ components:
       - golang/architecture/tasksession/governance.go
       - golang/architecture/tasksession/session.go
       - golang/architecture/tasksession/session_authority.go
+      - golang/architecture/testobligation/gotest.go
+      - golang/architecture/testobligation/obligation.go
       - golang/architecture/whyinvestigation/architect_answers.go
       - golang/architecture/whyinvestigation/awareness.go
       - golang/architecture/whyinvestigation/compose.go
