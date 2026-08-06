@@ -15,7 +15,7 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
       tested_by:
-        - cmd/loadnt/main_test.go:TestRunValidatesBeforeUpload
+        - cmd/loadnt/main_test.go:TestRun_InvalidNTriples
   - id: globular.awareness_graph:code.go.build.loadnt.uploadNTriples
     namespace: globular.awareness_graph
     language: go
@@ -55,7 +55,8 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
       tested_by:
-        - cmd/yaml2nt/main_test.go:TestRunDeterministic
+        - cmd/yaml2nt/main_test.go:TestRun_Deterministic
+        - cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped
   - id: globular.awareness_graph:code.go.cli.feedback_check
     namespace: globular.awareness_graph
     language: go
@@ -183,7 +184,7 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
       tested_by:
-        - golang/server/main_test.go:TestBriefingStoreNil
+        - golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil
   - id: globular.awareness_graph:code.go.server.change_impact
     namespace: globular.awareness_graph
     language: go
@@ -270,7 +271,7 @@ code_symbols:
       implements:
         - globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
       tested_by:
-        - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaque
+        - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
   - id: globular.awareness_graph:code.go.server.impact
     namespace: globular.awareness_graph
     language: go
@@ -295,7 +296,8 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
       tested_by:
-        - golang/server/impact_test.go:TestImpactStoreNil
+        - golang/server/main_test.go:TestImpact_UnavailableWhenStoreNil
+        - golang/server/main_test.go:TestImpact_UnavailableWhenStoreErrors
   - id: globular.awareness_graph:code.go.server.implementation_patterns
     namespace: globular.awareness_graph
     language: go
@@ -385,7 +387,7 @@ code_symbols:
       protects:
         - globular.awareness_graph:failure_mode.awareness.raw_sparql_exposed_to_agent
       tested_by:
-        - golang/server/query_test.go:TestQueryUnknownMode
+        - golang/server/main_test.go:TestQuery_RejectsUnsupportedMode
   - id: globular.awareness_graph:code.go.server.reference_sites
     namespace: globular.awareness_graph
     language: go
@@ -447,7 +449,7 @@ code_symbols:
       implements:
         - globular.awareness_graph:intent.awareness.resolve_returns_precise_node_by_class_and_id
       tested_by:
-        - golang/server/resolve_test.go:TestResolveNotFound
+        - golang/server/main_test.go:TestResolve_RejectsUnsupportedClass
   - id: globular.awareness_graph:code.go.server.risk_classify
     namespace: globular.awareness_graph
     language: go
@@ -5566,6 +5568,12 @@ test_symbols:
     symbol: TestDedupNTriples_NoDuplicates
     package: main
     language: go
+  - id: cmd/yaml2nt/main_test.go:TestRun_Deterministic
+    file: cmd/yaml2nt/main_test.go
+    symbol: TestRun_Deterministic
+    package: main
+    language: go
+    doc: "TestRun_Deterministic is the proof behind\nintent.awareness.yaml2nt_produces_deterministic_output: the same input tree\nmust serialize to byte-identical N-Triples across runs. Without this, a\nrebuild produces a different seed digest from unchanged sources, and every\ndownstream freshness/authority check that compares digests reports a phantom\ndrift. Map iteration order in the importer is the realistic regression, so\nrepeating the run in-process is what catches it."
   - id: cmd/yaml2nt/main_test.go:TestRun_InputIsFile_ReturnsUserError
     file: cmd/yaml2nt/main_test.go
     symbol: TestRun_InputIsFile_ReturnsUserError
@@ -19999,6 +20007,12 @@ test_symbols:
     symbol: TestValidateTestReconciliation_AuthoritativeAndDiscoveredAgree
     package: extractor
     language: go
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_DiscoveredReferenceStillReportsMissingSpecOnly
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_DiscoveredReferenceStillReportsMissingSpecOnly
+    package: extractor
+    language: go
+    doc: "A referenced anchor that IS discovered stays on the existing missing-spec\npath — the new check must not swallow or duplicate it."
   - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_DoubleColonRequiredTestMatchesDiscoveredAnchor
     file: golang/extractor/test_reconciliation_validator_test.go
     symbol: TestValidateTestReconciliation_DoubleColonRequiredTestMatchesDiscoveredAnchor
@@ -20029,6 +20043,18 @@ test_symbols:
     symbol: TestValidateTestReconciliation_PythonConcreteAnchorMatchesDiscoveredSymbol
     package: extractor
     language: go
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_ReferencedPlaceholderAnchorIsNotReported
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_ReferencedPlaceholderAnchorIsNotReported
+    package: extractor
+    language: go
+    doc: "A placeholder like \"<test>\" appears in documentation examples of the\nannotation syntax. It is not a claim about real coverage, so it must not be\nreported — otherwise the new check cries wolf and gets ignored."
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported
+    file: golang/extractor/test_reconciliation_validator_test.go
+    symbol: TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported
+    package: extractor
+    language: go
+    doc: "The dangling-proof case: an `@awareness tested_by=` annotation names a test\nthat no discovered test defines. Before ReferencedMissingImplementation\nexisted, the referenced-symbol loop skipped any anchor that was not\ndiscovered, so this — the one shape that lets the graph assert coverage the\ncode does not have — was the single case the validator stayed silent about."
   - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_RustConcreteAnchorMatchesDiscoveredSymbol
     file: golang/extractor/test_reconciliation_validator_test.go
     symbol: TestValidateTestReconciliation_RustConcreteAnchorMatchesDiscoveredSymbol
@@ -22674,6 +22700,30 @@ test_symbols:
     package: main
     language: go
     doc: "An implementation pattern governs by literal rules (requiresCall, mustFollow,\n…) that are not edges to other nodes, so they never appear as graph links.\nResolve must surface them as facts so the node reads as governed, not bare."
+  - id: golang/server/resolve_id_encoding_test.go:TestAwarenessIDFromIRI_DecodesEncodedPathSegment
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestAwarenessIDFromIRI_DecodesEncodedPathSegment
+    package: main
+    language: go
+    doc: "A Test node's id IS a file path (\"golang/server/foo_test.go:TestBar\"), so its\nIRI path segment is EncodeIRIPath-encoded on the wire. Agents copy the id\nstraight out of Impact/Briefing/Preflight to decide what to run, so leaking\nthe wire form (\"golang%2Fserver%2Ffoo_test.go:TestBar\") hands them a command\nthat does not exist. These tests pin the decoded form at the one boundary\nthat produces every surfaced id."
+  - id: golang/server/resolve_id_encoding_test.go:TestAwarenessRelatedID_DecodesEncodedPathSegment
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestAwarenessRelatedID_DecodesEncodedPathSegment
+    package: main
+    language: go
+    doc: "The \"class:id\" pairs in the Referenced IDs block are the agent's copy source\nfor a follow-up Resolve call, so they carry the same contract."
+  - id: golang/server/resolve_id_encoding_test.go:TestImpact_RequiredTestIDIsDecodedForAgents
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestImpact_RequiredTestIDIsDecodedForAgents
+    package: main
+    language: go
+    doc: "End-to-end through the RPC an agent actually calls: a required test reached\nby Impact must be reported in runnable form."
+  - id: golang/server/resolve_id_encoding_test.go:TestSurfacedTestIDRoundTripsBackToTheSameIRI
+    file: golang/server/resolve_id_encoding_test.go
+    symbol: TestSurfacedTestIDRoundTripsBackToTheSameIRI
+    package: main
+    language: go
+    doc: "Decoding on the way out only stays safe because resolveIRIForClassAndID\nre-encodes on the way back in. If either side drifts, an agent that copies a\nsurfaced id into Resolve gets a double-encoded IRI that matches no node —\nthe exact bug the decode at resolveIRIForClassAndID:155 was added to fix."
   - id: golang/server/risk_classify_test.go:TestAssessCanonicalProtection_DegradesGracefullyWithoutRepoContext
     file: golang/server/risk_classify_test.go
     symbol: TestAssessCanonicalProtection_DegradesGracefullyWithoutRepoContext
