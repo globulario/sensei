@@ -27,7 +27,7 @@ import (
 // @awareness component=server.resolve
 // @awareness implements=globular.awareness_graph:intent.awareness.resolve_returns_precise_node_by_class_and_id
 // @awareness enforces=globular.awareness_graph:invariant.awareness.store_unavailable_explicit
-// @awareness tested_by=golang/server/resolve_test.go:TestResolveNotFound
+// @awareness tested_by=golang/server/main_test.go:TestResolve_RejectsUnsupportedClass
 // @awareness risk=low
 func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (*awarenesspb.ResolveResponse, error) {
 	if strings.TrimSpace(req.GetId()) == "" {

@@ -29,7 +29,8 @@ import (
 // @awareness implements=globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
 // @awareness enforces=globular.awareness_graph:invariant.awareness.store_unavailable_explicit
 // @awareness protects=globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
-// @awareness tested_by=golang/server/impact_test.go:TestImpactStoreNil
+// @awareness tested_by=golang/server/main_test.go:TestImpact_UnavailableWhenStoreNil
+// @awareness tested_by=golang/server/main_test.go:TestImpact_UnavailableWhenStoreErrors
 // @awareness risk=medium
 func (s *server) Impact(ctx context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 	file := strings.TrimSpace(req.GetFile())

@@ -16,6 +16,14 @@ import (
 type TestReconciliationReport struct {
 	AuthoritativeMissingImplementation []string
 	ReferencedDiscoveredMissingSpec    []string
+	// ReferencedMissingImplementation lists concrete test anchors named by a
+	// tested_by code annotation that no discovered test defines. This is the
+	// dangling-proof case: the graph tells an agent "this file is proved by X"
+	// and X does not exist, so the agent either runs nothing or assumes a green
+	// it never got. It is distinct from AuthoritativeMissingImplementation,
+	// which only covers anchors authored in required_tests.yaml — an annotation
+	// can name a test without any YAML entry, and that path was unchecked.
+	ReferencedMissingImplementation []string
 }
 
 func ValidateTestReconciliation(r io.Reader) (TestReconciliationReport, error) {
@@ -102,7 +110,16 @@ func ValidateTestReconciliation(r io.Reader) (TestReconciliationReport, error) {
 	}
 	for subj := range referencedSymbols {
 		st, ok := testSymbols[subj]
-		if !ok || !st.discovered || st.id == "" {
+		if !ok || st.id == "" {
+			continue
+		}
+		// A referenced anchor that no discovered test defines is a dangling
+		// proof claim. Only concrete anchors count: placeholder values like
+		// "<test>" in doc examples are not claims about real coverage.
+		if !st.discovered {
+			if id := normalizeTestAnchor(st.id); isConcreteDiscoveredTestAnchor(id) {
+				report.ReferencedMissingImplementation = append(report.ReferencedMissingImplementation, id)
+			}
 			continue
 		}
 		if requiredTests[rdf.MintIRI(rdf.ClassTest, st.id)] || requiredTests[rdf.MintIRI(rdf.ClassTest, denormalizeDoubleColon(st.id))] {
@@ -113,11 +130,14 @@ func ValidateTestReconciliation(r io.Reader) (TestReconciliationReport, error) {
 
 	sort.Strings(report.AuthoritativeMissingImplementation)
 	sort.Strings(report.ReferencedDiscoveredMissingSpec)
+	sort.Strings(report.ReferencedMissingImplementation)
 	return report, nil
 }
 
 func (r TestReconciliationReport) HasFindings() bool {
-	return len(r.AuthoritativeMissingImplementation) > 0 || len(r.ReferencedDiscoveredMissingSpec) > 0
+	return len(r.AuthoritativeMissingImplementation) > 0 ||
+		len(r.ReferencedDiscoveredMissingSpec) > 0 ||
+		len(r.ReferencedMissingImplementation) > 0
 }
 
 func isConcreteDiscoveredTestAnchor(id string) bool {

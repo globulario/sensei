@@ -1343,3 +1343,16 @@ failure_modes:
       - user had to ask directly ('why did you dont use it') before the agent invoked sensei-architect at all, and a second direct question ('is the fact that you work in a separate dir... can make sensei fail') before the worktree/governance-state asymmetry was investigated and confirmed
       - 'cross-linked: contract_unknown awareness.workspace_identity.governance_state_binding_unknown (same session, filed from the main checkout) proposes the tooling fix this failure_mode''s harm motivates'
     contract: CLAUDE.md's pre-edit consultation requirement (sensei briefing / Sensei Architect skill before editing files listed in docs/awareness/high_risk_files.yaml, especially for state/convergence/recovery work) must be satisfied based on the REPOSITORY's actual governance state, not merely the physical checkout's local .sensei/ contents -- an agent must not treat 'no local .sensei/project/claims.yaml in this exact directory' as proof no consultation obligation exists.
+  - id: failure.sensei.dangling_tested_by_annotation_asserted_proof_from_a_test_tha
+    title: Dangling tested_by annotation asserted proof from a test that does not exist
+    description: 'A tested_by code annotation named a test that no discovered test defines, so briefing/impact reported ''Tested by: <test>'' for a test that was never written. The reconciliation validator''s referenced-symbol leg skipped any anchor whose symbol was not discovered, making the dangling case the one shape it stayed silent about. 7 of 10 annotated source files were affected, including impact.go, briefing.go, resolve.go and query.go.'
+    protects:
+      files:
+        - golang/extractor/test_reconciliation_validator.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported
+    evidence:
+      - sensei briefing --file golang/server/resolve.go reported tested_by golang/server/resolve_test.go:TestResolveNotFound; neither that file nor that function exists anywhere in the repo
+      - ValidateTestReconciliation over the built code-symbol graph reported 0 findings before the fix and exactly 7 dangling anchors after adding ReferencedMissingImplementation

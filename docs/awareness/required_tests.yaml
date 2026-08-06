@@ -1479,3 +1479,10 @@ required_tests:
         - failure.sensei.agentcommand_encodeagentprompt_omits_the_mode_const_empty_ru
       files:
         - golang/architecture/agentcommand/command_agent.go
+  - id: golang/extractor/test_reconciliation_validator_test.go:TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported
+    title: Reconciliation validator reports a tested_by anchor that no discovered test defines
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      failure_modes:
+        - failure.sensei.dangling_tested_by_annotation_asserted_proof_from_a_test_tha

@@ -89,7 +89,8 @@ func main() {
 // @awareness enforces=globular.awareness_graph:invariant.awareness.rdf.ntriples_validated_before_write
 // @awareness enforces=globular.awareness_graph:invariant.awareness.rdf.strict_import_must_surface_all_skips
 // @awareness protects=globular.awareness_graph:failure_mode.awareness.rdf.unvalidated_ntriples_corrupt_store
-// @awareness tested_by=cmd/yaml2nt/main_test.go:TestRunDeterministic
+// @awareness tested_by=cmd/yaml2nt/main_test.go:TestRun_Deterministic
+// @awareness tested_by=cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped
 // @awareness risk=medium
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("yaml2nt", flag.ContinueOnError)
@@ -417,6 +418,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 					break
 				}
 				fmt.Fprintf(stderr, "yaml2nt: missing required_tests.yaml definition for discovered Go test: %s\n", id)
+			}
+		}
+		// Dangling proof claims. Unlike the two warnings above, this one names
+		// coverage the graph asserts but the code does not have — an agent that
+		// trusts it runs nothing and reads that as proof. Reported at the same
+		// warning level as its siblings so the build stays usable; the
+		// authored-corpus gate is what turns findings into a failure.
+		if len(recon.ReferencedMissingImplementation) > 0 {
+			fmt.Fprintf(stderr, "yaml2nt: warning: %d code annotation(s) name a test that no discovered test defines\n", len(recon.ReferencedMissingImplementation))
+			for i, id := range recon.ReferencedMissingImplementation {
+				if i >= 10 {
+					fmt.Fprintf(stderr, "yaml2nt: ... %d more dangling tested_by references omitted\n", len(recon.ReferencedMissingImplementation)-i)
+					break
+				}
+				fmt.Fprintf(stderr, "yaml2nt: dangling tested_by reference (no such test): %s\n", id)
 			}
 		}
 	}

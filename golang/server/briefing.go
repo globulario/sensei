@@ -31,7 +31,7 @@ import (
 // @awareness implements=globular.awareness_graph:intent.awareness.briefing_returns_explicit_status
 // @awareness enforces=globular.awareness_graph:invariant.awareness.store_unavailable_explicit
 // @awareness protects=globular.awareness_graph:failure_mode.awareness.empty_graph_silently_treated_as_no_awareness
-// @awareness tested_by=golang/server/main_test.go:TestBriefingStoreNil
+// @awareness tested_by=golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil
 // @awareness risk=high
 func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest) (*awarenesspb.BriefingResponse, error) {
 	rawFile := req.GetFile()

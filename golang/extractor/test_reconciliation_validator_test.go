@@ -173,3 +173,70 @@ func TestValidateTestReconciliation_RustConcreteAnchorMatchesDiscoveredSymbol(t 
 		t.Fatalf("rust concrete anchor should match discovered implementation, got %+v", report)
 	}
 }
+
+// The dangling-proof case: an `@awareness tested_by=` annotation names a test
+// that no discovered test defines. Before ReferencedMissingImplementation
+// existed, the referenced-symbol loop skipped any anchor that was not
+// discovered, so this — the one shape that lets the graph assert coverage the
+// code does not have — was the single case the validator stayed silent about.
+func TestValidateTestReconciliation_ReferencedTestWithNoImplementationIsReported(t *testing.T) {
+	testSymbol := rdf.MintIRI(rdf.ClassTestSymbol, "golang/server/resolve_test.go:TestResolveNotFound")
+	codeSymbol := rdf.MintIRI(rdf.ClassCodeSymbol, "ns:code.go.server.resolveIRIForClassAndID")
+	nt := strings.Join([]string{
+		testSymbol + " " + rdf.IRI(rdf.PropType) + " " + rdf.IRI(rdf.ClassTestSymbol) + " .",
+		codeSymbol + " " + rdf.IRI(rdf.PropTestedBy) + " " + testSymbol + " .",
+	}, "\n")
+	report, err := ValidateTestReconciliation(strings.NewReader(nt))
+	if err != nil {
+		t.Fatalf("ValidateTestReconciliation: %v", err)
+	}
+	if len(report.ReferencedMissingImplementation) != 1 ||
+		report.ReferencedMissingImplementation[0] != "golang/server/resolve_test.go:TestResolveNotFound" {
+		t.Fatalf("dangling tested_by reference not reported: %+v", report)
+	}
+	if !report.HasFindings() {
+		t.Fatal("HasFindings must be true for a dangling tested_by reference")
+	}
+}
+
+// A placeholder like "<test>" appears in documentation examples of the
+// annotation syntax. It is not a claim about real coverage, so it must not be
+// reported — otherwise the new check cries wolf and gets ignored.
+func TestValidateTestReconciliation_ReferencedPlaceholderAnchorIsNotReported(t *testing.T) {
+	testSymbol := rdf.MintIRI(rdf.ClassTestSymbol, "<test>")
+	codeSymbol := rdf.MintIRI(rdf.ClassCodeSymbol, "ns:code.go.example")
+	nt := strings.Join([]string{
+		testSymbol + " " + rdf.IRI(rdf.PropType) + " " + rdf.IRI(rdf.ClassTestSymbol) + " .",
+		codeSymbol + " " + rdf.IRI(rdf.PropTestedBy) + " " + testSymbol + " .",
+	}, "\n")
+	report, err := ValidateTestReconciliation(strings.NewReader(nt))
+	if err != nil {
+		t.Fatalf("ValidateTestReconciliation: %v", err)
+	}
+	if report.HasFindings() {
+		t.Fatalf("placeholder anchor must not be reported, got %+v", report)
+	}
+}
+
+// A referenced anchor that IS discovered stays on the existing missing-spec
+// path — the new check must not swallow or duplicate it.
+func TestValidateTestReconciliation_DiscoveredReferenceStillReportsMissingSpecOnly(t *testing.T) {
+	testSymbol := rdf.MintIRI(rdf.ClassTestSymbol, "golang/server/main_test.go:TestBriefing_UnavailableWhenStoreNil")
+	codeSymbol := rdf.MintIRI(rdf.ClassCodeSymbol, "ns:code.go.server.Briefing")
+	fileIRI := rdf.MintIRI(rdf.ClassSourceFile, "golang/server/main_test.go")
+	nt := strings.Join([]string{
+		testSymbol + " " + rdf.IRI(rdf.PropType) + " " + rdf.IRI(rdf.ClassTestSymbol) + " .",
+		testSymbol + " " + rdf.IRI(rdf.PropDefinedInFile) + " " + fileIRI + " .",
+		codeSymbol + " " + rdf.IRI(rdf.PropTestedBy) + " " + testSymbol + " .",
+	}, "\n")
+	report, err := ValidateTestReconciliation(strings.NewReader(nt))
+	if err != nil {
+		t.Fatalf("ValidateTestReconciliation: %v", err)
+	}
+	if len(report.ReferencedMissingImplementation) != 0 {
+		t.Fatalf("discovered reference must not be reported as dangling: %+v", report)
+	}
+	if len(report.ReferencedDiscoveredMissingSpec) != 1 {
+		t.Fatalf("discovered reference should still report missing spec: %+v", report)
+	}
+}
