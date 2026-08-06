@@ -60,6 +60,9 @@ type Subject struct {
 // ClosureCensus is the bidirectional accounting for one domain slice.
 type ClosureCensus struct {
 	SourceRoot string
+	// SourceRoots is every corpus directory the publication read. Provenance is
+	// judged against all of them.
+	SourceRoots []string
 
 	SourceIdentities  []string // declared by the certified source corpus
 	ExpectedToProject []string // source identities of a governed, projecting class
@@ -201,7 +204,29 @@ func splitTriple(line string) (subj, pred, obj string, ok bool) {
 // certified source snapshot's absolute root; any governed subject authored
 // outside it is contamination.
 func ComputeClosure(sourceRoot string, expected map[string]string, excluded []string, subs map[string]*Subject) ClosureCensus {
-	c := ClosureCensus{SourceRoot: filepath.Clean(sourceRoot), Excluded: excluded}
+	return ComputeClosureRoots([]string{sourceRoot}, expected, excluded, subs)
+}
+
+// ComputeClosureRoots is the multi-root form.
+//
+// A publication legitimately reads more than one corpus directory (docs/awareness
+// AND docs/intent, for example). Judging provenance against only the first root
+// reported 673 false "foreign" identities on the real services corpus — every
+// node authored in a sibling input dir. A check that fires on legitimate inputs
+// gets switched off, so the certified source snapshot is ALL the roots the build
+// actually read, and contamination means "authored outside every one of them".
+func ComputeClosureRoots(sourceRoots []string, expected map[string]string, excluded []string, subs map[string]*Subject) ClosureCensus {
+	roots := make([]string, 0, len(sourceRoots))
+	for _, r := range sourceRoots {
+		if r = strings.TrimSpace(r); r != "" {
+			roots = append(roots, filepath.Clean(r))
+		}
+	}
+	primary := ""
+	if len(roots) > 0 {
+		primary = roots[0]
+	}
+	c := ClosureCensus{SourceRoot: primary, SourceRoots: roots, Excluded: excluded}
 	for id := range expected {
 		c.SourceIdentities = append(c.SourceIdentities, id)
 		c.ExpectedToProject = append(c.ExpectedToProject, id)
@@ -225,7 +250,6 @@ func ComputeClosure(sourceRoot string, expected map[string]string, excluded []st
 	// Contamination direction. Only subjects that are themselves typed count:
 	// an untyped subject is a reference, and references legitimately point at
 	// shared ontology and at other domains.
-	root := c.SourceRoot
 	for iri, s := range subs {
 		// Only classes this gate verifies. Generated code symbols and other
 		// build-derived nodes carry provenance through different predicates, so
@@ -244,8 +268,13 @@ func ComputeClosure(sourceRoot string, expected map[string]string, excluded []st
 		}
 		foreign := true
 		for _, p := range s.AuthoredIn {
-			if WithinRoot(p, root) {
-				foreign = false
+			for _, root := range roots {
+				if WithinRoot(p, root) {
+					foreign = false
+					break
+				}
+			}
+			if !foreign {
 				break
 			}
 		}

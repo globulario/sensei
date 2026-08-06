@@ -57,6 +57,7 @@ func runBuild(args []string) int {
 	repo := fs.String("repo", "", "domain/repo to update IN PLACE, e.g. github.com/globulario/services — compiles this repo's slice, tags it to that domain, and replaces ONLY its triples in the store (non-destructive to other domains, shared nodes, and the home slice). Without --repo, a store load requires --all.")
 	domain := fs.String("domain", "", "default domain kind for untagged nodes: repo|shared (inferred 'repo' when --repo is set)")
 	sourceSet := fs.String("source-set", "", "default source-set namespace for untagged nodes, e.g. pilot/cli")
+	domainRegistry := fs.String("domain-registry", "", "domain registry binding each domain to its source repository (default: ~/.sensei/domains.yaml)")
 	all := fs.Bool("all", false, "replace the ENTIRE store (all domains) with this build — destructive whole-graph load. Required for a full/cold-start build when --repo is not given.")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei build [flags]
@@ -95,6 +96,25 @@ Flags:
 			inputDirs = []string{"docs/awareness"}
 		}
 	}
+	// PRE-MUTATION ADMISSION — before compiling, before touching the store.
+	//
+	// Closure cannot catch a wrong-workspace publication once its certified
+	// roots come from the corpus the build read: the wrong corpus is perfectly
+	// self-consistent and reports PROVEN. Only an INDEPENDENT binding from
+	// domain to source repository can refuse it, and it has to refuse before a
+	// single triple changes — the store was destructively replaced three times
+	// on 2026-08-05 while every later verdict was accurate but too late.
+	if strings.TrimSpace(*repo) != "" && *output == "" {
+		registryPath := strings.TrimSpace(*domainRegistry)
+		if registryPath == "" {
+			registryPath = DefaultDomainRegistryPath()
+		}
+		if aerr := AdmitPublication(strings.TrimSpace(*repo), inputDirs, registryPath); aerr != nil {
+			fmt.Fprintln(os.Stderr, aerr.Error())
+			return 1
+		}
+	}
+
 	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
@@ -265,10 +285,32 @@ func buildClosureReport(domain string, inputDirs []string, markerPath string, ma
 	if len(inputDirs) == 0 {
 		return nil
 	}
-	root, err := filepath.Abs(inputDirs[0])
-	if err != nil {
+	// Certified roots in BOTH forms.
+	//
+	// `sensei build` strips path prefixes so the seed is deterministic across
+	// checkouts, so the published slice records provenance repo-relatively
+	// ("docs/awareness/invariants.yaml") while the input dir resolves absolutely.
+	// Comparing only the absolute form made every legitimate identity look
+	// foreign — 673 of them on a correct services build, which would have failed
+	// every honest publication. The certified snapshot is the same directory
+	// expressed two ways, so both are accepted.
+	var roots []string
+	cwd, _ := os.Getwd()
+	for _, d := range inputDirs {
+		abs, aerr := filepath.Abs(d)
+		if aerr != nil {
+			continue
+		}
+		roots = append(roots, abs)
+		if rel, rerr := filepath.Rel(cwd, abs); rerr == nil &&
+			!strings.HasPrefix(rel, "..") && rel != "." {
+			roots = append(roots, rel)
+		}
+	}
+	if len(roots) == 0 {
 		return nil
 	}
+	root := roots[0]
 	if info, serr := os.Stat(root); serr != nil || !info.IsDir() {
 		return nil
 	}
@@ -280,7 +322,7 @@ func buildClosureReport(domain string, inputDirs []string, markerPath string, ma
 	if perr != nil {
 		return nil
 	}
-	c := closure.ComputeClosure(root, expected, excluded, subs)
+	c := closure.ComputeClosureRoots(roots, expected, excluded, subs)
 	return closure.NewReport(domain, marker.Digest, int(marker.TripleCount), &c)
 }
 
