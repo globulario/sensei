@@ -1393,3 +1393,14 @@ failure_modes:
       - cmd/awg/domain_closure_test.go:TestWrongWorkspacePublicationFailsClosure
     evidence:
       - '2026-08-05: store fell 248743 -> 145491 triples. certified_services_repo_commit=d7c1a87c with authoritative=true and GRAPH_FRESHNESS_STATE_CURRENT, while resolve(four_layer.layer_has_single_writing_actor, domain=globular) returned found:false and resolve(awareness.briefing.deterministic_compact_context) — a sensei invariant sourced from golang/server/briefing.go — returned found:true under the same domain. Boundary trace proved projection intact: present in source, in the parsed structure, and in the emitted N-Triples as 28 triples with rdf:type Invariant and authoredIn provenance. The same mistake was repeated four times by an operator with full context; the fourth was refused before mutation by the admission guard.'
+  - id: failure.sensei.scoped_repo_publish_leaves_stale_source_file_edges_because_f
+    title: Scoped repo publish leaves stale source-file edges because file nodes carry no domain tag
+    description: 'sensei build --repo <domain> deletes triples whose SUBJECT is tagged aw:repo == domain, then appends the fresh slice. SourceFile nodes carry only rdf:type and aw:implements — no aw:repo — so they default to the home domain and are never deleted by a non-home publish. Their old aw:implements edges therefore survive indefinitely. Any re-identification or re-anchoring leaves ghosts: after the component-granularity migration the live graph served both the new per-package component and the retired coarse one for the same file, while the freshly compiled slice contained only the new edge. The same mechanism means an anchor REMOVED from the corpus keeps being served.'
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    evidence:
+      - fresh compiled slice links workspacecontract/identity.go only to component.golang.architecture.workspacecontract; the live store after a successful --repo publish serves both that and component.golang.architecture
+      - grep of the compiled slice shows 0 aw:repo triples on the sourceFile node; its only predicates are rdf:type and aw:implements
