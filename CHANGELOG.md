@@ -3,6 +3,54 @@
 All notable changes to Sensei are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v1.6.0 — governed synthesis (O1–O8) and the first repository-local report
+
+- **`sensei synthesis-run`: Sensei can now drive a bounded, governed attempt
+  at fixing something, not just detect and gate.** A new CLI command wires
+  the full O1–O8 governed-synthesis pipeline
+  (`golang/architecture/synthesisdriver`) end to end: a hand-authored
+  interpretation and an already-prepared task (`sensei prepare-change`) drive
+  planning, then a provider-neutral execution port hands off to a real vendor
+  CLI (Claude or Codex, run sandboxed with no filesystem authority of its
+  own) for O3 generation, then deterministic O4 evaluation seals a candidate
+  and evaluates it against the repository's own gate. It never admits,
+  applies, commits, pushes, or merges anything — `sensei admit-change` /
+  `sensei verify-admission` remain the only acceptance path, unchanged. Built
+  across O1 (bounded session contract) through O8 (bounded Codex/Claude
+  planning providers), with a governed admission-lineage chain, retry/replan
+  policy, and contract-first artifact capture along the way.
+- **`--force-thin-coverage`.** `synthesis-run`'s workspace-identity
+  precondition requires sufficient graph coverage, which a freshly-onboarded
+  repository (e.g. a benchmark checkout) can never have. This adds a
+  narrowly-scoped, explicit override — refused unconditionally for any other
+  reason identity is incomplete (unresolved revision, non-authoritative
+  graph) — verified live to actually unblock a real end-to-end run for the
+  first time on a freshly-imported checkout.
+- **`sensei report` — the first repository-local, human-readable proof
+  summary.** Generates `SENSEI.md` and a versioned `SENSEI.report.json` from
+  one canonical report model: identity (revision plus a content digest that
+  deliberately excludes the report's own output, so a committed report can
+  never be judged stale against its own commit), current task disposition,
+  material findings, verification, and behavioral-memory candidates awaiting
+  review — never a fabricated repository-wide "verified." `sensei report
+  --check` verifies a committed report is still current; reproduction is
+  always exactly `sensei report` / `sensei report --check`.
+- **`sensei principle-pack`** adds a sanctioned, plan-by-default refresh path
+  for an installed project's managed principle mirror.
+- Governed-synthesis hardening found along the way: atomic admission-lineage
+  writes, resolving control readiness and closure from one atomic read
+  instead of independent calls that could observe a concurrent
+  `advance-task`'s pointer mid-move, rejecting duplicate/null/unknown fields
+  in an authored interpretation file, and closing several synthesis-run
+  trapdoors (stale task binding, moved store roots, sealed-candidate
+  filename collisions).
+- **CI now runs a governed architecture-activation check on every PR** —
+  a private, ephemeral, self-only graph is built for the exact PR head,
+  then metadata → exact-diff preflight → task-state inspection → bounded
+  Phase 10 proof → `sensei gate --enforce` all run in enforce mode, followed
+  by a sandboxed, read-only Codex architectural review scoped to that
+  evidence.
+
 ## v1.5.0 — serve reuse safety + semantic protection coverage
 
 - **`sensei serve` no longer reuses a listening process just because its port
