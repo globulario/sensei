@@ -28,7 +28,11 @@ func TestValidateTestReconciliation_MissingAuthoritativeDefinitionForReferencedD
 	}
 }
 
-func TestValidateTestReconciliation_MissingDiscoveredImplementationForRequiredGoTest(t *testing.T) {
+// A graph with no discovered test symbols for the anchor's package cannot say
+// the test is missing — it never looked. This is the shape the standalone self
+// build produces, where the generated/ code-symbol root is excluded: without
+// the split it accused the repository of 195 missing tests, none of them real.
+func TestValidateTestReconciliation_NoDiscoverySurfaceIsUnavailableNotMissing(t *testing.T) {
 	testIRI := rdf.MintIRI(rdf.ClassTest, "golang/server/main_test.go:TestBriefingStoreNil")
 	nt := strings.Join([]string{
 		testIRI + " " + rdf.IRI(rdf.PropType) + " " + rdf.IRI(rdf.ClassTest) + " .",
@@ -38,8 +42,44 @@ func TestValidateTestReconciliation_MissingDiscoveredImplementationForRequiredGo
 	if err != nil {
 		t.Fatalf("ValidateTestReconciliation: %v", err)
 	}
+	if len(report.AuthoritativeMissingImplementation) != 0 {
+		t.Fatalf("must not accuse without a discovery surface: %+v", report.AuthoritativeMissingImplementation)
+	}
+	if len(report.AuthoritativeDiscoveryUnavailable) != 1 ||
+		report.AuthoritativeDiscoveryUnavailable[0] != "golang/server/main_test.go:TestBriefingStoreNil" {
+		t.Fatalf("unexpected discovery-unavailable report: %+v", report)
+	}
+	if report.HasFindings() {
+		t.Fatal("unverified coverage is not a finding")
+	}
+	if !report.HasUnverified() {
+		t.Fatal("unverified coverage must still be visible, not silently clean")
+	}
+}
+
+// When the package WAS inspected — another test in it was discovered — and the
+// anchored test still is not there, that is a claim about the repository and
+// must be reported as a genuine missing implementation.
+func TestValidateTestReconciliation_MissingDiscoveredImplementationForRequiredGoTest(t *testing.T) {
+	testIRI := rdf.MintIRI(rdf.ClassTest, "golang/server/main_test.go:TestBriefingStoreNil")
+	sibling := rdf.MintIRI(rdf.ClassTestSymbol, "golang/server/main_test.go:TestSomethingThatDoesExist")
+	fileIRI := rdf.MintIRI(rdf.ClassSourceFile, "golang/server/main_test.go")
+	nt := strings.Join([]string{
+		testIRI + " " + rdf.IRI(rdf.PropType) + " " + rdf.IRI(rdf.ClassTest) + " .",
+		testIRI + " " + rdf.IRI(rdf.PropAuthoredIn) + " " + rdf.Lit("docs/awareness/required_tests.yaml") + " .",
+		// A discovered sibling proves the package's tests were inspected.
+		sibling + " " + rdf.IRI(rdf.PropType) + " " + rdf.IRI(rdf.ClassTestSymbol) + " .",
+		sibling + " " + rdf.IRI(rdf.PropDefinedInFile) + " " + fileIRI + " .",
+	}, "\n")
+	report, err := ValidateTestReconciliation(strings.NewReader(nt))
+	if err != nil {
+		t.Fatalf("ValidateTestReconciliation: %v", err)
+	}
 	if len(report.AuthoritativeMissingImplementation) != 1 || report.AuthoritativeMissingImplementation[0] != "golang/server/main_test.go:TestBriefingStoreNil" {
 		t.Fatalf("unexpected authoritative missing-implementation report: %+v", report)
+	}
+	if len(report.AuthoritativeDiscoveryUnavailable) != 0 {
+		t.Fatalf("an inspected package must not report as unavailable: %+v", report.AuthoritativeDiscoveryUnavailable)
 	}
 }
 

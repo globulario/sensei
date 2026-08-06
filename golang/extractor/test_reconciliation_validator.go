@@ -24,6 +24,17 @@ type TestReconciliationReport struct {
 	// which only covers anchors authored in required_tests.yaml — an annotation
 	// can name a test without any YAML entry, and that path was unchecked.
 	ReferencedMissingImplementation []string
+	// AuthoritativeDiscoveryUnavailable lists required-test anchors whose
+	// package contributed NO discovered test symbols to this graph, so absence
+	// proves nothing about the repository — the surface that would have found
+	// them was simply not part of this build.
+	//
+	// Splitting this out of AuthoritativeMissingImplementation is what keeps
+	// the latter meaningful. The standalone self build excludes the generated/
+	// code-symbol root, and without the split every concrete anchor was
+	// reported as a missing test: 195 accusations, 0 of them real, which is
+	// how the one genuine missing anchor stayed invisible.
+	AuthoritativeDiscoveryUnavailable []string
 }
 
 func ValidateTestReconciliation(r io.Reader) (TestReconciliationReport, error) {
@@ -89,9 +100,18 @@ func ValidateTestReconciliation(r io.Reader) (TestReconciliationReport, error) {
 	}
 
 	discoveredByID := map[string]bool{}
+	// discoveredDirs records which package directories this graph actually has
+	// discovered test symbols for. It is the discovery-coverage surface: a
+	// directory absent here was never inspected, so silence about a test in it
+	// is "we did not look", not "it is not there".
+	discoveredDirs := map[string]bool{}
 	for _, st := range testSymbols {
 		if st.discovered && st.id != "" {
-			discoveredByID[normalizeTestAnchor(st.id)] = true
+			anchor := normalizeTestAnchor(st.id)
+			discoveredByID[anchor] = true
+			if p, _, ok := strings.Cut(anchor, ":"); ok {
+				discoveredDirs[filepath.ToSlash(filepath.Dir(p))] = true
+			}
 		}
 	}
 
@@ -104,8 +124,20 @@ func ValidateTestReconciliation(r io.Reader) (TestReconciliationReport, error) {
 		if !isConcreteDiscoveredTestAnchor(id) {
 			continue
 		}
-		if !discoveredByID[id] {
+		if discoveredByID[id] {
+			continue
+		}
+		// Only accuse when this package's tests were actually discovered. The
+		// same absent anchor is a missing test in a graph that inspected its
+		// package, and merely unverified in one that did not.
+		dir := ""
+		if p, _, ok := strings.Cut(id, ":"); ok {
+			dir = filepath.ToSlash(filepath.Dir(p))
+		}
+		if discoveredDirs[dir] {
 			report.AuthoritativeMissingImplementation = append(report.AuthoritativeMissingImplementation, id)
+		} else {
+			report.AuthoritativeDiscoveryUnavailable = append(report.AuthoritativeDiscoveryUnavailable, id)
 		}
 	}
 	for subj := range referencedSymbols {
@@ -131,6 +163,7 @@ func ValidateTestReconciliation(r io.Reader) (TestReconciliationReport, error) {
 	sort.Strings(report.AuthoritativeMissingImplementation)
 	sort.Strings(report.ReferencedDiscoveredMissingSpec)
 	sort.Strings(report.ReferencedMissingImplementation)
+	sort.Strings(report.AuthoritativeDiscoveryUnavailable)
 	return report, nil
 }
 
@@ -138,6 +171,14 @@ func (r TestReconciliationReport) HasFindings() bool {
 	return len(r.AuthoritativeMissingImplementation) > 0 ||
 		len(r.ReferencedDiscoveredMissingSpec) > 0 ||
 		len(r.ReferencedMissingImplementation) > 0
+}
+
+// HasUnverified reports whether anything could not be checked. Kept separate
+// from HasFindings so a caller can tell "nothing is wrong" from "nothing could
+// be inspected" — collapsing them would let an unloaded discovery surface read
+// as a clean bill of health.
+func (r TestReconciliationReport) HasUnverified() bool {
+	return len(r.AuthoritativeDiscoveryUnavailable) > 0
 }
 
 func isConcreteDiscoveredTestAnchor(id string) bool {

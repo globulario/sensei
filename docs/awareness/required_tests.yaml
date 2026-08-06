@@ -355,8 +355,22 @@ required_tests:
       files:
         - golang/architecture/tasksession/briefing_promotion.go
         - golang/architecture/questionpromotion/consume.go
-  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesTamperedPromotionWithFinding
-    title: A stale/tampered/incomplete promotion is excluded from binding briefing context with a typed integrity finding
+  # The single anchor that used to stand here named a test nobody ever wrote,
+  # and claimed three conditions (stale/tampered/incomplete). Two of them are
+  # genuinely proven, by two separately-named tests; "stale" has no test and is
+  # therefore not claimed here. Splitting the anchor keeps each claim tied to
+  # the proof that exists rather than to a name that reads well.
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingUnavailableOnTamperedSharedGraph
+    title: A tampered shared graph excludes the promotion from binding briefing context and reports a typed facility finding
+    protects:
+      failure_modes:
+        - closure.receipt_authoritative_before_projection_verified
+        - closure.graph_verified_against_wrong_source_world
+      files:
+        - golang/architecture/questionpromotion/consume.go
+        - golang/architecture/questionpromotion/conjunctive.go
+  - id: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesIncompletePromotion
+    title: An incomplete promotion journal excludes the promotion from binding briefing context with a typed integrity finding
     protects:
       failure_modes:
         - closure.receipt_authoritative_before_projection_verified

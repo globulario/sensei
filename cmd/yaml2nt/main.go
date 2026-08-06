@@ -400,6 +400,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "yaml2nt: test reconciliation validator: %v\n", err)
 			return exitRuntime
 		}
+		// Unverified coverage is reported separately from missing tests, and
+		// only as a count: these are anchors whose package contributed no
+		// discovered symbols to this build, so listing them would read as an
+		// accusation the build cannot support.
+		if n := len(recon.AuthoritativeDiscoveryUnavailable); n > 0 {
+			fmt.Fprintf(stderr, "yaml2nt: note: %d required test(s) not verified — their packages contributed no discovered test symbols to this build\n", n)
+		}
 		if len(recon.AuthoritativeMissingImplementation) > 0 {
 			fmt.Fprintf(stderr, "yaml2nt: warning: %d required_tests.yaml Go test(s) have no discovered _test.go implementation\n", len(recon.AuthoritativeMissingImplementation))
 			for i, id := range recon.AuthoritativeMissingImplementation {
