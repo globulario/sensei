@@ -1,4 +1,7 @@
 code_edges:
+  - from: globular.awareness_graph:code.go.architecture.testobligation
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.missing_evidence_produces_unknown
   - from: globular.awareness_graph:code.go.build.loadnt.run
     relation: enforces
     to: globular.awareness_graph:invariant.awareness.rdf.ntriples_validated_before_write
@@ -35,6 +38,9 @@ code_edges:
   - from: globular.awareness_graph:code.go.build.yaml2nt.run
     relation: tested_by
     to: cmd/yaml2nt/main_test.go:TestRun_StrictMode_FailsWhenSkipped
+  - from: globular.awareness_graph:code.go.command.verify_obligations.runVerifyObligations
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.missing_evidence_produces_unknown
   - from: globular.awareness_graph:code.go.extractor
     relation: enforces
     to: globular.awareness_graph:invariant.awareness.rdf.yaml_is_source_of_truth
