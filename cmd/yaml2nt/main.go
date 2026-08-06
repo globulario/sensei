@@ -230,18 +230,50 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	printReport(stderr, report)
 
-	if *strict && (report.HasUnknown() || report.HasInvalid()) {
-		// Strict mode rejects unregistered (unknown_schema) and unparseable
-		// (invalid) files — these indicate silently-dropped awareness data.
-		// known_unsupported files are explicitly classified, not silently skipped,
-		// and are allowed under strict mode.
+	// An UNPARSEABLE governed file is fatal unconditionally, never gated behind
+	// -strict. This output becomes a published graph, and publishing from input
+	// that is known to be incomplete stamps a marker as authoritative over
+	// content that silently isn't there.
+	//
+	// That is not hypothetical. On 2026-08-05 docs/awareness/invariants.yaml
+	// stopped parsing after `sensei propose` appended a mis-indented entry. The
+	// build ran without -strict, dropped the file, published 117,939 triples
+	// instead of 129,175, and stamped the result authoritative. Briefings were
+	// served from the truncated graph for an entire session. A build cannot
+	// choose to be lenient about missing input; it can only choose whether
+	// anyone finds out.
+	if report.HasInvalid() {
 		var bad []extractor.FileReport
 		for _, f := range report.Skipped() {
-			if f.Status == extractor.StatusUnknownSchema || f.Status == extractor.StatusInvalid {
+			if f.Status == extractor.StatusInvalid {
 				bad = append(bad, f)
 			}
 		}
-		fmt.Fprintf(stderr, "yaml2nt: strict mode: %d file(s) with unknown or invalid schema\n", len(bad))
+		fmt.Fprintf(stderr,
+			"yaml2nt: %d governed file(s) could not be parsed — refusing to publish an incomplete graph:\n",
+			len(bad))
+		for _, f := range bad {
+			fmt.Fprintf(stderr, "  %s: %s\n", f.Path, f.Reason)
+		}
+		return exitRuntime
+	}
+
+	// An unregistered schema is a file that was discovered and then dropped
+	// without the corpus declaring it. It stays under -strict here because
+	// `sensei check` now rejects it unconditionally, and that is the gate meant
+	// to run before a build; known_unsupported files are explicitly classified
+	// and remain allowed.
+	if *strict && report.HasUnknown() {
+		var bad []extractor.FileReport
+		for _, f := range report.Skipped() {
+			if f.Status == extractor.StatusUnknownSchema {
+				bad = append(bad, f)
+			}
+		}
+		fmt.Fprintf(stderr, "yaml2nt: strict mode: %d file(s) with unknown schema\n", len(bad))
+		for _, f := range bad {
+			fmt.Fprintf(stderr, "  %s: %s\n", f.Path, f.Reason)
+		}
 		return exitRuntime
 	}
 

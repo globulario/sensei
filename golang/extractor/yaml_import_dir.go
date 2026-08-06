@@ -245,6 +245,11 @@ var keySchemas = []struct {
 	{"categories", schemaEntry{"change_risk_classifier", false, true, "C", "change risk classifier"}},
 	{"report_shape", schemaEntry{"runtime_evidence_schema", false, true, "C", "runtime evidence schema"}},
 	{"namespaces", schemaEntry{"namespace_registry", false, true, "C", "namespace registry — pipeline config, not awareness data"}},
+	// Runtime roots and sibling repository names: scanner configuration, not
+	// awareness authority. Declared here because an undeclared file is now a
+	// hard failure — it was previously discovered, dropped, and reported as
+	// part of an anonymous "[N not imported]" tally that still exited 0.
+	{"relation_targets", schemaEntry{"relation_targets", false, true, "C", "relation scan targets — pipeline config, not awareness data"}},
 	{"architectural_declarations", schemaEntry{"architectural_declarations", false, true, "C", "per-service architectural-principle declarations — consumed by the completeness gate, not graph authority"}},
 	{"meta_principle_coverage", schemaEntry{"meta_principle_coverage", false, true, "C", "meta-principle enforcement-tier coverage map — consumed by the coverage gate, not graph authority"}},
 }
