@@ -735,6 +735,8 @@ components:
       - golang/architecture/runnercomposition/schema.go
       - golang/architecture/runnercomposition/snapshot.go
       - golang/architecture/runnercomposition/store.go
+      - golang/architecture/runnercomposition/store_openat_unix.go
+      - golang/architecture/runnercomposition/store_openat_windows.go
       - golang/architecture/runnercomposition/tree.go
       - golang/architecture/runnercomposition/types.go
       - golang/architecture/runnercomposition/validate.go
@@ -812,6 +814,7 @@ components:
       - component.golang.store
     external_imports:
       - github.com/santhosh-tekuri/jsonschema/v5
+      - golang.org/x/sys/unix
       - golang.org/x/text/unicode/norm
       - golang.org/x/tools/go/packages
       - golang.org/x/tools/go/ssa
