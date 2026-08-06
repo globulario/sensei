@@ -137,3 +137,50 @@ func TestZeroValuesAreNotProof(t *testing.T) {
 		t.Fatal("zero Verdict must not certify")
 	}
 }
+
+// The exit codes are a CLI contract that CI branches on, so they are pinned
+// rather than merely documented. 3 in particular must not drift or collapse
+// into a generic failure bucket: FAIL means the code is wrong, INDETERMINATE
+// means the evidence is missing, and they call for different responses.
+func TestVerdictExitCodesAreStable(t *testing.T) {
+	for _, tc := range []struct {
+		verdict Verdict
+		want    int
+	}{
+		{VerdictPass, 0},
+		{VerdictFail, 1},
+		{VerdictIndeterminate, 3},
+	} {
+		if got := tc.verdict.ExitCode(); got != tc.want {
+			t.Errorf("%s exit code = %d, want %d", tc.verdict, got, tc.want)
+		}
+	}
+}
+
+// An unrecognized verdict must fail closed. A future constant added without
+// updating ExitCode/Certifies must not silently become a passing exit — that
+// would let a state nobody has reasoned about certify a change.
+func TestUnknownVerdictFailsClosed(t *testing.T) {
+	unknown := Verdict(99)
+	if unknown.Certifies() {
+		t.Fatal("an unknown verdict must never certify")
+	}
+	if got := unknown.ExitCode(); got == 0 {
+		t.Fatalf("unknown verdict exit code = %d, want non-zero", got)
+	}
+	if unknown.String() != "INDETERMINATE" {
+		t.Fatalf("unknown verdict renders as %q; it must not read as PASS or FAIL", unknown.String())
+	}
+}
+
+// Same fail-closed requirement one level down: an unrecognized outcome must not
+// count as executed proof.
+func TestUnknownOutcomeIsNotProof(t *testing.T) {
+	unknown := Outcome(99)
+	if unknown.executed() {
+		t.Fatal("an unknown outcome must not count as executed")
+	}
+	if Certify([]Obligation{{Anchor: "a_test.go:TestA", Required: true, Outcome: unknown}}).Verdict.Certifies() {
+		t.Fatal("an unknown outcome must not certify")
+	}
+}
