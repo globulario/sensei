@@ -1913,6 +1913,42 @@ test_symbols:
     symbol: TestBuildCertifyResult_WrongArtifactKindStaysAvailableUnmapped
     package: main
     language: go
+  - id: cmd/awg/cmd_check_corpus_integrity_test.go:TestCensusAlwaysReconciles
+    file: cmd/awg/cmd_check_corpus_integrity_test.go
+    symbol: TestCensusAlwaysReconciles
+    package: main
+    language: go
+    doc: "TestCensusAlwaysReconciles is a property check over the bucketing itself:\nevery discovered file must land in exactly one bucket. If the accounting can\nlose a file, none of the other numbers can be trusted — which is the deeper\nversion of the original bug."
+  - id: cmd/awg/cmd_check_corpus_integrity_test.go:TestCheckFailsOnProposeMalformedIndentation
+    file: cmd/awg/cmd_check_corpus_integrity_test.go
+    symbol: TestCheckFailsOnProposeMalformedIndentation
+    package: main
+    language: go
+    doc: "TestCheckFailsOnProposeMalformedIndentation is the primary regression: the\nexact bytes that shipped the silent hole must now fail the check."
+  - id: cmd/awg/cmd_check_corpus_integrity_test.go:TestCheckFailsOnUndeclaredSchema
+    file: cmd/awg/cmd_check_corpus_integrity_test.go
+    symbol: TestCheckFailsOnUndeclaredSchema
+    package: main
+    language: go
+    doc: "TestCheckFailsOnUndeclaredSchema covers \"any expected awareness file is\nskipped\". A file discovered inside the corpus and then dropped because\nnothing recognizes it is a gap in coverage, not a neutral fact — and it must\nfail without needing -strict, because -strict is not what CI runs.\n\nThe legitimate way to silence this is to DECLARE the exclusion in the schema\ntable, which is how docs/awareness/relation_targets.yaml was resolved: it had\nbeen silently dropped for exactly this reason."
+  - id: cmd/awg/cmd_check_corpus_integrity_test.go:TestCheckFailsWhenCorpusFoundButNothingImported
+    file: cmd/awg/cmd_check_corpus_integrity_test.go
+    symbol: TestCheckFailsWhenCorpusFoundButNothingImported
+    package: main
+    language: go
+    doc: "TestCheckFailsWhenCorpusFoundButNothingImported is the \"scanner never saw the\ncorpus\" guard stated directly: files present, zero read."
+  - id: cmd/awg/cmd_check_corpus_integrity_test.go:TestCheckPassesOnTheSameCorpusCorrectlyIndented
+    file: cmd/awg/cmd_check_corpus_integrity_test.go
+    symbol: TestCheckPassesOnTheSameCorpusCorrectlyIndented
+    package: main
+    language: go
+    doc: "TestCheckPassesOnTheSameCorpusCorrectlyIndented is the negative control. If\nthis failed too, the test above would be proving nothing more than \"the\nfixture is rejected\", and a checker that rejects everything is as useless as\none that accepts everything."
+  - id: cmd/awg/cmd_check_corpus_integrity_test.go:TestCheckReportsExplicitCensus
+    file: cmd/awg/cmd_check_corpus_integrity_test.go
+    symbol: TestCheckReportsExplicitCensus
+    package: main
+    language: go
+    doc: "TestCheckReportsExplicitCensus pins the counts the directive requires. A\nsingle opaque tally is what let an 11k-triple hole hide inside \"[35 not\nimported]\"."
   - id: cmd/awg/cmd_cluster_diagnose_test.go:TestDiagnoseRuntime_GlobularExampleIsBlockedByQuorum
     file: cmd/awg/cmd_cluster_diagnose_test.go
     symbol: TestDiagnoseRuntime_GlobularExampleIsBlockedByQuorum
@@ -4856,6 +4892,107 @@ test_symbols:
     symbol: TestRequireBenchmarkAuthority_UsesLiveCurrentCertifiedServer
     package: main
     language: go
+  - id: cmd/awg/domain_admission_test.go:TestCorrectWorkspaceIsAdmitted
+    file: cmd/awg/domain_admission_test.go
+    symbol: TestCorrectWorkspaceIsAdmitted
+    package: main
+    language: go
+    doc: "TestCorrectWorkspaceIsAdmitted is the positive control. Without it the guard\ncould pass by refusing everything, which is the failure mode of a gate that\ngets switched off."
+  - id: cmd/awg/domain_admission_test.go:TestDirtyScopeIsTheCorpusNotTheWholeRepo
+    file: cmd/awg/domain_admission_test.go
+    symbol: TestDirtyScopeIsTheCorpusNotTheWholeRepo
+    package: main
+    language: go
+    doc: "TestDirtyScopeIsTheCorpusNotTheWholeRepo. Publishing writes\n.sensei/graph-authority.json into the repo, so a repo-wide dirty check would\nleave the tree permanently dirty and refuse every subsequent publication —\na safety property that disables itself after one use gets removed."
+  - id: cmd/awg/domain_admission_test.go:TestDirtyWorktreeRefusedUnlessAllowed
+    file: cmd/awg/domain_admission_test.go
+    symbol: TestDirtyWorktreeRefusedUnlessAllowed
+    package: main
+    language: go
+    doc: "TestDirtyWorktreeRefusedUnlessAllowed. A dirty tree must never silently\ncertify only the git commit while publishing uncommitted content."
+  - id: cmd/awg/domain_admission_test.go:TestIdentityComesFromRemoteNotDirectoryName
+    file: cmd/awg/domain_admission_test.go
+    symbol: TestIdentityComesFromRemoteNotDirectoryName
+    package: main
+    language: go
+    doc: "TestIdentityComesFromRemoteNotDirectoryName. A checkout copied to any path,\nor a worktree, still has the right identity; a same-named directory from\nanother project does not."
+  - id: cmd/awg/domain_admission_test.go:TestNormalizeRepoIdentityForms
+    file: cmd/awg/domain_admission_test.go
+    symbol: TestNormalizeRepoIdentityForms
+    package: main
+    language: go
+  - id: cmd/awg/domain_admission_test.go:TestUnverifiableInputsAreRefused
+    file: cmd/awg/domain_admission_test.go
+    symbol: TestUnverifiableInputsAreRefused
+    package: main
+    language: go
+    doc: "TestUnverifiableInputsAreRefused: every path that cannot affirmatively prove\nidentity must refuse. \"I could not verify\" is never \"verified\"."
+  - id: cmd/awg/domain_admission_test.go:TestWrongWorkspaceIsRefusedBeforeMutation
+    file: cmd/awg/domain_admission_test.go
+    symbol: TestWrongWorkspaceIsRefusedBeforeMutation
+    package: main
+    language: go
+    doc: "TestWrongWorkspaceIsRefusedBeforeMutation is the canonical negative control:\nthe exact command that destroyed the services slice three times."
+  - id: cmd/awg/domain_closure_test.go:TestClassWithoutProvenanceIsNamedNotFailed
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestClassWithoutProvenanceIsNamedNotFailed
+    package: main
+    language: go
+    doc: "TestClassWithoutProvenanceIsNamedNotFailed. ForbiddenFix nodes are emitted as\na single rdf:type triple with no label and no authoredIn — 475 of them in the\nservices corpus. That is an attributability GAP in the emitter, not evidence\nof contamination, and conflating the two would either fail every honest build\nor hide real contamination behind an exemption."
+  - id: cmd/awg/domain_closure_test.go:TestClosureProvenWhenSliceMatchesItsCertifiedSource
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestClosureProvenWhenSliceMatchesItsCertifiedSource
+    package: main
+    language: go
+    doc: "TestClosureProvenWhenSliceMatchesItsCertifiedSource is the positive control.\nIt covers a critical long-standing invariant and a newly proposed one, so the\ngate is exercised on both the old corpus and fresh additions."
+  - id: cmd/awg/domain_closure_test.go:TestExcludedSourcesAreNotRequiredToProject
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestExcludedSourcesAreNotRequiredToProject
+    package: main
+    language: go
+    doc: "TestExcludedSourcesAreNotRequiredToProject. A declared non-authority source\n(pipeline config such as relation_targets.yaml) must not be demanded of the\ngraph, or the gate becomes unsatisfiable and gets switched off."
+  - id: cmd/awg/domain_closure_test.go:TestIDPresentButUntypedIsNotProjected
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestIDPresentButUntypedIsNotProjected
+    package: main
+    language: go
+    doc: "TestIDPresentButUntypedIsNotProjected. Checking that the id STRING appears\nsomewhere is insufficient: an untyped subject is a dangling reference created\nby another node's relation, not a projected identity. The graph is full of\nthem — every `#affects` object mentions an id it does not define."
+  - id: cmd/awg/domain_closure_test.go:TestImporterAcceptsButEmitsNothing
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestImporterAcceptsButEmitsNothing
+    package: main
+    language: go
+    doc: "TestImporterAcceptsButEmitsNothing is the control the directive names: import\nsucceeds, census reconciles, and the graph is empty. Every count except the\nprojected one looks healthy."
+  - id: cmd/awg/domain_closure_test.go:TestMissingIdentityFailsClosure
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestMissingIdentityFailsClosure
+    package: main
+    language: go
+    doc: "TestMissingIdentityFailsClosure is the projection direction on its own: source\ndeclares it, importer ran, identity never appeared as a typed subject."
+  - id: cmd/awg/domain_closure_test.go:TestParseSubjectsRequiresTypeAndProvenance
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestParseSubjectsRequiresTypeAndProvenance
+    package: main
+    language: go
+    doc: "TestParseSubjectsRequiresTypeAndProvenance pins the N-Triples reading, since\nevery judgement above rests on it."
+  - id: cmd/awg/domain_closure_test.go:TestUnprovenIdentityFailsClosure
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestUnprovenIdentityFailsClosure
+    package: main
+    language: go
+    doc: "TestUnprovenIdentityFailsClosure: a node of a provenance-emitting class with\nno authoredIn cannot be attributed to the certified source, so it cannot be\nvouched for."
+  - id: cmd/awg/domain_closure_test.go:TestWithinRootRejectsPrefixCollisions
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestWithinRootRejectsPrefixCollisions
+    package: main
+    language: go
+    doc: "TestWithinRootRejectsPrefixCollisions guards the provenance comparison: a\nsibling directory that merely shares a string prefix is NOT inside the root."
+  - id: cmd/awg/domain_closure_test.go:TestWrongWorkspacePublicationFailsClosure
+    file: cmd/awg/domain_closure_test.go
+    symbol: TestWrongWorkspacePublicationFailsClosure
+    package: main
+    language: go
+    doc: "TestWrongWorkspacePublicationFailsClosure replays the incident: the slice is\ninternally perfect, but it is the wrong repository's corpus.\n\nThis is the case where every other signal said \"current\" and \"authoritative\"."
   - id: cmd/awg/gate_policy_test.go:TestApplyGatePolicy_OffDropsFinding
     file: cmd/awg/gate_policy_test.go
     symbol: TestApplyGatePolicy_OffDropsFinding
@@ -17973,6 +18110,42 @@ test_symbols:
     symbol: TestWithTLS_InvalidFilesReturnError
     package: client
     language: go
+  - id: golang/closure/report_test.go:TestIncidentReplay_FreshPublicationOfWrongCorpusIsNotAuthoritative
+    file: golang/closure/report_test.go
+    symbol: TestIncidentReplay_FreshPublicationOfWrongCorpusIsNotAuthoritative
+    package: closure
+    language: go
+    doc: "TestIncidentReplay_FreshPublicationOfWrongCorpusIsNotAuthoritative is the\nnegative control the directive names.\n\n\tcertified services revision\n\t+ sensei corpus published into the services domain\n\t→ freshness may be current\n\t→ authority must be false"
+  - id: golang/closure/report_test.go:TestMalformedReportIsUnproven
+    file: golang/closure/report_test.go
+    symbol: TestMalformedReportIsUnproven
+    package: closure
+    language: go
+    doc: "TestMalformedReportIsUnproven: an unreadable verdict is not a verdict."
+  - id: golang/closure/report_test.go:TestMissingReportIsUnprovenNotPassing
+    file: golang/closure/report_test.go
+    symbol: TestMissingReportIsUnprovenNotPassing
+    package: closure
+    language: go
+    doc: "TestMissingReportIsUnprovenNotPassing. Absence of a verdict is not a passing\nverdict — an older publication, or a build that never ran the check, must not\ninherit authority by default."
+  - id: golang/closure/report_test.go:TestProvenReportYieldsAuthority
+    file: golang/closure/report_test.go
+    symbol: TestProvenReportYieldsAuthority
+    package: closure
+    language: go
+    doc: "TestProvenReportYieldsAuthority is the positive control."
+  - id: golang/closure/report_test.go:TestReportRoundTripsFailureReasons
+    file: golang/closure/report_test.go
+    symbol: TestReportRoundTripsFailureReasons
+    package: closure
+    language: go
+    doc: "TestReportRoundTripsFailureReasons keeps the diagnosis durable: a reader who\nwas not present at build time still learns why closure failed."
+  - id: golang/closure/report_test.go:TestStaleReportDoesNotVouchForNewContent
+    file: golang/closure/report_test.go
+    symbol: TestStaleReportDoesNotVouchForNewContent
+    package: closure
+    language: go
+    doc: "TestStaleReportDoesNotVouchForNewContent. A report left beside a newer marker\ndescribes a different publication. This is how a system talks itself into\nbelieving an old proof covers new content."
   - id: golang/contractassess/contractassess_test.go:TestAssess
     file: golang/contractassess/contractassess_test.go
     symbol: TestAssess
@@ -22106,6 +22279,12 @@ test_symbols:
     symbol: TestMetadata_IncludesSurfaceUsageCounters
     package: main
     language: go
+  - id: golang/server/main_test.go:TestProductionDefaultFailsClosedWithoutAClosureReport
+    file: golang/server/main_test.go
+    symbol: TestProductionDefaultFailsClosedWithoutAClosureReport
+    package: main
+    language: go
+    doc: "TestProductionDefaultFailsClosedWithoutAClosureReport is the guarantee that\nmakes the fixture override above safe.\n\nA production server has no closureEval hook. With no marker path — and so no\nlocatable closure report — authority must be FALSE even though the store is\nperfectly fresh. \"I could not check\" must never be reported as \"it passed\":\nthat equivalence is what let a wrong-workspace publication certify a\nrepository it did not contain on 2026-08-05."
   - id: golang/server/main_test.go:TestQuery_BackendErrorReturnsUnavailable
     file: golang/server/main_test.go
     symbol: TestQuery_BackendErrorReturnsUnavailable
