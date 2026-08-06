@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -118,7 +119,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		return out, nil
 	}
 
-	impact, provByID, resolvedScope, err := s.collectImpact(ctx, file, requestedDomain)
+	impact, provByID, resolvedScope, inference, err := s.collectImpact(ctx, file, requestedDomain)
 	if err != nil {
 		// Preserve an already-coded status (e.g. FailedPrecondition for an
 		// ambiguous domain scope); only an uncoded error is a backend failure.
@@ -253,6 +254,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	}
 
 	prose := composeBriefingProseWithPrinciples(file, task, impact, codeSyms, implPatterns, principleGuidance, statusVal, profile)
+	prose += composePackageInferenceNote(inference)
 	var ib strings.Builder
 	appendMatchedIntentsSection(&ib, matchedIntents)
 	prose += ib.String()
@@ -845,5 +847,57 @@ func renderingGroupsBriefingSection(groups []store.RenderingGroupInfo) string {
 			b.WriteString(fmt.Sprintf("  Contract: %s\n", strings.TrimSpace(lines[0])))
 		}
 	}
+	return b.String()
+}
+
+// composePackageInferenceNote renders the package-walk result.
+//
+// Inferred anchors are rendered in their OWN section, never merged into the
+// direct lists, and each names the sibling file it came from. That framing is
+// the whole safety property: a neighbour's invariant is evidence this file sits
+// in governed territory, not proof the invariant binds this file, and an agent
+// that cannot see the difference will treat borrowed context as its own
+// contract.
+//
+// An unavailable walk says so. Rendering nothing would make "this package has
+// no other governed files" and "the query failed" look identical.
+func composePackageInferenceNote(p packageInference) string {
+	if p.Unavailable {
+		return "\n\nPackage-level inference unavailable: " + p.Reason +
+			"\n(absence of inferred anchors below is NOT evidence the package is ungoverned)"
+	}
+	if p.empty() {
+		return ""
+	}
+
+	type line struct{ id, label, severity, from, class string }
+	lines := make([]line, 0, len(p.nodes))
+	for iri, n := range p.nodes {
+		lines = append(lines, line{
+			id: n.GetId(), label: n.GetLabel(), severity: n.GetSeverity(),
+			from: p.from[iri], class: p.class[iri],
+		})
+	}
+	sort.Slice(lines, func(i, j int) bool {
+		if lines[i].class != lines[j].class {
+			return lines[i].class < lines[j].class
+		}
+		return lines[i].id < lines[j].id
+	})
+
+	var b strings.Builder
+	b.WriteString("\n\nInferred from this package (anchored to sibling files, NOT to this file):")
+	for _, l := range lines {
+		b.WriteString("\n- [" + l.class)
+		if l.severity != "" {
+			b.WriteString(" " + l.severity)
+		}
+		b.WriteString("] " + l.id)
+		if l.label != "" {
+			b.WriteString(" — " + l.label)
+		}
+		b.WriteString("\n  via " + l.from)
+	}
+	b.WriteString("\nThese govern the package, not necessarily this file. Confirm before treating one as binding here.")
 	return b.String()
 }

@@ -118,6 +118,37 @@ type Store interface {
 	DetectFacts(ctx context.Context) ([]ImpactFact, error)
 }
 
+// PackageImpactFact is an ImpactFact plus the source file that anchors it.
+//
+// The anchoring file is carried because a package-level answer must be able to
+// say WHERE a fact came from. An inferred anchor with no attribution is
+// indistinguishable from a direct one at the point of reading, which is how a
+// neighbour's rule quietly becomes this file's rule.
+type PackageImpactFact struct {
+	ImpactFact
+	SourceFileIRI string
+}
+
+// PackageAnchorStore is an OPTIONAL capability: anchors reachable from any
+// source file sharing a path prefix.
+//
+// It is deliberately not part of Store. Store is implemented by the oxigraph
+// client, the embedded seed, a repograph adapter, and roughly eight test
+// fakes; widening it would force every one of them to grow a method they have
+// no use for. Callers type-assert instead and degrade explicitly when the
+// backend cannot answer — absence of the capability is a stated condition, not
+// an empty result.
+type PackageAnchorStore interface {
+	// ImpactForPackage returns anchor facts for every source file whose IRI
+	// starts with sourceFilePrefix, tagged with the file each came from.
+	//
+	// The prefix is a coarse filter: IRI path segments are percent-encoded, so
+	// a prefix for "golang/server/" also matches files in nested directories.
+	// Callers narrow to an exact package themselves. Implementations must
+	// enforce a safe upper bound on the number of rows returned.
+	ImpactForPackage(ctx context.Context, sourceFilePrefix string) ([]PackageImpactFact, error)
+}
+
 // RenderingGroupInfo holds one rendering group with its label and contract.
 type RenderingGroupInfo struct {
 	IRI      string

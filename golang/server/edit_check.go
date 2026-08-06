@@ -40,7 +40,7 @@ func (s *server) EditCheck(ctx context.Context, req *awarenesspb.EditCheckReques
 	}
 
 	// Scope + fail-closed handled by collectImpact (identical to Briefing).
-	impact, _, _, err := s.collectImpact(ctx, file, requestedDomain)
+	impact, _, _, _, err := s.collectImpact(ctx, file, requestedDomain)
 	if err != nil {
 		if _, ok := status.FromError(err); ok && status.Code(err) != codes.Unknown {
 			return nil, err // preserve FailedPrecondition for an ambiguous scope

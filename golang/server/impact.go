@@ -46,7 +46,7 @@ func (s *server) Impact(ctx context.Context, req *awarenesspb.ImpactRequest) (*a
 	if err := s.requireDomainWhenAmbiguous(ctx, strings.TrimSpace(req.GetDomain())); err != nil {
 		return nil, err
 	}
-	resp, _, _, err := s.collectImpact(ctx, file, strings.TrimSpace(req.GetDomain()))
+	resp, _, _, _, err := s.collectImpact(ctx, file, strings.TrimSpace(req.GetDomain()))
 	if err != nil {
 		// Preserve an already-coded status (e.g. FailedPrecondition for an
 		// ambiguous domain scope); only an uncoded error is a backend failure.
@@ -63,16 +63,16 @@ func (s *server) Impact(ctx context.Context, req *awarenesspb.ImpactRequest) (*a
 // RESOLVED domain scope for this query. The resolved scope is exported so other
 // briefing sections (implementation patterns, intent triggers) can be filtered to
 // the SAME domain rather than leaking foreign-repo rules — see briefing.go.
-func (s *server) collectImpact(ctx context.Context, file, requestedDomain string) (*awarenesspb.ImpactResponse, map[string]nodeProvenance, string, error) {
+func (s *server) collectImpact(ctx context.Context, file, requestedDomain string) (*awarenesspb.ImpactResponse, map[string]nodeProvenance, string, packageInference, error) {
 	requestedDomain = strings.TrimSpace(requestedDomain)
 	if err := s.validateRequestedDomain(ctx, requestedDomain); err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", packageInference{}, err
 	}
 
 	fileIRI := mintedIRI(rdf.ClassSourceFile, file)
 	facts, err := s.store.ImpactForFile(ctx, fileIRI)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", packageInference{}, err
 	}
 
 	resp := &awarenesspb.ImpactResponse{}
@@ -134,9 +134,9 @@ func (s *server) collectImpact(ctx context.Context, file, requestedDomain string
 	if scopeErr != nil {
 		var ae *AmbiguousScopeError
 		if errors.As(scopeErr, &ae) {
-			return nil, nil, "", status.Errorf(codes.FailedPrecondition, "%s", ae.Error())
+			return nil, nil, "", packageInference{}, status.Errorf(codes.FailedPrecondition, "%s", ae.Error())
 		}
-		return nil, nil, "", scopeErr
+		return nil, nil, "", packageInference{}, scopeErr
 	}
 	for iri := range nodes {
 		if !InScope(nodeDomain[iri], resolved) {
@@ -185,11 +185,22 @@ func (s *server) collectImpact(ctx context.Context, file, requestedDomain string
 		}
 		return a.GetId() < b.GetId()
 	})
-	// Inferred fields (InferredInvariants, InferredFailureModes,
-	// InferredIncidentPatterns, InferredIntents) are reserved for a future
-	// phase. Populating them requires Component IRI nodes in the graph and a
-	// 2-hop SPARQL query; neither exists yet. They remain nil intentionally.
-	// See docs/awareness/decisions/inference-v0-direct-anchors-only.md.
+	// Inferred fields: anchors carried by sibling files in the same package.
+	// Direct anchors above are unchanged — these are strictly additional, and
+	// the caller can always tell them apart because they live in different
+	// fields. See docs/awareness/decisions/inference-v1-package-walk.md, which
+	// supersedes the v0 direct-anchors-only decision.
+	direct := make(map[string]bool, len(nodes))
+	for iri := range nodes {
+		direct[iri] = true
+	}
+	// briefingScope, not the raw resolved scope. A file with no direct anchors
+	// resolves to "" — and InScope(home, "") is false — so using resolved here
+	// would filter away every inferred anchor for exactly the unanchored files
+	// this walk exists to serve. This is the same fallback every other
+	// domain-scoped briefing section already uses.
+	inference := s.inferPackageAnchors(ctx, file, direct, briefingScope(requestedDomain, resolved, s.homeDomain))
+	inference.apply(resp, 0)
 
 	// Provenance, keyed by bare node id (the key briefing/edit-check use), for
 	// the in-scope nodes only.
@@ -214,7 +225,7 @@ func (s *server) collectImpact(ctx context.Context, file, requestedDomain string
 			})
 		}
 	}
-	return resp, provByID, resolved, nil
+	return resp, provByID, resolved, inference, nil
 }
 
 func classFromTypeIRI(typeIRI string) (string, bool) {

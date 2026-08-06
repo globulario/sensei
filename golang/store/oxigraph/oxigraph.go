@@ -1171,3 +1171,112 @@ func (c *Client) TypedNodeFactsPage(ctx context.Context, afterIRI string, limit 
 	}
 	return facts, last, nil
 }
+
+// sparqlPackageImpactResult mirrors sparqlImpactResult with the anchoring
+// source file bound, so a package-level answer can attribute each fact.
+type sparqlPackageImpactResult struct {
+	Results struct {
+		Bindings []struct {
+			File struct {
+				Type  string `json:"type"`
+				Value string `json:"value"`
+			} `json:"file"`
+			Node struct {
+				Type  string `json:"type"`
+				Value string `json:"value"`
+			} `json:"node"`
+			Type struct {
+				Type  string `json:"type"`
+				Value string `json:"value"`
+			} `json:"type"`
+			P struct {
+				Type  string `json:"type"`
+				Value string `json:"value"`
+			} `json:"p"`
+			O struct {
+				Type  string `json:"type"`
+				Value string `json:"value"`
+			} `json:"o"`
+		} `json:"bindings"`
+	} `json:"results"`
+}
+
+// packageImpactRowCap bounds one package walk. A package is a few dozen files
+// and each contributes a handful of facts; the cap exists so a pathological
+// prefix cannot turn one briefing into a whole-graph scan.
+const packageImpactRowCap = 20000
+
+// ImpactForPackage implements store.PackageAnchorStore.
+//
+// The edge shapes match ImpactForFile exactly — implements / enforces /
+// protects, plus the failure-modes-affecting-an-implemented-invariant hop — so
+// an inferred anchor is reached by the same rules as a direct one. Only the
+// subject differs: any source file under the prefix rather than one exact file.
+//
+// STRSTARTS over the IRI string is the filter. Source-file IRIs are minted
+// from percent-encoded repo-relative paths, so a directory prefix is a literal
+// string prefix; the caller narrows to an exact package because the encoding
+// makes nested directories share it.
+func (c *Client) ImpactForPackage(ctx context.Context, sourceFilePrefix string) ([]store.PackageImpactFact, error) {
+	q := fmt.Sprintf(
+		`SELECT ?file ?node ?type ?p ?o WHERE {
+  {
+    ?file <https://globular.io/awareness#implements> ?node .
+  } UNION {
+    ?file <https://globular.io/awareness#implements> ?inv .
+    ?inv <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+    ?node <https://globular.io/awareness#affects> ?inv .
+    ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+  } UNION {
+    ?file <https://globular.io/awareness#enforces> ?node .
+  } UNION {
+    ?file <https://globular.io/awareness#protects> ?node .
+  }
+  FILTER(STRSTARTS(STR(?file), %q))
+  ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?type .
+  OPTIONAL { ?node ?p ?o . }
+}
+LIMIT %d`, sourceFilePrefix, packageImpactRowCap)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph package impact: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph package impact: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return nil, fmt.Errorf("oxigraph package impact: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+
+	var out sparqlPackageImpactResult
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("oxigraph package impact: decode sparql json: %w", err)
+	}
+	facts := make([]store.PackageImpactFact, 0, len(out.Results.Bindings))
+	for _, b := range out.Results.Bindings {
+		if b.File.Type != "uri" || b.File.Value == "" {
+			continue
+		}
+		if b.Node.Type != "uri" || b.Node.Value == "" || b.Type.Type != "uri" || b.Type.Value == "" {
+			continue
+		}
+		facts = append(facts, store.PackageImpactFact{
+			ImpactFact: store.ImpactFact{
+				NodeIRI:     b.Node.Value,
+				TypeIRI:     b.Type.Value,
+				Predicate:   b.P.Value,
+				Object:      b.O.Value,
+				ObjectIsIRI: b.O.Type == "uri",
+			},
+			SourceFileIRI: b.File.Value,
+		})
+	}
+	return facts, nil
+}

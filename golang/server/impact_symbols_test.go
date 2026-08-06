@@ -45,7 +45,7 @@ func TestImpact_SurfacesSymbolsAndReferences(t *testing.T) {
 		},
 	})
 
-	resp, _, _, err := s.collectImpact(context.Background(), "command/issue.go", "")
+	resp, _, _, _, err := s.collectImpact(context.Background(), "command/issue.go", "")
 	if err != nil {
 		t.Fatalf("collectImpact: %v", err)
 	}

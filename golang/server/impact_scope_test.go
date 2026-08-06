@@ -73,7 +73,7 @@ func TestCollectImpact_SingleDomainUnscoped_ReturnsAll(t *testing.T) {
 		"globular.rule.b": "",
 	})
 	s := newScopeServer(facts, "globular")
-	resp, _, _, err := s.collectImpact(context.Background(), "f.go", "")
+	resp, _, _, _, err := s.collectImpact(context.Background(), "f.go", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestCollectImpact_UnknownRequestedDomainFailsClosed(t *testing.T) {
 	})
 	s.homeDomain = "github.com/globulario/sensei"
 
-	_, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/example/missing")
+	_, _, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/example/missing")
 	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("unknown requested domain must fail closed, got %v", err)
 	}
@@ -108,7 +108,7 @@ func TestCollectImpact_MixedDomainUnscoped_FailsClosed(t *testing.T) {
 		"caddy.rule.rewrite": "github.com/caddyserver/caddy", // repo
 	})
 	s := newScopeServer(facts, "globular")
-	_, _, _, err := s.collectImpact(context.Background(), "f.go", "")
+	_, _, _, _, err := s.collectImpact(context.Background(), "f.go", "")
 	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("mixed-domain unscoped must fail closed with FailedPrecondition, got %v", err)
 	}
@@ -123,7 +123,7 @@ func TestCollectImpact_CaddyScope_NoGlobularLeak(t *testing.T) {
 		"meta.absence_scope": rdf.DomainShared,               // shared — must appear
 	})
 	s := newScopeServer(facts, "globular")
-	resp, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/caddyserver/caddy")
+	resp, _, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/caddyserver/caddy")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestCollectImpact_GlobularScope_NoCaddyLeak(t *testing.T) {
 		"meta.absence_scope": rdf.DomainShared,
 	})
 	s := newScopeServer(facts, "globular")
-	resp, _, _, err := s.collectImpact(context.Background(), "f.go", "globular")
+	resp, _, _, _, err := s.collectImpact(context.Background(), "f.go", "globular")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestCollectImpact_SingleRepoDomainUnscoped_OK(t *testing.T) {
 		"meta.absence_scope": rdf.DomainShared,
 	})
 	s := newScopeServer(facts, "globular")
-	resp, _, _, err := s.collectImpact(context.Background(), "f.go", "")
+	resp, _, _, _, err := s.collectImpact(context.Background(), "f.go", "")
 	if err != nil {
 		t.Fatalf("single repo domain unscoped should resolve trivially, got %v", err)
 	}
