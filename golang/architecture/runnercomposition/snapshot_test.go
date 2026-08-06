@@ -463,6 +463,15 @@ func TestExtractSnapshotRejectsInvalidUTF8SymlinkTarget(t *testing.T) {
 // tree succeeds but the revision itself is bogus so listing fails
 // immediately) must not leave a staging directory behind.
 func TestExtractSnapshotLeavesNothingBehindOnFailure(t *testing.T) {
+	// ExtractSnapshot stages into os.MkdirTemp("", …), i.e. the SHARED temp
+	// dir. Scanning that directory globally makes this test blame any
+	// concurrently-created staging dir on itself — and evaluatorcomposition,
+	// a separate package, calls ExtractSnapshot too, so `go test ./...` runs
+	// the two binaries in parallel and this test fails on someone else's
+	// in-flight directory. Pointing TMPDIR at a per-test root keeps the
+	// before/after scan honest by making it observe only this test's staging.
+	t.Setenv("TMPDIR", t.TempDir())
+
 	root := initTestRepo(t, func(root string) {
 		os.WriteFile(filepath.Join(root, "a.txt"), []byte("x"), 0o644)
 		runGit(t, root, "add", "-A")
