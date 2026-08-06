@@ -56,7 +56,7 @@ func TestGoRunThatOnlySkipsDoesNotCertify(t *testing.T) {
 	obligations := ResolveGoObligations(
 		[]string{"golang/server/preflight_signal_quality_test.go:TestPreflightCriticalSignalsLeadTheActionList"},
 		res,
-		CoverageFromRun(res, true),
+		RunnerProvenCoverage(res, "test-runner"),
 	)
 	report := Certify(obligations)
 	if report.Verdict != VerdictIndeterminate {
@@ -256,7 +256,7 @@ func TestGap_DiscoveryUnavailableIsUnavailableNotMissing(t *testing.T) {
 
 	t.Run("complete run that never covered this package", func(t *testing.T) {
 		res := map[string]GoTestResult{"cmd/awg:TestElsewhere": {outcome: OutcomePass}}
-		obs := ResolveGoObligations([]string{anchor}, res, CoverageFromRun(res, true))
+		obs := ResolveGoObligations([]string{anchor}, res, RunnerProvenCoverage(res, "test-runner"))
 		if obs[0].Outcome != OutcomeUnavailable {
 			t.Fatalf("outcome = %s, want UNAVAILABLE: this package was never inspected", obs[0].Outcome)
 		}
@@ -278,7 +278,7 @@ func TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint(t *testing
 	obs := ResolveGoObligations(
 		[]string{"golang/server/briefing_test.go:TestBriefingXYZ"},
 		res,
-		CoverageFromRun(res, true),
+		RunnerProvenCoverage(res, "test-runner"),
 	)
 
 	if obs[0].Outcome != OutcomeMissingImplementation {
@@ -297,7 +297,7 @@ func TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint(t *testing
 // distinguishable from UNAVAILABLE in the report.
 func TestMissingImplementationBlocksAndStaysDistinct(t *testing.T) {
 	res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
-	obs := ResolveGoObligations([]string{"golang/server/main_test.go:TestGone"}, res, CoverageFromRun(res, true))
+	obs := ResolveGoObligations([]string{"golang/server/main_test.go:TestGone"}, res, RunnerProvenCoverage(res, "test-runner"))
 	report := Certify(obs)
 
 	if report.Verdict != VerdictIndeterminate {
@@ -319,12 +319,65 @@ func TestVerdictFollowsDeclaredCoverageNotPathInference(t *testing.T) {
 	res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
 
 	incomplete := ResolveGoObligations([]string{anchor}, res, CoverageFromRun(res, false))[0]
-	complete := ResolveGoObligations([]string{anchor}, res, CoverageFromRun(res, true))[0]
+	complete := ResolveGoObligations([]string{anchor}, res, RunnerProvenCoverage(res, "test-runner"))[0]
 
 	if incomplete.Outcome != OutcomeUnavailable {
 		t.Fatalf("incomplete run = %s, want UNAVAILABLE", incomplete.Outcome)
 	}
 	if complete.Outcome != OutcomeMissingImplementation {
 		t.Fatalf("complete run = %s, want MISSING_IMPLEMENTATION", complete.Outcome)
+	}
+}
+
+// THE AUTHORITY BOUNDARY. A completeness claim from whoever typed the command
+// is unverifiable — a -run-filtered run is indistinguishable from an exhaustive
+// one in the stream — so it must not convert "we did not observe the test" into
+// "the test does not exist". Without this, one flag rebuilds the exact
+// conflation this package was written to remove.
+func TestCallerAttestedCompletenessCannotAccuse(t *testing.T) {
+	anchor := "golang/server/main_test.go:TestGone"
+	res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
+
+	attested := CoverageFromRun(res, true) // what the CLI flag produces
+	if attested.Provenance != CoverageCallerAttested {
+		t.Fatalf("provenance = %s, want caller-attested", attested.Provenance)
+	}
+	obs := ResolveGoObligations([]string{anchor}, res, attested)
+	if obs[0].Outcome != OutcomeUnavailable {
+		t.Fatalf("outcome = %s, want UNAVAILABLE: a caller assertion may not accuse", obs[0].Outcome)
+	}
+	if !strings.Contains(obs[0].Reason, "caller-attested") {
+		t.Fatalf("reason must name whose claim this rests on, got %q", obs[0].Reason)
+	}
+
+	// Only a trusted producer converts the same input into an accusation.
+	proven := ResolveGoObligations([]string{anchor}, res, RunnerProvenCoverage(res, "trusted-runner"))
+	if proven[0].Outcome != OutcomeMissingImplementation {
+		t.Fatalf("runner-proven outcome = %s, want MISSING_IMPLEMENTATION", proven[0].Outcome)
+	}
+}
+
+// Fail closed on an unrecognized provenance: a value added later without
+// deciding its authority must not inherit the right to accuse.
+func TestUnknownProvenanceCannotAccuse(t *testing.T) {
+	res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
+	coverage := CoverageFromRun(res, true)
+	coverage.Provenance = CoverageProvenance(99)
+
+	obs := ResolveGoObligations([]string{"golang/server/main_test.go:TestGone"}, res, coverage)
+	if obs[0].Outcome != OutcomeUnavailable {
+		t.Fatalf("outcome = %s, want UNAVAILABLE for an unknown provenance", obs[0].Outcome)
+	}
+	if CoverageProvenance(99).String() == "runner-proven" {
+		t.Fatal("an unknown provenance must not render as the trusted one")
+	}
+}
+
+// The undeclared zero value carries no authority either.
+func TestUndeclaredCoverageCannotAccuse(t *testing.T) {
+	res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
+	obs := ResolveGoObligations([]string{"golang/server/main_test.go:TestGone"}, res, DiscoveryCoverage{})
+	if obs[0].Outcome != OutcomeUnavailable {
+		t.Fatalf("outcome = %s, want UNAVAILABLE", obs[0].Outcome)
 	}
 }

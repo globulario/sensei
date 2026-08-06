@@ -176,15 +176,54 @@ func IsGoAnchor(anchor string) bool {
 	return found && strings.HasSuffix(file, "_test.go")
 }
 
+// CoverageProvenance records WHO says the discovery run was exhaustive. It
+// exists because completeness is the single claim that converts "we did not
+// observe the test" into "the test does not exist", and a claim with that much
+// authority may not be taken on trust from whoever typed the command.
+type CoverageProvenance int
+
+const (
+	// CoverageUndeclared is the zero value: nobody claimed completeness.
+	CoverageUndeclared CoverageProvenance = iota
+	// CoverageCallerAttested means an external caller asserted completeness.
+	// The assertion is unverifiable here — a `-run`-filtered run looks
+	// identical in the stream to an exhaustive one — so it is recorded and
+	// reported but never authorizes an accusation.
+	CoverageCallerAttested
+	// CoverageRunnerProven means a trusted discovery runner produced the
+	// coverage declaration alongside the evidence it describes. Only this
+	// authorizes MissingImplementation.
+	//
+	// Nothing in Sensei produces this yet: it deliberately does not execute
+	// tests, so no component is in a position to prove exhaustiveness. The
+	// value exists so the authority boundary is expressed in the type rather
+	// than left as an intention, and so the producer can be added without
+	// re-deciding who is allowed to accuse.
+	CoverageRunnerProven
+)
+
+func (p CoverageProvenance) String() string {
+	switch p {
+	case CoverageCallerAttested:
+		return "caller-attested"
+	case CoverageRunnerProven:
+		return "runner-proven"
+	default:
+		return "undeclared"
+	}
+}
+
+// authorizesAccusation reports whether this provenance may turn an absent
+// result into a MissingImplementation finding. Fails closed for unknown values.
+func (p CoverageProvenance) authorizesAccusation() bool { return p == CoverageRunnerProven }
+
 // DiscoveryCoverage declares what the evidence run actually inspected.
 //
 // It exists because absence of a result is ambiguous on its own: the test may
 // not exist, or the run may simply never have looked there. Deriving that from
 // the stream is not possible — a `-run`-filtered run still emits events for
-// packages whose tests were all filtered out — so completeness is DECLARED by
-// the caller rather than inferred. The conservative zero value (Complete
-// false) means every gap reads as Unavailable, so a caller who declares
-// nothing can never produce a false accusation.
+// packages whose tests were all filtered out — so completeness must be
+// declared, and Provenance records whose declaration it is.
 type DiscoveryCoverage struct {
 	// GoTestsAvailable reports whether a Go test run was supplied at all.
 	GoTestsAvailable bool
@@ -192,13 +231,25 @@ type DiscoveryCoverage struct {
 	// on. Derived from the stream, which is sound: a package that emitted no
 	// event was certainly not inspected.
 	IncludedRoots []string
-	// ExcludedRoots are directories the caller knows were left out, recorded
-	// so a report can say what was not looked at rather than staying silent.
+	// ExcludedRoots are directories known to have been left out, recorded so a
+	// report can say what was not looked at rather than staying silent.
 	ExcludedRoots []string
-	// Complete asserts the run was exhaustive over IncludedRoots — no -run
-	// filter, no early exit. Only a complete run may turn a missing result
-	// into a MissingImplementation accusation.
+	// Complete says the run was claimed exhaustive over IncludedRoots.
+	// Complete alone proves nothing — see Provenance, which decides whether
+	// the claim carries authority.
 	Complete bool
+	// Provenance is who made the completeness claim. Only CoverageRunnerProven
+	// may authorize a MissingImplementation accusation; anything else leaves an
+	// absent anchor Unavailable.
+	Provenance CoverageProvenance
+	// Producer names the declaring party, carried into the report so a reader
+	// can see whose word an unverified claim rests on.
+	Producer string
+}
+
+// provenAndComplete reports whether this coverage may support an accusation.
+func (c DiscoveryCoverage) provenAndComplete() bool {
+	return c.Complete && c.Provenance.authorizesAccusation()
 }
 
 func (c DiscoveryCoverage) covers(dir string) bool {
@@ -210,9 +261,21 @@ func (c DiscoveryCoverage) covers(dir string) bool {
 	return false
 }
 
-// CoverageFromRun derives what a parsed run inspected. complete is the
-// caller's assertion that the run was unfiltered; it cannot be observed.
+// CoverageFromRun derives what a parsed run inspected, treating any
+// completeness claim as caller-attested — because that is what it is when it
+// arrives as a flag. Callers that can genuinely prove exhaustiveness must
+// construct DiscoveryCoverage with CoverageRunnerProven explicitly, so the
+// authority to accuse is never acquired by default.
 func CoverageFromRun(results map[string]GoTestResult, complete bool) DiscoveryCoverage {
+	c := coverageShape(results, complete)
+	if complete {
+		c.Provenance = CoverageCallerAttested
+		c.Producer = "caller"
+	}
+	return c
+}
+
+func coverageShape(results map[string]GoTestResult, complete bool) DiscoveryCoverage {
 	seen := map[string]bool{}
 	for key := range results {
 		if dir, _, ok := strings.Cut(key, ":"); ok {
@@ -229,6 +292,17 @@ func CoverageFromRun(results map[string]GoTestResult, complete bool) DiscoveryCo
 		IncludedRoots:    roots,
 		Complete:         complete,
 	}
+}
+
+// RunnerProvenCoverage builds coverage that DOES authorize an accusation. It
+// is the single constructor able to do so, kept separate and explicit so the
+// authority boundary is visible at every call site rather than buried in a
+// boolean. producer names the trusted runner that observed exhaustiveness.
+func RunnerProvenCoverage(results map[string]GoTestResult, producer string) DiscoveryCoverage {
+	c := coverageShape(results, true)
+	c.Provenance = CoverageRunnerProven
+	c.Producer = producer
+	return c
 }
 
 // ResolveGoObligations maps required anchors onto observed Go results.
@@ -277,6 +351,14 @@ func classifyGap(key string, results map[string]GoTestResult, coverage Discovery
 		return OutcomeUnavailable, "no Go test results were supplied", ""
 	case !coverage.Complete:
 		return OutcomeUnavailable, "the supplied run is not declared complete, so an absent result proves nothing", ""
+	case !coverage.provenAndComplete():
+		// Completeness was claimed but not proven. Letting an unverifiable
+		// assertion convert "not observed" into "does not exist" would rebuild
+		// the exact conflation this package was written to remove — one flag
+		// away from authoritative fiction.
+		return OutcomeUnavailable,
+			"completeness is " + coverage.Provenance.String() + " (" + producerOrUnknown(coverage) +
+				") and cannot be verified here, so an absent result is unproven rather than missing", ""
 	case !coverage.covers(dir):
 		return OutcomeUnavailable, "package " + dir + " was not part of the supplied run", ""
 	default:
@@ -300,4 +382,11 @@ func candidateElsewhere(name, fromDir string, results map[string]GoTestResult) s
 		}
 	}
 	return ""
+}
+
+func producerOrUnknown(c DiscoveryCoverage) string {
+	if c.Producer == "" {
+		return "producer unknown"
+	}
+	return c.Producer
 }

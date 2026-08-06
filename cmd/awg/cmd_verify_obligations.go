@@ -39,7 +39,7 @@ func runVerifyObligations(args []string) int {
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
 	repo := fs.String("repo", ".", "repository checkout, used to resolve the domain when --domain is omitted")
 	module := fs.String("module", "", "Go module path to strip from package names (default: read go.mod in --repo)")
-	complete := fs.Bool("discovery-complete", false, "assert the run was exhaustive (no -run filter) over the packages it reported;\n\t\tonly then may an absent result be reported as MISSING_IMPLEMENTATION rather than UNAVAILABLE")
+	complete := fs.Bool("assert-discovery-complete", false, "caller assertion that the run was exhaustive (no -run filter) over the packages it reported.\n\t\tRecorded as caller-attested: it is reported, but it does NOT authorize a MISSING_IMPLEMENTATION\n\t\tfinding, because nothing here can verify it")
 	var files stringSlice
 	fs.Var(&files, "file", "repo-relative file (repeatable)")
 	fs.Usage = func() {
@@ -62,9 +62,12 @@ Exit codes:
   3  INDETERMINATE  a required test was skipped, unavailable, or missing — not proved
   2  usage or connection error
 
-Absent results are UNAVAILABLE by default, because a run that was not declared
-complete cannot prove a test does not exist. Pass --discovery-complete for an
-exhaustive run to have an absent result reported as MISSING_IMPLEMENTATION.
+Absent results are UNAVAILABLE. A run that was not declared complete cannot
+prove a test does not exist, and a completeness claim from the caller cannot
+be verified here either — a -run-filtered run is indistinguishable from an
+exhaustive one in the output stream. Only a trusted discovery runner that
+produces its own coverage declaration may turn an absent result into a
+MISSING_IMPLEMENTATION finding; no such producer exists yet.
 
 Flags:
 `)
@@ -104,12 +107,16 @@ Flags:
 		return rc
 	}
 
+	// Deliberately CoverageFromRun, never RunnerProvenCoverage: a flag is a
+	// caller assertion, and letting it authorize an accusation would rebuild
+	// the "not observed" -> "does not exist" conflation this command exists to
+	// prevent.
 	coverage := testobligation.CoverageFromRun(observed, *complete)
 	report := testobligation.Certify(testobligation.ResolveGoObligations(anchors, observed, coverage))
 	if *asJSON {
-		return emitObligationJSON(report)
+		return emitObligationJSON(report, coverage)
 	}
-	printObligationReport(report)
+	printObligationReport(report, coverage)
 	return report.Verdict.ExitCode()
 }
 
@@ -174,8 +181,9 @@ func readModulePath(repo string) string {
 	return ""
 }
 
-func printObligationReport(r testobligation.Report) {
-	fmt.Printf("Obligations: %d\n\n", len(r.Obligations))
+func printObligationReport(r testobligation.Report, c testobligation.DiscoveryCoverage) {
+	fmt.Printf("Obligations: %d\n", len(r.Obligations))
+	fmt.Printf("Discovery completeness: %s\n\n", coverageNote(c))
 	for _, o := range r.Obligations {
 		tag := o.Outcome.String()
 		if !o.Required {
@@ -206,6 +214,19 @@ func printObligationReport(r testobligation.Report) {
 	}
 }
 
+// coverageNote states what is known about discovery completeness, so a reader
+// can see whether an UNAVAILABLE means "nobody looked" or "someone says they
+// looked and we cannot check".
+func coverageNote(c testobligation.DiscoveryCoverage) string {
+	if !c.Complete {
+		return "not declared (absent results prove nothing)"
+	}
+	if c.Provenance == testobligation.CoverageRunnerProven {
+		return "proven by " + c.Producer
+	}
+	return c.Provenance.String() + " by " + c.Producer + " — unverifiable here, so absent results stay UNAVAILABLE"
+}
+
 // obligationJSON is an explicit wire shape rather than a struct-tagged reuse of
 // the domain type: the machine output is a contract for CI, and it should not
 // change silently because an internal field was renamed.
@@ -218,14 +239,15 @@ type obligationJSON struct {
 }
 
 type reportJSON struct {
-	Verdict     string           `json:"verdict"`
-	Certifies   bool             `json:"certifies"`
-	ExitCode    int              `json:"exit_code"`
-	Obligations []obligationJSON `json:"obligations"`
-	Blocking    []obligationJSON `json:"blocking,omitempty"`
+	DiscoveryCompleteness string           `json:"discovery_completeness"`
+	Verdict               string           `json:"verdict"`
+	Certifies             bool             `json:"certifies"`
+	ExitCode              int              `json:"exit_code"`
+	Obligations           []obligationJSON `json:"obligations"`
+	Blocking              []obligationJSON `json:"blocking,omitempty"`
 }
 
-func emitObligationJSON(r testobligation.Report) int {
+func emitObligationJSON(r testobligation.Report, c testobligation.DiscoveryCoverage) int {
 	toJSON := func(in []testobligation.Obligation) []obligationJSON {
 		out := make([]obligationJSON, 0, len(in))
 		for _, o := range in {
@@ -240,11 +262,12 @@ func emitObligationJSON(r testobligation.Report) int {
 		return out
 	}
 	payload := reportJSON{
-		Verdict:     r.Verdict.String(),
-		Certifies:   r.Verdict.Certifies(),
-		ExitCode:    r.Verdict.ExitCode(),
-		Obligations: toJSON(r.Obligations),
-		Blocking:    toJSON(r.Blocking()),
+		DiscoveryCompleteness: coverageNote(c),
+		Verdict:               r.Verdict.String(),
+		Certifies:             r.Verdict.Certifies(),
+		ExitCode:              r.Verdict.ExitCode(),
+		Obligations:           toJSON(r.Obligations),
+		Blocking:              toJSON(r.Blocking()),
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
