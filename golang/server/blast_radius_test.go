@@ -31,7 +31,7 @@ func preflightFile(t *testing.T, st store.Store, task, file string) *awarenesspb
 	invalidateIntentTriggerCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(st)
+	s := newTestServer(st)
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task: task, Files: []string{file}, Mode: awarenesspb.PreflightMode_PREFLIGHT_STANDARD,
 	})

@@ -61,7 +61,7 @@ func newPatternTestServer(t *testing.T) *server {
 	t.Helper()
 	invalidateImplementationPatternCacheForTest()
 	invalidateIntentTriggerCacheForTest()
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		classFacts: func(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error) {
 			if classIRI == rdf.ClassImplementationPattern {
 				return grpcClientStandardFacts(), nil
@@ -232,7 +232,7 @@ func TestBriefing_ImplementationPattern_BoundedToThree(t *testing.T) {
 	for _, id := range []string{"p.one", "p.two", "p.three", "p.four", "p.five"} {
 		all = append(all, mk(id)...)
 	}
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		classFacts: func(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error) {
 			if classIRI == rdf.ClassImplementationPattern {
 				return all, nil
@@ -348,7 +348,7 @@ func TestBriefing_ImplementationPattern_FileFactsAndTaskPatternsUnion(t *testing
 	invalidateImplementationPatternCacheForTest()
 	invalidateIntentTriggerCacheForTest()
 	invIRI := mintedIRI(rdf.ClassInvariant, "test.file_anchor")
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		classFacts: func(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error) {
 			if classIRI == rdf.ClassImplementationPattern {
 				return grpcClientStandardFacts(), nil

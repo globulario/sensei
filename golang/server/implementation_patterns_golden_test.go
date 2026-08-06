@@ -63,7 +63,7 @@ func TestPreflightGolden_AuthoredPatternsSurfaceForTasks(t *testing.T) {
 	for _, tc := range goldenPreflightCases {
 		t.Run(tc.name, func(t *testing.T) {
 			invalidateImplementationPatternCacheForTest()
-			s := newServer(fakeStore{
+			s := newTestServer(fakeStore{
 				classFacts: func(_ context.Context, classIRI string, _ int) ([]store.ImpactFact, error) {
 					if classIRI == rdf.ClassImplementationPattern {
 						return facts, nil

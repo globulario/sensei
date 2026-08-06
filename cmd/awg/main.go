@@ -184,6 +184,8 @@ func dispatch(cmd string, args []string) int {
 		return runGovernance(args)
 	case "check":
 		return runCheck(args)
+	case "domain-closure":
+		return runDomainClosure(args)
 	case "validate":
 		return runValidate(args)
 	case "audit":

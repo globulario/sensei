@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -437,6 +438,14 @@ func scopedBuildFixture(t *testing.T) (repo, awarenessDir, markerPath, txPath st
 		t.Fatal(err)
 	}
 	initGitRepo(t, repo)
+	// Publication now requires pre-mutation domain/source admission, so a
+	// fixture that publishes must have a resolvable repository identity — the
+	// same requirement real publications meet. Identity comes from the remote,
+	// never the directory name.
+	if out, err := exec.Command("git", "-C", repo, "remote", "add", "origin",
+		"https://github.com/globulario/services.git").CombinedOutput(); err != nil {
+		t.Fatalf("git remote add: %v\n%s", err, out)
+	}
 	markerPath = filepath.Join(repo, ".awg", "graph-authority.json")
 	txPath = seedmeta.RuntimeTransactionPath(markerPath)
 	return repo, awarenessDir, markerPath, txPath
@@ -455,6 +464,7 @@ func runScopedBuildInRepo(t *testing.T, repo, awarenessDir, markerPath, txPath, 
 	return runBuild([]string{
 		"-input", awarenessDir,
 		"-repo", domain,
+		"-domain-registry", writeFixtureRegistry(t, domain),
 		"-store-url", storeURL,
 		"-graph-marker-file", markerPath,
 		"-graph-transaction-file", txPath,
@@ -546,4 +556,19 @@ func TestCountNTriples(t *testing.T) {
 	if n := countNTriples([]byte("a .\n\nb .\n")); n != 2 {
 		t.Fatalf("countNTriples=%d, want 2", n)
 	}
+}
+
+// writeFixtureRegistry registers the fixture domain against the fixture repo's
+// identity, so these publication-mechanics tests exercise the real admitted
+// path rather than a bypass. There is deliberately no way to skip admission:
+// a production opt-out would reintroduce exactly the hole it closes.
+func writeFixtureRegistry(t *testing.T, domain string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "domains.yaml")
+	body := "domains:\n  " + domain + ":\n    repository_identity: globulario/services\n" +
+		"    allowed_corpus_roots:\n      - docs/awareness\n    allow_dirty_worktree: true\n"
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
 }

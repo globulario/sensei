@@ -1381,3 +1381,15 @@ failure_modes:
     evidence:
       - 'go test -run TestPreflightCriticalSignalsLeadTheActionList exits 0 and prints ok while the test reports SKIP: combined-seed golden: standalone seed omits Globular/services content'
       - sensei verify-obligations over the same run returns INDETERMINATE with exit 3, naming both obligations SKIPPED and preserving the skip reason
+  - id: graph.wrong_workspace_publication_certifies_unrepresented_repository
+    title: A publication from the wrong workspace certifies a repository it does not represent
+    description: 'sensei build -input defaults to docs/awareness RELATIVE TO THE CURRENT WORKING DIRECTORY, and --repo <domain> replaces that domain''s entire slice. Run from the wrong repository, the build compiles a different corpus, replaces the target domain with it, and stamps a marker certifying the intended repository''s commit. Every downstream signal then reports health: the marker matches the last publication, freshness is CURRENT, seed is CURRENT, and the receipt names the correct certified commit. The graph is internally consistent and semantically wrong. Detection asymmetry makes it dangerous — briefings degrade to empty rather than erroring, so an agent reads ''no invariants apply here'' instead of ''the knowledge plane is not describing your repository''.'
+    protects:
+      files:
+        - cmd/awg/domain_closure.go
+    related_invariants:
+      - graph.certified_domain_must_match_published_domain_content
+    required_tests:
+      - cmd/awg/domain_closure_test.go:TestWrongWorkspacePublicationFailsClosure
+    evidence:
+      - '2026-08-05: store fell 248743 -> 145491 triples. certified_services_repo_commit=d7c1a87c with authoritative=true and GRAPH_FRESHNESS_STATE_CURRENT, while resolve(four_layer.layer_has_single_writing_actor, domain=globular) returned found:false and resolve(awareness.briefing.deterministic_compact_context) — a sensei invariant sourced from golang/server/briefing.go — returned found:true under the same domain. Boundary trace proved projection intact: present in source, in the parsed structure, and in the emitted N-Triples as 28 triples with rdf:type Invariant and authoredIn provenance. The same mistake was repeated four times by an operator with full context; the fourth was refused before mutation by the admission guard.'

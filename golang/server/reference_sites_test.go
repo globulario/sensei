@@ -41,7 +41,7 @@ func TestReferenceSites(t *testing.T) {
 		},
 	}
 
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describeInbound: func(_ context.Context, iri string) ([]store.InboundTriple, error) {
 			return inbound[iri], nil
 		},
@@ -138,7 +138,7 @@ func TestCodeSymbolIDFromIRI(t *testing.T) {
 // as an empty (falsely "complete") family. GraphFreshness stays current so the
 // failure under test is the inbound read, not the authority gate.
 func TestReferenceSites_StoreErrorSurfaces(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describeInbound: func(_ context.Context, _ string) ([]store.InboundTriple, error) {
 			return nil, context.DeadlineExceeded
 		},
@@ -207,7 +207,7 @@ func TestAttachKnownStaticCallers_UsesEquivalentLookupIDs(t *testing.T) {
 	bareID := "golang/server/briefing.go:Briefing"
 	qualifiedID := "golang/server/briefing.go:server.Briefing"
 	callerID := "golang/server/api.go:callBriefing"
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describeInbound: func(_ context.Context, iri string) ([]store.InboundTriple, error) {
 			if iri == mintedIRI(rdf.ClassCodeSymbol, bareID) {
 				return []store.InboundTriple{inboundRef(callerID)}, nil
@@ -252,7 +252,7 @@ func TestReferencingSitesInScope_ExcludesForeignDomainCallers(t *testing.T) {
 			mintedIRI(rdf.ClassCodeSymbol, foreignCaller): {foreignDomain},
 		},
 	}
-	s := newServer(store)
+	s := newTestServer(store)
 	s.homeDomain = localDomain
 	got, err := s.referencingSitesInScope(context.Background(), targetID, localDomain)
 	if err != nil {

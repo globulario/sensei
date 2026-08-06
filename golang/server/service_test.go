@@ -22,7 +22,7 @@ const registeredGRPCServiceName = "globular.awareness_graph.AwarenessGraph"
 
 func TestSetupGrpcService_RegistersAwarenessService(t *testing.T) {
 	gs := grpc.NewServer()
-	setupGrpcService(gs, newServer(nil))
+	setupGrpcService(gs, newTestServer(nil))
 	info := gs.GetServiceInfo()
 	if _, ok := info[registeredGRPCServiceName]; !ok {
 		t.Fatalf("service %q not registered; got %v", registeredGRPCServiceName, info)

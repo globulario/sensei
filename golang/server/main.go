@@ -47,6 +47,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/globulario/sensei/golang/architecture/briefingfeedback"
+	"github.com/globulario/sensei/golang/closure"
 	"github.com/globulario/sensei/golang/netcfg"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/runtimedescriptor"
@@ -133,6 +134,12 @@ type server struct {
 	metaPrinciples    []principleMatch
 	surfaceUsage      surfaceUsageCounters
 	graphMarkerFile   string
+
+	// closureEval overrides the semantic-closure verdict. Nil means "read the
+	// closure report beside graphMarkerFile", which is the production path and
+	// fails closed when no report proves this publication. Only test fixtures
+	// set it, and only to declare their own synthetic publication closed.
+	closureEval func() (closure.SemanticState, string)
 
 	// awarenessDir is the source docs/awareness directory. When set, the Propose
 	// RPC writes agent-submitted candidates under <awarenessDir>/candidates/.

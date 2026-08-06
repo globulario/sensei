@@ -15,7 +15,7 @@ import (
 // orphaned. It must now surface the invariant that requires it, labelled from
 // the test's perspective ("verifies").
 func TestQueryRelated_TestSurfacesItsInvariant(t *testing.T) {
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	resp, err := s.Query(context.Background(), &awarenesspb.QueryRequest{
 		Mode: awarenesspb.QueryMode_QUERY_MODE_RELATED,
 		Id:   "test:TestRuntimeStatus_NotDerivedFromDesiredState",
@@ -45,7 +45,7 @@ func TestQueryRelated_TestSurfacesItsInvariant(t *testing.T) {
 // defines, via the inverse "defines" relation.
 func TestQueryRelated_SourceFileSurfacesInboundSymbols(t *testing.T) {
 	requireCombinedSeed(t)
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	// This file is the object of CodeSymbol→definedInFile edges in the seed.
 	const fileID = "source_file:cmd%2Floadnt%2Fmain.go"
 	resp, err := s.Query(context.Background(), &awarenesspb.QueryRequest{

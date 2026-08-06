@@ -38,6 +38,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
+	"github.com/globulario/sensei/golang/closure"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/rdf"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -304,7 +305,7 @@ func startBufconnServer(t *testing.T) (awarenesspb.AwarenessGraphClient, func())
 
 	lis := bufconn.Listen(bufconnBufSize)
 	s := grpc.NewServer()
-	awarenesspb.RegisterAwarenessGraphServer(s, newServer(nopStore{}))
+	awarenesspb.RegisterAwarenessGraphServer(s, newTestServer(nopStore{}))
 
 	serveDone := make(chan struct{})
 	go func() {
@@ -355,7 +356,7 @@ func TestResolve_RejectsEmptyID(t *testing.T) {
 }
 
 func TestResolve_RejectsEmptyClass(t *testing.T) {
-	s := newServer(fakeStore{})
+	s := newTestServer(fakeStore{})
 	_, err := s.Resolve(context.Background(), &awarenesspb.ResolveRequest{Id: "x"})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("Resolve code=%s, want %s", status.Code(err), codes.InvalidArgument)
@@ -363,7 +364,7 @@ func TestResolve_RejectsEmptyClass(t *testing.T) {
 }
 
 func TestResolve_RejectsUnsupportedClass(t *testing.T) {
-	s := newServer(fakeStore{})
+	s := newTestServer(fakeStore{})
 	// etcd_key / systemd_unit are real ontology classes but not in the resolve
 	// whitelist; the switch must reject anything outside it, never guess.
 	_, err := s.Resolve(context.Background(), &awarenesspb.ResolveRequest{Id: "x", Class: "etcd_key"})
@@ -373,7 +374,7 @@ func TestResolve_RejectsUnsupportedClass(t *testing.T) {
 }
 
 func TestResolve_UnavailableWhenStoreNil(t *testing.T) {
-	s := newServer(nil)
+	s := newTestServer(nil)
 	_, err := s.Resolve(context.Background(), &awarenesspb.ResolveRequest{Id: "x", Class: "invariant"})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("Resolve code=%s, want %s", status.Code(err), codes.Unavailable)
@@ -381,7 +382,7 @@ func TestResolve_UnavailableWhenStoreNil(t *testing.T) {
 }
 
 func TestResolve_NotFoundOnNoTriples(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, _ string) ([]store.Triple, error) {
 			return nil, nil
 		},
@@ -426,7 +427,7 @@ func TestResolve_MissingDomainInMultiDomainGraphFailsClosed(t *testing.T) {
 }
 
 func TestResolve_FoundMapsCoreFields(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			wantIRI := "https://globular.io/awareness#invariant/test.example.invariant"
 			if iri != wantIRI {
@@ -467,7 +468,7 @@ func TestResolve_FoundMapsCoreFields(t *testing.T) {
 }
 
 func TestResolve_RelatedIDsAreDedupedAndCapped(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, _ string) ([]store.Triple, error) {
 			triples := make([]store.Triple, 0, maxResolveRelatedIDs+10)
 			for i := 0; i < maxResolveRelatedIDs+10; i++ {
@@ -497,7 +498,7 @@ func TestResolve_RelatedIDsAreDedupedAndCapped(t *testing.T) {
 }
 
 func TestResolve_LogsUsageShape(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, _ string) ([]store.Triple, error) {
 			return []store.Triple{
 				{Predicate: rdf.PropAffects, ObjectIsIRI: true, Object: "https://globular.io/awareness#failureMode/test.example.failure"},
@@ -550,7 +551,7 @@ func TestResolve_ClassMappingExamples(t *testing.T) {
 }
 
 func TestImpact_RejectsEmptyFile(t *testing.T) {
-	s := newServer(fakeStore{})
+	s := newTestServer(fakeStore{})
 	_, err := s.Impact(context.Background(), &awarenesspb.ImpactRequest{})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("Impact code=%s, want %s", status.Code(err), codes.InvalidArgument)
@@ -558,7 +559,7 @@ func TestImpact_RejectsEmptyFile(t *testing.T) {
 }
 
 func TestImpact_UnavailableWhenStoreNil(t *testing.T) {
-	s := newServer(nil)
+	s := newTestServer(nil)
 	_, err := s.Impact(context.Background(), &awarenesspb.ImpactRequest{File: "test/example.go"})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("Impact code=%s, want %s", status.Code(err), codes.Unavailable)
@@ -566,7 +567,7 @@ func TestImpact_UnavailableWhenStoreNil(t *testing.T) {
 }
 
 func TestImpact_UnavailableWhenStoreErrors(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, errors.New("backend down")
 		},
@@ -578,7 +579,7 @@ func TestImpact_UnavailableWhenStoreErrors(t *testing.T) {
 }
 
 func TestImpact_NoLinkedNodes_ReturnsEmptyDirectLists(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, sourceFileIRI string) ([]store.ImpactFact, error) {
 			if sourceFileIRI != "https://globular.io/awareness#sourceFile/test%2Fexample.go" {
 				t.Fatalf("sourceFileIRI=%q unexpected", sourceFileIRI)
@@ -597,7 +598,7 @@ func TestImpact_NoLinkedNodes_ReturnsEmptyDirectLists(t *testing.T) {
 }
 
 func TestImpact_ReturnsCompleteDirectSets(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			var facts []store.ImpactFact
 			for i := 0; i < maxSurfaceNodesPerClass+5; i++ {
@@ -624,7 +625,7 @@ func TestImpact_ReturnsCompleteDirectSets(t *testing.T) {
 }
 
 func TestImpact_ReturnsLargeResponseBucketsUncapped(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			var facts []store.ImpactFact
 			for i := 0; i < maxSurfaceNodesPerClass+5; i++ {
@@ -656,7 +657,7 @@ func TestImpact_ReturnsLargeResponseBucketsUncapped(t *testing.T) {
 }
 
 func TestImpact_FakeInvariant_GoesToDirectInvariants(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "Invariant Label"},
@@ -680,7 +681,7 @@ func TestImpact_FakeInvariant_GoesToDirectInvariants(t *testing.T) {
 }
 
 func TestImpact_FakeFailureMode_GoesToDirectFailureModes(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#failureMode/test.example.failure", TypeIRI: "https://globular.io/awareness#FailureMode"},
@@ -697,7 +698,7 @@ func TestImpact_FakeFailureMode_GoesToDirectFailureModes(t *testing.T) {
 }
 
 func TestImpact_FakeIncidentPattern_GoesToDirectIncidentPatterns(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#incidentPattern/test.example.pattern", TypeIRI: "https://globular.io/awareness#IncidentPattern"},
@@ -717,7 +718,7 @@ func TestImpact_FakeIncidentPattern_GoesToDirectIncidentPatterns(t *testing.T) {
 // inferred fields before the four-layer inference implementation is complete.
 // See docs/awareness/decisions/inference-v0-direct-anchors-only.md.
 func TestImpact_InferredFieldsEmptyInV0(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: "https://globular.io/awareness#Invariant"},
@@ -746,7 +747,7 @@ func TestImpact_InferredFieldsEmptyInV0(t *testing.T) {
 }
 
 func TestBriefing_RejectsEmptyFile(t *testing.T) {
-	s := newServer(fakeStore{})
+	s := newTestServer(fakeStore{})
 	_, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("Briefing code=%s, want %s", status.Code(err), codes.InvalidArgument)
@@ -754,7 +755,7 @@ func TestBriefing_RejectsEmptyFile(t *testing.T) {
 }
 
 func TestBriefing_UnavailableWhenStoreNil(t *testing.T) {
-	s := newServer(nil)
+	s := newTestServer(nil)
 	_, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "test/example.go"})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("Briefing code=%s, want %s", status.Code(err), codes.Unavailable)
@@ -762,7 +763,7 @@ func TestBriefing_UnavailableWhenStoreNil(t *testing.T) {
 }
 
 func TestBriefing_UnavailableWhenStoreErrors(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, errors.New("backend down")
 		},
@@ -774,7 +775,7 @@ func TestBriefing_UnavailableWhenStoreErrors(t *testing.T) {
 }
 
 func TestBriefing_EmptyStatusWhenNoNodes(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -793,7 +794,7 @@ func TestBriefing_EmptyStatusWhenNoNodes(t *testing.T) {
 }
 
 func TestBriefing_OKWithReferencedIDsAndTask(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "Test fixture invariant"},
@@ -827,7 +828,7 @@ func TestBriefing_OKWithReferencedIDsAndTask(t *testing.T) {
 }
 
 func TestBriefing_MentionsGovernedSynthesisLoopWhenSubstantive(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: rdf.ClassInvariant, Predicate: rdf.PropLabel, Object: "Test fixture invariant"},
@@ -845,7 +846,7 @@ func TestBriefing_MentionsGovernedSynthesisLoopWhenSubstantive(t *testing.T) {
 }
 
 func TestBriefing_OmitsGovernedSynthesisLoopWhenEmpty(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -860,7 +861,7 @@ func TestBriefing_OmitsGovernedSynthesisLoopWhenEmpty(t *testing.T) {
 }
 
 func TestBriefing_DecisionFocusComesBeforeDetailSections(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: rdf.ClassInvariant, Predicate: rdf.PropLabel, Object: "Do not blur state layers"},
@@ -895,7 +896,7 @@ func TestBriefing_DecisionFocusComesBeforeDetailSections(t *testing.T) {
 }
 
 func TestBriefing_DeterministicAcrossRepeatedCalls(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#failureMode/test.example.failure", TypeIRI: "https://globular.io/awareness#FailureMode", Predicate: "http://www.w3.org/2000/01/rdf-schema#label", Object: "Failure"},
@@ -921,7 +922,7 @@ func TestBriefing_DeterministicAcrossRepeatedCalls(t *testing.T) {
 }
 
 func TestBriefing_DirectFailureModeOnly(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#failureMode/test.example.failure", TypeIRI: "https://globular.io/awareness#FailureMode", Predicate: "https://globular.io/awareness#severity", Object: "medium"},
@@ -945,7 +946,7 @@ func TestBriefing_DirectFailureModeOnly(t *testing.T) {
 }
 
 func TestBriefing_DirectIncidentPatternOnly(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#incidentPattern/test.example.pattern", TypeIRI: "https://globular.io/awareness#IncidentPattern"},
@@ -965,7 +966,7 @@ func TestBriefing_DirectIncidentPatternOnly(t *testing.T) {
 }
 
 func TestBriefing_DirectIntentOnly(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#intent/test.example.intent", TypeIRI: "https://globular.io/awareness#Intent"},
@@ -985,7 +986,7 @@ func TestBriefing_DirectIntentOnly(t *testing.T) {
 }
 
 func TestBriefing_MultipleClasses_ReferencedIDFormat(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/a.inv", TypeIRI: "https://globular.io/awareness#Invariant"},
@@ -1011,7 +1012,7 @@ func TestBriefing_MultipleClasses_ReferencedIDFormat(t *testing.T) {
 }
 
 func TestBriefing_ReferencedIDsAreDedupedAndCapped(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			var facts []store.ImpactFact
 			for i := 0; i < maxSurfaceNodesPerClass+5; i++ {
@@ -1051,7 +1052,7 @@ func TestBriefing_ReferencedIDsAreDedupedAndCapped(t *testing.T) {
 }
 
 func TestBriefing_AgentCompactUsesTighterCaps(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			var facts []store.ImpactFact
 			for i := 0; i < 10; i++ {
@@ -1079,7 +1080,7 @@ func TestBriefing_AgentCompactUsesTighterCaps(t *testing.T) {
 }
 
 func TestBriefing_DepthProfilesExpandSurface(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			var facts []store.ImpactFact
 			for i := 0; i < 40; i++ {
@@ -1121,7 +1122,7 @@ func TestBriefing_DepthProfilesExpandSurface(t *testing.T) {
 }
 
 func TestBriefing_EmptyDepthNormalizesToStandard(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			var facts []store.ImpactFact
 			for i := 0; i < maxBriefingReferencedIDs+5; i++ {
@@ -1158,7 +1159,7 @@ func TestBriefing_EmptyDepthNormalizesToStandard(t *testing.T) {
 }
 
 func TestBriefing_LogsUsageShape(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/test.example.invariant", TypeIRI: rdf.ClassInvariant, Predicate: rdf.PropLabel, Object: "test.example.invariant"},
@@ -1183,7 +1184,7 @@ func TestBriefing_LogsUsageShape(t *testing.T) {
 }
 
 func TestMetadata_IncludesSurfaceUsageCounters(t *testing.T) {
-	s := newServer(nopStore{})
+	s := newTestServer(nopStore{})
 	_, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{
 		Task:  "write grpc client",
 		Depth: "agent_compact",
@@ -1210,7 +1211,7 @@ func TestMetadata_IncludesSurfaceUsageCounters(t *testing.T) {
 }
 
 func TestMetadata_ExposesEmbeddedSeedMarkerState(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			if !strings.Contains(iri, "seedBuild/sha256-") {
 				t.Fatalf("Describe iri=%q does not look like embedded seed marker", iri)
@@ -1383,7 +1384,7 @@ func assertCurrentAuthority(t *testing.T, authority *awarenesspb.GraphAuthority)
 func TestGraphBackedRPCs_SuccessResponsesCarryCurrentAuthority(t *testing.T) {
 	ctx := context.Background()
 
-	briefingServer := newServer(fakeStore{
+	briefingServer := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{
@@ -1429,7 +1430,7 @@ func TestGraphBackedRPCs_SuccessResponsesCarryCurrentAuthority(t *testing.T) {
 	}
 	assertCurrentAuthority(t, resolveResp.GetAuthority())
 
-	queryServer := newServer(fakeStore{
+	queryServer := newTestServer(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			if iri != "https://globular.io/awareness#invariant/test.example.invariant" {
 				t.Fatalf("unexpected query iri: %s", iri)
@@ -1464,7 +1465,7 @@ func TestGraphBackedRPCs_SuccessResponsesCarryCurrentAuthority(t *testing.T) {
 
 func TestBriefing_FailsClosedWhenGraphFreshnessStale(t *testing.T) {
 	marker := testEmbeddedSeedMarker()
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		graphFreshness: func(context.Context) seedmeta.Verification {
 			return seedmeta.Verification{
 				State:    seedmeta.FreshnessStale,
@@ -1481,7 +1482,7 @@ func TestBriefing_FailsClosedWhenGraphFreshnessStale(t *testing.T) {
 
 func TestResolve_FailsClosedWhenGraphFreshnessEmpty(t *testing.T) {
 	marker := testEmbeddedSeedMarker()
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		graphFreshness: func(context.Context) seedmeta.Verification {
 			return seedmeta.Verification{
 				State:    seedmeta.FreshnessEmpty,
@@ -1497,7 +1498,7 @@ func TestResolve_FailsClosedWhenGraphFreshnessEmpty(t *testing.T) {
 }
 
 func TestBriefing_DeterministicOrdering_SeverityIDLabel(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/z.inv", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "https://globular.io/awareness#severity", Object: "warning"},
@@ -1527,7 +1528,7 @@ func TestBriefing_DeterministicOrdering_SeverityIDLabel(t *testing.T) {
 }
 
 func TestBriefing_CodeSymbols_OKWhenOnlySymbols(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -1569,7 +1570,7 @@ func TestBriefing_CodeSymbols_OKWhenOnlySymbols(t *testing.T) {
 }
 
 func TestBriefing_CodeSymbols_IncludedInProse(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -1597,7 +1598,7 @@ func TestBriefing_CodeSymbols_IncludedInProse(t *testing.T) {
 func TestBriefing_CodeSymbols_LinkedIntentInProse(t *testing.T) {
 	symIRI := "https://globular.io/awareness#codeSymbol/golang%2Fserver%2Fbriefing.go:Briefing"
 	intentIRI := "https://globular.io/awareness#intent/awareness.briefing_returns_explicit_status"
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -1623,7 +1624,7 @@ func TestBriefing_CodeSymbols_LinkedIntentInProse(t *testing.T) {
 func TestBriefing_CodeSymbols_LinkedInvariantInProse(t *testing.T) {
 	symIRI := "https://globular.io/awareness#codeSymbol/golang%2Fserver%2Fbriefing.go:Briefing"
 	invIRI := "https://globular.io/awareness#invariant/awareness.store_unavailable_explicit"
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -1649,7 +1650,7 @@ func TestBriefing_CodeSymbols_LinkedInvariantInProse(t *testing.T) {
 func TestBriefing_CodeSymbols_PartiallyViolatesInProse(t *testing.T) {
 	symIRI := "https://globular.io/awareness#codeSymbol/golang%2Fserver%2Fbriefing.go:Briefing"
 	invIRI := "https://globular.io/awareness#invariant/meta.fail_safe_defaults_when_authority_is_uncertain"
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -1685,7 +1686,7 @@ func TestBriefing_CodeSymbols_PartiallyViolatesInProse(t *testing.T) {
 }
 
 func TestBriefing_UnknownFile_StillEmpty(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
 		},
@@ -1736,7 +1737,7 @@ func TestBriefing_CodeSymbols_DeterministicAcrossRuns(t *testing.T) {
 }
 
 func TestQuery_RejectsUnsupportedMode(t *testing.T) {
-	s := newServer(fakeStore{})
+	s := newTestServer(fakeStore{})
 	_, err := s.Query(context.Background(), &awarenesspb.QueryRequest{})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("Query code=%s, want %s", status.Code(err), codes.InvalidArgument)
@@ -1755,7 +1756,7 @@ func TestQuery_NoLongerUnimplemented(t *testing.T) {
 }
 
 func TestQuery_RejectsMissingRequiredFields(t *testing.T) {
-	s := newServer(fakeStore{})
+	s := newTestServer(fakeStore{})
 	tests := []*awarenesspb.QueryRequest{
 		{Mode: awarenesspb.QueryMode_QUERY_MODE_BY_FILE},
 		{Mode: awarenesspb.QueryMode_QUERY_MODE_BY_ID},
@@ -1771,7 +1772,7 @@ func TestQuery_RejectsMissingRequiredFields(t *testing.T) {
 }
 
 func TestQuery_ByID_ReturnsOneRow(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			if iri != "https://globular.io/awareness#invariant/test.example.invariant" {
 				t.Fatalf("unexpected iri: %s", iri)
@@ -1796,7 +1797,7 @@ func TestQuery_ByID_ReturnsOneRow(t *testing.T) {
 }
 
 func TestQuery_ByFile_ReturnsDirectRowsOnly(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/a", TypeIRI: "https://globular.io/awareness#Invariant"},
@@ -1818,7 +1819,7 @@ func TestQuery_ByFile_ReturnsDirectRowsOnly(t *testing.T) {
 }
 
 func TestQuery_ByClass_RespectsLimit(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		classFacts: func(_ context.Context, classIRI string, limit int) ([]store.ImpactFact, error) {
 			if classIRI != "https://globular.io/awareness#Invariant" {
 				t.Fatalf("classIRI=%q", classIRI)
@@ -1846,7 +1847,7 @@ func TestQuery_ByClass_RespectsLimit(t *testing.T) {
 }
 
 func TestQuery_Related_DirectOnly(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			switch iri {
 			case "https://globular.io/awareness#invariant/root":
@@ -1881,7 +1882,7 @@ func TestQuery_Related_DirectOnly(t *testing.T) {
 }
 
 func TestQuery_DeterministicOrdering(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		classFacts: func(_ context.Context, _ string, _ int) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
 				{NodeIRI: "https://globular.io/awareness#invariant/z", TypeIRI: "https://globular.io/awareness#Invariant", Predicate: "https://globular.io/awareness#severity", Object: "warning"},
@@ -1909,7 +1910,7 @@ func TestQuery_DeterministicOrdering(t *testing.T) {
 }
 
 func TestQuery_RawSPARQLLikeInputRejected(t *testing.T) {
-	s := newServer(fakeStore{})
+	s := newTestServer(fakeStore{})
 	_, err := s.Query(context.Background(), &awarenesspb.QueryRequest{
 		Mode: awarenesspb.QueryMode_QUERY_MODE_BY_ID,
 		Id:   "SELECT * WHERE {?s ?p ?o}",
@@ -1920,7 +1921,7 @@ func TestQuery_RawSPARQLLikeInputRejected(t *testing.T) {
 }
 
 func TestQuery_BackendErrorReturnsUnavailable(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, errors.New("backend down")
 		},
@@ -2070,3 +2071,44 @@ var (
 	_ store.Store = failingStore{}
 	_ store.Store = fakeStore{}
 )
+
+// newTestServer builds a server whose synthetic publication is declared
+// semantically closed.
+//
+// The fake store already declares its synthetic marker "current"; a fixture
+// that asserts authority must satisfy BOTH dimensions authority now requires,
+// not just freshness. This does not weaken production: newServer leaves
+// closureEval nil, so a real server with no closure report fails closed —
+// pinned by TestProductionDefaultFailsClosedWithoutAClosureReport.
+func newTestServer(s store.Store) *server {
+	srv := newServer(s)
+	srv.closureEval = func() (closure.SemanticState, string) {
+		return closure.SemanticClosureProven, "test fixture: synthetic publication declared closed"
+	}
+	return srv
+}
+
+// TestProductionDefaultFailsClosedWithoutAClosureReport is the guarantee that
+// makes the fixture override above safe.
+//
+// A production server has no closureEval hook. With no marker path — and so no
+// locatable closure report — authority must be FALSE even though the store is
+// perfectly fresh. "I could not check" must never be reported as "it passed":
+// that equivalence is what let a wrong-workspace publication certify a
+// repository it did not contain on 2026-08-05.
+func TestProductionDefaultFailsClosedWithoutAClosureReport(t *testing.T) {
+	srv := newServer(fakeStore{}) // no closureEval: the production shape
+	auth := srv.graphAuthority(context.Background())
+
+	if auth.GetAuthoritative() {
+		t.Fatal("a server that cannot locate any closure proof reported itself " +
+			"authoritative — absence of a verdict is not a passing verdict")
+	}
+	if auth.GetGraphFreshnessState() != awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT {
+		t.Error("freshness must stay CURRENT: the publication really is fresh — " +
+			"freshness and semantic validity are separate dimensions")
+	}
+	if !strings.Contains(auth.GetGraphFreshnessDetail(), string(closure.SemanticClosureUnproven)) {
+		t.Errorf("detail must name the semantic state; got %q", auth.GetGraphFreshnessDetail())
+	}
+}

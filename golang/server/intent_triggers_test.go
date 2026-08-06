@@ -70,7 +70,7 @@ func newIntentTriggerTestServer(t *testing.T) *server {
 	t.Helper()
 	invalidateImplementationPatternCacheForTest()
 	invalidateIntentTriggerCacheForTest()
-	return newServer(fakeStore{
+	return newTestServer(fakeStore{
 		classFacts: func(_ context.Context, classIRI string, _ int) ([]store.ImpactFact, error) {
 			switch classIRI {
 			case rdf.ClassImplementationPattern:
@@ -161,7 +161,7 @@ func TestIntentTrigger_PatternMatchingUnchanged(t *testing.T) {
 
 // Required test 3: explicit ID lookup still resolves (matcher is additive).
 func TestIntentTrigger_ExplicitIDLookupStillResolves(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			if !strings.Contains(iri, "intent/admin_console.objectstore_topology_screen_contract") {
 				t.Fatalf("unexpected iri %s", iri)

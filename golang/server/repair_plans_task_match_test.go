@@ -21,7 +21,7 @@ func taskOnlyPreflight(t *testing.T, task string) *awarenesspb.PreflightResponse
 	invalidateAuthorityDomainCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task: task, Mode: awarenesspb.PreflightMode_PREFLIGHT_STANDARD,
 	})

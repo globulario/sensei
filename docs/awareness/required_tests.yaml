@@ -1507,3 +1507,17 @@ required_tests:
         - awareness.missing_evidence_produces_unknown
       failure_modes:
         - failure.sensei.test_run_exit_code_accepted_as_proof_that_required_tests_ran
+  - id: cmd/awg/domain_closure_test.go:TestWrongWorkspacePublicationFailsClosure
+    title: A slice built from the wrong repository must fail domain closure
+    protects:
+      invariants:
+        - graph.certified_domain_must_match_published_domain_content
+      failure_modes:
+        - graph.wrong_workspace_publication_certifies_unrepresented_repository
+  - id: cmd/awg/domain_admission_test.go:TestWrongWorkspaceIsRefusedBeforeMutation
+    title: A wrong-workspace publication must be refused before any store mutation
+    protects:
+      invariants:
+        - graph.publication_requires_pre_mutation_domain_source_admission
+      failure_modes:
+        - graph.wrong_workspace_publication_certifies_unrepresented_repository

@@ -23,7 +23,7 @@ func preflightScenario(t *testing.T, task, file string) *awarenesspb.PreflightRe
 	invalidateIntentTriggerCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task: task, Files: []string{file}, Mode: awarenesspb.PreflightMode_PREFLIGHT_STANDARD,
 	})
@@ -125,7 +125,7 @@ func TestAwarenessFinalForm_UnknownHighRiskFile(t *testing.T) {
 	invalidateIntentTriggerCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(nopStore{})
+	s := newTestServer(nopStore{})
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "edit an mcp tool",
 		Files: []string{"golang/mcp/mcp_server/tools.go"},

@@ -22,7 +22,7 @@ func newRepairTestServer(t *testing.T) *server {
 	invalidateImplementationPatternCacheForTest()
 	invalidateAuthorityDomainCacheForTest()
 	invalidateRepairPlanCacheForTest()
-	return newServer(newEmbeddedSeedStore())
+	return newTestServer(newEmbeddedSeedStore())
 }
 
 var repairPreflightCases = []struct {
@@ -134,7 +134,7 @@ func TestBriefingIncludesContractCenteredRepairContext(t *testing.T) {
 	invalidateImplementationPatternCacheForTest()
 	invalidateAuthorityDomainCacheForTest()
 	invalidateRepairPlanCacheForTest()
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		classFacts: func(_ context.Context, classIRI string, _ int) ([]store.ImpactFact, error) {
 			if classIRI != rdf.ClassRepairPlan {
 				return nil, nil

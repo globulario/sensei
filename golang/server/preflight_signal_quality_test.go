@@ -27,7 +27,7 @@ func preflightQuality(t *testing.T, task, file string) *awarenesspb.PreflightRes
 	invalidateAuthorityDomainCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task: task, Files: []string{file}, Mode: awarenesspb.PreflightMode_PREFLIGHT_STANDARD,
 	})
