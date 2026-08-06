@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 )
 
 // ErrCandidateArtifactNotFound is returned (wrapped) by
@@ -156,8 +155,9 @@ type fsCandidateArtifactStore struct {
 	root *os.Root
 	// dirFile is an *os.File open on "." WITHIN root -- i.e. derived from
 	// root itself, not from a re-resolved path string -- kept specifically
-	// so readSealedEntry can open a sealed entry via syscall.Openat
-	// relative to dirFile.Fd() with O_NOFOLLOW|O_NONBLOCK. os.Root's own
+	// so readSealedEntry's unix helper (store_openat_unix.go) can open a
+	// sealed entry via openat relative to dirFile.Fd() with
+	// O_NOFOLLOW|O_NONBLOCK. os.Root's own
 	// OpenFile does not honor O_NOFOLLOW (verified directly: opening a
 	// symlink through os.Root with O_NOFOLLOW set in the flag argument
 	// still succeeds and follows it), so there is no way to ask os.Root
@@ -429,14 +429,14 @@ func (s *fsCandidateArtifactStore) ensureTmpDir() error {
 // -- both of readSealedEntry's callers only ever pass a digest-derived
 // "<digest>.json" name, never a nested path) as sealed artifact bytes.
 //
-// This deliberately bypasses os.Root for the open itself and instead uses
-// syscall.Openat, relative to dirFile's descriptor, with raw
-// O_NOFOLLOW|O_NONBLOCK flags, because os.Root's own OpenFile does not
-// honor O_NOFOLLOW -- verified directly: opening a symlink through os.Root
-// with O_NOFOLLOW set in the flag argument still succeeds and follows it,
-// so there is no way to ask os.Root itself for an atomic no-follow open of
-// the final path component. A raw open(2)-class call with these two flags
-// is the POSIX primitive for exactly this, in ONE atomic syscall:
+// This deliberately bypasses os.Root for the raw open itself (delegated to
+// the platform-specific openSealedEntryNoFollow, in store_openat_unix.go /
+// store_openat_windows.go) because os.Root's own OpenFile does not honor
+// O_NOFOLLOW -- verified directly: opening a symlink through os.Root with
+// O_NOFOLLOW set in the flag argument still succeeds and follows it, so
+// there is no way to ask os.Root itself for an atomic no-follow open of
+// the final path component. A raw open(2)-class call with O_NOFOLLOW is
+// the POSIX primitive for exactly this, in ONE atomic syscall:
 //
 //   - O_NOFOLLOW makes the kernel refuse a symlink as the final path
 //     component as part of the SAME syscall that opens the file -- there
@@ -446,45 +446,46 @@ func (s *fsCandidateArtifactStore) ensureTmpDir() error {
 //     os.SameFile check even though the entry itself is, structurally, a
 //     symlink -- exactly the gap an earlier design left open) can never
 //     be followed, regardless of timing.
-//   - O_NONBLOCK makes opening a FIFO return immediately instead of
-//     blocking until a writer opens it, closing the hang this reader must
-//     never expose, again with no separate check-first step that a FIFO
-//     could be swapped in after.
+//   - On unix (store_openat_unix.go), O_NONBLOCK also makes opening a FIFO
+//     return immediately instead of blocking until a writer opens it,
+//     closing the hang this reader must never expose, again with no
+//     separate check-first step that a FIFO could be swapped in after.
 //
-// Critically, this opens relative to dirFile.Fd() -- a descriptor derived
-// from root itself (root.Open(".") at construction) -- NOT a cached real
-// path string. A path string re-resolves from scratch on every call: if
-// root's directory is renamed away and a different directory is created
-// at the original path, a path-string-based open would silently start
-// reading the REPLACEMENT directory while root's own operations (which
-// os.Root keeps bound to the original directory across a rename, per its
-// documented behavior) keep reaching the original -- a genuine split
-// between what Put publishes to and what Get reads from, confirmed
-// directly by reproduction. Opening relative to dirFile's descriptor
-// instead inherits the same rename-robust identity root itself has, since
-// dirFile was derived from root, not independently re-resolved.
+// On unix (linux, darwin), the platform helper opens relative to
+// dirFile.Fd() -- a descriptor derived from root itself (root.Open(".") at
+// construction) -- NOT a cached real path string. A path string re-resolves
+// from scratch on every call: if root's directory is renamed away and a
+// different directory is created at the original path, a path-string-based
+// open would silently start reading the REPLACEMENT directory while root's
+// own operations (which os.Root keeps bound to the original directory
+// across a rename, per its documented behavior) keep reaching the original
+// -- a genuine split between what Put publishes to and what Get reads
+// from, confirmed directly by reproduction. Opening relative to dirFile's
+// descriptor instead inherits the same rename-robust identity root itself
+// has, since dirFile was derived from root, not independently re-resolved.
+// Windows has no dirfd-relative open primitive equivalent to POSIX openat,
+// so its helper falls back to a path-string-based open (mirroring
+// synthesisdriver/fileinterpretation/open_windows.go's own accepted
+// platform limitation for the same underlying gap): it still refuses a
+// symlink/reparse-point at the final component, but does not inherit
+// dirFile's rename-robustness. That is an accepted, honest, documented
+// platform difference, not a silent regression.
 //
 // After the open, an fstat on the resulting descriptor confirms it is a
 // plain regular file: O_NOFOLLOW alone only excludes symlinks, not
-// directories, FIFOs (opened non-blocking, but still not something this
-// function may return), sockets, or devices.
+// directories, FIFOs, sockets, or devices.
 //
 // Bypassing os.Root's containment here is safe specifically because name
 // is never attacker-influenced path segments -- it is always exactly a
 // sealedDigestPattern-validated, flat "<digest>.json" filename directly
-// inside root, never nested, never containing "..". This is Linux/POSIX-
-// specific (syscall.Openat/O_NOFOLLOW/O_NONBLOCK), consistent with this
-// package's other POSIX-only assumptions (os.Root.Link's hard-link
-// semantics, git subprocess invocation) and this repository's CI, which
-// only runs ubuntu-latest.
+// inside root, never nested, never containing "..".
 //
 // Returns an error satisfying os.IsNotExist if name does not exist.
 func (s *fsCandidateArtifactStore) readSealedEntry(name string) ([]byte, error) {
-	fd, err := syscall.Openat(int(s.dirFile.Fd()), name, syscall.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	f, err := openSealedEntryNoFollow(s, name)
 	if err != nil {
-		return nil, &os.PathError{Op: "openat", Path: name, Err: err}
+		return nil, err
 	}
-	f := os.NewFile(uintptr(fd), name)
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
