@@ -1161,6 +1161,7 @@ components:
       - golang/server/main.go
       - golang/server/metadata.go
       - golang/server/metadata_local.go
+      - golang/server/package_inference.go
       - golang/server/preflight.go
       - golang/server/preflight_cli.go
       - golang/server/propose.go

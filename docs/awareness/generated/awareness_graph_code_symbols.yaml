@@ -298,6 +298,18 @@ code_symbols:
     annotations:
       implements:
         - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
+  - id: globular.awareness_graph:code.go.server.impact
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/package_inference.go
+    component: server.impact
+    annotations:
+      enforces:
+        - globular.awareness_graph:invariant.awareness.store_unavailable_explicit
+      implements:
+        - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
+      tested_by:
+        - golang/server/package_inference_test.go:TestPackageInference_SiblingAnchorsAreInferredNotDirect
   - id: globular.awareness_graph:code.go.server.impact.server_Impact
     namespace: globular.awareness_graph
     language: go
@@ -22467,12 +22479,12 @@ test_symbols:
     symbol: TestImpact_FakeInvariant_GoesToDirectInvariants
     package: main
     language: go
-  - id: golang/server/main_test.go:TestImpact_InferredFieldsEmptyInV0
+  - id: golang/server/main_test.go:TestImpact_InferredFieldsEmptyWithoutPackageCapability
     file: golang/server/main_test.go
-    symbol: TestImpact_InferredFieldsEmptyInV0
+    symbol: TestImpact_InferredFieldsEmptyWithoutPackageCapability
     package: main
     language: go
-    doc: "TestImpact_InferredFieldsEmptyInV0 guards against accidental population of\ninferred fields before the four-layer inference implementation is complete.\nSee docs/awareness/decisions/inference-v0-direct-anchors-only.md."
+    doc: "TestImpact_InferredFieldsEmptyWithoutPackageCapability keeps the v0 guarantee\nexactly where it still applies: a backend that cannot answer package queries\nmust not produce inferred anchors from somewhere else. fakeStore does not\nimplement store.PackageAnchorStore, so this pins the degraded path.\n\nThe blanket \"inferred is always empty\" rule this test used to enforce was\nretired with docs/awareness/decisions/inference-v1-package-walk.md; the\npopulated path is pinned in package_inference_test.go."
   - id: golang/server/main_test.go:TestImpact_NoLinkedNodes_ReturnsEmptyDirectLists
     file: golang/server/main_test.go
     symbol: TestImpact_NoLinkedNodes_ReturnsEmptyDirectLists
@@ -22697,6 +22709,60 @@ test_symbols:
     symbol: TestCollectLocalMetadataFromRoot_SingleDocumentCandidateCountsAsPresent
     package: main
     language: go
+  - id: golang/server/package_inference_test.go:TestPackageInference_DirectAnchorsAreNotDuplicated
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_DirectAnchorsAreNotDuplicated
+    package: main
+    language: go
+    doc: "Direct anchors are unchanged, and an anchor that is already direct is not\nrepeated as inferred."
+  - id: golang/server/package_inference_test.go:TestPackageInference_ExcludesTheFileItself
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_ExcludesTheFileItself
+    package: main
+    language: go
+    doc: "The file's own anchors do not arrive back as \"inferred from a sibling\"."
+  - id: golang/server/package_inference_test.go:TestPackageInference_ForeignDomainIsScopedOut
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_ForeignDomainIsScopedOut
+    package: main
+    language: go
+    doc: "Domain scope applies to inferred anchors too. A neighbour's rule from another\nrepo is exactly the leak the scoping invariant forbids, and arriving by\ninference does not make it admissible."
+  - id: golang/server/package_inference_test.go:TestPackageInference_NestedDirectoryIsNotThisPackage
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_NestedDirectoryIsNotThisPackage
+    package: main
+    language: go
+    doc: "The prefix filter is coarse because IRI path separators are encoded, so a\nnested package's rules would otherwise climb into this file's context."
+  - id: golang/server/package_inference_test.go:TestPackageInference_ProseSeparatesAndAttributes
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_ProseSeparatesAndAttributes
+    package: main
+    language: go
+    doc: "The rendered section must mark inferred anchors as the package's, not the\nfile's, and attribute the sibling they came from."
+  - id: golang/server/package_inference_test.go:TestPackageInference_QueriesTheDirectoryPrefix
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_QueriesTheDirectoryPrefix
+    package: main
+    language: go
+    doc: "The prefix handed to the backend is the package directory, so the query\ncannot accidentally scan the whole graph."
+  - id: golang/server/package_inference_test.go:TestPackageInference_QueryFailureIsTypedNotSilent
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_QueryFailureIsTypedNotSilent
+    package: main
+    language: go
+    doc: "A failed walk must not sink the direct answer, and must not look like \"this\npackage is ungoverned\" either."
+  - id: golang/server/package_inference_test.go:TestPackageInference_RootFileIsNotUnavailable
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_RootFileIsNotUnavailable
+    package: main
+    language: go
+    doc: "A repository-root file has no package to inherit from. That is a real answer,\nnot a degraded one."
+  - id: golang/server/package_inference_test.go:TestPackageInference_SiblingAnchorsAreInferredNotDirect
+    file: golang/server/package_inference_test.go
+    symbol: TestPackageInference_SiblingAnchorsAreInferredNotDirect
+    package: main
+    language: go
+    doc: "THE POINT OF THE FEATURE: a file with no direct anchors still learns what\ngoverns its package. Before this, four governed files in five returned a\ngeneric component and nothing else, so the guardrail fired and the briefing\nhad nothing to say."
   - id: golang/server/packaging_test.go:TestEnforceCurrentSeed_AllowStaleSeedWarns
     file: golang/server/packaging_test.go
     symbol: TestEnforceCurrentSeed_AllowStaleSeedWarns

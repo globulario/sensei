@@ -141,8 +141,17 @@ code_edges:
     relation: tested_by
     to: golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
   - from: globular.awareness_graph:code.go.server.impact
+    relation: enforces
+    to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
+  - from: globular.awareness_graph:code.go.server.impact
     relation: implements
     to: globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
+  - from: globular.awareness_graph:code.go.server.impact
+    relation: implements
+    to: globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
+  - from: globular.awareness_graph:code.go.server.impact
+    relation: tested_by
+    to: golang/server/package_inference_test.go:TestPackageInference_SiblingAnchorsAreInferredNotDirect
   - from: globular.awareness_graph:code.go.server.impact.server_Impact
     relation: enforces
     to: globular.awareness_graph:invariant.awareness.store_unavailable_explicit
