@@ -1368,3 +1368,16 @@ failure_modes:
       - 'Controlled comparison on the same corpus: validating the self seed alone reports 193 AuthoritativeMissingImplementation; concatenating the generated code-symbol graph and revalidating reports 1'
       - 'Chain established for 5 representatives (cmd_build/cmd_feedback_check/cmd_infer_claims/cmd_propose/cmd_bootstrap tests): authored reference exists, Go function exists in checkout, TestSymbol absent from self seed, symbol present in docs/awareness/generated'
       - 'The single survivor with discovery available is genuine: golang/architecture/tasksession/briefing_promotion_test.go:TestBriefingExcludesTamperedPromotionWithFinding is referenced but defined nowhere in the repository'
+  - id: failure.sensei.test_run_exit_code_accepted_as_proof_that_required_tests_ran
+    title: Test-run exit code accepted as proof that required tests ran
+    description: go test prints ok and exits 0 for a package whose tests were all skipped, so a caller that certifies from the process exit code reports proof it never obtained. On this repository the required tests for golang/server preflight work are guarded by requireCombinedSeed and skip in the open-core checkout, so 'required tests pass' was reachable while nothing was proved. A skipped or unselected required test is unavailable proof, not satisfied proof, and must not certify.
+    protects:
+      files:
+        - golang/architecture/testobligation/obligation.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - golang/architecture/testobligation/obligation_test.go:TestCertify_RequiredSkipIsIndeterminateNotPass
+    evidence:
+      - 'go test -run TestPreflightCriticalSignalsLeadTheActionList exits 0 and prints ok while the test reports SKIP: combined-seed golden: standalone seed omits Globular/services content'
+      - sensei verify-obligations over the same run returns INDETERMINATE with exit 3, naming both obligations SKIPPED and preserving the skip reason

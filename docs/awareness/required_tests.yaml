@@ -1486,3 +1486,10 @@ required_tests:
         - awareness.missing_evidence_produces_unknown
       failure_modes:
         - failure.sensei.dangling_tested_by_annotation_asserted_proof_from_a_test_tha
+  - id: golang/architecture/testobligation/obligation_test.go:TestCertify_RequiredSkipIsIndeterminateNotPass
+    title: A skipped required obligation is indeterminate, never pass
+    protects:
+      invariants:
+        - awareness.missing_evidence_produces_unknown
+      failure_modes:
+        - failure.sensei.test_run_exit_code_accepted_as_proof_that_required_tests_ran
