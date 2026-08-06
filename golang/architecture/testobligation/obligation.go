@@ -36,6 +36,16 @@ const (
 	OutcomePass
 	OutcomeFail
 	OutcomeSkipped
+	// OutcomeMissingImplementation means the evidence surface WAS inspected
+	// and the claimed proof is not there. It is the opposite epistemic state
+	// from Unavailable, which means the surface could not be inspected at all.
+	//
+	// Keeping them apart is the whole point: reporting "could not look" as
+	// "is missing" manufactures accusations, and reporting "is missing" as
+	// "could not look" hides them. On this repository the collapsed version of
+	// this distinction produced 193 findings where 1 was real — the 192 false
+	// accusations were what made the true one invisible.
+	OutcomeMissingImplementation
 )
 
 func (o Outcome) String() string {
@@ -46,6 +56,8 @@ func (o Outcome) String() string {
 		return "FAIL"
 	case OutcomeSkipped:
 		return "SKIPPED"
+	case OutcomeMissingImplementation:
+		return "MISSING_IMPLEMENTATION"
 	default:
 		return "UNAVAILABLE"
 	}
@@ -70,6 +82,12 @@ type Obligation struct {
 	// skip message, or why no result was found. It is the evidence trail and
 	// must reach both human and machine output.
 	Reason string
+	// CandidateHint may name a similarly-anchored test found elsewhere when the
+	// obligation is MissingImplementation — e.g. the same test function in a
+	// different package after a move. It is a lead for a human, never
+	// authority: a different test does not satisfy this obligation's claim, so
+	// it must not change the Outcome or the verdict.
+	CandidateHint string
 }
 
 // Verdict is the aggregate result over a set of obligations.

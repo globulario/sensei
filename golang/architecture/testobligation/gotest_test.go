@@ -56,6 +56,7 @@ func TestGoRunThatOnlySkipsDoesNotCertify(t *testing.T) {
 	obligations := ResolveGoObligations(
 		[]string{"golang/server/preflight_signal_quality_test.go:TestPreflightCriticalSignalsLeadTheActionList"},
 		res,
+		CoverageFromRun(res, true),
 	)
 	report := Certify(obligations)
 	if report.Verdict != VerdictIndeterminate {
@@ -108,7 +109,7 @@ func TestParseGoTestJSON_SubtestsFoldIntoParent(t *testing.T) {
 // An anchor nobody reported on is Unavailable with a stated reason, never
 // dropped and never assumed passing.
 func TestResolveGoObligations_UnobservedAnchorIsUnavailable(t *testing.T) {
-	obs := ResolveGoObligations([]string{"golang/server/main_test.go:TestMissing"}, map[string]GoTestResult{})
+	obs := ResolveGoObligations([]string{"golang/server/main_test.go:TestMissing"}, map[string]GoTestResult{}, DiscoveryCoverage{})
 	if obs[0].Outcome != OutcomeUnavailable {
 		t.Fatalf("outcome = %s, want UNAVAILABLE", obs[0].Outcome)
 	}
@@ -124,7 +125,7 @@ func TestResolveGoObligations_ForeignLanguageAnchorIsUnavailableAndBlocks(t *tes
 		"typescript/client.spec.ts:SpecTitle_locate_uses_config",
 		"python/test_client.py:test_locate_uses_config",
 	}
-	obs := ResolveGoObligations(anchors, map[string]GoTestResult{})
+	obs := ResolveGoObligations(anchors, map[string]GoTestResult{}, DiscoveryCoverage{})
 	for _, o := range obs {
 		if o.Outcome != OutcomeUnavailable {
 			t.Fatalf("%s outcome = %s, want UNAVAILABLE", o.Anchor, o.Outcome)
@@ -200,7 +201,7 @@ func TestEncodedAnchorStillMatchesAndKeepsTheRealReason(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseGoTestJSON: %v", err)
 	}
-	obs := ResolveGoObligations([]string{encoded}, res)
+	obs := ResolveGoObligations([]string{encoded}, res, CoverageFromRun(res, true))
 	if obs[0].Outcome != OutcomeSkipped {
 		t.Fatalf("outcome = %s, want SKIPPED — not a bogus UNAVAILABLE", obs[0].Outcome)
 	}
@@ -225,5 +226,105 @@ func TestParseGoTestJSON_ReasonIsTheSkipMessageNotTheFraming(t *testing.T) {
 		if strings.Contains(reason, framing) {
 			t.Fatalf("reason contains test2json framing %q: %q", framing, reason)
 		}
+	}
+}
+
+// Case 1 — discovery unavailable. The exact test cannot be found AND the Go
+// discovery surface was not loaded (or not declared exhaustive). "I could not
+// inspect the evidence" must not be reported as "the evidence is gone": that
+// is the conflation that produced 193 findings where 1 was real.
+func TestGap_DiscoveryUnavailableIsUnavailableNotMissing(t *testing.T) {
+	anchor := "golang/server/main_test.go:TestNotInRun"
+
+	t.Run("no results supplied at all", func(t *testing.T) {
+		obs := ResolveGoObligations([]string{anchor}, map[string]GoTestResult{}, DiscoveryCoverage{})
+		if obs[0].Outcome != OutcomeUnavailable {
+			t.Fatalf("outcome = %s, want UNAVAILABLE", obs[0].Outcome)
+		}
+	})
+
+	t.Run("run supplied but not declared complete", func(t *testing.T) {
+		res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
+		obs := ResolveGoObligations([]string{anchor}, res, CoverageFromRun(res, false))
+		if obs[0].Outcome != OutcomeUnavailable {
+			t.Fatalf("outcome = %s, want UNAVAILABLE: a filtered run cannot prove absence", obs[0].Outcome)
+		}
+		if !strings.Contains(obs[0].Reason, "not declared complete") {
+			t.Fatalf("reason should name the incompleteness, got %q", obs[0].Reason)
+		}
+	})
+
+	t.Run("complete run that never covered this package", func(t *testing.T) {
+		res := map[string]GoTestResult{"cmd/awg:TestElsewhere": {outcome: OutcomePass}}
+		obs := ResolveGoObligations([]string{anchor}, res, CoverageFromRun(res, true))
+		if obs[0].Outcome != OutcomeUnavailable {
+			t.Fatalf("outcome = %s, want UNAVAILABLE: this package was never inspected", obs[0].Outcome)
+		}
+		if !strings.Contains(obs[0].Reason, "not part of the supplied run") {
+			t.Fatalf("reason should name the uncovered package, got %q", obs[0].Reason)
+		}
+	})
+}
+
+// Case 2 — the test moved. Discovery is complete over the anchor's package and
+// the anchored function is not there, while a same-named test exists elsewhere.
+// The obligation names an exact proof anchor: a test in another package is a
+// replacement CANDIDATE, and must not silently satisfy the old claim.
+func TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint(t *testing.T) {
+	res := map[string]GoTestResult{
+		"golang/server:TestSomethingElse":                {outcome: OutcomePass},
+		"golang/architecture/tasksession:TestBriefingXYZ": {outcome: OutcomePass},
+	}
+	obs := ResolveGoObligations(
+		[]string{"golang/server/briefing_test.go:TestBriefingXYZ"},
+		res,
+		CoverageFromRun(res, true),
+	)
+
+	if obs[0].Outcome != OutcomeMissingImplementation {
+		t.Fatalf("outcome = %s, want MISSING_IMPLEMENTATION", obs[0].Outcome)
+	}
+	if obs[0].CandidateHint != "golang/architecture/tasksession:TestBriefingXYZ" {
+		t.Fatalf("candidate hint = %q, want the relocated test", obs[0].CandidateHint)
+	}
+	// The hint is a lead, not proof: it must not rescue the verdict.
+	if Certify(obs).Verdict.Certifies() {
+		t.Fatal("a relocated test must not satisfy an obligation naming a different anchor")
+	}
+}
+
+// MISSING_IMPLEMENTATION blocks like every other unexecuted state, and stays
+// distinguishable from UNAVAILABLE in the report.
+func TestMissingImplementationBlocksAndStaysDistinct(t *testing.T) {
+	res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
+	obs := ResolveGoObligations([]string{"golang/server/main_test.go:TestGone"}, res, CoverageFromRun(res, true))
+	report := Certify(obs)
+
+	if report.Verdict != VerdictIndeterminate {
+		t.Fatalf("verdict = %s, want INDETERMINATE", report.Verdict)
+	}
+	blocking := report.Blocking()
+	if len(blocking) != 1 || blocking[0].Outcome != OutcomeMissingImplementation {
+		t.Fatalf("blocking = %+v, want one MISSING_IMPLEMENTATION", blocking)
+	}
+	if OutcomeMissingImplementation.String() == OutcomeUnavailable.String() {
+		t.Fatal("MISSING_IMPLEMENTATION and UNAVAILABLE must not render identically")
+	}
+}
+
+// Declared coverage, not path inference, decides the verdict: the SAME absent
+// anchor flips between the two states purely on what the caller declared.
+func TestVerdictFollowsDeclaredCoverageNotPathInference(t *testing.T) {
+	anchor := "golang/server/main_test.go:TestGone"
+	res := map[string]GoTestResult{"golang/server:TestOther": {outcome: OutcomePass}}
+
+	incomplete := ResolveGoObligations([]string{anchor}, res, CoverageFromRun(res, false))[0]
+	complete := ResolveGoObligations([]string{anchor}, res, CoverageFromRun(res, true))[0]
+
+	if incomplete.Outcome != OutcomeUnavailable {
+		t.Fatalf("incomplete run = %s, want UNAVAILABLE", incomplete.Outcome)
+	}
+	if complete.Outcome != OutcomeMissingImplementation {
+		t.Fatalf("complete run = %s, want MISSING_IMPLEMENTATION", complete.Outcome)
 	}
 }

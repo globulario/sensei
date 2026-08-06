@@ -39,6 +39,7 @@ func runVerifyObligations(args []string) int {
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
 	repo := fs.String("repo", ".", "repository checkout, used to resolve the domain when --domain is omitted")
 	module := fs.String("module", "", "Go module path to strip from package names (default: read go.mod in --repo)")
+	complete := fs.Bool("discovery-complete", false, "assert the run was exhaustive (no -run filter) over the packages it reported;\n\t\tonly then may an absent result be reported as MISSING_IMPLEMENTATION rather than UNAVAILABLE")
 	var files stringSlice
 	fs.Var(&files, "file", "repo-relative file (repeatable)")
 	fs.Usage = func() {
@@ -58,8 +59,12 @@ run cannot speak for.
 Exit codes:
   0  PASS           every required test executed and passed
   1  FAIL           a required test failed
-  3  INDETERMINATE  a required test was skipped or unavailable — not proved
+  3  INDETERMINATE  a required test was skipped, unavailable, or missing — not proved
   2  usage or connection error
+
+Absent results are UNAVAILABLE by default, because a run that was not declared
+complete cannot prove a test does not exist. Pass --discovery-complete for an
+exhaustive run to have an absent result reported as MISSING_IMPLEMENTATION.
 
 Flags:
 `)
@@ -99,7 +104,8 @@ Flags:
 		return rc
 	}
 
-	report := testobligation.Certify(testobligation.ResolveGoObligations(anchors, observed))
+	coverage := testobligation.CoverageFromRun(observed, *complete)
+	report := testobligation.Certify(testobligation.ResolveGoObligations(anchors, observed, coverage))
 	if *asJSON {
 		return emitObligationJSON(report)
 	}
@@ -179,6 +185,11 @@ func printObligationReport(r testobligation.Report) {
 		if o.Reason != "" {
 			fmt.Printf("  %-22s reason: %s\n", "", o.Reason)
 		}
+		if o.CandidateHint != "" {
+			// A lead for a human, not a substitute proof: the obligation names
+			// an exact anchor and this candidate does not satisfy it.
+			fmt.Printf("  %-22s candidate (not authoritative): %s\n", "", o.CandidateHint)
+		}
 	}
 
 	fmt.Printf("\nVerdict: %s\n", r.Verdict)
@@ -199,10 +210,11 @@ func printObligationReport(r testobligation.Report) {
 // the domain type: the machine output is a contract for CI, and it should not
 // change silently because an internal field was renamed.
 type obligationJSON struct {
-	Anchor   string `json:"anchor"`
-	Required bool   `json:"required"`
-	Outcome  string `json:"outcome"`
-	Reason   string `json:"reason,omitempty"`
+	Anchor        string `json:"anchor"`
+	Required      bool   `json:"required"`
+	Outcome       string `json:"outcome"`
+	Reason        string `json:"reason,omitempty"`
+	CandidateHint string `json:"candidate_hint,omitempty"`
 }
 
 type reportJSON struct {
@@ -218,10 +230,11 @@ func emitObligationJSON(r testobligation.Report) int {
 		out := make([]obligationJSON, 0, len(in))
 		for _, o := range in {
 			out = append(out, obligationJSON{
-				Anchor:   o.Anchor,
-				Required: o.Required,
-				Outcome:  o.Outcome.String(),
-				Reason:   o.Reason,
+				Anchor:        o.Anchor,
+				Required:      o.Required,
+				Outcome:       o.Outcome.String(),
+				Reason:        o.Reason,
+				CandidateHint: o.CandidateHint,
 			})
 		}
 		return out

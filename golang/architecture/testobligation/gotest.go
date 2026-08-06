@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/globulario/sensei/golang/rdf"
@@ -175,14 +176,73 @@ func IsGoAnchor(anchor string) bool {
 	return found && strings.HasSuffix(file, "_test.go")
 }
 
+// DiscoveryCoverage declares what the evidence run actually inspected.
+//
+// It exists because absence of a result is ambiguous on its own: the test may
+// not exist, or the run may simply never have looked there. Deriving that from
+// the stream is not possible — a `-run`-filtered run still emits events for
+// packages whose tests were all filtered out — so completeness is DECLARED by
+// the caller rather than inferred. The conservative zero value (Complete
+// false) means every gap reads as Unavailable, so a caller who declares
+// nothing can never produce a false accusation.
+type DiscoveryCoverage struct {
+	// GoTestsAvailable reports whether a Go test run was supplied at all.
+	GoTestsAvailable bool
+	// IncludedRoots are the repo-relative package directories the run reported
+	// on. Derived from the stream, which is sound: a package that emitted no
+	// event was certainly not inspected.
+	IncludedRoots []string
+	// ExcludedRoots are directories the caller knows were left out, recorded
+	// so a report can say what was not looked at rather than staying silent.
+	ExcludedRoots []string
+	// Complete asserts the run was exhaustive over IncludedRoots — no -run
+	// filter, no early exit. Only a complete run may turn a missing result
+	// into a MissingImplementation accusation.
+	Complete bool
+}
+
+func (c DiscoveryCoverage) covers(dir string) bool {
+	for _, r := range c.IncludedRoots {
+		if r == dir {
+			return true
+		}
+	}
+	return false
+}
+
+// CoverageFromRun derives what a parsed run inspected. complete is the
+// caller's assertion that the run was unfiltered; it cannot be observed.
+func CoverageFromRun(results map[string]GoTestResult, complete bool) DiscoveryCoverage {
+	seen := map[string]bool{}
+	for key := range results {
+		if dir, _, ok := strings.Cut(key, ":"); ok {
+			seen[dir] = true
+		}
+	}
+	roots := make([]string, 0, len(seen))
+	for d := range seen {
+		roots = append(roots, d)
+	}
+	sort.Strings(roots)
+	return DiscoveryCoverage{
+		GoTestsAvailable: len(results) > 0,
+		IncludedRoots:    roots,
+		Complete:         complete,
+	}
+}
+
 // ResolveGoObligations maps required anchors onto observed Go results.
 //
-// An anchor with no observed result becomes Unavailable with a stated reason
-// rather than being dropped, so the report distinguishes "ran and passed" from
-// "nobody looked". A non-Go anchor is likewise Unavailable: this evidence
-// source cannot speak for it, and treating silence from the wrong runner as
-// success is exactly the laundering being prevented.
-func ResolveGoObligations(anchors []string, results map[string]GoTestResult) []Obligation {
+// The verdict for a gap depends on declared coverage, never on whether
+// path.Dir happened to yield a package that returned symbols:
+//
+//	discovery surface absent or incomplete            -> UNAVAILABLE
+//	surface complete, anchored test not present there -> MISSING_IMPLEMENTATION
+//
+// A non-Go anchor is always Unavailable: this evidence source cannot speak for
+// it, and treating silence from the wrong runner as success — or as an
+// accusation — is the laundering being prevented in both directions.
+func ResolveGoObligations(anchors []string, results map[string]GoTestResult, coverage DiscoveryCoverage) []Obligation {
 	out := make([]Obligation, 0, len(anchors))
 	for _, anchor := range anchors {
 		o := Obligation{Anchor: anchor, Required: true}
@@ -197,16 +257,47 @@ func ResolveGoObligations(anchors []string, results map[string]GoTestResult) []O
 				o.Reason = "anchor is not a file:test reference"
 				break
 			}
-			res, seen := results[key]
-			if !seen {
-				o.Outcome = OutcomeUnavailable
-				o.Reason = "no result for this test in the supplied run"
+			if res, seen := results[key]; seen {
+				o.Outcome = res.outcome
+				o.Reason = res.reason
 				break
 			}
-			o.Outcome = res.outcome
-			o.Reason = res.reason
+			o.Outcome, o.Reason, o.CandidateHint = classifyGap(key, results, coverage)
 		}
 		out = append(out, o)
 	}
 	return out
+}
+
+// classifyGap decides what an absent result means, given what was inspected.
+func classifyGap(key string, results map[string]GoTestResult, coverage DiscoveryCoverage) (Outcome, string, string) {
+	dir, name, _ := strings.Cut(key, ":")
+	switch {
+	case !coverage.GoTestsAvailable:
+		return OutcomeUnavailable, "no Go test results were supplied", ""
+	case !coverage.Complete:
+		return OutcomeUnavailable, "the supplied run is not declared complete, so an absent result proves nothing", ""
+	case !coverage.covers(dir):
+		return OutcomeUnavailable, "package " + dir + " was not part of the supplied run", ""
+	default:
+		// The run inspected this package exhaustively and the test is not
+		// there. That is a claim about the repository, not about the run.
+		return OutcomeMissingImplementation,
+			"package " + dir + " was inspected completely and defines no such test",
+			candidateElsewhere(name, dir, results)
+	}
+}
+
+// candidateElsewhere looks for the same test function in another inspected
+// package — the shape a moved test leaves behind. It is returned as a lead
+// only. The obligation names an exact anchor, and a test somewhere else does
+// not satisfy that claim, so this never changes the outcome.
+func candidateElsewhere(name, fromDir string, results map[string]GoTestResult) string {
+	for key := range results {
+		dir, other, ok := strings.Cut(key, ":")
+		if ok && other == name && dir != fromDir {
+			return dir + ":" + name
+		}
+	}
+	return ""
 }
