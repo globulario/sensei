@@ -62,8 +62,35 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            git fetch --no-tags origin "${{ github.event.pull_request.base.sha }}" --depth=1
-            echo "SENSEI_DIFF=${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+
+            # NO --depth=1 HERE.
+            #
+            # A shallow fetch brings the base COMMIT without its ancestry, so the
+            # three-dot range below has no merge base and git exits 128:
+            #
+            #   fatal: <base>...<head>: no merge base
+            #   activation producer exited 128
+            #
+            # The job then goes red having produced no activation evidence at all,
+            # which reads identically to an architectural rejection while actually
+            # being an infrastructure failure. Fetch the base branch with history
+            # so the merge base is computable.
+            git fetch --no-tags --prune origin \
+              "+refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
+            git fetch --no-tags origin "$BASE"
+
+            # Verify the merge base exists BEFORE handing the range to the
+            # producer. If it still cannot be computed, say so in one line rather
+            # than surfacing a bare exit 128 that looks like a verdict.
+            if ! git merge-base "$BASE" "$HEAD" >/dev/null 2>&1; then
+              echo "::error::no merge base between base $BASE and head $HEAD after a full-history fetch." \
+                   "This is an ancestry/infrastructure failure, NOT an architectural verdict —" \
+                   "no activation evidence was produced."
+              exit 1
+            fi
+            echo "SENSEI_DIFF=${BASE}...${HEAD}" >> "$GITHUB_ENV"
           else
             echo "SENSEI_DIFF=HEAD~1...HEAD" >> "$GITHUB_ENV"
           fi

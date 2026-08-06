@@ -81,6 +81,7 @@ components:
       - cmd/awg/cmd_dashboard_projection.go
       - cmd/awg/cmd_demo.go
       - cmd/awg/cmd_disposition_question.go
+      - cmd/awg/cmd_domain_closure.go
       - cmd/awg/cmd_draft_candidate.go
       - cmd/awg/cmd_edit_brief.go
       - cmd/awg/cmd_edit_check.go
@@ -161,6 +162,8 @@ components:
       - cmd/awg/defaults.go
       - cmd/awg/dirsync_unix.go
       - cmd/awg/dirsync_windows.go
+      - cmd/awg/domain_admission.go
+      - cmd/awg/domain_closure.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
       - cmd/awg/git_domain.go
@@ -182,6 +185,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.client
+      - component.golang.closure
       - component.golang.contractassess
       - component.golang.coverage
       - component.golang.evidence
@@ -839,6 +843,18 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.closure
+    name: closure
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/closure/closure.go
+      - golang/closure/report.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.contractassess
     name: contractassess
     kind: module
@@ -1157,6 +1173,7 @@ components:
       - golang/server/surface_observability.go
     depends_on:
       - component.golang.architecture
+      - component.golang.closure
       - component.golang.coverage
       - component.golang.governancepack
       - component.golang.netcfg
