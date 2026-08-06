@@ -82,7 +82,7 @@ func (s *server) queryByFile(ctx context.Context, file, domain string) ([]*aware
 	if file == "" {
 		return nil, status.Error(codes.InvalidArgument, "file is required for by_file")
 	}
-	impact, _, _, err := s.collectImpact(ctx, file, domain)
+	impact, _, _, _, err := s.collectImpact(ctx, file, domain)
 	if err != nil {
 		if _, ok := status.FromError(err); ok && status.Code(err) != codes.Unknown {
 			return nil, err

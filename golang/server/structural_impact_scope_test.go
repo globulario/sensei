@@ -41,7 +41,7 @@ func archIDs(resp *awarenesspb.ImpactResponse) []string {
 func TestStructuralImpact_ComponentMembershipAndDependency(t *testing.T) {
 	facts := componentFacts("component.cli.api", "component.cli.ghinstance", "github.com/cli/cli")
 	s := newScopeServer(facts, "globular")
-	resp, _, _, err := s.collectImpact(context.Background(), "api/client.go", "github.com/cli/cli")
+	resp, _, _, _, err := s.collectImpact(context.Background(), "api/client.go", "github.com/cli/cli")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestStructuralImpact_ComponentMembershipAndDependency(t *testing.T) {
 func TestStructuralImpact_WrongDomain_NoLeak(t *testing.T) {
 	facts := componentFacts("component.cli.api", "component.cli.ghinstance", "github.com/cli/cli")
 	s := newScopeServer(facts, "globular")
-	resp, _, _, err := s.collectImpact(context.Background(), "api/client.go", "github.com/caddyserver/caddy")
+	resp, _, _, _, err := s.collectImpact(context.Background(), "api/client.go", "github.com/caddyserver/caddy")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestStructuralImpact_HomeAndForeign_NoCrossLeak(t *testing.T) {
 	s := newScopeServer(facts, "globular")
 
 	// Home scope → home component only.
-	home, _, _, err := s.collectImpact(context.Background(), "f.go", "globular")
+	home, _, _, _, err := s.collectImpact(context.Background(), "f.go", "globular")
 	if err != nil {
 		t.Fatalf("home scope error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestStructuralImpact_HomeAndForeign_NoCrossLeak(t *testing.T) {
 	}
 
 	// Foreign scope → foreign component only.
-	foreign, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/cli/cli")
+	foreign, _, _, _, err := s.collectImpact(context.Background(), "f.go", "github.com/cli/cli")
 	if err != nil {
 		t.Fatalf("foreign scope error: %v", err)
 	}

@@ -714,10 +714,15 @@ func TestImpact_FakeIncidentPattern_GoesToDirectIncidentPatterns(t *testing.T) {
 	}
 }
 
-// TestImpact_InferredFieldsEmptyInV0 guards against accidental population of
-// inferred fields before the four-layer inference implementation is complete.
-// See docs/awareness/decisions/inference-v0-direct-anchors-only.md.
-func TestImpact_InferredFieldsEmptyInV0(t *testing.T) {
+// TestImpact_InferredFieldsEmptyWithoutPackageCapability keeps the v0 guarantee
+// exactly where it still applies: a backend that cannot answer package queries
+// must not produce inferred anchors from somewhere else. fakeStore does not
+// implement store.PackageAnchorStore, so this pins the degraded path.
+//
+// The blanket "inferred is always empty" rule this test used to enforce was
+// retired with docs/awareness/decisions/inference-v1-package-walk.md; the
+// populated path is pinned in package_inference_test.go.
+func TestImpact_InferredFieldsEmptyWithoutPackageCapability(t *testing.T) {
 	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return []store.ImpactFact{
@@ -733,16 +738,16 @@ func TestImpact_InferredFieldsEmptyInV0(t *testing.T) {
 		t.Fatalf("direct_invariants=%d, want 1", len(resp.GetDirectInvariants()))
 	}
 	if n := len(resp.GetInferredInvariants()); n != 0 {
-		t.Fatalf("inferred_invariants=%d, want 0 (reserved in v0)", n)
+		t.Fatalf("inferred_invariants=%d, want 0 without package capability", n)
 	}
 	if n := len(resp.GetInferredFailureModes()); n != 0 {
-		t.Fatalf("inferred_failure_modes=%d, want 0 (reserved in v0)", n)
+		t.Fatalf("inferred_failure_modes=%d, want 0 without package capability", n)
 	}
 	if n := len(resp.GetInferredIncidentPatterns()); n != 0 {
-		t.Fatalf("inferred_incident_patterns=%d, want 0 (reserved in v0)", n)
+		t.Fatalf("inferred_incident_patterns=%d, want 0 without package capability", n)
 	}
 	if n := len(resp.GetInferredIntents()); n != 0 {
-		t.Fatalf("inferred_intents=%d, want 0 (reserved in v0)", n)
+		t.Fatalf("inferred_intents=%d, want 0 without package capability", n)
 	}
 }
 

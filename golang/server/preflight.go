@@ -138,7 +138,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// branch; other files keep going.
 	indexed := 0
 	for _, file := range files {
-		impact, _, _, err := s.collectImpact(ctx, file, requestedDomain)
+		impact, _, _, _, err := s.collectImpact(ctx, file, requestedDomain)
 		if err != nil {
 			resp.BlindSpots = append(resp.BlindSpots,
 				fmt.Sprintf("impact_query_failed_for_%s: %v", file, err))

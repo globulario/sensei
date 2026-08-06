@@ -55,7 +55,7 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		if svcName := serviceFromPath(f); svcName != "" {
 			svc.add(svcName)
 		}
-		impact, _, _, err := s.collectImpact(ctx, f, "")
+		impact, _, _, _, err := s.collectImpact(ctx, f, "")
 		if err != nil {
 			plan.Unknowns = append(plan.Unknowns, "impact_query_failed_for_"+f)
 			continue
