@@ -16,7 +16,7 @@ func planFor(t *testing.T, task string, files ...string) *ChangeImpactPlan {
 	invalidateAuthorityDomainCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	plan, err := s.planChangeImpact(context.Background(), task, files)
 	if err != nil {
 		t.Fatalf("planChangeImpact: %v", err)
@@ -98,7 +98,7 @@ func TestImpactPlanningForRBACChange(t *testing.T) {
 
 func TestImpactPlanningReportsUnknowns(t *testing.T) {
 	// A high-risk directory file with no authority domain and no anchors.
-	s := newServer(nopStore{})
+	s := newTestServer(nopStore{})
 	plan, err := s.planChangeImpact(context.Background(), "edit an mcp tool",
 		[]string{"golang/mcp/mcp_server/tools.go"})
 	if err != nil {

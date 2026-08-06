@@ -16,7 +16,7 @@ import (
 )
 
 func TestPropose_UnconfiguredReturnsUnavailable(t *testing.T) {
-	s := newServer(nopStore{}) // awarenessDir empty → write path disabled
+	s := newTestServer(nopStore{}) // awarenessDir empty → write path disabled
 	_, err := s.Propose(context.Background(), &awarenesspb.ProposeRequest{
 		Kind: "failure_mode", Title: "x", RelatedInvariants: []string{"i"}, Evidence: []string{"e"},
 	})
@@ -27,7 +27,7 @@ func TestPropose_UnconfiguredReturnsUnavailable(t *testing.T) {
 
 func TestPropose_RejectsInvalidWithoutWriting(t *testing.T) {
 	dir := t.TempDir()
-	s := newServer(nopStore{})
+	s := newTestServer(nopStore{})
 	s.awarenessDir = dir
 	resp, err := s.Propose(context.Background(), &awarenesspb.ProposeRequest{
 		Kind: "failure_mode", Title: "no contract link", // missing related/contract + evidence
@@ -49,7 +49,7 @@ func TestPropose_RejectsInvalidWithoutWriting(t *testing.T) {
 
 func TestPropose_AcceptsAndWritesCandidate(t *testing.T) {
 	dir := t.TempDir()
-	s := newServer(nopStore{})
+	s := newTestServer(nopStore{})
 	s.awarenessDir = dir
 	resp, err := s.Propose(context.Background(), &awarenesspb.ProposeRequest{
 		Kind:              "failure_mode",

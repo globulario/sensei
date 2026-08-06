@@ -63,7 +63,7 @@ func TestEditCheck_Enforcement_BlockSurfacedAdvisory(t *testing.T) {
 
 // A detect rule with no enforcement defaults to "warn" on the warning.
 func TestEditCheck_Enforcement_DefaultsToWarn(t *testing.T) {
-	s := newServer(fakeStore{
+	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return scopeFacts(map[string]string{caddyRuleID: caddyDomain}), nil
 		},
@@ -92,7 +92,7 @@ func TestEditCheck_Enforcement_DefaultsToWarn(t *testing.T) {
 }
 
 func newEditCheckServer(impact []store.ImpactFact) *server {
-	return newServer(fakeStore{
+	return newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) { return impact, nil },
 		detectFacts:   func(_ context.Context) ([]store.ImpactFact, error) { return caddyDetectFacts(), nil },
 	})
@@ -181,7 +181,7 @@ func TestEditCheck_MultiDomainUnscoped_FailsClosed(t *testing.T) {
 }
 
 func TestEditCheck_UnknownRequestedDomainFailsClosed(t *testing.T) {
-	s := newServer(fakeDomainListStore{
+	s := newTestServer(fakeDomainListStore{
 		fakeStore: fakeStore{
 			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 				return scopeFacts(map[string]string{caddyRuleID: caddyDomain}), nil
@@ -201,7 +201,7 @@ func TestEditCheck_UnknownRequestedDomainFailsClosed(t *testing.T) {
 }
 
 func TestEditCheck_MissingDomainInMultiDomainGraphFailsClosed(t *testing.T) {
-	s := newServer(fakeDomainListStore{
+	s := newTestServer(fakeDomainListStore{
 		fakeStore: fakeStore{
 			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 				return scopeFacts(map[string]string{caddyRuleID: caddyDomain}), nil

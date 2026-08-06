@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
+	"github.com/globulario/sensei/golang/closure"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -105,7 +106,7 @@ Flags:
 	// finalize) so a managed-governance requirement or the global marker never
 	// gates a single-domain refresh. --output and --all fall through below.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
-		return runScopedRepoUpdate(strings.TrimSpace(*repo), rawProjectNT, *storeURL,
+		return runScopedRepoUpdate(strings.TrimSpace(*repo), inputDirs, rawProjectNT, *storeURL,
 			strings.TrimSpace(*graphMarkerFile), strings.TrimSpace(*graphTransactionFile), *svcRepoFlag, *agRepoFlag)
 	}
 
@@ -218,10 +219,69 @@ Flags:
 		}
 	}
 
+	// Publish the closure proof LAST and bind it to this exact marker digest.
+	//
+	// The marker answers "does the store match this publication?". It cannot
+	// answer "does this publication represent the source it certifies?" — and on
+	// 2026-08-05 a build run from the wrong working directory produced a
+	// perfectly matching marker over the wrong repository's corpus. The server
+	// refuses authority without this report, so a publication that declines to
+	// prove itself is simply not authoritative.
+	//
+	// Written after the marker so a crash between the two leaves the store
+	// unproven (fail-closed) rather than falsely vouched for.
+	if rep := buildClosureReport(*repo, inputDirs, markerPath, marker, ntBytes); rep != nil {
+		if err := rep.Write(markerPath); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei build: publish closure report: %v\n", err)
+			return 1
+		}
+		status := "PROVEN"
+		if !rep.ClosureProven {
+			status = "FAILED"
+		}
+		fmt.Fprintf(os.Stderr, "  closure report: %s (%s — %d/%d projected, %d missing, %d foreign)\n",
+			closure.ReportPath(markerPath), status, rep.Projected, rep.ExpectedToProject,
+			rep.Missing, rep.Unexpected)
+	}
+
 	fmt.Fprintf(os.Stderr, "  loaded %d bytes into %s (%s, %d triples)\n", len(ntBytes), endpoint, marker.Digest[:12], marker.TripleCount)
 	fmt.Fprintf(os.Stderr, "  marker file: %s\n", markerPath)
 	fmt.Fprintln(os.Stdout, "Build complete.")
 	return 0
+}
+
+// buildClosureReport computes domain closure for the corpus that was just
+// published and binds the verdict to this publication's marker digest.
+//
+// Returns nil only when the inputs needed to judge closure are unavailable, in
+// which case NO report is written — and the server treats a missing report as
+// UNPROVEN. Silence here is fail-closed, never fail-open.
+func buildClosureReport(domain string, inputDirs []string, markerPath string, marker seedmeta.Marker, ntBytes []byte) *closure.Report {
+	// Judge closure against the FIRST awareness input — the corpus this build
+	// claims to publish. Using the actual input (not a hardcoded path) is the
+	// point: a build launched from the wrong directory then produces a report
+	// whose certified_source_root names that wrong directory, and the mismatch
+	// becomes visible instead of invisible.
+	if len(inputDirs) == 0 {
+		return nil
+	}
+	root, err := filepath.Abs(inputDirs[0])
+	if err != nil {
+		return nil
+	}
+	if info, serr := os.Stat(root); serr != nil || !info.IsDir() {
+		return nil
+	}
+	expected, excluded, eerr := expectedIdentities(root)
+	if eerr != nil {
+		return nil
+	}
+	subs, perr := closure.ParseSubjects(bytes.NewReader(ntBytes))
+	if perr != nil {
+		return nil
+	}
+	c := closure.ComputeClosure(root, expected, excluded, subs)
+	return closure.NewReport(domain, marker.Digest, int(marker.TripleCount), &c)
 }
 
 func normalizeStoreURL(raw string) (string, error) {
@@ -312,7 +372,7 @@ func queryEndpointPath(p string) string {
 // N-Triples into an isolated staging graph, then one SPARQL control transaction
 // swaps that graph into the default graph. Raw RDF bytes are never embedded in
 // SPARQL text.
-func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
+func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
@@ -479,6 +539,28 @@ func runScopedRepoUpdate(domain string, rawProjectNT []byte, storeURLFlag, graph
 		} else {
 			fmt.Fprintf(os.Stderr, "  transaction file: %s\n", txPath)
 		}
+	}
+
+	// Closure proof, written LAST and bound to this marker digest.
+	//
+	// This is THE path the 2026-08-05 incident took: `--repo globular` returns
+	// early from runBuild into this function, so a proof wired only into the
+	// --all path would have missed the exact failure it exists to catch. The
+	// report is judged against the corpus this build actually read, so a run
+	// launched from the wrong working directory produces a report whose
+	// certified_source_root names that wrong directory — and the server, which
+	// refuses authority without a proven report, declines to vouch for it.
+	if rep := buildClosureReport(domain, inputDirs, markerPath, marker, sliceNT); rep != nil {
+		if err := rep.Write(markerPath); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei build: publish closure report: %v\n", err)
+			return 1
+		}
+		status := "PROVEN"
+		if !rep.ClosureProven {
+			status = "FAILED — the store will NOT be treated as authoritative"
+		}
+		fmt.Fprintf(os.Stderr, "  closure: %s (%d/%d projected, %d missing, %d foreign provenance)\n",
+			status, rep.Projected, rep.ExpectedToProject, rep.Missing, rep.Unexpected)
 	}
 
 	fmt.Fprintf(os.Stderr, "  domain %s: %d triple(s) published; store now %d triples (was %d)\n", domain, uniqueCount, marker.TripleCount, before)

@@ -222,7 +222,7 @@ func TestClosure_RpcStructuredProseReferenceParity(t *testing.T) {
 	file := "golang/server/reload.go"
 	repo := seedServerPromotion(t, []string{file})
 	// Base EMPTY graph briefing (no impact) + available feedback → combined OK.
-	s := newServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
+	s := newTestServer(fakeStore{impactForFile: func(context.Context, string) ([]store.ImpactFact, error) { return nil, nil }})
 	s.briefingRepo = &briefingRepositoryContext{Root: repo, Domain: feedbackTestDomain}
 
 	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: file, Domain: feedbackTestDomain})

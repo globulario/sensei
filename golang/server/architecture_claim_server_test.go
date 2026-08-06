@@ -101,7 +101,7 @@ func claimImpactFacts() []store.ImpactFact {
 }
 
 func newArchitectureClaimTestServer() *server {
-	return newServer(currentAuthorityStore(fakeStore{
+	return newTestServer(currentAuthorityStore(fakeStore{
 		describe: func(_ context.Context, iri string) ([]store.Triple, error) {
 			switch iri {
 			case architectureClaimIRI(testClaimID):

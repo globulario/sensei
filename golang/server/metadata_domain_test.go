@@ -39,7 +39,7 @@ func TestMetadata_DomainScopeUsesScopedTripleCount(t *testing.T) {
 		},
 		domainTripleCount: 7,
 	}
-	s := newServer(st)
+	s := newTestServer(st)
 	s.homeDomain = "github.com/globulario/sensei"
 
 	resp, err := s.Metadata(context.Background(), &awarenesspb.MetadataRequest{
@@ -62,7 +62,7 @@ func TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount(t *testing.T)
 			return 99, nil
 		},
 	}
-	s := newServer(st)
+	s := newTestServer(st)
 	s.homeDomain = "github.com/globulario/sensei"
 
 	resp, err := s.Metadata(context.Background(), &awarenesspb.MetadataRequest{

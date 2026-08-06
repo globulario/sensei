@@ -57,7 +57,7 @@ func preflightForScoring(t *testing.T, facts []store.ImpactFact) *awarenesspb.Pr
 	invalidateAuthorityDomainCacheForTest()
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
-	s := newServer(scoringStore(t, facts))
+	s := newTestServer(scoringStore(t, facts))
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "edit this file",
 		Files: []string{"golang/example/example_server/x.go"},

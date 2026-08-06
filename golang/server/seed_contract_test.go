@@ -37,7 +37,7 @@ func TestEmbeddedSeedRetainsCrossRepoRepositoryRepairAuthority(t *testing.T) {
 	invalidateRepairPlanCacheForTest()
 	invalidateRuntimeEvidenceCacheForTest()
 
-	s := newServer(newEmbeddedSeedStore())
+	s := newTestServer(newEmbeddedSeedStore())
 	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "extend the awareness-graph preflight handler with an offline CLI mode",
 		Files: []string{"golang/repository/repository_server/publish_workflow.go"},
