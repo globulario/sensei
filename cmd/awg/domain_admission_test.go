@@ -193,14 +193,48 @@ func TestDirtyWorktreeRefusedUnlessAllowed(t *testing.T) {
 		t.Fatal("a dirty worktree was admitted by default: the publication would certify a " +
 			"revision while shipping content that revision does not contain")
 	}
-	if !strings.Contains(err.Error(), "dirty") {
-		t.Errorf("refusal must name the dirty worktree; got %v", err)
+	if !strings.Contains(err.Error(), "uncommitted changes") {
+		t.Errorf("refusal must name the uncommitted corpus; got %v", err)
+	}
+	// The message must NOT advertise allow_dirty_worktree. It is a known
+	// false-certification path until the receipt binds content identity, and an
+	// error that points the operator at the hole is how the hole stays in use.
+	if strings.Contains(err.Error(), "allow_dirty_worktree to permit") {
+		t.Error("the refusal advertises the unsafe flag as the remedy; it must tell the " +
+			"operator to commit the corpus instead")
+	}
+	if !strings.Contains(err.Error(), "Commit the corpus") {
+		t.Errorf("refusal must give the safe remedy; got %v", err)
 	}
 
-	// Explicitly permitted — the services corpus is edited and published in the
-	// same session, so this must remain expressible.
+	// The flag still parses, but it is NOT enabled for any live domain: it
+	// certifies a revision while publishing other bytes, and must stay off until
+	// the receipt binds a source snapshot digest.
 	allowed := writeRegistry(t, servicesRegistry+"    allow_dirty_worktree: true\n")
 	if err := AdmitPublication("globular", []string{corpus}, allowed); err != nil {
-		t.Errorf("allow_dirty_worktree must permit publishing: %v", err)
+		t.Errorf("the escape hatch must remain expressible for a future receipt-bound mode: %v", err)
+	}
+}
+
+// TestDirtyScopeIsTheCorpusNotTheWholeRepo. Publishing writes
+// .sensei/graph-authority.json into the repo, so a repo-wide dirty check would
+// leave the tree permanently dirty and refuse every subsequent publication —
+// a safety property that disables itself after one use gets removed.
+func TestDirtyScopeIsTheCorpusNotTheWholeRepo(t *testing.T) {
+	services := gitRepo(t, "https://github.com/globulario/services.git")
+	corpus := filepath.Join(services, "docs", "awareness")
+
+	// An uncommitted file OUTSIDE the published corpus, exactly like a build
+	// artifact.
+	if err := os.MkdirAll(filepath.Join(services, ".sensei"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(services, ".sensei", "graph-authority.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := AdmitPublication("globular", []string{corpus}, writeRegistry(t, servicesRegistry)); err != nil {
+		t.Fatalf("an uncommitted file outside the published corpus must not block "+
+			"publication — the corpus itself is committed: %v", err)
 	}
 }

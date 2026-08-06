@@ -130,7 +130,14 @@ func ResolveSourceIdentity(corpusDir string) (SourceIdentity, error) {
 		id.CorpusRelPath = filepath.ToSlash(rel)
 	}
 	id.Revision, _ = gitOut(abs, "rev-parse", "HEAD")
-	if status, serr := gitOut(abs, "status", "--porcelain"); serr == nil {
+	// Dirty is scoped to the CORPUS being published, not the whole repository.
+	//
+	// What matters is whether the bytes about to be certified are committed. A
+	// whole-repo check also fails on unrelated edits and — worse — on the build's
+	// own artifacts: `sensei build` writes .sensei/graph-authority.json into the
+	// repo, so a repo-wide check would leave the tree permanently dirty and
+	// refuse every subsequent publication.
+	if status, serr := gitOut(abs, "status", "--porcelain", "--", abs); serr == nil {
 		id.Dirty = strings.TrimSpace(status) != ""
 	}
 	remote, rerr := gitOut(abs, "config", "--get", "remote.origin.url")
@@ -228,9 +235,14 @@ func AdmitPublication(domain string, inputDirs []string, registryPath string) er
 		if id.Dirty && !rd.AllowDirtyWorktree {
 			return &AdmissionRefusedError{
 				RequestedDomain: domain, Expected: rd.RepositoryIdentity, Actual: id.RepositoryIdentity,
-				Reason: fmt.Sprintf("worktree at %s is dirty: publishing would certify revision %s "+
-					"while shipping uncommitted content (set allow_dirty_worktree to permit)",
-					id.RepoRoot, shortRev(id.Revision)),
+				// Do NOT advertise allow_dirty_worktree here. It is a known
+				// false-certification path until the receipt binds content
+				// identity, and an error message that points the operator at the
+				// hole is how the hole stays in use.
+				Reason: fmt.Sprintf("corpus %s has uncommitted changes: publishing would certify "+
+					"revision %s while shipping bytes that revision does not contain. "+
+					"Commit the corpus and publish the committed revision.",
+					id.CorpusRelPath, shortRev(id.Revision)),
 			}
 		}
 	}
