@@ -272,7 +272,7 @@ func TestGap_DiscoveryUnavailableIsUnavailableNotMissing(t *testing.T) {
 // replacement CANDIDATE, and must not silently satisfy the old claim.
 func TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint(t *testing.T) {
 	res := map[string]GoTestResult{
-		"golang/server:TestSomethingElse":                {outcome: OutcomePass},
+		"golang/server:TestSomethingElse":                 {outcome: OutcomePass},
 		"golang/architecture/tasksession:TestBriefingXYZ": {outcome: OutcomePass},
 	}
 	obs := ResolveGoObligations(
