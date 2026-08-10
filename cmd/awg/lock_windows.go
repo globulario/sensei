@@ -3,9 +3,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"syscall"
+
+	"golang.org/x/sys/windows"
 )
 
 func acquireProjectLock(lockPath string) (*os.File, error) {
@@ -13,11 +15,15 @@ func acquireProjectLock(lockPath string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := syscall.Handle(file.Fd())
-	err = syscall.LockFile(h, 0, 0, 1, 0)
-	if err != nil {
+	handle := windows.Handle(file.Fd())
+	overlapped := new(windows.Overlapped)
+	flags := uint32(windows.LOCKFILE_EXCLUSIVE_LOCK | windows.LOCKFILE_FAIL_IMMEDIATELY)
+	if err := windows.LockFileEx(handle, flags, 0, 1, 0, overlapped); err != nil {
 		file.Close()
-		return nil, fmt.Errorf("concurrent reconstruction in progress (lock busy): %w", err)
+		if errors.Is(err, windows.ERROR_LOCK_VIOLATION) {
+			return nil, fmt.Errorf("concurrent reconstruction in progress (lock busy)")
+		}
+		return nil, err
 	}
 	return file, nil
 }
