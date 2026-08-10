@@ -1393,3 +1393,16 @@ failure_modes:
       - cmd/awg/domain_closure_test.go:TestWrongWorkspacePublicationFailsClosure
     evidence:
       - '2026-08-05: store fell 248743 -> 145491 triples. certified_services_repo_commit=d7c1a87c with authoritative=true and GRAPH_FRESHNESS_STATE_CURRENT, while resolve(four_layer.layer_has_single_writing_actor, domain=globular) returned found:false and resolve(awareness.briefing.deterministic_compact_context) — a sensei invariant sourced from golang/server/briefing.go — returned found:true under the same domain. Boundary trace proved projection intact: present in source, in the parsed structure, and in the emitted N-Triples as 28 triples with rdf:type Invariant and authoredIn provenance. The same mistake was repeated four times by an operator with full context; the fourth was refused before mutation by the admission guard.'
+  - id: failure.sensei.platform_specific_source_never_compiled_by_ci
+    title: Platform-specific source ships unbuilt because CI compiles only the host platform
+    severity: high
+    description: cmd/awg/lock_windows.go called syscall.LockFile/syscall.UnlockFile, which Go's standard library does not define on Windows (they are Linux-only wrappers). The file never compiled from the day it landed. CI builds and tests on Linux only, so nothing exercised the //go:build windows side; the defect surfaced only on the native windows-latest release runner, where it failed the whole release job and blocked the v1.6.0 tag entirely. A correct sibling in the same package (acquireGraphPublicationLock, using golang.org/x/sys/windows.LockFileEx) already demonstrated the right call, so the codebase contained both the bug and its fix simultaneously.
+    protects:
+      files:
+        - cmd/awg/lock_windows.go
+        - .github/workflows/ci.yml
+    evidence:
+      - 'release run 31413065922: cmd\awg\lock_windows.go:17:16: undefined: syscall.LockFile on windows-latest'
+      - same class previously stalled releases between v1.3.0 and v1.5.0, also a Windows syscall.LockFile defect
+      - fixed in 6b2c9c64; windows-amd64 build then passed in run 31413601050
+    contract: Every GOOS/GOARCH in the release matrix must be compile-verified by a pre-release gate, not first exercised by the release job itself
