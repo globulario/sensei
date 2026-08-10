@@ -7,6 +7,57 @@ on:
     branches: ['**']
 
 jobs:
+  # Every other gate in this repo runs on Linux, so platform-specific code was
+  # only ever compiled by the release job -- i.e. after a tag already existed.
+  # That let cmd/awg/lock_windows.go ship calling syscall.LockFile (Linux-only in
+  # Go's stdlib, despite compiling fine on Linux where the file is excluded), and
+  # it broke the Windows release build twice: before v1.5.0 in
+  # graph_publication_lock_windows.go, and again before v1.6.0, where it blocked
+  # the tag outright. These jobs compile the non-Linux side on every push instead.
+  #
+  # The matrix covers every non-Linux platform release.yml ships, on the same
+  # runners it uses, so a release can no longer fail on a platform CI never
+  # compiled. Linux itself is already covered by build-and-test below.
+  # See failure.sensei.platform_specific_source_never_compiled_by_ci.
+  platform-compile:
+    name: ${{ matrix.platform }} compiles
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+
+    strategy:
+      # Never cancel a sibling: if two platforms are broken, one run must report
+      # both, or fixing the first just uncovers the second on the next push.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-amd64
+            runner: windows-latest
+          - platform: darwin-arm64
+            runner: macos-14
+
+    steps:
+      - name: Checkout awareness-graph
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Compile every package for ${{ matrix.platform }}
+        # Native runners, not cross-compiles: the tree-sitter parsers are cgo, so
+        # GOOS=windows from Linux cannot build them without a mingw toolchain.
+        # This mirrors exactly what release.yml does on these same runners.
+        run: go build ./...
+
+      - name: Type-check the tests too
+        # `go build ./...` never compiles _test.go files. The same syscall.LockFile
+        # defect was present in cmd/awg/lock_windows_test.go, and this gate's very
+        # first run caught syscall.Mkfifo in two more _test.go files, so a
+        # build-only gate would miss half the class. `go vet` type-checks tests.
+        run: go vet ./...
+
   build-and-test:
     runs-on: ubuntu-latest
 
