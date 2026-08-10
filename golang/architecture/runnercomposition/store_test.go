@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -686,9 +685,7 @@ func TestFSCandidateArtifactStoreGetRejectsFIFOWithoutHanging(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := strings.Repeat("a", 64)
-	if err := syscall.Mkfifo(filepath.Join(root, digest+".json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mkfifoOrSkip(t, filepath.Join(root, digest+".json"))
 
 	done := make(chan error, 1)
 	go func() {

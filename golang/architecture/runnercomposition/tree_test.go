@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -227,9 +226,7 @@ func TestBuildManifestDeterministic(t *testing.T) {
 func TestBuildManifestRejectsFIFOWithoutHanging(t *testing.T) {
 	root := t.TempDir()
 	fifoPath := filepath.Join(root, "pipe")
-	if err := syscall.Mkfifo(fifoPath, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mkfifoOrSkip(t, fifoPath)
 
 	done := make(chan error, 1)
 	go func() {
