@@ -2,7 +2,12 @@
 
 FROM golang:1.25-bookworm AS build
 
-ARG TARGETARCH=amd64
+# No default: TARGETARCH is a predefined build arg BuildKit fills in per target
+# platform, but a Dockerfile-supplied default SHADOWS that injected value. With
+# `=amd64` here, the linux/arm64 image resolved TARGETARCH to amd64, fetched the
+# x86_64 Oxigraph, and died running it in an arm64 rootfs ("not found" -- no
+# x86_64 ELF interpreter). Declare it bare so buildx supplies the real arch.
+ARG TARGETARCH
 ARG OXIGRAPH_VERSION=0.5.9
 ARG SENSEI_VERSION=0.0.0-dev
 ARG VCS_REF=unknown
