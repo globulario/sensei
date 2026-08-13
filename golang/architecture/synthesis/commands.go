@@ -8,32 +8,35 @@ import (
 	"github.com/globulario/sensei/golang/architecture/interpretationclosure"
 )
 
-// Command is the closed set of inputs Transition accepts. Every Command
-// implementation is a plain data value; a Command never carries authority
-// of its own. Transition alone decides whether a given command is legal in a
-// given SessionState. RecordInterpretationCommand is the one deliberate
-// exception at the construction boundary: external callers cannot construct
-// it without presenting a verified interpretation-closure receipt.
+// Command is the closed set of inputs Transition accepts. Command values carry
+// proposed data, never self-asserted authority. Transition remains the final
+// deterministic legality boundary for every state change.
 type Command interface{ synthesisCommand() }
 
 // RecordInterpretationCommand carries the full Interpretation document that
 // starts the session's single, session-lifetime interpretation. Legal only
-// from PhaseCreated. Its carrier is unexported intentionally: code outside
-// package synthesis must use NewRecordInterpretationCommand, so an authored
-// interpretation cannot gain governing authority by direct struct literal.
-type RecordInterpretationCommand struct{ certifiedInterpretationCommand }
+// from PhaseCreated.
+//
+// Interpretation remains exported for source compatibility and inspection,
+// but closureReceiptDigestSHA256 is intentionally package-private. A caller
+// can still construct the data shape, but it cannot manufacture the authority
+// marker that Transition requires. Code outside package synthesis must use
+// NewRecordInterpretationCommand to create a command that can actually move O1
+// from Created to Planning.
+type RecordInterpretationCommand struct {
+	Interpretation Interpretation
 
-type certifiedInterpretationCommand struct {
-	Interpretation             Interpretation
 	closureReceiptDigestSHA256 string
 }
 
 // NewRecordInterpretationCommand is the authority-promotion boundary between
 // interpretation closure and O1 planning. It recomputes the interpretation
-// digest and verifies a receipt against the exact repository revision and
-// graph authority already bound into the session. A receipt saying
-// "governing" is not trusted as a boolean: interpretationclosure recomputes
-// its policy from the bound observations before this constructor succeeds.
+// digest and verifies the supplied closure receipt against the exact
+// repository revision and graph authority already bound into the session.
+//
+// This constructor deliberately does not make interpretation closure repair
+// verification. It only establishes that this premise earned the right to
+// govern. O4 and the downstream admission/verification chain remain separate.
 func NewRecordInterpretationCommand(state SessionState, interp Interpretation, receipt interpretationclosure.Receipt) (RecordInterpretationCommand, error) {
 	if interp.SessionDigestSHA256 != state.Session.SessionDigestSHA256 {
 		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation references session digest %q, expected %q", interp.SessionDigestSHA256, state.Session.SessionDigestSHA256)
@@ -48,14 +51,15 @@ func NewRecordInterpretationCommand(state SessionState, interp Interpretation, r
 	if err := interpretationclosure.VerifyForGoverning(receipt, digest, state.Session.BaseRevision, state.Session.GraphAuthorityDigestSHA256); err != nil {
 		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation is not certified for governing authority: %w", err)
 	}
-	return RecordInterpretationCommand{certifiedInterpretationCommand: certifiedInterpretationCommand{
+	return RecordInterpretationCommand{
 		Interpretation:             interp,
 		closureReceiptDigestSHA256: receipt.ReceiptDigestSHA256,
-	}}, nil
+	}, nil
 }
 
 // InterpretationClosureReceiptDigestSHA256 exposes audit provenance without
-// exposing a constructor bypass. It is not repair-verification evidence.
+// exposing a constructor bypass. It is premise-authority evidence, not
+// repair-verification evidence.
 func (c RecordInterpretationCommand) InterpretationClosureReceiptDigestSHA256() string {
 	return c.closureReceiptDigestSHA256
 }
