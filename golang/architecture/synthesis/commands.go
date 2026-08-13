@@ -32,7 +32,10 @@ type RecordInterpretationCommand struct {
 // NewRecordInterpretationCommand is the authority-promotion boundary between
 // interpretation closure and O1 planning. It recomputes the interpretation
 // digest and verifies the supplied closure receipt against the exact
-// repository revision and graph authority already bound into the session.
+// repository revision, graph authority, and task closure already bound into
+// the session. Every binding invariant must have an explicit Gate-1 result
+// (supported, unknown, or contradicted), and every declared proof obligation
+// must be represented as required for authority.
 //
 // This constructor deliberately does not make interpretation closure repair
 // verification. It only establishes that this premise earned the right to
@@ -48,7 +51,15 @@ func NewRecordInterpretationCommand(state SessionState, interp Interpretation, r
 	if interp.InterpretationDigestSHA256 != digest {
 		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation declares digest %q but its actual computed digest is %q", interp.InterpretationDigestSHA256, digest)
 	}
-	if err := interpretationclosure.VerifyForGoverning(receipt, digest, state.Session.BaseRevision, state.Session.GraphAuthorityDigestSHA256); err != nil {
+	if err := interpretationclosure.VerifyForGoverning(
+		receipt,
+		digest,
+		state.Session.BaseRevision,
+		state.Session.GraphAuthorityDigestSHA256,
+		state.Session.ClosureDigestSHA256,
+		interp.BindingInvariants,
+		interp.RequiredProofObligations,
+	); err != nil {
 		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation is not certified for governing authority: %w", err)
 	}
 	return RecordInterpretationCommand{
