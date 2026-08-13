@@ -27,6 +27,14 @@ import (
 // checkout is the repository I am running for". It therefore cannot admit a
 // foreign domain at all — which is precisely the 2026-08-05 incident class.
 //
+// This admission path is for persistent or shared publication where --repo must
+// prove which domain slice may mutate. It is deliberately not needed by the
+// Marketplace action's disposable store: that action creates an empty Oxigraph
+// with --no-seed, owns its whole lifetime, and may therefore use --all as the
+// explicit cold-start ownership declaration. Treating those two stores as the
+// same authority surface would either over-constrain the disposable one or
+// weaken the persistent one.
+//
 // This is not a skip flag. The identity proof still runs, the repository still
 // has to match, and a dirty corpus is still refused with no opt-out. What
 // changes is only WHERE the expectation came from, and that provenance is
