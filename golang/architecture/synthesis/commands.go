@@ -24,7 +24,7 @@ type Command interface{ synthesisCommand() }
 type RecordInterpretationCommand struct{ certifiedInterpretationCommand }
 
 type certifiedInterpretationCommand struct {
-	Interpretation Interpretation
+	Interpretation             Interpretation
 	closureReceiptDigestSHA256 string
 }
 
@@ -49,7 +49,7 @@ func NewRecordInterpretationCommand(state SessionState, interp Interpretation, r
 		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation is not certified for governing authority: %w", err)
 	}
 	return RecordInterpretationCommand{certifiedInterpretationCommand: certifiedInterpretationCommand{
-		Interpretation: interp,
+		Interpretation:             interp,
 		closureReceiptDigestSHA256: receipt.ReceiptDigestSHA256,
 	}}, nil
 }
