@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture/evaluatorcomposition"
+	"github.com/globulario/sensei/golang/architecture/interpretationclosure"
 	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/runnercomposition"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
@@ -24,11 +25,12 @@ const (
 type Disposition string
 
 const (
-	DispositionCandidateReady   Disposition = "candidate-ready"
-	DispositionTerminalFailure  Disposition = "terminal-failure"
-	DispositionProviderStopped  Disposition = "provider-stopped"
-	DispositionRunnerStopped    Disposition = "runner-stopped"
-	DispositionStepLimitReached Disposition = "step-limit-reached"
+	DispositionCandidateReady            Disposition = "candidate-ready"
+	DispositionTerminalFailure           Disposition = "terminal-failure"
+	DispositionProviderStopped           Disposition = "provider-stopped"
+	DispositionInterpretationAdvisory    Disposition = "interpretation-advisory"
+	DispositionRunnerStopped             Disposition = "runner-stopped"
+	DispositionStepLimitReached          Disposition = "step-limit-reached"
 )
 
 // ProviderPolicy is the exact O2 execution budget for one operation.
@@ -60,10 +62,11 @@ type Config struct {
 	RepositoryRoot    string
 	CandidateStore    runnercomposition.CandidateArtifactStore
 
-	InterpretationProvider providerport.Provider
-	PlanningProvider       providerport.Provider
-	GenerationFactory      runnercomposition.GenerationProviderFactory
-	EvaluationEngine       EvaluationEngine
+	InterpretationProvider  providerport.Provider
+	InterpretationAuthority InterpretationAuthority
+	PlanningProvider        providerport.Provider
+	GenerationFactory       runnercomposition.GenerationProviderFactory
+	EvaluationEngine        EvaluationEngine
 
 	InterpretationPolicy ProviderPolicy
 	PlanningPolicy       ProviderPolicy
@@ -73,17 +76,23 @@ type Config struct {
 	Now      func() time.Time
 }
 
-// Trace preserves every accepted owner document produced while driving.
+// Trace preserves every accepted owner document produced while driving. An
+// interpretation-closure receipt is recorded whether it promotes the
+// interpretation or keeps it advisory; absence of a receipt is never
+// represented as a successful promotion.
 type Trace struct {
-	ProviderExecutions []ProviderExecution
-	GenerationHandoffs []runnercomposition.VerifiedGenerationHandoff
-	EvaluationResults  []evaluatorcomposition.Result
-	Events             []synthesis.Event
+	ProviderExecutions            []ProviderExecution
+	InterpretationClosureReceipts []interpretationclosure.Receipt
+	GenerationHandoffs            []runnercomposition.VerifiedGenerationHandoff
+	EvaluationResults             []evaluatorcomposition.Result
+	Events                        []synthesis.Event
 }
 
 // Result is the complete O7 return value. Interpretation and Plan are the
 // latest accepted O1 artifacts needed for inspection or a later resumable
-// checkpoint. Candidate is populated once O3 sealed one.
+// checkpoint. If closure stops an interpretation as advisory, Interpretation
+// contains that candidate for review while SessionState remains PhaseCreated.
+// Candidate is populated once O3 sealed one.
 type Result struct {
 	SessionState   synthesis.SessionState
 	Interpretation *synthesis.Interpretation
@@ -93,8 +102,8 @@ type Result struct {
 	Receipt        RunReceipt
 }
 
-// RunReceipt binds the ordered O2/O3/O4 evidence to the final O1 state. The
-// observation timestamps are excluded from its semantic identity.
+// RunReceipt binds the ordered O2/closure/O3/O4 evidence to the final O1
+// state. The observation timestamps are excluded from its semantic identity.
 type RunReceipt struct {
 	SchemaVersion string `json:"schema_version"`
 	ReceiptID     string `json:"receipt_id"`
@@ -105,9 +114,10 @@ type RunReceipt struct {
 	Disposition         Disposition `json:"disposition"`
 	StepCount           int         `json:"step_count"`
 
-	O2ReceiptDigestsSHA256         []string `json:"o2_receipt_digests_sha256"`
-	RunnerReceiptDigestsSHA256     []string `json:"runner_receipt_digests_sha256"`
-	EvaluationReceiptDigestsSHA256 []string `json:"evaluation_receipt_digests_sha256"`
+	O2ReceiptDigestsSHA256                    []string `json:"o2_receipt_digests_sha256"`
+	InterpretationClosureReceiptDigestsSHA256 []string `json:"interpretation_closure_receipt_digests_sha256"`
+	RunnerReceiptDigestsSHA256                []string `json:"runner_receipt_digests_sha256"`
+	EvaluationReceiptDigestsSHA256            []string `json:"evaluation_receipt_digests_sha256"`
 
 	SynthesisReceiptDigestSHA256  *string `json:"synthesis_receipt_digest_sha256"`
 	CandidateArtifactDigestSHA256 *string `json:"candidate_artifact_digest_sha256"`
