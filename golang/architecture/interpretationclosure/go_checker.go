@@ -18,20 +18,20 @@ import (
 type GoProbeKind string
 
 const (
-	GoProbeTypeExists          GoProbeKind = "go_type_exists"
+	GoProbeTypeExists           GoProbeKind = "go_type_exists"
 	GoProbeUnderlyingTypeEquals GoProbeKind = "go_underlying_type_equals"
-	GoProbeImplementsInterface GoProbeKind = "go_implements_interface"
+	GoProbeImplementsInterface  GoProbeKind = "go_implements_interface"
 )
 
 type GoProbe struct {
-	ClaimID         string
-	Kind            GoProbeKind
-	PackagePattern  string
-	TypeName        string
-	Pointer         bool
-	Expected        string
-	InterfacePackage string
-	InterfaceName   string
+	ClaimID            string
+	Kind               GoProbeKind
+	PackagePattern     string
+	TypeName           string
+	Pointer            bool
+	Expected           string
+	InterfacePackage   string
+	InterfaceName      string
 	EvidenceReferences []string
 }
 
@@ -78,9 +78,13 @@ func checkGoProbe(ctx context.Context, root string, p GoProbe) TruthFinding {
 	}
 	cfg := &packages.Config{Context: ctx, Dir: root, Mode: packages.NeedName | packages.NeedTypes | packages.NeedDeps}
 	pkgs, err := packages.Load(cfg, patterns...)
-	if err != nil || packages.PrintErrors(pkgs) != 0 {
+	if err != nil || loadedPackagesHaveErrors(pkgs) {
 		base.Status = TruthUnknown
-		if err != nil { base.Detail = "Go package load failed: " + err.Error() } else { base.Detail = "Go package load reported errors" }
+		if err != nil {
+			base.Detail = "Go package load failed: " + err.Error()
+		} else {
+			base.Detail = "Go package load reported errors"
+		}
 		return base
 	}
 	targetPkg := findLoadedPackage(pkgs, p.PackagePattern)
@@ -140,7 +144,9 @@ func checkGoProbe(ctx context.Context, root string, p GoProbe) TruthFinding {
 			return base
 		}
 		var target types.Type = obj.Type()
-		if p.Pointer { target = types.NewPointer(target) }
+		if p.Pointer {
+			target = types.NewPointer(target)
+		}
 		actual := types.Implements(target, iface.Complete())
 		expected, ok := parseBool(p.Expected)
 		if !ok {
@@ -159,30 +165,48 @@ func checkGoProbe(ctx context.Context, root string, p GoProbe) TruthFinding {
 	}
 }
 
+func loadedPackagesHaveErrors(pkgs []*packages.Package) bool {
+	for _, pkg := range pkgs {
+		if len(pkg.Errors) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func findLoadedPackage(pkgs []*packages.Package, pattern string) *packages.Package {
 	for _, pkg := range pkgs {
 		if pkg.PkgPath == pattern || pkg.ID == pattern || pkg.Name == pattern {
 			return pkg
 		}
 	}
-	if len(pkgs) == 1 { return pkgs[0] }
+	if len(pkgs) == 1 {
+		return pkgs[0]
+	}
 	return nil
 }
 
 func qualifier(p *types.Package) string {
-	if p == nil { return "" }
+	if p == nil {
+		return ""
+	}
 	return p.Name()
 }
 
 func statusFor(equal bool) TruthStatus {
-	if equal { return TruthSupported }
+	if equal {
+		return TruthSupported
+	}
 	return TruthContradicted
 }
 
 func parseBool(s string) (bool, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "true": return true, true
-	case "false": return false, true
-	default: return false, false
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	default:
+		return false, false
 	}
 }
