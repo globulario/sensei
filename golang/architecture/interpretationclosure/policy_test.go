@@ -11,9 +11,11 @@ func baseInput() Input {
 		InterpretationDigestSHA256: testDigest,
 		RepositoryRevision:         "deadbeef",
 		GraphAuthorityDigestSHA256: testDigest,
+		ClosureDigestSHA256:        testDigest,
 		TruthFindings:              []TruthFinding{{ClaimID: "claim.arch", CheckKind: "semantic_property", Status: TruthUnknown}},
 		Completeness:               CompletenessAssessment{Status: CompletenessComplete},
 		Realization:                RealizationAssessment{Status: RealizationUnknown},
+		ProofObservations:          []ProofObservation{},
 	}
 }
 
@@ -85,21 +87,42 @@ func TestRequiredProofMustBeSatisfied(t *testing.T) {
 	}
 }
 
-func TestVerifyRecomputesAuthorityAndBinding(t *testing.T) {
+func TestVerifyRecomputesAuthorityBindingAndCoverage(t *testing.T) {
 	r, err := Certify(baseInput())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := VerifyForGoverning(r, testDigest, "deadbeef", testDigest); err != nil {
+	if err := VerifyForGoverning(r, testDigest, "deadbeef", testDigest, testDigest, []string{"claim.arch"}, nil); err != nil {
 		t.Fatalf("valid receipt: %v", err)
 	}
 	tampered := r
 	tampered.Authority = AuthorityAdvisory
-	if err := VerifyForGoverning(tampered, testDigest, "deadbeef", testDigest); err == nil {
+	if err := VerifyForGoverning(tampered, testDigest, "deadbeef", testDigest, testDigest, []string{"claim.arch"}, nil); err == nil {
 		t.Fatal("tampered authority accepted")
 	}
-	if err := VerifyForGoverning(r, testDigest, "different", testDigest); err == nil {
+	if err := VerifyForGoverning(r, testDigest, "different", testDigest, testDigest, []string{"claim.arch"}, nil); err == nil {
 		t.Fatal("wrong repository revision accepted")
+	}
+	if err := VerifyForGoverning(r, testDigest, "deadbeef", testDigest, stringsRepeat("1", 64), []string{"claim.arch"}, nil); err == nil {
+		t.Fatal("wrong task closure digest accepted")
+	}
+	if err := VerifyForGoverning(r, testDigest, "deadbeef", testDigest, testDigest, []string{"claim.arch", "claim.omitted"}, nil); err == nil {
+		t.Fatal("omitted governing claim challenge accepted")
+	}
+}
+
+func TestVerifyCoverageRequiresDeclaredProofObservation(t *testing.T) {
+	in := baseInput()
+	in.ProofObservations = []ProofObservation{{ObligationID: "proof.one", RequiredForAuthority: true, Status: ProofSatisfied}}
+	r, err := Certify(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyForGoverning(r, testDigest, "deadbeef", testDigest, testDigest, []string{"claim.arch"}, []string{"proof.one"}); err != nil {
+		t.Fatalf("covered proof rejected: %v", err)
+	}
+	if err := VerifyForGoverning(r, testDigest, "deadbeef", testDigest, testDigest, []string{"claim.arch"}, []string{"proof.one", "proof.missing"}); err == nil {
+		t.Fatal("missing required proof observation accepted")
 	}
 }
 
@@ -130,4 +153,12 @@ func TestUnsupportedLanguageRemainsUnknown(t *testing.T) {
 	if r.Authority != AuthorityGoverning {
 		t.Fatalf("unsupported language became blocker: %v", r.Blockers)
 	}
+}
+
+func stringsRepeat(s string, count int) string {
+	out := ""
+	for i := 0; i < count; i++ {
+		out += s
+	}
+	return out
 }
