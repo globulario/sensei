@@ -87,11 +87,11 @@ type RealizationAssessment struct {
 }
 
 type ProofObservation struct {
-	ObligationID       string      `json:"obligation_id"`
-	RequiredForAuthority bool      `json:"required_for_authority"`
-	Status             ProofStatus `json:"status"`
-	EvidenceReferences []string    `json:"evidence_references,omitempty"`
-	Detail             string      `json:"detail,omitempty"`
+	ObligationID         string      `json:"obligation_id"`
+	RequiredForAuthority bool        `json:"required_for_authority"`
+	Status               ProofStatus `json:"status"`
+	EvidenceReferences   []string    `json:"evidence_references,omitempty"`
+	Detail               string      `json:"detail,omitempty"`
 }
 
 // Input contains observations produced by their respective evidence owners.
@@ -113,9 +113,9 @@ type Input struct {
 type Receipt struct {
 	SchemaVersion string `json:"schema_version"`
 	Input
-	Authority AuthorityStatus `json:"authority"`
-	Blockers  []string        `json:"blockers"`
-	ReceiptDigestSHA256 string `json:"receipt_digest_sha256"`
+	Authority           AuthorityStatus `json:"authority"`
+	Blockers            []string        `json:"blockers"`
+	ReceiptDigestSHA256 string          `json:"receipt_digest_sha256"`
 }
 
 func validDigest(s string) bool {
@@ -176,9 +176,15 @@ func normalizeReceipt(r Receipt) Receipt {
 	}
 	sort.Slice(r.TruthFindings, func(i, j int) bool {
 		a, b := r.TruthFindings[i], r.TruthFindings[j]
-		if a.ClaimID != b.ClaimID { return a.ClaimID < b.ClaimID }
-		if a.CheckKind != b.CheckKind { return a.CheckKind < b.CheckKind }
-		if a.Subject != b.Subject { return a.Subject < b.Subject }
+		if a.ClaimID != b.ClaimID {
+			return a.ClaimID < b.ClaimID
+		}
+		if a.CheckKind != b.CheckKind {
+			return a.CheckKind < b.CheckKind
+		}
+		if a.Subject != b.Subject {
+			return a.Subject < b.Subject
+		}
 		return a.Status < b.Status
 	})
 	r.Completeness.EvidenceReferences = sortedUnique(r.Completeness.EvidenceReferences)
@@ -189,24 +195,34 @@ func normalizeReceipt(r Receipt) Receipt {
 	for i := range r.ProofObservations {
 		r.ProofObservations[i].EvidenceReferences = sortedUnique(r.ProofObservations[i].EvidenceReferences)
 	}
-	sort.Slice(r.ProofObservations, func(i, j int) bool { return r.ProofObservations[i].ObligationID < r.ProofObservations[j].ObligationID })
+	sort.Slice(r.ProofObservations, func(i, j int) bool {
+		return r.ProofObservations[i].ObligationID < r.ProofObservations[j].ObligationID
+	})
 	r.Blockers = sortedUnique(r.Blockers)
 	return r
 }
 
 func sortedUnique(in []string) []string {
-	if len(in) == 0 { return nil }
+	if len(in) == 0 {
+		return nil
+	}
 	seen := make(map[string]struct{}, len(in))
 	out := make([]string, 0, len(in))
 	for _, v := range in {
 		v = strings.TrimSpace(v)
-		if v == "" { continue }
-		if _, ok := seen[v]; ok { continue }
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
 		seen[v] = struct{}{}
 		out = append(out, v)
 	}
 	sort.Strings(out)
-	if len(out) == 0 { return nil }
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 
@@ -214,7 +230,9 @@ func receiptDigest(r Receipt) (string, error) {
 	r = normalizeReceipt(r)
 	r.ReceiptDigestSHA256 = ""
 	b, err := json.Marshal(r)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
 }
