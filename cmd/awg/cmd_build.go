@@ -58,6 +58,7 @@ func runBuild(args []string) int {
 	domain := fs.String("domain", "", "default domain kind for untagged nodes: repo|shared (inferred 'repo' when --repo is set)")
 	sourceSet := fs.String("source-set", "", "default source-set namespace for untagged nodes, e.g. pilot/cli")
 	domainRegistry := fs.String("domain-registry", "", "domain registry binding each domain to its source repository (default: ~/.sensei/domains.yaml)")
+	admissionSource := fs.String("admission-source", "", "additional independent authority allowed to bind this domain to its repository when the registry has no entry: github-actions (uses the runner-injected GITHUB_REPOSITORY attestation, which can admit only the repository it runs for). NOT a bypass — identity is still proven and a dirty corpus is still refused.")
 	all := fs.Bool("all", false, "replace the ENTIRE store (all domains) with this build — destructive whole-graph load. Required for a full/cold-start build when --repo is not given.")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei build [flags]
@@ -109,10 +110,21 @@ Flags:
 		if registryPath == "" {
 			registryPath = DefaultDomainRegistryPath()
 		}
-		if aerr := AdmitPublication(strings.TrimSpace(*repo), inputDirs, registryPath); aerr != nil {
+		// A hosted runner has no operator registry. The attestation is offered
+		// only when the operator asked for it, so enabling CI admission is a
+		// visible decision in the workflow rather than a silent change of
+		// behaviour triggered by ambient environment variables.
+		var attestation *GitHubActionsAttestation
+		if strings.EqualFold(strings.TrimSpace(*admissionSource), string(AdmissionSourceGitHubActions)) {
+			a := ReadGitHubActionsAttestation(os.Getenv)
+			attestation = &a
+		}
+		decision, aerr := AdmitPublicationFromSource(strings.TrimSpace(*repo), inputDirs, registryPath, attestation)
+		if aerr != nil {
 			fmt.Fprintln(os.Stderr, aerr.Error())
 			return 1
 		}
+		fmt.Fprintf(os.Stderr, "  admission: %s (corpus roots: %s)\n", decision.Source, decision.CorpusRoots)
 	}
 
 	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
