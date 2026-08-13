@@ -17,6 +17,12 @@ import (
 
 const ReceiptSchemaVersion = "sensei.interpretation-closure.receipt.v1"
 
+// TruthStatus is a local check result, not a second global epistemic
+// vocabulary. Canonical architectural claims continue to use
+// architecture.Claim.EpistemicStatus. Evidence owners map those canonical
+// states, or direct deterministic probes, into one of these three outcomes
+// for the narrow question "does deterministic evidence contradict this
+// governing premise?".
 type TruthStatus string
 
 const (
@@ -82,7 +88,7 @@ type CompletenessAssessment struct {
 type RealizationAssessment struct {
 	Status             RealizationStatus `json:"status"`
 	EvidenceReferences []string          `json:"evidence_references,omitempty"`
-	UnjustifiedSurface []string          `json:"unjustified_surface,omitempty"`
+	UnjustifiedSurface []string           `json:"unjustified_surface,omitempty"`
 	Detail             string            `json:"detail,omitempty"`
 }
 
@@ -96,11 +102,15 @@ type ProofObservation struct {
 
 // Input contains observations produced by their respective evidence owners.
 // It contains no caller-supplied "certified" boolean. Policy derives
-// authority from these observations every time.
+// authority from these observations every time. ClosureDigestSHA256 binds the
+// completeness decision to the exact task closure report already named by the
+// synthesis session, so a receipt cannot silently certify against another
+// scope snapshot.
 type Input struct {
 	InterpretationDigestSHA256 string                 `json:"interpretation_digest_sha256"`
 	RepositoryRevision         string                 `json:"repository_revision"`
 	GraphAuthorityDigestSHA256 string                 `json:"graph_authority_digest_sha256"`
+	ClosureDigestSHA256        string                 `json:"closure_digest_sha256"`
 	TruthFindings              []TruthFinding         `json:"truth_findings"`
 	Completeness               CompletenessAssessment `json:"completeness"`
 	Realization                RealizationAssessment  `json:"realization"`
@@ -108,8 +118,8 @@ type Input struct {
 }
 
 // Receipt is an evidence-bound authority receipt. Authority and Blockers are
-// recorded for auditability but never trusted on read: VerifyForGoverning
-// recomputes them from the observations before accepting the receipt.
+// recorded for auditability but never trusted on read: Verify/VerifyForGoverning
+// recompute them from the observations before accepting the receipt.
 type Receipt struct {
 	SchemaVersion string `json:"schema_version"`
 	Input
@@ -135,6 +145,9 @@ func validateInput(in Input) error {
 	}
 	if !validDigest(in.GraphAuthorityDigestSHA256) {
 		return fmt.Errorf("interpretationclosure: graph authority digest must be a SHA-256 hex digest")
+	}
+	if !validDigest(in.ClosureDigestSHA256) {
+		return fmt.Errorf("interpretationclosure: task closure digest must be a SHA-256 hex digest")
 	}
 	for i, f := range in.TruthFindings {
 		switch f.Status {
