@@ -12222,6 +12222,66 @@ test_symbols:
     symbol: TestUnknownRuleSelectionFails
     package: inference
     language: go
+  - id: golang/architecture/interpretationclosure/challenge_test.go:TestChallengePlanDigestIsOrderIndependentAfterNormalization
+    file: golang/architecture/interpretationclosure/challenge_test.go
+    symbol: TestChallengePlanDigestIsOrderIndependentAfterNormalization
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/challenge_test.go:TestLoadChallengePlanRejectsAuthoredOutcomesAndDuplicateKeys
+    file: golang/architecture/interpretationclosure/challenge_test.go
+    symbol: TestLoadChallengePlanRejectsAuthoredOutcomesAndDuplicateKeys
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/go_checker_test.go:TestGoCheckerDistinguishesContradictionFromUnknown
+    file: golang/architecture/interpretationclosure/go_checker_test.go
+    symbol: TestGoCheckerDistinguishesContradictionFromUnknown
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestAssessCompletenessDistinguishesUnknownFromEmpty
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestAssessCompletenessDistinguishesUnknownFromEmpty
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestCompletenessUnknownBlocksHardAuthority
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestCompletenessUnknownBlocksHardAuthority
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestRealizationUnknownIsNeutralButKnownBreadthBlocks
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestRealizationUnknownIsNeutralButKnownBreadthBlocks
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestRequiredProofMustBeSatisfied
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestRequiredProofMustBeSatisfied
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestTruthContradictionBlocksAuthority
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestTruthContradictionBlocksAuthority
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestTruthUnknownIsNeutralForAuthority
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestTruthUnknownIsNeutralForAuthority
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestUnsupportedLanguageRemainsUnknown
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestUnsupportedLanguageRemainsUnknown
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestVerifyCoverageRequiresDeclaredProofObservation
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestVerifyCoverageRequiresDeclaredProofObservation
+    package: interpretationclosure
+    language: go
+  - id: golang/architecture/interpretationclosure/policy_test.go:TestVerifyRecomputesAuthorityBindingAndCoverage
+    file: golang/architecture/interpretationclosure/policy_test.go
+    symbol: TestVerifyRecomputesAuthorityBindingAndCoverage
+    package: interpretationclosure
+    language: go
   - id: golang/architecture/investigation/investigation_test.go:TestCandidateScopeExpansionRefusal
     file: golang/architecture/investigation/investigation_test.go
     symbol: TestCandidateScopeExpansionRefusal
@@ -17156,6 +17216,26 @@ test_symbols:
     file: golang/architecture/synthesis/transition_test.go
     symbol: TestTerminalSessionRejectsAnyCommand
     package: synthesis
+    language: go
+  - id: golang/architecture/synthesisdriver/closure_report_authority_test.go:TestClosureReportAuthorityBlocksIncompleteInterpretationSurface
+    file: golang/architecture/synthesisdriver/closure_report_authority_test.go
+    symbol: TestClosureReportAuthorityBlocksIncompleteInterpretationSurface
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/closure_report_authority_test.go:TestClosureReportAuthorityRefutedCanonicalClaimBlocksButUnknownDoesNot
+    file: golang/architecture/synthesisdriver/closure_report_authority_test.go
+    symbol: TestClosureReportAuthorityRefutedCanonicalClaimBlocksButUnknownDoesNot
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/closure_report_authority_test.go:TestClosureReportAuthorityRejectsClosureReportNotBoundToSession
+    file: golang/architecture/synthesisdriver/closure_report_authority_test.go
+    symbol: TestClosureReportAuthorityRejectsClosureReportNotBoundToSession
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/closure_report_authority_test.go:TestClosureReportAuthorityUnresolvedDeclaredProofCannotGovern
+    file: golang/architecture/synthesisdriver/closure_report_authority_test.go
+    symbol: TestClosureReportAuthorityUnresolvedDeclaredProofCannotGovern
+    package: synthesisdriver
     language: go
   - id: golang/architecture/synthesisdriver/cognitive_o8_integration_test.go:TestO7CompletesWithGroundedInterpretationAndO8Planning
     file: golang/architecture/synthesisdriver/cognitive_o8_integration_test.go
