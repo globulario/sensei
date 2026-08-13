@@ -23,22 +23,28 @@ const (
 	GoProbeImplementsInterface  GoProbeKind = "go_implements_interface"
 )
 
+// GoProbe is a declarative question, never a caller-authored result. The
+// expected value is part of the premise being challenged; CheckGoTruth owns
+// the observation of the repository and derives supported/contradicted/
+// unknown. This shape is intentionally serializable so a challenge plan can
+// be frozen before repair without containing any authority boolean.
 type GoProbe struct {
-	ClaimID            string
-	Kind               GoProbeKind
-	PackagePattern     string
-	TypeName           string
-	Pointer            bool
-	Expected           string
-	InterfacePackage   string
-	InterfaceName      string
-	EvidenceReferences []string
+	ClaimID            string      `json:"claim_id"`
+	Kind               GoProbeKind `json:"kind"`
+	PackagePattern     string      `json:"package_pattern"`
+	TypeName           string      `json:"type_name"`
+	Pointer            bool        `json:"pointer,omitempty"`
+	Expected           string      `json:"expected"`
+	InterfacePackage   string      `json:"interface_package,omitempty"`
+	InterfaceName      string      `json:"interface_name,omitempty"`
+	EvidenceReferences []string    `json:"evidence_references,omitempty"`
 }
 
 // CheckGoTruth evaluates structured Go facts against the exact checkout at
-// repositoryRoot. It is the initial Gate-1 implementation scope. Other
-// languages must return unknown through UnknownTruth; they are not rejected
-// merely because no language-specific checker exists yet.
+// repositoryRoot. It is the initial Gate-1 implementation scope. Repository
+// load/check failures are represented per probe as TruthUnknown instead of as
+// a synthetic contradiction. Other languages likewise remain unknown until a
+// language-specific checker exists.
 func CheckGoTruth(ctx context.Context, repositoryRoot string, probes []GoProbe) []TruthFinding {
 	out := make([]TruthFinding, 0, len(probes))
 	for _, probe := range probes {
@@ -60,10 +66,10 @@ func UnknownTruth(claimID, language, checkKind, detail string, evidenceRefs ...s
 
 func checkGoProbe(ctx context.Context, root string, p GoProbe) TruthFinding {
 	base := TruthFinding{
-		ClaimID:            p.ClaimID,
+		ClaimID:            strings.TrimSpace(p.ClaimID),
 		Language:           "go",
 		CheckKind:          string(p.Kind),
-		Subject:            p.PackagePattern + "." + p.TypeName,
+		Subject:            strings.TrimSpace(p.PackagePattern) + "." + strings.TrimSpace(p.TypeName),
 		EvidenceReferences: sortedUnique(p.EvidenceReferences),
 	}
 	if strings.TrimSpace(p.ClaimID) == "" || strings.TrimSpace(p.PackagePattern) == "" || strings.TrimSpace(p.TypeName) == "" {
@@ -115,12 +121,12 @@ func checkGoProbe(ctx context.Context, root string, p GoProbe) TruthFinding {
 			return base
 		}
 		actual := types.TypeString(obj.Type().Underlying(), qualifier)
-		base.Status = statusFor(actual == p.Expected)
+		base.Status = statusFor(actual == strings.TrimSpace(p.Expected))
 		base.Detail = fmt.Sprintf("underlying type actual=%q expected=%q", actual, p.Expected)
 		return base
 
 	case GoProbeImplementsInterface:
-		if obj == nil || p.InterfacePackage == "" || p.InterfaceName == "" {
+		if obj == nil || strings.TrimSpace(p.InterfacePackage) == "" || strings.TrimSpace(p.InterfaceName) == "" {
 			base.Status = TruthUnknown
 			base.Detail = "implements-interface probe lacks a resolvable target or interface"
 			return base
