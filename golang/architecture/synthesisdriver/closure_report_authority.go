@@ -14,6 +14,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/interpretationclosure"
+	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
 
 // ClosureReportAuthorityConfig composes interpretation authority from owners
@@ -201,13 +202,18 @@ func relevantClaimMatches(claims []closure.ClaimReceipt, reference string) []clo
 	return out
 }
 
-func (a *ClosureReportAuthority) completeness(interp interface{ GetSourceReferences() []string }) interpretationclosure.CompletenessAssessment {
-	panic("unreachable")
+func (a *ClosureReportAuthority) completeness(interp synthesis.Interpretation) interpretationclosure.CompletenessAssessment {
+	references := make([]string, 0, len(interp.SourceReferences))
+	for _, reference := range interp.SourceReferences {
+		references = append(references, reference.Reference)
+	}
+	return a.completenessForReferences(references)
 }
 
-// completeness derives the required surface exclusively from closure.Report,
-// the existing owner. It never asks the interpretation to describe what it
-// thinks is required; interpretation only supplies what it disclosed.
+// completenessForReferences derives the required surface exclusively from
+// closure.Report, the existing owner. It never asks the interpretation to
+// describe what it thinks is required; interpretation only supplies what it
+// disclosed.
 func (a *ClosureReportAuthority) completenessForReferences(references []string) interpretationclosure.CompletenessAssessment {
 	evidence := "closure-report:" + a.reportDigest
 	disclosed := disclosedFileReferences(references)
