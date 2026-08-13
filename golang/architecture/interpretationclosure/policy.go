@@ -7,9 +7,16 @@ import (
 	"reflect"
 )
 
-// Certify derives authority from evidence. In particular, TruthUnknown is
-// neutral: it never grants authority and never blocks it. A contradiction is
-// categorically different from absence of a decidable check.
+// Certify is the pure closure-policy fold over observations supplied by an
+// evidence owner. It does not collect repository evidence itself and must not
+// be treated as an authority source merely because this package computed the
+// result. Runtime promotion therefore happens through an explicit authority
+// capability which owns evidence collection, then presents the resulting
+// receipt for binding/policy verification.
+//
+// In particular, TruthUnknown is neutral: it never grants authority and never
+// blocks it. A contradiction is categorically different from absence of a
+// decidable check.
 func Certify(in Input) (Receipt, error) {
 	if err := validateInput(in); err != nil {
 		return Receipt{}, err
@@ -76,11 +83,11 @@ func blockersFor(in Input) []string {
 	return sortedUnique(blockers)
 }
 
-// VerifyForGoverning verifies both provenance binding and policy. It never
-// trusts Receipt.Authority or Receipt.Blockers as caller assertions: the
-// receipt is re-certified from its observations and compared byte-for-byte
-// (after canonical normalization) before governing use is allowed.
-func VerifyForGoverning(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityDigest string) error {
+// Verify verifies provenance binding, receipt integrity, and the recorded
+// policy decision for either advisory or governing receipts. It never trusts
+// Receipt.Authority or Receipt.Blockers as caller assertions: the policy is
+// recomputed from the bound observations and compared against the receipt.
+func Verify(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityDigest string) error {
 	if r.SchemaVersion != ReceiptSchemaVersion {
 		return fmt.Errorf("interpretationclosure: unsupported receipt schema %q", r.SchemaVersion)
 	}
@@ -104,8 +111,17 @@ func VerifyForGoverning(r Receipt, interpretationDigest, repositoryRevision, gra
 	if recomputed.Authority != r.Authority || !reflect.DeepEqual(recomputed.Blockers, normalizeReceipt(r).Blockers) {
 		return fmt.Errorf("interpretationclosure: recorded authority decision does not match recomputed policy")
 	}
-	if recomputed.Authority != AuthorityGoverning {
-		return fmt.Errorf("interpretationclosure: interpretation is advisory, not governing: blockers=%v", recomputed.Blockers)
+	return nil
+}
+
+// VerifyForGoverning adds the authority requirement to Verify. Advisory is a
+// valid closure outcome, but it cannot cross the O1 promotion boundary.
+func VerifyForGoverning(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityDigest string) error {
+	if err := Verify(r, interpretationDigest, repositoryRevision, graphAuthorityDigest); err != nil {
+		return err
+	}
+	if r.Authority != AuthorityGoverning {
+		return fmt.Errorf("interpretationclosure: interpretation is advisory, not governing: blockers=%v", r.Blockers)
 	}
 	return nil
 }
