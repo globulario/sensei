@@ -97,6 +97,9 @@ if ! $CHECK_MODE; then
     echo "Regenerating code symbols..."
     run_scan "$AG_GENERATED"
     echo ""
+    echo "Regenerating import graphs..."
+    make import-graph
+    echo ""
     echo "Building awareness.nt (self-only)..."
     run_yaml2nt "$SEED"
     write_stamp "$SEED" "$STAMP"
