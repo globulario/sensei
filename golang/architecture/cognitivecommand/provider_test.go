@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/interpretationclosure"
 	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
 )
@@ -66,7 +67,7 @@ func TestCognitiveProviderPlansFromGroundedInterpretationThroughO2AndO1(t *testi
 		t.Fatal(err)
 	}
 	interpretation := groundedInterpretation(t, session)
-	state, _, err = synthesis.Transition(state, synthesis.RecordInterpretationCommand{Interpretation: interpretation})
+	state, _, err = synthesis.Transition(state, testCertifiedInterpretationCommand(t, state, interpretation))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +170,7 @@ func executePlanPayload(t *testing.T, payload string) providerport.Result {
 		t.Fatal(err)
 	}
 	interpretation := groundedInterpretation(t, session)
-	state, _, err = synthesis.Transition(state, synthesis.RecordInterpretationCommand{Interpretation: interpretation})
+	state, _, err = synthesis.Transition(state, testCertifiedInterpretationCommand(t, state, interpretation))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,6 +236,53 @@ func groundedInterpretation(t *testing.T, session synthesis.Session) synthesis.I
 	}
 	interpretation.InterpretationDigestSHA256 = digest
 	return interpretation
+}
+
+func testCertifiedInterpretationCommand(t *testing.T, state synthesis.SessionState, interp synthesis.Interpretation) synthesis.RecordInterpretationCommand {
+	t.Helper()
+	truth := make([]interpretationclosure.TruthFinding, 0, len(interp.BindingInvariants))
+	for _, claimID := range interp.BindingInvariants {
+		truth = append(truth, interpretationclosure.UnknownTruth(
+			claimID,
+			"test",
+			"fixture",
+			"cognitivecommand fixture exercises neutral contradiction-gate coverage",
+			"test-fixture:cognitivecommand-truth-challenge",
+		))
+	}
+	proofs := make([]interpretationclosure.ProofObservation, 0, len(interp.RequiredProofObligations))
+	for _, obligationID := range interp.RequiredProofObligations {
+		proofs = append(proofs, interpretationclosure.ProofObservation{
+			ObligationID:         obligationID,
+			RequiredForAuthority: true,
+			Status:               interpretationclosure.ProofSatisfied,
+			EvidenceReferences:   []string{"test-fixture:cognitivecommand-proof"},
+		})
+	}
+	receipt, err := interpretationclosure.Certify(interpretationclosure.Input{
+		InterpretationDigestSHA256: interp.InterpretationDigestSHA256,
+		RepositoryRevision:         state.Session.BaseRevision,
+		GraphAuthorityDigestSHA256: state.Session.GraphAuthorityDigestSHA256,
+		ClosureDigestSHA256:        state.Session.ClosureDigestSHA256,
+		TruthFindings:              truth,
+		Completeness: interpretationclosure.CompletenessAssessment{
+			Status:             interpretationclosure.CompletenessComplete,
+			EvidenceReferences: []string{"test-fixture:cognitivecommand-scope"},
+		},
+		Realization: interpretationclosure.RealizationAssessment{
+			Status:             interpretationclosure.RealizationUnknown,
+			EvidenceReferences: []string{"test-fixture:cognitivecommand-no-realization-claim"},
+		},
+		ProofObservations: proofs,
+	})
+	if err != nil {
+		t.Fatalf("interpretationclosure.Certify: %v", err)
+	}
+	command, err := synthesis.NewRecordInterpretationCommand(state, interp, receipt)
+	if err != nil {
+		t.Fatalf("synthesis.NewRecordInterpretationCommand: %v", err)
+	}
+	return command
 }
 
 func planningRequest(t *testing.T, state synthesis.SessionState, interpretation synthesis.Interpretation) providerport.Request {
