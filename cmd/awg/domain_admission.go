@@ -39,6 +39,48 @@ import (
 //
 // invariant: graph.publication_requires_pre_mutation_domain_source_admission
 
+// AdmissionSource names the independent authority that bound this domain to a
+// repository.
+//
+// It is a recorded fact, not a mode. Both sources must prove the same thing;
+// they differ only in who asserted the expectation, and that difference has to
+// survive into the receipt. Flattening a CI attestation into the registry's
+// shape would make a machine-issued binding indistinguishable from an
+// operator-authored one at every later point that reads the decision.
+type AdmissionSource string
+
+const (
+	// AdmissionSourceRegistry is the operator-authored registry, held outside
+	// any published repository.
+	AdmissionSourceRegistry AdmissionSource = "registry"
+	// AdmissionSourceGitHubActions is a runner-injected attestation. See
+	// domain_admission_ci.go for why it is an independent source rather than a
+	// relaxation of the registry.
+	AdmissionSourceGitHubActions AdmissionSource = "github-actions"
+)
+
+// AdmissionDecision is what admitted a publication, kept for the receipt.
+type AdmissionDecision struct {
+	// Source is the authority that stated the expectation.
+	Source AdmissionSource
+	// CorpusRoots is TYPED, not silently empty. The registry declares allowed
+	// roots; an attestation cannot know them. Reporting "unestablished" keeps
+	// that absence legible instead of letting an empty list read as "every root
+	// approved" — the two are the same value and very different facts.
+	CorpusRoots string
+}
+
+func decide(rd RegisteredDomain, src AdmissionSource) AdmissionDecision {
+	switch {
+	case len(rd.AllowedCorpusRoots) > 0:
+		return AdmissionDecision{Source: src, CorpusRoots: "enforced"}
+	case src == AdmissionSourceGitHubActions:
+		return AdmissionDecision{Source: src, CorpusRoots: "unestablished"}
+	default:
+		return AdmissionDecision{Source: src, CorpusRoots: "unconstrained_by_operator"}
+	}
+}
+
 // DomainRegistry binds a domain name to the repository allowed to publish it.
 type DomainRegistry struct {
 	Domains map[string]RegisteredDomain `yaml:"domains"`
@@ -182,31 +224,74 @@ func gitOut(dir string, args ...string) (string, error) {
 // the allowed list, or an unexpectedly dirty tree all refuse. "I could not
 // verify" is never treated as "verified".
 func AdmitPublication(domain string, inputDirs []string, registryPath string) error {
+	_, err := AdmitPublicationFromSource(domain, inputDirs, registryPath, nil)
+	return err
+}
+
+// AdmitPublicationFromSource is AdmitPublication with the binding authority made
+// explicit. It returns the source that admitted the publication so the caller
+// can record it.
+//
+// The registry is tried first and always wins: an operator-authored expectation
+// outranks a machine-issued one, and a repository that IS registered must keep
+// answering to the registry even when it happens to build inside CI. The
+// attestation is consulted only where the registry has nothing to say — a
+// missing registry or an unregistered domain — and only when the caller passed
+// one. Absent both, this refuses exactly as before.
+//
+// Note what this is not: there is no path here that admits a publication
+// without proving repository identity. Selecting a source chooses who states
+// the expectation; it never removes the obligation to meet it.
+func AdmitPublicationFromSource(domain string, inputDirs []string, registryPath string, attestation *GitHubActionsAttestation) (AdmissionDecision, error) {
 	domain = strings.TrimSpace(domain)
 	if domain == "" {
-		return nil // not a domain-scoped publication
+		return AdmissionDecision{}, nil // not a domain-scoped publication
 	}
 	if len(inputDirs) == 0 {
-		return &AdmissionRefusedError{RequestedDomain: domain, Reason: "no corpus root resolved"}
+		return AdmissionDecision{}, &AdmissionRefusedError{RequestedDomain: domain, Reason: "no corpus root resolved"}
 	}
 
+	source := AdmissionSourceRegistry
+	var rd RegisteredDomain
 	reg, err := LoadDomainRegistry(registryPath)
-	if err != nil {
-		return &AdmissionRefusedError{
+	switch {
+	case err == nil:
+		var ok bool
+		if rd, ok = reg.Domains[domain]; !ok {
+			if attestation == nil {
+				return AdmissionDecision{}, &AdmissionRefusedError{
+					RequestedDomain: domain,
+					Reason:          "domain is not registered; register it before publishing to it",
+				}
+			}
+			if rd, err = attestation.Bind(domain); err != nil {
+				return AdmissionDecision{}, err
+			}
+			source = AdmissionSourceGitHubActions
+		}
+	case attestation != nil:
+		if rd, err = attestation.Bind(domain); err != nil {
+			return AdmissionDecision{}, err
+		}
+		source = AdmissionSourceGitHubActions
+	default:
+		return AdmissionDecision{}, &AdmissionRefusedError{
 			RequestedDomain: domain,
 			Reason: fmt.Sprintf("no readable domain registry at %s (%v) — a domain cannot be "+
 				"resolved from the working directory, because that is exactly what "+
 				"published the wrong corpus", registryPath, err),
 		}
 	}
-	rd, ok := reg.Domains[domain]
-	if !ok {
-		return &AdmissionRefusedError{
-			RequestedDomain: domain,
-			Reason:          "domain is not registered; register it before publishing to it",
-		}
-	}
 
+	if err := admitAgainst(domain, inputDirs, rd); err != nil {
+		return AdmissionDecision{}, err
+	}
+	return decide(rd, source), nil
+}
+
+// admitAgainst runs the identity proof itself. Unchanged by the source: every
+// refusal below predates CI admission and applies identically to it.
+func admitAgainst(domain string, inputDirs []string, rd RegisteredDomain) error {
 	for _, dir := range inputDirs {
 		id, ierr := ResolveSourceIdentity(dir)
 		if ierr != nil {
