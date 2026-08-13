@@ -23,8 +23,9 @@ import (
 // challenge queries, never authored outcomes; the authority executes them
 // against RepositoryRoot itself.
 type ClosureReportAuthorityConfig struct {
-	Report   closure.Report
-	GoProbes []interpretationclosure.GoProbe
+	Report                    closure.Report
+	GoProbes                  []interpretationclosure.GoProbe
+	ChallengePlanDigestSHA256 string
 }
 
 // ClosureReportAuthority is the production pre-synthesis evidence owner. It
@@ -34,9 +35,10 @@ type ClosureReportAuthorityConfig struct {
 // derives scope/proof observations before asking interpretationclosure policy
 // to fold those observations into an advisory/governing receipt.
 type ClosureReportAuthority struct {
-	report       closure.Report
-	reportDigest string
-	goProbes     []interpretationclosure.GoProbe
+	report              closure.Report
+	reportDigest        string
+	goProbes            []interpretationclosure.GoProbe
+	challengePlanDigest string
 }
 
 var _ InterpretationAuthority = (*ClosureReportAuthority)(nil)
@@ -47,7 +49,23 @@ func NewClosureReportAuthority(config ClosureReportAuthorityConfig) (*ClosureRep
 		return nil, fmt.Errorf("synthesisdriver: digest interpretation closure report: %w", err)
 	}
 	probes := append([]interpretationclosure.GoProbe(nil), config.GoProbes...)
-	return &ClosureReportAuthority{report: config.Report, reportDigest: digest, goProbes: probes}, nil
+	challengeDigest := ""
+	if len(probes) != 0 {
+		computed, err := interpretationclosure.ChallengePlanDigest(interpretationclosure.ChallengePlan{
+			SchemaVersion: interpretationclosure.ChallengePlanSchemaVersion,
+			GoProbes:      probes,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("synthesisdriver: validate interpretation challenge plan: %w", err)
+		}
+		if config.ChallengePlanDigestSHA256 != "" && config.ChallengePlanDigestSHA256 != computed {
+			return nil, fmt.Errorf("synthesisdriver: interpretation challenge plan digest %q does not match recomputed %q", config.ChallengePlanDigestSHA256, computed)
+		}
+		challengeDigest = computed
+	} else if config.ChallengePlanDigestSHA256 != "" {
+		return nil, fmt.Errorf("synthesisdriver: interpretation challenge digest was supplied without any challenge probes")
+	}
+	return &ClosureReportAuthority{report: config.Report, reportDigest: digest, goProbes: probes, challengePlanDigest: challengeDigest}, nil
 }
 
 func (a *ClosureReportAuthority) Assess(ctx context.Context, request InterpretationAuthorityRequest) (interpretationclosure.Receipt, error) {
@@ -160,10 +178,14 @@ func (a *ClosureReportAuthority) truthFindings(ctx context.Context, request Inte
 				return nil, fmt.Errorf("synthesisdriver: Go interpretation probe claim %q is not a binding invariant of interpretation %q", probe.ClaimID, request.Interpretation.InterpretationID)
 			}
 		}
-		goFindings, err := interpretationclosure.CheckGoTruth(ctx, request.RepositoryRoot, a.goProbes)
-		if err != nil {
-			return nil, fmt.Errorf("synthesisdriver: execute Go interpretation challenge: %w", err)
+		probes := append([]interpretationclosure.GoProbe(nil), a.goProbes...)
+		for i := range probes {
+			probes[i].EvidenceReferences = []string{
+				"challenge-plan:" + a.challengePlanDigest,
+				"repository-revision:" + request.Session.BaseRevision,
+			}
 		}
+		goFindings := interpretationclosure.CheckGoTruth(ctx, request.RepositoryRoot, probes)
 		findings = append(findings, goFindings...)
 		for _, finding := range goFindings {
 			covered[strings.TrimSpace(finding.ClaimID)] = true
@@ -185,7 +207,8 @@ func (a *ClosureReportAuthority) truthFindings(ctx context.Context, request Inte
 		}
 		findings = append(findings, interpretationclosure.UnknownTruth(
 			claimID,
-			"unsupported",
+			"unknown",
+			"no_deterministic_checker",
 			"no deterministic repository checker or canonical claim match is available for this governing invariant",
 		))
 	}

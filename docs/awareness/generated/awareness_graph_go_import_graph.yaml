@@ -581,6 +581,10 @@ components:
       - golang/architecture/inference/rules.go
       - golang/architecture/inference/semantic_rules.go
       - golang/architecture/inference/util.go
+      - golang/architecture/interpretationclosure/challenge.go
+      - golang/architecture/interpretationclosure/go_checker.go
+      - golang/architecture/interpretationclosure/model.go
+      - golang/architecture/interpretationclosure/policy.go
       - golang/architecture/investigation/binding.go
       - golang/architecture/investigation/coverage.go
       - golang/architecture/investigation/digest.go
@@ -672,6 +676,7 @@ components:
       - golang/architecture/protection/util.go
       - golang/architecture/providerport/digest.go
       - golang/architecture/providerport/execution.go
+      - golang/architecture/providerport/interpretation_candidate.go
       - golang/architecture/providerport/mapping.go
       - golang/architecture/providerport/normalize.go
       - golang/architecture/providerport/provider.go
@@ -773,11 +778,13 @@ components:
       - golang/architecture/synthesis/state.go
       - golang/architecture/synthesis/transition.go
       - golang/architecture/synthesis/types.go
+      - golang/architecture/synthesisdriver/closure_report_authority.go
       - golang/architecture/synthesisdriver/driver.go
       - golang/architecture/synthesisdriver/engine.go
       - golang/architecture/synthesisdriver/fileinterpretation/open_unix.go
       - golang/architecture/synthesisdriver/fileinterpretation/open_windows.go
       - golang/architecture/synthesisdriver/fileinterpretation/provider.go
+      - golang/architecture/synthesisdriver/interpretation_authority.go
       - golang/architecture/synthesisdriver/receipt.go
       - golang/architecture/synthesisdriver/request.go
       - golang/architecture/synthesisdriver/schema.go

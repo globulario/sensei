@@ -88,7 +88,7 @@ type CompletenessAssessment struct {
 type RealizationAssessment struct {
 	Status             RealizationStatus `json:"status"`
 	EvidenceReferences []string          `json:"evidence_references,omitempty"`
-	UnjustifiedSurface []string           `json:"unjustified_surface,omitempty"`
+	UnjustifiedSurface []string          `json:"unjustified_surface,omitempty"`
 	Detail             string            `json:"detail,omitempty"`
 }
 

@@ -82,6 +82,7 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 				accepted.InterpretationDigestSHA256,
 				state.Session.BaseRevision,
 				state.Session.GraphAuthorityDigestSHA256,
+				state.Session.ClosureDigestSHA256,
 			); err != nil {
 				return Result{}, fmt.Errorf("synthesisdriver: interpretation authority returned invalid receipt: %w", err)
 			}
@@ -337,22 +338,22 @@ func finishResult(
 		candidateDigest = &value
 	}
 	receipt := RunReceipt{
-		SchemaVersion:                              RunReceiptSchemaVersion,
-		ReceiptID:                                  fmt.Sprintf("o7.%s.%d.%s", state.Session.SessionDigestSHA256[:16], step, disposition),
-		GeneratedBy:                                GeneratedBy,
-		SessionDigestSHA256:                        state.Session.SessionDigestSHA256,
-		FinalPhase:                                 string(state.Phase),
-		Disposition:                                disposition,
-		StepCount:                                  step,
-		O2ReceiptDigestsSHA256:                     o2,
+		SchemaVersion:          RunReceiptSchemaVersion,
+		ReceiptID:              fmt.Sprintf("o7.%s.%d.%s", state.Session.SessionDigestSHA256[:16], step, disposition),
+		GeneratedBy:            GeneratedBy,
+		SessionDigestSHA256:    state.Session.SessionDigestSHA256,
+		FinalPhase:             string(state.Phase),
+		Disposition:            disposition,
+		StepCount:              step,
+		O2ReceiptDigestsSHA256: o2,
 		InterpretationClosureReceiptDigestsSHA256: closures,
-		RunnerReceiptDigestsSHA256:                 runners,
-		EvaluationReceiptDigestsSHA256:             evaluations,
-		SynthesisReceiptDigestSHA256:               synthesisReceipt,
-		CandidateArtifactDigestSHA256:              candidateDigest,
-		Detail:                                     strings.TrimSpace(detail),
-		StartedAt:                                  startedAt,
-		CompletedAt:                                now().UTC().Format(time.RFC3339),
+		RunnerReceiptDigestsSHA256:                runners,
+		EvaluationReceiptDigestsSHA256:            evaluations,
+		SynthesisReceiptDigestSHA256:              synthesisReceipt,
+		CandidateArtifactDigestSHA256:             candidateDigest,
+		Detail:                                    strings.TrimSpace(detail),
+		StartedAt:                                 startedAt,
+		CompletedAt:                               now().UTC().Format(time.RFC3339),
 	}
 	finalized, err := finalizeRunReceipt(receipt)
 	if err != nil {

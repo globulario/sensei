@@ -315,19 +315,19 @@ func lifecycleHarness(
 		Now: clock,
 	}
 	return state, Config{
-		WorkspaceIdentity:        identity,
-		RepositoryRoot:           repoRoot,
-		CandidateStore:           store,
-		InterpretationProvider:   &cognitiveProvider{operation: providerport.OperationInterpretation},
-		InterpretationAuthority:  testGoverningInterpretationAuthority(),
-		PlanningProvider:         &cognitiveProvider{operation: providerport.OperationPlanning},
-		GenerationFactory:        factory,
-		EvaluationEngine:         engine,
-		InterpretationPolicy:     ProviderPolicy{DeadlineAt: "2099-01-01T00:00:00Z", MaxObservationCount: 8, MaxObservationBytes: 4096},
-		PlanningPolicy:           ProviderPolicy{DeadlineAt: "2099-01-01T00:00:00Z", MaxObservationCount: 8, MaxObservationBytes: 4096},
-		GenerationPolicy:         runnercomposition.RequestPolicy{DeadlineAt: "2099-01-01T00:00:00Z", MaxObservationCount: 8, MaxObservationBytes: 4096},
-		MaxSteps:                 20,
-		Now:                      clock,
+		WorkspaceIdentity:       identity,
+		RepositoryRoot:          repoRoot,
+		CandidateStore:          store,
+		InterpretationProvider:  &cognitiveProvider{operation: providerport.OperationInterpretation},
+		InterpretationAuthority: testGoverningInterpretationAuthority(),
+		PlanningProvider:        &cognitiveProvider{operation: providerport.OperationPlanning},
+		GenerationFactory:       factory,
+		EvaluationEngine:        engine,
+		InterpretationPolicy:    ProviderPolicy{DeadlineAt: "2099-01-01T00:00:00Z", MaxObservationCount: 8, MaxObservationBytes: 4096},
+		PlanningPolicy:          ProviderPolicy{DeadlineAt: "2099-01-01T00:00:00Z", MaxObservationCount: 8, MaxObservationBytes: 4096},
+		GenerationPolicy:        runnercomposition.RequestPolicy{DeadlineAt: "2099-01-01T00:00:00Z", MaxObservationCount: 8, MaxObservationBytes: 4096},
+		MaxSteps:                20,
+		Now:                     clock,
 	}
 }
 

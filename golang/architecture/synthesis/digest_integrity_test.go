@@ -89,7 +89,7 @@ func TestRecordCommandsRejectDeclaredDigestMismatch(t *testing.T) {
 
 	planningSeed := freshCreatedState(t)
 	interp := fixtureInterpretation(t, planningSeed.Session.SessionDigestSHA256)
-	planning, _ := mustTransition(t, planningSeed, RecordInterpretationCommand{Interpretation: interp})
+	planning, _ := mustTransition(t, planningSeed, testCertifiedInterpretationCommand(t, planningSeed, interp))
 	tamperedPlan := buildPlan(t, planning.InterpretationDigestSHA256, planning.ExpectedPlanGeneration)
 	tamperedPlan.PlanDigestSHA256 = zeroDigest
 
@@ -111,7 +111,7 @@ func TestRecordCommandsRejectDeclaredDigestMismatch(t *testing.T) {
 		state SessionState
 		cmd   Command
 	}{
-		{"RecordInterpretation declares a digest that does not match its content", created, RecordInterpretationCommand{Interpretation: tamperedInterpretation}},
+		{"RecordInterpretation declares a digest that does not match its content", created, RecordInterpretationCommand{Interpretation: tamperedInterpretation, closureReceiptDigestSHA256: zeroDigest}},
 		{"RecordPlan declares a digest that does not match its content", planning, RecordPlanCommand{Plan: tamperedPlan}},
 		{"RecordAttempt declares a digest that does not match its content", attempting, RecordAttemptCommand{Attempt: tamperedAttempt}},
 		{"RecordEvaluation declares a digest that does not match its content", evaluating, RecordEvaluationCommand{Evaluation: tamperedEvaluation}},

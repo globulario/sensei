@@ -170,12 +170,13 @@ func TestO7CompletesWithGroundedInterpretationAndO8Planning(t *testing.T) {
 	}
 	clock := fixedClock()
 	result, err := Run(context.Background(), state, Config{
-		WorkspaceIdentity:      identity,
-		RepositoryRoot:         repoRoot,
-		CandidateStore:         store,
-		InterpretationProvider: groundedInterpretationProvider{},
-		PlanningProvider:       planningProvider,
-		GenerationFactory:      generationFactory,
+		WorkspaceIdentity:       identity,
+		RepositoryRoot:          repoRoot,
+		CandidateStore:          store,
+		InterpretationProvider:  groundedInterpretationProvider{},
+		InterpretationAuthority: testGoverningInterpretationAuthority(),
+		PlanningProvider:        planningProvider,
+		GenerationFactory:       generationFactory,
 		EvaluationEngine: &O4Engine{
 			Store:         store,
 			PolicyFactory: passingPolicyFactory(t),

@@ -38,7 +38,7 @@ func TestClosureReportAuthorityRefutedCanonicalClaimBlocksButUnknownDoesNot(t *t
 	report.RelevantClaims = []closure.ClaimReceipt{{
 		ID:                 "invariant.refuted",
 		PropositionKey:     "prop.refuted",
-		ArchitecturalPlane: architecture.PlaneObserved,
+		ArchitecturalPlane: "observed",
 		EpistemicStatus:    architecture.StatusRefuted,
 	}}
 	authority, err := NewClosureReportAuthority(ClosureReportAuthorityConfig{Report: report})
@@ -160,8 +160,8 @@ func testInterpretationAuthorityRequest(t *testing.T, report closure.Report, ref
 	return InterpretationAuthorityRequest{
 		RepositoryRoot: t.TempDir(),
 		Session: synthesis.Session{
-			SessionDigestSHA256:         interp.SessionDigestSHA256,
-			BaseRevision:                "deadbeef",
+			SessionDigestSHA256:        interp.SessionDigestSHA256,
+			BaseRevision:               "deadbeef",
 			GraphAuthorityDigestSHA256: strings.Repeat("b", 64),
 			ClosureDigestSHA256:        closureDigest,
 		},

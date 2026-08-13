@@ -95,7 +95,7 @@ func freshCreatedState(t *testing.T) SessionState {
 func driveToPlanned(t *testing.T, state SessionState) SessionState {
 	t.Helper()
 	interp := fixtureInterpretation(t, state.Session.SessionDigestSHA256)
-	state, _ = mustTransition(t, state, RecordInterpretationCommand{Interpretation: interp})
+	state, _ = mustTransition(t, state, testCertifiedInterpretationCommand(t, state, interp))
 	plan := buildPlan(t, state.InterpretationDigestSHA256, state.ExpectedPlanGeneration)
 	state, _ = mustTransition(t, state, RecordPlanCommand{Plan: plan})
 	return state
@@ -289,7 +289,7 @@ func TestPlanGenerationAdvancesOnlyOnRecordPlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	interp := fixtureInterpretation(t, session.SessionDigestSHA256)
-	planning, _ := mustTransition(t, created, RecordInterpretationCommand{Interpretation: interp})
+	planning, _ := mustTransition(t, created, testCertifiedInterpretationCommand(t, created, interp))
 	if planning.PlanGeneration != 0 {
 		t.Fatalf("PlanGeneration before any plan = %d, want 0", planning.PlanGeneration)
 	}
@@ -566,7 +566,7 @@ func TestAbortFromEveryNonTerminalPhase(t *testing.T) {
 		PhasePlanning: func(t *testing.T) SessionState {
 			s := freshCreatedState(t)
 			interp := fixtureInterpretation(t, s.Session.SessionDigestSHA256)
-			s, _ = mustTransition(t, s, RecordInterpretationCommand{Interpretation: interp})
+			s, _ = mustTransition(t, s, testCertifiedInterpretationCommand(t, s, interp))
 			return s
 		},
 		PhasePlanned:    func(t *testing.T) SessionState { return driveToPlanned(t, freshCreatedState(t)) },

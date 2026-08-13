@@ -25,12 +25,12 @@ const (
 type Disposition string
 
 const (
-	DispositionCandidateReady            Disposition = "candidate-ready"
-	DispositionTerminalFailure           Disposition = "terminal-failure"
-	DispositionProviderStopped           Disposition = "provider-stopped"
-	DispositionInterpretationAdvisory    Disposition = "interpretation-advisory"
-	DispositionRunnerStopped             Disposition = "runner-stopped"
-	DispositionStepLimitReached          Disposition = "step-limit-reached"
+	DispositionCandidateReady         Disposition = "candidate-ready"
+	DispositionTerminalFailure        Disposition = "terminal-failure"
+	DispositionProviderStopped        Disposition = "provider-stopped"
+	DispositionInterpretationAdvisory Disposition = "interpretation-advisory"
+	DispositionRunnerStopped          Disposition = "runner-stopped"
+	DispositionStepLimitReached       Disposition = "step-limit-reached"
 )
 
 // ProviderPolicy is the exact O2 execution budget for one operation.

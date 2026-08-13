@@ -37,7 +37,7 @@ type GoProbe struct {
 	Expected           string      `json:"expected"`
 	InterfacePackage   string      `json:"interface_package,omitempty"`
 	InterfaceName      string      `json:"interface_name,omitempty"`
-	EvidenceReferences []string    `json:"evidence_references,omitempty"`
+	EvidenceReferences []string    `json:"-"`
 }
 
 // CheckGoTruth evaluates structured Go facts against the exact checkout at
