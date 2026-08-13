@@ -5,6 +5,7 @@ package interpretationclosure
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // Certify is the pure closure-policy fold over observations supplied by an
@@ -87,7 +88,7 @@ func blockersFor(in Input) []string {
 // policy decision for either advisory or governing receipts. It never trusts
 // Receipt.Authority or Receipt.Blockers as caller assertions: the policy is
 // recomputed from the bound observations and compared against the receipt.
-func Verify(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityDigest string) error {
+func Verify(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityDigest, closureDigest string) error {
 	if r.SchemaVersion != ReceiptSchemaVersion {
 		return fmt.Errorf("interpretationclosure: unsupported receipt schema %q", r.SchemaVersion)
 	}
@@ -99,6 +100,9 @@ func Verify(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityD
 	}
 	if r.GraphAuthorityDigestSHA256 != graphAuthorityDigest {
 		return fmt.Errorf("interpretationclosure: receipt graph authority digest %q does not match %q", r.GraphAuthorityDigestSHA256, graphAuthorityDigest)
+	}
+	if r.ClosureDigestSHA256 != closureDigest {
+		return fmt.Errorf("interpretationclosure: receipt task closure digest %q does not match %q", r.ClosureDigestSHA256, closureDigest)
 	}
 
 	recomputed, err := Certify(r.Input)
@@ -114,10 +118,49 @@ func Verify(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityD
 	return nil
 }
 
-// VerifyForGoverning adds the authority requirement to Verify. Advisory is a
-// valid closure outcome, but it cannot cross the O1 promotion boundary.
-func VerifyForGoverning(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityDigest string) error {
-	if err := Verify(r, interpretationDigest, repositoryRevision, graphAuthorityDigest); err != nil {
+// VerifyCoverage proves that the receipt did not silently omit structured
+// governing premises or required proof obligations declared by the exact
+// interpretation whose digest it binds. A Gate-1 unknown finding satisfies
+// coverage because Gate 1 is a contradiction detector, not a proof gate; the
+// important property is that the premise was explicitly challenged and its
+// undecidability remained visible. Required proofs are stricter: every
+// declared obligation must be represented as required-for-authority. Policy
+// then blocks unresolved or contradicted observations.
+func VerifyCoverage(r Receipt, governingClaimIDs, requiredProofObligationIDs []string) error {
+	seenClaims := map[string]bool{}
+	for _, finding := range r.TruthFindings {
+		seenClaims[strings.TrimSpace(finding.ClaimID)] = true
+	}
+	for _, claimID := range sortedUnique(governingClaimIDs) {
+		if !seenClaims[claimID] {
+			return fmt.Errorf("interpretationclosure: governing claim %q has no explicit truth challenge result", claimID)
+		}
+	}
+
+	proofs := map[string]ProofObservation{}
+	for _, observation := range r.ProofObservations {
+		proofs[strings.TrimSpace(observation.ObligationID)] = observation
+	}
+	for _, obligationID := range sortedUnique(requiredProofObligationIDs) {
+		observation, ok := proofs[obligationID]
+		if !ok {
+			return fmt.Errorf("interpretationclosure: required proof obligation %q is absent from the closure receipt", obligationID)
+		}
+		if !observation.RequiredForAuthority {
+			return fmt.Errorf("interpretationclosure: required proof obligation %q is not marked required for authority", obligationID)
+		}
+	}
+	return nil
+}
+
+// VerifyForGoverning adds coverage and authority requirements to Verify.
+// Advisory is a valid closure outcome, but it cannot cross the O1 promotion
+// boundary.
+func VerifyForGoverning(r Receipt, interpretationDigest, repositoryRevision, graphAuthorityDigest, closureDigest string, governingClaimIDs, requiredProofObligationIDs []string) error {
+	if err := Verify(r, interpretationDigest, repositoryRevision, graphAuthorityDigest, closureDigest); err != nil {
+		return err
+	}
+	if err := VerifyCoverage(r, governingClaimIDs, requiredProofObligationIDs); err != nil {
 		return err
 	}
 	if r.Authority != AuthorityGoverning {
