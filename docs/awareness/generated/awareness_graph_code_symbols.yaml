@@ -4924,6 +4924,54 @@ test_symbols:
     symbol: TestRequireBenchmarkAuthority_UsesLiveCurrentCertifiedServer
     package: main
     language: go
+  - id: cmd/awg/domain_admission_ci_test.go:TestAttestationCannotSpeakForAnotherDomain
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestAttestationCannotSpeakForAnotherDomain
+    package: main
+    language: go
+    doc: "THE property. A registry may bind any domain to any repository; an\nattestation may bind only its own. Without this, a workflow in any repository\ncould publish into any other repository's domain merely by asking, which is a\nstrictly worse hole than the one this whole layer exists to close."
+  - id: cmd/awg/domain_admission_ci_test.go:TestAttestationRefusesOutsideCI
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestAttestationRefusesOutsideCI
+    package: main
+    language: go
+    doc: "The attestation must not be able to assert its own presence. GITHUB_ACTIONS\nis settable by anyone; treating it as self-certifying would turn the flag into\nthe production opt-out the invariant forbids."
+  - id: cmd/awg/domain_admission_ci_test.go:TestAttestationUsesItsOwnServerHost
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestAttestationUsesItsOwnServerHost
+    package: main
+    language: go
+    doc: "Enterprise Server attests to its own host rather than borrowing github.com's."
+  - id: cmd/awg/domain_admission_ci_test.go:TestCIAdmissionAdmitsItsOwnRepositoryWithoutARegistry
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestCIAdmissionAdmitsItsOwnRepositoryWithoutARegistry
+    package: main
+    language: go
+    doc: "The end-to-end path: no registry on the runner, attestation offered, and the\ncorpus genuinely belongs to the attested repository."
+  - id: cmd/awg/domain_admission_ci_test.go:TestCIAdmissionStillRefusesADirtyCorpus
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestCIAdmissionStillRefusesADirtyCorpus
+    package: main
+    language: go
+    doc: "No opt-out reaches the dirty check. CI is exactly where certifying a revision\nwhose bytes are not being shipped would be least visible."
+  - id: cmd/awg/domain_admission_ci_test.go:TestCIAdmissionStillRefusesTheWrongWorkspace
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestCIAdmissionStillRefusesTheWrongWorkspace
+    package: main
+    language: go
+    doc: "Even holding a valid attestation for the right domain, the corpus must still\nbelong to it. This is the 2026-08-05 refusal, re-proved on the CI path."
+  - id: cmd/awg/domain_admission_ci_test.go:TestNoAttestationKeepsTheOriginalRefusal
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestNoAttestationKeepsTheOriginalRefusal
+    package: main
+    language: go
+    doc: "Without an attestation the behaviour is exactly what it was."
+  - id: cmd/awg/domain_admission_ci_test.go:TestRegistryOutranksAttestation
+    file: cmd/awg/domain_admission_ci_test.go
+    symbol: TestRegistryOutranksAttestation
+    package: main
+    language: go
+    doc: "An operator-authored registry outranks a machine-issued attestation: a\nregistered domain keeps answering to its operator even inside CI."
   - id: cmd/awg/domain_admission_test.go:TestCorrectWorkspaceIsAdmitted
     file: cmd/awg/domain_admission_test.go
     symbol: TestCorrectWorkspaceIsAdmitted
