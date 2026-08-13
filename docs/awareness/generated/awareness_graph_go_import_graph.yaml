@@ -164,6 +164,7 @@ components:
       - cmd/awg/dirsync_unix.go
       - cmd/awg/dirsync_windows.go
       - cmd/awg/domain_admission.go
+      - cmd/awg/domain_admission_ci.go
       - cmd/awg/domain_closure.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
