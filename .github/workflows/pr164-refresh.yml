@@ -24,7 +24,6 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          import re
 
           def replace_once(path, old, new):
               p = Path(path)
@@ -93,13 +92,31 @@ jobs:
                           out.append(indent + 'InterpretationAuthority: testGoverningInterpretationAuthority(),\n')
               p.write_text(''.join(out))
 
-          # providerport tests must cross O1 through the certified constructor.
+          # O1 tests must use the real promotion constructor rather than package-local
+          # access to the command literal.
+          replace_once(
+              'golang/architecture/synthesis/transition_test.go',
+              'state, _ = mustTransition(t, state, RecordInterpretationCommand{Interpretation: interp})',
+              'state, _ = mustTransition(t, state, testCertifiedInterpretationCommand(t, state, interp))',
+          )
+
+          # providerport fixture drivers also cross O1 through the certified constructor.
           p = Path('golang/architecture/providerport/mapping_test.go')
           text = p.read_text().replace(
               'synthesis.Transition(state, synthesis.RecordInterpretationCommand{Interpretation: interp})',
               'synthesis.Transition(state, testCertifiedInterpretationCommand(t, state, interp))',
               1,
           )
+          text = text.replace(
+              'synthesis.Transition(freshCreated, synthesis.RecordInterpretationCommand{Interpretation: interp2})',
+              'synthesis.Transition(freshCreated, testCertifiedInterpretationCommand(t, freshCreated, interp2))',
+              1,
+          )
+          old_transition_test = '''\tcmd, err := MapToCommand(state, request, result, "")\n\tif err != nil {\n\t\tt.Fatalf("MapToCommand: %v", err)\n\t}\n\tnext, events, err := synthesis.Transition(state, cmd)\n\tif err != nil {\n\t\tt.Fatalf("synthesis.Transition rejected the mapped command: %v", err)\n\t}'''
+          new_transition_test = '''\taccepted, err := MapInterpretationCandidate(state, request, result)\n\tif err != nil {\n\t\tt.Fatalf("MapInterpretationCandidate: %v", err)\n\t}\n\tcmd := testCertifiedInterpretationCommand(t, state, accepted)\n\tnext, events, err := synthesis.Transition(state, cmd)\n\tif err != nil {\n\t\tt.Fatalf("synthesis.Transition rejected the certified command: %v", err)\n\t}'''
+          if old_transition_test not in text:
+              raise SystemExit('providerport transition integration test pattern not found')
+          text = text.replace(old_transition_test, new_transition_test, 1)
           p.write_text(text)
 
           # Production CLI composes the authority from the exact closure report and
@@ -132,6 +149,12 @@ jobs:
           p = Path('golang/architecture/synthesisdriver/closure_report_authority_test.go')
           text = p.read_text().replace('ArchitecturalPlane: architecture.PlaneObserved,', 'ArchitecturalPlane: "observed",')
           p.write_text(text)
+
+          # Canonical and embedded O7 receipt schemas are one artifact. The source
+          # schema changed earlier on this branch; copy it to the canonical docs
+          # location so the drift guard remains meaningful.
+          embedded = Path('golang/architecture/synthesisdriver/schemas/synthesisdriver-receipt-v1.schema.json')
+          Path('docs/schemas/synthesisdriver/v1/synthesisdriver-receipt-v1.schema.json').write_text(embedded.read_text())
       - name: Format touched Go sources
         run: |
           gofmt -w \
@@ -140,8 +163,7 @@ jobs:
             golang/architecture/providerport/interpretation_candidate.go \
             golang/architecture/providerport/interpretation_closure_test.go \
             golang/architecture/providerport/mapping_test.go \
-            golang/architecture/synthesis/commands.go \
-            golang/architecture/synthesis/transition.go \
+            golang/architecture/synthesis/*.go \
             golang/architecture/synthesisdriver/*.go
       - name: Run focused tests
         run: |
@@ -152,7 +174,7 @@ jobs:
         run: |
           git config user.name "sensei-pr164-bot"
           git config user.email "sensei-pr164-bot@users.noreply.github.com"
-          git add cmd/awg/cmd_synthesis_run.go golang/architecture docs/awareness/generated/awareness_graph_go_import_graph.yaml
+          git add cmd/awg/cmd_synthesis_run.go golang/architecture docs/schemas/synthesisdriver/v1/synthesisdriver-receipt-v1.schema.json docs/awareness/generated/awareness_graph_go_import_graph.yaml
           if git diff --cached --quiet; then
             echo "No refresh changes"
             exit 0
