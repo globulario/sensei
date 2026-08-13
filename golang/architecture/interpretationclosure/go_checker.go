@@ -1,0 +1,218 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package interpretationclosure
+
+import (
+	"context"
+	"fmt"
+	"go/types"
+	"strings"
+
+	"golang.org/x/tools/go/packages"
+)
+
+// GoProbeKind is the deliberately small first mechanically-checkable Go
+// vocabulary. It checks facts, not arbitrary natural-language invariants.
+// Claims outside this vocabulary remain TruthUnknown rather than being
+// silently treated as unsupported authority.
+type GoProbeKind string
+
+const (
+	GoProbeTypeExists           GoProbeKind = "go_type_exists"
+	GoProbeUnderlyingTypeEquals GoProbeKind = "go_underlying_type_equals"
+	GoProbeImplementsInterface  GoProbeKind = "go_implements_interface"
+)
+
+// GoProbe is a declarative question, never a caller-authored result. The
+// expected value is part of the premise being challenged; CheckGoTruth owns
+// the observation of the repository and derives supported/contradicted/
+// unknown. This shape is intentionally serializable so a challenge plan can
+// be frozen before repair without containing any authority boolean.
+type GoProbe struct {
+	ClaimID            string      `json:"claim_id"`
+	Kind               GoProbeKind `json:"kind"`
+	PackagePattern     string      `json:"package_pattern"`
+	TypeName           string      `json:"type_name"`
+	Pointer            bool        `json:"pointer,omitempty"`
+	Expected           string      `json:"expected"`
+	InterfacePackage   string      `json:"interface_package,omitempty"`
+	InterfaceName      string      `json:"interface_name,omitempty"`
+	EvidenceReferences []string    `json:"-"`
+}
+
+// CheckGoTruth evaluates structured Go facts against the exact checkout at
+// repositoryRoot. It is the initial Gate-1 implementation scope. Repository
+// load/check failures are represented per probe as TruthUnknown instead of as
+// a synthetic contradiction. Other languages likewise remain unknown until a
+// language-specific checker exists.
+func CheckGoTruth(ctx context.Context, repositoryRoot string, probes []GoProbe) []TruthFinding {
+	out := make([]TruthFinding, 0, len(probes))
+	for _, probe := range probes {
+		out = append(out, checkGoProbe(ctx, repositoryRoot, probe))
+	}
+	return out
+}
+
+func UnknownTruth(claimID, language, checkKind, detail string, evidenceRefs ...string) TruthFinding {
+	return TruthFinding{
+		ClaimID:            claimID,
+		Language:           language,
+		CheckKind:          checkKind,
+		Status:             TruthUnknown,
+		EvidenceReferences: sortedUnique(evidenceRefs),
+		Detail:             detail,
+	}
+}
+
+func checkGoProbe(ctx context.Context, root string, p GoProbe) TruthFinding {
+	base := TruthFinding{
+		ClaimID:            strings.TrimSpace(p.ClaimID),
+		Language:           "go",
+		CheckKind:          string(p.Kind),
+		Subject:            strings.TrimSpace(p.PackagePattern) + "." + strings.TrimSpace(p.TypeName),
+		EvidenceReferences: sortedUnique(p.EvidenceReferences),
+	}
+	if strings.TrimSpace(p.ClaimID) == "" || strings.TrimSpace(p.PackagePattern) == "" || strings.TrimSpace(p.TypeName) == "" {
+		base.Status = TruthUnknown
+		base.Detail = "probe is missing claim_id, package pattern, or type name"
+		return base
+	}
+
+	patterns := []string{p.PackagePattern}
+	if p.Kind == GoProbeImplementsInterface && p.InterfacePackage != "" && p.InterfacePackage != p.PackagePattern {
+		patterns = append(patterns, p.InterfacePackage)
+	}
+	cfg := &packages.Config{Context: ctx, Dir: root, Mode: packages.NeedName | packages.NeedTypes | packages.NeedDeps}
+	pkgs, err := packages.Load(cfg, patterns...)
+	if err != nil || loadedPackagesHaveErrors(pkgs) {
+		base.Status = TruthUnknown
+		if err != nil {
+			base.Detail = "Go package load failed: " + err.Error()
+		} else {
+			base.Detail = "Go package load reported errors"
+		}
+		return base
+	}
+	targetPkg := findLoadedPackage(pkgs, p.PackagePattern)
+	if targetPkg == nil || targetPkg.Types == nil {
+		base.Status = TruthUnknown
+		base.Detail = "target Go package was not resolved"
+		return base
+	}
+	obj := targetPkg.Types.Scope().Lookup(p.TypeName)
+
+	switch p.Kind {
+	case GoProbeTypeExists:
+		actual := obj != nil
+		expected, ok := parseBool(p.Expected)
+		if !ok {
+			base.Status = TruthUnknown
+			base.Detail = "type-exists probe expected value must be true or false"
+			return base
+		}
+		base.Status = statusFor(actual == expected)
+		base.Detail = fmt.Sprintf("type existence actual=%t expected=%t", actual, expected)
+		return base
+
+	case GoProbeUnderlyingTypeEquals:
+		if obj == nil {
+			base.Status = TruthContradicted
+			base.Detail = "claimed type does not exist"
+			return base
+		}
+		actual := types.TypeString(obj.Type().Underlying(), qualifier)
+		base.Status = statusFor(actual == strings.TrimSpace(p.Expected))
+		base.Detail = fmt.Sprintf("underlying type actual=%q expected=%q", actual, p.Expected)
+		return base
+
+	case GoProbeImplementsInterface:
+		if obj == nil || strings.TrimSpace(p.InterfacePackage) == "" || strings.TrimSpace(p.InterfaceName) == "" {
+			base.Status = TruthUnknown
+			base.Detail = "implements-interface probe lacks a resolvable target or interface"
+			return base
+		}
+		ifacePkg := findLoadedPackage(pkgs, p.InterfacePackage)
+		if ifacePkg == nil || ifacePkg.Types == nil {
+			base.Status = TruthUnknown
+			base.Detail = "interface package was not resolved"
+			return base
+		}
+		ifaceObj := ifacePkg.Types.Scope().Lookup(p.InterfaceName)
+		if ifaceObj == nil {
+			base.Status = TruthContradicted
+			base.Detail = "claimed interface does not exist"
+			return base
+		}
+		iface, ok := ifaceObj.Type().Underlying().(*types.Interface)
+		if !ok {
+			base.Status = TruthContradicted
+			base.Detail = "named interface subject is not an interface"
+			return base
+		}
+		var target types.Type = obj.Type()
+		if p.Pointer {
+			target = types.NewPointer(target)
+		}
+		actual := types.Implements(target, iface.Complete())
+		expected, ok := parseBool(p.Expected)
+		if !ok {
+			base.Status = TruthUnknown
+			base.Detail = "implements-interface probe expected value must be true or false"
+			return base
+		}
+		base.Status = statusFor(actual == expected)
+		base.Detail = fmt.Sprintf("implements %s.%s actual=%t expected=%t", p.InterfacePackage, p.InterfaceName, actual, expected)
+		return base
+
+	default:
+		base.Status = TruthUnknown
+		base.Detail = "Go truth probe kind is not implemented"
+		return base
+	}
+}
+
+func loadedPackagesHaveErrors(pkgs []*packages.Package) bool {
+	for _, pkg := range pkgs {
+		if len(pkg.Errors) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func findLoadedPackage(pkgs []*packages.Package, pattern string) *packages.Package {
+	for _, pkg := range pkgs {
+		if pkg.PkgPath == pattern || pkg.ID == pattern || pkg.Name == pattern {
+			return pkg
+		}
+	}
+	if len(pkgs) == 1 {
+		return pkgs[0]
+	}
+	return nil
+}
+
+func qualifier(p *types.Package) string {
+	if p == nil {
+		return ""
+	}
+	return p.Name()
+}
+
+func statusFor(equal bool) TruthStatus {
+	if equal {
+		return TruthSupported
+	}
+	return TruthContradicted
+}
+
+func parseBool(s string) (bool, bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	default:
+		return false, false
+	}
+}

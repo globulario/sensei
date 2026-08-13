@@ -202,13 +202,14 @@ func TestRunHappyPathThroughRealOwners(t *testing.T) {
 		Now: clock,
 	}
 	result, err := Run(context.Background(), state, Config{
-		WorkspaceIdentity:      identity,
-		RepositoryRoot:         repoRoot,
-		CandidateStore:         store,
-		InterpretationProvider: &cognitiveProvider{operation: providerport.OperationInterpretation},
-		PlanningProvider:       &cognitiveProvider{operation: providerport.OperationPlanning},
-		GenerationFactory:      generationFactory,
-		EvaluationEngine:       engine,
+		WorkspaceIdentity:       identity,
+		RepositoryRoot:          repoRoot,
+		CandidateStore:          store,
+		InterpretationProvider:  &cognitiveProvider{operation: providerport.OperationInterpretation},
+		InterpretationAuthority: testGoverningInterpretationAuthority(),
+		PlanningProvider:        &cognitiveProvider{operation: providerport.OperationPlanning},
+		GenerationFactory:       generationFactory,
+		EvaluationEngine:        engine,
 		InterpretationPolicy: ProviderPolicy{
 			DeadlineAt: "2099-01-01T00:00:00Z", MaxObservationCount: 8, MaxObservationBytes: 4096,
 		},

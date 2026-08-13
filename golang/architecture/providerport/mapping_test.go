@@ -40,7 +40,7 @@ func driveToPlanning(t *testing.T) (synthesis.SessionState, synthesis.Session, s
 	t.Helper()
 	state, session := driveToCreated(t)
 	interp := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
-	next, _, err := synthesis.Transition(state, synthesis.RecordInterpretationCommand{Interpretation: interp})
+	next, _, err := synthesis.Transition(state, testCertifiedInterpretationCommand(t, state, interp))
 	if err != nil {
 		t.Fatalf("synthesis.Transition(RecordInterpretation): %v", err)
 	}
@@ -163,13 +163,14 @@ func TestMapToCommandOutputIsAcceptedByTransition(t *testing.T) {
 	candidate := fixtureSynthesisInterpretation(t, session.SessionDigestSHA256)
 	result := fixtureInterpretationResult(t, request.RequestDigestSHA256, candidate)
 
-	cmd, err := MapToCommand(state, request, result, "")
+	accepted, err := MapInterpretationCandidate(state, request, result)
 	if err != nil {
-		t.Fatalf("MapToCommand: %v", err)
+		t.Fatalf("MapInterpretationCandidate: %v", err)
 	}
+	cmd := testCertifiedInterpretationCommand(t, state, accepted)
 	next, events, err := synthesis.Transition(state, cmd)
 	if err != nil {
-		t.Fatalf("synthesis.Transition rejected the mapped command: %v", err)
+		t.Fatalf("synthesis.Transition rejected the certified command: %v", err)
 	}
 	if next.Phase != synthesis.PhasePlanning {
 		t.Errorf("Phase after the mapped command = %s, want %s", next.Phase, synthesis.PhasePlanning)
@@ -830,7 +831,7 @@ func TestCapabilityClaimGrantsNoAuthority(t *testing.T) {
 		t.Fatal(err)
 	}
 	interp2.InterpretationDigestSHA256 = interp2Digest
-	advancedState, _, err := synthesis.Transition(freshCreated, synthesis.RecordInterpretationCommand{Interpretation: interp2})
+	advancedState, _, err := synthesis.Transition(freshCreated, testCertifiedInterpretationCommand(t, freshCreated, interp2))
 	if err != nil {
 		t.Fatal(err)
 	}

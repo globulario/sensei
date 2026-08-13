@@ -2,18 +2,95 @@
 
 package synthesis
 
-// Command is the closed set of inputs Transition accepts. Every Command
-// implementation is a plain data value; a Command never carries authority
-// of its own — Transition alone decides whether a given command is legal
-// in a given SessionState.
+import (
+	"fmt"
+
+	"github.com/globulario/sensei/golang/architecture/interpretationclosure"
+)
+
+// Command is the closed set of inputs Transition accepts. Command values carry
+// proposed data, never self-asserted authority. Transition remains the final
+// deterministic legality boundary for every state change.
 type Command interface{ synthesisCommand() }
 
 // RecordInterpretationCommand carries the full Interpretation document that
 // starts the session's single, session-lifetime interpretation. Legal only
-// from PhaseCreated. A replan later in the session's life reuses this same
-// interpretation — RecordInterpretationCommand is never legal a second time
-// in the same session.
-type RecordInterpretationCommand struct{ Interpretation Interpretation }
+// from PhaseCreated.
+//
+// Interpretation remains exported for source compatibility and inspection,
+// but closureReceiptDigestSHA256 is intentionally package-private. A caller
+// can still construct the data shape, but it cannot manufacture the authority
+// marker that Transition requires. Code outside package synthesis must use
+// NewRecordInterpretationCommand to create a command that can actually move O1
+// from Created to Planning.
+type RecordInterpretationCommand struct {
+	Interpretation Interpretation
+
+	closureReceiptDigestSHA256 string
+}
+
+// NewRecordInterpretationCommand is the authority-promotion boundary between
+// interpretation closure and O1 planning. It recomputes the interpretation
+// digest and verifies the supplied closure receipt against the exact
+// repository revision, graph authority, and task closure already bound into
+// the session. Every binding invariant must have an explicit Gate-1 result
+// (supported, unknown, or contradicted), and every declared proof obligation
+// must be represented as required for authority.
+//
+// This constructor deliberately does not make interpretation closure repair
+// verification. It only establishes that this premise earned the right to
+// govern. O4 and the downstream admission/verification chain remain separate.
+func NewRecordInterpretationCommand(state SessionState, interp Interpretation, receipt interpretationclosure.Receipt) (RecordInterpretationCommand, error) {
+	if interp.SessionDigestSHA256 != state.Session.SessionDigestSHA256 {
+		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation references session digest %q, expected %q", interp.SessionDigestSHA256, state.Session.SessionDigestSHA256)
+	}
+	digest, err := InterpretationDigest(interp)
+	if err != nil {
+		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: compute interpretation digest: %w", err)
+	}
+	if interp.InterpretationDigestSHA256 != digest {
+		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation declares digest %q but its actual computed digest is %q", interp.InterpretationDigestSHA256, digest)
+	}
+	if err := interpretationclosure.VerifyForGoverning(
+		receipt,
+		digest,
+		state.Session.BaseRevision,
+		state.Session.GraphAuthorityDigestSHA256,
+		state.Session.ClosureDigestSHA256,
+		interp.BindingInvariants,
+		interp.RequiredProofObligations,
+	); err != nil {
+		return RecordInterpretationCommand{}, fmt.Errorf("synthesis: interpretation is not certified for governing authority: %w", err)
+	}
+	return RecordInterpretationCommand{
+		Interpretation:             interp,
+		closureReceiptDigestSHA256: receipt.ReceiptDigestSHA256,
+	}, nil
+}
+
+// InterpretationClosureReceiptDigestSHA256 exposes audit provenance without
+// exposing a constructor bypass. It is premise-authority evidence, not
+// repair-verification evidence.
+func (c RecordInterpretationCommand) InterpretationClosureReceiptDigestSHA256() string {
+	return c.closureReceiptDigestSHA256
+}
+
+// hasVerifiedInterpretationClosure is deliberately package-private. The
+// marker is minted only by NewRecordInterpretationCommand after full receipt
+// verification, and Transition checks it again before accepting the command.
+// The shape check catches zero-value/legacy literals while keeping Transition
+// independent from interpretationclosure's evidence model.
+func (c RecordInterpretationCommand) hasVerifiedInterpretationClosure() bool {
+	if len(c.closureReceiptDigestSHA256) != 64 {
+		return false
+	}
+	for _, r := range c.closureReceiptDigestSHA256 {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
+}
 
 func (RecordInterpretationCommand) synthesisCommand() {}
 
@@ -48,10 +125,7 @@ func (RecordAttemptCommand) synthesisCommand() {}
 // Recommendation determines the resulting phase: PhaseSucceeded,
 // PhaseRetry, PhaseReplan, or PhaseFailed. Evaluation itself carries no
 // timestamp field, so CompletedAt supplies the completion timestamp for
-// whichever terminal Receipt (if any) this evaluation produces —
-// Transition never reads a clock. Unused when the recommendation is
-// retry-generation or replan with budget remaining (no receipt is produced
-// in that case).
+// whichever terminal Receipt (if any) this evaluation produces.
 type RecordEvaluationCommand struct {
 	Evaluation  Evaluation
 	CompletedAt string
@@ -60,10 +134,8 @@ type RecordEvaluationCommand struct {
 func (RecordEvaluationCommand) synthesisCommand() {}
 
 // EvaluatorUnavailableCommand reports that no evaluation could be obtained
-// at all — the evaluator infrastructure itself failed to run, as distinct
-// from an evaluation that ran and reported checks as "unavailable". Legal
-// only from PhaseEvaluating. At is the caller-supplied completion
-// timestamp for the resulting receipt; Transition never reads a clock.
+// at all, as distinct from an evaluation that ran and reported checks as
+// unavailable. Legal only from PhaseEvaluating.
 type EvaluatorUnavailableCommand struct {
 	Detail string
 	At     string
@@ -72,10 +144,7 @@ type EvaluatorUnavailableCommand struct {
 func (EvaluatorUnavailableCommand) synthesisCommand() {}
 
 // AbortCommand explicitly stops the session. Legal from any non-terminal
-// phase — an operator or governing owner may need to stop a session during
-// planning, attempting, or any other non-terminal phase, not only while an
-// evaluation is being decided. At is the caller-supplied completion
-// timestamp for the resulting receipt.
+// phase.
 type AbortCommand struct {
 	Reason string
 	At     string
@@ -83,13 +152,8 @@ type AbortCommand struct {
 
 func (AbortCommand) synthesisCommand() {}
 
-// ResumeCommand presents a caller's freshly-observed identity for
-// comparison against the session's bound identity. Legal from any
-// non-terminal phase. A match leaves the state byte-for-byte unchanged (a
-// successful no-op, observed only via ResumeValidatedEvent); a mismatch
-// transitions to PhaseFailed with TerminalReason
-// ReasonIdentityDriftRefused. At is the caller-supplied completion
-// timestamp, used only in the mismatch case.
+// ResumeCommand presents a caller's freshly-observed identity for comparison
+// against the session's bound identity. Legal from any non-terminal phase.
 type ResumeCommand struct {
 	Observed ObservedIdentity
 	At       string

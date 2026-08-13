@@ -27,6 +27,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/cognitivecommand"
 	"github.com/globulario/sensei/golang/architecture/evaluatorcomposition"
+	"github.com/globulario/sensei/golang/architecture/interpretationclosure"
 	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/runnercomposition"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
@@ -45,6 +46,7 @@ func runSynthesisRun(args []string) int {
 	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	taskFlag := fs.String("task", "", "task directory (default: the active task from .sensei/tasks/active.yaml)")
 	interpretationPath := fs.String("interpretation", "", "path to an authored synthesis.Interpretation JSON file (required)")
+	interpretationChallengePath := fs.String("interpretation-challenge", "", "optional query-only interpretation challenge JSON; Go probes are executed against the bound checkout before O1 planning")
 	objectiveFlag := fs.String("objective", "", "session objective (default: the task's own recorded description)")
 	retryBudget := fs.Int("retry-budget", 0, "O1 Session.RetryBudget")
 	replanBudget := fs.Int("replan-budget", 0, "O1 Session.ReplanBudget")
@@ -222,6 +224,32 @@ Flags:
 	closureDigest, err := closureprotocol.SemanticDigest(closureReport)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: digest closure report: %v\n", err)
+		return exitResolutionFailure
+	}
+
+	// Optional Gate-1 challenge input contains queries only. It cannot carry
+	// supported/contradicted/authority outcomes; the production authority
+	// executes these probes against absRepo and recomputes the plan digest.
+	var challengePlan interpretationclosure.ChallengePlan
+	var challengePlanDigest string
+	if challengePath := strings.TrimSpace(*interpretationChallengePath); challengePath != "" {
+		if !filepath.IsAbs(challengePath) {
+			challengePath = filepath.Join(absRepo, challengePath)
+		}
+		challengePlan, challengePlanDigest, err = interpretationclosure.LoadChallengePlan(challengePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sensei synthesis-run: load --interpretation-challenge: %v\n", err)
+			return exitResolutionFailure
+		}
+	}
+
+	interpretationAuthority, err := synthesisdriver.NewClosureReportAuthority(synthesisdriver.ClosureReportAuthorityConfig{
+		Report:                    closureReport,
+		GoProbes:                  challengePlan.GoProbes,
+		ChallengePlanDigestSHA256: challengePlanDigest,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct interpretation authority: %v\n", err)
 		return exitResolutionFailure
 	}
 
@@ -513,13 +541,14 @@ Flags:
 
 	// --- step 10: build Config and run ---
 	config := synthesisdriver.Config{
-		WorkspaceIdentity:      identity,
-		RepositoryRoot:         absRepo,
-		CandidateStore:         candidateStore,
-		InterpretationProvider: interpretationProvider,
-		PlanningProvider:       planningProvider,
-		GenerationFactory:      generationFactory,
-		EvaluationEngine:       engine,
+		WorkspaceIdentity:       identity,
+		RepositoryRoot:          absRepo,
+		CandidateStore:          candidateStore,
+		InterpretationProvider:  interpretationProvider,
+		InterpretationAuthority: interpretationAuthority,
+		PlanningProvider:        planningProvider,
+		GenerationFactory:       generationFactory,
+		EvaluationEngine:        engine,
 		InterpretationPolicy: synthesisdriver.ProviderPolicy{
 			DeadlineAt:          deadline,
 			MaxObservationCount: *maxObservationCount,

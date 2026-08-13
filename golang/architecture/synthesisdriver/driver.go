@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/interpretationclosure"
 	"github.com/globulario/sensei/golang/architecture/providerport"
 	"github.com/globulario/sensei/golang/architecture/runnercomposition"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
@@ -17,7 +18,9 @@ import (
 )
 
 // Run synchronously drives one fresh O1 session through the existing O2, O3,
-// and O4 owners. It stops at candidate-ready-for-admission, an O1 terminal
+// and O4 owners. O2 interpretation output is candidate knowledge until the
+// separately injected InterpretationAuthority closes it. The driver stops at
+// candidate-ready-for-admission, an advisory interpretation, an O1 terminal
 // failure, a typed capability stop, or the separate O7 step limit.
 func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Result, error) {
 	if err := validateConfig(initial, config); err != nil {
@@ -26,10 +29,11 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 	startedAt := config.Now().UTC().Format(time.RFC3339)
 	state := initial
 	trace := Trace{
-		ProviderExecutions: []ProviderExecution{},
-		GenerationHandoffs: []runnercomposition.VerifiedGenerationHandoff{},
-		EvaluationResults:  nil,
-		Events:             []synthesis.Event{},
+		ProviderExecutions:            []ProviderExecution{},
+		InterpretationClosureReceipts: []interpretationclosure.Receipt{},
+		GenerationHandoffs:            []runnercomposition.VerifiedGenerationHandoff{},
+		EvaluationResults:             nil,
+		Events:                        []synthesis.Event{},
 	}
 	var interpretation *synthesis.Interpretation
 	var plan *synthesis.Plan
@@ -54,23 +58,54 @@ func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Re
 				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionProviderStopped,
 					fmt.Sprintf("interpretation provider ended with %q: %s", execution.Result.TerminalOutcome, execution.Result.Detail), startedAt, config.Now)
 			}
-			if execution.Result.InterpretationPayload == nil {
-				return Result{}, errors.New("synthesisdriver: completed interpretation result has no payload")
-			}
-			accepted, err := detached(*execution.Result.InterpretationPayload)
+
+			// O2 has authority to produce a candidate interpretation, not to
+			// promote it. This mapper re-validates and detaches the exact O2
+			// payload while deliberately returning data rather than an O1
+			// command.
+			accepted, err := providerport.MapInterpretationCandidate(state, execution.Request, execution.Result)
 			if err != nil {
-				return Result{}, err
+				return Result{}, fmt.Errorf("synthesisdriver: map interpretation candidate: %w", err)
 			}
-			command, err := providerport.MapToCommand(state, execution.Request, execution.Result, config.Now().UTC().Format(time.RFC3339))
+			interpretation = &accepted
+
+			closureReceipt, err := config.InterpretationAuthority.Assess(ctx, InterpretationAuthorityRequest{
+				RepositoryRoot: config.RepositoryRoot,
+				Session:        state.Session,
+				Interpretation: accepted,
+			})
 			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: map interpretation: %w", err)
+				return Result{}, fmt.Errorf("synthesisdriver: interpretation authority: %w", err)
+			}
+			if err := interpretationclosure.Verify(
+				closureReceipt,
+				accepted.InterpretationDigestSHA256,
+				state.Session.BaseRevision,
+				state.Session.GraphAuthorityDigestSHA256,
+				state.Session.ClosureDigestSHA256,
+			); err != nil {
+				return Result{}, fmt.Errorf("synthesisdriver: interpretation authority returned invalid receipt: %w", err)
+			}
+			trace.InterpretationClosureReceipts = append(trace.InterpretationClosureReceipts, closureReceipt)
+
+			if closureReceipt.Authority != interpretationclosure.AuthorityGoverning {
+				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionInterpretationAdvisory,
+					fmt.Sprintf("interpretation remains advisory: blockers=%v", closureReceipt.Blockers), startedAt, config.Now)
+			}
+
+			// This is the only O7 promotion boundary. The constructor
+			// independently recomputes the interpretation digest and requires
+			// the closure receipt to be governing for the exact repository and
+			// graph identity already bound into the session.
+			command, err := synthesis.NewRecordInterpretationCommand(state, accepted, closureReceipt)
+			if err != nil {
+				return Result{}, fmt.Errorf("synthesisdriver: promote interpretation: %w", err)
 			}
 			next, events, err := synthesis.Transition(state, command)
 			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: record interpretation: %w", err)
+				return Result{}, fmt.Errorf("synthesisdriver: record certified interpretation: %w", err)
 			}
 			state = next
-			interpretation = &accepted
 			trace.Events = append(trace.Events, events...)
 
 		case synthesis.PhasePlanning:
@@ -275,6 +310,10 @@ func finishResult(
 	for _, execution := range trace.ProviderExecutions {
 		o2 = append(o2, execution.Receipt.ReceiptDigestSHA256)
 	}
+	closures := make([]string, 0, len(trace.InterpretationClosureReceipts))
+	for _, receipt := range trace.InterpretationClosureReceipts {
+		closures = append(closures, receipt.ReceiptDigestSHA256)
+	}
 	runners := make([]string, 0, len(trace.GenerationHandoffs))
 	for _, handoff := range trace.GenerationHandoffs {
 		runners = append(runners, handoff.RunnerReceipt.RunnerReceiptDigestSHA256)
@@ -299,21 +338,22 @@ func finishResult(
 		candidateDigest = &value
 	}
 	receipt := RunReceipt{
-		SchemaVersion:                  RunReceiptSchemaVersion,
-		ReceiptID:                      fmt.Sprintf("o7.%s.%d.%s", state.Session.SessionDigestSHA256[:16], step, disposition),
-		GeneratedBy:                    GeneratedBy,
-		SessionDigestSHA256:            state.Session.SessionDigestSHA256,
-		FinalPhase:                     string(state.Phase),
-		Disposition:                    disposition,
-		StepCount:                      step,
-		O2ReceiptDigestsSHA256:         o2,
-		RunnerReceiptDigestsSHA256:     runners,
-		EvaluationReceiptDigestsSHA256: evaluations,
-		SynthesisReceiptDigestSHA256:   synthesisReceipt,
-		CandidateArtifactDigestSHA256:  candidateDigest,
-		Detail:                         strings.TrimSpace(detail),
-		StartedAt:                      startedAt,
-		CompletedAt:                    now().UTC().Format(time.RFC3339),
+		SchemaVersion:          RunReceiptSchemaVersion,
+		ReceiptID:              fmt.Sprintf("o7.%s.%d.%s", state.Session.SessionDigestSHA256[:16], step, disposition),
+		GeneratedBy:            GeneratedBy,
+		SessionDigestSHA256:    state.Session.SessionDigestSHA256,
+		FinalPhase:             string(state.Phase),
+		Disposition:            disposition,
+		StepCount:              step,
+		O2ReceiptDigestsSHA256: o2,
+		InterpretationClosureReceiptDigestsSHA256: closures,
+		RunnerReceiptDigestsSHA256:                runners,
+		EvaluationReceiptDigestsSHA256:            evaluations,
+		SynthesisReceiptDigestSHA256:              synthesisReceipt,
+		CandidateArtifactDigestSHA256:             candidateDigest,
+		Detail:                                    strings.TrimSpace(detail),
+		StartedAt:                                 startedAt,
+		CompletedAt:                               now().UTC().Format(time.RFC3339),
 	}
 	finalized, err := finalizeRunReceipt(receipt)
 	if err != nil {
@@ -336,8 +376,8 @@ func validateConfig(initial synthesis.SessionState, config Config) error {
 	if initial.Session.SessionDigestSHA256 == "" {
 		return errors.New("synthesisdriver: initial session has no digest")
 	}
-	if config.InterpretationProvider == nil || config.PlanningProvider == nil || config.GenerationFactory == nil || config.EvaluationEngine == nil || config.CandidateStore == nil {
-		return errors.New("synthesisdriver: provider, generation, evaluation, and candidate-store capabilities are required")
+	if config.InterpretationProvider == nil || config.InterpretationAuthority == nil || config.PlanningProvider == nil || config.GenerationFactory == nil || config.EvaluationEngine == nil || config.CandidateStore == nil {
+		return errors.New("synthesisdriver: interpretation-provider, interpretation-authority, planning-provider, generation, evaluation, and candidate-store capabilities are required")
 	}
 	if config.Now == nil {
 		return errors.New("synthesisdriver: clock is required")
