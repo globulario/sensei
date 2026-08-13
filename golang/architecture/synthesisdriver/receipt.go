@@ -15,6 +15,9 @@ func NormalizeRunReceipt(receipt RunReceipt) RunReceipt {
 	if receipt.O2ReceiptDigestsSHA256 == nil {
 		receipt.O2ReceiptDigestsSHA256 = []string{}
 	}
+	if receipt.InterpretationClosureReceiptDigestsSHA256 == nil {
+		receipt.InterpretationClosureReceiptDigestsSHA256 = []string{}
+	}
 	if receipt.RunnerReceiptDigestsSHA256 == nil {
 		receipt.RunnerReceiptDigestsSHA256 = []string{}
 	}
@@ -66,6 +69,7 @@ func ValidateRunReceipt(receipt RunReceipt) error {
 	}
 	for _, digests := range [][]string{
 		receipt.O2ReceiptDigestsSHA256,
+		receipt.InterpretationClosureReceiptDigestsSHA256,
 		receipt.RunnerReceiptDigestsSHA256,
 		receipt.EvaluationReceiptDigestsSHA256,
 	} {
@@ -81,6 +85,15 @@ func ValidateRunReceipt(receipt RunReceipt) error {
 	if receipt.CandidateArtifactDigestSHA256 != nil && !isSHA256(*receipt.CandidateArtifactDigestSHA256) {
 		return errors.New("synthesisdriver: invalid candidate artifact digest")
 	}
+
+	// Any run that crossed Created -> Planning must bind exactly one premise
+	// authority receipt. Provider stops before a completed interpretation may
+	// have none; an advisory stop must have exactly one because the closure
+	// result itself is the reason the run stopped.
+	if receipt.FinalPhase != string(synthesis.PhaseCreated) && len(receipt.InterpretationClosureReceiptDigestsSHA256) != 1 {
+		return fmt.Errorf("synthesisdriver: final phase %q requires exactly one interpretation closure receipt, got %d", receipt.FinalPhase, len(receipt.InterpretationClosureReceiptDigestsSHA256))
+	}
+
 	switch receipt.Disposition {
 	case DispositionCandidateReady:
 		if receipt.FinalPhase != string(synthesis.PhaseSucceeded) || receipt.SynthesisReceiptDigestSHA256 == nil || receipt.CandidateArtifactDigestSHA256 == nil {
@@ -89,6 +102,16 @@ func ValidateRunReceipt(receipt RunReceipt) error {
 	case DispositionTerminalFailure:
 		if receipt.FinalPhase != string(synthesis.PhaseFailed) || receipt.SynthesisReceiptDigestSHA256 == nil {
 			return errors.New("synthesisdriver: terminal-failure receipt lacks failed O1 identity")
+		}
+	case DispositionInterpretationAdvisory:
+		if receipt.FinalPhase != string(synthesis.PhaseCreated) {
+			return errors.New("synthesisdriver: interpretation-advisory stop must leave O1 in created phase")
+		}
+		if len(receipt.InterpretationClosureReceiptDigestsSHA256) != 1 {
+			return errors.New("synthesisdriver: interpretation-advisory stop requires exactly one closure receipt")
+		}
+		if receipt.SynthesisReceiptDigestSHA256 != nil || receipt.CandidateArtifactDigestSHA256 != nil {
+			return errors.New("synthesisdriver: interpretation-advisory stop cannot invent synthesis or candidate identity")
 		}
 	case DispositionProviderStopped, DispositionRunnerStopped, DispositionStepLimitReached:
 		if receipt.SynthesisReceiptDigestSHA256 != nil {
