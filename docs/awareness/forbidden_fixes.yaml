@@ -626,3 +626,9 @@ forbidden_fixes:
     reason: 'When the reconciliation validator reports a dangling tested_by anchor, do not make it green by substituting whichever discovered test has a similar name. The annotation is a proof claim about a specific behavior: repointing it at an unrelated passing test keeps the build quiet while the behavior stays unproven, which is the original failure with better camouflage. Either point it at a test that actually exercises the stated claim, or write that test. yaml2nt''s determinism claim was fixed this second way because no determinism test existed.'
     evidence:
       - cmd/yaml2nt/main.go claimed TestRunDeterministic for intent yaml2nt_produces_deterministic_output; no determinism test existed, so TestRun_Deterministic was written rather than repointing the annotation at TestRun_StdoutMode_ProducesValidNTriples
+  - id: forbidden_fix.synthesize_a_domain_registry_inside_the_repository_being_pub
+    title: Synthesize a domain registry inside the repository being published
+    summary: CI has no operator registry, so a build refuses with 'no readable domain registry'. Writing one into the workspace (or $RUNNER_TEMP from repo-controlled content) makes the repository being published assert its own domain binding, which is the 2026-08-05 wrong-workspace incident with an extra step. Use an independent source the corpus cannot forge -- a runner-injected CI attestation -- never a self-authored registry.
+    related_invariants:
+      - graph.publication_requires_pre_mutation_domain_source_admission
+    reason: CI has no operator registry, so a build refuses with 'no readable domain registry'. Writing one into the workspace (or $RUNNER_TEMP from repo-controlled content) makes the repository being published assert its own domain binding, which is the 2026-08-05 wrong-workspace incident with an extra step. Use an independent source the corpus cannot forge -- a runner-injected CI attestation -- never a self-authored registry.

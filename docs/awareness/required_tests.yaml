@@ -1521,3 +1521,8 @@ required_tests:
         - graph.publication_requires_pre_mutation_domain_source_admission
       failure_modes:
         - graph.wrong_workspace_publication_certifies_unrepresented_repository
+  - id: cmd/awg/domain_admission_ci_test.go:TestAttestationCannotSpeakForAnotherDomain
+    title: A CI attestation may admit only the repository it runs for
+    protects:
+      invariants:
+        - graph.publication_requires_pre_mutation_domain_source_admission
