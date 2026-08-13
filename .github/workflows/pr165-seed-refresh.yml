@@ -1,0 +1,56 @@
+name: PR 165 seed refresh
+
+on:
+  push:
+    branches: [agent/ci-domain-admission]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr165-seed-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: go.sum
+
+      - name: Regenerate authoritative seed artifacts
+        run: scripts/build-awareness-graph-self.sh
+
+      - name: Verify and commit generated artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- \
+            golang/server/embeddata/awareness.nt \
+            golang/server/embeddata/awareness.transaction.tsv \
+            'docs/awareness/generated/*.yaml'
+
+          if git diff --cached --quiet; then
+            echo "Seed already current."
+            exit 0
+          fi
+
+          echo "Generated artifact delta:"
+          git --no-pager diff --cached --stat
+
+          go build ./...
+          go test ./golang/server/ -count=1
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(awareness): refresh PR 165 seed + stamp"
+          git push origin HEAD:agent/ci-domain-admission
