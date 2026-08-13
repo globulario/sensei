@@ -64,6 +64,9 @@ func transitionRecordInterpretation(state SessionState, cmd RecordInterpretation
 	if state.Phase != PhaseCreated {
 		return illegal(state, "RecordInterpretationCommand is only legal from %s, got %s", PhaseCreated, state.Phase)
 	}
+	if !cmd.hasVerifiedInterpretationClosure() {
+		return illegal(state, "RecordInterpretationCommand requires verified interpretation-closure authority")
+	}
 	interp := cmd.Interpretation
 	if err := validateDocument(ValidateInterpretationSchema, interp); err != nil {
 		return illegal(state, "interpretation failed schema validation: %v", err)
