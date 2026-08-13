@@ -64,6 +64,23 @@ func (c RecordInterpretationCommand) InterpretationClosureReceiptDigestSHA256() 
 	return c.closureReceiptDigestSHA256
 }
 
+// hasVerifiedInterpretationClosure is deliberately package-private. The
+// marker is minted only by NewRecordInterpretationCommand after full receipt
+// verification, and Transition checks it again before accepting the command.
+// The shape check catches zero-value/legacy literals while keeping Transition
+// independent from interpretationclosure's evidence model.
+func (c RecordInterpretationCommand) hasVerifiedInterpretationClosure() bool {
+	if len(c.closureReceiptDigestSHA256) != 64 {
+		return false
+	}
+	for _, r := range c.closureReceiptDigestSHA256 {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
 func (RecordInterpretationCommand) synthesisCommand() {}
 
 // StartPlanningCommand begins a new planning generation. Legal only from
