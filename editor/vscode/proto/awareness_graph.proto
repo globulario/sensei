@@ -642,9 +642,32 @@ enum GraphFreshnessState {
 // response must carry. Callers must not infer authority from prose or rows
 // alone; they must read this block to know whether the answer came from the
 // current validated artifact.
+// AuthorityVerdict is the composed graph-authority conclusion as an EXPLICIT
+// value. A bool cannot express the three states that actually exist, and the
+// missing third one is load-bearing: proto3 omits default scalars, so a
+// `bool authoritative = false` is indistinguishable on the wire from a field
+// that was never produced. That erasure is exactly what made the R1 benchmark
+// environment unreproducible -- the composed verdict could only be recovered by
+// inferring it from a stderr message that happened to omit a limitation.
+//
+// "Not observed" and "observed to be false" are different epistemic states, and
+// this repository already refuses that conflation elsewhere (typed absence
+// rather than an empty list, not_applicable rather than a silent empty). This
+// is the boolean form of the same discipline.
+enum AuthorityVerdict {
+  // Never computed or never observed. NOT a synonym for non-authoritative.
+  AUTHORITY_VERDICT_UNSPECIFIED = 0;
+  AUTHORITY_VERDICT_AUTHORITATIVE = 1;
+  AUTHORITY_VERDICT_NOT_AUTHORITATIVE = 2;
+}
+
 message GraphAuthority {
   // True only when the live store was proven to match the expected embedded/
   // generated artifact digest exactly.
+  //
+  // DEPRECATED as the machine-readable surface: prefer `verdict`. This field is
+  // retained for compatibility and is derived from the same predicate, so it
+  // cannot drift. It remains unable to distinguish false from unobserved.
   bool authoritative = 1;
 
   // Freshness verdict for the loaded graph.
@@ -669,6 +692,11 @@ message GraphAuthority {
   string certified_services_repo_commit = 14;
   bool embedded_transaction_matches_seed = 15;
   string embedded_transaction_detail = 16;
+
+  // The composed conclusion, stated explicitly. Consumers that must
+  // distinguish "not authoritative" from "not observed" MUST read this rather
+  // than `authoritative`.
+  AuthorityVerdict verdict = 17;
 }
 
 enum CandidateQueueState {

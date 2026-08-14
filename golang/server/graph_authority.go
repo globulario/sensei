@@ -50,8 +50,20 @@ func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarene
 		detail = string(semanticState) + ": " + semanticDetail + " | freshness: " + snap.verification.Detail
 	}
 
+	// ONE predicate, two surfaces. `verdict` is the machine-readable field;
+	// `authoritative` is retained for compatibility and derived from the same
+	// value here so the two can never disagree. Deriving the bool from the
+	// verdict (rather than computing it twice) is what makes that structural
+	// instead of a convention someone must remember.
+	authoritative := freshnessCurrent && semanticState == closure.SemanticClosureProven
+	verdict := awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE
+	if authoritative {
+		verdict = awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_AUTHORITATIVE
+	}
+
 	return &awarenesspb.GraphAuthority{
-		Authoritative:                   freshnessCurrent && semanticState == closure.SemanticClosureProven,
+		Verdict:                         verdict,
+		Authoritative:                   authoritative,
 		GraphFreshnessState:             graphFreshnessStateProto(snap.verification.State),
 		GraphFreshnessDetail:            detail,
 		BuildProvenanceState:            graphAuthorityBuildProvenance(),
