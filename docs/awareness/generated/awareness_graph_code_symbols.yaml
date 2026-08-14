@@ -22228,6 +22228,18 @@ test_symbols:
     symbol: TestAwarenessFinalForm_WorkflowBlockedResume
     package: main
     language: go
+  - id: golang/server/graph_authority_verdict_test.go:TestAuthorityVerdictAndBoolNeverDisagree
+    file: golang/server/graph_authority_verdict_test.go
+    symbol: TestAuthorityVerdictAndBoolNeverDisagree
+    package: main
+    language: go
+    doc: "The compatibility bool is derived from the verdict, so the two surfaces\ncannot disagree. A drift here would let a consumer read one field and get a\ndifferent answer than a consumer reading the other."
+  - id: golang/server/graph_authority_verdict_test.go:TestAuthorityVerdictDistinguishesNegativeFromUnobserved
+    file: golang/server/graph_authority_verdict_test.go
+    symbol: TestAuthorityVerdictDistinguishesNegativeFromUnobserved
+    package: main
+    language: go
+    doc: "The composed verdict must survive JSON serialization in ALL THREE states.\nproto3 omits default scalars, so `authoritative:false` vanishes on the wire\nand becomes indistinguishable from \"never observed\" -- the erasure that made\nthe R1 benchmark environment unreproducible. UNSPECIFIED is still omitted (it\nis the enum's zero), but it is omitted as an ABSENCE, which is what it means;\nNOT_AUTHORITATIVE is a real negative and must always appear."
   - id: golang/server/graph_freshness_runtime_marker_test.go:TestBriefing_RuntimeMarkerAllowsNonEmbeddedAuthoritativeGraph
     file: golang/server/graph_freshness_runtime_marker_test.go
     symbol: TestBriefing_RuntimeMarkerAllowsNonEmbeddedAuthoritativeGraph
