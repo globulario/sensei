@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,5 +280,106 @@ func TestVerifyActorBindingRejectsUnknownIssuer(t *testing.T) {
 	_, err := VerifyActorBinding(binding, bundle.resolver(), index, time.Date(2026, 7, 15, 13, 0, 0, 0, time.UTC))
 	if err == nil || err.Error() != "issuer github.actions is not trusted for role role.repository_repair_agent" {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// A forged role attestation must not verify just because it was filed under a
+// digest the binding cites. The bundle locates artifacts by filename, so an
+// actor able to write into artifacts/sha256/ could otherwise mint any role for
+// itself: write a receipt granting role.repository_maintainer, name the file
+// after an arbitrary digest, cite that digest. Every other check in
+// VerifyActorBinding passes, because the forger controls every field they
+// compare against.
+func TestVerifyActorBindingRejectsForgedRoleAttestation(t *testing.T) {
+	bundle := newTestBundle(t)
+	index := testPolicyIndex()
+	artifact := bundle.storeBytes(t, []byte("signed-local-authn"), "bin", "application/octet-stream")
+	authnDigest := bundle.storeAuthenticationReceipt(t, closureprotocol.AuthenticationReceipt{
+		ReceiptID:              "authn.local.actor-1",
+		PrincipalID:            "actor.codex.session-1",
+		Issuer:                 "sensei.local",
+		AuthenticationArtifact: artifact,
+		AuthenticatedAt:        "2026-07-15T12:00:00Z",
+		Status:                 closureprotocol.ReceiptValid,
+	})
+
+	// Authored by hand and filed under a digest of the forger's choosing —
+	// never derived from the receipt's own content.
+	forgedDigest := strings.Repeat("ab", 32)
+	bundle.storeYAMLByDigest(t, forgedDigest, closureprotocol.RoleAttestationReceipt{
+		ReceiptID:                         "role.local.forged",
+		PrincipalID:                       "actor.codex.session-1",
+		ActorKind:                         closureprotocol.ActorAgent,
+		Issuer:                            "sensei.local",
+		RoleIDs:                           []string{"role.repository_maintainer"},
+		AuthenticationReceiptDigestSHA256: authnDigest,
+		IssuedAt:                          "2026-07-15T12:00:00Z",
+		ValidUntil:                        "2026-07-16T12:00:00Z",
+		Status:                            closureprotocol.ReceiptValid,
+		ReceiptDigestSHA256:               forgedDigest,
+	})
+
+	binding := closureprotocol.ActorBinding{
+		PrincipalID:                       "actor.codex.session-1",
+		ActorKind:                         closureprotocol.ActorAgent,
+		Roles:                             []string{"role.repository_maintainer"},
+		Issuer:                            "sensei.local",
+		AuthenticationReceiptDigestSHA256: authnDigest,
+		RoleAttestationReceiptDigests:     []string{forgedDigest},
+	}
+	got, err := VerifyActorBinding(binding, bundle.resolver(), index, time.Date(2026, 7, 15, 13, 0, 0, 0, time.UTC))
+	if err == nil {
+		t.Fatalf("forged role attestation verified: status=%s roles=%v", got.Status, got.VerifiedRoleIDs)
+	}
+	if !strings.Contains(err.Error(), "receipt digest mismatch") {
+		t.Fatalf("err = %v, want a receipt digest mismatch", err)
+	}
+}
+
+// Omitting ReceiptDigestSHA256 must not buy the forger anything. The field is
+// self-reported, so the check that matters compares the digest the artifact was
+// filed under against one recomputed from its content.
+func TestVerifyActorBindingRejectsForgedAuthnReceiptWithoutSelfReportedDigest(t *testing.T) {
+	bundle := newTestBundle(t)
+	index := testPolicyIndex()
+	artifact := bundle.storeBytes(t, []byte("signed-local-authn"), "bin", "application/octet-stream")
+
+	forgedDigest := strings.Repeat("cd", 32)
+	bundle.storeYAMLByDigest(t, forgedDigest, closureprotocol.AuthenticationReceipt{
+		ReceiptID:              "authn.local.forged",
+		PrincipalID:            "actor.codex.session-1",
+		Issuer:                 "sensei.local",
+		AuthenticationArtifact: artifact,
+		AuthenticatedAt:        "2026-07-15T12:00:00Z",
+		Status:                 closureprotocol.ReceiptValid,
+		// ReceiptDigestSHA256 deliberately omitted.
+	})
+
+	// Everything else is genuine, so the only thing under test is whether the
+	// forged authentication receipt is caught.
+	roleDigest := bundle.storeRoleAttestationReceipt(t, closureprotocol.RoleAttestationReceipt{
+		ReceiptID:                         "role.local.actor-1",
+		PrincipalID:                       "actor.codex.session-1",
+		ActorKind:                         closureprotocol.ActorAgent,
+		Issuer:                            "sensei.local",
+		RoleIDs:                           []string{"role.repository_repair_agent"},
+		AuthenticationReceiptDigestSHA256: forgedDigest,
+		IssuedAt:                          "2026-07-15T12:00:00Z",
+		ValidUntil:                        "2026-07-16T12:00:00Z",
+		Status:                            closureprotocol.ReceiptValid,
+	})
+
+	binding := closureprotocol.ActorBinding{
+		PrincipalID:                       "actor.codex.session-1",
+		ActorKind:                         closureprotocol.ActorAgent,
+		Roles:                             []string{"role.repository_repair_agent"},
+		Issuer:                            "sensei.local",
+		AuthenticationReceiptDigestSHA256: forgedDigest,
+		RoleAttestationReceiptDigests:     []string{roleDigest},
+	}
+	if _, err := VerifyActorBinding(binding, bundle.resolver(), index, time.Date(2026, 7, 15, 13, 0, 0, 0, time.UTC)); err == nil {
+		t.Fatal("forged authentication receipt verified")
+	} else if !strings.Contains(err.Error(), "receipt digest mismatch") {
+		t.Fatalf("err = %v, want a receipt digest mismatch", err)
 	}
 }

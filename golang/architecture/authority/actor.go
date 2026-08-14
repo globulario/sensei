@@ -221,6 +221,25 @@ func VerifyActorBinding(binding closureprotocol.ActorBinding, resolver ArtifactR
 	return result, nil
 }
 
+// These receipts are stored as artifacts/sha256/<digest>.yaml, where <digest>
+// is the receipt's STRUCTURAL digest (SemanticDigest of the struct with
+// ReceiptDigestSHA256 blanked) — not a digest of the stored bytes. That is why
+// LocalBundleResolver.ResolveByDigest cannot verify them: it sees bytes and has
+// no way to recompute a type-specific digest.
+//
+// So the binding has to be re-established HERE, where the type is known. Without
+// it, content addressing is claimed but never enforced: the resolver locates the
+// artifact by filename alone, so anyone able to write into artifacts/sha256/ can
+// name a hand-authored receipt after any digest and have it accepted as that
+// digest's receipt. Trusting the receipt's own ReceiptDigestSHA256 field instead
+// would prove nothing — a forger fills it in, or omits it to skip the check.
+func verifyReceiptDigest(requested, recomputed string) error {
+	if recomputed != strings.TrimSpace(requested) {
+		return fmt.Errorf("receipt digest mismatch: artifact stored as %s has content digest %s", strings.TrimSpace(requested), recomputed)
+	}
+	return nil
+}
+
 func loadAuthnReceipt(resolver ArtifactResolver, digest string) (closureprotocol.AuthenticationReceipt, error) {
 	data, err := resolver.ResolveByDigest(strings.TrimSpace(digest))
 	if err != nil {
@@ -228,6 +247,13 @@ func loadAuthnReceipt(resolver ArtifactResolver, digest string) (closureprotocol
 	}
 	var receipt closureprotocol.AuthenticationReceipt
 	if err := yaml.Unmarshal(data, &receipt); err != nil {
+		return closureprotocol.AuthenticationReceipt{}, err
+	}
+	recomputed, err := closureprotocol.AuthenticationReceiptDigest(receipt)
+	if err != nil {
+		return closureprotocol.AuthenticationReceipt{}, err
+	}
+	if err := verifyReceiptDigest(digest, recomputed); err != nil {
 		return closureprotocol.AuthenticationReceipt{}, err
 	}
 	return receipt, nil
@@ -242,6 +268,13 @@ func loadRoleAttestationReceipt(resolver ArtifactResolver, digest string) (closu
 	if err := yaml.Unmarshal(data, &receipt); err != nil {
 		return closureprotocol.RoleAttestationReceipt{}, err
 	}
+	recomputed, err := closureprotocol.RoleAttestationReceiptDigest(receipt)
+	if err != nil {
+		return closureprotocol.RoleAttestationReceipt{}, err
+	}
+	if err := verifyReceiptDigest(digest, recomputed); err != nil {
+		return closureprotocol.RoleAttestationReceipt{}, err
+	}
 	return receipt, nil
 }
 
@@ -252,6 +285,13 @@ func loadDelegationReceipt(resolver ArtifactResolver, digest string) (closurepro
 	}
 	var receipt closureprotocol.DelegationReceipt
 	if err := yaml.Unmarshal(data, &receipt); err != nil {
+		return closureprotocol.DelegationReceipt{}, err
+	}
+	recomputed, err := closureprotocol.DelegationReceiptDigest(receipt)
+	if err != nil {
+		return closureprotocol.DelegationReceipt{}, err
+	}
+	if err := verifyReceiptDigest(digest, recomputed); err != nil {
 		return closureprotocol.DelegationReceipt{}, err
 	}
 	return receipt, nil
