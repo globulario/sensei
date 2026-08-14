@@ -19,8 +19,8 @@ func extractBoundaries(semanticObs []gosemantics.Observation) []architecture.Fac
 			if callerFile == "" || calleeFile == "" {
 				continue
 			}
-			callerComp, ok1 := importgraph.ComponentForFile(callerFile)
-			calleeComp, ok2 := importgraph.ComponentForFile(calleeFile)
+			callerComp, ok1 := importgraph.ComponentForFile(callerFile, "go")
+			calleeComp, ok2 := importgraph.ComponentForFile(calleeFile, "go")
 			if ok1 && ok2 && callerComp != calleeComp && callerComp != "" && calleeComp != "" {
 				facts = append(facts, architecture.Fact{
 					Kind:       "boundary",

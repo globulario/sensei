@@ -93,17 +93,20 @@ func TestConfig_InvalidEdge(t *testing.T) {
 	}
 }
 
-// TestComponentForDir guards the language-neutral rollup scheme.
-func TestComponentForDir(t *testing.T) {
+// TestComponentForDir_ManifestRoot guards the rollup for languages whose owned
+// unit is the manifest directory, with sources beneath it. Applying Go's
+// directory-is-package rule here would split crates/alpha into crates/alpha/src
+// and invent a component per src/ folder.
+func TestComponentForDir_ManifestRoot(t *testing.T) {
 	cases := []struct {
 		dir     string
 		wantID  string
 		wantOK  bool
 		wantDir string
 	}{
-		{"golang/server", "component.golang.server", true, "golang/server"},
-		{"golang/server/internal/util", "component.golang.server", true, "golang/server"},
-		{"cmd/app", "component.cmd.app", true, "cmd/app"},
+		{"crates/alpha", "component.crates.alpha", true, "crates/alpha"},
+		{"crates/alpha/src", "component.crates.alpha", true, "crates/alpha"},
+		{"packages/app/src/lib", "component.packages.app", true, "packages/app"},
 		{"mytool", "component.mytool", true, "mytool"},
 		{"mytool/sub/deep", "component.mytool", true, "mytool"},
 		{"golang", "", false, ""}, // file directly in a source root → no component
@@ -111,9 +114,64 @@ func TestComponentForDir(t *testing.T) {
 		{"", "", false, ""},
 	}
 	for _, c := range cases {
-		id, dir, ok := componentForDir(c.dir)
+		id, dir, ok := componentForDir(c.dir, granularityManifestRoot)
 		if ok != c.wantOK || id != c.wantID || (ok && dir != c.wantDir) {
-			t.Errorf("componentForDir(%q) = (%q,%q,%v), want (%q,%q,%v)", c.dir, id, dir, ok, c.wantID, c.wantDir, c.wantOK)
+			t.Errorf("componentForDir(%q, manifestRoot) = (%q,%q,%v), want (%q,%q,%v)", c.dir, id, dir, ok, c.wantID, c.wantDir, c.wantOK)
+		}
+	}
+}
+
+// TestComponentForDir_PackageDir guards Go's rule: the directory holding the
+// sources IS the package. The old two-segment rollup made golang/architecture a
+// single component over 77 distinct packages, so every file in that tree
+// resolved to the same node and the component layer discriminated nothing.
+func TestComponentForDir_PackageDir(t *testing.T) {
+	cases := []struct {
+		dir     string
+		wantID  string
+		wantOK  bool
+		wantDir string
+	}{
+		{"golang/server", "component.golang.server", true, "golang/server"},
+		{"golang/architecture/workspacecontract", "component.golang.architecture.workspacecontract", true, "golang/architecture/workspacecontract"},
+		{"golang/architecture/testobligation", "component.golang.architecture.testobligation", true, "golang/architecture/testobligation"},
+		{"cmd/app", "component.cmd.app", true, "cmd/app"},
+		{"mytool/sub/deep", "component.mytool.sub.deep", true, "mytool/sub/deep"},
+		{"golang", "", false, ""}, // a source root is a layout convention, not a unit
+		{".", "", false, ""},
+		{"", "", false, ""},
+	}
+	for _, c := range cases {
+		id, dir, ok := componentForDir(c.dir, granularityPackageDir)
+		if ok != c.wantOK || id != c.wantID || (ok && dir != c.wantDir) {
+			t.Errorf("componentForDir(%q, packageDir) = (%q,%q,%v), want (%q,%q,%v)", c.dir, id, dir, ok, c.wantID, c.wantDir, c.wantOK)
+		}
+	}
+}
+
+// Two packages that used to collide under the same component must now be
+// distinct — this is the whole point of the migration.
+func TestComponentForDir_SiblingPackagesNoLongerCollide(t *testing.T) {
+	a, _, _ := componentForDir("golang/architecture/workspacecontract", granularityPackageDir)
+	b, _, _ := componentForDir("golang/architecture/testobligation", granularityPackageDir)
+	if a == b {
+		t.Fatalf("sibling packages still share one component id: %q", a)
+	}
+	oldA, _, _ := componentForDir("golang/architecture/workspacecontract", granularityManifestRoot)
+	oldB, _, _ := componentForDir("golang/architecture/testobligation", granularityManifestRoot)
+	if oldA != oldB {
+		t.Fatalf("precondition: under the old rule these collided; got %q vs %q", oldA, oldB)
+	}
+}
+
+// Granularity is chosen by language, not guessed globally.
+func TestGranularityFor(t *testing.T) {
+	if granularityFor("go") != granularityPackageDir {
+		t.Error("go must use directory-is-package")
+	}
+	for _, lang := range []string{"rust", "typescript", "python", "unknown-language"} {
+		if granularityFor(lang) != granularityManifestRoot {
+			t.Errorf("%s must use the conservative manifest-root rollup", lang)
 		}
 	}
 }

@@ -373,7 +373,7 @@ func (e *extractor) componentForFile(file string) string {
 	if !strings.Contains(file, "/") && e.rootComponent != nil {
 		return e.rootComponent.ID
 	}
-	component, ok := importgraph.ComponentForFile(file)
+	component, ok := importgraph.ComponentForFile(file, "go")
 	if !ok {
 		return ""
 	}
